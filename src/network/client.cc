@@ -47,7 +47,7 @@ static sw_inline void execute_onConnect(swClient *cli)
     if (cli->timer)
     {
         swoole_timer_del(cli->timer);
-        cli->timer = NULL;
+        cli->timer = nullptr;
     }
     cli->onConnect(cli);
 }
@@ -213,7 +213,7 @@ int swClient_shutdown(swClient *cli, int __how)
 int swClient_enable_ssl_encrypt(swClient *cli)
 {
     cli->ssl_context = swSSL_get_context(&cli->ssl_option);
-    if (cli->ssl_context == NULL)
+    if (cli->ssl_context == nullptr)
     {
         return SW_ERR;
     }
@@ -311,7 +311,7 @@ static int swClient_inet_addr(swClient *cli, const char *host, int port)
     cli->server_host = host;
     cli->server_port = port;
 
-    void *addr = NULL;
+    void *addr = nullptr;
     if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP)
     {
         cli->server_addr.addr.inet_v4.sin_family = AF_INET;
@@ -374,12 +374,12 @@ void swClient_free(swClient *cli)
     if (cli->socket->out_buffer)
     {
         swBuffer_free(cli->socket->out_buffer);
-        cli->socket->out_buffer = NULL;
+        cli->socket->out_buffer = nullptr;
     }
     if (cli->socket->in_buffer)
     {
         swBuffer_free(cli->socket->in_buffer);
-        cli->socket->in_buffer = NULL;
+        cli->socket->in_buffer = nullptr;
     }
     if (cli->async)
     {
@@ -393,7 +393,7 @@ void swClient_free(swClient *cli)
 
 static int swClient_close(swClient *cli)
 {
-    if (cli->socket == NULL || cli->closed)
+    if (cli->socket == nullptr || cli->closed)
     {
         return SW_ERR;
     }
@@ -442,7 +442,7 @@ static int swClient_close(swClient *cli)
     if (cli->buffer)
     {
         swString_free(cli->buffer);
-        cli->buffer = NULL;
+        cli->buffer = nullptr;
     }
     if (cli->type == SW_SOCK_UNIX_DGRAM)
     {
@@ -458,7 +458,7 @@ static int swClient_close(swClient *cli)
         if (cli->timer)
         {
             swoole_timer_del(cli->timer);
-            cli->timer = NULL;
+            cli->timer = nullptr;
         }
         //onClose callback
         if (cli->active && cli->onClose)
@@ -555,7 +555,7 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
         if (cli->socks5_proxy)
         {
             char buf[1024];
-            swSocks5_pack(buf, cli->socks5_proxy->username == NULL ? 0x00 : 0x02);
+            swSocks5_pack(buf, cli->socks5_proxy->username == nullptr ? 0x00 : 0x02);
             if (cli->send(cli, buf, 3, 0) < 0)
             {
                 return SW_ERR;
@@ -747,7 +747,7 @@ static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, i
     int n;
 
     assert(length > 0);
-    assert(data != NULL);
+    assert(data != nullptr);
 
     while (written < length)
     {
@@ -1417,7 +1417,7 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
         if (cli->socks5_proxy && cli->socks5_proxy->state == SW_SOCKS5_STATE_WAIT)
         {
             char buf[3];
-            swSocks5_pack(buf, cli->socks5_proxy->username == NULL ? 0x00 : 0x02);
+            swSocks5_pack(buf, cli->socks5_proxy->username == nullptr ? 0x00 : 0x02);
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             return cli->send(cli, buf, sizeof(buf), 0);
         }

@@ -388,7 +388,7 @@ swSocket* swSocket_new(int fd, enum swFd_type type)
     if (!socket)
     {
         swSysWarn("calloc(1, %ld) failed", sizeof(*socket));
-        return NULL;
+        return nullptr;
     }
     socket->fd = fd;
     socket->fdtype = type;
@@ -770,10 +770,10 @@ int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t
         return SW_ERR;
     }
 
-    if (conn->out_buffer == NULL)
+    if (conn->out_buffer == nullptr)
     {
         conn->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
-        if (conn->out_buffer == NULL)
+        if (conn->out_buffer == nullptr)
         {
             return SW_ERR;
         }
@@ -781,7 +781,7 @@ int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t
 
     swBuffer_chunk error_chunk;
     swTask_sendfile *task = (swTask_sendfile *) sw_malloc(sizeof(swTask_sendfile));
-    if (task == NULL)
+    if (task == nullptr)
     {
         swWarn("malloc for swTask_sendfile failed");
         return SW_ERR;
@@ -810,7 +810,7 @@ int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t
     }
 
     swBuffer_chunk *chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
-    if (chunk == NULL)
+    if (chunk == nullptr)
     {
         swWarn("get out_buffer chunk failed");
         error_chunk.store.ptr = task;

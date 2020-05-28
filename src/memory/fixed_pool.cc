@@ -35,7 +35,7 @@ swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t s
     if (!memory)
     {
         swWarn("malloc(%ld) failed", size);
-        return NULL;
+        return nullptr;
     }
 
     swFixedPool *object = (swFixedPool *) memory;
@@ -109,7 +109,7 @@ static void swFixedPool_init(swFixedPool *object)
         slice = (swFixedPool_slice *) cur;
         bzero(slice, sizeof(swFixedPool_slice));
 
-        if (object->head != NULL)
+        if (object->head != nullptr)
         {
             object->head->pre = slice;
             slice->next = object->head;
@@ -128,7 +128,7 @@ static void swFixedPool_init(swFixedPool *object)
         }
         else
         {
-            slice->pre = NULL;
+            slice->pre = nullptr;
             break;
         }
 
@@ -150,13 +150,13 @@ static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
          * move next slice to head (idle list)
          */
         object->head = slice->next;
-        slice->next->pre = NULL;
+        slice->next->pre = nullptr;
 
         /*
          * move this slice to tail (busy list)
          */
         object->tail->next = slice;
-        slice->next = NULL;
+        slice->next = nullptr;
         slice->pre = object->tail;
         object->tail = slice;
 
@@ -164,7 +164,7 @@ static void* swFixedPool_alloc(swMemoryPool *pool, uint32_t size)
     }
     else
     {
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -185,14 +185,14 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
     slice->lock = 0;
 
     //list head, AB
-    if (slice->pre == NULL)
+    if (slice->pre == nullptr)
     {
         return;
     }
     //list tail, DE
-    if (slice->next == NULL)
+    if (slice->next == nullptr)
     {
-        slice->pre->next = NULL;
+        slice->pre->next = nullptr;
         object->tail = slice->pre;
     }
     //middle BCD
@@ -202,7 +202,7 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr)
         slice->next->pre = slice->pre;
     }
 
-    slice->pre = NULL;
+    slice->pre = nullptr;
     slice->next = object->head;
     object->head->pre = slice;
     object->head = slice;
@@ -228,7 +228,7 @@ void swFixedPool_debug(swMemoryPool *pool)
     swFixedPool_slice *slice = object->head;
 
     printf("===============================%s=================================\n", __FUNCTION__);
-    while (slice != NULL)
+    while (slice != nullptr)
     {
         if (slice->next == slice)
         {

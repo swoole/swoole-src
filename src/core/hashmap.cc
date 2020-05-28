@@ -46,7 +46,7 @@ static sw_inline void swHashMap_node_free(swHashMap *hmap, swHashMap_node *node)
 static sw_inline int swHashMap_node_add(swHashMap_node *root, swHashMap_node *add)
 {
     unsigned _ha_bkt;
-    add->hh.next = NULL;
+    add->hh.next = nullptr;
     add->hh.key = add->key_str;
     add->hh.keylen = add->key_int;
 
@@ -70,7 +70,7 @@ static sw_inline swHashMap_node* swHashMap_node_each(swHashMap* hmap)
     {
         return hmap->iterator = (struct swHashMap_node *) hmap->iterator->hh.next;
     }
-    return NULL;
+    return nullptr;
 }
 
 swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
@@ -79,14 +79,14 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     if (!hmap)
     {
         swWarn("malloc[1] failed");
-        return NULL;
+        return nullptr;
     }
     swHashMap_node *root = (swHashMap_node *) sw_malloc(sizeof(swHashMap_node));
     if (!root)
     {
         swWarn("malloc[2] failed");
         sw_free(hmap);
-        return NULL;
+        return nullptr;
     }
 
     bzero(hmap, sizeof(swHashMap));
@@ -100,7 +100,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     {
         swWarn("malloc for table failed");
         sw_free(hmap);
-        return NULL;
+        return nullptr;
     }
 
     memset(root->hh.tbl, 0, sizeof(UT_hash_table));
@@ -113,7 +113,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
     {
         swWarn("malloc for buckets failed");
         sw_free(hmap);
-        return NULL;
+        return nullptr;
     }
     memset(root->hh.tbl->buckets, 0, SW_HASHMAP_INIT_BUCKET_N * sizeof(struct UT_hash_bucket));
     root->hh.tbl->signature = HASH_SIGNATURE;
@@ -126,7 +126,7 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
 int swHashMap_add(swHashMap* hmap, const char *key, uint16_t key_len, void *data)
 {
     swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
-    if (node == NULL)
+    if (node == nullptr)
     {
         swWarn("malloc failed");
         return SW_ERR;
@@ -143,14 +143,14 @@ int swHashMap_add_int(swHashMap *hmap, uint64_t key, void *data)
 {
     swHashMap_node *node = (swHashMap_node*) sw_malloc(sizeof(swHashMap_node));
     swHashMap_node *root = hmap->root;
-    if (node == NULL)
+    if (node == nullptr)
     {
         swWarn("malloc failed");
         return SW_ERR;
     }
     node->key_int = key;
     node->data = data;
-    node->key_str = NULL;
+    node->key_str = nullptr;
     HASH_ADD_INT(root, key_int, node);
     return SW_OK;
 }
@@ -159,7 +159,7 @@ static sw_inline swHashMap_node *swHashMap_node_find(swHashMap_node *root, const
 {
     swHashMap_node *out;
     unsigned bucket, hash;
-    out = NULL;
+    out = nullptr;
     if (root)
     {
         hash = swoole_hash_jenkins(key_str, key_len);
@@ -174,7 +174,7 @@ static int swHashMap_node_delete(swHashMap_node *root, swHashMap_node *del_node)
     unsigned bucket;
     struct UT_hash_handle *_hd_hh_del;
 
-    if ((del_node->hh.prev == NULL) && (del_node->hh.next == NULL))
+    if ((del_node->hh.prev == nullptr) && (del_node->hh.next == nullptr))
     {
         sw_free(root->hh.tbl->buckets);
         sw_free(root->hh.tbl);
@@ -209,21 +209,21 @@ void* swHashMap_find(swHashMap* hmap, const char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *ret = swHashMap_node_find(root, key, key_len);
-    if (ret == NULL)
+    if (ret == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     return ret->data;
 }
 
 void* swHashMap_find_int(swHashMap* hmap, uint64_t key)
 {
-    swHashMap_node *ret = NULL;
+    swHashMap_node *ret = nullptr;
     swHashMap_node *root = hmap->root;
     HASH_FIND_INT(root, &key, ret);
-    if (ret == NULL)
+    if (ret == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     return ret->data;
 }
@@ -232,7 +232,7 @@ int swHashMap_update(swHashMap* hmap, const char *key, uint16_t key_len, void *d
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *node = swHashMap_node_find(root, key, key_len);
-    if (node == NULL)
+    if (node == nullptr)
     {
         return SW_ERR;
     }
@@ -243,10 +243,10 @@ int swHashMap_update(swHashMap* hmap, const char *key, uint16_t key_len, void *d
 
 void swHashMap_update_int(swHashMap* hmap, uint64_t key, void *data)
 {
-    swHashMap_node *ret = NULL;
+    swHashMap_node *ret = nullptr;
     swHashMap_node *root = hmap->root;
     HASH_FIND_INT(root, &key, ret);
-    if (ret == NULL)
+    if (ret == nullptr)
     {
         return;
     }
@@ -258,7 +258,7 @@ int swHashMap_del(swHashMap* hmap, const char *key, uint16_t key_len)
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *node = swHashMap_node_find(root, key, key_len);
-    if (node == NULL)
+    if (node == nullptr)
     {
         return SW_ERR;
     }
@@ -269,11 +269,11 @@ int swHashMap_del(swHashMap* hmap, const char *key, uint16_t key_len)
 
 int swHashMap_del_int(swHashMap *hmap, uint64_t key)
 {
-    swHashMap_node *ret = NULL;
+    swHashMap_node *ret = nullptr;
     swHashMap_node *root = hmap->root;
 
     HASH_FIND_INT(root, &key, ret);
-    if (ret == NULL)
+    if (ret == nullptr)
     {
         return SW_ERR;
     }
@@ -286,7 +286,7 @@ int swHashMap_move(swHashMap *hmap, const char *old_key, uint16_t old_key_len, c
 {
     swHashMap_node *root = hmap->root;
     swHashMap_node *node = swHashMap_node_find(root, old_key, old_key_len);
-    if (node == NULL)
+    if (node == nullptr)
     {
         return SW_ERR;
     }
@@ -299,11 +299,11 @@ int swHashMap_move(swHashMap *hmap, const char *old_key, uint16_t old_key_len, c
 
 int swHashMap_move_int(swHashMap *hmap, uint64_t old_key, uint64_t new_key)
 {
-    swHashMap_node *ret = NULL;
+    swHashMap_node *ret = nullptr;
     swHashMap_node *root = hmap->root;
 
     HASH_FIND_INT(root, &old_key, ret);
-    if (ret == NULL)
+    if (ret == nullptr)
     {
         return SW_ERR;
     }
@@ -333,7 +333,7 @@ void* swHashMap_each(swHashMap* hmap, char **key)
     }
     else
     {
-        return NULL;
+        return nullptr;
     }
 }
 
@@ -350,13 +350,13 @@ void* swHashMap_each_int(swHashMap* hmap, uint64_t *key)
     }
     else
     {
-        return NULL;
+        return nullptr;
     }
 }
 
 uint32_t swHashMap_count(swHashMap* hmap)
 {
-    if (hmap == NULL)
+    if (hmap == nullptr)
     {
         return 0;
     }
@@ -365,7 +365,7 @@ uint32_t swHashMap_count(swHashMap* hmap)
 
 void swHashMap_clean(swHashMap* hmap)
 {
-    swHashMap_node *find, *tmp = NULL;
+    swHashMap_node *find, *tmp = nullptr;
     swHashMap_node *root = hmap->root;
     HASH_ITER(hh, root, find, tmp)
     {
@@ -377,7 +377,7 @@ void swHashMap_clean(swHashMap* hmap)
 
 void swHashMap_free(swHashMap* hmap)
 {
-    swHashMap_node *find, *tmp = NULL;
+    swHashMap_node *find, *tmp = nullptr;
     swHashMap_node *root = hmap->root;
     HASH_ITER(hh, root, find, tmp)
     {

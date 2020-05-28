@@ -23,10 +23,10 @@ void* sw_shm_malloc(size_t size)
     swShareMemory object;
     void *mem;
     size += sizeof(swShareMemory);
-    mem = swShareMemory_mmap_create(&object, size, NULL);
-    if (mem == NULL)
+    mem = swShareMemory_mmap_create(&object, size, nullptr);
+    if (mem == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -43,10 +43,10 @@ void* sw_shm_calloc(size_t num, size_t _size)
     size_t size = sizeof(swShareMemory) + (num * _size);
     size = SW_MEM_ALIGNED_SIZE(size);
 
-    mem = swShareMemory_mmap_create(&object, size, NULL);
-    if (mem == NULL)
+    mem = swShareMemory_mmap_create(&object, size, nullptr);
+    if (mem == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -74,9 +74,9 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
     void *new_ptr;
     new_ptr = sw_shm_malloc(new_size);
-    if (new_ptr == NULL)
+    if (new_ptr == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -96,13 +96,13 @@ void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *
 #ifdef MAP_ANONYMOUS
     flag |= MAP_ANONYMOUS;
 #else
-    if (mapfile == NULL)
+    if (mapfile == nullptr)
     {
         mapfile = "/dev/zero";
     }
     if ((tmpfd = open(mapfile, O_RDWR)) < 0)
     {
-        return NULL;
+        return nullptr;
     }
     strncpy(object->mapfile, mapfile, SW_SHM_MMAP_FILE_LEN);
     object->tmpfd = tmpfd;
@@ -120,7 +120,7 @@ void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *
     }
 #endif
 
-    mem = mmap(NULL, size, PROT_READ | PROT_WRITE, flag, tmpfd, 0);
+    mem = mmap(nullptr, size, PROT_READ | PROT_WRITE, flag, tmpfd, 0);
 #ifdef MAP_FAILED
     if (mem == MAP_FAILED)
 #else
@@ -128,7 +128,7 @@ void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *
 #endif
     {
         swSysWarn("mmap(%ld) failed", size);
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -157,12 +157,12 @@ void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key)
     if ((shmid = shmget(key, size, IPC_CREAT)) < 0)
     {
         swSysWarn("shmget(%d, %ld) failed", key, size);
-        return NULL;
+        return nullptr;
     }
-    if ((mem = shmat(shmid, NULL, 0)) == (void *) -1)
+    if ((mem = shmat(shmid, nullptr, 0)) == (void *) -1)
     {
         swSysWarn("shmat() failed");
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -180,7 +180,7 @@ int swShareMemory_sysv_free(swShareMemory *object, int rm)
     int ret = shmdt(object->mem);
     if (rm == 1)
     {
-        shmctl(shmid, IPC_RMID, NULL);
+        shmctl(shmid, IPC_RMID, nullptr);
     }
     return ret;
 }

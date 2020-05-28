@@ -235,7 +235,7 @@ char get_charset(const char *name)
         { 248, "gb18030", "gb18030_chinese_ci" },
         { 249, "gb18030", "gb18030_bin" },
         { 254, "utf8", "utf8_general_cs" },
-        { 0, NULL, NULL},
+        { 0, nullptr, nullptr},
     };
     const charset_t *c = charsets;
     while (c[0].nr)
@@ -644,16 +644,16 @@ auth_signature_response_packet::auth_signature_response_packet(
     }
 
     // prepare RSA public key
-    BIO *bio = NULL;
-    RSA *public_rsa = NULL;
-    if (sw_unlikely((bio = BIO_new_mem_buf((void *)rsa_public_key, -1)) == NULL))
+    BIO *bio = nullptr;
+    RSA *public_rsa = nullptr;
+    if (sw_unlikely((bio = BIO_new_mem_buf((void *)rsa_public_key, -1)) == nullptr))
     {
         swWarn("BIO_new_mem_buf publicKey error!");
         goto _error;
     }
     // PEM_read_bio_RSA_PUBKEY
     ERR_clear_error();
-    if (sw_unlikely((public_rsa = PEM_read_bio_RSA_PUBKEY(bio, NULL, NULL, NULL)) == NULL))
+    if (sw_unlikely((public_rsa = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr)) == nullptr))
     {
         char err_buf[512];
         ERR_load_crypto_strings();

@@ -40,7 +40,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 
     ctx_.uc_stack.ss_sp = stack_;
     ctx_.uc_stack.ss_size = stack_size;
-    ctx_.uc_link = NULL;
+    ctx_.uc_link = nullptr;
 
 #if defined(USE_VALGRIND)
     valgrind_stack_id = VALGRIND_STACK_REGISTER(static_cast<char *>(stack_) + stack_size, stack_);
@@ -76,7 +76,7 @@ Context::~Context()
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
         sw_free(stack_);
-        stack_ = NULL;
+        stack_ = nullptr;
     }
 }
 

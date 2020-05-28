@@ -111,7 +111,7 @@ int swLog_set_date_format(const char *format)
     char date_str[SW_LOG_DATE_STRLEN];
     time_t now_sec;
 
-    now_sec = time(NULL);
+    now_sec = time(nullptr);
     size_t l_data_str = std::strftime(date_str, sizeof(date_str), format, std::localtime(&now_sec));
 
     if (l_data_str == 0)
@@ -170,7 +170,7 @@ const char* swLog_get_file()
 static std::string swLog_gen_real_file(const std::string &file)
 {
     char date_str[16];
-    auto now_sec = time(NULL);
+    auto now_sec = time(nullptr);
     size_t l_data_str = std::strftime(date_str, sizeof(date_str), "%Y%m%d", std::localtime(&now_sec));
     std::string real_file = file + "." + std::string(date_str, l_data_str);
 

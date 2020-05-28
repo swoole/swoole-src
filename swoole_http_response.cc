@@ -85,7 +85,7 @@ static inline swString* http_get_write_buffer(http_context *ctx)
     if (ctx->co_socket)
     {
         swString *buffer = ((Socket *) ctx->private_data)->get_write_buffer();
-        if (buffer != NULL)
+        if (buffer != nullptr)
         {
             return buffer;
         }
@@ -155,7 +155,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
                 }
             }
         }
-        ctx->response.zobject = NULL;
+        ctx->response.zobject = nullptr;
         swoole_http_context_free(ctx);
     }
 
@@ -290,7 +290,7 @@ const zend_function_entry swoole_http_response_methods[] =
 
 void php_swoole_http_response_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", NULL, swoole_http_response_methods);
+    SW_INIT_CLASS_ENTRY(swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", nullptr, swoole_http_response_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, sw_zend_class_unset_property_deny);
@@ -502,7 +502,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     }
     if (!(header_flag & HTTP_HEADER_DATE))
     {
-        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
+        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
         n = sw_snprintf(buf, l_buf, "Date: %s\r\n", date_str);
         swString_append_ptr(response, buf, n);
         efree(date_str);
@@ -711,7 +711,7 @@ static PHP_METHOD(swoole_http_response, end)
         RETURN_FALSE;
     }
 
-    zval *zdata = NULL;
+    zval *zdata = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -740,7 +740,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     else
     {
         http_body.length = 0;
-        http_body.str = NULL;
+        http_body.str = nullptr;
     }
 
     if (ctx->send_chunked)
@@ -998,7 +998,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
 
 static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode)
 {
-    char *name, *value = NULL, *path = NULL, *domain = NULL, *samesite = NULL;
+    char *name, *value = nullptr, *path = nullptr, *domain = nullptr, *samesite = nullptr;
     zend_long expires = 0;
     size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0;
     zend_bool secure = 0, httponly = 0;
@@ -1022,9 +1022,9 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     }
 
     int cookie_size = name_len /* + value_len */ + path_len + domain_len + 100;
-    char *cookie = NULL, *date = NULL;
+    char *cookie = nullptr, *date = nullptr;
 
-    if (name_len > 0 && strpbrk(name, "=,; \t\r\n\013\014") != NULL)
+    if (name_len > 0 && strpbrk(name, "=,; \t\r\n\013\014") != nullptr)
     {
         php_swoole_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
@@ -1114,7 +1114,7 @@ static PHP_METHOD(swoole_http_response, rawcookie)
 static PHP_METHOD(swoole_http_response, status)
 {
     zend_long http_status;
-    char* reason = NULL;
+    char* reason = nullptr;
     size_t reason_len = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
@@ -1130,7 +1130,7 @@ static PHP_METHOD(swoole_http_response, status)
     }
 
     ctx->response.status = http_status;
-    ctx->response.reason = reason_len > 0 ? estrndup(reason, reason_len) : NULL;
+    ctx->response.reason = reason_len > 0 ? estrndup(reason, reason_len) : nullptr;
     RETURN_TRUE;
 }
 
@@ -1239,7 +1239,7 @@ static PHP_METHOD(swoole_http_response, push)
 
     zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
-    zval *zflags = NULL;
+    zval *zflags = nullptr;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
@@ -1249,7 +1249,7 @@ static PHP_METHOD(swoole_http_response, push)
         Z_PARAM_ZVAL_EX(zflags, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (zflags != NULL)
+    if (zflags != nullptr)
     {
         flags = zval_get_long(zflags);
     }
@@ -1344,7 +1344,7 @@ static PHP_METHOD(swoole_http_response, detach)
 
 static PHP_METHOD(swoole_http_response, create)
 {
-    zval *zserver = NULL;
+    zval *zserver = nullptr;
     zend_long fd;
     swServer *serv;
 
@@ -1399,7 +1399,7 @@ static PHP_METHOD(swoole_http_response, create)
 static PHP_METHOD(swoole_http_response, redirect)
 {
     zval *zurl;
-    zval *zhttp_code = NULL;
+    zval *zhttp_code = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_ZVAL(zurl)
@@ -1425,7 +1425,7 @@ static PHP_METHOD(swoole_http_response, redirect)
 
     zval zkey;
     ZVAL_STRINGL(&zkey, "Location", 8);
-    sw_zend_call_method_with_2_params(ZEND_THIS, NULL, NULL, "header", return_value, &zkey, zurl);
+    sw_zend_call_method_with_2_params(ZEND_THIS, nullptr, nullptr, "header", return_value, &zkey, zurl);
     zval_ptr_dtor(&zkey);
     if (!Z_BVAL_P(return_value))
     {

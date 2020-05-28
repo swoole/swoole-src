@@ -156,7 +156,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
         else
         {
-            sock->ssl = NULL;
+            sock->ssl = nullptr;
         }
 #endif
         if (serv->single_thread)
@@ -343,7 +343,7 @@ static int swServer_start_check(swServer *serv)
     //AsyncTask
     if (serv->task_worker_num > 0)
     {
-        if (serv->onTask == NULL)
+        if (serv->onTask == nullptr)
         {
             swWarn("onTask event callback must be set");
             return SW_ERR;
@@ -491,7 +491,7 @@ uint sw_inline swServer_worker_buffer_num(swServer *serv)
 void** swServer_worker_create_buffers(swServer *serv, uint buffer_num)
 {
     swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
-    if (buffers == NULL)
+    if (buffers == nullptr)
     {
         swError("malloc for worker input_buffers failed");
     }
@@ -499,7 +499,7 @@ void** swServer_worker_create_buffers(swServer *serv, uint buffer_num)
     for (uint i = 0; i < buffer_num; i++)
     {
         buffers[i] = swString_new(SW_BUFFER_SIZE_BIG);
-        if (buffers[i] == NULL)
+        if (buffers[i] == nullptr)
         {
             swError("worker input_buffers init failed");
         }
@@ -573,7 +573,7 @@ int swServer_create_user_workers(swServer *serv)
     }
 
     serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
-    if (serv->user_workers == NULL)
+    if (serv->user_workers == nullptr)
     {
         swSysWarn("gmalloc[server->user_workers] failed");
         return SW_ERR;
@@ -641,7 +641,7 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         }
     }
 
-    worker->start_time = time(NULL);
+    worker->start_time = time(nullptr);
     worker->request_count = 0;
 
     return SW_OK;
@@ -721,7 +721,7 @@ int swServer_start(swServer *serv)
 
     //master pid
     serv->gs->master_pid = getpid();
-    serv->stats->start_time = time(NULL);
+    serv->stats->start_time = time(nullptr);
 
     /**
      * init method
@@ -734,7 +734,7 @@ int swServer_start(swServer *serv)
     serv->feedback = swServer_tcp_feedback;
 
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
-    if (serv->workers == NULL)
+    if (serv->workers == nullptr)
     {
         swSysWarn("gmalloc[server->workers] failed");
         return SW_ERR;
@@ -891,12 +891,12 @@ void swServer_init(swServer *serv)
      * alloc shared memory
      */
     serv->stats = (swServerStats *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-    if (serv->stats == NULL)
+    if (serv->stats == nullptr)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->stats");
     }
     serv->gs = (swServerGS *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
-    if (serv->gs == NULL)
+    if (serv->gs == nullptr)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
     }
@@ -919,7 +919,7 @@ int swServer_create(swServer *serv)
     serv->factory.ptr = serv;
 
     serv->session_list = (swSession *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
-    if (serv->session_list == NULL)
+    if (serv->session_list == nullptr)
     {
         swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(swSession));
         return SW_ERR;
@@ -1301,7 +1301,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             if (!_socket->out_buffer)
             {
                 _socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
-                if (_socket->out_buffer == NULL)
+                if (_socket->out_buffer == nullptr)
                 {
                     return SW_ERR;
                 }
@@ -1351,7 +1351,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow", fd);
             }
             conn->overflow = 1;
-            if (serv->onBufferEmpty && serv->onBufferFull == NULL)
+            if (serv->onBufferEmpty && serv->onBufferFull == nullptr)
             {
                 conn->high_watermark = 1;
             }
@@ -1489,7 +1489,7 @@ static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
     
-    if (worker_buffer == NULL)
+    if (worker_buffer == nullptr)
     {
         worker_buffer = swString_new(info->len);
         swServer_server_worker_set_buffer(serv, info, worker_buffer);
@@ -1502,7 +1502,7 @@ static size_t swServer_worker_get_buffer_len(swServer *serv, swDataHead *info)
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
 
-    return worker_buffer == NULL ? 0 : worker_buffer->length;
+    return worker_buffer == nullptr ? 0 : worker_buffer->length;
 }
 
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len)
@@ -1515,7 +1515,7 @@ static void swServer_worker_move_buffer(swServer *serv, swPipeBuffer *buffer)
 {
     swString *worker_buffer = swServer_worker_get_input_buffer(serv, buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
-    swServer_server_worker_set_buffer(serv, &buffer->info, NULL);
+    swServer_server_worker_set_buffer(serv, &buffer->info, nullptr);
 }
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr)
@@ -1608,8 +1608,8 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
 
 void swServer_signal_init(swServer *serv)
 {
-    swSignal_add(SIGPIPE, NULL);
-    swSignal_add(SIGHUP, NULL);
+    swSignal_add(SIGPIPE, nullptr);
+    swSignal_add(SIGHUP, nullptr);
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
         swSignal_add(SIGCHLD, swServer_signal_handler);
@@ -1629,7 +1629,7 @@ void swServer_signal_init(swServer *serv)
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 {
     swServer *serv = (swServer *) tnode->data;
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
     if (serv->scheduler_warning && serv->warning_time < now)
     {
         serv->scheduler_warning = 0;
@@ -1661,7 +1661,7 @@ int swServer_add_worker(swServer *serv, swWorker *worker)
 
     if (!serv->user_worker_map)
     {
-        serv->user_worker_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+        serv->user_worker_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, nullptr);
     }
 
     return worker->id;
@@ -1725,7 +1725,7 @@ int swServer_add_systemd_socket(swServer *serv)
     for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++)
     {
         swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
-        if (ls == NULL)
+        if (ls == nullptr)
         {
             swWarn("alloc failed");
             return count;
@@ -1759,24 +1759,24 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
-        return NULL;
+        return nullptr;
     }
     if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 0 || port > 65535))
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_LISTEN_PORT, "invalid port [%d]", port);
-        return NULL;
+        return nullptr;
     }
     if (strlen(host) + 1  > SW_HOST_MAXSIZE)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_NAME_TOO_LONG, "address '%s' exceeds %ld characters limit", host, SW_HOST_MAXSIZE - 1);
-        return NULL;
+        return nullptr;
     }
 
     swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
-    if (ls == NULL)
+    if (ls == nullptr)
     {
         swError("alloc failed");
-        return NULL;
+        return nullptr;
     }
 
     swPort_init(ls);
@@ -1807,7 +1807,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
 
 #else
             swWarn("DTLS support require openssl-1.1 or later");
-            return NULL;
+            return nullptr;
 #endif
         }
     }
@@ -1818,7 +1818,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     if (sock < 0)
     {
         swSysWarn("create socket failed");
-        return NULL;
+        return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && !defined(__linux__)
     if (ls->ssl_option.dtls)
@@ -1839,7 +1839,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     if (swSocket_bind(ls->socket, ls->host, &ls->port) < 0)
     {
         swSocket_free(ls->socket);
-        return NULL;
+        return nullptr;
     }
     swServer_check_port_type(serv, ls);
     ls->socket_fd = ls->socket->fd;
@@ -2014,7 +2014,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
         }
     }
 
-    now = time(NULL);
+    now = time(nullptr);
 
     connection->fd = fd;
     connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % serv->reactor_num;
@@ -2087,7 +2087,7 @@ void swServer_set_ipc_max_size(swServer *serv)
 int swServer_create_pipe_buffers(swServer *serv)
 {
     serv->pipe_buffers = (swPipeBuffer **) sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));
-    if (serv->pipe_buffers == NULL)
+    if (serv->pipe_buffers == nullptr)
     {
         swSysError("malloc[buffers] failed");
         return SW_ERR;
@@ -2095,7 +2095,7 @@ int swServer_create_pipe_buffers(swServer *serv)
     for (uint32_t i = 0; i < serv->reactor_num; i++)
     {
         serv->pipe_buffers[i] = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
-        if (serv->pipe_buffers[i] == NULL)
+        if (serv->pipe_buffers[i] == nullptr)
         {
             swSysError("malloc[sndbuf][%d] failed", i);
             return SW_ERR;

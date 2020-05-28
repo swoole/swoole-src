@@ -82,7 +82,7 @@ Context::~Context()
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
         sw_free(stack_);
-        stack_ = NULL;
+        stack_ = nullptr;
     }
 }
 

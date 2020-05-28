@@ -66,7 +66,7 @@ const zend_function_entry swoole_redis_server_methods[] =
 
 void php_swoole_redis_server_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY_EX(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", NULL, swoole_redis_server_methods, swoole_server);
+    SW_INIT_CLASS_ENTRY_EX(swoole_redis_server, "Swoole\\Redis\\Server", "swoole_redis_server", nullptr, swoole_redis_server_methods, swoole_server);
     SW_SET_CLASS_SERIALIZABLE(swoole_redis_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_redis_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, sw_zend_class_unset_property_deny);
@@ -118,7 +118,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
-    char *command = NULL;
+    char *command = nullptr;
     int command_len = 0;
 
     do
@@ -284,7 +284,7 @@ static PHP_METHOD(swoole_redis_server, setHandler)
 
     char *func_name;
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, NULL, fci_cache, NULL))
+    if (!sw_zend_is_callable_ex(zcallback, nullptr, 0, &func_name, nullptr, fci_cache, nullptr))
     {
         php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -332,7 +332,7 @@ static PHP_METHOD(swoole_redis_server, getHandler)
 static PHP_METHOD(swoole_redis_server, format)
 {
     zend_long type;
-    zval *value = NULL;
+    zval *value = nullptr;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|z", &type, &value) == FAILURE)
     {
@@ -458,7 +458,7 @@ static PHP_METHOD(swoole_redis_server, format)
         int keytype;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), key, keylen, keytype, item)
-            if (key == NULL || keylen == 0)
+            if (key == nullptr || keylen == 0)
             {
                 continue;
             }

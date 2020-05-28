@@ -37,19 +37,19 @@ bool StaticHandler::is_modified(const string &date_if_modified_since)
 
     const char *date_format = nullptr;
 
-    if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_GMT, &tm3) != NULL)
+    if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_GMT, &tm3) != nullptr)
     {
         date_format = SW_HTTP_RFC1123_DATE_GMT;
     }
-    else if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_UTC, &tm3) != NULL)
+    else if (strptime(date_tmp, SW_HTTP_RFC1123_DATE_UTC, &tm3) != nullptr)
     {
         date_format = SW_HTTP_RFC1123_DATE_UTC;
     }
-    else if (strptime(date_tmp, SW_HTTP_RFC850_DATE, &tm3) != NULL)
+    else if (strptime(date_tmp, SW_HTTP_RFC850_DATE, &tm3) != nullptr)
     {
         date_format = SW_HTTP_RFC850_DATE;
     }
-    else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != NULL)
+    else if (strptime(date_tmp, SW_HTTP_ASCTIME_DATE, &tm3) != nullptr)
     {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
@@ -59,7 +59,7 @@ bool StaticHandler::is_modified(const string &date_if_modified_since)
 std::string StaticHandler::get_date()
 {
     char date_[64];
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
     struct tm *tm1 = gmtime(&now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
     return std::string(date_);
@@ -84,7 +84,7 @@ bool StaticHandler::hit()
      * [/test.jpg?version=1#position] -> [/test.jpg]
      */
     char *params = (char *) memchr(url, '?', url_length);
-    if (params == NULL)
+    if (params == nullptr)
     {
         params = (char *) memchr(url, '#',  url_length);
     }
@@ -250,12 +250,12 @@ bool StaticHandler::get_dir_files(std::set<std::string> &index_files)
     }
 
     DIR *dir = opendir(task.filename);
-    if (dir == NULL)
+    if (dir == nullptr)
     {
         return false;
     }
 
-    while ((ptr = readdir(dir)) != NULL)
+    while ((ptr = readdir(dir)) != nullptr)
     {
         index_files.insert(ptr->d_name);
     }

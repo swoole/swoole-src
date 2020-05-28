@@ -21,10 +21,10 @@ using swoole::StringExplodeHandler;
 swString *swString_new(size_t size)
 {
     swString *str = (swString *) sw_malloc(sizeof(swString));
-    if (str == NULL)
+    if (str == nullptr)
     {
         swWarn("malloc[1] failed");
-        return NULL;
+        return nullptr;
     }
 
     str->length = 0;
@@ -32,11 +32,11 @@ swString *swString_new(size_t size)
     str->offset = 0;
     str->str = (char *) sw_malloc(size);
 
-    if (str->str == NULL)
+    if (str->str == nullptr)
     {
         swSysWarn("malloc[2](%ld) failed", size);
         sw_free(str);
-        return NULL;
+        return nullptr;
     }
 
     return str;
@@ -171,7 +171,7 @@ int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);
     char *new_str = (char *) sw_realloc(str->str, new_size);
-    if (new_str == NULL)
+    if (new_str == nullptr)
     {
         swSysWarn("realloc(%ld) failed", new_size);
         return SW_ERR;
@@ -188,7 +188,7 @@ char* swString_alloc(swString *str, size_t __size)
     {
         if (swString_extend_align(str, str->length + __size) < 0)
         {
-            return NULL;
+            return nullptr;
         }
     }
 

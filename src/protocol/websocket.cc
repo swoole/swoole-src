@@ -266,7 +266,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
     {
     case WEBSOCKET_OPCODE_CONTINUATION:
         frame_buffer = conn->websocket_buffer;
-        if (frame_buffer == NULL)
+        if (frame_buffer == nullptr)
         {
             swWarn("bad frame[opcode=0]. remote_addr=%s:%d", swSocket_get_ip(conn->socket_type, &conn->info),
                     swSocket_get_port(conn->socket_type, &conn->info));
@@ -290,7 +290,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
             proto->ext_flags = conn->websocket_buffer->offset;
             swReactorThread_dispatch(proto, _socket, frame_buffer->str, frame_buffer->length);
             swString_free(frame_buffer);
-            conn->websocket_buffer = NULL;
+            conn->websocket_buffer = nullptr;
         }
         break;
 
@@ -328,7 +328,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
         }
         else if (length == SW_WEBSOCKET_HEADER_LEN)
         {
-            swWebSocket_encode(&send_frame, NULL, 0, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
+            swWebSocket_encode(&send_frame, nullptr, 0, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
         }
         else
         {

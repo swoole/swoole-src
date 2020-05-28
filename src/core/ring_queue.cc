@@ -20,7 +20,7 @@
 int swRingQueue_init(swRingQueue *queue, int buffer_size)
 {
     queue->data = (void **) sw_calloc(buffer_size, sizeof(void*));
-    if (queue->data == NULL)
+    if (queue->data == nullptr)
     {
         swWarn("malloc failed");
         return -1;

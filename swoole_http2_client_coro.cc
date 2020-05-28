@@ -314,21 +314,21 @@ static const zend_function_entry swoole_http2_client_methods[] =
 
 void php_swoole_http2_client_coro_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_http2_client_coro, "Swoole\\Coroutine\\Http2\\Client", NULL, "Co\\Http2\\Client", swoole_http2_client_methods);
+    SW_INIT_CLASS_ENTRY(swoole_http2_client_coro, "Swoole\\Coroutine\\Http2\\Client", nullptr, "Co\\Http2\\Client", swoole_http2_client_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http2_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_client_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http2_client_coro, php_swoole_http2_client_coro_create_object, php_swoole_http2_client_coro_free_object, http2_client_coro_t, std);
 
-    SW_INIT_CLASS_ENTRY_EX(swoole_http2_client_coro_exception, "Swoole\\Coroutine\\Http2\\Client\\Exception", NULL, "Co\\Http2\\Client\\Exception", NULL, swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(swoole_http2_client_coro_exception, "Swoole\\Coroutine\\Http2\\Client\\Exception", nullptr, "Co\\Http2\\Client\\Exception", nullptr, swoole_exception);
 
-    SW_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", "swoole_http2_request", NULL, NULL);
+    SW_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", "swoole_http2_request", nullptr, nullptr);
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_request, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http2_request, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_request, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http2_request);
 
-    SW_INIT_CLASS_ENTRY(swoole_http2_response, "Swoole\\Http2\\Response", "swoole_http2_response", NULL, NULL);
+    SW_INIT_CLASS_ENTRY(swoole_http2_response, "Swoole\\Http2\\Response", "swoole_http2_response", nullptr, nullptr);
     SW_SET_CLASS_SERIALIZABLE(swoole_http2_response, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http2_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_response, sw_zend_class_unset_property_deny);
@@ -478,12 +478,12 @@ bool http2_client::close()
         if (inflater)
         {
             nghttp2_hd_inflate_del(inflater);
-            inflater = NULL;
+            inflater = nullptr;
         }
         if (deflater)
         {
             nghttp2_hd_deflate_del(deflater);
-            deflater = NULL;
+            deflater = nullptr;
         }
         client = nullptr;
     }
@@ -665,7 +665,7 @@ enum swReturn_code http2_client::parse_frame(zval *return_value, bool pipeline_r
 
     http2_client_stream *stream = get_stream(stream_id);
     // The stream is not found or has closed
-    if (stream == NULL)
+    if (stream == nullptr)
     {
         swNotice("http2 stream#%d belongs to an unknown type or it never registered", stream_id);
         return SW_CONTINUE;
@@ -1287,7 +1287,7 @@ uint32_t http2_client::send_request(zval *req)
         if (ZVAL_IS_ARRAY(zdata))
         {
             p = php_swoole_http_build_query(zdata, &len, &formstr_s);
-            if (p == NULL)
+            if (p == nullptr)
             {
                 php_swoole_error(E_WARNING, "http_build_query failed");
                 return 0;
@@ -1324,7 +1324,7 @@ bool http2_client::write_data(uint32_t stream_id, zval *zdata, bool end)
     http2_client_stream *stream = get_stream(stream_id);
     int flag = end ? SW_HTTP2_FLAG_END_STREAM : 0;
 
-    if (stream == NULL || !(stream->flags & SW_HTTP2_STREAM_PIPELINE_REQUEST) || (stream->flags & SW_HTTP2_STREAM_REQUEST_END))
+    if (stream == nullptr || !(stream->flags & SW_HTTP2_STREAM_PIPELINE_REQUEST) || (stream->flags & SW_HTTP2_STREAM_REQUEST_END))
     {
         update_error_properties(EINVAL, cpp_string::format("unable to found active pipeline stream#%u", stream_id).c_str());
         return false;
@@ -1335,7 +1335,7 @@ bool http2_client::write_data(uint32_t stream_id, zval *zdata, bool end)
         size_t len;
         smart_str formstr_s = {};
         char *formstr = php_swoole_http_build_query(zdata, &len, &formstr_s);
-        if (formstr == NULL)
+        if (formstr == nullptr)
         {
             php_swoole_error(E_WARNING, "http_build_query failed");
             return false;
@@ -1604,7 +1604,7 @@ static PHP_METHOD(swoole_http2_client_coro, goaway)
 {
     http2_client *h2c = php_swoole_get_h2c(ZEND_THIS);
     zend_long error_code = SW_HTTP2_ERROR_NO_ERROR;
-    char* debug_data = NULL;
+    char* debug_data = nullptr;
     size_t debug_data_len = 0;
 
     if (!h2c->is_available())

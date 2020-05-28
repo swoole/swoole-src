@@ -85,7 +85,7 @@ static int get_dns_server()
     char line[100];
     char buf[16] = {};
 
-    if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
+    if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == nullptr)
     {
         swSysWarn("fopen(" SW_DNS_SERVER_CONF ") failed");
         return SW_ERR;
@@ -96,7 +96,7 @@ static int get_dns_server()
         if (strncmp(line, "nameserver", 10) == 0)
         {
             strcpy(buf, strtok(line, " "));
-            strcpy(buf, strtok(NULL, "\n"));
+            strcpy(buf, strtok(nullptr, "\n"));
             break;
         }
     }
@@ -117,13 +117,13 @@ static int get_dns_server()
 vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
 {
     char *_domain_name;
-    Q_FLAGS *qflags = NULL;
+    Q_FLAGS *qflags = nullptr;
     char packet[SW_BUFFER_SIZE_STD];
-    swDNSResolver_header *header = NULL;
+    swDNSResolver_header *header = nullptr;
     int steps = 0;
 
     vector<string> result;
-    if (SwooleG.dns_server_v4 == NULL)
+    if (SwooleG.dns_server_v4 == nullptr)
     {
         if (get_dns_server() < 0)
         {
@@ -188,9 +188,9 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
     /**
      * response
      */
-    header = NULL;
-    qflags = NULL;
-    RR_FLAGS *rrflags = NULL;
+    header = nullptr;
+    qflags = nullptr;
+    RR_FLAGS *rrflags = nullptr;
 
     uchar rdata[10][254];
     uint32_t type[10];

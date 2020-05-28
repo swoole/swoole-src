@@ -28,7 +28,7 @@ int swTimer_now(struct timeval *time)
     time->tv_sec = _now.tv_sec;
     time->tv_usec = _now.tv_nsec / 1000;
 #else
-    if (gettimeofday(time, NULL) < 0)
+    if (gettimeofday(time, nullptr) < 0)
     {
         swSysWarn("gettimeofday() failed");
         return SW_ERR;
@@ -82,11 +82,11 @@ int swTimer_init(swTimer *timer, long msec)
         return SW_ERR;
     }
 
-    timer->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, NULL);
+    timer->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, nullptr);
     if (!timer->map)
     {
         swHeap_free(timer->heap);
-        timer->heap = NULL;
+        timer->heap = nullptr;
         return SW_ERR;
     }
 
@@ -144,21 +144,21 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     if (sw_unlikely(_msec <= 0))
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] is invalid", _msec);
-        return NULL;
+        return nullptr;
     }
 
     swTimer_node *tnode = (swTimer_node *) sw_malloc(sizeof(swTimer_node));
     if (sw_unlikely(!tnode))
     {
         swSysWarn("malloc(%ld) failed", sizeof(swTimer_node));
-        return NULL;
+        return nullptr;
     }
 
     int64_t now_msec = swTimer_get_relative_msec();
     if (sw_unlikely(now_msec < 0))
     {
         sw_free(tnode);
-        return NULL;
+        return nullptr;
     }
 
     tnode->data = data;
@@ -168,7 +168,7 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     tnode->removed = 0;
     tnode->callback = callback;
     tnode->round = timer->round;
-    tnode->dtor = NULL;
+    tnode->dtor = nullptr;
 
     if (timer->_next_msec < 0 || timer->_next_msec > _msec)
     {
@@ -184,15 +184,15 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     }
 
     tnode->heap_node = swHeap_push(timer->heap, tnode->exec_msec, tnode);
-    if (sw_unlikely(tnode->heap_node == NULL))
+    if (sw_unlikely(tnode->heap_node == nullptr))
     {
         sw_free(tnode);
-        return NULL;
+        return nullptr;
     }
     if (sw_unlikely(swHashMap_add_int(timer->map, tnode->id, tnode) != SW_OK))
     {
         sw_free(tnode);
-        return NULL;
+        return nullptr;
     }
     timer->num++;
     swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, _msec, tnode->round, timer->num);
@@ -238,7 +238,7 @@ int swTimer_select(swTimer *timer)
         return SW_ERR;
     }
 
-    swTimer_node *tnode = NULL;
+    swTimer_node *tnode = nullptr;
     swHeap_node *tmp;
 
     swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, timer->round);

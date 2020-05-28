@@ -98,7 +98,7 @@ static php_stream_ops socket_ops
     socket_close,
     socket_flush,
     "tcp_socket/coroutine",
-    NULL, /* seek */
+    nullptr, /* seek */
     socket_cast,
     socket_stat,
     socket_set_option,
@@ -160,7 +160,7 @@ static const zend_function_entry swoole_runtime_methods[] =
 
 void php_swoole_runtime_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY_BASE(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", NULL, swoole_runtime_methods, NULL);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_runtime, "Swoole\\Runtime", "swoole_runtime", nullptr, swoole_runtime_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_runtime, sw_zend_create_object_deny);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TCP", SW_HOOK_TCP);
@@ -222,7 +222,7 @@ void php_swoole_runtime_rshutdown()
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err)
 {
     char *colon;
-    char *host = NULL;
+    char *host = nullptr;
     char *p;
 
     if (*(str) == '[' && str_len > 1)
@@ -235,7 +235,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
             {
                 *err = strpprintf(0, "Failed to parse IPv6 address \"%s\"", str);
             }
-            return NULL;
+            return nullptr;
         }
         *portno = atoi(p + 2);
         return estrndup(str + 1, p - str - 1);
@@ -246,7 +246,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
     }
     else
     {
-        colon = NULL;
+        colon = nullptr;
     }
     if (colon)
     {
@@ -259,7 +259,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
         {
             *err = strpprintf(0, "Failed to parse address \"%s\"", str);
         }
-        return NULL;
+        return nullptr;
     }
 
     return host;
@@ -347,7 +347,7 @@ static int socket_close(php_stream *stream, int close_handle)
         return FAILURE;
     }
     /** set it null immediately */
-    stream->abstract = NULL;
+    stream->abstract = nullptr;
     Socket *sock = (Socket*) abstract->socket;
     if (UNEXPECTED(!sock))
     {
@@ -437,11 +437,11 @@ static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
 
 static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xport_param *xparam)
 {
-    char *host = NULL, *bindto = NULL;
+    char *host = nullptr, *bindto = nullptr;
     int portno = 0, bindport = 0;
     int ret = 0;
-    zval *tmpzval = NULL;
-    char *ip_address = NULL;
+    zval *tmpzval = nullptr;
+    char *ip_address = nullptr;
 
     if (UNEXPECTED(sock->get_fd() < 0))
     {
@@ -463,11 +463,11 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     {
         host = xparam->inputs.name;
     }
-    if (host == NULL)
+    if (host == nullptr)
     {
         return FAILURE;
     }
-    if (PHP_STREAM_CONTEXT(stream) && (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "bindto")) != NULL)
+    if (PHP_STREAM_CONTEXT(stream) && (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "bindto")) != nullptr)
     {
         if (Z_TYPE_P(tmpzval) != IS_STRING)
         {
@@ -479,7 +479,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
             return FAILURE;
         }
         bindto = parse_ip_address_ex(Z_STRVAL_P(tmpzval), Z_STRLEN_P(tmpzval), &bindport, xparam->want_errortext, &xparam->outputs.error_text);
-        if (bindto == NULL)
+        if (bindto == nullptr)
         {
             efree(ip_address);
             return FAILURE;
@@ -518,9 +518,9 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
 
 static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport_param *xparam STREAMS_DC)
 {
-    char *host = NULL;
+    char *host = nullptr;
     int portno = 0;
-    char *ip_address = NULL;
+    char *ip_address = nullptr;
 
     if (sock->get_type() == SW_SOCK_TCP || sock->get_type() == SW_SOCK_TCP6 || sock->get_type() == SW_SOCK_UDP || sock->get_type() == SW_SOCK_UDP6)
     {
@@ -542,23 +542,23 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
 static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xport_param *xparam STREAMS_DC)
 {
     int tcp_nodelay = 0;
-    zval *tmpzval = NULL;
+    zval *tmpzval = nullptr;
 
-    xparam->outputs.client = NULL;
+    xparam->outputs.client = nullptr;
 
-    if ((NULL != PHP_STREAM_CONTEXT(stream))
-            && (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "tcp_nodelay")) != NULL
+    if ((nullptr != PHP_STREAM_CONTEXT(stream))
+            && (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "tcp_nodelay")) != nullptr
             && zval_is_true(tmpzval))
     {
         tcp_nodelay = 1;
     }
 
-    zend_string **textaddr = xparam->want_textaddr ? &xparam->outputs.textaddr : NULL;
-    struct sockaddr **addr = xparam->want_addr ? &xparam->outputs.addr : NULL;
-    socklen_t *addrlen = xparam->want_addr ? &xparam->outputs.addrlen : NULL;
+    zend_string **textaddr = xparam->want_textaddr ? &xparam->outputs.textaddr : nullptr;
+    struct sockaddr **addr = xparam->want_addr ? &xparam->outputs.addr : nullptr;
+    socklen_t *addrlen = xparam->want_addr ? &xparam->outputs.addrlen : nullptr;
 
     struct timeval *timeout = xparam->inputs.timeout;
-    zend_string **error_string = xparam->want_errortext ? &xparam->outputs.error_text : NULL;
+    zend_string **error_string = xparam->want_errortext ? &xparam->outputs.error_text : nullptr;
     int *error_code = &xparam->outputs.error_code;
 
     int error = 0;
@@ -611,7 +611,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
 
         abstract->socket = clisock;
 
-        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void* )abstract, NULL, "r+");
+        xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void* )abstract, nullptr, "r+");
         if (xparam->outputs.client)
         {
             xparam->outputs.client->ctx = stream->ctx;
@@ -647,7 +647,7 @@ static inline int socket_recvfrom(Socket *sock, char *buf, size_t buflen, zend_s
             }
             if (addr)
             {
-                *addr = NULL;
+                *addr = nullptr;
                 *addrlen = 0;
             }
         }
@@ -674,7 +674,7 @@ static inline int socket_sendto(Socket *sock, const char *buf, size_t buflen, st
 
 #ifdef SW_USE_OPENSSL
 
-#define GET_VER_OPT(name)               (PHP_STREAM_CONTEXT(stream) && (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", name)) != NULL)
+#define GET_VER_OPT(name)               (PHP_STREAM_CONTEXT(stream) && (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", name)) != nullptr)
 #define GET_VER_OPT_STRING(name, str)   if (GET_VER_OPT(name)) { convert_to_string_ex(val); str = Z_STRVAL_P(val); }
 #define GET_VER_OPT_LONG(name, num)     if (GET_VER_OPT(name)) { convert_to_long_ex(val); num = Z_LVAL_P(val); }
 
@@ -716,7 +716,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     {
         if (sock->get_sock_domain() != AF_UNIX)
         {
-            zval *tmpzval = NULL;
+            zval *tmpzval = nullptr;
             int sockoptval = 1;
             php_stream_context *ctx = PHP_STREAM_CONTEXT(stream);
             if (!ctx)
@@ -729,7 +729,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 #endif
 
 #ifdef SO_REUSEPORT
-            if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_reuseport")) != NULL
+            if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_reuseport")) != nullptr
                     && zval_is_true(tmpzval))
             {
                 setsockopt(sock->get_fd(), SOL_SOCKET, SO_REUSEPORT, (char*) &sockoptval, sizeof(sockoptval));
@@ -737,7 +737,7 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
 #endif
 
 #ifdef SO_BROADCAST
-            if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_broadcast")) != NULL
+            if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_broadcast")) != nullptr
                     && zval_is_true(tmpzval))
             {
                 setsockopt(sock->get_fd(), SOL_SOCKET, SO_BROADCAST, (char*) &sockoptval, sizeof(sockoptval));
@@ -752,14 +752,14 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         break;
     case STREAM_XPORT_OP_GET_NAME:
         xparam->outputs.returncode = php_network_get_sock_name(sock->get_fd(),
-                xparam->want_textaddr ? &xparam->outputs.textaddr : NULL,
-                xparam->want_addr ? &xparam->outputs.addr : NULL, xparam->want_addr ? &xparam->outputs.addrlen : NULL
+                xparam->want_textaddr ? &xparam->outputs.textaddr : nullptr,
+                xparam->want_addr ? &xparam->outputs.addr : nullptr, xparam->want_addr ? &xparam->outputs.addrlen : nullptr
                 );
         break;
     case STREAM_XPORT_OP_GET_PEER_NAME:
         xparam->outputs.returncode = php_network_get_peer_name(sock->get_fd(),
-                xparam->want_textaddr ? &xparam->outputs.textaddr : NULL,
-                xparam->want_addr ? &xparam->outputs.addr : NULL, xparam->want_addr ? &xparam->outputs.addrlen : NULL
+                xparam->want_textaddr ? &xparam->outputs.textaddr : nullptr,
+                xparam->want_addr ? &xparam->outputs.addr : nullptr, xparam->want_addr ? &xparam->outputs.addrlen : nullptr
                 );
         break;
 
@@ -774,8 +774,8 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
                 xparam->inputs.addrlen);
         if (xparam->outputs.returncode == -1)
         {
-            char *err = php_socket_strerror(php_socket_errno(), NULL, 0);
-            php_error_docref(NULL, E_WARNING, "%s\n", err);
+            char *err = php_socket_strerror(php_socket_errno(), nullptr, 0);
+            php_error_docref(nullptr, E_WARNING, "%s\n", err);
             efree(err);
         }
         break;
@@ -794,9 +794,9 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
         else
         {
             xparam->outputs.returncode = socket_recvfrom(sock, xparam->inputs.buf, xparam->inputs.buflen,
-                    xparam->want_textaddr ? &xparam->outputs.textaddr : NULL,
-                    xparam->want_addr ? &xparam->outputs.addr : NULL,
-                    xparam->want_addr ? &xparam->outputs.addrlen : NULL
+                    xparam->want_textaddr ? &xparam->outputs.textaddr : nullptr,
+                    xparam->want_addr ? &xparam->outputs.addr : nullptr,
+                    xparam->want_addr ? &xparam->outputs.addrlen : nullptr
                     );
         }
         break;
@@ -873,7 +873,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             cipher = SSL_get_current_cipher(ssl);
             add_assoc_string(&tmp, "protocol", (char* )proto_str);
             add_assoc_string(&tmp, "cipher_name", (char * ) SSL_CIPHER_get_name(cipher));
-            add_assoc_long(&tmp, "cipher_bits", SSL_CIPHER_get_bits(cipher, NULL));
+            add_assoc_long(&tmp, "cipher_bits", SSL_CIPHER_get_bits(cipher, nullptr));
             add_assoc_string(&tmp, "cipher_version", (char *) SSL_CIPHER_get_version(cipher));
             add_assoc_zval((zval *)ptrparam, "crypto", &tmp);
         }
@@ -933,8 +933,8 @@ static php_stream *socket_create(
     STREAMS_DC
 )
 {
-    php_stream *stream = NULL;
-    php_swoole_netstream_data_t *abstract = NULL;
+    php_stream *stream = nullptr;
+    php_swoole_netstream_data_t *abstract = nullptr;
     Socket *sock;
 
     Coroutine::get_current_safe();
@@ -951,7 +951,7 @@ static php_stream *socket_create(
         sock->open_ssl = true;
 #else
         php_swoole_error(E_WARNING, "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
-        return NULL;
+        return nullptr;
 #endif
     }
     else if (SW_STREQ(proto, protolen, "unix"))
@@ -983,7 +983,7 @@ static php_stream *socket_create(
         {
             php_stream_close(stream);
         }
-        return NULL;
+        return nullptr;
     }
 
     sock->set_zero_copy(true);
@@ -1011,7 +1011,7 @@ static php_stream *socket_create(
     persistent_id = nullptr;//prevent stream api in user level using pconnect to persist the socket
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
 
-    if (stream == NULL)
+    if (stream == nullptr)
     {
         goto _failed;
     }
@@ -1070,7 +1070,7 @@ bool PHPCoroutine::enable_hook(int flags)
         memcpy((void*) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
 
         function_table = (zend_array*) emalloc(sizeof(zend_array));
-        zend_hash_init(function_table, 8, NULL, NULL, 0);
+        zend_hash_init(function_table, 8, nullptr, nullptr, 0);
 
         hook_init = true;
     }
@@ -1383,7 +1383,7 @@ static PHP_FUNCTION(swoole_sleep)
     }
     if (num < 0)
     {
-        php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
+        php_error_docref(nullptr, E_WARNING, "Number of seconds must be greater than or equal to 0");
         RETURN_FALSE;
     }
 
@@ -1406,7 +1406,7 @@ static PHP_FUNCTION(swoole_usleep)
     }
     if (num < 0)
     {
-        php_error_docref(NULL, E_WARNING, "Number of seconds must be greater than or equal to 0");
+        php_error_docref(nullptr, E_WARNING, "Number of seconds must be greater than or equal to 0");
         RETURN_FALSE;
     }
     double sec = (double) num / 1000000;
@@ -1430,12 +1430,12 @@ static PHP_FUNCTION(swoole_time_nanosleep)
 
     if (tv_sec < 0)
     {
-        php_error_docref(NULL, E_WARNING, "The seconds value must be greater than 0");
+        php_error_docref(nullptr, E_WARNING, "The seconds value must be greater than 0");
         RETURN_FALSE;
     }
     if (tv_nsec < 0)
     {
-        php_error_docref(NULL, E_WARNING, "The nanoseconds value must be greater than 0");
+        php_error_docref(nullptr, E_WARNING, "The nanoseconds value must be greater than 0");
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
@@ -1477,7 +1477,7 @@ static PHP_FUNCTION(swoole_time_sleep_until)
         RETURN_FALSE;
     }
 
-    if (gettimeofday((struct timeval *) &tm, NULL) != 0)
+    if (gettimeofday((struct timeval *) &tm, nullptr) != 0)
     {
         RETURN_FALSE;
     }
@@ -1485,7 +1485,7 @@ static PHP_FUNCTION(swoole_time_sleep_until)
     c_ts = (double) (d_ts - tm.tv_sec - tm.tv_usec / 1000000.00);
     if (c_ts < 0)
     {
-        php_error_docref(NULL, E_WARNING, "Sleep until to time is less than current time");
+        php_error_docref(nullptr, E_WARNING, "Sleep until to time is less than current time");
         RETURN_FALSE;
     }
 
@@ -1568,13 +1568,13 @@ static int stream_array_emulate_read_fd_set(zval *stream_array)
 
     ZVAL_NEW_ARR(&new_array);
     ht = Z_ARRVAL(new_array);
-    zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL_P(stream_array)), NULL, ZVAL_PTR_DTOR, 0);
+    zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL_P(stream_array)), nullptr, ZVAL_PTR_DTOR, 0);
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), num_ind, key, elem)
     {
         ZVAL_DEREF(elem);
         php_stream_from_zval_no_verify(stream, elem);
-        if (stream == NULL)
+        if (stream == nullptr)
         {
             continue;
         }
@@ -1627,24 +1627,24 @@ static PHP_FUNCTION(swoole_stream_select)
 
     std::unordered_map<int, socket_poll_fd> fds;
 
-    if (r_array != NULL)
+    if (r_array != nullptr)
     {
         stream_array_to_fd_set(r_array, fds, SW_EVENT_READ);
     }
 
-    if (w_array != NULL)
+    if (w_array != nullptr)
     {
         stream_array_to_fd_set(w_array, fds, SW_EVENT_WRITE);
     }
 
-    if (e_array != NULL)
+    if (e_array != nullptr)
     {
         stream_array_to_fd_set(e_array, fds, SW_EVENT_ERROR);
     }
 
     if (fds.size() == 0)
     {
-        php_error_docref(NULL, E_WARNING, "No stream arrays were passed");
+        php_error_docref(nullptr, E_WARNING, "No stream arrays were passed");
         RETURN_FALSE;
     }
 
@@ -1653,12 +1653,12 @@ static PHP_FUNCTION(swoole_stream_select)
     {
         if (sec < 0)
         {
-            php_error_docref(NULL, E_WARNING, "The seconds parameter must be greater than 0");
+            php_error_docref(nullptr, E_WARNING, "The seconds parameter must be greater than 0");
             RETURN_FALSE;
         }
         else if (usec < 0)
         {
-            php_error_docref(NULL, E_WARNING, "The microseconds parameter must be greater than 0");
+            php_error_docref(nullptr, E_WARNING, "The microseconds parameter must be greater than 0");
             RETURN_FALSE;
         }
         timeout = (double) sec + ((double) usec / 1000000);
@@ -1667,16 +1667,16 @@ static PHP_FUNCTION(swoole_stream_select)
     /* slight hack to support buffered data; if there is data sitting in the
      * read buffer of any of the streams in the read array, let's pretend
      * that we selected, but return only the readable sockets */
-    if (r_array != NULL)
+    if (r_array != nullptr)
     {
         retval = stream_array_emulate_read_fd_set(r_array);
         if (retval > 0)
         {
-            if (w_array != NULL)
+            if (w_array != nullptr)
             {
                 zend_hash_clean(Z_ARRVAL_P(w_array));
             }
-            if (e_array != NULL)
+            if (e_array != nullptr)
             {
                 zend_hash_clean(Z_ARRVAL_P(e_array));
             }
@@ -1692,15 +1692,15 @@ static PHP_FUNCTION(swoole_stream_select)
         RETURN_LONG(0);
     }
 
-    if (r_array != NULL)
+    if (r_array != nullptr)
     {
         zend_hash_clean(Z_ARRVAL_P(r_array));
     }
-    if (w_array != NULL)
+    if (w_array != nullptr)
     {
         zend_hash_clean(Z_ARRVAL_P(w_array));
     }
-    if (e_array != NULL)
+    if (e_array != nullptr)
     {
         zend_hash_clean(Z_ARRVAL_P(e_array));
     }
@@ -1772,7 +1772,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler)
 
         char *func_name;
         zend_fcall_info_cache *func_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-        if (!sw_zend_is_callable_ex(&rf->name, NULL, 0, &func_name, NULL, func_cache, NULL))
+        if (!sw_zend_is_callable_ex(&rf->name, nullptr, 0, &func_name, nullptr, func_cache, nullptr))
         {
             php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
             return;
@@ -1811,7 +1811,7 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
 
-    if (stream == NULL)
+    if (stream == nullptr)
     {
         delete sock;
     }
@@ -1861,7 +1861,7 @@ static PHP_FUNCTION(swoole_user_func_handler)
 {
     zend_fcall_info fci;
     fci.size = sizeof(fci);
-    fci.object = NULL;
+    fci.object = nullptr;
     fci.function_name = {};
     fci.retval = return_value;
     fci.param_count = ZEND_NUM_ARGS();

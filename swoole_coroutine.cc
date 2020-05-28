@@ -201,7 +201,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
     {
         const zend_op *opline = EX(opline);
         zval _exit_status;
-        zval *exit_status = NULL;
+        zval *exit_status = nullptr;
 
         if (opline->op1_type != IS_UNUSED)
         {
@@ -372,7 +372,7 @@ void PHPCoroutine::interrupt_thread_stop()
         return;
     }
     interrupt_thread_running = false;
-    if (pthread_join(interrupt_thread_id, NULL) < 0)
+    if (pthread_join(interrupt_thread_id, nullptr) < 0)
     {
         swSysWarn("pthread_join(%ld) failed", (ulong_t )interrupt_thread_id);
         interrupt_thread_running = true;
@@ -387,7 +387,7 @@ void PHPCoroutine::interrupt_thread_start()
     }
     zend_vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running = true;
-    if (pthread_create(&interrupt_thread_id, NULL, (void * (*)(void *)) interrupt_thread_loop, NULL) < 0)
+    if (pthread_create(&interrupt_thread_id, nullptr, (void * (*)(void *)) interrupt_thread_loop, nullptr) < 0)
     {
         swSysError("pthread_create[PHPCoroutine Scheduler] failed");
         interrupt_thread_running = false;
@@ -413,7 +413,7 @@ inline void PHPCoroutine::vm_stack_init(void)
 
     page->top = ZEND_VM_STACK_ELEMENTS(page);
     page->end = (zval*) ((char*) page + size);
-    page->prev = NULL;
+    page->prev = nullptr;
 
     EG(vm_stack) = page;
     EG(vm_stack)->top++;
@@ -428,7 +428,7 @@ inline void PHPCoroutine::vm_stack_destroy(void)
 {
     zend_vm_stack stack = EG(vm_stack);
 
-    while (stack != NULL)
+    while (stack != nullptr)
     {
         zend_vm_stack p = stack->prev;
         efree(stack);
@@ -512,7 +512,7 @@ inline void PHPCoroutine::save_og(php_coro_task *task)
     }
     else
     {
-        task->output_ptr = NULL;
+        task->output_ptr = nullptr;
     }
 }
 
@@ -522,7 +522,7 @@ inline void PHPCoroutine::restore_og(php_coro_task *task)
     {
         memcpy(SWOG, task->output_ptr, sizeof(zend_output_globals));
         efree(task->output_ptr);
-        task->output_ptr = NULL;
+        task->output_ptr = nullptr;
     }
 }
 
@@ -651,7 +651,7 @@ void PHPCoroutine::main_func(void *arg)
         ZVAL_COPY(param, arg);
     }
 
-    call->symbol_table = NULL;
+    call->symbol_table = nullptr;
 
     if (func->op_array.fn_flags & ZEND_ACC_CLOSURE)
     {
@@ -662,15 +662,15 @@ void PHPCoroutine::main_func(void *arg)
     }
 
 #if defined(SW_CORO_SWAP_BAILOUT) && !defined(SW_CORO_SUPPORT_BAILOUT)
-    EG(bailout) = NULL;
+    EG(bailout) = nullptr;
 #endif
     EG(current_execute_data) = call;
     EG(error_handling) = EH_NORMAL;
-    EG(exception_class) = NULL;
-    EG(exception) = NULL;
+    EG(exception_class) = nullptr;
+    EG(exception) = nullptr;
 
-    task->output_ptr = NULL;
-    task->array_walk_fci = NULL;
+    task->output_ptr = nullptr;
+    task->array_walk_fci = nullptr;
     task->in_silence = false;
 
     task->co = Coroutine::get_current();
@@ -697,7 +697,7 @@ void PHPCoroutine::main_func(void *arg)
     {
         ZVAL_UNDEF(retval);
         // TODO: enhancement it, separate execute data is necessary, but we lose the backtrace
-        EG(current_execute_data) = NULL;
+        EG(current_execute_data) = nullptr;
 #if PHP_VERSION_ID >= 70200
         zend_init_func_execute_data(call, &func->op_array, retval);
 #else
@@ -708,8 +708,8 @@ void PHPCoroutine::main_func(void *arg)
     else /* ZEND_INTERNAL_FUNCTION */
     {
         ZVAL_NULL(retval);
-        call->prev_execute_data = NULL;
-        call->return_value = NULL; /* this is not a constructor call */
+        call->prev_execute_data = nullptr;
+        call->return_value = nullptr; /* this is not a constructor call */
         execute_internal(call, retval);
         zend_vm_stack_free_args(call);
     }
@@ -831,11 +831,11 @@ void php_swoole_coroutine_minit(int module_number)
 {
     PHPCoroutine::init();
 
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", NULL, "Co", swoole_coroutine_util_methods, NULL);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", nullptr, "Co", swoole_coroutine_util_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
 
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", NULL, "Co\\Iterator", NULL, spl_ce_ArrayIterator);
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", NULL, "Co\\Context", NULL, spl_ce_ArrayObject);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", nullptr, "Co\\Iterator", nullptr, spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_context, "Swoole\\Coroutine\\Context", nullptr, "Co\\Context", nullptr, spl_ce_ArrayObject);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DEFAULT_MAX_CORO_NUM", SW_DEFAULT_MAX_CORO_NUM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_MAX_NUM_LIMIT", SW_CORO_MAX_NUM_LIMIT);
@@ -845,7 +845,7 @@ void php_swoole_coroutine_minit(int module_number)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_END", SW_CORO_END);
 
     //prohibit exit in coroutine
-    SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", NULL, NULL, swoole_exit_exception_methods, swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception, "Swoole\\ExitException", nullptr, nullptr, swoole_exit_exception_methods, swoole_exception);
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("flags"), 0, ZEND_ACC_PRIVATE);
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("status"), 0, ZEND_ACC_PRIVATE);
 
@@ -1096,7 +1096,7 @@ PHP_METHOD(swoole_coroutine, list)
         swoole_coroutine_iterator_ce,
         &swoole_coroutine_iterator_ce->constructor,
         (const char *) "__construct",
-        NULL,
+        nullptr,
         &zlist
     );
     zval_ptr_dtor(&zlist);

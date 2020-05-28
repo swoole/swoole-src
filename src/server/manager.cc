@@ -218,7 +218,7 @@ int swManager_start(swServer *serv)
     }
 
     serv->message_box = swChannel_new(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
-    if (serv->message_box == NULL)
+    if (serv->message_box == nullptr)
     {
         return SW_ERR;
     }
@@ -274,7 +274,7 @@ static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid
             worker_id, pid, WEXITSTATUS(status), WTERMSIG(status),
             WTERMSIG(status) == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : ""
         );
-        if (serv->onWorkerError != NULL)
+        if (serv->onWorkerError != nullptr)
         {
             serv->onWorkerError(serv, worker_id, pid, WEXITSTATUS(status), WTERMSIG(status));
         }
@@ -290,18 +290,18 @@ static int swManager_loop(swServer *serv)
     int status;
 
     SwooleG.use_signalfd = 0;
-    SwooleTG.reactor = NULL;
+    SwooleTG.reactor = nullptr;
     SwooleG.enable_coroutine = 0;
 
     ManagerProcess.reload_workers = (swWorker *) sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(swWorker));
-    if (ManagerProcess.reload_workers == NULL)
+    if (ManagerProcess.reload_workers == nullptr)
     {
         swError("malloc[reload_workers] failed");
         return SW_ERR;
     }
 
     //for reload
-    swSignal_add(SIGHUP, NULL);
+    swSignal_add(SIGHUP, nullptr);
     swSignal_add(SIGCHLD, swManager_signal_handler);
     swSignal_add(SIGTERM, swManager_signal_handler);
     swSignal_add(SIGUSR1, swManager_signal_handler);
@@ -381,7 +381,7 @@ static int swManager_loop(swServer *serv)
             else if (ManagerProcess.reload_all_worker)
             {
                 swInfo("Server is reloading all workers now");
-                if (serv->onBeforeReload != NULL)
+                if (serv->onBeforeReload != nullptr)
                 {
                     serv->onBeforeReload(serv);
                 }
@@ -431,7 +431,7 @@ static int swManager_loop(swServer *serv)
                     continue;
                 }
                 swInfo("Server is reloading task workers now");
-                if (serv->onBeforeReload != NULL)
+                if (serv->onBeforeReload != nullptr)
                 {
                     serv->onBeforeReload(serv);
                 }
@@ -486,14 +486,14 @@ static int swManager_loop(swServer *serv)
             if (serv->gs->task_workers.map)
             {
                 exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
-                if (exit_worker != NULL)
+                if (exit_worker != nullptr)
                 {
                     swManager_check_exit_status(serv, exit_worker->id, pid, status);
                     swManager_spawn_task_worker(serv, exit_worker);
                 }
             }
             //user process
-            if (serv->user_worker_map != NULL)
+            if (serv->user_worker_map != nullptr)
             {
                 swManager_wait_other_worker(&serv->gs->event_workers, pid, status);
             }
@@ -511,7 +511,7 @@ static int swManager_loop(swServer *serv)
             {
                 reload_worker_pid = ManagerProcess.reload_worker_i = 0;
                 ManagerProcess.reload_init = ManagerProcess.reloading = false;
-                if (serv->onAfterReload != NULL)
+                if (serv->onAfterReload != nullptr)
                 {
                     serv->onAfterReload(serv);
                 }
@@ -559,7 +559,7 @@ static int swManager_loop(swServer *serv)
             {
                 swWorker *user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
                 // no other user_worker
-                if (user_worker == NULL)
+                if (user_worker == nullptr)
                 {
                     break;
                 }
@@ -693,7 +693,7 @@ void swManager_kill_user_workers(swServer *serv)
     {
         user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
         //hashmap empty
-        if (user_worker == NULL)
+        if (user_worker == nullptr)
         {
             break;
         }
@@ -706,7 +706,7 @@ void swManager_kill_user_workers(swServer *serv)
     {
         user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
         //hashmap empty
-        if (user_worker == NULL)
+        if (user_worker == nullptr)
         {
             break;
         }

@@ -110,7 +110,7 @@ static const zend_function_entry swoole_event_methods[] =
 
 void php_swoole_event_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", NULL, swoole_event_methods);
+    SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", nullptr, swoole_event_methods);
     SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
 
     SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add");
@@ -144,10 +144,10 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
     php_event_object *peo = (php_event_object *) event->socket->object;
 
-    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, &peo->fci_cache_read, 1, &peo->zsocket, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, &peo->fci_cache_read, 1, &peo->zsocket, nullptr) != SUCCESS))
     {
         php_swoole_fatal_error(E_WARNING, "%s: onRead callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
-        event->socket->object = NULL;
+        event->socket->object = nullptr;
         swoole_event_defer(php_event_object_free, peo);
         swoole_event_del(event->socket);
         return SW_ERR;
@@ -160,10 +160,10 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
     php_event_object *peo = (php_event_object *) event->socket->object;
 
-    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, &peo->fci_cache_write, 1, &peo->zsocket, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, &peo->fci_cache_write, 1, &peo->zsocket, nullptr) != SUCCESS))
     {
         php_swoole_fatal_error(E_WARNING, "%s: onWrite callback handler error, fd [%d] will be removed from reactor", ZSTR_VAL(swoole_event_ce->name), swoole_convert_to_fd(&peo->zsocket));
-        event->socket->object = NULL;
+        event->socket->object = nullptr;
         swoole_event_defer(php_event_object_free, peo);
         swoole_event_del(event->socket);
         return SW_ERR;
@@ -209,7 +209,7 @@ static void php_swoole_event_onDefer(void *data)
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) data;
 
-    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 0, NULL, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, fci_cache, 0, nullptr, nullptr) != SUCCESS))
     {
         php_swoole_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
     }
@@ -222,7 +222,7 @@ static void php_swoole_event_onEndCallback(void *data)
 {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) data;
 
-    if (UNEXPECTED(sw_zend_call_function_ex2(NULL, (zend_fcall_info_cache *) fci_cache, 0, NULL, NULL) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, (zend_fcall_info_cache *) fci_cache, 0, nullptr, nullptr) != SUCCESS))
     {
         php_swoole_error(E_WARNING, "%s::defer callback handler error", ZSTR_VAL(swoole_event_ce->name));
     }
@@ -296,7 +296,7 @@ void php_swoole_event_wait()
         zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
         EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
 #endif
-        int ret = SwooleTG.reactor->wait(SwooleTG.reactor, NULL);
+        int ret = SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
         if (ret < 0)
         {
             php_swoole_sys_error(E_ERROR, "reactor wait failed");
@@ -339,7 +339,7 @@ int swoole_convert_to_fd(zval *zsocket)
         else
         {
             php_socket *php_sock;
-            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket())))
+            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, nullptr, php_sockets_le_socket())))
             {
                 fd = php_sock->bsd_socket;
                 return fd;
@@ -361,7 +361,7 @@ int swoole_convert_to_fd(zval *zsocket)
     }
     case IS_OBJECT:
     {
-        zval *zfd = NULL;
+        zval *zfd = nullptr;
         if (instanceof_function(Z_OBJCE_P(zsocket), swoole_socket_coro_ce))
         {
             zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("fd"), 0);
@@ -374,7 +374,7 @@ int swoole_convert_to_fd(zval *zsocket)
         {
             zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("pipe"), 0);
         }
-        if (zfd == NULL || Z_TYPE_P(zfd) != IS_LONG)
+        if (zfd == nullptr || Z_TYPE_P(zfd) != IS_LONG)
         {
             return SW_ERR;
         }
@@ -406,7 +406,7 @@ int swoole_convert_to_fd_ex(zval *zsocket, int *async)
         else
         {
             php_socket *php_sock;
-            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket())))
+            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, nullptr, php_sockets_le_socket())))
             {
                 fd = php_sock->bsd_socket;
                 *async = 1;
@@ -439,7 +439,7 @@ php_socket* swoole_convert_to_socket(int sock)
         php_swoole_sys_error(E_WARNING, "unable to obtain socket family");
         _error:
         efree(socket_object);
-        return NULL;
+        return nullptr;
     }
 
     int t = fcntl(sock, F_GETFL);
@@ -458,7 +458,7 @@ php_socket* swoole_convert_to_socket(int sock)
 void swoole_php_socket_free(zval *zsocket)
 {
     php_socket *php_sock;
-    php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, NULL, php_sockets_le_socket());
+    php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, nullptr, php_sockets_le_socket());
     php_sock->bsd_socket = -1;
     sw_zval_free(zsocket);
 }
@@ -668,12 +668,12 @@ static PHP_FUNCTION(swoole_event_set)
         reactor_fd->fci_cache_write = fci_cache_write;
     }
 
-    if ((events & SW_EVENT_READ) && reactor_fd->fci_cache_read.function_handler == NULL)
+    if ((events & SW_EVENT_READ) && reactor_fd->fci_cache_read.function_handler == nullptr)
     {
         php_swoole_fatal_error(E_WARNING, "%s: unable to find read callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
         RETURN_FALSE;
     }
-    if ((events & SW_EVENT_WRITE) && reactor_fd->fci_cache_write.function_handler == NULL)
+    if ((events & SW_EVENT_WRITE) && reactor_fd->fci_cache_write.function_handler == nullptr)
     {
         php_swoole_fatal_error(E_WARNING, "%s: unable to find write callback of fd [%d]", ZSTR_VAL(swoole_event_ce->name), socket_fd);
         RETURN_FALSE;
@@ -759,15 +759,15 @@ static PHP_FUNCTION(swoole_event_cycle)
 
     if (_fci.size == 0)
     {
-        if (SwooleTG.reactor->idle_task.callback == NULL)
+        if (SwooleTG.reactor->idle_task.callback == nullptr)
         {
             RETURN_FALSE;
         }
         else
         {
             swoole_event_defer(sw_zend_fci_cache_free, SwooleTG.reactor->idle_task.data);
-            SwooleTG.reactor->idle_task.callback = NULL;
-            SwooleTG.reactor->idle_task.data = NULL;
+            SwooleTG.reactor->idle_task.callback = nullptr;
+            SwooleTG.reactor->idle_task.data = nullptr;
             RETURN_TRUE;
         }
     }
@@ -779,7 +779,7 @@ static PHP_FUNCTION(swoole_event_cycle)
 
     if (!before)
     {
-        if (SwooleTG.reactor->idle_task.data != NULL)
+        if (SwooleTG.reactor->idle_task.data != nullptr)
         {
             swoole_event_defer(sw_zend_fci_cache_free, SwooleTG.reactor->idle_task.data);
         }
@@ -789,7 +789,7 @@ static PHP_FUNCTION(swoole_event_cycle)
     }
     else
     {
-        if (SwooleTG.reactor->future_task.data != NULL)
+        if (SwooleTG.reactor->future_task.data != nullptr)
         {
             swoole_event_defer(sw_zend_fci_cache_free, SwooleTG.reactor->future_task.data);
         }
@@ -842,7 +842,7 @@ static PHP_FUNCTION(swoole_event_dispatch)
     }
 #endif
 
-    int ret = SwooleTG.reactor->wait(SwooleTG.reactor, NULL);
+    int ret = SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
     if (ret < 0)
     {
         php_swoole_sys_error(E_ERROR, "reactor wait failed");

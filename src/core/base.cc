@@ -75,7 +75,7 @@ void swoole_init(void)
     //get system uname
     uname(&SwooleG.uname);
     //random seed
-    srandom(time(NULL));
+    srandom(time(nullptr));
 
     SwooleG.pid = getpid();
 
@@ -88,7 +88,7 @@ void swoole_init(void)
 
     //init global shared memory
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == NULL)
+    if (SwooleG.memory_pool == nullptr)
     {
         printf("[Core] Fatal Error: global memory allocation failure");
         exit(1);
@@ -116,7 +116,7 @@ void swoole_init(void)
     SwooleG.socket_send_timeout = SW_SOCKET_SEND_TIMEOUT;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
-    if (SwooleTG.buffer_stack == NULL)
+    if (SwooleTG.buffer_stack == nullptr)
     {
         exit(3);
     }
@@ -170,7 +170,7 @@ void swoole_clean(void)
     {
         swoole_event_free();
     }
-    if (SwooleG.memory_pool != NULL)
+    if (SwooleG.memory_pool != nullptr)
     {
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
     }
@@ -216,7 +216,7 @@ pid_t swoole_fork(int flags)
              * reset SwooleG.memory_pool
              */
             SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-            if (SwooleG.memory_pool == NULL)
+            if (SwooleG.memory_pool == nullptr)
             {
                 printf("[Worker] Fatal Error: global memory allocation failure");
                 exit(1);
@@ -356,10 +356,10 @@ int swoole_mkdir_recursive(const char *dir)
 char* swoole_dirname(char *file)
 {
     char *dirname = sw_strdup(file);
-    if (dirname == NULL)
+    if (dirname == nullptr)
     {
         swWarn("strdup() failed");
-        return NULL;
+        return nullptr;
     }
 
     int i = strlen(dirname);
@@ -496,7 +496,7 @@ int swoole_rand(int min, int max)
 
     if (_seed == 0)
     {
-        _seed = time(NULL);
+        _seed = time(nullptr);
         srand(_seed);
     }
 
@@ -595,7 +595,7 @@ int swoole_version_compare(const char *version1, const char *version2)
 double swoole_microtime(void)
 {
     struct timeval t;
-    gettimeofday(&t, NULL);
+    gettimeofday(&t, nullptr);
     return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
 }
 
@@ -676,30 +676,30 @@ swString* swoole_file_get_contents(const char *filename)
     long filesize = swoole_file_size(filename);
     if (filesize < 0)
     {
-        return NULL;
+        return nullptr;
     }
     else if (filesize == 0)
     {
         swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "file[%s] is empty", filename);
-        return NULL;
+        return nullptr;
     }
     else if (filesize > SW_MAX_FILE_CONTENT)
     {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "file[%s] is too large", filename);
-        return NULL;
+        return nullptr;
     }
 
     int fd = open(filename, O_RDONLY);
     if (fd < 0)
     {
         swSysWarn("open(%s) failed", filename);
-        return NULL;
+        return nullptr;
     }
     swString *content = swString_new(filesize);
     if (!content)
     {
         close(fd);
-        return NULL;
+        return nullptr;
     }
 
     int readn = 0;
@@ -719,7 +719,7 @@ swString* swoole_file_get_contents(const char *filename)
                 swSysWarn("pread(%d, %ld, %d) failed", fd, filesize - readn, readn);
                 swString_free(content);
                 close(fd);
-                return NULL;
+                return nullptr;
             }
         }
         readn += n;
@@ -821,7 +821,7 @@ swString* swoole_sync_readfile_eof(int fd)
 {
     ssize_t n = 0;
     swString *data = swString_new(SW_BUFFER_SIZE_STD);
-    if (data == NULL)
+    if (data == nullptr)
     {
         return data;
     }
@@ -1023,13 +1023,13 @@ static int *swoole_kmp_borders(char *needle, size_t nlen)
 {
     if (!needle)
     {
-        return NULL;
+        return nullptr;
     }
 
     int i, j, *borders = (int *) sw_malloc((nlen + 1) * sizeof(*borders));
     if (!borders)
     {
-        return NULL;
+        return nullptr;
     }
 
     i = 0;
@@ -1065,7 +1065,7 @@ static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint
         }
         if (!(*haystack))
         {
-            return NULL;
+            return nullptr;
         }
         if (j == 0)
         {
@@ -1081,7 +1081,7 @@ static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint
             } while (j > 0 && needle[j] != *haystack);
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 int swoole_itoa(char *buf, long value)
@@ -1118,17 +1118,17 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length)
 {
     if (!haystack || !needle)
     {
-        return NULL;
+        return nullptr;
     }
     size_t nlen = strlen(needle);
     if (length < nlen)
     {
-        return NULL;
+        return nullptr;
     }
     int *borders = swoole_kmp_borders(needle, nlen);
     if (!borders)
     {
-        return NULL;
+        return nullptr;
     }
     char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
     sw_free(borders);
@@ -1158,7 +1158,7 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
     {
         buf_len *= 2;
         char *tmp = (char*) sw_realloc(buf, buf_len);
-        if (NULL == tmp)
+        if (nullptr == tmp)
         {
             sw_free(buf);
             return SW_ERR;
@@ -1169,7 +1169,7 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
         }
     }
 
-    if (0 != rc || NULL == result)
+    if (0 != rc || nullptr == result)
     {
         sw_free(buf);
         return SW_ERR;
@@ -1184,7 +1184,7 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
     int i = 0;
     for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
     {
-        if (hbuf.h_addr_list[i] == NULL)
+        if (hbuf.h_addr_list[i] == nullptr)
         {
             break;
         }
@@ -1231,7 +1231,7 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
     int i = 0;
     for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++)
     {
-        if (host_entry->h_addr_list[i] == NULL)
+        if (host_entry->h_addr_list[i] == nullptr)
         {
             break;
         }
@@ -1258,8 +1258,8 @@ int swoole_gethostbyname(int flags, const char *name, char *addr)
 
 int swoole_getaddrinfo(swRequest_getaddrinfo *req)
 {
-    struct addrinfo *result = NULL;
-    struct addrinfo *ptr = NULL;
+    struct addrinfo *result = nullptr;
+    struct addrinfo *ptr = nullptr;
     struct addrinfo hints;
 
     bzero(&hints, sizeof(hints));
@@ -1276,7 +1276,7 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
 
     void *buffer = req->result;
     int i = 0;
-    for (ptr = result; ptr != NULL; ptr = ptr->ai_next)
+    for (ptr = result; ptr != nullptr; ptr = ptr->ai_next)
     {
         switch (ptr->ai_family)
         {
@@ -1304,15 +1304,15 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
 
 SW_API int swoole_add_function(const char *name, void* func)
 {
-    if (SwooleG.functions == NULL)
+    if (SwooleG.functions == nullptr)
     {
-        SwooleG.functions = swHashMap_new(64, NULL);
-        if (SwooleG.functions == NULL)
+        SwooleG.functions = swHashMap_new(64, nullptr);
+        if (SwooleG.functions == nullptr)
         {
             return SW_ERR;
         }
     }
-    if (swHashMap_find(SwooleG.functions, (char *) name, strlen(name)) != NULL)
+    if (swHashMap_find(SwooleG.functions, (char *) name, strlen(name)) != nullptr)
     {
         swWarn("Function '%s' has already been added", name);
         return SW_ERR;
@@ -1324,7 +1324,7 @@ SW_API void* swoole_get_function(const char *name, uint32_t length)
 {
     if (!SwooleG.functions)
     {
-        return NULL;
+        return nullptr;
     }
     return swHashMap_find(SwooleG.functions, name, length);
 }
@@ -1386,7 +1386,7 @@ int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream)
             }
         }
 
-        execl("/bin/sh", "sh", "-c", command, NULL);
+        execl("/bin/sh", "sh", "-c", command, nullptr);
         exit(127);
     }
     else
@@ -1402,7 +1402,7 @@ char* swoole_string_format(size_t n, const char *format, ...)
     char *buf = (char*) sw_malloc(n);
     if (!buf)
     {
-        return NULL;
+        return nullptr;
     }
 
     int ret;
@@ -1415,7 +1415,7 @@ char* swoole_string_format(size_t n, const char *format, ...)
         return buf;
     }
     sw_free(buf);
-    return NULL;
+    return nullptr;
 }
 
 int swoole_get_systemd_listen_fds()

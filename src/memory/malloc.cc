@@ -23,10 +23,10 @@ static void swMalloc_destroy(swMemoryPool *pool);
 swMemoryPool* swMalloc_new()
 {
     swMemoryPool *pool = (swMemoryPool *) sw_malloc(sizeof(swMemoryPool));
-    if (pool == NULL)
+    if (pool == nullptr)
     {
         swSysWarn("mallc(%ld) failed", sizeof(swMemoryPool));
-        return NULL;
+        return nullptr;
     }
     pool->alloc = swMalloc_alloc;
     pool->free = swMalloc_free;

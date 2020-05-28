@@ -345,7 +345,7 @@ static const zend_function_entry swoole_table_row_methods[] =
 
 void php_swoole_table_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", NULL, swoole_table_methods);
+    SW_INIT_CLASS_ENTRY(swoole_table, "Swoole\\Table", "swoole_table", nullptr, swoole_table_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_table, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_table, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table, sw_zend_class_unset_property_deny);
@@ -359,7 +359,7 @@ void php_swoole_table_minit(int module_number)
     zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_STRING"), SW_TABLE_STRING);
     zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_FLOAT"), SW_TABLE_FLOAT);
 
-    SW_INIT_CLASS_ENTRY(swoole_table_row, "Swoole\\Table\\Row", "swoole_table_row", NULL, swoole_table_row_methods);
+    SW_INIT_CLASS_ENTRY(swoole_table_row, "Swoole\\Table\\Row", "swoole_table_row", nullptr, swoole_table_row_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_table_row, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_table_row, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table_row, sw_zend_class_unset_property_deny);
@@ -388,7 +388,7 @@ PHP_METHOD(swoole_table, __construct)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     table = swTable_new(table_size, conflict_proportion);
-    if (table == NULL)
+    if (table == nullptr)
     {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
@@ -480,7 +480,7 @@ static PHP_METHOD(swoole_table, set)
         php_swoole_fatal_error(E_WARNING, "key[%s] is too long", key);
     }
 
-    swTableRow *_rowlock = NULL;
+    swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_set(table, key, keylen, &_rowlock);
     if (!row)
     {
@@ -499,7 +499,7 @@ static PHP_METHOD(swoole_table, set)
     SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, zv)
     {
         col = swTableColumn_get(table, std::string(k, klen));
-        if (k == NULL || col == NULL)
+        if (k == nullptr || col == nullptr)
         {
             continue;
         }
@@ -538,7 +538,7 @@ static PHP_METHOD(swoole_table, incr)
     size_t key_len;
     char *col;
     size_t col_len;
-    zval* incrby = NULL;
+    zval* incrby = nullptr;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &incrby) == FAILURE)
     {
@@ -607,14 +607,14 @@ static PHP_METHOD(swoole_table, decr)
     size_t key_len;
     char *col;
     size_t col_len;
-    zval *decrby = NULL;
+    zval *decrby = nullptr;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "ss|z", &key, &key_len, &col, &col_len, &decrby) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    swTableRow *_rowlock = NULL;
+    swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock);
     if (!row)
     {
@@ -674,7 +674,7 @@ static PHP_METHOD(swoole_table, get)
     swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
-    char *field = NULL;
+    char *field = nullptr;
     size_t field_len = 0;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
@@ -683,7 +683,7 @@ static PHP_METHOD(swoole_table, get)
         Z_PARAM_STRING(field, field_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swTableRow *_rowlock = NULL;
+    swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
     if (!row)
     {
@@ -705,7 +705,7 @@ static PHP_METHOD(swoole_table, offsetGet)
     swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     char *key;
     size_t keylen;
-    char *field = NULL;
+    char *field = nullptr;
     size_t field_len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|s", &key, &keylen, &field, &field_len) == FAILURE)
@@ -714,7 +714,7 @@ static PHP_METHOD(swoole_table, offsetGet)
     }
 
     zval value;
-    swTableRow *_rowlock = NULL;
+    swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
     if (!row)
     {
@@ -745,7 +745,7 @@ static PHP_METHOD(swoole_table, exists)
     }
 
 
-    swTableRow *_rowlock = NULL;
+    swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_get(table, key, keylen, &_rowlock);
     swTableRow_unlock(_rowlock);
     if (!row)
@@ -876,7 +876,7 @@ static PHP_METHOD(swoole_table, valid)
 {
     swTable *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     swTableRow *row = swTable_iterator_current(table);
-    RETURN_BOOL(row != NULL);
+    RETURN_BOOL(row != nullptr);
 }
 
 static PHP_METHOD(swoole_table_row, offsetExists)
@@ -904,7 +904,7 @@ static PHP_METHOD(swoole_table_row, offsetGet)
     }
 
     zval *zprop_value = sw_zend_read_property(swoole_table_row_ce, ZEND_THIS, ZEND_STRL("value"), 0);
-    zval *retval = NULL;
+    zval *retval = nullptr;
     if (!(retval = zend_hash_str_find(Z_ARRVAL_P(zprop_value), key, keylen)))
     {
         RETURN_FALSE;
@@ -926,7 +926,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
 
     zval *zprop_key = sw_zend_read_property(swoole_table_row_ce, ZEND_THIS, ZEND_STRL("key"), 0);
 
-    swTableRow *_rowlock = NULL;
+    swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_set(table, Z_STRVAL_P(zprop_key), Z_STRLEN_P(zprop_key), &_rowlock);
     if (!row)
     {
@@ -936,7 +936,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
 
     swTableColumn *col = swTableColumn_get(table, std::string(key, keylen));
-    if (col == NULL)
+    if (col == nullptr)
     {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", key);

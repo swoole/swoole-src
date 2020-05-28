@@ -72,7 +72,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
 {
     //create reactor object
     swReactorKqueue *object = (swReactorKqueue *) sw_calloc(1, sizeof(swReactorKqueue));
-    if (object == NULL)
+    if (object == nullptr)
     {
         swWarn("[swReactorKqueueCreate] calloc[0] fail");
         return SW_ERR;
@@ -82,7 +82,7 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num)
     reactor->max_event_num = max_event_num;
     object->events = (struct kevent *) sw_calloc(max_event_num, sizeof(struct kevent));
 
-    if (object->events == NULL)
+    if (object->events == nullptr)
     {
         swWarn("[swReactorKqueueCreate] calloc[1] fail");
         return SW_ERR;
@@ -129,7 +129,7 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
         fflags = NOTE_EOF;
 #endif
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("add events[fd=%d#%d, type=%d, events=read] failed", fd, reactor->id, socket->fdtype);
@@ -140,7 +140,7 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
     if (swReactor_event_write(events))
     {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("add events[fd=%d#%d, type=%d, events=write] failed", fd, reactor->id, socket->fdtype);
@@ -169,7 +169,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
         fflags = NOTE_EOF;
 #endif
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("kqueue->set(%d, SW_EVENT_READ) failed", fd);
@@ -179,7 +179,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
     else
     {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
@@ -190,7 +190,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
     if (swReactor_event_write(events))
     {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
@@ -200,7 +200,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
     else
     {
         EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
@@ -224,7 +224,7 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket)
     if (socket->events & SW_EVENT_READ)
     {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
@@ -235,7 +235,7 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket)
     if (socket->events & SW_EVENT_WRITE)
     {
         EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, socket);
-        ret = kevent(object->epfd, &e, 1, NULL, 0, NULL);
+        ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0)
         {
             swSysWarn("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
@@ -261,7 +261,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 
     if (reactor->timeout_msec == 0)
     {
-        if (timeo == NULL)
+        if (timeo == nullptr)
         {
             reactor->timeout_msec = -1;
         }
@@ -275,7 +275,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
 
     while (reactor->running > 0)
     {
-        if (reactor->onBegin != NULL)
+        if (reactor->onBegin != nullptr)
         {
             reactor->onBegin(reactor);
         }
@@ -293,10 +293,10 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
         else
         {
-            t_ptr = NULL;
+            t_ptr = nullptr;
         }
 
-        n = kevent(object->epfd, NULL, 0, object->events, object->event_max, t_ptr);
+        n = kevent(object->epfd, nullptr, 0, object->events, object->event_max, t_ptr);
         if (n < 0)
         {
             if (swReactor_error(reactor) < 0)

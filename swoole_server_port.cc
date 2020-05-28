@@ -99,7 +99,7 @@ static void php_swoole_server_port_free_object(zend_object *object)
             if (property->caches[j])
             {
                 efree(property->caches[j]);
-                property->caches[j] = NULL;
+                property->caches[j] = nullptr;
             }
         }
     }
@@ -168,7 +168,7 @@ const zend_function_entry swoole_server_port_methods[] =
 
 void php_swoole_server_port_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", NULL, swoole_server_port_methods);
+    SW_INIT_CLASS_ENTRY(swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", nullptr, swoole_server_port_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);
@@ -209,7 +209,7 @@ static ssize_t php_swoole_server_length_func(swProtocol *protocol, swSocket *con
 
     // TODO: reduce memory copy
     ZVAL_STRINGL(&zdata, data, length);
-    if (UNEXPECTED(sw_zend_call_function_ex(NULL, fci_cache, 1, &zdata, &retval) != SUCCESS))
+    if (UNEXPECTED(sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS))
     {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     }
@@ -241,7 +241,7 @@ static PHP_METHOD(swoole_server_port, __destruct) { }
 
 static PHP_METHOD(swoole_server_port, set)
 {
-    zval *zset = NULL;
+    zval *zset = nullptr;
     HashTable *vht;
     zval *ztmp;
 
@@ -254,7 +254,7 @@ static PHP_METHOD(swoole_server_port, set)
     swListenPort *port = php_swoole_server_port_get_and_check_ptr(ZEND_THIS);
     php_swoole_server_port_property *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
 
-    if (port == NULL || property == NULL)
+    if (port == nullptr || property == nullptr)
     {
         php_swoole_fatal_error(E_ERROR, "please use the swoole_server->listen method");
         return;
@@ -477,7 +477,7 @@ static PHP_METHOD(swoole_server_port, set)
             if (Z_TYPE_P(ztmp) == IS_STRING)
             {
                 swProtocol_length_function func = (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp));
-                if (func != NULL)
+                if (func != nullptr)
                 {
                     port->protocol.get_package_length = func;
                     break;
@@ -492,7 +492,7 @@ static PHP_METHOD(swoole_server_port, set)
 #endif
             char *func_name;
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-            if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))
+            if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr))
             {
                 php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
                 return;
@@ -656,7 +656,7 @@ static PHP_METHOD(swoole_server_port, set)
 
 static PHP_METHOD(swoole_server_port, on)
 {
-    char *name = NULL;
+    char *name = nullptr;
     size_t len, i;
     zval *cb;
 
@@ -673,9 +673,9 @@ static PHP_METHOD(swoole_server_port, on)
         RETURN_FALSE;
     }
 
-    char *func_name = NULL;
+    char *func_name = nullptr;
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(zend_fcall_info_cache));
-    if (!sw_zend_is_callable_ex(cb, NULL, 0, &func_name, NULL, fci_cache, NULL))
+    if (!sw_zend_is_callable_ex(cb, nullptr, 0, &func_name, nullptr, fci_cache, nullptr))
     {
         php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
         return;

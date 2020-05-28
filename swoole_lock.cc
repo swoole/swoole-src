@@ -102,7 +102,7 @@ static const zend_function_entry swoole_lock_methods[] =
 
 void php_swoole_lock_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", NULL, swoole_lock_methods);
+    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", nullptr, swoole_lock_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_lock, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, sw_zend_class_unset_property_deny);
@@ -134,13 +134,13 @@ static PHP_METHOD(swoole_lock, __construct)
 {
     swLock *lock = php_swoole_lock_get_ptr(ZEND_THIS);
 
-    if (lock != NULL)
+    if (lock != nullptr)
     {
         php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
     }
 
     lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
-    if (lock == NULL)
+    if (lock == nullptr)
     {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;
@@ -236,7 +236,7 @@ static PHP_METHOD(swoole_lock, unlock)
 static PHP_METHOD(swoole_lock, trylock)
 {
     swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
-    if (lock->trylock == NULL)
+    if (lock->trylock == nullptr)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock", lock->type);
         RETURN_FALSE;
@@ -247,7 +247,7 @@ static PHP_METHOD(swoole_lock, trylock)
 static PHP_METHOD(swoole_lock, trylock_read)
 {
     swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
-    if (lock->trylock_rd == NULL)
+    if (lock->trylock_rd == nullptr)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use trylock_read", lock->type);
         RETURN_FALSE;
@@ -258,7 +258,7 @@ static PHP_METHOD(swoole_lock, trylock_read)
 static PHP_METHOD(swoole_lock, lock_read)
 {
     swLock *lock = php_swoole_lock_get_and_check_ptr(ZEND_THIS);
-    if (lock->lock_rd == NULL)
+    if (lock->lock_rd == nullptr)
     {
         php_swoole_error(E_WARNING, "lock[type=%d] can't use lock_read", lock->type);
         RETURN_FALSE;

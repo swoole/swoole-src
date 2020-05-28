@@ -91,10 +91,10 @@ static const zend_function_entry swoole_timer_methods[] =
 
 void php_swoole_timer_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", NULL, swoole_timer_methods);
+    SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", nullptr, swoole_timer_methods);
     SW_SET_CLASS_CREATE(swoole_timer, sw_zend_create_object_deny);
 
-    SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", "swoole_timer_iterator", NULL, NULL, spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", "swoole_timer_iterator", nullptr, nullptr, spl_ce_ArrayIterator);
 
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "set", CG(function_table), "swoole_timer_set");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after");
@@ -164,7 +164,7 @@ static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode)
     php_swoole_fci *fci = (php_swoole_fci *) tnode->data;
     bool enable_coroutine = settings.enable_coroutine_isset ? settings.enable_coroutine : SwooleG.enable_coroutine;
 
-    if (UNEXPECTED(!zend::function::call(&fci->fci_cache, fci->fci.param_count, fci->fci.params, NULL, enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(&fci->fci_cache, fci->fci.param_count, fci->fci.params, nullptr, enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
@@ -237,8 +237,8 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent)
 
 static PHP_FUNCTION(swoole_timer_set)
 {
-    zval *zset = NULL;
-    HashTable *vht = NULL;
+    zval *zset = nullptr;
+    HashTable *vht = nullptr;
     zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -356,7 +356,7 @@ static PHP_FUNCTION(swoole_timer_list)
         swoole_timer_iterator_ce,
         &swoole_timer_iterator_ce->constructor,
         "__construct",
-        NULL,
+        nullptr,
         &zlist
     );
     zval_ptr_dtor(&zlist);

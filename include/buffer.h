@@ -59,7 +59,7 @@ typedef struct _swBuffer
 } swBuffer;
 
 #define swBuffer_get_chunk(buffer)   (buffer->head)
-#define swBuffer_empty(buffer)       (buffer == NULL || buffer->head == NULL)
+#define swBuffer_empty(buffer)       (buffer == nullptr || buffer->head == nullptr)
 
 swBuffer* swBuffer_new(uint32_t chunk_size);
 swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size);

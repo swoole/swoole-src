@@ -28,7 +28,7 @@ typedef struct _swPipeBase
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking)
 {
     p->master_socket = swSocket_new(master_fd, SW_FD_PIPE);
-    if (p->master_socket == NULL)
+    if (p->master_socket == nullptr)
     {
         _error:
         close(master_fd);
@@ -36,7 +36,7 @@ int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking)
         return SW_ERR;
     }
     p->worker_socket = swSocket_new(worker_fd, SW_FD_PIPE);
-    if (p->worker_socket == NULL)
+    if (p->worker_socket == nullptr)
     {
         swSocket_free(p->master_socket);
         goto _error;
@@ -65,7 +65,7 @@ int swPipeBase_create(swPipe *p, int blocking)
 {
     int ret;
     swPipeBase *object = (swPipeBase *) sw_malloc(sizeof(swPipeBase));
-    if (object == NULL)
+    if (object == nullptr)
     {
         return -1;
     }

@@ -38,7 +38,7 @@ int swReactorProcess_create(swServer *serv)
 {
     serv->reactor_num = serv->worker_num;
     serv->connection_list = (swConnection *) sw_calloc(serv->max_connection, sizeof(swConnection));
-    if (serv->connection_list == NULL)
+    if (serv->connection_list == nullptr)
     {
         swSysWarn("calloc[2](%d) failed", (int )(serv->max_connection * sizeof(swConnection)));
         return SW_ERR;
@@ -151,7 +151,7 @@ int swReactorProcess_start(swServer *serv)
     if (serv->user_worker_list)
     {
         serv->user_workers = (swWorker *) sw_malloc(serv->user_worker_num * sizeof(swWorker));
-        if (serv->user_workers == NULL)
+        if (serv->user_workers == nullptr)
         {
             swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
@@ -256,7 +256,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event)
 static int swReactorProcess_alloc_output_buffer(int n_buffer)
 {
     SwooleWG.output_buffer = (swString **) sw_malloc(sizeof(swString*) * n_buffer);
-    if (SwooleWG.output_buffer == NULL)
+    if (SwooleWG.output_buffer == nullptr)
     {
         swError("malloc for SwooleWG.output_buffer failed");
         return SW_ERR;
@@ -266,7 +266,7 @@ static int swReactorProcess_alloc_output_buffer(int n_buffer)
     for (i = 0; i < n_buffer; i++)
     {
         SwooleWG.output_buffer[i] = swString_new(SW_BUFFER_SIZE_BIG);
-        if (SwooleWG.output_buffer[i] == NULL)
+        if (SwooleWG.output_buffer[i] == nullptr)
         {
             swError("output_buffer init failed");
             return SW_ERR;
@@ -416,7 +416,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     /**
      * 1 second timer
      */
-    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == NULL)
+    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == nullptr)
     {
         _fail:
         swReactor_free_output_buffer(n_buffer);
@@ -432,13 +432,13 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     if (serv->heartbeat_check_interval > 0)
     {
         serv->heartbeat_timer = swoole_timer_add((long) (serv->heartbeat_check_interval * 1000), SW_TRUE, swReactorProcess_onTimeout, reactor);
-        if (serv->heartbeat_timer == NULL)
+        if (serv->heartbeat_timer == nullptr)
         {
             goto _fail;
         }
     }
 
-    int retval = reactor->wait(reactor, NULL);
+    int retval = reactor->wait(reactor, nullptr);
 
     /**
      * Close all connections
@@ -450,7 +450,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn != NULL && conn->active && conn->socket->fdtype == SW_FD_SESSION)
+        if (conn != nullptr && conn->active && conn->socket->fdtype == SW_FD_SESSION)
         {
             serv->close(serv, conn->session_id, 1);
         }
@@ -482,7 +482,7 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     int fd = event->fd;
     swServer *serv = (swServer *) reactor->ptr;
     swConnection *conn = swServer_connection_get(serv, fd);
-    if (conn == NULL || conn->active == 0)
+    if (conn == nullptr || conn->active == 0)
     {
         return SW_ERR;
     }
@@ -589,7 +589,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     swServer *serv = (swServer *) reactor->ptr;
     swEvent notify_ev;
     swConnection *conn;
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
 
     if (now < heartbeat_check_lasttime + 10)
     {

@@ -42,7 +42,7 @@ static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, v
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num)
 {
     swFactoryProcess *object = (swFactoryProcess *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
-    if (object == NULL)
+    if (object == nullptr)
     {
         swWarn("[Master] malloc[object] failed");
         return SW_ERR;
@@ -110,7 +110,7 @@ static int swFactoryProcess_create_pipes(swFactory *factory)
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
     object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
-    if (object->pipes == NULL)
+    if (object->pipes == nullptr)
     {
         swSysError("malloc[pipes] failed");
         return SW_ERR;
@@ -123,7 +123,7 @@ static int swFactoryProcess_create_pipes(swFactory *factory)
         if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0)
         {
             sw_free(object->pipes);
-            object->pipes = NULL;
+            object->pipes = nullptr;
             return SW_ERR;
         }
 
@@ -148,7 +148,7 @@ static int swFactoryProcess_start(swFactory *factory)
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
         serv->stream_socket_file = swoole_string_format(64, "/tmp/swoole.%d.sock", serv->gs->master_pid);
-        if (serv->stream_socket_file == NULL)
+        if (serv->stream_socket_file == nullptr)
         {
             return SW_ERR;
         }
@@ -185,7 +185,7 @@ static int swFactoryProcess_start(swFactory *factory)
     }
     
     object->send_buffer = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
-    if (object->send_buffer == NULL)
+    if (object->send_buffer == nullptr)
     {
         swSysError("malloc[send_buffer] failed");
         return SW_ERR;
@@ -211,7 +211,7 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
 {
     swSendData task;
     task.info = *ev;
-    task.data = NULL;
+    task.data = nullptr;
     return swFactoryProcess_dispatch(factory, &task);
 }
 
@@ -253,7 +253,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     if (swEventData_is_stream(task->info.type))
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn == NULL || conn->active == 0)
+        if (conn == nullptr || conn->active == 0)
         {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
             return SW_ERR;
@@ -275,7 +275,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     swWorker *worker = swServer_get_worker(serv, target_worker_id);
 
     //without data
-    if (task->data == NULL)
+    if (task->data == nullptr)
     {
         task->info.flags = 0;
         return swReactorThread_send2worker(serv, worker, &task->info, sizeof(task->info));
@@ -481,7 +481,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
     swConnection *conn = swWorker_get_connection(serv, fd);
-    if (conn == NULL || conn->active == 0)
+    if (conn == nullptr || conn->active == 0)
     {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return SW_ERR;
@@ -503,7 +503,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     {
         _do_close:
         conn->closing = 1;
-        if (serv->onClose != NULL)
+        if (serv->onClose != nullptr)
         {
             info.fd = fd;
             if (conn->close_actively)

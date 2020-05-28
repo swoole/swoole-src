@@ -103,7 +103,7 @@ static int swAio_onCompleted(swReactor *reactor, swEvent *event)
 static int swAio_onTask(swThreadPool *pool, void *task, int task_len)
 {
     swAio_event *event = task;
-    if (event->handler == NULL)
+    if (event->handler == nullptr)
     {
         event->error = SW_ERROR_AIO_BAD_REQUEST;
         event->ret = -1;
@@ -152,7 +152,7 @@ int swAio_dispatch(swAio_event *_event)
     _event->task_id = SwooleAIO.current_id++;
 
     swAio_event *event = (swAio_event *) sw_malloc(sizeof(swAio_event));
-    if (event == NULL)
+    if (event == nullptr)
     {
         swWarn("malloc failed");
         return SW_ERR;
@@ -350,7 +350,7 @@ void swAio_handler_fgets(swAio_event *event)
 
     FILE *file = (FILE *) event->req;
     char *data = fgets((char*) event->buf, event->nbytes, file);
-    if (data == NULL)
+    if (data == nullptr)
     {
         event->ret = -1;
         event->error = errno;
@@ -404,7 +404,7 @@ void swAio_handler_read_file(swAio_event *event)
     if (file_stat.st_size == 0)
     {
         swString *data = swoole_sync_readfile_eof(fd);
-        if (data == NULL)
+        if (data == nullptr)
         {
             goto _error;
         }
@@ -415,7 +415,7 @@ void swAio_handler_read_file(swAio_event *event)
     else
     {
         event->buf = sw_malloc(file_stat.st_size);
-        if (event->buf == NULL)
+        if (event->buf == nullptr)
         {
             goto _error;
         }
@@ -526,7 +526,7 @@ void swAio_handler_gethostbyname(swAio_event *event)
     }
     else
     {
-        if (inet_ntop(event->flags, addr, (char *) event->buf, event->nbytes) == NULL)
+        if (inet_ntop(event->flags, addr, (char *) event->buf, event->nbytes) == nullptr)
         {
             ret = -1;
             event->error = SW_ERROR_BAD_IPV6_ADDRESS;

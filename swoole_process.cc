@@ -249,7 +249,7 @@ static const zend_function_entry swoole_process_methods[] =
 
 void php_swoole_process_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", NULL, swoole_process_methods);
+    SW_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", nullptr, swoole_process_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_process, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_process, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process, sw_zend_class_unset_property_deny);
@@ -508,7 +508,7 @@ static PHP_METHOD(swoole_process, freeQueue)
     if (process->queue && swMsgQueue_free(process->queue) == SW_OK)
     {
         efree(process->queue);
-        process->queue = NULL;
+        process->queue = nullptr;
         RETURN_TRUE;
     }
     else
@@ -542,8 +542,8 @@ static PHP_METHOD(swoole_process, kill)
 static PHP_METHOD(swoole_process, signal)
 {
     zend_long signo = 0;
-    zval *zcallback = NULL;
-    zend_fcall_info_cache *fci_cache = NULL;
+    zval *zcallback = nullptr;
+    zend_fcall_info_cache *fci_cache = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
         Z_PARAM_LONG(signo)
@@ -573,13 +573,13 @@ static PHP_METHOD(swoole_process, signal)
         RETURN_FALSE;
     }
 
-    if (zcallback == NULL)
+    if (zcallback == nullptr)
     {
         fci_cache = signal_fci_caches[signo];
         if (fci_cache)
         {
-            swSignal_add(signo, NULL);
-            signal_fci_caches[signo] = NULL;
+            swSignal_add(signo, nullptr);
+            signal_fci_caches[signo] = nullptr;
             swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
             SwooleTG.reactor->signal_listener_num--;
             RETURN_TRUE;
@@ -592,13 +592,13 @@ static PHP_METHOD(swoole_process, signal)
     }
     else if (Z_TYPE_P(zcallback) == IS_LONG && Z_LVAL_P(zcallback) == (zend_long) SIG_IGN)
     {
-        handler = NULL;
+        handler = nullptr;
     }
     else
     {
         char *func_name;
         fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-        if (!sw_zend_is_callable_ex(zcallback, NULL, 0, &func_name, 0, fci_cache, NULL))
+        if (!sw_zend_is_callable_ex(zcallback, nullptr, 0, &func_name, 0, fci_cache, nullptr))
         {
             php_swoole_error(E_WARNING, "function '%s' is not callable", func_name);
             efree(func_name);
@@ -674,7 +674,7 @@ static PHP_METHOD(swoole_process, alarm)
         }
     }
 
-    if (setitimer(type, &timer_set, NULL) < 0)
+    if (setitimer(type, &timer_set, nullptr) < 0)
     {
         php_swoole_sys_error(E_WARNING, "setitimer() failed");
         RETURN_FALSE;
@@ -696,7 +696,7 @@ static void php_swoole_onSignal(int signo)
 
         ZVAL_LONG(&zsigno, signo);
 
-        if (UNEXPECTED(sw_zend_call_function_ex2(NULL, fci_cache, 1, &zsigno, NULL) != SUCCESS))
+        if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, fci_cache, 1, &zsigno, nullptr) != SUCCESS))
         {
             php_swoole_fatal_error(E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
         }
@@ -710,7 +710,7 @@ zend_bool php_swoole_signal_isset_handler(int signo)
         php_swoole_fatal_error(E_WARNING, "invalid signal number [%d]", signo);
         return 0;
     }
-    return signal_fci_caches[signo] != NULL;
+    return signal_fci_caches[signo] != nullptr;
 }
 
 void php_swoole_process_clean()
@@ -722,7 +722,7 @@ void php_swoole_process_clean()
         {
             sw_zend_fci_cache_discard(fci_cache);
             efree(fci_cache);
-            signal_fci_caches[i] = NULL;
+            signal_fci_caches[i] = nullptr;
         }
     }
 
@@ -737,7 +737,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     zval *zcallback = sw_zend_read_property(swoole_process_ce, zobject, ZEND_STRL("callback"), 0);
     zend_fcall_info_cache fci_cache;
 
-    if (!sw_zend_is_callable_ex(zcallback, NULL, 0, NULL, 0, &fci_cache, NULL))
+    if (!sw_zend_is_callable_ex(zcallback, nullptr, 0, nullptr, 0, &fci_cache, nullptr))
     {
         php_swoole_fatal_error(E_ERROR, "Illegal callback function of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
         return SW_ERR;
@@ -787,7 +787,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
         return SW_ERR;
     }
     //main function
-    if (UNEXPECTED(!zend::function::call(&fci_cache, 1, zobject, NULL, proc->enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(&fci_cache, 1, zobject, nullptr, proc->enable_coroutine)))
     {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
@@ -873,7 +873,7 @@ static PHP_METHOD(swoole_process, read)
 
 static PHP_METHOD(swoole_process, write)
 {
-    char *data = NULL;
+    char *data = nullptr;
     size_t data_len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &data, &data_len) == FAILURE)
@@ -1037,7 +1037,7 @@ static PHP_METHOD(swoole_process, pop)
 
 static PHP_METHOD(swoole_process, exec)
 {
-    char *execfile = NULL;
+    char *execfile = nullptr;
     size_t execfile_len = 0;
     zval *args;
 
@@ -1055,7 +1055,7 @@ static PHP_METHOD(swoole_process, exec)
     int exec_argc = php_swoole_array_length(args);
     char **exec_args = (char **) emalloc(sizeof(char*) * (exec_argc + 2));
 
-    zval *value = NULL;
+    zval *value = nullptr;
     exec_args[0] = sw_strdup(execfile);
     int i = 1;
 
@@ -1065,7 +1065,7 @@ static PHP_METHOD(swoole_process, exec)
         exec_args[i] = Z_STRVAL_P(value);
         i++;
     SW_HASHTABLE_FOREACH_END();
-    exec_args[i] = NULL;
+    exec_args[i] = nullptr;
 
     if (execv(execfile, exec_args) < 0)
     {
@@ -1082,7 +1082,7 @@ static PHP_METHOD(swoole_process, daemon)
 {
     zend_bool nochdir = 1;
     zend_bool noclose = 1;
-    zval *zpipes = NULL;
+    zval *zpipes = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 3)
         Z_PARAM_OPTIONAL
@@ -1138,7 +1138,7 @@ static PHP_METHOD(swoole_process, setaffinity)
         RETURN_FALSE;
     }
 
-    zval *value = NULL;
+    zval *value = nullptr;
     cpu_set_t cpu_set;
     CPU_ZERO(&cpu_set);
 
@@ -1241,8 +1241,8 @@ static PHP_METHOD(swoole_process, close)
 
 static PHP_METHOD(swoole_process, set)
 {
-    zval *zset = NULL;
-    HashTable *vht = NULL;
+    zval *zset = nullptr;
+    HashTable *vht = nullptr;
     zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)

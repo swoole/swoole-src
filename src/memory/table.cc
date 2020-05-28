@@ -60,14 +60,14 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     }
 
     swTable *table = (swTable *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTable));
-    if (table == NULL)
+    if (table == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     if (swMutex_create(&table->lock, 1) < 0)
     {
         swWarn("mutex create failed");
-        return NULL;
+        return nullptr;
     }
     table->iterator = new swTable_iterator;
     table->column_map = new std::unordered_map<std::string, swTableColumn*>;
@@ -82,7 +82,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
 #endif
 
     bzero(table->iterator, sizeof(swTable_iterator));
-    table->memory = NULL;
+    table->memory = nullptr;
 
     return table;
 }
@@ -140,7 +140,7 @@ int swTable_create(swTable *table)
     size_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
     void *memory = sw_shm_malloc(memory_size);
-    if (memory == NULL)
+    if (memory == nullptr)
     {
         return SW_ERR;
     }
@@ -203,7 +203,7 @@ void swTable_iterator_rewind(swTable *table)
 static sw_inline swTableRow* swTable_iterator_get(swTable *table, uint32_t index)
 {
     swTableRow *row = table->rows[index];
-    return row->active ? row : NULL;
+    return row->active ? row : nullptr;
 }
 
 swTableRow* swTable_iterator_current(swTable *table)
@@ -216,11 +216,11 @@ void swTable_iterator_forward(swTable *table)
     for (; table->iterator->absolute_index < table->size; table->iterator->absolute_index++)
     {
         swTableRow *row = swTable_iterator_get(table, table->iterator->absolute_index);
-        if (row == NULL)
+        if (row == nullptr)
         {
             continue;
         }
-        else if (row->next == NULL)
+        else if (row->next == nullptr)
         {
             table->iterator->absolute_index++;
             table->iterator->row = row;
@@ -231,7 +231,7 @@ void swTable_iterator_forward(swTable *table)
             uint32_t i = 0;
             for (;; i++)
             {
-                if (row == NULL)
+                if (row == nullptr)
                 {
                     table->iterator->collision_index = 0;
                     break;
@@ -246,7 +246,7 @@ void swTable_iterator_forward(swTable *table)
             }
         }
     }
-    table->iterator->row = NULL;
+    table->iterator->row = nullptr;
 }
 
 swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableRow** rowlock)
@@ -263,13 +263,13 @@ swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableR
         {
             if (!row->active)
             {
-                row = NULL;
+                row = nullptr;
             }
             break;
         }
-        else if (row->next == NULL)
+        else if (row->next == nullptr)
         {
-            row = NULL;
+            row = nullptr;
             break;
         }
         else

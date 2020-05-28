@@ -43,7 +43,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     swRedis_request *request;
     swSocket *socket = conn->socket;
 
-    if (conn->object == NULL)
+    if (conn->object == nullptr)
     {
         request = (swRedis_request *) sw_malloc(sizeof(swRedis_request));
         if (!request)

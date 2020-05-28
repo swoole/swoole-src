@@ -55,7 +55,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
     if (swEventData_is_stream(task->info.type))
     {
         swConnection *conn = swServer_connection_get(serv, task->info.fd);
-        if (conn == NULL || conn->active == 0)
+        if (conn == nullptr || conn->active == 0)
         {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);
             return SW_ERR;
@@ -95,7 +95,7 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
 {
     swServer *serv = (swServer *) factory->ptr;
     swConnection *conn = swServer_connection_get(serv, info->fd);
-    if (conn == NULL || conn->active == 0)
+    if (conn == nullptr || conn->active == 0)
     {
         swWarn("dispatch[type=%d] failed, connection#%d is not active", info->type, info->fd);
         return SW_ERR;
@@ -126,7 +126,7 @@ static int swFactory_end(swFactory *factory, int fd)
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
     swConnection *conn = swWorker_get_connection(serv, fd);
-    if (conn == NULL || conn->active == 0)
+    if (conn == nullptr || conn->active == 0)
     {
         //swWarn("can not close. Connection[%d] not found", _send.info.fd);
         return SW_ERR;
@@ -148,7 +148,7 @@ static int swFactory_end(swFactory *factory, int fd)
     {
         _do_close:
         conn->closing = 1;
-        if (serv->onClose != NULL)
+        if (serv->onClose != nullptr)
         {
             info.fd = fd;
             if (conn->close_actively)

@@ -152,8 +152,8 @@ zend_object_handlers swoole_error_handlers;
 zend_module_entry swoole_module_entry =
 {
     STANDARD_MODULE_HEADER_EX,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     "swoole",
     swoole_functions,
     PHP_MINIT(swoole),
@@ -292,7 +292,7 @@ static void fatal_error(int code, const char *format, ...)
  */
 PHP_MINIT_FUNCTION(swoole)
 {
-    ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, NULL);
+    ZEND_INIT_MODULE_GLOBALS(swoole, php_swoole_init_globals, nullptr);
     REGISTER_INI_ENTRIES();
 
     SW_REGISTER_STRING_CONSTANT("SWOOLE_VERSION", SWOOLE_VERSION);
@@ -567,9 +567,9 @@ PHP_MINIT_FUNCTION(swoole)
         SWOOLE_G(cli) = 1;
     }
 
-    SW_INIT_CLASS_ENTRY_EX2(swoole_exception, "Swoole\\Exception", "swoole_exception", NULL, NULL, zend_ce_exception, zend_get_std_object_handlers());
+    SW_INIT_CLASS_ENTRY_EX2(swoole_exception, "Swoole\\Exception", "swoole_exception", nullptr, nullptr, zend_ce_exception, zend_get_std_object_handlers());
 
-    SW_INIT_CLASS_ENTRY_EX2(swoole_error, "Swoole\\Error", "swoole_error", NULL, NULL, zend_ce_error, zend_get_std_object_handlers());
+    SW_INIT_CLASS_ENTRY_EX2(swoole_error, "Swoole\\Error", "swoole_error", nullptr, nullptr, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
     php_swoole_event_minit(module_number);
@@ -989,9 +989,9 @@ PHP_FUNCTION(swoole_get_local_ip)
         RETURN_FALSE;
     }
     array_init(return_value);
-    for (ifa = ipaddrs; ifa != NULL; ifa = ifa->ifa_next)
+    for (ifa = ipaddrs; ifa != nullptr; ifa = ifa->ifa_next)
     {
-        if (ifa->ifa_addr == NULL || !(ifa->ifa_flags & IFF_UP))
+        if (ifa->ifa_addr == nullptr || !(ifa->ifa_flags & IFF_UP))
         {
             continue;
         }
@@ -1011,7 +1011,7 @@ PHP_FUNCTION(swoole_get_local_ip)
         }
         if (!inet_ntop(ifa->ifa_addr->sa_family, in_addr, ip, sizeof(ip)))
         {
-            php_error_docref(NULL, E_WARNING, "%s: inet_ntop failed", ifa->ifa_name);
+            php_error_docref(nullptr, E_WARNING, "%s: inet_ntop failed", ifa->ifa_name);
         }
         else
         {
@@ -1066,7 +1066,7 @@ PHP_FUNCTION(swoole_get_local_mac)
     }
     close(sock);
 #else
-    php_error_docref(NULL, E_WARNING, "swoole_get_local_mac is not supported");
+    php_error_docref(nullptr, E_WARNING, "swoole_get_local_mac is not supported");
     RETURN_FALSE;
 #endif
 }
@@ -1080,7 +1080,7 @@ PHP_FUNCTION(swoole_internal_call_user_shutdown_begin)
     }
     else
     {
-        php_error_docref(NULL, E_WARNING, "can not call this function in user level");
+        php_error_docref(nullptr, E_WARNING, "can not call this function in user level");
         RETURN_FALSE;
     }
 }

@@ -34,7 +34,7 @@ static void swStream_onConnect(swClient *cli)
     else
     {
         swString_free(stream->buffer);
-        stream->buffer = NULL;
+        stream->buffer = nullptr;
     }
 }
 
@@ -81,7 +81,7 @@ swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type ty
     swStream *stream = (swStream*) sw_malloc(sizeof(swStream));
     if (!stream)
     {
-        return NULL;
+        return nullptr;
     }
     bzero(stream, sizeof(swStream));
 
@@ -89,7 +89,7 @@ swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type ty
     if (swClient_create(cli, type, 1) < 0)
     {
         swStream_free(stream);
-        return NULL;
+        return nullptr;
     }
 
     cli->onConnect = swStream_onConnect;
@@ -104,7 +104,7 @@ swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type ty
     if (cli->connect(cli, dst_host, dst_port, -1, 0) < 0)
     {
         swSysWarn("failed to connect to [%s:%d]", dst_host, dst_port);
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -131,10 +131,10 @@ void swStream_set_max_length(swStream *stream, uint32_t max_length)
 
 int swStream_send(swStream *stream, const char *data, size_t length)
 {
-    if (stream->buffer == NULL)
+    if (stream->buffer == nullptr)
     {
         stream->buffer = swString_new(swoole_size_align(length + 4, SwooleG.pagesize));
-        if (stream->buffer == NULL)
+        if (stream->buffer == nullptr)
         {
             return SW_ERR;
         }

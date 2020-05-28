@@ -359,7 +359,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
 
     swConnection *conn = swServer_connection_get(serv, fd);
-    if (conn == NULL || conn->active == 0)
+    if (conn == nullptr || conn->active == 0)
     {
         return SW_ERR;
     }
@@ -550,7 +550,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
 {
     int ret;
 
-    swBuffer_chunk *chunk = NULL;
+    swBuffer_chunk *chunk = nullptr;
     swEventData *send_data;
     swConnection *conn;
     swServer *serv = (swServer *) reactor->ptr;
@@ -688,7 +688,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     }
 #endif
 
-    conn->last_time = time(NULL);
+    conn->last_time = time(nullptr);
 #ifdef SW_BUFFER_RECV_TIME
     conn->last_time_usec = swoole_microtime();
 #endif
@@ -721,7 +721,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     }
 
     swConnection *conn = swServer_connection_get(serv, fd);
-    if (conn == NULL || conn->active == 0)
+    if (conn == nullptr || conn->active == 0)
     {
         return SW_ERR;
     }
@@ -808,7 +808,7 @@ int swReactorThread_create(swServer *serv)
      * init reactor thread pool
      */
     serv->reactor_threads = (swReactorThread *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, (serv->reactor_num * sizeof(swReactorThread)));
-    if (serv->reactor_threads == NULL)
+    if (serv->reactor_threads == nullptr)
     {
         swError("calloc[reactor_threads] fail.alloc_size=%d", (int )(serv->reactor_num * sizeof(swReactorThread)));
         return SW_ERR;
@@ -817,7 +817,7 @@ int swReactorThread_create(swServer *serv)
      * alloc the memory for connection_list
      */
     serv->connection_list = (swConnection *) sw_shm_calloc(serv->max_connection, sizeof(swConnection));
-    if (serv->connection_list == NULL)
+    if (serv->connection_list == nullptr)
     {
         swError("calloc[1] failed");
         return SW_ERR;
@@ -903,7 +903,7 @@ int swReactorThread_start(swServer *serv)
 
 #ifdef HAVE_PTHREAD_BARRIER
     //init thread barrier
-    pthread_barrier_init(&serv->barrier, NULL, serv->reactor_num + 1);
+    pthread_barrier_init(&serv->barrier, nullptr, serv->reactor_num + 1);
 #endif
 
     //create reactor thread
@@ -911,7 +911,7 @@ int swReactorThread_start(swServer *serv)
     {
         thread = &(serv->reactor_threads[i]);
         param = (swThreadParam *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
-        if (param == NULL)
+        if (param == nullptr)
         {
             swError("malloc failed");
             goto _failed;
@@ -920,7 +920,7 @@ int swReactorThread_start(swServer *serv)
         param->object = serv;
         param->pti = i;
 
-        if (pthread_create(&pidt, NULL, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
+        if (pthread_create(&pidt, nullptr, (void * (*)(void *)) swReactorThread_loop, (void *) param) < 0)
         {
             swSysError("pthread_create[tcp_reactor] failed");
         }
@@ -967,7 +967,7 @@ int swReactorThread_start(swServer *serv)
     /**
      * 1 second timer
      */
-    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == NULL)
+    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == nullptr)
     {
         goto _failed;
     }
@@ -1097,7 +1097,7 @@ static int swReactorThread_loop(swThreadParam *param)
     SwooleTG.type = SW_THREAD_REACTOR;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
-    if (SwooleTG.buffer_stack == NULL)
+    if (SwooleTG.buffer_stack == nullptr)
     {
         return SW_ERR;
     }
@@ -1150,7 +1150,7 @@ static int swReactorThread_loop(swThreadParam *param)
     SW_START_SLEEP;
 #endif
     //main loop
-    reactor->wait(reactor, NULL);
+    reactor->wait(reactor, nullptr);
     //shutdown
     reactor->free(reactor);
 
@@ -1214,7 +1214,7 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, const char *d
     if (serv->stream_socket_file)
     {
         swStream *stream = swStream_new(serv->stream_socket_file, 0, SW_SOCK_UNIX_STREAM);
-        if (stream == NULL)
+        if (stream == nullptr)
         {
             return SW_ERR;
         }
@@ -1273,7 +1273,7 @@ void swReactorThread_join(swServer *serv)
             swSysWarn("pthread_cancel(%ld) failed", (ulong_t )serv->heartbeat_pidt);
         }
         //wait thread
-        if (pthread_join(serv->heartbeat_pidt, NULL) < 0)
+        if (pthread_join(serv->heartbeat_pidt, nullptr) < 0)
         {
             swSysWarn("pthread_join(%ld) failed", (ulong_t )serv->heartbeat_pidt);
         }
@@ -1301,7 +1301,7 @@ void swReactorThread_join(swServer *serv)
             }
         }
         //wait thread
-        if (pthread_join(thread->thread_id, NULL) != 0)
+        if (pthread_join(thread->thread_id, nullptr) != 0)
         {
             swSysWarn("pthread_join(%ld) failed", (long ) thread->thread_id);
         }
@@ -1318,7 +1318,7 @@ static void swHeartbeatThread_start(swServer *serv)
 {
     pthread_t thread_id;
     swThreadParam *param = (swThreadParam *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swThreadParam));
-    if (param == NULL)
+    if (param == nullptr)
     {
         swError("heartbeat_param malloc failed");
         return;
@@ -1327,7 +1327,7 @@ static void swHeartbeatThread_start(swServer *serv)
     param->object = serv;
     param->pti = 0;
 
-    if (pthread_create(&thread_id, NULL, (void * (*)(void *)) swHeartbeatThread_loop, (void *) param) < 0)
+    if (pthread_create(&thread_id, nullptr, (void * (*)(void *)) swHeartbeatThread_loop, (void *) param) < 0)
     {
         swWarn("pthread_create[hbcheck] failed");
     }
@@ -1354,7 +1354,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
         serv_max_fd = swServer_get_maxfd(serv);
         serv_min_fd = swServer_get_minfd(serv);
 
-        checktime = (int) time(NULL) - serv->heartbeat_idle_time;
+        checktime = (int) time(nullptr) - serv->heartbeat_idle_time;
 
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {

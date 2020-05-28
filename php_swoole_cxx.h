@@ -253,7 +253,7 @@ private:
             else
             {
                 _index = _ptr->h;
-                _key = NULL;
+                _key = nullptr;
             }
             break;
         }
@@ -354,7 +354,7 @@ namespace function
         }
         else
         {
-            success = sw_zend_call_function_ex(NULL, fci_cache, argc, argv, retval) == SUCCESS;
+            success = sw_zend_call_function_ex(nullptr, fci_cache, argc, argv, retval) == SUCCESS;
         }
         /* we have no chance to return to ZendVM to check the exception  */
         if (UNEXPECTED(EG(exception)))
