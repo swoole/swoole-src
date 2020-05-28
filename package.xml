@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-05-11</date>
-    <time>14:00:00</time>
+    <date>2020-05-28</date>
+    <time>17:00:00</time>
     <version>
-        <release>4.5.1</release>
+        <release>4.5.2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,32 +56,27 @@
     <notes>
         Enhancement
         ---
-        + Support socket context bindto in hook (#3275) (#3278) (@codinghuang)
-        + Support dns resolve in client::sendto (#3292) (@codinghuang)
-        + Process->exit(0) will call os.exit directly (a732fe56) (@matyhtf)
-        + Support `log_date_format` to change format of log date, `log_date_with_microseconds` to show micro-time in log (baf895bc) (@matyhtf)
-        + Support CURLOPT_CAINFO and CURLOPT_CAPATH (swoole/library#32) (@sy-records)
-        + Support CURLOPT_FORBID_REUSE (swoole/library#33) (@sy-records)
+        + Support `Server->set(['log_rotation' => SWOOLE_LOG_ROTATION_DAILY])` to generate log file by date (#3311) (@matyhtf)
+        + Support `swoole_async_set(['wait_signal' => true])`, reactor will not exit if there is signal listener (#3314) (@matyhtf)
+        + Support `Server->sendfile` to send empty file (#3318) (@twose)
+        + Improve worker idle warning (#3328) (@huanghantao)
+        + Improve configuration parser about Host (for HTTPS proxy) (#3343) (@twose)
+        + SSL use ecdh auto (#3316) (@matyhtf)
+        + SSL quiet shutdown when client close (#3342) (@huanghantao)
 
         Fixed
         ---
-        * Fixed 32-bit build (#3276) (#3277) (@remicollet) (@twose)
-        * Fixed missing error info (#3280) (@codinghuang)
-        * Fixed potential bugs in Table (d7b87b65) (@matyhtf)
-        * Fixed null ptr error in Server (defensive programming) (#3304) (#3305) (@twose)
-        * Fixed heartbeat timeout null ptr error (#3307) (@twose)
-        * Fixed mysqli options error (swoole/library#35)
-        * Fixed response header parsing when there is no space after the colon in the response header (swoole/library#27) (@Yurunsoft)
-
-        Deprecated
-        ---
-        - Mark Coroutine\System::(fread/fgets/fwrite) as deprecated, please use runtime hook instead (it should have been included in v4.5.0) (c7c9bb40) (@twose)
+        * Fixed `Server->taskWait` on OSX (#3330) (@matyhtf)
+        * Fixed MQTT protocol bug (8dbf506b) (@guoxinhua) (2ae8eb32) (@twose)
+        * Fixed Content-Length int overflow (#3346) (@twose)
+        * Fixed packet length checker of PRI (#3348) (@twose)
+        * Fixed CURLOPT_POSTFIELDS (swoole/library@ed192f64) (@twose)
+        * Fixed the latest connection can not be released before accept new one (swoole/library@1ef79339) (@twose)
 
         Kernel
         ---
-        + Use zend_object_alloc (cf1afb25) (@twose)
-        + Add more options for log (#3296) (@matyhtf)
-        + Improve code and add more tests (swoole/library) (@deminy)
+        * Socket zero copy feature (#3327) (@twose)
+        * Use swoole_get_last_error/swoole_set_last_error to replace global vars (e25f262a) (@matyhtf) (#3315) (@huanghantao)
     </notes>
     <contents>
         <dir name="/">
@@ -105,6 +100,7 @@
             <file role="src" name="core-tests/samples/s1.cc" />
             <file role="src" name="core-tests/src/client/client.cpp" />
             <file role="src" name="core-tests/src/core/log.cpp" />
+            <file role="src" name="core-tests/src/core/time.cpp" />
             <file role="src" name="core-tests/src/coroutine/async.cpp" />
             <file role="src" name="core-tests/src/coroutine/base.cpp" />
             <file role="src" name="core-tests/src/coroutine/channel.cpp" />
@@ -529,8 +525,8 @@
             <file role="src" name="src/core/heap.cc" />
             <file role="src" name="src/core/log.cc" />
             <file role="src" name="src/core/ring_queue.cc" />
-            <file role="src" name="src/core/socket.cc" />
             <file role="src" name="src/core/string.cc" />
+            <file role="src" name="src/core/timer.cc" />
             <file role="src" name="src/coroutine/base.cc" />
             <file role="src" name="src/coroutine/channel.cc" />
             <file role="src" name="src/coroutine/context.cc" />
@@ -556,15 +552,15 @@
             <file role="src" name="src/memory/table.cc" />
             <file role="src" name="src/network/client.cc" />
             <file role="src" name="src/network/dns.cc" />
-            <file role="src" name="src/network/process_pool.cc" />
+            <file role="src" name="src/network/socket.cc" />
             <file role="src" name="src/network/stream.cc" />
-            <file role="src" name="src/network/thread_pool.cc" />
-            <file role="src" name="src/network/timer.cc" />
             <file role="src" name="src/os/async_thread.cc" />
             <file role="src" name="src/os/base.cc" />
             <file role="src" name="src/os/msg_queue.cc" />
+            <file role="src" name="src/os/process_pool.cc" />
             <file role="src" name="src/os/sendfile.cc" />
             <file role="src" name="src/os/signal.cc" />
+            <file role="src" name="src/os/thread_pool.cc" />
             <file role="src" name="src/os/timer.cc" />
             <file role="src" name="src/os/wait.cc" />
             <file role="src" name="src/pipe/base.cc" />
@@ -706,6 +702,7 @@
             <file role="test" name="tests/include/lib/src/CurlManager.php" />
             <file role="test" name="tests/include/lib/src/DbWrapper.php" />
             <file role="test" name="tests/include/lib/src/LengthServer.php" />
+            <file role="test" name="tests/include/lib/src/MQTT/Helper.php" />
             <file role="test" name="tests/include/lib/src/MysqlPool.php" />
             <file role="test" name="tests/include/lib/src/ProcessManager.php" />
             <file role="test" name="tests/include/lib/src/RandStr.php" />
@@ -1015,6 +1012,7 @@
             <file role="test" name="tests/swoole_http2_client_coro/error.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/goaway.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/headers.phpt" />
+            <file role="test" name="tests/swoole_http2_client_coro/host.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/huge_headers.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/issues_2374.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/multi.phpt" />
@@ -1136,6 +1134,7 @@
             <file role="test" name="tests/swoole_http_server/rawCookie.phpt" />
             <file role="test" name="tests/swoole_http_server/redirect.phpt" />
             <file role="test" name="tests/swoole_http_server/response_create.phpt" />
+            <file role="test" name="tests/swoole_http_server/send_empty_file.phpt" />
             <file role="test" name="tests/swoole_http_server/send_yield.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
@@ -1304,6 +1303,7 @@
             <file role="test" name="tests/swoole_process/swoole_process_wait.phpt" />
             <file role="test" name="tests/swoole_process/swoole_process_write.phpt" />
             <file role="test" name="tests/swoole_process/timeout.phpt" />
+            <file role="test" name="tests/swoole_process/wait_signal.phpt" />
             <file role="test" name="tests/swoole_process/write_in_worker.phpt" />
             <file role="test" name="tests/swoole_process_pool/bug_2652.phpt" />
             <file role="test" name="tests/swoole_process_pool/enable_coroutine.phpt" />
@@ -1491,6 +1491,7 @@
             <file role="test" name="tests/swoole_server/max_request_grace_disabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_grace_enabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_threshold.phpt" />
+            <file role="test" name="tests/swoole_server/mqtt/length_offset.phpt" />
             <file role="test" name="tests/swoole_server/object/getManagerPid.phpt" />
             <file role="test" name="tests/swoole_server/object/getMasterPid.phpt" />
             <file role="test" name="tests/swoole_server/object/getWorkerId.phpt" />
@@ -1546,6 +1547,7 @@
             <file role="test" name="tests/swoole_server/task/kill_01.phpt" />
             <file role="test" name="tests/swoole_server/task/kill_02.phpt" />
             <file role="test" name="tests/swoole_server/task/kill_task_worker_02.phpt" />
+            <file role="test" name="tests/swoole_server/task/scheduler_warning.phpt" />
             <file role="test" name="tests/swoole_server/task/task_callback.phpt" />
             <file role="test" name="tests/swoole_server/task/task_co.phpt" />
             <file role="test" name="tests/swoole_server/task/task_enable_coroutine.phpt" />

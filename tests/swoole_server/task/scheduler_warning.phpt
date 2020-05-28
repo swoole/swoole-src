@@ -1,5 +1,5 @@
 --TEST--
-task: scheduler warning
+swoole_server/task: scheduler warning
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
