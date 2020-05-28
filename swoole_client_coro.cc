@@ -1026,7 +1026,7 @@ static PHP_METHOD(swoole_client_coro, exportSocket)
     zval *zsocket = zend_read_property(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("socket"), 1, &rv);
     if (!ZVAL_IS_NULL(zsocket))
     {
-        RETURN_ZVAL(zsocket, 1, nullptr);
+        RETURN_ZVAL(zsocket, 1, 0);
     }
 
     Socket *cli = client_get_ptr(ZEND_THIS);

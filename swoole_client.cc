@@ -1436,7 +1436,7 @@ static PHP_METHOD(swoole_client, getSocket)
     zval *zsocket = php_swoole_client_get_zsocket(ZEND_THIS);
     if (zsocket)
     {
-        RETURN_ZVAL(zsocket, 1, nullptr);
+        RETURN_ZVAL(zsocket, 1, 0);
     }
     swClient *cli = client_get_ptr(ZEND_THIS);
     if (!cli)

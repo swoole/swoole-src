@@ -2954,7 +2954,7 @@ static PHP_METHOD(swoole_server, listen)
     }
 
     zval *port_object = php_swoole_server_add_port(serv, ls);
-    RETURN_ZVAL(port_object, 1, nullptr);
+    RETURN_ZVAL(port_object, 1, 0);
 }
 
 extern swWorker* php_swoole_process_get_and_check_worker(zval *zobject);
