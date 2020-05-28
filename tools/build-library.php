@@ -52,6 +52,8 @@ $files = [
     'core/Http/Status.php',
     'core/Curl/Exception.php',
     'core/Curl/Handler.php',
+    # <core for functions> #
+    'core/Coroutine/functions.php',
     # <ext> #
     'ext/curl.php',
     # <finalizer> #

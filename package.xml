@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-04-25</date>
-    <time>16:00:00</time>
+    <date>2020-05-28</date>
+    <time>15:00:00</time>
     <version>
-        <release>4.4.18</release>
+        <release>4.4.19</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,30 +54,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Enhancement
-        ---
-        + Resolve the domain name when use udp coroutine client (#3236) (#3239) (@huanghantao)
-        + Do not close stdout and stderr (show error logs after shutdown) (#3249) (@twose)
-        + Support some common options for Coroutine\Http\Server (#3257) (@twose)
-        + Support set cookies when websocket handshake (#3270) (#3272) (@twose)
-        + Support CURLOPT_FAILONERROR (swoole/library#20) (@sy-records)
-        + Support CURLOPT_SSLCERTTYPE, CURLOPT_SSLCERT, CURLOPT_SSLKEYTYPE, CURLOPT_SSLKEY (swoole/library#22) (@sy-records)
-        + Support CURLOPT_HTTPGET (swoole/library@d730bd08) (@shiguangqi)
-        + Compatible with different versions of Redis extension as much as possible (swoole/library#24) (@twose)
-        + Disable Cloning of Database Proxy Objects (swoole/library#23) (@deminy)
+        Notice: v4.4.x is no longer the main maintenance branch, bug fixes only when necessary
 
         Fixed
         ---
-        * Fixed SSL handshake failure (dc5ac29a) (@twose)
-        * Fixed memory error when generate error message (#3229) (@twose)
-        * Fixed empty proxy authorization info (#3243) (@twose)
-        * Fixed channel unreal memory leak (#3260) (@twose)
-        * Fixed memory leak of Co\Http\Server (#3271) (@twose)
-        * Fixed `ConnectionPool->fill` (swoole/library#18) (@NHZEX)
-        * Fixed use new client for the redirection requests (swoole/library#21) (@doubaokun)
-        * Fixed null socket error in ioException (swoole/library@4d15a4c3) (@twose)
-        * Fixed ConnectionPool@put when error happens (swoole/library#25) (@Sinute)
-        * Fixed mysqli write_property error (swoole/library#26) (@twose)
+        * Merged all the bugfix patches from v4.5.x
     </notes>
     <contents>
         <dir name="/">
@@ -720,6 +701,7 @@
             <file role="test" name="tests/include/lib/src/CurlManager.php" />
             <file role="test" name="tests/include/lib/src/DbWrapper.php" />
             <file role="test" name="tests/include/lib/src/LengthServer.php" />
+            <file role="test" name="tests/include/lib/src/MQTT/Helper.php" />
             <file role="test" name="tests/include/lib/src/MysqlPool.php" />
             <file role="test" name="tests/include/lib/src/ProcessManager.php" />
             <file role="test" name="tests/include/lib/src/RandStr.php" />
@@ -806,6 +788,7 @@
             <file role="test" name="tests/swoole_client_coro/length_protocol_func.phpt" />
             <file role="test" name="tests/swoole_client_coro/length_types.phpt" />
             <file role="test" name="tests/swoole_client_coro/read_and_write.phpt" />
+            <file role="test" name="tests/swoole_client_coro/reconnect.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_after_close.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout.phpt" />
             <file role="test" name="tests/swoole_client_coro/recv_timeout2.phpt" />
@@ -1019,6 +1002,7 @@
             <file role="test" name="tests/swoole_http2_client_coro/error.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/goaway.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/headers.phpt" />
+            <file role="test" name="tests/swoole_http2_client_coro/host.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/huge_headers.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/issues_2374.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/multi.phpt" />
@@ -1363,6 +1347,7 @@
             <file role="test" name="tests/swoole_runtime/accept.phpt" />
             <file role="test" name="tests/swoole_runtime/accept_timeout.phpt" />
             <file role="test" name="tests/swoole_runtime/base.phpt" />
+            <file role="test" name="tests/swoole_runtime/bindto.phpt" />
             <file role="test" name="tests/swoole_runtime/block.phpt" />
             <file role="test" name="tests/swoole_runtime/destruct.phpt" />
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
@@ -1481,6 +1466,7 @@
             <file role="test" name="tests/swoole_server/max_request_grace_disabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_grace_enabled.phpt" />
             <file role="test" name="tests/swoole_server/max_request_threshold.phpt" />
+            <file role="test" name="tests/swoole_server/mqtt/length_offset.phpt" />
             <file role="test" name="tests/swoole_server/pid_file.phpt" />
             <file role="test" name="tests/swoole_server/protect.phpt" />
             <file role="test" name="tests/swoole_server/protect_false.phpt" />
@@ -1510,6 +1496,7 @@
             <file role="test" name="tests/swoole_server/slow_client.phpt" />
             <file role="test" name="tests/swoole_server/ssl/00.phpt" />
             <file role="test" name="tests/swoole_server/ssl/bad_client.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/golang.phpt" />
             <file role="test" name="tests/swoole_server/ssl/verify_01.phpt" />
             <file role="test" name="tests/swoole_server/ssl/verify_02.phpt" />
             <file role="test" name="tests/swoole_server/ssl/verify_03.phpt" />
