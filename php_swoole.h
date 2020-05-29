@@ -441,22 +441,9 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #define GC_DELREF(ref) --GC_REFCOUNT(ref)
 #endif
 
-#ifndef GC_IS_RECURSIVE
-#define GC_IS_RECURSIVE(p) \
-    (ZEND_HASH_GET_APPLY_COUNT(p) >= 1)
-#define GC_PROTECT_RECURSION(p) \
-    ZEND_HASH_INC_APPLY_COUNT(p)
-#define GC_UNPROTECT_RECURSION(p) \
-    ZEND_HASH_DEC_APPLY_COUNT(p)
-#endif
-
 #ifndef ZEND_CLOSURE_OBJECT
 #define ZEND_CLOSURE_OBJECT(func) (zend_object*)func->op_array.prototype
 #endif
-
-#ifndef ZEND_HASH_APPLY_PROTECTION
-#define ZEND_HASH_APPLY_PROTECTION(p) 1
-#endif/*}}}*/
 
 /* PHP 7.4 compatibility macro {{{*/
 #ifndef E_FATAL_ERRORS
