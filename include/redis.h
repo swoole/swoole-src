@@ -59,7 +59,7 @@ static sw_inline char* swRedis_get_number(char *p, int *_ret)
     }
     else
     {
-        return nullptr;
+        return NULL;
     }
 }
 

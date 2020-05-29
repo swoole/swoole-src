@@ -87,7 +87,7 @@ int swoole_coroutine_socket(int domain, int type, int protocol)
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags)
 {
     Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == nullptr))
+    if (sw_unlikely(socket == NULL))
     {
         return ::send(sockfd, buf, len, flags);
     }
@@ -97,7 +97,7 @@ ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags)
 {
     Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == nullptr))
+    if (sw_unlikely(socket == NULL))
     {
         return ::sendmsg(sockfd, msg, flags);
     }
@@ -107,7 +107,7 @@ ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags
 ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
     Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == nullptr))
+    if (sw_unlikely(socket == NULL))
     {
         return ::recvmsg(sockfd, msg, flags);
     }
@@ -117,7 +117,7 @@ ssize_t swoole_coroutine_recvmsg(int sockfd, struct msghdr *msg, int flags)
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
 {
     Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == nullptr))
+    if (sw_unlikely(socket == NULL))
     {
         return ::recv(sockfd, buf, len, flags);
     }
@@ -134,7 +134,7 @@ ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags)
 int swoole_coroutine_close(int sockfd)
 {
     Socket *socket = get_socket(sockfd);
-    if (socket == nullptr)
+    if (socket == NULL)
     {
         return ::close(sockfd);
     }
@@ -149,7 +149,7 @@ int swoole_coroutine_close(int sockfd)
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
     Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == nullptr))
+    if (sw_unlikely(socket == NULL))
     {
         return ::connect(sockfd, addr, addrlen);
     }
@@ -163,7 +163,7 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout)
     if (sw_unlikely(
         nfds != 1 ||
         timeout == 0 ||
-        (socket = get_socket_ex(fds[0].fd)) == nullptr
+        (socket = get_socket_ex(fds[0].fd)) == NULL
     ))
     {
         return poll(fds, nfds, timeout);
@@ -641,7 +641,7 @@ DIR *swoole_coroutine_opendir(const char *name)
     ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return nullptr;
+        return NULL;
     }
     coroutine_yield((coroutine_t *) ev.object);
     return (DIR*) ev.buf;
@@ -665,7 +665,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
     ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return nullptr;
+        return NULL;
     }
     coroutine_yield((coroutine_t *) ev.object);
     return (struct dirent *) ev.buf;
@@ -685,7 +685,7 @@ void swoole_coroutine_usleep(int usec)
 int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout)
 {
     Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == nullptr))
+    if (sw_unlikely(socket == NULL))
     {
         errno = EINVAL;
         return -1;
@@ -710,7 +710,7 @@ int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout)
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout)
 {
     Socket *socket = get_socket_ex(sockfd);
-    if (sw_unlikely(socket == nullptr))
+    if (sw_unlikely(socket == NULL))
     {
         errno = EINVAL;
         return -1;

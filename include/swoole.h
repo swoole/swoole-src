@@ -868,7 +868,7 @@ static sw_inline char *swoole_strlchr(char *p, char *last, char c)
         }
         p++;
     }
-    return nullptr;
+    return NULL;
 }
 
 static sw_inline size_t swoole_size_align(size_t size, int pagesize)
@@ -1491,7 +1491,7 @@ static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack
         }
     }
 
-    return nullptr;
+    return NULL;
 }
 
 static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
@@ -1500,7 +1500,7 @@ static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length,
     const char *pos;
 
     pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
-    return pos == nullptr ? -1 : pos - haystack;
+    return pos == NULL ? -1 : pos - haystack;
 }
 
 static inline int swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
@@ -1538,7 +1538,7 @@ static inline void swoole_strtolower(char *str, int length)
 
 static inline int swString_contains(swString *str, const char *needle, size_t l_needle)
 {
-    return swoole_strnstr(str->str, str->length, needle, l_needle) != nullptr;
+    return swoole_strnstr(str->str, str->length, needle, l_needle) != NULL;
 }
 
 int swoole_itoa(char *buf, long value);
@@ -1761,13 +1761,13 @@ int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);
 static sw_inline swString *swSocket_get_buffer(swSocket *_socket)
 {
     swString *buffer = _socket->recv_buffer;
-    if (buffer == nullptr)
+    if (buffer == NULL)
     {
         buffer = swString_new(SW_BUFFER_SIZE_BIG);
         //alloc memory failed.
         if (!buffer)
         {
-            return nullptr;
+            return NULL;
         }
         _socket->recv_buffer = buffer;
     }
@@ -1779,7 +1779,7 @@ static sw_inline void swSocket_free_buffer(swSocket *conn)
     if (conn->recv_buffer)
     {
         swString_free(conn->recv_buffer);
-        conn->recv_buffer = nullptr;
+        conn->recv_buffer = NULL;
     }
 }
 
@@ -2128,7 +2128,7 @@ int swReactor_empty(swReactor *reactor);
 
 static sw_inline int swReactor_isset_handler(swReactor *reactor, int fdtype)
 {
-    return reactor->read_handler[fdtype] != nullptr;
+    return reactor->read_handler[fdtype] != NULL;
 }
 
 static sw_inline void swReactor_add(swReactor *reactor, swSocket *_socket, int events)
@@ -2243,14 +2243,14 @@ static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enu
     case SW_EVENT_READ:
         return reactor->read_handler[fdtype];
     case SW_EVENT_WRITE:
-        return (reactor->write_handler[fdtype] != nullptr) ? reactor->write_handler[fdtype] : reactor->default_write_handler;
+        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype] : reactor->default_write_handler;
     case SW_EVENT_ERROR:
-        return (reactor->error_handler[fdtype] != nullptr) ? reactor->error_handler[fdtype] : reactor->default_error_handler;
+        return (reactor->error_handler[fdtype] != NULL) ? reactor->error_handler[fdtype] : reactor->default_error_handler;
     default:
         abort();
         break;
     }
-    return nullptr;
+    return NULL;
 }
 
 int swReactor_set_handler(swReactor *reactor, int fdtype, swReactor_handler);
@@ -2476,7 +2476,7 @@ static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
 static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, const enum swTimer_type type)
 {
     swTimer_node* tnode = swTimer_get(timer, id);
-    return (tnode && tnode->type == type) ? tnode : nullptr;
+    return (tnode && tnode->type == type) ? tnode : NULL;
 }
 
 int swSystemTimer_init(swTimer *timer, long msec);
