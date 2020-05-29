@@ -42,7 +42,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *      struct item *prev, *next;
  * }
  *
- * struct item *list = nullptr:
+ * struct item *list = NULL:
  *
  * int main() {
  *      struct item *item;
@@ -114,8 +114,8 @@ do {                                                                            
     _ls_looping = 1;                                                                           \
     while (_ls_looping) {                                                                      \
       _CASTASGN(_ls_p,list);                                                                   \
-      list = nullptr;                                                                             \
-      _ls_tail = nullptr;                                                                         \
+      list = NULL;                                                                             \
+      _ls_tail = NULL;                                                                         \
       _ls_nmerges = 0;                                                                         \
       while (_ls_p) {                                                                          \
         _ls_nmerges++;                                                                         \
@@ -151,7 +151,7 @@ do {                                                                            
         _ls_p = _ls_q;                                                                         \
       }                                                                                        \
       if (_ls_tail) {                                                                          \
-        _SV(_ls_tail,list); _NEXTASGN(_ls_tail,list,nullptr,next); _RS(list);                     \
+        _SV(_ls_tail,list); _NEXTASGN(_ls_tail,list,NULL,next); _RS(list);                     \
       }                                                                                        \
       if (_ls_nmerges <= 1) {                                                                  \
         _ls_looping=0;                                                                         \
@@ -177,8 +177,8 @@ do {                                                                            
     _ls_looping = 1;                                                                           \
     while (_ls_looping) {                                                                      \
       _CASTASGN(_ls_p,list);                                                                   \
-      list = nullptr;                                                                             \
-      _ls_tail = nullptr;                                                                         \
+      list = NULL;                                                                             \
+      _ls_tail = NULL;                                                                         \
       _ls_nmerges = 0;                                                                         \
       while (_ls_p) {                                                                          \
         _ls_nmerges++;                                                                         \
@@ -215,7 +215,7 @@ do {                                                                            
         _ls_p = _ls_q;                                                                         \
       }                                                                                        \
       _CASTASGN(list->prev, _ls_tail);                                                         \
-      _SV(_ls_tail,list); _NEXTASGN(_ls_tail,list,nullptr,next); _RS(list);                       \
+      _SV(_ls_tail,list); _NEXTASGN(_ls_tail,list,NULL,next); _RS(list);                       \
       if (_ls_nmerges <= 1) {                                                                  \
         _ls_looping=0;                                                                         \
       }                                                                                        \
@@ -242,8 +242,8 @@ do {                                                                            
     while (_ls_looping) {                                                                      \
       _CASTASGN(_ls_p,list);                                                                   \
       _CASTASGN(_ls_oldhead,list);                                                             \
-      list = nullptr;                                                                             \
-      _ls_tail = nullptr;                                                                         \
+      list = NULL;                                                                             \
+      _ls_tail = NULL;                                                                         \
       _ls_nmerges = 0;                                                                         \
       while (_ls_p) {                                                                          \
         _ls_nmerges++;                                                                         \
@@ -253,7 +253,7 @@ do {                                                                            
           _ls_psize++;                                                                         \
           _SV(_ls_q,list);                                                                     \
           if (_NEXT(_ls_q,list,next) == _ls_oldhead) {                                         \
-            _ls_q = nullptr;                                                                      \
+            _ls_q = NULL;                                                                      \
           } else {                                                                             \
             _ls_q = _NEXT(_ls_q,list,next);                                                    \
           }                                                                                    \
@@ -265,19 +265,19 @@ do {                                                                            
           if (_ls_psize == 0) {                                                                \
             _ls_e = _ls_q; _SV(_ls_q,list); _ls_q =                                            \
               _NEXT(_ls_q,list,next); _RS(list); _ls_qsize--;                                  \
-            if (_ls_q == _ls_oldhead) { _ls_q = nullptr; }                                        \
+            if (_ls_q == _ls_oldhead) { _ls_q = NULL; }                                        \
           } else if (_ls_qsize == 0 || !_ls_q) {                                               \
             _ls_e = _ls_p; _SV(_ls_p,list); _ls_p =                                            \
               _NEXT(_ls_p,list,next); _RS(list); _ls_psize--;                                  \
-            if (_ls_p == _ls_oldhead) { _ls_p = nullptr; }                                        \
+            if (_ls_p == _ls_oldhead) { _ls_p = NULL; }                                        \
           } else if (cmp(_ls_p,_ls_q) <= 0) {                                                  \
             _ls_e = _ls_p; _SV(_ls_p,list); _ls_p =                                            \
               _NEXT(_ls_p,list,next); _RS(list); _ls_psize--;                                  \
-            if (_ls_p == _ls_oldhead) { _ls_p = nullptr; }                                        \
+            if (_ls_p == _ls_oldhead) { _ls_p = NULL; }                                        \
           } else {                                                                             \
             _ls_e = _ls_q; _SV(_ls_q,list); _ls_q =                                            \
               _NEXT(_ls_q,list,next); _RS(list); _ls_qsize--;                                  \
-            if (_ls_q == _ls_oldhead) { _ls_q = nullptr; }                                        \
+            if (_ls_q == _ls_oldhead) { _ls_q = NULL; }                                        \
           }                                                                                    \
           if (_ls_tail) {                                                                      \
             _SV(_ls_tail,list); _NEXTASGN(_ls_tail,list,_ls_e,next); _RS(list);                \
@@ -333,7 +333,7 @@ do {                                                                            
 #define LL_APPEND2(head,add,next)                                                              \
 do {                                                                                           \
   LDECLTYPE(head) _tmp;                                                                        \
-  (add)->next=nullptr;                                                                            \
+  (add)->next=NULL;                                                                            \
   if (head) {                                                                                  \
     _tmp = head;                                                                               \
     while (_tmp->next) { _tmp = _tmp->next; }                                                  \
@@ -375,7 +375,7 @@ do {                                                                            
   } else {                                                                                     \
     (head)=(add);                                                                              \
   }                                                                                            \
-  (add)->next=nullptr;                                                                            \
+  (add)->next=NULL;                                                                            \
 } while (0)
 
 #define LL_DELETE_VS2008(head,del)                                                             \
@@ -457,9 +457,9 @@ do {                                                                            
 #define LL_REPLACE_ELEM(head, el, add)                                                         \
 do {                                                                                           \
  LDECLTYPE(head) _tmp;                                                                         \
- assert(head != nullptr);                                                                         \
- assert(el != nullptr);                                                                           \
- assert(add != nullptr);                                                                          \
+ assert(head != NULL);                                                                         \
+ assert(el != NULL);                                                                           \
+ assert(add != NULL);                                                                          \
  (add)->next = (el)->next;                                                                     \
  if ((head) == (el)) {                                                                         \
   (head) = (add);                                                                              \
@@ -477,9 +477,9 @@ do {                                                                            
 #define LL_PREPEND_ELEM(head, el, add)                                                         \
 do {                                                                                           \
  LDECLTYPE(head) _tmp;                                                                         \
- assert(head != nullptr);                                                                         \
- assert(el != nullptr);                                                                           \
- assert(add != nullptr);                                                                          \
+ assert(head != NULL);                                                                         \
+ assert(el != NULL);                                                                           \
+ assert(add != NULL);                                                                          \
  (add)->next = (el);                                                                           \
  if ((head) == (el)) {                                                                         \
   (head) = (add);                                                                              \
@@ -522,11 +522,11 @@ do {                                                                            
       (add)->prev = (head)->prev;                                                              \
       (head)->prev->next = (add);                                                              \
       (head)->prev = (add);                                                                    \
-      (add)->next = nullptr;                                                                      \
+      (add)->next = NULL;                                                                      \
   } else {                                                                                     \
       (head)=(add);                                                                            \
       (head)->prev = (head);                                                                   \
-      (head)->next = nullptr;                                                                     \
+      (head)->next = NULL;                                                                     \
   }                                                                                            \
 } while (0)
 
@@ -553,9 +553,9 @@ do {                                                                            
 
 #define DL_DELETE2(head,del,prev,next)                                                         \
 do {                                                                                           \
-  assert((del)->prev != nullptr);                                                                 \
+  assert((del)->prev != NULL);                                                                 \
   if ((del)->prev == (del)) {                                                                  \
-      (head)=nullptr;                                                                             \
+      (head)=NULL;                                                                             \
   } else if ((del)==(head)) {                                                                  \
       (del)->next->prev = (del)->prev;                                                         \
       (head) = (del)->next;                                                                    \
@@ -599,13 +599,13 @@ do {                                                                            
 
 #define DL_REPLACE_ELEM(head, el, add)                                                         \
 do {                                                                                           \
- assert(head != nullptr);                                                                         \
- assert(el != nullptr);                                                                           \
- assert(add != nullptr);                                                                          \
+ assert(head != NULL);                                                                         \
+ assert(el != NULL);                                                                           \
+ assert(add != NULL);                                                                          \
  if ((head) == (el)) {                                                                         \
   (head) = (add);                                                                              \
   (add)->next = (el)->next;                                                                    \
-  if ((el)->next == nullptr) {                                                                    \
+  if ((el)->next == NULL) {                                                                    \
    (add)->prev = (add);                                                                        \
   } else {                                                                                     \
    (add)->prev = (el)->prev;                                                                   \
@@ -615,7 +615,7 @@ do {                                                                            
   (add)->next = (el)->next;                                                                    \
   (add)->prev = (el)->prev;                                                                    \
   (add)->prev->next = (add);                                                                   \
-  if ((el)->next == nullptr) {                                                                    \
+  if ((el)->next == NULL) {                                                                    \
    (head)->prev = (add);                                                                       \
   } else {                                                                                     \
    (add)->next->prev = (add);                                                                  \
@@ -625,9 +625,9 @@ do {                                                                            
 
 #define DL_PREPEND_ELEM(head, el, add)                                                         \
 do {                                                                                           \
- assert(head != nullptr);                                                                         \
- assert(el != nullptr);                                                                           \
- assert(add != nullptr);                                                                          \
+ assert(head != NULL);                                                                         \
+ assert(el != NULL);                                                                           \
+ assert(add != NULL);                                                                          \
  (add)->next = (el);                                                                           \
  (add)->prev = (el)->prev;                                                                     \
  (el)->prev = (add);                                                                           \
@@ -665,7 +665,7 @@ do {                                                                            
 #define CDL_DELETE2(head,del,prev,next)                                                        \
 do {                                                                                           \
   if ( ((head)==(del)) && ((head)->next == (head))) {                                          \
-      (head) = nullptr;                                                                             \
+      (head) = NULL;                                                                             \
   } else {                                                                                     \
      (del)->next->prev = (del)->prev;                                                          \
      (del)->prev->next = (del)->next;                                                          \
@@ -692,7 +692,7 @@ do {                                                                            
     CDL_FOREACH_SAFE2(head,el,tmp1,tmp2,prev,next)
 
 #define CDL_FOREACH_SAFE2(head,el,tmp1,tmp2,prev,next)                                         \
-  for((el)=(head), ((tmp1)=(head)?((head)->prev):nullptr);                                        \
+  for((el)=(head), ((tmp1)=(head)?((head)->prev):NULL);                                        \
       (el) && ((tmp2)=(el)->next, 1);                                                          \
       ((el) = (((el)==(tmp1)) ? 0L : (tmp2))))
 
@@ -718,9 +718,9 @@ do {                                                                            
 
 #define CDL_REPLACE_ELEM(head, el, add)                                                        \
 do {                                                                                           \
- assert(head != nullptr);                                                                         \
- assert(el != nullptr);                                                                           \
- assert(add != nullptr);                                                                          \
+ assert(head != NULL);                                                                         \
+ assert(el != NULL);                                                                           \
+ assert(add != NULL);                                                                          \
  if ((el)->next == (el)) {                                                                     \
   (add)->next = (add);                                                                         \
   (add)->prev = (add);                                                                         \
@@ -738,9 +738,9 @@ do {                                                                            
 
 #define CDL_PREPEND_ELEM(head, el, add)                                                        \
 do {                                                                                           \
- assert(head != nullptr);                                                                         \
- assert(el != nullptr);                                                                           \
- assert(add != nullptr);                                                                          \
+ assert(head != NULL);                                                                         \
+ assert(el != NULL);                                                                           \
+ assert(add != NULL);                                                                          \
  (add)->next = (el);                                                                           \
  (add)->prev = (el)->prev;                                                                     \
  (el)->prev = (add);                                                                           \

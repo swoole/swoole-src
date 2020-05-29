@@ -45,7 +45,7 @@ struct DataBuffer
     DataBuffer()
     {
         length = 0;
-        buffer = NULL;
+        buffer = nullptr;
     }
 
     DataBuffer(const char *str)

@@ -51,7 +51,7 @@ static inline swHeap_node *swHeap_top(swHeap *heap)
 {
     if (heap->num == 1)
     {
-        return nullptr;
+        return NULL;
     }
     return heap->nodes[1];
 }
