@@ -110,7 +110,7 @@ static const zend_function_entry swoole_coroutine_scheduler_methods[] =
 
 void php_swoole_coroutine_scheduler_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_coroutine_scheduler, "Swoole\\Coroutine\\Scheduler", NULL, "Co\\Scheduler", swoole_coroutine_scheduler_methods);
+    SW_INIT_CLASS_ENTRY(swoole_coroutine_scheduler, "Swoole\\Coroutine\\Scheduler", nullptr, "Co\\Scheduler", swoole_coroutine_scheduler_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_scheduler, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_coroutine_scheduler, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_scheduler, sw_zend_class_unset_property_deny);
@@ -129,7 +129,7 @@ static int php_swoole_coroutine_reactor_can_exit(swReactor *reactor)
 
     SW_ASSERT(exit_condition_fci_cache.function_handler);
     ZVAL_NULL(&retval);
-    success = sw_zend_call_function_ex(NULL, &exit_condition_fci_cache, 0, nullptr, &retval);
+    success = sw_zend_call_function_ex(nullptr, &exit_condition_fci_cache, 0, nullptr, &retval);
     if (UNEXPECTED(success != SUCCESS))
     {
         php_swoole_fatal_error(E_ERROR, "Coroutine can_exit callback handler error");
@@ -143,8 +143,8 @@ static int php_swoole_coroutine_reactor_can_exit(swReactor *reactor)
 
 PHP_METHOD(swoole_coroutine_scheduler, set)
 {
-    zval *zset = NULL;
-    HashTable *vht = NULL;
+    zval *zset = nullptr;
+    HashTable *vht = nullptr;
     zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -237,7 +237,7 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
         }
         if (!ZVAL_IS_NULL(ztmp))
         {
-            if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, &exit_condition_fci_cache, NULL))
+            if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, &exit_condition_fci_cache, nullptr))
             {
                 php_swoole_fatal_error(E_ERROR, "exit_condition '%s' is not callable", func_name);
             }

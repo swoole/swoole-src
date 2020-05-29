@@ -42,7 +42,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 
 #ifdef SW_THREADPOOL_USE_CHANNEL
     pool->chan = swChannel_create(1024 * 256, 512, 0);
-    if (pool->chan == NULL)
+    if (pool->chan == nullptr)
     {
         sw_free(pool->threads);
         sw_free(pool->params);
@@ -99,7 +99,7 @@ int swThreadPool_run(swThreadPool *pool)
     {
         pool->params[i].pti = i;
         pool->params[i].object = pool;
-        if (pthread_create(&(swThreadPool_thread(pool,i)->tid), NULL, swThreadPool_loop, &pool->params[i]) < 0)
+        if (pthread_create(&(swThreadPool_thread(pool,i)->tid), nullptr, swThreadPool_loop, &pool->params[i]) < 0)
         {
             swSysWarn("pthread_create failed");
             return SW_ERR;
@@ -122,7 +122,7 @@ int swThreadPool_free(swThreadPool *pool)
 
     for (i = 0; i < pool->thread_num; i++)
     {
-        pthread_join((swThreadPool_thread(pool,i)->tid), NULL);
+        pthread_join((swThreadPool_thread(pool,i)->tid), nullptr);
     }
 
 #ifdef SW_THREADPOOL_USE_CHANNEL
@@ -146,9 +146,9 @@ static void* swThreadPool_loop(void *arg)
     void *task;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
-    if (SwooleTG.buffer_stack == NULL)
+    if (SwooleTG.buffer_stack == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
 
     swSignal_none();
@@ -166,7 +166,7 @@ static void* swThreadPool_loop(void *arg)
         {
             pool->cond.unlock(&pool->cond);
             swTrace("thread [%d] will exit", id);
-            pthread_exit(NULL);
+            pthread_exit(nullptr);
         }
 
         if (pool->task_num == 0)
@@ -194,6 +194,6 @@ static void* swThreadPool_loop(void *arg)
     }
 
     swString_free(SwooleTG.buffer_stack);
-    pthread_exit(NULL);
-    return NULL;
+    pthread_exit(nullptr);
+    return nullptr;
 }

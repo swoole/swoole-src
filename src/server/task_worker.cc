@@ -16,7 +16,7 @@
 
 #include "server.h"
 
-static swEventData *g_current_task = NULL;
+static swEventData *g_current_task = nullptr;
 
 static void swTaskWorker_signal_init(swProcessPool *pool);
 static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
@@ -123,10 +123,10 @@ static void swTaskWorker_signal_init(swProcessPool *pool)
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_add(SIGHUP, NULL);
-    swSignal_add(SIGPIPE, NULL);
+    swSignal_add(SIGHUP, nullptr);
+    swSignal_add(SIGPIPE, nullptr);
     swSignal_add(SIGUSR1, swWorker_signal_handler);
-    swSignal_add(SIGUSR2, NULL);
+    swSignal_add(SIGUSR2, nullptr);
     swSignal_add(SIGTERM, swWorker_signal_handler);
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
 #ifdef SIGRTMIN
@@ -159,14 +159,14 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
     else
     {
         SwooleG.enable_signalfd = 0;
-        SwooleTG.reactor = NULL;
+        SwooleTG.reactor = nullptr;
     }
 
     swTaskWorker_signal_init(pool);
     swWorker_onStart(serv);
 
     swWorker *worker = swProcessPool_get_worker(pool, worker_id);
-    worker->start_time = time(NULL);
+    worker->start_time = time(nullptr);
     worker->request_count = 0;
     SwooleWG.worker = worker;
     SwooleWG.worker->status = SW_WORKER_IDLE;
@@ -242,7 +242,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     }
 
     //main loop
-    return SwooleTG.reactor->wait(SwooleTG.reactor, NULL);
+    return SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
 }
 
 /**
@@ -257,7 +257,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
         swWarn("cannot use task/finish, because no set serv->task_worker_num");
         return SW_ERR;
     }
-    if (current_task == NULL)
+    if (current_task == nullptr)
     {
         current_task = g_current_task;
     }
@@ -275,7 +275,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
     uint16_t source_worker_id = current_task->info.reactor_id;
     swWorker *worker = swServer_get_worker(serv, source_worker_id);
 
-    if (worker == NULL)
+    if (worker == nullptr)
     {
         swWarn("invalid worker_id[%d]", source_worker_id);
         return SW_ERR;

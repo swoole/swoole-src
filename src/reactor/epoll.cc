@@ -78,7 +78,7 @@ struct swReactorEpoll_s
 int swReactorEpoll_create(swReactor *reactor, int max_event_num)
 {
     swReactorEpoll *object = (swReactorEpoll *) sw_malloc(sizeof(swReactorEpoll));
-    if (object == NULL)
+    if (object == nullptr)
     {
         swWarn("malloc[0] failed");
         return SW_ERR;
@@ -88,7 +88,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
     reactor->max_event_num = max_event_num;
 
     object->events = (struct epoll_event *) sw_calloc(max_event_num, sizeof(struct epoll_event));
-    if (object->events == NULL)
+    if (object->events == nullptr)
     {
         swWarn("malloc[1] failed");
         sw_free(object);
@@ -147,7 +147,7 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events)
 static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket)
 {
     swReactorEpoll *object = (swReactorEpoll *) reactor->object;
-    if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, _socket->fd, NULL) < 0)
+    if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0)
     {
         swSysWarn("epoll remove fd[%d#%d] failed", _socket->fd, reactor->id);
         return SW_ERR;
@@ -199,7 +199,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
     if (reactor->timeout_msec == 0)
     {
-        if (timeo == NULL)
+        if (timeo == nullptr)
         {
             reactor->timeout_msec = -1;
         }
@@ -213,7 +213,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
 
     while (reactor->running > 0)
     {
-        if (reactor->onBegin != NULL)
+        if (reactor->onBegin != nullptr)
         {
             reactor->onBegin(reactor);
         }

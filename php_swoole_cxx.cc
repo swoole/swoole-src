@@ -27,7 +27,7 @@ bool zend::include(std::string file)
     }
     else
     {
-        new_op_array = NULL;
+        new_op_array = nullptr;
         zend_file_handle_dtor(&file_handle);
     }
     zend_string_release(opened_path);

@@ -99,7 +99,7 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode)
 int System::sleep(double sec)
 {
     Coroutine* co = Coroutine::get_current_safe();
-    if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == NULL)
+    if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == nullptr)
     {
         return -1;
     }
@@ -126,7 +126,7 @@ swString* System::read_file(const char *file, bool lock)
     ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)
     {
-        return NULL;
+        return nullptr;
     }
     task.co->yield();
     if (ev.error == 0)
@@ -134,7 +134,7 @@ swString* System::read_file(const char *file, bool lock)
         swString *str = (swString *) sw_malloc(sizeof(swString));
         if (!str)
         {
-            return NULL;
+            return nullptr;
         }
         str->str = (char*) ev.buf;
         str->length = ev.nbytes;
@@ -143,7 +143,7 @@ swString* System::read_file(const char *file, bool lock)
     else
     {
         swoole_set_last_error(ev.error);
-        return NULL;
+        return nullptr;
     }
 }
 

@@ -111,12 +111,12 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
     // begin to check and call registerd callback
     do {
-        zend_fcall_info_cache *fci_cache = NULL;
+        zend_fcall_info_cache *fci_cache = nullptr;
 
         if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION)
         {
             fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandShake);
-            if (fci_cache == NULL)
+            if (fci_cache == nullptr)
             {
                 swoole_websocket_onHandshake(serv, port, ctx);
                 goto _dtor_and_return;
@@ -130,14 +130,14 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
         else
         {
             fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
-            if (fci_cache == NULL)
+            if (fci_cache == nullptr)
             {
                 swoole_websocket_onRequest(ctx);
                 goto _dtor_and_return;
             }
         }
 
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine)))
         {
             php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
     #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
@@ -172,7 +172,7 @@ void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 
 void php_swoole_http_server_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", NULL, NULL, swoole_server);
+    SW_INIT_CLASS_ENTRY_EX(swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", nullptr, nullptr, swoole_server);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
@@ -301,7 +301,7 @@ void php_swoole_http_server_init_global_variant()
     if (!SG(rfc1867_uploaded_files))
     {
         ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));
-        zend_hash_init(SG(rfc1867_uploaded_files), 8, NULL, NULL, 0);
+        zend_hash_init(SG(rfc1867_uploaded_files), 8, nullptr, nullptr, 0);
     }
 }
 
@@ -321,7 +321,7 @@ http_context* php_swoole_http_response_get_and_check_context(zval *zobject)
     if (!ctx || (ctx->end || ctx->detached))
     {
         php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
-        return NULL;
+        return nullptr;
     }
     return ctx;
 }

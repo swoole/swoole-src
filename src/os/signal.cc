@@ -40,7 +40,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
-static swSocket *signal_socket = NULL;
+static swSocket *signal_socket = nullptr;
 #endif
 
 #ifdef HAVE_KQUEUE
@@ -71,7 +71,7 @@ void swSignal_none(void)
 {
     sigset_t mask;
     sigfillset(&mask);
-    int ret = pthread_sigmask(SIG_BLOCK, &mask, NULL);
+    int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
     if (ret < 0)
     {
         swSysWarn("pthread_sigmask() failed");
@@ -84,7 +84,7 @@ void swSignal_none(void)
 swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask)
 {
     //ignore
-    if (func == NULL)
+    if (func == nullptr)
     {
         func = SIG_IGN;
     }
@@ -107,7 +107,7 @@ swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mas
     act.sa_flags = 0;
     if (sigaction(sig, &act, &oact) < 0)
     {
-        return NULL;
+        return nullptr;
     }
     return oact.sa_handler;
 }
@@ -181,7 +181,7 @@ swSignalHandler swSignal_get_handler(int signo)
     if (signo >= SW_SIGNO_MAX)
     {
         swWarn("signal[%d] numberis invalid", signo);
-        return NULL;
+        return nullptr;
     }
     else
     {
@@ -208,7 +208,7 @@ void swSignal_clear(void)
 #ifdef HAVE_KQUEUE
                 if (signals[i].signo != SIGCHLD && SwooleTG.reactor)
                 {
-                    swKqueueSignal_set(signals[i].signo, NULL);
+                    swKqueueSignal_set(signals[i].signo, nullptr);
                 }
                 else
 #endif
@@ -230,7 +230,7 @@ void swSignalfd_init()
 
 static void swSignalfd_set(int signo, swSignalHandler handler)
 {
-    if (handler == NULL && signals[signo].active)
+    if (handler == nullptr && signals[signo].active)
     {
         sigdelset(&signalfd_mask, signo);
         bzero(&signals[signo], sizeof(swSignal));
@@ -244,7 +244,7 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
     }
     if (signal_fd > 0)
     {
-        sigprocmask(SIG_SETMASK, &signalfd_mask, NULL);
+        sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
 }
@@ -260,14 +260,14 @@ int swSignalfd_setup(swReactor *reactor)
             return SW_ERR;
         }
         signal_socket = swSocket_new(signal_fd, SW_FD_SIGNAL);
-        if (signal_socket == NULL)
+        if (signal_socket == nullptr)
         {
             close(signal_fd);
             signal_fd = 0;
             return SW_ERR;
         }
         SwooleG.signal_fd = signal_fd;
-        if (sigprocmask(SIG_BLOCK, &signalfd_mask, NULL) == -1)
+        if (sigprocmask(SIG_BLOCK, &signalfd_mask, nullptr) == -1)
         {
             swSysWarn("sigprocmask() failed");
             return SW_ERR;
@@ -290,14 +290,14 @@ static void swSignalfd_clear()
 {
     if (signal_fd)
     {
-        if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, NULL) < 0)
+        if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, nullptr) < 0)
         {
             swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
         }
         if (signal_socket)
         {
             swSocket_free(signal_socket);
-            signal_socket = NULL;
+            signal_socket = nullptr;
         }
         bzero(&signalfd_mask, sizeof(signalfd_mask));
     }
@@ -346,11 +346,11 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     };
     struct reactor_object *reactor_obj = (struct reactor_object *) reactor->object;
     // clear signal
-    if (handler == NULL)
+    if (handler == nullptr)
     {
         signal(signo, SIG_DFL);
         bzero(&signals[signo], sizeof(swSignal));
-        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
+        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, nullptr);
     }
     // add/update signal
     else
@@ -362,7 +362,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
         // save swSignal* as udata
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, &signals[signo]);
     }
-    int n = kevent(reactor_obj->fd, &ev, 1, NULL, 0, NULL);
+    int n = kevent(reactor_obj->fd, &ev, 1, nullptr, 0, nullptr);
     if (n < 0 && sw_unlikely(handler))
     {
         swSysWarn("kevent set signal[%d] error", signo);

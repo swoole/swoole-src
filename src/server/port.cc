@@ -55,13 +55,13 @@ void swPort_init(swListenPort *port)
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls)
 {
-    if (ls->ssl_option.cert_file == NULL || ls->ssl_option.key_file == NULL)
+    if (ls->ssl_option.cert_file == nullptr || ls->ssl_option.key_file == nullptr)
     {
         swWarn("SSL error, require ssl_cert_file and ssl_key_file");
         return SW_ERR;
     }
     ls->ssl_context = swSSL_get_context(&ls->ssl_option);
-    if (ls->ssl_context == NULL)
+    if (ls->ssl_context == nullptr)
     {
         swWarn("swSSL_get_context() error");
         return SW_ERR;
@@ -390,10 +390,10 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     }
 #endif
 
-    swHttpRequest *request = NULL;
+    swHttpRequest *request = nullptr;
     swProtocol *protocol = &port->protocol;
 
-    if (conn->object == NULL)
+    if (conn->object == nullptr)
     {
         request = (swHttpRequest *) sw_calloc(1, sizeof(swHttpRequest));
         if (!request)

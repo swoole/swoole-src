@@ -54,7 +54,7 @@ const char* swHttp_get_method_string(int method)
 {
     if (method < 0 || method > SW_HTTP_PRI)
     {
-        return NULL;
+        return nullptr;
     }
     return method_strings[method - 1];
 }
@@ -215,7 +215,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
     {
         response.info.type = SW_SERVER_EVENT_CLOSE;
         response.info.len = 0;
-        response.data = NULL;
+        response.data = nullptr;
         swServer_master_send(serv, &response);
     }
 
@@ -641,7 +641,7 @@ void swHttpRequest_parse_header_info(swHttpRequest *request)
                 {
                     p++;
                 }
-                content_length = strtoull(p, NULL, 10);
+                content_length = strtoull(p, nullptr, 10);
                 request->content_length = SW_MIN(content_length, UINT32_MAX);
                 request->known_length = 1;
             }
@@ -788,7 +788,7 @@ string swHttpRequest_get_date_if_modified_since(swHttpRequest *request)
 
     string result;
 
-    char *date_if_modified_since = NULL;
+    char *date_if_modified_since = nullptr;
     size_t length_if_modified_since = 0;
 
     int state = 0;

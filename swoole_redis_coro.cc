@@ -966,7 +966,7 @@ static sw_inline bool swoole_redis_coro_close(swRedisClient *redis)
         if (!(socket && socket->has_bound()))
         {
             redisFreeKeepFd(redis->context);
-            redis->context = NULL;
+            redis->context = nullptr;
             redis->session = { false, 0, false };
         }
         if (socket)
@@ -1988,7 +1988,7 @@ static const zend_function_entry swoole_redis_coro_methods[] =
 
 void php_swoole_redis_coro_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_redis_coro, "Swoole\\Coroutine\\Redis", NULL, "Co\\Redis", swoole_redis_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_redis_coro, "Swoole\\Coroutine\\Redis", nullptr, "Co\\Redis", swoole_redis_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_redis_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_redis_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_coro, sw_zend_class_unset_property_deny);
@@ -2078,7 +2078,7 @@ static PHP_METHOD(swoole_redis_coro, __construct)
 {
     swRedisClient *redis = php_swoole_get_redis_client(ZEND_THIS);
     zval *zsettings = sw_zend_read_and_convert_property_array(swoole_redis_coro_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
-    zval *zset = NULL;
+    zval *zset = nullptr;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 0, 1)
         Z_PARAM_OPTIONAL
@@ -2299,9 +2299,9 @@ static PHP_METHOD(swoole_redis_coro, __destruct)
 
 static PHP_METHOD(swoole_redis_coro, set)
 {
-    char *key, *exp_type = NULL, *set_type = NULL;
+    char *key, *exp_type = nullptr, *set_type = nullptr;
     size_t key_len, argc = 3;
-    zval *z_value, *z_opts = NULL;
+    zval *z_value, *z_opts = nullptr;
     zend_long expire = -1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sz|z", &key, &key_len, &z_value, &z_opts) == FAILURE)
@@ -2565,7 +2565,7 @@ static PHP_METHOD(swoole_redis_coro, hMSet)
     zend_ulong idx;
     zend_string *_key;
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_arr), idx, _key, value) {
-        if (_key == NULL)
+        if (_key == nullptr)
         {
             key_len = sw_snprintf(buf, sizeof(buf), "%ld", (long) idx);
             key = (char*) buf;
@@ -2696,7 +2696,7 @@ static PHP_METHOD(swoole_redis_coro, mSet)
     zend_ulong idx;
     zend_string *_key;
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_args), idx, _key, value) {
-        if (_key == NULL)
+        if (_key == nullptr)
         {
             key_len = sw_snprintf(buf, sizeof(buf), "%ld", (long) idx);
             key = (char*) buf;
@@ -2740,7 +2740,7 @@ static PHP_METHOD(swoole_redis_coro, mSetNx)
     zend_ulong idx;
     zend_string *_key;
     ZEND_HASH_FOREACH_KEY_VAL_IND(Z_ARRVAL_P(z_args), idx, _key, value) {
-        if (_key == NULL) {
+        if (_key == nullptr) {
             key_len = sw_snprintf(buf, sizeof(buf), "%ld", (long)idx);
             key = (char*)buf;
         } else {
@@ -3341,8 +3341,8 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
 {
     char *key, *agg_op;
     size_t key_len;
-    zval *z_keys, *z_weights=NULL;
-    HashTable *ht_keys, *ht_weights=NULL;
+    zval *z_keys, *z_weights=nullptr;
+    HashTable *ht_keys, *ht_weights=nullptr;
     size_t argc = 2, agg_op_len=0, keys_count;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa|a!s", &key, &key_len, &z_keys, &z_weights, &agg_op, &agg_op_len) == FAILURE)
@@ -3361,7 +3361,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
         argc += keys_count + 1;
     }
 
-    if (z_weights != NULL)
+    if (z_weights != nullptr)
     {
         ht_weights = Z_ARRVAL_P(z_weights);
         if (zend_hash_num_elements(ht_weights) != keys_count)
@@ -3409,7 +3409,7 @@ static PHP_METHOD(swoole_redis_coro, zUnion)
     SW_HASHTABLE_FOREACH_END();
 
     // Weights
-    if(ht_weights != NULL) {
+    if(ht_weights != nullptr) {
         SW_REDIS_COMMAND_ARGV_FILL("WEIGHTS", 7)
 
         SW_HASHTABLE_FOREACH_START(ht_weights, value)
@@ -3459,8 +3459,8 @@ static PHP_METHOD(swoole_redis_coro, zInter)
 {
     char *key, *agg_op;
     size_t key_len;
-    zval *z_keys, *z_weights=NULL;
-    HashTable *ht_keys, *ht_weights=NULL;
+    zval *z_keys, *z_weights=nullptr;
+    HashTable *ht_keys, *ht_weights=nullptr;
     size_t argc = 2, agg_op_len=0, keys_count;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sa|a!s", &key, &key_len, &z_keys, &z_weights, &agg_op, &agg_op_len) == FAILURE)
@@ -3479,7 +3479,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
         argc += keys_count + 1;
     }
 
-    if(z_weights != NULL) {
+    if(z_weights != nullptr) {
         ht_weights = Z_ARRVAL_P(z_weights);
         if(zend_hash_num_elements(ht_weights) != keys_count) {
             zend_update_property_long(swoole_redis_coro_ce, ZEND_THIS, ZEND_STRL("errType"), SW_REDIS_ERR_OTHER);
@@ -3526,7 +3526,7 @@ static PHP_METHOD(swoole_redis_coro, zInter)
     SW_HASHTABLE_FOREACH_END();
 
     // Weights
-    if(ht_weights != NULL) {
+    if(ht_weights != nullptr) {
         SW_REDIS_COMMAND_ARGV_FILL("WEIGHTS", 7)
 
         SW_HASHTABLE_FOREACH_START(ht_weights, value)
@@ -3687,7 +3687,7 @@ static PHP_METHOD(swoole_redis_coro, zRangeByScore)
     char *start, *end;
     size_t start_len, end_len;
     long limit_low, limit_high;
-    zval *z_opt=NULL, *z_ele;
+    zval *z_opt=nullptr, *z_ele;
     zend_bool withscores = 0, has_limit = 0;
     HashTable *ht_opt;
 
@@ -3766,7 +3766,7 @@ static PHP_METHOD(swoole_redis_coro, zRevRangeByScore)
     char *start, *end;
     size_t start_len, end_len;
     long limit_low, limit_high;
-    zval *z_opt=NULL, *z_ele;
+    zval *z_opt=nullptr, *z_ele;
     zend_bool withscores = 0, has_limit = 0;
     HashTable *ht_opt;
 
@@ -4574,7 +4574,7 @@ static PHP_METHOD(swoole_redis_coro, request)
 {
     SW_REDIS_COMMAND_CHECK
 
-    zval *params = NULL;
+    zval *params = nullptr;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z", &params) == FAILURE)
     {
         RETURN_FALSE;
@@ -4606,7 +4606,7 @@ static PHP_METHOD(swoole_redis_coro, eval)
 {
     char *script;
     size_t script_len;
-    zval *params = NULL;
+    zval *params = nullptr;
     zend_long keys_num = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|al", &script, &script_len, &params, &keys_num) == FAILURE)
@@ -4614,7 +4614,7 @@ static PHP_METHOD(swoole_redis_coro, eval)
         RETURN_FALSE;
     }
 
-    HashTable *params_ht = NULL;
+    HashTable *params_ht = nullptr;
     uint32_t params_num = 0;
     if (params)
     {
@@ -4653,14 +4653,14 @@ static PHP_METHOD(swoole_redis_coro, evalSha)
 {
     char *sha;
     size_t sha_len;
-    zval *params = NULL;
+    zval *params = nullptr;
     long keys_num = 0;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|al", &sha, &sha_len, &params, &keys_num) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    HashTable *params_ht = NULL;
+    HashTable *params_ht = nullptr;
     uint32_t params_num = 0;
     if (params)
     {

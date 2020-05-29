@@ -175,17 +175,17 @@ static sw_inline const char* http_get_method_name(int method)
     case PHP_HTTP_NOT_IMPLEMENTED:
         return "UNKNOWN";
     default:
-        return NULL;
+        return nullptr;
     }
 }
 
 static const swoole_http_parser_settings http_parser_settings =
 {
-    NULL,
+    nullptr,
     http_request_on_path,
     http_request_on_query_string,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
     http_request_on_header_field,
     http_request_on_header_value,
     http_request_on_headers_complete,
@@ -198,10 +198,10 @@ static const multipart_parser_settings mt_parser_settings =
     multipart_body_on_header_field,
     multipart_body_on_header_value,
     multipart_body_on_data,
-    NULL,
+    nullptr,
     multipart_body_on_header_complete,
     multipart_body_on_data_end,
-    NULL,
+    nullptr,
 };
 
 size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length)
@@ -260,7 +260,7 @@ static void php_swoole_http_request_free_object(zend_object *object)
     }
     if (ctx)
     {
-        ctx->request.zobject = NULL;
+        ctx->request.zobject = nullptr;
         swoole_http_context_free(ctx);
     }
 
@@ -294,7 +294,7 @@ const zend_function_entry swoole_http_request_methods[] =
 
 void php_swoole_http_request_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", NULL, swoole_http_request_methods);
+    SW_INIT_CLASS_ENTRY(swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", nullptr, swoole_http_request_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_request, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, sw_zend_class_unset_property_deny);
@@ -562,11 +562,11 @@ static int http_request_on_headers_complete(swoole_http_parser *parser)
     zend_string * zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
     ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
     add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
-    add_assoc_long_ex(zserver, ZEND_STRL("request_time"), time(NULL));
+    add_assoc_long_ex(zserver, ZEND_STRL("request_time"), time(nullptr));
     add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), swoole_microtime());
     add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
 
-    ctx->current_header_name = NULL;
+    ctx->current_header_name = nullptr;
 
     return 0;
 }
@@ -699,7 +699,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         swString_append_ptr(swoole_http_form_data_buffer, (char*) at, length);
         return 0;
     }
-    if (p->fp == NULL)
+    if (p->fp == nullptr)
     {
         return 0;
     }
@@ -710,7 +710,7 @@ static int multipart_body_on_data(multipart_parser* p, const char *at, size_t le
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_CANT_WRITE);
 
         fclose((FILE *) p->fp);
-        p->fp = NULL;
+        p->fp = nullptr;
 
         swSysWarn("write upload file failed");
     }
@@ -741,7 +741,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     }
 
     zval *z_multipart_header = ctx->current_multipart_header;
-    zval *zerr = NULL;
+    zval *zerr = nullptr;
     if (!(zerr = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("error"))))
     {
         return 0;
@@ -760,7 +760,7 @@ static int multipart_body_on_header_complete(multipart_parser* p)
     }
 
     FILE *fp = fdopen(tmpfile, "wb+");
-    if (fp == NULL)
+    if (fp == nullptr)
     {
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
         swSysWarn("fopen(%s) failed", file_path);
@@ -795,7 +795,7 @@ static int multipart_body_on_data_end(multipart_parser* p)
         );
 
         efree(ctx->current_form_data_name);
-        ctx->current_form_data_name = NULL;
+        ctx->current_form_data_name = nullptr;
         ctx->current_form_data_name_len = 0;
         swString_clear(swoole_http_form_data_buffer);
         return 0;
@@ -807,13 +807,13 @@ static int multipart_body_on_data_end(multipart_parser* p)
     }
 
     zval *z_multipart_header = ctx->current_multipart_header;
-    if (p->fp != NULL)
+    if (p->fp != nullptr)
     {
         long size = swoole_file_get_size((FILE *) p->fp);
         add_assoc_long(z_multipart_header, "size", size);
 
         fclose((FILE *) p->fp);
-        p->fp = NULL;
+        p->fp = nullptr;
     }
 
     zval *zfiles = swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zfiles, ZEND_STRL("files")); 
@@ -855,10 +855,10 @@ static int multipart_body_on_data_end(multipart_parser* p)
     }
 
     efree(ctx->current_input_name);
-    ctx->current_input_name = NULL;
+    ctx->current_input_name = nullptr;
     ctx->current_input_name_len = 0;
     efree(ctx->current_multipart_header);
-    ctx->current_multipart_header = NULL;
+    ctx->current_multipart_header = nullptr;
 
     return 0;
 }
@@ -898,7 +898,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
             swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post"))
         );
     }
-    else if (ctx->mt_parser != NULL)
+    else if (ctx->mt_parser != nullptr)
     {
         multipart_parser *multipart_parser = ctx->mt_parser;
         if (is_beginning)
@@ -941,7 +941,7 @@ static int http_request_message_complete(swoole_http_parser *parser)
     if (ctx->mt_parser)
     {
         multipart_parser_free(ctx->mt_parser);
-        ctx->mt_parser = NULL;
+        ctx->mt_parser = nullptr;
     }
     ctx->completed = 1;
 
@@ -995,7 +995,7 @@ const char* swoole_http_get_content_encoding(http_context *ctx)
 #endif
     else
     {
-        return NULL;
+        return nullptr;
     }
 }
 #endif

@@ -192,7 +192,7 @@ static void reactor_finish(swReactor *reactor)
         reactor->running = 0;
     }
 #ifdef SW_USE_MALLOC_TRIM
-    time_t now = time(NULL);
+    time_t now = time(nullptr);
     if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
     {
         malloc_trim(SW_MALLOC_TRIM_PAD);
@@ -224,12 +224,12 @@ int swReactor_close(swReactor *reactor, swSocket *socket)
     if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
-        socket->out_buffer = NULL;
+        socket->out_buffer = nullptr;
     }
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
-        socket->in_buffer = NULL;
+        socket->in_buffer = nullptr;
     }
 
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
@@ -345,7 +345,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev)
     int ret;
 
     swSocket *socket = ev->socket;
-    swBuffer_chunk *chunk = NULL;
+    swBuffer_chunk *chunk = nullptr;
     swBuffer *buffer = socket->out_buffer;
 
     //send to socket

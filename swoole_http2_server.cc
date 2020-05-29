@@ -207,7 +207,7 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx)
         zval zfilename;
         ZVAL_STR(&zfilename, _filename.get());
         zval retval; /* do not care the retval (the connection will be closed if failed) */
-        sw_zend_call_method_with_1_params(ctx->response.zobject, swoole_http_response_ce, NULL, "sendfile", &retval, &zfilename);
+        sw_zend_call_method_with_1_params(ctx->response.zobject, swoole_http_response_ce, nullptr, "sendfile", &retval, &zfilename);
 
         return true;
     }
@@ -234,7 +234,7 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
         return;
     }
 
-    add_assoc_long(zserver, "request_time", time(NULL));
+    add_assoc_long(zserver, "request_time", time(nullptr));
     add_assoc_double(zserver, "request_time_float", swoole_microtime());
     if (serv_sock)
     {
@@ -247,7 +247,7 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine)))
     {
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
         php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
@@ -262,7 +262,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
     zval *zheader = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
     zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
     http2::headers headers(8 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
-    char *date_str = NULL;
+    char *date_str = nullptr;
     char intbuf[2][16];
     int ret;
 
@@ -318,7 +318,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
         }
         if (!(header_flag & HTTP_HEADER_DATE))
         {
-            date_str = php_swoole_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
+            date_str = php_swoole_format_date((char *)ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
             headers.add(ZEND_STRL("date"), date_str, strlen(date_str));
         }
         if (!(header_flag & HTTP_HEADER_CONTENT_TYPE))
@@ -330,7 +330,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
     {
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
         headers.add(ZEND_STRL("content-type"), ZEND_STRL("text/html"));
-        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(NULL), 0);
+        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
         headers.add(ZEND_STRL("date"), date_str, strlen(date_str));
     }
     if (date_str)
@@ -984,7 +984,7 @@ int swoole_http2_server_parse(http2_session *client, const char *buf)
                         swoole_http_init_and_read_property(swoole_http_request_ce, ctx->request.zobject,
                                 &ctx->request.zpost, ZEND_STRL("post")));
             }
-            else if (ctx->mt_parser != NULL)
+            else if (ctx->mt_parser != nullptr)
             {
                 multipart_parser *multipart_parser = ctx->mt_parser;
                 size_t n = multipart_parser_execute(multipart_parser, buffer->str, buffer->length);
@@ -1114,7 +1114,7 @@ void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_valu
     else
     {
         http_body.length = 0;
-        http_body.str = NULL;
+        http_body.str = nullptr;
     }
 
     RETURN_BOOL(swoole_http2_server_respond(ctx, &http_body));

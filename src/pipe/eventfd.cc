@@ -33,7 +33,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
     int efd;
     int flag = 0;
     swPipeEventfd *object = (swPipeEventfd *) sw_malloc(sizeof(swPipeEventfd));
-    if (object == NULL)
+    if (object == nullptr)
     {
         return -1;
     }
@@ -71,7 +71,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
     else
     {
         p->master_socket = swSocket_new(efd, SW_FD_PIPE);
-        if (p->master_socket == NULL)
+        if (p->master_socket == nullptr)
         {
             close(efd);
             sw_free(object);

@@ -26,7 +26,7 @@ static void swCond_free(swCond *cond);
 
 int swCond_create(swCond *cond)
 {
-    if (pthread_cond_init(&cond->_cond, NULL) < 0)
+    if (pthread_cond_init(&cond->_cond, nullptr) < 0)
     {
         swSysWarn("pthread_cond_init fail");
         return SW_ERR;

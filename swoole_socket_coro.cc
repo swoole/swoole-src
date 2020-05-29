@@ -765,7 +765,7 @@ static void swoole_socket_coro_register_constants(int module_number)
 
 void php_swoole_socket_coro_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", NULL, "Co\\Socket", swoole_socket_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", nullptr, "Co\\Socket", swoole_socket_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_socket_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_socket_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_socket_coro, sw_zend_class_unset_property_deny);
@@ -775,7 +775,7 @@ void php_swoole_socket_coro_minit(int module_number)
     zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_socket_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 
-    SW_INIT_CLASS_ENTRY_EX(swoole_socket_coro_exception, "Swoole\\Coroutine\\Socket\\Exception", NULL, "Co\\Socket\\Exception", NULL, swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(swoole_socket_coro_exception, "Swoole\\Coroutine\\Socket\\Exception", nullptr, "Co\\Socket\\Exception", nullptr, swoole_exception);
 
     if (!zend_hash_str_find_ptr(&module_registry, ZEND_STRL("sockets")))
     {
@@ -1001,7 +1001,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
             {
                 char *func_name;
                 zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
-                if (!sw_zend_is_callable_ex(ztmp, NULL, 0, &func_name, NULL, fci_cache, NULL))
+                if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr))
                 {
                     php_swoole_fatal_error(E_WARNING, "function '%s' is not callable", func_name);
                     efree(func_name);
@@ -1656,12 +1656,12 @@ static PHP_METHOD(swoole_socket_coro, setOption)
             convert_to_array_ex(arg4);
             opt_ht = Z_ARRVAL_P(arg4);
 
-            if ((l_onoff = zend_hash_str_find(opt_ht, l_onoff_key, sizeof(l_onoff_key) - 1)) == NULL) {
-                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", l_onoff_key);
+            if ((l_onoff = zend_hash_str_find(opt_ht, l_onoff_key, sizeof(l_onoff_key) - 1)) == nullptr) {
+                php_error_docref(nullptr, E_WARNING, "no key \"%s\" passed in optval", l_onoff_key);
                 RETURN_FALSE;
             }
-            if ((l_linger = zend_hash_str_find(opt_ht, l_linger_key, sizeof(l_linger_key) - 1)) == NULL) {
-                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", l_linger_key);
+            if ((l_linger = zend_hash_str_find(opt_ht, l_linger_key, sizeof(l_linger_key) - 1)) == nullptr) {
+                php_error_docref(nullptr, E_WARNING, "no key \"%s\" passed in optval", l_linger_key);
                 RETURN_FALSE;
             }
 
@@ -1684,12 +1684,12 @@ static PHP_METHOD(swoole_socket_coro, setOption)
             convert_to_array_ex(arg4);
             opt_ht = Z_ARRVAL_P(arg4);
 
-            if ((sec = zend_hash_str_find(opt_ht, sec_key, sizeof(sec_key) - 1)) == NULL) {
-                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", sec_key);
+            if ((sec = zend_hash_str_find(opt_ht, sec_key, sizeof(sec_key) - 1)) == nullptr) {
+                php_error_docref(nullptr, E_WARNING, "no key \"%s\" passed in optval", sec_key);
                 RETURN_FALSE;
             }
-            if ((usec = zend_hash_str_find(opt_ht, usec_key, sizeof(usec_key) - 1)) == NULL) {
-                php_error_docref(NULL, E_WARNING, "no key \"%s\" passed in optval", usec_key);
+            if ((usec = zend_hash_str_find(opt_ht, usec_key, sizeof(usec_key) - 1)) == nullptr) {
+                php_error_docref(nullptr, E_WARNING, "no key \"%s\" passed in optval", usec_key);
                 RETURN_FALSE;
         }
 

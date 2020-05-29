@@ -35,7 +35,7 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
 {
     //create reactor object
     swReactorPoll *object = (swReactorPoll *) sw_malloc(sizeof(swReactorPoll));
-    if (object == NULL)
+    if (object == nullptr)
     {
         swWarn("malloc[0] failed");
         return SW_ERR;
@@ -43,14 +43,14 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
     bzero(object, sizeof(swReactorPoll));
 
     object->fds = (swSocket **) sw_calloc(max_fd_num, sizeof(swSocket*));
-    if (object->fds == NULL)
+    if (object->fds == nullptr)
     {
         swWarn("malloc[1] failed");
         sw_free(object);
         return SW_ERR;
     }
     object->events = (struct pollfd *) sw_calloc(max_fd_num, sizeof(struct pollfd));
-    if (object->events == NULL)
+    if (object->events == nullptr)
     {
         swWarn("malloc[2] failed");
         sw_free(object);
@@ -159,7 +159,7 @@ static int swReactorPoll_del(swReactor *reactor, swSocket *socket)
             {
                 if (i == reactor->event_num)
                 {
-                    object->fds[i] = NULL;
+                    object->fds[i] = nullptr;
                     object->events[i].fd = 0;
                     object->events[i].events = 0;
                 }
@@ -186,7 +186,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 
     if (reactor->timeout_msec == 0)
     {
-        if (timeo == NULL)
+        if (timeo == nullptr)
         {
             reactor->timeout_msec = -1;
         }
@@ -200,7 +200,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
 
     while (reactor->running > 0)
     {
-        if (reactor->onBegin != NULL)
+        if (reactor->onBegin != nullptr)
         {
             reactor->onBegin(reactor);
         }

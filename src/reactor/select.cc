@@ -123,7 +123,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
 
     if (reactor->timeout_msec == 0)
     {
-        if (timeo == NULL)
+        if (timeo == nullptr)
         {
             reactor->timeout_msec = -1;
         }
@@ -141,7 +141,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo)
         FD_ZERO(&(object->wfds));
         FD_ZERO(&(object->efds));
 
-        if (reactor->onBegin != NULL)
+        if (reactor->onBegin != nullptr)
         {
             reactor->onBegin(reactor);
         }

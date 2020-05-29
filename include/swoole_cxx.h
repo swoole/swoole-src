@@ -92,7 +92,7 @@ protected:
 
 static inline int hook_add(void **hooks, int type, swCallback func, int push_back)
 {
-    if (hooks[type] == NULL)
+    if (hooks[type] == nullptr)
     {
         hooks[type] = new std::list<swCallback>;
     }

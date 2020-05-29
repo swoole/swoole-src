@@ -80,7 +80,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
 {
     int ret;
     swPipeUnsock *object = (swPipeUnsock *) sw_malloc(sizeof(swPipeUnsock));
-    if (object == NULL)
+    if (object == nullptr)
     {
         swWarn("malloc() failed");
         return SW_ERR;

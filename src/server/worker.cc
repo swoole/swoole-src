@@ -36,10 +36,10 @@ void swWorker_signal_init(void)
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_add(SIGHUP, NULL);
-    swSignal_add(SIGPIPE, NULL);
-    swSignal_add(SIGUSR1, NULL);
-    swSignal_add(SIGUSR2, NULL);
+    swSignal_add(SIGHUP, nullptr);
+    swSignal_add(SIGPIPE, nullptr);
+    swSignal_add(SIGUSR1, nullptr);
+    swSignal_add(SIGUSR2, nullptr);
     //swSignal_add(SIGINT, swWorker_signal_handler);
     swSignal_add(SIGTERM, swWorker_signal_handler);
     swSignal_add(SIGALRM, swSystemTimer_signal_handler);
@@ -303,7 +303,7 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         if (task->info.len > 0)
         {
             swConnection *conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
-            char *cert_data = NULL;
+            char *cert_data = nullptr;
             size_t length = serv->get_packet(serv, task, &cert_data);
             conn->ssl_client_cert = swString_dup(cert_data, length);
             conn->ssl_client_cert_pid = SwooleG.pid;
@@ -375,8 +375,8 @@ void swWorker_onStart(swServer *serv)
     }
 
     int is_root = !geteuid();
-    struct passwd *passwd = NULL;
-    struct group *group = NULL;
+    struct passwd *passwd = nullptr;
+    struct group *group = nullptr;
 
     if (is_root)
     {
@@ -547,7 +547,7 @@ void swWorker_stop(swWorker *worker)
 
     _try_to_exit: reactor->wait_exit = 1;
     reactor->is_empty = swWorker_reactor_is_empty;
-    SwooleWG.exit_time = time(NULL);
+    SwooleWG.exit_time = time(nullptr);
 
     if (swWorker_reactor_is_empty(reactor))
     {
@@ -584,7 +584,7 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
                 call_worker_exit_func = 1;
                 continue;
             }
-            int remaining_time = serv->max_wait_time - (time(NULL) - SwooleWG.exit_time);
+            int remaining_time = serv->max_wait_time - (time(nullptr) - SwooleWG.exit_time);
             if (remaining_time <= 0)
             {
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
@@ -678,7 +678,7 @@ int swWorker_loop(swServer *serv, swWorker *worker)
     swWorker_onStart(serv);
 
     //main loop
-    reactor->wait(reactor, NULL);
+    reactor->wait(reactor, nullptr);
     //clear pipe buffer
     swWorker_clean_pipe_buffer(serv);
     //reactor free

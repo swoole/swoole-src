@@ -288,7 +288,7 @@ static void php_swoole_http_server_coro_free_object(zend_object *object)
 
 void php_swoole_http_server_coro_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_http_server_coro, "Swoole\\Coroutine\\Http\\Server", NULL, "Co\\Http\\Server", swoole_http_server_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_http_server_coro, "Swoole\\Coroutine\\Http\\Server", nullptr, "Co\\Http\\Server", swoole_http_server_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_server_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server_coro, sw_zend_class_unset_property_deny);
@@ -425,11 +425,11 @@ static PHP_METHOD(swoole_http_server_coro, start)
     Socket *sock = hs->socket;
 
     /* get callback fci cache */
-    char *func_name = NULL;
+    char *func_name = nullptr;
     zend_fcall_info_cache fci_cache;
     zval zcallback;
     ZVAL_STRING(&zcallback, "onAccept");
-    if (!sw_zend_is_callable_ex(&zcallback, ZEND_THIS, 0, &func_name, NULL, &fci_cache, NULL))
+    if (!sw_zend_is_callable_ex(&zcallback, ZEND_THIS, 0, &func_name, nullptr, &fci_cache, nullptr))
     {
         php_swoole_fatal_error(E_CORE_ERROR, "function '%s' is not callable", func_name);
         return;
@@ -682,7 +682,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept)
 
         if (fci_cache)
         {
-            if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, 0)))
+            if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, 0)))
             {
                 php_swoole_error(E_WARNING, "handler error");
             }
@@ -739,7 +739,7 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
     Socket *sock = (Socket *) ctx->private_data;
     zval *zserver = ctx->request.zserver;
 
-    add_assoc_long(zserver, "request_time", time(NULL));
+    add_assoc_long(zserver, "request_time", time(nullptr));
     add_assoc_double(zserver, "request_time_float", swoole_microtime());
     add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
     add_assoc_long(zserver, "remote_port", sock->get_port());
@@ -751,7 +751,7 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
 
     if (fci_cache)
     {
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, NULL, SwooleG.enable_coroutine)))
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine)))
         {
             stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
             php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));

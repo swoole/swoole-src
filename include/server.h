@@ -755,17 +755,17 @@ static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
     if (tmp_file_fd < 0)
     {
         swSysWarn("open(%s) failed", _pkg.tmpfile);
-        return NULL;
+        return nullptr;
     }
     if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
     {
         close(tmp_file_fd);
-        return NULL;
+        return nullptr;
     }
     if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) != _pkg.length)
     {
         close(tmp_file_fd);
-        return NULL;
+        return nullptr;
     }
     close(tmp_file_fd);
     if (!(swTask_type(task_result) & SW_TASK_PEEK))
@@ -792,7 +792,7 @@ static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
 {
     if ((uint32_t) fd > serv->max_connection)
     {
-        return NULL;
+        return nullptr;
     }
     return &serv->connection_list[fd];
 }
@@ -835,7 +835,7 @@ static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_i
         return &(serv->user_workers[worker_id - task_worker_max]);
     }
 
-    return NULL;
+    return nullptr;
 }
 
 static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData *data)
@@ -866,7 +866,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     {
         swConnection *conn = swServer_connection_get(serv, fd);
         //UDP
-        if (conn == NULL)
+        if (conn == nullptr)
         {
             key = fd;
         }
@@ -890,7 +890,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
         swConnection *conn = swServer_connection_get(serv, fd);
-        if (conn == NULL || conn->uid == 0)
+        if (conn == nullptr || conn->uid == 0)
         {
             key = fd;
         }
@@ -947,11 +947,11 @@ static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv,
     swConnection *conn = swServer_connection_get(serv, fd);
     if (!conn || conn->active == 0)
     {
-        return NULL;
+        return nullptr;
     }
     if (session->id != session_id || conn->session_id != session_id)
     {
-        return NULL;
+        return nullptr;
     }
     return conn;
 }
@@ -963,7 +963,7 @@ static sw_inline swConnection *swServer_connection_verify(swServer *serv, int se
     if (conn && conn->ssl && !conn->ssl_ready)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
-        return NULL;
+        return nullptr;
     }
 #endif
     return conn;

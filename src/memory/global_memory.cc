@@ -49,13 +49,13 @@ swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
     gm.pagesize = pagesize;
 
     swMemoryGlobal_page *page = swMemoryGlobal_new_page(&gm);
-    if (page == NULL)
+    if (page == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     if (swMutex_create(&gm.lock, shared) < 0)
     {
-        return NULL;
+        return nullptr;
     }
 
     gm.root_page = page;
@@ -78,14 +78,14 @@ swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
 static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm)
 {
     swMemoryGlobal_page *page = (swMemoryGlobal_page *)((gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize));
-    if (page == NULL)
+    if (page == nullptr)
     {
-        return NULL;
+        return nullptr;
     }
     bzero(page, gm->pagesize);
-    page->next = NULL;
+    page->next = nullptr;
 
-    if (gm->current_page != NULL)
+    if (gm->current_page != nullptr)
     {
         gm->current_page->next = page;
     }
@@ -105,16 +105,16 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     {
         swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, gm->pagesize - (int) sizeof(swMemoryGlobal_page));
         gm->lock.unlock(&gm->lock);
-        return NULL;
+        return nullptr;
     }
     if (gm->current_offset + size > gm->pagesize - sizeof(swMemoryGlobal_page))
     {
         swMemoryGlobal_page *page = swMemoryGlobal_new_page(gm);
-        if (page == NULL)
+        if (page == nullptr)
         {
             swWarn("swMemoryGlobal_alloc alloc memory error");
             gm->lock.unlock(&gm->lock);
-            return NULL;
+            return nullptr;
         }
         gm->current_page = page;
     }

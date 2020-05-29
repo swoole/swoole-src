@@ -68,7 +68,7 @@ PHP_FUNCTION(swoole_async_set)
         RETURN_FALSE;
     }
 
-    zval *zset = NULL;
+    zval *zset = nullptr;
     HashTable *vht;
     zval *ztmp;
 

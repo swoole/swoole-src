@@ -65,7 +65,7 @@ void* Channel::pop(double timeout)
     {
         timer_msg_t msg;
         msg.error = false;
-        msg.timer = NULL;
+        msg.timer = nullptr;
         if (timeout > 0)
         {
             long msec = (long) (timeout * 1000);
@@ -113,7 +113,7 @@ bool Channel::push(void *data, double timeout)
     {
         timer_msg_t msg;
         msg.error = false;
-        msg.timer = NULL;
+        msg.timer = nullptr;
         if (timeout > 0)
         {
             long msec = (long) (timeout * 1000);

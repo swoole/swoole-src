@@ -54,10 +54,10 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
 {
     size = SW_MEM_ALIGNED_SIZE(size);
     void *mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
-    if (mem == NULL)
+    if (mem == nullptr)
     {
         swWarn("malloc(%d) failed", size);
-        return NULL;
+        return nullptr;
     }
 
     swRingBuffer *object = (swRingBuffer *) mem;
@@ -160,7 +160,7 @@ static void* swRingBuffer_alloc(swMemoryPool *pool, uint32_t size)
 
     if (capacity < alloc_size)
     {
-        return NULL;
+        return nullptr;
     }
 
     item = (swRingBuffer_item *) ((char *) object->memory + object->alloc_offset);

@@ -41,11 +41,11 @@ static int http_parser_on_message_complete(swoole_http_parser *parser);
 
 static const swoole_http_parser_settings http_parser_settings =
 {
-    NULL,
-    NULL,
-    NULL,
-    NULL,
-    NULL,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
+    nullptr,
     http_parser_on_header_field,
     http_parser_on_header_value,
     http_parser_on_headers_complete,
@@ -653,7 +653,7 @@ bool http_client::decompress_response(const char *in, size_t in_len)
     case HTTP_COMPRESS_BR:
     {
         if (!brotli_decoder_state) {
-            brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, NULL);
+            brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, nullptr);
             if (!brotli_decoder_state)
             {
                 swWarn("BrotliDecoderCreateInstance() failed");
@@ -851,7 +851,7 @@ bool http_client::keep_liveness()
 
 bool http_client::send()
 {
-    zval *zvalue = NULL;
+    zval *zvalue = nullptr;
     uint32_t header_flag = 0x0;
     zval *zmethod, *zheaders, *zbody, *zupload_files, *zcookies, *z_download_file;
 
@@ -1175,9 +1175,9 @@ bool http_client::send()
 
         zval *zname;
         zval *ztype;
-        zval *zsize = NULL;
-        zval *zpath = NULL;
-        zval *zcontent = NULL;
+        zval *zsize = nullptr;
+        zval *zpath = nullptr;
+        zval *zcontent = nullptr;
         zval *zfilename;
         zval *zoffset;
 
@@ -1268,12 +1268,12 @@ bool http_client::send()
                     {
                         continue;
                     }
-                    zcontent = NULL;
+                    zcontent = nullptr;
                 }
                 else
                 {
-                    zpath = NULL;
-                    zoffset = NULL;
+                    zpath = nullptr;
+                    zoffset = nullptr;
                 }
                 if (!(zsize = zend_hash_str_find(Z_ARRVAL_P(zvalue), ZEND_STRL("size"))))
                 {
@@ -1349,7 +1349,7 @@ bool http_client::send()
             {
                 smart_str formstr_s = {};
                 char *formstr = php_swoole_http_build_query(zbody, &len, &formstr_s);
-                if (formstr == NULL)
+                if (formstr == nullptr)
                 {
                     php_swoole_error(E_WARNING, "http_build_query failed");
                     return false;
@@ -1741,7 +1741,7 @@ static zend_object *php_swoole_http_client_coro_create_object(zend_class_entry *
 
 void php_swoole_http_client_coro_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", NULL, "Co\\Http\\Client", swoole_http_client_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_http_client_coro, "Swoole\\Coroutine\\Http\\Client", nullptr, "Co\\Http\\Client", swoole_http_client_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, sw_zend_class_unset_property_deny);
@@ -1774,7 +1774,7 @@ void php_swoole_http_client_coro_minit(int module_number)
     zend_declare_property_null(swoole_http_client_coro_ce, ZEND_STRL("cookies"), ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_http_client_coro_ce, ZEND_STRL("body"), "", ZEND_ACC_PUBLIC);
 
-    SW_INIT_CLASS_ENTRY_EX(swoole_http_client_coro_exception, "Swoole\\Coroutine\\Http\\Client\\Exception", NULL, "Co\\Http\\Client\\Exception", NULL, swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(swoole_http_client_coro_exception, "Swoole\\Coroutine\\Http\\Client\\Exception", nullptr, "Co\\Http\\Client\\Exception", nullptr, swoole_exception);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED", HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT", HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT);
@@ -1947,9 +1947,9 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     size_t l_path;
     char *name;
     size_t l_name;
-    char *type = NULL;
+    char *type = nullptr;
     size_t l_type = 0;
-    char *filename = NULL;
+    char *filename = nullptr;
     size_t l_filename = 0;
     zend_long offset = 0;
     zend_long length = 0;
@@ -2005,7 +2005,7 @@ static PHP_METHOD(swoole_http_client_coro, addFile)
     if (l_filename == 0)
     {
         char *dot = strrchr(path, '/');
-        if (dot == NULL)
+        if (dot == nullptr)
         {
             filename = path;
             l_filename = l_path;
@@ -2036,9 +2036,9 @@ static PHP_METHOD(swoole_http_client_coro, addData)
     size_t l_data;
     char *name;
     size_t l_name;
-    char *type = NULL;
+    char *type = nullptr;
     size_t l_type = 0;
-    char *filename = NULL;
+    char *filename = nullptr;
     size_t l_filename = 0;
 
     ZEND_PARSE_PARAMETERS_START(2, 4)
@@ -2075,7 +2075,7 @@ static PHP_METHOD(swoole_http_client_coro, addData)
 static PHP_METHOD(swoole_http_client_coro, execute)
 {
     http_client* phc = php_swoole_get_phc(ZEND_THIS);
-    char *path = NULL;
+    char *path = nullptr;
     size_t path_len = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -2088,7 +2088,7 @@ static PHP_METHOD(swoole_http_client_coro, execute)
 static PHP_METHOD(swoole_http_client_coro, get)
 {
     http_client* phc = php_swoole_get_phc(ZEND_THIS);
-    char *path = NULL;
+    char *path = nullptr;
     size_t path_len = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -2103,7 +2103,7 @@ static PHP_METHOD(swoole_http_client_coro, get)
 static PHP_METHOD(swoole_http_client_coro, post)
 {
     http_client* phc = php_swoole_get_phc(ZEND_THIS);
-    char *path = NULL;
+    char *path = nullptr;
     size_t path_len = 0;
     zval *post_data;
 
@@ -2142,7 +2142,7 @@ static PHP_METHOD(swoole_http_client_coro, download)
 static PHP_METHOD(swoole_http_client_coro, upgrade)
 {
     http_client* phc = php_swoole_get_phc(ZEND_THIS);
-    char *path = NULL;
+    char *path = nullptr;
     size_t path_len = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
@@ -2157,7 +2157,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
     http_client* phc = php_swoole_get_phc(ZEND_THIS);
     zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
-    zval *zflags = NULL;
+    zval *zflags = nullptr;
     zend_long flags = SW_WEBSOCKET_FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
@@ -2167,7 +2167,7 @@ static PHP_METHOD(swoole_http_client_coro, push)
         Z_PARAM_ZVAL_EX(zflags, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (zflags != NULL)
+    if (zflags != nullptr)
     {
         flags = zval_get_long(zflags);
     }

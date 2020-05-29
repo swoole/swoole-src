@@ -166,7 +166,7 @@ static zend_object *php_swoole_client_coro_create_object(zend_class_entry *ce)
 
 void php_swoole_client_coro_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY(swoole_client_coro, "Swoole\\Coroutine\\Client", NULL, "Co\\Client", swoole_client_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_client_coro, "Swoole\\Coroutine\\Client", nullptr, "Co\\Client", swoole_client_coro_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, sw_zend_class_unset_property_deny);
@@ -213,7 +213,7 @@ static Socket* client_coro_new(zval *zobject, int port)
     if ((sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT))
     {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
-        return NULL;
+        return nullptr;
     }
 
     php_swoole_check_reactor();
@@ -224,7 +224,7 @@ static Socket* client_coro_new(zval *zobject, int port)
         zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errCode"), errno);
         zend_update_property_string(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errMsg"), swoole_strerror(errno));
         delete cli;
-        return NULL;
+        return nullptr;
     }
 
     zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("fd"), cli->get_fd());
@@ -949,7 +949,7 @@ static PHP_METHOD(swoole_client_coro, peek)
 {
     zend_long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     int ret;
-    char *buf = NULL;
+    char *buf = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
@@ -1026,7 +1026,7 @@ static PHP_METHOD(swoole_client_coro, exportSocket)
     zval *zsocket = zend_read_property(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("socket"), 1, &rv);
     if (!ZVAL_IS_NULL(zsocket))
     {
-        RETURN_ZVAL(zsocket, 1, NULL);
+        RETURN_ZVAL(zsocket, 1, 0);
     }
 
     Socket *cli = client_get_ptr(ZEND_THIS);

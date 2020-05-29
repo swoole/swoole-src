@@ -182,7 +182,7 @@ bool Session::listen()
 
     ERR_clear_error();
 
-    int retval = DTLSv1_listen(socket->ssl, NULL);
+    int retval = DTLSv1_listen(socket->ssl, nullptr);
     if (retval == 0)
     {
         return true;

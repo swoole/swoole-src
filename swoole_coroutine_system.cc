@@ -48,7 +48,7 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
 
 void php_swoole_coroutine_system_minit(int module_number)
 {
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_system, "Swoole\\Coroutine\\System", NULL, "Co\\System", swoole_coroutine_system_methods, NULL);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_system, "Swoole\\Coroutine\\System", nullptr, "Co\\System", swoole_coroutine_system_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_system, sw_zend_create_object_deny);
 }
 
@@ -70,7 +70,7 @@ PHP_METHOD(swoole_coroutine_system, sleep)
 
 static void aio_onReadCompleted(swAio_event *event)
 {
-    zval *retval = NULL;
+    zval *retval = nullptr;
     zval result;
 
     if (event->error == 0)
@@ -97,7 +97,7 @@ static void aio_onReadCompleted(swAio_event *event)
 
 static void aio_onFgetsCompleted(swAio_event *event)
 {
-    zval *retval = NULL;
+    zval *retval = nullptr;
     zval result;
 
     if (event->ret != -1)
@@ -130,7 +130,7 @@ static void aio_onFgetsCompleted(swAio_event *event)
 
 static void aio_onWriteCompleted(swAio_event *event)
 {
-    zval *retval = NULL;
+    zval *retval = nullptr;
     zval result;
 
     if (event->ret < 0)
@@ -158,7 +158,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
     tmp_socket *sock = (tmp_socket *) event->socket->object;
     php_coro_context *context = &sock->context;
 
-    zval *retval = NULL;
+    zval *retval = nullptr;
     zval result;
 
     swoole_event_del(event->socket);
@@ -166,7 +166,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event)
     if (sock->timer)
     {
         swoole_timer_del(sock->timer);
-        sock->timer = NULL;
+        sock->timer = nullptr;
     }
 
     int n = read(event->fd, ZSTR_VAL(sock->buf), sock->nbytes);
@@ -201,7 +201,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
     tmp_socket *sock = (tmp_socket *) event->socket->object;
     php_coro_context *context = &sock->context;
 
-    zval *retval = NULL;
+    zval *retval = nullptr;
     zval result;
 
     swoole_event_del(event->socket);
@@ -209,7 +209,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
     if (sock->timer)
     {
         swoole_timer_del(sock->timer);
-        sock->timer = NULL;
+        sock->timer = nullptr;
     }
 
     int n = write(event->fd, context->private_data, sock->nbytes);
@@ -416,13 +416,13 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     }
     else
     {
-        if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void**)&file, 1) != SUCCESS || file == NULL)
+        if (php_stream_cast(stream, PHP_STREAM_AS_STDIO, (void**)&file, 1) != SUCCESS || file == nullptr)
         {
             RETURN_FALSE;
         }
     }
 
-    if (stream->readbuf == NULL)
+    if (stream->readbuf == nullptr)
     {
         stream->readbuflen = stream->chunk_size;
         stream->readbuf = (uchar *) emalloc(stream->chunk_size);
@@ -537,7 +537,7 @@ PHP_METHOD(swoole_coroutine_system, readFile)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     swString *result = System::read_file(filename, flags & LOCK_EX);
-    if (result == NULL)
+    if (result == nullptr)
     {
         RETURN_FALSE;
     }
@@ -633,7 +633,7 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo)
     zend_long family = AF_INET;
     zend_long socktype = SOCK_STREAM;
     zend_long protocol = IPPROTO_TCP;
-    char *service = NULL;
+    char *service = nullptr;
     size_t l_service = 0;
     double timeout = -1;
 
@@ -725,7 +725,7 @@ PHP_METHOD(swoole_coroutine_system, exec)
     }
 
     swString *buffer = swString_new(1024);
-    if (buffer == NULL)
+    if (buffer == nullptr)
     {
         RETURN_FALSE;
     }

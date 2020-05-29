@@ -30,12 +30,12 @@ swHeap *swHeap_new(size_t n, uint8_t type)
     swHeap *heap = (swHeap *) sw_malloc(sizeof(swHeap));
     if (!heap)
     {
-        return NULL;
+        return nullptr;
     }
     if (!(heap->nodes = (swHeap_node **) sw_malloc((n + 1) * sizeof(void *))))
     {
         sw_free(heap);
-        return NULL;
+        return nullptr;
     }
     heap->num = 1;
     heap->size = (n + 1);
@@ -126,7 +126,7 @@ swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data)
         newsize = heap->size * 2;
         if (!(tmp = sw_realloc(heap->nodes, sizeof(void *) * newsize)))
         {
-            return NULL;
+            return nullptr;
         }
         heap->nodes = (swHeap_node **) tmp;
         heap->size = newsize;
@@ -135,7 +135,7 @@ swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data)
     swHeap_node *node = (swHeap_node *) sw_malloc(sizeof(swHeap_node));
     if (!node)
     {
-        return NULL;
+        return nullptr;
     }
     node->priority = priority;
     node->data = data;
@@ -182,7 +182,7 @@ void *swHeap_pop(swHeap *heap)
     swHeap_node *head;
     if (!heap || heap->num == 1)
     {
-        return NULL;
+        return nullptr;
     }
 
     head = heap->nodes[1];
@@ -198,12 +198,12 @@ void *swHeap_peek(swHeap *heap)
 {
     if (heap->num == 1)
     {
-        return NULL;
+        return nullptr;
     }
     swHeap_node *node = heap->nodes[1];
     if (!node)
     {
-        return NULL;
+        return nullptr;
     }
     return node->data;
 }

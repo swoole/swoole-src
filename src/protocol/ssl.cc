@@ -130,15 +130,15 @@ void swSSL_init(void)
         return;
     }
 #if OPENSSL_VERSION_NUMBER >= 0x10100003L && !defined(LIBRESSL_VERSION_NUMBER)
-    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, NULL);
+    OPENSSL_init_ssl(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_LOAD_SSL_STRINGS | OPENSSL_INIT_LOAD_CRYPTO_STRINGS, nullptr);
 #else
-    OPENSSL_config(NULL);
+    OPENSSL_config(nullptr);
     SSL_library_init();
     SSL_load_error_strings();
     OpenSSL_add_all_algorithms();
 #endif
 
-    ssl_connection_index = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
+    ssl_connection_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     if (ssl_connection_index < 0)
     {
         swError("SSL_get_ex_new_index() failed");
@@ -155,7 +155,7 @@ void swSSL_destroy()
         return;
     }
 
-    CRYPTO_set_locking_callback(NULL);
+    CRYPTO_set_locking_callback(nullptr);
     int i;
     for (i = 0; i < CRYPTO_num_locks(); i++)
     {
@@ -163,11 +163,11 @@ void swSSL_destroy()
     }
     openssl_init = 0;
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    (void) CRYPTO_THREADID_set_callback(NULL);
+    (void) CRYPTO_THREADID_set_callback(nullptr);
 #else
-    CRYPTO_set_id_callback(NULL);
+    CRYPTO_set_id_callback(nullptr);
 #endif
-    CRYPTO_set_locking_callback(NULL);
+    CRYPTO_set_locking_callback(nullptr);
 }
 
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line)
@@ -225,7 +225,7 @@ void swSSL_init_thread_safety()
     lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
     for (i = 0; i < CRYPTO_num_locks(); i++)
     {
-        pthread_mutex_init(&(lock_array[i]), NULL);
+        pthread_mutex_init(&(lock_array[i]), nullptr);
     }
 
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
@@ -363,11 +363,11 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
     }
 
     SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(option->method));
-    if (ssl_context == NULL)
+    if (ssl_context == nullptr)
     {
         int error = ERR_get_error();
         swWarn("SSL_CTX_new() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-        return NULL;
+        return nullptr;
     }
 
 #ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
@@ -468,7 +468,7 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_certificate_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-            return NULL;
+            return nullptr;
         }
         /*
          * if the crt file have many certificate entry ,means certificate chain
@@ -478,7 +478,7 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_certificate_chain_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-            return NULL;
+            return nullptr;
         }
         /*
          * set the private key from KeyFile (may be the same as CertFile)
@@ -487,7 +487,7 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_PrivateKey_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-            return NULL;
+            return nullptr;
         }
         /*
          * verify private key
@@ -495,7 +495,7 @@ SSL_CTX* swSSL_get_context(swSSL_option *option)
         if (!SSL_CTX_check_private_key(ssl_context))
         {
             swWarn("Private key does not match the public certificate");
-            return NULL;
+            return nullptr;
         }
     }
 
@@ -523,10 +523,10 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store)
     depth = X509_STORE_CTX_get_error_depth(x509_store);
 
     sname = X509_get_subject_name(cert);
-    subject = sname ? X509_NAME_oneline(sname, NULL, 0) : "(none)";
+    subject = sname ? X509_NAME_oneline(sname, nullptr, 0) : "(none)";
 
     iname = X509_get_issuer_name(cert);
-    issuer = iname ? X509_NAME_oneline(iname, NULL, 0) : "(none)";
+    issuer = iname ? X509_NAME_oneline(iname, nullptr, 0) : "(none)";
     swWarn("verify:%d, error:%d, depth:%d, subject:\"%s\", issuer:\"%s\"", ok, err, depth, subject, issuer);
 
     if (sname)
@@ -549,7 +549,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, swSSL_verify_callback);
     SSL_CTX_set_verify_depth(ctx, depth);
 
-    if (SSL_CTX_load_verify_locations(ctx, cert_file, NULL) == 0)
+    if (SSL_CTX_load_verify_locations(ctx, cert_file, nullptr) == 0)
     {
         swWarn("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
         return SW_ERR;
@@ -557,7 +557,7 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth)
 
     ERR_clear_error();
     list = SSL_load_client_CA_file(cert_file);
-    if (list == NULL)
+    if (list == nullptr)
     {
         swWarn("SSL_load_client_CA_file(\"%s\") failed", cert_file);
         return SW_ERR;
@@ -620,7 +620,7 @@ static int swSSL_check_name(char *name, ASN1_STRING *pattern)
         end = s + slen;
         s = swoole_strlchr(s, end, '.');
 
-        if (s == NULL)
+        if (s == nullptr)
         {
             return SW_ERR;
         }
@@ -681,7 +681,7 @@ static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
     length += sizeof(in_port_t);
     buffer = (uchar*) OPENSSL_malloc(length);
 
-    if (buffer == NULL)
+    if (buffer == nullptr)
     {
         swSysWarn("out of memory");
         return 0;
@@ -725,14 +725,14 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len)
 int swSSL_check_host(swSocket *conn, char *tls_host_name)
 {
     X509 *cert = SSL_get_peer_certificate(conn->ssl);
-    if (cert == NULL)
+    if (cert == nullptr)
     {
         return SW_ERR;
     }
 
 #ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
     /* X509_check_host() is only available in OpenSSL 1.0.2+ */
-    if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, NULL) != 1)
+    if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr) != 1)
     {
         swWarn("X509_check_host(): no match");
         goto _failed;
@@ -750,7 +750,7 @@ int swSSL_check_host(swSocket *conn, char *tls_host_name)
      * As per RFC6125 and RFC2818, we check subjectAltName extension,
      * and if it's not present - commonName in Subject is checked.
      */
-    altnames = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
+    altnames = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(cert, NID_subject_alt_name, nullptr, nullptr);
 
     if (altnames)
     {
@@ -788,7 +788,7 @@ int swSSL_check_host(swSocket *conn, char *tls_host_name)
      */
     sname = X509_get_subject_name(cert);
 
-    if (sname == NULL)
+    if (sname == nullptr)
     {
         goto _failed;
     }
@@ -866,13 +866,13 @@ int swSSL_get_peer_cert(SSL *ssl, char *buffer, size_t length)
     int n;
 
     cert = SSL_get_peer_certificate(ssl);
-    if (cert == NULL)
+    if (cert == nullptr)
     {
         return SW_ERR;
     }
 
     bio = BIO_new(BIO_s_mem());
-    if (bio == NULL)
+    if (bio == nullptr)
     {
         swWarn("BIO_new() failed");
         X509_free(cert);
@@ -1075,7 +1075,7 @@ void swSSL_close(swSocket *conn)
          * Avoid calling SSL_shutdown() if handshake wasn't completed.
          */
         SSL_free(conn->ssl);
-        conn->ssl = NULL;
+        conn->ssl = nullptr;
         return;
     }
 
@@ -1112,7 +1112,7 @@ void swSSL_close(swSocket *conn)
     }
 
     SSL_free(conn->ssl);
-    conn->ssl = NULL;
+    conn->ssl = nullptr;
 }
 
 static sw_inline void swSSL_connection_error(swSocket *conn)
@@ -1275,7 +1275,7 @@ int swSSL_create(swSocket *conn, SSL_CTX* ssl_context, int flags)
     swSSL_clear_error(conn);
 
     SSL *ssl = SSL_new(ssl_context);
-    if (ssl == NULL)
+    if (ssl == nullptr)
     {
         swWarn("SSL_new() failed");
         return SW_ERR;
@@ -1312,27 +1312,27 @@ void swSSL_free_context(SSL_CTX* ssl_context)
 #ifndef OPENSSL_NO_RSA
 static RSA* swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length)
 {
-    static RSA *rsa_tmp = NULL;
+    static RSA *rsa_tmp = nullptr;
     if (rsa_tmp)
     {
         return rsa_tmp;
     }
 
     BIGNUM *bn = BN_new();
-    if (bn == NULL)
+    if (bn == nullptr)
     {
         swWarn("allocation error generating RSA key");
-        return NULL;
+        return nullptr;
     }
 
-    if (!BN_set_word(bn, RSA_F4) || ((rsa_tmp = RSA_new()) == NULL)
-            || !RSA_generate_key_ex(rsa_tmp, key_length, bn, NULL))
+    if (!BN_set_word(bn, RSA_F4) || ((rsa_tmp = RSA_new()) == nullptr)
+            || !RSA_generate_key_ex(rsa_tmp, key_length, bn, nullptr))
     {
         if (rsa_tmp)
         {
             RSA_free(rsa_tmp);
         }
-        rsa_tmp = NULL;
+        rsa_tmp = nullptr;
     }
     BN_free(bn);
     return rsa_tmp;
@@ -1356,16 +1356,16 @@ static int swSSL_set_default_dhparam(SSL_CTX* ssl_context)
     static unsigned char dh1024_g[] =
     { 0x02 };
     dh = DH_new();
-    if (dh == NULL)
+    if (dh == nullptr)
     {
         swWarn("DH_new() failed");
         return SW_ERR;
     }
 
-    dh->p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), NULL);
-    dh->g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), NULL);
+    dh->p = BN_bin2bn(dh1024_p, sizeof(dh1024_p), nullptr);
+    dh->g = BN_bin2bn(dh1024_g, sizeof(dh1024_g), nullptr);
 
-    if (dh->p == NULL || dh->g == NULL)
+    if (dh->p == nullptr || dh->g == nullptr)
     {
         DH_free(dh);
     }
@@ -1427,7 +1427,7 @@ static int swSSL_set_ecdh_curve(SSL_CTX* ssl_context, const char *ecdh_curve)
     }
 
     ecdh = EC_KEY_new_by_curve_name(nid);
-    if (ecdh == NULL)
+    if (ecdh == nullptr)
     {
         swWarn("Unable to create curve \"%s\"", ecdh_curve);
         return SW_ERR;
@@ -1449,14 +1449,14 @@ static int swSSL_set_dhparam(SSL_CTX* ssl_context, const char *file)
     BIO *bio;
 
     bio = BIO_new_file((char *) file, "r");
-    if (bio == NULL)
+    if (bio == nullptr)
     {
         swWarn("BIO_new_file(%s) failed", file);
         return SW_ERR;
     }
 
-    dh = PEM_read_bio_DHparams(bio, NULL, NULL, NULL);
-    if (dh == NULL)
+    dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
+    if (dh == nullptr)
     {
         swWarn("PEM_read_bio_DHparams(%s) failed", file);
         BIO_free(bio);
