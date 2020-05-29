@@ -435,11 +435,6 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #endif
 
 /* PHP 7.3 compatibility macro {{{*/
-#ifndef GC_SET_REFCOUNT
-# define GC_SET_REFCOUNT(p, rc) do { \
-    GC_REFCOUNT(p) = rc; \
-} while (0)
-#endif
 
 #ifndef GC_ADDREF
 #define GC_ADDREF(ref) ++GC_REFCOUNT(ref)
