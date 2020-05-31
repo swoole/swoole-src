@@ -186,6 +186,7 @@ public:
 private:
     bool send_setting();
     int parse_header(http2_client_stream *stream , int flags, char *in, size_t inlen);
+    bool parse_header_stop(int inflate_flags, ssize_t inlen);
 
     inline bool send(const char *buf, size_t len)
     {
@@ -934,6 +935,18 @@ bool http2_client::send_setting()
 
 void http_parse_set_cookies(const char *at, size_t length, zval *zcookies, zval *zset_cookie_headers);
 
+bool http2_client::parse_header_stop(int inflate_flags, ssize_t inlen)
+{
+    bool stop = inflate_flags & NGHTTP2_HD_INFLATE_FINAL;
+    if (stop)
+    {
+        nghttp2_hd_inflate_end_headers(inflater);
+    }
+    stop = stop || (inlen == 0);
+
+    return stop;
+}
+
 int http2_client::parse_header(http2_client_stream *stream, int flags, char *in, size_t inlen)
 {
     zval *zresponse = &stream->zresponse;
@@ -951,10 +964,10 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
     zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("set_cookie_headers"), 0);
 
     ssize_t rv;
-    while (true)
+    int inflate_flags = 0;
+    while (!parse_header_stop(inflate_flags, inlen))
     {
         nghttp2_nv nv;
-        int inflate_flags = 0;
 
         rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
@@ -978,7 +991,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status"))
                 {
                     zend_update_property_long(swoole_http2_response_ce, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
-                    goto _check_end;
+                    continue;
                 }
             }
 #ifdef SW_HAVE_ZLIB
@@ -1010,18 +1023,6 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
                 http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers);
             }
             add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
-        }
-        _check_end:
-
-        if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL)
-        {
-            nghttp2_hd_inflate_end_headers(inflater);
-            break;
-        }
-
-        if (inlen == 0)
-        {
-            break;
         }
     }
 
