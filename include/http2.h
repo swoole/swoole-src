@@ -15,10 +15,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_HTTP2_H_
-#define SW_HTTP2_H_
-
-SW_EXTERN_C_BEGIN
+#pragma once
 
 #define SW_HTTP2_PRI_STRING  "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
@@ -179,7 +176,3 @@ static sw_inline void swHttp2_set_frame_header(char *buffer, uint8_t type, uint3
     buffer[4] = flags;
     *(uint32_t *) (buffer + 5) = htonl(stream_id);
 }
-
-SW_EXTERN_C_END
-
-#endif /* SW_HTTP2_H_ */

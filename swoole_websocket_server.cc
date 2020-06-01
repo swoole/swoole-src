@@ -28,7 +28,6 @@ extern "C"
 #include "main/php_variables.h"
 }
 
-#include "websocket.h"
 #include "base64.h"
 #include "thirdparty/swoole_http_parser.h"
 

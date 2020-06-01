@@ -14,13 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_REDIS_H_
-#define SW_REDIS_H_
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#pragma once
 
 enum swRedis_receive_state
 {
@@ -59,14 +53,8 @@ static sw_inline char* swRedis_get_number(char *p, int *_ret)
     }
     else
     {
-        return NULL;
+        return nullptr;
     }
 }
 
 int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer);
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* SW_REDIS_H_ */
