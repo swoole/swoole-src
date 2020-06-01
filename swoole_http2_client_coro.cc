@@ -1022,7 +1022,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
             return false;
         }
         return inlen != 0;
-    });
+    }());
 
     return SW_OK;
 }
