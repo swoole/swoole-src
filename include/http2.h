@@ -79,6 +79,7 @@ enum swHttp2_stream_flag
     SW_HTTP2_STREAM_REQUEST_END       = 1 << 0,
     SW_HTTP2_STREAM_PIPELINE_REQUEST  = 1 << 1,
     SW_HTTP2_STREAM_PIPELINE_RESPONSE = 1 << 2,
+    SW_HTTP2_STREAM_USE_PIPELINE_READ = 1 << 3,
 };
 
 #define SW_HTTP2_FRAME_HEADER_SIZE            9
