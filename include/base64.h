@@ -14,13 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_BASE64_H__
-#define SW_BASE64_H__
-
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#pragma once
 
 #define BASE64_ENCODE_OUT_SIZE(s) (((s) + 2) / 3 * 4)
 #define BASE64_DECODE_OUT_SIZE(s) (((s)) / 4 * 3)
@@ -28,8 +22,3 @@ extern "C"
 size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out);
 size_t swBase64_decode(const char *in, size_t inlen, char *out);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* SW_BASE64_H__ */

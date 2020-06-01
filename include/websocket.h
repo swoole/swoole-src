@@ -14,12 +14,9 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_WEBSOCKET_H_
-#define SW_WEBSOCKET_H_
+#pragma once
 
 #include "http.h"
-
-SW_EXTERN_C_BEGIN
 
 #define SW_WEBSOCKET_SEC_KEY_LEN            16
 #define SW_WEBSOCKET_GUID                   "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -175,7 +172,3 @@ void swWebSocket_print_frame(swWebSocket_frame *frame);
 
 ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
 int swWebSocket_dispatch_frame(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
-
-SW_EXTERN_C_END
-
-#endif /* SW_WEBSOCKET_H_ */
