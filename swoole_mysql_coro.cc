@@ -255,7 +255,7 @@ public:
         return is_connect() && !socket->has_bound(SW_EVENT_WRITE);
     }
 
-    bool is_available_for_new_reuqest()
+    bool is_available_for_new_request()
     {
         if (sw_unlikely(state != SW_MYSQL_STATE_IDLE && state != SW_MYSQL_STATE_CLOSED))
         {
@@ -418,13 +418,13 @@ public:
         return true;
     }
 
-    inline bool is_available_for_new_reuqest()
+    inline bool is_available_for_new_request()
     {
         if (sw_unlikely(!is_available()))
         {
             return false;
         }
-        if (sw_unlikely(!client->is_available_for_new_reuqest()))
+        if (sw_unlikely(!client->is_available_for_new_request()))
         {
             return false;
         }
@@ -915,7 +915,7 @@ void mysql_client::query(zval *return_value, const char *statement, size_t state
 
 void mysql_client::send_query_request(zval *return_value, const char *statement, size_t statement_length)
 {
-    if (sw_unlikely(!is_available_for_new_reuqest()))
+    if (sw_unlikely(!is_available_for_new_request()))
     {
         RETURN_FALSE;
     }
@@ -1323,7 +1323,7 @@ void mysql_client::close()
 
 bool mysql_statement::send_prepare_request()
 {
-    if (sw_unlikely(!is_available_for_new_reuqest()))
+    if (sw_unlikely(!is_available_for_new_request()))
     {
         return false;
     }
@@ -1399,7 +1399,7 @@ void mysql_statement::execute(zval *return_value, zval *params)
 
 void mysql_statement::send_execute_request(zval *return_value, zval *params)
 {
-    if (sw_unlikely(!is_available_for_new_reuqest()))
+    if (sw_unlikely(!is_available_for_new_request()))
     {
         RETURN_FALSE;
     }
