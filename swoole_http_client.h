@@ -17,11 +17,10 @@
 #pragma once
 
 #include "swoole_http.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 #include "websocket.h"
+
+SW_EXTERN_C_BEGIN
+
 #include "thirdparty/swoole_http_parser.h"
 
 #include "ext/standard/basic_functions.h"
@@ -32,9 +31,7 @@ extern "C" {
 #include <zlib.h>
 #endif
 
-#ifdef __cplusplus
-}
-#endif
+SW_EXTERN_C_END
 
 enum http_client_error_status_code
 {

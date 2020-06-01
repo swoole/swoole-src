@@ -15,7 +15,6 @@
 */
 
 #include "swoole_http_server.h"
-#include "websocket.h"
 
 #include "main/rfc1867.h"
 

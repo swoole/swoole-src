@@ -27,10 +27,10 @@ extern "C"
 #include "ext/date/php_date.h"
 #include "ext/standard/md5.h"
 }
+
 #include "main/rfc1867.h"
 #include "main/php_variables.h"
 
-#include "websocket.h"
 #include "base64.h"
 
 #ifdef SW_HAVE_ZLIB

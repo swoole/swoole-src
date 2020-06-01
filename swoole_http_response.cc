@@ -30,7 +30,6 @@ extern "C"
 #include "ext/standard/md5.h"
 }
 
-#include "websocket.h"
 #include "base64.h"
 
 #ifdef SW_HAVE_ZLIB
