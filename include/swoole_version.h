@@ -21,7 +21,7 @@
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      5
 #define SWOOLE_RELEASE_VERSION    3
-#define SWOOLE_EXTRA_VERSION      ""
+#define SWOOLE_EXTRA_VERSION      "alpha"
 #define SWOOLE_VERSION            "4.5.3-alpha"
 #define SWOOLE_VERSION_ID         40503
 #define SWOOLE_API_VERSION_ID     0x202006a
