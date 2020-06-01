@@ -1231,7 +1231,7 @@ uint32_t http2_client::send_request(zval *zreuqest)
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_request_ce, zreuqest, ZEND_STRL("headers"), 0);
     zval *zdata = sw_zend_read_property(swoole_http2_request_ce, zreuqest, ZEND_STRL("data"), 0);
     zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, zreuqest, ZEND_STRL("pipeline"), 0);
-    zval ztmp, *zuse_pipeline_read = zend_read_property(NULL, zreuqest, ZEND_STRL("usePipelineRead"), 0, &ztmp);
+    zval ztmp, *zuse_pipeline_read = zend_read_property(Z_OBJCE_P(zreuqest), zreuqest, ZEND_STRL("usePipelineRead"), 1, &ztmp);
     bool is_data_empty = Z_TYPE_P(zdata) == IS_STRING ? Z_STRLEN_P(zdata) == 0 : !zval_is_true(zdata);
 
     if (ZVAL_IS_ARRAY(zdata))
