@@ -173,7 +173,7 @@ public:
     bool send_window_update(int stream_id, uint32_t size);
     bool send_ping_frame();
     bool send_data(uint32_t stream_id, const char *p, size_t len, int flag);
-    uint32_t send_request(zval *zreuqest);
+    uint32_t send_request(zval *zrequest);
     bool write_data(uint32_t stream_id, zval *zdata, bool end);
     bool send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len);
     enum swReturn_code parse_frame(zval *return_value, bool pipeline_read = false);
@@ -1226,12 +1226,12 @@ bool http2_client::send_data(uint32_t stream_id, const char *p, size_t len, int 
     return true;
 }
 
-uint32_t http2_client::send_request(zval *zreuqest)
+uint32_t http2_client::send_request(zval *zrequest)
 {
-    zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_request_ce, zreuqest, ZEND_STRL("headers"), 0);
-    zval *zdata = sw_zend_read_property(swoole_http2_request_ce, zreuqest, ZEND_STRL("data"), 0);
-    zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, zreuqest, ZEND_STRL("pipeline"), 0);
-    zval ztmp, *zuse_pipeline_read = zend_read_property(Z_OBJCE_P(zreuqest), zreuqest, ZEND_STRL("usePipelineRead"), 1, &ztmp);
+    zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_request_ce, zrequest, ZEND_STRL("headers"), 0);
+    zval *zdata = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("data"), 0);
+    zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("pipeline"), 0);
+    zval ztmp, *zuse_pipeline_read = zend_read_property(Z_OBJCE_P(zrequest), zrequest, ZEND_STRL("usePipelineRead"), 1, &ztmp);
     bool is_data_empty = Z_TYPE_P(zdata) == IS_STRING ? Z_STRLEN_P(zdata) == 0 : !zval_is_true(zdata);
 
     if (ZVAL_IS_ARRAY(zdata))
@@ -1243,7 +1243,7 @@ uint32_t http2_client::send_request(zval *zreuqest)
      * send headers
      */
     char* buffer = SwooleTG.buffer_stack->str;
-    ssize_t bytes = http2_client_build_header(zobject, zreuqest, buffer + SW_HTTP2_FRAME_HEADER_SIZE);
+    ssize_t bytes = http2_client_build_header(zobject, zrequest, buffer + SW_HTTP2_FRAME_HEADER_SIZE);
 
     if (bytes <= 0)
     {
