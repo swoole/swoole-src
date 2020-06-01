@@ -981,9 +981,9 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
                     zend_update_property_long(swoole_http2_response_ce, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
                 }
             }
-#ifdef SW_HAVE_ZLIB
             else
             {
+#ifdef SW_HAVE_ZLIB
                 if (
                     SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-encoding") &&
                     SW_STRCASECT((char *) nv.value, nv.valuelen, "gzip")
