@@ -950,11 +950,12 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
     zval *zcookies = sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("cookies"), 0);
     zval *zset_cookie_headers = sw_zend_read_and_convert_property_array(swoole_http2_response_ce, zresponse, ZEND_STRL("set_cookie_headers"), 0);
 
+    int inflate_flags = 0;
     ssize_t rv;
-    while (true)
+
+    do
     {
         nghttp2_nv nv;
-        int inflate_flags = 0;
 
         rv = nghttp2_hd_inflate_hd(inflater, &nv, &inflate_flags, (uchar *) in, inlen, 1);
         if (rv < 0)
@@ -978,52 +979,50 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status"))
                 {
                     zend_update_property_long(swoole_http2_response_ce, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
-                    goto _check_end;
                 }
             }
+            else
+            {
 #ifdef SW_HAVE_ZLIB
-            else if (
-                SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-encoding") &&
-                SW_STRCASECT((char *) nv.value, nv.valuelen, "gzip")
-            )
-            {
-                /**
-                 * init zlib stream
-                 */
-                stream->gzip = 1;
-                memset(&stream->gzip_stream, 0, sizeof(stream->gzip_stream));
-                stream->gzip_buffer = swString_new(8192);
-                stream->gzip_stream.zalloc = php_zlib_alloc;
-                stream->gzip_stream.zfree = php_zlib_free;
-                /**
-                 * zlib decode
-                 */
-                if (Z_OK != inflateInit2(&stream->gzip_stream, MAX_WBITS + 16))
+                if (
+                    SW_STRCASEEQ((char *) nv.name, nv.namelen, "content-encoding") &&
+                    SW_STRCASECT((char *) nv.value, nv.valuelen, "gzip")
+                )
                 {
-                    swWarn("inflateInit2() failed");
-                    return SW_ERR;
+                    /**
+                     * init zlib stream
+                     */
+                    stream->gzip = 1;
+                    memset(&stream->gzip_stream, 0, sizeof(stream->gzip_stream));
+                    stream->gzip_buffer = swString_new(8192);
+                    stream->gzip_stream.zalloc = php_zlib_alloc;
+                    stream->gzip_stream.zfree = php_zlib_free;
+                    /**
+                     * zlib decode
+                     */
+                    if (Z_OK != inflateInit2(&stream->gzip_stream, MAX_WBITS + 16))
+                    {
+                        swWarn("inflateInit2() failed");
+                        return SW_ERR;
+                    }
                 }
-            }
+                else
 #endif
-            else if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "set-cookie"))
-            {
-                http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers);
+                if (SW_STRCASEEQ((char *) nv.name, nv.namelen, "set-cookie"))
+                {
+                    http_parse_set_cookies((char *) nv.value, nv.valuelen, zcookies, zset_cookie_headers);
+                }
+                add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
             }
-            add_assoc_stringl_ex(zheaders, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);
         }
-        _check_end:
-
+    } while ([=] {
         if (inflate_flags & NGHTTP2_HD_INFLATE_FINAL)
         {
             nghttp2_hd_inflate_end_headers(inflater);
-            break;
+            return false;
         }
-
-        if (inlen == 0)
-        {
-            break;
-        }
-    }
+        return inlen != 0;
+    }());
 
     return SW_OK;
 }
