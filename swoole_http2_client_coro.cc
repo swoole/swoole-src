@@ -1261,21 +1261,14 @@ uint32_t http2_client::send_request(zval *zrequest)
 
     auto stream = create_stream(stream_id, flags);
 
-    if (is_data_empty)
+    flags = SW_HTTP2_FLAG_END_HEADERS;
+
+    if (is_data_empty && !(stream->flags & SW_HTTP2_STREAM_PIPELINE_REQUEST))
     {
-        if (stream->flags & SW_HTTP2_STREAM_PIPELINE_REQUEST)
-        {
-            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, stream->stream_id);
-        }
-        else
-        {
-            swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_STREAM | SW_HTTP2_FLAG_END_HEADERS, stream->stream_id);
-        }
+        flags |= SW_HTTP2_FLAG_END_STREAM;
     }
-    else
-    {
-        swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS, stream->stream_id);
-    }
+
+    swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_HEADERS, bytes, flags, stream->stream_id);
 
     swTraceLog(SW_TRACE_HTTP2, "[" SW_ECHO_GREEN ", STREAM#%d] length=%zd", swHttp2_get_type(SW_HTTP2_TYPE_HEADERS), stream->stream_id, bytes);
     if (!send(buffer, SW_HTTP2_FRAME_HEADER_SIZE + bytes))
