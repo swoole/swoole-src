@@ -71,6 +71,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     if (substr($request->server['request_uri'], -8, 8) == 'test.jpg') {
         $response->header('Content-Type', 'image/jpeg');
         $response->sendfile(dirname(__DIR__) . '/test.jpg');
+        return;
     } elseif ($request->server['request_uri'] == '/test.txt') {
         $last_modified_time = filemtime(__DIR__ . '/test.txt');
         $etag = md5_file(__DIR__ . '/test.txt');
@@ -83,9 +84,11 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
         } else {
             $response->sendfile(__DIR__ . '/test.txt');
         }
+        return;
     } else if ($request->server['request_uri'] == '/favicon.ico') {
         $response->status(404);
         $response->end();
+        return;
     } else if ($request->server['request_uri'] == '/code') {
         $response->sendfile(__FILE__);
         return;
@@ -126,6 +129,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
         //unset($request, $response);
 //    swoole_timer_after(2000, function() use ( $response) {
         $response->end("<h1>Hello Swoole.</h1>" . $output);
+        return;
 //    });
     }
     //var_dump($request);
