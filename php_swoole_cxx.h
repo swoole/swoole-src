@@ -374,6 +374,5 @@ bool eval(std::string code, std::string filename = "");
 #define ZEND_STR_CONST const
 #endif
 
-zend_op_array* swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename);
 //-----------------------------------namespace end--------------------------------------------
 }

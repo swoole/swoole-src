@@ -28,11 +28,11 @@ static zend_object_handlers swoole_process_handlers;
 static uint32_t php_swoole_worker_round_id = 0;
 static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {};
 
-typedef struct
+struct process_t
 {
     swWorker *worker;
     zend_object std;
-} process_t;
+};
 
 static sw_inline process_t* php_swoole_process_fetch_object(zend_object *obj)
 {
@@ -98,6 +98,7 @@ static zend_object *php_swoole_process_create_object(zend_class_entry *ce)
     return &process->std;
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_process, __construct);
 static PHP_METHOD(swoole_process, __destruct);
 static PHP_METHOD(swoole_process, useQueue);
@@ -123,6 +124,7 @@ static PHP_METHOD(swoole_process, close);
 static PHP_METHOD(swoole_process, exit);
 static PHP_METHOD(swoole_process, exec);
 static PHP_METHOD(swoole_process, exportSocket);
+SW_EXTERN_C_END
 
 static void php_swoole_onSignal(int signo);
 

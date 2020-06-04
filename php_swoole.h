@@ -205,13 +205,9 @@ PHP_RINIT_FUNCTION(swoole);
 PHP_RSHUTDOWN_FUNCTION(swoole);
 PHP_MINFO_FUNCTION(swoole);
 
-PHP_FUNCTION(swoole_version);
-PHP_FUNCTION(swoole_cpu_num);
-PHP_FUNCTION(swoole_set_process_name);
-PHP_FUNCTION(swoole_get_local_ip);
-PHP_FUNCTION(swoole_get_local_mac);
 PHP_FUNCTION(swoole_clear_dns_cache);
-PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
+PHP_FUNCTION(swoole_last_error);
+PHP_FUNCTION(swoole_set_process_name);
 //---------------------------------------------------------
 //                  Coroutine API
 //---------------------------------------------------------
@@ -236,11 +232,6 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro);
 #define SW_STRERROR_DNS     2
 #define SW_STRERROR_SWOOLE  9
 
-PHP_FUNCTION(swoole_strerror);
-PHP_FUNCTION(swoole_errno);
-PHP_FUNCTION(swoole_last_error);
-
-
 /**
  * MINIT <Sort by dependency>
  * ==============================================================
@@ -254,7 +245,6 @@ void php_swoole_process_pool_minit(int module_number);
 void php_swoole_table_minit(int module_number);
 void php_swoole_timer_minit(int module_number);
 // coroutine
-void php_swoole_async_coro_minit(int module_number);
 void php_swoole_coroutine_minit(int module_number);
 void php_swoole_coroutine_system_minit(int module_number);
 void php_swoole_coroutine_scheduler_minit(int module_number);

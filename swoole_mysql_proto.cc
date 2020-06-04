@@ -25,12 +25,12 @@ namespace swoole
 {
 namespace mysql
 {
-typedef struct
+struct charset_t
 {
-    unsigned int nr;
+    uint nr;
     const char *name;
     const char *collation;
-} charset_t;
+};
 
 char get_charset(const char *name)
 {

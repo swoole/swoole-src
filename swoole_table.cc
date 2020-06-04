@@ -115,11 +115,11 @@ static zend_object_handlers swoole_table_handlers;
 static zend_class_entry *swoole_table_row_ce;
 static zend_object_handlers swoole_table_row_handlers;
 
-typedef struct
+struct table_t
 {
     swTable *ptr;
     zend_object std;
-} table_t;
+};
 
 static inline table_t* php_swoole_table_fetch_object(zend_object *obj)
 {
@@ -276,6 +276,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_table_decr, 0, 0, 2)
     ZEND_ARG_INFO(0, decrby)
 ZEND_END_ARG_INFO()
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_table, __construct);
 static PHP_METHOD(swoole_table, column);
 static PHP_METHOD(swoole_table, create);
@@ -304,6 +305,7 @@ static PHP_METHOD(swoole_table_row, offsetGet);
 static PHP_METHOD(swoole_table_row, offsetSet);
 static PHP_METHOD(swoole_table_row, offsetUnset);
 static PHP_METHOD(swoole_table_row, __destruct);
+SW_EXTERN_C_END
 
 static const zend_function_entry swoole_table_methods[] =
 {

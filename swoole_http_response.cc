@@ -170,6 +170,7 @@ static zend_object *php_swoole_http_response_create_object(zend_class_entry *ce)
     return &response->std;
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_response, write);
 static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
@@ -193,6 +194,7 @@ static PHP_METHOD(swoole_http_response, ping);
 #endif
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, __destruct);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
 ZEND_END_ARG_INFO()

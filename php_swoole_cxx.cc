@@ -1,5 +1,7 @@
 #include "php_swoole_cxx.h"
 
+static zend_op_array* swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename);
+
 bool zend::include(std::string file)
 {
     zend_file_handle file_handle;
@@ -44,15 +46,14 @@ bool zend::include(std::string file)
 }
 
 //for compatibly with dis_eval
-zend_op_array* (*old_compile_string)(zval *source_string, ZEND_STR_CONST char *filename);
+static zend_op_array* (*old_compile_string)(zval *source_string, ZEND_STR_CONST char *filename);
 
-zend_op_array* zend::swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename)
+static zend_op_array* swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename)
 {
     zend_op_array *opa = old_compile_string(source_string, filename);
     opa->type = ZEND_USER_FUNCTION;
     return opa;
 }
-
 
 bool zend::eval(std::string code, std::string filename)
 {

@@ -18,37 +18,37 @@
 
 using namespace swoole;
 
-typedef struct
+struct process_pool_property
 {
     zend_fcall_info_cache *onStart;
     zend_fcall_info_cache *onWorkerStart;
     zend_fcall_info_cache *onWorkerStop;
     zend_fcall_info_cache *onMessage;
     bool enable_coroutine;
-} process_pool_property;
+};
 
 static zend_class_entry *swoole_process_pool_ce;
 static zend_object_handlers swoole_process_pool_handlers;
 static swProcessPool *current_pool;
 
-typedef struct
+struct process_pool_t
 {
     swProcessPool *pool;
     process_pool_property *pp;
     zend_object std;
-} process_pool_t;
+};
 
 static sw_inline process_pool_t* php_swoole_process_pool_fetch_object(zend_object *obj)
 {
     return (process_pool_t *) ((char *) obj - swoole_process_pool_handlers.offset);
 }
 
-static sw_inline swProcessPool * php_swoole_process_pool_get_pool(zval *zobject)
+static sw_inline swProcessPool* php_swoole_process_pool_get_pool(zval *zobject)
 {
     return php_swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool;
 }
 
-static sw_inline swProcessPool * php_swoole_process_pool_get_and_check_pool(zval *zobject)
+static sw_inline swProcessPool* php_swoole_process_pool_get_and_check_pool(zval *zobject)
 {
     swProcessPool *pool = php_swoole_process_pool_get_pool(zobject);
     if (!pool)
@@ -63,12 +63,12 @@ static sw_inline void php_swoole_process_pool_set_pool(zval *zobject, swProcessP
     php_swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pool = pool;
 }
 
-static sw_inline process_pool_property * php_swoole_process_pool_get_pp(zval *zobject)
+static sw_inline process_pool_property* php_swoole_process_pool_get_pp(zval *zobject)
 {
     return php_swoole_process_pool_fetch_object(Z_OBJ_P(zobject))->pp;
 }
 
-static sw_inline process_pool_property * php_swoole_process_pool_get_and_check_pp(zval *zobject)
+static sw_inline process_pool_property* php_swoole_process_pool_get_and_check_pp(zval *zobject)
 {
     process_pool_property *pp = php_swoole_process_pool_get_pp(zobject);
     if (!pp)
@@ -165,6 +165,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_pool_write, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
 ZEND_END_ARG_INFO()
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_process_pool, __construct);
 static PHP_METHOD(swoole_process_pool, __destruct);
 static PHP_METHOD(swoole_process_pool, set);
@@ -174,6 +175,7 @@ static PHP_METHOD(swoole_process_pool, write);
 static PHP_METHOD(swoole_process_pool, getProcess);
 static PHP_METHOD(swoole_process_pool, start);
 static PHP_METHOD(swoole_process_pool, shutdown);
+SW_EXTERN_C_END
 
 static const zend_function_entry swoole_process_pool_methods[] =
 {

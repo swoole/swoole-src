@@ -26,12 +26,13 @@ using swoole::coroutine::Channel;
 static zend_class_entry *swoole_channel_coro_ce;
 static zend_object_handlers swoole_channel_coro_handlers;
 
-typedef struct
+struct channel_coro
 {
     Channel *chan;
     zend_object std;
-} channel_coro;
+};
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_channel_coro, __construct);
 static PHP_METHOD(swoole_channel_coro, push);
 static PHP_METHOD(swoole_channel_coro, pop);
@@ -40,6 +41,7 @@ static PHP_METHOD(swoole_channel_coro, stats);
 static PHP_METHOD(swoole_channel_coro, length);
 static PHP_METHOD(swoole_channel_coro, isEmpty);
 static PHP_METHOD(swoole_channel_coro, isFull);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, size)

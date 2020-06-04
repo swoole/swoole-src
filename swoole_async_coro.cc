@@ -31,30 +31,25 @@ using swoole::coroutine::Socket;
 using std::string;
 using std::vector;
 
-typedef struct
+struct dns_cache
 {
     char address[16];
     time_t update_time;
-} dns_cache;
+};
 
-typedef struct
+struct process_stream
 {
     zval *callback;
     pid_t pid;
     int fd;
     swString *buffer;
-} process_stream;
+};
 
 static std::unordered_map<std::string, dns_cache*> request_cache_map;
 
-void php_swoole_async_coro_minit(int module_number)
-{
-
-}
-
 void php_swoole_async_coro_rshutdown()
 {
-    for(auto i = request_cache_map.begin(); i != request_cache_map.end(); i++)
+    for (auto i = request_cache_map.begin(); i != request_cache_map.end(); i++)
     {
         efree(i->second);
     }

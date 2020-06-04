@@ -280,6 +280,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_goaway, 0, 0, 0)
     ZEND_ARG_INFO(0, debug_data)
 ZEND_END_ARG_INFO()
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http2_client_coro, __construct);
 static PHP_METHOD(swoole_http2_client_coro, __destruct);
 static PHP_METHOD(swoole_http2_client_coro, set);
@@ -293,6 +294,7 @@ static PHP_METHOD(swoole_http2_client_coro, read);
 static PHP_METHOD(swoole_http2_client_coro, ping);
 static PHP_METHOD(swoole_http2_client_coro, goaway);
 static PHP_METHOD(swoole_http2_client_coro, close);
+SW_EXTERN_C_END
 
 static const zend_function_entry swoole_http2_client_methods[] =
 {

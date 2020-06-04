@@ -44,6 +44,23 @@ extern sapi_module_struct sapi_module;
 
 static swoole::CallbackManager rshutdown_callbacks;
 
+SW_EXTERN_C_BEGIN
+static PHP_FUNCTION(swoole_version);
+static PHP_FUNCTION(swoole_cpu_num);
+static PHP_FUNCTION(swoole_strerror);
+static PHP_FUNCTION(swoole_errno);
+static PHP_FUNCTION(swoole_get_local_ip);
+static PHP_FUNCTION(swoole_get_local_mac);
+static PHP_FUNCTION(swoole_hashcode);
+static PHP_FUNCTION(swoole_mime_type_add);
+static PHP_FUNCTION(swoole_mime_type_set);
+static PHP_FUNCTION(swoole_mime_type_delete);
+static PHP_FUNCTION(swoole_mime_type_get);
+static PHP_FUNCTION(swoole_mime_type_exists);
+static PHP_FUNCTION(swoole_mime_type_list);
+static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
+SW_EXTERN_C_END
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
@@ -101,13 +118,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_read, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
-static PHP_FUNCTION(swoole_hashcode);
-static PHP_FUNCTION(swoole_mime_type_add);
-static PHP_FUNCTION(swoole_mime_type_set);
-static PHP_FUNCTION(swoole_mime_type_delete);
-static PHP_FUNCTION(swoole_mime_type_get);
-static PHP_FUNCTION(swoole_mime_type_exists);
-
 const zend_function_entry swoole_functions[] =
 {
     PHP_FE(swoole_version, arginfo_swoole_void)
@@ -134,6 +144,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_mime_type_get, arginfo_swoole_mime_type_read)
     PHP_FALIAS(swoole_get_mime_type, swoole_mime_type_get, arginfo_swoole_mime_type_read)
     PHP_FE(swoole_mime_type_exists, arginfo_swoole_mime_type_read)
+    PHP_FE(swoole_mime_type_list, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
@@ -581,7 +592,6 @@ PHP_MINIT_FUNCTION(swoole)
     php_swoole_table_minit(module_number);
     php_swoole_timer_minit(module_number);
     // coroutine
-    php_swoole_async_coro_minit(module_number);
     php_swoole_coroutine_minit(module_number);
     php_swoole_coroutine_system_minit(module_number);
     php_swoole_coroutine_scheduler_minit(module_number);
@@ -807,7 +817,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     return SUCCESS;
 }
 
-PHP_FUNCTION(swoole_version)
+static PHP_FUNCTION(swoole_version)
 {
     RETURN_STRING(SWOOLE_VERSION);
 }
@@ -858,12 +868,12 @@ PHP_FUNCTION(swoole_last_error)
     RETURN_LONG(swoole_get_last_error());
 }
 
-PHP_FUNCTION(swoole_cpu_num)
+static PHP_FUNCTION(swoole_cpu_num)
 {
     RETURN_LONG(SW_CPU_NUM);
 }
 
-PHP_FUNCTION(swoole_strerror)
+static PHP_FUNCTION(swoole_strerror)
 {
     zend_long swoole_errno;
     zend_long error_type = SW_STRERROR_SYSTEM;
@@ -905,7 +915,7 @@ PHP_FUNCTION(swoole_mime_type_add)
     RETURN_BOOL(swoole::mime_type::add(ZSTR_VAL(suffix), ZSTR_VAL(mime_type)));
 }
 
-PHP_FUNCTION(swoole_mime_type_set)
+static PHP_FUNCTION(swoole_mime_type_set)
 {
     zend_string *suffix;
     zend_string *mime_type;
@@ -918,7 +928,7 @@ PHP_FUNCTION(swoole_mime_type_set)
     swoole::mime_type::set(ZSTR_VAL(suffix), ZSTR_VAL(mime_type));
 }
 
-PHP_FUNCTION(swoole_mime_type_delete)
+static PHP_FUNCTION(swoole_mime_type_delete)
 {
     zend_string *suffix;
 
@@ -929,7 +939,7 @@ PHP_FUNCTION(swoole_mime_type_delete)
     RETURN_BOOL(swoole::mime_type::del(ZSTR_VAL(suffix)));
 }
 
-PHP_FUNCTION(swoole_mime_type_get)
+static PHP_FUNCTION(swoole_mime_type_get)
 {
     zend_string *filename;
 
@@ -940,7 +950,7 @@ PHP_FUNCTION(swoole_mime_type_get)
     RETURN_STRING(swoole::mime_type::get(ZSTR_VAL(filename)).c_str());
 }
 
-PHP_FUNCTION(swoole_mime_type_exists)
+static PHP_FUNCTION(swoole_mime_type_exists)
 {
     zend_string *filename;
 
@@ -951,15 +961,16 @@ PHP_FUNCTION(swoole_mime_type_exists)
     RETURN_BOOL(swoole::mime_type::exists(ZSTR_VAL(filename)));
 }
 
-PHP_FUNCTION(swoole_mime_type_list)
+static PHP_FUNCTION(swoole_mime_type_list)
 {
     array_init(return_value);
-    for (auto &i : swoole::mime_type::list()) {
+    for (auto &i : swoole::mime_type::list())
+    {
         add_next_index_string(return_value, i.second.c_str());
     }
 }
 
-PHP_FUNCTION(swoole_errno)
+static PHP_FUNCTION(swoole_errno)
 {
     RETURN_LONG(errno);
 }
@@ -976,7 +987,7 @@ PHP_FUNCTION(swoole_set_process_name)
     cli_set_process_title->internal_function.handler(INTERNAL_FUNCTION_PARAM_PASSTHRU);
 }
 
-PHP_FUNCTION(swoole_get_local_ip)
+static PHP_FUNCTION(swoole_get_local_ip)
 {
     struct sockaddr_in *s4;
     struct ifaddrs *ipaddrs, *ifa;
@@ -1026,7 +1037,7 @@ PHP_FUNCTION(swoole_get_local_ip)
     freeifaddrs(ipaddrs);
 }
 
-PHP_FUNCTION(swoole_get_local_mac)
+static PHP_FUNCTION(swoole_get_local_mac)
 {
 #ifdef SIOCGIFHWADDR
     struct ifconf ifc;
@@ -1071,7 +1082,7 @@ PHP_FUNCTION(swoole_get_local_mac)
 #endif
 }
 
-PHP_FUNCTION(swoole_internal_call_user_shutdown_begin)
+static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin)
 {
     if (SWOOLE_G(req_status) == PHP_SWOOLE_RINIT_END)
     {

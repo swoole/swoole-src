@@ -19,11 +19,11 @@
 static zend_class_entry *swoole_lock_ce;
 static zend_object_handlers swoole_lock_handlers;
 
-typedef struct
+struct lock_t
 {
     swLock *ptr;
     zend_object std;
-} lock_t;
+};
 
 static sw_inline lock_t* php_swoole_lock_fetch_object(zend_object *obj)
 {
@@ -64,6 +64,7 @@ static zend_object *php_swoole_lock_create_object(zend_class_entry *ce)
     return &lock->std;
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_lock, __construct);
 static PHP_METHOD(swoole_lock, __destruct);
 static PHP_METHOD(swoole_lock, lock);
@@ -73,6 +74,7 @@ static PHP_METHOD(swoole_lock, lock_read);
 static PHP_METHOD(swoole_lock, trylock_read);
 static PHP_METHOD(swoole_lock, unlock);
 static PHP_METHOD(swoole_lock, destroy);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()

@@ -62,9 +62,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_set, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine_scheduler, add);
 static PHP_METHOD(swoole_coroutine_scheduler, parallel);
 static PHP_METHOD(swoole_coroutine_scheduler, start);
+SW_EXTERN_C_END
 
 static sw_inline scheduler_t* scheduler_get_object(zend_object *obj)
 {

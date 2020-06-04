@@ -24,7 +24,7 @@
 // see mysqlnd 'L64' macro redefined
 #undef L64
 
-extern "C" {
+SW_EXTERN_C_BEGIN
 #include "ext/hash/php_hash.h"
 #include "ext/hash/php_hash_sha.h"
 #include "ext/standard/php_math.h"
@@ -32,7 +32,7 @@ extern "C" {
 #include "ext/mysqlnd/mysqlnd.h"
 #include "ext/mysqlnd/mysqlnd_charset.h"
 #endif
-}
+SW_EXTERN_C_END
 
 #include <unordered_map>
 
@@ -504,17 +504,20 @@ static zend_object_handlers swoole_mysql_coro_exception_handlers;
 static zend_class_entry *swoole_mysql_coro_statement_ce;
 static zend_object_handlers swoole_mysql_coro_statement_handlers;
 
-typedef struct {
+struct mysql_coro_t
+{
     mysql_client *client;
     zend_object std;
-} mysql_coro_t;
+};
 
-typedef struct {
+struct mysql_coro_statement_t
+{
     mysql_statement *statement;
     zend_object *zclient;
     zend_object std;
-} mysql_coro_statement_t;
+};
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_mysql_coro, __construct);
 static PHP_METHOD(swoole_mysql_coro, __destruct);
 static PHP_METHOD(swoole_mysql_coro, connect);
@@ -540,6 +543,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll);
 static PHP_METHOD(swoole_mysql_coro_statement, nextResult);
 static PHP_METHOD(swoole_mysql_coro_statement, recv);
 static PHP_METHOD(swoole_mysql_coro_statement, close);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()

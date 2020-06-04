@@ -34,6 +34,7 @@ static struct {
     bool enable_coroutine;
 } settings;
 
+SW_EXTERN_C_BEGIN
 static PHP_FUNCTION(swoole_timer_set);
 static PHP_FUNCTION(swoole_timer_after);
 static PHP_FUNCTION(swoole_timer_tick);
@@ -43,6 +44,7 @@ static PHP_FUNCTION(swoole_timer_stats);
 static PHP_FUNCTION(swoole_timer_list);
 static PHP_FUNCTION(swoole_timer_clear);
 static PHP_FUNCTION(swoole_timer_clear_all);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
