@@ -33,10 +33,12 @@ static zend_object_handlers swoole_redis_server_handlers;
 static swString *format_buffer;
 static unordered_map<string, zend_fcall_info_cache> redis_handlers;
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_redis_server, start);
 static PHP_METHOD(swoole_redis_server, setHandler);
 static PHP_METHOD(swoole_redis_server, getHandler);
 static PHP_METHOD(swoole_redis_server, format);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_start, 0, 0, 0)
 ZEND_END_ARG_INFO()

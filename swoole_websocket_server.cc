@@ -18,15 +18,14 @@
 
 #include <iostream>
 
-extern "C"
-{
+SW_EXTERN_C_BEGIN
 #include "ext/standard/url.h"
 #include "ext/standard/sha1.h"
 #include "ext/standard/php_var.h"
 #include "ext/standard/php_string.h"
 #include "ext/date/php_date.h"
 #include "main/php_variables.h"
-}
+SW_EXTERN_C_END
 
 #include "base64.h"
 #include "thirdparty/swoole_http_parser.h"
@@ -44,6 +43,7 @@ static zend_object_handlers swoole_websocket_frame_handlers;
 static zend_class_entry *swoole_websocket_closeframe_ce;
 static zend_object_handlers swoole_websocket_closeframe_handlers;
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_websocket_server, push);
 static PHP_METHOD(swoole_websocket_server, isEstablished);
 static PHP_METHOD(swoole_websocket_server, pack);
@@ -51,6 +51,7 @@ static PHP_METHOD(swoole_websocket_server, unpack);
 static PHP_METHOD(swoole_websocket_server, disconnect);
 
 static PHP_METHOD(swoole_websocket_frame, __toString);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_push, 0, 0, 2)
     ZEND_ARG_INFO(0, fd)

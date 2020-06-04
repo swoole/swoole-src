@@ -19,11 +19,16 @@
 using namespace std;
 using namespace swoole;
 
-struct server_port_event {
+struct server_port_event
+{
     enum php_swoole_server_port_callback_type type;
-    std::string name;
-    server_port_event(enum php_swoole_server_port_callback_type type, std::string &&name) : type(type) , name(name) { }
+    string name;
+    server_port_event(enum php_swoole_server_port_callback_type type, string &&name) :
+            type(type), name(name)
+    {
+    }
 };
+
 static unordered_map<string, server_port_event> server_port_event_map({
     { "connect",     server_port_event(SW_SERVER_CB_onConnect,     "Connect") },
     { "receive",     server_port_event(SW_SERVER_CB_onReceive,     "Receive") },
@@ -40,12 +45,12 @@ static unordered_map<string, server_port_event> server_port_event_map({
 zend_class_entry *swoole_server_port_ce;
 static zend_object_handlers swoole_server_port_handlers;
 
-typedef struct
+struct server_port_t
 {
     swListenPort *port;
     php_swoole_server_port_property property;
     zend_object std;
-} server_port_t;
+};
 
 static sw_inline server_port_t* php_swoole_server_port_fetch_object(zend_object *obj)
 {
@@ -127,6 +132,7 @@ static zend_object *php_swoole_server_port_create_object(zend_class_entry *ce)
     return &server_port->std;
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_server_port, __construct);
 static PHP_METHOD(swoole_server_port, __destruct);
 static PHP_METHOD(swoole_server_port, on);
@@ -136,6 +142,7 @@ static PHP_METHOD(swoole_server_port, getCallback);
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_server_port, getSocket);
 #endif
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()

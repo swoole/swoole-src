@@ -30,13 +30,14 @@ static zend_object_handlers swoole_socket_coro_handlers;
 static zend_class_entry *swoole_socket_coro_exception_ce;
 static zend_object_handlers swoole_socket_coro_exception_handlers;
 
-typedef struct
+struct socket_coro
 {
     Socket *socket;
     bool reference;
     zend_object std;
-} socket_coro;
+};
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_socket_coro, __construct);
 static PHP_METHOD(swoole_socket_coro, bind);
 static PHP_METHOD(swoole_socket_coro, listen);
@@ -63,6 +64,7 @@ static PHP_METHOD(swoole_socket_coro, close);
 static PHP_METHOD(swoole_socket_coro, cancel);
 static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, getpeername);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_construct, 0, 0, 2)
     ZEND_ARG_INFO(0, domain)

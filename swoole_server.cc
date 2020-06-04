@@ -535,6 +535,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_connection_iterator_offsetSet, 0, 0, 2)
 ZEND_END_ARG_INFO()
 //arginfo end
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_server, __construct);
 static PHP_METHOD(swoole_server, __destruct);
 static PHP_METHOD(swoole_server, set);
@@ -599,6 +600,7 @@ static PHP_METHOD(swoole_connection_iterator, __destruct);
  */
 static PHP_METHOD(swoole_server_task, finish);
 static PHP_METHOD(swoole_server_task, pack);
+SW_EXTERN_C_END
 
 static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, __construct, arginfo_swoole_server__construct, ZEND_ACC_PUBLIC)

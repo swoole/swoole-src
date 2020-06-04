@@ -50,8 +50,7 @@ using namespace std;
 using swoole::coroutine::System;
 using swoole::coroutine::Socket;
 
-extern "C"
-{
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_runtime, enableCoroutine);
 static PHP_METHOD(swoole_runtime, getHookFlags);
 static PHP_METHOD(swoole_runtime, setHookFlags);
@@ -62,7 +61,7 @@ static PHP_FUNCTION(swoole_time_sleep_until);
 static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
-}
+SW_EXTERN_C_END
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
 #if PHP_VERSION_ID < 70400
@@ -144,11 +143,10 @@ static void unhook_func(const char *name, size_t l_name);
 
 static zend_array *function_table = nullptr;
 
-extern "C"
-{
+SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
-}
+SW_EXTERN_C_END
 
 static const zend_function_entry swoole_runtime_methods[] =
 {

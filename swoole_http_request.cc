@@ -16,8 +16,7 @@
 
 #include "swoole_http_server.h"
 
-extern "C"
-{
+SW_EXTERN_C_BEGIN
 #include "ext/standard/url.h"
 #include "ext/standard/sha1.h"
 #include "ext/standard/php_var.h"
@@ -26,7 +25,7 @@ extern "C"
 #include "ext/standard/php_array.h"
 #include "ext/date/php_date.h"
 #include "ext/standard/md5.h"
-}
+SW_EXTERN_C_END
 
 #include "main/rfc1867.h"
 #include "main/php_variables.h"
@@ -276,9 +275,11 @@ static zend_object *php_swoole_http_request_create_object(zend_class_entry *ce)
     return &request->std;
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_request, getData);
 static PHP_METHOD(swoole_http_request, rawContent);
 static PHP_METHOD(swoole_http_request, __destruct);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
 ZEND_END_ARG_INFO()

@@ -113,6 +113,7 @@ static zend_object_handlers swoole_exit_exception_handlers;
 static zend_class_entry *swoole_coroutine_iterator_ce;
 static zend_class_entry *swoole_coroutine_context_ce;
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine, exists);
 static PHP_METHOD(swoole_coroutine, yield);
 static PHP_METHOD(swoole_coroutine, resume);
@@ -125,6 +126,7 @@ static PHP_METHOD(swoole_coroutine, getElapsed);
 static PHP_METHOD(swoole_coroutine, list);
 static PHP_METHOD(swoole_coroutine, enableScheduler);
 static PHP_METHOD(swoole_coroutine, disableScheduler);
+SW_EXTERN_C_END
 
 static const zend_function_entry swoole_coroutine_util_methods[] =
 {

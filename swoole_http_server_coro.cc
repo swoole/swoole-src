@@ -211,6 +211,7 @@ typedef struct
     zend_object std;
 } http_server_coro_t;
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_server_coro, __construct);
 static PHP_METHOD(swoole_http_server_coro, set);
 static PHP_METHOD(swoole_http_server_coro, handle);
@@ -218,6 +219,7 @@ static PHP_METHOD(swoole_http_server_coro, start);
 static PHP_METHOD(swoole_http_server_coro, shutdown);
 static PHP_METHOD(swoole_http_server_coro, onAccept);
 static PHP_METHOD(swoole_http_server_coro, __destruct);
+SW_EXTERN_C_END
 
 static const zend_function_entry swoole_http_server_coro_methods[] =
 {

@@ -27,11 +27,11 @@ using namespace swoole;
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
 
-typedef struct
+struct client_coro
 {
     Socket *sock;
     zend_object std;
-} client_coro;
+};
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -81,6 +81,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_coro_recvfrom, 0, 0, 2)
     ZEND_ARG_INFO(1, port)
 ZEND_END_ARG_INFO()
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_client_coro, __construct);
 static PHP_METHOD(swoole_client_coro, __destruct);
 static PHP_METHOD(swoole_client_coro, set);
@@ -101,6 +102,7 @@ static PHP_METHOD(swoole_client_coro, isConnected);
 static PHP_METHOD(swoole_client_coro, getsockname);
 static PHP_METHOD(swoole_client_coro, getpeername);
 static PHP_METHOD(swoole_client_coro, close);
+SW_EXTERN_C_END
 
 static Socket* client_coro_new(zval *zobject, int port = 0);
 void php_swoole_client_coro_socket_free(Socket *cli);

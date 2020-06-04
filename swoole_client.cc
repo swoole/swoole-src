@@ -28,7 +28,7 @@ using namespace std;
 
 #include "ext/standard/basic_functions.h"
 
-typedef struct
+struct client_callback
 {
     zend_fcall_info_cache cache_onConnect;
     zend_fcall_info_cache cache_onReceive;
@@ -40,24 +40,24 @@ typedef struct
     zend_fcall_info_cache cache_onSSLReady;
 #endif
     zval _object;
-} client_callback;
+};
 
 static unordered_map<string, queue<swClient *> *> long_connections;
 
 zend_class_entry *swoole_client_ce;
 static zend_object_handlers swoole_client_handlers;
 
-typedef struct
+struct client_sync
 {
     swClient *cli;
     zval *zsocket;
     client_callback *cb;
     zend_object std;
-} client_t;
+};
 
-static sw_inline client_t* php_swoole_client_fetch_object(zend_object *obj)
+static sw_inline client_sync* php_swoole_client_fetch_object(zend_object *obj)
 {
-    return (client_t *) ((char *) obj - swoole_client_handlers.offset);
+    return (client_sync *) ((char *) obj - swoole_client_handlers.offset);
 }
 
 static sw_inline swClient* php_swoole_client_get_cli(zval *zobject)
@@ -97,13 +97,14 @@ static void php_swoole_client_free_object(zend_object *object)
 
 static zend_object *php_swoole_client_create_object(zend_class_entry *ce)
 {
-    client_t *client = (client_t *) zend_object_alloc(sizeof(client_t), ce);
+    client_sync *client = (client_sync *) zend_object_alloc(sizeof(client_sync), ce);
     zend_object_std_init(&client->std, ce);
     object_properties_init(&client->std, ce);
     client->std.handlers = &swoole_client_handlers;
     return &client->std;
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_client, __construct);
 static PHP_METHOD(swoole_client, __destruct);
 static PHP_METHOD(swoole_client, set);
@@ -126,6 +127,7 @@ static PHP_METHOD(swoole_client, shutdown);
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_client, getSocket);
 #endif
+SW_EXTERN_C_END
 
 #ifdef PHP_SWOOLE_CLIENT_USE_POLL
 static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int maxevents, int event);
@@ -233,7 +235,7 @@ void php_swoole_client_minit(int module_number)
     SW_SET_CLASS_SERIALIZABLE(swoole_client, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_client, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client, sw_zend_class_unset_property_deny);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_client, php_swoole_client_create_object, php_swoole_client_free_object, client_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(swoole_client, php_swoole_client_create_object, php_swoole_client_free_object, client_sync, std);
 
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);

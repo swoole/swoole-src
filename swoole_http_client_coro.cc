@@ -292,6 +292,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_http_client_coro, __construct);
 static PHP_METHOD(swoole_http_client_coro, __destruct);
 static PHP_METHOD(swoole_http_client_coro, set);
@@ -322,6 +323,7 @@ static PHP_METHOD(swoole_http_client_coro, upgrade);
 static PHP_METHOD(swoole_http_client_coro, push);
 static PHP_METHOD(swoole_http_client_coro, recv);
 static PHP_METHOD(swoole_http_client_coro, close);
+SW_EXTERN_C_END
 
 static const zend_function_entry swoole_http_client_coro_methods[] =
 {

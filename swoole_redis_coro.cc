@@ -1666,6 +1666,7 @@ static sw_inline void sw_redis_command_key_str_str(INTERNAL_FUNCTION_PARAMETERS,
     redis_request(redis, 4, argv, argvlen, return_value);
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_redis_coro, __construct);
 static PHP_METHOD(swoole_redis_coro, __destruct);
 static PHP_METHOD(swoole_redis_coro, connect);
@@ -1812,6 +1813,7 @@ static PHP_METHOD(swoole_redis_coro, exec);
 static PHP_METHOD(swoole_redis_coro, eval);
 static PHP_METHOD(swoole_redis_coro, evalSha);
 static PHP_METHOD(swoole_redis_coro, script);
+SW_EXTERN_C_END
 /*---------------------Redis Command End------------------------*/
 
 static const zend_function_entry swoole_redis_coro_methods[] =

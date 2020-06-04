@@ -27,12 +27,12 @@ static unordered_map<int, swSocket *> event_socket_map;
 zend_class_entry *swoole_event_ce;
 static zend_object_handlers swoole_event_handlers;
 
-typedef struct
+struct event_t
 {
     zval zsocket;
     zend_fcall_info_cache fci_cache_read;
     zend_fcall_info_cache fci_cache_write;
-} php_event_object;
+};
 
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event);
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event);
@@ -40,6 +40,7 @@ static int php_swoole_event_onError(swReactor *reactor, swEvent *event);
 static void php_swoole_event_onDefer(void *data);
 static void php_swoole_event_onEndCallback(void *data);
 
+SW_EXTERN_C_BEGIN
 static PHP_FUNCTION(swoole_event_add);
 static PHP_FUNCTION(swoole_event_set);
 static PHP_FUNCTION(swoole_event_del);
@@ -51,6 +52,7 @@ static PHP_FUNCTION(swoole_event_defer);
 static PHP_FUNCTION(swoole_event_cycle);
 static PHP_FUNCTION(swoole_event_dispatch);
 static PHP_FUNCTION(swoole_event_isset);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -127,7 +129,7 @@ void php_swoole_event_minit(int module_number)
 
 static void php_event_object_free(void* data)
 {
-    php_event_object *peo = (php_event_object*) data;
+    event_t *peo = (event_t*) data;
     if (peo->fci_cache_read.function_handler)
     {
         sw_zend_fci_cache_discard(&peo->fci_cache_read);
@@ -142,7 +144,7 @@ static void php_event_object_free(void* data)
 
 static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 {
-    php_event_object *peo = (php_event_object *) event->socket->object;
+    event_t *peo = (event_t *) event->socket->object;
 
     if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, &peo->fci_cache_read, 1, &peo->zsocket, nullptr) != SUCCESS))
     {
@@ -158,7 +160,7 @@ static int php_swoole_event_onRead(swReactor *reactor, swEvent *event)
 
 static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event)
 {
-    php_event_object *peo = (php_event_object *) event->socket->object;
+    event_t *peo = (event_t *) event->socket->object;
 
     if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, &peo->fci_cache_write, 1, &peo->zsocket, nullptr) != SUCCESS))
     {
@@ -531,7 +533,7 @@ static PHP_FUNCTION(swoole_event_add)
         RETURN_FALSE;
     }
 
-    php_event_object *peo = (php_event_object *) ecalloc(1, sizeof(php_event_object));
+    event_t *peo = (event_t *) ecalloc(1, sizeof(event_t));
 
     Z_TRY_ADDREF_P(zfd);
     peo->zsocket = *zfd;
@@ -650,7 +652,7 @@ static PHP_FUNCTION(swoole_event_set)
         RETURN_FALSE;
     }
 
-    php_event_object *reactor_fd = (php_event_object *) socket->object;
+    event_t *reactor_fd = (event_t *) socket->object;
     if (fci_read.size != 0)
     {
         if (reactor_fd->fci_cache_read.function_handler)

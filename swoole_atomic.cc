@@ -70,11 +70,11 @@ static zend_object_handlers swoole_atomic_handlers;
 zend_class_entry *swoole_atomic_long_ce;
 static zend_object_handlers swoole_atomic_long_handlers;
 
-typedef struct
+struct atomic_t
 {
     sw_atomic_t *ptr;
     zend_object std;
-} atomic_t;
+};
 
 static sw_inline atomic_t* php_swoole_atomic_fetch_object(zend_object *obj)
 {
@@ -112,11 +112,11 @@ static zend_object *php_swoole_atomic_create_object(zend_class_entry *ce)
     return &atomic->std;
 }
 
-typedef struct
+struct atomic_long_t
 {
     sw_atomic_long_t *ptr;
     zend_object std;
-} atomic_long_t;
+};
 
 static sw_inline atomic_long_t* php_swoole_atomic_long_fetch_object(zend_object *obj)
 {
@@ -154,6 +154,7 @@ static zend_object *php_swoole_atomic_long_create_object(zend_class_entry *ce)
     return &atomic_long->std;
 }
 
+SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_atomic, __construct);
 static PHP_METHOD(swoole_atomic, add);
 static PHP_METHOD(swoole_atomic, sub);
@@ -169,6 +170,7 @@ static PHP_METHOD(swoole_atomic_long, sub);
 static PHP_METHOD(swoole_atomic_long, get);
 static PHP_METHOD(swoole_atomic_long, set);
 static PHP_METHOD(swoole_atomic_long, cmpset);
+SW_EXTERN_C_END
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, value)
