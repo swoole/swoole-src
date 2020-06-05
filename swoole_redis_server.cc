@@ -30,7 +30,6 @@ using namespace std;
 static zend_class_entry *swoole_redis_server_ce;
 static zend_object_handlers swoole_redis_server_handlers;
 
-static swString *format_buffer;
 static unordered_map<string, zend_fcall_info_cache> redis_handlers;
 
 SW_EXTERN_C_BEGIN
@@ -234,13 +233,6 @@ static PHP_METHOD(swoole_redis_server, start)
 
     serv->onReceive = redis_onReceive;
 
-    format_buffer = swString_new(SW_BUFFER_SIZE_STD);
-    if (!format_buffer)
-    {
-        php_swoole_fatal_error(E_ERROR, "[1] swString_new(%d) failed", SW_BUFFER_SIZE_STD);
-        RETURN_FALSE;
-    }
-
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, zserv, ZEND_STRL("setting"), 0);
 
     add_assoc_bool(zsetting, "open_http_protocol", 0);
@@ -344,6 +336,8 @@ static PHP_METHOD(swoole_redis_server, format)
     char message[256];
     int length;
     zval *item;
+
+    swString* format_buffer = SwooleTG.buffer_stack;
 
     if (type == SW_REDIS_REPLY_NIL)
     {
