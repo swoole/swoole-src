@@ -865,7 +865,7 @@ static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *ce, zval
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
 }
 
-static sw_inline zval* sw_zend_read_property_ex_not_null(zend_class_entry *ce, zval *obj, zend_string *s, int silent)
+static sw_inline zval* sw_zend_read_property_not_null_ex(zend_class_entry *ce, zval *obj, zend_string *s, int silent)
 {
     zval rv, *property = zend_read_property_ex(ce, obj, s, silent, &rv);
     zend_uchar type = Z_TYPE_P(property);

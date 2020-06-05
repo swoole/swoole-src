@@ -260,11 +260,11 @@ int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zen
     }
     if (opcode == WEBSOCKET_OPCODE_CLOSE)
     {
-        if ((ztmp = sw_zend_read_property_ex_not_null(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_CODE), 1)))
+        if ((ztmp = sw_zend_read_property_not_null_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_CODE), 1)))
         {
             code = zval_get_long(ztmp);
         }
-        if ((ztmp = sw_zend_read_property_ex_not_null(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_REASON), 1)))
+        if ((ztmp = sw_zend_read_property_not_null_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_REASON), 1)))
         {
             zdata = ztmp;
         }
