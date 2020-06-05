@@ -637,6 +637,7 @@ PHP_MINIT_FUNCTION(swoole)
 PHP_MSHUTDOWN_FUNCTION(swoole)
 {
     swoole_clean();
+    zend::known_strings_dtor();
 
     return SUCCESS;
 }

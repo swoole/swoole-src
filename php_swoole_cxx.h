@@ -420,6 +420,7 @@ namespace function
 bool include(std::string file);
 bool eval(std::string code, std::string filename = "");
 void known_strings_init(void);
+void known_strings_dtor(void);
 
 #if PHP_VERSION_ID < 80000
 #define ZEND_STR_CONST
