@@ -277,7 +277,7 @@ int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zen
     {
         flags = zval_get_long(ztmp) & SW_WEBSOCKET_FLAGS_ALL;
     }
-    if ((ztmp = sw_zend_read_property_ex_not_null(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FINISH), 0)))
+    if ((ztmp = sw_zend_read_property_not_null_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FINISH), 0)))
     {
         if (zval_is_true(ztmp))
         {
