@@ -839,7 +839,7 @@ static sw_inline zval* sw_zend_read_property(zend_class_entry *ce, zval *obj, co
     return property;
 }
 
-static sw_inline void sw_zend_update_property_ex_null(zend_class_entry *scope, zval *object, zend_string *s)
+static sw_inline void sw_zend_update_property_null_ex(zend_class_entry *scope, zval *object, zend_string *s)
 {
     zval tmp;
 
@@ -852,7 +852,7 @@ static sw_inline zval* sw_zend_read_property_ex(zend_class_entry *ce, zval *obj,
     zval rv, *property = zend_read_property_ex(ce, obj, s, silent, &rv);
     if (UNEXPECTED(property == &EG(uninitialized_zval)))
     {
-        sw_zend_update_property_ex_null(ce, obj, s);
+        sw_zend_update_property_null_ex(ce, obj, s);
         return zend_read_property_ex(ce, obj, s, silent, &rv);
     }
     return property;
