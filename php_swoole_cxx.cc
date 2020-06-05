@@ -97,7 +97,7 @@ void zend::known_strings_init(void)
 
 void zend::known_strings_dtor(void)
 {
-    free(sw_zend_known_strings);
+    pefree(sw_zend_known_strings, 1);
     sw_zend_known_strings = nullptr;
 }
 
