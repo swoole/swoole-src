@@ -2401,9 +2401,9 @@ int swThreadPool_run(swThreadPool *pool);
 int swThreadPool_free(swThreadPool *pool);
 
 //--------------------------------protocol------------------------------
-ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size);
-int swProtocol_recv_check_length(swProtocol *protocol, swSocket *conn, swString *buffer);
-int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *conn, swString *buffer);
+ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t size);
+int swProtocol_recv_check_length(swProtocol *protocol, swSocket *socket, swString *buffer);
+int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *buffer);
 
 //--------------------------------timer------------------------------
 #define SW_TIMER_MIN_MS  1
