@@ -853,7 +853,7 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, con
     }
 }
 
-int swHttpMix_get_package_length_size(swSocket *socket)
+uint8_t swHttpMix_get_package_length_size(swSocket *socket)
 {
     swConnection *conn = (swConnection *) socket->object;
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
