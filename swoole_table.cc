@@ -14,7 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_cxx.h"
+
 #include "table.h"
 
 static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *return_value)
@@ -891,7 +892,7 @@ static PHP_METHOD(swoole_table_row, offsetExists)
         RETURN_FALSE;
     }
 
-    zval *zprop_value = sw_zend_read_property(swoole_table_row_ce, ZEND_THIS, ZEND_STRL("value"), 0);
+    zval *zprop_value = sw_zend_read_property_ex(swoole_table_row_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_VALUE), 0);
     RETURN_BOOL(zend_hash_str_exists(Z_ARRVAL_P(zprop_value), key, keylen));
 }
 
@@ -905,7 +906,7 @@ static PHP_METHOD(swoole_table_row, offsetGet)
         RETURN_FALSE;
     }
 
-    zval *zprop_value = sw_zend_read_property(swoole_table_row_ce, ZEND_THIS, ZEND_STRL("value"), 0);
+    zval *zprop_value = sw_zend_read_property_ex(swoole_table_row_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_VALUE), 0);
     zval *retval = nullptr;
     if (!(retval = zend_hash_str_find(Z_ARRVAL_P(zprop_value), key, keylen)))
     {
@@ -926,7 +927,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
         RETURN_FALSE;
     }
 
-    zval *zprop_key = sw_zend_read_property(swoole_table_row_ce, ZEND_THIS, ZEND_STRL("key"), 0);
+    zval *zprop_key = sw_zend_read_property_ex(swoole_table_row_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_KEY), 0);
 
     swTableRow *_rowlock = nullptr;
     swTableRow *row = swTableRow_set(table, Z_STRVAL_P(zprop_key), Z_STRLEN_P(zprop_key), &_rowlock);
@@ -962,7 +963,7 @@ static PHP_METHOD(swoole_table_row, offsetSet)
     }
     swTableRow_unlock(_rowlock);
 
-    zval *zprop_value = sw_zend_read_property(swoole_table_row_ce, ZEND_THIS, ZEND_STRL("value"), 0);
+    zval *zprop_value = sw_zend_read_property_ex(swoole_table_row_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_VALUE), 0);
     Z_TRY_ADDREF_P(value);
     add_assoc_zval_ex(zprop_value, key, keylen, value);
 

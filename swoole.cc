@@ -626,6 +626,8 @@ PHP_MINIT_FUNCTION(swoole)
     PCRE_G(jit) = 0;
 #endif
 
+    zend::known_strings_init();
+
     return SUCCESS;
 }
 /* }}} */

@@ -416,7 +416,7 @@ bool http2_client::connect()
     client->protocol.package_body_offset = 0;
     client->protocol.get_package_length = swHttp2_get_frame_length;
 
-    apply_setting(sw_zend_read_property(swoole_http2_client_coro_ce, zobject, ZEND_STRL("setting"), 0));
+    apply_setting(sw_zend_read_property_ex(swoole_http2_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0));
 
     if (!client->connect(host, port))
     {
@@ -1032,10 +1032,10 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
 static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *buffer)
 {
     http2_client *h2c = php_swoole_get_h2c(zobject);
-    zval *zmethod = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("method"), 0);
-    zval *zpath = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("path"), 0);
-    zval *zheaders = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("headers"), 0);
-    zval *zcookies = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("cookies"), 0);
+    zval *zmethod = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_METHOD), 0);
+    zval *zpath = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH), 0);
+    zval *zheaders = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
+    zval *zcookies = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIES), 0);
     http2::headers headers(8 + php_swoole_array_length_safe(zheaders) + php_swoole_array_length_safe(zcookies));
     bool find_host = 0;
 
@@ -1230,9 +1230,9 @@ bool http2_client::send_data(uint32_t stream_id, const char *p, size_t len, int 
 uint32_t http2_client::send_request(zval *zrequest)
 {
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http2_request_ce, zrequest, ZEND_STRL("headers"), 0);
-    zval *zdata = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("data"), 0);
-    zval *zpipeline = sw_zend_read_property(swoole_http2_request_ce, zrequest, ZEND_STRL("pipeline"), 0);
-    zval ztmp, *zuse_pipeline_read = zend_read_property(Z_OBJCE_P(zrequest), zrequest, ZEND_STRL("usePipelineRead"), 1, &ztmp);
+    zval *zdata = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_DATA), 0);
+    zval *zpipeline = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_PIPELINE), 0);
+    zval ztmp, *zuse_pipeline_read = zend_read_property_ex(Z_OBJCE_P(zrequest), zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_USE_PIPELINE_READ), 1, &ztmp);
     bool is_data_empty = Z_TYPE_P(zdata) == IS_STRING ? Z_STRLEN_P(zdata) == 0 : !zval_is_true(zdata);
 
     if (ZVAL_IS_ARRAY(zdata))

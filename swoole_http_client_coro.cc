@@ -808,7 +808,7 @@ bool http_client::connect()
         socket->open_ssl = ssl;
 #endif
         // apply settings
-        apply_setting(sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("setting"), 0), false);
+        apply_setting(sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
 
         // connect
         socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
@@ -866,12 +866,12 @@ bool http_client::send()
     // when new request, clear all properties about the last response
     {
         zval *zattr;
-        zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
+        zattr = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
         if (ZVAL_IS_ARRAY(zattr))
         {
             zend_hash_clean(Z_ARRVAL_P(zattr));
         }
-        zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
+        zattr = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SET_COOKIE_HEADERS), 0);
         if (ZVAL_IS_ARRAY(zattr))
         {
             zend_hash_clean(Z_ARRVAL_P(zattr));
@@ -901,12 +901,12 @@ bool http_client::send()
     // clear body
     swString_clear(body);
 
-    zmethod = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestMethod"), 0);
-    zheaders = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestHeaders"), 0);
-    zbody = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("requestBody"), 0);
-    zupload_files = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("uploadFiles"), 0);
-    zcookies = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
-    z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadFile"), 0);
+    zmethod = sw_zend_read_property_ex_not_null(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_METHOD), 0);
+    zheaders = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_HEADERS), 0);
+    zbody = sw_zend_read_property_ex_not_null(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_BODY), 0);
+    zupload_files = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_UPLOAD_FILES), 0);
+    zcookies = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIES), 0);
+    z_download_file = sw_zend_read_property_ex_not_null(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_DOWNLOAD_FILE), 0);
 
     // ============   host   ============
     zend::string str_host;
@@ -921,7 +921,7 @@ bool http_client::send()
     {
         zend::string str_download_file(z_download_file);
         char *download_file_name = str_download_file.val();
-        zval *z_download_offset = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 0);
+        zval *z_download_offset = sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_DOWNLOAD_OFFSET), 0);
         off_t download_offset = zval_get_long(z_download_offset);
 
         int fd = ::open(download_file_name, O_CREAT | O_WRONLY, 0664);

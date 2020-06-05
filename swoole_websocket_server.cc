@@ -254,30 +254,30 @@ int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zen
     zval *ztmp = nullptr;
 
     zdata = nullptr;
-    if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("opcode"), 0)))
+    if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_OPCODE), 0)))
     {
         opcode = zval_get_long(ztmp);
     }
     if (opcode == WEBSOCKET_OPCODE_CLOSE)
     {
-        if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("code"), 1)))
+        if ((ztmp = sw_zend_read_property_ex_not_null(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_CODE), 1)))
         {
             code = zval_get_long(ztmp);
         }
-        if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("reason"), 1)))
+        if ((ztmp = sw_zend_read_property_ex_not_null(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_REASON), 1)))
         {
             zdata = ztmp;
         }
     }
-    if (!zdata && (ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("data"), 0)))
+    if (!zdata && (ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_DATA), 0)))
     {
         zdata = ztmp;
     }
-    if ((ztmp = sw_zend_read_property(swoole_websocket_frame_ce, zframe, ZEND_STRL("flags"), 0)))
+    if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FLAGS), 0)))
     {
         flags = zval_get_long(ztmp) & SW_WEBSOCKET_FLAGS_ALL;
     }
-    if ((ztmp = sw_zend_read_property_not_null(swoole_websocket_frame_ce, zframe, ZEND_STRL("finish"), 0)))
+    if ((ztmp = sw_zend_read_property_ex_not_null(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FINISH), 0)))
     {
         if (zval_is_true(ztmp))
         {

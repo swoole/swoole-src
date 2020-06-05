@@ -23,6 +23,58 @@
 
 #include <string>
 
+//----------------------------------Swoole known string------------------------------------
+
+#define SW_ZEND_KNOWN_STRINGS(_) \
+    _(SW_ZEND_STR_TYPE,                     "type")       \
+    _(SW_ZEND_STR_HOST,                     "host")       \
+    _(SW_ZEND_STR_PORT,                     "port")       \
+    _(SW_ZEND_STR_SETTING,                  "setting")    \
+    _(SW_ZEND_STR_ID,                       "id")    \
+    _(SW_ZEND_STR_FD,                       "fd")    \
+    _(SW_ZEND_STR_SOCK,                     "sock")    \
+    _(SW_ZEND_STR_PIPE,                     "pipe")    \
+    _(SW_ZEND_STR_HEADERS,                  "headers")    \
+    _(SW_ZEND_STR_SET_COOKIE_HEADERS,       "set_cookie_headers")    \
+    _(SW_ZEND_STR_REQUEST_METHOD,           "requestMethod")    \
+    _(SW_ZEND_STR_REQUEST_HEADERS,          "requestHeaders")    \
+    _(SW_ZEND_STR_REQUEST_BODY,             "requestBody")    \
+    _(SW_ZEND_STR_UPLOAD_FILES,             "uploadFiles")    \
+    _(SW_ZEND_STR_COOKIES,                  "cookies")    \
+    _(SW_ZEND_STR_DOWNLOAD_FILE,            "downloadFile")    \
+    _(SW_ZEND_STR_DOWNLOAD_OFFSET,          "downloadOffset")    \
+    _(SW_ZEND_STR_TMPFILES,                 "tmpfiles")    \
+    _(SW_ZEND_STR_HEADER,                   "header")    \
+    _(SW_ZEND_STR_COOKIE,                   "cookie")    \
+    _(SW_ZEND_STR_METHOD,                   "method")    \
+    _(SW_ZEND_STR_PATH,                     "path")    \
+    _(SW_ZEND_STR_DATA,                     "data")    \
+    _(SW_ZEND_STR_PIPELINE,                 "pipeline")    \
+    _(SW_ZEND_STR_USE_PIPELINE_READ,        "usePipelineRead")    \
+    _(SW_ZEND_STR_TRAILER,                  "trailer")    \
+    _(SW_ZEND_STR_MASTER_PID,               "master_pid")    \
+    _(SW_ZEND_STR_CALLBACK,                 "callback")    \
+    _(SW_ZEND_STR_VALUE,                    "value")    \
+    _(SW_ZEND_STR_KEY,                      "key")    \
+    _(SW_ZEND_STR_OPCODE,                   "opcode")    \
+    _(SW_ZEND_STR_CODE,                     "code")    \
+    _(SW_ZEND_STR_REASON,                   "reason")    \
+    _(SW_ZEND_STR_FLAGS,                    "flags")    \
+    _(SW_ZEND_STR_FINISH,                   "finish")   \
+
+
+typedef enum _sw_zend_known_string_id {
+#define _SW_ZEND_STR_ID(id, str) id,
+SW_ZEND_KNOWN_STRINGS(_SW_ZEND_STR_ID)
+#undef _SW_ZEND_STR_ID
+    SW_ZEND_STR_LAST_KNOWN
+} sw_zend_known_string_id;
+
+#define SW_ZSTR_KNOWN(idx) sw_zend_known_strings[idx]
+SW_API extern zend_string **sw_zend_known_strings;
+
+//----------------------------------Swoole known string------------------------------------
+
 #define SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(module) \
     module##_ce->create_object = [](zend_class_entry *ce) { return sw_zend_create_object(ce, &module##_handlers); }
 
@@ -367,6 +419,7 @@ namespace function
 
 bool include(std::string file);
 bool eval(std::string code, std::string filename = "");
+void known_strings_init(void);
 
 #if PHP_VERSION_ID < 80000
 #define ZEND_STR_CONST

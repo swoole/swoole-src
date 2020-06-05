@@ -1066,8 +1066,8 @@ static bool swoole_redis_coro_connect(swRedisClient *redis)
     Socket *socket;
     struct timeval tv;
     zval *ztmp;
-    zval *zhost = sw_zend_read_property(swoole_redis_coro_ce, zobject, ZEND_STRL("host"), 0);
-    zval *zport = sw_zend_read_property(swoole_redis_coro_ce, zobject, ZEND_STRL("port"), 0);
+    zval *zhost = sw_zend_read_property_ex(swoole_redis_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HOST), 0);
+    zval *zport = sw_zend_read_property_ex(swoole_redis_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_PORT), 0);
     zend::string host(zhost);
     zend_long port = zval_get_long(zport);
 

@@ -239,7 +239,7 @@ static void php_swoole_http_request_free_object(zend_object *object)
     zval zobject, *ztmpfiles;
 
     ZVAL_OBJ(&zobject, object);
-    ztmpfiles = sw_zend_read_property(swoole_http_request_ce, &zobject, ZEND_STRL("tmpfiles"), 0);
+    ztmpfiles = sw_zend_read_property_ex(swoole_http_request_ce, &zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TMPFILES), 0);
     if (ZVAL_IS_ARRAY(ztmpfiles))
     {
         zval *z_file_path;
