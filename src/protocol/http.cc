@@ -825,12 +825,20 @@ string swHttpRequest_get_date_if_modified_since(swHttpRequest *request)
     return string("");
 }
 
-
 #ifdef SW_USE_HTTP2
+static void protocol_status_error(swSocket *socket, swConnection *conn)
+{
+    swoole_error_log(
+        SW_LOG_WARNING, SW_ERROR_PROTOCOL_ERROR,
+        "unexpected protocol status of session#%u<%s:%d>",
+        conn->session_id, swSocket_get_ip(conn->socket_type, &conn->info), swSocket_get_port(conn->socket_type, &conn->info)
+    );
+}
+
 ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t length)
 {
     swConnection *conn = (swConnection *) socket->object;
-    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
         return swWebSocket_get_package_length(protocol, socket, data, length);
     }
@@ -840,7 +848,7 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, con
     }
     else
     {
-        abort();
+        protocol_status_error(socket, conn);
         return SW_ERR;
     }
 }
@@ -848,7 +856,7 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, con
 uint8_t swHttpMix_get_package_length_size(swSocket *socket)
 {
     swConnection *conn = (swConnection *) socket->object;
-    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
         return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
     }
@@ -858,7 +866,7 @@ uint8_t swHttpMix_get_package_length_size(swSocket *socket)
     }
     else
     {
-        abort();
+        protocol_status_error(socket, conn);
         return 0;
     }
 }
@@ -866,7 +874,7 @@ uint8_t swHttpMix_get_package_length_size(swSocket *socket)
 int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, const char *data, uint32_t length)
 {
     swConnection *conn = (swConnection *) socket->object;
-    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE)
+    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE)
     {
         return swWebSocket_dispatch_frame(proto, socket, data, length);
     }
@@ -876,7 +884,7 @@ int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, const char *da
     }
     else
     {
-        abort();
+        protocol_status_error(socket, conn);
         return SW_ERR;
     }
 }
