@@ -839,9 +839,35 @@ static sw_inline zval* sw_zend_read_property(zend_class_entry *ce, zval *obj, co
     return property;
 }
 
+static sw_inline void sw_zend_update_property_null_ex(zend_class_entry *scope, zval *object, zend_string *s)
+{
+    zval tmp;
+
+    ZVAL_NULL(&tmp);
+    zend_update_property_ex(scope, object, s, &tmp);
+}
+
+static sw_inline zval* sw_zend_read_property_ex(zend_class_entry *ce, zval *obj, zend_string *s, int silent)
+{
+    zval rv, *property = zend_read_property_ex(ce, obj, s, silent, &rv);
+    if (UNEXPECTED(property == &EG(uninitialized_zval)))
+    {
+        sw_zend_update_property_null_ex(ce, obj, s);
+        return zend_read_property_ex(ce, obj, s, silent, &rv);
+    }
+    return property;
+}
+
 static sw_inline zval* sw_zend_read_property_not_null(zend_class_entry *ce, zval *obj, const char *s, int len, int silent)
 {
     zval rv, *property = zend_read_property(ce, obj, s, len, silent, &rv);
+    zend_uchar type = Z_TYPE_P(property);
+    return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
+}
+
+static sw_inline zval* sw_zend_read_property_not_null_ex(zend_class_entry *ce, zval *obj, zend_string *s, int silent)
+{
+    zval rv, *property = zend_read_property_ex(ce, obj, s, silent, &rv);
     zend_uchar type = Z_TYPE_P(property);
     return (type == IS_NULL || UNEXPECTED(type == IS_UNDEF)) ? NULL : property;
 }

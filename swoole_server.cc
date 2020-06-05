@@ -1196,7 +1196,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     for (i = 1; i < server_port_list.num; i++)
     {
         zport = server_port_list.zobjects[i];
-        zport_setting = sw_zend_read_property(swoole_server_port_ce, zport, ZEND_STRL("setting"), 0);
+        zport_setting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         //use swoole_server->setting
         if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting))
         {

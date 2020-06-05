@@ -736,7 +736,7 @@ void php_swoole_process_clean()
 
 int php_swoole_process_start(swWorker *process, zval *zobject)
 {
-    zval *zcallback = sw_zend_read_property(swoole_process_ce, zobject, ZEND_STRL("callback"), 0);
+    zval *zcallback = sw_zend_read_property_ex(swoole_process_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_CALLBACK), 0);
     zend_fcall_info_cache fci_cache;
 
     if (!sw_zend_is_callable_ex(zcallback, nullptr, 0, nullptr, 0, &fci_cache, nullptr))

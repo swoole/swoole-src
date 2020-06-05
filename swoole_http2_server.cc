@@ -108,7 +108,7 @@ static void http2_server_send_window_update(http_context *ctx, uint32_t stream_i
 
 static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer)
 {
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
+    zval *ztrailer = sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     uint32_t size = php_swoole_array_length_safe(ztrailer);
 
     if (size > 0)
@@ -259,8 +259,8 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
 
 static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_length)
 {
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
+    zval *zheader = sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
+    zval *zcookie = sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     http2::headers headers(8 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
     char *date_str = nullptr;
     char intbuf[2][16];
@@ -539,7 +539,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body)
     }
 #endif
 
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
+    zval *ztrailer = sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     if (php_swoole_array_length_safe(ztrailer) == 0)
     {
         ztrailer = nullptr;
@@ -627,7 +627,7 @@ static bool http2_context_sendfile(http_context* ctx, const char *file, uint32_t
     }
     body->length = SW_MIN(length, body->length);
 
-    zval *ztrailer = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("trailer"), 0);
+    zval *ztrailer = sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     if (php_swoole_array_length_safe(ztrailer) == 0)
     {
         ztrailer = nullptr;
