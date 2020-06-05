@@ -49,7 +49,8 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, co
     {
         swConnection *conn = (swConnection *) socket->object;
         swWarn(
-            "invalid package (size=%d) from session#%u<%s:%d>", size,
+            "invalid package (size=%d) from session#%u<%s:%d>",
+            size, conn->session_id,
             swSocket_get_ip(socket->socket_type, &socket->info),
             swSocket_get_port(socket->socket_type, &socket->info)
         );
