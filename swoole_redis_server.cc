@@ -337,7 +337,7 @@ static PHP_METHOD(swoole_redis_server, format)
     int length;
     zval *item;
 
-    swString* format_buffer = SwooleTG.buffer_stack;
+    swString *format_buffer = SwooleTG.buffer_stack;
 
     if (type == SW_REDIS_REPLY_NIL)
     {
