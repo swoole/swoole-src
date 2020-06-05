@@ -247,43 +247,51 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
+    else if (SwooleTG.reactor)
+    {
+        swSignalfd_setup(SwooleTG.reactor);
+    }
 }
 
 int swSignalfd_setup(swReactor *reactor)
 {
-    if (signal_fd == 0)
+    if (signal_fd != 0)
     {
-        signal_fd = signalfd(-1, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
-        if (signal_fd < 0)
-        {
-            swSysWarn("signalfd() failed");
-            return SW_ERR;
-        }
-        signal_socket = swSocket_new(signal_fd, SW_FD_SIGNAL);
-        if (signal_socket == nullptr)
-        {
-            close(signal_fd);
-            signal_fd = 0;
-            return SW_ERR;
-        }
-        SwooleG.signal_fd = signal_fd;
-        if (sigprocmask(SIG_BLOCK, &signalfd_mask, nullptr) == -1)
-        {
-            swSysWarn("sigprocmask() failed");
-            return SW_ERR;
-        }
-        swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
-        if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0)
-        {
-            return SW_ERR;
-        }
         return SW_OK;
     }
-    else
+
+    signal_fd = signalfd(-1, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
+    if (signal_fd < 0)
     {
-        swWarn("signalfd has been created");
+        swSysWarn("signalfd() failed");
         return SW_ERR;
     }
+    signal_socket = swSocket_new(signal_fd, SW_FD_SIGNAL);
+    if (signal_socket == nullptr)
+    {
+        goto _error;
+    }
+    if (sigprocmask(SIG_BLOCK, &signalfd_mask, nullptr) == -1)
+    {
+        swSysWarn("sigprocmask() failed");
+        goto _error;
+    }
+    swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
+    if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0)
+    {
+        goto _error;
+    }
+    SwooleG.signal_fd = signal_fd;
+
+    return SW_OK;
+
+    _error:
+    signal_socket->fd = -1;
+    swSocket_free(signal_socket);
+    close(signal_fd);
+    signal_fd = 0;
+
+    return SW_ERR;
 }
 
 static void swSignalfd_clear()
@@ -375,6 +383,7 @@ namespace swoole { namespace coroutine {
 bool System::wait_signal(int signo, double timeout)
 {
     static Coroutine* listeners[SW_SIGNO_MAX];
+    Coroutine *co = Coroutine::get_current_safe();
 
     if (SwooleTG.reactor->signal_listener_num > 0)
     {
@@ -386,8 +395,6 @@ bool System::wait_signal(int signo, double timeout)
         errno = EINVAL;
         return false;
     }
-
-    Coroutine *co = Coroutine::get_current_safe();
 
     /* resgiter signal */
     listeners[signo] = co;
