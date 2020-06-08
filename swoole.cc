@@ -884,10 +884,15 @@ PHP_FUNCTION(swoole_get_local_ip)
 
 PHP_FUNCTION(swoole_get_local_mac)
 {
+    auto add_assoc_address = [](zval *zv, const char *name, const unsigned char *addr)
+    {
+        char buf[32];
+        sw_snprintf(SW_STRS(buf), "%02X:%02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+        add_assoc_string(zv, name, buf);
+    };
 #ifdef SIOCGIFHWADDR
     struct ifconf ifc;
     struct ifreq buf[16];
-    char mac[32] = {};
 
     int sock;
     int i = 0,num = 0;
@@ -908,22 +913,31 @@ PHP_FUNCTION(swoole_get_local_mac)
         {
             if (!(ioctl(sock, SIOCGIFHWADDR, (char *) &buf[i])))
             {
-                sprintf(mac, "%02X:%02X:%02X:%02X:%02X:%02X",
-                        (unsigned char) buf[i].ifr_hwaddr.sa_data[0],
-                        (unsigned char) buf[i].ifr_hwaddr.sa_data[1],
-                        (unsigned char) buf[i].ifr_hwaddr.sa_data[2],
-                        (unsigned char) buf[i].ifr_hwaddr.sa_data[3],
-                        (unsigned char) buf[i].ifr_hwaddr.sa_data[4],
-                        (unsigned char) buf[i].ifr_hwaddr.sa_data[5]);
-                add_assoc_string(return_value, buf[i].ifr_name, mac);
+                add_assoc_address(return_value, buf[i].ifr_name, (unsigned char *) buf[i].ifr_hwaddr.sa_data);
             }
             i++;
         }
     }
     close(sock);
 #else
-    php_error_docref(NULL, E_WARNING, "swoole_get_local_mac is not supported");
+#ifdef LLADDR
+    ifaddrs* ifas, *ifa;
+    if (getifaddrs(&ifas) == 0)
+    {
+        array_init(return_value);
+        for (ifa = ifas; ifa; ifa = ifa->ifa_next)
+        {
+            if ((ifa->ifa_addr->sa_family == AF_LINK) && ifa->ifa_addr)
+            {
+                add_assoc_address(return_value, ifa->ifa_name, (unsigned char *) (LLADDR((struct sockaddr_dl *) ifa->ifa_addr)));
+            }
+        }
+        freeifaddrs(ifas);
+    }
+#else
+    php_error_docref(nullptr, E_WARNING, "swoole_get_local_mac is not supported");
     RETURN_FALSE;
+#endif
 #endif
 }
 
