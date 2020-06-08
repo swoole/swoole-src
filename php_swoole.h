@@ -90,9 +90,8 @@ extern zend_module_entry swoole_module_entry;
 # define PHP_SWOOLE_API
 #endif
 
-#ifdef __APPLE__
-#define SIOCGIFHWADDR SIOCGIFCONF
-#define ifr_hwaddr ifr_addr
+#if __MACH__
+#include <net/if_dl.h>
 #endif
 
 #define SW_CHECK_RETURN(s)      if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}
