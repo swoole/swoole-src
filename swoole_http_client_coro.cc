@@ -88,7 +88,9 @@ public:
 #ifdef SW_HAVE_ZLIB
     bool websocket_compression = false; // allow to compress websocket messages
 #endif
-    int  download_file_fd = 0;          // save http response to file
+    int download_file_fd = -1;          // save http response to file
+    zend::string download_file_name;    // unlink the file on error
+    zend_long download_offset = 0;
     bool has_upload_files = false;
 
     /* safety zval */
@@ -515,8 +517,37 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             return -1;
         }
     }
-    if (http->download_file_fd > 0 && http->body->length > 0)
+    if (http->download_file_name.get() && http->body->length > 0)
     {
+        if (http->download_file_fd < 0)
+        {
+            char *download_file_name = http->download_file_name.val();
+            int fd = ::open(download_file_name, O_CREAT | O_WRONLY, 0664);
+            if (fd < 0)
+            {
+                swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
+                return false;
+            }
+            if (http->download_offset == 0)
+            {
+                if (::ftruncate(fd, 0) < 0)
+                {
+                    swSysWarn("ftruncate(%s) failed", download_file_name);
+                    ::close(fd);
+                    return false;
+                }
+            }
+            else
+            {
+                if (::lseek(fd, http->download_offset, SEEK_SET) < 0)
+                {
+                    swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
+                    ::close(fd);
+                    return false;
+                }
+            }
+            http->download_file_fd = fd;
+        }
         if (swoole_coroutine_write(http->download_file_fd, SW_STRINGL(http->body)) != (ssize_t) http->body->length)
         {
             return -1;
@@ -542,6 +573,10 @@ static int http_parser_on_message_complete(swoole_http_parser *parser)
     if (http->download_file_fd <= 0)
     {
         zend_update_property_stringl(swoole_http_client_coro_ce, zobject, ZEND_STRL("body"), SW_STRINGL(http->body));
+    }
+    else
+    {
+        http->download_file_name.release();
     }
 
     if (parser->upgrade)
@@ -919,36 +954,8 @@ bool http_client::send()
     // ============ download ============
     if (z_download_file)
     {
-        zend::string str_download_file(z_download_file);
-        char *download_file_name = str_download_file.val();
-        zval *z_download_offset = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 0);
-        off_t download_offset = zval_get_long(z_download_offset);
-
-        int fd = ::open(download_file_name, O_CREAT | O_WRONLY, 0664);
-        if (fd < 0)
-        {
-            swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
-            return false;
-        }
-        if (download_offset == 0)
-        {
-            if (ftruncate(fd, 0) < 0)
-            {
-                swSysWarn("ftruncate(%s) failed", download_file_name);
-                ::close(fd);
-                return false;
-            }
-        }
-        else
-        {
-            if (lseek(fd, download_offset, SEEK_SET) < 0)
-            {
-                swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) download_offset);
-                ::close(fd);
-                return false;
-            }
-        }
-        download_file_fd = fd;
+        download_file_name = z_download_file;
+        download_offset = zval_get_long(sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 0));
     }
 
     // ============ method ============
@@ -1663,10 +1670,12 @@ void http_client::reset()
     {
         zend_update_property_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("uploadFiles"));
     }
-    if (download_file_fd > 0)
+    if (download_file_fd >= 0)
     {
         ::close(download_file_fd);
-        download_file_fd = 0;
+        download_file_fd = -1;
+        download_file_name.release();
+        download_offset = 0;
         zend_update_property_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadFile"));
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 0);
     }

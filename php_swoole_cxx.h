@@ -117,12 +117,17 @@ public:
         return sw_likely(len() > 0) ? estrndup(val(), len()) : nullptr;
     }
 
-    ~string()
+    void release()
     {
         if (str)
         {
             zend_string_release(str);
         }
+    }
+
+    ~string()
+    {
+        release();
     }
 
 private:
