@@ -1196,7 +1196,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     for (i = 1; i < server_port_list.num; i++)
     {
         zport = server_port_list.zobjects[i];
-        zport_setting = sw_zend_read_property(swoole_server_port_ce, zport, ZEND_STRL("setting"), 0);
+        zport_setting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         //use swoole_server->setting
         if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting))
         {
@@ -2043,8 +2043,8 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
 
     *zserv = *((zval *) serv->ptr2);
     ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
-    ZVAL_LONG(ztype, (zend_long) data->info.type);
-    if (sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
+    ZVAL_LONG(ztype, (zend_long) (data ? data->info.type : SW_SERVER_EVENT_CLOSE));
+    if (data && sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
     {
         // TODO: reduce memory copy
         zdata = &args[3];

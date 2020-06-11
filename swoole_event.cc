@@ -366,15 +366,15 @@ int swoole_convert_to_fd(zval *zsocket)
         zval *zfd = nullptr;
         if (instanceof_function(Z_OBJCE_P(zsocket), swoole_socket_coro_ce))
         {
-            zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("fd"), 0);
+            zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_FD), 0);
         }
         else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_client_ce))
         {
-            zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("sock"), 0);
+            zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_SOCK), 0);
         }
         else if (instanceof_function(Z_OBJCE_P(zsocket), swoole_process_ce))
         {
-            zfd = sw_zend_read_property(Z_OBJCE_P(zsocket), zsocket, ZEND_STRL("pipe"), 0);
+            zfd = sw_zend_read_property_ex(Z_OBJCE_P(zsocket), zsocket, SW_ZSTR_KNOWN(SW_ZEND_STR_PIPE), 0);
         }
         if (zfd == nullptr || Z_TYPE_P(zfd) != IS_LONG)
         {

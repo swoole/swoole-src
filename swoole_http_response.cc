@@ -404,7 +404,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     /**
      * http header
      */
-    zval *zheader = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
+    zval *zheader = sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     uint32_t header_flag = 0x0;
     if (ZVAL_IS_ARRAY(zheader))
     {
@@ -456,7 +456,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     }
 
     //http cookies
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
+    zval *zcookie = sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     if (ZVAL_IS_ARRAY(zcookie))
     {
         zval *zvalue;

@@ -1,5 +1,18 @@
 #include "php_swoole_cxx.h"
 
+//----------------------------------Swoole known string------------------------------------
+
+static const char *sw_known_strings[] = {
+#define _SW_ZEND_STR_DSC(id, str) str,
+SW_ZEND_KNOWN_STRINGS(_SW_ZEND_STR_DSC)
+#undef _SW_ZEND_STR_DSC
+    nullptr
+};
+
+SW_API zend_string **sw_zend_known_strings = nullptr;
+
+//----------------------------------Swoole known string------------------------------------
+
 static zend_op_array* swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename);
 
 bool zend::include(std::string file)
@@ -68,3 +81,23 @@ bool zend::eval(std::string code, std::string filename)
     zend_compile_string = old_compile_string;
     return ret;
 }
+
+void zend::known_strings_init(void)
+{
+    zend_string *str;
+    sw_zend_known_strings = nullptr;
+
+    /* known strings */
+    sw_zend_known_strings = (zend_string **) pemalloc(sizeof(zend_string*) * ((sizeof(sw_known_strings) / sizeof(sw_known_strings[0]) - 1)), 1);
+    for (unsigned int i = 0; i < (sizeof(sw_known_strings) / sizeof(sw_known_strings[0])) - 1; i++) {
+        str = zend_string_init(sw_known_strings[i], strlen(sw_known_strings[i]), 1);
+        sw_zend_known_strings[i] = zend_new_interned_string(str);
+    }
+}
+
+void zend::known_strings_dtor(void)
+{
+    pefree(sw_zend_known_strings, 1);
+    sw_zend_known_strings = nullptr;
+}
+
