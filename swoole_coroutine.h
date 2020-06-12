@@ -207,7 +207,6 @@ protected:
     static pthread_t interrupt_thread_id;
 
     static void activate();
-    static void error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args);
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
