@@ -292,11 +292,11 @@ static void fatal_error(int code, const char *format, ...)
     va_list args;
     zend_object *exception;
     va_start(args, format);
-    exception = zend_throw_error_exception(swoole_error_ce, swoole::cpp_string::vformat(format, args).c_str(), code, E_ERROR);
+    exception = zend_throw_exception(swoole_error_ce, swoole::cpp_string::vformat(format, args).c_str(), code);
     va_end(args);
     zend_exception_error(exception, E_ERROR);
     // should never here
-    exit(1);
+    abort();
 }
 
 /* {{{ PHP_MINIT_FUNCTION

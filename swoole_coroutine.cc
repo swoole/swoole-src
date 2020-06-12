@@ -104,8 +104,16 @@ static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
+#if PHP_VERSION_ID < 80000
+#define ZEND_ERROR_CB_LAST_ARG_D const char *format, va_list args
+#define ZEND_ERROR_CB_LAST_ARG_RELAY format, args
+#else
+#define ZEND_ERROR_CB_LAST_ARG_D     zend_string *message
+#define ZEND_ERROR_CB_LAST_ARG_RELAY message
+#endif
+
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
-static void (*orig_error_function)(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args) = nullptr;
+static void (*orig_error_function)(int type, const char *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) = nullptr;
 
 static zend_class_entry *swoole_coroutine_util_ce;
 static zend_class_entry *swoole_exit_exception_ce;
@@ -232,7 +240,7 @@ static int coro_exit_handler(zend_execute_data *execute_data)
             exit_status = &_exit_status;
             ZVAL_NULL(exit_status);
         }
-        obj = zend_throw_error_exception(swoole_exit_exception_ce, "swoole exit", 0, E_ERROR);
+        obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
         ZVAL_OBJ(&ex, obj);
         zend_update_property_long(swoole_exit_exception_ce, &ex, ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
@@ -324,7 +332,21 @@ inline void PHPCoroutine::activate()
 
     /* replace the error function to save execute_data */
     orig_error_function = zend_error_cb;
-    zend_error_cb = error;
+    zend_error_cb = [](int type, const char *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) {
+        if (sw_unlikely(type & E_FATAL_ERRORS))
+        {
+            if (active)
+            {
+                /* update the last coroutine's info */
+                save_task(get_task());
+            }
+            swoole_event_free();
+        }
+        if (sw_likely(orig_error_function))
+        {
+            orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+        }
+    };
 
     if (SWOOLE_G(enable_preemptive_scheduler) || config.enable_preemptive_scheduler)
     {
@@ -342,23 +364,6 @@ inline void PHPCoroutine::activate()
      */
     swReactor_add_destroy_callback(SwooleTG.reactor, deactivate, nullptr);
     active = true;
-}
-
-void PHPCoroutine::error(int type, const char *error_filename, const uint32_t error_lineno, const char *format, va_list args)
-{
-    if (sw_unlikely(type & E_FATAL_ERRORS))
-    {
-        if (active)
-        {
-            /* update the last coroutine's info */
-            save_task(get_task());
-        }
-        swoole_event_free();
-    }
-    if (sw_likely(orig_error_function))
-    {
-        orig_error_function(type, error_filename, error_lineno, format, args);
-    }
 }
 
 void PHPCoroutine::shutdown()
