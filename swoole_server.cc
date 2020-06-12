@@ -3509,7 +3509,7 @@ static PHP_METHOD(swoole_server, taskwait)
     //clear history task
     while (swSocket_wait(task_notify_socket->fd, 0, SW_EVENT_READ) == SW_OK)
     {
-        read(task_notify_socket->fd, &notify, sizeof(notify));
+        (void) read(task_notify_socket->fd, &notify, sizeof(notify));
     }
 
     sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
