@@ -4413,8 +4413,12 @@ static PHP_METHOD(swoole_server, stop)
     {
         if (SwooleTG.reactor != nullptr)
         {
-            SwooleTG.reactor->running = 0;
+            SwooleTG.reactor->defer(SwooleTG.reactor, [](void *data) {
+                swReactor *reactor = (swReactor *) data;
+                reactor->running = 0;
+            }, SwooleTG.reactor);
         }
+
         SwooleG.running = 0;
     }
     else
