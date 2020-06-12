@@ -287,17 +287,20 @@ static ssize_t socket_write(php_stream *stream, const char *buf, size_t count)
 
     didwrite = sock->send_all(buf, count);
 
-    if (didwrite > 0)
-    {
-        php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
-    }
     if (didwrite != count)
     {
+    	/* we do not expect the outer layer to continue to call the send syscall in a loop
+    	 * and didwrite is meaningless if it failed */
+    	didwrite = -1;
+        abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
         php_error_docref(
             NULL, E_NOTICE, "Send of " ZEND_LONG_FMT " bytes failed with errno=%d %s",
             (zend_long) count, sock->errCode, sock->errMsg
         );
-        abstract->stream.timeout_event = (sock->errCode == ETIMEDOUT);
+    }
+    else
+    {
+        php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
     }
 
     _exit:
