@@ -10,57 +10,100 @@ use Swoole\Coroutine\Http\Client;
 use Swoole\Coroutine\Http\Server;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
+use Swoole\Coroutine\WaitGroup;
 
 use function Swoole\Coroutine\run;
 
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
-        //test1: valid address
-        $client1 = new Client('127.0.0.1', $pm->getFreePort());
-        $bindAddress = current(swoole_get_local_ip());
-        $bindPort = get_one_free_port();
+        $wg = new WaitGroup();
 
-        $client1->set([
-            'bind_address' => $bindAddress,
-            'bind_port' => $bindPort,
-        ]);
-        $client1->post('/validaddress', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+        $wg->add(5);
+        //test1: valid address
+        go(function () use ($pm, $wg) {
+            $client = new Client('127.0.0.1', $pm->getFreePort());
+            $bindAddress = current(swoole_get_local_ip());
+            $bindPort = get_one_free_port();
+
+            $client->set([
+                'bind_address' => $bindAddress,
+                'bind_port' => $bindPort,
+            ]);
+            $client->post('/validaddress', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+            $wg->done();
+        });
 
         // test2: invalid address
-        $client2 = new Client('127.0.0.1', $pm->getFreePort());
-        $bindAddress = 11111;
-        $bindPort = get_one_free_port();
+        go(function () use ($pm, $wg) {
+            $client = new Client('127.0.0.1', $pm->getFreePort());
+            $bindAddress = 11111;
+            $bindPort = get_one_free_port();
 
-        $client2->set([
-            'bind_address' => $bindAddress,
-            'bind_port' => $bindPort,
-        ]);
-        $client2->post('/invalidaddress', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+            $client->set([
+                'bind_address' => $bindAddress,
+                'bind_port' => $bindPort,
+            ]);
+            $client->post('/invalidaddress', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+            $wg->done();
+        });
 
         // test3: invalid port
-        $client3 = new Client('127.0.0.1', $pm->getFreePort());
-        $bindAddress = current(swoole_get_local_ip());
-        $bindPort = -1;
+        go(function () use ($pm, $wg) {
+            $client = new Client('127.0.0.1', $pm->getFreePort());
+            $bindAddress = current(swoole_get_local_ip());
+            $bindPort = -1;
 
-        $client3->set([
-            'bind_address' => $bindAddress,
-            'bind_port' => -1,
-        ]);
-        $client3->post('/invalidport', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+            $client->set([
+                'bind_address' => $bindAddress,
+                'bind_port' => -1,
+            ]);
+            $client->post('/invalidport', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+            $wg->done();
+        });
 
         // test4: not bind port
-        $client4 = new Client('127.0.0.1', $pm->getFreePort());
-        $bindAddress = current(swoole_get_local_ip());
-        $bindPort = null;
+        go(function () use ($pm, $wg) {
+            $client = new Client('127.0.0.1', $pm->getFreePort());
+            $bindAddress = current(swoole_get_local_ip());
+            $bindPort = null;
 
-        $client4->set([
-            'bind_address' => $bindAddress,
-        ]);
-        $client4->post('/notbindport', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+            $client->set([
+                'bind_address' => $bindAddress,
+            ]);
+            $client->post('/notbindport', ['bind_address' => $bindAddress, 'bind_port' => $bindPort]);
+            $wg->done();
+        });
 
-        $client1->get('/stop?hello=1');
-        echo $client1->body . PHP_EOL;
+        //test5: request baidu.com
+        go(function () use ($pm, $wg) {
+            $client = new Client('www.baidu.com', 80);
+            $bindAddress = current(swoole_get_local_ip());
+            $bindPort = get_one_free_port();
+
+            $client->set([
+                'bind_address' => $bindAddress,
+                'bind_port' => $bindPort,
+            ]);
+            Assert::true($client->get('/'));
+
+            $client = new Client('www.baidu.com', 80);
+            $bindAddress = '127.0.0.1';
+            $bindPort = get_one_free_port();
+
+            $client->set([
+                'bind_address' => $bindAddress,
+                'bind_port' => $bindPort,
+            ]);
+            Assert::false($client->get('/'));
+            $wg->done();
+        });
+
+        $wg->wait();
+        
+        $client = new Client('127.0.0.1', $pm->getFreePort());
+        $client->get('/stop?hello=1');
+        echo $client->body . PHP_EOL;
         echo "DONE\n";
     });
 };
