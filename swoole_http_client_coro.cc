@@ -59,6 +59,9 @@ public:
     /* request info */
     std::string host = "127.0.0.1";
     uint16_t port = 80;
+    /* must bind address first */
+    std::string bind_address;
+    int bind_port = 0;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
 #endif
@@ -107,6 +110,7 @@ private:
 #ifdef SW_HAVE_BROTLI
     BrotliDecoderState *brotli_decoder_state = nullptr;
 #endif
+    bool bind(std::string address, int port = 0);
     bool connect();
     bool keep_liveness();
     bool send();
@@ -776,6 +780,16 @@ void http_client::apply_setting(zval *zset, const bool check_all)
         {
             websocket_mask = zval_is_true(ztmp);
         }
+        if (php_swoole_array_get_value(vht, "bind_address", ztmp))
+        {
+            zend::string tmp = ztmp;
+            bind_address = tmp.to_std_string();
+        }
+        if (php_swoole_array_get_value(vht, "bind_port", ztmp))
+        {
+            bind_port = zval_get_long(ztmp);
+            bind_port = bind_port > 0 ? bind_port : 0;
+        }
 #ifdef SW_HAVE_ZLIB
         if (php_swoole_array_get_value(vht, "websocket_compression", ztmp))
         {
@@ -794,6 +808,14 @@ void http_client::apply_setting(zval *zset, const bool check_all)
         {
             socket->http_proxy->dont_handshake = 1;
         }
+
+        if (!bind_address.empty())
+        {
+            if (!bind(bind_address, bind_port))
+            {
+                return;
+            }
+        }
     }
 }
 
@@ -809,6 +831,11 @@ void http_client::set_basic_auth(const std::string &username, const std::string 
         basic_auth = std::string((const char *) output, output_len);
         efree(output);
     }
+}
+
+bool http_client::bind(std::string address, int port)
+{
+    return socket->bind(address, port);
 }
 
 bool http_client::connect()
