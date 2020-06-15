@@ -521,7 +521,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                     }
 
                     conn->close_force = 1;
-                    swEvent _ev;
+                    swEvent _ev = {};
                     _ev.fd = conn->fd;
                     _ev.socket = conn->socket;
                     swReactor_trigger_close_event(reactor, &_ev);
