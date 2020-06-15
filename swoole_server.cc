@@ -1859,7 +1859,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine && serv->send_yield)
     {
-        unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
+        auto _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
             list<php_coro_context *> *coros_list = _i_coros_list->second;
@@ -1922,7 +1922,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 
     int fd = (int) (long) context->private_data;
 
-    unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(fd);
+    auto _i_coros_list = send_coroutine_map.find(fd);
     if (_i_coros_list != send_coroutine_map.end())
     {
         list<php_coro_context *> *coros_list = _i_coros_list->second;
@@ -2081,7 +2081,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
     if (serv->send_yield)
     {
-        unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
+        auto _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
             list<php_coro_context *> *coros_list = _i_coros_list->second;
