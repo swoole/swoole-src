@@ -509,8 +509,16 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 }
                 else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE)
                 {
-                    int fd = resp->info.fd;
-                    swConnection *conn = swServer_connection_get(serv, fd);
+                    uint32_t session_id = resp->info.fd;
+                    swConnection *conn = swServer_connection_verify(serv, session_id);
+
+                    if (!conn)
+                    {
+                        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, 
+                            "force close connection failed, session#%d does not exist", session_id
+                        );
+                        return SW_ERR;
+                    }
 
                     conn->close_force = 1;
                     reactor->set(reactor, conn->socket, SW_EVENT_WRITE);
@@ -1385,7 +1393,8 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 {
                     swDataHead ev = {};
                     ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
-                    ev.fd = fd;
+                    // convert fd to session_id, in order to verify the connection before the force close connection
+                    ev.fd = conn->session_id;
                     swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
                     swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
                 }
