@@ -41,6 +41,7 @@ enum swServer_event_type
     //connection event
     SW_SERVER_EVENT_CLOSE,
     SW_SERVER_EVENT_CONNECT,
+    SW_SERVER_EVENT_CLOSE_FORCE,
     //task
     SW_SERVER_EVENT_TASK,
     SW_SERVER_EVENT_FINISH,
