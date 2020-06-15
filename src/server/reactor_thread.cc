@@ -521,7 +521,10 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                     }
 
                     conn->close_force = 1;
-                    reactor->set(reactor, conn->socket, SW_EVENT_WRITE);
+                    swEvent _ev;
+                    _ev.fd = conn->fd;
+                    _ev.socket = conn->socket;
+                    swReactor_trigger_close_event(reactor, &_ev);
                 }
                 else
                 {
@@ -1382,22 +1385,12 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                     continue;
                 }
 
-                conn->close_notify = 1;
-
-                //notify to reactor thread
-                if (conn->peer_closed)
-                {
-                    serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
-                }
-                else
-                {
-                    swDataHead ev = {};
-                    ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
-                    // convert fd to session_id, in order to verify the connection before the force close connection
-                    ev.fd = conn->session_id;
-                    swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
-                    swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
-                }
+                swDataHead ev = {};
+                ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
+                // convert fd to session_id, in order to verify the connection before the force close connection
+                ev.fd = conn->session_id;
+                swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+                swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
             }
         }
         sleep(serv->heartbeat_check_interval);
