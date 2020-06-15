@@ -287,7 +287,7 @@ static ssize_t socket_write(php_stream *stream, const char *buf, size_t count)
 
     didwrite = sock->send_all(buf, count);
 
-    if (didwrite != count)
+    if (didwrite < 0 || (size_t) didwrite != count)
     {
     	/* we do not expect the outer layer to continue to call the send syscall in a loop
     	 * and didwrite is meaningless if it failed */
