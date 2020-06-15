@@ -507,6 +507,14 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 {
                     swReactorThread_shutdown(reactor);
                 }
+                else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE)
+                {
+                    int fd = resp->info.fd;
+                    swConnection *conn = swServer_connection_get(serv, fd);
+
+                    conn->close_force = 1;
+                    reactor->set(reactor, conn->socket, SW_EVENT_WRITE);
+                }
                 else
                 {
                     _send.info = resp->info;
@@ -1367,7 +1375,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                     continue;
                 }
 
-                conn->close_force = 1;
                 conn->close_notify = 1;
 
                 if (serv->single_thread)
@@ -1385,7 +1392,11 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 }
                 else
                 {
-                    reactor->set(reactor, conn->socket, SW_EVENT_WRITE);
+                    swDataHead ev = {};
+                    ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
+                    ev.fd = conn->socket->fd;
+                    swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+                    reactor->write(reactor, _pipe_sock, &ev, sizeof(ev));
                 }
             }
         }
