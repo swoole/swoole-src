@@ -1347,7 +1347,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     swSignal_none();
 
     swServer *serv = (swServer *) param->object;
-    swReactor *reactor;
 
     int fd;
     int serv_max_fd;
@@ -1377,14 +1376,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
                 conn->close_notify = 1;
 
-                if (serv->single_thread)
-                {
-                    reactor = SwooleTG.reactor;
-                }
-                else
-                {
-                    reactor = &serv->reactor_threads[conn->reactor_id].reactor;
-                }
                 //notify to reactor thread
                 if (conn->peer_closed)
                 {
@@ -1396,7 +1387,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                     ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                     ev.fd = conn->socket->fd;
                     swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
-                    reactor->write(reactor, _pipe_sock, &ev, sizeof(ev));
+                    swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
                 }
             }
         }
