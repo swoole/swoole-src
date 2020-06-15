@@ -1385,7 +1385,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                 {
                     swDataHead ev = {};
                     ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
-                    ev.fd = conn->socket->fd;
+                    ev.fd = fd;
                     swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
                     swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
                 }
