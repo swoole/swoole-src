@@ -1862,7 +1862,7 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
         auto _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
-            list<php_coro_context *> *coros_list = _i_coros_list->second;
+            auto coros_list = _i_coros_list->second;
             send_coroutine_map.erase(info->fd);
             while (!coros_list->empty())
             {
@@ -1925,7 +1925,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
     auto _i_coros_list = send_coroutine_map.find(fd);
     if (_i_coros_list != send_coroutine_map.end())
     {
-        list<php_coro_context *> *coros_list = _i_coros_list->second;
+        auto coros_list = _i_coros_list->second;
         coros_list->remove(context);
         //free memory
         if (coros_list->size() == 0)
@@ -2084,7 +2084,7 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
         auto _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
-            list<php_coro_context *> *coros_list = _i_coros_list->second;
+            auto coros_list = _i_coros_list->second;
             send_coroutine_map.erase(info->fd);
             while (!coros_list->empty())
             {
