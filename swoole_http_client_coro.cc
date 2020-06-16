@@ -67,6 +67,7 @@ public:
 #endif
     double connect_timeout = Socket::default_connect_timeout;
     bool defer = false;
+    bool lowercase_header = true;
 
     int8_t method = SW_HTTP_GET;
     std::string path;
@@ -425,10 +426,15 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
     http_client* http = (http_client*) parser->data;
     zval* zobject = (zval*) http->zobject;
     zval *zheaders = sw_zend_read_and_convert_property_array(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
-    char *header_name = zend_str_tolower_dup(http->tmp_header_field_name, http->tmp_header_field_name_len);
+    char *header_name = http->tmp_header_field_name;
     size_t header_len = http->tmp_header_field_name_len;
 
-    add_assoc_stringl_ex(zheaders, header_name, http->tmp_header_field_name_len, (char *) at, length);
+    if (http->lowercase_header)
+    {
+        header_name = zend_str_tolower_dup(header_name, header_len);
+    }
+
+    add_assoc_stringl_ex(zheaders, header_name, header_len, (char *) at, length);
 
     if (parser->status_code == SW_HTTP_SWITCHING_PROTOCOLS && SW_STREQ(header_name, header_len, "upgrade"))
     {
@@ -484,7 +490,11 @@ static int http_parser_on_header_value(swoole_http_parser *parser, const char *a
         http->chunked = true;
     }
 
-    efree(header_name);
+    if (http->lowercase_header)
+    {
+        efree(header_name);
+    }
+
     return 0;
 }
 
@@ -771,6 +781,10 @@ void http_client::apply_setting(zval *zset, const bool check_all)
         if (php_swoole_array_get_value(vht, "defer", ztmp))
         {
             defer = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "lowercase_header", ztmp))
+        {
+            lowercase_header = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "keep_alive", ztmp))
         {
