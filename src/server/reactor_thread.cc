@@ -732,7 +732,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     if (conn->close_notify)
     {
 #ifdef SW_USE_OPENSSL
-        if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY)
+        if (socket->ssl && socket->ssl_state != SW_SSL_STATE_READY)
         {
             return swReactorThread_close(reactor, socket);
         }
@@ -746,9 +746,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         return swReactorThread_close(reactor, socket);
     }
 
-    while (!swBuffer_empty(conn->socket->out_buffer))
+    while (!swBuffer_empty(socket->out_buffer))
     {
-        chunk = swBuffer_get_chunk(conn->socket->out_buffer);
+        chunk = swBuffer_get_chunk(socket->out_buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
             _close_fd:
@@ -766,19 +766,19 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
         if (ret < 0)
         {
-            if (conn->socket->close_wait)
+            if (socket->close_wait)
             {
                 conn->close_errno = errno;
                 goto _close_fd;
             }
-            else if (conn->socket->send_wait)
+            else if (socket->send_wait)
             {
                 break;
             }
         }
     }
 
-    if (conn->overflow && conn->socket->out_buffer->length < conn->socket->buffer_size)
+    if (conn->overflow && socket->out_buffer->length < socket->buffer_size)
     {
         conn->overflow = 0;
     }
@@ -786,7 +786,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     if (serv->onBufferEmpty && conn->high_watermark)
     {
         swListenPort *port = swServer_get_port(serv, fd);
-        if (conn->socket->out_buffer->length <= port->buffer_low_watermark)
+        if (socket->out_buffer->length <= port->buffer_low_watermark)
         {
             conn->high_watermark = 0;
             serv->notify(serv, conn, SW_SERVER_EVENT_BUFFER_EMPTY);
@@ -794,7 +794,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     }
 
     //remove EPOLLOUT event
-    if (!conn->peer_closed && swBuffer_empty(conn->socket->out_buffer))
+    if (!conn->peer_closed && !socket->removed && swBuffer_empty(socket->out_buffer))
     {
         reactor->set(reactor, socket, SW_EVENT_READ);
     }
