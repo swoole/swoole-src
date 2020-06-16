@@ -1859,28 +1859,21 @@ void php_swoole_onClose(swServer *serv, swDataHead *info)
 
     if (SwooleG.enable_coroutine && serv->send_yield)
     {
-        unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
+        auto _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
-            list<php_coro_context *> *coros_list = _i_coros_list->second;
-            if (coros_list->empty())
+            auto coros_list = _i_coros_list->second;
+            send_coroutine_map.erase(info->fd);
+            while (!coros_list->empty())
             {
-                php_swoole_fatal_error(E_WARNING, "send_yield[onClose]: nothing can be resumed");
+                php_coro_context *context = coros_list->front();
+                coros_list->pop_front();
+                swoole_set_last_error(ECONNRESET);
+                zval_ptr_dtor(&context->coro_params);
+                ZVAL_NULL(&context->coro_params);
+                php_swoole_server_send_resume(serv, context, info->fd);
             }
-            else
-            {
-                do
-                {
-                    php_coro_context *context = coros_list->front();
-                    coros_list->pop_front();
-                    swoole_set_last_error(ECONNRESET);
-                    zval_ptr_dtor(&context->coro_params);
-                    ZVAL_NULL(&context->coro_params);
-                    php_swoole_server_send_resume(serv, context, info->fd);
-                } while (!coros_list->empty());
-                delete coros_list;
-                send_coroutine_map.erase(info->fd);
-            }
+            delete coros_list;
         }
     }
 
@@ -1929,10 +1922,10 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode)
 
     int fd = (int) (long) context->private_data;
 
-    unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(fd);
+    auto _i_coros_list = send_coroutine_map.find(fd);
     if (_i_coros_list != send_coroutine_map.end())
     {
-        list<php_coro_context *> *coros_list = _i_coros_list->second;
+        auto coros_list = _i_coros_list->second;
         coros_list->remove(context);
         //free memory
         if (coros_list->size() == 0)
@@ -2018,9 +2011,9 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
 
     php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
     coros_list->push_back(context);
+    context->private_data = (void*) (long) fd;
     if (serv->send_timeout > 0)
     {
-        context->private_data = (void*) (long) fd;
         context->timer = swoole_timer_add((long) (serv->send_timeout * 1000), SW_FALSE, php_swoole_onSendTimeout, context);
     }
     else
@@ -2088,31 +2081,22 @@ void php_swoole_onBufferEmpty(swServer *serv, swDataHead *info)
 
     if (serv->send_yield)
     {
-        unordered_map<int, list<php_coro_context *> *>::iterator _i_coros_list = send_coroutine_map.find(info->fd);
+        auto _i_coros_list = send_coroutine_map.find(info->fd);
         if (_i_coros_list != send_coroutine_map.end())
         {
-            list<php_coro_context *> *coros_list = _i_coros_list->second;
-            if (coros_list->empty())
+            auto coros_list = _i_coros_list->second;
+            send_coroutine_map.erase(info->fd);
+            while (!coros_list->empty())
             {
-                php_swoole_fatal_error(E_WARNING, "send_yield: nothing can be resumed");
-            }
-            else
-            {
-                do
+                php_coro_context *context = coros_list->front();
+                coros_list->pop_front();
+                if (php_swoole_server_send_resume(serv, context, info->fd) == SW_CONTINUE)
                 {
-                    php_coro_context *context = coros_list->front();
-                    if (php_swoole_server_send_resume(serv, context, info->fd) == SW_CONTINUE)
-                    {
-                        return;
-                    }
-                    else
-                    {
-                        coros_list->pop_front();
-                    }
-                } while (!coros_list->empty());
-                delete coros_list;
-                send_coroutine_map.erase(info->fd);
+                    coros_list->push_back(context);
+                    return;
+                }
             }
+            delete coros_list;
         }
     }
 
