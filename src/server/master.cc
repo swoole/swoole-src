@@ -1820,7 +1820,7 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
         swSysWarn("create socket failed");
         return nullptr;
     }
-#if defined(SW_SUPPORT_DTLS) && !defined(__linux__)
+#if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
     if (ls->ssl_option.dtls)
     {
         int on = 1;
