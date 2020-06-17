@@ -5,7 +5,7 @@
           http://www.boost.org/LICENSE_1_0.txt)
 */
 
-/*******************************************************
+/******************************************************
  *                                                     *
  *  -------------------------------------------------  *
  *  |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  *
@@ -57,55 +57,30 @@
  *  | R23 | R24 | R25 | R26 | R27 | R28 | R29 | R30 |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
- *  |  56 |  57 |  58 |  59 |                       |  *
+ *  |  56 |  57 |  58 |  59 |  60 |  61 |  62 |  63 |  *
  *  -------------------------------------------------  *
- *  | 224 | 228 | 232 | 236 |                       |  *
+ *  | 224 | 228 | 232 | 236 | 240 | 244 | 248 | 252 |  *
  *  -------------------------------------------------  *
- *  | R31 |  CR |  LR |  PC |                       |  *
+ *  | R31 |hiddn|  CR |  LR |  PC |bchai|linkr| FCTX|  *
+ *  -------------------------------------------------  *
+ *  -------------------------------------------------  *
+ *  |  64 |                                         |  *
+ *  -------------------------------------------------  *
+ *  | 256 |                                         |  *
+ *  -------------------------------------------------  *
+ *  | DATA|                                         |  * 
  *  -------------------------------------------------  *
  *                                                     *
  *******************************************************/
 
+.file "jump_ppc32_sysv_elf_gas.S"
 .text
 .globl jump_fcontext
 .align 2
 .type jump_fcontext,@function
 jump_fcontext:
     # reserve space on stack
-    subi  %r1, %r1, 240
-
-    stw  %r13, 152(%r1)  # save R13
-    stw  %r14, 156(%r1)  # save R14
-    stw  %r15, 160(%r1)  # save R15
-    stw  %r16, 164(%r1)  # save R16
-    stw  %r17, 168(%r1)  # save R17
-    stw  %r18, 172(%r1)  # save R18
-    stw  %r19, 176(%r1)  # save R19
-    stw  %r20, 180(%r1)  # save R20
-    stw  %r21, 184(%r1)  # save R21
-    stw  %r22, 188(%r1)  # save R22
-    stw  %r23, 192(%r1)  # save R23
-    stw  %r24, 196(%r1)  # save R24
-    stw  %r25, 200(%r1)  # save R25
-    stw  %r26, 204(%r1)  # save R26
-    stw  %r27, 208(%r1)  # save R27
-    stw  %r28, 212(%r1)  # save R28
-    stw  %r29, 216(%r1)  # save R29
-    stw  %r30, 220(%r1)  # save R30
-    stw  %r31, 224(%r1)  # save R31
-
-    # save CR
-    mfcr  %r0
-    stw  %r0, 228(%r1)
-    # save LR
-    mflr  %r0
-    stw  %r0, 232(%r1)
-    # save LR as PC
-    stw  %r0, 236(%r1)
-
-    # test if fpu env should be preserved
-    cmpwi  cr7, %r6, 0
-    beq  cr7, 1f
+    subi  %r1, %r1, 244
 
     stfd  %f14, 0(%r1)  # save F14
     stfd  %f15, 8(%r1)  # save F15
@@ -128,16 +103,41 @@ jump_fcontext:
     mffs  %f0  # load FPSCR
     stfd  %f0, 144(%r1)  # save FPSCR
 
-1:
-    # store RSP (pointing to context-data) in R3
-    stw  %r1, 0(%r3)
+    stw  %r13, 152(%r1)  # save R13
+    stw  %r14, 156(%r1)  # save R14
+    stw  %r15, 160(%r1)  # save R15
+    stw  %r16, 164(%r1)  # save R16
+    stw  %r17, 168(%r1)  # save R17
+    stw  %r18, 172(%r1)  # save R18
+    stw  %r19, 176(%r1)  # save R19
+    stw  %r20, 180(%r1)  # save R20
+    stw  %r21, 184(%r1)  # save R21
+    stw  %r22, 188(%r1)  # save R22
+    stw  %r23, 192(%r1)  # save R23
+    stw  %r24, 196(%r1)  # save R24
+    stw  %r25, 200(%r1)  # save R25
+    stw  %r26, 204(%r1)  # save R26
+    stw  %r27, 208(%r1)  # save R27
+    stw  %r28, 212(%r1)  # save R28
+    stw  %r29, 216(%r1)  # save R29
+    stw  %r30, 220(%r1)  # save R30
+    stw  %r31, 224(%r1)  # save R31
+    stw  %r3,  228(%r1)  # save hidden
+
+    # save CR
+    mfcr  %r0
+    stw   %r0, 232(%r1)
+    # save LR
+    mflr  %r0
+    stw   %r0, 236(%r1)
+    # save LR as PC
+    stw   %r0, 240(%r1)
+
+    # store RSP (pointing to context-data) in R6
+    mr  %r6, %r1
 
     # restore RSP (pointing to context-data) from R4
     mr  %r1, %r4
-
-    # test if fpu env should be preserved
-    cmpwi  cr7, %r6, 0
-    beq  cr7, 2f
 
     lfd  %f14, 0(%r1)  # restore F14
     lfd  %f15, 8(%r1)  # restore F15
@@ -160,7 +160,6 @@ jump_fcontext:
     lfd  %f0,  144(%r1)  # load FPSCR
     mtfsf  0xff, %f0  # restore FPSCR
 
-2:
     lwz  %r13, 152(%r1)  # restore R13
     lwz  %r14, 156(%r1)  # restore R14
     lwz  %r15, 160(%r1)  # restore R15
@@ -180,25 +179,25 @@ jump_fcontext:
     lwz  %r29, 216(%r1)  # restore R29
     lwz  %r30, 220(%r1)  # restore R30
     lwz  %r31, 224(%r1)  # restore R31
+    lwz  %r3,  228(%r1)  # restore hidden
 
     # restore CR
-    lwz  %r0, 228(%r1)
+    lwz   %r0, 232(%r1)
     mtcr  %r0
     # restore LR
-    lwz  %r0, 232(%r1)
+    lwz   %r0, 236(%r1)
     mtlr  %r0
-
     # load PC
-    lwz  %r0, 236(%r1)
+    lwz   %r0, 240(%r1)
     # restore CTR
-    mtctr  %r0
+    mtctr %r0
 
     # adjust stack
-    addi  %r1, %r1, 240
+    addi  %r1, %r1, 244
 
-    # use third arg as return value after jump
-    # use third arg as first arg in context function
-    mr  %r3, %r5
+    # return transfer_t 
+    stw  %r6, 0(%r3)
+    stw  %r5, 4(%r3)
 
     # jump to context
     bctr

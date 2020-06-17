@@ -42,8 +42,10 @@
 
 #ifdef USE_UCONTEXT
     typedef ucontext_t coroutine_context_t;
+    typedef void* coroutine_context_transfer_t;
 #elif defined(USE_ASM_CONTEXT)
     typedef fcontext_t coroutine_context_t;
+    typedef transfer_t coroutine_context_transfer_t;
 #endif
 
 typedef void (*coroutine_func_t)(void*);
@@ -117,7 +119,7 @@ public:
     {
         return end_;
     }
-    static void context_func(void* arg);
+    static void context_func(coroutine_context_transfer_t arg);
 
 protected:
     coroutine_func_t fn_;

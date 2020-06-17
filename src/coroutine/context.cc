@@ -45,7 +45,11 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 #ifdef USE_VALGRIND
     valgrind_stack_id = VALGRIND_STACK_REGISTER(sp, stack_);
 #endif
+#ifdef USE_UCONTEXT
     ctx_ = make_fcontext(sp, stack_size_, (void (*)(intptr_t))&context_func);
+#else
+    ctx_ = make_fcontext(sp, stack_size_, (void (*)(transfer_t))&context_func);
+#endif
 
 #ifdef SW_LOG_TRACE_OPEN
     size_t offset = START_OFFSET;
@@ -109,19 +113,35 @@ ssize_t Context::get_stack_usage()
 
 bool Context::swap_in()
 {
+#ifdef USE_UCONTEXT
     jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
+#else
+    transfer_t t = jump_fcontext(ctx_, this);
+    ctx_ = t.fctx;
+#endif
     return true;
 }
 
 bool Context::swap_out()
 {
+#ifdef USE_UCONTEXT
     jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
+#else
+    transfer_t t = jump_fcontext(swap_ctx_, this);
+    swap_ctx_ = t.fctx;
+#endif
     return true;
 }
 
-void Context::context_func(void *arg)
+void Context::context_func(transfer_t arg)
 {
+#ifdef USE_UCONTEXT
     Context *_this = (Context *) arg;
+#else
+    Context *_this = (Context *) arg.data;
+    _this->swap_ctx_ = arg.fctx;
+#endif
+    
     _this->fn_(_this->private_data_);
     _this->end_ = true;
     _this->swap_out();

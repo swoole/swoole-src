@@ -1,3 +1,9 @@
+/*
+            Copyright Oliver Kowalke 2009.
+   Distributed under the Boost Software License, Version 1.0.
+      (See accompanying file LICENSE_1_0.txt or copy at
+          http://www.boost.org/LICENSE_1_0.txt)
+*/
 	.globl	make_fcontext[DS]
 	.globl .make_fcontext[PR]
 	.align 2 
@@ -13,10 +19,19 @@
 
     # reserve space for context-data on context-stack
     # including 64 byte of linkage + parameter area (R1 % 16 == 0)
-    subi  3, 3, 392
+    subi  3, 3, 248
 
     # third arg of make_fcontext() == address of context-function
-    stw  5, 320(3)
+    stw  5, 176(3)
+
+    # set back-chain to zero
+    li   0, 0
+    std  0, 184(3)
+
+    # compute address of returned transfer_t
+    addi 0, 3, 232
+    mr   4, 0
+    std  4, 152(3)
 
     # load LR
     mflr  0
@@ -31,7 +46,7 @@
     mtlr  0
     # save address of finish as return-address for context-function
     # will be entered after context-function returns
-    stw  4, 312(3)
+    stw  4, 168(3)
 
     # restore return address from R6
     mtlr  6

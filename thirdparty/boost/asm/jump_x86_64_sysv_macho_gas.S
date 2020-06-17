@@ -21,13 +21,6 @@
  *  ----------------------------------------------------------------------------------  *
  *  |        R15        |        RBX        |         RBP        |        RIP        |  *
  *  ----------------------------------------------------------------------------------  *
- *  ----------------------------------------------------------------------------------  *
- *  |    16   |   17    |                                                            |  *
- *  ----------------------------------------------------------------------------------  *
- *  |   0x40  |   0x44  |                                                            |  *
- *  ----------------------------------------------------------------------------------  *
- *  |        EXIT       |                                                            |  *
- *  ----------------------------------------------------------------------------------  *
  *                                                                                      *
  ****************************************************************************************/
 
@@ -35,59 +28,48 @@
 .globl _jump_fcontext
 .align 8
 _jump_fcontext:
-    pushq  %rbp  /* save RBP */
-    pushq  %rbx  /* save RBX */
-    pushq  %r15  /* save R15 */
-    pushq  %r14  /* save R14 */
-    pushq  %r13  /* save R13 */
-    pushq  %r12  /* save R12 */
+    leaq  -0x38(%rsp), %rsp /* prepare stack */
 
-    /* prepare stack for FPU */
-    leaq  -0x8(%rsp), %rsp
+#if !defined(BOOST_USE_TSX)
+    stmxcsr  (%rsp)     /* save MMX control- and status-word */
+    fnstcw   0x4(%rsp)  /* save x87 control-word */
+#endif
 
-    /* test for flag preserve_fpu */
-    cmp  $0, %rcx
-    je  1f
+    movq  %r12, 0x8(%rsp)  /* save R12 */
+    movq  %r13, 0x10(%rsp)  /* save R13 */
+    movq  %r14, 0x18(%rsp)  /* save R14 */
+    movq  %r15, 0x20(%rsp)  /* save R15 */
+    movq  %rbx, 0x28(%rsp)  /* save RBX */
+    movq  %rbp, 0x30(%rsp)  /* save RBP */
 
-    /* save MMX control- and status-word */
-    stmxcsr  (%rsp)
-    /* save x87 control-word */
-    fnstcw   0x4(%rsp)
+    /* store RSP (pointing to context-data) in RAX */
+    movq  %rsp, %rax
 
-1:
-    /* store RSP (pointing to context-data) in RDI */
-    movq  %rsp, (%rdi)
+    /* restore RSP (pointing to context-data) from RDI */
+    movq  %rdi, %rsp
 
-    /* restore RSP (pointing to context-data) from RSI */
-    movq  %rsi, %rsp
+    movq  0x38(%rsp), %r8  /* restore return-address */
 
-    /* test for flag preserve_fpu */
-    cmp  $0, %rcx
-    je  2f
+#if !defined(BOOST_USE_TSX)
+    ldmxcsr  (%rsp)     /* restore MMX control- and status-word */
+    fldcw    0x4(%rsp)  /* restore x87 control-word */
+#endif
 
-    /* restore MMX control- and status-word */
-    ldmxcsr  (%rsp)
-    /* restore x87 control-word */
-    fldcw  0x4(%rsp)
+    movq  0x8(%rsp), %r12  /* restore R12 */
+    movq  0x10(%rsp), %r13  /* restore R13 */
+    movq  0x18(%rsp), %r14  /* restore R14 */
+    movq  0x20(%rsp), %r15  /* restore R15 */
+    movq  0x28(%rsp), %rbx  /* restore RBX */
+    movq  0x30(%rsp), %rbp  /* restore RBP */
 
-2:
-    /* prepare stack for FPU */
-    leaq  0x8(%rsp), %rsp
+    leaq  0x40(%rsp), %rsp /* prepare stack */
 
-    popq  %r12  /* restrore R12 */
-    popq  %r13  /* restrore R13 */
-    popq  %r14  /* restrore R14 */
-    popq  %r15  /* restrore R15 */
-    popq  %rbx  /* restrore RBX */
-    popq  %rbp  /* restrore RBP */
-
-    /* restore return-address */
-    popq  %r8
-
-    /* use third arg as return-value after jump */
-    movq  %rdx, %rax
-    /* use third arg as first arg in context function */
-    movq  %rdx, %rdi
+    /* return transfer_t from jump */
+    /* RAX == fctx, RDX == data */
+    movq  %rsi, %rdx
+    /* pass transfer_t as first arg in context function */
+    /* RDI == fctx, RSI == data */
+    movq  %rax, %rdi
 
     /* indirect jump to context */
     jmp  *%r8

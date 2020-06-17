@@ -22,15 +22,23 @@
  *  |    F28    |    F30    |  S0 |  S1 |  S2 |  S3 |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
- *  |  16 |  17 |  18 |  19 |  20 |  21 |  22 |     |  *
+ *  |  16 |  17 |  18 |  19 |  20 |  21 |  22 |  23 |  *
  *  -------------------------------------------------  *
- *  |  64 |  68 |  72 |  76 |  80 |  84 |  88 |     |  *
+ *  |  64 |  68 |  72 |  76 |  80 |  84 |  88 |  92 |  *
  *  -------------------------------------------------  *
- *  |  S4 |  S5 |  S6 |  S7 |  FP |  RA |  PC |     |  *
+ *  |  S4 |  S5 |  S6 |  S7 |  FP |hiddn|  RA |  PC |  *
+ *  -------------------------------------------------  *
+ *  -------------------------------------------------  *
+ *  |  24 |  25 |  26 |  27 |  28 |  29 |  30 |  31 |  *
+ *  -------------------------------------------------  *
+ *  |  96 | 100 | 104 | 108 | 112 | 116 | 120 | 124 |  *
+ *  -------------------------------------------------  *
+ *  |       ABI ARGS        |  GP | FCTX| DATA|     |  *
  *  -------------------------------------------------  *
  *                                                     *
  * *****************************************************/
 
+.file "make_mips32_o32_elf_gas.S"
 .text
 .globl make_fcontext
 .align 2
@@ -42,46 +50,46 @@ make_fcontext:
 .cpload $t9
 .set    reorder
 #endif
-    # first arg of make_fcontext() == top address of context-stack
-    move $v0, $a0
-
     # shift address in A0 to lower 16 byte boundary
-    move $v1, $v0
-    li $v0, -16 # 0xfffffffffffffff0
-    and $v0, $v1, $v0
+    li $v1, -16 # 0xfffffffffffffff0
+    and $v0, $v1, $a0
 
     # reserve space for context-data on context-stack
-    # including 48 byte of shadow space (sp % 16 == 0)
-    addiu $v0, $v0, -140
+    #  includes an extra 32 bytes for:
+    #  - 16-byte incoming argument area required by mips ABI used when
+    #    jump_context calls the initial function
+    #  - 4 bytes to save our GP register used in finish
+    #  - 8 bytes to as space for transfer_t returned to finish
+    #  - 4 bytes for alignment
+    addiu $v0, $v0, -128
 
     # third arg of make_fcontext() == address of context-function
-    sw  $a2, 88($v0)
+    sw  $a2, 92($v0)
     # save global pointer in context-data
-    # S0 will contain address of global pointer
-    sw  $gp, 48($v0)
+    sw  $gp, 112($v0)
+
+    # compute address of returned transfer_t
+    addiu $t0, $v0, 116
+    sw  $t0, 84($v0)
 
     # compute abs address of label finish
     la  $t9, finish
     # save address of finish as return-address for context-function
     # will be entered after context-function returns
-    sw  $t9, 84($v0)
+    sw  $t9, 88($v0)
 
     jr  $ra # return pointer to context-data
 
 finish:
-    # allocate stack space (contains shadow space for subroutines)
-    addiu  $sp, $sp, -32
-    # save return address
-    sw  $ra, 28($sp)
+    # reload our gp register (needed for la)
+    lw $gp, 16($sp)
 
-    # restore GP (global pointer)
-    move  $gp, $s0
-    # exit code is zero
-    move  $a0, $zero
-    # address of exit
-    lw  $t9, %call16(_exit)($gp)
-    # exit application
-    jalr  $t9
+    # call _exit(0)
+    #  the previous function should have left the 16 bytes incoming argument
+    #  area on the stack which we reuse for calling _exit
+    la $t9, _exit
+    move $a0, $zero
+    jr $t9
 .end make_fcontext
 .size make_fcontext, .-make_fcontext
 

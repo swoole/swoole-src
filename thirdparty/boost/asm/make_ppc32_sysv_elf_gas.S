@@ -5,7 +5,7 @@
           http://www.boost.org/LICENSE_1_0.txt)
 */
 
-/*******************************************************
+/******************************************************
  *                                                     *
  *  -------------------------------------------------  *
  *  |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  *
@@ -57,15 +57,23 @@
  *  | R23 | R24 | R25 | R26 | R27 | R28 | R29 | R30 |  *
  *  -------------------------------------------------  *
  *  -------------------------------------------------  *
- *  |  56 |  57 |  58 |  59 |                       |  *
+ *  |  56 |  57 |  58 |  59 |  60 |  61 |  62 |  63 |  *
  *  -------------------------------------------------  *
- *  | 224 | 228 | 232 | 236 |                       |  *
+ *  | 224 | 228 | 232 | 236 | 240 | 244 | 248 | 252 |  *
  *  -------------------------------------------------  *
- *  | R31 |  CR |  LR |  PC |                       |  *
+ *  | R31 |hiddn|  CR |  LR |  PC |bchai|linkr| FCTX|  *
+ *  -------------------------------------------------  *
+ *  -------------------------------------------------  *
+ *  |  64 |                                         |  *
+ *  -------------------------------------------------  *
+ *  | 256 |                                         |  *
+ *  -------------------------------------------------  *
+ *  | DATA|                                         |  * 
  *  -------------------------------------------------  *
  *                                                     *
  *******************************************************/
 
+.file "make_ppc32_sysv_elf_gas.S"
 .text
 .globl make_fcontext
 .align 2
@@ -80,10 +88,22 @@ make_fcontext:
 
     # reserve space for context-data on context-stack
     # including 64 byte of linkage + parameter area (R1 % 16 == 0)
-    subi  %r3, %r3, 304
+    subi  %r3, %r3, 336
 
     # third arg of make_fcontext() == address of context-function
-    stw  %r5, 236(%r3)
+    stw  %r5, 240(%r3)
+
+    # set back-chain to zero
+    li   %r0, 0
+    stw  %r0, 244(%r3)
+
+    mffs  %f0  # load FPSCR
+    stfd  %f0, 144(%r3)  # save FPSCR
+
+    # compute address of returned transfer_t
+    addi  %r0, %r3, 252
+    mr    %r4, %r0 
+    stw   %r4, 228(%r3) 
 
     # load LR
     mflr  %r0
@@ -98,7 +118,7 @@ make_fcontext:
     mtlr  %r0
     # save address of finish as return-address for context-function
     # will be entered after context-function returns
-    stw  %r4, 232(%r3)
+    stw  %r4, 236(%r3)
 
     # restore return address from R6
     mtlr  %r6

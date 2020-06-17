@@ -12,78 +12,71 @@
  *  ----------------------------------------------------------------------------------  *
  *  |   0x0   |   0x4   |   0x8   |   0xc   |   0x10   |   0x14  |   0x18  |   0x1c  |  *
  *  ----------------------------------------------------------------------------------  *
- *  | fc_mxcsr|fc_x87_cw|   EDI   |   ESI   |   EBX    |   EBP   |   EIP   |   EXIT  |  *
+ *  | fc_mxcsr|fc_x87_cw|   EDI   |   ESI   |   EBX    |   EBP   |   EIP   |  hidden |  *
+ *  ----------------------------------------------------------------------------------  *
+ *  ----------------------------------------------------------------------------------  *
+ *  |    8    |    9    |    10   |    11   |    12    |    13   |    14   |    15   |  *
+ *  ----------------------------------------------------------------------------------  *
+ *  |   0x20  |   0x24  |                                                            |  *
+ *  ----------------------------------------------------------------------------------  *
+ *  |    to   |   data  |                                                            |  *
  *  ----------------------------------------------------------------------------------  *
  *                                                                                      *
  ****************************************************************************************/
 
+.file "jump_i386_sysv_elf_gas.S"
 .text
 .globl jump_fcontext
 .align 2
 .type jump_fcontext,@function
 jump_fcontext:
-    /* fourth arg of jump_fcontext() == flag indicating preserving FPU */
-    movl  0x10(%esp), %ecx
+    leal  -0x18(%esp), %esp  /* prepare stack */
 
-    pushl  %ebp  /* save EBP */
-    pushl  %ebx  /* save EBX */
-    pushl  %esi  /* save ESI */
-    pushl  %edi  /* save EDI */
+#if !defined(BOOST_USE_TSX)
+    stmxcsr  (%esp)     /* save MMX control- and status-word */
+    fnstcw   0x4(%esp)  /* save x87 control-word */
+#endif
 
-    /* prepare stack for FPU */
-    leal  -0x8(%esp), %esp
+    movl  %edi, 0x8(%esp)  /* save EDI */
+    movl  %esi, 0xc(%esp)  /* save ESI */
+    movl  %ebx, 0x10(%esp)  /* save EBX */
+    movl  %ebp, 0x14(%esp)  /* save EBP */
 
-    /* test for flag preserve_fpu */
-    test  %ecx, %ecx
-    je  1f
+    /* store ESP (pointing to context-data) in ECX */
+    movl  %esp, %ecx
 
-    /* save MMX control- and status-word */
-    stmxcsr  (%esp)
-    /* save x87 control-word */
-    fnstcw  0x4(%esp)
+    /* first arg of jump_fcontext() == fcontext to jump to */
+    movl  0x20(%esp), %eax
 
-1:
-    /* first arg of jump_fcontext() == context jumping from */
-    movl  0x1c(%esp), %eax
+    /* second arg of jump_fcontext() == data to be transferred */
+    movl  0x24(%esp), %edx
 
-    /* store ESP (pointing to context-data) in EAX */
-    movl  %esp, (%eax)
+    /* restore ESP (pointing to context-data) from EAX */
+    movl  %eax, %esp
 
-    /* second arg of jump_fcontext() == context jumping to */
-    movl  0x20(%esp), %edx
+    /* address of returned transport_t */
+    movl 0x1c(%esp), %eax
+    /* return parent fcontext_t */
+    movl  %ecx, (%eax)
+    /* return data */
+    movl %edx, 0x4(%eax)
 
-    /* third arg of jump_fcontext() == value to be returned after jump */
-    movl  0x24(%esp), %eax
+    movl  0x18(%esp), %ecx  /* restore EIP */
 
-    /* restore ESP (pointing to context-data) from EDX */
-    movl  %edx, %esp
+#if !defined(BOOST_USE_TSX)
+    ldmxcsr  (%esp)     /* restore MMX control- and status-word */
+    fldcw    0x4(%esp)  /* restore x87 control-word */
+#endif
 
-    /* test for flag preserve_fpu */
-    test  %ecx, %ecx
-    je  2f
+    movl  0x8(%esp), %edi  /* restore EDI */
+    movl  0xc(%esp), %esi  /* restore ESI */
+    movl  0x10(%esp), %ebx  /* restore EBX */
+    movl  0x14(%esp), %ebp  /* restore EBP */
 
-    /* restore MMX control- and status-word */
-    ldmxcsr  (%esp)
-    /* restore x87 control-word */
-    fldcw  0x4(%esp)
-2:
-    /* prepare stack for FPU */
-    leal  0x8(%esp), %esp
+    leal  0x20(%esp), %esp  /* prepare stack */
 
-    popl  %edi  /* restore EDI */
-    popl  %esi  /* restore ESI */
-    popl  %ebx  /* restore EBX */
-    popl  %ebp  /* restore EBP */
-
-    /* restore return-address */
-    popl  %edx
-
-    /* use value in EAX as return-value after jump */
-    /* use value in EAX as first arg in context function */
-    movl  %eax, 0x4(%esp)
-
-    /* indirect jump to context */
-    jmp  *%edx
+    /* jump to context */
+    jmp *%ecx
 .size jump_fcontext,.-jump_fcontext
 
 /* Mark that we don't need executable stack.  */
