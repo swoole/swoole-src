@@ -90,7 +90,7 @@ bool Context::swap_out()
     return 0 == swapcontext(&ctx_, &swap_ctx_);
 }
 
-void Context::context_func(void *arg)
+void Context::context_func(coroutine_context_transfer_t arg)
 {
     Context *_this = (Context *) arg;
     _this->fn_(_this->private_data_);
