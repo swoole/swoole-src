@@ -2,26 +2,45 @@ name: lib-swoole
 
 on: [push, pull_request]
 
+env:
+  BUILD_TYPE: Release
+
 jobs:
   build:
-
-    runs-on: ubuntu-latest
+    name: Test on ${{matrix.os}}
+    runs-on: ${{matrix.os}}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
 
     steps:
     - uses: actions/checkout@v1
-    - name: gtest_install
-      run: sudo apt install -y googletest libgtest-dev &&
-           cd /usr/src/googletest/googletest &&
-           sudo mkdir build &&
-           cd build &&
-           sudo cmake .. &&
-           sudo make &&
-           sudo make install &&
-           cd - &&
-           sudo rm -rf /usr/src/googletest/googletest/build
+
+    - name: Clone GTest
+      shell: bash
+      working-directory: ${{runner.workspace}}
+      run: git clone https://github.com/google/googletest.git
+
+    - name: Create GTest Build Environment
+      shell: bash
+      working-directory: ${{runner.workspace}}/googletest
+      run: cmake -E make_directory build
+
+    - name: Configure GTest CMake
+      shell: bash
+      working-directory: ${{runner.workspace}}/googletest/build
+      run: cmake .. -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_CXX_FLAGS=-std=c++11 -DBUILD_SHARED_LIBS=ON
+
+    - name: Install GTest
+      shell: bash
+      working-directory: ${{runner.workspace}}/googletest/build
+      run: sudo cmake --build . --config $BUILD_TYPE --target install
+
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
+
     - name: make
       run: cmake . && make && sudo make install
+
     - name: make test
       run: cd core-tests && ./run.sh
