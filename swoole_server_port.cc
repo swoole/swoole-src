@@ -434,6 +434,12 @@ static PHP_METHOD(swoole_server_port, set)
         zend_long v = zval_get_long(ztmp);
         port->tcp_keepcount = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
     }
+    //tcp_user_timeout
+    if (php_swoole_array_get_value(vht, "tcp_user_timeout", ztmp))
+    {
+        zend_long v = zval_get_long(ztmp);
+        port->tcp_user_timeout = SW_MAX(INT_MIN, SW_MIN(v, INT_MAX));
+    }
     //tcp_fastopen
     if (php_swoole_array_get_value(vht, "tcp_fastopen", ztmp))
     {
