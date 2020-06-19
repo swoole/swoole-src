@@ -64,10 +64,11 @@ struct swTableColumn
     std::string name;
     size_t index;
 
-    swTableColumn(const std::string &_name, enum swTableColumn_type _type, size_t _size) :
-            name(_name)
+    swTableColumn(const std::string &_name, enum swTableColumn_type _type, size_t _size) 
     {
         index = 0;
+        name = _name;
+        type = _type;
         switch (_type)
         {
         case SW_TABLE_INT:
@@ -75,11 +76,9 @@ struct swTableColumn
             break;
         case SW_TABLE_FLOAT:
             size = sizeof(double);
-            type = SW_TABLE_FLOAT;
             break;
         case SW_TABLE_STRING:
             size = _size + sizeof(swTable_string_length_t);
-            type = SW_TABLE_STRING;
             break;
         default:
             abort();
