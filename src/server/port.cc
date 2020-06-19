@@ -138,6 +138,8 @@ int swPort_listen(swListenPort *ls)
     }
 #endif
 
+    setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &ls->tcp_user_timeout, sizeof(int));
+
     ls->buffer_high_watermark = ls->socket_buffer_size * 0.8;
     ls->buffer_low_watermark = 0;
 
