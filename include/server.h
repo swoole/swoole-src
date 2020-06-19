@@ -118,6 +118,8 @@ struct swListenPort
     int tcp_keepinterval;
     int tcp_keepcount;
 
+    int tcp_user_timeout;
+
     int socket_buffer_size;
     uint32_t buffer_high_watermark;
     uint32_t buffer_low_watermark;
