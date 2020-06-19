@@ -73,10 +73,14 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
         memcpy(&dval, row->data + col->index, sizeof(dval));
         ZVAL_DOUBLE(return_value, dval);
     }
-    else
+    else if (col->type == SW_TABLE_INT)
     {
         memcpy(&lval, row->data + col->index, sizeof(lval));
         ZVAL_LONG(return_value, lval);
+    }
+    else
+    {
+        abort();
     }
 }
 
