@@ -24,7 +24,7 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
 
     swTable_string_length_t vlen = 0;
     double dval = 0;
-    int64_t lval = 0;
+    long lval = 0;
 
     for (auto i = table->column_list->begin(); i != table->column_list->end(); i++)
     {
@@ -39,27 +39,14 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
             memcpy(&dval, row->data + col->index, sizeof(dval));
             add_assoc_double_ex(return_value, col->name.c_str(), col->name.length(), dval);
         }
+        else if (col->type == SW_TABLE_INT)
+        {
+            memcpy(&lval, row->data + col->index, sizeof(lval));
+            add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), lval);
+        }
         else
         {
-            switch (col->type)
-            {
-            case SW_TABLE_INT8:
-                memcpy(&lval, row->data + col->index, 1);
-                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), (int8_t) lval);
-                break;
-            case SW_TABLE_INT16:
-                memcpy(&lval, row->data + col->index, 2);
-                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), (int16_t) lval);
-                break;
-            case SW_TABLE_INT32:
-                memcpy(&lval, row->data + col->index, 4);
-                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), (int32_t) lval);
-                break;
-            default:
-                memcpy(&lval, row->data + col->index, 8);
-                add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), lval);
-                break;
-            }
+            abort();
         }
     }
 }
@@ -68,7 +55,7 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
 {
     swTable_string_length_t vlen = 0;
     double dval = 0;
-    int64_t lval = 0;
+    long lval = 0;
 
     swTableColumn *col = swTableColumn_get(table, std::string(field, field_len));
     if (!col)
@@ -88,25 +75,8 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     }
     else
     {
-        switch (col->type)
-        {
-        case SW_TABLE_INT8:
-            memcpy(&lval, row->data + col->index, 1);
-            ZVAL_LONG(return_value, (int8_t) lval);
-            break;
-        case SW_TABLE_INT16:
-            memcpy(&lval, row->data + col->index, 2);
-            ZVAL_LONG(return_value, (int16_t) lval);
-            break;
-        case SW_TABLE_INT32:
-            memcpy(&lval, row->data + col->index, 4);
-            ZVAL_LONG(return_value, (int32_t) lval);
-            break;
-        default:
-            memcpy(&lval, row->data + col->index, 8);
-            ZVAL_LONG(return_value, lval);
-            break;
-        }
+        memcpy(&lval, row->data + col->index, sizeof(lval));
+        ZVAL_LONG(return_value, lval);
     }
 }
 
@@ -424,11 +394,6 @@ PHP_METHOD(swoole_table, column)
         }
         size = SW_MEM_ALIGNED_SIZE(size);
     }
-    //default int32
-    if (type == SW_TABLE_INT && size < 4)
-    {
-        size = 4;
-    }
     if (table->memory)
     {
         php_swoole_fatal_error(E_WARNING, "unable to add column after table has been created");
@@ -587,8 +552,8 @@ static PHP_METHOD(swoole_table, incr)
     }
     else
     {
-        int64_t set_value = 0;
-        memcpy(&set_value, row->data + column->index, column->size);
+        long set_value = 0;
+        memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (incrby)
         {
             set_value += zval_get_long(incrby);
@@ -656,8 +621,8 @@ static PHP_METHOD(swoole_table, decr)
     }
     else
     {
-        int64_t set_value = 0;
-        memcpy(&set_value, row->data + column->index, column->size);
+        long set_value = 0;
+        memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (decrby)
         {
             set_value -= zval_get_long(decrby);

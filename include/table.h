@@ -53,12 +53,6 @@ struct swTable_iterator
 enum swTableColumn_type
 {
     SW_TABLE_INT = 1,
-    SW_TABLE_INT8,
-    SW_TABLE_INT16,
-    SW_TABLE_INT32,
-#ifdef __x86_64__
-    SW_TABLE_INT64,
-#endif
     SW_TABLE_FLOAT,
     SW_TABLE_STRING,
 };
@@ -77,27 +71,7 @@ struct swTableColumn
         switch (_type)
         {
         case SW_TABLE_INT:
-            switch (_size)
-            {
-            case 1:
-                size = 1;
-                type = SW_TABLE_INT8;
-                break;
-            case 2:
-                size = 2;
-                type = SW_TABLE_INT16;
-                break;
-#ifdef __x86_64__
-            case 8:
-                size = 8;
-                type = SW_TABLE_INT64;
-                break;
-#endif
-            default:
-                size = 4;
-                type = SW_TABLE_INT32;
-                break;
-            }
+            size = sizeof(long);
             break;
         case SW_TABLE_FLOAT:
             size = sizeof(double);
@@ -137,17 +111,6 @@ struct swTable
     uint64_t (*hash_func)(const char *key, size_t len);
 
     void *memory;
-};
-
-enum swoole_table_find
-{
-    SW_TABLE_FIND_EQ = 1,
-    SW_TABLE_FIND_NEQ,
-    SW_TABLE_FIND_GT,
-    SW_TABLE_FIND_LT,
-    SW_TABLE_FIND_LEFTLIKE,
-    SW_TABLE_FIND_RIGHTLIKE,
-    SW_TABLE_FIND_LIKE,
 };
 
 swTable* swTable_new(uint32_t rows_size, float conflict_proportion);
@@ -243,32 +206,11 @@ static sw_inline void swTableRow_unlock(swTableRow *row)
 
 static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn *col, void *value, size_t vlen)
 {
-    int8_t _i8;
-    int16_t _i16;
-    int32_t _i32;
-#ifdef __x86_64__
-    int64_t _i64;
-#endif
     switch(col->type)
     {
-    case SW_TABLE_INT8:
-        _i8 = *(int8_t *) value;
-        memcpy(row->data + col->index, &_i8, 1);
+    case SW_TABLE_INT:
+        memcpy(row->data + col->index, value, sizeof(long));
         break;
-    case SW_TABLE_INT16:
-        _i16 =  *(int16_t *) value;
-        memcpy(row->data + col->index, &_i16, 2);
-        break;
-    case SW_TABLE_INT32:
-        _i32 =  *(int32_t *) value;
-        memcpy(row->data + col->index, &_i32, 4);
-        break;
-#ifdef __x86_64__
-    case SW_TABLE_INT64:
-        _i64 =  *(int64_t *) value;
-        memcpy(row->data + col->index, &_i64, 8);
-        break;
-#endif
     case SW_TABLE_FLOAT:
         memcpy(row->data + col->index, value, sizeof(double));
         break;
