@@ -138,7 +138,12 @@ int swPort_listen(swListenPort *ls)
     }
 #endif
 
-    setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &ls->tcp_user_timeout, sizeof(int));
+#ifdef TCP_USER_TIMEOUT
+    if (setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &ls->tcp_user_timeout, sizeof(int)) != 0)
+    {
+        swSysWarn("setsockopt(TCP_USER_TIMEOUT) failed");
+    }
+#endif
 
     ls->buffer_high_watermark = ls->socket_buffer_size * 0.8;
     ls->buffer_low_watermark = 0;
