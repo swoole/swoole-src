@@ -1102,7 +1102,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     recv_barrier.hold = false;
     set_err(retval < 0 ? errno : 0);
 
-    return total_bytes;
+    return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
 
 ssize_t Socket::send_all(const void *__buf, size_t __n)
@@ -1141,7 +1141,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     send_barrier.hold = false;
     set_err(retval < 0 ? errno : 0);
 
-    return total_bytes;
+    return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
 
 ssize_t Socket::recvmsg(struct msghdr *msg, int flags)
