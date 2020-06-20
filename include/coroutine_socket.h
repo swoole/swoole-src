@@ -49,9 +49,8 @@ static constexpr enum swTimeout_type swTimeout_type_list[] =
 
 namespace swoole { namespace coroutine {
 //-------------------------------------------------------------------------------
-class EventBarrier
+struct EventBarrier
 {
-public:
     size_t n;
     size_t total_bytes;
     ssize_t retval;

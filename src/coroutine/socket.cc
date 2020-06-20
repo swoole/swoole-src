@@ -114,13 +114,10 @@ int Socket::readable_event_callback(swReactor *reactor, swEvent *event)
                 socket->recv_barrier.n - socket->recv_barrier.total_bytes,
                 0
             );
-            if (socket->recv_barrier.retval > 0)
+            if (socket->recv_barrier.retval > 0 &&
+                (socket->recv_barrier.total_bytes += socket->recv_barrier.retval) < socket->recv_barrier.n)
             {
-                socket->recv_barrier.total_bytes += socket->recv_barrier.retval;
-                if (socket->recv_barrier.total_bytes < socket->recv_barrier.n)
-                {
-                    return SW_OK;
-                }
+                return SW_OK;
             }
         }
         socket->read_co->resume();
@@ -152,13 +149,10 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event)
                 socket->send_barrier.n - socket->send_barrier.total_bytes,
                 0
             );
-            if (socket->send_barrier.retval > 0)
+            if (socket->send_barrier.retval > 0 &&
+                (socket->send_barrier.total_bytes += socket->send_barrier.retval) < socket->send_barrier.n)
             {
-                socket->send_barrier.total_bytes += socket->send_barrier.retval;
-                if (socket->send_barrier.total_bytes < socket->send_barrier.n)
-                {
-                    return SW_OK;
-                }
+                return SW_OK;
             }
         }
         socket->write_co->resume();
