@@ -4,8 +4,6 @@ swoole_websocket_server: websocket server recv and merge fin packages
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-declare(strict_types=1);
-
 require __DIR__ . '/../include/bootstrap.php';
 $count = 0;
 $pm = new ProcessManager;

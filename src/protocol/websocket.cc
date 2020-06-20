@@ -288,6 +288,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
         if (ws.header.FIN)
         {
             proto->ext_flags = conn->websocket_buffer->offset;
+            proto->ext_flags |= SW_WEBSOCKET_FLAG_FIN;
             swReactorThread_dispatch(proto, _socket, frame_buffer->str, frame_buffer->length);
             swString_free(frame_buffer);
             conn->websocket_buffer = nullptr;
