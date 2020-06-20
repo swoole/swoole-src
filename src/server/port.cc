@@ -131,17 +131,26 @@ int swPort_listen(swListenPort *ls)
             swSysWarn("setsockopt(SO_KEEPALIVE) failed");
         }
 #ifdef TCP_KEEPIDLE
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &ls->tcp_keepidle, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &ls->tcp_keepinterval, sizeof(int));
-        setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &ls->tcp_keepcount, sizeof(int));
+        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void*) &ls->tcp_keepidle, sizeof(int)) < 0)
+        {
+            swSysWarn("setsockopt(TCP_KEEPIDLE) failed");
+        }
+        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &ls->tcp_keepinterval, sizeof(int)) < 0)
+        {
+            swSysWarn("setsockopt(TCP_KEEPINTVL) failed");
+        }
+        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &ls->tcp_keepcount, sizeof(int)) < 0)
+        {
+            swSysWarn("setsockopt(TCP_KEEPCNT) failed");
+        }
 #endif
-    }
-#endif
-
 #ifdef TCP_USER_TIMEOUT
-    if (setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &ls->tcp_user_timeout, sizeof(int)) != 0)
-    {
-        swSysWarn("setsockopt(TCP_USER_TIMEOUT) failed");
+        if (ls->tcp_user_timeout > 0 &&
+            setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &ls->tcp_user_timeout, sizeof(int)) != 0)
+        {
+            swSysWarn("setsockopt(TCP_USER_TIMEOUT) failed");
+        }
+#endif
     }
 #endif
 

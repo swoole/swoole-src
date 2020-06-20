@@ -34,6 +34,7 @@ class ProcessManager
     protected $freePorts = [];
     protected $randomFunc = 'get_safe_random';
     protected $randomData = [[]];
+    protected $randomDataArray = [];
 
     /**
      * wait wakeup 1s default
@@ -133,6 +134,31 @@ class ProcessManager
     public function initRandomData(int $size, int $len = null)
     {
         $this->initRandomDataEx(1, $size, $len);
+    }
+
+    /**
+     * 生成一个随机字节组成的数组
+     * @param $n
+     * @param int $len 默认为0，表示随机产生长度
+     * @throws \Exception
+     */
+    public function initRandomDataArray($n = 1, $len = 0)
+    {
+        while ($n--) {
+            if ($len == 0) {
+                $len = rand(1024, 1 * 1024 * 1024);
+            }
+            $this->randomDataArray[] = random_bytes($len);
+        }
+    }
+
+    /**
+     * @param $index
+     * @return mixed
+     */
+    public function getRandomDataElement(int $index = 0)
+    {
+        return $this->randomDataArray[$index];
     }
 
     public function getRandomData()

@@ -49,6 +49,15 @@ static constexpr enum swTimeout_type swTimeout_type_list[] =
 
 namespace swoole { namespace coroutine {
 //-------------------------------------------------------------------------------
+struct EventBarrier
+{
+    size_t n;
+    size_t total_bytes;
+    ssize_t retval;
+    char *buf;
+    bool hold;
+};
+
 class Socket
 {
 public:
@@ -383,6 +392,9 @@ private:
     swString *read_buffer = nullptr;
     swString *write_buffer = nullptr;
     swSocketAddress bind_address_info = {};
+
+    EventBarrier recv_barrier = {};
+    EventBarrier send_barrier = {};
 
 #ifdef SW_USE_OPENSSL
     bool ssl_is_server = false;
