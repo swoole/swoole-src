@@ -393,8 +393,8 @@ private:
     swString *write_buffer = nullptr;
     swSocketAddress bind_address_info = {};
 
-    EventBarrier recv_barrier;
-    EventBarrier send_barrier;
+    EventBarrier recv_barrier = {};
+    EventBarrier send_barrier = {};
 
 #ifdef SW_USE_OPENSSL
     bool ssl_is_server = false;

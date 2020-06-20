@@ -157,6 +157,7 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event)
         }
         socket->write_co->resume();
     }
+    
     return SW_OK;
 }
 
@@ -1098,7 +1099,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     }
 
     total_bytes = recv_barrier.total_bytes;
-    recv_barrier = {};
+    recv_barrier.hold = false;
     set_err(retval < 0 ? errno : 0);
 
     return total_bytes;
@@ -1137,7 +1138,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     }
 
     total_bytes = send_barrier.total_bytes;
-    send_barrier = {};
+    send_barrier.hold = false;
     set_err(retval < 0 ? errno : 0);
 
     return total_bytes;
