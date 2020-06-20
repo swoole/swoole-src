@@ -106,8 +106,26 @@ int Socket::readable_event_callback(swReactor *reactor, swEvent *event)
     else
 #endif
     {
+        if (socket->recv_barrier.hold)
+        {
+            socket->recv_barrier.retval = swSocket_recv(
+                socket->socket, 
+                socket->recv_barrier.buf + socket->recv_barrier.total_bytes,
+                socket->recv_barrier.n - socket->recv_barrier.total_bytes,
+                0
+            );
+            if (socket->recv_barrier.retval > 0)
+            {
+                socket->recv_barrier.total_bytes += socket->recv_barrier.retval;
+                if (socket->recv_barrier.total_bytes < socket->recv_barrier.n)
+                {
+                    return SW_OK;
+                }
+            }
+        }
         socket->read_co->resume();
     }
+    
     return SW_OK;
 }
 
@@ -126,6 +144,23 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event)
     else
 #endif
     {
+        if (socket->send_barrier.hold)
+        {
+            socket->send_barrier.retval = swSocket_send(
+                socket->socket, 
+                socket->send_barrier.buf + socket->send_barrier.total_bytes,
+                socket->send_barrier.n - socket->send_barrier.total_bytes,
+                0
+            );
+            if (socket->send_barrier.retval > 0)
+            {
+                socket->send_barrier.total_bytes += socket->send_barrier.retval;
+                if (socket->send_barrier.total_bytes < socket->send_barrier.n)
+                {
+                    return SW_OK;
+                }
+            }
+        }
         socket->write_co->resume();
     }
     return SW_OK;
@@ -218,6 +253,10 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
                 goto _failed;
             }
             *__buf = write_buffer->str;
+            if (send_barrier.hold)
+            {
+                send_barrier.buf = (char *) write_buffer->str;
+            }
         }
         write_co = co;
         write_co->yield();
@@ -1040,26 +1079,34 @@ ssize_t Socket::recv_all(void *__buf, size_t __n)
     }
     ssize_t retval, total_bytes = 0;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
-    while (true)
+
+    retval = swSocket_recv(socket, __buf, __n, 0);
+    if (retval == 0 || retval == (ssize_t) __n)
     {
-        do {
-            retval = swSocket_recv(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
-        } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-        if (sw_unlikely(retval <= 0))
-        {
-            if (total_bytes == 0)
-            {
-                total_bytes = retval;
-            }
-            break;
-        }
-        total_bytes += retval;
-        if ((size_t) total_bytes == __n)
-        {
-            break;
-        }
+        return retval;
     }
+    if (retval < 0 && swSocket_error(errno) != SW_WAIT)
+    {
+        set_err(errno);
+        return retval;
+    }
+    total_bytes = retval > 0 ? retval : 0;
+
+    recv_barrier.hold = true;
+    recv_barrier.n = __n;
+    recv_barrier.total_bytes = total_bytes;
+    recv_barrier.buf = (char *) __buf;
+    retval = -1;
+
+    if (timer.start() && wait_event(SW_EVENT_READ))
+    {
+        retval = recv_barrier.retval;
+    }
+
+    total_bytes = recv_barrier.total_bytes;
+    recv_barrier = {};
     set_err(retval < 0 ? errno : 0);
+
     return total_bytes;
 }
 
@@ -1071,31 +1118,34 @@ ssize_t Socket::send_all(const void *__buf, size_t __n)
     }
     ssize_t retval, total_bytes = 0;
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
-    while (true)
+
+    retval = swSocket_send(socket, __buf, __n, 0);
+    if (retval == 0 || retval == (ssize_t) __n)
     {
-        do
-        {
-            retval = swSocket_send(socket, (char *) __buf + total_bytes, __n - total_bytes, 0);
-        }
-        while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n));
-        /**
-         * failed to send
-         */
-        if (sw_unlikely(retval <= 0))
-        {
-            if (total_bytes == 0)
-            {
-                total_bytes = retval;
-            }
-            break;
-        }
-        total_bytes += retval;
-        if ((size_t) total_bytes == __n)
-        {
-            break;
-        }
+        return retval;
     }
+    if (retval < 0 && swSocket_error(errno) != SW_WAIT)
+    {
+        set_err(errno);
+        return retval;
+    }
+    total_bytes = retval > 0 ? retval : 0;
+
+    send_barrier.hold = true;
+    send_barrier.n = __n;
+    send_barrier.total_bytes = total_bytes;
+    send_barrier.buf = (char *) __buf;
+    retval = -1;
+
+    if (timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n))
+    {
+        retval = send_barrier.retval;
+    }
+
+    total_bytes = send_barrier.total_bytes;
+    send_barrier = {};
     set_err(retval < 0 ? errno : 0);
+
     return total_bytes;
 }
 

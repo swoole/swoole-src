@@ -2,23 +2,28 @@
 
 using swoole::test::process;
 
-process::process(std::function<void (process*)> fn):
+process::process(std::function<void (process*)> fn, int pipe_type):
     handler(fn)
 {
-    swPipe *pipe = (swPipe *) malloc(sizeof(swPipe));
-    swPipeUnsock_create(pipe, 1, SOCK_DGRAM);
+    if (pipe_type > 0)
+    {
+        swPipe *pipe = (swPipe *) malloc(sizeof(swPipe));
+        swPipeUnsock_create(pipe, 1, SOCK_DGRAM);
 
-    worker.pipe_master = pipe->getSocket(pipe, SW_PIPE_MASTER);
-    worker.pipe_worker = pipe->getSocket(pipe, SW_PIPE_WORKER);
-    
-    worker.pipe_object = pipe;
-    worker.pipe_current = worker.pipe_master;
+        worker.pipe_master = pipe->getSocket(pipe, SW_PIPE_MASTER);
+        worker.pipe_worker = pipe->getSocket(pipe, SW_PIPE_WORKER);
+        
+        worker.pipe_object = pipe;
+        worker.pipe_current = worker.pipe_master;
+    }
 }
 
 process::~process()
 {
-    worker.pipe_object->close(worker.pipe_object);
-    free(worker.pipe_object);
+    if (worker.pipe_object) {
+        worker.pipe_object->close(worker.pipe_object);
+        free(worker.pipe_object);
+    }
 }
 
 pid_t process::start()
