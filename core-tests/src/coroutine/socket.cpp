@@ -83,47 +83,6 @@ TEST(coroutine_socket, recv_success)
     kill(pid, SIGKILL);
 }
 
-TEST(coroutine_socket, recv_all)
-{
-    pid_t pid;
-
-    process proc([](process *proc)
-    {
-        test::coroutine::test([](void *arg) {
-            Socket sock(SW_SOCK_TCP);
-            sock.bind(TEST_HOST, TEST_PORT);
-            sock.listen(128);
-            auto client = sock.accept();
-
-            char buf[1024];
-            client->recv(buf, sizeof(buf));
-            client->send("hello world\n", 12);
-            delete client;
-        });
-    });
-
-    pid = proc.start();
-
-    usleep(100000); // wait for the test server to start
-
-    test::coroutine::test([](void *arg)
-    {
-        Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect(TEST_HOST, TEST_PORT, -1);
-        ASSERT_EQ(retval, true);
-        ASSERT_EQ(sock.errCode, 0);
-        sock.send(SW_STRS("hello world\n"));
-        char buf[128];
-                cout << "recv\n";
-        int n = sock.recv(buf, sizeof(buf));
-                  cout << "recv\n";
-        buf[n] = 0;
-        ASSERT_EQ(strcmp(buf, "hello world\n"), 0);
-    });
-
-    kill(pid, SIGTERM);
-}
-
 TEST(coroutine_socket, recv_fail)
 {
     pid_t pid;
