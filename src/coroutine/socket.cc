@@ -100,12 +100,24 @@ int Socket::readable_event_callback(swReactor *reactor, swEvent *event)
     {
         if (socket->want_event == SW_EVENT_READ)
         {
-            socket->write_co->resume();
+            if (!socket->write_co)
+            {
+                swReactor_remove_read_event(reactor, event->socket);
+            }
+            else 
+            {
+                socket->write_co->resume();
+            }
         }
     }
     else
 #endif
     {
+        if (!socket->read_co)
+        {
+            swReactor_remove_read_event(reactor, event->socket);
+            return SW_OK;
+        }
         if (socket->recv_barrier.hold)
         {
             socket->recv_barrier.retval = swSocket_recv(
@@ -135,12 +147,24 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event)
     {
         if (socket->want_event == SW_EVENT_WRITE)
         {
-            socket->read_co->resume();
+            if (!socket->read_co)
+            {
+                swReactor_remove_read_event(reactor, event->socket);
+            }
+            else 
+            {
+                socket->read_co->resume();
+            }
         }
     }
     else
 #endif
     {
+        if (!socket->write_co)
+        {
+            swReactor_remove_write_event(reactor, event->socket);
+            return SW_OK;
+        }
         if (socket->send_barrier.hold)
         {
             socket->send_barrier.retval = swSocket_send(
@@ -198,9 +222,9 @@ bool Socket::add_event(const enum swEvent_type event)
 
 bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n)
 {
-    enum swEvent_type added_event = event;
     Coroutine *co = Coroutine::get_current_safe();
 #ifdef SW_USE_OPENSSL
+    enum swEvent_type added_event = event;
     if (sw_unlikely(socket->ssl && ((event == SW_EVENT_READ && socket->ssl_want_write) || (event == SW_EVENT_WRITE && socket->ssl_want_read))))
     {
         if (sw_likely(socket->ssl_want_write && add_event(SW_EVENT_WRITE)))
@@ -263,6 +287,8 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
 #endif
     {
+        // delayed removal event 
+#if 0
         swReactor *reactor = SwooleTG.reactor;
         if (sw_likely(added_event == SW_EVENT_READ))
         {
@@ -272,6 +298,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         {
             swReactor_remove_write_event(reactor, socket);
         }
+#endif
     }
 #ifdef SW_USE_OPENSSL
     want_event = SW_EVENT_NULL;
@@ -2058,12 +2085,10 @@ Socket::~Socket()
     {
         return;
     }
-#ifdef SW_DEBUG
-    if (SwooleG.running)
+    if (!socket->removed)
     {
-        SW_ASSERT(!has_bound() && socket->removed);
+        swoole_event_del(socket);
     }
-#endif
     if (read_buffer)
     {
         swString_free(read_buffer);
