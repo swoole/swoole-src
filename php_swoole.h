@@ -577,7 +577,7 @@ static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t allo
     SW_ASSERT(!ZSTR_IS_INTERNED(s));
     if (UNEXPECTED(alloc_len != real_len))
     {
-        if (UNEXPECTED(alloc_len - real_len > SwooleG.pagesize))
+        if (alloc_len > SwooleG.pagesize && alloc_len > real_len * 2)
         {
             s = zend_string_realloc(s, real_len, 0);
         }

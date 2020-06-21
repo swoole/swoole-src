@@ -1223,7 +1223,7 @@ static PHP_METHOD(swoole_socket_coro, peek)
     }
 }
 
-static sw_inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, const bool all)
+static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, const bool all)
 {
     zend_long length = SW_BUFFER_SIZE_BIG;
     double timeout = 0;
