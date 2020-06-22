@@ -176,6 +176,8 @@ zend_module_entry swoole_module_entry =
     STANDARD_MODULE_PROPERTIES
 };
 
+swAllocator php_allocator;
+
 #ifdef COMPILE_DL_SWOOLE
 ZEND_GET_MODULE(swoole)
 #endif
