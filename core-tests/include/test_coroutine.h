@@ -46,7 +46,7 @@ public:
     {
         int complete_num = 0;
         swoole_event_init();
-        SwooleTG.reactor->wait_exit = 1;
+        swReactor_wait_exit(sw_reactor(), 1);
         for (const auto &arg : args)
         {
             create(arg.first, arg.second, &complete_num);
@@ -58,7 +58,7 @@ public:
     {
         int complete_num = 0;
         swoole_event_init();
-        SwooleTG.reactor->wait_exit = 1;
+        swReactor_wait_exit(sw_reactor(), 1);
         for (const auto &fn : fns)
         {
             create(fn, nullptr, &complete_num);
@@ -70,7 +70,7 @@ public:
     {
         int complete_num = 0;
         swoole_event_init();
-        SwooleTG.reactor->wait_exit = 1;
+        swReactor_wait_exit(sw_reactor(), 1);
         create(fn, arg, &complete_num);
         swoole_event_wait();
     }

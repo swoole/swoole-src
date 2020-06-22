@@ -38,6 +38,7 @@
 swGlobal_t SwooleG;
 swWorkerGlobal_t SwooleWG;
 __thread swThreadGlobal_t SwooleTG;
+swAllocator std_allocator;
 
 #ifdef __MACH__
 static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];
@@ -61,6 +62,11 @@ void swoole_init(void)
     bzero(&SwooleG, sizeof(SwooleG));
     bzero(&SwooleWG, sizeof(SwooleWG));
     bzero(sw_error, SW_ERROR_MSG_SIZE);
+
+    std_allocator.malloc = sw_malloc;
+    std_allocator.calloc = sw_calloc;
+    std_allocator.realloc = sw_realloc;
+    std_allocator.free = sw_free;
 
     SwooleG.running = 1;
     SwooleG.init = 1;

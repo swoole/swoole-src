@@ -966,7 +966,7 @@ int swServer_shutdown(swServer *serv)
     if (SwooleTG.reactor)
     {
         swReactor *reactor = SwooleTG.reactor;
-        reactor->wait_exit = 1;
+        swReactor_wait_exit(reactor, 1);
         for (auto ls : *serv->listen_list)
         {
             if (swSocket_is_stream(ls->type))

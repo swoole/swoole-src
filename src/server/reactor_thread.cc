@@ -426,8 +426,8 @@ static void swReactorThread_shutdown(swReactor *reactor)
             swReactor_remove_read_event(reactor, conn->socket);
         }
     }
-
-    reactor->wait_exit = 1;
+    
+    swReactor_wait_exit(reactor, 1);
 }
 
 /**

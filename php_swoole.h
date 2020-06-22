@@ -352,6 +352,7 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
+extern swAllocator php_allocator;
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)

@@ -251,12 +251,12 @@ int php_swoole_reactor_init()
             return SW_ERR;
         }
     }
-    if (!SwooleTG.reactor)
+    if (!sw_reactor())
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
         swoole_event_init();
-        SwooleTG.reactor->wait_exit = 1;
+        swReactor_wait_exit(sw_reactor(), 1);
 
         php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
     }

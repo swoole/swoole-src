@@ -18,9 +18,9 @@
 
 using swoole::StringExplodeHandler;
 
-swString *swString_new(size_t size)
+swString *swString_new_with_allocator(size_t size, const swAllocator *allocator)
 {
-    swString *str = (swString *) sw_malloc(sizeof(swString));
+    swString *str = (swString *) allocator->malloc(sizeof(*str));
     if (str == nullptr)
     {
         swWarn("malloc[1] failed");
@@ -30,16 +30,22 @@ swString *swString_new(size_t size)
     str->length = 0;
     str->size = size;
     str->offset = 0;
-    str->str = (char *) sw_malloc(size);
+    str->str = (char *) allocator->malloc(size);
+    str->allocator = allocator;
 
     if (str->str == nullptr)
     {
         swSysWarn("malloc[2](%ld) failed", size);
-        sw_free(str);
+        allocator->free(str);
         return nullptr;
     }
 
     return str;
+}
+
+swString *swString_new(size_t size)
+{
+    return swString_new_with_allocator(size, &std_allocator);
 }
 
 void swString_print(swString *str)
@@ -170,7 +176,7 @@ int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_
 int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);
-    char *new_str = (char *) sw_realloc(str->str, new_size);
+    char *new_str = (char *) str->allocator->realloc(str->str, new_size);
     if (new_str == nullptr)
     {
         swSysWarn("realloc(%ld) failed", new_size);

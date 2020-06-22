@@ -334,7 +334,7 @@ public:
     {
         if (sw_unlikely(!read_buffer))
         {
-            read_buffer = swString_new(SW_BUFFER_SIZE_BIG);
+            read_buffer = swString_new_with_allocator(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return read_buffer;
     }
@@ -343,7 +343,7 @@ public:
     {
         if (sw_unlikely(!write_buffer))
         {
-            write_buffer = swString_new(SW_BUFFER_SIZE_BIG);
+            write_buffer = swString_new_with_allocator(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return write_buffer;
     }
@@ -351,6 +351,11 @@ public:
     inline void set_zero_copy(bool enable)
     {
         zero_copy = enable;
+    }
+
+    inline void set_buffer_allocator(swAllocator *allocator)
+    {
+        buffer_allocator = allocator;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -389,6 +394,7 @@ private:
     swTimer_node *read_timer = nullptr;
     swTimer_node *write_timer = nullptr;
 
+    const swAllocator *buffer_allocator = &std_allocator;
     swString *read_buffer = nullptr;
     swString *write_buffer = nullptr;
     swSocketAddress bind_address_info = {};

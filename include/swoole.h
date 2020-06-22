@@ -623,12 +623,23 @@ typedef struct
     uint32_t reactor_id :8;
 } swSession;
 
+typedef struct _swAllocator
+{
+    void* (*malloc)(size_t size);
+    void* (*calloc)(size_t nmemb, size_t size);
+    void* (*realloc)(void *ptr, size_t size);
+    void (*free)(void *ptr);
+} swAllocator;
+
+extern swAllocator std_allocator;
+
 typedef struct _swString
 {
     size_t length;
     size_t size;
     off_t offset;
     char *str;
+    const swAllocator *allocator;
 } swString;
 
 typedef struct
@@ -881,6 +892,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 #define SW_STRINGCVL(s)    s->str + s->offset, s->length - s->offset
 
 swString *swString_new(size_t size);
+swString *swString_new_with_allocator(size_t size, const swAllocator *allocator);
 swString *swString_dup(const char *src_str, size_t length);
 swString *swString_dup2(swString *src);
 int swString_repeat(swString *src, const char *data, size_t len, size_t n);
@@ -920,8 +932,8 @@ static sw_inline void swString_clear(swString *str)
 
 static sw_inline void swString_free(swString *str)
 {
-    sw_free(str->str);
-    sw_free(str);
+    str->allocator->free(str->str);
+    str->allocator->free(str);
 }
 
 static sw_inline int swString_extend_align(swString *str, size_t _new_size)
@@ -1263,7 +1275,6 @@ typedef struct _swFixedPool_slice
     struct _swFixedPool_slice *next;
     struct _swFixedPool_slice *pre;
     char data[0];
-
 } swFixedPool_slice;
 
 typedef struct _swFixedPool
@@ -2120,6 +2131,11 @@ static inline void swReactor_before_wait(swReactor *reactor)
 {
     reactor->running = 1;
     reactor->start = 1;
+}
+
+static inline void swReactor_wait_exit(swReactor *reactor, int value)
+{
+    reactor->wait_exit = value;
 }
 
 #define SW_REACTOR_CONTINUE   if (reactor->once) {break;} else {continue;}
