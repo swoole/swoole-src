@@ -637,7 +637,7 @@ int swServer_onFinish2(swFactory *factory, swSendData *resp);
 void swServer_init(swServer *serv);
 void swServer_signal_init(swServer *serv);
 int swServer_start(swServer *serv);
-swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const char *host, int port);
+swListenPort *swServer_add_port(swServer *serv, enum swSocket_type type, const char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 int swServer_add_worker(swServer *serv, swWorker *worker);
 int swServer_add_systemd_socket(swServer *serv);
@@ -749,7 +749,7 @@ void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, const void *data, size_t data_len);
 int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int flags, swEventData *current_task);
 
-static sw_inline swString* swTaskWorker_large_unpack(swEventData *task_result)
+static sw_inline swString *swTaskWorker_large_unpack(swEventData *task_result)
 {
     swPacket_task _pkg;
     memcpy(&_pkg, task_result->data, sizeof(_pkg));
@@ -1005,7 +1005,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
 /**
  * reactor_id: The fd in which the reactor.
  */
-static sw_inline swSocket* swServer_get_send_pipe(swServer *serv, int session_id, int reactor_id)
+static sw_inline swSocket *swServer_get_send_pipe(swServer *serv, int session_id, int reactor_id)
 {
     int pipe_index = session_id % serv->reactor_pipe_num;
     /**
@@ -1034,7 +1034,7 @@ static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
     return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
 }
 
-static sw_inline swServer* sw_server()
+static sw_inline swServer *sw_server()
 {
     return (swServer *) SwooleG.serv;
 }

@@ -176,6 +176,8 @@ zend_module_entry swoole_module_entry =
     STANDARD_MODULE_PROPERTIES
 };
 
+swAllocator php_allocator;
+
 #ifdef COMPILE_DL_SWOOLE
 ZEND_GET_MODULE(swoole)
 #endif
@@ -747,16 +749,44 @@ PHP_MINFO_FUNCTION(swoole)
 }
 /* }}} */
 
+static void* php_malloc(size_t size)
+{
+    return emalloc(size);
+}
+
+static void* php_calloc(size_t nmemb, size_t size)
+{
+    return ecalloc(nmemb, size);
+}
+
+static void* php_realloc(void* address, size_t size)
+{
+    return erealloc(address, size);
+}
+
+static void php_free(void* address)
+{
+    efree(address);
+}
+
 PHP_RINIT_FUNCTION(swoole)
 {
-    SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
+    if (!SWOOLE_G(cli))
+    {
+        return SUCCESS;
+    }
 
+    SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
     SwooleG.running = 1;
+    php_allocator.malloc = php_malloc;
+    php_allocator.calloc = php_calloc;
+    php_allocator.realloc = php_realloc;
+    php_allocator.free = php_free;
 
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
 
     if (
-        SWOOLE_G(enable_library) && SWOOLE_G(cli)
+        SWOOLE_G(enable_library)
 #ifdef ZEND_COMPILE_PRELOAD
         /* avoid execution of the code during RINIT of preloader */
         && !(CG(compiler_options) & ZEND_COMPILE_PRELOAD)
@@ -778,6 +808,11 @@ PHP_RINIT_FUNCTION(swoole)
 
 PHP_RSHUTDOWN_FUNCTION(swoole)
 {
+    if (!SWOOLE_G(cli))
+    {
+        return SUCCESS;
+    }
+
     SWOOLE_G(req_status) = PHP_SWOOLE_RSHUTDOWN_BEGIN;
 
     rshutdown_callbacks.execute();

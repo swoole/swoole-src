@@ -528,7 +528,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body)
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression)
     {
-        if (body->length == 0 || swoole_http_response_compress(body, ctx->compression_method, ctx->compression_level) != SW_OK)
+        if (body->length == 0 || swoole_http_response_compress(body->str, body->length, ctx->compression_method, ctx->compression_level) != SW_OK)
         {
             ctx->accept_compression = 0;
         }

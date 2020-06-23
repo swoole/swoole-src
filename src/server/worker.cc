@@ -545,7 +545,7 @@ void swWorker_stop(swWorker *worker)
         swoole_kill(serv->gs->manager_pid, SIGIO);
     }
 
-    _try_to_exit: reactor->wait_exit = 1;
+    _try_to_exit: swReactor_wait_exit(reactor, 1);
     reactor->is_empty = swWorker_reactor_is_empty;
     SwooleWG.exit_time = time(nullptr);
 

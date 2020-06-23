@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "swoole_cxx.h"
 #include "coroutine.h"
 #include "ssl.h"
 #include "socks5.h"
@@ -113,7 +114,7 @@ public:
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
     bool poll(enum swEvent_type type);
-    Socket* accept(double timeout = 0);
+    Socket *accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
@@ -199,7 +200,7 @@ public:
 
     bool getsockname(swSocketAddress *sa);
     bool getpeername(swSocketAddress *sa);
-    const char* get_ip();
+    const char *get_ip();
     int get_port();
 
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR)
@@ -330,20 +331,20 @@ public:
         return true;
     }
 
-    inline swString* get_read_buffer()
+    inline swString *get_read_buffer()
     {
         if (sw_unlikely(!read_buffer))
         {
-            read_buffer = swString_new(SW_BUFFER_SIZE_BIG);
+            read_buffer = swoole::new_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return read_buffer;
     }
 
-    inline swString* get_write_buffer()
+    inline swString *get_write_buffer()
     {
         if (sw_unlikely(!write_buffer))
         {
-            write_buffer = swString_new(SW_BUFFER_SIZE_BIG);
+            write_buffer = swoole::new_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return write_buffer;
     }
@@ -351,6 +352,11 @@ public:
     inline void set_zero_copy(bool enable)
     {
         zero_copy = enable;
+    }
+
+    inline void set_buffer_allocator(swAllocator *allocator)
+    {
+        buffer_allocator = allocator;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -389,6 +395,7 @@ private:
     swTimer_node *read_timer = nullptr;
     swTimer_node *write_timer = nullptr;
 
+    const swAllocator *buffer_allocator = nullptr;
     swString *read_buffer = nullptr;
     swString *write_buffer = nullptr;
     swSocketAddress bind_address_info = {};

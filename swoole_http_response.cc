@@ -347,7 +347,11 @@ static PHP_METHOD(swoole_http_response, write)
         }
     }
 
-    swString http_body;
+    struct 
+    {
+        char *str;
+        size_t length;
+    } http_body;
     size_t length = php_swoole_get_send_data(zdata, &http_body.str);
 
     if (length == 0)
@@ -568,7 +572,7 @@ void php_brotli_free(void* opaque, void* address)
 #endif
 
 #ifdef SW_HAVE_COMPRESSION
-int swoole_http_response_compress(swString *body, int method, int level)
+int swoole_http_response_compress(const char *data, size_t length, int method, int level)
 {
 #ifdef SW_HAVE_ZLIB
     int encoding;
@@ -599,7 +603,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
             level = BROTLI_MAX_QUALITY;
         }
 
-        size_t memory_size = BrotliEncoderMaxCompressedSize(body->length);
+        size_t memory_size = BrotliEncoderMaxCompressedSize(length);
         if (memory_size > swoole_zlib_buffer->size)
         {
             if (swString_extend(swoole_zlib_buffer, memory_size) < 0)
@@ -608,8 +612,8 @@ int swoole_http_response_compress(swString *body, int method, int level)
             }
         }
 
-        size_t input_size = body->length;
-        const uint8_t *input_buffer = (const uint8_t *) body->str;
+        size_t input_size = length;
+        const uint8_t *input_buffer = (const uint8_t *) data;
         size_t encoded_size = swoole_zlib_buffer->size;
         uint8_t *encoded_buffer = (uint8_t *) swoole_zlib_buffer->str;
 
@@ -647,7 +651,7 @@ int swoole_http_response_compress(swString *body, int method, int level)
         level = Z_BEST_COMPRESSION;
     }
 
-    size_t memory_size = ((size_t) ((double) body->length * (double) 1.015)) + 10 + 8 + 4 + 1;
+    size_t memory_size = ((size_t) ((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
     if (memory_size > swoole_zlib_buffer->size)
     {
         if (swString_extend(swoole_zlib_buffer, memory_size) < 0)
@@ -669,8 +673,8 @@ int swoole_http_response_compress(swString *body, int method, int level)
         return SW_ERR;
     }
 
-    zstream.next_in = (Bytef *) body->str;
-    zstream.avail_in = body->length;
+    zstream.next_in = (Bytef *) data;
+    zstream.avail_in = length;
     zstream.next_out = (Bytef *) swoole_zlib_buffer->str;
     zstream.avail_out = swoole_zlib_buffer->size;
 
@@ -733,7 +737,11 @@ static PHP_METHOD(swoole_http_response, end)
 
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value)
 {
-    swString http_body;
+    struct 
+    {
+        char *str;
+        size_t length;
+    } http_body;
     if (zdata)
     {
         http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
@@ -761,7 +769,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 #ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression)
         {
-            if (http_body.length == 0 || swoole_http_response_compress(&http_body, ctx->compression_method, ctx->compression_level) != SW_OK)
+            if (http_body.length == 0 || swoole_http_response_compress(http_body.str, http_body.length, ctx->compression_method, ctx->compression_level) != SW_OK)
             {
                 ctx->accept_compression = 0;
             }
