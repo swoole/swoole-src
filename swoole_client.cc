@@ -1334,7 +1334,7 @@ static PHP_METHOD(swoole_client, recv)
         {
             RETURN_STRINGL(buffer->str, buffer->length);
         }
-        else
+        else if (buf_len < (zend_long) buffer->length)
         {
             RETVAL_STRINGL(buffer->str, buf_len);
             memmove(buffer->str, buffer->str + buf_len, buffer->length - buf_len);

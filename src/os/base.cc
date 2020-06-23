@@ -16,7 +16,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "swoole_cxx.h"
 #include "async.h"
 #include <sys/file.h>
 #include <sys/stat.h>
@@ -365,6 +365,7 @@ void swAio_handler_fgets(swAio_event *event)
 
 void swAio_handler_read_file(swAio_event *event)
 {
+    swString *data;
     int ret = -1;
     int fd = open((char*) event->req, O_RDONLY);
     if (fd < 0)
@@ -403,25 +404,23 @@ void swAio_handler_read_file(swAio_event *event)
      */
     if (file_stat.st_size == 0)
     {
-        swString *data = swoole_sync_readfile_eof(fd);
+        data = swoole_sync_readfile_eof(fd);
         if (data == nullptr)
         {
             goto _error;
         }
-        event->ret = data->length;
-        event->buf = data->str;
-        sw_free(data);
     }
     else
     {
-        event->buf = sw_malloc(file_stat.st_size);
-        if (event->buf == nullptr)
+        data = swoole::make_string(file_stat.st_size);
+        if (data == nullptr)
         {
             goto _error;
         }
-        size_t readn = swoole_sync_readfile(fd, event->buf, file_stat.st_size);
-        event->ret = readn;
+        data->length = swoole_sync_readfile(fd, data->str, file_stat.st_size);
     }
+    event->ret = data->length;
+    event->buf = data;
     /**
      * unlock
      */
