@@ -94,9 +94,9 @@ public:
         return file_stat.st_size;
     }
 
-    inline const swSendFile_request* get_task()
+    inline const swSendFile_request *get_task()
     {
-        return (const swSendFile_request*) &task;
+        return (const swSendFile_request *) &task;
     }
 
     inline const bool is_dir()

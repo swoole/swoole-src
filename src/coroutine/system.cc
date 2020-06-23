@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
+#include "swoole_cxx.h"
 #include "coroutine.h"
 #include "coroutine_system.h"
 #include "lru_cache.h"
@@ -107,7 +108,7 @@ int System::sleep(double sec)
     return 0;
 }
 
-swString* System::read_file(const char *file, bool lock)
+swString *System::read_file(const char *file, bool lock)
 {
     AsyncTask task;
 
@@ -131,15 +132,7 @@ swString* System::read_file(const char *file, bool lock)
     task.co->yield();
     if (ev.error == 0)
     {
-        swString *str = (swString *) sw_malloc(sizeof(swString));
-        if (!str)
-        {
-            return nullptr;
-        }
-        str->str = (char*) ev.buf;
-        str->length = ev.nbytes;
-        str->allocator = &std_allocator;
-        return str;
+        return swoole::new_string((char *) ev.buf, ev.nbytes, nullptr);
     }
     else
     {

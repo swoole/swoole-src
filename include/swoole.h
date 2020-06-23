@@ -281,7 +281,7 @@ static sw_inline char* swoole_strdup(const char *s)
     return p;
 }
 
-static sw_inline char* swoole_strndup(const char *s, size_t n)
+static sw_inline char *swoole_strndup(const char *s, size_t n)
 {
     char *p = (char *) sw_malloc(n + 1);
     if (sw_likely(p))
@@ -631,8 +631,6 @@ typedef struct _swAllocator
     void (*free)(void *ptr);
 } swAllocator;
 
-extern swAllocator std_allocator;
-
 typedef struct _swString
 {
     size_t length;
@@ -892,7 +890,6 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize)
 #define SW_STRINGCVL(s)    s->str + s->offset, s->length - s->offset
 
 swString *swString_new(size_t size);
-swString *swString_new_with_allocator(size_t size, const swAllocator *allocator);
 swString *swString_dup(const char *src_str, size_t length);
 swString *swString_dup2(swString *src);
 int swString_repeat(swString *src, const char *data, size_t len, size_t n);
@@ -902,7 +899,7 @@ int swString_append_ptr(swString *str, const char *append_str, size_t length);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
-char* swString_alloc(swString *str, size_t __size);
+char *swString_alloc(swString *str, size_t __size);
 
 static sw_inline int swString_to_int(swString *str)
 {
@@ -1101,7 +1098,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 int swPipeUnsock_close_ext(swPipe *p, int which);
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking);
-swSocket* swPipe_getSocket(swPipe *p, int master);
+swSocket *swPipe_getSocket(swPipe *p, int master);
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
@@ -1309,9 +1306,9 @@ typedef struct _swFixedPool
 /**
  * FixedPool, random alloc/free fixed size memory
  */
-swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
-swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
-swMemoryPool* swMalloc_new();
+swMemoryPool *swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
+swMemoryPool *swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
+swMemoryPool *swMalloc_new();
 
 /**
  * RingBuffer, In order for malloc / free
@@ -1321,18 +1318,18 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared);
 /**
  * Global memory, the program life cycle only malloc / free one time
  */
-swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared);
+swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared);
 
 void swFixedPool_debug(swMemoryPool *pool);
 
 /**
  * alloc shared memory
  */
-void* sw_shm_malloc(size_t size);
+void *sw_shm_malloc(size_t size);
 void sw_shm_free(void *ptr);
-void* sw_shm_calloc(size_t num, size_t _size);
+void *sw_shm_calloc(size_t num, size_t _size);
 int sw_shm_protect(void *addr, int flags);
-void* sw_shm_realloc(void *ptr, size_t new_size);
+void *sw_shm_realloc(void *ptr, size_t new_size);
 
 #ifdef HAVE_RWLOCK
 int swRWLock_create(swLock *lock, int use_in_process);
@@ -1358,7 +1355,7 @@ typedef struct _swThreadParam
 
 
 #ifdef __MACH__
-char* sw_error_();
+char *sw_error_();
 #define sw_error     sw_error_()
 #else
 extern __thread char sw_error[SW_ERROR_MSG_SIZE];
@@ -1405,8 +1402,8 @@ void swLog_reset();
 void swLog_set_level(int lv);
 int swLog_set_date_format(const char *format);
 void swLog_set_rotation(int rotation);
-const char* swLog_get_real_file();
-const char* swLog_get_file();
+const char *swLog_get_real_file();
+const char *swLog_get_file();
 void swLog_set_date_with_microseconds(uchar enable);
 
 //----------------------Tool Function---------------------
@@ -1561,12 +1558,12 @@ int swoole_mkdir_recursive(const char *dir);
 char* swoole_dirname(char *file);
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
 size_t swoole_sync_readfile(int fd, void *buf, size_t len);
-swString* swoole_sync_readfile_eof(int fd);
+swString *swoole_sync_readfile_eof(int fd);
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 long swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
-swString* swoole_file_get_contents(const char *filename);
+swString *swoole_file_get_contents(const char *filename);
 int swoole_file_put_contents(const char *filename, const char *content, size_t length);
 long swoole_file_size(const char *filename);
 char *swoole_dec2hex(int value, int base);
@@ -1583,7 +1580,7 @@ char* swoole_string_format(size_t n, const char *format, ...);
 int swoole_get_systemd_listen_fds();
 //----------------------core function---------------------
 int swSocket_set_timeout(swSocket *sock, double timeout);
-swSocket* swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);
+swSocket *swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);
 //----------------------------------------Socket---------------------------------------
 static sw_inline int swSocket_is_dgram(uint8_t type)
 {
@@ -1608,7 +1605,7 @@ SW_API const char* swoole_version(void);
 SW_API int swoole_version_id(void);
 
 SW_API int swoole_add_function(const char *name, void* func);
-SW_API void* swoole_get_function(const char *name, uint32_t length);
+SW_API void *swoole_get_function(const char *name, uint32_t length);
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
 SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
@@ -1645,7 +1642,7 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
 }
 
 //------------------------------Socket--------------------------------
-swSocket* swSocket_new(int fd, enum swFd_type type);
+swSocket *swSocket_new(int fd, enum swFd_type type);
 void swSocket_free(swSocket *sock);
 int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec);
 int swSocket_bind(swSocket *sock, const char *host, int *port);
@@ -1766,7 +1763,7 @@ int swSocket_buffer_send(swSocket *conn);
 int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length);
 int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk);
 void swSocket_sendfile_destructor(swBuffer_chunk *chunk);
-const char* swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
+const char *swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
 int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);
 
 static sw_inline swString *swSocket_get_buffer(swSocket *_socket)
@@ -2318,7 +2315,7 @@ static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type)
     }
 }
 
-static sw_inline swWorker* swProcessPool_get_worker(swProcessPool *pool, int worker_id)
+static sw_inline swWorker *swProcessPool_get_worker(swProcessPool *pool, int worker_id)
 {
     return &(pool->workers[worker_id - pool->start_id]);
 }
@@ -2354,7 +2351,7 @@ typedef struct _swChannel
     swPipe notify_fd;
 } swChannel;
 
-swChannel* swChannel_new(size_t size, size_t maxlen, int flag);
+swChannel *swChannel_new(size_t size, size_t maxlen, int flag);
 #define swChannel_empty(ch) (ch->num == 0)
 #define swChannel_full(ch) ((ch->head == ch->tail && ch->tail_tag != ch->head_tag) || (ch->bytes + sizeof(int) * ch->num == ch->size))
 int swChannel_pop(swChannel *object, void *out, int buffer_length);
@@ -2478,13 +2475,13 @@ struct _swTimer
 
 int swTimer_init(swTimer *timer, long msec);
 void swTimer_reinit(swTimer *timer, swReactor *reactor);
-swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
+swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 int swTimer_now(struct timeval *time);
 
-static sw_inline swTimer_node* swTimer_get(swTimer *timer, long id)
+static sw_inline swTimer_node *swTimer_get(swTimer *timer, long id)
 {
     return (swTimer_node*) swHashMap_find_int(timer->map, id);
 }
@@ -2603,6 +2600,7 @@ typedef struct
     void *serv;
 
     swMemoryPool *memory_pool;
+    swAllocator std_allocator;
     swLock lock;
 
     char *task_tmpdir;

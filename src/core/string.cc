@@ -18,8 +18,13 @@
 
 using swoole::StringExplodeHandler;
 
-swString *swString_new_with_allocator(size_t size, const swAllocator *allocator)
+swString *swoole::new_string(size_t size, const swAllocator *allocator)
 {
+    if (allocator == nullptr)
+    {
+        allocator = &SwooleG.std_allocator;
+    }
+
     swString *str = (swString *) allocator->malloc(sizeof(*str));
     if (str == nullptr)
     {
@@ -43,9 +48,32 @@ swString *swString_new_with_allocator(size_t size, const swAllocator *allocator)
     return str;
 }
 
+swString *swoole::new_string(char *val, size_t len, const swAllocator *allocator)
+{
+    if (allocator == nullptr)
+    {
+        allocator = &SwooleG.std_allocator;
+    }
+
+    swString *str = (swString *) allocator->malloc(sizeof(*str));
+    if (str == nullptr)
+    {
+        swWarn("malloc[1] failed");
+        return nullptr;
+    }
+
+    str->length = len;
+    str->size = len;
+    str->offset = 0;
+    str->str = val;
+    str->allocator = allocator;
+
+    return str;
+}
+
 swString *swString_new(size_t size)
 {
-    return swString_new_with_allocator(size, &std_allocator);
+    return swoole::new_string(size);
 }
 
 void swString_print(swString *str)
