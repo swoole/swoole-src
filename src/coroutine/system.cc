@@ -138,6 +138,7 @@ swString* System::read_file(const char *file, bool lock)
         }
         str->str = (char*) ev.buf;
         str->length = ev.nbytes;
+        str->allocator = &std_allocator;
         return str;
     }
     else
