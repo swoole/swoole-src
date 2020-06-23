@@ -450,7 +450,7 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 //----------------------------------Zval API------------------------------------
 
 // ide-helper
-#ifdef SW_DEBUG
+#ifdef USE_KQUEUE_IDE_HELPER
 #undef RETURN_BOOL
 #undef RETURN_NULL
 #undef RETURN_LONG

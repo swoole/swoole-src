@@ -18,7 +18,7 @@
 
 using swoole::StringExplodeHandler;
 
-swString *swoole::new_string(size_t size, const swAllocator *allocator)
+swString *swoole::make_string(size_t size, const swAllocator *allocator)
 {
     if (allocator == nullptr)
     {
@@ -48,11 +48,22 @@ swString *swoole::new_string(size_t size, const swAllocator *allocator)
     return str;
 }
 
-swString *swoole::new_string(char *val, size_t len, const swAllocator *allocator)
+swString *swoole::make_string(char *val, size_t len, bool copy, const swAllocator *allocator)
 {
     if (allocator == nullptr)
     {
         allocator = &SwooleG.std_allocator;
+    }
+
+    if (copy)
+    {
+        char *new_val = (char *) allocator->malloc(len);
+        if (new_val == nullptr)
+        {
+            return nullptr;
+        }
+        memcpy(new_val, val, len);
+        val = new_val;
     }
 
     swString *str = (swString *) allocator->malloc(sizeof(*str));
@@ -73,7 +84,7 @@ swString *swoole::new_string(char *val, size_t len, const swAllocator *allocator
 
 swString *swString_new(size_t size)
 {
-    return swoole::new_string(size);
+    return swoole::make_string(size);
 }
 
 void swString_print(swString *str)

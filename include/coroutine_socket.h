@@ -335,7 +335,7 @@ public:
     {
         if (sw_unlikely(!read_buffer))
         {
-            read_buffer = swoole::new_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            read_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return read_buffer;
     }
@@ -344,7 +344,7 @@ public:
     {
         if (sw_unlikely(!write_buffer))
         {
-            write_buffer = swoole::new_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            write_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return write_buffer;
     }
