@@ -81,7 +81,7 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     table->hash_func = swoole_hash_austin;
 #endif
 
-    bzero(table->iterator, sizeof(swTable_iterator));
+    sw_memset_zero(table->iterator, sizeof(swTable_iterator));
     table->memory = nullptr;
 
     return table;
@@ -197,7 +197,7 @@ static sw_inline swTableRow* swTable_hash(swTable *table, const char *key, int k
 
 void swTable_iterator_rewind(swTable *table)
 {
-    bzero(table->iterator, sizeof(swTable_iterator));
+    sw_memset_zero(table->iterator, sizeof(swTable_iterator));
 }
 
 static sw_inline swTableRow* swTable_iterator_get(swTable *table, uint32_t index)
@@ -283,7 +283,7 @@ swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableR
 
 static inline void swTableRow_init(swTable *table, swTableRow *new_row, const char *key, int keylen)
 {
-    bzero(new_row, sizeof(swTableRow));
+    sw_memset_zero(new_row, sizeof(swTableRow));
     memcpy(new_row->key, key, keylen);
     new_row->key[keylen] = '\0';
     new_row->key_len = keylen;
@@ -372,7 +372,7 @@ int swTableRow_del(swTable *table, const char *key, int keylen)
     {
         if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
-            bzero(row, sizeof(swTableRow));
+            sw_memset_zero(row, sizeof(swTableRow));
             goto _delete_element;
         }
         else
@@ -416,7 +416,7 @@ int swTableRow_del(swTable *table, const char *key, int keylen)
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
-        bzero(tmp, sizeof(swTableRow) + table->item_size);
+        sw_memset_zero(tmp, sizeof(swTableRow) + table->item_size);
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }

@@ -190,7 +190,7 @@ static int swFactoryProcess_start(swFactory *factory)
         swSysError("malloc[send_buffer] failed");
         return SW_ERR;
     }
-    bzero(object->send_buffer, sizeof(swDataHead));
+    sw_memset_zero(object->send_buffer, sizeof(swDataHead));
 
     /**
      * The manager process must be started first, otherwise it will have a thread fork

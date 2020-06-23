@@ -28,7 +28,7 @@ static int swRWLock_free(swLock *lock);
 int swRWLock_create(swLock *lock, int use_in_process)
 {
     int ret;
-    bzero(lock, sizeof(swLock));
+    sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_RWLOCK;
     pthread_rwlockattr_init(&lock->object.rwlock.attr);
     if (use_in_process == 1)

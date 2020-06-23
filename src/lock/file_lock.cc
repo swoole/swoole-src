@@ -27,7 +27,7 @@ static int swFileLock_free(swLock *lock);
 
 int swFileLock_create(swLock *lock, int fd)
 {
-    bzero(lock, sizeof(swLock));
+    sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_FILELOCK;
     lock->object.filelock.fd = fd;
     lock->lock_rd = swFileLock_lock_rd;

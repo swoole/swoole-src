@@ -245,7 +245,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
     swServer *serv = (swServer *) proto->private_data_2;
     swConnection *conn = (swConnection *) _socket->object;
     swString frame;
-    bzero(&frame, sizeof(frame));
+    sw_memset_zero(&frame, sizeof(frame));
     frame.str = const_cast<char*>(data);
     frame.length = length;
 

@@ -21,7 +21,7 @@ static void* swThreadPool_loop(void *arg);
 
 int swThreadPool_create(swThreadPool *pool, int thread_num)
 {
-    bzero(pool, sizeof(swThreadPool));
+    sw_memset_zero(pool, sizeof(swThreadPool));
 
     pool->threads = (swThread *) sw_calloc(thread_num, sizeof(swThread));
     if (!pool->threads)

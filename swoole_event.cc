@@ -425,7 +425,7 @@ int swoole_convert_to_fd_ex(zval *zsocket, int *async)
 php_socket* swoole_convert_to_socket(int sock)
 {
     php_socket *socket_object = (php_socket *) emalloc(sizeof *socket_object);
-    bzero(socket_object, sizeof(php_socket));
+    sw_memset_zero(socket_object, sizeof(php_socket));
     socket_object->bsd_socket = sock;
     socket_object->blocking = 1;
 

@@ -222,7 +222,7 @@ int Server::task(DataBuffer &data, int dst_worker_id)
     }
 
     swEventData buf;
-    bzero(&buf.info, sizeof(buf.info));
+    sw_memset_zero(&buf.info, sizeof(buf.info));
     if (check_task_param(dst_worker_id) < 0)
     {
         return false;
@@ -568,7 +568,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
 
     uint64_t notify;
     swEventData *task_result = &(serv.task_result[SwooleWG.id]);
-    bzero(task_result, sizeof(swEventData));
+    sw_memset_zero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv.task_notify[SwooleWG.id];
     swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, 0);
 
@@ -612,7 +612,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
 
     uint64_t notify;
     swEventData *task_result = &(serv.task_result[SwooleWG.id]);
-    bzero(task_result, sizeof(swEventData));
+    sw_memset_zero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv.task_notify[SwooleWG.id];
     swWorker *worker = swServer_get_worker(&serv, SwooleWG.id);
 

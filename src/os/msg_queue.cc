@@ -57,7 +57,7 @@ int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, int perms)
     }
     else
     {
-        bzero(q, sizeof(swMsgQueue));
+        sw_memset_zero(q, sizeof(swMsgQueue));
         q->msg_id = msg_id;
         q->perms = perms;
         q->blocking = blocking;

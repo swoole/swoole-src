@@ -113,7 +113,7 @@ swString *System::read_file(const char *file, bool lock)
     AsyncTask task;
 
     swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
+    sw_memset_zero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current_safe();
     task.original_event = &ev;
@@ -146,7 +146,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
     AsyncTask task;
 
     swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
+    sw_memset_zero(&ev, sizeof(swAio_event));
 
     task.co = Coroutine::get_current_safe();
     task.original_event = &ev;
@@ -196,7 +196,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     swAio_event ev;
     AsyncTask task;
 
-    bzero(&ev, sizeof(swAio_event));
+    sw_memset_zero(&ev, sizeof(swAio_event));
     if (hostname.size() < SW_IP_MAX_LENGTH)
     {
         ev.nbytes = SW_IP_MAX_LENGTH + 1;
@@ -272,10 +272,10 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
     assert(family == AF_INET || family == AF_INET6);
 
     swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
+    sw_memset_zero(&ev, sizeof(swAio_event));
 
     swRequest_getaddrinfo req;
-    bzero(&req, sizeof(swRequest_getaddrinfo));
+    sw_memset_zero(&req, sizeof(swRequest_getaddrinfo));
 
     AsyncTask task;
 

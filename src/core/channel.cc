@@ -51,7 +51,7 @@ swChannel* swChannel_new(size_t size, size_t maxlen, int flags)
     swChannel *object = (swChannel *) mem;
     mem = (char*) mem + sizeof(swChannel);
 
-    bzero(object, sizeof(swChannel));
+    sw_memset_zero(object, sizeof(swChannel));
 
     //overflow space
     object->size = size;

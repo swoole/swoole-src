@@ -24,7 +24,7 @@ static int swMutex_free(swLock *lock);
 int swMutex_create(swLock *lock, int use_in_process)
 {
     int ret;
-    bzero(lock, sizeof(swLock));
+    sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_MUTEX;
     pthread_mutexattr_init(&lock->object.mutex.attr);
     if (use_in_process == 1)

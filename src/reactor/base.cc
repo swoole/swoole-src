@@ -42,7 +42,7 @@ static void defer_task_add(swReactor *reactor, swCallback callback, void *data);
 int swReactor_create(swReactor *reactor, int max_event)
 {
     int ret;
-    bzero(reactor, sizeof(swReactor));
+    sw_memset_zero(reactor, sizeof(swReactor));
 
 #ifdef HAVE_EPOLL
     ret = swReactorEpoll_create(reactor, max_event);

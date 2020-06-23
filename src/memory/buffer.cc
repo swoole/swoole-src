@@ -29,7 +29,7 @@ swBuffer* swBuffer_new(uint32_t chunk_size)
         return nullptr;
     }
 
-    bzero(buffer, sizeof(swBuffer));
+    sw_memset_zero(buffer, sizeof(swBuffer));
     buffer->chunk_size = chunk_size == 0 ? INT_MAX : chunk_size;
 
     return buffer;
@@ -47,7 +47,7 @@ swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t siz
         return nullptr;
     }
 
-    bzero(chunk, sizeof(swBuffer_chunk));
+    sw_memset_zero(chunk, sizeof(swBuffer_chunk));
 
     //require alloc memory
     if (type == SW_CHUNK_DATA && size > 0)

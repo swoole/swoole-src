@@ -52,7 +52,7 @@ void* sw_shm_calloc(size_t num, size_t _size)
     {
         memcpy(mem, &object, sizeof(swShareMemory));
         ret_mem = (char *) mem + sizeof(swShareMemory);
-        bzero(ret_mem, size - sizeof(swShareMemory));
+        sw_memset_zero(ret_mem, size - sizeof(swShareMemory));
         return ret_mem;
     }
 }
@@ -91,7 +91,7 @@ void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *
     void *mem;
     int tmpfd = -1;
     int flag = MAP_SHARED;
-    bzero(object, sizeof(swShareMemory));
+    sw_memset_zero(object, sizeof(swShareMemory));
 
 #ifdef MAP_ANONYMOUS
     flag |= MAP_ANONYMOUS;
@@ -147,7 +147,7 @@ void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key)
 {
     int shmid;
     void *mem;
-    bzero(object, sizeof(swShareMemory));
+    sw_memset_zero(object, sizeof(swShareMemory));
 
     if (key == 0)
     {

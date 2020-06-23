@@ -40,7 +40,7 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num)
         swWarn("malloc[0] failed");
         return SW_ERR;
     }
-    bzero(object, sizeof(swReactorPoll));
+    sw_memset_zero(object, sizeof(swReactorPoll));
 
     object->fds = (swSocket **) sw_calloc(max_fd_num, sizeof(swSocket*));
     if (object->fds == nullptr)

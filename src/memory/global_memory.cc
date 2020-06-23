@@ -43,7 +43,7 @@ swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
 {
     swMemoryGlobal gm, *gm_ptr;
     assert(pagesize >= SW_MIN_PAGE_SIZE);
-    bzero(&gm, sizeof(swMemoryGlobal));
+    sw_memset_zero(&gm, sizeof(swMemoryGlobal));
 
     gm.shared = shared;
     gm.pagesize = pagesize;
@@ -82,7 +82,7 @@ static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm)
     {
         return nullptr;
     }
-    bzero(page, gm->pagesize);
+    sw_memset_zero(page, gm->pagesize);
     page->next = nullptr;
 
     if (gm->current_page != nullptr)

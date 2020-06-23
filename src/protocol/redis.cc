@@ -51,7 +51,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
             swWarn("malloc(%ld) failed", sizeof(swRedis_request));
             return SW_ERR;
         }
-        bzero(request, sizeof(swRedis_request));
+        sw_memset_zero(request, sizeof(swRedis_request));
         conn->object = request;
     }
     else
@@ -170,7 +170,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                             return SW_OK;
                         }
                         swString_clear(buffer);
-                        bzero(request, sizeof(swRedis_request));
+                        sw_memset_zero(request, sizeof(swRedis_request));
                         return SW_OK;
                     }
                 }

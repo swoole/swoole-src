@@ -26,7 +26,7 @@ static int swSpinLock_free(swLock *lock);
 int swSpinLock_create(swLock *lock, int use_in_process)
 {
     int ret;
-    bzero(lock, sizeof(swLock));
+    sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_SPINLOCK;
     if ((ret = pthread_spin_init(&lock->object.spinlock.lock_t, use_in_process)) < 0)
     {

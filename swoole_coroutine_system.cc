@@ -350,7 +350,7 @@ PHP_METHOD(swoole_coroutine_system, fread)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
+    sw_memset_zero(&ev, sizeof(swAio_event));
 
     ev.nbytes = length;
     ev.buf = emalloc(ev.nbytes + 1);
@@ -405,7 +405,7 @@ PHP_METHOD(swoole_coroutine_system, fgets)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
+    sw_memset_zero(&ev, sizeof(swAio_event));
 
     php_stream_from_res(stream, Z_RES_P(handle));
 
@@ -494,7 +494,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(swAio_event));
+    sw_memset_zero(&ev, sizeof(swAio_event));
 
     ev.nbytes = length;
     ev.buf = estrndup(str, length);
