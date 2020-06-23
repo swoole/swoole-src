@@ -218,14 +218,14 @@ void swSignal_clear(void)
             }
         }
     }
-    bzero(&signals, sizeof(signals));
+    sw_memset_zero(&signals, sizeof(signals));
 }
 
 #ifdef HAVE_SIGNALFD
 void swSignalfd_init()
 {
     sigemptyset(&signalfd_mask);
-    bzero(&signals, sizeof(signals));
+    sw_memset_zero(&signals, sizeof(signals));
 }
 
 static void swSignalfd_set(int signo, swSignalHandler handler)
@@ -233,7 +233,7 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
     if (handler == nullptr && signals[signo].active)
     {
         sigdelset(&signalfd_mask, signo);
-        bzero(&signals[signo], sizeof(swSignal));
+        sw_memset_zero(&signals[signo], sizeof(swSignal));
     }
     else
     {
@@ -307,7 +307,7 @@ static void swSignalfd_clear()
             swSocket_free(signal_socket);
             signal_socket = nullptr;
         }
-        bzero(&signalfd_mask, sizeof(signalfd_mask));
+        sw_memset_zero(&signalfd_mask, sizeof(signalfd_mask));
     }
     signal_fd = 0;
 }
@@ -357,7 +357,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     if (handler == nullptr)
     {
         signal(signo, SIG_DFL);
-        bzero(&signals[signo], sizeof(swSignal));
+        sw_memset_zero(&signals[signo], sizeof(swSignal));
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, nullptr);
     }
     // add/update signal

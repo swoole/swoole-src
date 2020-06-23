@@ -294,7 +294,7 @@ ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, c
 ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len)
 {
     struct sockaddr_in6 addr;
-    bzero(&addr, sizeof(addr));
+    sw_memset_zero(&addr, sizeof(addr));
     if (inet_pton(AF_INET6, dst_ip, &addr.sin6_addr) < 0)
     {
         swWarn("ip[%s] is invalid", dst_ip);
@@ -308,7 +308,7 @@ ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, 
 ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len)
 {
     struct sockaddr_un addr;
-    bzero(&addr, sizeof(addr));
+    sw_memset_zero(&addr, sizeof(addr));
     addr.sun_family = AF_UNIX;
     strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path) - 1);
     return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
@@ -786,7 +786,7 @@ int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t
         swWarn("malloc for swTask_sendfile failed");
         return SW_ERR;
     }
-    bzero(task, sizeof(swTask_sendfile));
+    sw_memset_zero(task, sizeof(swTask_sendfile));
 
     task->filename = sw_strdup(filename);
     task->fd = file_fd;

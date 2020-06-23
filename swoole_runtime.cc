@@ -1779,7 +1779,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler)
     }
 
     rf = (real_func *) emalloc(sizeof(real_func));
-    bzero(rf, sizeof(real_func));
+    sw_memset_zero(rf, sizeof(real_func));
     rf->function = zf;
     rf->ori_handler = zf->internal_function.handler;
     zf->internal_function.handler = handler;

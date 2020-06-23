@@ -83,7 +83,7 @@ swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type ty
     {
         return nullptr;
     }
-    bzero(stream, sizeof(swStream));
+    sw_memset_zero(stream, sizeof(swStream));
 
     swClient *cli = &stream->client;
     if (swClient_create(cli, type, 1) < 0)

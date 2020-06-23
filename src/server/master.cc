@@ -290,7 +290,7 @@ dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
     }
     if (conn)
     {
-        bzero(conn, sizeof(*conn));
+        sw_memset_zero(conn, sizeof(*conn));
     }
     if (session)
     {
@@ -845,7 +845,7 @@ int swServer_start(swServer *serv)
 void swServer_init(swServer *serv)
 {
     swoole_init();
-    bzero(serv, sizeof(swServer));
+    sw_memset_zero(serv, sizeof(swServer));
 
     serv->factory_mode = SW_MODE_BASE;
 
@@ -1092,7 +1092,7 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
     }
 
     swSendData _send;
-    bzero(&_send, sizeof(_send));
+    sw_memset_zero(&_send, sizeof(_send));
     _send.info.type = event;
     _send.info.fd = session_id;
     _send.info.reactor_id = conn->reactor_id;
@@ -1137,7 +1137,7 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
 static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length)
 {
     swSendData _send;
-    bzero(&_send.info, sizeof(_send.info));
+    sw_memset_zero(&_send.info, sizeof(_send.info));
     swFactory *factory = &(serv->factory);
 
     if (sw_unlikely(swIsMaster()))
@@ -1980,7 +1980,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     }
 
     swConnection *connection = &(serv->connection_list[fd]);
-    bzero(connection, sizeof(*connection));
+    sw_memset_zero(connection, sizeof(*connection));
     _socket->object = connection;
     _socket->removed = 1;
     _socket->buffer_size = ls->socket_buffer_size;
@@ -2100,7 +2100,7 @@ int swServer_create_pipe_buffers(swServer *serv)
             swSysError("malloc[sndbuf][%d] failed", i);
             return SW_ERR;
         }
-        bzero(serv->pipe_buffers[i], sizeof(swDataHead));
+        sw_memset_zero(serv->pipe_buffers[i], sizeof(swDataHead));
     }
 
     return SW_OK;

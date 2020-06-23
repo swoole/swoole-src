@@ -89,11 +89,11 @@ swHashMap* swHashMap_new(uint32_t bucket_num, swHashMap_dtor dtor)
         return nullptr;
     }
 
-    bzero(hmap, sizeof(swHashMap));
+    sw_memset_zero(hmap, sizeof(swHashMap));
     hmap->root = root;
     hmap->iterator = root;
 
-    bzero(root, sizeof(swHashMap_node));
+    sw_memset_zero(root, sizeof(swHashMap_node));
 
     root->hh.tbl = (UT_hash_table*) sw_malloc(sizeof(UT_hash_table));
     if (!(root->hh.tbl))
@@ -131,7 +131,7 @@ int swHashMap_add(swHashMap* hmap, const char *key, uint16_t key_len, void *data
         swWarn("malloc failed");
         return SW_ERR;
     }
-    bzero(node, sizeof(swHashMap_node));
+    sw_memset_zero(node, sizeof(swHashMap_node));
     swHashMap_node *root = hmap->root;
     node->key_str = sw_strndup(key, key_len);
     node->key_int = key_len;

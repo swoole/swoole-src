@@ -58,9 +58,9 @@ void swoole_init(void)
         return;
     }
 
-    bzero(&SwooleG, sizeof(SwooleG));
-    bzero(&SwooleWG, sizeof(SwooleWG));
-    bzero(sw_error, SW_ERROR_MSG_SIZE);
+    sw_memset_zero(&SwooleG, sizeof(SwooleG));
+    sw_memset_zero(&SwooleWG, sizeof(SwooleWG));
+    sw_memset_zero(sw_error, SW_ERROR_MSG_SIZE);
 
     SwooleG.running = 1;
     SwooleG.init = 1;
@@ -174,7 +174,7 @@ void swoole_clean(void)
     {
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
     }
-    bzero(&SwooleG, sizeof(SwooleG));
+    sw_memset_zero(&SwooleG, sizeof(SwooleG));
 }
 
 pid_t swoole_fork(int flags)
@@ -248,7 +248,7 @@ pid_t swoole_fork(int flags)
         /**
          * reset global struct
          */
-        bzero(&SwooleWG, sizeof(SwooleWG));
+        sw_memset_zero(&SwooleWG, sizeof(SwooleWG));
         SwooleG.pid = getpid();
     }
     return pid;
@@ -1262,7 +1262,7 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
     struct addrinfo *ptr = nullptr;
     struct addrinfo hints;
 
-    bzero(&hints, sizeof(hints));
+    sw_memset_zero(&hints, sizeof(hints));
     hints.ai_family = req->family;
     hints.ai_socktype = req->socktype;
     hints.ai_protocol = req->protocol;

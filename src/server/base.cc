@@ -120,7 +120,7 @@ static int swFactory_end(swFactory *factory, int fd)
     swSendData _send;
     swDataHead info;
 
-    bzero(&_send, sizeof(_send));
+    sw_memset_zero(&_send, sizeof(_send));
     _send.info.fd = fd;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;

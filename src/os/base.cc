@@ -515,7 +515,7 @@ void swAio_handler_gethostbyname(swAio_event *event)
 
     ret = swoole_gethostbyname(event->flags, (char*) event->buf, addr);
     
-    bzero(event->buf, event->nbytes);
+    sw_memset_zero(event->buf, event->nbytes);
 #ifndef HAVE_GETHOSTBYNAME2_R
     SwooleG.lock.unlock(&SwooleG.lock);
 #endif

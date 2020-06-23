@@ -62,7 +62,7 @@ swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared)
 
     swRingBuffer *object = (swRingBuffer *) mem;
     mem = (char *) mem + sizeof(swRingBuffer);
-    bzero(object, sizeof(swRingBuffer));
+    sw_memset_zero(object, sizeof(swRingBuffer));
 
     object->size = (size - sizeof(swRingBuffer) - sizeof(swMemoryPool));
     object->shared = shared;

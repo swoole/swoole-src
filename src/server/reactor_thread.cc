@@ -140,7 +140,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 
     pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
-    bzero(&task.info, sizeof(task.info));
+    sw_memset_zero(&task.info, sizeof(task.info));
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
     task.info.type = SW_SERVER_EVENT_SNED_DGRAM;
@@ -334,7 +334,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
         swServer_set_maxfd(serv, find_max_fd);
         swServer_unlock(serv);
     }
-    bzero(conn, sizeof(swConnection));
+    sw_memset_zero(conn, sizeof(swConnection));
     return swReactor_close(reactor, socket);
 }
 
@@ -346,7 +346,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     swServer *serv = (swServer *) reactor->ptr;
     int fd = event->fd;
     swDataHead notify_ev;
-    bzero(&notify_ev, sizeof(notify_ev));
+    sw_memset_zero(&notify_ev, sizeof(notify_ev));
     swSocket *socket = event->socket;
 
     assert(fd % serv->reactor_num == reactor->id);
@@ -1218,7 +1218,7 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, const char *d
 
     swConnection *conn = (swConnection *) _socket->object;
 
-    bzero(&task.info, sizeof(task.info));
+    sw_memset_zero(&task.info, sizeof(task.info));
     task.info.server_fd = conn->server_fd;
     task.info.reactor_id = conn->reactor_id;
     task.info.ext_flags = proto->ext_flags;

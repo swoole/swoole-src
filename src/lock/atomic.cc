@@ -22,7 +22,7 @@ static int swAtomicLock_trylock(swLock *lock);
 
 int swAtomicLock_create(swLock *lock, int spin)
 {
-    bzero(lock, sizeof(swLock));
+    sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_ATOMLOCK;
     lock->object.atomlock.spin = spin;
     lock->lock = swAtomicLock_lock;

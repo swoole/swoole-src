@@ -57,7 +57,7 @@ static void thread_write(void)
     uint32_t size, yield_count = 0, yield_total_count = 0;
     void *ptr;
     pkg send_pkg;
-    bzero(&send_pkg, sizeof(send_pkg));
+    sw_memset_zero(&send_pkg, sizeof(send_pkg));
 
     int i;
     for (i = 0; i < WRITE_N; i++)

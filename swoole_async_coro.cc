@@ -183,7 +183,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro)
     if (cache_iterator == request_cache_map.end())
     {
         cache = (dns_cache *) emalloc(sizeof(dns_cache));
-        bzero(cache, sizeof(dns_cache));
+        sw_memset_zero(cache, sizeof(dns_cache));
         request_cache_map[key] = cache;
     }
     else

@@ -40,7 +40,7 @@ swMemoryPool* swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t s
 
     swFixedPool *object = (swFixedPool *) memory;
     memory = (char *) memory + sizeof(swFixedPool);
-    bzero(object, sizeof(swFixedPool));
+    sw_memset_zero(object, sizeof(swFixedPool));
 
     object->shared = shared;
     object->slice_num = slice_num;
@@ -71,7 +71,7 @@ swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size)
 {
     swFixedPool *object = (swFixedPool *) memory;
     memory = (char *) memory + sizeof(swFixedPool);
-    bzero(object, sizeof(swFixedPool));
+    sw_memset_zero(object, sizeof(swFixedPool));
 
     object->slice_size = slice_size;
     object->size = size - sizeof(swMemoryPool) - sizeof(swFixedPool);
@@ -79,7 +79,7 @@ swMemoryPool* swFixedPool_new2(uint32_t slice_size, void *memory, size_t size)
 
     swMemoryPool *pool = (swMemoryPool *) memory;
     memory = (char *) memory + sizeof(swMemoryPool);
-    bzero(pool, sizeof(swMemoryPool));
+    sw_memset_zero(pool, sizeof(swMemoryPool));
 
     pool->object = object;
     pool->alloc = swFixedPool_alloc;
@@ -107,7 +107,7 @@ static void swFixedPool_init(swFixedPool *object)
     do
     {
         slice = (swFixedPool_slice *) cur;
-        bzero(slice, sizeof(swFixedPool_slice));
+        sw_memset_zero(slice, sizeof(swFixedPool_slice));
 
         if (object->head != nullptr)
         {

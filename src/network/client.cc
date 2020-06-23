@@ -62,7 +62,7 @@ void swClient_init_reactor(swReactor *reactor)
 
 int swClient_create(swClient *cli, enum swSocket_type type, int async)
 {
-    bzero(cli, sizeof(swClient));
+    sw_memset_zero(cli, sizeof(swClient));
 
     int sockfd = swSocket_create(type, async, 1);
     if (sockfd < 0)
@@ -639,7 +639,7 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
     if (cli->wait_dns)
     {
         swAio_event ev;
-        bzero(&ev, sizeof(swAio_event));
+        sw_memset_zero(&ev, sizeof(swAio_event));
 
         int len = strlen(cli->server_host);
         if (strlen(cli->server_host) < SW_IP_MAX_LENGTH)

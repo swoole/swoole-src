@@ -63,7 +63,7 @@ static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnod
  */
 int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode)
 {
-    bzero(pool, sizeof(swProcessPool));
+    sw_memset_zero(pool, sizeof(swProcessPool));
 
     uint32_t i;
 
@@ -127,7 +127,7 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
             swWarn("malloc[2] failed");
             return SW_ERR;
         }
-        bzero(pool->stream, sizeof(swStreamInfo));
+        sw_memset_zero(pool->stream, sizeof(swStreamInfo));
     }
     else
     {

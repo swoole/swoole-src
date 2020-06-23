@@ -611,7 +611,7 @@ void swHttpRequest_free(swConnection *conn)
     {
         swString_free(request->buffer);
     }
-    bzero(request, sizeof(swHttpRequest));
+    sw_memset_zero(request, sizeof(swHttpRequest));
     sw_free(request);
     conn->object = nullptr;
 }

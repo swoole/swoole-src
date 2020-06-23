@@ -88,7 +88,7 @@ int swTaskWorker_onTask(swProcessPool *pool, swEventData *task)
 int swTaskWorker_large_pack(swEventData *task, const void *data, size_t data_len)
 {
     swPacket_task pkg;
-    bzero(&pkg, sizeof(pkg));
+    sw_memset_zero(&pkg, sizeof(pkg));
 
     memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
@@ -251,7 +251,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
 int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int flags, swEventData *current_task)
 {
     swEventData buf;
-    bzero(&buf.info, sizeof(buf.info));
+    sw_memset_zero(&buf.info, sizeof(buf.info));
     if (serv->task_worker_num < 1)
     {
         swWarn("cannot use task/finish, because no set serv->task_worker_num");

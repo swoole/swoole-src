@@ -302,7 +302,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.offset = mode;
     ev.flags = flags;
@@ -334,7 +334,7 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.fd = sockfd;
     ev.buf = buf;
     ev.nbytes = count;
@@ -366,7 +366,7 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.fd = sockfd;
     ev.buf = (void*) buf;
     ev.nbytes = count;
@@ -392,7 +392,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.offset = offset;
     ev.flags = whence;
@@ -418,7 +418,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.buf = (void*) statbuf;
     ev.handler = handler_fstat;
@@ -443,7 +443,7 @@ int swoole_coroutine_unlink(const char *pathname)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.handler = handler_unlink;
     ev.callback = aio_onCompleted;
@@ -467,7 +467,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) path;
     ev.offset = (off_t) buf;
     ev.handler = handler_statvfs;
@@ -492,7 +492,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.offset = mode;
     ev.handler = handler_mkdir;
@@ -517,7 +517,7 @@ int swoole_coroutine_rmdir(const char *pathname)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.handler = handler_rmdir;
     ev.callback = aio_onCompleted;
@@ -541,7 +541,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) oldpath;
     ev.offset = (off_t) newpath;
     ev.handler = handler_rename;
@@ -566,7 +566,7 @@ int swoole_coroutine_access(const char *pathname, int mode)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) pathname;
     ev.offset = mode;
     ev.handler = handler_access;
@@ -591,7 +591,7 @@ int swoole_coroutine_flock(int fd, int operation)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.flags = operation;
     ev.handler = handler_flock;
@@ -631,7 +631,7 @@ DIR *swoole_coroutine_opendir(const char *name)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) name;
     ev.handler = handler_opendir;
     ev.callback = aio_onCompleted;
@@ -655,7 +655,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
     }
 
     swAio_event ev;
-    bzero(&ev, sizeof(ev));
+    sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) dirp;
     ev.handler = handler_readdir;
     ev.callback = aio_onCompleted;

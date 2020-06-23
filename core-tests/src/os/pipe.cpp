@@ -4,7 +4,7 @@ TEST(pipe, unixsock)
 {
     swPipe p;
     char buf[1024];
-    bzero(&p, sizeof(p));
+    sw_memset_zero(&p, sizeof(p));
     int ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, 0);
 
@@ -46,7 +46,7 @@ TEST(pipe, base)
     ret = p.write(&p, (void *) SW_STRL("你好中国。\n"));
     ASSERT_GT(ret, 0);
 
-    bzero(data, 256);
+    sw_memset_zero(data, 256);
     ret = p.read(&p, data, 255);
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world\n你好中国。\n", data), 0);

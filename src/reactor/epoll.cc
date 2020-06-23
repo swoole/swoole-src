@@ -83,7 +83,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num)
         swWarn("malloc[0] failed");
         return SW_ERR;
     }
-    bzero(object, sizeof(swReactorEpoll));
+    sw_memset_zero(object, sizeof(swReactorEpoll));
     reactor->object = object;
     reactor->max_event_num = max_event_num;
 

@@ -8,8 +8,8 @@ TEST(socket, swSocket_unix_sendto)
     char sock2_path[] = "/tmp/udp_unix2.sock";
     char test_data[] = "swoole";
 
-    bzero(&un1,sizeof(struct sockaddr_un));
-    bzero(&un2,sizeof(struct sockaddr_un));
+    sw_memset_zero(&un1,sizeof(struct sockaddr_un));
+    sw_memset_zero(&un2,sizeof(struct sockaddr_un));
 
     un1.sun_family = AF_UNIX;
     un2.sun_family = AF_UNIX;

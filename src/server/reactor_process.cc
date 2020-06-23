@@ -534,7 +534,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data)
         swTrace("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
         swWorker *worker = swProcessPool_get_worker(&serv->gs->event_workers, session->reactor_id);
         swEventData proxy_msg;
-        bzero(&proxy_msg.info, sizeof(proxy_msg.info));
+        sw_memset_zero(&proxy_msg.info, sizeof(proxy_msg.info));
 
         if (data->info.type == SW_SERVER_EVENT_SEND_DATA)
         {
@@ -599,7 +599,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     int fd;
     int checktime;
 
-    bzero(&notify_ev, sizeof(notify_ev));
+    sw_memset_zero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_FD_SESSION;
 
     int serv_max_fd = swServer_get_maxfd(serv);

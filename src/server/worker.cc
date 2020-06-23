@@ -217,7 +217,7 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
     memcpy(&task.info, data + 4, sizeof(task.info));
     task.info.flags = SW_EVENT_DATA_PTR;
 
-    bzero(&task.data, sizeof(task.data));
+    sw_memset_zero(&task.data, sizeof(task.data));
     task.data.length = length - (uint32_t) sizeof(task.info) - 4;
     task.data.str = (char*) (data + 4 + sizeof(task.info));
 
