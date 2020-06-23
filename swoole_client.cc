@@ -1153,7 +1153,7 @@ static PHP_METHOD(swoole_client, recv)
     zend_long buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
     zend_long flags = 0;
     int ret;
-    char *buf = nullptr;
+    zend_string *strbuf = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
         Z_PARAM_OPTIONAL
@@ -1179,11 +1179,12 @@ static PHP_METHOD(swoole_client, recv)
     {
         if (cli->buffer == nullptr)
         {
-            cli->buffer = swString_new(SW_BUFFER_SIZE_BIG);
+            cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, &SWOOLE_G(zend_string_allocator));
         }
 
         swString *buffer = cli->buffer;
         int eof = -1;
+        char *buf = nullptr;
 
         if (buffer->length > 0)
         {
@@ -1225,16 +1226,27 @@ static PHP_METHOD(swoole_client, recv)
             if (eof >= 0)
             {
                 eof += protocol->package_eof_len;
-                RETVAL_STRINGL(buffer->str, eof);
 
                 if ((int) buffer->length > eof)
                 {
-                    swString_pop_front(buffer, eof);
+                    cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, &SWOOLE_G(zend_string_allocator));
+                    cli->buffer->length = buffer->length - eof;
+                    memcpy(cli->buffer->str, buffer->str + eof, cli->buffer->length);
                 }
                 else
                 {
+                    cli->buffer = nullptr;
                     buffer->length = 0;
                 }
+
+                zend_string *str = sw_get_zend_string(buffer->str);
+                str->len = eof;
+                str->val[str->len] = 0;
+                RETVAL_STR(str);
+
+                buffer->str = nullptr;
+                swString_free(buffer);
+
                 return;
             }
             else
@@ -1276,18 +1288,19 @@ static PHP_METHOD(swoole_client, recv)
         {
             swString_clear(cli->buffer);
         }
+        swString *buffer = cli->buffer;
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
 
         while (1)
         {
-            int retval = cli->recv(cli, cli->buffer->str + cli->buffer->length, header_len - cli->buffer->length, 0);
+            int retval = cli->recv(cli, buffer->str + buffer->length, header_len - buffer->length, 0);
             if (retval <= 0)
             {
                 break;
             }
-            cli->buffer->length += retval;
-            buf_len = protocol->get_package_length(protocol, cli->socket, cli->buffer->str, cli->buffer->length);
+            buffer->length += retval;
+            buf_len = protocol->get_package_length(protocol, cli->socket, buffer->str, buffer->length);
             if (buf_len == 0)
             {
                 continue;
@@ -1310,22 +1323,28 @@ static PHP_METHOD(swoole_client, recv)
         //empty package
         else if (buf_len == header_len)
         {
-            RETURN_STRINGL(cli->buffer->str, header_len);
+            RETURN_STRINGL(buffer->str, header_len);
         }
         else if (buf_len > protocol->package_max_length)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "Package is too big. package_length=%d", (int )buf_len);
             RETURN_EMPTY_STRING();
         }
-        else if (buf_len == (zend_long) cli->buffer->length)
+        else if (buf_len == (zend_long) buffer->length)
         {
-            RETURN_STRINGL(cli->buffer->str, cli->buffer->length);
+            RETURN_STRINGL(buffer->str, buffer->length);
+        }
+        else
+        {
+            RETVAL_STRINGL(buffer->str, buf_len);
+            memmove(buffer->str, buffer->str + buf_len, buffer->length - buf_len);
+            return;
         }
 
-        buf = (char *) emalloc(buf_len + 1);
-        memcpy(buf, cli->buffer->str, cli->buffer->length);
+        strbuf = zend_string_alloc(buf_len, 0);
+        memcpy(strbuf->val, buffer->str, buffer->length);
         swoole_set_last_error(0);
-        ret = cli->recv(cli, buf + header_len, buf_len - cli->buffer->length, MSG_WAITALL);
+        ret = cli->recv(cli, strbuf->val + header_len, buf_len - buffer->length, MSG_WAITALL);
         if (ret > 0)
         {
             ret += header_len;
@@ -1341,9 +1360,9 @@ static PHP_METHOD(swoole_client, recv)
         {
             buf_len = SW_PHP_CLIENT_BUFFER_SIZE;
         }
-        buf = (char *) emalloc(buf_len + 1);
+        strbuf = zend_string_alloc(buf_len, 0);
         swoole_set_last_error(0);
-        ret = cli->recv(cli, buf, buf_len, flags);
+        ret = cli->recv(cli, strbuf->val, buf_len, flags);
     }
 
     if (ret < 0)
@@ -1351,9 +1370,9 @@ static PHP_METHOD(swoole_client, recv)
         swoole_set_last_error(errno);
         php_swoole_error(E_WARNING, "recv() failed. Error: %s [%d]", swoole_strerror(swoole_get_last_error()), swoole_get_last_error());
         zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
-        if (buf)
+        if (strbuf)
         {
-            efree(buf);
+            zend_string_free(strbuf);
         }
         RETURN_FALSE;
     }
@@ -1361,17 +1380,17 @@ static PHP_METHOD(swoole_client, recv)
     {
         if (ret == 0)
         {
-            if (buf)
+            if (strbuf)
             {
-                efree(buf);
+                zend_string_free(strbuf);
             }
             RETURN_EMPTY_STRING();
         }
         else
         {
-            buf[ret] = 0;
-            RETVAL_STRINGL(buf, ret);
-            efree(buf);
+            strbuf->len = ret;
+            strbuf->val[ret] = 0;
+            RETVAL_STR(strbuf);
         }
     }
 }

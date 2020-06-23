@@ -911,7 +911,10 @@ static sw_inline void swString_clear(swString *str)
 
 static sw_inline void swString_free(swString *str)
 {
-    str->allocator->free(str->str);
+    if (str->str)
+    {
+        str->allocator->free(str->str);
+    }
     str->allocator->free(str);
 }
 
