@@ -256,7 +256,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
 
 #ifdef SW_HAVE_COMPRESSION
-int swoole_http_response_compress(swString *body, int method, int level);
+int swoole_http_response_compress(const char *data, size_t length, int method, int level);
 void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length);
 const char* swoole_http_get_content_encoding(http_context *ctx);
 #endif
