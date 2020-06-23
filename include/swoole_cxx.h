@@ -202,22 +202,6 @@ public:
     {
         return str;
     }
-    inline operator int()
-    {
-        return swString_to_int(str);
-    }
-    inline operator long()
-    {
-        return swString_to_long(str);
-    }
-    inline operator float()
-    {
-        return swString_to_float(str);
-    }
-    inline operator double()
-    {
-        return swString_to_double(str);
-    }
     ~String()
     {
         if (str)

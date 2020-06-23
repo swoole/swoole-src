@@ -112,26 +112,3 @@ TEST(string, explode_2)
     ASSERT_EQ(list.size(), count);
 }
 
-TEST(string, atoi)
-{
-    swoole::String s(SW_STRL("1234567"));
-    EXPECT_EQ(swString_to_int(s.get()), 1234567);
-    int i = s;
-    EXPECT_EQ(i, 1234567);
-}
-
-TEST(string, atol)
-{
-    swoole::String s(SW_STRL("123456789000000000"));
-    EXPECT_EQ(swString_to_long(s.get()), 123456789000000000);
-    long l = s;
-    EXPECT_EQ(l, 123456789000000000);
-}
-
-TEST(string, atof)
-{
-    swoole::String s(SW_STRL("1234567.98765"));
-    EXPECT_EQ(swString_to_double(s.get()), 1234567.98765);
-    double d = s;
-    EXPECT_EQ(d, 1234567.98765);
-}

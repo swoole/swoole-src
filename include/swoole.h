@@ -903,26 +903,6 @@ int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_
 int swString_extend(swString *str, size_t new_size);
 char *swString_alloc(swString *str, size_t __size);
 
-static sw_inline int swString_to_int(swString *str)
-{
-    return atoi(str->str);
-}
-
-static sw_inline long swString_to_long(swString *str)
-{
-    return atol(str->str);
-}
-
-static sw_inline float swString_to_float(swString *str)
-{
-    return (float) atof(str->str);
-}
-
-static sw_inline double swString_to_double(swString *str)
-{
-    return atof(str->str);
-}
-
 static sw_inline void swString_clear(swString *str)
 {
     str->length = 0;
