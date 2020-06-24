@@ -901,6 +901,7 @@ int swString_append_ptr(swString *str, const char *append_str, size_t length);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
+char *swString_pop_realloc(swString *str, off_t offset, size_t length);
 char *swString_alloc(swString *str, size_t __size);
 
 static sw_inline void swString_clear(swString *str)

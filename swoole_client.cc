@@ -1338,6 +1338,7 @@ static PHP_METHOD(swoole_client, recv)
         {
             RETVAL_STRINGL(buffer->str, buf_len);
             memmove(buffer->str, buffer->str + buf_len, buffer->length - buf_len);
+            buffer->length -= buf_len;``
             return;
         }
 

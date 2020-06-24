@@ -25,6 +25,7 @@ swString *swoole::make_string(size_t size, const swAllocator *allocator)
         allocator = &SwooleG.std_allocator;
     }
 
+    size = SW_MEM_ALIGNED_SIZE(size);
     swString *str = (swString *) allocator->malloc(sizeof(*str));
     if (str == nullptr)
     {
@@ -51,6 +52,23 @@ swString *swoole::make_string(size_t size, const swAllocator *allocator)
 swString *swString_new(size_t size)
 {
     return swoole::make_string(size);
+}
+
+char *swString_pop_realloc(swString *str, off_t offset, size_t length)
+{
+    char *val = str->str;
+    size_t size_aligned = SW_MEM_ALIGNED_SIZE(length);
+    char *new_val = (char *) str->allocator->malloc(size_aligned);
+    if (new_val == nullptr)
+    {
+        return nullptr;
+    }
+    str->str = new_val;
+    str->size = size_aligned;
+    str->length = length;
+    memcpy(new_val, val + offset, length);
+
+    return val;
 }
 
 void swString_print(swString *str)
@@ -181,6 +199,7 @@ int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_
 int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);
+    new_size = SW_MEM_ALIGNED_SIZE(new_size);
     char *new_str = (char *) str->allocator->realloc(str->str, new_size);
     if (new_str == nullptr)
     {
@@ -193,7 +212,7 @@ int swString_extend(swString *str, size_t new_size)
     return SW_OK;
 }
 
-char* swString_alloc(swString *str, size_t __size)
+char *swString_alloc(swString *str, size_t __size)
 {
     if (str->length + __size > str->size)
     {
