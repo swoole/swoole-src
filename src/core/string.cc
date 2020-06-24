@@ -54,22 +54,29 @@ swString *swString_new(size_t size)
     return swoole::make_string(size);
 }
 
-char *swString_pop_realloc(swString *str, off_t offset, size_t length, size_t init_size)
+char *swString_pop(swString *str, size_t init_size)
 {
+    assert(str->length >= (size_t )str->offset);
+
     char *val = str->str;
-    size_t size_aligned = length == 0 ? SW_MEM_ALIGNED_SIZE(init_size) : SW_MEM_ALIGNED_SIZE(length);
-    char *new_val = (char *) str->allocator->malloc(size_aligned);
+    size_t length = str->length - str->offset;
+    size_t alloc_size = SW_MEM_ALIGNED_SIZE(length == 0 ? init_size : SW_MAX(length, init_size));
+
+    char *new_val = (char *) str->allocator->malloc(alloc_size);
     if (new_val == nullptr)
     {
         return nullptr;
     }
+
     str->str = new_val;
-    str->size = size_aligned;
+    str->size = alloc_size;
     str->length = length;
     if (length > 0)
     {
-        memcpy(new_val, val + offset, length);
+        memcpy(new_val, val + str->offset, length);
     }
+    str->offset = 0;
+
     return val;
 }
 
@@ -234,6 +241,17 @@ int swString_repeat(swString *src, const char *data, size_t len, size_t n)
     if (n <= 0)
     {
         return SW_ERR;
+    }
+    if (len == 1)
+    {
+        if ((src->size < src->length + n) && swString_extend(src, src->length + n) < 0)
+        {
+            return SW_ERR;
+        }
+        memset(src->str + src->length, data[0], n);
+        src->length += n;
+
+        return SW_OK;
     }
     for (size_t i = 0; i < n; i++)
     {

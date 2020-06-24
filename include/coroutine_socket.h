@@ -106,6 +106,12 @@ public:
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
     ssize_t send(const void *__buf, size_t __n);
+
+    inline ssize_t send(const std::string &buf)
+    {
+        return send(buf.c_str(), buf.length());
+    }
+
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(struct msghdr *msg, int flags);

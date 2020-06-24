@@ -1708,7 +1708,10 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
 }
 
 /**
- * recv packet with protocol
+ * Recv packet with protocol
+ * Returns the length of the packet, [return value == read_buffer->offset]
+ * [read_buffer->length > read_buffer->offset] : may be unprocessed data in the buffer
+ * [read_buffer->length == read_buffer->offset] : no data in the buffer
  */
 ssize_t Socket::recv_packet(double timeout)
 {
@@ -1717,7 +1720,7 @@ ssize_t Socket::recv_packet(double timeout)
         return -1;
     }
 
-    ssize_t buf_len = SW_BUFFER_SIZE_STD;
+    ssize_t packet_len = SW_BUFFER_SIZE_STD;
     ssize_t retval;
     timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
 
@@ -1730,7 +1733,7 @@ ssize_t Socket::recv_packet(double timeout)
     //unprocessed data
     if (read_buffer->offset > 0)
     {
-        swString_sub(read_buffer, read_buffer->offset, read_buffer->length);
+        swString_pop_front(read_buffer, read_buffer->offset);
     }
 
     if (open_length_check)
@@ -1764,14 +1767,14 @@ ssize_t Socket::recv_packet(double timeout)
 
         _get_length:
         protocol.real_header_length = 0;
-        buf_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
-        swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", buf_len, read_buffer->length);
-        if (buf_len < 0)
+        packet_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
+        swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
+        if (packet_len < 0)
         {
             set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
             return 0;
         }
-        else if (buf_len == 0)
+        else if (packet_len == 0)
         {
             if (protocol.real_header_length != 0)
             {
@@ -1779,54 +1782,48 @@ ssize_t Socket::recv_packet(double timeout)
             }
             goto _recv_header;
         }
-        else if (buf_len > protocol.package_max_length)
+        else if (packet_len > protocol.package_max_length)
         {
             set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
             return 0;
         }
 
-        if ((size_t) buf_len == read_buffer->length)
+        read_buffer->offset = packet_len;
+
+        if ((size_t) packet_len >= read_buffer->length)
         {
-            read_buffer->length = 0;
-            return buf_len;
-        }
-        else if ((size_t) buf_len < read_buffer->length)
-        {
-            //unprocessed data (offset will always be zero)
-            read_buffer->length -= buf_len;
-            read_buffer->offset = buf_len;
-            return buf_len;
+            return packet_len;
         }
 
-        if ((size_t) buf_len > read_buffer->size)
+        if ((size_t) packet_len > read_buffer->size)
         {
-            if (swString_extend(read_buffer, buf_len) < 0)
+            if (swString_extend(read_buffer, packet_len) < 0)
             {
-                read_buffer->length = 0;
+                swString_clear(read_buffer);
                 set_err(ENOMEM);
                 return -1;
             }
         }
 
-        retval = recv_all(read_buffer->str + read_buffer->length, buf_len - read_buffer->length);
+        retval = recv_all(read_buffer->str + read_buffer->length, packet_len - read_buffer->length);
         if (retval > 0)
         {
             read_buffer->length += retval;
-            if (read_buffer->length != (size_t) buf_len)
+            if (read_buffer->length != (size_t) packet_len)
             {
                 retval = 0;
             }
             else
             {
-                read_buffer->length = 0;
-                return buf_len;
+                return packet_len;
             }
         }
     }
     else if (open_eof_check)
     {
-        int eof = -1;
-        char *buf;
+        ssize_t eof = -1;
+        char *buf = nullptr;
+        size_t l_buf = 0;
 
         if (read_buffer->length > 0)
         {
@@ -1836,23 +1833,18 @@ ssize_t Socket::recv_packet(double timeout)
         while (1)
         {
             buf = read_buffer->str + read_buffer->length;
-            buf_len = read_buffer->size - read_buffer->length;
+            l_buf = read_buffer->size - read_buffer->length;
 
-            if (buf_len > SW_BUFFER_SIZE_BIG)
+            if (l_buf > SW_BUFFER_SIZE_BIG)
             {
-                buf_len = SW_BUFFER_SIZE_BIG;
+                l_buf = SW_BUFFER_SIZE_BIG;
             }
 
-            retval = recv(buf, buf_len);
-            if (retval < 0)
+            retval = recv(buf, l_buf);
+            if (retval <= 0)
             {
-                read_buffer->length = 0;
-                return -1;
-            }
-            else if (retval == 0)
-            {
-                read_buffer->length = 0;
-                return 0;
+                swString_clear(read_buffer);
+                return retval;
             }
 
             read_buffer->length += retval;
@@ -1866,46 +1858,30 @@ ssize_t Socket::recv_packet(double timeout)
             eof = swoole_strnpos(read_buffer->str, read_buffer->length, protocol.package_eof, protocol.package_eof_len);
             if (eof >= 0)
             {
-                eof += protocol.package_eof_len;
-                if (read_buffer->length > (uint32_t) eof)
-                {
-                    read_buffer->length -= eof;
-                    read_buffer->offset += eof;
-                }
-                else
-                {
-                    read_buffer->length = 0;
-                }
-                return eof;
+                return (read_buffer->offset = eof + protocol.package_eof_len);
             }
-            else
+            if (read_buffer->length == protocol.package_max_length)
             {
-                if (read_buffer->length == protocol.package_max_length)
+                swString_clear(read_buffer);
+                set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "no package eof, package_max_length exceeded");
+                return -1;
+            }
+            if (read_buffer->length == read_buffer->size && read_buffer->size < protocol.package_max_length)
+            {
+                size_t new_size = read_buffer->size * 2;
+                if (new_size > protocol.package_max_length)
                 {
-                    read_buffer->length = 0;
-                    set_err(EPROTO, "no package eof");
-                    return -1;
+                    new_size = protocol.package_max_length;
                 }
-                else if (read_buffer->length == read_buffer->size)
+                if (swString_extend(read_buffer, new_size) < 0)
                 {
-                    if (read_buffer->size < protocol.package_max_length)
-                    {
-                        size_t new_size = read_buffer->size * 2;
-                        if (new_size > protocol.package_max_length)
-                        {
-                            new_size = protocol.package_max_length;
-                        }
-                        if (swString_extend(read_buffer, new_size) < 0)
-                        {
-                            read_buffer->length = 0;
-                            set_err(ENOMEM);
-                            return -1;
-                        }
-                    }
+                    swString_clear(read_buffer);
+                    set_err(ENOMEM);
+                    return -1;
                 }
             }
         }
-        read_buffer->length = 0;
+        assert(0);
     }
     else
     {
@@ -2012,6 +1988,11 @@ bool Socket::close()
         set_err(EBADF);
         return true;
     }
+    if (activated)
+    {
+        shutdown();
+    }
+    closed = true;
     if (sw_unlikely(has_bound()))
     {
         if (closed)
@@ -2020,11 +2001,6 @@ bool Socket::close()
             set_err(EINPROGRESS);
             return false;
         }
-        if (activated)
-        {
-            shutdown();
-        }
-        closed = true;
         if (write_co)
         {
             set_err(ECONNRESET);

@@ -11,7 +11,7 @@ const int magic_code = 0x7009501;
 
 TEST(coroutine_async, usleep)
 {
-    coroutine::test([](void *arg)
+    coroutine::run([](void *arg)
     {
         swAio_event ev;
         bool retval = async([](swAio_event *event) {
@@ -25,7 +25,7 @@ TEST(coroutine_async, usleep)
 
 TEST(coroutine_async, gethostbyname)
 {
-    coroutine::test([](void *arg)
+    coroutine::run([](void *arg)
     {
         string domain("www.baidu.com"), ip;
 

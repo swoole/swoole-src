@@ -1295,12 +1295,11 @@ static PHP_METHOD(swoole_socket_coro, recvPacket)
     else
     {
         swString *strbuf = sock->socket->get_read_buffer();
-        auto strval = swString_pop_realloc(strbuf, (off_t) retval, strbuf->length, SW_BUFFER_SIZE_BIG);
+        auto strval = swString_pop(strbuf, SW_BUFFER_SIZE_BIG);
         if (strval == nullptr)
         {
             sock->socket->set_err(ENOMEM);
-            strbuf->length = 0;
-            RETURN_EMPTY_STRING();
+            RETURN_FALSE;
         }
         else
         {

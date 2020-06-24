@@ -85,7 +85,7 @@ TEST(string, explode)
 
 TEST(string, explode_2)
 {
-    string  haystack= "hello,world,swoole,php,last";
+    string haystack = "hello,world,swoole,php,last";
     string needle = ",";
 
     swString str;
@@ -112,3 +112,47 @@ TEST(string, explode_2)
     ASSERT_EQ(list.size(), count);
 }
 
+TEST(string, pop)
+{
+    const int init_size = 1024;
+    string data = "hello,world,swoole,php,last";
+
+    {
+        auto str = swoole::make_string(init_size);
+        swoole::String s(str);
+
+        char *str_1 = str->str;
+
+        const int len_1 = 11;
+        swString_append_ptr(str, data.c_str(), data.length());
+        str->offset = len_1;
+        char *str_2 = swString_pop(str, init_size);
+
+        EXPECT_EQ(str_1, str_2);
+        EXPECT_EQ(string("hello,world"), string(str_2, len_1));
+        EXPECT_EQ(string(",swoole,php,last"), string(str->str, str->length));
+        EXPECT_EQ(init_size, str->size);
+
+        str->allocator->free(str_1);
+    }
+
+    {
+        auto str = swoole::make_string(init_size);
+        swoole::String s(str);
+
+        char *str_1 = str->str;
+
+        const int len_1 = data.length();
+        swString_append_ptr(str, data.c_str(), data.length());
+        str->offset = len_1;
+        char *str_2 = swString_pop(str, init_size);
+
+        EXPECT_EQ(str_1, str_2);
+        EXPECT_EQ(data, string(str_2, len_1));
+        EXPECT_EQ(str->length, 0);
+        EXPECT_EQ(init_size, str->size);
+
+        str->allocator->free(str_1);
+    }
+
+}

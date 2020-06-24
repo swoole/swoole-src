@@ -6,7 +6,7 @@ using swoole::test::coroutine;
 
 TEST(coroutine_gethostbyname, resolve_cache)
 {
-    coroutine::test([](void *arg)
+    coroutine::run([](void *arg)
     {
         System::set_dns_cache_capacity(10);
         std::string addr1 = System::gethostbyname("www.baidu.com", AF_INET);
@@ -34,7 +34,7 @@ TEST(coroutine_gethostbyname, resolve_cache)
 
 TEST(coroutine_gethostbyname, resolve_cache_inet4_and_inet6)
 {
-    coroutine::test([](void *arg) 
+    coroutine::run([](void *arg)
     {
         System::set_dns_cache_capacity(10);
 

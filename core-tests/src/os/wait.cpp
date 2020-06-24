@@ -5,7 +5,7 @@ using namespace swoole::test;
 
 TEST(os_wait, waitpid_before_child_exit)
 {
-    test::coroutine::test([](void *arg)
+    test::coroutine::run([](void *arg)
     {
         pid_t pid = fork();
         ASSERT_NE(pid, -1);
@@ -25,7 +25,7 @@ TEST(os_wait, waitpid_before_child_exit)
 
 TEST(os_wait, waitpid_after_child_exit)
 {
-    test::coroutine::test([](void *arg)
+    test::coroutine::run([](void *arg)
     {
         pid_t pid = fork();
         ASSERT_NE(pid, -1);
@@ -45,7 +45,7 @@ TEST(os_wait, waitpid_after_child_exit)
 
 TEST(os_wait, wait_before_child_exit)
 {
-    test::coroutine::test([](void *arg)
+    test::coroutine::run([](void *arg)
     {
         pid_t pid = fork();
         ASSERT_NE(pid, -1);
@@ -74,7 +74,7 @@ TEST(os_wait, wait_before_child_exit)
 
 TEST(os_wait, wait_after_child_exit)
 {
-    test::coroutine::test([](void *arg)
+    test::coroutine::run([](void *arg)
     {
         pid_t pid = fork();
         ASSERT_NE(pid, -1);
