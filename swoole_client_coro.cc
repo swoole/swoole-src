@@ -935,7 +935,7 @@ static PHP_METHOD(swoole_client_coro, recv)
     }
     else
     {
-        zend_string *result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
+        result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
         Socket::timeout_setter ts(cli, timeout, SW_TIMEOUT_READ);
         retval = cli->recv(ZSTR_VAL(result), SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
         if (retval <= 0)

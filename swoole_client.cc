@@ -1183,7 +1183,7 @@ static PHP_METHOD(swoole_client, recv)
         }
 
         swString *buffer = cli->buffer;
-        int eof = -1;
+        ssize_t eof = -1;
         char *buf = nullptr;
 
         if (buffer->length > 0)
@@ -1227,7 +1227,7 @@ static PHP_METHOD(swoole_client, recv)
             {
                 eof += protocol->package_eof_len;
 
-                if ((int) buffer->length > eof)
+                if ((ssize_t) buffer->length > eof)
                 {
                     cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, &SWOOLE_G(zend_string_allocator));
                     cli->buffer->length = buffer->length - eof;

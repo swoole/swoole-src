@@ -1488,7 +1488,7 @@ static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack
     return NULL;
 }
 
-static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
+static inline ssize_t swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
 {
     assert(needle_length > 0);
     const char *pos;
@@ -1497,7 +1497,7 @@ static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length,
     return pos == NULL ? -1 : pos - haystack;
 }
 
-static inline int swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
+static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
 {
     uint32_t needle_length = strlen(needle);
     assert(needle_length > 0);
