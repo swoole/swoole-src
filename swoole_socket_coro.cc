@@ -797,6 +797,7 @@ static sw_inline void swoole_socket_coro_sync_properties(zval *zobject, socket_c
 static void sw_inline php_swoole_init_socket(zval *zobject, socket_coro *sock)
 {
     sock->socket->set_zero_copy(true);
+    sock->socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
     zend_update_property_long(swoole_socket_coro_ce, zobject, ZEND_STRL("fd"), sock->socket->get_fd());
 }
 
@@ -1058,7 +1059,7 @@ static PHP_METHOD(swoole_socket_coro, __construct)
     if (EXPECTED(!sock->socket))
     {
         php_swoole_check_reactor();
-        sock->socket = new Socket((int)domain, (int)type, (int)protocol);
+        sock->socket = new Socket((int) domain, (int) type, (int) protocol);
         if (UNEXPECTED(sock->socket->get_fd() < 0))
         {
             zend_throw_exception_ex(
@@ -1293,8 +1294,21 @@ static PHP_METHOD(swoole_socket_coro, recvPacket)
     }
     else
     {
-        swString *buf = sock->socket->get_read_buffer();
-        RETURN_STRINGL(buf->str, retval);
+        swString *strbuf = sock->socket->get_read_buffer();
+        auto strval = swString_pop_realloc(strbuf, (off_t) retval, strbuf->length, SW_BUFFER_SIZE_BIG);
+        if (strval == nullptr)
+        {
+            sock->socket->set_err(ENOMEM);
+            strbuf->length = 0;
+            RETURN_EMPTY_STRING();
+        }
+        else
+        {
+            zend_string *result = sw_get_zend_string(strval);
+            ZSTR_VAL(result)[retval] = '\0';
+            ZSTR_LEN(result) = retval;
+            RETURN_STR(result);
+        }
     }
 }
 

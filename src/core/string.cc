@@ -54,10 +54,10 @@ swString *swString_new(size_t size)
     return swoole::make_string(size);
 }
 
-char *swString_pop_realloc(swString *str, off_t offset, size_t length)
+char *swString_pop_realloc(swString *str, off_t offset, size_t length, size_t init_size)
 {
     char *val = str->str;
-    size_t size_aligned = SW_MEM_ALIGNED_SIZE(length);
+    size_t size_aligned = length == 0 ? SW_MEM_ALIGNED_SIZE(init_size) : SW_MEM_ALIGNED_SIZE(length);
     char *new_val = (char *) str->allocator->malloc(size_aligned);
     if (new_val == nullptr)
     {
@@ -66,8 +66,10 @@ char *swString_pop_realloc(swString *str, off_t offset, size_t length)
     str->str = new_val;
     str->size = size_aligned;
     str->length = length;
-    memcpy(new_val, val + offset, length);
-
+    if (length > 0)
+    {
+        memcpy(new_val, val + offset, length);
+    }
     return val;
 }
 

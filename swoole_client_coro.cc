@@ -921,7 +921,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         if (retval > 0)
         {
             swString *strbuf = cli->get_read_buffer();
-            auto strval = swString_pop_realloc(strbuf, (off_t) retval, strbuf->length);
+            auto strval = swString_pop_realloc(strbuf, (off_t) retval, strbuf->length, SW_PHP_CLIENT_BUFFER_SIZE);
             if (strval == nullptr)
             {
                 retval = -1;
