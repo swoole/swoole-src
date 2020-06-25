@@ -1790,7 +1790,7 @@ ssize_t Socket::recv_packet(double timeout)
 
         read_buffer->offset = packet_len;
 
-        if ((size_t) packet_len >= read_buffer->length)
+        if ((size_t) packet_len <= read_buffer->length)
         {
             return packet_len;
         }
