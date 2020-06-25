@@ -1294,8 +1294,7 @@ static PHP_METHOD(swoole_socket_coro, recvPacket)
     }
     else
     {
-        swString *strbuf = sock->socket->get_read_buffer();
-        auto strval = swString_pop(strbuf, SW_BUFFER_SIZE_BIG);
+        auto strval = sock->socket->pop_packet();
         if (strval == nullptr)
         {
             sock->socket->set_err(ENOMEM);

@@ -920,8 +920,7 @@ static PHP_METHOD(swoole_client_coro, recv)
         retval = cli->recv_packet(timeout);
         if (retval > 0)
         {
-            swString *strbuf = cli->get_read_buffer();
-            auto strval = swString_pop(strbuf, SW_PHP_CLIENT_BUFFER_SIZE);
+            auto strval = cli->pop_packet();
             if (strval == nullptr)
             {
                 retval = -1;

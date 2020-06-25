@@ -16,24 +16,32 @@
 
 #include "swoole.h"
 #include "context.h"
+#if __linux__
+#include <sys/mman.h>
+#endif
 
-#if USE_ASM_CONTEXT
+#ifndef SW_USE_THREAD_CONTEXT
 
 using namespace swoole;
 
 #define MAGIC_STRING  "swoole_coroutine#5652a7fb2b38be"
 #define START_OFFSET  (64 * 1024)
 
+#if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
 Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
         fn_(fn), stack_size_(stack_size), private_data_(private_data)
 {
-#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-    protect_page_ = 0;
-#endif
     end_ = false;
     swap_ctx_ = nullptr;
 
-    stack_ = (char*) sw_malloc(stack_size_);
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
+    stack_ = (char*) ::mmap(0, stack_size_, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+#else
+     stack_ = (char*) sw_malloc(stack_size_);
+#endif
     if (!stack_)
     {
         swFatalError(SW_ERROR_MALLOC_FAIL, "failed to malloc stack memory.");
@@ -45,9 +53,19 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
 #ifdef USE_VALGRIND
     valgrind_stack_id = VALGRIND_STACK_REGISTER(sp, stack_);
 #endif
-    ctx_ = make_fcontext(sp, stack_size_, (void (*)(intptr_t))&context_func);
 
-#ifdef SW_LOG_TRACE_OPEN
+#if USE_UCONTEXT
+    if (-1 == getcontext(&ctx_))
+    {
+        swoole_throw_error(SW_ERROR_CO_GETCONTEXT_FAILED);
+        return;
+    }
+    makecontext(&ctx_, (void (*)(void))&context_func, 1, this);
+#else
+    ctx_ = make_fcontext(sp, stack_size_, (void (*)(intptr_t))&context_func);
+#endif
+
+#ifdef SW_CONTEXT_DETECT_STACK_USAGE
     size_t offset = START_OFFSET;
     while (offset <= stack_size)
     {
@@ -56,14 +74,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
     }
 #endif
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-    uint32_t protect_page = get_protect_stack_page();
-    if (protect_page)
-    {
-        if (protect_stack(stack_, stack_size_, protect_page))
-        {
-            protect_page_ = protect_page;
-        }
-    }
+    mprotect(stack_, SwooleG.pagesize, PROT_NONE);
 #endif
 }
 
@@ -72,21 +83,20 @@ Context::~Context()
     if (stack_)
     {
         swTraceLog(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
-#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-        if (protect_page_)
-        {
-            unprotect_stack(stack_, protect_page_);
-        }
-#endif
 #ifdef USE_VALGRIND
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif
+
+#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
+        ::munmap(stack_, stack_size_);
+#else
         sw_free(stack_);
+#endif
         stack_ = nullptr;
     }
 }
 
-#ifdef SW_LOG_TRACE_OPEN
+#ifdef SW_CONTEXT_DETECT_STACK_USAGE
 ssize_t Context::get_stack_usage()
 {
     size_t offset = START_OFFSET;
@@ -109,14 +119,22 @@ ssize_t Context::get_stack_usage()
 
 bool Context::swap_in()
 {
+#if USE_UCONTEXT
+    return 0 == swapcontext(&swap_ctx_, &ctx_);
+#else
     jump_fcontext(&swap_ctx_, ctx_, (intptr_t) this, true);
     return true;
+#endif
 }
 
 bool Context::swap_out()
 {
+#if USE_UCONTEXT
+    return 0 == swapcontext(&ctx_, &swap_ctx_);
+#else
     jump_fcontext(&ctx_, swap_ctx_, (intptr_t) this, true);
     return true;
+#endif
 }
 
 void Context::context_func(void *arg)

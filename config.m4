@@ -273,6 +273,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
     AC_CHECK_LIB(c, gethostbyname2_r, AC_DEFINE(HAVE_GETHOSTBYNAME2_R, 1, [have gethostbyname2_r]))
     AC_CHECK_LIB(c, ptrace, AC_DEFINE(HAVE_PTRACE, 1, [have ptrace]))
+    AC_CHECK_LIB(c, getrandom, AC_DEFINE(HAVE_GETRANDOM, 1, [have getrandom]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
@@ -424,7 +425,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/socket.cc \
         src/coroutine/system.cc \
         src/coroutine/thread_context.cc \
-        src/coroutine/ucontext.cc \
         src/lock/atomic.cc \
         src/lock/cond.cc \
         src/lock/file_lock.cc \
@@ -526,7 +526,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     swoole_source_file="$swoole_source_file \
         thirdparty/swoole_http_parser.c \
-	    thirdparty/multipart_parser.c"
+        thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/async.c \

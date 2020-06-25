@@ -165,6 +165,29 @@ int swString_append_ptr(swString *str, const char *append_str, size_t length)
     return SW_OK;
 }
 
+int swString_append_random_bytes(swString *str, size_t length)
+{
+    size_t new_size = str->length + length;
+    if (new_size > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    size_t n = swoole_random_bytes(str->str + str->length, length);
+    if (n != length)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        str->length += n;
+        return SW_OK;
+    }
+}
+
 int swString_write(swString *str, off_t offset, swString *write_str)
 {
     size_t new_length = offset + write_str->length;

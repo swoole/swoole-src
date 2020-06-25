@@ -868,6 +868,7 @@ typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swSocket *, 
 uint32_t swoole_utf8_decode(uchar **p, size_t n);
 size_t swoole_utf8_length(uchar *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
+size_t swoole_random_bytes(char *buf, size_t size);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c)
 {
@@ -898,6 +899,8 @@ int swString_repeat(swString *src, const char *data, size_t len, size_t n);
 void swString_print(swString *str);
 int swString_append(swString *str, const swString *append_str);
 int swString_append_ptr(swString *str, const char *append_str, size_t length);
+int swString_append_int(swString *str, int value);
+int swString_append_random_bytes(swString *str, size_t length);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);

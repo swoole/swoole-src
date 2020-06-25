@@ -1707,9 +1707,168 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr* _addr, sockle
     return retval;
 }
 
+ssize_t Socket::recv_packet_with_length_protocol()
+{
+    ssize_t packet_len = SW_BUFFER_SIZE_STD;
+    ssize_t retval;
+    uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
+
+    if (read_buffer->length > 0)
+    {
+        if (read_buffer->length >= header_len
+                || (protocol.package_length_size == 0 && protocol.package_length_type == '\0') // custom package_length_func
+                )
+        {
+            goto _get_length;
+        }
+        else
+        {
+            goto _recv_header;
+        }
+    }
+
+    _recv_header: retval = recv(read_buffer->str + read_buffer->length, header_len - read_buffer->length);
+    if (retval <= 0)
+    {
+        return retval;
+    }
+    else
+    {
+        read_buffer->length += retval;
+    }
+
+    _get_length: protocol.real_header_length = 0;
+    packet_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
+    swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
+    if (packet_len < 0)
+    {
+        set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
+        return 0;
+    }
+    else if (packet_len == 0)
+    {
+        if (protocol.real_header_length != 0)
+        {
+            header_len = protocol.real_header_length;
+        }
+        goto _recv_header;
+    }
+    else if (packet_len > protocol.package_max_length)
+    {
+        swString_clear(read_buffer);
+        set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
+        return -1;
+    }
+
+    read_buffer->offset = packet_len;
+
+    if ((size_t) packet_len <= read_buffer->length)
+    {
+        return packet_len;
+    }
+
+    if ((size_t) packet_len > read_buffer->size)
+    {
+        if (swString_extend(read_buffer, packet_len) < 0)
+        {
+            swString_clear(read_buffer);
+            set_err(ENOMEM);
+            return -1;
+        }
+    }
+
+    retval = recv_all(read_buffer->str + read_buffer->length, packet_len - read_buffer->length);
+    if (retval > 0)
+    {
+        read_buffer->length += retval;
+        if (read_buffer->length != (size_t) packet_len)
+        {
+            retval = 0;
+        }
+        else
+        {
+            return packet_len;
+        }
+    }
+
+    return retval;
+}
+
+ssize_t Socket::recv_packet_with_eof_protocol()
+{
+    ssize_t retval, eof = -1;
+    char *buf = nullptr;
+    size_t l_buf = 0;
+
+    if (read_buffer->length > 0)
+    {
+        goto _find_eof;
+    }
+
+    while (1)
+    {
+        buf = read_buffer->str + read_buffer->length;
+        l_buf = read_buffer->size - read_buffer->length;
+
+        if (l_buf > SW_BUFFER_SIZE_BIG)
+        {
+            l_buf = SW_BUFFER_SIZE_BIG;
+        }
+
+        retval = recv(buf, l_buf);
+        if (retval <= 0)
+        {
+            swString_clear(read_buffer);
+            return retval;
+        }
+
+        read_buffer->length += retval;
+
+        if (read_buffer->length < protocol.package_eof_len)
+        {
+            continue;
+        }
+
+        _find_eof: eof = swoole_strnpos(read_buffer->str, read_buffer->length, protocol.package_eof,
+                protocol.package_eof_len);
+        if (eof >= 0)
+        {
+            return (read_buffer->offset = eof + protocol.package_eof_len);
+        }
+        if (read_buffer->length == protocol.package_max_length)
+        {
+            swString_clear(read_buffer);
+            set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "no package eof, package_max_length exceeded");
+            return -1;
+        }
+        if (read_buffer->length == read_buffer->size && read_buffer->size < protocol.package_max_length)
+        {
+            size_t new_size = read_buffer->size * 2;
+            if (new_size > protocol.package_max_length)
+            {
+                new_size = protocol.package_max_length;
+            }
+            if (swString_extend(read_buffer, new_size) < 0)
+            {
+                swString_clear(read_buffer);
+                set_err(ENOMEM);
+                return -1;
+            }
+        }
+    }
+    assert(0);
+    return -1;
+}
+
 /**
  * Recv packet with protocol
  * Returns the length of the packet, [return value == read_buffer->offset]
+ * ---------------------------------------Usage---------------------------------------------
+ * ssize_t l = sock.recv_packet();
+ * swString *pkt = sock.get_read_buffer();
+ * a) memcpy(result_buf, pkt->str, l); //copy data to new buffer
+ * b) result_buf = sock.pop_packet();  //pop packet data, create a new buffer memory
+ * ---------------------------------------read_buffer---------------------------------------
  * [read_buffer->length > read_buffer->offset] : may be unprocessed data in the buffer
  * [read_buffer->length == read_buffer->offset] : no data in the buffer
  */
@@ -1720,14 +1879,12 @@ ssize_t Socket::recv_packet(double timeout)
         return -1;
     }
 
-    ssize_t packet_len = SW_BUFFER_SIZE_STD;
-    ssize_t retval;
     timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
-
     if (sw_unlikely(!timer.start()))
     {
         return 0;
     }
+
     get_read_buffer();
 
     //unprocessed data
@@ -1738,157 +1895,16 @@ ssize_t Socket::recv_packet(double timeout)
 
     if (open_length_check)
     {
-        uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
-        if (read_buffer->length > 0)
-        {
-            if (
-                read_buffer->length >= header_len ||
-                (protocol.package_length_size == 0 && protocol.package_length_type == '\0') // custom package_length_func
-            )
-            {
-                goto _get_length;
-            }
-            else
-            {
-                goto _recv_header;
-            }
-        }
-
-        _recv_header:
-        retval = recv(read_buffer->str + read_buffer->length, header_len - read_buffer->length);
-        if (retval <= 0)
-        {
-            return retval;
-        }
-        else
-        {
-            read_buffer->length += retval;
-        }
-
-        _get_length:
-        protocol.real_header_length = 0;
-        packet_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
-        swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
-        if (packet_len < 0)
-        {
-            set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
-            return 0;
-        }
-        else if (packet_len == 0)
-        {
-            if (protocol.real_header_length != 0)
-            {
-                header_len = protocol.real_header_length;
-            }
-            goto _recv_header;
-        }
-        else if (packet_len > protocol.package_max_length)
-        {
-            set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
-            return 0;
-        }
-
-        read_buffer->offset = packet_len;
-
-        if ((size_t) packet_len <= read_buffer->length)
-        {
-            return packet_len;
-        }
-
-        if ((size_t) packet_len > read_buffer->size)
-        {
-            if (swString_extend(read_buffer, packet_len) < 0)
-            {
-                swString_clear(read_buffer);
-                set_err(ENOMEM);
-                return -1;
-            }
-        }
-
-        retval = recv_all(read_buffer->str + read_buffer->length, packet_len - read_buffer->length);
-        if (retval > 0)
-        {
-            read_buffer->length += retval;
-            if (read_buffer->length != (size_t) packet_len)
-            {
-                retval = 0;
-            }
-            else
-            {
-                return packet_len;
-            }
-        }
+        return recv_packet_with_length_protocol();
     }
     else if (open_eof_check)
     {
-        ssize_t eof = -1;
-        char *buf = nullptr;
-        size_t l_buf = 0;
-
-        if (read_buffer->length > 0)
-        {
-            goto _find_eof;
-        }
-
-        while (1)
-        {
-            buf = read_buffer->str + read_buffer->length;
-            l_buf = read_buffer->size - read_buffer->length;
-
-            if (l_buf > SW_BUFFER_SIZE_BIG)
-            {
-                l_buf = SW_BUFFER_SIZE_BIG;
-            }
-
-            retval = recv(buf, l_buf);
-            if (retval <= 0)
-            {
-                swString_clear(read_buffer);
-                return retval;
-            }
-
-            read_buffer->length += retval;
-
-            if (read_buffer->length < protocol.package_eof_len)
-            {
-                continue;
-            }
-
-            _find_eof:
-            eof = swoole_strnpos(read_buffer->str, read_buffer->length, protocol.package_eof, protocol.package_eof_len);
-            if (eof >= 0)
-            {
-                return (read_buffer->offset = eof + protocol.package_eof_len);
-            }
-            if (read_buffer->length == protocol.package_max_length)
-            {
-                swString_clear(read_buffer);
-                set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "no package eof, package_max_length exceeded");
-                return -1;
-            }
-            if (read_buffer->length == read_buffer->size && read_buffer->size < protocol.package_max_length)
-            {
-                size_t new_size = read_buffer->size * 2;
-                if (new_size > protocol.package_max_length)
-                {
-                    new_size = protocol.package_max_length;
-                }
-                if (swString_extend(read_buffer, new_size) < 0)
-                {
-                    swString_clear(read_buffer);
-                    set_err(ENOMEM);
-                    return -1;
-                }
-            }
-        }
-        assert(0);
+        return recv_packet_with_eof_protocol();
     }
     else
     {
-        retval = recv(read_buffer->str, read_buffer->size);
+        return recv(read_buffer->str, read_buffer->size);
     }
-
-    return retval;
 }
 
 bool Socket::shutdown(int __how)
