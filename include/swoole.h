@@ -952,7 +952,7 @@ static sw_inline void swString_pop_front(swString *str, off_t offset)
 {
     assert(offset >= 0 && (size_t ) offset <= str->length);
     if (sw_unlikely(offset == 0)) return;
-    str->length = str->length - offset;
+    str->length -= offset;
     str->offset = 0;
     if (str->length == 0) return;
     memmove(str->str, str->str + offset, str->length);

@@ -577,16 +577,21 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                 // dynamic request, dispatch to worker
                 swReactorThread_dispatch(protocol, _socket, buffer->str, request->header_length);
             }
-            if (conn->active && buffer->length > request->header_length)
+            if (!conn->active || _socket->removed)
+            {
+                return SW_OK;
+            }
+            if (buffer->length > request->header_length)
             {
                 // http pipeline, multi requests, parse the next one
-                swString_pop_front(buffer, request->header_length);
                 swHttpRequest_clean(request);
+                swString_pop_front(buffer, request->header_length);
                 goto _parse;
             }
             else
             {
                 swHttpRequest_free(conn);
+                swString_clear(buffer);
                 return SW_OK;
             }
         }

@@ -80,8 +80,9 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
         pkg.data.length = task->info.len;
         pkg.data.str = (char*) task->data;
 
-        if (conn && task->data == conn->socket->recv_buffer->str
-                && conn->socket->recv_buffer->length == conn->socket->recv_buffer->offset)
+        swString *recv_buf = conn->socket->recv_buffer;
+        if (conn && task->data == recv_buf->str && recv_buf->offset > 0
+                && recv_buf->length == (size_t) recv_buf->offset)
         {
             pkg.info.flags |= SW_EVENT_DATA_MOVE;
         }
