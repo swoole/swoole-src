@@ -73,6 +73,7 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
         offset *= 2;
     }
 #endif
+
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     mprotect(stack_, SwooleG.pagesize, PROT_NONE);
 #endif

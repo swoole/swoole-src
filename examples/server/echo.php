@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
 //$serv->on('connect', function ($serv, $fd, $reactor_id){
 //	echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
 //});

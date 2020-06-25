@@ -286,7 +286,11 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 #endif
 
     //free the receive memory buffer
-    swSocket_free_buffer(conn->socket);
+    if (socket->recv_buffer)
+    {
+        swString_free(socket->recv_buffer);
+        socket->recv_buffer = nullptr;
+    }
 
     sw_atomic_fetch_sub(&port->connection_num, 1);
 

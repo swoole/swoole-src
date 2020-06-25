@@ -916,6 +916,15 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req)
             worker_buffer = (zend_string *) (data - XtOffsetOf(zend_string, val));
             ZVAL_STR(zdata, worker_buffer);
         }
+        else if (req->info.flags & SW_EVENT_DATA_MOVE)
+        {
+            swString *recv_buffer = swServer_get_recv_buffer(serv, swWorker_get_connection(serv, req->info.fd)->socket);
+            char *strval = swString_pop(recv_buffer, serv->recv_buffer_size);
+            zend_string *zstr = sw_get_zend_string(strval);
+            strval[length] = 0;
+            zstr->len = length;
+            ZVAL_STR(zdata, zstr);
+        }
         else
         {
             ZVAL_STRINGL(zdata, data, length);
@@ -1162,6 +1171,11 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     serv->add_buffer_len = php_swoole_server_worker_add_buffer_len;
     serv->move_buffer = php_swoole_server_worker_move_buffer;
     serv->get_packet = php_swoole_server_worker_get_packet;
+
+    if (serv->factory_mode == SW_MODE_BASE)
+    {
+        serv->buffer_allocator = &SWOOLE_G(zend_string_allocator);
+    }
 
     /**
      * Master Process ID

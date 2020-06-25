@@ -10,7 +10,7 @@ class SocketServer
 
     function run($host, $port)
     {
-        $this->serv = new swoole_server($host, $port);
+        $this->serv = new swoole_server($host, $port, SWOOLE_BASE);
 
         $this->serv->set(array(
             'enable_coroutine' => false,
@@ -30,15 +30,15 @@ class SocketServer
     function onReceive($serv, $fd, $tid, $data)
     {
         echo "recv " . strlen($data) . " bytes\n";
-        $packet = substr($data, 4);
-        $result = array(
-            "code" => "0",
-            "msg" => "ok",
-            "data" => $packet,
-        );
-        $resp = json_encode($result);
-        $send_data = pack('N', strlen($resp)) . $resp;
-        echo "send " . strlen($send_data) . " bytes\n";
-        $serv->send($fd, $send_data);
+//        $packet = substr($data, 4);
+//        $result = array(
+//            "code" => "0",
+//            "msg" => "ok",
+//            "data" => $packet,
+//        );
+//        $resp = json_encode($result);
+//        $send_data = pack('N', strlen($resp)) . $resp;
+//        echo "send " . strlen($send_data) . " bytes\n";
+//        $serv->send($fd, $send_data);
     }
 }

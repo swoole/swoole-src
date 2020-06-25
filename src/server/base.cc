@@ -51,10 +51,11 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
     swServer *serv = (swServer *) factory->ptr;
     swPacket_ptr pkg;
+    swConnection *conn = nullptr;
 
     if (swEventData_is_stream(task->info.type))
     {
-        swConnection *conn = swServer_connection_get(serv, task->info.fd);
+        conn = swServer_connection_get(serv, task->info.fd);
         if (conn == nullptr || conn->active == 0)
         {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);
@@ -78,6 +79,12 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
         swString_clear(&pkg.data);
         pkg.data.length = task->info.len;
         pkg.data.str = (char*) task->data;
+
+        if (conn && task->data == conn->socket->recv_buffer->str
+                && conn->socket->recv_buffer->length == conn->socket->recv_buffer->offset)
+        {
+            pkg.info.flags |= SW_EVENT_DATA_MOVE;
+        }
 
         return swWorker_onTask(factory, (swEventData *) &pkg);
     }

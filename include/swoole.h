@@ -977,6 +977,7 @@ enum _swEventData_flag
     SW_EVENT_DATA_CHUNK = 1u << 2,
     SW_EVENT_DATA_END = 1u << 3,
     SW_EVENT_DATA_OBJ_PTR = 1u << 4,
+    SW_EVENT_DATA_MOVE = 1u << 5,
 };
 
 typedef struct _swDataHead
@@ -1754,31 +1755,6 @@ int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk);
 void swSocket_sendfile_destructor(swBuffer_chunk *chunk);
 const char *swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
 int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);
-
-static sw_inline swString *swSocket_get_buffer(swSocket *_socket)
-{
-    swString *buffer = _socket->recv_buffer;
-    if (buffer == NULL)
-    {
-        buffer = swString_new(SW_BUFFER_SIZE_BIG);
-        //alloc memory failed.
-        if (!buffer)
-        {
-            return NULL;
-        }
-        _socket->recv_buffer = buffer;
-    }
-    return buffer;
-}
-
-static sw_inline void swSocket_free_buffer(swSocket *conn)
-{
-    if (conn->recv_buffer)
-    {
-        swString_free(conn->recv_buffer);
-        conn->recv_buffer = NULL;
-    }
-}
 
 #ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH

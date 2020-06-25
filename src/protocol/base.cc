@@ -331,6 +331,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *
         }
         else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
+            buffer->offset = buffer->length;
             if (protocol->onPackage(protocol, socket, buffer->str, buffer->length) < 0)
             {
                 return SW_ERR;
