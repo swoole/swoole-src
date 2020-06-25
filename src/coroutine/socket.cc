@@ -1919,7 +1919,7 @@ bool Socket::shutdown(int __how)
 #ifdef SW_USE_OPENSSL
         if (socket->ssl)
         {
-            SSL_set_quiet_shutdown(socket->ssl, 1);
+            SSL_set_quiet_shutdown(socket->ssl, 0);
             SSL_shutdown(socket->ssl);
         }
 #endif
@@ -2032,6 +2032,11 @@ bool Socket::close()
     }
     else
     {
+        if (activated)
+        {
+            shutdown();
+        }
+
         sock_fd = -1;
         closed = true;
         return true;
