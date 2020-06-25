@@ -2004,11 +2004,7 @@ bool Socket::close()
         set_err(EBADF);
         return true;
     }
-    if (activated)
-    {
-        shutdown();
-    }
-    closed = true;
+
     if (sw_unlikely(has_bound()))
     {
         if (closed)
@@ -2017,6 +2013,11 @@ bool Socket::close()
             set_err(EINPROGRESS);
             return false;
         }
+        if (activated)
+        {
+            shutdown();
+        }
+        closed = true;
         if (write_co)
         {
             set_err(ECONNRESET);
