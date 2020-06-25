@@ -38,7 +38,8 @@ extern "C" {
 #define poll(fds, nfds, timeout)        swoole_coroutine_poll(fds, nfds, timeout)
 #define sendmsg(sockfd, msg, flags)     swoole_coroutine_sendmsg(sockfd, msg, flags)
 #define recvmsg(sockfd, msg, flags)     swoole_coroutine_recvmsg(sockfd, msg, flags)
-
+#define getaddrinfo(name, service, req, pai)   swoole_coroutine_getaddrinfo(name, service, req, pai)
+#define gethostbyname(name)                    swoole_coroutine_gethostbyname(name)
 
 #ifdef __cplusplus
 }

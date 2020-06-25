@@ -296,7 +296,7 @@ TEST(coroutine_socket, eof_3)
             char buf[1024];
             ssize_t l = conn->recv(buf, sizeof(buf));
             EXPECT_EQ(string(buf, l), string("start\r\n"));
-            conn->close();
+            conn->shutdown();
         },
 
         [](void *arg)
@@ -330,7 +330,7 @@ TEST(coroutine_socket, eof_4)
             ssize_t l = conn->recv(buf, sizeof(buf));
             EXPECT_EQ(string(buf, l), string("start\r\n"));
             conn->send(EOF_PACKET, strlen(EOF_PACKET) - strlen(CRLF)); //no eof
-            conn->close();
+            conn->shutdown();
         },
 
         [](void *arg)

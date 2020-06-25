@@ -2032,11 +2032,6 @@ bool Socket::close()
     }
     else
     {
-        if (activated)
-        {
-            shutdown();
-        }
-
         sock_fd = -1;
         closed = true;
         return true;
