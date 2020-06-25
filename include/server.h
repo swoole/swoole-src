@@ -964,7 +964,7 @@ static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv,
 static inline swString *swServer_get_recv_buffer(swServer *serv, swSocket *_socket)
 {
     swString *buffer = _socket->recv_buffer;
-    if (buffer == NULL)
+    if (buffer == nullptr)
     {
         buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, serv->buffer_allocator);
         if (!buffer)

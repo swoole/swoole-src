@@ -1903,7 +1903,12 @@ ssize_t Socket::recv_packet(double timeout)
     }
     else
     {
-        return recv(read_buffer->str, read_buffer->size);
+        auto retval = recv(read_buffer->str, read_buffer->size);
+        if (retval > 0)
+        {
+            read_buffer->length = read_buffer->offset = retval;
+        }
+        return retval;
     }
 }
 
