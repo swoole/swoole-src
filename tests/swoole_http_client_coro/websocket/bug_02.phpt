@@ -1,13 +1,11 @@
 --TEST--
-swoole_http_client_coro: websocket bug use client in server
+swoole_http_client_coro/websocket: bug use client in server
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-declare(strict_types=1);
-
-require __DIR__ . '/../include/bootstrap.php';
-$pm = new \ProcessManager;
+require __DIR__ . '/../../include/bootstrap.php';
+$pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());

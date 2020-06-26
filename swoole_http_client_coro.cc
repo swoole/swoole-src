@@ -886,6 +886,7 @@ bool http_client::connect()
         // apply settings
         apply_setting(sw_zend_read_property_ex(swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0), false);
 
+        // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
         // connect
         socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
         if (!socket->connect(host, port))
@@ -1599,7 +1600,9 @@ bool http_client::recv_http_response(double timeout)
             // handle redundant data (websocket packet)
             if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN)
             {
-                swString_sub(buffer, parsed_n, retval - parsed_n);
+                buffer->length = retval;
+                buffer->offset = parsed_n;
+                swString_pop_front(buffer, parsed_n);
             }
             return true;
         }
