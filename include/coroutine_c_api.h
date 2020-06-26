@@ -28,6 +28,7 @@ extern "C"
 #include <sys/wait.h>
 #include <sys/statvfs.h>
 #include <stdint.h>
+#include <netdb.h>
 #include <poll.h>
 
 /**
