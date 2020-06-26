@@ -21,6 +21,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
+#include <netdb.h>
 #include <poll.h>
 #include <dirent.h>
 #include <string>
@@ -726,20 +727,26 @@ int swoole_coroutine_getaddrinfo(const char * name, const char *service, const s
         struct addrinfo **pai)
 {
     int retval = -1;
+    int error = 0;
     swoole::coroutine::async([&]()
     {
         retval = getaddrinfo(name, service, req, pai);
+        error = errno;
     });
+    errno = error;
     return retval;
 }
 
 struct hostent *swoole_coroutine_gethostbyname(const char * name)
 {
     struct hostent *retval = nullptr;
+    int error = 0;
     swoole::coroutine::async([&]()
     {
         retval = gethostbyname(name);
+        error = errno;
     });
+    errno = error;
     return retval;
 }
 
