@@ -1602,7 +1602,7 @@ bool http_client::recv_http_response(double timeout)
             {
                 buffer->length = retval;
                 buffer->offset = parsed_n;
-                swString_pop_front(buffer, parsed_n);
+                swString_reduce(buffer, parsed_n);
             }
             return true;
         }

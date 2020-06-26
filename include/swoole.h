@@ -904,6 +904,7 @@ int swString_append_random_bytes(swString *str, size_t length);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
+void swString_reduce(swString *str, off_t offset);
 char *swString_pop(swString *str, size_t init_size);
 char *swString_alloc(swString *str, size_t __size);
 
@@ -942,30 +943,6 @@ static sw_inline int swString_grow(swString *str, size_t incr_value)
     else
     {
         return SW_OK;
-    }
-}
-
-/**
- * migrate data to head, [offset, length - offset] -> [0, length - offset]
- */
-static sw_inline void swString_pop_front(swString *str, off_t offset)
-{
-    assert(offset >= 0 && (size_t ) offset <= str->length);
-    if (sw_unlikely(offset == 0)) return;
-    str->length -= offset;
-    str->offset = 0;
-    if (str->length == 0) return;
-    memmove(str->str, str->str + offset, str->length);
-}
-
-static sw_inline void swString_sub(swString *str, off_t start, size_t length)
-{
-    char *from = str->str + start + (start >= 0 ? 0 : str->length);
-    str->length = length != 0 ? length : str->length - start;
-    str->offset = 0;
-    if (sw_likely(str->length > 0))
-    {
-        memmove(str->str, from, str->length);
     }
 }
 

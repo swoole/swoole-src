@@ -1890,7 +1890,7 @@ ssize_t Socket::recv_packet(double timeout)
     //unprocessed data
     if (read_buffer->offset > 0)
     {
-        swString_pop_front(read_buffer, read_buffer->offset);
+        swString_reduce(read_buffer, read_buffer->offset);
     }
 
     if (open_length_check)

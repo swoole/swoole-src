@@ -80,6 +80,25 @@ char *swString_pop(swString *str, size_t init_size)
     return val;
 }
 
+/**
+ * migrate data to head, [offset, length - offset] -> [0, length - offset]
+ */
+void swString_reduce(swString *str, off_t offset)
+{
+    assert(offset >= 0 && (size_t ) offset <= str->length);
+    if (sw_unlikely(offset == 0))
+    {
+        return;
+    }
+    str->length -= offset;
+    str->offset = 0;
+    if (str->length == 0)
+    {
+        return;
+    }
+    memmove(str->str, str->str + offset, str->length);
+}
+
 void swString_print(swString *str)
 {
     printf(

@@ -528,7 +528,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             swString_clear(buffer);
             return SW_OK;
         }
-        swString_pop_front(buffer, buffer->offset);
+        swString_reduce(buffer, buffer->offset);
         swHttpRequest_free(conn);
         conn->socket->skip_recv = 1;
         return swPort_onRead_check_length(reactor, port, event);
@@ -585,7 +585,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             if (buffer->length > request->header_length)
             {
                 // http pipeline, multi requests, parse the next one
-                swString_pop_front(buffer, request->header_length);
+                swString_reduce(buffer, request->header_length);
                 swHttpRequest_clean(request);
                 goto _parse;
             }
