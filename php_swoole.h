@@ -542,6 +542,14 @@ static sw_inline zend_string *sw_get_zend_string(void *addr)
     return (zend_string *) ((char *) addr - offsetof(zend_string, val));
 }
 
+static sw_inline void sw_set_zend_string(zval *zdata, char *addr, size_t length)
+{
+    zend_string *zstr = sw_get_zend_string(addr);
+    addr[length] = 0;
+    zstr->len = length;
+    ZVAL_STR(zdata, zstr);
+}
+
 static sw_inline zval *sw_zval_dup(zval *val)
 {
     zval *dup = sw_malloc_zval();

@@ -1239,11 +1239,7 @@ static PHP_METHOD(swoole_client, recv)
                     buffer->length = 0;
                 }
 
-                zend_string *str = sw_get_zend_string(buffer->str);
-                str->len = eof;
-                str->val[str->len] = 0;
-                RETVAL_STR(str);
-
+                sw_set_zend_string(return_value, buffer->str, eof);
                 buffer->str = nullptr;
                 swString_free(buffer);
 

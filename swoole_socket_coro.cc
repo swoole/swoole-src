@@ -1302,10 +1302,7 @@ static PHP_METHOD(swoole_socket_coro, recvPacket)
         }
         else
         {
-            zend_string *result = sw_get_zend_string(strval);
-            ZSTR_VAL(result)[retval] = '\0';
-            ZSTR_LEN(result) = retval;
-            RETURN_STR(result);
+            sw_set_zend_string(return_value, strval, retval);
         }
     }
 }
