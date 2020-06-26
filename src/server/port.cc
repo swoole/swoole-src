@@ -525,6 +525,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         if (buffer->length == sizeof(SW_HTTP2_PRI_STRING) - 1)
         {
             swHttpRequest_free(conn);
+            swString_clear(buffer);
             return SW_OK;
         }
         swString_pop_front(buffer, buffer->offset);
