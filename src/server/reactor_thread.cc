@@ -134,13 +134,12 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 
     swServer *serv = (swServer *) reactor->ptr;
     swConnection *server_sock = &serv->connection_list[fd];
-    swSendData task;
+    swSendData task = {};
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
 
     pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
-    sw_memset_zero(&task.info, sizeof(task.info));
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
     task.info.type = SW_SERVER_EVENT_SNED_DGRAM;
@@ -286,7 +285,11 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
 #endif
 
     //free the receive memory buffer
-    swSocket_free_buffer(conn->socket);
+    if (socket->recv_buffer)
+    {
+        swString_free(socket->recv_buffer);
+        socket->recv_buffer = nullptr;
+    }
 
     sw_atomic_fetch_sub(&port->connection_num, 1);
 

@@ -18,13 +18,14 @@
 
 using swoole::StringExplodeHandler;
 
-swString *swoole::new_string(size_t size, const swAllocator *allocator)
+swString *swoole::make_string(size_t size, const swAllocator *allocator)
 {
     if (allocator == nullptr)
     {
         allocator = &SwooleG.std_allocator;
     }
 
+    size = SW_MEM_ALIGNED_SIZE(size);
     swString *str = (swString *) allocator->malloc(sizeof(*str));
     if (str == nullptr)
     {
@@ -48,32 +49,54 @@ swString *swoole::new_string(size_t size, const swAllocator *allocator)
     return str;
 }
 
-swString *swoole::new_string(char *val, size_t len, const swAllocator *allocator)
+swString *swString_new(size_t size)
 {
-    if (allocator == nullptr)
-    {
-        allocator = &SwooleG.std_allocator;
-    }
+    return swoole::make_string(size);
+}
 
-    swString *str = (swString *) allocator->malloc(sizeof(*str));
-    if (str == nullptr)
+char *swString_pop(swString *str, size_t init_size)
+{
+    assert(str->length >= (size_t )str->offset);
+
+    char *val = str->str;
+    size_t length = str->length - str->offset;
+    size_t alloc_size = SW_MEM_ALIGNED_SIZE(length == 0 ? init_size : SW_MAX(length, init_size));
+
+    char *new_val = (char *) str->allocator->malloc(alloc_size);
+    if (new_val == nullptr)
     {
-        swWarn("malloc[1] failed");
         return nullptr;
     }
 
-    str->length = len;
-    str->size = len;
+    str->str = new_val;
+    str->size = alloc_size;
+    str->length = length;
+    if (length > 0)
+    {
+        memcpy(new_val, val + str->offset, length);
+    }
     str->offset = 0;
-    str->str = val;
-    str->allocator = allocator;
 
-    return str;
+    return val;
 }
 
-swString *swString_new(size_t size)
+/**
+ * migrate data to head, [offset, length - offset] -> [0, length - offset]
+ */
+void swString_reduce(swString *str, off_t offset)
 {
-    return swoole::new_string(size);
+    assert(offset >= 0 && (size_t ) offset <= str->length);
+    if (sw_unlikely(offset == 0))
+    {
+        return;
+    }
+    str->length -= offset;
+    str->offset = 0;
+    if (str->length == 0)
+    {
+        return;
+    }
+    memmove(str->str, str->str + offset, str->length);
 }
 
 void swString_print(swString *str)
@@ -161,6 +184,29 @@ int swString_append_ptr(swString *str, const char *append_str, size_t length)
     return SW_OK;
 }
 
+int swString_append_random_bytes(swString *str, size_t length)
+{
+    size_t new_size = str->length + length;
+    if (new_size > str->size)
+    {
+        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0)
+        {
+            return SW_ERR;
+        }
+    }
+
+    size_t n = swoole_random_bytes(str->str + str->length, length);
+    if (n != length)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        str->length += n;
+        return SW_OK;
+    }
+}
+
 int swString_write(swString *str, off_t offset, swString *write_str)
 {
     size_t new_length = offset + write_str->length;
@@ -204,6 +250,7 @@ int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_
 int swString_extend(swString *str, size_t new_size)
 {
     assert(new_size > str->size);
+    new_size = SW_MEM_ALIGNED_SIZE(new_size);
     char *new_str = (char *) str->allocator->realloc(str->str, new_size);
     if (new_str == nullptr)
     {
@@ -216,7 +263,7 @@ int swString_extend(swString *str, size_t new_size)
     return SW_OK;
 }
 
-char* swString_alloc(swString *str, size_t __size)
+char *swString_alloc(swString *str, size_t __size)
 {
     if (str->length + __size > str->size)
     {
@@ -236,6 +283,17 @@ int swString_repeat(swString *src, const char *data, size_t len, size_t n)
     if (n <= 0)
     {
         return SW_ERR;
+    }
+    if (len == 1)
+    {
+        if ((src->size < src->length + n) && swString_extend(src, src->length + n) < 0)
+        {
+            return SW_ERR;
+        }
+        memset(src->str + src->length, data[0], n);
+        src->length += n;
+
+        return SW_OK;
     }
     for (size_t i = 0; i < n; i++)
     {

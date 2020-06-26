@@ -100,7 +100,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
     else if (n < buffer->length)
     {
         off_t offset;
-        swString_pop_front(buffer, n);
+        swString_reduce(buffer, n);
         offset = buffer->length - protocol->package_eof_len;
         buffer->offset = offset > 0 ? offset : 0;
     }
@@ -195,7 +195,7 @@ int swProtocol_recv_check_length(swProtocol *protocol, swSocket *socket, swStrin
 
                 if (buffer->length > (size_t) buffer->offset)
                 {
-                    swString_pop_front(buffer, buffer->offset);
+                    swString_reduce(buffer, buffer->offset);
                     goto _do_get_length;
                 }
                 else
@@ -331,6 +331,7 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *
         }
         else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len, protocol->package_eof, protocol->package_eof_len) == 0)
         {
+            buffer->offset = buffer->length;
             if (protocol->onPackage(protocol, socket, buffer->str, buffer->length) < 0)
             {
                 return SW_ERR;

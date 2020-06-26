@@ -30,8 +30,7 @@
 
 namespace swoole {
 //-------------------------------------------------------------------------------
-swString *new_string(char *val, size_t len, const swAllocator *allocator);
-swString *new_string(size_t size, const swAllocator *allocator = nullptr);
+swString *make_string(size_t size, const swAllocator *allocator = nullptr);
 
 namespace cpp_string
 {

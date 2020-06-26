@@ -106,6 +106,12 @@ public:
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
     ssize_t send(const void *__buf, size_t __n);
+
+    inline ssize_t send(const std::string &buf)
+    {
+        return send(buf.c_str(), buf.length());
+    }
+
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(struct msghdr *msg, int flags);
@@ -113,6 +119,19 @@ public:
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
+
+    inline char *pop_packet()
+    {
+        if (read_buffer->offset == 0)
+        {
+            return nullptr;
+        }
+        else
+        {
+            return swString_pop(read_buffer, buffer_init_size);
+        }
+    }
+
     bool poll(enum swEvent_type type);
     Socket *accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
@@ -335,7 +354,7 @@ public:
     {
         if (sw_unlikely(!read_buffer))
         {
-            read_buffer = swoole::new_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            read_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return read_buffer;
     }
@@ -344,7 +363,7 @@ public:
     {
         if (sw_unlikely(!write_buffer))
         {
-            write_buffer = swoole::new_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            write_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
         }
         return write_buffer;
     }
@@ -357,6 +376,15 @@ public:
     inline void set_buffer_allocator(swAllocator *allocator)
     {
         buffer_allocator = allocator;
+    }
+
+    inline void set_buffer_init_size(size_t size)
+    {
+        if (size == 0)
+        {
+            return;
+        }
+        buffer_init_size = size;
     }
 
 #ifdef SW_USE_OPENSSL
@@ -396,6 +424,7 @@ private:
     swTimer_node *write_timer = nullptr;
 
     const swAllocator *buffer_allocator = nullptr;
+    size_t buffer_init_size = SW_BUFFER_SIZE_BIG;
     swString *read_buffer = nullptr;
     swString *write_buffer = nullptr;
     swSocketAddress bind_address_info = {};
@@ -442,6 +471,9 @@ private:
 
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
+
+    ssize_t recv_packet_with_length_protocol();
+    ssize_t recv_packet_with_eof_protocol();
 
     inline bool is_available(const enum swEvent_type event)
     {

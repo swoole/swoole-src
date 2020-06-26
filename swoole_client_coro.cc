@@ -231,6 +231,7 @@ static Socket* client_coro_new(zval *zobject, int port)
 
     zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("fd"), cli->get_fd());
 
+    cli->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
     cli->set_zero_copy(true);
 
 #ifdef SW_USE_OPENSSL
@@ -830,7 +831,7 @@ static PHP_METHOD(swoole_client_coro, recvfrom)
         }
     }
 
-    zend_string *retval = zend_string_alloc(length + 1, 0);
+    zend_string *retval = zend_string_alloc(length, 0);
     ssize_t n_bytes = cli->recvfrom(ZSTR_VAL(retval), length);
     if (n_bytes < 0)
     {
@@ -910,27 +911,33 @@ static PHP_METHOD(swoole_client_coro, recv)
     {
         RETURN_FALSE;
     }
-    ssize_t retval ;
+
+    ssize_t retval;
+    zend_string *result = nullptr;
+
     if (cli->open_length_check || cli->open_eof_check)
     {
         retval = cli->recv_packet(timeout);
         if (retval > 0)
         {
-            RETVAL_STRINGL(cli->get_read_buffer()->str, retval);
+            auto strval = cli->pop_packet();
+            if (strval == nullptr)
+            {
+                retval = -1;
+                cli->set_err(ENOMEM);
+            }
+            else
+            {
+                result = sw_get_zend_string(strval);
+            }
         }
     }
     else
     {
-        zend_string *result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
+        result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
         Socket::timeout_setter ts(cli, timeout, SW_TIMEOUT_READ);
         retval = cli->recv(ZSTR_VAL(result), SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
-        if (retval > 0)
-        {
-            ZSTR_VAL(result)[retval] = '\0';
-            ZSTR_LEN(result) = retval;
-            RETURN_STR(result);
-        }
-        else
+        if (retval <= 0)
         {
             zend_string_free(result);
         }
@@ -944,6 +951,12 @@ static PHP_METHOD(swoole_client_coro, recv)
     else if (retval == 0)
     {
         RETURN_EMPTY_STRING();
+    }
+    else
+    {
+        ZSTR_VAL(result)[retval] = '\0';
+        ZSTR_LEN(result) = retval;
+        RETURN_STR(result);
     }
 }
 

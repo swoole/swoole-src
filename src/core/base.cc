@@ -32,6 +32,34 @@
 #include <execinfo.h>
 #endif
 
+#ifdef HAVE_GETRANDOM
+#include <sys/random.h>
+#else
+ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
+{
+    int fd = open("/dev/urandom", O_RDONLY);
+    struct stat st;
+
+    if (fd < 0)
+    {
+        return -1;
+    }
+
+    size_t read_bytes;
+    ssize_t n;
+    for (read_bytes = 0; read_bytes < size; read_bytes += (size_t) n)
+    {
+        n = read(fd, buffer + read_bytes, size - read_bytes);
+        if (n <= 0)
+        {
+            break;
+        }
+    }
+
+    return read_bytes;
+}
+#endif
+
 #include <list>
 #include <set>
 
@@ -1517,6 +1545,32 @@ void swoole_random_string(char *buf, size_t size)
         buf[i] = characters[swoole_rand(0, sizeof(characters) - 1)];
     }
     buf[i] = '\0';
+}
+
+size_t swoole_random_bytes(char *buf, size_t size)
+{
+    size_t read_bytes = 0;
+    ssize_t n;
+
+    while (read_bytes < size)
+    {
+        size_t amount_to_read = size - read_bytes;
+        n = getrandom(buf + read_bytes, amount_to_read, 0);
+        if (n == -1)
+        {
+            if (errno == EINTR || errno == EAGAIN)
+            {
+                continue;
+            }
+            else
+            {
+                break;
+            }
+        }
+        read_bytes += (size_t) n;
+    }
+
+    return read_bytes;
 }
 
 int swoole_get_systemd_listen_fds()

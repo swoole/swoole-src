@@ -50,3 +50,6 @@ E.g. : `./new ./swoole_coroutine/co_sleep.phpt`
 It will generate the test script file and auto open on your ide (MacOS only).
 
 ![](https://cdn.jsdelivr.net/gh/sy-records/staticfile/images/swoole/generate-example.gif)
+
+## Code Style
+`PSR1/PSR2`

@@ -8,7 +8,7 @@ using namespace swoole::test;
 
 TEST(coroutine_channel, push_pop)
 {
-    test::coroutine::test([](void *arg)
+    test::coroutine::run([](void *arg)
     {
         Channel chan(1);
         int i = 1;
@@ -24,7 +24,7 @@ TEST(coroutine_channel, push_yield)
 {
     Channel chan(1);
 
-    test::coroutine::test({
+    test::coroutine::run({
         make_pair([](void *arg)
         {
             auto chan = (Channel *) arg;
@@ -50,7 +50,7 @@ TEST(coroutine_channel, pop_yield)
 {
     Channel chan(1);
 
-    test::coroutine::test({
+    test::coroutine::run({
         make_pair([](void *arg)
         {
             auto chan = (Channel *) arg;
@@ -75,7 +75,7 @@ TEST(coroutine_channel, pop_yield)
 
 TEST(coroutine_channel, push_timeout)
 {
-    test::coroutine::test([](void *arg)
+    test::coroutine::run([](void *arg)
     {
         Channel chan(1);
         bool ret;
@@ -89,7 +89,7 @@ TEST(coroutine_channel, push_timeout)
 
 TEST(coroutine_channel, pop_timeout)
 {
-    test::coroutine::test([](void *arg)
+    test::coroutine::run([](void *arg)
     {
         Channel chan(1);
         void *ret;

@@ -17,6 +17,7 @@
 #pragma once
 
 #include "swoole_api.h"
+#include "swoole_cxx.h"
 #include "ssl.h"
 #include "http.h"
 
@@ -562,6 +563,9 @@ struct swServer
     swSocket *last_stream_socket;
     std::queue<swString*> *buffer_pool;
 
+    swAllocator *buffer_allocator;
+    size_t recv_buffer_size;
+
 #ifdef SW_BUFFER_RECV_TIME
     double last_receive_usec;
 #endif
@@ -938,9 +942,7 @@ void swWorker_stop(swWorker *worker);
 
 static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)
 {
-    int real_fd = swServer_get_fd(serv, session_id);
-    swConnection *conn = swServer_connection_get(serv, real_fd);
-    return conn;
+    return swServer_connection_get(serv, swServer_get_fd(serv, session_id));
 }
 
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
@@ -957,6 +959,22 @@ static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv,
         return nullptr;
     }
     return conn;
+}
+
+static inline swString *swServer_get_recv_buffer(swServer *serv, swSocket *_socket)
+{
+    swString *buffer = _socket->recv_buffer;
+    if (buffer == nullptr)
+    {
+        buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, serv->buffer_allocator);
+        if (!buffer)
+        {
+            return nullptr;
+        }
+        _socket->recv_buffer = buffer;
+    }
+
+    return buffer;
 }
 
 static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)

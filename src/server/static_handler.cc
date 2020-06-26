@@ -59,7 +59,7 @@ bool StaticHandler::is_modified(const string &date_if_modified_since)
 std::string StaticHandler::get_date()
 {
     char date_[64];
-    time_t now = time(nullptr);
+    time_t now = ::time(nullptr);
     struct tm *tm1 = gmtime(&now);
     strftime(date_, sizeof(date_), "%a, %d %b %Y %H:%M:%S %Z", tm1);
     return std::string(date_);

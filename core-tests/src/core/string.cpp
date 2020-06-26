@@ -85,7 +85,7 @@ TEST(string, explode)
 
 TEST(string, explode_2)
 {
-    string  haystack= "hello,world,swoole,php,last";
+    string haystack = "hello,world,swoole,php,last";
     string needle = ",";
 
     swString str;
@@ -112,3 +112,85 @@ TEST(string, explode_2)
     ASSERT_EQ(list.size(), count);
 }
 
+static const int init_size = 1024;
+static string test_data = "hello,world,swoole,php,last";
+
+TEST(string, pop_1)
+{
+    auto str = swoole::make_string(init_size);
+    swoole::String s(str);
+
+    char *str_1 = str->str;
+
+    const int len_1 = 11;
+    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->offset = len_1;
+    char *str_2 = swString_pop(str, init_size);
+
+    EXPECT_EQ(str_1, str_2);
+    EXPECT_EQ(string("hello,world"), string(str_2, len_1));
+    EXPECT_EQ(string(",swoole,php,last"), string(str->str, str->length));
+    EXPECT_EQ(init_size, str->size);
+
+    str->allocator->free(str_1);
+}
+
+TEST(string, pop_2)
+{
+    auto str = swoole::make_string(init_size);
+    swoole::String s(str);
+
+    char *str_1 = str->str;
+
+    const int len_1 = test_data.length();
+    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->offset = len_1;
+    char *str_2 = swString_pop(str, init_size);
+
+    EXPECT_EQ(str_1, str_2);
+    EXPECT_EQ(test_data, string(str_2, len_1));
+    EXPECT_EQ(str->length, 0);
+    EXPECT_EQ(init_size, str->size);
+
+    str->allocator->free(str_1);
+}
+
+TEST(string, reduce_1)
+{
+    auto str = swoole::make_string(init_size);
+    swoole::String s(str);
+
+    const int len_1 = 11;
+    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->offset = len_1;
+
+    swString_reduce(str, str->offset);
+
+    EXPECT_EQ(string(",swoole,php,last"), string(str->str, str->length));
+}
+
+TEST(string, reduce_2)
+{
+    auto str = swoole::make_string(init_size);
+    swoole::String s(str);
+
+    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->offset = str->length;
+
+    swString_reduce(str, str->offset);
+
+    EXPECT_EQ(str->length, 0);
+}
+
+TEST(string, reduce_3)
+{
+    auto str = swoole::make_string(init_size);
+    swoole::String s(str);
+
+    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->offset = 0;
+
+    swString_reduce(str, str->offset);
+
+    EXPECT_EQ(str->length, test_data.length());
+}

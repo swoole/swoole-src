@@ -36,10 +36,6 @@
 #include "swoole.h"
 #include "error.h"
 
-#if __linux__
-    #include <sys/mman.h>
-#endif
-
 #ifdef USE_UCONTEXT
     typedef ucontext_t coroutine_context_t;
 #elif defined(USE_ASM_CONTEXT)
@@ -50,59 +46,6 @@ typedef void (*coroutine_func_t)(void*);
 
 namespace swoole
 {
-#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-//namespace start
-static uint32_t& get_protect_stack_page()
-{
-    static uint32_t protect_stack_page = 0;
-    return protect_stack_page;
-}
-
-static bool protect_stack(void *top, size_t stack_size, uint32_t page)
-{
-    if (stack_size <= SwooleG.pagesize * (page + 1))
-    {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_CO_PROTECT_STACK_FAILED, "getpagesize() failed");
-        return false;
-    }
-#ifdef PROT_NONE
-    void *protect_page_addr = ((size_t) top & 0xfff) ? (void*) (((size_t) top & ~(size_t) 0xfff) + 0x1000) : top;
-    if (-1 == mprotect(protect_page_addr, SwooleG.pagesize * page, PROT_NONE))
-    {
-        swSysWarn(
-            "mprotect() failed: origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u",
-            top, protect_page_addr, SwooleG.pagesize, page
-        );
-        return false;
-    }
-    else
-    {
-        swDebug("origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u", top, protect_page_addr, page, SwooleG.pagesize);
-        return true;
-    }
-#endif
-}
-static bool unprotect_stack(void *top, uint32_t page)
-{
-    void *protect_page_addr = ((size_t) top & 0xfff) ? (void*) (((size_t) top & ~(size_t) 0xfff) + 0x1000) : top;
-#ifdef PROT_READ
-    if (-1 == mprotect(protect_page_addr, SwooleG.pagesize * page, PROT_READ | PROT_WRITE))
-    {
-        swSysWarn(
-            "mprotect() failed: origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u",
-            top, protect_page_addr, SwooleG.pagesize, page
-        );
-        return false;
-    }
-    else
-    {
-        swDebug("origin_addr:%p, align_addr:%p, page_size:%d, protect_page:%u", top, protect_page_addr, page, SwooleG.pagesize);
-        return true;
-    }
-#endif
-}
-#endif
-
 class Context
 {
 public:
@@ -110,7 +53,7 @@ public:
     ~Context();
     bool swap_in();
     bool swap_out();
-#if defined(SW_USE_ASM_CONTEXT) && defined(SW_LOG_TRACE_OPEN)
+#if !defined(SW_USE_THREAD_CONTEXT) && defined(SW_CONTEXT_DETECT_STACK_USAGE)
     ssize_t get_stack_usage();
 #endif
     inline bool is_end()
@@ -130,9 +73,6 @@ protected:
     coroutine_context_t swap_ctx_;
     char* stack_;
     uint32_t stack_size_;
-#endif
-#ifdef SW_CONTEXT_PROTECT_STACK_PAGE
-    uint32_t protect_page_;
 #endif
 #ifdef USE_VALGRIND
     uint32_t valgrind_stack_id;

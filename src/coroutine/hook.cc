@@ -722,4 +722,25 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout)
     return retval ? 0 : -1;
 }
 
+int swoole_coroutine_getaddrinfo(const char * name, const char *service, const struct addrinfo *req,
+        struct addrinfo **pai)
+{
+    int retval = -1;
+    swoole::coroutine::async([&]()
+    {
+        retval = getaddrinfo(name, service, req, pai);
+    });
+    return retval;
+}
+
+struct hostent *swoole_coroutine_gethostbyname(const char * name)
+{
+    struct hostent *retval = nullptr;
+    swoole::coroutine::async([&]()
+    {
+        retval = gethostbyname(name);
+    });
+    return retval;
+}
+
 SW_EXTERN_C_END

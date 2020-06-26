@@ -878,6 +878,9 @@ void swServer_init(swServer *serv)
 
     serv->null_fd = -1;
 
+    serv->recv_buffer_size = SW_BUFFER_SIZE_BIG;
+    serv->buffer_allocator = &SwooleG.std_allocator;
+
 #ifdef __linux__
     serv->timezone = timezone;
 #else

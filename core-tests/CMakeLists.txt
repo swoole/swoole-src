@@ -5,7 +5,7 @@ project(core_tests)
 #set(CMAKE_BUILD_TYPE Released)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
-
+        
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
 
 add_definitions(-DHAVE_CONFIG_H)
@@ -24,6 +24,10 @@ endif()
 if (DEFINED brotli_dir) 
     include_directories(BEFORE ${brotli_dir}/include)
     link_directories(${brotli_dir}/lib)
+endif()
+
+if (DEFINED enable_asan) 
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
 link_directories(/usr/local/lib)

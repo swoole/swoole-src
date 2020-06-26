@@ -868,6 +868,7 @@ typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swSocket *, 
 uint32_t swoole_utf8_decode(uchar **p, size_t n);
 size_t swoole_utf8_length(uchar *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
+size_t swoole_random_bytes(char *buf, size_t size);
 
 static sw_inline char *swoole_strlchr(char *p, char *last, char c)
 {
@@ -898,9 +899,13 @@ int swString_repeat(swString *src, const char *data, size_t len, size_t n);
 void swString_print(swString *str);
 int swString_append(swString *str, const swString *append_str);
 int swString_append_ptr(swString *str, const char *append_str, size_t length);
+int swString_append_int(swString *str, int value);
+int swString_append_random_bytes(swString *str, size_t length);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
+void swString_reduce(swString *str, off_t offset);
+char *swString_pop(swString *str, size_t init_size);
 char *swString_alloc(swString *str, size_t __size);
 
 static sw_inline void swString_clear(swString *str)
@@ -911,7 +916,10 @@ static sw_inline void swString_clear(swString *str)
 
 static sw_inline void swString_free(swString *str)
 {
-    str->allocator->free(str->str);
+    if (str->str)
+    {
+        str->allocator->free(str->str);
+    }
     str->allocator->free(str);
 }
 
@@ -938,30 +946,6 @@ static sw_inline int swString_grow(swString *str, size_t incr_value)
     }
 }
 
-/**
- * migrate data to head, [offset, length - offset] -> [0, length - offset]
- */
-static sw_inline void swString_pop_front(swString *str, off_t offset)
-{
-    assert(offset >= 0 && (size_t ) offset <= str->length);
-    if (sw_unlikely(offset == 0)) return;
-    str->length = str->length - offset;
-    str->offset = 0;
-    if (str->length == 0) return;
-    memmove(str->str, str->str + offset, str->length);
-}
-
-static sw_inline void swString_sub(swString *str, off_t start, size_t length)
-{
-    char *from = str->str + start + (start >= 0 ? 0 : str->length);
-    str->length = length != 0 ? length : str->length - start;
-    str->offset = 0;
-    if (sw_likely(str->length > 0))
-    {
-        memmove(str->str, from, str->length);
-    }
-}
-
 //------------------------------Base--------------------------------
 enum _swEventData_flag
 {
@@ -970,6 +954,7 @@ enum _swEventData_flag
     SW_EVENT_DATA_CHUNK = 1u << 2,
     SW_EVENT_DATA_END = 1u << 3,
     SW_EVENT_DATA_OBJ_PTR = 1u << 4,
+    SW_EVENT_DATA_POP_PTR = 1u << 5,
 };
 
 typedef struct _swDataHead
@@ -1484,7 +1469,7 @@ static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack
     return NULL;
 }
 
-static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
+static inline ssize_t swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
 {
     assert(needle_length > 0);
     const char *pos;
@@ -1493,7 +1478,7 @@ static inline int swoole_strnpos(const char *haystack, uint32_t haystack_length,
     return pos == NULL ? -1 : pos - haystack;
 }
 
-static inline int swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
+static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
 {
     uint32_t needle_length = strlen(needle);
     assert(needle_length > 0);
@@ -1747,31 +1732,6 @@ int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk);
 void swSocket_sendfile_destructor(swBuffer_chunk *chunk);
 const char *swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
 int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);
-
-static sw_inline swString *swSocket_get_buffer(swSocket *_socket)
-{
-    swString *buffer = _socket->recv_buffer;
-    if (buffer == NULL)
-    {
-        buffer = swString_new(SW_BUFFER_SIZE_BIG);
-        //alloc memory failed.
-        if (!buffer)
-        {
-            return NULL;
-        }
-        _socket->recv_buffer = buffer;
-    }
-    return buffer;
-}
-
-static sw_inline void swSocket_free_buffer(swSocket *conn)
-{
-    if (conn->recv_buffer)
-    {
-        swString_free(conn->recv_buffer);
-        conn->recv_buffer = NULL;
-    }
-}
 
 #ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH

@@ -158,6 +158,7 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                     request->n_bytes_total = 0;
                     request->n_lines_received++;
                     request->state = SW_REDIS_RECEIVE_LENGTH;
+                    buffer->offset = buffer->length;
 
                     if (request->n_lines_received == request->n_lines_total)
                     {

@@ -62,20 +62,6 @@ TEST(reactor, swReactor_set_handler)
     ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
 }
 
-TEST(reactor, swReactor_close)
-{
-    swReactor reactor;
-
-    swSocket *socket = swSocket_new(10, SW_FD_SESSION);
-    socket->in_buffer = swBuffer_new(SW_BUFFER_MIN_SIZE);
-    socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
-
-    swReactor_close(&reactor, socket);
-
-    ASSERT_EQ(socket->in_buffer, nullptr);
-    ASSERT_EQ(socket->out_buffer, nullptr);
-}
-
 TEST(reactor, swReactor_wait)
 {
     int ret;

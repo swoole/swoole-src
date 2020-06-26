@@ -24,7 +24,7 @@ public:
     coroutine(coroutine_func_t _fn, void *_arg, int *_complete_num) :
             fn(_fn), arg(_arg), complete_num(_complete_num) { }
 
-    void run()
+    void start()
     {
         fn(arg);
         (*complete_num)++;
@@ -36,13 +36,13 @@ public:
 
         long cid = swoole::Coroutine::create([](void *arg)
         {
-            ((coroutine *) arg)->run();
+            ((coroutine *) arg)->start();
             delete (coroutine *) arg;
         }, test);
         ASSERT_GT(cid, 0);
     }
 
-    inline static void test(std::initializer_list<std::pair<coroutine_func_t, void*>> args)
+    inline static void run(std::initializer_list<std::pair<coroutine_func_t, void*>> args)
     {
         int complete_num = 0;
         swoole_event_init();
@@ -54,7 +54,7 @@ public:
         swoole_event_wait();
     }
 
-    inline static void test(std::initializer_list<coroutine_func_t> fns)
+    inline static void run(std::initializer_list<coroutine_func_t> fns)
     {
         int complete_num = 0;
         swoole_event_init();
@@ -66,7 +66,7 @@ public:
         swoole_event_wait();
     }
 
-    inline static void test(coroutine_func_t fn, void *arg = nullptr)
+    inline static void run(coroutine_func_t fn, void *arg = nullptr)
     {
         int complete_num = 0;
         swoole_event_init();

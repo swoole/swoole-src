@@ -32,7 +32,7 @@ for ($n = 100; $n--;) {
 }
 // echo "256K\n";
 $info = co::stats();
-Assert::assert($info['c_stack_size'] == 256 * K);
+Assert::assert($info['c_stack_size'] == 64 * K);
 Assert::assert($info['coroutine_num'] == 200);
 Assert::assert($info['coroutine_peak_num'] == 200);
 

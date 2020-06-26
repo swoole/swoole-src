@@ -132,7 +132,7 @@ swString *System::read_file(const char *file, bool lock)
     task.co->yield();
     if (ev.error == 0)
     {
-        return swoole::new_string((char *) ev.buf, ev.nbytes, nullptr);
+        return (swString *) ev.buf;
     }
     else
     {

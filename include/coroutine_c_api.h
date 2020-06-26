@@ -28,6 +28,7 @@ extern "C"
 #include <sys/wait.h>
 #include <sys/statvfs.h>
 #include <stdint.h>
+#include <netdb.h>
 #include <poll.h>
 
 /**
@@ -67,7 +68,9 @@ int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t 
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
 int swoole_coroutine_socket_set_timeout(int fd, int which, double timeout);
 int swoole_coroutine_socket_wait_event(int fd, int event, double timeout);
-
+int swoole_coroutine_getaddrinfo(const char *name, const char *service, const struct addrinfo *req,
+        struct addrinfo **pai);
+struct hostent *swoole_coroutine_gethostbyname(const char *name);
 /**
  * wait
  */

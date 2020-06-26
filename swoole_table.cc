@@ -371,8 +371,7 @@ PHP_METHOD(swoole_table, __construct)
         RETURN_FALSE;
     }
     table->hash_func = [](const char *key, size_t len) -> uint64_t {
-        zend_string *string = (zend_string *) (key - offsetof(zend_string, val));
-        return zend_string_hash_val(string);
+        return zend_string_hash_val(sw_get_zend_string((void*)key));
     };
     php_swoole_table_set_ptr(ZEND_THIS, table);
 }

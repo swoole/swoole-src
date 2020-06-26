@@ -138,17 +138,19 @@ class ProcessManager
 
     /**
      * 生成一个随机字节组成的数组
-     * @param $n
+     * @param int $n
      * @param int $len 默认为0，表示随机产生长度
+     * @param bool $base64
      * @throws \Exception
      */
-    public function initRandomDataArray($n = 1, $len = 0)
+    public function initRandomDataArray($n = 1, $len = 0, bool $base64 = false)
     {
         while ($n--) {
             if ($len == 0) {
                 $len = rand(1024, 1 * 1024 * 1024);
             }
-            $this->randomDataArray[] = random_bytes($len);
+            $bytes = random_bytes($len);
+            $this->randomDataArray[] = $base64 ? base64_encode($bytes) : $bytes;
         }
     }
 
@@ -158,6 +160,9 @@ class ProcessManager
      */
     public function getRandomDataElement(int $index = 0)
     {
+        if (!isset($this->randomDataArray[$index])) {
+            throw new RuntimeException("out of array");
+        }
         return $this->randomDataArray[$index];
     }
 

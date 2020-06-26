@@ -349,10 +349,11 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool enable_library;
     long socket_buffer_size;
     php_swoole_req_status req_status;
+    swAllocator php_allocator;
+    swAllocator zend_string_allocator;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
-extern swAllocator php_allocator;
 
 #ifdef ZTS
 #define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)
@@ -450,7 +451,7 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 //----------------------------------Zval API------------------------------------
 
 // ide-helper
-#ifdef SW_DEBUG
+#ifdef USE_KQUEUE_IDE_HELPER
 #undef RETURN_BOOL
 #undef RETURN_NULL
 #undef RETURN_LONG
@@ -531,12 +532,25 @@ static sw_inline zend_bool ZVAL_IS_ARRAY(zval *v)
 }
 #endif
 
-static sw_inline zval* sw_malloc_zval()
+static sw_inline zval *sw_malloc_zval()
 {
     return (zval *) emalloc(sizeof(zval));
 }
 
-static sw_inline zval* sw_zval_dup(zval *val)
+static sw_inline zend_string *sw_get_zend_string(void *addr)
+{
+    return (zend_string *) ((char *) addr - offsetof(zend_string, val));
+}
+
+static sw_inline void sw_set_zend_string(zval *zdata, char *addr, size_t length)
+{
+    zend_string *zstr = sw_get_zend_string(addr);
+    addr[length] = 0;
+    zstr->len = length;
+    ZVAL_STR(zdata, zstr);
+}
+
+static sw_inline zval *sw_zval_dup(zval *val)
 {
     zval *dup = sw_malloc_zval();
     memcpy(dup, val, sizeof(zval));
