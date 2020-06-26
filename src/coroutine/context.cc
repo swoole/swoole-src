@@ -35,7 +35,6 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
         fn_(fn), stack_size_(stack_size), private_data_(private_data)
 {
     end_ = false;
-    swap_ctx_ = nullptr;
 
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
     stack_ = (char*) ::mmap(0, stack_size_, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -58,11 +57,16 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
     if (-1 == getcontext(&ctx_))
     {
         swoole_throw_error(SW_ERROR_CO_GETCONTEXT_FAILED);
+        sw_free(stack_);
         return;
     }
+    ctx_.uc_stack.ss_sp = stack_;
+    ctx_.uc_stack.ss_size = stack_size;
+    ctx_.uc_link = nullptr;
     makecontext(&ctx_, (void (*)(void))&context_func, 1, this);
 #else
     ctx_ = make_fcontext(sp, stack_size_, (void (*)(intptr_t))&context_func);
+    swap_ctx_ = nullptr;
 #endif
 
 #ifdef SW_CONTEXT_DETECT_STACK_USAGE
