@@ -916,7 +916,7 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req)
             worker_buffer = (zend_string *) (data - XtOffsetOf(zend_string, val));
             ZVAL_STR(zdata, worker_buffer);
         }
-        else if (req->info.flags & SW_EVENT_DATA_MOVE)
+        else if (req->info.flags & SW_EVENT_DATA_POP_PTR)
         {
             swString *recv_buffer = swServer_get_recv_buffer(serv, swWorker_get_connection(serv, req->info.fd)->socket);
             char *strval = swString_pop(recv_buffer, serv->recv_buffer_size);

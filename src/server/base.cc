@@ -84,7 +84,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
                 && conn->socket->recv_buffer->offset > 0
                 && conn->socket->recv_buffer->length == (size_t) conn->socket->recv_buffer->offset)
         {
-            pkg.info.flags |= SW_EVENT_DATA_MOVE;
+            pkg.info.flags |= SW_EVENT_DATA_POP_PTR;
         }
 
         return swWorker_onTask(factory, (swEventData *) &pkg);

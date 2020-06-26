@@ -972,7 +972,8 @@ bool Socket::check_liveness()
         char buf;
         errno = 0;
         ssize_t retval = swSocket_peek(socket, &buf, sizeof(buf), 0);
-        if (retval == 0 || (retval < 0 && swSocket_error(errno) != SW_WAIT)) {
+        if (retval == 0 || (retval < 0 && swSocket_error(errno) != SW_WAIT))
+        {
             set_err(errno ? errno : ECONNRESET);
             return false;
         }
