@@ -38,8 +38,6 @@
 ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
 {
     int fd = open("/dev/urandom", O_RDONLY);
-    struct stat st;
-
     if (fd < 0)
     {
         return -1;
@@ -49,7 +47,7 @@ ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
     ssize_t n;
     for (read_bytes = 0; read_bytes < size; read_bytes += (size_t) n)
     {
-        n = read(fd, buffer + read_bytes, size - read_bytes);
+        n = read(fd, (char *) buffer + read_bytes, size - read_bytes);
         if (n <= 0)
         {
             break;
