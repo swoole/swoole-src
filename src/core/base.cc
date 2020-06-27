@@ -54,6 +54,8 @@ ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
         }
     }
 
+    close(fd);
+
     return read_bytes;
 }
 #endif
