@@ -12,8 +12,8 @@
   +----------------------------------------------------------------------+
   | @link     https://www.swoole.com/                                    |
   | @contact  team@swoole.com                                            |
-  | @license  https://github.com/swoole/library/blob/master/LICENSE      |
-  | @Author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
+  | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
+  | @author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
   +----------------------------------------------------------------------+
 */
 
