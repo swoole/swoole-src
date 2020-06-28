@@ -18,7 +18,7 @@ TEST(coroutine_socket, connect_refused)
     test::coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("127.0.0.1", 9801, 0.5);
+        bool retval = sock.connect("127.0.0.1", 9801);
         ASSERT_EQ(retval, false);
         ASSERT_EQ(sock.errCode, ECONNREFUSED);
     });
@@ -41,7 +41,7 @@ TEST(coroutine_socket, connect_with_dns)
     test::coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("www.baidu.com", 80, 0.5);
+        bool retval = sock.connect("www.baidu.com", 80);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
     });
@@ -466,7 +466,7 @@ TEST(coroutine_socket, length_1)
 
         Socket *conn = sock.accept();
         char buf[1024];
-        ssize_t l = getrandom(buf + 2, sizeof(buf) - 2, 0);
+        ssize_t l = swoole_random_bytes(buf + 2, sizeof(buf) - 2);
         *(uint16_t *)buf = htons(l);
 
         conn->send(buf, l+2);
@@ -580,14 +580,14 @@ static void length_protocol_server_func(void *arg)
     swString_append_ptr(strbuf, (char*) &pack_len, sizeof(pack_len));
     swString_append_random_bytes(strbuf, l_1);
 
-    pkt_1 = std::move(string(strbuf->str, l_1 + 4));
+    pkt_1 = string(strbuf->str, l_1 + 4);
 
     size_t l_2 = swoole_rand(65536, 65536 * 2);
     pack_len = htonl(l_2);
     swString_append_ptr(strbuf, (char*) &pack_len, sizeof(pack_len));
     swString_append_random_bytes(strbuf, l_2);
 
-    pkt_2 = std::move(string(strbuf->str + pkt_1.length(), l_2 + 4));
+    pkt_2 = string(strbuf->str + pkt_1.length(), l_2 + 4);
 
     conn->send_all(strbuf->str, strbuf->length);
 }

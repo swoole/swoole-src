@@ -10,7 +10,10 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | @link     https://www.swoole.com/                                    |
+  | @contact  team@swoole.com                                            |
+  | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
+  | @author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
   +----------------------------------------------------------------------+
 */
 
