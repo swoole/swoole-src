@@ -3,8 +3,6 @@
 #include "test_server.h"
 #include "swoole_cxx.h"
 
-#include <sys/random.h>
-
 using namespace swoole::test;
 
 using swoole::coroutine::Socket;
