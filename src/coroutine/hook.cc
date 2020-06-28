@@ -723,30 +723,32 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout)
     return retval ? 0 : -1;
 }
 
-int swoole_coroutine_getaddrinfo(const char * name, const char *service, const struct addrinfo *req,
+int swoole_coroutine_getaddrinfo(const char *name, const char *service, const struct addrinfo *req,
         struct addrinfo **pai)
 {
     int retval = -1;
-    int error = 0;
+    int _tmp_errno = 0;
     swoole::coroutine::async([&]()
     {
         retval = getaddrinfo(name, service, req, pai);
-        error = errno;
+        _tmp_errno = errno;
     });
-    errno = error;
+    errno = _tmp_errno;
     return retval;
 }
 
-struct hostent *swoole_coroutine_gethostbyname(const char * name)
+struct hostent *swoole_coroutine_gethostbyname(const char *name)
 {
     struct hostent *retval = nullptr;
-    int error = 0;
+    int _tmp_errno = 0, _tmp_h_errno;
     swoole::coroutine::async([&]()
     {
         retval = gethostbyname(name);
-        error = errno;
+        _tmp_errno = errno;
+        _tmp_h_errno = h_errno;
     });
-    errno = error;
+    errno = _tmp_errno;
+    h_errno = _tmp_h_errno;
     return retval;
 }
 

@@ -35,7 +35,7 @@
 #ifdef HAVE_GETRANDOM
 #include <sys/random.h>
 #else
-ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
+static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
 {
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0)
