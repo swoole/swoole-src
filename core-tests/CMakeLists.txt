@@ -59,8 +59,9 @@ if (DEFINED enable_asan)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
+link_directories(${core_tests_link_directories})
+
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 add_executable(core_tests ${SOURCE_FILES})
 target_include_directories(core_tests PRIVATE ${core_tests_includes})
-link_directories(${core_tests_link_directories})
 target_link_libraries(core_tests ${core_tests_libraries})
