@@ -18,7 +18,8 @@ jobs:
            sudo make &&
            sudo make install &&
            cd - &&
-           sudo rm -rf /usr/src/googletest/googletest/build
+           sudo rm -rf /usr/src/googletest/googletest/build &&
+           ls /usr/local/lib
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
     - name: make
