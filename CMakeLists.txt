@@ -69,7 +69,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 
 # lib-swoole
 link_directories(${LIBRARY_OUTPUT_PATH})
-add_library(lib-swoole STATIC ${SRC_LIST})
+add_library(lib-swoole SHARED ${SRC_LIST})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
 if(CODE_COVERAGE)

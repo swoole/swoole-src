@@ -32,7 +32,7 @@ if (DEFINED swoole_dir)
     list(APPEND core_tests_link_directories ${swoole_dir}/lib)
 else()
     list(APPEND core_tests_includes /usr/local/include/swoole /usr/include/swoole)
-    list(APPEND core_tests_libraries swoole.a)
+    list(APPEND core_tests_libraries swoole)
 endif()
 
 # find OpenSSL
