@@ -8,13 +8,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-set(libswoole_cxx_flags)
+set(SWOOLE_CLFLAGS pthread dl)
 
 if (APPLE)
-    set(SWOOLE_CLFLAGS pthread dl ssl crypto)
     set(CMAKE_SHARED_LINKER_FLAGS "-undefined dynamic_lookup")
 else()
-    set(SWOOLE_CLFLAGS pthread rt dl ssl crypt crypto)
+    list(APPEND SWOOLE_CLFLAGS rt crypt)
 endif()
 
 SET(CMAKE_BUILD_TYPE Debug)
@@ -25,7 +24,7 @@ add_library(coverage_config INTERFACE)
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
 if(CODE_COVERAGE)
     message(STATUS "Open coverage")
-    list(APPEND libswoole_cxx_flags -fprofile-arcs -ftest-coverage)
+    # --coverage => -fprofile-arcs -ftest-coverage
     target_compile_options(coverage_config INTERFACE
         -O0
         -g
@@ -55,9 +54,19 @@ add_definitions(-DHAVE_CONFIG_H)
 include_directories(BEFORE ./include ./include/wrapper ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
+# find OpenSSL
 if (DEFINED openssl_dir) 
     include_directories(BEFORE ${openssl_dir}/include)
     link_directories(${openssl_dir}/lib)
+else()
+    find_package(OpenSSL)
+    if (${OPENSSL_FOUND})
+        message(STATUS "Found OpenSSL")
+        include_directories(BEFORE ${OPENSSL_INCLUDE_DIR})
+        list(APPEND SWOOLE_CLFLAGS ${OPENSSL_LIBRARIES})
+    else()
+        message(STATUS "Not found OpenSSL")
+    endif()
 endif()
 
 if (DEFINED brotli_dir) 
@@ -73,7 +82,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 # lib-swoole
 link_directories(${LIBRARY_OUTPUT_PATH})
 add_library(lib-swoole SHARED ${SRC_LIST})
-target_compile_options(lib-swoole PRIVATE ${libswoole_cxx_flags})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
 if(CODE_COVERAGE)
