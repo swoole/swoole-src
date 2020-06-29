@@ -4,7 +4,7 @@ project(core_tests)
 
 #set(CMAKE_BUILD_TYPE Released)
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g -fprofile-arcs -ftest-coverage")
         
 file(GLOB_RECURSE SOURCE_FILES FOLLOW_SYMLINKS src/*.cpp)
 
@@ -32,7 +32,7 @@ if (DEFINED swoole_dir)
     list(APPEND core_tests_link_directories ${swoole_dir}/lib)
 else()
     list(APPEND core_tests_includes /usr/local/include/swoole /usr/include/swoole)
-    list(APPEND core_tests_libraries swoole)
+    list(APPEND core_tests_libraries swoole.a)
 endif()
 
 # find OpenSSL
@@ -59,6 +59,7 @@ if (DEFINED enable_asan)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
 endif()
 
+# should execute before the add_executable command
 link_directories(${core_tests_link_directories})
 
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
