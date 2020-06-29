@@ -15,7 +15,7 @@ jobs:
            cd /usr/src/googletest/googletest &&
            sudo mkdir build &&
            cd build &&
-           sudo cmake .. -DCODE_COVERAGE=ON &&
+           sudo cmake .. &&
            sudo make &&
            sudo make install &&
            cd - &&
@@ -28,7 +28,7 @@ jobs:
       run: cmake . && make && sudo make install
 
     - name: make test
-      run: cd core-tests && ./run.sh
+      run: cd core-tests && cmake . -DCODE_COVERAGE=ON && make -j8 && ./bin/core_tests
 
     - name: run coverage
       shell: bash
