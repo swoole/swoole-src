@@ -95,14 +95,16 @@ TEST(log, rotation)
 
 TEST(log, redirect)
 {
-    swLog_reset();
-    swLog_open(file);
     int retval;
+    swLog_reset();
+    retval = swLog_open(file);
+    ASSERT_EQ(retval, SW_OK);
 
     retval = swLog_redirect_stdout_and_stderr(1);
     ASSERT_EQ(retval, SW_OK);
     printf("hello world\n");
     swoole::String content(swoole_file_get_contents(file));
+    ASSERT_NE(content.get(), nullptr);
 
     swLog_close();
     retval = swLog_redirect_stdout_and_stderr(0);
