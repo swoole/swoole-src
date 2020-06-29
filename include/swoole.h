@@ -448,13 +448,13 @@ enum swWorker_status
 //-------------------------------------------------------------------------------
 
 #define swInfo(str,...) \
-    if (SW_LOG_INFO >= SwooleG.log_level) { \
+    if (SW_LOG_INFO >= swLog_get_level()) { \
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__); \
         SwooleG.write_log(SW_LOG_INFO, sw_error, _sw_error_len); \
     }
 
 #define swNotice(str,...) \
-    if (SW_LOG_NOTICE >= SwooleG.log_level) { \
+    if (SW_LOG_NOTICE >= swLog_get_level()) { \
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__); \
         SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_error_len); \
     }
@@ -462,7 +462,7 @@ enum swWorker_status
 #define swSysNotice(str,...) \
     do{ \
         SwooleG.error = errno; \
-        if (SW_LOG_ERROR >= SwooleG.log_level) { \
+        if (SW_LOG_ERROR >= swLog_get_level()) { \
             size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,swoole_strerror(errno),errno); \
             SwooleG.write_log(SW_LOG_NOTICE, sw_error, _sw_error_len); \
         } \
@@ -470,7 +470,7 @@ enum swWorker_status
 
 #define swWarn(str,...) \
     do{ \
-        if (SW_LOG_WARNING >= SwooleG.log_level) { \
+        if (SW_LOG_WARNING >= swLog_get_level()) { \
             size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__); \
             SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_error_len); \
         } \
@@ -479,7 +479,7 @@ enum swWorker_status
 #define swSysWarn(str,...) \
     do{ \
         SwooleG.error = errno; \
-        if (SW_LOG_ERROR >= SwooleG.log_level) { \
+        if (SW_LOG_ERROR >= swLog_get_level()) { \
             size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,swoole_strerror(errno),errno); \
             SwooleG.write_log(SW_LOG_WARNING, sw_error, _sw_error_len); \
         } \
@@ -508,7 +508,7 @@ enum swWorker_status
 #define swoole_error_log(level, __errno, str, ...) \
     do{ \
         SwooleG.error = __errno; \
-        if (level >= SwooleG.log_level){ \
+        if (level >= swLog_get_level()){ \
             size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERRNO %d): " str,__func__,__errno,##__VA_ARGS__); \
             SwooleG.write_log(level, sw_error, _sw_error_len); \
         } \
@@ -516,7 +516,7 @@ enum swWorker_status
 
 #ifdef SW_DEBUG
 #define swDebug(str,...) \
-    if (SW_LOG_DEBUG >= SwooleG.log_level) { \
+    if (SW_LOG_DEBUG >= swLog_get_level()) { \
         size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__); \
         SwooleG.write_log(SW_LOG_DEBUG, sw_error, _sw_error_len); \
     }
@@ -590,7 +590,7 @@ enum swTrace_type
 
 #ifdef SW_LOG_TRACE_OPEN
 #define swTraceLog(what,str,...) \
-    if (SW_LOG_TRACE >= SwooleG.log_level && (what & SwooleG.trace_flags)) {\
+    if (SW_LOG_TRACE >= swLog_get_level() && (what & SwooleG.trace_flags)) {\
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
         SwooleG.write_log(SW_LOG_TRACE, sw_error, _sw_error_len);\
     }
@@ -1363,14 +1363,17 @@ enum swPipe_type
 //----------------------Logger---------------------
 int swLog_open(const char *logfile);
 void swLog_put(int level, const char *content, size_t length);
-void swLog_reopen(enum swBool_type redirect);
+void swLog_reopen();
 void swLog_close(void);
 void swLog_reset();
 void swLog_set_level(int lv);
+int swLog_get_level();
 int swLog_set_date_format(const char *format);
 void swLog_set_rotation(int rotation);
 const char *swLog_get_real_file();
 const char *swLog_get_file();
+int swLog_is_opened();
+int swLog_redirect_stdout_and_stderr(int enable);
 void swLog_set_date_with_microseconds(uchar enable);
 
 //----------------------Tool Function---------------------
@@ -2518,9 +2521,7 @@ typedef struct
     pid_t pid;
 
     int signal_fd;
-    int log_fd;
 
-    int log_level;
     uint32_t trace_flags;
 
     void (*write_log)(int level, const char *content, size_t len);

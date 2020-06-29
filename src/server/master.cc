@@ -693,9 +693,9 @@ int swServer_start(swServer *serv)
         /**
          * redirect STDOUT to log file
          */
-        if (SwooleG.log_fd > STDOUT_FILENO)
+        if (swLog_is_opened())
         {
-            swoole_redirect_stdout(SwooleG.log_fd);
+            swLog_redirect_stdout_and_stderr(1);
         }
         /**
          * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
@@ -880,6 +880,7 @@ void swServer_init(swServer *serv)
 
     serv->recv_buffer_size = SW_BUFFER_SIZE_BIG;
     serv->buffer_allocator = &SwooleG.std_allocator;
+    serv->ipc_max_size = SW_IPC_MAX_SIZE;
 
 #ifdef __linux__
     serv->timezone = timezone;
@@ -1921,8 +1922,10 @@ static void swServer_signal_handler(int sig)
         {
             swoole_kill(serv->gs->manager_pid, sig);
         }
+        swLog_reopen();
         break;
     default:
+
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
@@ -1937,7 +1940,7 @@ static void swServer_signal_handler(int sig)
             {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
-            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen();
         }
 #endif
         break;

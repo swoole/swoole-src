@@ -99,7 +99,6 @@ void swoole_init(void)
     SwooleG.std_allocator.realloc = sw_realloc;
     SwooleG.std_allocator.free = sw_free;
 
-    SwooleG.log_fd = STDOUT_FILENO;
     SwooleG.write_log = swLog_put;
     SwooleG.fatal_error = swoole_fatal_error;
 
@@ -113,10 +112,10 @@ void swoole_init(void)
     SwooleG.pid = getpid();
 
 #ifdef SW_DEBUG
-    SwooleG.log_level = 0;
+    swLog_set_level(0);
     SwooleG.trace_flags = 0x7fffffff;
 #else
-    SwooleG.log_level = SW_LOG_INFO;
+    swLog_set_level(SW_LOG_INFO);
 #endif
 
     //init global shared memory
@@ -257,7 +256,7 @@ pid_t swoole_fork(int flags)
             /**
              * reopen log file
              */
-            swLog_reopen(SW_FALSE);
+            swLog_reopen();
             /**
              * reset eventLoop
              */

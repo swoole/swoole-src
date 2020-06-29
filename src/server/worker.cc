@@ -80,14 +80,14 @@ void swWorker_signal_handler(int signo)
         swWarn("SIGVTALRM coming");
         break;
     case SIGUSR1:
-        break;
     case SIGUSR2:
+        swLog_reopen();
         break;
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN)
         {
-            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen();
         }
 #endif
         break;
@@ -435,6 +435,11 @@ void swWorker_onStart(swServer *serv)
         {
             swSocket_set_nonblock(worker->pipe_master);
         }
+    }
+
+    if (swLog_is_opened())
+    {
+        swLog_reopen();
     }
 
     SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);

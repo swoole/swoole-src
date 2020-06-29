@@ -603,6 +603,7 @@ static void swManager_signal_handler(int sig)
             ManagerProcess.reloading = true;
             ManagerProcess.reload_all_worker = true;
         }
+        swLog_reopen();
         break;
         /**
          * only reload task workers
@@ -613,6 +614,7 @@ static void swManager_signal_handler(int sig)
             ManagerProcess.reloading = true;
             ManagerProcess.reload_task_worker = true;
         }
+        swLog_reopen();
         break;
     case SIGIO:
         ManagerProcess.read_message = true;
@@ -632,7 +634,7 @@ static void swManager_signal_handler(int sig)
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
-            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen();
         }
 #endif
         break;
