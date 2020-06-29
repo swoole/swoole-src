@@ -8,8 +8,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-set(libswoole_cxx_flags)
-
 if (APPLE)
     set(SWOOLE_CLFLAGS pthread dl ssl crypto)
     set(CMAKE_SHARED_LINKER_FLAGS "-undefined dynamic_lookup")
@@ -25,7 +23,7 @@ add_library(coverage_config INTERFACE)
 option(CODE_COVERAGE "Enable coverage reporting" OFF)
 if(CODE_COVERAGE)
     message(STATUS "Open coverage")
-    list(APPEND libswoole_cxx_flags -fprofile-arcs -ftest-coverage)
+    # --coverage => -fprofile-arcs -ftest-coverage
     target_compile_options(coverage_config INTERFACE
         -O0
         -g
@@ -73,7 +71,6 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 # lib-swoole
 link_directories(${LIBRARY_OUTPUT_PATH})
 add_library(lib-swoole SHARED ${SRC_LIST})
-target_compile_options(lib-swoole PRIVATE ${libswoole_cxx_flags})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
 if(CODE_COVERAGE)
