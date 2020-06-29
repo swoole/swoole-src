@@ -31,7 +31,7 @@ jobs:
       run: cmake . -DCODE_COVERAGE=ON && make && sudo make install
 
     - name: make test
-      run: cd core-tests && cmake . && make -j8 && ./bin/core_tests
+      run: cd core-tests && ./run.sh
 
     - name: run coverage
       shell: bash
