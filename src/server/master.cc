@@ -1921,6 +1921,7 @@ static void swServer_signal_handler(int sig)
         {
             swoole_kill(serv->gs->manager_pid, sig);
         }
+        swLog_reopen();
         break;
     default:
 
