@@ -880,6 +880,7 @@ void swServer_init(swServer *serv)
 
     serv->recv_buffer_size = SW_BUFFER_SIZE_BIG;
     serv->buffer_allocator = &SwooleG.std_allocator;
+    serv->ipc_max_size = SW_IPC_MAX_SIZE;
 
 #ifdef __linux__
     serv->timezone = timezone;
