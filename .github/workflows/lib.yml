@@ -15,7 +15,7 @@ jobs:
            cd /usr/src/googletest/googletest &&
            sudo mkdir build &&
            cd build &&
-           sudo cmake .. &&
+           sudo cmake .. -DCODE_COVERAGE=ON &&
            sudo make &&
            sudo make install &&
            cd - &&
