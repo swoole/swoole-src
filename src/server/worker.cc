@@ -87,7 +87,7 @@ void swWorker_signal_handler(int signo)
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN)
         {
-            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen();
         }
 #endif
         break;
