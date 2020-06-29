@@ -25,10 +25,10 @@ jobs:
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
 
     - name: make
-      run: cmake . && make && sudo make install
+      run: cmake . -DCODE_COVERAGE=ON && make && sudo make install
 
     - name: make test
-      run: cd core-tests && cmake . -DCODE_COVERAGE=ON && make -j8 && ./bin/core_tests
+      run: cd core-tests && cmake . && make -j8 && ./bin/core_tests
 
     - name: run coverage
       shell: bash
