@@ -231,7 +231,7 @@ void php_swoole_set_global_option(HashTable *vht)
     zval *ztmp;
 
 #ifdef SW_DEBUG
-    if (php_swoole_array_get_value(vht, "debug_mode", ztmp) && zval_get_long(ztmp))
+    if (php_swoole_array_get_value(vht, "debug_mode", ztmp) && zval_is_true(ztmp))
     {
         swLog_set_level(0);
     }
