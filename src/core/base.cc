@@ -256,7 +256,7 @@ pid_t swoole_fork(int flags)
             /**
              * reopen log file
              */
-            swLog_reopen(SW_FALSE);
+            swLog_reopen();
             /**
              * reset eventLoop
              */
