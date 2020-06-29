@@ -26,7 +26,12 @@
 static struct
 {
     bool opened = false;
-    bool redirect_stdout = false;
+    /**
+     * Redirect stdin and stdout to log_fd
+     */
+    bool redirected = false;
+    int stdout_fd = -1;
+    int stderr_fd = -1;
     int log_fd = STDOUT_FILENO;
     int log_level = SW_LOG_INFO;
     bool date_with_microseconds = false;
@@ -109,13 +114,56 @@ void swLog_set_rotation(int _rotation)
     swLog_G.log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
 }
 
-void swLog_set_redirect_stdout(int enable)
+int swLog_redirect_stdout_and_stderr(int enable)
 {
-    if (enable && swLog_G.opened)
+    if (enable)
     {
+        if (!swLog_G.opened)
+        {
+            swWarn("no log file opened");
+            return SW_ERR;
+        }
+        if (swLog_G.redirected)
+        {
+            swWarn("has been redirected");
+            return SW_ERR;
+        }
+        if ((swLog_G.stdout_fd = dup( STDOUT_FILENO)) < 0)
+        {
+            swSysWarn("dup(STDOUT_FILENO) failed");
+            return SW_ERR;
+        }
+        if ((swLog_G.stderr_fd = dup(STDERR_FILENO)) < 0)
+        {
+            swSysWarn("dup(STDERR_FILENO) failed");
+            return SW_ERR;
+        }
         swoole_redirect_stdout(swLog_G.log_fd);
-        swLog_G.redirect_stdout = true;
+        swLog_G.redirected = true;
     }
+    else
+    {
+        if (!swLog_G.redirected)
+        {
+            swWarn("no redirected");
+            return SW_ERR;
+        }
+        if (dup2(swLog_G.stdout_fd, STDOUT_FILENO) < 0)
+        {
+            swSysWarn("dup2(STDOUT_FILENO) failed");
+        }
+        if (dup2(swLog_G.stderr_fd, STDERR_FILENO) < 0)
+        {
+            swSysWarn("dup2(STDERR_FILENO) failed");
+        }
+        close(swLog_G.stdout_fd);
+        close(swLog_G.stderr_fd);
+        swLog_G.stdout_fd = -1;
+        swLog_G.stderr_fd = -1;
+        swLog_G.redirected = false;
+    }
+
+    return SW_OK;
 }
 
 void swLog_reset()
@@ -171,7 +219,7 @@ void swLog_reopen()
     /**
      * redirect STDOUT & STDERR to log file
      */
-    if (swLog_G.redirect_stdout)
+    if (swLog_G.redirected)
     {
         swoole_redirect_stdout(swLog_G.log_fd);
     }

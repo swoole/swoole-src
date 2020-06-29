@@ -92,3 +92,22 @@ TEST(log, rotation)
     swLog_close();
     unlink(swLog_get_real_file());
 }
+
+TEST(log, redirect)
+{
+    swLog_reset();
+    swLog_open(file);
+    int retval;
+
+    retval = swLog_redirect_stdout_and_stderr(1);
+    ASSERT_EQ(retval, SW_OK);
+    printf("hello world\n");
+    swoole::String content(swoole_file_get_contents(file));
+
+    swLog_close();
+    retval = swLog_redirect_stdout_and_stderr(0);
+    ASSERT_EQ(retval, SW_OK);
+    unlink(swLog_get_real_file());
+
+    ASSERT_TRUE(swString_contains(content.get(), SW_STRL("hello world\n")));
+}

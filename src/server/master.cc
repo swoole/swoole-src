@@ -695,7 +695,7 @@ int swServer_start(swServer *serv)
          */
         if (swLog_is_opened())
         {
-            swLog_set_redirect_stdout(1);
+            swLog_redirect_stdout_and_stderr(1);
         }
         /**
          * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null

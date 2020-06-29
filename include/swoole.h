@@ -1373,7 +1373,7 @@ void swLog_set_rotation(int rotation);
 const char *swLog_get_real_file();
 const char *swLog_get_file();
 int swLog_is_opened();
-void swLog_set_redirect_stdout(int enable);
+int swLog_redirect_stdout_and_stderr(int enable);
 void swLog_set_date_with_microseconds(uchar enable);
 
 //----------------------Tool Function---------------------
