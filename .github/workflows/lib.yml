@@ -35,7 +35,7 @@ jobs:
 
     - name: run coverage
       shell: bash
-      run: pwd && ls && sudo apt-get install lcov &&
+      run: sudo apt-get install lcov &&
           sudo lcov --directory . --capture --output-file coverage.info &&
           sudo lcov --remove coverage.info "${{runner.workspace}}/swoole-src/include/*" '/usr/*' --output-file coverage.info &&
           sudo lcov --list coverage.info &&
