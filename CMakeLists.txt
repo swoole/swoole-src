@@ -8,6 +8,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
+set(libswoole_cxx_flags)
+
 if (APPLE)
     set(SWOOLE_CLFLAGS pthread dl ssl crypto)
     set(CMAKE_SHARED_LINKER_FLAGS "-undefined dynamic_lookup")
@@ -16,6 +18,25 @@ else()
 endif()
 
 SET(CMAKE_BUILD_TYPE Debug)
+
+# Code Coverage Configuration
+add_library(coverage_config INTERFACE)
+
+option(CODE_COVERAGE "Enable coverage reporting" OFF)
+if(CODE_COVERAGE)
+    message(STATUS "Open coverage")
+    list(APPEND libswoole_cxx_flags -fprofile-arcs -ftest-coverage)
+    target_compile_options(coverage_config INTERFACE
+        -O0
+        -g
+        --coverage
+    )
+    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
+        target_link_options(coverage_config INTERFACE --coverage)
+    else()
+        target_link_libraries(coverage_config INTERFACE --coverage)
+    endif()
+endif(CODE_COVERAGE)
 
 file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc thirdparty/boost/asm/combined.S)
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
@@ -52,8 +73,12 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 # lib-swoole
 link_directories(${LIBRARY_OUTPUT_PATH})
 add_library(lib-swoole SHARED ${SRC_LIST})
+target_compile_options(lib-swoole PRIVATE ${libswoole_cxx_flags})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
 target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
+if(CODE_COVERAGE)
+    target_link_libraries(lib-swoole coverage_config gcov)
+endif(CODE_COVERAGE)
 
 # test_server
 set(TEST_SRC_LIST examples/cpp/test_server.cc)

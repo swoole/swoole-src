@@ -2,6 +2,9 @@ name: lib-swoole
 
 on: [push, pull_request]
 
+env:
+  CODECOV_TOKEN: "50513381-198e-43d3-a8b1-e36b95038927" # from: https://codecov.io/gh/swoole/swoole-src
+
 jobs:
   build:
 
@@ -9,6 +12,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+
     - name: gtest_install
       run: sudo apt install -y googletest libgtest-dev &&
            cd /usr/src/googletest/googletest &&
@@ -19,9 +23,21 @@ jobs:
            sudo make install &&
            cd - &&
            sudo rm -rf /usr/src/googletest/googletest/build
+
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
+
     - name: make
-      run: cmake . && make && sudo make install
+      run: cmake . -DCODE_COVERAGE=ON && make && sudo make install
+
     - name: make test
       run: cd core-tests && ./run.sh
+
+    - name: run coverage
+      shell: bash
+      run: sudo apt-get install lcov &&
+          sudo lcov --directory . --capture --output-file coverage.info &&
+          sudo lcov --remove coverage.info "${{runner.workspace}}/swoole-src/include/*" '/usr/*' --output-file coverage.info &&
+          sudo lcov --list coverage.info &&
+          sudo curl -s https://codecov.io/bash -o codecov.sh &&
+          sudo chmod +x codecov.sh && sudo ./codecov.sh -f coverage.info -t ${CODECOV_TOKEN}
