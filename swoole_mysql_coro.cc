@@ -2332,6 +2332,7 @@ static void swoole_mysql_coro_query_transcation(INTERNAL_FUNCTION_PARAMETERS, co
     mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
     mc->query(return_value, command, command_length);
     mc->del_timeout_controller();
+    swoole_mysql_coro_sync_query_result_properties(ZEND_THIS, mc, return_value);
 }
 
 static PHP_METHOD(swoole_mysql_coro, begin)
