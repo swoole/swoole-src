@@ -96,6 +96,12 @@ TEST(log, rotation)
 TEST(log, redirect)
 {
     int retval;
+    char *p = getenv("GITHUB_ACTIONS");
+    if (p)
+    {
+        return;
+    }
+
     swLog_reset();
     retval = swLog_open(file);
     ASSERT_EQ(retval, SW_OK);
