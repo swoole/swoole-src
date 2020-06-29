@@ -197,11 +197,6 @@ static std::string swLog_gen_real_file(const std::string &file)
     return real_file;
 }
 
-int swLog_get_fd()
-{
-    return swLog_G.log_fd;
-}
-
 int swLog_is_opened()
 {
     return swLog_G.opened;

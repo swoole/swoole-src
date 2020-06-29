@@ -1372,7 +1372,6 @@ int swLog_set_date_format(const char *format);
 void swLog_set_rotation(int rotation);
 const char *swLog_get_real_file();
 const char *swLog_get_file();
-int swLog_get_fd();
 int swLog_is_opened();
 void swLog_set_redirect_stdout(int enable);
 void swLog_set_date_with_microseconds(uchar enable);
