@@ -693,9 +693,9 @@ int swServer_start(swServer *serv)
         /**
          * redirect STDOUT to log file
          */
-        if (SwooleG.log_fd > STDOUT_FILENO)
+        if (swLog_is_opened())
         {
-            swoole_redirect_stdout(SwooleG.log_fd);
+            swLog_set_redirect_stdout(1);
         }
         /**
          * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
@@ -1923,6 +1923,7 @@ static void swServer_signal_handler(int sig)
         }
         break;
     default:
+
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
@@ -1937,7 +1938,7 @@ static void swServer_signal_handler(int sig)
             {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
-            swLog_reopen(sw_server()->daemonize ? SW_TRUE : SW_FALSE);
+            swLog_reopen();
         }
 #endif
         break;

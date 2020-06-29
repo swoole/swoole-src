@@ -23,47 +23,53 @@
 #define SW_LOG_DATE_STRLEN  128
 #define SW_LOG_DEFAULT_DATE_FORMAT  "%F %T"
 
-static bool opened = false;
-static bool date_with_microseconds = false;
-static std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
-static std::string log_file = "";
-static std::string log_real_file;
-static int log_rotation = SW_LOG_ROTATION_SINGLE;
+static struct
+{
+    bool opened = false;
+    bool redirect_stdout = false;
+    int log_fd = STDOUT_FILENO;
+    int log_level = SW_LOG_INFO;
+    bool date_with_microseconds = false;
+    std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
+    std::string log_file = "";
+    std::string log_real_file;
+    int log_rotation = SW_LOG_ROTATION_SINGLE;
+} swLog_G;
 
 static std::string swLog_gen_real_file(const std::string &file);
 
 int swLog_open(const char *_log_file)
 {
-    if (opened)
+    if (swLog_G.opened)
     {
         swLog_close();
     }
 
-    log_file = _log_file;
+    swLog_G.log_file = _log_file;
 
-    if (log_rotation)
+    if (swLog_G.log_rotation)
     {
-        log_real_file = swLog_gen_real_file(log_file);
+        swLog_G.log_real_file = swLog_gen_real_file(swLog_G.log_file);
     }
     else
     {
-        log_real_file = log_file;
+        swLog_G.log_real_file = swLog_G.log_file;
     }
 
-    SwooleG.log_fd = open(log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
-    if (SwooleG.log_fd < 0)
+    swLog_G.log_fd = open(swLog_G.log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
+    if (swLog_G.log_fd < 0)
     {
-        printf("open(%s) failed. Error: %s[%d]\n", log_real_file.c_str(), strerror(errno), errno);
-        SwooleG.log_fd = STDOUT_FILENO;
-        opened = false;
-        log_file = "";
-        log_real_file = "";
+        printf("open(%s) failed. Error: %s[%d]\n", swLog_G.log_real_file.c_str(), strerror(errno), errno);
+        swLog_G.log_fd = STDOUT_FILENO;
+        swLog_G.opened = false;
+        swLog_G.log_file = "";
+        swLog_G.log_real_file = "";
 
         return SW_ERR;
     }
     else
     {
-        opened = true;
+        swLog_G.opened = true;
 
         return SW_OK;
     }
@@ -71,13 +77,18 @@ int swLog_open(const char *_log_file)
 
 void swLog_close(void)
 {
-    if (opened)
+    if (swLog_G.opened)
     {
-        close(SwooleG.log_fd);
-        SwooleG.log_fd = STDOUT_FILENO;
-        log_file = "";
-        opened = false;
+        close(swLog_G.log_fd);
+        swLog_G.log_fd = STDOUT_FILENO;
+        swLog_G.log_file = "";
+        swLog_G.opened = false;
     }
+}
+
+int swLog_get_level()
+{
+    return swLog_G.log_level;
 }
 
 void swLog_set_level(int level)
@@ -90,20 +101,29 @@ void swLog_set_level(int level)
     {
         level = SW_LOG_NONE;
     }
-    SwooleG.log_level = level;
+    swLog_G.log_level = level;
 }
 
 void swLog_set_rotation(int _rotation)
 {
-    log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
+    swLog_G.log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
+}
+
+void swLog_set_redirect_stdout(int enable)
+{
+    if (enable && swLog_G.opened)
+    {
+        swoole_redirect_stdout(swLog_G.log_fd);
+        swLog_G.redirect_stdout = true;
+    }
 }
 
 void swLog_reset()
 {
-    date_format = SW_LOG_DEFAULT_DATE_FORMAT;
-    date_with_microseconds = false;
-    log_rotation = SW_LOG_ROTATION_SINGLE;
-    SwooleG.log_level = SW_LOG_INFO;
+    swLog_G.date_format = SW_LOG_DEFAULT_DATE_FORMAT;
+    swLog_G.date_with_microseconds = false;
+    swLog_G.log_rotation = SW_LOG_ROTATION_SINGLE;
+    swLog_G.log_level = SW_LOG_INFO;
 }
 
 int swLog_set_date_format(const char *format)
@@ -124,7 +144,7 @@ int swLog_set_date_format(const char *format)
     }
     else
     {
-        date_format = format;
+        swLog_G.date_format = format;
 
         return SW_OK;
     }
@@ -132,39 +152,39 @@ int swLog_set_date_format(const char *format)
 
 void swLog_set_date_with_microseconds(uchar enable)
 {
-    date_with_microseconds = enable;
+    swLog_G.date_with_microseconds = enable;
 }
 
 /**
  * reopen log file
  */
-void swLog_reopen(enum swBool_type redirect)
+void swLog_reopen()
 {
-    if (!opened)
+    if (!swLog_G.opened)
     {
         return;
     }
 
-    std::string new_log_file(log_file);
+    std::string new_log_file(swLog_G.log_file);
     swLog_close();
     swLog_open(new_log_file.c_str());
     /**
      * redirect STDOUT & STDERR to log file
      */
-    if (redirect)
+    if (swLog_G.redirect_stdout)
     {
-        swoole_redirect_stdout(SwooleG.log_fd);
+        swoole_redirect_stdout(swLog_G.log_fd);
     }
 }
 
 const char* swLog_get_real_file()
 {
-    return log_real_file.c_str();
+    return swLog_G.log_real_file.c_str();
 }
 
 const char* swLog_get_file()
 {
-    return log_file.c_str();
+    return swLog_G.log_file.c_str();
 }
 
 static std::string swLog_gen_real_file(const std::string &file)
@@ -177,6 +197,16 @@ static std::string swLog_gen_real_file(const std::string &file)
     return real_file;
 }
 
+int swLog_get_fd()
+{
+    return swLog_G.log_fd;
+}
+
+int swLog_is_opened()
+{
+    return swLog_G.opened;
+}
+
 void swLog_put(int level, const char *content, size_t length)
 {
     const char *level_str;
@@ -184,7 +214,7 @@ void swLog_put(int level, const char *content, size_t length)
     char log_str[SW_LOG_BUFFER_SIZE];
     int n;
 
-    if (level < SwooleG.log_level)
+    if (level < swLog_G.log_level)
     {
         return;
     }
@@ -214,18 +244,18 @@ void swLog_put(int level, const char *content, size_t length)
 
     auto now = std::chrono::system_clock::now();
     auto now_sec = std::chrono::system_clock::to_time_t(now);
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&now_sec));
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), swLog_G.date_format.c_str(), std::localtime(&now_sec));
 
-    if (log_rotation)
+    if (swLog_G.log_rotation)
     {
-        std::string tmp = swLog_gen_real_file(log_file);
-        if (tmp != log_real_file)
+        std::string tmp = swLog_gen_real_file(swLog_G.log_file);
+        if (tmp != swLog_G.log_real_file)
         {
-            swLog_reopen(SW_FALSE);
+            swLog_reopen();
         }
     }
 
-    if (date_with_microseconds)
+    if (swLog_G.date_with_microseconds)
     {
         auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
         l_data_str += sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%ld>",
@@ -258,17 +288,17 @@ void swLog_put(int level, const char *content, size_t length)
 
     n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", (int) l_data_str, date_str, process_flag, SwooleG.pid, process_id, level_str, (int) length, content);
 
-    if (opened && flock(SwooleG.log_fd, LOCK_EX) == -1)
+    if (swLog_G.opened && flock(swLog_G.log_fd, LOCK_EX) == -1)
     {
-        printf("flock(%d, LOCK_EX) failed. Error: %s[%d]\n", SwooleG.log_fd, strerror(errno), errno);
+        printf("flock(%d, LOCK_EX) failed. Error: %s[%d]\n", swLog_G.log_fd, strerror(errno), errno);
         goto _print;
     }
-    if (write(SwooleG.log_fd, log_str, n) < 0)
+    if (write(swLog_G.log_fd, log_str, n) < 0)
     {
-        _print: printf("write(log_fd=%d, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", SwooleG.log_fd, n, strerror(errno), errno, n, log_str);
+        _print: printf("write(log_fd=%d, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", swLog_G.log_fd, n, strerror(errno), errno, n, log_str);
     }
-    if (opened && flock(SwooleG.log_fd, LOCK_UN) == -1)
+    if (swLog_G.opened && flock(swLog_G.log_fd, LOCK_UN) == -1)
     {
-        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", SwooleG.log_fd, strerror(errno), errno);
+        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", swLog_G.log_fd, strerror(errno), errno);
     }
 }
