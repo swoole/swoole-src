@@ -94,8 +94,8 @@ int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len)
 
 int swThreadPool_run(swThreadPool *pool)
 {
-    int i;
-    for (i = 0; i < pool->thread_num; i++)
+    pool->running = 1;
+    for (int i = 0; i < pool->thread_num; i++)
     {
         pool->params[i].pti = i;
         pool->params[i].object = pool;
@@ -105,17 +105,18 @@ int swThreadPool_run(swThreadPool *pool)
             return SW_ERR;
         }
     }
+
     return SW_OK;
 }
 
 int swThreadPool_free(swThreadPool *pool)
 {
     int i;
-    if (pool->shutdown)
+    if (!pool->running)
     {
         return -1;
     }
-    pool->shutdown = 1;
+    pool->running = 0;
 
     //broadcast all thread
     pool->cond.broadcast(&(pool->cond));
@@ -158,11 +159,11 @@ static void* swThreadPool_loop(void *arg)
         pool->onStart(pool, id);
     }
 
-    while (SwooleG.running)
+    while (pool->running)
     {
         pool->cond.lock(&pool->cond);
 
-        if (pool->shutdown)
+        if (!pool->running)
         {
             pool->cond.unlock(&pool->cond);
             swTrace("thread [%d] will exit", id);

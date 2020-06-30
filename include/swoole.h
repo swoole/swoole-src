@@ -1911,6 +1911,7 @@ struct _swProcessPool
      * reloading
      */
     uint8_t reloading;
+    uint8_t running;
     uint8_t reload_init;
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
@@ -2305,7 +2306,7 @@ typedef struct _swThreadPool
 #endif
 
     int thread_num;
-    int shutdown;
+    uchar running;
     sw_atomic_t task_num;
 
     void (*onStart)(struct _swThreadPool *pool, int id);

@@ -36,8 +36,7 @@ TEST(aio_thread, dispatch)
     for (int i = 0; i < 1000; ++i)
     {
         auto ret = swAio_dispatch2(&event);
-        ASSERT_EQ(ret->object, event.object);
-        ASSERT_NE(ret->task_id, event.task_id);
+        EXPECT_EQ(ret->object, event.object);
     }
 
     swoole_event_wait();

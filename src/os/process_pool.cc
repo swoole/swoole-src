@@ -208,6 +208,7 @@ int swProcessPool_start(swProcessPool *pool)
 
     uint32_t i;
     pool->started = 1;
+    pool->running = 1;
 
     for (i = 0; i < pool->worker_num; i++)
     {
@@ -363,7 +364,7 @@ void swProcessPool_shutdown(swProcessPool *pool)
     uint32_t i;
     int status;
     swWorker *worker;
-    SwooleG.running = 0;
+    pool->running = 0;
 
     swSignal_none();
     //concurrent kill
@@ -492,7 +493,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         out.mtype = worker->id + 1;
     }
 
-    while (SwooleG.running > 0 && task_n > 0)
+    while (pool->running && task_n > 0)
     {
         /**
          * fetch task
@@ -623,7 +624,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
     swQueue_data *outbuf = (swQueue_data *) pool->packet_buffer;
     outbuf->mtype = 0;
 
-    while (SwooleG.running > 0)
+    while (pool->running)
     {
         /**
          * fetch task
@@ -752,7 +753,7 @@ int swProcessPool_wait(swProcessPool *pool)
         return SW_ERR;
     }
 
-    while (SwooleG.running)
+    while (pool->running)
     {
         pid = wait(&status);
         if (SwooleWG.signal_alarm && SwooleTG.timer)
@@ -762,7 +763,7 @@ int swProcessPool_wait(swProcessPool *pool)
         }
         if (pid < 0)
         {
-            if (SwooleG.running == 0)
+            if (pool->running == 0)
             {
                 break;
             }
@@ -790,7 +791,7 @@ int swProcessPool_wait(swProcessPool *pool)
             }
         }
 
-        if (SwooleG.running == 1)
+        if (pool->running == 1)
         {
             swWorker *exit_worker = (swWorker *) swHashMap_find_int(pool->map, pid);
             if (exit_worker == nullptr)
