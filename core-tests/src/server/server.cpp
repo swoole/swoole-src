@@ -19,7 +19,7 @@ TEST(server, create_pipe_buffers)
     }
 }
 
-const char *packet = "hello world\n";
+static const char *packet = "hello world\n";
 
 TEST(server, base)
 {
