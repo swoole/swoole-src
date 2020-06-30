@@ -18,23 +18,58 @@
 */
 
 #include "tests.h"
-#include "base64.h"
+#include <thread>
 
-TEST(base64, encode)
+static void test_func(swLock &lock)
 {
-    char inbuf[1024];
-    char outbuf[2048];
+    int count = 0;
+    const int N = 100000;
 
-    auto n = swoole_random_bytes(inbuf, sizeof(inbuf) - 1);
-    auto n2 = swBase64_encode((uchar*) inbuf, n, outbuf);
-    ASSERT_GT(n2, n);
+    auto fn = [&]()
+    {
+        for (int i=0; i<N; i++)
+        {
+            ASSERT_EQ(lock.lock(&lock), 0);
+            count++;
+            ASSERT_EQ(lock.unlock(&lock), 0);
+        }
+    };
+
+    std::thread t1(fn);
+    std::thread t2(fn);
+
+    t1.join();
+    t2.join();
+
+    ASSERT_EQ(count, N * 2);
 }
 
-TEST(base64, decode)
+TEST(lock, atomic)
 {
-    const char *inbuf = "aGVsbG8gd29ybGQ=";
-    char outbuf[2048];
-
-    auto n2 = swBase64_decode(inbuf, strlen(inbuf), outbuf);
-    ASSERT_EQ(std::string(outbuf, n2), "hello world");
+    swLock lock;
+    swAtomicLock_create(&lock, 1);
+    test_func(lock);
 }
+
+TEST(lock, mutex)
+{
+    swLock lock;
+    swMutex_create(&lock, 0);
+    test_func(lock);
+}
+
+TEST(lock, rwlock)
+{
+    swLock lock;
+    swRWLock_create(&lock, 0);
+    test_func(lock);
+}
+
+#ifdef HAVE_SPINLOCK
+TEST(lock, spinlock)
+{
+    swLock lock;
+    swSpinLock_create(&lock, 0);
+    test_func(lock);
+}
+#endif

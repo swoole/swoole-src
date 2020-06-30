@@ -1132,12 +1132,6 @@ typedef struct _swMutex
     pthread_mutexattr_t attr;
 } swMutex;
 
-typedef struct _swFileLock
-{
-    struct flock lock_t;
-    int fd;
-} swFileLock;
-
 #ifdef HAVE_RWLOCK
 typedef struct _swRWLock
 {
@@ -1145,6 +1139,7 @@ typedef struct _swRWLock
     pthread_rwlockattr_t attr;
 
 } swRWLock;
+#endif
 
 #ifdef HAVE_SPINLOCK
 typedef struct _swSpinLock
@@ -1159,13 +1154,6 @@ typedef struct _swAtomicLock
     uint32_t spin;
 } swAtomicLock;
 
-typedef struct _swSem
-{
-    key_t key;
-    int semid;
-} swSem;
-#endif
-
 typedef struct _swLock
 {
     int type;
@@ -1178,8 +1166,6 @@ typedef struct _swLock
 #ifdef HAVE_SPINLOCK
         swSpinLock spinlock;
 #endif
-        swFileLock filelock;
-        swSem sem;
         swAtomicLock atomlock;
     } object;
 
@@ -1298,28 +1284,24 @@ void *sw_shm_calloc(size_t num, size_t _size);
 int sw_shm_protect(void *addr, int flags);
 void *sw_shm_realloc(void *ptr, size_t new_size);
 
-#ifdef HAVE_RWLOCK
-int swRWLock_create(swLock *lock, int use_in_process);
-#endif
-#ifdef SEM_UNDO
-int swSem_create(swLock *lock, key_t key);
-#endif
-int swFileLock_create(swLock *lock, int fd);
-#ifdef HAVE_SPINLOCK
-int swSpinLock_create(swLock *object, int spin);
-#endif
 int swAtomicLock_create(swLock *object, int spin);
-
 int swMutex_create(swLock *lock, int use_in_process);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swCond_create(swCond *cond);
+
+#ifdef HAVE_RWLOCK
+int swRWLock_create(swLock *lock, int use_in_process);
+#endif
+
+#ifdef HAVE_SPINLOCK
+int swSpinLock_create(swLock *object, int spin);
+#endif
 
 typedef struct _swThreadParam
 {
     void *object;
     int pti;
 } swThreadParam;
-
 
 #ifdef __MACH__
 char *sw_error_();

@@ -18,23 +18,42 @@
 */
 
 #include "tests.h"
-#include "base64.h"
+#include "mime_type.h"
 
-TEST(base64, encode)
+using namespace swoole;
+
+TEST(mime_type, get)
 {
-    char inbuf[1024];
-    char outbuf[2048];
-
-    auto n = swoole_random_bytes(inbuf, sizeof(inbuf) - 1);
-    auto n2 = swBase64_encode((uchar*) inbuf, n, outbuf);
-    ASSERT_GT(n2, n);
+    auto result = mime_type::get("test.html.json");
+    ASSERT_EQ(result, "application/json");
 }
 
-TEST(base64, decode)
+TEST(mime_type, exists)
 {
-    const char *inbuf = "aGVsbG8gd29ybGQ=";
-    char outbuf[2048];
+    ASSERT_TRUE(mime_type::exists("test.html.json"));
+}
 
-    auto n2 = swBase64_decode(inbuf, strlen(inbuf), outbuf);
-    ASSERT_EQ(std::string(outbuf, n2), "hello world");
+TEST(mime_type, set)
+{
+    std::string test_mime_type("application/swoole-core-test");
+    mime_type::set("swoole_test", test_mime_type);
+
+    auto result = mime_type::get("test.swoole_test");
+    ASSERT_EQ(result, test_mime_type);
+}
+
+TEST(mime_type, add)
+{
+    std::string test_mime_type("application/swoole-core-test2");
+    ASSERT_TRUE(mime_type::add("swoole_test2", test_mime_type));
+    ASSERT_FALSE(mime_type::add("swoole_test2", test_mime_type));
+
+    auto result = mime_type::get("test.swoole_test2");
+    ASSERT_EQ(result, test_mime_type);
+}
+
+TEST(mime_type, del)
+{
+    ASSERT_TRUE(mime_type::del("json"));
+    ASSERT_FALSE(mime_type::exists("test.html.json"));
 }
