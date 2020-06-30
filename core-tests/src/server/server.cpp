@@ -91,6 +91,11 @@ TEST(server, process)
 
     swLog_set_level(SW_LOG_WARNING);
 
+    swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
+    swMutex_create(lock, 1);
+    lock->lock(lock);
+    serv.ptr2 = lock;
+
     swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
     {
@@ -100,8 +105,11 @@ TEST(server, process)
 
     serv.onStart = [](swServer *serv)
     {
-        thread t1([&]() {
+        thread t1([=]() {
             swSignal_none();
+
+            swLock *lock = (swLock *) serv->ptr2;
+            lock->lock(lock);
 
             swListenPort *port = serv->listen_list->front();
 
@@ -112,9 +120,15 @@ TEST(server, process)
             c.recv(buf, sizeof(buf));
             c.close();
 
-            kill(getpid(), SIGTERM);
+            kill(serv->gs->master_pid, SIGTERM);
         });
         t1.detach();
+    };
+
+    serv.onWorkerStart = [](swServer *serv, int worker_id)
+    {
+        swLock *lock = (swLock *) serv->ptr2;
+        lock->unlock(lock);
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int

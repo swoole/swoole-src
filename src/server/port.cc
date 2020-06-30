@@ -29,9 +29,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *ev
 
 void swPort_init(swListenPort *port)
 {
-    port->socket = nullptr;
-    port->ssl = 0;
-
+    sw_memset_zero(port, sizeof(*port));
     //listen backlog
     port->backlog = SW_BACKLOG;
     //tcp keepalive
