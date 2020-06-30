@@ -89,6 +89,8 @@ TEST(server, process)
     serv.factory_mode = SW_MODE_PROCESS;
     swServer_create(&serv);
 
+    SwooleG.running = 1;
+
     swLog_set_level(SW_LOG_WARNING);
 
     swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
@@ -143,6 +145,6 @@ TEST(server, process)
         return SW_OK;
     };
 
-    swServer_start(&serv);
+    ASSERT_EQ(swServer_start(&serv), 0);
 }
 

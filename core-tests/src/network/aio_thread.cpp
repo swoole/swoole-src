@@ -19,9 +19,8 @@ static void aio_callback(swAio_event *event)
 TEST(aio_thread, dispatch)
 {
     atomic<int> handle_count(0);
-    swAio_event event;
+    swAio_event event = {};
     event.object = &handle_count;
-    event.canceled = 0;
     event.callback = aio_callback;
 
     callback_count = 0;

@@ -67,7 +67,7 @@ void swWorker_signal_handler(int signo)
          */
         else
         {
-            SwooleG.running = 0;
+            sw_server()->running = 0;
         }
         break;
     case SIGALRM:
@@ -483,11 +483,11 @@ void swWorker_stop(swWorker *worker)
     swReactor *reactor = SwooleTG.reactor;
 
     /**
-     * force to end
+     * force to end.
      */
     if (serv->reload_async == 0)
     {
-        SwooleG.running = 0;
+        serv->running = 0;
         reactor->running = 0;
         return;
     }
@@ -543,7 +543,7 @@ void swWorker_stop(swWorker *worker)
     //send message to manager
     if (serv->message_box && swChannel_push(serv->message_box, &msg, sizeof(msg)) < 0)
     {
-        SwooleG.running = 0;
+        serv->running = 0;
     }
     else
     {
@@ -556,8 +556,7 @@ void swWorker_stop(swWorker *worker)
 
     if (swWorker_reactor_is_empty(reactor))
     {
-        reactor->running = 0;
-        SwooleG.running = 0;
+        serv->running = reactor->running = 0;
     }
 }
 

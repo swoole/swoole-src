@@ -331,7 +331,7 @@ static int swManager_loop(swServer *serv)
         swoole_timer_add((long) (serv->manager_alarm * 1000), SW_TRUE, swManager_onTimer, serv);
     }
 
-    while (SwooleG.running > 0)
+    while (serv->running)
     {
         pid = wait(&status);
 
@@ -340,7 +340,7 @@ static int swManager_loop(swServer *serv)
             swWorkerStopMessage msg;
             while (swChannel_pop(serv->message_box, &msg, sizeof(msg)) > 0)
             {
-                if (SwooleG.running == 0)
+                if (serv->running == 0)
                 {
                     continue;
                 }
@@ -451,7 +451,7 @@ static int swManager_loop(swServer *serv)
                 goto _error;
             }
         }
-        if (SwooleG.running == 1)
+        if (serv->running == 1)
         {
             //event workers
             for (i = 0; i < serv->worker_num; i++)
@@ -592,7 +592,7 @@ static void swManager_signal_handler(int sig)
     switch (sig)
     {
     case SIGTERM:
-        SwooleG.running = 0;
+        sw_server()->running = 0;
         break;
         /**
          * reload all workers

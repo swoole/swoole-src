@@ -847,6 +847,7 @@ void swServer_init(swServer *serv)
     swoole_init();
     sw_memset_zero(serv, sizeof(swServer));
 
+    serv->running = 1;
     serv->factory_mode = SW_MODE_BASE;
 
     serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
@@ -875,6 +876,7 @@ void swServer_init(swServer *serv)
     serv->enable_coroutine = 1;
     serv->reload_async = 1;
     serv->send_yield = 1;
+
 
     serv->null_fd = -1;
 
@@ -982,7 +984,7 @@ int swServer_shutdown(swServer *serv)
     }
     else
     {
-        SwooleG.running = 0;
+        serv->running = 0;
     }
     swInfo("Server is shutdown now");
     return SW_OK;

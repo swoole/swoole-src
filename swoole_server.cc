@@ -4412,7 +4412,7 @@ static PHP_METHOD(swoole_server, stop)
             }, SwooleTG.reactor);
         }
 
-        SwooleG.running = 0;
+        serv->running = 0;
     }
     else
     {
