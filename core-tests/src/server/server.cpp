@@ -31,7 +31,7 @@ static void server_test_func(int mode)
 
     swLog_set_level(SW_LOG_WARNING);
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
@@ -50,7 +50,7 @@ static void server_test_func(int mode)
         lock.lock(&lock);
 
         swoole::Client c(SW_SOCK_TCP);
-        c.connect(TEST_HOST, TEST_PORT);
+        c.connect(TEST_HOST, port->port);
         c.send(packet, strlen(packet));
         char buf[1024];
         c.recv(buf, sizeof(buf));
