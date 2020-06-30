@@ -67,7 +67,7 @@ void swWorker_signal_handler(int signo)
          */
         else
         {
-            sw_server()->running = 0;
+            SwooleWG.shutdown = 1;
         }
         break;
     case SIGALRM:

@@ -493,7 +493,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         out.mtype = worker->id + 1;
     }
 
-    while (pool->running && task_n > 0)
+    while (pool->running && !SwooleWG.shutdown && task_n > 0)
     {
         /**
          * fetch task

@@ -460,7 +460,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/mime_type.cc \
         src/protocol/mqtt.cc \
         src/protocol/redis.cc \
-        src/protocol/sha1.cc \
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
         src/protocol/websocket.cc \
