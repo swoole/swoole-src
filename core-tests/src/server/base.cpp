@@ -1,7 +1,7 @@
 #include "test_server.h"
 
 using namespace swoole;
-using swoole::test::server;
+using namespace swoole::test;
 
 server::server(std::string _host, int _port, int _mode, int _type):
         host(_host), port(_port), mode(_mode), type(_type)

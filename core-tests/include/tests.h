@@ -1,15 +1,15 @@
 #pragma once
 
 #ifdef HAVE_SWOOLE_DIR
-#include "swoole.h"
+#include "swoole_api.h"
+#include "swoole_cxx.h"
 #include "client.h"
 #include "server.h"
-#include "swoole_cxx.h"
 #else
-#include "swoole/swoole.h"
+#include "swoole/swoole_api.h"
+#include "swoole/swoole_cxx.h"
 #include "swoole/client.h"
 #include "swoole/server.h"
-#include "swoole/swoole_cxx.h"
 #endif
 
 #include <gtest/gtest.h>

@@ -51,6 +51,11 @@ public:
         return true;
     }
 
+    ssize_t send(const std::string &data)
+    {
+        return client.send(&client, data.c_str(), data.length(), 0);
+    }
+
     ssize_t send(const char *buf, size_t len)
     {
         return client.send(&client, buf, len, 0);

@@ -906,6 +906,7 @@ void swServer_init(swServer *serv)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
     }
+    serv->listen_list = new std::vector<swListenPort *>;
 
     /**
      * init method
@@ -934,11 +935,6 @@ int swServer_create(swServer *serv)
     if (serv->enable_static_handler && serv->locations == nullptr)
     {
         serv->locations = new std::unordered_set<std::string>;
-    }
-
-    if (serv->listen_list == nullptr)
-    {
-        serv->listen_list = new std::vector<swListenPort *>;
     }
 
     if (serv->factory_mode == SW_MODE_BASE)
