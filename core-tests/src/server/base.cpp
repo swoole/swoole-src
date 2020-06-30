@@ -1,5 +1,6 @@
 #include "test_server.h"
 
+using namespace swoole;
 using swoole::test::server;
 
 server::server(std::string _host, int _port, int _mode, int _type):

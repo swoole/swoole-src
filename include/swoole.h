@@ -1137,22 +1137,8 @@ typedef struct _swRWLock
 {
     pthread_rwlock_t _lock;
     pthread_rwlockattr_t attr;
-
 } swRWLock;
 #endif
-
-#ifdef HAVE_SPINLOCK
-typedef struct _swSpinLock
-{
-    pthread_spinlock_t lock_t;
-} swSpinLock;
-#endif
-
-typedef struct _swAtomicLock
-{
-    sw_atomic_t lock_t;
-    uint32_t spin;
-} swAtomicLock;
 
 typedef struct _swLock
 {
@@ -1164,9 +1150,9 @@ typedef struct _swLock
         swRWLock rwlock;
 #endif
 #ifdef HAVE_SPINLOCK
-        swSpinLock spinlock;
+        pthread_spinlock_t spin_lock;
 #endif
-        swAtomicLock atomlock;
+        sw_atomic_t atomic_lock;
     } object;
 
     int (*lock_rd)(struct _swLock *);
@@ -1284,7 +1270,7 @@ void *sw_shm_calloc(size_t num, size_t _size);
 int sw_shm_protect(void *addr, int flags);
 void *sw_shm_realloc(void *ptr, size_t new_size);
 
-int swAtomicLock_create(swLock *object, int spin);
+int swAtomicLock_create(swLock *object);
 int swMutex_create(swLock *lock, int use_in_process);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swCond_create(swCond *cond);

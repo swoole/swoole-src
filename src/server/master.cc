@@ -28,8 +28,8 @@ static void swServer_signal_handler(int sig);
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode);
 static void swServer_disable_accept(swServer *serv);
 
-static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length);
-static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length);
+static int swServer_tcp_send(swServer *serv, int session_id, const void *data, uint32_t length);
+static int swServer_tcp_sendwait(swServer *serv, int session_id, const void *data, uint32_t length);
 static int swServer_tcp_close(swServer *serv, int session_id, int reset);
 static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
@@ -1138,7 +1138,7 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
  * @process Worker
  * @return SW_OK or SW_ERR
  */
-static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length)
+static int swServer_tcp_send(swServer *serv, int session_id, const void *data, uint32_t length)
 {
     swSendData _send;
     sw_memset_zero(&_send.info, sizeof(_send.info));
@@ -1459,7 +1459,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 /**
  * [Worker] Returns the number of bytes sent
  */
-static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length)
+static int swServer_tcp_sendwait(swServer *serv, int session_id, const void *data, uint32_t length)
 {
     swConnection *conn = swServer_connection_verify(serv, session_id);
     if (!conn)

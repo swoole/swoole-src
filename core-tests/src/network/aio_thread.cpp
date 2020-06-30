@@ -32,7 +32,7 @@ TEST(aio_thread, dispatch)
     };
 
     swoole_event_init();
-    SwooleTG.reactor->wait_exit = 1;
+    swReactor_wait_exit(sw_reactor(), 1);
 
     for (int i = 0; i < 1000; ++i)
     {

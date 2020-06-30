@@ -47,7 +47,7 @@ static void test_func(swLock &lock)
 TEST(lock, atomic)
 {
     swLock lock;
-    swAtomicLock_create(&lock, 1);
+    swAtomicLock_create(&lock);
     test_func(lock);
 }
 

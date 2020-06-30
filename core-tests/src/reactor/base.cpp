@@ -82,7 +82,7 @@ TEST(reactor, swReactor_wait)
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
-        reactor->wait_exit = 1;
+        swReactor_wait_exit(sw_reactor(), 1);
 
         return SW_OK;
     });
@@ -118,7 +118,7 @@ TEST(reactor, swReactor_write)
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
-        reactor->wait_exit = 1;
+        swReactor_wait_exit(reactor, 1);
         
         return SW_OK;
     });
