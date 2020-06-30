@@ -50,6 +50,7 @@ if (DEFINED brotli_dir)
 endif()
 
 add_subdirectory(src)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/lib)
 
 execute_process(COMMAND php-config --includes OUTPUT_VARIABLE PHP_INCLUDES OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND php-config --extension-dir OUTPUT_VARIABLE PHP_EXTENSION_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
