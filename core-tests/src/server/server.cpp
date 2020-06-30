@@ -21,13 +21,15 @@ TEST(server, create_pipe_buffers)
 
 const char *packet = "hello world\n";
 
-TEST(server, start)
+static void server_test_func(int mode)
 {
     swServer serv;
     swServer_init(&serv);
     serv.worker_num = 1;
-    serv.factory_mode = SW_MODE_BASE;
+    serv.factory_mode = mode;
     swServer_create(&serv);
+
+    swLog_set_level(SW_LOG_WARNING);
 
     swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, TEST_PORT);
     if (!port)
@@ -57,11 +59,22 @@ TEST(server, start)
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [](swServer *serv, int worker_id)
+    if (mode == SW_MODE_BASE)
     {
-        swLock *lock = (swLock *) serv->ptr2;
-        lock->unlock(lock);
-    };
+        serv.onWorkerStart = [](swServer *serv, int worker_id)
+        {
+            swLock *lock = (swLock *) serv->ptr2;
+            lock->unlock(lock);
+        };
+    }
+    else
+    {
+        serv.onStart = [](swServer *serv)
+        {
+            swLock *lock = (swLock *) serv->ptr2;
+            lock->unlock(lock);
+        };
+    }
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int
     {
@@ -78,3 +91,14 @@ TEST(server, start)
     swServer_start(&serv);
     t1.join();
 }
+
+TEST(server, base)
+{
+    server_test_func(SW_MODE_BASE);
+}
+
+TEST(server, process)
+{
+    server_test_func(SW_MODE_PROCESS);
+}
+
