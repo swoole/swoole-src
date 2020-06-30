@@ -17,37 +17,31 @@
 #pragma once
 
 #include "client.h"
+#include <functional>
 
 namespace swoole
 {
 
 class Client
 {
-private:
+protected:
     swClient client;
     bool connected = false;
-    bool created = false;
+    bool created;
+    bool async = false;
     enum swSocket_type type;
 public:
-    Client(enum swSocket_type _type) :
-            type(_type)
+    Client(enum swSocket_type _type, bool _async = false) :
+            async(_async), type(_type)
     {
-
+        created = swClient_create(&client, type, async) == 0;
     }
 
     bool connect(const char *host, int port, double timeout = -1)
     {
-        if (connected)
+        if (connected || !created)
         {
             return false;
-        }
-        if (!created)
-        {
-            if (swClient_create(&client, type, 0) < 0)
-            {
-                return false;
-            }
-            created = true;
         }
         if (client.connect(&client, host, port, timeout, 0) < 0)
         {
@@ -69,22 +63,87 @@ public:
 
     bool close()
     {
-        if (!created)
+        if (!created || client.closed)
         {
             return false;
         }
         client.close(&client);
-        swClient_free(&client);
+        if (client.socket)
+        {
+            swClient_free(&client);
+        }
         created = false;
         return true;
     }
 
-    ~Client()
+    virtual ~Client()
     {
         if (created)
         {
             close();
         }
+    }
+};
+
+class AsyncClient: public Client
+{
+protected:
+    std::function<void(AsyncClient *)> _onConnect = nullptr;
+    std::function<void(AsyncClient *)> _onError = nullptr;
+    std::function<void(AsyncClient *)> _onClose = nullptr;
+    std::function<void(AsyncClient *, const char *data, uint32_t length)> _onReceive = nullptr;
+
+public:
+    AsyncClient(enum swSocket_type _type) :
+            Client(_type, true)
+    {
+
+    }
+
+    bool connect(const char *host, int port, double timeout = -1)
+    {
+        client.object = this;
+        client.onConnect = [](swClient *cli)
+        {
+            AsyncClient *ac = (AsyncClient *) cli->object;
+            ac->_onConnect(ac);
+        };
+        client.onError = [](swClient *cli)
+        {
+            AsyncClient *ac = (AsyncClient *) cli->object;
+            ac->_onError(ac);
+        };
+        client.onClose = [](swClient *cli)
+        {
+            AsyncClient *ac = (AsyncClient *) cli->object;
+            ac->_onClose(ac);
+        };
+        client.onReceive = [](swClient *cli, const char *data, uint32_t length)
+        {
+            AsyncClient *ac = (AsyncClient *) cli->object;
+            ac->_onReceive(ac, data, length);
+        };
+        return Client::connect(host, port, timeout);
+    }
+
+    void on_connect(std::function<void(AsyncClient *)> fn)
+    {
+        _onConnect = fn;
+    }
+
+    void on_error(std::function<void(AsyncClient *)> fn)
+    {
+        _onError = fn;
+    }
+
+    void on_close(std::function<void(AsyncClient *)> fn)
+    {
+        _onClose = fn;
+    }
+
+    void on_receive(std::function<void(AsyncClient *, const char *data, size_t length)> fn)
+    {
+        _onReceive = fn;
     }
 };
 }

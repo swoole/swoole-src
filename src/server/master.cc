@@ -936,6 +936,11 @@ int swServer_create(swServer *serv)
         serv->locations = new std::unordered_set<std::string>;
     }
 
+    if (serv->listen_list == nullptr)
+    {
+        serv->listen_list = new std::vector<swListenPort *>;
+    }
+
     if (serv->factory_mode == SW_MODE_BASE)
     {
         return swReactorProcess_create(serv);
@@ -1849,10 +1854,6 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     }
     swServer_check_port_type(serv, ls);
     ls->socket_fd = ls->socket->fd;
-    if (serv->listen_list == nullptr)
-    {
-        serv->listen_list = new std::vector<swListenPort *>;
-    }
     serv->listen_list->push_back(ls);
     serv->listen_port_num++;
     return ls;

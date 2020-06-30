@@ -433,7 +433,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/buffer.cc \
         src/memory/fixed_pool.cc \
         src/memory/global_memory.cc \
-        src/memory/malloc.cc \
         src/memory/ring_buffer.cc \
         src/memory/shared_memory.cc \
         src/memory/table.cc \

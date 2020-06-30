@@ -18,6 +18,7 @@ server::server(std::string _host, int _port, int _mode, int _type):
 
     serv.factory_mode = (uint8_t) mode;
     serv.dispatch_mode = 2;
+    serv.ptr2 = this;
 
     //create Server
     int ret = swServer_create(&serv);
@@ -75,8 +76,6 @@ void server::on(std::string event, void *fn)
 
 bool server::start()
 {
-    serv.ptr2 = this;
-
     int ret = swServer_start(&serv);
     if (ret < 0)
     {

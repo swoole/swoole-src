@@ -16,7 +16,7 @@
 
 #include "swoole.h"
 
-#define EVENT_DEBUG   0
+#define EVENT_DEBUG   1
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>

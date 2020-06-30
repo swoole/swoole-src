@@ -408,7 +408,7 @@ static void socket_free_defer(void *ptr)
 
 void swSocket_free(swSocket *sock)
 {
-    if (SwooleTG.reactor && sock->fd != -1)
+    if (SwooleTG.reactor)
     {
         sock->removed = 1;
         swoole_event_defer(socket_free_defer, sock);

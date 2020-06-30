@@ -33,6 +33,7 @@ class server
 private:
     swServer serv;
     std::vector<swListenPort *> ports;
+    std::unordered_map<std::string, void *> private_data;
     std::string host;
     int port;
     int mode;
@@ -50,6 +51,24 @@ public:
     int send(int session_id, void *data, uint32_t length);
     ssize_t sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket = -1);
     int close(int session_id, int reset);
+
+    inline void* get_private_data(const std::string &key)
+    {
+        auto it = private_data.find(key);
+        if (it == private_data.end())
+        {
+            return nullptr;
+        }
+        else
+        {
+            return it->second;
+        }
+    }
+
+    inline void set_private_data(const std::string &key, void *data)
+    {
+        private_data[key] = data;
+    }
 };
 }
 }
