@@ -983,10 +983,12 @@ int swServer_shutdown(swServer *serv)
         }
         swServer_clear_timer(serv);
     }
-    else
+
+    if (serv->factory_mode == SW_MODE_BASE)
     {
-        serv->running = 0;
+        serv->gs->event_workers.running = 0;
     }
+
     swInfo("Server is shutdown now");
     return SW_OK;
 }

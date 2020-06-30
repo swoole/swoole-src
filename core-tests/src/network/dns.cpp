@@ -17,36 +17,19 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_coroutine.h"
 
-TEST(socket, swSocket_unix_sendto)
+using namespace swoole;
+using namespace swoole::test;
+
+
+TEST(dns, lookup)
 {
-    int fd1,fd2,ret;
-    struct sockaddr_un un1,un2;
-    char sock1_path[] = "/tmp/udp_unix1.sock";
-    char sock2_path[] = "/tmp/udp_unix2.sock";
-    char test_data[] = "swoole";
-
-    sw_memset_zero(&un1,sizeof(struct sockaddr_un));
-    sw_memset_zero(&un2,sizeof(struct sockaddr_un));
-
-    un1.sun_family = AF_UNIX;
-    un2.sun_family = AF_UNIX;
-
-    unlink(sock1_path);
-    unlink(sock2_path);
-
-    fd1 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un1.sun_path, sock1_path, sizeof(un1.sun_path) - 1); 
-    bind(fd1,(struct sockaddr *)&un1,sizeof(un1));
-
-    fd2 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un2.sun_path, sock2_path, sizeof(un2.sun_path) - 1); 
-    bind(fd2,(struct sockaddr *)&un2,sizeof(un2));
-
-    ret = swSocket_unix_sendto(fd1,sock2_path,test_data,strlen(test_data));
-    ASSERT_GT(ret, 0);
-
-    unlink(sock1_path);
-    unlink(sock2_path);
+    test::coroutine::run([](void *arg)
+    {
+        auto list = swoole::coroutine::dns_lookup("www.baidu.com", 10);
+        ASSERT_GE(list.size(), 1);
+    });
 }
+
+

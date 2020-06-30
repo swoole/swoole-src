@@ -1,7 +1,6 @@
 #include "test_coroutine.h"
 #include "test_process.h"
 #include "test_server.h"
-#include "swoole_cxx.h"
 
 using namespace swoole;
 using namespace swoole::test;
