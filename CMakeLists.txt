@@ -18,38 +18,13 @@ endif()
 
 SET(CMAKE_BUILD_TYPE Debug)
 
-# Code Coverage Configuration
-add_library(coverage_config INTERFACE)
-
-option(CODE_COVERAGE "Enable coverage reporting" OFF)
-if(CODE_COVERAGE)
-    message(STATUS "Open coverage")
-    # --coverage => -fprofile-arcs -ftest-coverage
-    target_compile_options(coverage_config INTERFACE
-        -O0
-        -g
-        --coverage
-    )
-    if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.13)
-        target_link_options(coverage_config INTERFACE --coverage)
-    else()
-        target_link_libraries(coverage_config INTERFACE --coverage)
-    endif()
-endif(CODE_COVERAGE)
-
-file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc thirdparty/boost/asm/combined.S)
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 file(GLOB_RECURSE HEAD_WAPPER_FILES FOLLOW_SYMLINKS include/wrapper/*.hpp)
 
 SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lib)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
-#message(STATUS "source=${SRC_LIST}")
-#message(STATUS "header=${HEAD_FILES}")
-
 add_definitions(-DHAVE_CONFIG_H)
-# test
-#add_definitions(-DSW_USE_THREAD_CONTEXT)
 
 include_directories(BEFORE ./include ./include/wrapper ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
@@ -74,19 +49,12 @@ if (DEFINED brotli_dir)
     link_directories(${brotli_dir}/lib)
 endif()
 
+add_subdirectory(src)
+
 execute_process(COMMAND php-config --includes OUTPUT_VARIABLE PHP_INCLUDES OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND php-config --extension-dir OUTPUT_VARIABLE PHP_EXTENSION_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PHP_INCLUDES}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
-
-# lib-swoole
-link_directories(${LIBRARY_OUTPUT_PATH})
-add_library(lib-swoole SHARED ${SRC_LIST})
-set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
-target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
-if(CODE_COVERAGE)
-    target_link_libraries(lib-swoole coverage_config gcov)
-endif(CODE_COVERAGE)
 
 # test_server
 set(TEST_SRC_LIST examples/cpp/test_server.cc)
