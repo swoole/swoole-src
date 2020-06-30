@@ -21,12 +21,12 @@ TEST(server, create_pipe_buffers)
 
 const char *packet = "hello world\n";
 
-static void server_test_func(int mode)
+TEST(server, base)
 {
     swServer serv;
     swServer_init(&serv);
     serv.worker_num = 1;
-    serv.factory_mode = mode;
+    serv.factory_mode = SW_MODE_BASE;
     swServer_create(&serv);
 
     swLog_set_level(SW_LOG_WARNING);
@@ -59,22 +59,11 @@ static void server_test_func(int mode)
         kill(getpid(), SIGTERM);
     });
 
-    if (mode == SW_MODE_BASE)
+    serv.onWorkerStart = [](swServer *serv, int worker_id)
     {
-        serv.onWorkerStart = [](swServer *serv, int worker_id)
-        {
-            swLock *lock = (swLock *) serv->ptr2;
-            lock->unlock(lock);
-        };
-    }
-    else
-    {
-        serv.onStart = [](swServer *serv)
-        {
-            swLock *lock = (swLock *) serv->ptr2;
-            lock->unlock(lock);
-        };
-    }
+        swLock *lock = (swLock *) serv->ptr2;
+        lock->unlock(lock);
+    };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int
     {
@@ -92,13 +81,54 @@ static void server_test_func(int mode)
     t1.join();
 }
 
-TEST(server, base)
-{
-    server_test_func(SW_MODE_BASE);
-}
-
 TEST(server, process)
 {
-    server_test_func(SW_MODE_PROCESS);
+    swServer serv;
+    swServer_init(&serv);
+    serv.worker_num = 1;
+    serv.factory_mode = SW_MODE_PROCESS;
+    swServer_create(&serv);
+
+    swLog_set_level(SW_LOG_WARNING);
+
+    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port)
+    {
+        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    serv.onStart = [](swServer *serv)
+    {
+        thread t1([&]() {
+            swSignal_none();
+
+            swListenPort *port = serv->listen_list->front();
+
+            swoole::Client c(SW_SOCK_TCP);
+            c.connect(TEST_HOST, port->port);
+            c.send(packet, strlen(packet));
+            char buf[1024];
+            c.recv(buf, sizeof(buf));
+            c.close();
+
+            kill(getpid(), SIGTERM);
+        });
+        t1.detach();
+    };
+
+    serv.onReceive = [](swServer *serv, swEventData *req) -> int
+    {
+        char *data = nullptr;
+        size_t length = serv->get_packet(serv, req, &data);
+        EXPECT_EQ(string(data, length), string(packet));
+
+        string resp = string("Server: ") + string(packet);
+        serv->send(serv, req->info.fd, resp.c_str(), resp.length());
+
+        return SW_OK;
+    };
+
+    swServer_start(&serv);
 }
 
