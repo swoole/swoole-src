@@ -128,7 +128,7 @@ int swLog_redirect_stdout_and_stderr(int enable)
             swWarn("has been redirected");
             return SW_ERR;
         }
-        if ((swLog_G.stdout_fd = dup( STDOUT_FILENO)) < 0)
+        if ((swLog_G.stdout_fd = dup(STDOUT_FILENO)) < 0)
         {
             swSysWarn("dup(STDOUT_FILENO) failed");
             return SW_ERR;

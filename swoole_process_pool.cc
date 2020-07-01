@@ -278,7 +278,7 @@ static void pool_signal_handler(int sig)
     switch (sig)
     {
     case SIGTERM:
-        SwooleG.running = 0;
+        current_pool->running = 0;
         break;
     case SIGUSR1:
     case SIGUSR2:

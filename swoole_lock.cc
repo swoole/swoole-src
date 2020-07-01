@@ -160,33 +160,19 @@ static PHP_METHOD(swoole_lock, __construct)
 
     switch(type)
     {
-#ifdef HAVE_RWLOCK
-    case SW_RWLOCK:
-        ret = swRWLock_create(lock, 1);
-        break;
-#endif
     case SW_FILELOCK:
-        if (filelock_len == 0)
-        {
-            zend_throw_exception(swoole_exception_ce, "filelock requires file name of the lock", SW_ERROR_INVALID_PARAMS);
-            RETURN_FALSE;
-        }
-        int fd;
-        if ((fd = open(filelock, O_RDWR | O_CREAT, 0666)) < 0)
-        {
-            zend_throw_exception_ex(swoole_exception_ce, errno, "open file[%s] failed. Error: %s [%d]", filelock, strerror(errno), errno);
-            RETURN_FALSE;
-        }
-        ret = swFileLock_create(lock, fd);
-        break;
-#ifdef SEM_UNDO
     case SW_SEM:
-        ret = swSem_create(lock, IPC_PRIVATE);
+        zend_throw_exception(swoole_exception_ce, "FileLock and SemLock is no longer supported, please use mutex lock", errno);
+        RETURN_FALSE;
         break;
-#endif
 #ifdef HAVE_SPINLOCK
     case SW_SPINLOCK:
         ret = swSpinLock_create(lock, 1);
+        break;
+#endif
+#ifdef HAVE_RWLOCK
+    case SW_RWLOCK:
+        ret = swRWLock_create(lock, 1);
         break;
 #endif
     case SW_MUTEX:

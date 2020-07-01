@@ -1370,7 +1370,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     SwooleTG.type = SW_THREAD_HEARTBEAT;
     SwooleTG.id = serv->reactor_num;
 
-    while (SwooleG.running)
+    while (serv->running)
     {
         serv_max_fd = swServer_get_maxfd(serv);
         serv_min_fd = swServer_get_minfd(serv);

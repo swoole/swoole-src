@@ -29,9 +29,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *ev
 
 void swPort_init(swListenPort *port)
 {
-    port->socket = nullptr;
-    port->ssl = 0;
-
+    sw_memset_zero(port, sizeof(*port));
     //listen backlog
     port->backlog = SW_BACKLOG;
     //tcp keepalive
@@ -572,6 +570,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         // (know content-length is equal to 0) or (no content-length field and no chunked)
         if (request->content_length == 0 && (request->known_length || !request->chunked))
         {
+            buffer->offset = request->header_length;
             // send static file content directly in the reactor thread
             if (!serv->enable_static_handler || !swServer_http_static_handler_hit(serv, request, conn))
             {
@@ -684,6 +683,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         buffer->length = request_length;
     }
 
+    buffer->offset = request_length;
     swReactorThread_dispatch(protocol, _socket, buffer->str, buffer->length);
     swHttpRequest_free(conn);
     swString_clear(buffer);

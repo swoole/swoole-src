@@ -1,12 +1,14 @@
 #include "tests.h"
 #include "test_process.h"
 #include "test_server.h"
+#include "wrapper/client.hpp"
 
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)
 
 using swoole::test::process;
 using swoole::test::server;
+using swoole::AsyncClient;
 
 TEST(client, tcp)
 {
@@ -85,5 +87,80 @@ TEST(client, udp)
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
     cli.close(&cli);
+    kill(pid, SIGKILL);
+}
+
+TEST(client, async_tcp)
+{
+    pid_t pid;
+
+    swPipe p;
+    ASSERT_EQ(swPipeNotify_auto(&p, 1, 1), 0);
+
+    process proc([&p](process *proc)
+    {
+        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
+        {
+            char *data_ptr = NULL;
+            size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
+
+            SERVER_THIS->send(req->info.fd, data_ptr, data_len);
+        };
+
+        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
+
+        serv.set_private_data("pipe", &p);
+
+        serv.on("onReceive", (void *) receive_fn);
+
+        on_workerstart_lambda_type worker_start_fn = [] (ON_WORKERSTART_PARAMS)
+        {
+            swPipe *p = (swPipe *) SERVER_THIS->get_private_data("pipe");
+            int64_t value = 1;
+            p->write(p, &value, sizeof(value));
+        };
+
+        serv.on("onWorkerStart", (void *) worker_start_fn);
+
+        serv.start();
+    });
+
+    pid = proc.start();
+    int64_t value;
+    swPipe_set_timeout(&p, 10);
+    p.read(&p, &value, sizeof(value));
+    p.close(&p);
+
+    swoole_event_init();
+    swReactor_wait_exit(sw_reactor(), 1);
+
+    AsyncClient ac(SW_SOCK_TCP);
+
+    ac.on_connect([](AsyncClient *ac)
+    {
+        ac->send(SW_STRS(GREETER));
+    });
+
+    ac.on_close([](AsyncClient *ac)
+    {
+
+    });
+    ac.on_error([](AsyncClient *ac)
+    {
+
+    });
+
+    ac.on_receive([](AsyncClient *ac, const char *data, size_t len)
+    {
+        ASSERT_EQ(len, GREETER_SIZE);
+        ASSERT_STREQ(GREETER, data);
+        ac->close();
+    });
+
+    bool retval = ac.connect(TEST_HOST, TEST_PORT);
+    EXPECT_TRUE(retval);
+
+    swoole_event_wait();
+
     kill(pid, SIGKILL);
 }

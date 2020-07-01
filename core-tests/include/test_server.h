@@ -2,7 +2,7 @@
 
 #include "tests.h"
 
-using namespace swoole;
+void create_test_server(swServer *serv);
 
 #define SERVER_THIS ((server *) serv->ptr2)
 
@@ -25,11 +25,13 @@ using on_receive_lambda_type = void (*)(ON_RECEIVE_PARAMS);
 using on_packet_lambda_type = void (*)(ON_PACKET_PARAMS);
 
 namespace swoole { namespace test {
+//--------------------------------------------------------------------------------------------------------
 class server
 {
 private:
     swServer serv;
     std::vector<swListenPort *> ports;
+    std::unordered_map<std::string, void *> private_data;
     std::string host;
     int port;
     int mode;
@@ -42,11 +44,29 @@ public:
     ~server();
     void on(std::string event, void *fn);
     bool start();
-    bool listen(std::string host, int port,  enum swSocket_type type);
+    bool listen(std::string host, int port, enum swSocket_type type);
     size_t get_packet(swEventData *req, char **data_ptr);
     int send(int session_id, void *data, uint32_t length);
     ssize_t sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket = -1);
     int close(int session_id, int reset);
+
+    inline void* get_private_data(const std::string &key)
+    {
+        auto it = private_data.find(key);
+        if (it == private_data.end())
+        {
+            return nullptr;
+        }
+        else
+        {
+            return it->second;
+        }
+    }
+
+    inline void set_private_data(const std::string &key, void *data)
+    {
+        private_data[key] = data;
+    }
 };
-}
-}
+//--------------------------------------------------------------------------------------------------------
+}}

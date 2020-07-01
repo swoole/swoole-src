@@ -427,15 +427,12 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/thread_context.cc \
         src/lock/atomic.cc \
         src/lock/cond.cc \
-        src/lock/file_lock.cc \
         src/lock/mutex.cc \
         src/lock/rw_lock.cc \
-        src/lock/semaphore.cc \
         src/lock/spin_lock.cc \
         src/memory/buffer.cc \
         src/memory/fixed_pool.cc \
         src/memory/global_memory.cc \
-        src/memory/malloc.cc \
         src/memory/ring_buffer.cc \
         src/memory/shared_memory.cc \
         src/memory/table.cc \
@@ -463,7 +460,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/protocol/mime_type.cc \
         src/protocol/mqtt.cc \
         src/protocol/redis.cc \
-        src/protocol/sha1.cc \
         src/protocol/socks5.cc \
         src/protocol/ssl.cc \
         src/protocol/websocket.cc \

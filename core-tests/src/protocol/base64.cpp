@@ -18,35 +18,23 @@
 */
 
 #include "tests.h"
+#include "base64.h"
 
-TEST(socket, swSocket_unix_sendto)
+TEST(base64, encode)
 {
-    int fd1,fd2,ret;
-    struct sockaddr_un un1,un2;
-    char sock1_path[] = "/tmp/udp_unix1.sock";
-    char sock2_path[] = "/tmp/udp_unix2.sock";
-    char test_data[] = "swoole";
+    char inbuf[1024];
+    char outbuf[2048];
 
-    sw_memset_zero(&un1,sizeof(struct sockaddr_un));
-    sw_memset_zero(&un2,sizeof(struct sockaddr_un));
+    auto n = swoole_random_bytes(inbuf, sizeof(inbuf) - 1);
+    auto n2 = swBase64_encode((uchar*) inbuf, n, outbuf);
+    ASSERT_GT(n2, n);
+}
 
-    un1.sun_family = AF_UNIX;
-    un2.sun_family = AF_UNIX;
+TEST(base64, decode)
+{
+    const char *inbuf = "aGVsbG8gd29ybGQ=";
+    char outbuf[2048];
 
-    unlink(sock1_path);
-    unlink(sock2_path);
-
-    fd1 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un1.sun_path, sock1_path, sizeof(un1.sun_path) - 1); 
-    bind(fd1,(struct sockaddr *)&un1,sizeof(un1));
-
-    fd2 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un2.sun_path, sock2_path, sizeof(un2.sun_path) - 1); 
-    bind(fd2,(struct sockaddr *)&un2,sizeof(un2));
-
-    ret = swSocket_unix_sendto(fd1,sock2_path,test_data,strlen(test_data));
-    ASSERT_GT(ret, 0);
-
-    unlink(sock1_path);
-    unlink(sock2_path);
+    auto n2 = swBase64_decode(inbuf, strlen(inbuf), outbuf);
+    ASSERT_EQ(std::string(outbuf, n2), "hello world");
 }

@@ -19,9 +19,8 @@ static void aio_callback(swAio_event *event)
 TEST(aio_thread, dispatch)
 {
     atomic<int> handle_count(0);
-    swAio_event event;
+    swAio_event event = {};
     event.object = &handle_count;
-    event.canceled = 0;
     event.callback = aio_callback;
 
     callback_count = 0;
@@ -32,13 +31,12 @@ TEST(aio_thread, dispatch)
     };
 
     swoole_event_init();
-    SwooleTG.reactor->wait_exit = 1;
+    swReactor_wait_exit(sw_reactor(), 1);
 
     for (int i = 0; i < 1000; ++i)
     {
         auto ret = swAio_dispatch2(&event);
-        ASSERT_EQ(ret->object, event.object);
-        ASSERT_NE(ret->task_id, event.task_id);
+        EXPECT_EQ(ret->object, event.object);
     }
 
     swoole_event_wait();

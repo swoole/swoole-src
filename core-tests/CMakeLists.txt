@@ -16,6 +16,7 @@ set(core_tests_link_directories /usr/local/lib)
 
 list(APPEND core_tests_libraries pthread)
 
+
 # find GTest
 find_package(GTest)
 if (!${GTEST_FOUND})
@@ -28,12 +29,13 @@ list(APPEND core_tests_includes ${GTEST_INCLUDE_DIRS})
 
 if (DEFINED swoole_dir)
     add_definitions(-DHAVE_SWOOLE_DIR)
-    list(APPEND core_tests_includes ${swoole_dir}/include)
+    list(APPEND core_tests_includes ${swoole_dir} ${swoole_dir}/include)
     list(APPEND core_tests_link_directories ${swoole_dir}/lib)
 else()
     list(APPEND core_tests_includes /usr/local/include/swoole /usr/include/swoole)
-    list(APPEND core_tests_libraries swoole)
 endif()
+
+list(APPEND core_tests_libraries swoole)
 
 # find OpenSSL
 if (DEFINED openssl_dir) 

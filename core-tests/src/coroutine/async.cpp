@@ -13,7 +13,7 @@ TEST(coroutine_async, usleep)
 {
     coroutine::run([](void *arg)
     {
-        swAio_event ev;
+        swAio_event ev = {};
         bool retval = async([](swAio_event *event) {
             usleep(1000);
             event->ret = magic_code;

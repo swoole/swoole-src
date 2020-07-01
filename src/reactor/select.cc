@@ -61,7 +61,6 @@ void swReactorSelect_free(swReactor *reactor)
 {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
     delete object;
-    sw_free(reactor->object);
 }
 
 int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events)

@@ -197,6 +197,10 @@ public:
     {
         return str->length;
     }
+    inline size_t size()
+    {
+        return str->size;
+    }
     inline swString* get()
     {
         return str;

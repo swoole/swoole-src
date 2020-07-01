@@ -28,8 +28,8 @@ static void swServer_signal_handler(int sig);
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode);
 static void swServer_disable_accept(swServer *serv);
 
-static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length);
-static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length);
+static int swServer_tcp_send(swServer *serv, int session_id, const void *data, uint32_t length);
+static int swServer_tcp_sendwait(swServer *serv, int session_id, const void *data, uint32_t length);
 static int swServer_tcp_close(swServer *serv, int session_id, int reset);
 static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
@@ -847,6 +847,7 @@ void swServer_init(swServer *serv)
     swoole_init();
     sw_memset_zero(serv, sizeof(swServer));
 
+    serv->running = 1;
     serv->factory_mode = SW_MODE_BASE;
 
     serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
@@ -876,6 +877,7 @@ void swServer_init(swServer *serv)
     serv->reload_async = 1;
     serv->send_yield = 1;
 
+
     serv->null_fd = -1;
 
     serv->recv_buffer_size = SW_BUFFER_SIZE_BIG;
@@ -904,6 +906,7 @@ void swServer_init(swServer *serv)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
     }
+    serv->listen_list = new std::vector<swListenPort *>;
 
     /**
      * init method
@@ -980,10 +983,12 @@ int swServer_shutdown(swServer *serv)
         }
         swServer_clear_timer(serv);
     }
-    else
+
+    if (serv->factory_mode == SW_MODE_BASE)
     {
-        SwooleG.running = 0;
+        serv->gs->event_workers.running = 0;
     }
+
     swInfo("Server is shutdown now");
     return SW_OK;
 }
@@ -1138,7 +1143,7 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
  * @process Worker
  * @return SW_OK or SW_ERR
  */
-static int swServer_tcp_send(swServer *serv, int session_id, void *data, uint32_t length)
+static int swServer_tcp_send(swServer *serv, int session_id, const void *data, uint32_t length)
 {
     swSendData _send;
     sw_memset_zero(&_send.info, sizeof(_send.info));
@@ -1459,7 +1464,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 /**
  * [Worker] Returns the number of bytes sent
  */
-static int swServer_tcp_sendwait(swServer *serv, int session_id, void *data, uint32_t length)
+static int swServer_tcp_sendwait(swServer *serv, int session_id, const void *data, uint32_t length)
 {
     swConnection *conn = swServer_connection_verify(serv, session_id);
     if (!conn)
@@ -1847,10 +1852,6 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     }
     swServer_check_port_type(serv, ls);
     ls->socket_fd = ls->socket->fd;
-    if (serv->listen_list == nullptr)
-    {
-        serv->listen_list = new std::vector<swListenPort *>;
-    }
     serv->listen_list->push_back(ls);
     serv->listen_port_num++;
     return ls;

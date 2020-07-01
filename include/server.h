@@ -592,7 +592,7 @@ struct swServer
     void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
     void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
     /**
-     * Client
+     * Connection
      */
     int (*onReceive)(swServer *, swEventData *);
     int (*onPacket)(swServer *, swEventData *);
@@ -608,9 +608,9 @@ struct swServer
     /**
      * Server method
      */
-    int (*send)(swServer *serv, int session_id, void *data, uint32_t length);
+    int (*send)(swServer *serv, int session_id, const void *data, uint32_t length);
     int (*sendfile)(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
-    int (*sendwait)(swServer *serv, int session_id, void *data, uint32_t length);
+    int (*sendwait)(swServer *serv, int session_id, const void *data, uint32_t length);
     int (*close)(swServer *serv, int session_id, int reset);
     int (*notify)(swServer *serv, swConnection *conn, int event);
     int (*feedback)(swServer *serv, int session_id, int event);

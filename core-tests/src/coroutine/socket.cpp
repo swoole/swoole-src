@@ -1,8 +1,8 @@
 #include "test_coroutine.h"
 #include "test_process.h"
 #include "test_server.h"
-#include "swoole_cxx.h"
 
+using namespace swoole;
 using namespace swoole::test;
 
 using swoole::coroutine::Socket;
@@ -10,9 +10,6 @@ using swoole::coroutine::System;
 
 TEST(coroutine_socket, connect_refused)
 {
-    swoole_event_init();
-    SwooleTG.reactor->wait_exit = 1;
-
     test::coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);

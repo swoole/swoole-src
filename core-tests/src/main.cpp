@@ -1,9 +1,4 @@
 #include "tests.h"
-#ifdef HAVE_SWOOLE_DIR
-#include "swoole_api.h"
-#else
-#include "swoole/swoole_api.h"
-#endif
 
 using namespace swoole;
 

@@ -18,7 +18,7 @@ size_t qs;
 int main(int argc, char **argv)
 {
     swoole_event_init();
-    SwooleTG.reactor->wait_exit = 1;
+    swReactor_wait_exit(sw_reactor(), 1);
 
     signal(SIGPIPE, SIG_IGN);
 

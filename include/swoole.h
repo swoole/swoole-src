@@ -1067,6 +1067,11 @@ int swPipeUnsock_close_ext(swPipe *p, int which);
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking);
 swSocket *swPipe_getSocket(swPipe *p, int master);
 
+static inline void swPipe_set_timeout(swPipe *p, double timeout)
+{
+    p->timeout = timeout;
+}
+
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
 #ifdef HAVE_EVENTFD
@@ -1132,38 +1137,12 @@ typedef struct _swMutex
     pthread_mutexattr_t attr;
 } swMutex;
 
-typedef struct _swFileLock
-{
-    struct flock lock_t;
-    int fd;
-} swFileLock;
-
 #ifdef HAVE_RWLOCK
 typedef struct _swRWLock
 {
     pthread_rwlock_t _lock;
     pthread_rwlockattr_t attr;
-
 } swRWLock;
-
-#ifdef HAVE_SPINLOCK
-typedef struct _swSpinLock
-{
-    pthread_spinlock_t lock_t;
-} swSpinLock;
-#endif
-
-typedef struct _swAtomicLock
-{
-    sw_atomic_t lock_t;
-    uint32_t spin;
-} swAtomicLock;
-
-typedef struct _swSem
-{
-    key_t key;
-    int semid;
-} swSem;
 #endif
 
 typedef struct _swLock
@@ -1176,11 +1155,9 @@ typedef struct _swLock
         swRWLock rwlock;
 #endif
 #ifdef HAVE_SPINLOCK
-        swSpinLock spinlock;
+        pthread_spinlock_t spin_lock;
 #endif
-        swFileLock filelock;
-        swSem sem;
-        swAtomicLock atomlock;
+        sw_atomic_t atomic_lock;
     } object;
 
     int (*lock_rd)(struct _swLock *);
@@ -1275,7 +1252,6 @@ typedef struct _swFixedPool
  */
 swMemoryPool *swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
 swMemoryPool *swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
-swMemoryPool *swMalloc_new();
 
 /**
  * RingBuffer, In order for malloc / free
@@ -1298,28 +1274,24 @@ void *sw_shm_calloc(size_t num, size_t _size);
 int sw_shm_protect(void *addr, int flags);
 void *sw_shm_realloc(void *ptr, size_t new_size);
 
-#ifdef HAVE_RWLOCK
-int swRWLock_create(swLock *lock, int use_in_process);
-#endif
-#ifdef SEM_UNDO
-int swSem_create(swLock *lock, key_t key);
-#endif
-int swFileLock_create(swLock *lock, int fd);
-#ifdef HAVE_SPINLOCK
-int swSpinLock_create(swLock *object, int spin);
-#endif
-int swAtomicLock_create(swLock *object, int spin);
-
+int swAtomicLock_create(swLock *object);
 int swMutex_create(swLock *lock, int use_in_process);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swCond_create(swCond *cond);
+
+#ifdef HAVE_RWLOCK
+int swRWLock_create(swLock *lock, int use_in_process);
+#endif
+
+#ifdef HAVE_SPINLOCK
+int swSpinLock_create(swLock *object, int spin);
+#endif
 
 typedef struct _swThreadParam
 {
     void *object;
     int pti;
 } swThreadParam;
-
 
 #ifdef __MACH__
 char *sw_error_();
@@ -1943,6 +1915,7 @@ struct _swProcessPool
      * reloading
      */
     uint8_t reloading;
+    uint8_t running;
     uint8_t reload_init;
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
@@ -2337,7 +2310,7 @@ typedef struct _swThreadPool
 #endif
 
     int thread_num;
-    int shutdown;
+    uchar running;
     sw_atomic_t task_num;
 
     void (*onStart)(struct _swThreadPool *pool, int id);

@@ -10,41 +10,35 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | @link     https://www.swoole.com/                                    |
+  | @contact  team@swoole.com                                            |
+  | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
+  | @author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "test_coroutine.h"
 
-static void* swMalloc_alloc(swMemoryPool *pool, uint32_t size);
-static void swMalloc_free(swMemoryPool *pool, void *ptr);
-static void swMalloc_destroy(swMemoryPool *pool);
-
-swMemoryPool* swMalloc_new()
+TEST(msg_queue, rbac)
 {
-    swMemoryPool *pool = (swMemoryPool *) sw_malloc(sizeof(swMemoryPool));
-    if (pool == nullptr)
-    {
-        swSysWarn("mallc(%ld) failed", sizeof(swMemoryPool));
-        return nullptr;
-    }
-    pool->alloc = swMalloc_alloc;
-    pool->free = swMalloc_free;
-    pool->destroy = swMalloc_destroy;
-    return pool;
+    swMsgQueue q;
+    ASSERT_EQ(swMsgQueue_create(&q, 0, 0, 0), SW_OK);
+    swQueue_data in;
+    in.mtype = 999;
+    strcpy(in.mdata, "hello world");
+
+    ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
+
+    int queue_num, queue_bytes;
+    ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
+    ASSERT_EQ(queue_num, 1);
+    ASSERT_GT(queue_bytes, 10);
+
+    swQueue_data out = {};
+    ASSERT_GT(swMsgQueue_pop(&q, &out, sizeof(out)), 1);
+
+    ASSERT_EQ(out.mtype, in.mtype);
+    ASSERT_STREQ(out.mdata, in.mdata);
 }
 
-static void* swMalloc_alloc(swMemoryPool *pool, uint32_t size)
-{
-    return sw_malloc(size);
-}
 
-static void swMalloc_free(swMemoryPool *pool, void *ptr)
-{
-    sw_free(ptr);
-}
-
-static void swMalloc_destroy(swMemoryPool *pool)
-{
-    sw_free(pool);
-}

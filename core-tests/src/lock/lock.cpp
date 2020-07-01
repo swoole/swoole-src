@@ -18,35 +18,58 @@
 */
 
 #include "tests.h"
+#include <thread>
 
-TEST(socket, swSocket_unix_sendto)
+static void test_func(swLock &lock)
 {
-    int fd1,fd2,ret;
-    struct sockaddr_un un1,un2;
-    char sock1_path[] = "/tmp/udp_unix1.sock";
-    char sock2_path[] = "/tmp/udp_unix2.sock";
-    char test_data[] = "swoole";
+    int count = 0;
+    const int N = 100000;
 
-    sw_memset_zero(&un1,sizeof(struct sockaddr_un));
-    sw_memset_zero(&un2,sizeof(struct sockaddr_un));
+    auto fn = [&]()
+    {
+        for (int i=0; i<N; i++)
+        {
+            ASSERT_EQ(lock.lock(&lock), 0);
+            count++;
+            ASSERT_EQ(lock.unlock(&lock), 0);
+        }
+    };
 
-    un1.sun_family = AF_UNIX;
-    un2.sun_family = AF_UNIX;
+    std::thread t1(fn);
+    std::thread t2(fn);
 
-    unlink(sock1_path);
-    unlink(sock2_path);
+    t1.join();
+    t2.join();
 
-    fd1 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un1.sun_path, sock1_path, sizeof(un1.sun_path) - 1); 
-    bind(fd1,(struct sockaddr *)&un1,sizeof(un1));
-
-    fd2 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un2.sun_path, sock2_path, sizeof(un2.sun_path) - 1); 
-    bind(fd2,(struct sockaddr *)&un2,sizeof(un2));
-
-    ret = swSocket_unix_sendto(fd1,sock2_path,test_data,strlen(test_data));
-    ASSERT_GT(ret, 0);
-
-    unlink(sock1_path);
-    unlink(sock2_path);
+    ASSERT_EQ(count, N * 2);
 }
+
+TEST(lock, atomic)
+{
+    swLock lock;
+    swAtomicLock_create(&lock);
+    test_func(lock);
+}
+
+TEST(lock, mutex)
+{
+    swLock lock;
+    swMutex_create(&lock, 0);
+    test_func(lock);
+}
+
+TEST(lock, rwlock)
+{
+    swLock lock;
+    swRWLock_create(&lock, 0);
+    test_func(lock);
+}
+
+#ifdef HAVE_SPINLOCK
+TEST(lock, spinlock)
+{
+    swLock lock;
+    swSpinLock_create(&lock, 0);
+    test_func(lock);
+}
+#endif

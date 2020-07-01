@@ -18,35 +18,42 @@
 */
 
 #include "tests.h"
+#include "mime_type.h"
 
-TEST(socket, swSocket_unix_sendto)
+using namespace swoole;
+
+TEST(mime_type, get)
 {
-    int fd1,fd2,ret;
-    struct sockaddr_un un1,un2;
-    char sock1_path[] = "/tmp/udp_unix1.sock";
-    char sock2_path[] = "/tmp/udp_unix2.sock";
-    char test_data[] = "swoole";
+    auto result = mime_type::get("test.html.json");
+    ASSERT_EQ(result, "application/json");
+}
 
-    sw_memset_zero(&un1,sizeof(struct sockaddr_un));
-    sw_memset_zero(&un2,sizeof(struct sockaddr_un));
+TEST(mime_type, exists)
+{
+    ASSERT_TRUE(mime_type::exists("test.html.json"));
+}
 
-    un1.sun_family = AF_UNIX;
-    un2.sun_family = AF_UNIX;
+TEST(mime_type, set)
+{
+    std::string test_mime_type("application/swoole-core-test");
+    mime_type::set("swoole_test", test_mime_type);
 
-    unlink(sock1_path);
-    unlink(sock2_path);
+    auto result = mime_type::get("test.swoole_test");
+    ASSERT_EQ(result, test_mime_type);
+}
 
-    fd1 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un1.sun_path, sock1_path, sizeof(un1.sun_path) - 1); 
-    bind(fd1,(struct sockaddr *)&un1,sizeof(un1));
+TEST(mime_type, add)
+{
+    std::string test_mime_type("application/swoole-core-test2");
+    ASSERT_TRUE(mime_type::add("swoole_test2", test_mime_type));
+    ASSERT_FALSE(mime_type::add("swoole_test2", test_mime_type));
 
-    fd2 = socket(AF_UNIX,SOCK_DGRAM,0);
-    strncpy(un2.sun_path, sock2_path, sizeof(un2.sun_path) - 1); 
-    bind(fd2,(struct sockaddr *)&un2,sizeof(un2));
+    auto result = mime_type::get("test.swoole_test2");
+    ASSERT_EQ(result, test_mime_type);
+}
 
-    ret = swSocket_unix_sendto(fd1,sock2_path,test_data,strlen(test_data));
-    ASSERT_GT(ret, 0);
-
-    unlink(sock1_path);
-    unlink(sock2_path);
+TEST(mime_type, del)
+{
+    ASSERT_TRUE(mime_type::del("json"));
+    ASSERT_FALSE(mime_type::exists("test.html.json"));
 }
