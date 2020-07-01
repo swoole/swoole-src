@@ -1067,6 +1067,11 @@ int swPipeUnsock_close_ext(swPipe *p, int which);
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking);
 swSocket *swPipe_getSocket(swPipe *p, int master);
 
+static inline void swPipe_set_timeout(swPipe *p, double timeout)
+{
+    p->timeout = timeout;
+}
+
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
 {
 #ifdef HAVE_EVENTFD

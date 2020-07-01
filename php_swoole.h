@@ -655,7 +655,7 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 /* PHP 7 class declaration macros */
 
 #define SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce) do { \
-    zend_class_entry _##module##_ce; \
+    zend_class_entry _##module##_ce = {}; \
     INIT_CLASS_ENTRY(_##module##_ce, namespaceName, methods); \
     module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce); \
     SW_CLASS_ALIAS(snake_name, module); \

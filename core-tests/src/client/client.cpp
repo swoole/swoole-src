@@ -127,7 +127,7 @@ TEST(client, async_tcp)
 
     pid = proc.start();
     int64_t value;
-    p.timeout = 10;
+    swPipe_set_timeout(&p, 10);
     p.read(&p, &value, sizeof(value));
     p.close(&p);
 

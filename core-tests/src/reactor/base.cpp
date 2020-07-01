@@ -188,8 +188,8 @@ static void reactor_test_func(swReactor *reactor)
 
         return SW_OK;
     });
-    reactor->add(reactor, p.getSocket(&p, 0), SW_EVENT_READ);
-    reactor->add(reactor, p.getSocket(&p, 1), SW_EVENT_WRITE);
+    reactor->add(reactor, p.getSocket(&p, SW_PIPE_READ), SW_EVENT_READ);
+    reactor->add(reactor, p.getSocket(&p, SW_PIPE_WRITE), SW_EVENT_WRITE);
     reactor->wait(reactor, nullptr);
     reactor->free(reactor);
 

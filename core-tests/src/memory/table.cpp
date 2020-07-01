@@ -76,7 +76,7 @@ public:
         column_score = swTableColumn_get(table, std::string("score"));
     }
 
-    bool add(const std::string &key, const row_t &value)
+    bool set(const std::string &key, const row_t &value)
     {
         swTableRow *_rowlock = nullptr;
         swTableRow *row = swTableRow_set(table, key.c_str(), key.length(), &_rowlock);
@@ -114,6 +114,20 @@ public:
         return result;
     }
 
+    bool del(const std::string &key)
+    {
+        return swTableRow_del(table, key.c_str(), key.length()) == SW_OK;
+    }
+
+    bool exists(const std::string &key)
+    {
+        swTableRow *_rowlock = nullptr;
+        swTableRow *row = swTableRow_get(table, key.c_str(), key.length(), &_rowlock);
+        swTableRow_unlock(_rowlock);
+
+        return row != nullptr;
+    }
+
     size_t count()
     {
         return table->row_num;
@@ -132,15 +146,18 @@ TEST(table, create)
 {
     table_t table(1024);
 
-    table.add("php", {"php", 1, 1.245});
-    table.add("java", {"java", 2, 3.1415926});
-    table.add("c++", {"c++", 3, 4.888});
+    table.set("php", {"php", 1, 1.245});
+    table.set("java", {"java", 2, 3.1415926});
+    table.set("c++", {"c++", 3, 4.888});
+
+    ASSERT_EQ(table.count(), 3);
 
     row_t r1 = table.get("java");
     ASSERT_EQ(r1.id, 2);
     ASSERT_EQ(r1.score, 3.1415926);
     ASSERT_EQ(r1.name, std::string("java"));
 
-    ASSERT_EQ(table.count(), 3);
-
+    ASSERT_TRUE(table.exists("php"));
+    ASSERT_TRUE(table.del("php"));
+    ASSERT_FALSE(table.exists("php"));
 }
