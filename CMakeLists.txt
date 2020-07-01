@@ -4,8 +4,6 @@ ENABLE_LANGUAGE(ASM)
 SET(SWOOLE_VERSION 4.5.3-alpha)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 set(SWOOLE_CLFLAGS pthread dl)
@@ -55,7 +53,6 @@ link_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/lib)
 execute_process(COMMAND php-config --includes OUTPUT_VARIABLE PHP_INCLUDES OUTPUT_STRIP_TRAILING_WHITESPACE)
 execute_process(COMMAND php-config --extension-dir OUTPUT_VARIABLE PHP_EXTENSION_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PHP_INCLUDES}")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 
 # test_server
 set(TEST_SRC_LIST examples/cpp/test_server.cc)
@@ -95,6 +92,7 @@ set(ext_src_list  ${ext_cxx_files}
 add_library(ext-swoole SHARED ${ext_src_list})
 set_target_properties(ext-swoole PROPERTIES PREFIX "")
 set_target_properties(ext-swoole PROPERTIES OUTPUT_NAME "swoole")
+target_compile_options(ext-swoole PRIVATE -Wall -g)
 add_dependencies(ext-swoole lib-swoole)
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")
@@ -110,6 +108,15 @@ if (CMAKE_SYSTEM_NAME MATCHES "Linux")
 endif()
 
 target_link_libraries(ext-swoole ${SWOOLE_CLFLAGS} swoole)
+
+message(STATUS "summary of build options:
+    Install prefix:  ${CMAKE_INSTALL_PREFIX}
+    Target system:   ${CMAKE_SYSTEM_NAME}
+    Compiler:
+      C compiler:    ${CMAKE_C_COMPILER}
+      CXX compiler:  ${CMAKE_CXX_COMPILER}
+      CXXFLAGS:      ${CMAKE_CXX_FLAGS}
+")
 
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")

@@ -1,12 +1,11 @@
 PROJECT(libswoole)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-ENABLE_LANGUAGE(ASM)
 SET(SWOOLE_VERSION 4.5.3-alpha)
 
+enable_language(ASM)
+
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 add_definitions(-DHAVE_CONFIG_H)
 
@@ -42,7 +41,135 @@ if(CODE_COVERAGE)
     endif()
 endif(CODE_COVERAGE)
 
-file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS *.cc ${libswoole_thirdparty_dir}/boost/asm/combined.S)
+set(libswoole_sources_core
+    core/base.cc
+    core/error.cc
+    core/log.cc
+    core/string.cc
+    core/channel.cc
+    core/hashmap.cc
+    core/heap.cc
+    core/ring_queue.cc
+    core/timer.cc
+)
+
+set(libswoole_sources_coroutine
+    coroutine/base.cc
+    coroutine/channel.cc
+    coroutine/context.cc
+    coroutine/file_lock.cc
+    coroutine/hook.cc
+    coroutine/socket.cc
+    coroutine/system.cc
+    coroutine/thread_context.cc
+)
+
+set(libswoole_sources_lock
+    lock/atomic.cc
+    lock/cond.cc
+    lock/file_lock.cc
+    lock/mutex.cc
+    lock/rw_lock.cc
+    lock/semaphore.cc
+    lock/spin_lock.cc
+)
+
+set(libswoole_sources_memory
+    memory/buffer.cc
+    memory/fixed_pool.cc
+    memory/global_memory.cc
+    memory/malloc.cc
+    memory/ring_buffer.cc
+    memory/shared_memory.cc
+    memory/table.cc
+)
+
+set(libswoole_sources_network
+    network/client.cc
+    network/dns.cc
+    network/socket.cc
+    network/stream.cc
+)
+
+set(libswoole_sources_os
+    os/async_thread.cc
+    os/base.cc
+    os/msg_queue.cc
+    os/process_pool.cc
+    os/sendfile.cc
+    os/signal.cc
+    os/thread_pool.cc
+    os/timer.cc
+    os/wait.cc
+)
+
+set(libswoole_sources_pipe
+    pipe/base.cc
+    pipe/eventfd.cc
+    pipe/unix_socket.cc
+)
+
+set(libswoole_sources_protocol
+    protocol/base.cc
+    protocol/base64.cc
+    protocol/dtls.cc
+    protocol/http.cc
+    protocol/http2.cc
+    protocol/mime_type.cc
+    protocol/mqtt.cc
+    protocol/redis.cc
+    protocol/sha1.cc
+    protocol/socks5.cc
+    protocol/ssl.cc
+    protocol/websocket.cc
+)
+
+set(libswoole_sources_reactor
+    reactor/base.cc
+    reactor/epoll.cc
+    reactor/kqueue.cc
+    reactor/poll.cc
+    reactor/select.cc
+)
+
+set(libswoole_sources_server
+    server/base.cc
+    server/manager.cc
+    server/master.cc
+    server/port.cc
+    server/process.cc
+    server/reactor_process.cc
+    server/reactor_thread.cc
+    server/static_handler.cc
+    server/task_worker.cc
+    server/worker.cc
+)
+
+set(libswoole_sources_wrapper
+    wrapper/event.cc
+    wrapper/server.cc
+    wrapper/timer.cc
+)
+
+set(libswoole_sources_thirdparty
+    ${libswoole_thirdparty_dir}/boost/asm/combined.S
+)
+
+list(APPEND libswoole_sources
+    ${libswoole_sources_core}
+    ${libswoole_sources_coroutine}
+    ${libswoole_sources_lock}
+    ${libswoole_sources_memory}
+    ${libswoole_sources_network}
+    ${libswoole_sources_os}
+    ${libswoole_sources_pipe}
+    ${libswoole_sources_protocol}
+    ${libswoole_sources_reactor}
+    ${libswoole_sources_server}
+    ${libswoole_sources_wrapper}
+    ${libswoole_sources_thirdparty}
+)
+
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS ${libswoole_headers_dir}/*.h)
 file(GLOB_RECURSE HEAD_WAPPER_FILES FOLLOW_SYMLINKS ${libswoole_headers_dir}/wrapper/*.hpp)
 
@@ -69,13 +196,11 @@ if (DEFINED brotli_dir)
     link_directories(${brotli_dir}/lib)
 endif()
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PHP_INCLUDES}")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
-
 # lib-swoole
 link_directories(${LIBRARY_OUTPUT_PATH})
-add_library(lib-swoole SHARED ${SRC_LIST})
+add_library(lib-swoole SHARED ${libswoole_sources})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
+target_compile_options(lib-swoole PRIVATE ${CMAKE_CXX_FLAGS} -Wall -g)
 target_include_directories(lib-swoole PRIVATE ${libswoole_includes})
 target_link_libraries(lib-swoole ${libswoole_libraries})
 if(CODE_COVERAGE)
