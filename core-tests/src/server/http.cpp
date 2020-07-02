@@ -5,7 +5,7 @@
 using namespace swoole;
 using namespace std;
 
-static void run_http_server(function<void(swServer *)> fn)
+static void test_run_server(function<void(swServer *)> fn)
 {
     swServer serv;
     swServer_init(&serv);
@@ -51,7 +51,7 @@ static void run_http_server(function<void(swServer *)> fn)
 
 TEST(http_server, get)
 {
-    run_http_server([](swServer *serv)
+    test_run_server([](swServer *serv)
     {
         swSignal_none();
 
@@ -68,7 +68,7 @@ TEST(http_server, get)
 
 TEST(http_server, post)
 {
-    run_http_server([](swServer *serv)
+    test_run_server([](swServer *serv)
     {
         swSignal_none();
 

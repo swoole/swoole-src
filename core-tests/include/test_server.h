@@ -2,7 +2,7 @@
 
 #include "tests.h"
 
-void create_test_server(swServer *serv);
+void test_create_server(swServer *serv);
 
 #define SERVER_THIS ((server *) serv->ptr2)
 

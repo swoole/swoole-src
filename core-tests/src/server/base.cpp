@@ -142,7 +142,7 @@ int server::close(int session_id, int reset)
     return serv.close(&serv, session_id, reset);
 }
 
-void create_test_server(swServer *serv)
+void test_create_server(swServer *serv)
 {
     swServer_init(serv);
 

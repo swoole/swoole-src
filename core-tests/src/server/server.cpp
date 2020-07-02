@@ -8,7 +8,7 @@ TEST(server, create_pipe_buffers)
     int ret;
     swServer serv;
 
-    create_test_server(&serv);
+    test_create_server(&serv);
 
     ret = swServer_create_pipe_buffers(&serv);
     ASSERT_EQ(0, ret);
