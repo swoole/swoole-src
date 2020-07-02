@@ -1706,14 +1706,6 @@ static PHP_FUNCTION(swoole_stream_select)
         }
     }
 
-    /**
-     * timeout or add failed
-     */
-    if (!System::socket_poll(fds, timeout))
-    {
-        RETURN_LONG(0);
-    }
-
     if (r_array != nullptr)
     {
         zend_hash_clean(Z_ARRVAL_P(r_array));
@@ -1727,11 +1719,19 @@ static PHP_FUNCTION(swoole_stream_select)
         zend_hash_clean(Z_ARRVAL_P(e_array));
     }
 
+    /**
+     * timeout or add failed
+     */
+    if (!System::socket_poll(fds, timeout))
+    {
+        RETURN_LONG(0);
+    }
+
     for (auto &i : fds)
     {
         zend::key_value *kv = (zend::key_value *) i.second.ptr;
         int revents = i.second.revents;
-        SW_ASSERT((revents & (~(SW_EVENT_READ |SW_EVENT_WRITE | SW_EVENT_ERROR))) == 0);
+        SW_ASSERT((revents & (~(SW_EVENT_READ | SW_EVENT_WRITE | SW_EVENT_ERROR))) == 0);
         if (revents > 0)
         {
             if ((revents & SW_EVENT_READ) && r_array)
