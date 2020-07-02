@@ -1,15 +1,17 @@
 #include "test_server.h"
+#include "httplib_client.h"
 #include "wrapper/client.hpp"
 
 using namespace swoole;
 using namespace std;
 
-TEST(http_server, get)
+static void run_http_server(function<void(swServer *)> fn)
 {
     swServer serv;
     swServer_init(&serv);
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
+    serv.ptr2 = (void*) &fn;
     swServer_create(&serv);
 
     swLog_set_level(SW_LOG_WARNING);
@@ -22,45 +24,20 @@ TEST(http_server, get)
     }
     port->open_http_protocol = 1;
 
-    swLock lock;
-    swMutex_create(&lock, 0);
-    lock.lock(&lock);
-    serv.ptr2 = &lock;
-
-    std::thread t1([&]()
-    {
-        swSignal_none();
-
-        lock.lock(&lock);
-
-        swoole::Client c(SW_SOCK_TCP);
-        c.connect(TEST_HOST, port->port);
-        c.send("GET /index.html HTTP/1.1\r\nHost: localhost\r\n\r\n");
-        char buf[1024];
-        auto n = c.recv(buf, sizeof(buf));
-        EXPECT_GT(n, 0);
-
-        string resp(buf, n);
-        ASSERT_TRUE( resp.find("200 OK"));
-
-        c.close();
-
-        kill(getpid(), SIGTERM);
-    });
-
     serv.onWorkerStart = [](swServer *serv, int worker_id)
     {
-        swLock *lock = (swLock *) serv->ptr2;
-        lock->unlock(lock);
+        function<void(swServer *)> fn = *(function<void(swServer *)> *)serv->ptr2;
+        thread t1(fn, serv);
+        t1.detach();
     };
 
     serv.onReceive = [](swServer *serv, swEventData *task) -> int
     {
         char *data = nullptr;
         size_t length = serv->get_packet(serv, task, &data);
-        EXPECT_EQ(string(data + length - 4, 4), string("\r\n\r\n"));
-
         string req(data, length);
+
+        EXPECT_TRUE(req.find("\r\n\r\n"));
         EXPECT_TRUE(req.find("localhost"));
 
         string resp = string("HTTP/1.1 200 OK\r\nContent-Length: 11\r\n\r\nhello world");
@@ -70,5 +47,41 @@ TEST(http_server, get)
     };
 
     swServer_start(&serv);
-    t1.join();
+}
+
+TEST(http_server, get)
+{
+    run_http_server([](swServer *serv)
+    {
+        swSignal_none();
+
+        auto port = serv->listen_list->front();
+
+        httplib::Client cli(TEST_HOST, port->port);
+        auto resp = cli.Get("/index.html");
+        EXPECT_EQ(resp->status, 200);
+        EXPECT_EQ(resp->body, string("hello world"));
+
+        kill(getpid(), SIGTERM);
+    });
+}
+
+TEST(http_server, post)
+{
+    run_http_server([](swServer *serv)
+    {
+        swSignal_none();
+
+        auto port = serv->listen_list->front();
+
+        httplib::Client cli(TEST_HOST, port->port);
+        httplib::Params params;
+        params.emplace("name", "john");
+        params.emplace("note", "coder");
+        auto resp = cli.Post("/index.html", params);
+        EXPECT_EQ(resp->status, 200);
+        EXPECT_EQ(resp->body, string("hello world"));
+
+        kill(getpid(), SIGTERM);
+    });
 }
