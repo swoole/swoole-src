@@ -11,7 +11,7 @@ if (!getenv('TEST_PHP_EXECUTABLE')) {
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
-go(function () {
+Co\run(function () {
     $php = realpath(getenv('TEST_PHP_EXECUTABLE'));
     $pipes = [];
     $proc = proc_open(
@@ -40,7 +40,6 @@ go(function () {
     }
     proc_close($proc);
 });
-Swoole\Event::wait();
 ?>
 --EXPECTF--
 resource(%d) of type (process/coroutine)
