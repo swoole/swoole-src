@@ -24,36 +24,60 @@ using namespace std;
 const int N = 10000000;
 
 TEST(channel, push) {
-  auto c = swChannel_new(128 * 1024, 8192, SW_CHAN_LOCK | SW_CHAN_NOTIFY);
+    auto c = swChannel_new(128 * 1024, 8192, SW_CHAN_LOCK | SW_CHAN_NOTIFY);
+    map<int, string> m;
 
-  thread t1([&]()
-  {
-    char buf[8000];
     size_t bytes = 0;
-    while(bytes < N) {
-      int n = swoole_random_bytes(buf, rand() % sizeof(buf));
-      if (swChannel_push(c, buf, n) == SW_OK) {
+    int index = 0;
+
+    while (bytes < N) {
+        char buf[8000];
+        int n = swoole_random_bytes(buf, (rand() % (sizeof(buf) / 2)) + (sizeof(buf) / 2));
+        if (n <= 0) {
+            swTrace("no enough data, n=%d, errno=%d\n", n, errno);
+            continue;
+        }
+        m[index++] = string(buf, n);
         bytes += n;
-      } else {
-        usleep(10);
-      }
     }
-  });
 
-  thread t2([&]()
-  {
-    char buf[8000];
-    size_t bytes = 0;
-    while(bytes < N) {
-      int retval = swChannel_pop(c, buf, sizeof(buf));
-      if (retval > 0) {
-        bytes += retval;
-      } else {
-        usleep(10);
-      }
-    }
-  });
+    swTrace("size=%d\n", m.size());
 
-  t1.join();
-  t2.join();
+    thread t1([&]()
+    {
+        string next = m[0];
+        int index = 1;
+        size_t bytes = 0;
+
+        while(bytes < N) {
+            if (swChannel_push(c, next.c_str(), next.length()) == SW_OK) {
+                swTrace("[PUSH] index=%d, size=%d\n", index, next.length());
+                bytes += next.length();
+                next = m[index++];
+            } else {
+                usleep(10);
+            }
+        }
+    });
+
+    thread t2([&]()
+    {
+        char buf[8000];
+        size_t bytes = 0;
+        int index = 0;
+        while(bytes < N) {
+            int retval = swChannel_pop(c, buf, sizeof(buf));
+            if (retval > 0) {
+                swTrace("[POP] index=%d, size=%ld\n", index, retval);
+                string _data = m[index++];
+                bytes += retval;
+                ASSERT_EQ(_data, string(buf, retval));
+            } else {
+                usleep(10);
+            }
+        }
+    });
+
+    t1.join();
+    t2.join();
 }
