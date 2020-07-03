@@ -563,7 +563,7 @@ PHP_METHOD(swoole_coroutine_system, writeFile)
         Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    int _flags = O_CREAT | O_WRONLY;
+    int _flags = 0;
     if (flags & PHP_FILE_APPEND)
     {
         _flags |= O_APPEND;

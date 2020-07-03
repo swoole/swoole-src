@@ -1005,7 +1005,7 @@ class CoSocketStream : public detail::SocketStream {
         return true;
     }
     ssize_t read(char *ptr, size_t size) {
-        return sock_->read_with_buffer(ptr, size);
+        return sock_->recv_with_buffer(ptr, size);
     }
     ssize_t write(const char *ptr, size_t size) {
         return sock_->write(ptr, size);

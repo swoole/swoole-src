@@ -113,13 +113,13 @@ public:
     }
 
     ssize_t read(void *__buf, size_t __n);
-    ssize_t read_with_buffer(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
+    ssize_t recv_with_buffer(void *__buf, size_t __n);
 
     inline char *pop_packet()
     {
