@@ -8,12 +8,12 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -g")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
-set(SWOOLE_CLFLAGS pthread dl)
+set(SWOOLE_LINK_LIBRARIES pthread dl)
 
 if (APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "-undefined dynamic_lookup")
 else()
-    list(APPEND SWOOLE_CLFLAGS rt crypt)
+    list(APPEND SWOOLE_LINK_LIBRARIES rt crypt)
 endif()
 
 SET(CMAKE_BUILD_TYPE Debug)
@@ -61,9 +61,9 @@ if (DEFINED openssl_dir)
 else()
     find_package(OpenSSL)
     if (${OPENSSL_FOUND})
-        message(STATUS "Found OpenSSL")
+        message(STATUS "Found OpenSSL, ${OPENSSL_LIBRARIES}")
         include_directories(BEFORE ${OPENSSL_INCLUDE_DIR})
-        list(APPEND SWOOLE_CLFLAGS ${OPENSSL_LIBRARIES})
+        list(APPEND SWOOLE_LINK_LIBRARIES ssl crypto)
     else()
         message(STATUS "Not found OpenSSL")
     endif()
@@ -79,11 +79,23 @@ execute_process(COMMAND php-config --extension-dir OUTPUT_VARIABLE PHP_EXTENSION
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${PHP_INCLUDES}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${PHP_INCLUDES}")
 
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    execute_process(COMMAND ldconfig -p OUTPUT_VARIABLE LDCONFIG_LIST OUTPUT_STRIP_TRAILING_WHITESPACE)
+    #message(STATUS LDCONFIG_LIST)
+    if (LDCONFIG_LIST MATCHES brotlienc)
+         list(APPEND SWOOLE_LINK_LIBRARIES brotlienc)
+    endif()
+
+    if (LDCONFIG_LIST MATCHES brotlidec)
+        list(APPEND SWOOLE_LINK_LIBRARIES brotlidec)
+    endif()
+endif()
+
 # lib-swoole
 link_directories(${LIBRARY_OUTPUT_PATH})
 add_library(lib-swoole SHARED ${SRC_LIST})
 set_target_properties(lib-swoole PROPERTIES OUTPUT_NAME "swoole" VERSION ${SWOOLE_VERSION})
-target_link_libraries(lib-swoole ${SWOOLE_CLFLAGS})
+target_link_libraries(lib-swoole ${SWOOLE_LINK_LIBRARIES})
 if(CODE_COVERAGE)
     target_link_libraries(lib-swoole coverage_config gcov)
 endif(CODE_COVERAGE)
@@ -92,13 +104,13 @@ endif(CODE_COVERAGE)
 set(TEST_SRC_LIST examples/cpp/test_server.cc)
 add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server lib-swoole)
-target_link_libraries(test_server ${SWOOLE_CLFLAGS} swoole)
+target_link_libraries(test_server swoole)
 
 # co
 set(TEST_SRC_LIST examples/cpp/co.cc)
 add_executable(co ${TEST_SRC_LIST})
 add_dependencies(co lib-swoole)
-target_link_libraries(co ${SWOOLE_CLFLAGS} swoole)
+target_link_libraries(co swoole)
 
 # ext-swoole
 file(GLOB ext_cxx_files *.cc)
@@ -128,19 +140,7 @@ set_target_properties(ext-swoole PROPERTIES PREFIX "")
 set_target_properties(ext-swoole PROPERTIES OUTPUT_NAME "swoole")
 add_dependencies(ext-swoole lib-swoole)
 
-if (CMAKE_SYSTEM_NAME MATCHES "Linux")
-    execute_process(COMMAND ldconfig -p OUTPUT_VARIABLE LDCONFIG_LIST OUTPUT_STRIP_TRAILING_WHITESPACE)
-    #message(STATUS LDCONFIG_LIST)
-    if (LDCONFIG_LIST MATCHES brotlienc)
-        set(SWOOLE_CLFLAGS "${SWOOLE_CLFLAGS} -l brotlienc")
-    endif()
-
-    if (LDCONFIG_LIST MATCHES brotlidec)
-        set(SWOOLE_CLFLAGS "${SWOOLE_CLFLAGS} -l brotlidec")
-    endif()
-endif()
-
-target_link_libraries(ext-swoole ${SWOOLE_CLFLAGS} swoole)
+target_link_libraries(ext-swoole swoole)
 
 #install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
