@@ -34,10 +34,10 @@ TEST(coroutine_http_server, get) {
         auto resp1 = cli.Get("/hi");
         EXPECT_EQ(resp1->status, 200);
         EXPECT_EQ(resp1->body, string("Hello World!"));
-
-        auto resp2 = cli.Get("/stop");
-        EXPECT_EQ(resp2->status, 200);
-        EXPECT_EQ(resp2->body, string("Stop Server!"));
+//
+//        auto resp2 = cli.Get("/stop");
+//        EXPECT_EQ(resp2->status, 200);
+//        EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
     test::coroutine::run([](void *arg) {
@@ -50,6 +50,47 @@ TEST(coroutine_http_server, get) {
         svr.Get("/stop", [&svr](const Request &req, Response &res) {
             res.set_content("Stop Server!", "text/plain");
             svr.stop();
+        });
+
+        svr.Post("/post", [](const Request &req, Response &res) {
+            res.set_content("Hello World!", "text/plain");
+        });
+
+        svr.listen(TEST_HOST, 8080);
+    });
+
+    t1.join();
+}
+
+TEST(coroutine_http_server, post) {
+
+    std::thread t1([]() {
+        usleep(10000);
+        Client cli(TEST_HOST, 8080);
+
+        httplib::Params params;
+        params.emplace("name", "john");
+        params.emplace("note", "coder");
+
+        auto resp1 = cli.Post("/post", params);
+        EXPECT_EQ(resp1->status, 200);
+        EXPECT_EQ(resp1->body, string("Hello World!"));
+
+        auto resp2 = cli.Get("/stop");
+        EXPECT_EQ(resp2->status, 200);
+        EXPECT_EQ(resp2->body, string("Stop Server!"));
+    });
+
+    test::coroutine::run([](void *arg) {
+        Server svr;
+
+        svr.Get("/stop", [&svr](const Request &req, Response &res) {
+            res.set_content("Stop Server!", "text/plain");
+            svr.stop();
+        });
+
+        svr.Post("/post", [](const Request &req, Response &res) {
+            res.set_content("Hello World!", "text/plain");
         });
 
         svr.listen(TEST_HOST, 8080);

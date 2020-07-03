@@ -168,142 +168,6 @@ private:
   SocketOptions socket_options_ = default_socket_options;
 };
 
-
-#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
-
-namespace detail {
-template <typename T>
-inline bool
-process_server_socket_ssl(SSL *ssl, socket_t sock, size_t keep_alive_max_count,
-                          time_t read_timeout_sec, time_t read_timeout_usec,
-                          time_t write_timeout_sec, time_t write_timeout_usec,
-                          T callback) {
-  return process_server_socket_core(
-      sock, keep_alive_max_count,
-      [&](bool close_connection, bool connection_closed) {
-        SSLSocketStream strm(sock, ssl, read_timeout_sec, read_timeout_usec,
-                             write_timeout_sec, write_timeout_usec);
-        return callback(strm, close_connection, connection_closed);
-      });
-}
-};
-
-class SSLServer : public Server {
-public:
-  SSLServer(const char *cert_path, const char *private_key_path,
-            const char *client_ca_cert_file_path = nullptr,
-            const char *client_ca_cert_dir_path = nullptr);
-
-  SSLServer(X509 *cert, EVP_PKEY *private_key,
-            X509_STORE *client_ca_cert_store = nullptr);
-
-  ~SSLServer() override;
-
-  bool is_valid() const override;
-
-private:
-  bool process_and_close_socket(socket_t sock) override;
-
-  SSL_CTX *ctx_;
-  std::mutex ctx_mutex_;
-};
-
-// SSL HTTP server implementation
-inline SSLServer::SSLServer(const char *cert_path, const char *private_key_path,
-                            const char *client_ca_cert_file_path,
-                            const char *client_ca_cert_dir_path) {
-  ctx_ = SSL_CTX_new(SSLv23_server_method());
-
-  if (ctx_) {
-    SSL_CTX_set_options(ctx_,
-                        SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-                            SSL_OP_NO_COMPRESSION |
-                            SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION);
-
-    // auto ecdh = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1);
-    // SSL_CTX_set_tmp_ecdh(ctx_, ecdh);
-    // EC_KEY_free(ecdh);
-
-    if (SSL_CTX_use_certificate_chain_file(ctx_, cert_path) != 1 ||
-        SSL_CTX_use_PrivateKey_file(ctx_, private_key_path, SSL_FILETYPE_PEM) !=
-            1) {
-      SSL_CTX_free(ctx_);
-      ctx_ = nullptr;
-    } else if (client_ca_cert_file_path || client_ca_cert_dir_path) {
-      // if (client_ca_cert_file_path) {
-      //   auto list = SSL_load_client_CA_file(client_ca_cert_file_path);
-      //   SSL_CTX_set_client_CA_list(ctx_, list);
-      // }
-
-      SSL_CTX_load_verify_locations(ctx_, client_ca_cert_file_path,
-                                    client_ca_cert_dir_path);
-
-      SSL_CTX_set_verify(
-          ctx_,
-          SSL_VERIFY_PEER |
-              SSL_VERIFY_FAIL_IF_NO_PEER_CERT, // SSL_VERIFY_CLIENT_ONCE,
-          nullptr);
-    }
-  }
-}
-
-inline SSLServer::SSLServer(X509 *cert, EVP_PKEY *private_key,
-                            X509_STORE *client_ca_cert_store) {
-  ctx_ = SSL_CTX_new(SSLv23_server_method());
-
-  if (ctx_) {
-    SSL_CTX_set_options(ctx_,
-                        SSL_OP_ALL | SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 |
-                            SSL_OP_NO_COMPRESSION |
-                            SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION);
-
-    if (SSL_CTX_use_certificate(ctx_, cert) != 1 ||
-        SSL_CTX_use_PrivateKey(ctx_, private_key) != 1) {
-      SSL_CTX_free(ctx_);
-      ctx_ = nullptr;
-    } else if (client_ca_cert_store) {
-
-      SSL_CTX_set_cert_store(ctx_, client_ca_cert_store);
-
-      SSL_CTX_set_verify(
-          ctx_,
-          SSL_VERIFY_PEER |
-              SSL_VERIFY_FAIL_IF_NO_PEER_CERT, // SSL_VERIFY_CLIENT_ONCE,
-          nullptr);
-    }
-  }
-}
-
-inline SSLServer::~SSLServer() {
-  if (ctx_) { SSL_CTX_free(ctx_); }
-}
-
-inline bool SSLServer::is_valid() const { return ctx_; }
-
-inline bool SSLServer::process_and_close_socket(socket_t sock) {
-  auto ssl = detail::ssl_new(sock, ctx_, ctx_mutex_, SSL_accept,
-                             [](SSL * /*ssl*/) { return true; });
-
-  if (ssl) {
-    auto ret = detail::process_server_socket_ssl(
-        ssl, sock, keep_alive_max_count_, read_timeout_sec_, read_timeout_usec_,
-        write_timeout_sec_, write_timeout_usec_,
-        [this, ssl](Stream &strm, bool close_connection,
-                    bool &connection_closed) {
-          return process_request(strm, close_connection, connection_closed,
-                                 [&](Request &req) { req.ssl = ssl; });
-        });
-
-    detail::ssl_delete(ctx_mutex_, ssl, ret);
-    return ret;
-  }
-
-  detail::close_socket(sock);
-  return false;
-}
-
-#endif
-
 // HTTP server implementation
 inline Server::Server() : svr_sock_(nullptr), is_running_(false) {
 #ifndef _WIN32
@@ -890,7 +754,7 @@ inline bool Server::listen_internal() {
         } else if (svr_sock_->errCode == ECANCELED) {
             break;
         } else {
-            //php_swoole_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
+            swWarn("accept failed, Error: %s[%d]", svr_sock_->errMsg, svr_sock_->errCode);
             break;
         }
     }
@@ -1127,6 +991,9 @@ class CoSocketStream : public detail::SocketStream {
             : detail::SocketStream(sock->get_fd(), read_timeout_sec, read_timeout_usec, write_timeout_sec,
                                    write_timeout_usec) {
         sock_ = sock;
+        sock->set_timeout((double) read_timeout_sec + ((double) read_timeout_usec / 1000000), swoole::SW_TIMEOUT_READ);
+        sock->set_timeout((double) write_timeout_sec + ((double) write_timeout_usec / 1000000),
+                          swoole::SW_TIMEOUT_WRITE);
     }
     ~CoSocketStream() {
 
@@ -1138,7 +1005,7 @@ class CoSocketStream : public detail::SocketStream {
         return true;
     }
     ssize_t read(char *ptr, size_t size) {
-        return sock_->read(ptr, size);
+        return sock_->read_with_buffer(ptr, size);
     }
     ssize_t write(const char *ptr, size_t size) {
         return sock_->write(ptr, size);

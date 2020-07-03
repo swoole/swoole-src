@@ -1052,6 +1052,51 @@ ssize_t Socket::read(void *__buf, size_t __n)
     return retval;
 }
 
+ssize_t Socket::read_with_buffer(void *__buf, size_t __n)
+{
+    if (sw_unlikely(!is_available(SW_EVENT_READ)))
+    {
+        return -1;
+    }
+    swString *buffer = get_read_buffer();
+
+    size_t buffer_bytes = buffer->length - buffer->offset;
+
+    if (__n <= buffer_bytes)
+    {
+        memcpy(__buf, buffer->str + buffer->offset, __n);
+        buffer->offset += __n;
+
+        return __n;
+    }
+    else
+    {
+        if (buffer_bytes > 0)
+        {
+            memcpy(__buf, buffer->str + buffer->offset, buffer_bytes);
+            buffer->offset += buffer_bytes;
+        }
+        if ((size_t) buffer->offset >= buffer->size / 2)
+        {
+            swString_reduce(buffer, buffer->offset);
+        }
+        ssize_t retval = recv(buffer->str + buffer->length, buffer->size - buffer->length);
+        if (retval <= 0)
+        {
+            return buffer_bytes > 0 ? buffer_bytes : retval;
+        }
+        else
+        {
+            buffer->length += retval;
+            size_t copy_bytes = std::min(__n - buffer_bytes, buffer->length - buffer->offset);
+            memcpy((char*) __buf + buffer_bytes, buffer->str + buffer->offset, copy_bytes);
+            buffer->offset += copy_bytes;
+
+            return buffer_bytes + copy_bytes;
+        }
+    }
+}
+
 ssize_t Socket::write(const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))

@@ -113,6 +113,7 @@ public:
     }
 
     ssize_t read(void *__buf, size_t __n);
+    ssize_t read_with_buffer(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
     ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t sendmsg(const struct msghdr *msg, int flags);
@@ -356,6 +357,10 @@ public:
         if (sw_unlikely(!read_buffer))
         {
             read_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            if (!read_buffer)
+            {
+                throw std::bad_alloc();
+            }
         }
         return read_buffer;
     }
@@ -365,6 +370,10 @@ public:
         if (sw_unlikely(!write_buffer))
         {
             write_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            if (!write_buffer)
+            {
+                throw std::bad_alloc();
+            }
         }
         return write_buffer;
     }
