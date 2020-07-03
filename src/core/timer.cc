@@ -16,6 +16,8 @@
 
 #include "swoole_api.h"
 
+int swSystemTimer_init(swTimer *timer, long msec);
+
 int swTimer_now(struct timeval *time)
 {
 #if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)

@@ -28,6 +28,8 @@ swTimer* sw_timer()
 }
 #endif
 
+swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
+
 swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data)
 {
     if (sw_unlikely(SwooleTG.timer == nullptr))
@@ -123,4 +125,13 @@ void swoole_timer_free()
     swTimer_free(SwooleTG.timer);
     sw_free(SwooleTG.timer);
     SwooleTG.timer = nullptr;
+}
+
+int swoole_timer_select()
+{
+    if (!SwooleTG.timer)
+    {
+        return SW_ERR;
+    }
+    return swTimer_select(SwooleTG.timer);
 }
