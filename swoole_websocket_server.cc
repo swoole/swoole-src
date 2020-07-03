@@ -612,7 +612,7 @@ int swoole_websocket_onMessage(swServer *serv, swEventData *req)
     int fd = req->info.fd;
     uchar flags = 0;
     zend_long opcode = 0;
-    auto primary_port = serv->listen_list->front();
+    auto primary_port = serv->get_primary_port();
 
     zval zdata;
     char frame_header[2];

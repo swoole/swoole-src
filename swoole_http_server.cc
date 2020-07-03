@@ -217,7 +217,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->compression_level = serv->http_compression_level;
 #endif
     ctx->private_data = serv;
-    ctx->upload_tmp_dir = serv->upload_tmp_dir;
+    ctx->upload_tmp_dir = serv->upload_tmp_dir.c_str();
     ctx->send = http_context_send_data;
     ctx->sendfile = http_context_sendfile;
     ctx->close = http_context_disconnect;

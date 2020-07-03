@@ -1,13 +1,13 @@
 #include "tests.h"
-#include "test_process.h"
 #include "test_server.h"
 #include "wrapper/client.hpp"
+#include "test_process.h"
 
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)
 
-using swoole::test::process;
-using swoole::test::server;
+using swoole::test::Process;
+using swoole::test::Server;
 using swoole::AsyncClient;
 
 TEST(client, tcp)
@@ -18,7 +18,7 @@ TEST(client, tcp)
 
     pid_t pid;
 
-    process proc([](process *proc)
+    Process proc([](Process *proc)
     {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
         {
@@ -28,7 +28,7 @@ TEST(client, tcp)
             SERVER_THIS->send(req->info.fd, data_ptr, data_len);
         };
         
-        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
@@ -58,7 +58,7 @@ TEST(client, udp)
 
     pid_t pid;
 
-    process proc([](process *proc)
+    Process proc([](Process *proc)
     {
         on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS)
         {
@@ -68,7 +68,7 @@ TEST(client, udp)
             SERVER_THIS->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
         };
 
-        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_UDP);
+        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_UDP);
         serv.on("onPacket", (void *) packet_fn);
         serv.start();
     });
@@ -97,7 +97,7 @@ TEST(client, async_tcp)
     swPipe p;
     ASSERT_EQ(swPipeNotify_auto(&p, 1, 1), 0);
 
-    process proc([&p](process *proc)
+    Process proc([&p](Process *proc)
     {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
         {
@@ -107,7 +107,7 @@ TEST(client, async_tcp)
             SERVER_THIS->send(req->info.fd, data_ptr, data_len);
         };
 
-        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
 
         serv.set_private_data("pipe", &p);
 

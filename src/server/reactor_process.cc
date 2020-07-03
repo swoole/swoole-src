@@ -66,7 +66,7 @@ int swReactorProcess_start(swServer *serv)
     //listen TCP
     if (serv->have_stream_sock == 1)
     {
-        for (auto ls : *serv->listen_list)
+        for (auto ls : serv->ports)
         {
             if (swSocket_is_dgram(ls->type))
             {
@@ -331,7 +331,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     int fdtype;
 
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         fdtype = swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT

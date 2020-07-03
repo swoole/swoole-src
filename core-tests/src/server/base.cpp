@@ -17,12 +17,13 @@
   +----------------------------------------------------------------------+
 */
 
+#include "tests.h"
 #include "test_server.h"
 
 using namespace swoole;
 using namespace swoole::test;
 
-server::server(std::string _host, int _port, int _mode, int _type):
+Server::Server(std::string _host, int _port, int _mode, int _type):
         host(_host), port(_port), mode(_mode), type(_type)
 {
     swServer_init(&serv);
@@ -49,11 +50,11 @@ server::server(std::string _host, int _port, int _mode, int _type):
     this->listen(host, port, (swSocket_type) type);
 }
 
-server::~server()
+Server::~Server()
 {
 }
 
-void server::on(std::string event, void *fn)
+void Server::on(std::string event, void *fn)
 {
     if (event == "Start")
     {
@@ -93,7 +94,7 @@ void server::on(std::string event, void *fn)
     }
 }
 
-bool server::start()
+bool Server::start()
 {
     int ret = swServer_start(&serv);
     if (ret < 0)
@@ -104,7 +105,7 @@ bool server::start()
     return true;
 }
 
-bool server::listen(std::string host, int port, enum swSocket_type type)
+bool Server::listen(std::string host, int port, enum swSocket_type type)
 {
     swListenPort *ls = swServer_add_port(&serv, type, (char *) host.c_str(), port);
     if (ls == nullptr)
@@ -116,17 +117,17 @@ bool server::listen(std::string host, int port, enum swSocket_type type)
     return true;
 }
 
-size_t server::get_packet(swEventData *req, char **data_ptr)
+size_t Server::get_packet(swEventData *req, char **data_ptr)
 {
     return serv.get_packet(&serv, req, data_ptr);
 }
 
-int server::send(int session_id, void *data, uint32_t length)
+int Server::send(int session_id, void *data, uint32_t length)
 {
     return serv.send(&serv, session_id, data, length);
 }
 
-ssize_t server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket)
+ssize_t Server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket)
 {
     char ip[256];
     uint16_t port;
@@ -137,18 +138,7 @@ ssize_t server::sendto(swSocketAddress *address, const char *__buf, size_t __n, 
     return swSocket_udp_sendto(server_socket, ip, port, __buf, __n);
 }
 
-int server::close(int session_id, int reset)
+int Server::close(int session_id, int reset)
 {
     return serv.close(&serv, session_id, reset);
-}
-
-void test_create_server(swServer *serv)
-{
-    swServer_init(serv);
-
-    swServer_create(serv);
-
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
-    swFactoryProcess_create(&serv->factory, serv->worker_num);
 }

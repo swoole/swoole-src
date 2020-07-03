@@ -1,7 +1,18 @@
-#include "test_server.h"
+#include "tests.h"
 #include "wrapper/client.hpp"
 
 using namespace std;
+
+static void test_create_server(swServer *serv)
+{
+    swServer_init(serv);
+
+    swServer_create(serv);
+
+    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
+    serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
+    swFactoryProcess_create(&serv->factory, serv->worker_num);
+}
 
 TEST(server, create_pipe_buffers)
 {
@@ -113,7 +124,7 @@ TEST(server, process)
             swLock *lock = (swLock *) serv->ptr2;
             lock->lock(lock);
 
-            swListenPort *port = serv->listen_list->front();
+            swListenPort *port = serv->get_primary_port();
 
             swoole::Client c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);

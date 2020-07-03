@@ -24,7 +24,7 @@ static A G_a =
 
 int main(int argc, char **argv)
 {
-    swoole_event_init();
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     /**
      * 协程1
      */

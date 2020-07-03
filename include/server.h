@@ -361,9 +361,9 @@ struct swServer
     /**
      * worker(worker and task_worker) process chroot / user / group
      */
-    char *chroot;
-    char *user;
-    char *group;
+    std::string chroot;
+    std::string user;
+    std::string group;
 
     /**
      * run as a daemon process
@@ -470,7 +470,6 @@ struct swServer
     swPipeBuffer **pipe_buffers;
     double send_timeout;
 
-    uint16_t listen_port_num;
     time_t reload_time;
     time_t warning_time;
     long timezone;
@@ -494,7 +493,13 @@ struct swServer
     void *private_data_3;
 
     swFactory factory;
-    std::vector<swListenPort*> *listen_list;
+    std::vector<swListenPort*> ports;
+
+    inline swListenPort *get_primary_port()
+    {
+        return ports.front();
+    }
+
     pthread_t heartbeat_pidt;
 
     /**
@@ -538,7 +543,7 @@ struct swServer
     /**
      * temporary directory for HTTP uploaded file.
      */
-    char *upload_tmp_dir;
+    std::string upload_tmp_dir = "/tmp";
     /**
      * http compression level for gzip/br
      */
@@ -546,14 +551,9 @@ struct swServer
     uint8_t http_compression_level;
 #endif
     /**
-     * http static file directory
-     */
-    char *document_root;
-    uint16_t document_root_len;
-    /**
      * master process pid
      */
-    char *pid_file;
+    std::string pid_file;
     /**
      * stream
      */
@@ -627,6 +627,36 @@ struct swServer
      * Hook
      */
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
+
+    bool set_document_root(const std::string &path)
+    {
+        if (path.length() > PATH_MAX)
+        {
+            swWarn("The length of document_root must be less than %d", PATH_MAX);
+            return false;
+        }
+
+        char _realpath[PATH_MAX];
+        if (!realpath(path.c_str(), _realpath))
+        {
+            swWarn("document_root[%s] does not exist", path.c_str());
+            return false;
+        }
+
+        document_root = std::string(_realpath);
+        return true;
+    }
+
+    std::string& get_document_root()
+    {
+        return document_root;
+    }
+
+ private:
+    /**
+     * http static file directory
+     */
+    std::string document_root;
 };
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
@@ -652,6 +682,7 @@ int swServer_create(swServer *serv);
 
 int swServer_worker_idle_num(swServer *serv);
 int swServer_task_worker_idle_num(swServer *serv);
+bool swServer_set_document_root(const std::string &path);
 
 static inline bool swServer_if_require_receive_callback(swServer *serv, swListenPort *port, bool isset)
 {

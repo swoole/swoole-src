@@ -241,7 +241,7 @@ static PHP_METHOD(swoole_redis_server, start)
     add_assoc_bool(zsetting, "open_length_check", 0);
     add_assoc_bool(zsetting, "open_redis_protocol", 0);
 
-    auto primary_port = serv->listen_list->front();
+    auto primary_port = serv->get_primary_port();
 
     primary_port->open_http_protocol = 0;
     primary_port->open_mqtt_protocol = 0;

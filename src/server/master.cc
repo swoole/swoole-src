@@ -55,7 +55,7 @@ static void swServer_disable_accept(swServer *serv)
         return;
     }
 
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         //UDP
         if (swSocket_is_dgram(ls->type))
@@ -70,7 +70,7 @@ static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 {
     swServer *serv = (swServer *) tnode->data;
 
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         if (swSocket_is_dgram(ls->type))
         {
@@ -84,7 +84,7 @@ static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 {
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         if (only_stream_port && swSocket_is_dgram(ls->type))
         {
@@ -396,7 +396,7 @@ static int swServer_start_check(swServer *serv)
         swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
     }
     // package max length
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE)
         {
@@ -430,7 +430,7 @@ void swServer_store_listen_socket(swServer *serv)
 {
     int sockfd;
 
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         sockfd = ls->socket->fd;
         //save server socket to connection_list
@@ -812,10 +812,10 @@ int swServer_start(swServer *serv)
     swServer_signal_init(serv);
 
     //write PID file
-    if (serv->pid_file)
+    if (!serv->pid_file.empty())
     {
         ret = sw_snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size, "%d", getpid());
-        swoole_file_put_contents(serv->pid_file, SwooleTG.buffer_stack->str, ret);
+        swoole_file_put_contents(serv->pid_file.c_str(), SwooleTG.buffer_stack->str, ret);
     }
     if (serv->factory_mode == SW_MODE_BASE)
     {
@@ -832,9 +832,9 @@ int swServer_start(swServer *serv)
     }
     swServer_destory(serv);
     //remove PID file
-    if (serv->pid_file)
+    if (!serv->pid_file.empty())
     {
-        unlink(serv->pid_file);
+        unlink(serv->pid_file.c_str());
     }
     return SW_OK;
 }
@@ -866,7 +866,6 @@ void swServer_init(swServer *serv)
     serv->http_compression = 1;
     serv->http_compression_level = SW_Z_BEST_SPEED;
 #endif
-    serv->upload_tmp_dir = sw_strdup("/tmp");
 
     serv->input_buffer_size = SW_INPUT_BUFFER_SIZE;
     serv->output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
@@ -906,8 +905,6 @@ void swServer_init(swServer *serv)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
     }
-    serv->listen_list = new std::vector<swListenPort *>;
-
     /**
      * init method
      */
@@ -974,7 +971,7 @@ int swServer_shutdown(swServer *serv)
     {
         swReactor *reactor = SwooleTG.reactor;
         swReactor_wait_exit(reactor, 1);
-        for (auto ls : *serv->listen_list)
+        for (auto ls : serv->ports)
         {
             if (swSocket_is_stream(ls->type))
             {
@@ -1020,12 +1017,10 @@ static int swServer_destory(swServer *serv)
         swReactorThread_join(serv);
     }
 
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         swPort_free(ls);
     }
-    delete serv->listen_list;
-    serv->listen_list = nullptr;
 
     /**
      * because the swWorker in user_worker_list is the memory allocated by emalloc, 
@@ -1069,20 +1064,14 @@ static int swServer_destory(swServer *serv)
     {
         delete serv->http_index_files;
     }
-    if (serv->chroot)
+    for (auto i = 0; i < SW_MAX_HOOK_TYPE; i++)
     {
-        sw_free(serv->chroot);
-        serv->chroot = nullptr;
-    }
-    if (serv->user)
-    {
-        sw_free(serv->user);
-        serv->user = nullptr;
-    }
-    if (serv->group)
-    {
-        sw_free(serv->group);
-        serv->group = nullptr;
+        if (serv->hooks[i])
+        {
+            std::list<swCallback> *l = static_cast<std::list<swCallback>*>(serv->hooks[i]);
+            serv->hooks[i] = nullptr;
+            delete l;
+        }
     }
     serv->lock.free(&serv->lock);
     SwooleG.serv = nullptr;
@@ -1756,8 +1745,7 @@ int swServer_add_systemd_socket(swServer *serv)
         }
         swServer_check_port_type(serv, ls);
 
-        serv->listen_list->push_back(ls);
-        serv->listen_port_num++;
+        serv->ports.push_back(ls);
         count++;
     }
     return count;
@@ -1765,7 +1753,7 @@ int swServer_add_systemd_socket(swServer *serv)
 
 swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const char *host, int port)
 {
-    if (serv->listen_port_num >= SW_MAX_LISTEN_PORT)
+    if (serv->ports.size() >= SW_MAX_LISTEN_PORT)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
         return nullptr;
@@ -1852,14 +1840,13 @@ swListenPort* swServer_add_port(swServer *serv, enum swSocket_type type, const c
     }
     swServer_check_port_type(serv, ls);
     ls->socket_fd = ls->socket->fd;
-    serv->listen_list->push_back(ls);
-    serv->listen_port_num++;
+    serv->ports.push_back(ls);
     return ls;
 }
 
 int swServer_get_socket(swServer *serv, int port)
 {
-    for (auto ls : *serv->listen_list)
+    for (auto ls : serv->ports)
     {
         if (ls->port == port || port == 0)
         {

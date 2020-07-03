@@ -90,8 +90,10 @@ bool StaticHandler::hit()
     }
     size_t n = params ? params - url : url_length;
 
-    memcpy(p, serv->document_root, serv->document_root_len);
-    p += serv->document_root_len;
+    std::string& document_root = serv->get_document_root();
+
+    memcpy(p, document_root.c_str(), document_root.length());
+    p += document_root.length();
 
     if (serv->locations->size() > 0)
     {
@@ -108,7 +110,7 @@ bool StaticHandler::hit()
         }
     }
 
-    if (serv->document_root_len + n >= PATH_MAX)
+    if (document_root.length() + n >= PATH_MAX)
     {
         return false;
     }
@@ -144,12 +146,12 @@ bool StaticHandler::hit()
         }
     }
 
-    if (real_path[serv->document_root_len] != '/')
+    if (real_path[document_root.length()] != '/')
     {
         return false;
     }
 
-    if (swoole_streq(real_path, strlen(real_path), serv->document_root, serv->document_root_len) != 0)
+    if (swoole_streq(real_path, strlen(real_path), document_root.c_str(), document_root.length()) != 0)
     {
         return false;
     }

@@ -17,8 +17,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "test_coroutine.h"
 #include "test_process.h"
+#include "test_coroutine.h"
 #include "test_server.h"
 
 using namespace swoole;
@@ -65,7 +65,7 @@ TEST(coroutine_socket, recv_success)
 {
     pid_t pid;
 
-    process proc([](process *proc)
+    Process proc([](Process *proc)
     {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
         {
@@ -75,7 +75,7 @@ TEST(coroutine_socket, recv_success)
             SERVER_THIS->send(req->info.fd, data_ptr, data_len);
         };
 
-        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
@@ -104,14 +104,14 @@ TEST(coroutine_socket, recv_fail)
 {
     pid_t pid;
 
-    process proc([](process *proc)
+    Process proc([](Process *proc)
     {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
         {
             SERVER_THIS->close(req->info.fd, 0);
         };
 
-        server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });

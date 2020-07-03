@@ -253,6 +253,7 @@ static void php_swoole_server_free_object(zend_object *object)
             sw_zval_free(server_port_list.zobjects[i]);
             server_port_list.zobjects[i] = nullptr;
         }
+        delete serv;
     }
 
     zend_object_std_dtor(object);
@@ -1140,7 +1141,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject)
     }
 
 #ifdef SW_LOG_TRACE_OPEN
-    auto primary_port = serv->listen_list->front();
+    auto primary_port = serv->ports->front();
     swTraceLog(SW_TRACE_SERVER, "Create Server: host=%s, port=%d, mode=%d, type=%d", primary_port->host, (int) primary_port->port, serv->factory_mode, (int) primary_port->type);
 #endif
 
@@ -2255,13 +2256,7 @@ static PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-    serv = (swServer *) sw_malloc(sizeof(swServer));
-    if (!serv)
-    {
-        zend_throw_exception_ex(swoole_exception_ce, errno, "malloc(%ld) failed", sizeof(swServer));
-        RETURN_FALSE;
-    }
-
+    serv = new swServer();
     swServer_init(serv);
     serv->ptr2 = sw_zval_dup(zserv);
     php_swoole_server_set_server(zserv, serv);
@@ -2298,12 +2293,12 @@ static PHP_METHOD(swoole_server, __construct)
             }
         }
 
-        for (auto ls : *serv->listen_list)
+        for (auto ls : serv->ports)
         {
             php_swoole_server_add_port(serv, ls);
         }
 
-        server_port_list.primary_port = (php_swoole_server_port_property *) serv->listen_list->front()->ptr;
+        server_port_list.primary_port = (php_swoole_server_port_property *) serv->get_primary_port()->ptr;
     } while (0);
 
     /* iterator */
@@ -2321,7 +2316,7 @@ static PHP_METHOD(swoole_server, __construct)
 
     /* info */
     zend_update_property_stringl(swoole_server_ce, zserv, ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) serv->listen_list->front()->port);
+    zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("port"), (zend_long) serv->get_primary_port()->port);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("mode"), serv->factory_mode);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("type"), sock_type);
 }
@@ -2350,27 +2345,15 @@ static PHP_METHOD(swoole_server, set)
 
     if (php_swoole_array_get_value(vht, "chroot", ztmp))
     {
-        if (serv->chroot)
-        {
-            sw_free(serv->chroot);
-        }
-        serv->chroot = zend::string(ztmp).dup();
+        serv->chroot = zend::string(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "user", ztmp))
     {
-        if (serv->user)
-        {
-            sw_free(serv->user);
-        }
-        serv->user = zend::string(ztmp).dup();
+        serv->user = zend::string(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "group", ztmp))
     {
-        if (serv->group)
-        {
-            sw_free(serv->group);
-        }
-        serv->group = zend::string(ztmp).dup();
+        serv->group = zend::string(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "daemonize", ztmp))
     {
@@ -2379,11 +2362,7 @@ static PHP_METHOD(swoole_server, set)
     //pid file
     if (php_swoole_array_get_value(vht, "pid_file", ztmp))
     {
-        if (serv->pid_file)
-        {
-            sw_free(serv->pid_file);
-        }
-        serv->pid_file = zend::string(ztmp).dup();
+        serv->pid_file = zend::string(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "reactor_num", ztmp))
     {
@@ -2720,11 +2699,7 @@ static PHP_METHOD(swoole_server, set)
             php_swoole_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
             return;
         }
-        if (serv->upload_tmp_dir)
-        {
-            sw_free(serv->upload_tmp_dir);
-        }
-        serv->upload_tmp_dir = str_v.dup();
+        serv->upload_tmp_dir = str_v.to_std_string();
     }
     /**
      * http static file handler
@@ -2741,24 +2716,7 @@ static PHP_METHOD(swoole_server, set)
             php_swoole_fatal_error(E_ERROR, "The length of document_root must be less than %d", PATH_MAX);
             return;
         }
-        if (serv->document_root)
-        {
-            sw_free(serv->document_root);
-        }
-        serv->document_root = (char *) sw_malloc(PATH_MAX);
-        if (!serv->document_root)
-        {
-            php_swoole_fatal_error(E_ERROR, "malloc() failed");
-            RETURN_FALSE;
-        }
-        if (!realpath(str_v.val(), serv->document_root))
-        {
-            php_swoole_fatal_error(E_ERROR, "document_root[%s] does not exist", serv->document_root);
-            sw_free(serv->document_root);
-            serv->document_root = nullptr;
-            RETURN_FALSE;
-        }
-        serv->document_root_len = strlen(serv->document_root);
+        serv->set_document_root(std::string(str_v.val(), str_v.len()));
     }
     if (php_swoole_array_get_value(vht, "http_autoindex", ztmp))
     {
@@ -3057,7 +3015,7 @@ static PHP_METHOD(swoole_server, start)
             SW_WEBSOCKET_PROTOCOL = 1u << 2
         };
         uint8_t protocol_flag = 0;
-        auto primary_port = serv->listen_list->front();
+        auto primary_port = serv->get_primary_port();
         if (primary_port->open_http2_protocol)
         {
             add_assoc_bool(zsetting, "open_http2_protocol", 1);

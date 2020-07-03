@@ -1,4 +1,4 @@
-#include "test_server.h"
+#include "tests.h"
 #include "httplib_client.h"
 #include "wrapper/client.hpp"
 
@@ -12,6 +12,7 @@ static void test_run_server(function<void(swServer *)> fn)
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
     serv.ptr2 = (void*) &fn;
+
     swServer_create(&serv);
 
     swLog_set_level(SW_LOG_WARNING);
@@ -55,7 +56,7 @@ TEST(http_server, get)
     {
         swSignal_none();
 
-        auto port = serv->listen_list->front();
+        auto port = serv->ports.front();
 
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/index.html");
@@ -72,7 +73,7 @@ TEST(http_server, post)
     {
         swSignal_none();
 
-        auto port = serv->listen_list->front();
+        auto port = serv->get_primary_port();
 
         httplib::Client cli(TEST_HOST, port->port);
         httplib::Params params;
@@ -85,4 +86,3 @@ TEST(http_server, post)
         kill(getpid(), SIGTERM);
     });
 }
-

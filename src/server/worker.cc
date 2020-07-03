@@ -381,46 +381,37 @@ void swWorker_onStart(swServer *serv)
     if (is_root)
     {
         //get group info
-        if (serv->group)
+        if (!serv->group.empty())
         {
-            group = getgrnam(serv->group);
+            group = getgrnam(serv->group.c_str());
             if (!group)
             {
                 swWarn("get group [%s] info failed", serv->group);
             }
         }
         //get user info
-        if (serv->user)
+        if (!serv->user.empty())
         {
-            passwd = getpwnam(serv->user);
+            passwd = getpwnam(serv->user.c_str());
             if (!passwd)
             {
-                swWarn("get user [%s] info failed", serv->user);
+                swWarn("get user [%s] info failed", serv->user.c_str());
             }
         }
         //chroot
-        if (serv->chroot)
+        if (!serv->chroot.empty() && chroot(serv->chroot.c_str()) != 0)
         {
-            if (0 > chroot(serv->chroot))
-            {
-                swSysWarn("chroot to [%s] failed", serv->chroot);
-            }
+            swSysWarn("chroot to [%s] failed", serv->chroot.c_str());
         }
         //set process group
-        if (serv->group && group)
+        if (group && setgid(group->gr_gid) < 0)
         {
-            if (setgid(group->gr_gid) < 0)
-            {
-                swSysWarn("setgid to [%s] failed", serv->group);
-            }
+            swSysWarn("setgid to [%s] failed", serv->group.c_str());
         }
         //set process user
-        if (serv->user && passwd)
+        if (passwd && setuid(passwd->pw_uid) < 0)
         {
-            if (setuid(passwd->pw_uid) < 0)
-            {
-                swSysWarn("setuid to [%s] failed", serv->user);
-            }
+            swSysWarn("setuid to [%s] failed", serv->user.c_str());
         }
     }
 
@@ -512,7 +503,7 @@ void swWorker_stop(swWorker *worker)
 
     if (serv->factory_mode == SW_MODE_BASE && swIsWorker())
     {
-        for (auto ls : *serv->listen_list)
+        for (auto ls : serv->ports)
         {
             reactor->del(reactor, ls->socket);
         }
