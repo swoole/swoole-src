@@ -28,7 +28,7 @@ jobs:
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
 
     - name: make
-      run: cmake . -DCODE_COVERAGE=ON && make && sudo make install
+      run: cmake . -DCODE_COVERAGE=ON && make VERBOSE=1 && sudo make install
 
     - name: make test
       run: cd core-tests && ./run.sh
