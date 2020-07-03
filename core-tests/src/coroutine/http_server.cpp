@@ -34,10 +34,10 @@ TEST(coroutine_http_server, get) {
         auto resp1 = cli.Get("/hi");
         EXPECT_EQ(resp1->status, 200);
         EXPECT_EQ(resp1->body, string("Hello World!"));
-//
-//        auto resp2 = cli.Get("/stop");
-//        EXPECT_EQ(resp2->status, 200);
-//        EXPECT_EQ(resp2->body, string("Stop Server!"));
+
+        auto resp2 = cli.Get("/stop");
+        EXPECT_EQ(resp2->status, 200);
+        EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
     test::coroutine::run([](void *arg) {
