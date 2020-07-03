@@ -149,7 +149,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
      */
     if (serv->task_enable_coroutine)
     {
-        if (swoole_event_init() < 0)
+        if (swoole_event_init(0) < 0)
         {
             swError("[TaskWorker] create reactor failed");
             return;

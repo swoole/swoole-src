@@ -131,8 +131,7 @@ TEST(client, async_tcp)
     p.read(&p, &value, sizeof(value));
     p.close(&p);
 
-    swoole_event_init();
-    swReactor_wait_exit(sw_reactor(), 1);
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     AsyncClient ac(SW_SOCK_TCP);
 

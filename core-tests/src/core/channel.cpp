@@ -45,15 +45,18 @@ TEST(channel, push) {
 
     thread t1([&]()
     {
-        string next = m[0];
+        auto next = m.find(0);
         int index = 1;
         size_t bytes = 0;
 
         while(bytes < N) {
-            if (swChannel_push(c, next.c_str(), next.length()) == SW_OK) {
+            if (swChannel_push(c, next->second.c_str(), next->second.length()) == SW_OK) {
                 swTrace("[PUSH] index=%d, size=%d\n", index, next.length());
-                bytes += next.length();
-                next = m[index++];
+                bytes += next->second.length();
+                next = m.find(index++);
+                if (next == m.end()) {
+                    break;
+                }
             } else {
                 usleep(10);
             }
@@ -69,7 +72,7 @@ TEST(channel, push) {
             int retval = swChannel_pop(c, buf, sizeof(buf));
             if (retval > 0) {
                 swTrace("[POP] index=%d, size=%ld\n", index, retval);
-                string _data = m[index++];
+                string &_data = m[index++];
                 bytes += retval;
                 ASSERT_EQ(_data, string(buf, retval));
             } else {

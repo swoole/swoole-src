@@ -8,7 +8,14 @@
 
 #pragma once
 
+#include "swoole_cxx.h"
+#include "coroutine_system.h"
+#include "coroutine_socket.h"
 #include "httplib_client.h"
+
+using swoole::coroutine::Socket;
+using swoole::coroutine::System;
+using swoole::Coroutine;
 
 namespace httplib {
 
@@ -30,87 +37,6 @@ public:
 
   Reader reader_;
   MultipartReader multipart_reader_;
-};
-
-class TaskQueue {
-public:
-  TaskQueue() = default;
-  virtual ~TaskQueue() = default;
-
-  virtual void enqueue(std::function<void()> fn) = 0;
-  virtual void shutdown() = 0;
-
-  virtual void on_idle(){};
-};
-
-class ThreadPool : public TaskQueue {
-public:
-  explicit ThreadPool(size_t n) : shutdown_(false) {
-    while (n) {
-      threads_.emplace_back(worker(*this));
-      n--;
-    }
-  }
-
-  ThreadPool(const ThreadPool &) = delete;
-  ~ThreadPool() override = default;
-
-  void enqueue(std::function<void()> fn) override {
-    std::unique_lock<std::mutex> lock(mutex_);
-    jobs_.push_back(fn);
-    cond_.notify_one();
-  }
-
-  void shutdown() override {
-    // Stop all worker threads...
-    {
-      std::unique_lock<std::mutex> lock(mutex_);
-      shutdown_ = true;
-    }
-
-    cond_.notify_all();
-
-    // Join...
-    for (auto &t : threads_) {
-      t.join();
-    }
-  }
-
-private:
-  struct worker {
-    explicit worker(ThreadPool &pool) : pool_(pool) {}
-
-    void operator()() {
-      for (;;) {
-        std::function<void()> fn;
-        {
-          std::unique_lock<std::mutex> lock(pool_.mutex_);
-
-          pool_.cond_.wait(
-              lock, [&] { return !pool_.jobs_.empty() || pool_.shutdown_; });
-
-          if (pool_.shutdown_ && pool_.jobs_.empty()) { break; }
-
-          fn = pool_.jobs_.front();
-          pool_.jobs_.pop_front();
-        }
-
-        assert(true == static_cast<bool>(fn));
-        fn();
-      }
-    }
-
-    ThreadPool &pool_;
-  };
-  friend struct worker;
-
-  std::vector<std::thread> threads_;
-  std::list<std::function<void()>> jobs_;
-
-  bool shutdown_;
-
-  std::condition_variable cond_;
-  std::mutex mutex_;
 };
 
 class Server {
@@ -169,14 +95,12 @@ public:
   bool is_running() const;
   void stop();
 
-  std::function<TaskQueue *(void)> new_task_queue;
-
 protected:
   bool process_request(Stream &strm, bool close_connection,
                        bool &connection_closed,
                        const std::function<void(Request &)> &setup_request);
 
-  std::atomic<socket_t> svr_sock_;
+  Socket *svr_sock_;
   size_t keep_alive_max_count_ = CPPHTTPLIB_KEEPALIVE_MAX_COUNT;
   time_t read_timeout_sec_ = CPPHTTPLIB_READ_TIMEOUT_SECOND;
   time_t read_timeout_usec_ = CPPHTTPLIB_READ_TIMEOUT_USECOND;
@@ -191,7 +115,7 @@ private:
   using HandlersForContentReader =
       std::vector<std::pair<std::regex, HandlerWithContentReader>>;
 
-  socket_t create_server_socket(const char *host, int port, int socket_flags,
+  Socket *create_server_socket(const char *host, int port, int socket_flags,
                                 SocketOptions socket_options) const;
   int bind_internal(const char *host, int port, int socket_flags);
   bool listen_internal();
@@ -220,7 +144,7 @@ private:
                          MultipartContentHeader mulitpart_header,
                          ContentReceiver multipart_receiver);
 
-  virtual bool process_and_close_socket(socket_t sock);
+  virtual bool process_and_close_socket(Socket *sock);
 
   std::atomic<bool> is_running_;
   std::vector<std::pair<std::string, std::string>> base_dirs_;
@@ -381,14 +305,17 @@ inline bool SSLServer::process_and_close_socket(socket_t sock) {
 #endif
 
 // HTTP server implementation
-inline Server::Server() : svr_sock_(INVALID_SOCKET), is_running_(false) {
+inline Server::Server() : svr_sock_(nullptr), is_running_(false) {
 #ifndef _WIN32
   signal(SIGPIPE, SIG_IGN);
 #endif
-  new_task_queue = [] { return new ThreadPool(CPPHTTPLIB_THREAD_POOL_COUNT); };
 }
 
-inline Server::~Server() {}
+inline Server::~Server() {
+    if (svr_sock_) {
+        delete svr_sock_;
+    }
+}
 
 inline Server &Server::Get(const char *pattern, Handler handler) {
   get_handlers_.push_back(std::make_pair(std::regex(pattern), handler));
@@ -539,12 +466,10 @@ inline bool Server::listen(const char *host, int port, int socket_flags) {
 inline bool Server::is_running() const { return is_running_; }
 
 inline void Server::stop() {
-  if (is_running_) {
-    assert(svr_sock_ != INVALID_SOCKET);
-    std::atomic<socket_t> sock(svr_sock_.exchange(INVALID_SOCKET));
-    detail::shutdown_socket(sock);
-    detail::close_socket(sock);
-  }
+    if (is_running_) {
+        svr_sock_->cancel(SW_EVENT_READ);
+        is_running_ = false;
+    }
 }
 
 inline bool Server::parse_request_line(const char *s, Request &req) {
@@ -702,9 +627,9 @@ inline bool
 Server::write_content_with_provider(Stream &strm, const Request &req,
                                     Response &res, const std::string &boundary,
                                     const std::string &content_type) {
-  auto is_shutting_down = [this]() {
-    return this->svr_sock_ == INVALID_SOCKET;
-  };
+    auto is_shutting_down = [this]() {
+        return this->svr_sock_ == nullptr;
+    };
 
   if (res.content_length_) {
     if (req.ranges.empty()) {
@@ -854,97 +779,124 @@ inline bool Server::handle_file_request(Request &req, Response &res,
   return false;
 }
 
-inline socket_t
-Server::create_server_socket(const char *host, int port, int socket_flags,
-                             SocketOptions socket_options) const {
-  return detail::create_socket(
-      host, port, socket_flags, tcp_nodelay_, socket_options,
-      [](socket_t sock, struct addrinfo &ai) -> bool {
-        if (::bind(sock, ai.ai_addr, static_cast<socklen_t>(ai.ai_addrlen))) {
-          return false;
+inline Socket *Server::create_server_socket(const char *host, int port, int socket_flags,
+                                            SocketOptions socket_options) const {
+
+    struct addrinfo hints;
+    struct addrinfo *result;
+
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags = socket_flags;
+    hints.ai_protocol = 0;
+
+    auto service = std::to_string(port);
+
+    if (swoole_coroutine_getaddrinfo(host, service.c_str(), &hints, &result)) {
+        return nullptr;
+    }
+
+    Socket *sock = nullptr;
+    for (auto rp = result; rp; rp = rp->ai_next) {
+        sock = new Socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (sock->get_fd() == INVALID_SOCKET) {
+            delete sock;
+            continue;
         }
-        if (::listen(sock, 5)) { // Listen through 5 channels
-          return false;
+        if (tcp_nodelay_) {
+            sock->set_option(IPPROTO_TCP, TCP_NODELAY, 1);
         }
-        return true;
-      });
+        if (socket_options) {
+            socket_options(sock->get_fd());
+        }
+        if (rp->ai_family == AF_INET6) {
+            sock->set_option(IPPROTO_IPV6, IPV6_V6ONLY, 0);
+        }
+        if (!sock->bind(rp->ai_addr, static_cast<socklen_t>(rp->ai_addrlen))) {
+            delete sock;
+            return nullptr;
+        }
+        if (!sock->listen(512)) {
+            delete sock;
+            return nullptr;
+        }
+        break;
+    }
+
+    freeaddrinfo(result);
+    return sock;
 }
 
 inline int Server::bind_internal(const char *host, int port, int socket_flags) {
-  if (!is_valid()) { return -1; }
-
-  svr_sock_ = create_server_socket(host, port, socket_flags, socket_options_);
-  if (svr_sock_ == INVALID_SOCKET) { return -1; }
-
-  if (port == 0) {
-    struct sockaddr_storage addr;
-    socklen_t addr_len = sizeof(addr);
-    if (getsockname(svr_sock_, reinterpret_cast<struct sockaddr *>(&addr),
-                    &addr_len) == -1) {
-      return -1;
+    if (!is_valid()) {
+        return -1;
     }
-    if (addr.ss_family == AF_INET) {
-      return ntohs(reinterpret_cast<struct sockaddr_in *>(&addr)->sin_port);
-    } else if (addr.ss_family == AF_INET6) {
-      return ntohs(reinterpret_cast<struct sockaddr_in6 *>(&addr)->sin6_port);
+
+    svr_sock_ = create_server_socket(host, port, socket_flags, socket_options_);
+    if (svr_sock_ == nullptr) {
+        return -1;
+    }
+
+    if (port == 0) {
+        struct sockaddr_storage addr;
+        socklen_t addr_len = sizeof(addr);
+        if (getsockname(svr_sock_->get_fd(), reinterpret_cast<struct sockaddr *>(&addr), &addr_len) == -1) {
+            return -1;
+        }
+        if (addr.ss_family == AF_INET) {
+            return ntohs(reinterpret_cast<struct sockaddr_in *>(&addr)->sin_port);
+        } else if (addr.ss_family == AF_INET6) {
+            return ntohs(reinterpret_cast<struct sockaddr_in6 *>(&addr)->sin6_port);
+        } else {
+            return -1;
+        }
     } else {
-      return -1;
+        return port;
     }
-  } else {
-    return port;
-  }
 }
 
+struct CoroutineArg {
+    Socket *client_socket;
+    Server *this_;
+};
+
 inline bool Server::listen_internal() {
-  auto ret = true;
-  is_running_ = true;
 
-  {
-    std::unique_ptr<TaskQueue> task_queue(new_task_queue());
-
-    while (svr_sock_ != INVALID_SOCKET) {
-#ifndef _WIN32
-      if (idle_interval_sec_ > 0 || idle_interval_usec_ > 0) {
-#endif
-        auto val = detail::select_read(svr_sock_, idle_interval_sec_,
-                                       idle_interval_usec_);
-        if (val == 0) { // Timeout
-          task_queue->on_idle();
-          continue;
-        }
-#ifndef _WIN32
-      }
-#endif
-      socket_t sock = accept(svr_sock_, nullptr, nullptr);
-
-      if (sock == INVALID_SOCKET) {
-        if (errno == EMFILE) {
-          // The per-process limit of open file descriptors has been reached.
-          // Try to accept new connections after a short sleep.
-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
-          continue;
-        }
-        if (svr_sock_ != INVALID_SOCKET) {
-          detail::close_socket(svr_sock_);
-          ret = false;
-        } else {
-          ; // The server socket was closed by user.
-        }
-        break;
-      }
-
-#if __cplusplus > 201703L
-      task_queue->enqueue([=, this]() { process_and_close_socket(sock); });
-#else
-      task_queue->enqueue([=]() { process_and_close_socket(sock); });
-#endif
+    if (!svr_sock_) {
+        return false;
     }
 
-    task_queue->shutdown();
-  }
+    is_running_ = true;
 
-  is_running_ = false;
-  return ret;
+    while (is_running_) {
+        auto client_sock = svr_sock_->accept();
+        if (client_sock) {
+            auto arg = new CoroutineArg;
+            arg->client_socket = client_sock;
+            arg->this_ = this;
+            Coroutine::create([](void *arg) {
+                CoroutineArg *_arg = (CoroutineArg *) arg;
+                _arg->this_->process_and_close_socket(_arg->client_socket);
+                delete _arg;
+            }, arg);
+            continue;
+        }
+        if (svr_sock_->errCode == EMFILE || svr_sock_->errCode == ENFILE) {
+            System::sleep(SW_ACCEPT_RETRY_TIME);
+            continue;
+        } else if (svr_sock_->errCode == ETIMEDOUT || svr_sock_->errCode == SW_ERROR_SSL_BAD_CLIENT) {
+            continue;
+        } else if (svr_sock_->errCode == ECANCELED) {
+            break;
+        } else {
+            //php_swoole_fatal_error(E_WARNING, "accept failed, Error: %s[%d]", sock->errMsg, sock->errCode);
+            break;
+        }
+    }
+
+    is_running_ = false;
+    return true;
 }
 
 inline bool Server::routing(Request &req, Response &res, Stream &strm) {
@@ -1168,18 +1120,69 @@ inline bool process_server_socket(socket_t sock, size_t keep_alive_max_count,
 
 }
 
-inline bool Server::process_and_close_socket(socket_t sock) {
-  auto ret = detail::process_server_socket(
-      sock, keep_alive_max_count_, read_timeout_sec_, read_timeout_usec_,
-      write_timeout_sec_, write_timeout_usec_,
-      [this](Stream &strm, bool close_connection, bool &connection_closed) {
-        return process_request(strm, close_connection, connection_closed,
-                               nullptr);
-      });
+class CoSocketStream : public detail::SocketStream {
+ public:
+    CoSocketStream(Socket *sock, time_t read_timeout_sec, time_t read_timeout_usec, time_t write_timeout_sec,
+                   time_t write_timeout_usec)
+            : detail::SocketStream(sock->get_fd(), read_timeout_sec, read_timeout_usec, write_timeout_sec,
+                                   write_timeout_usec) {
+        sock_ = sock;
+    }
+    ~CoSocketStream() {
 
-  detail::shutdown_socket(sock);
-  detail::close_socket(sock);
-  return ret;
+    }
+    bool is_readable() {
+        return true;
+    }
+    bool is_writable() {
+        return true;
+    }
+    ssize_t read(char *ptr, size_t size) {
+        return sock_->read(ptr, size);
+    }
+    ssize_t write(const char *ptr, size_t size) {
+        return sock_->write(ptr, size);
+    }
+    void get_remote_ip_and_port(std::string &ip, int &port) {
+        swSocketAddress sa;
+        sock_->getpeername(&sa);
+        ip = std::string(swSocket_get_ip(sock_->get_type(), &sa));
+        port = swSocket_get_port(sock_->get_type(), &sa);
+    }
+ private:
+    Socket *sock_;
+};
+
+inline bool Server::process_and_close_socket(Socket *sock) {
+
+    size_t keep_alive_max_count = keep_alive_max_count_;
+    time_t read_timeout_sec = read_timeout_sec_;
+    time_t read_timeout_usec = read_timeout_usec_;
+    time_t write_timeout_sec = write_timeout_sec_;
+    time_t write_timeout_usec = write_timeout_usec_;
+
+    CoSocketStream strm(sock, read_timeout_sec, read_timeout_usec, write_timeout_sec, write_timeout_usec);
+
+    assert(keep_alive_max_count > 0);
+
+    auto ret = false;
+    auto count = keep_alive_max_count;
+
+    do {
+        auto close_connection = count == 1;
+        auto connection_closed = false;
+        ret = process_request(strm, close_connection, connection_closed, nullptr);
+        if (!ret || connection_closed) {
+            break;
+        }
+        count--;
+    } while (count > 0 && sock->check_liveness());
+
+    sock->shutdown();
+    sock->close();
+    delete sock;
+
+    return ret;
 }
 
 }

@@ -220,3 +220,11 @@ size_t swoole_coro_count()
 {
     return Coroutine::coroutines.size();
 }
+
+bool coroutine::run(coroutine_func_t fn, void *arg)
+{
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+    long cid = Coroutine::create(fn, arg);
+    swoole_event_wait();
+    return cid > 0;
+}

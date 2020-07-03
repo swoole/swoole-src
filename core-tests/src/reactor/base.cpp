@@ -86,7 +86,7 @@ TEST(reactor, swReactor_wait)
     int ret;
     swPipe p;
 
-    ret = swoole_event_init();
+    ret = swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     ASSERT_EQ(ret, SW_OK);
     ASSERT_NE(SwooleTG.reactor, nullptr);
 
@@ -101,7 +101,6 @@ TEST(reactor, swReactor_wait)
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
-        swReactor_wait_exit(sw_reactor(), 1);
 
         return SW_OK;
     });
@@ -122,7 +121,7 @@ TEST(reactor, swReactor_write)
     int ret;
     swPipe p;
 
-    ret = swoole_event_init();
+    ret = swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     ASSERT_EQ(ret, SW_OK);
     ASSERT_NE(SwooleTG.reactor, nullptr);
 
@@ -137,7 +136,6 @@ TEST(reactor, swReactor_write)
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
-        swReactor_wait_exit(reactor, 1);
         
         return SW_OK;
     });

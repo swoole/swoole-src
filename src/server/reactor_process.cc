@@ -311,7 +311,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     //create reactor
     if (!SwooleTG.reactor)
     {
-        if (swoole_event_init() < 0)
+        if (swoole_event_init(0) < 0)
         {
             return SW_ERR;
         }

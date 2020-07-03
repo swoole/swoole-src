@@ -45,8 +45,7 @@ public:
     inline static void run(std::initializer_list<std::pair<coroutine_func_t, void*>> args)
     {
         int complete_num = 0;
-        swoole_event_init();
-        swReactor_wait_exit(sw_reactor(), 1);
+        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
         for (const auto &arg : args)
         {
             create(arg.first, arg.second, &complete_num);
@@ -57,8 +56,7 @@ public:
     inline static void run(std::initializer_list<coroutine_func_t> fns)
     {
         int complete_num = 0;
-        swoole_event_init();
-        swReactor_wait_exit(sw_reactor(), 1);
+        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
         for (const auto &fn : fns)
         {
             create(fn, nullptr, &complete_num);
@@ -69,8 +67,7 @@ public:
     inline static void run(coroutine_func_t fn, void *arg = nullptr)
     {
         int complete_num = 0;
-        swoole_event_init();
-        swReactor_wait_exit(sw_reactor(), 1);
+        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
         create(fn, arg, &complete_num);
         swoole_event_wait();
     }

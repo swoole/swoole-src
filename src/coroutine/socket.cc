@@ -1178,6 +1178,11 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
     return retval;
 }
 
+bool Socket::bind(const struct sockaddr *sa, socklen_t len)
+{
+    return ::bind(sock_fd, (struct sockaddr *) sa, len) == 0;
+}
+
 bool Socket::bind(std::string address, int port)
 {
     if (sw_unlikely(!is_available(SW_EVENT_NULL)))

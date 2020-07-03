@@ -863,7 +863,7 @@ int swReactorThread_create(swServer *serv)
  */
 int swReactorThread_start(swServer *serv)
 {
-    if (swoole_event_init() < 0)
+    if (swoole_event_init(0) < 0)
     {
         return SW_ERR;
     }

@@ -135,6 +135,7 @@ public:
     bool poll(enum swEvent_type type);
     Socket *accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
+    bool bind(const struct sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
     ssize_t sendto(const std::string &host, int port, const void *__buf, size_t __n);

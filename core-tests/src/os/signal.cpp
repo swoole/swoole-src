@@ -12,8 +12,7 @@ TEST(os_signal, swSignalfd_set)
 
     SwooleG.use_signalfd = 1;
 
-    swoole_event_init();
-    SwooleTG.reactor->wait_exit = 1;
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     sigemptyset(&curset);
     sigprocmask(SIG_BLOCK, NULL, &curset);

@@ -255,8 +255,7 @@ int php_swoole_reactor_init()
     {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        swoole_event_init();
-        swReactor_wait_exit(sw_reactor(), 1);
+        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
         php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
     }

@@ -639,7 +639,7 @@ int swWorker_loop(swServer *serv, swWorker *worker)
 
     swServer_worker_init(serv, worker);
 
-    if (swoole_event_init() < 0)
+    if (swoole_event_init(0) < 0)
     {
         return SW_ERR;
     }
