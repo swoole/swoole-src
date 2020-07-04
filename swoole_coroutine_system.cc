@@ -714,6 +714,8 @@ PHP_METHOD(swoole_coroutine_system, exec)
         RETURN_FALSE;
     }
 
+    sigchld_init();
+
     Coroutine::get_current_safe();
 
     pid_t pid;
