@@ -98,7 +98,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
     do {
         zval *zserver = ctx->request.zserver;
-        swConnection *serv_sock = swServer_connection_get(serv, conn->server_fd);
+        swConnection *serv_sock = serv->get_connection(conn->server_fd);
         if (serv_sock)
         {
             add_assoc_long(zserver, "server_port", swSocket_get_port(serv_sock->socket_type, &serv_sock->info));

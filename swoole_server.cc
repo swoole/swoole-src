@@ -1445,7 +1445,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     swDgramPacket *packet = (swDgramPacket*) buffer;
 
     add_assoc_long(&zaddr, "server_socket", req->info.server_fd);
-    swConnection *from_sock = swServer_connection_get(serv, req->info.server_fd);
+    swConnection *from_sock = serv->get_connection(req->info.server_fd);
     if (from_sock)
     {
         add_assoc_long(&zaddr, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
@@ -3386,7 +3386,7 @@ static PHP_METHOD(swoole_server, heartbeat)
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swTrace("heartbeat check fd=%d", fd);
-        swConnection *conn = swServer_connection_get(serv, fd);
+        swConnection *conn = serv->get_connection(fd);
         if (swServer_connection_valid(serv, conn))
         {
             if (conn->protect || conn->last_time > checktime)
@@ -4050,7 +4050,7 @@ static PHP_METHOD(swoole_server, getClientInfo)
         }
 #endif
         //server socket
-        swConnection *from_sock = swServer_connection_get(serv, conn->server_fd);
+        swConnection *from_sock = serv->get_connection(conn->server_fd);
         if (from_sock)
         {
             add_assoc_long(return_value, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));

@@ -517,7 +517,7 @@ void swWorker_stop(swWorker *worker)
 
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
-            swConnection *conn = swServer_connection_get(serv, fd);
+            swConnection *conn = serv->get_connection(fd);
             if (conn && conn->socket && conn->active && !conn->peer_closed && conn->socket->fdtype == SW_FD_SESSION)
             {
                 swReactor_remove_read_event(reactor, conn->socket);

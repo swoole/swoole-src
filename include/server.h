@@ -666,6 +666,7 @@ class Server
 
     int create();
     int start();
+    void shutdown();
     int add_worker(swWorker *worker);
     swListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
@@ -773,6 +774,15 @@ class Server
         return nullptr;
     }
 
+    inline swConnection *get_connection(int fd)
+    {
+        if ((uint32_t) fd > max_connection)
+        {
+            return nullptr;
+        }
+        return &connection_list[fd];
+    }
+
  private:
     /**
      * http static file directory
@@ -780,7 +790,7 @@ class Server
     std::string document_root;
     int start_check();
     void check_port_type(swListenPort *ls);
-    int destory();
+    void destory();
 };
 
 }
@@ -805,7 +815,6 @@ void swServer_clear_timer(swServer *serv);
 #ifdef SW_SUPPORT_DTLS
 swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
 #endif
-int swServer_shutdown(swServer *serv);
 
 void swServer_set_ipc_max_size(swServer *serv);
 int swServer_create_pipe_buffers(swServer *serv);
@@ -916,15 +925,6 @@ static sw_inline swString *swTaskWorker_large_unpack(swEventData *task_result)
 
 #define swServer_get_thread(serv, reactor_id)    (&(serv->reactor_threads[reactor_id]))
 
-static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
-{
-    if ((uint32_t) fd > serv->max_connection)
-    {
-        return nullptr;
-    }
-    return &serv->connection_list[fd];
-}
-
 static sw_inline int swServer_connection_valid(swServer *serv, swConnection *conn)
 {
     return (conn && conn->socket && conn->active == 1 && conn->closed == 0 
@@ -947,7 +947,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
 
     if (serv->dispatch_func)
     {
-        int id = serv->dispatch_func(serv, swServer_connection_get(serv, fd), data);
+        int id = serv->dispatch_func(serv, serv->get_connection(fd), data);
         if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK)
         {
             return id;
@@ -967,7 +967,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     //Using the IP touch access to hash
     else if (serv->dispatch_mode == SW_DISPATCH_IPMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, fd);
+        swConnection *conn = serv->get_connection(fd);
         //UDP
         if (conn == nullptr)
         {
@@ -992,7 +992,7 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     }
     else if (serv->dispatch_mode == SW_DISPATCH_UIDMOD)
     {
-        swConnection *conn = swServer_connection_get(serv, fd);
+        swConnection *conn = serv->get_connection(fd);
         if (conn == nullptr || conn->uid == 0)
         {
             key = fd;
@@ -1038,14 +1038,14 @@ void swWorker_stop(swWorker *worker);
 
 static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)
 {
-    return swServer_connection_get(serv, swServer_get_fd(serv, session_id));
+    return serv->get_connection(swServer_get_fd(serv, session_id));
 }
 
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
 {
     swSession *session = swServer_get_session(serv, session_id);
     int fd = session->fd;
-    swConnection *conn = swServer_connection_get(serv, fd);
+    swConnection *conn = serv->get_connection(fd);
     if (!conn || conn->active == 0)
     {
         return nullptr;

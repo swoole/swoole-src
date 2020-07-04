@@ -403,7 +403,7 @@ int Server::start_check()
             swWarn("require onReceive callback");
             return SW_ERR;
         }
-        if (if_require_receive_callback(ls, onPacket != nullptr))
+        if (if_require_packet_callback(ls, onPacket != nullptr))
         {
             swWarn("require onPacket callback");
             return SW_ERR;
@@ -931,34 +931,33 @@ void swServer_clear_timer(swServer *serv)
     }
 }
 
-int swServer_shutdown(swServer *serv)
+void Server::shutdown()
 {
-    serv->running = 0;
+    running = 0;
     //stop all thread
     if (SwooleTG.reactor)
     {
         swReactor *reactor = SwooleTG.reactor;
         swReactor_wait_exit(reactor, 1);
-        for (auto ls : serv->ports)
+        for (auto ls : ports)
         {
             if (swSocket_is_stream(ls->type))
             {
                 reactor->del(reactor, ls->socket);
             }
         }
-        swServer_clear_timer(serv);
+        swServer_clear_timer(this);
     }
 
-    if (serv->factory_mode == SW_MODE_BASE)
+    if (factory_mode == SW_MODE_BASE)
     {
-        serv->gs->event_workers.running = 0;
+        gs->event_workers.running = 0;
     }
 
     swInfo("Server is shutdown now");
-    return SW_OK;
 }
 
-int Server::destory()
+void Server::destory()
 {
     swTraceLog(SW_TRACE_SERVER, "release service");
     /**
@@ -1043,7 +1042,6 @@ int Server::destory()
     }
     lock.free(&lock);
     SwooleG.serv = nullptr;
-    return SW_OK;
 }
 
 /**
@@ -1835,7 +1833,7 @@ static void swServer_signal_handler(int sig)
     switch (sig)
     {
     case SIGTERM:
-        swServer_shutdown(serv);
+        serv->shutdown();
         break;
     case SIGALRM:
         swSystemTimer_signal_handler(SIGALRM);
@@ -1914,7 +1912,7 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
-        conn = swServer_connection_get(serv, fd);
+        conn = serv->get_connection(fd);
         if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION)
         {
             callback(conn);

@@ -55,7 +55,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
 
     if (swEventData_is_stream(task->info.type))
     {
-        conn = swServer_connection_get(serv, task->info.fd);
+        conn = serv->get_connection(task->info.fd);
         if (conn == nullptr || conn->active == 0)
         {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);
@@ -102,7 +102,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
 static int swFactory_notify(swFactory *factory, swDataHead *info)
 {
     swServer *serv = (swServer *) factory->ptr;
-    swConnection *conn = swServer_connection_get(serv, info->fd);
+    swConnection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0)
     {
         swWarn("dispatch[type=%d] failed, connection#%d is not active", info->type, info->fd);

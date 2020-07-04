@@ -449,7 +449,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
-        swConnection *conn = swServer_connection_get(serv, fd);
+        swConnection *conn = serv->get_connection(fd);
         if (conn != nullptr && conn->active && conn->socket->fdtype == SW_FD_SESSION)
         {
             serv->close(serv, conn->session_id, 1);
@@ -481,7 +481,7 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
 {
     int fd = event->fd;
     swServer *serv = (swServer *) reactor->ptr;
-    swConnection *conn = swServer_connection_get(serv, fd);
+    swConnection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0)
     {
         return SW_ERR;
@@ -609,7 +609,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
-        conn = swServer_connection_get(serv, fd);
+        conn = serv->get_connection(fd);
         if (swServer_connection_valid(serv, conn))
         {
             if (conn->protect || conn->last_time > checktime)

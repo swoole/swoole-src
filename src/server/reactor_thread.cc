@@ -362,7 +362,7 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
 
     swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
 
-    swConnection *conn = swServer_connection_get(serv, fd);
+    swConnection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0)
     {
         return SW_ERR;
@@ -424,7 +424,7 @@ static void swReactorThread_shutdown(swReactor *reactor)
         {
             continue;
         }
-        swConnection *conn = swServer_connection_get(serv, fd);
+        swConnection *conn = serv->get_connection(fd);
         if (swServer_connection_valid(serv, conn) && !conn->peer_closed && !conn->socket->removed)
         {
             swReactor_remove_read_event(reactor, conn->socket);
@@ -498,7 +498,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 if (resp->info.type == SW_SERVER_EVENT_INCOMING)
                 {
                     int fd = resp->info.fd;
-                    swConnection *conn = swServer_connection_get(serv, fd);
+                    swConnection *conn = serv->get_connection(fd);
                     if (swServer_connection_incoming(serv, reactor, conn) < 0)
                     {
                         return reactor->close(reactor, conn->socket);
@@ -664,7 +664,7 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
 static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
-    swConnection *conn = swServer_connection_get(serv, event->fd);
+    swConnection *conn = serv->get_connection(event->fd);
     /**
      * invalid event
      * The server has been actively closed the connection, the client also initiated off, fd has been reused.
@@ -743,7 +743,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         assert(fd % serv->reactor_num == SwooleTG.id);
     }
 
-    swConnection *conn = swServer_connection_get(serv, fd);
+    swConnection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0)
     {
         return SW_ERR;
@@ -1381,7 +1381,7 @@ static void swHeartbeatThread_loop(swThreadParam *param)
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
             swTrace("check fd=%d", fd);
-            swConnection *conn = swServer_connection_get(serv, fd);
+            swConnection *conn = serv->get_connection(fd);
             if (swServer_connection_valid(serv, conn))
             {
                 if (conn->protect || conn->last_time > checktime)
