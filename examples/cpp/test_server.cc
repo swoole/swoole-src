@@ -18,8 +18,6 @@ static int g_receive_count = 0;
 
 int main(int argc, char **argv)
 {
-    int ret;
-
     swLog_set_date_format("%F %T");
     swLog_set_date_with_microseconds(true);
 
@@ -55,15 +53,13 @@ int main(int argc, char **argv)
 
     // swSignal_add(SIGINT, user_signal);
 
-    //create Server
-    ret = swServer_create(&serv);
-    if (ret < 0)
+    if (serv.create())
     {
         swWarn("create server fail[error=%d]", swoole_get_last_error());
         exit(1);
     }
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
@@ -75,14 +71,13 @@ int main(int argc, char **argv)
     port->backlog = 128;
     memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n"));
 
-    swServer_add_port(&serv, SW_SOCK_UDP, "0.0.0.0", 9502);
-    swServer_add_port(&serv, SW_SOCK_TCP6, "::", 9503);
-    swServer_add_port(&serv, SW_SOCK_UDP6, "::", 9504);
+    serv.add_port(SW_SOCK_UDP, "0.0.0.0", 9502);
+    serv.add_port(SW_SOCK_TCP6, "::", 9503);
+    serv.add_port(SW_SOCK_UDP6, "::", 9504);
 
-    ret = swServer_start(&serv);
-    if (ret < 0)
+    if (serv.start() < 0)
     {
-        swWarn("start server fail[error=%d]", ret);
+        swWarn("start server fail[error=%d]", swoole_get_last_error());
         exit(3);
     }
     return 0;

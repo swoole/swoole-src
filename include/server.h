@@ -88,6 +88,9 @@ enum swFactory_dispatch_result
     SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
 };
 
+#define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
+#define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
+
 struct swReactorThread
 {
     pthread_t thread_id;
@@ -319,7 +322,7 @@ class Server
      */
     uint16_t reactor_pipe_num = 0;
 
-    uint8_t factory_mode = SW_MODE_BASE;
+    enum swServer_mode factory_mode;
 
     uint8_t dgram_port_num = 0;
 
@@ -402,7 +405,7 @@ class Server
     /**
      * parse multipart/form-data files to match $_FILES
      */
-    bool http_parse_files = true;
+    bool http_parse_files = false;
     /**
      * http content compression
      */
@@ -640,7 +643,7 @@ class Server
     int (*dispatch_func)(Server *, swConnection *, swSendData *) = nullptr;
 
  public:
-    Server();
+    Server(enum swServer_mode mode = SW_MODE_BASE);
 
     bool set_document_root(const std::string &path)
     {
@@ -661,9 +664,88 @@ class Server
         return true;
     }
 
+    int create();
+    int start();
+    int add_worker(swWorker *worker);
+    swListenPort *add_port(enum swSocket_type type, const char *host, int port);
+    int add_systemd_socket();
+    int get_idle_worker_num();
+    int get_idle_task_worker_num();
+
+    inline int get_minfd()
+    {
+        return connection_list[SW_SERVER_MIN_FD_INDEX].fd;
+    }
+
+    inline int get_maxfd()
+    {
+        return connection_list[SW_SERVER_MAX_FD_INDEX].fd;
+    }
+    /**
+     *  connection_list[0] => the largest fd
+     */
+    inline void set_maxfd(int maxfd)
+    {
+        connection_list[SW_SERVER_MAX_FD_INDEX].fd = maxfd;
+    }
+    /**
+     * connection_list[1] => the smallest fd
+     */
+    inline void set_minfd(int minfd)
+    {
+        connection_list[SW_SERVER_MIN_FD_INDEX].fd = minfd;
+    }
+
     const std::string& get_document_root()
     {
         return document_root;
+    }
+
+    inline swString *get_recv_buffer(swSocket *_socket)
+    {
+        swString *buffer = _socket->recv_buffer;
+        if (buffer == nullptr)
+        {
+            buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            if (!buffer)
+            {
+                return nullptr;
+            }
+            _socket->recv_buffer = buffer;
+        }
+
+        return buffer;
+    }
+
+    inline bool is_support_unsafe_events()
+    {
+        if (dispatch_mode != SW_DISPATCH_ROUND && dispatch_mode != SW_DISPATCH_QUEUE
+                && dispatch_mode != SW_DISPATCH_STREAM)
+        {
+            return true;
+        }
+        else
+        {
+            return enable_unsafe_event;
+        }
+    }
+
+    inline bool if_require_packet_callback(swListenPort *port, bool isset)
+    {
+#ifdef SW_USE_OPENSSL
+        return (swSocket_is_dgram(port->type) && !port->ssl && !isset);
+#else
+        return (swSocket_is_dgram(port->type) && !isset);
+#endif
+    }
+
+    inline bool if_require_receive_callback(swListenPort *port, bool isset)
+    {
+#ifdef SW_USE_OPENSSL
+        return (((swSocket_is_dgram(port->type) && port->ssl) || swSocket_is_stream(port->type)) && !isset);
+#else
+        return (swSocket_is_stream(port->type) && !isset);
+#endif
     }
 
  private:
@@ -671,6 +753,9 @@ class Server
      * http static file directory
      */
     std::string document_root;
+    int start_check();
+    void check_port_type(swListenPort *ls);
+    int destory();
 };
 
 }
@@ -687,37 +772,10 @@ int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
 void swServer_signal_init(swServer *serv);
-int swServer_start(swServer *serv);
-swListenPort *swServer_add_port(swServer *serv, enum swSocket_type type, const char *host, int port);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
-int swServer_add_worker(swServer *serv, swWorker *worker);
-int swServer_add_systemd_socket(swServer *serv);
 int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back);
 void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 void swServer_clear_timer(swServer *serv);
-int swServer_create(swServer *serv);
-
-int swServer_worker_idle_num(swServer *serv);
-int swServer_task_worker_idle_num(swServer *serv);
-bool swServer_set_document_root(const std::string &path);
-
-static inline bool swServer_if_require_receive_callback(swServer *serv, swListenPort *port, bool isset)
-{
-#ifdef SW_USE_OPENSSL
-    return (((swSocket_is_dgram(port->type) && port->ssl) || swSocket_is_stream(port->type)) && !isset);
-#else
-    return (swSocket_is_stream(port->type) && !isset);
-#endif
-}
-
-static inline bool swServer_if_require_packet_callback(swServer *serv, swListenPort *port, bool isset)
-{
-#ifdef SW_USE_OPENSSL
-    return (swSocket_is_dgram(port->type) && !port->ssl && !isset);
-#else
-    return (swSocket_is_dgram(port->type) && !isset);
-#endif
-}
 
 #ifdef SW_SUPPORT_DTLS
 swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
@@ -830,16 +888,6 @@ static sw_inline swString *swTaskWorker_large_unpack(swEventData *task_result)
     SwooleTG.buffer_stack->length = _pkg.length;
     return SwooleTG.buffer_stack;
 }
-
-#define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
-#define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
-
-// connection_list[0] => the largest fd
-#define swServer_set_maxfd(serv,maxfd) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd=maxfd)
-#define swServer_get_maxfd(serv) (serv->connection_list[SW_SERVER_MAX_FD_INDEX].fd)
-// connection_list[1] => the smallest fd
-#define swServer_set_minfd(serv,maxfd) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd=maxfd)
-#define swServer_get_minfd(serv) (serv->connection_list[SW_SERVER_MIN_FD_INDEX].fd)
 
 #define swServer_get_thread(serv, reactor_id)    (&(serv->reactor_threads[reactor_id]))
 
@@ -1009,22 +1057,6 @@ static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv,
     return conn;
 }
 
-static inline swString *swServer_get_recv_buffer(swServer *serv, swSocket *_socket)
-{
-    swString *buffer = _socket->recv_buffer;
-    if (buffer == nullptr)
-    {
-        buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, serv->buffer_allocator);
-        if (!buffer)
-        {
-            return nullptr;
-        }
-        _socket->recv_buffer = buffer;
-    }
-
-    return buffer;
-}
-
 static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
 {
     swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
@@ -1080,19 +1112,6 @@ static sw_inline swSocket *swServer_get_send_pipe(swServer *serv, int session_id
     int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
     swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
     return worker->pipe_worker;
-}
-
-static sw_inline uint8_t swServer_support_unsafe_events(swServer *serv)
-{
-    if (serv->dispatch_mode != SW_DISPATCH_ROUND && serv->dispatch_mode != SW_DISPATCH_QUEUE
-            && serv->dispatch_mode != SW_DISPATCH_STREAM)
-    {
-        return 1;
-    }
-    else
-    {
-        return serv->enable_unsafe_event;
-    }
 }
 
 static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)

@@ -512,8 +512,8 @@ void swWorker_stop(swWorker *worker)
             swReactor_remove_read_event(reactor, worker->pipe_master);
         }
         int fd;
-        int serv_max_fd = swServer_get_maxfd(serv);
-        int serv_min_fd = swServer_get_minfd(serv);
+        int serv_max_fd = serv->get_maxfd();
+        int serv_min_fd = serv->get_minfd();
 
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {

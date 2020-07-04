@@ -7,16 +7,14 @@ using namespace std;
 
 static void test_run_server(function<void(swServer *)> fn)
 {
-    swServer serv;
+    swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
-    serv.factory_mode = SW_MODE_BASE;
     serv.ptr2 = (void*) &fn;
-
-    swServer_create(&serv);
+    serv.create();
 
     swLog_set_level(SW_LOG_WARNING);
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
@@ -46,7 +44,7 @@ static void test_run_server(function<void(swServer *)> fn)
         return SW_OK;
     };
 
-    swServer_start(&serv);
+    serv.start();
 }
 
 TEST(http_server, get)

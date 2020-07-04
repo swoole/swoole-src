@@ -22,8 +22,8 @@
 
 using namespace swoole::test;
 
-Server::Server(std::string _host, int _port, int _mode, int _type):
-        host(_host), port(_port), mode(_mode), type(_type)
+Server::Server(std::string _host, int _port, enum swServer_mode _mode, int _type):
+        serv(_mode), host(_host), port(_port), mode(_mode), type(_type)
 {
     serv.worker_num = 1;
 
@@ -33,13 +33,10 @@ Server::Server(std::string _host, int _port, int _mode, int _type):
         serv.worker_num = 1;
     }
 
-    serv.factory_mode = (uint8_t) mode;
     serv.dispatch_mode = 2;
     serv.ptr2 = this;
 
-    //create Server
-    int ret = swServer_create(&serv);
-    if (ret < 0)
+    if (serv.create() < 0)
     {
         swTrace("create server fail[error=%d].\n", ret);
         exit(0);
@@ -93,8 +90,7 @@ void Server::on(std::string event, void *fn)
 
 bool Server::start()
 {
-    int ret = swServer_start(&serv);
-    if (ret < 0)
+    if (serv.start() < 0)
     {
         swTrace("start server fail[error=%d].\n", ret);
         return false;
@@ -104,7 +100,7 @@ bool Server::start()
 
 bool Server::listen(std::string host, int port, enum swSocket_type type)
 {
-    swListenPort *ls = swServer_add_port(&serv, type, (char *) host.c_str(), port);
+    swListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
     if (ls == nullptr)
     {
         return false;

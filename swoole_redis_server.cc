@@ -251,7 +251,7 @@ static PHP_METHOD(swoole_redis_server, start)
 
     php_swoole_server_before_start(serv, zserv);
 
-    if (swServer_start(serv) < 0)
+    if (serv->start() < 0)
     {
         php_swoole_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
     }

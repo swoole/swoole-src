@@ -5,7 +5,7 @@ using namespace std;
 
 static void test_create_server(swServer *serv)
 {
-    swServer_create(serv);
+    serv->create();
 
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
     serv->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->worker_num * sizeof(swWorker));
@@ -35,11 +35,11 @@ TEST(server, base)
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
-    swServer_create(&serv);
+    ASSERT_EQ(serv.create(), SW_OK);
 
     swLog_set_level(SW_LOG_WARNING);
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
@@ -49,7 +49,6 @@ TEST(server, base)
     swLock lock;
     swMutex_create(&lock, 0);
     lock.lock(&lock);
-    serv.ptr2 = &lock;
 
     std::thread t1([&]()
     {
@@ -67,10 +66,9 @@ TEST(server, base)
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [](swServer *serv, int worker_id)
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        swLock *lock = (swLock *) serv->ptr2;
-        lock->unlock(lock);
+        lock.unlock(&lock);
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int
@@ -85,7 +83,7 @@ TEST(server, base)
         return SW_OK;
     };
 
-    swServer_start(&serv);
+    serv.start();
     t1.join();
 }
 
@@ -94,7 +92,7 @@ TEST(server, process)
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_PROCESS;
-    swServer_create(&serv);
+    ASSERT_EQ(serv.create(), SW_OK);
 
     SwooleG.running = 1;
 
@@ -103,21 +101,19 @@ TEST(server, process)
     swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
     swMutex_create(lock, 1);
     lock->lock(lock);
-    serv.ptr2 = lock;
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
-    serv.onStart = [](swServer *serv)
+    serv.onStart = [&lock](swServer *serv)
     {
         thread t1([=]() {
             swSignal_none();
 
-            swLock *lock = (swLock *) serv->ptr2;
             lock->lock(lock);
 
             swListenPort *port = serv->get_primary_port();
@@ -152,6 +148,6 @@ TEST(server, process)
         return SW_OK;
     };
 
-    ASSERT_EQ(swServer_start(&serv), 0);
+    ASSERT_EQ(serv.start(), 0);
 }
 

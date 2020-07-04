@@ -26,14 +26,14 @@ static const char *packet = "hello world\n";
 
 TEST(server, send_buffer)
 {
-    swServer serv;
+    swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
-    serv.factory_mode = SW_MODE_BASE;
-    swServer_create(&serv);
+
+    ASSERT_EQ(serv.create(), SW_OK);
 
     swLog_set_level(SW_LOG_WARNING);
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
@@ -92,7 +92,7 @@ TEST(server, send_buffer)
         return SW_OK;
     };
 
-    swServer_start(&serv);
+    serv.start();
     t1.join();
 }
 

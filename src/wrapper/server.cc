@@ -20,24 +20,18 @@
 namespace swoole { namespace wrapper {
 //-----------------------------------namespace begin------------------------------------------------
 swString *_callback_buffer;
-Server::Server(string _host, int _port, int _mode,  enum swSocket_type _type)
+Server::Server(string _host, int _port, enum swServer_mode _mode,  enum swSocket_type _type)
+    :serv(_mode), host(_host), port(_port), mode(_mode)
 {
-    host = _host;
-    port = _port;
-    mode = _mode;
-
     if (_mode == SW_MODE_BASE)
     {
         serv.reactor_num = 1;
         serv.worker_num = 1;
     }
 
-    serv.factory_mode = (uint8_t) mode;
     serv.dispatch_mode = 2;
 
-    //create Server
-    int ret = swServer_create(&serv);
-    if (ret < 0)
+    if (serv.create() < 0)
     {
         swTrace("create server fail[error=%d].\n", ret);
         exit(0);
@@ -52,16 +46,7 @@ void Server::setEvents(int _events)
 
 bool Server::listen(string host, int port, enum swSocket_type type)
 {
-    auto ls = swServer_add_port(&serv, type, (char *) host.c_str(), port);
-    if (ls == nullptr)
-    {
-        return false;
-    }
-    else
-    {
-        ports.push_back(ls);
-        return true;
-    }
+    return serv.add_port(type, (char *) host.c_str(), port) != nullptr;
 }
 
 bool Server::send(int fd, const DataBuffer &data)
@@ -426,8 +411,7 @@ bool Server::start(void)
         serv.onPipeMessage = Server::_onPipeMessage;
     }
     _callback_buffer = swString_new(8192);
-    int ret = swServer_start(&serv);
-    if (ret < 0)
+    if (serv.start() < 0)
     {
         swTrace("start server fail[error=%d].\n", ret);
         return false;

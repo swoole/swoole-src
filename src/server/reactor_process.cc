@@ -444,8 +444,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
      * Close all connections
      */
     int fd;
-    int serv_max_fd = swServer_get_maxfd(serv);
-    int serv_min_fd = swServer_get_minfd(serv);
+    int serv_max_fd = serv->get_maxfd();
+    int serv_min_fd = serv->get_minfd();
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
@@ -602,8 +602,8 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
     sw_memset_zero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_FD_SESSION;
 
-    int serv_max_fd = swServer_get_maxfd(serv);
-    int serv_min_fd = swServer_get_minfd(serv);
+    int serv_max_fd = serv->get_maxfd();
+    int serv_min_fd = serv->get_minfd();
 
     checktime = now - serv->heartbeat_idle_time;
 

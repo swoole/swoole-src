@@ -322,7 +322,8 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
      * reset maxfd, for connection_list
      */
     int fd = socket->fd;
-    if (fd == swServer_get_maxfd(serv))
+
+    if (fd == serv->get_maxfd())
     {
         swServer_lock(serv);
         int find_max_fd = fd - 1;
@@ -330,11 +331,11 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
         /**
          * Find the new max_fd
          */
-        for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > swServer_get_minfd(serv); find_max_fd--)
+        for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > serv->get_minfd(); find_max_fd--)
         {
             //pass
         }
-        swServer_set_maxfd(serv, find_max_fd);
+        serv->set_maxfd(find_max_fd);
         swServer_unlock(serv);
     }
     sw_memset_zero(conn, sizeof(swConnection));
@@ -414,8 +415,8 @@ static void swReactorThread_shutdown(swReactor *reactor)
     }
 
     int fd;
-    int serv_max_fd = swServer_get_maxfd(serv);
-    int serv_min_fd = swServer_get_minfd(serv);
+    int serv_max_fd = serv->get_maxfd();
+    int serv_min_fd = serv->get_minfd();
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
@@ -1372,8 +1373,8 @@ static void swHeartbeatThread_loop(swThreadParam *param)
 
     while (serv->running)
     {
-        serv_max_fd = swServer_get_maxfd(serv);
-        serv_min_fd = swServer_get_minfd(serv);
+        serv_max_fd = serv->get_maxfd();
+        serv_min_fd = serv->get_minfd();
 
         checktime = (int) time(nullptr) - serv->heartbeat_idle_time;
 
