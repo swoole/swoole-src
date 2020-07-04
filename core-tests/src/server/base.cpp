@@ -36,12 +36,17 @@ Server::Server(std::string _host, int _port, enum swServer_mode _mode, int _type
     serv.dispatch_mode = 2;
     serv.ptr2 = this;
 
-    if (serv.create() < 0)
+    if (!listen(host, port, (swSocket_type) type))
     {
-        swTrace("create server fail[error=%d].\n", ret);
+        swWarn("listen fail[error=%d].", errno);
         exit(0);
     }
-    this->listen(host, port, (swSocket_type) type);
+
+    if (serv.create() < 0)
+    {
+        swWarn("create server fail[error=%d].", errno);
+        exit(0);
+    }
 }
 
 Server::~Server()

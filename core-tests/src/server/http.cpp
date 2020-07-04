@@ -10,7 +10,6 @@ static void test_run_server(function<void(swServer *)> fn)
     swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
     serv.ptr2 = (void*) &fn;
-    serv.create();
 
     swLog_set_level(SW_LOG_WARNING);
 
@@ -21,6 +20,8 @@ static void test_run_server(function<void(swServer *)> fn)
         exit(2);
     }
     port->open_http_protocol = 1;
+
+    serv.create();
 
     serv.onWorkerStart = [](swServer *serv, int worker_id)
     {

@@ -29,8 +29,6 @@ TEST(server, send_buffer)
     swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
 
-    ASSERT_EQ(serv.create(), SW_OK);
-
     swLog_set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
@@ -40,10 +38,11 @@ TEST(server, send_buffer)
         exit(2);
     }
 
+    ASSERT_EQ(serv.create(), SW_OK);
+
     swLock lock;
     swMutex_create(&lock, 0);
     lock.lock(&lock);
-    serv.ptr2 = &lock;
 
     std::thread t1([&]()
     {
@@ -71,10 +70,9 @@ TEST(server, send_buffer)
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [](swServer *serv, int worker_id)
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        swLock *lock = (swLock *) serv->ptr2;
-        lock->unlock(lock);
+        lock.unlock(&lock);
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int

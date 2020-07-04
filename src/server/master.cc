@@ -1007,10 +1007,16 @@ void Server::destory()
      * the efree function will be called when the user process is destructed, 
      * so there's no need to call the efree here.
      */
-    delete user_worker_list;
-    user_worker_list = nullptr;
-    sw_shm_free(user_workers);
-
+    if (user_worker_list)
+    {
+        delete user_worker_list;
+        user_worker_list = nullptr;
+    }
+    if (user_workers)
+    {
+        sw_shm_free(user_workers);
+        user_workers = nullptr;
+    }
     if (null_fd > 0)
     {
         ::close(null_fd);

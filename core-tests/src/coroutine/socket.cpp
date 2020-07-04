@@ -97,7 +97,9 @@ TEST(coroutine_socket, recv_success)
         ASSERT_EQ(strcmp(buf, "hello world\n"), 0);
     });
 
-    kill(pid, SIGKILL);
+    kill(pid, SIGTERM);
+    int status;
+    wait(&status);
 }
 
 TEST(coroutine_socket, recv_fail)

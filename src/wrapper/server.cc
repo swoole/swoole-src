@@ -219,7 +219,7 @@ int Server::task(DataBuffer &data, int dst_worker_id)
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
     if (swProcessPool_dispatch(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
     {
-        sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+        sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
         return buf.info.fd;
     }
     else
@@ -559,7 +559,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
 
     if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
     {
-        sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+        sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0)
@@ -630,7 +630,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         dst_worker_id = -1;
         if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
         {
-            sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+            sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
             list_of_id[i] = task_id;
         }
         else

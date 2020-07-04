@@ -35,7 +35,6 @@ TEST(server, base)
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
-    ASSERT_EQ(serv.create(), SW_OK);
 
     swLog_set_level(SW_LOG_WARNING);
 
@@ -49,6 +48,8 @@ TEST(server, base)
     swLock lock;
     swMutex_create(&lock, 0);
     lock.lock(&lock);
+
+    ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]()
     {
@@ -92,7 +93,6 @@ TEST(server, process)
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_PROCESS;
-    ASSERT_EQ(serv.create(), SW_OK);
 
     SwooleG.running = 1;
 
@@ -108,6 +108,8 @@ TEST(server, process)
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
+
+    ASSERT_EQ(serv.create(), SW_OK);
 
     serv.onStart = [&lock](swServer *serv)
     {
