@@ -138,7 +138,7 @@ public:
         str = zval_get_string(v);
     }
 
-    inline char* val()
+    inline char *val()
     {
         return ZSTR_VAL(str);
     }
@@ -148,27 +148,27 @@ public:
         return ZSTR_LEN(str);
     }
 
-    zend_string* get()
+    inline zend_string *get()
     {
         return str;
     }
 
-    std::string to_std_string()
+    inline const std::string to_std_string()
     {
         return std::string(val(), len());
     }
 
-    char* dup()
+    inline char *dup()
     {
         return sw_likely(len() > 0) ? sw_strndup(val(), len()) : nullptr;
     }
 
-    char* edup()
+    inline char *edup()
     {
         return sw_likely(len() > 0) ? estrndup(val(), len()) : nullptr;
     }
 
-    void release()
+    inline void release()
     {
         if (str)
         {
