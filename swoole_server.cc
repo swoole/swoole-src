@@ -1016,10 +1016,10 @@ static void php_swoole_task_wait_co(swServer *serv, swEventData *req, double tim
     task_co->count = 1;
     Z_LVAL(task_co->context.coro_params) = req->info.fd;
 
-    sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
+    sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
     if (swProcessPool_dispatch(&serv->gs->task_workers, req, &dst_worker_id) < 0)
     {
-        sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+        sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
         RETURN_FALSE;
     }
     else
@@ -1503,7 +1503,7 @@ static sw_inline void php_swoole_create_task_object(zval *ztask, swServer *serv,
 
 static int php_swoole_onTask(swServer *serv, swEventData *req)
 {
-    sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+    sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
 
     zval *zserv = (zval *) serv->ptr2;
     zval *zdata = php_swoole_task_unpack(req);
@@ -3281,17 +3281,17 @@ static PHP_METHOD(swoole_server, stats)
     }
 
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->stats->start_time);
-    add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->stats->connection_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->stats->accept_count);
-    add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->stats->close_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->gs->start_time);
+    add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->gs->connection_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->gs->accept_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->gs->close_count);
     /**
      * reset
      */
-    int tasking_num = serv->stats->tasking_num;
+    int tasking_num = serv->gs->tasking_num;
     if (tasking_num < 0)
     {
-        tasking_num = serv->stats->tasking_num = 0;
+        tasking_num = serv->gs->tasking_num = 0;
     }
 
     uint32_t idle_worker_num = 0;
@@ -3302,7 +3302,7 @@ static PHP_METHOD(swoole_server, stats)
 
     add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), idle_worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->stats->request_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->gs->request_count);
     if (SwooleWG.worker)
     {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_request_count"), SwooleWG.worker->request_count);
@@ -3463,7 +3463,7 @@ static PHP_METHOD(swoole_server, taskwait)
         (void) read(task_notify_socket->fd, &notify, sizeof(notify));
     }
 
-    sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
+    sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
 
     if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &_dst_worker_id) >= 0)
     {
@@ -3501,7 +3501,7 @@ static PHP_METHOD(swoole_server, taskwait)
     }
     else
     {
-        sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+        sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
     }
     RETURN_FALSE;
 }
@@ -3581,7 +3581,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
-        sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
+        sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
         if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &dst_worker_id) < 0)
         {
             php_swoole_sys_error(E_WARNING, "taskwait failed");
@@ -3592,7 +3592,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
         }
         else
         {
-            sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+            sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
         }
         list_of_id[i] = task_id;
         i++;
@@ -3727,14 +3727,14 @@ static PHP_METHOD(swoole_server, taskCo)
         }
         swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
         dst_worker_id = -1;
-        sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
+        sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
         if (swProcessPool_dispatch(&serv->gs->task_workers, &buf, &dst_worker_id) < 0)
         {
             task_id = -1;
             _fail:
             add_index_bool(result, i, 0);
             n_task --;
-            sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+            sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
         }
         else
         {
@@ -3812,14 +3812,14 @@ static PHP_METHOD(swoole_server, task)
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
 
     int _dst_worker_id = (int) dst_worker_id;
-    sw_atomic_fetch_add(&serv->stats->tasking_num, 1);
+    sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
 
     if (swProcessPool_dispatch(&serv->gs->task_workers, &buf, &_dst_worker_id) >= 0)
     {
         RETURN_LONG(buf.info.fd);
     }
 
-    sw_atomic_fetch_sub(&serv->stats->tasking_num, 1);
+    sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
     RETURN_FALSE;
 }
 
@@ -4461,11 +4461,11 @@ static PHP_METHOD(swoole_connection_iterator, count)
     ConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     if (iterator->port)
     {
-        RETURN_LONG(iterator->port->connection_num);
+        RETURN_LONG(*iterator->port->connection_num);
     }
     else
     {
-        RETURN_LONG(iterator->serv->stats->connection_num);
+        RETURN_LONG(iterator->serv->gs->connection_num);
     }
 }
 

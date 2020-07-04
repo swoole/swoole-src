@@ -249,7 +249,7 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
     serv->last_receive_usec = 0;
 #endif
     worker->request_count++;
-    sw_atomic_fetch_add(&serv->stats->request_count, 1);
+    sw_atomic_fetch_add(&serv->gs->request_count, 1);
 }
 
 int swWorker_onTask(swFactory *factory, swEventData *task)

@@ -195,7 +195,7 @@ struct swListenPort
 #endif
 #endif
 
-    sw_atomic_t connection_num;
+    sw_atomic_t *connection_num;
 
     swProtocol protocol;
     void *ptr;
@@ -271,31 +271,6 @@ enum swServer_hook_type
     SW_SERVER_HOOK_PROCESS_TIMER,
 };
 
-struct swServerStats
-{
-    time_t start_time;
-    sw_atomic_t connection_num;
-    sw_atomic_t tasking_num;
-    sw_atomic_long_t accept_count;
-    sw_atomic_long_t close_count;
-    sw_atomic_long_t request_count;
-};
-
-struct swServerGS
-{
-    pid_t master_pid;
-    pid_t manager_pid;
-
-    uint32_t session_round :24;
-    sw_atomic_t start;
-    sw_atomic_t shutdown;
-
-    sw_atomic_t spinlock;
-
-    swProcessPool task_workers;
-    swProcessPool event_workers;
-};
-
 namespace swoole {
 
 struct ReactorThread
@@ -306,6 +281,28 @@ struct ReactorThread
     uint32_t pipe_num = 0;
     swSocket *pipe_sockets = nullptr;
     std::unordered_map<int, swString *> send_buffers;
+};
+
+struct ServerGS
+{
+    pid_t master_pid;
+    pid_t manager_pid;
+
+    uint32_t session_round :24;
+    sw_atomic_t start;
+    sw_atomic_t shutdown;
+
+    time_t start_time;
+    sw_atomic_t connection_num;
+    sw_atomic_t tasking_num;
+    sw_atomic_long_t accept_count;
+    sw_atomic_long_t close_count;
+    sw_atomic_long_t request_count;
+
+    sw_atomic_t spinlock;
+
+    swProcessPool task_workers;
+    swProcessPool event_workers;
 };
 
 class Server
@@ -533,8 +530,7 @@ class Server
     swLock lock;
     swChannel *message_box = nullptr;
 
-    swServerStats *stats = nullptr;
-    swServerGS *gs = nullptr;
+    ServerGS *gs = nullptr;
 
     std::unordered_set<std::string> *types = 0;
     std::unordered_set<std::string> *locations = 0;
@@ -546,6 +542,7 @@ class Server
 
     swConnection *connection_list = nullptr;
     swSession *session_list = nullptr;
+    uint32_t *port_connnection_num_list = nullptr;
 
     /**
      * temporary directory for HTTP uploaded file.
@@ -649,7 +646,7 @@ class Server
 
     ~Server()
     {
-        if (gs->start)
+        if (gs != nullptr && getpid() == gs->master_pid)
         {
             destory();
         }

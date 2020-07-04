@@ -260,8 +260,8 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
         return SW_ERR;
     }
 
-    sw_atomic_fetch_add(&serv->stats->close_count, 1);
-    sw_atomic_fetch_sub(&serv->stats->connection_num, 1);
+    sw_atomic_fetch_add(&serv->gs->close_count, 1);
+    sw_atomic_fetch_sub(&serv->gs->connection_num, 1);
 
     swTrace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
@@ -288,7 +288,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
         socket->recv_buffer = nullptr;
     }
 
-    sw_atomic_fetch_sub(&port->connection_num, 1);
+    sw_atomic_fetch_sub(port->connection_num, 1);
 
     if (port->open_http_protocol && conn->object)
     {

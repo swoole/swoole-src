@@ -41,7 +41,7 @@ static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, v
 
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num)
 {
-    swFactoryProcess *object = (swFactoryProcess *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
+    swFactoryProcess *object = (swFactoryProcess *) sw_malloc(sizeof(swFactoryProcess));
     if (object == nullptr)
     {
         swWarn("[Master] malloc[object] failed");
@@ -102,6 +102,8 @@ static void swFactoryProcess_free(swFactory *factory)
     {
         object->pipes[i].close(&object->pipes[i]);
     }
+
+    sw_free(object);
 }
 
 static int swFactoryProcess_create_pipes(swFactory *factory)

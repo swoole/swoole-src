@@ -80,13 +80,17 @@ static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
 
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 {
-    for (auto ls : serv->ports)
+    for (auto port : serv->ports)
     {
-        if (only_stream_port && swSocket_is_dgram(ls->type))
+        if (only_stream_port && swSocket_is_dgram(port->type))
         {
             continue;
         }
-        swSocket_free(ls->socket);
+        if (port->socket)
+        {
+            swSocket_free(port->socket);
+            port->socket = nullptr;
+        }
     }
 }
 
@@ -568,12 +572,13 @@ int swServer_create_user_workers(swServer *serv)
         serv->user_worker_list = new std::vector<swWorker *>;
     }
 
-    serv->user_workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, serv->user_worker_num * sizeof(swWorker));
+    serv->user_workers = (swWorker *) sw_shm_calloc(serv->user_worker_num, sizeof(swWorker));
     if (serv->user_workers == nullptr)
     {
         swSysWarn("gmalloc[server->user_workers] failed");
         return SW_ERR;
     }
+
     return SW_OK;
 }
 
@@ -713,7 +718,7 @@ int Server::start()
 
     //master pid
     gs->master_pid = getpid();
-    stats->start_time = ::time(nullptr);
+    gs->start_time = ::time(nullptr);
 
     /**
      * init method
@@ -725,7 +730,7 @@ int Server::start()
     notify = swServer_tcp_notify;
     feedback = swServer_tcp_feedback;
 
-    workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
+    workers = (swWorker *) sw_shm_calloc(worker_num, sizeof(swWorker));
     if (workers == nullptr)
     {
         swSysWarn("gmalloc[server->workers] failed");
@@ -863,15 +868,10 @@ Server::Server(enum swServer_mode mode)
     /**
      * alloc shared memory
      */
-    stats = (swServerStats *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-    if (stats == nullptr)
-    {
-        swError("[Master] Fatal Error: failed to allocate memory for swServer->stats");
-    }
-    gs = (swServerGS *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    gs = (ServerGS *) sw_shm_malloc(sizeof(ServerGS));
     if (gs == nullptr)
     {
-        swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
+        swError("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
     /**
      * init method
@@ -895,6 +895,19 @@ int Server::create()
     {
         swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(swSession));
         return SW_ERR;
+    }
+
+    port_connnection_num_list = (uint32_t *) sw_shm_calloc(ports.size(), sizeof(sw_atomic_t));
+    if (port_connnection_num_list == nullptr)
+    {
+        swError("sw_shm_calloc() for port_connnection_num_array failed");
+        return SW_ERR;
+    }
+
+    int index = 0;
+    for (auto port : ports)
+    {
+        port->connection_num = &port_connnection_num_list[index++];
     }
 
     if (enable_static_handler && locations == nullptr)
@@ -996,6 +1009,7 @@ void Server::destory()
      */
     delete user_worker_list;
     user_worker_list = nullptr;
+    sw_shm_free(user_workers);
 
     if (null_fd > 0)
     {
@@ -1040,6 +1054,17 @@ void Server::destory()
             delete l;
         }
     }
+
+    sw_shm_free(session_list);
+    sw_shm_free(port_connnection_num_list);
+    sw_shm_free(gs);
+    sw_shm_free(workers);
+
+    session_list = nullptr;
+    port_connnection_num_list = nullptr;
+    gs = nullptr;
+    workers = nullptr;
+
     lock.free(&lock);
     SwooleG.serv = nullptr;
 }
@@ -1689,12 +1714,8 @@ int Server::add_systemd_socket()
 
     for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++)
     {
-        swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
-        if (ls == nullptr)
-        {
-            swWarn("alloc failed");
-            return count;
-        }
+        std::unique_ptr<swListenPort> ptr(new swListenPort);
+        swListenPort *ls = ptr.get();
 
         if (swPort_set_address(ls, sock) < 0)
         {
@@ -1710,6 +1731,7 @@ int Server::add_systemd_socket()
             ::close(sock);
             return count;
         }
+        ptr.release();
         check_port_type(ls);
         ports.push_back(ls);
         count++;
@@ -1720,6 +1742,11 @@ int Server::add_systemd_socket()
 
 swListenPort *Server::add_port(enum swSocket_type type, const char *host, int port)
 {
+    if (session_list)
+    {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "must add port before server is created");
+        return nullptr;
+    }
     if (ports.size() >= SW_MAX_LISTEN_PORT)
     {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
@@ -1736,12 +1763,8 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
         return nullptr;
     }
 
-    swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
-    if (ls == nullptr)
-    {
-        swError("alloc failed");
-        return nullptr;
-    }
+    std::unique_ptr<swListenPort> ptr(new swListenPort);
+    swListenPort *ls = ptr.get();
 
     swPort_init(ls);
     ls->type = type;
@@ -1806,6 +1829,7 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
         return nullptr;
     }
     check_port_type(ls);
+    ptr.release();
     ls->socket_fd = ls->socket->fd;
     ports.push_back(ls);
     return ls;
@@ -1925,9 +1949,9 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
  */
 static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd)
 {
-    serv->stats->accept_count++;
-    sw_atomic_fetch_add(&serv->stats->connection_num, 1);
-    sw_atomic_fetch_add(&ls->connection_num, 1);
+    serv->gs->accept_count++;
+    sw_atomic_fetch_add(&serv->gs->connection_num, 1);
+    sw_atomic_fetch_add(ls->connection_num, 1);
     time_t now;
 
     int fd = _socket->fd;

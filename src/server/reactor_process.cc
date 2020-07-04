@@ -152,7 +152,7 @@ int Server::start_reactor_processes()
      */
     if (user_worker_list)
     {
-        user_workers = (swWorker *) sw_malloc(user_worker_num * sizeof(swWorker));
+        user_workers = (swWorker *) sw_shm_calloc(user_worker_num, sizeof(swWorker));
         if (user_workers == nullptr)
         {
             swSysWarn("gmalloc[server->user_workers] failed");
