@@ -27,6 +27,7 @@
 
 #include <string>
 #include <queue>
+#include <thread>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -90,16 +91,6 @@ enum swFactory_dispatch_result
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
-
-struct swReactorThread
-{
-    pthread_t thread_id;
-    swReactor reactor;
-    swSocket *notify_pipe;
-    uint32_t pipe_num;
-    swSocket *pipe_sockets;
-    std::unordered_map<int, swString *> *send_buffers;
-};
 
 struct swListenPort
 {
@@ -306,6 +297,17 @@ struct swServerGS
 };
 
 namespace swoole {
+
+struct ReactorThread
+{
+    std::thread thread;
+    swReactor reactor = {};
+    swSocket *notify_pipe = nullptr;
+    uint32_t pipe_num = 0;
+    swSocket *pipe_sockets = nullptr;
+    std::unordered_map<int, swString *> send_buffers;
+};
+
 class Server
 {
  public:
@@ -492,7 +494,7 @@ class Server
      * ipc_max_size represents the maximum size of each datagram, 
      * which is obtained from the kernel send buffer of unix socket in swServer_set_ipc_max_size function.
      */
-    uint32_t ipc_max_size = 0;
+    uint32_t ipc_max_size = SW_IPC_MAX_SIZE;
 
     void *ptr2 = nullptr;
     void *private_data_3 = nullptr;
@@ -505,7 +507,7 @@ class Server
         return ports.front();
     }
 
-    pthread_t heartbeat_pidt = 0;
+    std::thread heartbeat_thread;
 
     /**
      *  task process
@@ -525,7 +527,7 @@ class Server
     swHashMap *user_worker_map = nullptr;
     swWorker *user_workers = nullptr;
 
-    swReactorThread *reactor_threads = nullptr;
+    ReactorThread *reactor_threads = nullptr;
     swWorker *workers = nullptr;
 
     swLock lock;
@@ -644,6 +646,15 @@ class Server
 
  public:
     Server(enum swServer_mode mode = SW_MODE_BASE);
+
+    ~Server()
+    {
+        if (gs->start)
+        {
+            destory();
+        }
+        SwooleG.serv = nullptr;
+    }
 
     bool set_document_root(const std::string &path)
     {
@@ -774,6 +785,11 @@ class Server
         return nullptr;
     }
 
+    inline ReactorThread *get_thread(int reactor_id)
+    {
+        return &reactor_threads[reactor_id];
+    }
+
     inline swConnection *get_connection(int fd)
     {
         if ((uint32_t) fd > max_connection)
@@ -791,11 +807,15 @@ class Server
     int start_check();
     void check_port_type(swListenPort *ls);
     void destory();
+    int start_reactor_threads();
+    int start_reactor_processes();
+    void start_heartbeat_thread();
 };
 
 }
 
 typedef swoole::Server swServer;
+typedef swoole::ReactorThread swReactorThread;
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
@@ -922,8 +942,6 @@ static sw_inline swString *swTaskWorker_large_unpack(swEventData *task_result)
     SwooleTG.buffer_stack->length = _pkg.length;
     return SwooleTG.buffer_stack;
 }
-
-#define swServer_get_thread(serv, reactor_id)    (&(serv->reactor_threads[reactor_id]))
 
 static sw_inline int swServer_connection_valid(swServer *serv, swConnection *conn)
 {
@@ -1156,7 +1174,6 @@ int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, const char *d
 int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *data, size_t len);
 
 int swReactorProcess_create(swServer *serv);
-int swReactorProcess_start(swServer *serv);
 void swReactorProcess_free(swServer *serv);
 
 int swManager_start(swServer *serv);

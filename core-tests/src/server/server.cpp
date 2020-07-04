@@ -130,9 +130,8 @@ TEST(server, process)
         t1.detach();
     };
 
-    serv.onWorkerStart = [](swServer *serv, int worker_id)
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        swLock *lock = (swLock *) serv->ptr2;
         lock->unlock(lock);
     };
 

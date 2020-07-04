@@ -331,8 +331,8 @@ inline bool Server::is_running() const { return is_running_; }
 
 inline void Server::stop() {
     if (is_running_) {
-        svr_sock_->cancel(SW_EVENT_READ);
         is_running_ = false;
+        svr_sock_->cancel(SW_EVENT_READ);
     }
 }
 

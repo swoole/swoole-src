@@ -16,6 +16,8 @@
 
 #include "server.h"
 
+using namespace swoole;
+
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
@@ -59,23 +61,23 @@ void swReactorProcess_free(swServer *serv)
     sw_free(serv->connection_list);
 }
 
-int swReactorProcess_start(swServer *serv)
+int Server::start_reactor_processes()
 {
-    serv->single_thread = 1;
+    single_thread = 1;
 
     //listen TCP
-    if (serv->have_stream_sock == 1)
+    if (have_stream_sock == 1)
     {
-        for (auto ls : serv->ports)
+        for (auto ls : ports)
         {
             if (swSocket_is_dgram(ls->type))
             {
                 continue;
             }
 #ifdef HAVE_REUSEPORT
-            if (serv->enable_reuse_port)
+            if (enable_reuse_port)
             {
-                if (close(ls->socket->fd) < 0)
+                if (::close(ls->socket->fd) < 0)
                 {
                     swSysWarn("close(%d) failed", ls->socket->fd);
                 }
@@ -93,53 +95,53 @@ int swReactorProcess_start(swServer *serv)
         }
     }
 
-    swProcessPool *pool = &serv->gs->event_workers;
-    if (swProcessPool_create(pool, serv->worker_num, 0, SW_IPC_UNIXSOCK) < 0)
+    swProcessPool *pool = &gs->event_workers;
+    if (swProcessPool_create(pool, worker_num, 0, SW_IPC_UNIXSOCK) < 0)
     {
         return SW_ERR;
     }
-    swProcessPool_set_max_request(pool, serv->max_request, serv->max_request_grace);
+    swProcessPool_set_max_request(pool, max_request, max_request_grace);
 
     /**
      * store to swProcessPool object
      */
-    serv->gs->event_workers.ptr = serv;
-    serv->gs->event_workers.max_wait_time = serv->max_wait_time;
-    serv->gs->event_workers.use_msgqueue = 0;
-    serv->gs->event_workers.main_loop = swReactorProcess_loop;
-    serv->gs->event_workers.onWorkerNotFound = swManager_wait_other_worker;
+    gs->event_workers.ptr = this;
+    gs->event_workers.max_wait_time = max_wait_time;
+    gs->event_workers.use_msgqueue = 0;
+    gs->event_workers.main_loop = swReactorProcess_loop;
+    gs->event_workers.onWorkerNotFound = swManager_wait_other_worker;
 
     uint32_t i;
-    for (i = 0; i < serv->worker_num; i++)
+    for (i = 0; i < worker_num; i++)
     {
-        serv->gs->event_workers.workers[i].pool = &serv->gs->event_workers;
-        serv->gs->event_workers.workers[i].id = i;
-        serv->gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
+        gs->event_workers.workers[i].pool = &gs->event_workers;
+        gs->event_workers.workers[i].id = i;
+        gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
     }
 
     //single worker
-    if (swServer_is_single(serv))
+    if (swServer_is_single(this))
     {
-        return swReactorProcess_loop(&serv->gs->event_workers, &serv->gs->event_workers.workers[0]);
+        return swReactorProcess_loop(&gs->event_workers, &gs->event_workers.workers[0]);
     }
 
-    for (i = 0; i < serv->worker_num; i++)
+    for (i = 0; i < worker_num; i++)
     {
-        if (swServer_worker_create(serv, &serv->gs->event_workers.workers[i]) < 0)
+        if (swServer_worker_create(this, &gs->event_workers.workers[i]) < 0)
         {
             return SW_ERR;
         }
     }
 
     //task workers
-    if (serv->task_worker_num > 0)
+    if (task_worker_num > 0)
     {
-        if (swServer_create_task_workers(serv) < 0)
+        if (swServer_create_task_workers(this) < 0)
         {
             return SW_ERR;
         }
-        swTaskWorker_init(serv);
-        if (swProcessPool_start(&serv->gs->task_workers) < 0)
+        swTaskWorker_init(this);
+        if (swProcessPool_start(&gs->task_workers) < 0)
         {
             return SW_ERR;
         }
@@ -148,31 +150,31 @@ int swReactorProcess_start(swServer *serv)
     /**
      * create user worker process
      */
-    if (serv->user_worker_list)
+    if (user_worker_list)
     {
-        serv->user_workers = (swWorker *) sw_malloc(serv->user_worker_num * sizeof(swWorker));
-        if (serv->user_workers == nullptr)
+        user_workers = (swWorker *) sw_malloc(user_worker_num * sizeof(swWorker));
+        if (user_workers == nullptr)
         {
             swSysWarn("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
-        for (auto worker : *serv->user_worker_list)
+        for (auto worker : *user_worker_list)
         {
             /**
              * store the pipe object
              */
             if (worker->pipe_object)
             {
-                swServer_store_pipe_fd(serv, worker->pipe_object);
+                swServer_store_pipe_fd(this, worker->pipe_object);
             }
-            swManager_spawn_user_worker(serv, worker);
+            swManager_spawn_user_worker(this, worker);
         }
     }
 
     /**
      * manager process is the same as the master process
      */
-    SwooleG.pid = serv->gs->manager_pid = getpid();
+    SwooleG.pid = gs->manager_pid = getpid();
     SwooleG.process_type = SW_PROCESS_MANAGER;
 
     /**
@@ -180,28 +182,28 @@ int swReactorProcess_start(swServer *serv)
      */
     SwooleG.use_signalfd = 0;
 
-    swProcessPool_start(&serv->gs->event_workers);
-    swServer_signal_init(serv);
+    swProcessPool_start(&gs->event_workers);
+    swServer_signal_init(this);
 
-    if (serv->onStart)
+    if (onStart)
     {
         swWarn("The onStart event with SWOOLE_BASE is deprecated");
-        serv->onStart(serv);
+        onStart(this);
     }
 
-    if (serv->onManagerStart)
+    if (onManagerStart)
     {
-        serv->onManagerStart(serv);
+        onManagerStart(this);
     }
 
-    swProcessPool_wait(&serv->gs->event_workers);
-    swProcessPool_shutdown(&serv->gs->event_workers);
+    swProcessPool_wait(&gs->event_workers);
+    swProcessPool_shutdown(&gs->event_workers);
 
-    swManager_kill_user_workers(serv);
+    swManager_kill_user_workers(this);
 
-    if (serv->onManagerStop)
+    if (onManagerStop)
     {
-        serv->onManagerStop(serv);
+        onManagerStop(this);
     }
 
     return SW_OK;

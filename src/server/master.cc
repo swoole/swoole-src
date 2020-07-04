@@ -812,11 +812,11 @@ int Server::start()
     int ret;
     if (factory_mode == SW_MODE_BASE)
     {
-        ret = swReactorProcess_start(this);
+        ret = start_reactor_processes();
     }
     else
     {
-        ret = swReactorThread_start(this);
+        ret = start_reactor_threads();
     }
     //failed to start
     if (ret < 0)
