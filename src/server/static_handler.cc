@@ -53,7 +53,7 @@ bool StaticHandler::is_modified(const string &date_if_modified_since)
     {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
-    return date_format && mktime(&tm3) - (int) serv->timezone >= get_file_mtime();
+    return date_format && mktime(&tm3) - (int) serv->timezone_ >= get_file_mtime();
 }
 
 std::string StaticHandler::get_date()
@@ -90,7 +90,7 @@ bool StaticHandler::hit()
     }
     size_t n = params ? params - url : url_length;
 
-    std::string& document_root = serv->get_document_root();
+    const std::string& document_root = serv->get_document_root();
 
     memcpy(p, document_root.c_str(), document_root.length());
     p += document_root.length();

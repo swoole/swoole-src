@@ -21,15 +21,15 @@
 #include "test_coroutine.h"
 #include "test_server.h"
 
-using namespace swoole;
 using namespace swoole::test;
 
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::test::Server;
 
 TEST(coroutine_socket, connect_refused)
 {
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("127.0.0.1", 9801);
@@ -40,7 +40,7 @@ TEST(coroutine_socket, connect_refused)
 
 TEST(coroutine_socket, connect_timeout)
 {
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         sock.set_timeout(0.5);
@@ -52,7 +52,7 @@ TEST(coroutine_socket, connect_timeout)
 
 TEST(coroutine_socket, connect_with_dns)
 {
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect("www.baidu.com", 80);
@@ -84,7 +84,7 @@ TEST(coroutine_socket, recv_success)
 
     sleep(1); // wait for the test server to start
 
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect(TEST_HOST, TEST_PORT, -1);
@@ -120,7 +120,7 @@ TEST(coroutine_socket, recv_fail)
 
     sleep(1); // wait for the test server to start
 
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.connect(TEST_HOST, TEST_PORT, -1);
@@ -137,7 +137,7 @@ TEST(coroutine_socket, recv_fail)
 
 TEST(coroutine_socket, bind_success)
 {
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", 9909);
@@ -147,7 +147,7 @@ TEST(coroutine_socket, bind_success)
 
 TEST(coroutine_socket, bind_fail)
 {
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("192.111.11.1", 9909);
@@ -158,7 +158,7 @@ TEST(coroutine_socket, bind_fail)
 
 TEST(coroutine_socket, listen)
 {
-    test::coroutine::run([](void *arg)
+    coroutine::run([](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
         bool retval = sock.bind("127.0.0.1", 9909);
@@ -169,7 +169,7 @@ TEST(coroutine_socket, listen)
 
 TEST(coroutine_socket, accept)
 {
-    test::coroutine::run({
+    coroutine::run({
         [](void *arg)
         {
             Socket sock(SW_SOCK_TCP);
@@ -206,7 +206,7 @@ static void socket_set_eof_protocol(Socket &sock)
 
 TEST(coroutine_socket, eof_1)
 {
-    test::coroutine::run({
+    coroutine::run({
         [](void *arg)
         {
             Socket sock(SW_SOCK_TCP);
@@ -245,7 +245,7 @@ TEST(coroutine_socket, eof_1)
 
 TEST(coroutine_socket, eof_2)
 {
-    test::coroutine::run({
+    coroutine::run({
         [](void *arg)
         {
             Socket sock(SW_SOCK_TCP);
@@ -298,7 +298,7 @@ TEST(coroutine_socket, eof_2)
 
 TEST(coroutine_socket, eof_3)
 {
-    test::coroutine::run({
+    coroutine::run({
         [](void *arg)
         {
             Socket sock(SW_SOCK_TCP);
@@ -331,7 +331,7 @@ TEST(coroutine_socket, eof_3)
 
 TEST(coroutine_socket, eof_4)
 {
-    test::coroutine::run({
+    coroutine::run({
         [](void *arg)
         {
             Socket sock(SW_SOCK_TCP);
@@ -368,7 +368,7 @@ TEST(coroutine_socket, eof_4)
 
 TEST(coroutine_socket, eof_5)
 {
-    test::coroutine::run(
+    coroutine::run(
     { [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
@@ -405,7 +405,7 @@ TEST(coroutine_socket, eof_5)
 
 TEST(coroutine_socket, eof_6)
 {
-    test::coroutine::run(
+    coroutine::run(
     { [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
@@ -470,7 +470,7 @@ static void socket_set_length_protocol_2(Socket &sock)
 
 TEST(coroutine_socket, length_1)
 {
-    test::coroutine::run(
+    coroutine::run(
     { [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
@@ -506,7 +506,7 @@ TEST(coroutine_socket, length_1)
 
 TEST(coroutine_socket, length_2)
 {
-    test::coroutine::run(
+    coroutine::run(
     { [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
@@ -541,7 +541,7 @@ TEST(coroutine_socket, length_2)
 
 TEST(coroutine_socket, length_3)
 {
-    test::coroutine::run(
+    coroutine::run(
     { [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);
@@ -608,7 +608,7 @@ static void length_protocol_server_func(void *arg)
 
 TEST(coroutine_socket, length_4)
 {
-    test::coroutine::run(
+    coroutine::run(
     { length_protocol_server_func,
 
     [](void *arg)
@@ -647,7 +647,7 @@ TEST(coroutine_socket, length_4)
 
 TEST(coroutine_socket, length_5)
 {
-    test::coroutine::run(
+    coroutine::run(
     { length_protocol_server_func,
 
     [](void *arg)
@@ -683,7 +683,7 @@ TEST(coroutine_socket, length_5)
 
 TEST(coroutine_socket, length_7)
 {
-    test::coroutine::run(
+    coroutine::run(
     { [](void *arg)
     {
         Socket sock(SW_SOCK_TCP);

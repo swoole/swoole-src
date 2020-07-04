@@ -8,7 +8,6 @@ using namespace std;
 static void test_run_server(function<void(swServer *)> fn)
 {
     swServer serv;
-    swServer_init(&serv);
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
     serv.ptr2 = (void*) &fn;

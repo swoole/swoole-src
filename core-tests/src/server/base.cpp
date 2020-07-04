@@ -20,14 +20,11 @@
 #include "tests.h"
 #include "test_server.h"
 
-using namespace swoole;
 using namespace swoole::test;
 
 Server::Server(std::string _host, int _port, int _mode, int _type):
         host(_host), port(_port), mode(_mode), type(_type)
 {
-    swServer_init(&serv);
-
     serv.worker_num = 1;
 
     if (mode == SW_MODE_BASE)

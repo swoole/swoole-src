@@ -402,12 +402,12 @@ static int swServer_start_check(swServer *serv)
         {
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
         }
-        if (swServer_if_require_receive_callback(serv, ls, serv->onReceive))
+        if (swServer_if_require_receive_callback(serv, ls, serv->onReceive != nullptr))
         {
             swWarn("require onReceive callback");
             return SW_ERR;
         }
-        if (swServer_if_require_packet_callback(serv, ls, serv->onPacket))
+        if (swServer_if_require_packet_callback(serv, ls, serv->onPacket != nullptr))
         {
             swWarn("require onPacket callback");
             return SW_ERR;
@@ -842,80 +842,54 @@ int swServer_start(swServer *serv)
 /**
  * initializing server config, set default
  */
-void swServer_init(swServer *serv)
+Server::Server()
 {
     swoole_init();
-    sw_memset_zero(serv, sizeof(swServer));
 
-    serv->running = 1;
-    serv->factory_mode = SW_MODE_BASE;
+    reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
 
-    serv->reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
-
-    serv->dispatch_mode = SW_DISPATCH_FDMOD;
-
-    serv->worker_num = SW_CPU_NUM;
-    serv->max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
-
-    serv->max_wait_time = SW_WORKER_MAX_WAIT_TIME;
+    worker_num = SW_CPU_NUM;
+    max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
 
     //http server
-    serv->http_parse_cookie = 1;
-    serv->http_parse_post = 1;
 #ifdef SW_HAVE_COMPRESSION
-    serv->http_compression = 1;
-    serv->http_compression_level = SW_Z_BEST_SPEED;
+    http_compression = 1;
+    http_compression_level = SW_Z_BEST_SPEED;
 #endif
 
-    serv->input_buffer_size = SW_INPUT_BUFFER_SIZE;
-    serv->output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
-
-    serv->task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
-
-    serv->enable_coroutine = 1;
-    serv->reload_async = 1;
-    serv->send_yield = 1;
-
-
-    serv->null_fd = -1;
-
-    serv->recv_buffer_size = SW_BUFFER_SIZE_BIG;
-    serv->buffer_allocator = &SwooleG.std_allocator;
-    serv->ipc_max_size = SW_IPC_MAX_SIZE;
-
 #ifdef __linux__
-    serv->timezone = timezone;
+    timezone_ = timezone;
 #else
     struct timezone tz;
     struct timeval tv;
     gettimeofday(&tv, &tz);
-    serv->timezone = tz.tz_minuteswest * 60;
+    timezone_ = tz.tz_minuteswest * 60;
 #endif
 
     /**
      * alloc shared memory
      */
-    serv->stats = (swServerStats *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
-    if (serv->stats == nullptr)
+    stats = (swServerStats *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerStats));
+    if (stats == nullptr)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->stats");
     }
-    serv->gs = (swServerGS *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
-    if (serv->gs == nullptr)
+    gs = (swServerGS *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swServerGS));
+    if (gs == nullptr)
     {
         swError("[Master] Fatal Error: failed to allocate memory for swServer->gs");
     }
     /**
      * init method
      */
-    serv->create_buffers = swServer_worker_create_buffers;
-    serv->get_buffer = swServer_worker_get_buffer;
-    serv->get_buffer_len = swServer_worker_get_buffer_len;
-    serv->add_buffer_len = swServer_worker_add_buffer_len;
-    serv->move_buffer = swServer_worker_move_buffer;
-    serv->get_packet = swServer_worker_get_packet;
+    create_buffers = swServer_worker_create_buffers;
+    get_buffer = swServer_worker_get_buffer;
+    get_buffer_len = swServer_worker_get_buffer_len;
+    add_buffer_len = swServer_worker_add_buffer_len;
+    move_buffer = swServer_worker_move_buffer;
+    get_packet = swServer_worker_get_packet;
 
-    SwooleG.serv = serv;
+    SwooleG.serv = this;
 }
 
 int swServer_create(swServer *serv)
@@ -1630,7 +1604,7 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
     time_t now = time(nullptr);
     if (serv->scheduler_warning && serv->warning_time < now)
     {
-        serv->scheduler_warning = 0;
+        serv->scheduler_warning = false;
         serv->warning_time = now;
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle worker is available");
     }

@@ -237,9 +237,9 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
     return SW_OK;
 }
 
-typedef int (*task_callback)(swServer *, swEventData *);
+typedef std::function<int(swServer *, swEventData *)> task_callback;
 
-static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEventData *task, task_callback callback)
+static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEventData *task, const task_callback &callback)
 {
 #ifdef SW_BUFFER_RECV_TIME
     serv->last_receive_usec = task->info.time;
@@ -547,7 +547,8 @@ void swWorker_stop(swWorker *worker)
 
     if (swWorker_reactor_is_empty(reactor))
     {
-        serv->running = reactor->running = 0;
+        serv->running = false;
+        reactor->running = 0;
     }
 }
 

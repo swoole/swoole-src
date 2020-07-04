@@ -17,16 +17,14 @@
 #include "wrapper/server.hpp"
 #include <sys/stat.h>
 
-namespace swoole
-{
+namespace swoole { namespace wrapper {
+//-----------------------------------namespace begin------------------------------------------------
 swString *_callback_buffer;
 Server::Server(string _host, int _port, int _mode,  enum swSocket_type _type)
 {
     host = _host;
     port = _port;
     mode = _mode;
-
-    swServer_init(&serv);
 
     if (_mode == SW_MODE_BASE)
     {
@@ -709,5 +707,5 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
     swString_free(content);
     return retval;
 }
-
-}
+//-----------------------------------namespace end------------------------------------------------
+}}

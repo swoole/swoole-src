@@ -20,7 +20,6 @@
 #include "test_coroutine.h"
 #include "httplib_server.h"
 
-using namespace swoole;
 using namespace swoole::test;
 using namespace httplib;
 using namespace std;
@@ -39,7 +38,7 @@ TEST(coroutine_http_server, get) {
         EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
-    test::coroutine::run([](void *arg) {
+    coroutine::run([](void *arg) {
         Server svr;
 
         svr.Get("/hi", [](const Request &req, Response &res) {
@@ -80,7 +79,7 @@ TEST(coroutine_http_server, post) {
         EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
-    test::coroutine::run([](void *arg) {
+    coroutine::run([](void *arg) {
         Server svr;
 
         svr.Get("/stop", [&svr](const Request &req, Response &res) {

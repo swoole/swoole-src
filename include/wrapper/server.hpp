@@ -25,8 +25,8 @@
 
 using namespace std;
 
-namespace swoole
-{
+namespace swoole { namespace wrapper {
+//-----------------------------------namespace begin------------------------------------------------
 class ClientInfo
 {
 public:
@@ -171,4 +171,5 @@ protected:
     int mode;
     int events;
 };
-}
+//-----------------------------------namespace end------------------------------------------------
+}}

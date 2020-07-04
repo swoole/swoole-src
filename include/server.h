@@ -302,61 +302,63 @@ struct swServerGS
     swProcessPool event_workers;
 };
 
-struct swServer
+namespace swoole {
+class Server
 {
+ public:
     /**
      * reactor thread/process num
      */
-    uint16_t reactor_num;
+    uint16_t reactor_num = 0;
     /**
      * worker process num
      */
-    uint32_t worker_num;
+    uint32_t worker_num = 0;
     /**
      * The number of pipe per reactor maintenance
      */
-    uint16_t reactor_pipe_num;
+    uint16_t reactor_pipe_num = 0;
 
-    uint8_t factory_mode;
+    uint8_t factory_mode = SW_MODE_BASE;
 
-    uint8_t dgram_port_num;
+    uint8_t dgram_port_num = 0;
 
     /**
      * package dispatch mode
      */
-    uint8_t dispatch_mode;
+    uint8_t dispatch_mode = SW_DISPATCH_FDMOD;
 
     /**
      * No idle work process is available.
      */
-    uint8_t scheduler_warning;
+    bool scheduler_warning = false;
 
-    int worker_uid;
-    int worker_groupid;
+    int worker_uid = 0;
+    int worker_groupid = 0;
 
     /**
      * max connection num
      */
-    uint32_t max_connection;
+    uint32_t max_connection = 0;
 
     /**
      * worker process max request
      */
-    uint32_t max_request;
-    uint32_t max_request_grace;
+    uint32_t max_request = 0;
+    uint32_t max_request_grace = 0;
 
-    int udp_socket_ipv4;
-    int udp_socket_ipv6;
-    int null_fd;
+    int udp_socket_ipv4 = 0;
+    int udp_socket_ipv6 = 0;
+    int null_fd = -1;
 
-    uint32_t max_wait_time;
+    uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     /*----------------------------Reactor schedule--------------------------------*/
-    uint16_t reactor_round_i;
-    uint16_t reactor_next_i;
-    uint16_t reactor_schedule_count;
+    uint16_t reactor_round_i = 0;
+    uint16_t reactor_next_i = 0;
+    uint16_t reactor_schedule_count = 0;
 
-    sw_atomic_t worker_round_id;
+    sw_atomic_t worker_round_id = 0;
 
     /**
      * worker(worker and task_worker) process chroot / user / group
@@ -368,129 +370,129 @@ struct swServer
     /**
      * run as a daemon process
      */
-    uchar daemonize :1;
+    bool daemonize = false;
     /**
      * have dgram socket
      */
-    uchar have_dgram_sock :1;
+    bool have_dgram_sock = false;
     /**
      * have stream socket
      */
-    uchar have_stream_sock :1;
+    bool have_stream_sock = false;
     /**
      * open cpu affinity setting
      */
-    uchar open_cpu_affinity :1;
+    bool open_cpu_affinity = false;
     /**
      * disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
      */
-    uchar disable_notify :1;
+    bool disable_notify = false;
     /**
      * discard the timeout request
      */
-    uchar discard_timeout_request :1;
+    bool discard_timeout_request = false;
     /**
      * parse cookie header
      */
-    uchar http_parse_cookie :1;
+    bool http_parse_cookie = true;
     /**
      * parse x-www-form-urlencoded data
      */
-    uchar http_parse_post :1;
+    bool http_parse_post = true;
     /**
      * parse multipart/form-data files to match $_FILES
      */
-    uchar http_parse_files :1;
+    bool http_parse_files = true;
     /**
      * http content compression
      */
-    uchar http_compression :1;
+    bool http_compression = false;
     /**
      * RFC-7692
      */
-    uchar websocket_compression :1;
+    bool websocket_compression = false;
     /**
      * handle static files
      */
-    uchar enable_static_handler :1;
+    bool enable_static_handler = false;
     /**
      * show file list in the current directory
      */
-    uchar http_autoindex :1;
+    bool http_autoindex = false;
     /**
      * enable onConnect/onClose event when use dispatch_mode=1/3
      */
-    uchar enable_unsafe_event :1;
+    bool enable_unsafe_event = false;
     /**
      * waiting for worker onConnect callback function to return
      */
-    uchar enable_delay_receive :1;
+    bool enable_delay_receive = false;
     /**
      * reuse port
      */
-    uchar enable_reuse_port :1;
+    bool enable_reuse_port = false;
     /**
      * asynchronous reloading
      */
-    uchar reload_async :1;
+    bool reload_async = true;
     /**
      * use task object
      */
-    uchar task_use_object :1;
+    bool task_use_object = false;
     /**
      * enable coroutine in task worker
      */
-    uchar task_enable_coroutine :1;
+    bool task_enable_coroutine = false;
     /**
      * yield coroutine when the output buffer is full
      */
-    uchar send_yield :1;
+    bool send_yield = true;
     /**
      * enable coroutine
      */
-    uchar enable_coroutine :1;
+    bool enable_coroutine = true;
     /**
      * disable multi-threads
      */
-    uchar single_thread :1;
+    bool single_thread = false;
     /**
      * server status
      */
-    uchar running :1;
+    bool running = true;
 
     /**
      *  heartbeat check time
      */
-    uint16_t heartbeat_idle_time;
-    uint16_t heartbeat_check_interval;
+    uint16_t heartbeat_idle_time = 0;
+    uint16_t heartbeat_check_interval = 0;
 
-    int *cpu_affinity_available;
-    int cpu_affinity_available_num;
+    int *cpu_affinity_available = 0;
+    int cpu_affinity_available_num = 0;
 
-    swPipeBuffer **pipe_buffers;
-    double send_timeout;
+    swPipeBuffer **pipe_buffers = nullptr;
+    double send_timeout = 0;
 
-    time_t reload_time;
-    time_t warning_time;
-    long timezone;
-    swTimer_node *master_timer;
-    swTimer_node *heartbeat_timer;
-    swTimer_node *enable_accept_timer;
+    time_t reload_time = 0;
+    time_t warning_time = 0;
+    long timezone_ = 0;
+    swTimer_node *master_timer = nullptr;
+    swTimer_node *heartbeat_timer = nullptr;
+    swTimer_node *enable_accept_timer = nullptr;
 
     /* buffer output/input setting*/
-    uint32_t output_buffer_size;
-    uint32_t input_buffer_size;
-    uint32_t max_queued_bytes;
+    uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
+    uint32_t input_buffer_size = SW_INPUT_BUFFER_SIZE;
+    uint32_t max_queued_bytes = 0;
 
     /**
      * the master process and worker process communicate using unix socket dgram.
      * ipc_max_size represents the maximum size of each datagram, 
      * which is obtained from the kernel send buffer of unix socket in swServer_set_ipc_max_size function.
      */
-    uint32_t ipc_max_size;
+    uint32_t ipc_max_size = 0;
 
-    void *ptr2;
-    void *private_data_3;
+    void *ptr2 = nullptr;
+    void *private_data_3 = nullptr;
 
     swFactory factory;
     std::vector<swListenPort*> ports;
@@ -500,45 +502,45 @@ struct swServer
         return ports.front();
     }
 
-    pthread_t heartbeat_pidt;
+    pthread_t heartbeat_pidt = 0;
 
     /**
      *  task process
      */
-    uint32_t task_worker_num;
-    uint8_t task_ipc_mode;
-    uint32_t task_max_request;
-    uint32_t task_max_request_grace;
-    swPipe *task_notify;
-    swEventData *task_result;
+    uint32_t task_worker_num = 0;
+    uint8_t task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
+    uint32_t task_max_request = 0;
+    uint32_t task_max_request_grace = 0;
+    swPipe *task_notify = nullptr;
+    swEventData *task_result = nullptr;
 
     /**
      * user process
      */
-    uint32_t user_worker_num;
-    std::vector<swWorker*> *user_worker_list;
-    swHashMap *user_worker_map;
-    swWorker *user_workers;
+    uint32_t user_worker_num = 0;
+    std::vector<swWorker*> *user_worker_list = nullptr;
+    swHashMap *user_worker_map = nullptr;
+    swWorker *user_workers = nullptr;
 
-    swReactorThread *reactor_threads;
-    swWorker *workers;
+    swReactorThread *reactor_threads = nullptr;
+    swWorker *workers = nullptr;
 
     swLock lock;
-    swChannel *message_box;
+    swChannel *message_box = nullptr;
 
-    swServerStats *stats;
-    swServerGS *gs;
+    swServerStats *stats = nullptr;
+    swServerGS *gs = nullptr;
 
-    std::unordered_set<std::string> *types;
-    std::unordered_set<std::string> *locations;
-    std::vector<std::string> *http_index_files;
+    std::unordered_set<std::string> *types = 0;
+    std::unordered_set<std::string> *locations = 0;
+    std::vector<std::string> *http_index_files = 0;
 
 #ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_t barrier;
+    pthread_barrier_t barrier = {};
 #endif
 
-    swConnection *connection_list;
-    swSession *session_list;
+    swConnection *connection_list = nullptr;
+    swSession *session_list = nullptr;
 
     /**
      * temporary directory for HTTP uploaded file.
@@ -548,7 +550,7 @@ struct swServer
      * http compression level for gzip/br
      */
 #ifdef SW_HAVE_COMPRESSION
-    uint8_t http_compression_level;
+    uint8_t http_compression_level = 0;
 #endif
     /**
      * master process pid
@@ -557,76 +559,88 @@ struct swServer
     /**
      * stream
      */
-    char *stream_socket_file;
-    swSocket *stream_socket;
-    swProtocol stream_protocol;
-    swSocket *last_stream_socket;
-    std::queue<swString*> *buffer_pool;
+    char *stream_socket_file = nullptr;
+    swSocket *stream_socket = nullptr;
+    swProtocol stream_protocol = {};
+    swSocket *last_stream_socket = nullptr;
+    std::queue<swString*> *buffer_pool = nullptr;
 
-    swAllocator *buffer_allocator;
-    size_t recv_buffer_size;
+    swAllocator *buffer_allocator = &SwooleG.std_allocator;
+    size_t recv_buffer_size = SW_BUFFER_SIZE_BIG;
 
 #ifdef SW_BUFFER_RECV_TIME
-    double last_receive_usec;
+    double last_receive_usec = 0;
 #endif
 
-    int manager_alarm;
+    int manager_alarm = 0;
 
     /**
      * message queue key
      */
-    uint64_t message_queue_key;
+    uint64_t message_queue_key = 0;
 
-    void *hooks[SW_MAX_HOOK_TYPE];
+    void *hooks[SW_MAX_HOOK_TYPE] = {};
 
-    void (*onStart)(swServer *serv);
-    void (*onManagerStart)(swServer *serv);
-    void (*onManagerStop)(swServer *serv);
-    void (*onShutdown)(swServer *serv);
-    void (*onPipeMessage)(swServer *, swEventData *);
-    void (*onWorkerStart)(swServer *serv, int worker_id);
-    void (*onBeforeReload)(swServer *serv);
-    void (*onAfterReload)(swServer *serv);
-    void (*onWorkerStop)(swServer *serv, int worker_id);
-    void (*onWorkerExit)(swServer *serv, int worker_id);
-    void (*onWorkerError)(swServer *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
-    void (*onUserWorkerStart)(swServer *serv, swWorker *worker);
+    /**
+     * Master Process
+     */
+    std::function<void(Server *)> onStart;
+    std::function<void(Server *)> onShutdown;
+    /**
+     * Manager Process
+     */
+    std::function<void(Server *)> onManagerStart;
+    std::function<void(Server *)> onManagerStop;
+    std::function<void(Server *, int, pid_t, int, int)> onWorkerError;
+    std::function<void(Server *)> onBeforeReload;
+    std::function<void(Server *)> onAfterReload;
+    /**
+     * Worker Process
+     */
+    std::function<void(Server *, swEventData *)> onPipeMessage;
+    std::function<void(Server *, uint32_t)> onWorkerStart;
+    std::function<void(Server *, uint32_t)> onWorkerStop;
+    std::function<void(Server *, uint32_t)> onWorkerExit;
+    std::function<void(Server *, swWorker *)> onUserWorkerStart;
     /**
      * Connection
      */
-    int (*onReceive)(swServer *, swEventData *);
-    int (*onPacket)(swServer *, swEventData *);
-    void (*onClose)(swServer *serv, swDataHead *);
-    void (*onConnect)(swServer *serv, swDataHead *);
-    void (*onBufferFull)(swServer *serv, swDataHead *);
-    void (*onBufferEmpty)(swServer *serv, swDataHead *);
+    std::function<int(Server *, swEventData *)> onReceive;
+    std::function<int(Server *, swEventData *)> onPacket;
+    std::function<void(Server *, swDataHead *)> onClose;
+    std::function<void(Server *, swDataHead *)> onConnect;
+    std::function<void(Server *, swDataHead *)> onBufferFull;
+    std::function<void(Server *, swDataHead *)> onBufferEmpty;
     /**
      * Task Worker
      */
-    int (*onTask)(swServer *serv, swEventData *data);
-    int (*onFinish)(swServer *serv, swEventData *data);
+    std::function<int(Server *, swEventData *)> onTask;
+    std::function<int(Server *, swEventData *)> onFinish;
     /**
      * Server method
      */
-    int (*send)(swServer *serv, int session_id, const void *data, uint32_t length);
-    int (*sendfile)(swServer *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
-    int (*sendwait)(swServer *serv, int session_id, const void *data, uint32_t length);
-    int (*close)(swServer *serv, int session_id, int reset);
-    int (*notify)(swServer *serv, swConnection *conn, int event);
-    int (*feedback)(swServer *serv, int session_id, int event);
+    int (*send)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
+    int (*sendfile)(Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) = nullptr;
+    int (*sendwait)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
+    int (*close)(Server *serv, int session_id, int reset) = nullptr;
+    int (*notify)(Server *serv, swConnection *conn, int event) = nullptr;
+    int (*feedback)(Server *serv, int session_id, int event) = nullptr;
     /**
      * Chunk control
      */
-    void** (*create_buffers)(swServer *serv, uint buffer_num);
-    void* (*get_buffer)(swServer *serv, swDataHead *info);
-    size_t (*get_buffer_len)(swServer *serv, swDataHead *info);
-    void (*add_buffer_len)(swServer *serv, swDataHead *info, size_t len);
-    void (*move_buffer)(swServer *serv, swPipeBuffer *buffer);
-    size_t (*get_packet)(swServer *serv, swEventData *req, char **data_ptr);
+    void** (*create_buffers)(Server *serv, uint buffer_num) = nullptr;
+    void* (*get_buffer)(Server *serv, swDataHead *info) = nullptr;
+    size_t (*get_buffer_len)(Server *serv, swDataHead *info) = nullptr;
+    void (*add_buffer_len)(Server *serv, swDataHead *info, size_t len) = nullptr;
+    void (*move_buffer)(Server *serv, swPipeBuffer *buffer) = nullptr;
+    size_t (*get_packet)(Server *serv, swEventData *req, char **data_ptr) = nullptr;
     /**
      * Hook
      */
-    int (*dispatch_func)(swServer *, swConnection *, swSendData *);
+    int (*dispatch_func)(Server *, swConnection *, swSendData *) = nullptr;
+
+ public:
+    Server();
 
     bool set_document_root(const std::string &path)
     {
@@ -647,7 +661,7 @@ struct swServer
         return true;
     }
 
-    std::string& get_document_root()
+    const std::string& get_document_root()
     {
         return document_root;
     }
@@ -659,6 +673,10 @@ struct swServer
     std::string document_root;
 };
 
+}
+
+typedef swoole::Server swServer;
+
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
@@ -668,7 +686,6 @@ int swServer_master_send(swServer *serv, swSendData *_send);
 int swServer_onFinish(swFactory *factory, swSendData *resp);
 int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
-void swServer_init(swServer *serv);
 void swServer_signal_init(swServer *serv);
 int swServer_start(swServer *serv);
 swListenPort *swServer_add_port(swServer *serv, enum swSocket_type type, const char *host, int port);
@@ -941,19 +958,19 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     else
     {
         uint32_t i;
-        uint8_t found = 0;
+        bool found = false;
         for (i = 0; i < serv->worker_num + 1; i++)
         {
             key = sw_atomic_fetch_add(&serv->worker_round_id, 1) % serv->worker_num;
             if (serv->workers[key].status == SW_WORKER_IDLE)
             {
-                found = 1;
+                found = true;
                 break;
             }
         }
-        if (sw_unlikely(found == 0))
+        if (sw_unlikely(!found))
         {
-            serv->scheduler_warning = 1;
+            serv->scheduler_warning = true;
         }
         swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, serv->worker_round_id);
         return key;

@@ -2259,7 +2259,6 @@ static PHP_METHOD(swoole_server, __construct)
     }
 
     serv = new swServer();
-    swServer_init(serv);
     serv->ptr2 = sw_zval_dup(zserv);
     server_set_ptr(zserv, serv);
 
@@ -2399,7 +2398,8 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp))
     {
-        serv->enable_coroutine = SwooleG.enable_coroutine = zval_is_true(ztmp);
+        serv->enable_coroutine = zval_is_true(ztmp);
+        SwooleG.enable_coroutine = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) || php_swoole_array_get_value(vht, "max_coroutine", ztmp))
     {

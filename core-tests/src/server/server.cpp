@@ -5,8 +5,6 @@ using namespace std;
 
 static void test_create_server(swServer *serv)
 {
-    swServer_init(serv);
-
     swServer_create(serv);
 
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
@@ -35,7 +33,6 @@ static const char *packet = "hello world\n";
 TEST(server, base)
 {
     swServer serv;
-    swServer_init(&serv);
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
     swServer_create(&serv);
@@ -95,7 +92,6 @@ TEST(server, base)
 TEST(server, process)
 {
     swServer serv;
-    swServer_init(&serv);
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_PROCESS;
     swServer_create(&serv);

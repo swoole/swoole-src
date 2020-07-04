@@ -2,7 +2,7 @@
 
 #include "tests.h"
 
-#define SERVER_THIS ((Server *) serv->ptr2)
+#define SERVER_THIS ((swoole::test::Server *) serv->ptr2)
 
 #define ON_WORKERSTART_PARAMS   swServer *serv, int worker_id
 #define ON_PACKET_PARAMS        swServer *serv, swEventData *req
@@ -27,7 +27,7 @@ namespace swoole { namespace test {
 class Server
 {
 private:
-    swServer serv;
+    swoole::Server serv;
     std::vector<swListenPort *> ports;
     std::unordered_map<std::string, void *> private_data;
     std::string host;

@@ -24,7 +24,6 @@ int main(int argc, char **argv)
     swLog_set_date_with_microseconds(true);
 
     swServer serv;
-    swServer_init(&serv);
 
     serv.reactor_num = 4;
     serv.worker_num = 2;

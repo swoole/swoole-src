@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "test_server.h"
+#include "tests.h"
 #include "wrapper/client.hpp"
 
 using namespace std;
@@ -27,7 +27,6 @@ static const char *packet = "hello world\n";
 TEST(server, send_buffer)
 {
     swServer serv;
-    swServer_init(&serv);
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
     swServer_create(&serv);
