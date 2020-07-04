@@ -236,7 +236,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
 
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        worker = swServer_get_worker(serv, i);
+        worker = serv->get_worker(i);
         worker->pipe_master->buffer_size = UINT_MAX;
         worker->pipe_worker->buffer_size = UINT_MAX;
     }
@@ -273,7 +273,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
     }
 
     uint16_t source_worker_id = current_task->info.reactor_id;
-    swWorker *worker = swServer_get_worker(serv, source_worker_id);
+    swWorker *worker = serv->get_worker(source_worker_id);
 
     if (worker == nullptr)
     {

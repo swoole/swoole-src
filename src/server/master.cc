@@ -117,7 +117,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
             }
         }
 
-        swTrace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d", swServer_get_maxfd(serv), swServer_get_minfd(serv), reactor->id, sock->fd);
+        swTrace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d", serv->get_maxfd(), serv->get_minfd(), reactor->id, sock->fd);
 
         //too many connection
         if (sock->fd >= (int) serv->max_connection)
@@ -1547,7 +1547,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
         int worker_id = swServer_worker_schedule(serv, conn->fd, nullptr);
         if (worker_id != (int) SwooleWG.id)
         {
-            worker = swServer_get_worker(serv, worker_id);
+            worker = serv->get_worker(worker_id);
             goto _notify;
         }
         else
@@ -1557,7 +1557,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
     }
     else if (!swIsWorker())
     {
-        worker = swServer_get_worker(serv, conn->fd % serv->worker_num);
+        worker = serv->get_worker(conn->fd % serv->worker_num);
         _notify:
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = session_id;
@@ -1890,7 +1890,7 @@ static void swServer_signal_handler(int sig)
             swWorker *worker;
             for (i = 0; i < sw_server()->worker_num + serv->task_worker_num + sw_server()->user_worker_num; i++)
             {
-                worker = swServer_get_worker(sw_server(), i);
+                worker = serv->get_worker(i);
                 swoole_kill(worker->pid, SIGRTMIN);
             }
             if (sw_server()->factory_mode == SW_MODE_PROCESS)
@@ -2076,7 +2076,7 @@ int Server::get_idle_worker_num()
 
     for (i = 0; i < worker_num; i++)
     {
-        swWorker *worker = swServer_get_worker(this, i);
+        swWorker *worker = get_worker(i);
         if (worker->status == SW_WORKER_IDLE)
         {
             idle_worker_num++;
@@ -2093,7 +2093,7 @@ int Server::get_idle_task_worker_num()
 
     for (i = worker_num; i < (worker_num + task_worker_num); i++)
     {
-        swWorker *worker = swServer_get_worker(this, i);
+        swWorker *worker = get_worker(i);
         if (worker->status == SW_WORKER_IDLE)
         {
             idle_worker_num++;

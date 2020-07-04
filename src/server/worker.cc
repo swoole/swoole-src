@@ -417,7 +417,7 @@ void swWorker_onStart(swServer *serv)
 
     for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        swWorker *worker = swServer_get_worker(serv, i);
+        swWorker *worker = serv->get_worker(i);
         if (SwooleWG.id == i)
         {
             continue;
@@ -433,7 +433,7 @@ void swWorker_onStart(swServer *serv)
         swLog_reopen();
     }
 
-    SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
+    SwooleWG.worker = serv->get_worker(SwooleWG.id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -606,7 +606,7 @@ void swWorker_clean_pipe_buffer(swServer *serv)
     uint32_t i;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        swWorker *worker = swServer_get_worker(serv, i);
+        swWorker *worker = serv->get_worker(i);
         if (SwooleTG.reactor)
         {
             if (worker->pipe_worker)
@@ -642,7 +642,7 @@ int swWorker_loop(swServer *serv, swWorker *worker)
      */
     for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        swWorker *_worker = swServer_get_worker(serv, i);
+        swWorker *_worker = serv->get_worker(i);
         if (_worker->pipe_master)
         {
             _worker->pipe_master->buffer_size = UINT_MAX;

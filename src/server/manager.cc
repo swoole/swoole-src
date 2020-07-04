@@ -346,7 +346,7 @@ static int swManager_loop(swServer *serv)
                 }
                 if (msg.worker_id >= serv->worker_num)
                 {
-                    swManager_spawn_task_worker(serv, swServer_get_worker(serv, msg.worker_id));
+                    swManager_spawn_task_worker(serv, serv->get_worker(msg.worker_id));
                 }
                 else
                 {
@@ -817,7 +817,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
          * worker: local memory
          * serv->user_workers: shared memory
          */
-        swServer_get_worker(serv, worker->id)->pid = worker->pid = pid;
+        serv->get_worker(worker->id)->pid = worker->pid = pid;
         swHashMap_add_int(serv->user_worker_map, pid, worker);
         return pid;
     }

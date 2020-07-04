@@ -165,7 +165,7 @@ static int swFactoryProcess_start(swFactory *factory)
 
     for (uint32_t i = 0; i < serv->worker_num; i++)
     {
-        if (swServer_worker_create(serv, swServer_get_worker(serv, i)) < 0)
+        if (swServer_worker_create(serv, serv->get_worker(i)) < 0)
         {
             return SW_ERR;
         }
@@ -272,7 +272,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         task->info.server_fd = conn->server_fd;
     }
 
-    swWorker *worker = swServer_get_worker(serv, target_worker_id);
+    swWorker *worker = serv->get_worker(target_worker_id);
 
     //without data
     if (task->data == nullptr)

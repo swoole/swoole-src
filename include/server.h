@@ -696,7 +696,7 @@ class Server
         connection_list[SW_SERVER_MIN_FD_INDEX].fd = minfd;
     }
 
-    const std::string& get_document_root()
+    inline const std::string& get_document_root()
     {
         return document_root;
     }
@@ -746,6 +746,31 @@ class Server
 #else
         return (swSocket_is_stream(port->type) && !isset);
 #endif
+    }
+
+    inline swWorker *get_worker(uint16_t worker_id)
+    {
+        //Event Worker
+        if (worker_id < worker_num)
+        {
+            return &(gs->event_workers.workers[worker_id]);
+        }
+
+        //Task Worker
+        uint32_t task_worker_max = task_worker_num + worker_num;
+        if (worker_id < task_worker_max)
+        {
+            return &(gs->task_workers.workers[worker_id - worker_num]);
+        }
+
+        //User Worker
+        uint32_t user_worker_max = task_worker_max + user_worker_num;
+        if (worker_id < user_worker_max)
+        {
+            return &(user_workers[worker_id - task_worker_max]);
+        }
+
+        return nullptr;
     }
 
  private:
@@ -914,31 +939,6 @@ static sw_inline swSession* swServer_get_session(swServer *serv, uint32_t sessio
 static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
 {
     return serv->session_list[session_id % SW_SESSION_LIST_SIZE].fd;
-}
-
-static sw_inline swWorker* swServer_get_worker(swServer *serv, uint16_t worker_id)
-{
-    //Event Worker
-    if (worker_id < serv->worker_num)
-    {
-        return &(serv->gs->event_workers.workers[worker_id]);
-    }
-
-    //Task Worker
-    uint32_t task_worker_max = serv->task_worker_num + serv->worker_num;
-    if (worker_id < task_worker_max)
-    {
-        return &(serv->gs->task_workers.workers[worker_id - serv->worker_num]);
-    }
-
-    //User Worker
-    uint32_t user_worker_max = task_worker_max + serv->user_worker_num;
-    if (worker_id < user_worker_max)
-    {
-        return &(serv->user_workers[worker_id - task_worker_max]);
-    }
-
-    return nullptr;
 }
 
 static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData *data)
@@ -1110,7 +1110,7 @@ static sw_inline swSocket *swServer_get_send_pipe(swServer *serv, int session_id
      * pipe_worker_id: The pipe in which worker.
      */
     int pipe_worker_id = reactor_id + (pipe_index * serv->reactor_num);
-    swWorker *worker = swServer_get_worker(serv, pipe_worker_id);
+    swWorker *worker = serv->get_worker(pipe_worker_id);
     return worker->pipe_worker;
 }
 

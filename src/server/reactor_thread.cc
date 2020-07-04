@@ -1057,7 +1057,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
 
     thread->send_buffers = new unordered_map<int, swString *>;
 
-    int max_pipe_fd = swServer_get_worker(serv, serv->worker_num - 1)->pipe_master->fd + 2;
+    int max_pipe_fd = serv->get_worker(serv->worker_num - 1)->pipe_master->fd + 2;
     thread->pipe_sockets = (swSocket *) sw_calloc(max_pipe_fd, sizeof(swSocket));
     if (!thread->pipe_sockets)
     {

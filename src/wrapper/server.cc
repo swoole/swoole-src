@@ -101,7 +101,7 @@ bool Server::close(int fd, bool reset)
     int ret;
     if (!swIsWorker())
     {
-        swWorker *worker = swServer_get_worker(&serv, conn->fd % serv.worker_num);
+        swWorker *worker = serv.get_worker(conn->fd % serv.worker_num);
         swDataHead ev;
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = fd;
@@ -339,7 +339,7 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
     buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
     buf.info.reactor_id = SwooleWG.id;
 
-    swWorker *to_worker = swServer_get_worker(&serv, (uint16_t) worker_id);
+    swWorker *to_worker = serv.get_worker((uint16_t) worker_id);
     return swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK)
             == SW_OK;
 }
@@ -596,7 +596,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
     swEventData *task_result = &(serv.task_result[SwooleWG.id]);
     sw_memset_zero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv.task_notify[SwooleWG.id];
-    swWorker *worker = swServer_get_worker(&serv, SwooleWG.id);
+    swWorker *worker = serv.get_worker(SwooleWG.id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);

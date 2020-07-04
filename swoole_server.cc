@@ -3552,7 +3552,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     swEventData *task_result = &(serv->task_result[SwooleWG.id]);
     sw_memset_zero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
-    swWorker *worker = swServer_get_worker(serv, SwooleWG.id);
+    swWorker *worker = serv->get_worker(SwooleWG.id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);
@@ -3867,7 +3867,7 @@ static PHP_METHOD(swoole_server, sendMessage)
     buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
     buf.info.reactor_id = SwooleWG.id;
 
-    swWorker *to_worker = swServer_get_worker(serv, worker_id);
+    swWorker *to_worker = serv->get_worker(worker_id);
     SW_CHECK_RETURN(swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK));
 }
 
@@ -4289,7 +4289,7 @@ static PHP_METHOD(swoole_server, getWorkerStatus)
         RETURN_FALSE;
     }
 
-    swWorker *worker = swServer_get_worker(serv, worker_id);
+    swWorker *worker = serv->get_worker(worker_id);
     if (!worker)
     {
         RETURN_FALSE;
@@ -4374,7 +4374,7 @@ static PHP_METHOD(swoole_server, stop)
     }
     else
     {
-        swWorker *worker = swServer_get_worker(serv, worker_id);
+        swWorker *worker = serv->get_worker(worker_id);
         if (worker == nullptr)
         {
             RETURN_FALSE;
