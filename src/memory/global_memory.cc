@@ -154,13 +154,17 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
 {
     MemoryPool *gm = (MemoryPool *) pool->object;
     MemoryBlock *block = (MemoryBlock *) ((char*) ptr - sizeof(*block));
+    unique_lock<mutex> lock(gm->lock);
+
+    swTrace("[PID=%d] gm->create_pid=%d, block->create_pid=%d, SwooleG.pid=%d\n", getpid(), gm->create_pid,
+            block->create_pid, SwooleG.pid);
 
     if (block->shared && (gm->create_pid != block->create_pid or block->create_pid != SwooleG.pid))
     {
         return;
     }
 
-    unique_lock<mutex> lock(gm->lock);
+    swTrace("[PID=%d] free block\n", getpid());
 
     list<MemoryBlock *> &free_blocks = gm->pool.at(block->index);
     free_blocks.push_back(block);
