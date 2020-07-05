@@ -33,7 +33,6 @@ Server::Server(string _host, int _port, enum swServer_mode _mode,  enum swSocket
 
     if (serv.create() < 0)
     {
-        swTrace("create server fail[error=%d].\n", ret);
         exit(0);
     }
     this->listen(host, port, _type);
@@ -413,7 +412,6 @@ bool Server::start(void)
     _callback_buffer = swString_new(8192);
     if (serv.start() < 0)
     {
-        swTrace("start server fail[error=%d].\n", ret);
         return false;
     }
     return true;

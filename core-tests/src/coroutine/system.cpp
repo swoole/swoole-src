@@ -32,7 +32,11 @@ TEST(coroutine_system, file) {
         char buf[8192];
         size_t n_buf = sizeof(buf);
         ASSERT_EQ(swoole_random_bytes(buf, n_buf), n_buf);
-        ASSERT_EQ(System::write_file(test_file, buf, n_buf, true, O_TMPFILE), n_buf);
+        int flags = 0;
+#ifdef O_TMPFILE
+        flags |= O_TMPFILE;
+#endif
+        ASSERT_EQ(System::write_file(test_file, buf, n_buf, true, flags), n_buf);
         swString *data = System::read_file(test_file, true);
         ASSERT_TRUE(data);
         ASSERT_EQ(std::string(buf, n_buf), std::string(data->str, data->length));

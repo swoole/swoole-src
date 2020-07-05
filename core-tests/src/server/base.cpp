@@ -95,12 +95,7 @@ void Server::on(std::string event, void *fn)
 
 bool Server::start()
 {
-    if (serv.start() < 0)
-    {
-        swTrace("start server fail[error=%d].\n", ret);
-        return false;
-    }
-    return true;
+    return serv.start() == 0;
 }
 
 bool Server::listen(std::string host, int port, enum swSocket_type type)

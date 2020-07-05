@@ -17,6 +17,7 @@
 #pragma once
 
 #include "client.h"
+#include <string>
 #include <functional>
 
 namespace swoole

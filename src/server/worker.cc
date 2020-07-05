@@ -386,7 +386,7 @@ void swWorker_onStart(swServer *serv)
             group = getgrnam(serv->group.c_str());
             if (!group)
             {
-                swWarn("get group [%s] info failed", serv->group);
+                swWarn("get group [%s] info failed", serv->group.c_str());
             }
         }
         //get user info

@@ -23,9 +23,9 @@ static int swClient_inet_addr(swClient *cli, const char *host, int port);
 static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, double _timeout, int udp_connect);
 static int swClient_tcp_connect_async(swClient *cli, const char *host, int port, double timeout, int nonblock);
 
-static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, int flags);
-static int swClient_tcp_send_async(swClient *cli, const char *data, int length, int flags);
-static int swClient_udp_send(swClient *cli, const char *data, int length, int flags);
+static int swClient_tcp_send_sync(swClient *cli, const char *data, size_t length, int flags);
+static int swClient_tcp_send_async(swClient *cli, const char *data, size_t length, int flags);
+static int swClient_udp_send(swClient *cli, const char *data, size_t length, int flags);
 
 static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t offset, size_t length);
 static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_t offset, size_t length);
@@ -717,7 +717,7 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
     return ret;
 }
 
-static int swClient_tcp_send_async(swClient *cli, const char *data, int length, int flags)
+static int swClient_tcp_send_async(swClient *cli, const char *data, size_t length, int flags)
 {
     int n = length;
     if (swoole_event_write(cli->socket, data, length) < 0)
@@ -741,7 +741,7 @@ static int swClient_tcp_send_async(swClient *cli, const char *data, int length, 
     return n;
 }
 
-static int swClient_tcp_send_sync(swClient *cli, const char *data, int length, int flags)
+static int swClient_tcp_send_sync(swClient *cli, const char *data, size_t length, int flags)
 {
     int written = 0;
     int n;
@@ -963,7 +963,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
     }
 }
 
-static int swClient_udp_send(swClient *cli, const char *data, int len, int flags)
+static int swClient_udp_send(swClient *cli, const char *data, size_t len, int flags)
 {
     int n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
     if (n < 0 || n < len)

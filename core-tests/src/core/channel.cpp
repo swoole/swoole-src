@@ -51,7 +51,7 @@ TEST(channel, push) {
 
         while(bytes < N) {
             if (swChannel_push(c, next->second.c_str(), next->second.length()) == SW_OK) {
-                swTrace("[PUSH] index=%d, size=%d\n", index, next.length());
+                swTrace("[PUSH] index=%d, size=%d\n", index, next->second.length());
                 bytes += next->second.length();
                 next = m.find(index++);
                 if (next == m.end()) {
