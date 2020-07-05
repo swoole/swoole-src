@@ -26,9 +26,14 @@ using namespace std;
 
 static void test_run_server(function<void(swServer *)> fn)
 {
+    thread child_thread;
     swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
     serv.ptr2 = (void*) &fn;
+
+    serv.enable_static_handler = true;
+    serv.set_document_root(test::get_root_path());
+    serv.add_static_handler_location("/examples");
 
     swLog_set_level(SW_LOG_WARNING);
 
@@ -42,11 +47,10 @@ static void test_run_server(function<void(swServer *)> fn)
 
     serv.create();
 
-    serv.onWorkerStart = [](swServer *serv, int worker_id)
+    serv.onWorkerStart = [&child_thread](swServer *serv, int worker_id)
     {
         function<void(swServer *)> fn = *(function<void(swServer *)> *)serv->ptr2;
-        thread t1(fn, serv);
-        t1.detach();
+        child_thread = thread(fn, serv);
     };
 
     serv.onReceive = [](swServer *serv, swEventData *task) -> int
@@ -65,6 +69,7 @@ static void test_run_server(function<void(swServer *)> fn)
     };
 
     serv.start();
+    child_thread.join();
 }
 
 TEST(http_server, get)
@@ -73,7 +78,7 @@ TEST(http_server, get)
     {
         swSignal_none();
 
-        auto port = serv->ports.front();
+        auto port = serv->get_primary_port();
 
         httplib::Client cli(TEST_HOST, port->port);
         auto resp = cli.Get("/index.html");
@@ -99,6 +104,30 @@ TEST(http_server, post)
         auto resp = cli.Post("/index.html", params);
         EXPECT_EQ(resp->status, 200);
         EXPECT_EQ(resp->body, string("hello world"));
+
+        kill(getpid(), SIGTERM);
+    });
+}
+
+TEST(http_server, static_get)
+{
+    test_run_server([](swServer *serv)
+    {
+        swSignal_none();
+
+        auto port = serv->get_primary_port();
+
+        httplib::Client cli(TEST_HOST, port->port);
+        auto resp = cli.Get("/examples/test.jpg");
+        EXPECT_EQ(resp->status, 200);
+
+        string file = test::get_root_path() + "/examples/test.jpg";
+        int fd = open(file.c_str(), O_RDONLY);
+        EXPECT_GT(fd, 0);
+
+        String str(swoole_sync_readfile_eof(fd));
+
+        EXPECT_EQ(resp->body, str.to_std_string());
 
         kill(getpid(), SIGTERM);
     });

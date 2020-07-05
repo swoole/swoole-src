@@ -672,6 +672,8 @@ class Server
         return true;
     }
 
+    void add_static_handler_location(const std::string &location);
+
     int create();
     int start();
     void shutdown();
@@ -1046,7 +1048,6 @@ void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
-int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length);
 int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length);
 
 int swWorker_onTask(swFactory *factory, swEventData *task);

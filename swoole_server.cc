@@ -2753,7 +2753,7 @@ static PHP_METHOD(swoole_server, set)
                 zend::string __location(_location);
                 if (__location.len() > 0 && __location.val()[0] == '/')
                 {
-                    swServer_http_static_handler_add_location(serv, __location.val(), __location.len());
+                    serv->add_static_handler_location(__location.to_std_string());
                 }
             SW_HASHTABLE_FOREACH_END();
         }

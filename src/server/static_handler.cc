@@ -21,6 +21,7 @@
 #include <algorithm>
 
 using namespace std;
+using namespace swoole;
 using swoole::http::StaticHandler;
 
 bool StaticHandler::is_modified(const string &date_if_modified_since)
@@ -296,14 +297,13 @@ bool StaticHandler::set_filename(std::string &filename)
     return true;
 }
 
-int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length)
+void Server::add_static_handler_location(const std::string &location)
 {
-    if (serv->locations == nullptr)
+    if (locations == nullptr)
     {
-        serv->locations = new std::unordered_set<std::string>;
+        locations = new std::unordered_set<std::string>;
     }
-    serv->locations->insert(string(location, length));
-    return SW_OK;
+    locations->insert(location);
 }
 
 int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length)

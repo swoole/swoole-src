@@ -1197,8 +1197,6 @@ typedef struct _swShareMemory_mmap
 } swShareMemory;
 
 void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile);
-void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key);
-int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
 
 //-------------------memory manager-------------------------
