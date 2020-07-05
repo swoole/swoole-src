@@ -182,7 +182,7 @@ bool StaticHandler::hit()
         return true;
     }
 
-    if(serv->http_autoindex && is_dir())
+    if (serv->http_autoindex && is_dir())
     {
         return true;
     }
@@ -306,17 +306,16 @@ void Server::add_static_handler_location(const std::string &location)
     locations->insert(location);
 }
 
-int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length)
+void Server::add_static_handler_index_files(const std::string &file)
 {
-    if (serv->http_index_files == nullptr)
+    if (http_index_files == nullptr)
     {
-        serv->http_index_files = new std::vector<std::string>;
+        http_index_files = new std::vector<std::string>;
     }
 
-    auto iter = std::find(serv->http_index_files->begin(), serv->http_index_files->end(), filename);
-    if (iter == serv->http_index_files->end())
+    auto iter = std::find(http_index_files->begin(), http_index_files->end(), file);
+    if (iter == http_index_files->end())
     {
-        serv->http_index_files->push_back(filename);
+        http_index_files->push_back(file);
     }
-    return SW_OK;
 }

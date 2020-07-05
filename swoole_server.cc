@@ -2731,7 +2731,7 @@ static PHP_METHOD(swoole_server, set)
                 zend::string __http_index_files(_http_index_files);
                 if (__http_index_files.len() > 0)
                 {
-                    swServer_http_static_handler_add_http_index_files(serv, __http_index_files.val(), __http_index_files.len());
+                    serv->add_static_handler_index_files(__http_index_files.to_std_string());
                 }
             SW_HASHTABLE_FOREACH_END();
         }
@@ -3987,8 +3987,8 @@ static PHP_METHOD(swoole_server, getSocket)
         RETURN_FALSE;
     }
 
-    int sock = swServer_get_socket(serv, port);
-    php_socket *socket_object = swoole_convert_to_socket(sock);
+    swListenPort *lp = serv->get_port(port);
+    php_socket *socket_object = swoole_convert_to_socket(lp->socket->fd);
 
     if (!socket_object)
     {

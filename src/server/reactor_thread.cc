@@ -125,7 +125,7 @@ static void swReactorThread_onStreamResponse(swStream *stream, const char *data,
     response.info.type = pkg_info->type;
     response.info.len = length - sizeof(swDataHead);
     response.data = data + sizeof(swDataHead);
-    swServer_master_send(serv, &response);
+    serv->send_to_connection(&response);
 }
 
 /**
@@ -320,7 +320,7 @@ int swReactorThread_close(swReactor *reactor, swSocket *socket)
     }
 #endif
 
-    swSession *session = swServer_get_session(serv, conn->session_id);
+    swSession *session = serv->get_session(conn->session_id);
     session->fd = 0;
     /**
      * reset maxfd, for connection_list
@@ -490,7 +490,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 _send.info = resp->info;
                 _send.data = package->str;
                 _send.info.len = package->length;
-                swServer_master_send(serv, &_send);
+                serv->send_to_connection(&_send);
                 swString_free(package);
                 thread->send_buffers.erase(key);
             }
@@ -538,7 +538,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 {
                     _send.info = resp->info;
                     _send.data = resp->data;
-                    swServer_master_send(serv, &_send);
+                    serv->send_to_connection(&_send);
                 }
             }
         }
@@ -961,11 +961,11 @@ int Server::start_reactor_threads()
     SwooleG.process_type = SW_PROCESS_MASTER;
 
     reactor->ptr = this;
-    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, swServer_master_onAccept);
+    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, Server::accept_connection);
 
     if (hooks[SW_SERVER_HOOK_MASTER_START])
     {
-        swServer_call_hook(this, SW_SERVER_HOOK_MASTER_START, this);
+        call_hook(SW_SERVER_HOOK_MASTER_START, this);
     }
 
     /**

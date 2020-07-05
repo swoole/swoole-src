@@ -373,7 +373,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     //set event handler
     //connect
-    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, swServer_master_onAccept);
+    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, Server::accept_connection);
     //close
     reactor->default_error_handler = swReactorProcess_onClose;
     //pipe
@@ -470,7 +470,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         void *hook_args[2];
         hook_args[0] = serv;
         hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
-        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
+        serv->call_hook(SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
     }
 
     swoole_event_free();
@@ -527,7 +527,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data)
     swServer *serv = (swServer *) factory->ptr;
     int session_id = data->info.fd;
 
-    swSession *session = swServer_get_session(serv, session_id);
+    swSession *session = serv->get_session(session_id);
     if (session->fd == 0)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "send %d byte failed, session#%d does not exist",

@@ -87,12 +87,12 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
             pkg.info.flags |= SW_EVENT_DATA_POP_PTR;
         }
 
-        return swWorker_onTask(factory, (swEventData *) &pkg);
+        return serv->accept_task((swEventData *) &pkg);
     }
     //no data
     else
     {
-        return swWorker_onTask(factory, (swEventData *) &task->info);
+        return serv->accept_task((swEventData *) &task->info);
     }
 }
 
@@ -119,7 +119,7 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
     info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
 
-    return swWorker_onTask(factory, (swEventData *) info);
+    return serv->accept_task((swEventData *) info);
 }
 
 static int swFactory_end(swFactory *factory, int fd)
@@ -194,7 +194,7 @@ static int swFactory_end(swFactory *factory, int fd)
  */
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    return swServer_master_send((swServer *) factory->ptr, resp);
+    return ((swServer *) factory->ptr)->send_to_connection(resp);
 }
 
 static void swFactory_free(swFactory *factory)

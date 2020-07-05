@@ -87,7 +87,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             sizeof(SW_HTTP_PAGE_404) - 1, SW_HTTP_PAGE_404
         );
         response.data = header_buffer;
-        swServer_master_send(serv, &response);
+        serv->send_to_connection(&response);
 
         return true;
     }
@@ -110,7 +110,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             SW_HTTP_SERVER_SOFTWARE
         );
         response.data = header_buffer;
-        swServer_master_send(serv, &response);
+        serv->send_to_connection(&response);
 
         return true;
     }
@@ -164,11 +164,11 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             SW_HTTP_SERVER_SOFTWARE
         );
         response.data = header_buffer;
-        swServer_master_send(serv, &response);
+        serv->send_to_connection(&response);
 
         response.info.len = body_length;
         response.data = SwooleTG.buffer_stack->str;
-        swServer_master_send(serv, &response);
+        serv->send_to_connection(&response);
         return true;
     }
 
@@ -200,7 +200,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         conn->socket->tcp_nopush = 1;
     }
 #endif
-    swServer_master_send(serv, &response);
+    serv->send_to_connection(&response);
 
     if (task->length != 0)
     {
@@ -208,7 +208,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         response.info.len = sizeof(swSendFile_request) + task->length + 1;
         response.data = (char *) task;
 
-        swServer_master_send(serv, &response);
+        serv->send_to_connection(&response);
     }
 
     if (!request->keep_alive)
@@ -216,7 +216,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         response.info.type = SW_SERVER_EVENT_CLOSE;
         response.info.len = 0;
         response.data = nullptr;
-        swServer_master_send(serv, &response);
+        serv->send_to_connection(&response);
     }
 
     return true;

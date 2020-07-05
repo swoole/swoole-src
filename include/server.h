@@ -247,7 +247,6 @@ struct swFactory
 
 int swFactory_create(swFactory *factory);
 int swFactory_finish(swFactory *factory, swSendData *_send);
-int swFactory_check_callback(swFactory *factory);
 
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
 
@@ -504,6 +503,19 @@ class Server
         return ports.front();
     }
 
+    swListenPort *get_port(int _port)
+    {
+        for (auto port : ports)
+        {
+            if (port->port == _port || _port == 0)
+            {
+                return port;
+            }
+        }
+
+        return nullptr;
+    }
+
     std::thread heartbeat_thread;
 
     /**
@@ -532,9 +544,9 @@ class Server
 
     ServerGS *gs = nullptr;
 
-    std::unordered_set<std::string> *types = 0;
-    std::unordered_set<std::string> *locations = 0;
-    std::vector<std::string> *http_index_files = 0;
+    std::unordered_set<std::string> *types = nullptr;
+    std::unordered_set<std::string> *locations = nullptr;
+    std::vector<std::string> *http_index_files = nullptr;
 
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier = {};
@@ -672,14 +684,19 @@ class Server
         return true;
     }
 
-    void add_static_handler_location(const std::string &location);
+    void add_static_handler_location(const std::string &);
+    void add_static_handler_index_files(const std::string &);
 
     int create();
     int start();
     void shutdown();
+
     int add_worker(swWorker *worker);
     swListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
+    int add_hook(enum swServer_hook_type type, swCallback func, int push_back);
+    swConnection *add_connection(swListenPort *ls, swSocket *_socket, int server_fd);
+
     int get_idle_worker_num();
     int get_idle_task_worker_num();
 
@@ -798,9 +815,22 @@ class Server
         return &connection_list[fd];
     }
 
+    inline swSession *get_session(uint32_t session_id)
+    {
+        return &session_list[session_id % SW_SESSION_LIST_SIZE];
+    }
+
     int create_task_workers();
     int create_user_workers();
     int start_manager_process();
+
+    void call_hook(enum swServer_hook_type type, void *arg);
+    void call_worker_start_callback(swWorker *worker);
+
+    int accept_task(swEventData *task);
+    static int accept_connection(swReactor *reactor, swEvent *event);
+
+    int send_to_connection(swSendData *);
 
  private:
     /**
@@ -822,17 +852,10 @@ typedef swoole::ReactorThread swReactorThread;
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
 
-int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
-int swServer_master_send(swServer *serv, swSendData *_send);
-
-int swServer_onFinish(swFactory *factory, swSendData *resp);
-int swServer_onFinish2(swFactory *factory, swSendData *resp);
 
 void swServer_signal_init(swServer *serv);
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
-int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back);
-void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg);
 void swServer_clear_timer(swServer *serv);
 
 #ifdef SW_SUPPORT_DTLS
@@ -900,10 +923,8 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd);
 void swServer_store_pipe_fd(swServer *serv, swPipe *p);
 void swServer_store_listen_socket(swServer *serv);
 
-int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
-void swServer_worker_start(swServer *serv, swWorker *worker);
 
 void swTaskWorker_init(swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
@@ -947,11 +968,6 @@ static sw_inline int swServer_connection_valid(swServer *serv, swConnection *con
 {
     return (conn && conn->socket && conn->active == 1 && conn->closed == 0 
         && conn->socket->fdtype == SW_FD_SESSION);
-}
-
-static sw_inline swSession* swServer_get_session(swServer *serv, uint32_t session_id)
-{
-    return &serv->session_list[session_id % SW_SESSION_LIST_SIZE];
 }
 
 static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
@@ -1048,9 +1064,7 @@ void swServer_worker_onStart(swServer *serv);
 void swServer_worker_onStop(swServer *serv);
 
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
-int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length);
 
-int swWorker_onTask(swFactory *factory, swEventData *task);
 void swWorker_stop(swWorker *worker);
 
 static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)
@@ -1060,7 +1074,7 @@ static sw_inline swConnection *swWorker_get_connection(swServer *serv, int sessi
 
 static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
 {
-    swSession *session = swServer_get_session(serv, session_id);
+    swSession *session = serv->get_session(session_id);
     int fd = session->fd;
     swConnection *conn = serv->get_connection(fd);
     if (!conn || conn->active == 0)

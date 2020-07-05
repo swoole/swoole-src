@@ -41,8 +41,6 @@ static void swServer_worker_move_buffer(swServer *serv, swPipeBuffer *buffer);
 
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd);
-
 static void swServer_disable_accept(swServer *serv)
 {
     serv->enable_accept_timer = swoole_timer_add(SW_ACCEPT_RETRY_TIME * 1000, 0, swServer_enable_accept, serv);
@@ -94,7 +92,7 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
     }
 }
 
-int swServer_master_onAccept(swReactor *reactor, swEvent *event)
+int Server::accept_connection(swReactor *reactor, swEvent *event)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
@@ -133,7 +131,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
         }
 
         //add to connection_list
-        swConnection *conn = swServer_connection_new(serv, listen_host, sock, event->fd);
+        swConnection *conn = serv->add_connection(listen_host, sock, event->fd);
         if (conn == nullptr)
         {
             swSocket_free(sock);
@@ -267,7 +265,7 @@ dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
     sock->cloexec = 1;
     sock->chunk_size = SW_BUFFER_SIZE_STD;
 
-    conn = swServer_connection_new(serv, port, sock, port->socket->fd);
+    conn = serv->add_connection(port, sock, port->socket->fd);
     if (conn == nullptr)
     {
         goto _cleanup;
@@ -650,23 +648,23 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     return SW_OK;
 }
 
-void swServer_worker_start(swServer *serv, swWorker *worker)
+void Server::call_worker_start_callback(swWorker *worker)
 {
     void *hook_args[2];
-    hook_args[0] = serv;
+    hook_args[0] = this;
     hook_args[1] = (void *) (uintptr_t) worker->id;
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_WORKER_START])
     {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
     }
-    if (serv->hooks[SW_SERVER_HOOK_WORKER_START])
+    if (hooks[SW_SERVER_HOOK_WORKER_START])
     {
-        swServer_call_hook(serv, SW_SERVER_HOOK_WORKER_START, hook_args);
+        call_hook(SW_SERVER_HOOK_WORKER_START, hook_args);
     }
-    if (serv->onWorkerStart)
+    if (onWorkerStart)
     {
-        serv->onWorkerStart(serv, worker->id);
+        onWorkerStart(this, worker->id);
     }
 }
 
@@ -1100,7 +1098,7 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
     }
     else
     {
-        return swServer_master_send(serv, &_send);
+        return serv->send_to_connection(&_send);
     }
 }
 
@@ -1153,7 +1151,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, const void *data, u
 /**
  * [Master] send to client or append to out_buffer
  */
-int swServer_master_send(swServer *serv, swSendData *_send)
+int Server::send_to_connection(swSendData *_send)
 {
     uint32_t session_id = _send->info.fd;
     const char *_send_data = _send->data;
@@ -1162,11 +1160,11 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     swConnection *conn;
     if (_send->info.type != SW_SERVER_EVENT_CLOSE)
     {
-        conn = swServer_connection_verify(serv, session_id);
+        conn = swServer_connection_verify(this, session_id);
     }
     else
     {
-        conn = swServer_connection_verify_no_ssl(serv, session_id);
+        conn = swServer_connection_verify_no_ssl(this, session_id);
     }
     if (!conn)
     {
@@ -1184,15 +1182,15 @@ int swServer_master_send(swServer *serv, swSendData *_send)
     int fd = conn->fd;
     swReactor *reactor = SwooleTG.reactor;
 
-    if (!serv->single_thread)
+    if (!single_thread)
     {
-        assert(fd % serv->reactor_num == reactor->id);
-        assert(fd % serv->reactor_num == SwooleTG.id);
+        assert(fd % reactor_num == reactor->id);
+        assert(fd % reactor_num == SwooleTG.id);
     }
 
-    if (serv->factory_mode == SW_MODE_BASE && conn->overflow)
+    if (factory_mode == SW_MODE_BASE && conn->overflow)
     {
-        if (serv->send_yield)
+        if (send_yield)
         {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         }
@@ -1339,7 +1337,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
         //connection output buffer overflow
         if (_socket->out_buffer->length >= _socket->buffer_size)
         {
-            if (serv->send_yield)
+            if (send_yield)
             {
                 swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
             }
@@ -1348,7 +1346,7 @@ int swServer_master_send(swServer *serv, swSendData *_send)
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow", fd);
             }
             conn->overflow = 1;
-            if (serv->onBufferEmpty && serv->onBufferFull == nullptr)
+            if (onBufferEmpty && onBufferFull == nullptr)
             {
                 conn->high_watermark = 1;
             }
@@ -1360,10 +1358,10 @@ int swServer_master_send(swServer *serv, swSendData *_send)
             return SW_ERR;
         }
 
-        swListenPort *port = swServer_get_port(serv, fd);
-        if (serv->onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length >= port->buffer_high_watermark)
+        swListenPort *port = swServer_get_port(this, fd);
+        if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length >= port->buffer_high_watermark)
         {
-            serv->notify(serv, conn, SW_SERVER_EVENT_BUFFER_FULL);
+            notify(this, conn, SW_SERVER_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
         }
     }
@@ -1540,9 +1538,9 @@ static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char 
     return length;
 }
 
-SW_API void swServer_call_hook(swServer *serv, enum swServer_hook_type type, void *arg)
+void Server::call_hook(enum swServer_hook_type type, void *arg)
 {
-    swoole::hook_call(serv->hooks, type, arg);
+    swoole::hook_call(hooks, type, arg);
 }
 
 /**
@@ -1644,7 +1642,7 @@ void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode)
 
     if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER])
     {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MASTER_TIMER, serv);
+        serv->call_hook(SW_SERVER_HOOK_MASTER_TIMER, serv);
     }
 }
 
@@ -1665,9 +1663,9 @@ int Server::add_worker(swWorker *worker)
     return worker->id;
 }
 
-SW_API int swServer_add_hook(swServer *serv, enum swServer_hook_type type, swCallback func, int push_back)
+int Server::add_hook(enum swServer_hook_type type, swCallback func, int push_back)
 {
-    return swoole::hook_add(serv->hooks, (int) type, func, push_back);
+    return swoole::hook_add(hooks, (int) type, func, push_back);
 }
 
 void Server::check_port_type(swListenPort *ls)
@@ -1843,18 +1841,6 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
     return ls;
 }
 
-int swServer_get_socket(swServer *serv, int port)
-{
-    for (auto ls : serv->ports)
-    {
-        if (ls->port == port || port == 0)
-        {
-            return ls->socket->fd;
-        }
-    }
-    return SW_ERR;
-}
-
 static void swServer_signal_handler(int sig)
 {
     swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
@@ -1955,24 +1941,24 @@ void swServer_connection_each(swServer *serv, void (*callback)(swConnection *con
 /**
  * new connection
  */
-static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, swSocket *_socket, int server_fd)
+swConnection* Server::add_connection(swListenPort *ls, swSocket *_socket, int server_fd)
 {
-    serv->gs->accept_count++;
-    sw_atomic_fetch_add(&serv->gs->connection_num, 1);
+    gs->accept_count++;
+    sw_atomic_fetch_add(&gs->connection_num, 1);
     sw_atomic_fetch_add(ls->connection_num, 1);
     time_t now;
 
     int fd = _socket->fd;
-    if (fd > serv->get_maxfd())
+    if (fd > get_maxfd())
     {
-        serv->set_maxfd(fd);
+        set_maxfd(fd);
     }
-    else if (fd < serv->get_minfd())
+    else if (fd < get_minfd())
     {
-        serv->set_minfd(fd);
+        set_minfd(fd);
     }
 
-    swConnection *connection = &(serv->connection_list[fd]);
+    swConnection *connection = &(connection_list[fd]);
     sw_memset_zero(connection, sizeof(*connection));
     _socket->object = connection;
     _socket->removed = 1;
@@ -2007,10 +1993,10 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
         }
     }
 
-    now = time(nullptr);
+    now = ::time(nullptr);
 
     connection->fd = fd;
-    connection->reactor_id = serv->factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % serv->reactor_num;
+    connection->reactor_id = factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
     connection->connect_time = now;
     connection->last_time = now;
@@ -2027,11 +2013,11 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
     }
 
     swSession *session;
-    sw_spinlock(&serv->gs->spinlock);
+    sw_spinlock(&gs->spinlock);
     uint32_t i;
-    uint32_t session_id = serv->gs->session_round;
+    uint32_t session_id = gs->session_round;
     //get session id
-    for (i = 0; i < serv->max_connection; i++)
+    for (i = 0; i < max_connection; i++)
     {
         session_id++;
         //SwooleGS->session_round just has 24 bits size;
@@ -2039,7 +2025,7 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
         {
             session_id = 1;
         }
-        session = swServer_get_session(serv, session_id);
+        session = get_session(session_id);
         //vacancy
         if (session->fd == 0)
         {
@@ -2049,8 +2035,8 @@ static swConnection* swServer_connection_new(swServer *serv, swListenPort *ls, s
             break;
         }
     }
-    serv->gs->session_round = session_id;
-    sw_spinlock_release(&serv->gs->spinlock);
+    gs->session_round = session_id;
+    sw_spinlock_release(&gs->spinlock);
     connection->session_id = session_id;
 
     return connection;

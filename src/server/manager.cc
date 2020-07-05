@@ -54,7 +54,7 @@ static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
     swServer *serv = (swServer *) tnode->data;
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
     {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, serv);
+        serv->call_hook(SW_SERVER_HOOK_MANAGER_TIMER, serv);
     }
 }
 
@@ -319,7 +319,7 @@ static int swManager_loop(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
     {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_START, serv);
+        serv->call_hook(SW_SERVER_HOOK_MANAGER_START, serv);
     }
 
     if (serv->onManagerStart)
