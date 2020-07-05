@@ -36,9 +36,14 @@ $pm->childFunc = function () use ($pm) {
 
     $serv->on('Packet', function (Server $serv, string $data, array $clientInfo) {
         $serv->task($data);
+        $serv->task($data);
     });
 
-    $serv->on('Task', function (Server $serv, $task_id, int  $from_id, string $data) {
+    $serv->on('Task', function (Server $serv, $task_id, int $workerId, string $data) {
+        static $sleep = false;
+        if ($sleep) {
+            return;
+        }
         sleep(1);
     });
 
