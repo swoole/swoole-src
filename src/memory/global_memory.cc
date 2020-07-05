@@ -23,7 +23,7 @@
 using namespace std;
 
 #define SW_MIN_PAGE_SIZE  4096
-#define SW_MIN_EXPONENT   3     //8
+#define SW_MIN_EXPONENT   4     //16
 #define SW_MAX_EXPONENT   21    //2M
 
 struct MemoryBlock;
@@ -44,6 +44,8 @@ struct MemoryBlock
 {
     uint32_t size;
     uint32_t index;
+    bool shared;
+    pid_t create_pid;
     char memory[0];
 };
 
@@ -109,7 +111,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     int index = SW_MIN_EXPONENT;
     if (alloc_size > (1 << SW_MIN_EXPONENT))
     {
-        for (; index < SW_MAX_EXPONENT; index++)
+        for (; index <= SW_MAX_EXPONENT; index++)
         {
             if ((alloc_size >> index) == 1)
             {
@@ -117,7 +119,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
             }
         }
     }
-    index -= (SW_MIN_EXPONENT + 1);
+    index -= SW_MIN_EXPONENT;
 
     list<MemoryBlock *> &free_blocks = gm->pool.at(index);
     if (!free_blocks.empty())
@@ -142,6 +144,8 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 
     block->size = size;
     block->index = index;
+    block->shared = gm->shared;
+    block->create_pid = SwooleG.pid;
 
     return block->memory;
 }
@@ -151,7 +155,7 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
     MemoryPool *gm = (MemoryPool *) pool->object;
     MemoryBlock *block = (MemoryBlock *) ((char*) ptr - sizeof(*block));
 
-    if (gm->shared && gm->create_pid != SwooleG.pid)
+    if (block->shared && (gm->create_pid != block->create_pid or block->create_pid != SwooleG.pid))
     {
         return;
     }

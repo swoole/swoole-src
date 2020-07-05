@@ -108,6 +108,7 @@ struct swTable
 
     swTable_iterator *iterator;
     uint64_t (*hash_func)(const char *key, size_t len);
+    pid_t create_pid;
 
     void *memory;
 };

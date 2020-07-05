@@ -244,6 +244,10 @@ pid_t swoole_fork(int flags)
         {
             swoole_timer_free();
         }
+        if (SwooleG.memory_pool)
+        {
+            SwooleG.memory_pool->destroy(SwooleG.memory_pool);
+        }
         if (!(flags & SW_FORK_EXEC))
         {
             /**
