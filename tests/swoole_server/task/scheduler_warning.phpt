@@ -17,7 +17,7 @@ $pm->parentFunc = function () use ($pm) {
     }
     $client->send("ping");
     $client->send("ping");
-    sleep(1);
+    sleep(2);
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
@@ -28,8 +28,10 @@ $pm->childFunc = function () use ($pm) {
         'log_level' => SWOOLE_LOG_NOTICE,
     ]);
 
-    $serv->on("WorkerStart", function (Server $serv)  use ($pm) {
-        $pm->wakeup();
+    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
+        if ($serv->taskworker) {
+            $pm->wakeup();
+        }
     });
 
     $serv->on('Packet', function (Server $serv, string $data, array $clientInfo) {
