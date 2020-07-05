@@ -165,6 +165,7 @@ typedef struct _swStream
 {
     swString *buffer;
     uint8_t cancel;
+    int errCode;
     void *private_data;
     void (*response)(struct _swStream *stream, const char *data, uint32_t length);
     swClient client;

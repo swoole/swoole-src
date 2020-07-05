@@ -114,6 +114,13 @@ static void swReactorThread_onStreamResponse(swStream *stream, const char *data,
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", pkg_info->fd);
         return;
     }
+    if (data == nullptr) {
+        swEvent _ev = { };
+        _ev.fd = conn->fd;
+        _ev.socket = conn->socket;
+        swReactor_trigger_close_event(sw_reactor(), &_ev);
+        return;
+    }
     response.info.fd = conn->session_id;
     response.info.type = pkg_info->type;
     response.info.len = length - sizeof(swDataHead);
