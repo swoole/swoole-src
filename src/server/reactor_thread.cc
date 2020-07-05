@@ -827,7 +827,7 @@ int swReactorThread_create(swServer *serv)
     /**
      * init reactor thread pool
      */
-    serv->reactor_threads = new ReactorThread[serv->reactor_num];
+    serv->reactor_threads = new ReactorThread[serv->reactor_num]();
     /**
      * alloc the memory for connection_list
      */

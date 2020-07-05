@@ -16,129 +16,157 @@
 
 #include "swoole.h"
 
+#include <vector>
+#include <list>
+#include <mutex>
+
+using namespace std;
+
 #define SW_MIN_PAGE_SIZE  4096
+#define SW_MIN_EXPONENT   3     //8
+#define SW_MAX_EXPONENT   21    //2M
 
-typedef struct _swMemoryGlobal_page
-{
-    struct _swMemoryGlobal_page *next;
-    char memory[0];
-} swMemoryGlobal_page;
+struct MemoryBlock;
 
-typedef struct _swMemoryGlobal
+struct MemoryPool
 {
-    uint8_t shared;
+    pid_t create_pid;
+    bool shared;
     uint32_t pagesize;
-    swLock lock;
-    swMemoryGlobal_page *root_page;
-    swMemoryGlobal_page *current_page;
-    uint32_t current_offset;
-} swMemoryGlobal;
+    mutex lock;
+    vector<char *> pages;
+    vector<list<MemoryBlock *>> pool;
+    uint32_t alloc_offset;
+    swMemoryPool allocator;
+};
+
+struct MemoryBlock
+{
+    uint32_t size;
+    uint32_t index;
+    char memory[0];
+};
 
 static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size);
 static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr);
-static void swMemoryGlobal_destroy(swMemoryPool *poll);
-static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm);
+static void swMemoryGlobal_destroy(swMemoryPool *pool);
+static char *swMemoryGlobal_new_page(MemoryPool *gm);
 
-swMemoryPool* swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
+swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
 {
-    swMemoryGlobal gm, *gm_ptr;
     assert(pagesize >= SW_MIN_PAGE_SIZE);
-    sw_memset_zero(&gm, sizeof(swMemoryGlobal));
 
-    gm.shared = shared;
-    gm.pagesize = pagesize;
+    MemoryPool *gm = new MemoryPool();
 
-    swMemoryGlobal_page *page = swMemoryGlobal_new_page(&gm);
+    gm->shared = shared;
+    gm->pagesize = SW_MEM_ALIGNED_SIZE_EX(pagesize, SwooleG.pagesize);
+    gm->create_pid = getpid();
+    gm->pool.resize(20);
+
+    char *page = swMemoryGlobal_new_page(gm);
     if (page == nullptr)
     {
         return nullptr;
     }
-    if (swMutex_create(&gm.lock, shared) < 0)
-    {
-        return nullptr;
-    }
 
-    gm.root_page = page;
-
-    gm_ptr = (swMemoryGlobal *) page->memory;
-    gm.current_offset += sizeof(swMemoryGlobal);
-
-    swMemoryPool *allocator = (swMemoryPool *) (page->memory + gm.current_offset);
-    gm.current_offset += sizeof(swMemoryPool);
-
-    allocator->object = gm_ptr;
+    swMemoryPool *allocator = &gm->allocator;
+    allocator->object = gm;
     allocator->alloc = swMemoryGlobal_alloc;
     allocator->destroy = swMemoryGlobal_destroy;
     allocator->free = swMemoryGlobal_free;
 
-    memcpy(gm_ptr, &gm, sizeof(gm));
     return allocator;
 }
 
-static swMemoryGlobal_page* swMemoryGlobal_new_page(swMemoryGlobal *gm)
+static char *swMemoryGlobal_new_page(MemoryPool *gm)
 {
-    swMemoryGlobal_page *page = (swMemoryGlobal_page *)((gm->shared == 1) ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize));
+    char *page = (char *) (gm->shared ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize));
     if (page == nullptr)
     {
         return nullptr;
     }
     sw_memset_zero(page, gm->pagesize);
-    page->next = nullptr;
 
-    if (gm->current_page != nullptr)
-    {
-        gm->current_page->next = page;
-    }
-
-    gm->current_page = page;
-    gm->current_offset = 0;
+    gm->pages.push_back(page);
+    gm->alloc_offset = 0;
 
     return page;
 }
 
 static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 {
-    swMemoryGlobal *gm = (swMemoryGlobal *) pool->object;
-    size = SW_MEM_ALIGNED_SIZE(size);
-    gm->lock.lock(&gm->lock);
-    if (size > gm->pagesize - sizeof(swMemoryGlobal_page))
+    MemoryPool *gm = (MemoryPool *) pool->object;
+    MemoryBlock *block;
+    uint32_t alloc_size = SW_MEM_ALIGNED_SIZE(sizeof(MemoryBlock) + size);
+    unique_lock<mutex> lock(gm->lock);
+
+    if (alloc_size > gm->pagesize)
     {
-        swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, gm->pagesize - (int) sizeof(swMemoryGlobal_page));
-        gm->lock.unlock(&gm->lock);
+        swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, gm->pagesize);
         return nullptr;
     }
-    if (gm->current_offset + size > gm->pagesize - sizeof(swMemoryGlobal_page))
+
+    int index = SW_MIN_EXPONENT;
+    if (alloc_size > (1 << SW_MIN_EXPONENT))
     {
-        swMemoryGlobal_page *page = swMemoryGlobal_new_page(gm);
+        for (; index < SW_MAX_EXPONENT; index++)
+        {
+            if ((alloc_size >> index) == 1)
+            {
+                break;
+            }
+        }
+    }
+    index -= (SW_MIN_EXPONENT + 1);
+
+    list<MemoryBlock *> &free_blocks = gm->pool.at(index);
+    if (!free_blocks.empty())
+    {
+        block = free_blocks.back();
+        free_blocks.pop_back();
+        return block->memory;
+    }
+
+    if (gm->alloc_offset + alloc_size > gm->pagesize)
+    {
+        char *page = swMemoryGlobal_new_page(gm);
         if (page == nullptr)
         {
-            swWarn("swMemoryGlobal_alloc alloc memory error");
-            gm->lock.unlock(&gm->lock);
+            swWarn("alloc memory error");
             return nullptr;
         }
-        gm->current_page = page;
     }
-    void *mem = gm->current_page->memory + gm->current_offset;
-    gm->current_offset += size;
-    gm->lock.unlock(&gm->lock);
-    return mem;
+
+    block = (MemoryBlock *) gm->pages.back() + gm->alloc_offset;
+    gm->alloc_offset += alloc_size;
+
+    block->size = size;
+    block->index = index;
+
+    return block->memory;
 }
 
 static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
 {
-    swWarn("swMemoryGlobal Allocator don't need to release");
+    MemoryPool *gm = (MemoryPool *) pool->object;
+    MemoryBlock *block = (MemoryBlock *) ((char*) ptr - sizeof(*block));
+
+    list<MemoryBlock *> &free_blocks = gm->pool.at(block->index);
+    free_blocks.push_back(block);
 }
 
-static void swMemoryGlobal_destroy(swMemoryPool *poll)
+static void swMemoryGlobal_destroy(swMemoryPool *pool)
 {
-    swMemoryGlobal *gm = (swMemoryGlobal *) poll->object;
-    swMemoryGlobal_page *page = gm->root_page;
-    swMemoryGlobal_page *next;
+    MemoryPool *gm = (MemoryPool *) pool->object;
 
-    do
+    if (gm->shared and gm->create_pid != getpid())
     {
-        next = page->next;
-        sw_shm_free(page);
-        page = next;
-    } while (page);
+        return;
+    }
+
+    for (auto page : gm->pages)
+    {
+        gm->shared ? sw_shm_free(page) : sw_free(page);
+    }
+    delete gm;
 }
