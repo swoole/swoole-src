@@ -16,29 +16,9 @@ void my_onWorkerStop(swServer *serv, int worker_id);
 
 static int g_receive_count = 0;
 
+
 int main(int argc, char **argv)
 {
-    std::thread t1([]() {
-       sleep(1000);
-    });
-
-
-    if (t1.joinable()) {
-        printf("t1 is joinable\n");
-        pthread_cancel(t1.native_handle());
-        t1.join();
-        printf("t1 is stop\n");
-    }
-
-    std::thread t2;
-
-
-    if (t2.joinable()) {
-        printf("t2 is joinable\n");
-    }
-
-    return 0;
-
     swLog_set_date_format("%F %T");
     swLog_set_date_with_microseconds(true);
 

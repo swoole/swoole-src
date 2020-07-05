@@ -60,7 +60,7 @@ swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
 
     gm->shared = shared;
     gm->pagesize = SW_MEM_ALIGNED_SIZE_EX(pagesize, SwooleG.pagesize);
-    gm->create_pid = getpid();
+    gm->create_pid = SwooleG.pid;
     gm->pool.resize(20);
 
     char *page = swMemoryGlobal_new_page(gm);
@@ -151,6 +151,13 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
     MemoryPool *gm = (MemoryPool *) pool->object;
     MemoryBlock *block = (MemoryBlock *) ((char*) ptr - sizeof(*block));
 
+    if (gm->shared && gm->create_pid != SwooleG.pid)
+    {
+        return;
+    }
+
+    unique_lock<mutex> lock(gm->lock);
+
     list<MemoryBlock *> &free_blocks = gm->pool.at(block->index);
     free_blocks.push_back(block);
 }
@@ -159,7 +166,7 @@ static void swMemoryGlobal_destroy(swMemoryPool *pool)
 {
     MemoryPool *gm = (MemoryPool *) pool->object;
 
-    if (gm->shared and gm->create_pid != getpid())
+    if (gm->shared and gm->create_pid != SwooleG.pid)
     {
         return;
     }
