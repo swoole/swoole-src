@@ -25,7 +25,7 @@
 using std::unordered_map;
 using namespace swoole;
 
-static int swReactorThread_loop(swServer *serv, int reactor_id);
+static void swReactorThread_loop(swServer *serv, int reactor_id);
 static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t reactor_id);
 static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev);
@@ -1082,7 +1082,7 @@ static int swReactorThread_is_empty(swReactor *reactor)
 /**
  * ReactorThread main Loop
  */
-static int swReactorThread_loop(swServer *serv, int reactor_id)
+static void swReactorThread_loop(swServer *serv, int reactor_id)
 {
     int ret;
 
@@ -1092,7 +1092,7 @@ static int swReactorThread_loop(swServer *serv, int reactor_id)
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == nullptr)
     {
-        return SW_ERR;
+        return;
     }
 
     swReactorThread *thread = serv->get_thread(reactor_id);
@@ -1126,14 +1126,14 @@ static int swReactorThread_loop(swServer *serv, int reactor_id)
     ret = swReactor_create(reactor, SW_REACTOR_MAXEVENTS);
     if (ret < 0)
     {
-        return SW_ERR;
+        return;
     }
 
     swSignal_none();
 
     if (swReactorThread_init(serv, reactor, reactor_id) < 0)
     {
-        return SW_ERR;
+        return;
     }
 
     //wait other thread
@@ -1153,10 +1153,9 @@ static int swReactorThread_loop(swServer *serv, int reactor_id)
     {
         swString_free(it->second);
     }
+    sw_free(thread->pipe_sockets);
 
     swString_free(SwooleTG.buffer_stack);
-    pthread_exit(0);
-    return SW_OK;
 }
 
 static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode)

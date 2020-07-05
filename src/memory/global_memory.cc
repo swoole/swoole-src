@@ -179,6 +179,7 @@ static void swMemoryGlobal_destroy(swMemoryPool *pool)
 
     if (gm->shared and gm->create_pid != SwooleG.pid)
     {
+        delete gm;
         return;
     }
 

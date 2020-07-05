@@ -999,9 +999,9 @@ void Server::destory()
         swReactorThread_join(this);
     }
 
-    for (auto ls : ports)
+    for (auto port : ports)
     {
-        swPort_free(ls);
+        swPort_free(port);
     }
 
     /**

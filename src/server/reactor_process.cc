@@ -122,7 +122,12 @@ int Server::start_reactor_processes()
     //single worker
     if (swServer_is_single(this))
     {
-        return swReactorProcess_loop(&gs->event_workers, &gs->event_workers.workers[0]);
+        int retval = swReactorProcess_loop(&gs->event_workers, &gs->event_workers.workers[0]);
+        if (retval == SW_OK)
+        {
+            swProcessPool_free(&gs->event_workers);
+        }
+        return retval;
     }
 
     for (i = 0; i < worker_num; i++)

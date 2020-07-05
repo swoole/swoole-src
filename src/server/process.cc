@@ -103,6 +103,8 @@ static void swFactoryProcess_free(swFactory *factory)
         object->pipes[i].close(&object->pipes[i]);
     }
 
+    sw_free(object->send_buffer);
+    sw_free(object->pipes);
     sw_free(object);
 }
 
