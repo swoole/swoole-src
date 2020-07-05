@@ -1106,7 +1106,7 @@ ssize_t Socket::recv_with_buffer(void *__buf, size_t __n)
     }
 
     buffer->length += retval;
-    size_t copy_bytes = std::min(__n - buffer_bytes, buffer->length - buffer->offset);
+    size_t copy_bytes = SW_MIN(__n - buffer_bytes, buffer->length - buffer->offset);
     memcpy((char*) __buf + buffer_bytes, buffer->str + buffer->offset, copy_bytes);
     buffer->offset += copy_bytes;
 
