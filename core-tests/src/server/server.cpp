@@ -1,3 +1,22 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | @link     https://www.swoole.com/                                    |
+  | @contact  team@swoole.com                                            |
+  | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
+  | @author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
+  +----------------------------------------------------------------------+
+*/
+
 #include "tests.h"
 #include "wrapper/client.hpp"
 
@@ -152,3 +171,47 @@ TEST(server, process)
     ASSERT_EQ(serv.start(), 0);
 }
 
+TEST(server, task_worker)
+{
+    swServer serv;
+    serv.worker_num = 1;
+    serv.task_worker_num = 1;
+
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port)
+    {
+        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    serv.onTask = [](swServer *serv, swEventData *task) -> int
+    {
+        EXPECT_EQ(string(task->data, task->info.len), string(packet));
+        serv->gs->task_workers.running = 0;
+        return 0;
+    };
+
+    ASSERT_EQ(serv.create(), SW_OK);
+    ASSERT_EQ(serv.create_task_workers(), SW_OK);
+
+    thread t1([&serv](){
+        serv.gs->task_workers.running = 1;
+        serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
+    });
+
+    usleep(10000);
+
+    swEventData buf;
+    memset(&buf.info, 0, sizeof(buf.info));
+
+    swTask_type(&buf) |= SW_TASK_NOREPLY;
+    buf.info.len = strlen(packet);
+    memcpy(buf.data, packet, strlen(packet));
+
+    int _dst_worker_id = 0;
+
+    ASSERT_GE(swProcessPool_dispatch(&serv.gs->task_workers, &buf, &_dst_worker_id), 0);
+
+    t1.join();
+    swProcessPool_free(&serv.gs->task_workers);
+}

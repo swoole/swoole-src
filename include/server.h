@@ -796,6 +796,10 @@ class Server
         return &connection_list[fd];
     }
 
+    int create_task_workers();
+    int create_user_workers();
+    int start_manager_process();
+
  private:
     /**
      * http static file directory
@@ -898,9 +902,6 @@ int swServer_get_socket(swServer *serv, int port);
 int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 void swServer_worker_start(swServer *serv, swWorker *worker);
-
-int swServer_create_task_workers(swServer *serv);
-int swServer_create_user_workers(swServer *serv);
 
 void swTaskWorker_init(swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
@@ -1173,7 +1174,6 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *da
 int swReactorProcess_create(swServer *serv);
 void swReactorProcess_free(swServer *serv);
 
-int swManager_start(swServer *serv);
 pid_t swManager_spawn_worker(swServer *serv, swWorker *worker);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);

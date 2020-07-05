@@ -197,7 +197,7 @@ static int swFactoryProcess_start(swFactory *factory)
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
-    if (swManager_start(serv) < 0)
+    if (serv->start_manager_process() < 0)
     {
         swWarn("swFactoryProcess_manager_start failed");
         return SW_ERR;

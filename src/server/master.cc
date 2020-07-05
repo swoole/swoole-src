@@ -511,17 +511,17 @@ void** swServer_worker_create_buffers(swServer *serv, uint buffer_num)
 /**
  * only the memory of the swWorker structure is allocated, no process is fork
  */
-int swServer_create_task_workers(swServer *serv)
+int Server::create_task_workers()
 {
     key_t key = 0;
     int ipc_mode;
 
-    if (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
+    if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)
     {
-        key = serv->message_queue_key;
+        key = message_queue_key;
         ipc_mode = SW_IPC_MSGQUEUE;
     }
-    else if (serv->task_ipc_mode == SW_TASK_IPC_STREAM)
+    else if (task_ipc_mode == SW_TASK_IPC_STREAM)
     {
         ipc_mode = SW_IPC_SOCKET;
     }
@@ -530,26 +530,28 @@ int swServer_create_task_workers(swServer *serv)
         ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    swProcessPool *pool = &serv->gs->task_workers;
-    if (swProcessPool_create(pool, serv->task_worker_num, key, ipc_mode) < 0)
+    swProcessPool *pool = &gs->task_workers;
+    if (swProcessPool_create(pool, task_worker_num, key, ipc_mode) < 0)
     {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
 
-    swProcessPool_set_max_request(pool, serv->task_max_request, serv->task_max_request_grace);
-    swProcessPool_set_start_id(pool, serv->worker_num);
+    swProcessPool_set_max_request(pool, task_max_request, task_max_request_grace);
+    swProcessPool_set_start_id(pool, worker_num);
     swProcessPool_set_type(pool, SW_PROCESS_TASKWORKER);
 
     if (ipc_mode == SW_IPC_SOCKET)
     {
         char sockfile[sizeof(struct sockaddr_un)];
-        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", serv->gs->master_pid);
-        if (swProcessPool_create_unix_socket(&serv->gs->task_workers, sockfile, 2048) < 0)
+        snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
+        if (swProcessPool_create_unix_socket(&gs->task_workers, sockfile, 2048) < 0)
         {
             return SW_ERR;
         }
     }
+
+    swTaskWorker_init(this);
 
     return SW_OK;
 }
@@ -561,19 +563,19 @@ int swServer_create_task_workers(swServer *serv)
  * @param swServer
  * @return: SW_OK|SW_ERR
  */
-int swServer_create_user_workers(swServer *serv)
+int Server::create_user_workers()
 {
     /**
      * if Swoole\Server::addProcess is called first, 
      * swServer::user_worker_list is initialized in the swServer_add_worker function
      */
-    if (serv->user_worker_list == nullptr)
+    if (user_worker_list == nullptr)
     {
-        serv->user_worker_list = new std::vector<swWorker *>;
+        user_worker_list = new std::vector<swWorker *>;
     }
 
-    serv->user_workers = (swWorker *) sw_shm_calloc(serv->user_worker_num, sizeof(swWorker));
-    if (serv->user_workers == nullptr)
+    user_workers = (swWorker *) sw_shm_calloc(user_worker_num, sizeof(swWorker));
+    if (user_workers == nullptr)
     {
         swSysWarn("gmalloc[server->user_workers] failed");
         return SW_ERR;

@@ -2212,6 +2212,7 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_get_max_request(swProcessPool *pool);
+void swProcessPool_free(swProcessPool *pool);
 
 static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id)
 {

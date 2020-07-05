@@ -136,11 +136,10 @@ int Server::start_reactor_processes()
     //task workers
     if (task_worker_num > 0)
     {
-        if (swServer_create_task_workers(this) < 0)
+        if (create_task_workers() < 0)
         {
             return SW_ERR;
         }
-        swTaskWorker_init(this);
         if (swProcessPool_start(&gs->task_workers) < 0)
         {
             return SW_ERR;

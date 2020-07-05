@@ -16,21 +16,10 @@ void my_onWorkerStop(swServer *serv, int worker_id);
 
 static int g_receive_count = 0;
 
-
 int main(int argc, char **argv)
 {
     swoole_init();
-    auto m = swMemoryGlobal_new(2 * 1024 * 1024, false);
 
-    void *ptr1 = m->alloc(m, 199);
-    m->free(m, ptr1);
-
-    void *ptr2 = m->alloc(m, 1);
-    void *ptr3 = m->alloc(m, 198);
-
-    printf("ptr1=%p, ptr2=%p, ptr3=%p\n", ptr1, ptr2, ptr3);
-
-    return 0;
     swLog_set_date_format("%F %T");
     swLog_set_date_with_microseconds(true);
 

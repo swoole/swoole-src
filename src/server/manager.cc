@@ -24,6 +24,8 @@
 #include <sys/prctl.h>
 #endif
 
+using namespace swoole;
+
 struct swManagerProcess
 {
     bool reloading;
@@ -169,47 +171,46 @@ static sw_inline int swManager_spawn_user_workers(swServer *serv)
 }
 
 //create worker child proccess
-int swManager_start(swServer *serv)
+int Server::start_manager_process()
 {
     uint32_t i;
     pid_t pid;
 
-    if (serv->task_worker_num > 0)
+    if (task_worker_num > 0)
     {
-        if (swServer_create_task_workers(serv) < 0)
+        if (create_task_workers() < 0)
         {
             return SW_ERR;
         }
-        swTaskWorker_init(serv);
 
         swWorker *worker;
-        for (i = 0; i < serv->task_worker_num; i++)
+        for (i = 0; i < task_worker_num; i++)
         {
-            worker = &serv->gs->task_workers.workers[i];
-            if (swServer_worker_create(serv, worker) < 0)
+            worker = &gs->task_workers.workers[i];
+            if (swServer_worker_create(this, worker) < 0)
             {
                 return SW_ERR;
             }
-            if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
+            if (task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
             {
-                swServer_store_pipe_fd(serv, worker->pipe_object);
+                swServer_store_pipe_fd(this, worker->pipe_object);
             }
         }
     }
 
     //User Worker Process
-    if (serv->user_worker_num > 0)
+    if (user_worker_num > 0)
     {
-        if (swServer_create_user_workers(serv) < 0)
+        if (create_user_workers() < 0)
         {
             return SW_ERR;
         }
 
         i = 0;
-        for (auto worker : *serv->user_worker_list)
+        for (auto worker : *user_worker_list)
         {
-            memcpy(&serv->user_workers[i], worker, sizeof(swWorker));
-            if (swServer_worker_create(serv, &serv->user_workers[i]) < 0)
+            memcpy(&user_workers[i], worker, sizeof(swWorker));
+            if (swServer_worker_create(this, &user_workers[i]) < 0)
             {
                 return SW_ERR;
             }
@@ -217,8 +218,8 @@ int swManager_start(swServer *serv)
         }
     }
 
-    serv->message_box = swChannel_new(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
-    if (serv->message_box == nullptr)
+    message_box = swChannel_new(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
+    if (message_box == nullptr)
     {
         return SW_ERR;
     }
@@ -230,33 +231,33 @@ int swManager_start(swServer *serv)
     case 0:
         //wait master process
         SW_START_SLEEP;
-        if (!serv->gs->start)
+        if (!gs->start)
         {
             return SW_OK;
         }
-        swServer_close_port(serv, SW_TRUE);
+        swServer_close_port(this, SW_TRUE);
         
-        if (swManager_spawn_task_workers(serv) < 0)
+        if (swManager_spawn_task_workers(this) < 0)
         {
             return SW_ERR;
         }
-        if (swManager_spawn_workers(serv) < 0)
+        if (swManager_spawn_workers(this) < 0)
         {
             return SW_ERR;
         }
-        if (swManager_spawn_user_workers(serv) < 0)
+        if (swManager_spawn_user_workers(this) < 0)
         {
             return SW_ERR;
         }
 
         SwooleG.process_type = SW_PROCESS_MANAGER;
         SwooleG.pid = getpid();
-        exit(swManager_loop(serv));
+        exit(swManager_loop(this));
         break;
 
         //master process
     default:
-        serv->gs->manager_pid = pid;
+        gs->manager_pid = pid;
         break;
     case -1:
         swError("fork() failed");

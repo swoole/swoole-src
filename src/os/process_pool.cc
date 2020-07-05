@@ -26,8 +26,6 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker);
  */
 static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker);
 
-static void swProcessPool_free(swProcessPool *pool);
-
 static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnode)
 {
     uint32_t i;
@@ -856,7 +854,7 @@ int swProcessPool_wait(swProcessPool *pool)
     return SW_OK;
 }
 
-static void swProcessPool_free(swProcessPool *pool)
+void swProcessPool_free(swProcessPool *pool)
 {
     uint32_t i;
     swPipe *_pipe;

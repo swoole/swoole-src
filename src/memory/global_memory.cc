@@ -23,7 +23,7 @@
 using namespace std;
 
 #define SW_MIN_PAGE_SIZE  4096
-#define SW_MIN_EXPONENT   4     //16
+#define SW_MIN_EXPONENT   5     //32
 #define SW_MAX_EXPONENT   21    //2M
 
 struct MemoryBlock;
@@ -99,7 +99,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
 {
     MemoryPool *gm = (MemoryPool *) pool->object;
     MemoryBlock *block;
-    uint32_t alloc_size = SW_MEM_ALIGNED_SIZE(sizeof(MemoryBlock) + size);
+    uint32_t alloc_size = sizeof(MemoryBlock) + size;
     unique_lock<mutex> lock(gm->lock);
 
     if (alloc_size > gm->pagesize)
@@ -118,7 +118,10 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
                 break;
             }
         }
+        index++;
     }
+    alloc_size = 1 << (index);
+    swTrace("alloc_size = %d, size=%d, index=%d\n", alloc_size, size, index);
     index -= SW_MIN_EXPONENT;
 
     list<MemoryBlock *> &free_blocks = gm->pool.at(index);
