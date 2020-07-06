@@ -83,7 +83,7 @@ static void signal_free(void *nullopt)
     swSignal_clear();
 }
 
-void sigchld_init()
+static void signal_init()
 {
     if (!signal_ready)
     {
@@ -131,20 +131,15 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
 
     if (sw_unlikely(SwooleTG.reactor == nullptr || !Coroutine::get_current() || (__options & WNOHANG)))
     {
-        pid_t pid = ::waitpid(__pid, __stat_loc, __options);
-        if (pid > 0)
-        {
-            signal_free(nullptr);
-        }
-        return pid;
+        return ::waitpid(__pid, __stat_loc, __options);
     }
 
     /* try once if failed we init the task */
     wait_task task;
+    signal_init();
     task.pid = ::waitpid(__pid, __stat_loc, __options | WNOHANG);
     if (task.pid > 0)
     {
-        signal_free(nullptr);
         return task.pid;
     }
 

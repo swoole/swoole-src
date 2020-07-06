@@ -21,8 +21,6 @@
 #include <string>
 #include <vector>
 
-void sigchld_init();
-
 namespace swoole { namespace coroutine {
 //-------------------------------------------------------------------------------
 class System
