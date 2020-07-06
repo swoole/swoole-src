@@ -847,6 +847,11 @@ class Server
 
     int send_to_connection(swSendData *);
 
+    void set_ipc_max_size();
+    int create_pipe_buffers();
+
+    void disable_accept();
+
  private:
     /**
      * http static file directory
@@ -878,9 +883,6 @@ void swServer_clear_timer(swServer *serv);
 #ifdef SW_SUPPORT_DTLS
 swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
 #endif
-
-void swServer_set_ipc_max_size(swServer *serv);
-int swServer_create_pipe_buffers(swServer *serv);
 
 static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
 {

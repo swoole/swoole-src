@@ -182,8 +182,8 @@ static int swFactoryProcess_start(swFactory *factory)
         return SW_ERR;
     }
 
-    swServer_set_ipc_max_size(serv);
-    if (swServer_create_pipe_buffers(serv) < 0)
+    serv->set_ipc_max_size();
+    if (serv->create_pipe_buffers() < 0)
     {
         return SW_ERR;
     }

@@ -23,8 +23,6 @@
 using namespace swoole;
 
 static void swServer_signal_handler(int sig);
-static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode);
-static void swServer_disable_accept(swServer *serv);
 
 static int swServer_tcp_send(swServer *serv, int session_id, const void *data, uint32_t length);
 static int swServer_tcp_sendwait(swServer *serv, int session_id, const void *data, uint32_t length);
@@ -33,47 +31,42 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static void** swServer_worker_create_buffers(swServer *serv, uint buffer_num);
-static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info);
+static void **swServer_worker_create_buffers(swServer *serv, uint buffer_num);
+static void *swServer_worker_get_buffer(swServer *serv, swDataHead *info);
 static size_t swServer_worker_get_buffer_len(swServer *serv, swDataHead *info);
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
 static void swServer_worker_move_buffer(swServer *serv, swPipeBuffer *buffer);
-
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
-static void swServer_disable_accept(swServer *serv)
+void Server::disable_accept()
 {
-    serv->enable_accept_timer = swoole_timer_add(SW_ACCEPT_RETRY_TIME * 1000, 0, swServer_enable_accept, serv);
-    if (serv->enable_accept_timer == nullptr)
+    enable_accept_timer = swoole_timer_add(SW_ACCEPT_RETRY_TIME * 1000, 0, [](swTimer *timer, swTimer_node *tnode)
+    {
+        Server *serv = (Server *) tnode->data;
+        for (auto port : serv->ports)
+        {
+            if (swSocket_is_dgram(port->type))
+            {
+                continue;
+            }
+            swoole_event_add(port->socket, SW_EVENT_READ);
+        }
+        serv->enable_accept_timer = nullptr;
+    }, this);
+
+    if (enable_accept_timer == nullptr)
     {
         return;
     }
 
-    for (auto ls : serv->ports)
+    for (auto port : ports)
     {
-        //UDP
-        if (swSocket_is_dgram(ls->type))
+        if (swSocket_is_dgram(port->type))
         {
             continue;
         }
-        swoole_event_del(ls->socket);
+        swoole_event_del(port->socket);
     }
-}
-
-static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode)
-{
-    swServer *serv = (swServer *) tnode->data;
-
-    for (auto ls : serv->ports)
-    {
-        if (swSocket_is_dgram(ls->type))
-        {
-            continue;
-        }
-        swoole_event_add(ls->socket, SW_EVENT_READ);
-    }
-
-    serv->enable_accept_timer = nullptr;
 }
 
 void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
@@ -94,7 +87,7 @@ void swServer_close_port(swServer *serv, enum swBool_type only_stream_port)
 
 int Server::accept_connection(swReactor *reactor, swEvent *event)
 {
-    swServer *serv = (swServer *) reactor->ptr;
+    Server *serv = (Server *) reactor->ptr;
     swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
     swSocketAddress client_addr;
 
@@ -112,7 +105,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event)
             default:
                 if (errno == EMFILE || errno == ENFILE)
                 {
-                    swServer_disable_accept(serv);
+                    serv->disable_accept();
                 }
                 swSysWarn("accept() failed");
                 return SW_OK;
@@ -126,7 +119,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", sock->fd);
             swSocket_free(sock);
-            swServer_disable_accept(serv);
+            serv->disable_accept();
             return SW_OK;
         }
 
@@ -486,7 +479,7 @@ uint sw_inline swServer_worker_buffer_num(swServer *serv)
     return buffer_num;
 }
 
-void** swServer_worker_create_buffers(swServer *serv, uint buffer_num)
+void **swServer_worker_create_buffers(swServer *serv, uint buffer_num)
 {
     swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
     if (buffers == nullptr)
@@ -1467,7 +1460,7 @@ static sw_inline void swServer_server_worker_set_buffer(swServer *serv, swDataHe
     buffers[info->reactor_id] = addr;
 }
 
-static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
+static void *swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 {
     swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
     
@@ -2029,44 +2022,44 @@ swConnection* Server::add_connection(swListenPort *ls, swSocket *_socket, int se
     return connection;
 }
 
-void swServer_set_ipc_max_size(swServer *serv)
+void Server::set_ipc_max_size()
 {
 #ifdef HAVE_KQUEUE
-    serv->ipc_max_size = SW_IPC_MAX_SIZE;
+    ipc_max_size = SW_IPC_MAX_SIZE;
 #else
     int bufsize;
     socklen_t _len = sizeof(bufsize);
     /**
      * Get the maximum ipc[unix socket with dgram] transmission length
      */
-    if (getsockopt(serv->workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
+    if (getsockopt(workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0)
     {
         bufsize = SW_IPC_MAX_SIZE;
     }
-    serv->ipc_max_size = bufsize - SW_DGRAM_HEADER_SIZE;
+    ipc_max_size = bufsize - SW_DGRAM_HEADER_SIZE;
 #endif
 }
 
 /**
- * allocate memory for swServer::pipe_buffers
+ * allocate memory for Server::pipe_buffers
  */
-int swServer_create_pipe_buffers(swServer *serv)
+int Server::create_pipe_buffers()
 {
-    serv->pipe_buffers = (swPipeBuffer **) sw_calloc(serv->reactor_num, sizeof(swPipeBuffer *));
-    if (serv->pipe_buffers == nullptr)
+    pipe_buffers = (swPipeBuffer **) sw_calloc(reactor_num, sizeof(swPipeBuffer *));
+    if (pipe_buffers == nullptr)
     {
         swSysError("malloc[buffers] failed");
         return SW_ERR;
     }
-    for (uint32_t i = 0; i < serv->reactor_num; i++)
+    for (uint32_t i = 0; i < reactor_num; i++)
     {
-        serv->pipe_buffers[i] = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
-        if (serv->pipe_buffers[i] == nullptr)
+        pipe_buffers[i] = (swPipeBuffer *) sw_malloc(ipc_max_size);
+        if (pipe_buffers[i] == nullptr)
         {
             swSysError("malloc[sndbuf][%d] failed", i);
             return SW_ERR;
         }
-        sw_memset_zero(serv->pipe_buffers[i], sizeof(swDataHead));
+        sw_memset_zero(pipe_buffers[i], sizeof(swDataHead));
     }
 
     return SW_OK;

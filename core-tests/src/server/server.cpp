@@ -38,7 +38,7 @@ TEST(server, create_pipe_buffers)
 
     test_create_server(&serv);
 
-    ret = swServer_create_pipe_buffers(&serv);
+    ret = serv.create_pipe_buffers();
     ASSERT_EQ(0, ret);
     ASSERT_NE(nullptr, serv.pipe_buffers);
     for (uint32_t i = 0; i < serv.reactor_num; i++)

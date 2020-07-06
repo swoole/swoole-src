@@ -9,6 +9,11 @@ require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Client;
 use Swoole\Server;
 
+const N = 10;
+const LOG_FILE =  __DIR__.'/test.log';
+
+$counter = new Swoole\Atomic(0);
+
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $client = new Client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC);
@@ -16,15 +21,18 @@ $pm->parentFunc = function () use ($pm) {
         exit("connect failed\n");
     }
     $client->send("ping");
-    $client->send("ping");
+    echo $client->recv();
     sleep(2);
     $pm->kill();
 };
-$pm->childFunc = function () use ($pm) {
+
+$pm->childFunc = function () use ($pm, $counter) {
     $serv = new Server("127.0.0.1", $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_UDP);
 
     $serv->set([
-        'task_worker_num' => 1,
+        'worker_num' => 1,
+        'task_worker_num' => 2,
+        'log_file' => LOG_FILE,
         'log_level' => SWOOLE_LOG_NOTICE,
     ]);
 
@@ -35,23 +43,28 @@ $pm->childFunc = function () use ($pm) {
     });
 
     $serv->on('Packet', function (Server $serv, string $data, array $clientInfo) {
-        $serv->task($data);
-        $serv->task($data);
+        $n = N;
+        while ($n--) {
+            $serv->task(['data' => $data, 'client' => $clientInfo]);
+        }
     });
 
-    $serv->on('Task', function (Server $serv, $task_id, int $workerId, string $data) {
-        static $sleep = false;
-        if ($sleep) {
-            return;
+    $serv->on('Task', function (Server $serv, $taskId, int $workerId, $data) use ($pm, $counter) {
+        usleep(1000);
+        if ($counter->add() == N) {
+            $serv->sendto($data['client']['address'], $data['client']['port'], "DONE\n");
         }
-        sleep(1);
-        $sleep = true;
     });
 
     $serv->start();
 };
+
 $pm->childFirst();
 $pm->run();
+
+echo file_get_contents(LOG_FILE);
+unlink(LOG_FILE);
 ?>
 --EXPECTF--
+DONE
 [%s]	WARNING	swServer_master_onTimer (ERRNO %d): No idle task worker is available
