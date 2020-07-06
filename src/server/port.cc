@@ -160,9 +160,9 @@ int swPort_listen(swListenPort *ls)
     return SW_OK;
 }
 
-void swPort_set_protocol(swServer *serv, swListenPort *ls)
+void Server::init_port_protocol(swListenPort *ls)
 {
-    ls->protocol.private_data_2 = serv;
+    ls->protocol.private_data_2 = this;
     //Thread mode must copy the data.
     //will free after onFinish
     if (ls->open_eof_check)
@@ -574,7 +574,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         {
             buffer->offset = request->header_length;
             // send static file content directly in the reactor thread
-            if (!serv->enable_static_handler || !swServer_http_static_handler_hit(serv, request, conn))
+            if (!serv->enable_static_handler || !serv->select_static_handler(request, conn))
             {
                 // dynamic request, dispatch to worker
                 Server::dispatch_task(protocol, _socket, buffer->str, request->header_length);

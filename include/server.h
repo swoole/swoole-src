@@ -505,16 +505,20 @@ class Server
         return ports.front();
     }
 
-    swListenPort *get_port(int _port) {
-        for (auto port : ports) {
-            if (port->port == _port || _port == 0) {
+    swListenPort *get_port(int _port)
+    {
+        for (auto port : ports)
+        {
+            if (port->port == _port || _port == 0)
+            {
                 return port;
             }
         }
         return nullptr;
     }
 
-    swListenPort *get_port_by_fd(int fd) {
+    swListenPort *get_port_by_fd(int fd)
+    {
         sw_atomic_t server_fd = connection_list[fd].server_fd;
         return (swListenPort*) connection_list[server_fd].object;
     }
@@ -660,10 +664,12 @@ class Server
 
     ~Server()
     {
-        if (gs != nullptr && getpid() == gs->master_pid) {
+        if (gs != nullptr && getpid() == gs->master_pid)
+        {
             destroy();
         }
-        for (auto port : ports) {
+        for (auto port : ports)
+        {
             delete port;
         }
         SwooleG.serv = nullptr;
@@ -690,6 +696,7 @@ class Server
 
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
+    bool select_static_handler(swHttpRequest *request, swConnection *conn);
 
     int create();
     int start();
@@ -880,17 +887,13 @@ class Server
         return &session_list[session_id % SW_SESSION_LIST_SIZE];
     }
 
-    inline void lock() {
-        if (single_thread) {
-            return;
-        }
+    inline void lock()
+    {
         lock_.lock();
     }
 
-    inline void unlock() {
-        if (single_thread) {
-            return;
-        }
+    inline void unlock()
+    {
         lock_.unlock();
     }
 
@@ -915,6 +918,9 @@ class Server
     }
 
     int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
+
+    void init_reactor(swReactor *reactor);
+    void init_port_protocol(swListenPort *port);
 
     void set_ipc_max_size();
     int create_pipe_buffers();
@@ -1122,8 +1128,6 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     return key % serv->worker_num;
 }
 
-int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
-
 void swWorker_stop(swWorker *worker);
 
 static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *reactor, swConnection *conn)
@@ -1186,7 +1190,6 @@ static sw_inline swServer *sw_server()
 void swPort_init(swListenPort *port);
 void swPort_free(swListenPort *port);
 int swPort_listen(swListenPort *ls);
-void swPort_set_protocol(swServer *serv, swListenPort *ls);
 int swPort_set_address(swListenPort *ls, int sock);
 #ifdef SW_USE_OPENSSL
 int swPort_enable_ssl_encrypt(swListenPort *ls);
@@ -1199,9 +1202,6 @@ int swWorker_loop(swServer *serv, swWorker *worker);
 void swWorker_clean_pipe_buffer(swServer *serv);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
-
-void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
-void swReactorThread_join(swServer *serv);
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);

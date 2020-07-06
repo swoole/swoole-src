@@ -632,10 +632,10 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
+void Server::init_reactor(swReactor *reactor)
 {
-    //64k packet
-    if (serv->have_dgram_sock)
+    //support 64K packet
+    if (have_dgram_sock)
     {
         swString_extend_align(SwooleTG.buffer_stack, SwooleTG.buffer_stack->size * 2);
     }
@@ -647,17 +647,17 @@ void swReactorThread_set_protocol(swServer *serv, swReactor *reactor)
     swReactor_set_handler(reactor, SW_FD_SESSION | SW_EVENT_READ, swReactorThread_onRead);
 
     //listen the all tcp port
-    for (auto ls : serv->ports)
+    for (auto port : ports)
     {
-        if (swSocket_is_dgram(ls->type)
+        if (swSocket_is_dgram(port->type)
 #ifdef SW_SUPPORT_DTLS
-                && !ls->ssl_option.dtls
+                && !port->ssl_option.dtls
 #endif
                 )
         {
             continue;
         }
-        swPort_set_protocol(serv, ls);
+        init_port_protocol(port);
     }
 }
 
@@ -1029,8 +1029,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
         }
     }
 
-    //set protocol function point
-    swReactorThread_set_protocol(serv, reactor);
+    serv->init_reactor(reactor);
 
     int max_pipe_fd = serv->get_worker(serv->worker_num - 1)->pipe_master->fd + 2;
     thread->pipe_sockets = (swSocket *) sw_calloc(max_pipe_fd, sizeof(swSocket));

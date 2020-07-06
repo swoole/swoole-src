@@ -407,8 +407,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
         }
     }
 
-    //set protocol function point
-    swReactorThread_set_protocol(serv, reactor);
+    serv->init_reactor(reactor);
 
     //single server trigger onStart event
     if (swServer_is_single(serv))

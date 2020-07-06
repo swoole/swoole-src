@@ -17,8 +17,6 @@
 #include "server.h"
 #include "swoole_cxx.h"
 #include "http.h"
-#include <sys/time.h>
-#include <time.h>
 
 using namespace swoole;
 
@@ -464,9 +462,9 @@ void swServer_store_listen_socket(swServer *serv)
     }
 }
 
-uint sw_inline swServer_worker_buffer_num(swServer *serv)
+uint32_t sw_inline swServer_worker_buffer_num(swServer *serv)
 {
-    uint buffer_num;
+    uint32_t buffer_num;
 
     if (serv->factory_mode == SW_MODE_BASE)
     {
