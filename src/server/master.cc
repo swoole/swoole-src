@@ -1030,7 +1030,7 @@ void Server::destroy()
     }
     if (factory_mode == SW_MODE_BASE)
     {
-        destroy_reactor_threads();
+        destroy_reactor_processes();
     }
     else
     {
