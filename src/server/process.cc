@@ -409,11 +409,11 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swConnection *conn;
     if (resp->info.type != SW_SERVER_EVENT_CLOSE)
     {
-        conn = swServer_connection_verify(serv, session_id);
+        conn = serv->get_connection_verify(session_id);
     }
     else
     {
-        conn = swServer_connection_verify_no_ssl(serv, session_id);
+        conn = serv->get_connection_verify_no_ssl(session_id);
     }
     if (!conn)
     {
@@ -484,7 +484,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0)
     {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);

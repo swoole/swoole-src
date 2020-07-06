@@ -294,7 +294,7 @@ int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zen
 
 void swoole_websocket_onOpen(swServer *serv, http_context *ctx)
 {
-    swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+    swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
@@ -388,7 +388,7 @@ bool swoole_websocket_handshake(http_context *ctx)
     if (!ctx->co_socket)
     {
         serv = (swServer *) ctx->private_data;
-        conn = swWorker_get_connection(serv, ctx->fd);
+        conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
@@ -774,7 +774,7 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
         return SW_ERR;
     }
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE)
     {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_UNCONNECTED);
@@ -803,7 +803,7 @@ static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swStr
     {
         return ret;
     }
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (conn)
     {
         // Change status immediately to avoid double close
@@ -875,7 +875,7 @@ static PHP_METHOD(swoole_websocket_server, push)
     }
 
 #ifdef SW_HAVE_ZLIB
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = serv->get_connection_verify(fd);
     if (!conn)
     {
         RETURN_FALSE;
@@ -987,7 +987,7 @@ static PHP_METHOD(swoole_websocket_server, isEstablished)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     //not isEstablished
     if (!conn || conn->active == 0 || conn->closed || conn->websocket_status < WEBSOCKET_STATUS_ACTIVE)
     {

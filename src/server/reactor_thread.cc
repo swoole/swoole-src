@@ -108,7 +108,7 @@ static void swReactorThread_onStreamResponse(swStream *stream, const char *data,
     swSendData response;
     swDataHead *pkg_info = (swDataHead *) data;
     swServer *serv = (swServer *) stream->private_data;
-    swConnection *conn = swServer_connection_verify(serv, pkg_info->fd);
+    swConnection *conn = serv->get_connection_verify(pkg_info->fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", pkg_info->fd);
@@ -518,7 +518,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE)
                 {
                     uint32_t session_id = resp->info.fd;
-                    swConnection *conn = swServer_connection_verify(serv, session_id);
+                    swConnection *conn = serv->get_connection_verify(session_id);
 
                     if (!conn)
                     {
@@ -592,7 +592,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev)
         if (swEventData_is_stream(send_data->info.type))
         {
             //send_data->info.fd is session_id
-            conn = swServer_connection_verify(serv, send_data->info.fd);
+            conn = serv->get_connection_verify(send_data->info.fd);
             if (conn)
             {
                 if (conn->closed)
@@ -1299,11 +1299,11 @@ void swReactorThread_join(swServer *serv)
     }
 }
 
-void swReactorThread_free(swServer *serv)
+void Server::destroy_reactor_threads()
 {
-    serv->factory.free(&serv->factory);
-    sw_shm_free(serv->connection_list);
-    delete[] serv->reactor_threads;
+    factory.free(&factory);
+    sw_shm_free(connection_list);
+    delete[] reactor_threads;
 }
 
 void Server::start_heartbeat_thread()

@@ -55,10 +55,10 @@ int Server::create_reactor_processes()
     return SW_OK;
 }
 
-void swReactorProcess_free(swServer *serv)
+void Server::destroy_reactor_processes()
 {
-    serv->factory.free(&serv->factory);
-    sw_free(serv->connection_list);
+    factory.free(&factory);
+    sw_free(connection_list);
 }
 
 int Server::start_reactor_processes()

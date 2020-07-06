@@ -135,7 +135,7 @@ static int swFactory_end(swFactory *factory, int fd)
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0)
     {
         //swWarn("can not close. Connection[%d] not found", _send.info.fd);

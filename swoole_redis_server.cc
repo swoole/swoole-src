@@ -93,7 +93,7 @@ void php_swoole_redis_server_rshutdown()
 static int redis_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (!conn)
     {
         swWarn("connection[%d] is closed", fd);

@@ -44,7 +44,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     int fd = req->info.fd;
     int server_fd = req->info.server_fd;
 
-    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
+    swConnection *conn = serv->get_connection_verify_no_ssl(fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed", fd);
@@ -155,7 +155,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
 void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 {
-    swConnection *conn = swWorker_get_connection(serv, ev->fd);
+    swConnection *conn = serv->get_connection_by_session_id(ev->fd);
     if (!conn)
     {
         return;

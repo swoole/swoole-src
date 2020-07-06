@@ -9,7 +9,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Client;
 use Swoole\Server;
 
-const N = 10;
+const N = 3;
 const LOG_FILE =  __DIR__.'/test.log';
 
 $counter = new Swoole\Atomic(0);
@@ -17,7 +17,7 @@ $counter = new Swoole\Atomic(0);
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $client = new Client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC);
-    if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 2)) {
         exit("connect failed\n");
     }
     $client->send("ping");
@@ -46,11 +46,16 @@ $pm->childFunc = function () use ($pm, $counter) {
         $n = N;
         while ($n--) {
             $serv->task(['data' => $data, 'client' => $clientInfo]);
+            usleep(10000);
         }
     });
 
     $serv->on('Task', function (Server $serv, $taskId, int $workerId, $data) use ($pm, $counter) {
-        usleep(1000);
+        static $sleep = false;
+        if (!$sleep) {
+            $sleep = true;
+            sleep(1);
+        }
         if ($counter->add() == N) {
             $serv->sendto($data['client']['address'], $data['client']['port'], "DONE\n");
         }

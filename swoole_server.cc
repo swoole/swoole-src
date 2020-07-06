@@ -923,7 +923,7 @@ void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req)
         }
         else if (req->info.flags & SW_EVENT_DATA_POP_PTR)
         {
-            swString *recv_buffer = serv->get_recv_buffer(swWorker_get_connection(serv, req->info.fd)->socket);
+            swString *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
             sw_set_zend_string(zdata, swString_pop(recv_buffer, serv->recv_buffer_size), length);
         }
         else
@@ -3959,7 +3959,7 @@ static PHP_METHOD(swoole_server, bind)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0)
     {
         RETURN_FALSE;
@@ -4021,7 +4021,7 @@ static PHP_METHOD(swoole_server, getClientInfo)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swServer_connection_verify(serv, fd);
+    swConnection *conn = serv->get_connection_verify(fd);
     if (!conn)
     {
         RETURN_FALSE;
@@ -4103,7 +4103,7 @@ static PHP_METHOD(swoole_server, getClientList)
     }
     else
     {
-        swConnection *conn = swWorker_get_connection(serv, start_fd);
+        swConnection *conn = serv->get_connection_by_session_id(start_fd);
         if (!conn)
         {
             RETURN_FALSE;
@@ -4194,7 +4194,7 @@ static PHP_METHOD(swoole_server, exists)
         Z_PARAM_LONG(fd)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (!conn)
     {
         RETURN_FALSE;
@@ -4227,7 +4227,7 @@ static PHP_METHOD(swoole_server, protect)
         RETURN_FALSE;
     }
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (!conn)
     {
         RETURN_FALSE;

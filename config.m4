@@ -479,8 +479,9 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/task_worker.cc \
         src/server/worker.cc \
         src/wrapper/event.cc \
-        src/wrapper/client.cc \
         src/wrapper/timer.cc \
+        src/wrapper/server.cc \
+        src/wrapper/client.cc \
         swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \

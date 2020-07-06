@@ -821,7 +821,7 @@ int Server::start()
     {
         return SW_ERR;
     }
-    destory();
+    destroy();
     //remove PID file
     if (!pid_file.empty())
     {
@@ -963,7 +963,7 @@ void Server::shutdown()
     swInfo("Server is shutdown now");
 }
 
-void Server::destory()
+void Server::destroy()
 {
     swTraceLog(SW_TRACE_SERVER, "release service");
     /**
@@ -1030,11 +1030,11 @@ void Server::destory()
     }
     if (factory_mode == SW_MODE_BASE)
     {
-        swReactorProcess_free(this);
+        destroy_reactor_threads();
     }
     else
     {
-        swReactorThread_free(this);
+        destroy_reactor_threads();
     }
     if (locations)
     {
@@ -1073,7 +1073,7 @@ void Server::destory()
  */
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
 {
-    swConnection *conn = swServer_connection_verify(serv, session_id);
+    swConnection *conn = serv->get_connection_verify(session_id);
     if (!conn)
     {
         return SW_ERR;
@@ -1113,11 +1113,6 @@ void swServer_store_pipe_fd(swServer *serv, swPipe *p)
     }
 }
 
-swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd)
-{
-    return (swPipe *) serv->connection_list[pipe_fd].object;
-}
-
 /**
  * @process Worker
  * @return SW_OK or SW_ERR
@@ -1153,11 +1148,11 @@ int Server::send_to_connection(swSendData *_send)
     swConnection *conn;
     if (_send->info.type != SW_SERVER_EVENT_CLOSE)
     {
-        conn = swServer_connection_verify(this, session_id);
+        conn = get_connection_verify(session_id);
     }
     else
     {
-        conn = swServer_connection_verify_no_ssl(this, session_id);
+        conn = get_connection_verify_no_ssl(session_id);
     }
     if (!conn)
     {
@@ -1445,7 +1440,7 @@ static int swServer_tcp_sendfile(swServer *serv, int session_id, const char *fil
  */
 static int swServer_tcp_sendwait(swServer *serv, int session_id, const void *data, uint32_t length)
 {
-    swConnection *conn = swServer_connection_verify(serv, session_id);
+    swConnection *conn = serv->get_connection_verify(session_id);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "send %d byte failed, because session#%d is closed", length, session_id);
@@ -1533,7 +1528,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return SW_ERR;
     }
-    swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
+    swConnection *conn = serv->get_connection_verify_no_ssl(session_id);
     if (!conn)
     {
         return SW_ERR;

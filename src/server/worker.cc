@@ -264,7 +264,7 @@ int Server::accept_task(swEventData *task)
     {
     case SW_SERVER_EVENT_SEND_DATA:
     {
-        swConnection *conn = swServer_connection_verify(this, task->info.fd);
+        swConnection *conn = get_connection_verify(task->info.fd);
         if (conn && max_queued_bytes && task->info.len > 0)
         {
             sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
@@ -286,7 +286,7 @@ int Server::accept_task(swEventData *task)
     case SW_SERVER_EVENT_CLOSE:
     {
 #ifdef SW_USE_OPENSSL
-        swConnection *conn = swServer_connection_verify_no_ssl(this, task->info.fd);
+        swConnection *conn = get_connection_verify_no_ssl(task->info.fd);
         if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid)
         {
             sw_free(conn->ssl_client_cert);
@@ -302,7 +302,7 @@ int Server::accept_task(swEventData *task)
         //SSL client certificate
         if (task->info.len > 0)
         {
-            swConnection *conn = swServer_connection_verify_no_ssl(this, task->info.fd);
+            swConnection *conn = get_connection_verify_no_ssl(task->info.fd);
             char *cert_data = nullptr;
             size_t length = get_packet(this, task, &cert_data);
             conn->ssl_client_cert = swString_dup(cert_data, length);

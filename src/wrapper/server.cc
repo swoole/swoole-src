@@ -85,7 +85,7 @@ bool Server::close(int fd, bool reset)
         return false;
     }
 
-    swConnection *conn = swServer_connection_verify_no_ssl(&serv, fd);
+    swConnection *conn = serv.get_connection_verify_no_ssl(fd);
     if (!conn)
     {
         return false;

@@ -660,7 +660,7 @@ class Server
     ~Server()
     {
         if (gs != nullptr && getpid() == gs->master_pid) {
-            destory();
+            destroy();
         }
         for (auto port : ports) {
             delete port;
@@ -804,6 +804,11 @@ class Server
         return nullptr;
     }
 
+    inline swPipe *get_pipe_object(int pipe_fd)
+    {
+        return (swPipe *) connection_list[pipe_fd].object;
+    }
+
     inline swString *get_worker_input_buffer(int reactor_id)
     {
         if (factory_mode == SW_MODE_BASE)
@@ -821,6 +826,40 @@ class Server
         return &reactor_threads[reactor_id];
     }
 
+    inline int get_connection_fd(uint32_t session_id)
+    {
+        return session_list[session_id % SW_SESSION_LIST_SIZE].fd;
+    }
+
+    inline swConnection *get_connection_verify_no_ssl(uint32_t session_id)
+    {
+        swSession *session = get_session(session_id);
+        int fd = session->fd;
+        swConnection *conn = get_connection(fd);
+        if (!conn || conn->active == 0)
+        {
+            return nullptr;
+        }
+        if (session->id != session_id || conn->session_id != session_id)
+        {
+            return nullptr;
+        }
+        return conn;
+    }
+
+    inline swConnection *get_connection_verify(uint32_t session_id)
+    {
+        swConnection *conn = get_connection_verify_no_ssl(session_id);
+#ifdef SW_USE_OPENSSL
+        if (conn && conn->ssl && !conn->ssl_ready)
+        {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
+            return nullptr;
+        }
+#endif
+        return conn;
+    }
+
     inline swConnection *get_connection(int fd)
     {
         if ((uint32_t) fd > max_connection)
@@ -828,6 +867,11 @@ class Server
             return nullptr;
         }
         return &connection_list[fd];
+    }
+
+    inline swConnection *get_connection_by_session_id(int session_id)
+    {
+        return get_connection(get_connection_fd(session_id));
     }
 
     inline swSession *get_session(uint32_t session_id)
@@ -861,7 +905,9 @@ class Server
     std::string document_root;
     int start_check();
     void check_port_type(swListenPort *ls);
-    void destory();
+    void destroy();
+    void destroy_reactor_threads();
+    void destroy_reactor_processes();
     int create_reactor_processes();
     int create_reactor_threads();
     int start_reactor_threads();
@@ -940,7 +986,6 @@ static sw_inline int swEventData_is_stream(uint8_t type)
     }
 }
 
-swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd);
 void swServer_store_pipe_fd(swServer *serv, swPipe *p);
 void swServer_store_listen_socket(swServer *serv);
 
@@ -988,11 +1033,6 @@ static sw_inline int swServer_connection_valid(swServer *serv, swConnection *con
 {
     return (conn && conn->socket && conn->active == 1 && conn->closed == 0 
         && conn->socket->fdtype == SW_FD_SESSION);
-}
-
-static sw_inline int swServer_get_fd(swServer *serv, uint32_t session_id)
-{
-    return serv->session_list[session_id % SW_SESSION_LIST_SIZE].fd;
 }
 
 static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData *data)
@@ -1080,46 +1120,9 @@ static sw_inline int swServer_worker_schedule(swServer *serv, int fd, swSendData
     return key % serv->worker_num;
 }
 
-void swServer_worker_onStart(swServer *serv);
-void swServer_worker_onStop(swServer *serv);
-
 int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn);
 
 void swWorker_stop(swWorker *worker);
-
-static sw_inline swConnection *swWorker_get_connection(swServer *serv, int session_id)
-{
-    return serv->get_connection(swServer_get_fd(serv, session_id));
-}
-
-static sw_inline swConnection *swServer_connection_verify_no_ssl(swServer *serv, uint32_t session_id)
-{
-    swSession *session = serv->get_session(session_id);
-    int fd = session->fd;
-    swConnection *conn = serv->get_connection(fd);
-    if (!conn || conn->active == 0)
-    {
-        return nullptr;
-    }
-    if (session->id != session_id || conn->session_id != session_id)
-    {
-        return nullptr;
-    }
-    return conn;
-}
-
-static sw_inline swConnection *swServer_connection_verify(swServer *serv, int session_id)
-{
-    swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
-#ifdef SW_USE_OPENSSL
-    if (conn && conn->ssl && !conn->ssl_ready)
-    {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SSL_NOT_READY, "SSL not ready");
-        return nullptr;
-    }
-#endif
-    return conn;
-}
 
 static sw_inline int swServer_connection_incoming(swServer *serv, swReactor *reactor, swConnection *conn)
 {
@@ -1201,7 +1204,7 @@ int swReactorThread_create(swServer *serv);
 int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_join(swServer *serv);
-void swReactorThread_free(swServer *serv);
+
 
 int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *data, size_t len);
 
