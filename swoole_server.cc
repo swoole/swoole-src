@@ -3871,7 +3871,7 @@ static PHP_METHOD(swoole_server, sendMessage)
     buf.info.reactor_id = SwooleWG.id;
 
     swWorker *to_worker = serv->get_worker(worker_id);
-    SW_CHECK_RETURN(swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK));
+    SW_CHECK_RETURN(serv->send_to_worker_from_worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK));
 }
 
 static PHP_METHOD(swoole_server, finish)

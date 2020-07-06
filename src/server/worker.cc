@@ -693,15 +693,11 @@ int swWorker_loop(swServer *serv, swWorker *worker)
 /**
  * Send data to ReactorThread
  */
-int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id)
-{
-    swSocket *pipe_sock = swServer_get_send_pipe(serv, session_id, ev_data->info.reactor_id);
-    if (SwooleTG.reactor)
-    {
+int Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id) {
+    swSocket *pipe_sock = swServer_get_send_pipe(this, session_id, ev_data->info.reactor_id);
+    if (SwooleTG.reactor) {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, ev_data, sendn);
-    }
-    else
-    {
+    } else {
         return swSocket_write_blocking(pipe_sock, ev_data, sendn);
     }
 }
@@ -796,11 +792,11 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
     return SW_ERR;
 }
 
-int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
+int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags)
 {
     swSocket *pipe_sock;
 
-    if (flag & SW_PIPE_MASTER)
+    if (flags & SW_PIPE_MASTER)
     {
         pipe_sock = dst_worker->pipe_master;
     }
@@ -824,7 +820,7 @@ int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
         return swMsgQueue_push(dst_worker->pool->queue, (swQueue_data *) &msg, n);
     }
 
-    if ((flag & SW_PIPE_NONBLOCK) && SwooleTG.reactor)
+    if ((flags & SW_PIPE_NONBLOCK) && SwooleTG.reactor)
     {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, buf, n);
     }

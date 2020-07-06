@@ -295,7 +295,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
     worker = swProcessPool_get_worker(pool, *dst_worker_id);
 
     int sendn = sizeof(data->info) + data->info.len;
-    ret = swWorker_send2worker(worker, data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
+    ret = swWorker_send_pipe_message(worker, data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
 
     if (ret >= 0)
     {
@@ -344,7 +344,7 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
     *dst_worker_id += pool->start_id;
     swWorker *worker = swProcessPool_get_worker(pool, *dst_worker_id);
 
-    ret = swWorker_send2worker(worker, data, sendn, SW_PIPE_MASTER);
+    ret = swWorker_send_pipe_message(worker, data, sendn, SW_PIPE_MASTER);
     if (ret < 0)
     {
         swWarn("send %d bytes to worker#%d failed", sendn, *dst_worker_id);

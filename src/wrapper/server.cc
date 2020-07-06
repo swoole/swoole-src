@@ -105,7 +105,7 @@ bool Server::close(int fd, bool reset)
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = fd;
         ev.reactor_id = conn->reactor_id;
-        ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        ret = swWorker_send_pipe_message(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
     {
@@ -339,8 +339,8 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
     buf.info.reactor_id = SwooleWG.id;
 
     swWorker *to_worker = serv.get_worker((uint16_t) worker_id);
-    return swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK)
-            == SW_OK;
+    return swWorker_send_pipe_message(to_worker, &buf, sizeof(buf.info) + buf.info.len,
+                                      SW_PIPE_MASTER | SW_PIPE_NONBLOCK) == SW_OK;
 }
 
 bool Server::sendwait(int fd, const DataBuffer &data)

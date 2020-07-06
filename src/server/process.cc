@@ -219,15 +219,12 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
     return swFactoryProcess_dispatch(factory, &task);
 }
 
-static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data)
-{
-    return swReactorThread_send2worker(serv, (swWorker *) private_data, buf, n);
+static inline int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data) {
+    return serv->send_to_worker_from_master((swWorker *) private_data, buf, n);
 }
 
-static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data)
-{
-    return swWorker_send2reactor(serv, (swEventData *) buf, n,
-            ((swConnection *) private_data)->session_id);
+static inline int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data) {
+    return serv->send_to_reactor_thread((swEventData *) buf, n, ((swConnection *) private_data)->session_id);
 }
 
 /**
@@ -279,10 +276,9 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
     swWorker *worker = serv->get_worker(target_worker_id);
 
     //without data
-    if (task->data == nullptr)
-    {
+    if (task->data == nullptr) {
         task->info.flags = 0;
-        return swReactorThread_send2worker(serv, worker, &task->info, sizeof(task->info));
+        return serv->send_to_worker_from_master(worker, &task->info, sizeof(task->info));
     }
 
     if (task->info.type == SW_SERVER_EVENT_SEND_DATA)

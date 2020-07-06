@@ -324,7 +324,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
         }
         else
         {
-            ret = swWorker_send2worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+            ret = serv->send_to_worker_from_worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
         }
     }
     else

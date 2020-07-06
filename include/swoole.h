@@ -2237,6 +2237,8 @@ static sw_inline swWorker *swProcessPool_get_worker(swProcessPool *pool, int wor
     return &(pool->workers[worker_id - pool->start_id]);
 }
 
+int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
+
 //-----------------------------Channel---------------------------
 enum swChannel_flag
 {

@@ -907,6 +907,14 @@ class Server
     static int dispatch_task(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
 
     int send_to_connection(swSendData *);
+    int send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
+
+    inline int send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags)
+    {
+        return swWorker_send_pipe_message(dst_worker, buf, len, flags);
+    }
+
+    int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
 
     void set_ipc_max_size();
     int create_pipe_buffers();
@@ -1189,15 +1197,11 @@ void swWorker_onStart(swServer *serv);
 void swWorker_onStop(swServer *serv);
 int swWorker_loop(swServer *serv, swWorker *worker);
 void swWorker_clean_pipe_buffer(swServer *serv);
-int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id);
-int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
 
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_join(swServer *serv);
-
-int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *data, size_t len);
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);

@@ -1079,12 +1079,9 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event)
     _send.info.fd = session_id;
     _send.info.reactor_id = conn->reactor_id;
 
-    if (serv->factory_mode == SW_MODE_PROCESS)
-    {
-        return swWorker_send2reactor(serv, (swEventData *) &_send.info, sizeof(_send.info), session_id);
-    }
-    else
-    {
+    if (serv->factory_mode == SW_MODE_PROCESS) {
+        return serv->send_to_reactor_thread((swEventData *) &_send.info, sizeof(_send.info), session_id);
+    } else {
         return serv->send_to_connection(&_send);
     }
 }
@@ -1560,7 +1557,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = session_id;
         ev.reactor_id = conn->reactor_id;
-        retval = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        retval = serv->send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
     {
