@@ -45,6 +45,7 @@ $pm->childFunc = function () use ($pm) {
             return;
         }
         sleep(1);
+        $sleep = true;
     });
 
     $serv->start();

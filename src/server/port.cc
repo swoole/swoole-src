@@ -21,6 +21,8 @@
 #include "mqtt.h"
 #include "redis.h"
 
+using swoole::Server;
+
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
@@ -169,7 +171,7 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
         {
             ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_eof;
     }
     else if (ls->open_length_check)
@@ -178,7 +180,7 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
         {
             ls->protocol.get_package_length = swProtocol_get_package_length;
         }
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_length;
     }
     else if (ls->open_http_protocol)
@@ -194,7 +196,7 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
         {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.get_package_length = swHttp2_get_frame_length;
-            ls->protocol.onPackage = swReactorThread_dispatch;
+            ls->protocol.onPackage = Server::dispatch_task;
         }
         else
 #endif
@@ -211,12 +213,12 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
     else if (ls->open_mqtt_protocol)
     {
         swMqtt_set_protocol(&ls->protocol);
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_length;
     }
     else if (ls->open_redis_protocol)
     {
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_redis;
     }
     else
@@ -355,7 +357,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     else
     {
         buffer->offset = buffer->length = n;
-        return swReactorThread_dispatch(&port->protocol, _socket, buffer->str, n);
+        return Server::dispatch_task(&port->protocol, _socket, buffer->str, n);
     }
 }
 
@@ -575,7 +577,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             if (!serv->enable_static_handler || !swServer_http_static_handler_hit(serv, request, conn))
             {
                 // dynamic request, dispatch to worker
-                swReactorThread_dispatch(protocol, _socket, buffer->str, request->header_length);
+                Server::dispatch_task(protocol, _socket, buffer->str, request->header_length);
             }
             if (!conn->active || _socket->removed)
             {
@@ -684,7 +686,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     }
 
     buffer->offset = request_length;
-    swReactorThread_dispatch(protocol, _socket, buffer->str, buffer->length);
+    Server::dispatch_task(protocol, _socket, buffer->str, buffer->length);
     swHttpRequest_free(conn);
     swString_clear(buffer);
 

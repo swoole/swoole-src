@@ -23,6 +23,8 @@ static int swFactory_notify(swFactory *factory, swDataHead *event);
 static int swFactory_end(swFactory *factory, int fd);
 static void swFactory_free(swFactory *factory);
 
+using swoole::Server;
+
 int swFactory_create(swFactory *factory)
 {
     factory->dispatch = swFactory_dispatch;
@@ -49,7 +51,7 @@ static int swFactory_shutdown(swFactory *factory)
 
 static int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
-    swServer *serv = (swServer *) factory->ptr;
+    Server *serv = (Server *) factory->ptr;
     swPacket_ptr pkg;
     swConnection *conn = nullptr;
 
@@ -101,7 +103,7 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
  */
 static int swFactory_notify(swFactory *factory, swDataHead *info)
 {
-    swServer *serv = (swServer *) factory->ptr;
+    Server *serv = (Server *) factory->ptr;
     swConnection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0)
     {
@@ -124,7 +126,7 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
 
 static int swFactory_end(swFactory *factory, int fd)
 {
-    swServer *serv = (swServer *) factory->ptr;
+    Server *serv = (Server *) factory->ptr;
     swSendData _send;
     swDataHead info;
 
@@ -177,7 +179,7 @@ static int swFactory_end(swFactory *factory, int fd)
         if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed)
         {
             swReactor *reactor = SwooleTG.reactor;
-            return swReactorThread_close(reactor, conn->socket);
+            return Server::close_connection(reactor, conn->socket);
         }
         else
         {
@@ -194,7 +196,7 @@ static int swFactory_end(swFactory *factory, int fd)
  */
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    return ((swServer *) factory->ptr)->send_to_connection(resp);
+    return ((Server *) factory->ptr)->send_to_connection(resp);
 }
 
 static void swFactory_free(swFactory *factory)

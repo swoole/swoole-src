@@ -336,6 +336,7 @@ class Server
 
     int worker_uid = 0;
     int worker_groupid = 0;
+    void **worker_input_buffers = nullptr;
 
     /**
      * max connection num
@@ -801,6 +802,18 @@ class Server
         return nullptr;
     }
 
+    inline swString *get_worker_input_buffer(int reactor_id)
+    {
+        if (factory_mode == SW_MODE_BASE)
+        {
+            return (swString *) worker_input_buffers[0];
+        }
+        else
+        {
+            return (swString *) worker_input_buffers[reactor_id];
+        }
+    }
+
     inline ReactorThread *get_thread(int reactor_id)
     {
         return &reactor_threads[reactor_id];
@@ -829,6 +842,8 @@ class Server
 
     int accept_task(swEventData *task);
     static int accept_connection(swReactor *reactor, swEvent *event);
+    static int close_connection(swReactor *reactor, swSocket *_socket);
+    static int dispatch_task(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
 
     int send_to_connection(swSendData *);
 
@@ -840,6 +855,8 @@ class Server
     int start_check();
     void check_port_type(swListenPort *ls);
     void destory();
+    int create_reactor_processes();
+    int create_reactor_threads();
     int start_reactor_threads();
     int start_reactor_processes();
     void start_heartbeat_thread();
@@ -1182,11 +1199,9 @@ int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_join(swServer *serv);
 void swReactorThread_free(swServer *serv);
-int swReactorThread_close(swReactor *reactor, swSocket *_socket);
-int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
+
 int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *data, size_t len);
 
-int swReactorProcess_create(swServer *serv);
 void swReactorProcess_free(swServer *serv);
 
 pid_t swManager_spawn_worker(swServer *serv, swWorker *worker);

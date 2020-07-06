@@ -36,22 +36,22 @@ static bool swServer_is_single(swServer *serv)
     return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 && serv->user_worker_list == nullptr;
 }
 
-int swReactorProcess_create(swServer *serv)
+int Server::create_reactor_processes()
 {
-    serv->reactor_num = serv->worker_num;
-    serv->connection_list = (swConnection *) sw_calloc(serv->max_connection, sizeof(swConnection));
-    if (serv->connection_list == nullptr)
+    reactor_num = worker_num;
+    connection_list = (swConnection *) sw_calloc(max_connection, sizeof(swConnection));
+    if (connection_list == nullptr)
     {
-        swSysWarn("calloc[2](%d) failed", (int )(serv->max_connection * sizeof(swConnection)));
+        swSysWarn("calloc[2](%d) failed", (int )(max_connection * sizeof(swConnection)));
         return SW_ERR;
     }
     //create factry object
-    if (swFactory_create(&(serv->factory)) < 0)
+    if (swFactory_create(&(factory)) < 0)
     {
         swError("create factory failed");
         return SW_ERR;
     }
-    serv->factory.finish = swReactorProcess_send2client;
+    factory.finish = swReactorProcess_send2client;
     return SW_OK;
 }
 
@@ -369,7 +369,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     reactor->max_socket = serv->max_connection;
 
-    reactor->close = swReactorThread_close;
+    reactor->close = Server::close_connection;
 
     //set event handler
     //connect
@@ -496,7 +496,7 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event)
     {
         if (conn->close_queued)
         {
-            swReactorThread_close(reactor, event->socket);
+            Server::close_connection(reactor, event->socket);
             return SW_OK; 
         }
         else 
@@ -625,7 +625,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode)
 #ifdef SW_USE_OPENSSL
             if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY)
             {
-                swReactorThread_close(reactor, conn->socket);
+                Server::close_connection(reactor, conn->socket);
                 continue;
             }
 #endif

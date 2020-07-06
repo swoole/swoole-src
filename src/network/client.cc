@@ -743,8 +743,8 @@ static int swClient_tcp_send_async(swClient *cli, const char *data, size_t lengt
 
 static int swClient_tcp_send_sync(swClient *cli, const char *data, size_t length, int flags)
 {
-    int written = 0;
-    int n;
+    size_t written = 0;
+    ssize_t n;
 
     assert(length > 0);
     assert(data != nullptr);
@@ -965,8 +965,8 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
 
 static int swClient_udp_send(swClient *cli, const char *data, size_t len, int flags)
 {
-    int n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
-    if (n < 0 || n < len)
+    ssize_t n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+    if (n < 0 || n < (ssize_t) len)
     {
         return SW_ERR;
     }

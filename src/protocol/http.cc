@@ -26,6 +26,7 @@
 #include <string>
 
 using std::string;
+using swoole::Server;
 using swoole::http::StaticHandler;
 
 static const char *method_strings[] =
@@ -876,7 +877,7 @@ int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, const char *da
     }
     else if (conn->http2_stream)
     {
-        return swReactorThread_dispatch(proto, socket, data, length);
+        return Server::dispatch_task(proto, socket, data, length);
     }
     else
     {

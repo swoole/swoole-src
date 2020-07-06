@@ -623,8 +623,8 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
     //signal init
     swWorker_signal_init();
 
-    SwooleWG.input_buffers = serv->create_buffers(serv, swServer_worker_buffer_num(serv));
-    if (!SwooleWG.input_buffers)
+    serv->worker_input_buffers = (void **) serv->create_buffers(serv, swServer_worker_buffer_num(serv));
+    if (!serv->worker_input_buffers)
     {
         return SW_ERR;
     }
@@ -910,18 +910,18 @@ int Server::create()
         port->connection_num = &port_connnection_num_list[index++];
     }
 
-    if (enable_static_handler && locations == nullptr)
+    if (enable_static_handler and locations == nullptr)
     {
         locations = new std::unordered_set<std::string>;
     }
 
     if (factory_mode == SW_MODE_BASE)
     {
-        return swReactorProcess_create(this);
+        return create_reactor_processes();
     }
     else
     {
-        return swReactorThread_create(this);
+        return create_reactor_threads();
     }
 }
 
@@ -1461,28 +1461,15 @@ static int swServer_tcp_sendwait(swServer *serv, int session_id, const void *dat
     return swSocket_write_blocking(conn->socket, data, length);
 }
 
-static sw_inline swString *swServer_worker_get_input_buffer(swServer *serv, int reactor_id)
-{
-    swString **buffers = (swString **) SwooleWG.input_buffers;
-    if (serv->factory_mode == SW_MODE_BASE)
-    {
-        return buffers[0];
-    }
-    else
-    {
-        return buffers[reactor_id];
-    }
-}
-
 static sw_inline void swServer_server_worker_set_buffer(swServer *serv, swDataHead *info, swString *addr)
 {
-    swString **buffers = (swString **) SwooleWG.input_buffers;
+    swString **buffers = (swString **) serv->worker_input_buffers;
     buffers[info->reactor_id] = addr;
 }
 
 static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 {
-    swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
+    swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
     
     if (worker_buffer == nullptr)
     {
@@ -1495,20 +1482,20 @@ static void* swServer_worker_get_buffer(swServer *serv, swDataHead *info)
 
 static size_t swServer_worker_get_buffer_len(swServer *serv, swDataHead *info)
 {
-    swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
+    swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
 
     return worker_buffer == nullptr ? 0 : worker_buffer->length;
 }
 
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len)
 {
-    swString *worker_buffer = swServer_worker_get_input_buffer(serv, info->reactor_id);
+    swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
     worker_buffer->length += len;
 }
 
 static void swServer_worker_move_buffer(swServer *serv, swPipeBuffer *buffer)
 {
-    swString *worker_buffer = swServer_worker_get_input_buffer(serv, buffer->info.reactor_id);
+    swString *worker_buffer = serv->get_worker_input_buffer(buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
     swServer_server_worker_set_buffer(serv, &buffer->info, nullptr);
 }

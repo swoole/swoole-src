@@ -189,7 +189,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 
         if (!session->listen())
         {
-            return swReactorThread_close(reactor, session->socket);
+            return Server::close_connection(reactor, session->socket);
         }
 
         swConnection *conn = (swConnection *) session->socket->object;
@@ -251,7 +251,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event)
 /**
  * close connection
  */
-int swReactorThread_close(swReactor *reactor, swSocket *socket)
+int Server::close_connection(swReactor *reactor, swSocket *socket)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swConnection *conn = (swConnection *) socket->object;
@@ -373,14 +373,14 @@ static int swReactorThread_onClose(swReactor *reactor, swEvent *event)
     }
     else if (serv->disable_notify)
     {
-        swReactorThread_close(reactor, socket);
+        Server::close_connection(reactor, socket);
         return SW_OK;
     }
     else if (reactor->del(reactor, socket) == 0)
     {
         if (conn->close_queued)
         {
-            swReactorThread_close(reactor, socket);
+            Server::close_connection(reactor, socket);
             return SW_OK;
         }
         else
@@ -560,7 +560,7 @@ int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *da
 {
     if (SwooleTG.reactor)
     {
-        swReactorThread *thread = serv->get_thread(SwooleTG.id);
+        ReactorThread *thread = serv->get_thread(SwooleTG.id);
         swSocket *socket = &thread->pipe_sockets[worker->pipe_master->fd];
         return swoole_event_write(socket, data, len);
     }
@@ -688,7 +688,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
         session->append(buffer);
         if (!session->listened && !session->listen())
         {
-            swReactorThread_close(reactor, event->socket);
+            Server::close_connection(reactor, event->socket);
             return SW_OK;
         }
     }
@@ -697,7 +697,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     switch (code)
     {
     case SW_ERROR:
-        return swReactorThread_close(reactor, event->socket);
+        return Server::close_connection(reactor, event->socket);
     case SW_READY:
 #ifdef SW_SUPPORT_DTLS
         if (event->socket->dtls)
@@ -761,7 +761,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 #ifdef SW_USE_OPENSSL
         if (socket->ssl && socket->ssl_state != SW_SSL_STATE_READY)
         {
-            return swReactorThread_close(reactor, socket);
+            return Server::close_connection(reactor, socket);
         }
 #endif
         serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
@@ -770,7 +770,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     }
     else if (serv->disable_notify && conn->close_force)
     {
-        return swReactorThread_close(reactor, socket);
+        return Server::close_connection(reactor, socket);
     }
 
     while (!swBuffer_empty(socket->out_buffer))
@@ -828,28 +828,28 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
     return SW_OK;
 }
 
-int swReactorThread_create(swServer *serv)
+int Server::create_reactor_threads()
 {
     int ret = 0;
     /**
      * init reactor thread pool
      */
-    serv->reactor_threads = new ReactorThread[serv->reactor_num]();
+    reactor_threads = new ReactorThread[reactor_num]();
     /**
      * alloc the memory for connection_list
      */
-    serv->connection_list = (swConnection *) sw_shm_calloc(serv->max_connection, sizeof(swConnection));
-    if (serv->connection_list == nullptr)
+    connection_list = (swConnection *) sw_shm_calloc(max_connection, sizeof(swConnection));
+    if (connection_list == nullptr)
     {
         swError("calloc[1] failed");
         return SW_ERR;
     }
-    if (serv->worker_num < 1)
+    if (worker_num < 1)
     {
-        swError("Fatal Error: serv->worker_num < 1");
+        swError("Fatal Error: worker_num < 1");
         return SW_ERR;
     }
-    ret = swFactoryProcess_create(&(serv->factory), serv->worker_num);
+    ret = swFactoryProcess_create(&(factory), worker_num);
     if (ret < 0)
     {
         swError("create factory failed");
@@ -992,7 +992,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     reactor->id = reactor_id;
     reactor->wait_exit = 0;
     reactor->max_socket = serv->max_connection;
-    reactor->close = swReactorThread_close;
+    reactor->close = Server::close_connection;
     reactor->is_empty = swReactorThread_is_empty;
 
     reactor->default_error_handler = swReactorThread_onClose;
@@ -1081,8 +1081,8 @@ static int swReactorThread_is_empty(swReactor *reactor)
         return SW_FALSE;
     }
 
-    swServer *serv = (swServer *) reactor->ptr;
-    swReactorThread *thread = serv->get_thread(reactor->id);
+    Server *serv = (Server *) reactor->ptr;
+    ReactorThread *thread = serv->get_thread(reactor->id);
     return reactor->event_num == thread->pipe_num;
 }
 
@@ -1102,7 +1102,7 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
         return;
     }
 
-    swReactorThread *thread = serv->get_thread(reactor_id);
+    ReactorThread *thread = serv->get_thread(reactor_id);
     swReactor *reactor = &thread->reactor;
 
     SwooleTG.reactor = reactor;
@@ -1190,7 +1190,7 @@ static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *
 /**
  * dispatch request data [only data frame]
  */
-int swReactorThread_dispatch(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length)
+int Server::dispatch_task(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length)
 {
     swServer *serv = (swServer *) proto->private_data_2;
     swSendData task;
@@ -1259,7 +1259,7 @@ void swReactorThread_join(swServer *serv)
     {
         return;
     }
-    swReactorThread *thread;
+    ReactorThread *thread;
     /**
      * Shutdown heartbeat thread
      */
