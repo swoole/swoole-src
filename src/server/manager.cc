@@ -187,7 +187,7 @@ int Server::start_manager_process()
         for (i = 0; i < task_worker_num; i++)
         {
             worker = &gs->task_workers.workers[i];
-            if (swServer_worker_create(this, worker) < 0)
+            if (create_worker(worker) < 0)
             {
                 return SW_ERR;
             }
@@ -210,7 +210,7 @@ int Server::start_manager_process()
         for (auto worker : *user_worker_list)
         {
             memcpy(&user_workers[i], worker, sizeof(swWorker));
-            if (swServer_worker_create(this, &user_workers[i]) < 0)
+            if (create_worker(&user_workers[i]) < 0)
             {
                 return SW_ERR;
             }

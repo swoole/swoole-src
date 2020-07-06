@@ -132,7 +132,7 @@ int Server::start_reactor_processes()
 
     for (i = 0; i < worker_num; i++)
     {
-        if (swServer_worker_create(this, &gs->event_workers.workers[i]) < 0)
+        if (create_worker(&gs->event_workers.workers[i]) < 0)
         {
             return SW_ERR;
         }

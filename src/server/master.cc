@@ -578,7 +578,7 @@ int Server::create_user_workers()
 /**
  * [Master]
  */
-int swServer_worker_create(swServer *serv, swWorker *worker)
+int Server::create_worker(swWorker *worker)
 {
     return swMutex_create(&worker->lock, 1);
 }

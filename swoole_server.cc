@@ -254,11 +254,14 @@ static void server_free_object(zend_object *object)
             sw_zval_free(server_port_list.zobjects[i]);
             server_port_list.zobjects[i] = nullptr;
         }
-        delete serv;
         server->serv = nullptr;
     }
 
     zend_object_std_dtor(object);
+    if (serv)
+    {
+        delete serv;
+    }
 }
 
 static zend_object *server_create_object(zend_class_entry *ce)

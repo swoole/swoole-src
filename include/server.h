@@ -659,9 +659,11 @@ class Server
 
     ~Server()
     {
-        if (gs != nullptr && getpid() == gs->master_pid)
-        {
+        if (gs != nullptr && getpid() == gs->master_pid) {
             destory();
+        }
+        for (auto port : ports) {
+            delete port;
         }
         SwooleG.serv = nullptr;
     }
@@ -849,7 +851,7 @@ class Server
 
     void set_ipc_max_size();
     int create_pipe_buffers();
-
+    int create_worker(swWorker *worker);
     void disable_accept();
 
  private:
@@ -942,7 +944,6 @@ swPipe * swServer_get_pipe_object(swServer *serv, int pipe_fd);
 void swServer_store_pipe_fd(swServer *serv, swPipe *p);
 void swServer_store_listen_socket(swServer *serv);
 
-int swServer_worker_create(swServer *serv, swWorker *worker);
 int swServer_worker_init(swServer *serv, swWorker *worker);
 
 void swTaskWorker_init(swServer *serv);

@@ -774,7 +774,5 @@ void swPort_free(swListenPort *port)
     {
         unlink(port->host);
     }
-
-    delete(port);
 }
 
