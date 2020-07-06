@@ -255,7 +255,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket)
 {
     swServer *serv = (swServer *) reactor->ptr;
     swConnection *conn = (swConnection *) socket->object;
-    swListenPort *port = swServer_get_port(serv, socket->fd);
+    swListenPort *port = serv->get_port_by_fd(socket->fd);
 
     if (conn->timer)
     {
@@ -329,7 +329,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket)
 
     if (fd == serv->get_maxfd())
     {
-        swServer_lock(serv);
+        serv->lock();
         int find_max_fd = fd - 1;
         swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
         /**
@@ -340,7 +340,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket)
             //pass
         }
         serv->set_maxfd(find_max_fd);
-        swServer_unlock(serv);
+        serv->unlock();
     }
     sw_memset_zero(conn, sizeof(swConnection));
     return swReactor_close(reactor, socket);
@@ -677,7 +677,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event)
     {
         return SW_OK;
     }
-    swListenPort *port = swServer_get_port(serv, event->fd);
+    swListenPort *port = serv->get_port_by_fd(event->fd);
 #ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
     if (port->ssl_option.dtls)
@@ -812,7 +812,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
 
     if (serv->onBufferEmpty && conn->high_watermark)
     {
-        swListenPort *port = swServer_get_port(serv, fd);
+        swListenPort *port = serv->get_port_by_fd(fd);
         if (socket->out_buffer->length <= port->buffer_low_watermark)
         {
             conn->high_watermark = 0;
@@ -1218,7 +1218,7 @@ int Server::dispatch_task(swProtocol *proto, swSocket *_socket, const char *data
         }
         stream->response = swReactorThread_onStreamResponse;
         stream->private_data = serv;
-        swListenPort *port = swServer_get_port(serv, conn->fd);
+        swListenPort *port = serv->get_port_by_fd(conn->fd);
         swStream_set_max_length(stream, port->protocol.package_max_length);
 
         task.info.fd = conn->session_id;
@@ -1253,9 +1253,9 @@ int Server::dispatch_task(swProtocol *proto, swSocket *_socket, const char *data
     }
 }
 
-void swReactorThread_join(swServer *serv)
+void Server::join_reactor_thread()
 {
-    if (serv->single_thread)
+    if (single_thread)
     {
         return;
     }
@@ -1263,22 +1263,22 @@ void swReactorThread_join(swServer *serv)
     /**
      * Shutdown heartbeat thread
      */
-    if (serv->heartbeat_thread.joinable())
+    if (heartbeat_thread.joinable())
     {
         swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(serv->heartbeat_thread.native_handle()) < 0)
+        if (pthread_cancel(heartbeat_thread.native_handle()) < 0)
         {
-            swSysWarn("pthread_cancel(%ld) failed", (ulong_t )serv->heartbeat_thread.native_handle());
+            swSysWarn("pthread_cancel(%ld) failed", (ulong_t )heartbeat_thread.native_handle());
         }
         //wait thread
-        serv->heartbeat_thread.join();
+        heartbeat_thread.join();
     }
     /**
      * kill threads
      */
-    for (int i = 0; i < serv->reactor_num; i++)
+    for (int i = 0; i < reactor_num; i++)
     {
-        thread = &(serv->reactor_threads[i]);
+        thread = &(reactor_threads[i]);
         if (thread->notify_pipe)
         {
             swDataHead ev = {};

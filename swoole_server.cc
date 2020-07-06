@@ -1682,7 +1682,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req)
 
 static void php_swoole_onStart(swServer *serv)
 {
-    swServer_lock(serv);
+    serv->lock();
     zval *zserv = (zval *) serv->ptr2;
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("manager_pid"), serv->gs->manager_pid);
@@ -1690,7 +1690,7 @@ static void php_swoole_onStart(swServer *serv)
     {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
-    swServer_unlock(serv);
+    serv->unlock();
 }
 
 static void php_swoole_onManagerStart(swServer *serv)
@@ -1715,7 +1715,7 @@ static void php_swoole_onManagerStop(swServer *serv)
 
 static void php_swoole_onShutdown(swServer *serv)
 {
-    swServer_lock(serv);
+    serv->lock();
     zval *zserv = (zval *) serv->ptr2;
     if (server_callbacks[SW_SERVER_CB_onShutdown] != nullptr)
     {
@@ -1724,7 +1724,7 @@ static void php_swoole_onShutdown(swServer *serv)
             php_swoole_error(E_WARNING, "%s->onShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
-    swServer_unlock(serv);
+    serv->unlock();
 }
 
 static void php_swoole_onWorkerStart(swServer *serv, int worker_id)
@@ -2041,7 +2041,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
 
 static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, swSendData *data)
 {
-    swServer_lock(serv);
+    serv->lock();
 
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) serv->private_data_3;
     zval args[4];
@@ -2077,7 +2077,7 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
         zval_ptr_dtor(zdata);
     }
 
-    swServer_unlock(serv);
+    serv->unlock();
 
     /* the exception should only be thrown after unlocked */
     if (UNEXPECTED(EG(exception)))
@@ -4040,7 +4040,7 @@ static PHP_METHOD(swoole_server, getClientInfo)
             add_assoc_long(return_value, "uid", conn->uid);
         }
 
-        swListenPort *port = swServer_get_port(serv, conn->fd);
+        swListenPort *port = serv->get_port_by_fd(conn->fd);
         if (port && port->open_websocket_protocol)
         {
             add_assoc_long(return_value, "websocket_status", conn->websocket_status);

@@ -46,6 +46,11 @@ typedef std::unordered_map<uint32_t, pid_t> reload_list_t;
 static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
+static void swManager_kill_workers(swServer *serv);
+static void swManager_kill_task_workers(swServer *serv);
+static pid_t swManager_spawn_worker(swServer *serv, swWorker *worker);
+static pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
+static pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type);
 
 static swManagerProcess ManagerProcess;
 
@@ -723,7 +728,7 @@ void swManager_kill_user_workers(swServer *serv)
 /**
  * kill and wait all child process
  */
-void swManager_kill_workers(swServer *serv)
+static void swManager_kill_workers(swServer *serv)
 {
     int status;
 
@@ -749,7 +754,7 @@ void swManager_kill_workers(swServer *serv)
 /**
  * kill and wait task process
  */
-void swManager_kill_task_workers(swServer *serv)
+static void swManager_kill_task_workers(swServer *serv)
 {
     if (serv->task_worker_num == 0)
     {
@@ -758,7 +763,7 @@ void swManager_kill_task_workers(swServer *serv)
     swProcessPool_shutdown(&serv->gs->task_workers);
 }
 
-pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
+static pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
 {
     pid_t pid;
 
@@ -773,7 +778,6 @@ pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
     //worker child processor
     else if (pid == 0)
     {
-        
         exit(swWorker_loop(serv, worker));
     }
     //parent,add to writer
@@ -824,12 +828,12 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     }
 }
 
-pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
+static pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
 {
     return swProcessPool_spawn(&serv->gs->task_workers, worker);
 }
 
-pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type)
+static pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type)
 {
     pid_t pid = -1;
 

@@ -207,7 +207,7 @@ void php_swoole_server_port_minit(int module_number)
 static ssize_t php_swoole_server_length_func(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length)
 {
     swServer *serv = (swServer *) protocol->private_data_2;
-    swServer_lock(serv);
+    serv->lock();
 
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
@@ -227,7 +227,7 @@ static ssize_t php_swoole_server_length_func(swProtocol *protocol, swSocket *con
     }
     zval_ptr_dtor(&zdata);
 
-    swServer_unlock(serv);
+    serv->unlock();
 
     /* the exception should only be thrown after unlocked */
     if (UNEXPECTED(EG(exception)))

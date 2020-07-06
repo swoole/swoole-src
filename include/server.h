@@ -28,6 +28,7 @@
 #include <string>
 #include <queue>
 #include <thread>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -504,17 +505,18 @@ class Server
         return ports.front();
     }
 
-    swListenPort *get_port(int _port)
-    {
-        for (auto port : ports)
-        {
-            if (port->port == _port || _port == 0)
-            {
+    swListenPort *get_port(int _port) {
+        for (auto port : ports) {
+            if (port->port == _port || _port == 0) {
                 return port;
             }
         }
-
         return nullptr;
+    }
+
+    swListenPort *get_port_by_fd(int fd) {
+        sw_atomic_t server_fd = connection_list[fd].server_fd;
+        return (swListenPort*) connection_list[server_fd].object;
     }
 
     std::thread heartbeat_thread;
@@ -540,7 +542,6 @@ class Server
     ReactorThread *reactor_threads = nullptr;
     swWorker *workers = nullptr;
 
-    swLock lock;
     swChannel *message_box = nullptr;
 
     ServerGS *gs = nullptr;
@@ -879,6 +880,20 @@ class Server
         return &session_list[session_id % SW_SESSION_LIST_SIZE];
     }
 
+    inline void lock() {
+        if (single_thread) {
+            return;
+        }
+        lock_.lock();
+    }
+
+    inline void unlock() {
+        if (single_thread) {
+            return;
+        }
+        lock_.unlock();
+    }
+
     int create_task_workers();
     int create_user_workers();
     int start_manager_process();
@@ -903,6 +918,8 @@ class Server
      * http static file directory
      */
     std::string document_root;
+    std::mutex lock_;
+
     int start_check();
     void check_port_type(swListenPort *ls);
     void destroy();
@@ -913,6 +930,7 @@ class Server
     int start_reactor_threads();
     int start_reactor_processes();
     void start_heartbeat_thread();
+    void join_reactor_thread();
 };
 
 }
@@ -931,30 +949,6 @@ void swServer_clear_timer(swServer *serv);
 #ifdef SW_SUPPORT_DTLS
 swoole::dtls::Session* swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
 #endif
-
-static sw_inline swListenPort* swServer_get_port(swServer *serv, int fd)
-{
-    sw_atomic_t server_fd = serv->connection_list[fd].server_fd;
-    return (swListenPort*) serv->connection_list[server_fd].object;
-}
-
-static sw_inline void swServer_lock(swServer *serv)
-{
-    if (serv->single_thread)
-    {
-        return;
-    }
-    serv->lock.lock(&serv->lock);
-}
-
-static sw_inline void swServer_unlock(swServer *serv)
-{
-    if (serv->single_thread)
-    {
-        return;
-    }
-    serv->lock.unlock(&serv->lock);
-}
 
 #define SW_MAX_SESSION_ID             0x1000000
 
@@ -1200,21 +1194,11 @@ int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
 
-int swReactorThread_create(swServer *serv);
-int swReactorThread_start(swServer *serv);
 void swReactorThread_set_protocol(swServer *serv, swReactor *reactor);
 void swReactorThread_join(swServer *serv);
 
-
 int swReactorThread_send2worker(swServer *serv, swWorker *worker, const void *data, size_t len);
 
-void swReactorProcess_free(swServer *serv);
-
-pid_t swManager_spawn_worker(swServer *serv, swWorker *worker);
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
-pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
-pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
-void swManager_kill_workers(swServer *serv);
-void swManager_kill_task_workers(swServer *serv);
 void swManager_kill_user_workers(swServer *serv);

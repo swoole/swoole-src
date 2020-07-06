@@ -100,7 +100,7 @@ static int redis_onReceive(swServer *serv, swEventData *req)
         return SW_ERR;
     }
 
-    swListenPort *port = swServer_get_port(serv, conn->fd);
+    swListenPort *port = serv->get_port_by_fd(conn->fd);
     //other server port
     if (!port->open_redis_protocol)
     {

@@ -276,7 +276,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
         }
         offset = length - ws.payload_length;
         frame_length = length - offset;
-        port = swServer_get_port(serv, conn->fd);
+        port = serv->get_port_by_fd(conn->fd);
         //frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length)
         {

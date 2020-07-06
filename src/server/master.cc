@@ -730,11 +730,6 @@ int Server::start()
         return SW_ERR;
     }
 
-    if (swMutex_create(&lock, 0) < 0)
-    {
-        return SW_ERR;
-    }
-
     /**
      * store to swProcessPool object
      */
@@ -987,7 +982,7 @@ void Server::destroy()
         /**
          * Wait until all the end of the thread
          */
-        swReactorThread_join(this);
+        join_reactor_thread();
     }
 
     for (auto port : ports)
@@ -1064,7 +1059,6 @@ void Server::destroy()
     gs = nullptr;
     workers = nullptr;
 
-    lock.free(&lock);
     SwooleG.serv = nullptr;
 }
 
@@ -1346,7 +1340,7 @@ int Server::send_to_connection(swSendData *_send)
             return SW_ERR;
         }
 
-        swListenPort *port = swServer_get_port(this, fd);
+        swListenPort *port = get_port_by_fd(fd);
         if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length >= port->buffer_high_watermark)
         {
             notify(this, conn, SW_SERVER_EVENT_BUFFER_FULL);
