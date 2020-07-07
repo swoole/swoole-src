@@ -655,6 +655,7 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
             if (iter != serv->gs->task_workers.map->end())
             {
                 worker_type = SW_PROCESS_TASKWORKER;
+                exit_worker = iter->second;
                 break;
             }
         }
@@ -664,6 +665,7 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
             if (iter != serv->user_worker_map->end())
             {
                 worker_type = SW_PROCESS_USERWORKER;
+                exit_worker = iter->second;
                 break;
             }
         }
