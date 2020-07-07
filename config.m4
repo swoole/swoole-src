@@ -411,7 +411,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/base.cc \
         src/core/channel.cc \
         src/core/error.cc \
-        src/core/hashmap.cc \
+        src/core/crc32.cc \
         src/core/heap.cc \
         src/core/log.cc \
         src/core/ring_queue.cc \

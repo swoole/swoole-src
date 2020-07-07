@@ -19,55 +19,56 @@
 
 #include "tests.h"
 
-TEST(reactor, swReactor_create)
+TEST(reactor, create)
 {
-    swReactor reactor;
+    swoole_event_init(0);
 
-    int ret = swReactor_create(&reactor, SW_REACTOR_MAXEVENTS);
-    ASSERT_EQ(ret, SW_OK);
+    swReactor *reactor = SwooleTG.reactor;
 
-    ASSERT_NE(reactor.object, nullptr);
-    ASSERT_EQ(reactor.max_event_num, SW_REACTOR_MAXEVENTS);
+    ASSERT_NE(reactor->object, nullptr);
+    ASSERT_EQ(reactor->max_event_num, SW_REACTOR_MAXEVENTS);
 
-    ASSERT_NE(reactor.add, nullptr);
-    ASSERT_NE(reactor.set, nullptr);
-    ASSERT_NE(reactor.del, nullptr);
-    ASSERT_NE(reactor.wait, nullptr);
-    ASSERT_NE(reactor.free, nullptr);
+    ASSERT_NE(reactor->add, nullptr);
+    ASSERT_NE(reactor->set, nullptr);
+    ASSERT_NE(reactor->del, nullptr);
+    ASSERT_NE(reactor->wait, nullptr);
+    ASSERT_NE(reactor->free, nullptr);
 
-    ASSERT_EQ(reactor.running, 1);
-    ASSERT_NE(reactor.onFinish, nullptr);
-    ASSERT_NE(reactor.onTimeout, nullptr);
-    ASSERT_NE(reactor.is_empty, nullptr);
-    ASSERT_EQ(reactor.can_exit, nullptr); // set in PHP_METHOD(swoole_coroutine_scheduler, set)
-    ASSERT_NE(reactor.write, nullptr);
-    ASSERT_NE(reactor.close, nullptr);
-    ASSERT_NE(reactor.defer, nullptr);
-    ASSERT_EQ(reactor.defer_tasks, nullptr);
-    ASSERT_NE(reactor.default_write_handler, nullptr);
+    ASSERT_EQ(reactor->running, 1);
+    ASSERT_NE(reactor->onFinish, nullptr);
+    ASSERT_NE(reactor->onTimeout, nullptr);
+    ASSERT_NE(reactor->is_empty, nullptr);
+    ASSERT_EQ(reactor->can_exit, nullptr); // set in PHP_METHOD(swoole_coroutine_scheduler, set)
+    ASSERT_NE(reactor->write, nullptr);
+    ASSERT_NE(reactor->close, nullptr);
+    ASSERT_NE(reactor->defer, nullptr);
+    ASSERT_EQ(reactor->defer_tasks, nullptr);
+    ASSERT_NE(reactor->default_write_handler, nullptr);
 
     /**
      * coroutine socket reactor
      */
-    ASSERT_NE(reactor.read_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor.write_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor.error_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_ERROR)], nullptr);
 
     /**
      * system reactor
      */
-    ASSERT_NE(reactor.read_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor.write_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor.error_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_ERROR)], nullptr);
 
-    ASSERT_NE(reactor.read_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor.write_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor.error_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_ERROR)], nullptr);
 
-    ASSERT_NE(reactor.read_handler[swReactor_fdtype(SW_FD_AIO | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_AIO | SW_EVENT_READ)], nullptr);
+
+    swoole_event_free();
 }
 
-TEST(reactor, swReactor_set_handler)
+TEST(reactor, set_handler)
 {
     swReactor reactor;
 
@@ -81,7 +82,7 @@ TEST(reactor, swReactor_set_handler)
     ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
 }
 
-TEST(reactor, swReactor_wait)
+TEST(reactor, wait)
 {
     int ret;
     swPipe p;
@@ -116,7 +117,7 @@ TEST(reactor, swReactor_wait)
     ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
 
-TEST(reactor, swReactor_write)
+TEST(reactor, write)
 {
     int ret;
     swPipe p;

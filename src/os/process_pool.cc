@@ -132,12 +132,7 @@ int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueu
         ipc_mode = SW_IPC_NONE;
     }
 
-    pool->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, nullptr);
-    if (pool->map == nullptr)
-    {
-        swProcessPool_free(pool);
-        return SW_ERR;
-    }
+    pool->map = new std::unordered_map<pid_t, swWorker *>;
 
     pool->ipc_mode = ipc_mode;
     if (ipc_mode > SW_IPC_NONE)
@@ -427,11 +422,11 @@ pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker)
         //remove old process
         if (worker->pid)
         {
-            swHashMap_del_int(pool->map, worker->pid);
+            pool->map->erase(worker->pid);
         }
         worker->pid = pid;
         //insert new process
-        swHashMap_add_int(pool->map, pid, worker);
+        pool->map->emplace(std::make_pair(pid, worker));
         break;
     }
     return pid;
@@ -733,7 +728,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
  */
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker)
 {
-    swHashMap_add_int(pool->map, worker->pid, worker);
+    pool->map->emplace(std::make_pair(worker->pid, worker));
     return SW_OK;
 }
 
@@ -782,7 +777,7 @@ int swProcessPool_wait(swProcessPool *pool)
                     memcpy(pool->reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
                     if (pool->max_wait_time)
                     {
-                        swoole_timer_add((long) (pool->max_wait_time * 1000), SW_FALSE, swProcessPool_kill_timeout_worker, pool);
+                        swoole_timer_add((long) (pool->max_wait_time * 1000), false, swProcessPool_kill_timeout_worker, pool);
                     }
                 }
                 goto _kill_worker;
@@ -791,8 +786,8 @@ int swProcessPool_wait(swProcessPool *pool)
 
         if (pool->running == 1)
         {
-            swWorker *exit_worker = (swWorker *) swHashMap_find_int(pool->map, pid);
-            if (exit_worker == nullptr)
+            auto iter = pool->map->find(pid);
+            if (iter == pool->map->end())
             {
                 if (pool->onWorkerNotFound)
                 {
@@ -804,6 +799,8 @@ int swProcessPool_wait(swProcessPool *pool)
                 }
                 continue;
             }
+
+            swWorker *exit_worker = iter->second;
             if (!WIFEXITED(status))
             {
                 swWarn(
@@ -819,7 +816,7 @@ int swProcessPool_wait(swProcessPool *pool)
                 sw_free(pool->reload_workers);
                 return SW_ERR;
             }
-            swHashMap_del_int(pool->map, pid);
+            pool->map->erase(pid);
             if (pid == reload_worker_pid)
             {
                 pool->reload_worker_i++;
@@ -900,6 +897,8 @@ void swProcessPool_free(swProcessPool *pool)
 
     if (pool->map)
     {
-        swHashMap_free(pool->map);
+        delete pool->map;
     }
+
+    SwooleG.memory_pool->free(SwooleG.memory_pool, pool->workers);
 }

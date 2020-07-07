@@ -646,6 +646,11 @@ void Server::init_reactor(swReactor *reactor)
     //Read
     swReactor_set_handler(reactor, SW_FD_SESSION | SW_EVENT_READ, swReactorThread_onRead);
 
+    if (dispatch_mode == SW_DISPATCH_STREAM)
+    {
+        swClient_init_reactor(reactor);
+    }
+
     //listen the all tcp port
     for (auto port : ports)
     {

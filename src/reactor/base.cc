@@ -15,15 +15,9 @@
 */
 
 #include "swoole_cxx.h"
-#include "async.h"
-
 #include "coroutine_c_api.h"
-#include "coroutine_socket.h"
-#include "coroutine_system.h"
 
 using swoole::CallbackManager;
-using swoole::coroutine::Socket;
-using swoole::coroutine::System;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -68,10 +62,6 @@ int swReactor_create(swReactor *reactor, int max_event)
     reactor->defer_tasks = nullptr;
 
     reactor->default_write_handler = swReactor_onWrite;
-
-    Socket::init_reactor(reactor);
-    System::init_reactor(reactor);
-    swClient_init_reactor(reactor);
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
     {
@@ -192,7 +182,7 @@ static void reactor_finish(swReactor *reactor)
         reactor->running = 0;
     }
 #ifdef SW_USE_MALLOC_TRIM
-    time_t now = time(nullptr);
+    time_t now = ::time(nullptr);
     if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
     {
         malloc_trim(SW_MALLOC_TRIM_PAD);
@@ -406,7 +396,7 @@ int swReactor_wait_write_buffer(swReactor *reactor, swSocket *socket)
 
 void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *data)
 {
-    CallbackManager *cm = (CallbackManager *) reactor->destroy_callbacks;
+    CallbackManager *cm = reactor->destroy_callbacks;
     if (cm == nullptr)
     {
         cm = new CallbackManager;
@@ -417,7 +407,7 @@ void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *dat
 
 static void defer_task_do(swReactor *reactor)
 {
-    CallbackManager *cm = (CallbackManager *) reactor->defer_tasks;
+    CallbackManager *cm = reactor->defer_tasks;
     reactor->defer_tasks = nullptr;
     cm->execute();
     delete cm;
@@ -425,7 +415,7 @@ static void defer_task_do(swReactor *reactor)
 
 static void defer_task_add(swReactor *reactor, swCallback callback, void *data)
 {
-    CallbackManager *cm = (CallbackManager *) reactor->defer_tasks;
+    CallbackManager *cm = reactor->defer_tasks;
     if (cm == nullptr)
     {
         cm = new CallbackManager;
@@ -438,7 +428,7 @@ void swReactor_destroy(swReactor *reactor)
 {
     if (reactor->destroy_callbacks)
     {
-        CallbackManager *cm = (CallbackManager *) reactor->destroy_callbacks;
+        CallbackManager *cm = reactor->destroy_callbacks;
         cm->execute();
         reactor->destroy_callbacks = nullptr;
         delete cm;

@@ -540,7 +540,7 @@ class Server
      */
     uint32_t user_worker_num = 0;
     std::vector<swWorker*> *user_worker_list = nullptr;
-    swHashMap *user_worker_map = nullptr;
+    std::unordered_map<pid_t, swWorker *> *user_worker_map = nullptr;
     swWorker *user_workers = nullptr;
 
     ReactorThread *reactor_threads = nullptr;

@@ -11,7 +11,10 @@ for ($c = MAX_CONCURRENCY; $c--;) {
 }
 $iterator = Swoole\Timer::list();
 Assert::isInstanceOf($iterator, ArrayIterator::class);
-Assert::same(iterator_to_array($iterator), $timers);
+$timers_2 = iterator_to_array($iterator);
+sort($timers_2);
+sort($timers);
+Assert::same($timers_2, $timers);
 Swoole\Event::wait();
 echo "DONE\n";
 ?>
