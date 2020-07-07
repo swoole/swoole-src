@@ -55,43 +55,6 @@ inline std::string vformat(const char *format, va_list args)
 }
 }
 
-struct Callback
-{
-    swCallback callback;
-    void *private_data;
-
-    Callback(swCallback cb, void *_private_data)
-    {
-        callback = cb;
-        private_data = _private_data;
-    }
-};
-
-class CallbackManager
-{
-public:
-    inline void append(swCallback cb, void *private_data)
-    {
-        list_.push_back(new Callback(cb, private_data));
-    }
-    inline void prepend(swCallback cb, void *private_data)
-    {
-        list_.push_front(new Callback(cb, private_data));
-    }
-    inline void execute()
-    {
-        while (!list_.empty())
-        {
-            Callback *task = list_.front();
-            list_.pop_front();
-            task->callback(task->private_data);
-            delete task;
-        }
-    }
-protected:
-    std::list<Callback *> list_;
-};
-
 static inline int hook_add(void **hooks, int type, swCallback func, int push_back)
 {
     if (hooks[type] == nullptr)

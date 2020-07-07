@@ -15,11 +15,17 @@
 */
 
 #include "swoole_api.h"
+#include "async.h"
+#include "coroutine_c_api.h"
+#include "coroutine_socket.h"
+#include "coroutine_system.h"
 
 #include <mutex>
 #include <thread>
 
 using namespace std;
+using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 
 static mutex init_lock;
 
@@ -38,22 +44,28 @@ int swoole_event_init(int flags)
         swoole_init();
     }
 
-    SwooleTG.reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-    if (!SwooleTG.reactor)
+    swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
+    if (!reactor)
     {
         swSysWarn("malloc failed");
         return SW_ERR;
     }
-    if (swReactor_create(SwooleTG.reactor, SW_REACTOR_MAXEVENTS) < 0)
+    if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
     {
-        sw_free(SwooleTG.reactor);
-        SwooleTG.reactor = nullptr;
+        sw_free(reactor);
         return SW_ERR;
     }
     if (flags & SW_EVENTLOOP_WAIT_EXIT)
     {
-        SwooleTG.reactor->wait_exit = 1;
+        reactor->wait_exit = 1;
     }
+
+    Socket::init_reactor(reactor);
+    System::init_reactor(reactor);
+    swClient_init_reactor(reactor);
+
+    SwooleTG.reactor = reactor;
+
     return SW_OK;
 }
 
@@ -112,4 +124,9 @@ int swoole_event_write(swSocket *socket, const void *data, size_t len)
 int swoole_event_set_handler(int fdtype, swReactor_handler handle)
 {
     return swReactor_set_handler(SwooleTG.reactor, fdtype, handle);
+}
+
+int swoole_event_isset_handler(int fdtype)
+{
+    return swReactor_isset_handler(SwooleTG.reactor, fdtype);
 }

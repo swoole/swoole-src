@@ -48,6 +48,7 @@ SW_API int swoole_event_write(swSocket *socket, const void *data, size_t len);
 SW_API int swoole_event_wait();
 SW_API int swoole_event_free();
 SW_API int swoole_event_set_handler(int fdtype, swReactor_handler handler);
+SW_API int swoole_event_isset_handler(int fdtype);
 
 #ifdef __MACH__
 swReactor* sw_reactor();

@@ -15,8 +15,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SWOOLE_H_
-#define SWOOLE_H_
+#pragma once
 
 #if defined(HAVE_CONFIG_H) && !defined(COMPILE_DL_SWOOLE)
 #include "config.h"
@@ -31,8 +30,6 @@
 #define SW_EXTERN_C_BEGIN
 #define SW_EXTERN_C_END
 #endif
-
-SW_EXTERN_C_BEGIN
 
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
@@ -83,6 +80,8 @@ typedef cpuset_t cpu_set_t;
 #include <sched.h>
 #endif
 #endif
+
+#include <list>
 
 #ifdef __MACH__
 #include <mach/clock.h>
@@ -1032,7 +1031,7 @@ typedef struct
 } swSendFile_request;
 
 typedef void (*swSignalHandler)(int);
-typedef struct _swReactor swReactor;
+struct swReactor;
 
 typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 //------------------Pipe--------------------
@@ -1756,7 +1755,47 @@ typedef struct _swDefer_callback
     void *data;
 } swDefer_callback;
 
-struct _swReactor
+namespace swoole{
+
+struct Callback
+{
+    swCallback callback;
+    void *private_data;
+
+    Callback(swCallback cb, void *_private_data)
+    {
+        callback = cb;
+        private_data = _private_data;
+    }
+};
+
+class CallbackManager
+{
+public:
+    inline void append(swCallback cb, void *private_data)
+    {
+        list_.push_back(new Callback(cb, private_data));
+    }
+    inline void prepend(swCallback cb, void *private_data)
+    {
+        list_.push_front(new Callback(cb, private_data));
+    }
+    inline void execute()
+    {
+        while (!list_.empty())
+        {
+            Callback *task = list_.front();
+            list_.pop_front();
+            task->callback(task->private_data);
+            delete task;
+        }
+    }
+protected:
+    std::list<Callback *> list_;
+};
+}
+
+struct swReactor
 {
     void *object;
     void *ptr;  //reserve
@@ -1809,8 +1848,8 @@ struct _swReactor
     int (*wait)(swReactor *reactor, struct timeval *);
     void (*free)(swReactor *);
 
-    void *defer_tasks;
-    void *destroy_callbacks;
+    swoole::CallbackManager *defer_tasks;
+    swoole::CallbackManager *destroy_callbacks;
 
     swDefer_callback idle_task;
     swDefer_callback future_task;
@@ -2623,6 +2662,3 @@ static sw_inline int64_t swTimer_get_absolute_msec()
     return msec1 + msec2;
 }
 
-SW_EXTERN_C_END
-
-#endif /* SWOOLE_H_ */
