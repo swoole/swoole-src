@@ -15,6 +15,7 @@
  */
 
 #include "swoole_api.h"
+#include <assert.h>
 #include "client.h"
 #include "socks5.h"
 #include "async.h"
