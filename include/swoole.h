@@ -82,6 +82,8 @@ typedef cpuset_t cpu_set_t;
 #endif
 
 #include <list>
+#include <map>
+#include <unordered_map>
 
 #ifdef __MACH__
 #include <mach/clock.h>
@@ -184,7 +186,6 @@ typedef unsigned long ulong_t;
 #include "swoole_version.h"
 #include "atomic.h"
 #include "buffer.h"
-#include "hashmap.h"
 #include "heap.h"
 #include "ring_queue.h"
 #include "error.h"
@@ -251,6 +252,14 @@ static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, siz
 {
     return s1 == s2 && memcmp(v1, v2, s2) == 0;
 }
+
+/*-------------------------------Declare Struct--------------------------------*/
+
+struct swReactor;
+struct swTimer_node;
+struct swTimer;
+struct swThread;
+struct swThreadPool;
 
 /*----------------------------------String-------------------------------------*/
 
@@ -624,24 +633,24 @@ typedef struct
     uint32_t reactor_id :8;
 } swSession;
 
-typedef struct _swAllocator
+struct swAllocator
 {
     void* (*malloc)(size_t size);
     void* (*calloc)(size_t nmemb, size_t size);
     void* (*realloc)(void *ptr, size_t size);
     void (*free)(void *ptr);
-} swAllocator;
+};
 
-typedef struct _swString
+struct swString
 {
     size_t length;
     size_t size;
     off_t offset;
     char *str;
     const swAllocator *allocator;
-} swString;
+};
 
-typedef struct
+struct swSocketAddress
 {
     union
     {
@@ -651,9 +660,9 @@ typedef struct
         struct sockaddr_un un;
     } addr;
     socklen_t len;
-} swSocketAddress;
+};
 
-typedef struct _swSocket
+struct swSocket
 {
     int fd;
     enum swFd_type fdtype;
@@ -707,8 +716,7 @@ typedef struct _swSocket
     size_t total_recv_bytes;
     size_t total_send_bytes;
 #endif
-
-} swSocket;
+};
 
 typedef struct _swTask_sendfile
 {
@@ -786,7 +794,7 @@ typedef struct _swConnection
     sw_atomic_t server_fd;
     sw_atomic_t queued_bytes;
     uint16_t waiting_time;
-    struct _swTimer_node *timer;
+    swTimer_node *timer;
     /**
      * socket address
      */
@@ -1031,7 +1039,6 @@ typedef struct
 } swSendFile_request;
 
 typedef void (*swSignalHandler)(int);
-struct swReactor;
 
 typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 //------------------Pipe--------------------
@@ -1840,7 +1847,7 @@ struct swReactor
     swReactor_handler default_write_handler;
     swReactor_handler default_error_handler;
 
-    struct _swTimer *timer;
+    swTimer *timer;
 
     int (*add)(swReactor *reactor, swSocket *socket, int events);
     int (*set)(swReactor *reactor, swSocket *socket, int events);
@@ -1866,11 +1873,9 @@ struct swReactor
     void (*defer)(swReactor *reactor, swCallback callback, void *data);
 };
 
-typedef struct _swWorker swWorker;
-typedef struct _swThread swThread;
-typedef struct _swProcessPool swProcessPool;
+struct swProcessPool;
 
-struct _swWorker
+struct swWorker
 {
     /**
      * worker process
@@ -1946,7 +1951,7 @@ typedef struct
     swString *response_buffer;
 } swStreamInfo;
 
-struct _swProcessPool
+struct swProcessPool
 {
     /**
      * reloading
@@ -1989,7 +1994,6 @@ struct _swProcessPool
      */
     key_t msgqueue_key;
 
-
     uint32_t worker_num;
     uint32_t max_request;
     uint32_t max_request_grace;
@@ -2000,20 +2004,20 @@ struct _swProcessPool
     uint8_t scheduler_warning;
     time_t warning_time;
 
-    int (*onTask)(struct _swProcessPool *pool, swEventData *task);
+    int (*onTask)(swProcessPool *pool, swEventData *task);
 
-    void (*onWorkerStart)(struct _swProcessPool *pool, int worker_id);
-    void (*onMessage)(struct _swProcessPool *pool, const char *data, uint32_t length);
-    void (*onWorkerStop)(struct _swProcessPool *pool, int worker_id);
+    void (*onWorkerStart)(swProcessPool *pool, int worker_id);
+    void (*onMessage)(swProcessPool *pool, const char *data, uint32_t length);
+    void (*onWorkerStop)(swProcessPool *pool, int worker_id);
 
-    int (*main_loop)(struct _swProcessPool *pool, swWorker *worker);
-    int (*onWorkerNotFound)(struct _swProcessPool *pool, pid_t pid, int status);
+    int (*main_loop)(swProcessPool *pool, swWorker *worker);
+    int (*onWorkerNotFound)(swProcessPool *pool, pid_t pid, int status);
 
     sw_atomic_t round_id;
 
     swWorker *workers;
     swPipe *pipes;
-    swHashMap *map;
+    std::unordered_map<pid_t, swWorker *> *map;
     swReactor *reactor;
     swMsgQueue *queue;
     swStreamInfo *stream;
@@ -2333,7 +2337,7 @@ enum swThread_type
     SW_THREAD_HEARTBEAT = 6,
 };
 
-typedef struct _swThreadPool
+struct swThreadPool
 {
     swCond cond;
 
@@ -2353,13 +2357,13 @@ typedef struct _swThreadPool
     uchar running;
     sw_atomic_t task_num;
 
-    void (*onStart)(struct _swThreadPool *pool, int id);
-    void (*onStop)(struct _swThreadPool *pool, int id);
-    int (*onTask)(struct _swThreadPool *pool, void *task, int task_len);
+    void (*onStart)(swThreadPool *pool, int id);
+    void (*onStop)(swThreadPool *pool, int id);
+    int (*onTask)(swThreadPool *pool, void *task, int task_len);
 
-} swThreadPool;
+};
 
-struct _swThread
+struct swThread
 {
     pthread_t tid;
     int id;
@@ -2382,9 +2386,6 @@ int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *
 #define SW_TIMER_MAX_MS  LONG_MAX
 #define SW_TIMER_MAX_SEC ((double) (LONG_MAX / 1000))
 
-typedef struct _swTimer swTimer;
-typedef struct _swTimer_node swTimer_node;
-
 typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
 typedef void (*swTimerDtor)(swTimer_node *);
 
@@ -2394,7 +2395,7 @@ enum swTimer_type
     SW_TIMER_TYPE_PHP,
 };
 
-struct _swTimer_node
+struct swTimer_node
 {
     /*----------------properties--------------*/
     long id;
@@ -2411,12 +2412,12 @@ struct _swTimer_node
     swTimerDtor dtor;
 };
 
-struct _swTimer
+struct swTimer
 {
     /*--------------signal timer--------------*/
     swReactor *reactor;
     swHeap *heap;
-    swHashMap *map;
+    std::unordered_map<long, swTimer_node *> *map;
     uint32_t num;
     uint64_t round;
     long _next_id;
@@ -2433,14 +2434,22 @@ struct _swTimer
 
 int swTimer_init(swTimer *timer, long msec);
 void swTimer_reinit(swTimer *timer, swReactor *reactor);
-enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
+bool swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 int swTimer_now(struct timeval *time);
 
 static sw_inline swTimer_node *swTimer_get(swTimer *timer, long id)
 {
-    return (swTimer_node*) swHashMap_find_int(timer->map, id);
+    auto it = timer->map->find(id);
+    if (it == timer->map->end())
+    {
+        return nullptr;
+    }
+    else
+    {
+        return it->second;
+    }
 }
 
 static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, const enum swTimer_type type)
@@ -2572,7 +2581,7 @@ typedef struct
     double aio_max_idle_time;
     swSocket *aio_default_socket;
 
-    swHashMap *functions;
+    std::map<std::string, void*> *functions;
     void *hooks[SW_MAX_HOOK_TYPE];
 
     int (*reactor_can_exit)(swReactor *);

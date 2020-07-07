@@ -134,17 +134,11 @@ bool php_swoole_timer_clear_all()
         return SW_FALSE;
     }
 
-    uint32_t num = swHashMap_count(SwooleTG.timer->map), index = 0;
+    uint32_t num = SwooleTG.timer->map->size(), index = 0;
     swTimer_node **list = (swTimer_node **) emalloc(num * sizeof(swTimer_node*));
-    swHashMap_rewind(SwooleTG.timer->map);
-    while (1)
+    for (auto kv : *SwooleTG.timer->map)
     {
-        uint64_t timer_id;
-        swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleTG.timer->map, &timer_id);
-        if (UNEXPECTED(!tnode))
-        {
-            break;
-        }
+        swTimer_node *tnode = kv.second;
         if (tnode->type == SW_TIMER_TYPE_PHP)
         {
             list[index++] = tnode;
@@ -337,18 +331,12 @@ static PHP_FUNCTION(swoole_timer_list)
     array_init(&zlist);
     if (EXPECTED(SwooleTG.timer))
     {
-        swHashMap_rewind(SwooleTG.timer->map);
-        while (1)
+        for (auto kv : *SwooleTG.timer->map)
         {
-            uint64_t timer_id;
-            swTimer_node *tnode = (swTimer_node *) swHashMap_each_int(SwooleTG.timer->map, &timer_id);
-            if (UNEXPECTED(!tnode))
-            {
-                break;
-            }
+            swTimer_node *tnode = kv.second;
             if (tnode->type == SW_TIMER_TYPE_PHP)
             {
-                add_next_index_long(&zlist, timer_id);
+                add_next_index_long(&zlist, tnode->id);
             }
         }
     }

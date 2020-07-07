@@ -47,7 +47,7 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
 
 static void swReactorTimer_close(swTimer *timer)
 {
-    timer->reactor->check_timer = SW_FALSE;
+    timer->reactor->check_timer = false;
     swReactorTimer_set(timer, -1);
 }
 
@@ -58,7 +58,7 @@ static void swReactorTimer_free(swTimer *timer)
 
 static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_msec)
 {
-    reactor->check_timer = SW_TRUE;
+    reactor->check_timer = true;
     reactor->timeout_msec = exec_msec;
     reactor->timer = timer;
     timer->reactor = reactor;
@@ -84,14 +84,7 @@ int swTimer_init(swTimer *timer, long msec)
         return SW_ERR;
     }
 
-    timer->map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, nullptr);
-    if (!timer->map)
-    {
-        swHeap_free(timer->heap);
-        timer->heap = nullptr;
-        return SW_ERR;
-    }
-
+    timer->map = new std::unordered_map<long, swTimer_node *>;
     timer->_current_id = -1;
     timer->_next_msec = msec;
     timer->_next_id = 1;
@@ -117,12 +110,6 @@ void swTimer_reinit(swTimer *timer, swReactor *reactor)
     swReactorTimer_init(reactor, timer, timer->_next_msec);
 }
 
-static void swTimer_node_dtor(void *data)
-{
-    swTimer_node *tnode = (swTimer_node *) data;
-    sw_free(tnode);
-}
-
 void swTimer_free(swTimer *timer)
 {
     if (timer->close)
@@ -135,8 +122,11 @@ void swTimer_free(swTimer *timer)
     }
     if (timer->map)
     {
-        timer->map->dtor = swTimer_node_dtor;
-        swHashMap_free(timer->map);
+        for (auto iter = timer->map->begin(); iter != timer->map->end(); iter++)
+        {
+            sw_free(iter->second);
+        }
+        delete timer->map;
     }
     memset(timer, 0, sizeof(swTimer));
 }
@@ -191,31 +181,27 @@ swTimer_node* swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
         sw_free(tnode);
         return nullptr;
     }
-    if (sw_unlikely(swHashMap_add_int(timer->map, tnode->id, tnode) != SW_OK))
-    {
-        sw_free(tnode);
-        return nullptr;
-    }
+    timer->map->emplace(std::make_pair(tnode->id, tnode));
     timer->num++;
     swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, _msec, tnode->round, timer->num);
     return tnode;
 }
 
-enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
+bool swTimer_del(swTimer *timer, swTimer_node *tnode)
 {
     if (sw_unlikely(!tnode || tnode->removed))
     {
-        return SW_FALSE;
+        return false;
     }
     if (sw_unlikely(timer->_current_id > 0 && tnode->id == timer->_current_id))
     {
         tnode->removed = 1;
         swTraceLog(SW_TRACE_TIMER, "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
-        return SW_TRUE;
+        return true;
     }
-    if (sw_unlikely(swHashMap_del_int(timer->map, tnode->id) < 0))
+    if (sw_unlikely(!timer->map->erase(tnode->id)))
     {
-        return SW_FALSE;
+        return false;
     }
     if (tnode->heap_node)
     {
@@ -229,7 +215,7 @@ enum swBool_type swTimer_del(swTimer *timer, swTimer_node *tnode)
     timer->num--;
     swTraceLog(SW_TRACE_TIMER, "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u", tnode->id, tnode->exec_msec, tnode->round, timer->num);
     sw_free(tnode);
-    return SW_TRUE;
+    return true;
 }
 
 int swTimer_select(swTimer *timer)
@@ -273,7 +259,7 @@ int swTimer_select(swTimer *timer)
 
         timer->num--;
         swHeap_pop(timer->heap);
-        swHashMap_del_int(timer->map, tnode->id);
+        timer->map->erase(tnode->id);
         sw_free(tnode);
     }
 

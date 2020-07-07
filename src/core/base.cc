@@ -21,6 +21,7 @@
 #include "coroutine_c_api.h"
 
 #include <stdarg.h>
+#include <assert.h>
 
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -440,7 +441,7 @@ int swoole_type_size(char type)
     }
 }
 
-char* swoole_dec2hex(int value, int base)
+char *swoole_dec2hex(int value, int base)
 {
     assert(base > 1 && base < 37);
 
@@ -1344,18 +1345,20 @@ SW_API int swoole_add_function(const char *name, void* func)
 {
     if (SwooleG.functions == nullptr)
     {
-        SwooleG.functions = swHashMap_new(64, nullptr);
-        if (SwooleG.functions == nullptr)
-        {
-            return SW_ERR;
-        }
+        SwooleG.functions = new std::map<std::string, void*>;
     }
-    if (swHashMap_find(SwooleG.functions, (char *) name, strlen(name)) != nullptr)
+    std::string _name(name);
+    auto iter = SwooleG.functions->find(_name);
+    if (iter != SwooleG.functions->end())
     {
         swWarn("Function '%s' has already been added", name);
         return SW_ERR;
     }
-    return swHashMap_add(SwooleG.functions, (char *) name, strlen(name), func);
+    else
+    {
+        SwooleG.functions->emplace(std::make_pair(_name, func));
+        return SW_OK;
+    }
 }
 
 SW_API void* swoole_get_function(const char *name, uint32_t length)
@@ -1364,7 +1367,15 @@ SW_API void* swoole_get_function(const char *name, uint32_t length)
     {
         return nullptr;
     }
-    return swHashMap_find(SwooleG.functions, name, length);
+    auto iter = SwooleG.functions->find(std::string(name));
+    if (iter != SwooleG.functions->end())
+    {
+        return iter->second;
+    }
+    else
+    {
+        return nullptr;
+    }
 }
 
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back)

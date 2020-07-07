@@ -487,15 +487,14 @@ static int swManager_loop(swServer *serv)
                 }
             }
 
-            swWorker *exit_worker;
             //task worker
             if (serv->gs->task_workers.map)
             {
-                exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
-                if (exit_worker != nullptr)
+                auto iter = serv->gs->task_workers.map->find(pid);
+                if (iter != serv->gs->task_workers.map->end())
                 {
-                    swManager_check_exit_status(serv, exit_worker->id, pid, status);
-                    swManager_spawn_task_worker(serv, exit_worker);
+                    swManager_check_exit_status(serv, iter->second->id, pid, status);
+                    swManager_spawn_task_worker(serv, iter->second);
                 }
             }
             //user process
@@ -559,17 +558,9 @@ static int swManager_loop(swServer *serv)
         }
         if (serv->user_worker_map)
         {
-            swHashMap_rewind(serv->user_worker_map);
-            uint64_t key;
-            while (1)
+            for (auto kv : *serv->user_worker_map)
             {
-                swWorker *user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
-                // no other user_worker
-                if (user_worker == nullptr)
-                {
-                    break;
-                }
-                ManagerProcess.kill_workers.push_back(user_worker->pid);
+                ManagerProcess.kill_workers.push_back(kv.second->pid);
             }
         }
         /**
@@ -656,11 +647,12 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
     swWorker *exit_worker = nullptr;
     int worker_type;
 
-    do {
+    do
+    {
         if (serv->gs->task_workers.map)
         {
-            exit_worker = (swWorker *) swHashMap_find_int(serv->gs->task_workers.map, pid);
-            if (exit_worker != nullptr)
+            auto iter = serv->gs->task_workers.map->find(pid);
+            if (iter != serv->gs->task_workers.map->end())
             {
                 worker_type = SW_PROCESS_TASKWORKER;
                 break;
@@ -668,8 +660,8 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status)
         }
         if (serv->user_worker_map)
         {
-            exit_worker = (swWorker *) swHashMap_find_int(serv->user_worker_map, pid);
-            if (exit_worker != nullptr)
+            auto iter = serv->user_worker_map->find(pid);
+            if (iter != serv->user_worker_map->end())
             {
                 worker_type = SW_PROCESS_USERWORKER;
                 break;
@@ -691,36 +683,18 @@ void swManager_kill_user_workers(swServer *serv)
     {
         return;
     }
-    swWorker *user_worker;
-    uint64_t key;
-    int __stat_loc;
 
-    //kill user process
-    swHashMap_rewind(serv->user_worker_map);
-    while (1)
+    for (auto kv : *serv->user_worker_map)
     {
-        user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
-        //hashmap empty
-        if (user_worker == nullptr)
-        {
-            break;
-        }
-        swoole_kill(user_worker->pid, SIGTERM);
+        swoole_kill(kv.second->pid, SIGTERM);
     }
 
-    //wait user process
-    swHashMap_rewind(serv->user_worker_map);
-    while (1)
+    for (auto kv : *serv->user_worker_map)
     {
-        user_worker = (swWorker *) swHashMap_each_int(serv->user_worker_map, &key);
-        //hashmap empty
-        if (user_worker == nullptr)
+        int __stat_loc;
+        if (swoole_waitpid(kv.second->pid, &__stat_loc, 0) < 0)
         {
-            break;
-        }
-        if (swoole_waitpid(user_worker->pid, &__stat_loc, 0) < 0)
-        {
-            swSysWarn("waitpid(%d) failed", user_worker->pid);
+            swSysWarn("waitpid(%d) failed", kv.second->pid);
         }
     }
 }
@@ -816,14 +790,14 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     {
         if (worker->pid)
         {
-            swHashMap_del_int(serv->user_worker_map, worker->pid);
+            serv->user_worker_map->erase(worker->pid);
         }
         /**
          * worker: local memory
          * serv->user_workers: shared memory
          */
         serv->get_worker(worker->id)->pid = worker->pid = pid;
-        swHashMap_add_int(serv->user_worker_map, pid, worker);
+        serv->user_worker_map->emplace(std::make_pair(pid, worker));
         return pid;
     }
 }

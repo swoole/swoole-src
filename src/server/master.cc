@@ -1614,14 +1614,14 @@ int Server::add_worker(swWorker *worker)
 {
     if (user_worker_list == nullptr)
     {
-        user_worker_list = new std::vector<swWorker *>;
+        user_worker_list = new std::vector<swWorker *>();
     }
     user_worker_num++;
     user_worker_list->push_back(worker);
 
     if (!user_worker_map)
     {
-        user_worker_map = swHashMap_new(SW_HASHMAP_INIT_BUCKET_N, nullptr);
+        user_worker_map = new std::unordered_map<pid_t, swWorker *>();
     }
 
     return worker->id;
