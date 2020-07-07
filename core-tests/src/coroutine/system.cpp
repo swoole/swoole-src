@@ -17,28 +17,30 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_coroutine.h"
 
-TEST(msg_queue, rbac)
-{
-    swMsgQueue q;
-    ASSERT_EQ(swMsgQueue_create(&q, 0, 0, 0), SW_OK);
-    swQueue_data in;
-    in.mtype = 999;
-    strcpy(in.mdata, "hello world");
+using namespace swoole;
+using namespace swoole::test;
 
-    ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
+using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 
-    int queue_num, queue_bytes;
-    ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
-    ASSERT_EQ(queue_num, 1);
-    ASSERT_GT(queue_bytes, 10);
+static const  char *test_file = "/tmp/swoole-core-test";
 
-    swQueue_data out = {};
-    ASSERT_GT(swMsgQueue_pop(&q, &out, sizeof(out)), 1);
-
-    ASSERT_EQ(out.mtype, in.mtype);
-    ASSERT_STREQ(out.mdata, in.mdata);
+TEST(coroutine_system, file) {
+    test::coroutine::run([](void *arg) {
+        char buf[8192];
+        size_t n_buf = sizeof(buf);
+        ASSERT_EQ(swoole_random_bytes(buf, n_buf), n_buf);
+        int flags = 0;
+#ifdef O_TMPFILE
+        flags |= O_TMPFILE;
+#endif
+        ASSERT_EQ(System::write_file(test_file, buf, n_buf, true, flags), n_buf);
+        swString *data = System::read_file(test_file, true);
+        ASSERT_TRUE(data);
+        ASSERT_EQ(std::string(buf, n_buf), std::string(data->str, data->length));
+        swString_free(data);
+        unlink(test_file);
+    });
 }
-
-

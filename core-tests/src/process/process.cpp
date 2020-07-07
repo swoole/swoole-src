@@ -1,8 +1,8 @@
 #include "test_process.h"
 
-using swoole::test::process;
+using swoole::test::Process;
 
-process::process(std::function<void (process*)> fn, int pipe_type):
+Process::Process(std::function<void (Process*)> fn, int pipe_type):
     handler(fn)
 {
     if (pipe_type > 0)
@@ -18,7 +18,7 @@ process::process(std::function<void (process*)> fn, int pipe_type):
     }
 }
 
-process::~process()
+Process::~Process()
 {
     if (worker.pipe_object) {
         worker.pipe_object->close(worker.pipe_object);
@@ -26,7 +26,7 @@ process::~process()
     }
 }
 
-pid_t process::start()
+pid_t Process::start()
 {
     pid_t pid = fork();
 
@@ -52,12 +52,12 @@ pid_t process::start()
     }
 }
 
-ssize_t process::write(const void *__buf, size_t __n)
+ssize_t Process::write(const void *__buf, size_t __n)
 {
     return ::write(worker.pipe_current->fd, __buf, __n);
 }
 
-ssize_t process::read(void *__buf, size_t __nbytes)
+ssize_t Process::read(void *__buf, size_t __nbytes)
 {
     return ::read(worker.pipe_current->fd, __buf, __nbytes);
 }

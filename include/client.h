@@ -142,7 +142,7 @@ typedef struct _swClient
     void (*onBufferEmpty)(struct _swClient *cli);
 
     int (*connect)(struct _swClient *cli, const char *host, int port, double _timeout, int sock_flag);
-    int (*send)(struct _swClient *cli, const char *data, int length, int flags);
+    int (*send)(struct _swClient *cli, const char *data, size_t length, int flags);
     int (*sendfile)(struct _swClient *cli, const char *filename, off_t offset, size_t length);
     int (*recv)(struct _swClient *cli, char *data, int len, int flags);
     int (*close)(struct _swClient *cli);
@@ -165,6 +165,7 @@ typedef struct _swStream
 {
     swString *buffer;
     uint8_t cancel;
+    int errCode;
     void *private_data;
     void (*response)(struct _swStream *stream, const char *data, uint32_t length);
     swClient client;

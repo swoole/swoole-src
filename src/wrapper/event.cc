@@ -30,7 +30,7 @@ swReactor* sw_reactor()
 }
 #endif
 
-int swoole_event_init()
+int swoole_event_init(int flags)
 {
     if (!SwooleG.init)
     {
@@ -49,6 +49,10 @@ int swoole_event_init()
         sw_free(SwooleTG.reactor);
         SwooleTG.reactor = nullptr;
         return SW_ERR;
+    }
+    if (flags & SW_EVENTLOOP_WAIT_EXIT)
+    {
+        SwooleTG.reactor->wait_exit = 1;
     }
     return SW_OK;
 }

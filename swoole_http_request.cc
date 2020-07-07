@@ -460,7 +460,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             goto _add_header;
         }
         swServer *serv = (swServer *) ctx->private_data;
-        swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+        swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn)
         {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);

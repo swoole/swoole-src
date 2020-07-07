@@ -17,28 +17,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
-
-TEST(msg_queue, rbac)
-{
-    swMsgQueue q;
-    ASSERT_EQ(swMsgQueue_create(&q, 0, 0, 0), SW_OK);
-    swQueue_data in;
-    in.mtype = 999;
-    strcpy(in.mdata, "hello world");
-
-    ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
-
-    int queue_num, queue_bytes;
-    ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
-    ASSERT_EQ(queue_num, 1);
-    ASSERT_GT(queue_bytes, 10);
-
-    swQueue_data out = {};
-    ASSERT_GT(swMsgQueue_pop(&q, &out, sizeof(out)), 1);
-
-    ASSERT_EQ(out.mtype, in.mtype);
-    ASSERT_STREQ(out.mdata, in.mdata);
-}
+#include "wrapper/client.hpp"
 
 

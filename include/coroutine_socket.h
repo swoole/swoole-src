@@ -119,6 +119,7 @@ public:
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
+    ssize_t recv_with_buffer(void *__buf, size_t __n);
 
     inline char *pop_packet()
     {
@@ -135,6 +136,7 @@ public:
     bool poll(enum swEvent_type type);
     Socket *accept(double timeout = 0);
     bool bind(std::string address, int port = 0);
+    bool bind(const struct sockaddr *sa, socklen_t len);
     bool listen(int backlog = 0);
     bool sendfile(const char *filename, off_t offset, size_t length);
     ssize_t sendto(const std::string &host, int port, const void *__buf, size_t __n);
@@ -355,6 +357,10 @@ public:
         if (sw_unlikely(!read_buffer))
         {
             read_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            if (!read_buffer)
+            {
+                throw std::bad_alloc();
+            }
         }
         return read_buffer;
     }
@@ -364,6 +370,10 @@ public:
         if (sw_unlikely(!write_buffer))
         {
             write_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            if (!write_buffer)
+            {
+                throw std::bad_alloc();
+            }
         }
         return write_buffer;
     }

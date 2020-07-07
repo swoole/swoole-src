@@ -1,4 +1,23 @@
-#include "test_server.h"
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | @link     https://www.swoole.com/                                    |
+  | @contact  team@swoole.com                                            |
+  | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
+  | @author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
+  +----------------------------------------------------------------------+
+*/
+
+#include "tests.h"
 #include "wrapper/client.hpp"
 
 using namespace std;
@@ -7,25 +26,23 @@ static const char *packet = "hello world\n";
 
 TEST(server, send_buffer)
 {
-    swServer serv;
-    swServer_init(&serv);
+    swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
-    serv.factory_mode = SW_MODE_BASE;
-    swServer_create(&serv);
 
     swLog_set_level(SW_LOG_WARNING);
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, TEST_HOST, 0);
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
+    ASSERT_EQ(serv.create(), SW_OK);
+
     swLock lock;
     swMutex_create(&lock, 0);
     lock.lock(&lock);
-    serv.ptr2 = &lock;
 
     std::thread t1([&]()
     {
@@ -53,10 +70,9 @@ TEST(server, send_buffer)
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [](swServer *serv, int worker_id)
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        swLock *lock = (swLock *) serv->ptr2;
-        lock->unlock(lock);
+        lock.unlock(&lock);
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int
@@ -74,7 +90,7 @@ TEST(server, send_buffer)
         return SW_OK;
     };
 
-    swServer_start(&serv);
+    serv.start();
     t1.join();
 }
 

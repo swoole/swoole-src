@@ -30,8 +30,7 @@ TEST(aio_thread, dispatch)
         (*(atomic<int> *) event->object)++;
     };
 
-    swoole_event_init();
-    swReactor_wait_exit(sw_reactor(), 1);
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     for (int i = 0; i < 1000; ++i)
     {

@@ -205,6 +205,10 @@ public:
     {
         return str;
     }
+    std::string to_std_string()
+    {
+        return std::string(str->str, str->length);
+    }
     ~String()
     {
         if (str)

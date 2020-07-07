@@ -22,6 +22,8 @@
 #include <grp.h>
 #include <sys/uio.h>
 
+using namespace swoole;
+
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
@@ -225,7 +227,7 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
      * do task
      */
     serv->last_stream_socket = sock;
-    swWorker_onTask(&serv->factory, (swEventData *) &task);
+    serv->accept_task((swEventData *) &task);
     serv->last_stream_socket = nullptr;
 
     /**
@@ -237,9 +239,9 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
     return SW_OK;
 }
 
-typedef int (*task_callback)(swServer *, swEventData *);
+typedef std::function<int(swServer *, swEventData *)> task_callback;
 
-static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEventData *task, task_callback callback)
+static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEventData *task, const task_callback &callback)
 {
 #ifdef SW_BUFFER_RECV_TIME
     serv->last_receive_usec = task->info.time;
@@ -249,13 +251,11 @@ static sw_inline void swWorker_do_task(swServer *serv, swWorker *worker, swEvent
     serv->last_receive_usec = 0;
 #endif
     worker->request_count++;
-    sw_atomic_fetch_add(&serv->stats->request_count, 1);
+    sw_atomic_fetch_add(&serv->gs->request_count, 1);
 }
 
-int swWorker_onTask(swFactory *factory, swEventData *task)
+int Server::accept_task(swEventData *task)
 {
-    swServer *serv = (swServer *) factory->ptr;
-
     swWorker *worker = SwooleWG.worker;
     //worker busy
     worker->status = SW_WORKER_BUSY;
@@ -264,36 +264,36 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
     {
     case SW_SERVER_EVENT_SEND_DATA:
     {
-        swConnection *conn = swServer_connection_verify(serv, task->info.fd);
-        if (conn && serv->max_queued_bytes && task->info.len > 0)
+        swConnection *conn = get_connection_verify(task->info.fd);
+        if (conn && max_queued_bytes && task->info.len > 0)
         {
             sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
             swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n",  task->info.len, conn->queued_bytes);
         }
         //discard data
-        if (swWorker_discard_data(serv, conn, task) == SW_TRUE)
+        if (swWorker_discard_data(this, conn, task) == SW_TRUE)
         {
             break;
         }
-        swWorker_do_task(serv, worker, task, serv->onReceive);
+        swWorker_do_task(this, worker, task, onReceive);
         break;
     }
     case SW_SERVER_EVENT_SNED_DGRAM:
     {
-        swWorker_do_task(serv, worker, task, serv->onPacket);
+        swWorker_do_task(this, worker, task, onPacket);
         break;
     }
     case SW_SERVER_EVENT_CLOSE:
     {
 #ifdef SW_USE_OPENSSL
-        swConnection *conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
+        swConnection *conn = get_connection_verify_no_ssl(task->info.fd);
         if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid)
         {
             sw_free(conn->ssl_client_cert);
             conn->ssl_client_cert = nullptr;
         }
 #endif
-        factory->end(factory, task->info.fd);
+        factory.end(&factory, task->info.fd);
         break;
     }
     case SW_SERVER_EVENT_CONNECT:
@@ -302,44 +302,44 @@ int swWorker_onTask(swFactory *factory, swEventData *task)
         //SSL client certificate
         if (task->info.len > 0)
         {
-            swConnection *conn = swServer_connection_verify_no_ssl(serv, task->info.fd);
+            swConnection *conn = get_connection_verify_no_ssl(task->info.fd);
             char *cert_data = nullptr;
-            size_t length = serv->get_packet(serv, task, &cert_data);
+            size_t length = get_packet(this, task, &cert_data);
             conn->ssl_client_cert = swString_dup(cert_data, length);
             conn->ssl_client_cert_pid = SwooleG.pid;
         }
 #endif
-        if (serv->onConnect)
+        if (onConnect)
         {
-            serv->onConnect(serv, &task->info);
+            onConnect(this, &task->info);
         }
         break;
     }
 
     case SW_SERVER_EVENT_BUFFER_FULL:
     {
-        if (serv->onBufferFull)
+        if (onBufferFull)
         {
-            serv->onBufferFull(serv, &task->info);
+            onBufferFull(this, &task->info);
         }
         break;
     }
     case SW_SERVER_EVENT_BUFFER_EMPTY:
     {
-        if (serv->onBufferEmpty)
+        if (onBufferEmpty)
         {
-            serv->onBufferEmpty(serv, &task->info);
+            onBufferEmpty(this, &task->info);
         }
         break;
     }
     case SW_SERVER_EVENT_FINISH:
     {
-        serv->onFinish(serv, task);
+        onFinish(this, task);
         break;
     }
     case SW_SERVER_EVENT_PIPE_MESSAGE:
     {
-        serv->onPipeMessage(serv, task);
+        onPipeMessage(this, task);
         break;
     }
     default:
@@ -381,52 +381,43 @@ void swWorker_onStart(swServer *serv)
     if (is_root)
     {
         //get group info
-        if (serv->group)
+        if (!serv->group.empty())
         {
-            group = getgrnam(serv->group);
+            group = getgrnam(serv->group.c_str());
             if (!group)
             {
-                swWarn("get group [%s] info failed", serv->group);
+                swWarn("get group [%s] info failed", serv->group.c_str());
             }
         }
         //get user info
-        if (serv->user)
+        if (!serv->user.empty())
         {
-            passwd = getpwnam(serv->user);
+            passwd = getpwnam(serv->user.c_str());
             if (!passwd)
             {
-                swWarn("get user [%s] info failed", serv->user);
+                swWarn("get user [%s] info failed", serv->user.c_str());
             }
         }
         //chroot
-        if (serv->chroot)
+        if (!serv->chroot.empty() && chroot(serv->chroot.c_str()) != 0)
         {
-            if (0 > chroot(serv->chroot))
-            {
-                swSysWarn("chroot to [%s] failed", serv->chroot);
-            }
+            swSysWarn("chroot to [%s] failed", serv->chroot.c_str());
         }
         //set process group
-        if (serv->group && group)
+        if (group && setgid(group->gr_gid) < 0)
         {
-            if (setgid(group->gr_gid) < 0)
-            {
-                swSysWarn("setgid to [%s] failed", serv->group);
-            }
+            swSysWarn("setgid to [%s] failed", serv->group.c_str());
         }
         //set process user
-        if (serv->user && passwd)
+        if (passwd && setuid(passwd->pw_uid) < 0)
         {
-            if (setuid(passwd->pw_uid) < 0)
-            {
-                swSysWarn("setuid to [%s] failed", serv->user);
-            }
+            swSysWarn("setuid to [%s] failed", serv->user.c_str());
         }
     }
 
     for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        swWorker *worker = swServer_get_worker(serv, i);
+        swWorker *worker = serv->get_worker(i);
         if (SwooleWG.id == i)
         {
             continue;
@@ -442,7 +433,7 @@ void swWorker_onStart(swServer *serv)
         swLog_reopen();
     }
 
-    SwooleWG.worker = swServer_get_worker(serv, SwooleWG.id);
+    SwooleWG.worker = serv->get_worker(SwooleWG.id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -464,7 +455,7 @@ void swWorker_onStart(swServer *serv)
     }
 #endif
 
-    swServer_worker_start(serv, SwooleWG.worker);
+    serv->call_worker_start_callback(SwooleWG.worker);
 }
 
 void swWorker_onStop(swServer *serv)
@@ -512,7 +503,7 @@ void swWorker_stop(swWorker *worker)
 
     if (serv->factory_mode == SW_MODE_BASE && swIsWorker())
     {
-        for (auto ls : *serv->listen_list)
+        for (auto ls : serv->ports)
         {
             reactor->del(reactor, ls->socket);
         }
@@ -521,12 +512,12 @@ void swWorker_stop(swWorker *worker)
             swReactor_remove_read_event(reactor, worker->pipe_master);
         }
         int fd;
-        int serv_max_fd = swServer_get_maxfd(serv);
-        int serv_min_fd = swServer_get_minfd(serv);
+        int serv_max_fd = serv->get_maxfd();
+        int serv_min_fd = serv->get_minfd();
 
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
         {
-            swConnection *conn = swServer_connection_get(serv, fd);
+            swConnection *conn = serv->get_connection(fd);
             if (conn && conn->socket && conn->active && !conn->peer_closed && conn->socket->fdtype == SW_FD_SESSION)
             {
                 swReactor_remove_read_event(reactor, conn->socket);
@@ -556,7 +547,8 @@ void swWorker_stop(swWorker *worker)
 
     if (swWorker_reactor_is_empty(reactor))
     {
-        serv->running = reactor->running = 0;
+        serv->running = false;
+        reactor->running = 0;
     }
 }
 
@@ -614,7 +606,7 @@ void swWorker_clean_pipe_buffer(swServer *serv)
     uint32_t i;
     for (i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        swWorker *worker = swServer_get_worker(serv, i);
+        swWorker *worker = serv->get_worker(i);
         if (SwooleTG.reactor)
         {
             if (worker->pipe_worker)
@@ -639,7 +631,7 @@ int swWorker_loop(swServer *serv, swWorker *worker)
 
     swServer_worker_init(serv, worker);
 
-    if (swoole_event_init() < 0)
+    if (swoole_event_init(0) < 0)
     {
         return SW_ERR;
     }
@@ -650,7 +642,7 @@ int swWorker_loop(swServer *serv, swWorker *worker)
      */
     for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
-        swWorker *_worker = swServer_get_worker(serv, i);
+        swWorker *_worker = serv->get_worker(i);
         if (_worker->pipe_master)
         {
             _worker->pipe_master->buffer_size = UINT_MAX;
@@ -701,15 +693,11 @@ int swWorker_loop(swServer *serv, swWorker *worker)
 /**
  * Send data to ReactorThread
  */
-int swWorker_send2reactor(swServer *serv, swEventData *ev_data, size_t sendn, int session_id)
-{
-    swSocket *pipe_sock = swServer_get_send_pipe(serv, session_id, ev_data->info.reactor_id);
-    if (SwooleTG.reactor)
-    {
+int Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id) {
+    swSocket *pipe_sock = swServer_get_send_pipe(this, session_id, ev_data->info.reactor_id);
+    if (SwooleTG.reactor) {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, ev_data, sendn);
-    }
-    else
-    {
+    } else {
         return swSocket_write_blocking(pipe_sock, ev_data, sendn);
     }
 }
@@ -721,7 +709,6 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 {
     ssize_t recv_n = 0;
     swServer *serv = (swServer *) reactor->ptr;
-    swFactory *factory = &serv->factory;
     swPipeBuffer *pipe_buffer = serv->pipe_buffers[0];
     void *buffer;
     struct iovec buffers[2];
@@ -799,17 +786,17 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
 
     if (recv_n > 0)
     {
-        return swWorker_onTask(factory, (swEventData *) pipe_buffer);
+        return serv->accept_task((swEventData *) pipe_buffer);
     }
 
     return SW_ERR;
 }
 
-int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
+int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags)
 {
     swSocket *pipe_sock;
 
-    if (flag & SW_PIPE_MASTER)
+    if (flags & SW_PIPE_MASTER)
     {
         pipe_sock = dst_worker->pipe_master;
     }
@@ -833,7 +820,7 @@ int swWorker_send2worker(swWorker *dst_worker, const void *buf, int n, int flag)
         return swMsgQueue_push(dst_worker->pool->queue, (swQueue_data *) &msg, n);
     }
 
-    if ((flag & SW_PIPE_NONBLOCK) && SwooleTG.reactor)
+    if ((flags & SW_PIPE_NONBLOCK) && SwooleTG.reactor)
     {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, buf, n);
     }

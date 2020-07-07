@@ -26,3 +26,7 @@
 
 #define TEST_HOST "127.0.0.1"
 #define TEST_PORT 9501
+
+namespace swoole { namespace test {
+const std::string &get_root_path();
+}};

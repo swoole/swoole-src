@@ -25,8 +25,8 @@
 
 using namespace std;
 
-namespace swoole
-{
+namespace swoole { namespace wrapper {
+//-----------------------------------namespace begin------------------------------------------------
 class ClientInfo
 {
 public:
@@ -108,7 +108,7 @@ enum
 class Server
 {
 public:
-    Server(string _host, int _port, int _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP);
+    Server(string _host, int _port, enum swServer_mode _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP);
 
     virtual ~Server()
     {
@@ -165,10 +165,10 @@ private:
 
 protected:
     swServer serv;
-    vector<swListenPort *> ports;
     string host;
     int port;
-    int mode;
+    enum swServer_mode mode;
     int events;
 };
-}
+//-----------------------------------namespace end------------------------------------------------
+}}

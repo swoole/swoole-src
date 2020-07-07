@@ -17,31 +17,22 @@
 #include "wrapper/server.hpp"
 #include <sys/stat.h>
 
-namespace swoole
-{
+namespace swoole { namespace wrapper {
+//-----------------------------------namespace begin------------------------------------------------
 swString *_callback_buffer;
-Server::Server(string _host, int _port, int _mode,  enum swSocket_type _type)
+Server::Server(string _host, int _port, enum swServer_mode _mode,  enum swSocket_type _type)
+    :serv(_mode), host(_host), port(_port), mode(_mode)
 {
-    host = _host;
-    port = _port;
-    mode = _mode;
-
-    swServer_init(&serv);
-
     if (_mode == SW_MODE_BASE)
     {
         serv.reactor_num = 1;
         serv.worker_num = 1;
     }
 
-    serv.factory_mode = (uint8_t) mode;
     serv.dispatch_mode = 2;
 
-    //create Server
-    int ret = swServer_create(&serv);
-    if (ret < 0)
+    if (serv.create() < 0)
     {
-        swTrace("create server fail[error=%d].\n", ret);
         exit(0);
     }
     this->listen(host, port, _type);
@@ -54,16 +45,7 @@ void Server::setEvents(int _events)
 
 bool Server::listen(string host, int port, enum swSocket_type type)
 {
-    auto ls = swServer_add_port(&serv, type, (char *) host.c_str(), port);
-    if (ls == nullptr)
-    {
-        return false;
-    }
-    else
-    {
-        ports.push_back(ls);
-        return true;
-    }
+    return serv.add_port(type, (char *) host.c_str(), port) != nullptr;
 }
 
 bool Server::send(int fd, const DataBuffer &data)
@@ -103,7 +85,7 @@ bool Server::close(int fd, bool reset)
         return false;
     }
 
-    swConnection *conn = swServer_connection_verify_no_ssl(&serv, fd);
+    swConnection *conn = serv.get_connection_verify_no_ssl(fd);
     if (!conn)
     {
         return false;
@@ -118,12 +100,12 @@ bool Server::close(int fd, bool reset)
     int ret;
     if (!swIsWorker())
     {
-        swWorker *worker = swServer_get_worker(&serv, conn->fd % serv.worker_num);
+        swWorker *worker = serv.get_worker(conn->fd % serv.worker_num);
         swDataHead ev;
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = fd;
         ev.reactor_id = conn->reactor_id;
-        ret = swWorker_send2worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        ret = swWorker_send_pipe_message(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
     }
     else
     {
@@ -236,7 +218,7 @@ int Server::task(DataBuffer &data, int dst_worker_id)
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
     if (swProcessPool_dispatch(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
     {
-        sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+        sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
         return buf.info.fd;
     }
     else
@@ -356,9 +338,9 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
     buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
     buf.info.reactor_id = SwooleWG.id;
 
-    swWorker *to_worker = swServer_get_worker(&serv, (uint16_t) worker_id);
-    return swWorker_send2worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK)
-            == SW_OK;
+    swWorker *to_worker = serv.get_worker((uint16_t) worker_id);
+    return swWorker_send_pipe_message(to_worker, &buf, sizeof(buf.info) + buf.info.len,
+                                      SW_PIPE_MASTER | SW_PIPE_NONBLOCK) == SW_OK;
 }
 
 bool Server::sendwait(int fd, const DataBuffer &data)
@@ -428,10 +410,8 @@ bool Server::start(void)
         serv.onPipeMessage = Server::_onPipeMessage;
     }
     _callback_buffer = swString_new(8192);
-    int ret = swServer_start(&serv);
-    if (ret < 0)
+    if (serv.start() < 0)
     {
-        swTrace("start server fail[error=%d].\n", ret);
         return false;
     }
     return true;
@@ -577,7 +557,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
 
     if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
     {
-        sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+        sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
         if (ret > 0)
@@ -614,7 +594,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
     swEventData *task_result = &(serv.task_result[SwooleWG.id]);
     sw_memset_zero(task_result, sizeof(swEventData));
     swPipe *task_notify_pipe = &serv.task_notify[SwooleWG.id];
-    swWorker *worker = swServer_get_worker(&serv, SwooleWG.id);
+    swWorker *worker = serv.get_worker(SwooleWG.id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);
@@ -648,7 +628,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         dst_worker_id = -1;
         if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0)
         {
-            sw_atomic_fetch_add(&serv.stats->tasking_num, 1);
+            sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
             list_of_id[i] = task_id;
         }
         else
@@ -709,5 +689,5 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
     swString_free(content);
     return retval;
 }
-
-}
+//-----------------------------------namespace end------------------------------------------------
+}}

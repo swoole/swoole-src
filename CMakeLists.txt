@@ -104,7 +104,7 @@ endif(CODE_COVERAGE)
 set(TEST_SRC_LIST examples/cpp/test_server.cc)
 add_executable(test_server ${TEST_SRC_LIST})
 add_dependencies(test_server lib-swoole)
-target_link_libraries(test_server swoole)
+target_link_libraries(test_server swoole pthread)
 
 # co
 set(TEST_SRC_LIST examples/cpp/co.cc)

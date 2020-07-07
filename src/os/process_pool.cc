@@ -26,8 +26,6 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker);
  */
 static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker);
 
-static void swProcessPool_free(swProcessPool *pool);
-
 static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnode)
 {
     uint32_t i;
@@ -297,7 +295,7 @@ int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *dst_work
     worker = swProcessPool_get_worker(pool, *dst_worker_id);
 
     int sendn = sizeof(data->info) + data->info.len;
-    ret = swWorker_send2worker(worker, data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
+    ret = swWorker_send_pipe_message(worker, data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
 
     if (ret >= 0)
     {
@@ -346,7 +344,7 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
     *dst_worker_id += pool->start_id;
     swWorker *worker = swProcessPool_get_worker(pool, *dst_worker_id);
 
-    ret = swWorker_send2worker(worker, data, sendn, SW_PIPE_MASTER);
+    ret = swWorker_send_pipe_message(worker, data, sendn, SW_PIPE_MASTER);
     if (ret < 0)
     {
         swWarn("send %d bytes to worker#%d failed", sendn, *dst_worker_id);
@@ -856,7 +854,7 @@ int swProcessPool_wait(swProcessPool *pool)
     return SW_OK;
 }
 
-static void swProcessPool_free(swProcessPool *pool)
+void swProcessPool_free(swProcessPool *pool)
 {
     uint32_t i;
     swPipe *_pipe;

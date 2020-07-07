@@ -146,7 +146,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
                 else
                 {
                     swServer *serv = (swServer *) ctx->private_data;
-                    swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+                    swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
                     if (conn && !conn->closed && !conn->peer_closed)
                     {
                         swoole_http_response_end(ctx, nullptr, &ztmp);
@@ -840,7 +840,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     if (ctx->upgrade && !ctx->co_socket)
     {
         swServer *serv = (swServer*) ctx->private_data;
-        swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+        swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (conn && conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE)
         {
             if (ctx->response.status == 101)

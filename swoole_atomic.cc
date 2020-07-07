@@ -76,12 +76,12 @@ struct atomic_t
     zend_object std;
 };
 
-static sw_inline atomic_t* php_swoole_atomic_fetch_object(zend_object *obj)
+static sw_inline atomic_t *php_swoole_atomic_fetch_object(zend_object *obj)
 {
     return (atomic_t *) ((char *) obj - swoole_atomic_handlers.offset);
 }
 
-static sw_atomic_t * php_swoole_atomic_get_ptr(zval *zobject)
+static sw_atomic_t *php_swoole_atomic_get_ptr(zval *zobject)
 {
     return php_swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
@@ -93,6 +93,7 @@ void php_swoole_atomic_set_ptr(zval *zobject, sw_atomic_t *ptr)
 
 static void php_swoole_atomic_free_object(zend_object *object)
 {
+    SwooleG.memory_pool->free(SwooleG.memory_pool, (void*) php_swoole_atomic_fetch_object(object)->ptr);
     zend_object_std_dtor(object);
 }
 
@@ -135,6 +136,7 @@ void php_swoole_atomic_long_set_ptr(zval *zobject, sw_atomic_long_t *ptr)
 
 static void php_swoole_atomic_long_free_object(zend_object *object)
 {
+    SwooleG.memory_pool->free(SwooleG.memory_pool, (void*) php_swoole_atomic_long_fetch_object(object)->ptr);
     zend_object_std_dtor(object);
 }
 

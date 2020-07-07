@@ -161,6 +161,7 @@ int swTable_create(swTable *table)
     memory = (char *) memory + row_memory_size * table->size;
     memory_size -= row_memory_size * table->size;
     table->pool = swFixedPool_new2(row_memory_size, memory, memory_size);
+    table->create_pid = SwooleG.pid;
 
     return SW_OK;
 }
@@ -181,10 +182,17 @@ void swTable_free(swTable *table)
     delete table->column_map;
     delete table->column_list;
     delete table->iterator;
+
+    if (table->create_pid != SwooleG.pid)
+    {
+        return;
+    }
+
     if (table->memory)
     {
         sw_shm_free(table->memory);
     }
+    SwooleG.memory_pool->free(SwooleG.memory_pool, table);
 }
 
 static sw_inline swTableRow* swTable_hash(swTable *table, const char *key, int keylen)

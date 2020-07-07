@@ -232,9 +232,9 @@ pid_t swoole_fork(int flags)
     pid_t pid = fork();
     if (pid == 0)
     {
+        SwooleG.pid = getpid();
         if (flags & SW_FORK_DAEMON)
         {
-            SwooleG.pid = getpid();
             return pid;
         }
         /**
@@ -243,6 +243,10 @@ pid_t swoole_fork(int flags)
         if (SwooleTG.timer)
         {
             swoole_timer_free();
+        }
+        if (SwooleG.memory_pool)
+        {
+            SwooleG.memory_pool->destroy(SwooleG.memory_pool);
         }
         if (!(flags & SW_FORK_EXEC))
         {
@@ -283,8 +287,8 @@ pid_t swoole_fork(int flags)
          * reset global struct
          */
         sw_memset_zero(&SwooleWG, sizeof(SwooleWG));
-        SwooleG.pid = getpid();
     }
+
     return pid;
 }
 

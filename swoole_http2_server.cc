@@ -221,9 +221,9 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream)
     zval *zserver = ctx->request.zserver;
     swServer *serv = (swServer *) ctx->private_data;
 
-    swConnection *conn = swWorker_get_connection(serv, ctx->fd);
+    swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
     int server_fd = conn->server_fd;
-    swConnection *serv_sock = swServer_connection_get(serv, server_fd);
+    swConnection *serv_sock = serv->get_connection(server_fd);
 
     ctx->request.version = SW_HTTP_OK;
 

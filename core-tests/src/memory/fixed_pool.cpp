@@ -19,26 +19,24 @@
 
 #include "tests.h"
 
-TEST(msg_queue, rbac)
-{
-    swMsgQueue q;
-    ASSERT_EQ(swMsgQueue_create(&q, 0, 0, 0), SW_OK);
-    swQueue_data in;
-    in.mtype = 999;
-    strcpy(in.mdata, "hello world");
+using namespace std;
 
-    ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
+TEST(fixed_pool, alloc) {
+    auto *pool = swFixedPool_new(1024, 256, 0);
 
-    int queue_num, queue_bytes;
-    ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
-    ASSERT_EQ(queue_num, 1);
-    ASSERT_GT(queue_bytes, 10);
+    list<void *> alloc_list;
 
-    swQueue_data out = {};
-    ASSERT_GT(swMsgQueue_pop(&q, &out, sizeof(out)), 1);
+    for (int i = 0; i < 1200; i++) {
+        int j = rand();
+        if (j % 4 < 3) {
+            void *mem = pool->alloc(pool, 0);
+            ASSERT_TRUE(mem);
+            alloc_list.push_back(mem);
+        } else if (!alloc_list.empty()) {
+            void *mem = alloc_list.front();
+            pool->free(pool, mem);
+        }
+    }
 
-    ASSERT_EQ(out.mtype, in.mtype);
-    ASSERT_STREQ(out.mdata, in.mdata);
+    pool->destroy(pool);
 }
-
-

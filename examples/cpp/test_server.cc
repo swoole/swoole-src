@@ -18,13 +18,12 @@ static int g_receive_count = 0;
 
 int main(int argc, char **argv)
 {
-    int ret;
+    swoole_init();
 
     swLog_set_date_format("%F %T");
     swLog_set_date_with_microseconds(true);
 
     swServer serv;
-    swServer_init(&serv);
 
     serv.reactor_num = 4;
     serv.worker_num = 2;
@@ -56,15 +55,13 @@ int main(int argc, char **argv)
 
     // swSignal_add(SIGINT, user_signal);
 
-    //create Server
-    ret = swServer_create(&serv);
-    if (ret < 0)
+    if (serv.create())
     {
         swWarn("create server fail[error=%d]", swoole_get_last_error());
         exit(1);
     }
 
-    swListenPort *port = swServer_add_port(&serv, SW_SOCK_TCP, "127.0.0.1", 9501);
+    swListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
     if (!port)
     {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
@@ -76,14 +73,13 @@ int main(int argc, char **argv)
     port->backlog = 128;
     memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n"));
 
-    swServer_add_port(&serv, SW_SOCK_UDP, "0.0.0.0", 9502);
-    swServer_add_port(&serv, SW_SOCK_TCP6, "::", 9503);
-    swServer_add_port(&serv, SW_SOCK_UDP6, "::", 9504);
+    serv.add_port(SW_SOCK_UDP, "0.0.0.0", 9502);
+    serv.add_port(SW_SOCK_TCP6, "::", 9503);
+    serv.add_port(SW_SOCK_UDP6, "::", 9504);
 
-    ret = swServer_start(&serv);
-    if (ret < 0)
+    if (serv.start() < 0)
     {
-        swWarn("start server fail[error=%d]", ret);
+        swWarn("start server fail[error=%d]", swoole_get_last_error());
         exit(3);
     }
     return 0;
@@ -107,7 +103,7 @@ int my_onReceive(swServer *serv, swEventData *req)
     g_receive_count++;
 
     swPacket_ptr *req_pkg = (swPacket_ptr *)req;
-    swConnection *conn = swWorker_get_connection(serv, req_pkg->info.fd);
+    swConnection *conn = serv->get_connection_by_session_id(req_pkg->info.fd);
 
     swoole_rtrim(req_pkg->data.str, req_pkg->data.length);
     swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d", g_receive_count,

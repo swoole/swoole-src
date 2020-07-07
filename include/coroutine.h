@@ -259,6 +259,7 @@ namespace coroutine
 {
 bool async(swAio_handler handler, swAio_event &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
+bool run(coroutine_func_t fn, void *arg = nullptr);
 }
 //-------------------------------------------------------------------------------
 }

@@ -23,6 +23,8 @@ static int swFactory_notify(swFactory *factory, swDataHead *event);
 static int swFactory_end(swFactory *factory, int fd);
 static void swFactory_free(swFactory *factory);
 
+using swoole::Server;
+
 int swFactory_create(swFactory *factory)
 {
     factory->dispatch = swFactory_dispatch;
@@ -49,13 +51,13 @@ static int swFactory_shutdown(swFactory *factory)
 
 static int swFactory_dispatch(swFactory *factory, swSendData *task)
 {
-    swServer *serv = (swServer *) factory->ptr;
+    Server *serv = (Server *) factory->ptr;
     swPacket_ptr pkg;
     swConnection *conn = nullptr;
 
     if (swEventData_is_stream(task->info.type))
     {
-        conn = swServer_connection_get(serv, task->info.fd);
+        conn = serv->get_connection(task->info.fd);
         if (conn == nullptr || conn->active == 0)
         {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);
@@ -87,12 +89,12 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
             pkg.info.flags |= SW_EVENT_DATA_POP_PTR;
         }
 
-        return swWorker_onTask(factory, (swEventData *) &pkg);
+        return serv->accept_task((swEventData *) &pkg);
     }
     //no data
     else
     {
-        return swWorker_onTask(factory, (swEventData *) &task->info);
+        return serv->accept_task((swEventData *) &task->info);
     }
 }
 
@@ -101,8 +103,8 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
  */
 static int swFactory_notify(swFactory *factory, swDataHead *info)
 {
-    swServer *serv = (swServer *) factory->ptr;
-    swConnection *conn = swServer_connection_get(serv, info->fd);
+    Server *serv = (Server *) factory->ptr;
+    swConnection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0)
     {
         swWarn("dispatch[type=%d] failed, connection#%d is not active", info->type, info->fd);
@@ -119,12 +121,12 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
     info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
 
-    return swWorker_onTask(factory, (swEventData *) info);
+    return serv->accept_task((swEventData *) info);
 }
 
 static int swFactory_end(swFactory *factory, int fd)
 {
-    swServer *serv = (swServer *) factory->ptr;
+    Server *serv = (Server *) factory->ptr;
     swSendData _send;
     swDataHead info;
 
@@ -133,7 +135,7 @@ static int swFactory_end(swFactory *factory, int fd)
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0)
     {
         //swWarn("can not close. Connection[%d] not found", _send.info.fd);
@@ -177,7 +179,7 @@ static int swFactory_end(swFactory *factory, int fd)
         if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed)
         {
             swReactor *reactor = SwooleTG.reactor;
-            return swReactorThread_close(reactor, conn->socket);
+            return Server::close_connection(reactor, conn->socket);
         }
         else
         {
@@ -194,7 +196,7 @@ static int swFactory_end(swFactory *factory, int fd)
  */
 int swFactory_finish(swFactory *factory, swSendData *resp)
 {
-    return swServer_master_send((swServer *) factory->ptr, resp);
+    return ((Server *) factory->ptr)->send_to_connection(resp);
 }
 
 static void swFactory_free(swFactory *factory)

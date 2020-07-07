@@ -21,6 +21,8 @@
 #include "mqtt.h"
 #include "redis.h"
 
+using swoole::Server;
+
 static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
 static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
@@ -158,9 +160,9 @@ int swPort_listen(swListenPort *ls)
     return SW_OK;
 }
 
-void swPort_set_protocol(swServer *serv, swListenPort *ls)
+void Server::init_port_protocol(swListenPort *ls)
 {
-    ls->protocol.private_data_2 = serv;
+    ls->protocol.private_data_2 = this;
     //Thread mode must copy the data.
     //will free after onFinish
     if (ls->open_eof_check)
@@ -169,7 +171,7 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
         {
             ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_eof;
     }
     else if (ls->open_length_check)
@@ -178,7 +180,7 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
         {
             ls->protocol.get_package_length = swProtocol_get_package_length;
         }
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_length;
     }
     else if (ls->open_http_protocol)
@@ -194,7 +196,7 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
         {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.get_package_length = swHttp2_get_frame_length;
-            ls->protocol.onPackage = swReactorThread_dispatch;
+            ls->protocol.onPackage = Server::dispatch_task;
         }
         else
 #endif
@@ -211,12 +213,12 @@ void swPort_set_protocol(swServer *serv, swListenPort *ls)
     else if (ls->open_mqtt_protocol)
     {
         swMqtt_set_protocol(&ls->protocol);
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_length;
     }
     else if (ls->open_redis_protocol)
     {
-        ls->protocol.onPackage = swReactorThread_dispatch;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_redis;
     }
     else
@@ -325,7 +327,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     swConnection *conn = (swConnection *) _socket->object;
     swServer *serv = (swServer *) reactor->ptr;
 
-    swString *buffer = swServer_get_recv_buffer(serv, _socket);
+    swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer)
     {
         return SW_ERR;
@@ -355,7 +357,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     else
     {
         buffer->offset = buffer->length = n;
-        return swReactorThread_dispatch(&port->protocol, _socket, buffer->str, n);
+        return Server::dispatch_task(&port->protocol, _socket, buffer->str, n);
     }
 }
 
@@ -366,7 +368,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
     swProtocol *protocol = &port->protocol;
     swServer *serv = (swServer *) reactor->ptr;
 
-    swString *buffer = swServer_get_recv_buffer(serv, _socket);
+    swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer)
     {
         swReactor_trigger_close_event(reactor, event);
@@ -434,7 +436,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
     if (!request->buffer)
     {
-        request->buffer = swServer_get_recv_buffer(serv, _socket);
+        request->buffer = serv->get_recv_buffer(_socket);
         if (!request->buffer)
         {
             swReactor_trigger_close_event(reactor, event);
@@ -572,10 +574,10 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         {
             buffer->offset = request->header_length;
             // send static file content directly in the reactor thread
-            if (!serv->enable_static_handler || !swServer_http_static_handler_hit(serv, request, conn))
+            if (!serv->enable_static_handler || !serv->select_static_handler(request, conn))
             {
                 // dynamic request, dispatch to worker
-                swReactorThread_dispatch(protocol, _socket, buffer->str, request->header_length);
+                Server::dispatch_task(protocol, _socket, buffer->str, request->header_length);
             }
             if (!conn->active || _socket->removed)
             {
@@ -684,7 +686,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     }
 
     buffer->offset = request_length;
-    swReactorThread_dispatch(protocol, _socket, buffer->str, buffer->length);
+    Server::dispatch_task(protocol, _socket, buffer->str, buffer->length);
     swHttpRequest_free(conn);
     swString_clear(buffer);
 
@@ -698,7 +700,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *
     swProtocol *protocol = &port->protocol;
     swServer *serv = (swServer *) reactor->ptr;
 
-    swString *buffer = swServer_get_recv_buffer(serv, _socket);
+    swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer)
     {
         swReactor_trigger_close_event(reactor, event);
@@ -721,7 +723,7 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
     swProtocol *protocol = &port->protocol;
     swServer *serv = (swServer *) reactor->ptr;
 
-    swString *buffer = swServer_get_recv_buffer(serv, _socket);
+    swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer)
     {
         swReactor_trigger_close_event(reactor, event);
@@ -761,7 +763,11 @@ void swPort_free(swListenPort *port)
     }
 #endif
 
-    swSocket_free(port->socket);
+    if (port->socket)
+    {
+        swSocket_free(port->socket);
+        port->socket = nullptr;
+    }
 
     //remove unix socket file
     if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM)

@@ -2,9 +2,7 @@
 
 #include "tests.h"
 
-void create_test_server(swServer *serv);
-
-#define SERVER_THIS ((server *) serv->ptr2)
+#define SERVER_THIS ((swoole::test::Server *) serv->ptr2)
 
 #define ON_WORKERSTART_PARAMS   swServer *serv, int worker_id
 #define ON_PACKET_PARAMS        swServer *serv, swEventData *req
@@ -26,10 +24,10 @@ using on_packet_lambda_type = void (*)(ON_PACKET_PARAMS);
 
 namespace swoole { namespace test {
 //--------------------------------------------------------------------------------------------------------
-class server
+class Server
 {
 private:
-    swServer serv;
+    swoole::Server serv;
     std::vector<swListenPort *> ports;
     std::unordered_map<std::string, void *> private_data;
     std::string host;
@@ -40,8 +38,8 @@ private:
 public:
     swDgramPacket *packet = nullptr;
 
-    server(std::string _host, int _port, int _mode, int _type);
-    ~server();
+    Server(std::string _host, int _port, enum swServer_mode _mode, int _type);
+    ~Server();
     void on(std::string event, void *fn);
     bool start();
     bool listen(std::string host, int port, enum swSocket_type type);

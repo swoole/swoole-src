@@ -19,26 +19,43 @@
 
 #include "tests.h"
 
-TEST(msg_queue, rbac)
-{
-    swMsgQueue q;
-    ASSERT_EQ(swMsgQueue_create(&q, 0, 0, 0), SW_OK);
-    swQueue_data in;
-    in.mtype = 999;
-    strcpy(in.mdata, "hello world");
+static int timer1_count = 0;
+static int timer2_count = 0;
+static int timer_running = false;
 
-    ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
+TEST(timer, sys) {
 
-    int queue_num, queue_bytes;
-    ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
-    ASSERT_EQ(queue_num, 1);
-    ASSERT_GT(queue_bytes, 10);
+    SwooleG.use_signalfd = 0;
+    timer_running = true;
+    timer1_count = timer2_count = 0;
 
-    swQueue_data out = {};
-    ASSERT_GT(swMsgQueue_pop(&q, &out, sizeof(out)), 1);
+    uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
 
-    ASSERT_EQ(out.mtype, in.mtype);
-    ASSERT_STREQ(out.mdata, in.mdata);
+    swoole_timer_add(20, 0, [](swTimer *, swTimer_node *) {
+        timer1_count++;
+    }, nullptr);
+
+    swoole_timer_add(100, 1, [](swTimer *, swTimer_node *tnode) {
+        timer2_count++;
+        if (timer2_count == 5) {
+            swoole_timer_del(tnode);
+            timer_running =false;
+        }
+    }, nullptr);
+
+    while (1) {
+        sleep(10);
+        if (SwooleWG.signal_alarm) {
+            swoole_timer_select();
+            if (!timer_running) {
+                break;
+            }
+        }
+    }
+
+    uint64_t ms2 = swoole::time<std::chrono::milliseconds>();
+
+    swoole_timer_free();
+
+    ASSERT_LE(ms2 - ms1, 505);
 }
-
-

@@ -18,6 +18,8 @@
 #include "server.h"
 #include "websocket.h"
 
+using swoole::Server;
+
 static inline uint16_t swWebSocket_get_ext_flags(uchar opcode, uchar flags)
 {
     uint16_t ext_flags = opcode;
@@ -274,7 +276,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
         }
         offset = length - ws.payload_length;
         frame_length = length - offset;
-        port = swServer_get_port(serv, conn->fd);
+        port = serv->get_port_by_fd(conn->fd);
         //frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length)
         {
@@ -289,7 +291,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
         {
             proto->ext_flags = conn->websocket_buffer->offset;
             proto->ext_flags |= SW_WEBSOCKET_FLAG_FIN;
-            swReactorThread_dispatch(proto, _socket, frame_buffer->str, frame_buffer->length);
+            Server::dispatch_task(proto, _socket, frame_buffer->str, frame_buffer->length);
             swString_free(frame_buffer);
             conn->websocket_buffer = nullptr;
         }
@@ -315,7 +317,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
         }
         else
         {
-            swReactorThread_dispatch(proto, _socket, data + offset, length - offset);
+            Server::dispatch_task(proto, _socket, data + offset, length - offset);
         }
         break;
     }
@@ -354,7 +356,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
             offset = length - ws.payload_length;
             proto->ext_flags = swWebSocket_get_ext_flags(ws.header.OPCODE, swWebSocket_get_flags(&ws));
 
-            swReactorThread_dispatch(proto, _socket, data + offset, length - offset);
+            Server::dispatch_task(proto, _socket, data + offset, length - offset);
 
             // Client attempt to close
             send_frame.str[0] = 0x88; // FIN | OPCODE: WEBSOCKET_OPCODE_CLOSE

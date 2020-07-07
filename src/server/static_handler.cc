@@ -21,6 +21,7 @@
 #include <algorithm>
 
 using namespace std;
+using namespace swoole;
 using swoole::http::StaticHandler;
 
 bool StaticHandler::is_modified(const string &date_if_modified_since)
@@ -53,7 +54,7 @@ bool StaticHandler::is_modified(const string &date_if_modified_since)
     {
         date_format = SW_HTTP_ASCTIME_DATE;
     }
-    return date_format && mktime(&tm3) - (int) serv->timezone >= get_file_mtime();
+    return date_format && mktime(&tm3) - (int) serv->timezone_ >= get_file_mtime();
 }
 
 std::string StaticHandler::get_date()
@@ -90,8 +91,10 @@ bool StaticHandler::hit()
     }
     size_t n = params ? params - url : url_length;
 
-    memcpy(p, serv->document_root, serv->document_root_len);
-    p += serv->document_root_len;
+    const std::string& document_root = serv->get_document_root();
+
+    memcpy(p, document_root.c_str(), document_root.length());
+    p += document_root.length();
 
     if (serv->locations->size() > 0)
     {
@@ -108,7 +111,7 @@ bool StaticHandler::hit()
         }
     }
 
-    if (serv->document_root_len + n >= PATH_MAX)
+    if (document_root.length() + n >= PATH_MAX)
     {
         return false;
     }
@@ -144,12 +147,12 @@ bool StaticHandler::hit()
         }
     }
 
-    if (real_path[serv->document_root_len] != '/')
+    if (real_path[document_root.length()] != '/')
     {
         return false;
     }
 
-    if (swoole_streq(real_path, strlen(real_path), serv->document_root, serv->document_root_len) != 0)
+    if (swoole_streq(real_path, strlen(real_path), document_root.c_str(), document_root.length()) != 0)
     {
         return false;
     }
@@ -179,7 +182,7 @@ bool StaticHandler::hit()
         return true;
     }
 
-    if(serv->http_autoindex && is_dir())
+    if (serv->http_autoindex && is_dir())
     {
         return true;
     }
@@ -294,27 +297,25 @@ bool StaticHandler::set_filename(std::string &filename)
     return true;
 }
 
-int swServer_http_static_handler_add_location(swServer *serv, const char *location, size_t length)
+void Server::add_static_handler_location(const std::string &location)
 {
-    if (serv->locations == nullptr)
+    if (locations == nullptr)
     {
-        serv->locations = new std::unordered_set<std::string>;
+        locations = new std::unordered_set<std::string>;
     }
-    serv->locations->insert(string(location, length));
-    return SW_OK;
+    locations->insert(location);
 }
 
-int swServer_http_static_handler_add_http_index_files(swServer *serv, const char *filename, size_t length)
+void Server::add_static_handler_index_files(const std::string &file)
 {
-    if (serv->http_index_files == nullptr)
+    if (http_index_files == nullptr)
     {
-        serv->http_index_files = new std::vector<std::string>;
+        http_index_files = new std::vector<std::string>;
     }
 
-    auto iter = std::find(serv->http_index_files->begin(), serv->http_index_files->end(), filename);
-    if (iter == serv->http_index_files->end())
+    auto iter = std::find(http_index_files->begin(), http_index_files->end(), file);
+    if (iter == http_index_files->end())
     {
-        serv->http_index_files->push_back(filename);
+        http_index_files->push_back(file);
     }
-    return SW_OK;
 }

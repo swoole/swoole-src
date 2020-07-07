@@ -93,14 +93,14 @@ void php_swoole_redis_server_rshutdown()
 static int redis_onReceive(swServer *serv, swEventData *req)
 {
     int fd = req->info.fd;
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (!conn)
     {
         swWarn("connection[%d] is closed", fd);
         return SW_ERR;
     }
 
-    swListenPort *port = swServer_get_port(serv, conn->fd);
+    swListenPort *port = serv->get_port_by_fd(conn->fd);
     //other server port
     if (!port->open_redis_protocol)
     {
@@ -241,7 +241,7 @@ static PHP_METHOD(swoole_redis_server, start)
     add_assoc_bool(zsetting, "open_length_check", 0);
     add_assoc_bool(zsetting, "open_redis_protocol", 0);
 
-    auto primary_port = serv->listen_list->front();
+    auto primary_port = serv->get_primary_port();
 
     primary_port->open_http_protocol = 0;
     primary_port->open_mqtt_protocol = 0;
@@ -251,7 +251,7 @@ static PHP_METHOD(swoole_redis_server, start)
 
     php_swoole_server_before_start(serv, zserv);
 
-    if (swServer_start(serv) < 0)
+    if (serv->start() < 0)
     {
         php_swoole_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
     }

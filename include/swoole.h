@@ -1197,8 +1197,6 @@ typedef struct _swShareMemory_mmap
 } swShareMemory;
 
 void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile);
-void *swShareMemory_sysv_create(swShareMemory *object, size_t size, int key);
-int swShareMemory_sysv_free(swShareMemory *object, int rm);
 int swShareMemory_mmap_free(swShareMemory *object);
 
 //-------------------memory manager-------------------------
@@ -2212,6 +2210,7 @@ int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int 
 int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_get_max_request(swProcessPool *pool);
+void swProcessPool_free(swProcessPool *pool);
 
 static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id)
 {
@@ -2237,6 +2236,8 @@ static sw_inline swWorker *swProcessPool_get_worker(swProcessPool *pool, int wor
 {
     return &(pool->workers[worker_id - pool->start_id]);
 }
+
+int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
 //-----------------------------Channel---------------------------
 enum swChannel_flag
@@ -2393,7 +2394,6 @@ struct _swTimer
 
 int swTimer_init(swTimer *timer, long msec);
 void swTimer_reinit(swTimer *timer, swReactor *reactor);
-swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 enum swBool_type swTimer_del(swTimer *timer, swTimer_node *node);
 void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
@@ -2410,7 +2410,6 @@ static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, const enu
     return (tnode && tnode->type == type) ? tnode : NULL;
 }
 
-int swSystemTimer_init(swTimer *timer, long msec);
 void swSystemTimer_signal_handler(int sig);
 //--------------------------------------------------------------
 
@@ -2441,7 +2440,6 @@ typedef struct
 
     uint32_t max_request;
 
-    void **input_buffers;
     swString **output_buffer;
     swWorker *worker;
     time_t exit_time;

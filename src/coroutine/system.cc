@@ -158,7 +158,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
     ev.handler = swAio_handler_write_file;
     ev.callback = aio_onWriteFileCompleted;
     ev.req = (void*) file;
-    ev.flags = flags;
+    ev.flags = flags | O_CREAT | O_WRONLY;
 
     ssize_t ret = swAio_dispatch(&ev);
     if (ret < 0)

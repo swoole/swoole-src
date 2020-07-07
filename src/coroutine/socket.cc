@@ -1,3 +1,22 @@
+/*
+  +----------------------------------------------------------------------+
+  | Swoole                                                               |
+  +----------------------------------------------------------------------+
+  | This source file is subject to version 2.0 of the Apache license,    |
+  | that is bundled with this package in the file LICENSE, and is        |
+  | available through the world-wide-web at the following url:           |
+  | http://www.apache.org/licenses/LICENSE-2.0.html                      |
+  | If you did not receive a copy of the Apache2.0 license and are unable|
+  | to obtain it through the world-wide-web, please send a note to       |
+  | license@swoole.com so we can mail you a copy immediately.            |
+  +----------------------------------------------------------------------+
+  | @link     https://www.swoole.com/                                    |
+  | @contact  team@swoole.com                                            |
+  | @license  https://github.com/swoole/swoole-src/blob/master/LICENSE   |
+  | @author   Tianfeng Han  <mikan.tenny@gmail.com>                      |
+  +----------------------------------------------------------------------+
+*/
+
 #include "swoole_cxx.h"
 #include "coroutine.h"
 #include "coroutine_socket.h"
@@ -1052,6 +1071,48 @@ ssize_t Socket::read(void *__buf, size_t __n)
     return retval;
 }
 
+ssize_t Socket::recv_with_buffer(void *__buf, size_t __n)
+{
+    if (sw_unlikely(!is_available(SW_EVENT_READ)))
+    {
+        return -1;
+    }
+
+    swString *buffer = get_read_buffer();
+    size_t buffer_bytes = buffer->length - buffer->offset;
+
+    if (__n <= buffer_bytes)
+    {
+        memcpy(__buf, buffer->str + buffer->offset, __n);
+        buffer->offset += __n;
+        return __n;
+    }
+
+    if (buffer_bytes > 0)
+    {
+        memcpy(__buf, buffer->str + buffer->offset, buffer_bytes);
+        buffer->offset += buffer_bytes;
+    }
+
+    if ((size_t) buffer->offset >= buffer->size / 2)
+    {
+        swString_reduce(buffer, buffer->offset);
+    }
+
+    ssize_t retval = recv(buffer->str + buffer->length, buffer->size - buffer->length);
+    if (retval <= 0)
+    {
+        return buffer_bytes > 0 ? buffer_bytes : retval;
+    }
+
+    buffer->length += retval;
+    size_t copy_bytes = SW_MIN(__n - buffer_bytes, buffer->length - buffer->offset);
+    memcpy((char*) __buf + buffer_bytes, buffer->str + buffer->offset, copy_bytes);
+    buffer->offset += copy_bytes;
+
+    return buffer_bytes + copy_bytes;
+}
+
 ssize_t Socket::write(const void *__buf, size_t __n)
 {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE)))
@@ -1176,6 +1237,11 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags)
     } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     return retval;
+}
+
+bool Socket::bind(const struct sockaddr *sa, socklen_t len)
+{
+    return ::bind(sock_fd, (struct sockaddr *) sa, len) == 0;
 }
 
 bool Socket::bind(std::string address, int port)

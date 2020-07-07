@@ -44,7 +44,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
     int fd = req->info.fd;
     int server_fd = req->info.server_fd;
 
-    swConnection *conn = swServer_connection_verify_no_ssl(serv, fd);
+    swConnection *conn = serv->get_connection_verify_no_ssl(fd);
     if (!conn)
     {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed", fd);
@@ -98,7 +98,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
     do {
         zval *zserver = ctx->request.zserver;
-        swConnection *serv_sock = swServer_connection_get(serv, conn->server_fd);
+        swConnection *serv_sock = serv->get_connection(conn->server_fd);
         if (serv_sock)
         {
             add_assoc_long(zserver, "server_port", swSocket_get_port(serv_sock->socket_type, &serv_sock->info));
@@ -155,7 +155,7 @@ int php_swoole_http_onReceive(swServer *serv, swEventData *req)
 
 void php_swoole_http_onClose(swServer *serv, swDataHead *ev)
 {
-    swConnection *conn = swWorker_get_connection(serv, ev->fd);
+    swConnection *conn = serv->get_connection_by_session_id(ev->fd);
     if (!conn)
     {
         return;
@@ -217,7 +217,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx)
     ctx->compression_level = serv->http_compression_level;
 #endif
     ctx->private_data = serv;
-    ctx->upload_tmp_dir = serv->upload_tmp_dir;
+    ctx->upload_tmp_dir = serv->upload_tmp_dir.c_str();
     ctx->send = http_context_send_data;
     ctx->sendfile = http_context_sendfile;
     ctx->close = http_context_disconnect;

@@ -24,6 +24,8 @@
 #include <sys/prctl.h>
 #endif
 
+using namespace swoole;
+
 struct swManagerProcess
 {
     bool reloading;
@@ -44,6 +46,11 @@ typedef std::unordered_map<uint32_t, pid_t> reload_list_t;
 static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
 static void swManager_check_exit_status(swServer *serv, int worker_id, pid_t pid, int status);
+static void swManager_kill_workers(swServer *serv);
+static void swManager_kill_task_workers(swServer *serv);
+static pid_t swManager_spawn_worker(swServer *serv, swWorker *worker);
+static pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker);
+static pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type);
 
 static swManagerProcess ManagerProcess;
 
@@ -52,7 +59,7 @@ static void swManager_onTimer(swTimer *timer, swTimer_node *tnode)
     swServer *serv = (swServer *) tnode->data;
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER])
     {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_TIMER, serv);
+        serv->call_hook(SW_SERVER_HOOK_MANAGER_TIMER, serv);
     }
 }
 
@@ -169,47 +176,46 @@ static sw_inline int swManager_spawn_user_workers(swServer *serv)
 }
 
 //create worker child proccess
-int swManager_start(swServer *serv)
+int Server::start_manager_process()
 {
     uint32_t i;
     pid_t pid;
 
-    if (serv->task_worker_num > 0)
+    if (task_worker_num > 0)
     {
-        if (swServer_create_task_workers(serv) < 0)
+        if (create_task_workers() < 0)
         {
             return SW_ERR;
         }
-        swTaskWorker_init(serv);
 
         swWorker *worker;
-        for (i = 0; i < serv->task_worker_num; i++)
+        for (i = 0; i < task_worker_num; i++)
         {
-            worker = &serv->gs->task_workers.workers[i];
-            if (swServer_worker_create(serv, worker) < 0)
+            worker = &gs->task_workers.workers[i];
+            if (create_worker(worker) < 0)
             {
                 return SW_ERR;
             }
-            if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
+            if (task_ipc_mode == SW_TASK_IPC_UNIXSOCK)
             {
-                swServer_store_pipe_fd(serv, worker->pipe_object);
+                swServer_store_pipe_fd(this, worker->pipe_object);
             }
         }
     }
 
     //User Worker Process
-    if (serv->user_worker_num > 0)
+    if (user_worker_num > 0)
     {
-        if (swServer_create_user_workers(serv) < 0)
+        if (create_user_workers() < 0)
         {
             return SW_ERR;
         }
 
         i = 0;
-        for (auto worker : *serv->user_worker_list)
+        for (auto worker : *user_worker_list)
         {
-            memcpy(&serv->user_workers[i], worker, sizeof(swWorker));
-            if (swServer_worker_create(serv, &serv->user_workers[i]) < 0)
+            memcpy(&user_workers[i], worker, sizeof(swWorker));
+            if (create_worker(&user_workers[i]) < 0)
             {
                 return SW_ERR;
             }
@@ -217,8 +223,8 @@ int swManager_start(swServer *serv)
         }
     }
 
-    serv->message_box = swChannel_new(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
-    if (serv->message_box == nullptr)
+    message_box = swChannel_new(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
+    if (message_box == nullptr)
     {
         return SW_ERR;
     }
@@ -230,33 +236,33 @@ int swManager_start(swServer *serv)
     case 0:
         //wait master process
         SW_START_SLEEP;
-        if (!serv->gs->start)
+        if (!gs->start)
         {
             return SW_OK;
         }
-        swServer_close_port(serv, SW_TRUE);
+        swServer_close_port(this, SW_TRUE);
         
-        if (swManager_spawn_task_workers(serv) < 0)
+        if (swManager_spawn_task_workers(this) < 0)
         {
             return SW_ERR;
         }
-        if (swManager_spawn_workers(serv) < 0)
+        if (swManager_spawn_workers(this) < 0)
         {
             return SW_ERR;
         }
-        if (swManager_spawn_user_workers(serv) < 0)
+        if (swManager_spawn_user_workers(this) < 0)
         {
             return SW_ERR;
         }
 
         SwooleG.process_type = SW_PROCESS_MANAGER;
         SwooleG.pid = getpid();
-        exit(swManager_loop(serv));
+        exit(swManager_loop(this));
         break;
 
         //master process
     default:
-        serv->gs->manager_pid = pid;
+        gs->manager_pid = pid;
         break;
     case -1:
         swError("fork() failed");
@@ -318,7 +324,7 @@ static int swManager_loop(swServer *serv)
 
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_START])
     {
-        swServer_call_hook(serv, SW_SERVER_HOOK_MANAGER_START, serv);
+        serv->call_hook(SW_SERVER_HOOK_MANAGER_START, serv);
     }
 
     if (serv->onManagerStart)
@@ -346,7 +352,7 @@ static int swManager_loop(swServer *serv)
                 }
                 if (msg.worker_id >= serv->worker_num)
                 {
-                    swManager_spawn_task_worker(serv, swServer_get_worker(serv, msg.worker_id));
+                    swManager_spawn_task_worker(serv, serv->get_worker(msg.worker_id));
                 }
                 else
                 {
@@ -722,7 +728,7 @@ void swManager_kill_user_workers(swServer *serv)
 /**
  * kill and wait all child process
  */
-void swManager_kill_workers(swServer *serv)
+static void swManager_kill_workers(swServer *serv)
 {
     int status;
 
@@ -748,7 +754,7 @@ void swManager_kill_workers(swServer *serv)
 /**
  * kill and wait task process
  */
-void swManager_kill_task_workers(swServer *serv)
+static void swManager_kill_task_workers(swServer *serv)
 {
     if (serv->task_worker_num == 0)
     {
@@ -757,7 +763,7 @@ void swManager_kill_task_workers(swServer *serv)
     swProcessPool_shutdown(&serv->gs->task_workers);
 }
 
-pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
+static pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
 {
     pid_t pid;
 
@@ -772,7 +778,6 @@ pid_t swManager_spawn_worker(swServer *serv, swWorker *worker)
     //worker child processor
     else if (pid == 0)
     {
-        
         exit(swWorker_loop(serv, worker));
     }
     //parent,add to writer
@@ -817,18 +822,18 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
          * worker: local memory
          * serv->user_workers: shared memory
          */
-        swServer_get_worker(serv, worker->id)->pid = worker->pid = pid;
+        serv->get_worker(worker->id)->pid = worker->pid = pid;
         swHashMap_add_int(serv->user_worker_map, pid, worker);
         return pid;
     }
 }
 
-pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
+static pid_t swManager_spawn_task_worker(swServer *serv, swWorker* worker)
 {
     return swProcessPool_spawn(&serv->gs->task_workers, worker);
 }
 
-pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type)
+static pid_t swManager_spawn_worker_by_type(swServer *serv, swWorker *worker, int worker_type)
 {
     pid_t pid = -1;
 

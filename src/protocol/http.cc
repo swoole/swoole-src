@@ -26,6 +26,7 @@
 #include <string>
 
 using std::string;
+using swoole::Server;
 using swoole::http::StaticHandler;
 
 static const char *method_strings[] =
@@ -59,12 +60,12 @@ const char* swHttp_get_method_string(int method)
     return method_strings[method - 1];
 }
 
-int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swConnection *conn)
+bool Server::select_static_handler(swHttpRequest *request, swConnection *conn)
 {
-    char *url = request->buffer->str + request->url_offset;
+    const char *url = request->buffer->str + request->url_offset;
     size_t url_length = request->url_length;
 
-    StaticHandler handler(serv, url, url_length);
+    StaticHandler handler(this, url, url_length);
     if (!handler.hit())
     {
         return false;
@@ -87,7 +88,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             sizeof(SW_HTTP_PAGE_404) - 1, SW_HTTP_PAGE_404
         );
         response.data = header_buffer;
-        swServer_master_send(serv, &response);
+        send_to_connection(&response);
 
         return true;
     }
@@ -110,7 +111,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             SW_HTTP_SERVER_SOFTWARE
         );
         response.data = header_buffer;
-        swServer_master_send(serv, &response);
+        send_to_connection(&response);
 
         return true;
     }
@@ -123,16 +124,16 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
      * if http_index_files is enabled, need to search the index file first.
      * if the index file is found, set filename to index filename.
      */
-    if (serv->http_index_files && !serv->http_index_files->empty() && handler.is_dir())
+    if (http_index_files && !http_index_files->empty() && handler.is_dir())
     {
         handler.get_dir_files(dir_files);
-        index_file = swoole::intersection(*serv->http_index_files, dir_files);
+        index_file = swoole::intersection(*http_index_files, dir_files);
 
         if (index_file != "" && !handler.set_filename(index_file))
         {
             return false;
         }
-        else if (index_file == "" && !serv->http_autoindex)
+        else if (index_file == "" && !http_autoindex)
         {
             return false;
         }
@@ -141,7 +142,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
      * the index file was not found in the current directory, 
      * if http_autoindex is enabled, should show the list of files in the current directory.
      */
-    if (index_file == "" && serv->http_autoindex && handler.is_dir())
+    if (index_file == "" && http_autoindex && handler.is_dir())
     {
         if (dir_files.empty())
         {
@@ -164,11 +165,11 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
             SW_HTTP_SERVER_SOFTWARE
         );
         response.data = header_buffer;
-        swServer_master_send(serv, &response);
+        send_to_connection(&response);
 
         response.info.len = body_length;
         response.data = SwooleTG.buffer_stack->str;
-        swServer_master_send(serv, &response);
+        send_to_connection(&response);
         return true;
     }
 
@@ -200,7 +201,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         conn->socket->tcp_nopush = 1;
     }
 #endif
-    swServer_master_send(serv, &response);
+    send_to_connection(&response);
 
     if (task->length != 0)
     {
@@ -208,7 +209,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         response.info.len = sizeof(swSendFile_request) + task->length + 1;
         response.data = (char *) task;
 
-        swServer_master_send(serv, &response);
+        send_to_connection(&response);
     }
 
     if (!request->keep_alive)
@@ -216,7 +217,7 @@ int swServer_http_static_handler_hit(swServer *serv, swHttpRequest *request, swC
         response.info.type = SW_SERVER_EVENT_CLOSE;
         response.info.len = 0;
         response.data = nullptr;
-        swServer_master_send(serv, &response);
+        send_to_connection(&response);
     }
 
     return true;
@@ -876,7 +877,7 @@ int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, const char *da
     }
     else if (conn->http2_stream)
     {
-        return swReactorThread_dispatch(proto, socket, data, length);
+        return Server::dispatch_task(proto, socket, data, length);
     }
     else
     {

@@ -41,7 +41,7 @@ static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, v
 
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num)
 {
-    swFactoryProcess *object = (swFactoryProcess *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swFactoryProcess));
+    swFactoryProcess *object = (swFactoryProcess *) sw_malloc(sizeof(swFactoryProcess));
     if (object == nullptr)
     {
         swWarn("[Master] malloc[object] failed");
@@ -102,6 +102,10 @@ static void swFactoryProcess_free(swFactory *factory)
     {
         object->pipes[i].close(&object->pipes[i]);
     }
+
+    sw_free(object->send_buffer);
+    sw_free(object->pipes);
+    sw_free(object);
 }
 
 static int swFactoryProcess_create_pipes(swFactory *factory)
@@ -165,7 +169,7 @@ static int swFactoryProcess_start(swFactory *factory)
 
     for (uint32_t i = 0; i < serv->worker_num; i++)
     {
-        if (swServer_worker_create(serv, swServer_get_worker(serv, i)) < 0)
+        if (serv->create_worker(serv->get_worker(i)) < 0)
         {
             return SW_ERR;
         }
@@ -178,8 +182,8 @@ static int swFactoryProcess_start(swFactory *factory)
         return SW_ERR;
     }
 
-    swServer_set_ipc_max_size(serv);
-    if (swServer_create_pipe_buffers(serv) < 0)
+    serv->set_ipc_max_size();
+    if (serv->create_pipe_buffers() < 0)
     {
         return SW_ERR;
     }
@@ -195,7 +199,7 @@ static int swFactoryProcess_start(swFactory *factory)
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
-    if (swManager_start(serv) < 0)
+    if (serv->start_manager_process() < 0)
     {
         swWarn("swFactoryProcess_manager_start failed");
         return SW_ERR;
@@ -215,15 +219,12 @@ static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev)
     return swFactoryProcess_dispatch(factory, &task);
 }
 
-static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data)
-{
-    return swReactorThread_send2worker(serv, (swWorker *) private_data, buf, n);
+static inline int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data) {
+    return serv->send_to_worker_from_master((swWorker *) private_data, buf, n);
 }
 
-static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data)
-{
-    return swWorker_send2reactor(serv, (swEventData *) buf, n,
-            ((swConnection *) private_data)->session_id);
+static inline int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data) {
+    return serv->send_to_reactor_thread((swEventData *) buf, n, ((swConnection *) private_data)->session_id);
 }
 
 /**
@@ -252,7 +253,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
 
     if (swEventData_is_stream(task->info.type))
     {
-        swConnection *conn = swServer_connection_get(serv, fd);
+        swConnection *conn = serv->get_connection(fd);
         if (conn == nullptr || conn->active == 0)
         {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
@@ -272,13 +273,12 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task)
         task->info.server_fd = conn->server_fd;
     }
 
-    swWorker *worker = swServer_get_worker(serv, target_worker_id);
+    swWorker *worker = serv->get_worker(target_worker_id);
 
     //without data
-    if (task->data == nullptr)
-    {
+    if (task->data == nullptr) {
         task->info.flags = 0;
-        return swReactorThread_send2worker(serv, worker, &task->info, sizeof(task->info));
+        return serv->send_to_worker_from_master(worker, &task->info, sizeof(task->info));
     }
 
     if (task->info.type == SW_SERVER_EVENT_SEND_DATA)
@@ -405,11 +405,11 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     swConnection *conn;
     if (resp->info.type != SW_SERVER_EVENT_CLOSE)
     {
-        conn = swServer_connection_verify(serv, session_id);
+        conn = serv->get_connection_verify(session_id);
     }
     else
     {
-        conn = swServer_connection_verify_no_ssl(serv, session_id);
+        conn = serv->get_connection_verify_no_ssl(session_id);
     }
     if (!conn)
     {
@@ -480,7 +480,7 @@ static int swFactoryProcess_end(swFactory *factory, int fd)
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    swConnection *conn = swWorker_get_connection(serv, fd);
+    swConnection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0)
     {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
