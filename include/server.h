@@ -96,6 +96,12 @@ enum swFactory_dispatch_result
     SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
 };
 
+enum swServer_mode
+{
+    SW_MODE_BASE         =  1,
+    SW_MODE_PROCESS      =  2,
+};
+
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
 
@@ -278,6 +284,129 @@ enum swServer_hook_type
 };
 
 namespace swoole {
+
+struct Session
+{
+    uint32_t id;
+    uint32_t fd :24;
+    uint32_t reactor_id :8;
+};
+
+struct Connection
+{
+    /**
+     * file descript
+     */
+    int fd;
+    /**
+     * session id
+     */
+    uint32_t session_id;
+    /**
+     * socket type, SW_SOCK_TCP or SW_SOCK_UDP
+     */
+    enum swSocket_type socket_type;
+    //--------------------------------------------------------------
+    /**
+     * is active
+     * system fd must be 0. en: signalfd, listen socket
+     */
+    uint8_t active;
+#ifdef SW_USE_OPENSSL
+    uint8_t ssl;
+    uint8_t ssl_ready;
+#endif
+    //--------------------------------------------------------------
+    uint8_t overflow;
+    uint8_t high_watermark;
+    //--------------------------------------------------------------
+    uint8_t http_upgrade;
+#ifdef SW_USE_HTTP2
+    uint8_t http2_stream;
+#endif
+#ifdef SW_HAVE_ZLIB
+    uint8_t websocket_compression;
+#endif
+    //--------------------------------------------------------------
+    /**
+     * server is actively close the connection
+     */
+    uint8_t close_actively;
+    uint8_t closed;
+    uint8_t close_queued;
+    uint8_t closing;
+    uint8_t close_reset;
+    uint8_t peer_closed;
+    /**
+     * protected connection, cannot be closed by heartbeat thread.
+     */
+    uint8_t protect;
+    //--------------------------------------------------------------
+    uint8_t close_notify;
+    uint8_t close_force;
+    //--------------------------------------------------------------
+    /**
+     * ReactorThread id
+     */
+    uint16_t reactor_id;
+    /**
+     * close error code
+     */
+    uint16_t close_errno;
+    /**
+     * from which socket fd
+     */
+    sw_atomic_t server_fd;
+    sw_atomic_t queued_bytes;
+    uint16_t waiting_time;
+    swTimer_node *timer;
+    /**
+     * socket address
+     */
+    swSocketAddress info;
+    /**
+     * link any thing, for kernel, do not use with application.
+     */
+    void *object;
+    /**
+     * socket info
+     */
+    swSocket *socket;
+    /**
+     * connect time(seconds)
+     */
+    time_t connect_time;
+
+    /**
+     * received time with last data
+     */
+    time_t last_time;
+
+#ifdef SW_BUFFER_RECV_TIME
+    /**
+     * received time(microseconds) with last data
+     */
+    double last_time_usec;
+#endif
+    /**
+     * bind uid
+     */
+    uint32_t uid;
+    /**
+     * upgarde websocket
+     */
+    uint8_t websocket_status;
+    /**
+     * unfinished data frame
+     */
+    swString *websocket_buffer;
+
+#ifdef SW_USE_OPENSSL
+    swString *ssl_client_cert;
+    uint16_t ssl_client_cert_pid;
+#endif
+    sw_atomic_t lock;
+};
 
 struct ReactorThread
 {
@@ -563,8 +692,8 @@ class Server
     pthread_barrier_t barrier = {};
 #endif
 
-    swConnection *connection_list = nullptr;
-    swSession *session_list = nullptr;
+    Connection *connection_list = nullptr;
+    Session *session_list = nullptr;
     uint32_t *port_connnection_num_list = nullptr;
 
     /**
@@ -648,7 +777,7 @@ class Server
     int (*sendfile)(Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) = nullptr;
     int (*sendwait)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
     int (*close)(Server *serv, int session_id, int reset) = nullptr;
-    int (*notify)(Server *serv, swConnection *conn, int event) = nullptr;
+    int (*notify)(Server *serv, Connection *conn, int event) = nullptr;
     int (*feedback)(Server *serv, int session_id, int event) = nullptr;
     /**
      * Chunk control
@@ -662,7 +791,7 @@ class Server
     /**
      * Hook
      */
-    int (*dispatch_func)(Server *, swConnection *, swSendData *) = nullptr;
+    int (*dispatch_func)(Server *, Connection *, swSendData *) = nullptr;
 
  public:
     Server(enum swServer_mode mode = SW_MODE_BASE);
@@ -700,7 +829,7 @@ class Server
 
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
-    bool select_static_handler(swHttpRequest *request, swConnection *conn);
+    bool select_static_handler(swHttpRequest *request, Connection *conn);
 
     int create();
     int start();
@@ -710,7 +839,7 @@ class Server
     swListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum swServer_hook_type type, swCallback func, int push_back);
-    swConnection *add_connection(swListenPort *ls, swSocket *_socket, int server_fd);
+    Connection *add_connection(swListenPort *ls, swSocket *_socket, int server_fd);
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
@@ -843,11 +972,11 @@ class Server
         return session_list[session_id % SW_SESSION_LIST_SIZE].fd;
     }
 
-    inline swConnection *get_connection_verify_no_ssl(uint32_t session_id)
+    inline Connection *get_connection_verify_no_ssl(uint32_t session_id)
     {
-        swSession *session = get_session(session_id);
+        Session *session = get_session(session_id);
         int fd = session->fd;
-        swConnection *conn = get_connection(fd);
+        Connection *conn = get_connection(fd);
         if (!conn || conn->active == 0)
         {
             return nullptr;
@@ -859,9 +988,9 @@ class Server
         return conn;
     }
 
-    inline swConnection *get_connection_verify(uint32_t session_id)
+    inline Connection *get_connection_verify(uint32_t session_id)
     {
-        swConnection *conn = get_connection_verify_no_ssl(session_id);
+        Connection *conn = get_connection_verify_no_ssl(session_id);
 #ifdef SW_USE_OPENSSL
         if (conn && conn->ssl && !conn->ssl_ready)
         {
@@ -872,7 +1001,7 @@ class Server
         return conn;
     }
 
-    inline swConnection *get_connection(int fd)
+    inline Connection *get_connection(int fd)
     {
         if ((uint32_t) fd > max_connection)
         {
@@ -881,12 +1010,12 @@ class Server
         return &connection_list[fd];
     }
 
-    inline swConnection *get_connection_by_session_id(int session_id)
+    inline Connection *get_connection_by_session_id(int session_id)
     {
         return get_connection(get_connection_fd(session_id));
     }
 
-    inline swSession *get_session(uint32_t session_id)
+    inline Session *get_session(uint32_t session_id)
     {
         return &session_list[session_id % SW_SESSION_LIST_SIZE];
     }
@@ -949,6 +1078,8 @@ class Server
 }
 
 typedef swoole::Server swServer;
+typedef swoole::Connection swConnection;
+typedef swoole::Session swSession;
 typedef swoole::ReactorThread swReactorThread;
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);

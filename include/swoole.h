@@ -423,12 +423,6 @@ enum swFork_type
 };
 
 //-------------------------------------------------------------------------------
-enum swServer_mode
-{
-    SW_MODE_BASE         =  1,
-    SW_MODE_PROCESS      =  2,
-};
-//-------------------------------------------------------------------------------
 enum swSocket_type
 {
     SW_SOCK_TCP          =  1,
@@ -455,12 +449,6 @@ enum swLog_rotation_type
 {
     SW_LOG_ROTATION_SINGLE = 0,
     SW_LOG_ROTATION_DAILY,
-};
-//-------------------------------------------------------------------------------
-enum swWorker_status
-{
-    SW_WORKER_BUSY = 1,
-    SW_WORKER_IDLE = 2,
 };
 //-------------------------------------------------------------------------------
 
@@ -635,13 +623,6 @@ typedef unsigned char uchar;
 typedef void (*swDestructor)(void *data);
 typedef std::function<void(void *)> swCallback;
 
-typedef struct
-{
-    uint32_t id;
-    uint32_t fd :24;
-    uint32_t reactor_id :8;
-} swSession;
-
 struct swAllocator
 {
     void* (*malloc)(size_t size);
@@ -726,123 +707,6 @@ typedef struct _swTask_sendfile
     size_t length;
     off_t offset;
 } swTask_sendfile;
-
-typedef struct _swConnection
-{
-    /**
-     * file descript
-     */
-    int fd;
-    /**
-     * session id
-     */
-    uint32_t session_id;
-    /**
-     * socket type, SW_SOCK_TCP or SW_SOCK_UDP
-     */
-    enum swSocket_type socket_type;
-    //--------------------------------------------------------------
-    /**
-     * is active
-     * system fd must be 0. en: signalfd, listen socket
-     */
-    uint8_t active;
-#ifdef SW_USE_OPENSSL
-    uint8_t ssl;
-    uint8_t ssl_ready;
-#endif
-    //--------------------------------------------------------------
-    uint8_t overflow;
-    uint8_t high_watermark;
-    //--------------------------------------------------------------
-    uint8_t http_upgrade;
-#ifdef SW_USE_HTTP2
-    uint8_t http2_stream;
-#endif
-#ifdef SW_HAVE_ZLIB
-    uint8_t websocket_compression;
-#endif
-    //--------------------------------------------------------------
-    /**
-     * server is actively close the connection
-     */
-    uint8_t close_actively;
-    uint8_t closed;
-    uint8_t close_queued;
-    uint8_t closing;
-    uint8_t close_reset;
-    uint8_t peer_closed;
-    /**
-     * protected connection, cannot be closed by heartbeat thread.
-     */
-    uint8_t protect;
-    //--------------------------------------------------------------
-    uint8_t close_notify;
-    uint8_t close_force;
-    //--------------------------------------------------------------
-    /**
-     * ReactorThread id
-     */
-    uint16_t reactor_id;
-    /**
-     * close error code
-     */
-    uint16_t close_errno;
-    /**
-     * from which socket fd
-     */
-    sw_atomic_t server_fd;
-    sw_atomic_t queued_bytes;
-    uint16_t waiting_time;
-    swTimer_node *timer;
-    /**
-     * socket address
-     */
-    swSocketAddress info;
-    /**
-     * link any thing, for kernel, do not use with application.
-     */
-    void *object;
-    /**
-     * socket info
-     */
-    swSocket *socket;
-    /**
-     * connect time(seconds)
-     */
-    time_t connect_time;
-
-    /**
-     * received time with last data
-     */
-    time_t last_time;
-
-#ifdef SW_BUFFER_RECV_TIME
-    /**
-     * received time(microseconds) with last data
-     */
-    double last_time_usec;
-#endif
-    /**
-     * bind uid
-     */
-    uint32_t uid;
-    /**
-     * upgarde websocket
-     */
-    uint8_t websocket_status;
-    /**
-     * unfinished data frame
-     */
-    swString *websocket_buffer;
-
-#ifdef SW_USE_OPENSSL
-    swString *ssl_client_cert;
-    uint16_t ssl_client_cert_pid;
-#endif
-    sw_atomic_t lock;
-
-} swConnection;
 
 typedef struct _swProtocol
 {

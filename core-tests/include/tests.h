@@ -6,7 +6,6 @@
 #include "server.h"
 #else
 #include "swoole/swoole_api.h"
-#include "swoole/swoole_cxx.h"
 #include "swoole/client.h"
 #include "swoole/server.h"
 #endif

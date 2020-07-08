@@ -22,6 +22,12 @@
 
 struct swProcessPool;
 
+enum swWorker_status
+{
+    SW_WORKER_BUSY = 1,
+    SW_WORKER_IDLE = 2,
+};
+
 struct swWorker
 {
     /**
