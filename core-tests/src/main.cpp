@@ -25,7 +25,15 @@ static void init_root_path(const char *_exec_file) {
     char *dir = getcwd(buf, sizeof(buf));
     string file = string(dir) + "/" + _exec_file;
     string relative_root_path = file.substr(0, file.rfind('/')) + "/../../";
-    root_path = string(realpath(relative_root_path.c_str(), buf));
+    char *_realpath = realpath(relative_root_path.c_str(), buf);
+    if (_realpath == nullptr)
+    {
+        root_path = relative_root_path;
+    }
+    else
+    {
+        root_path = string(_realpath);
+    }
 }
 
 const string &swoole::test::get_root_path() {

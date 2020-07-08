@@ -49,53 +49,52 @@ namespace swoole {
 class Reactor
 {
 public:
-    void *object;
-    void *ptr;  //reserve
+    void *object = nullptr;
+    void *ptr = nullptr;
 
     /**
      * last signal number
      */
-    int singal_no;
+    int singal_no = 0;
 
-    uint32_t event_num;
-    uint32_t max_event_num;
+    uint32_t event_num = 0;
+    uint32_t max_event_num = 0;
 
-    bool running;
-    bool start;
-    bool once;
-    bool wait_exit;
+    bool running = false;
+    bool start = false;
+    bool once = false;
+    bool wait_exit = false;
     /**
      * callback signal
      */
-    bool check_signalfd;
+    bool check_signalfd = false;
     /**
      * reactor->wait timeout (millisecond) or -1
      */
-    int32_t timeout_msec;
+    int32_t timeout_msec = 0;
 
-    uint16_t id; //Reactor ID
-    uint16_t flag; //flag
+    uint16_t id = 0;
 
-    uint32_t max_socket;
+    uint32_t max_socket = 0;
 
 #ifdef SW_USE_MALLOC_TRIM
-    time_t last_malloc_trim_time;
+    time_t last_malloc_trim_time = 0;
 #endif
 
-    swReactor_handler read_handler[SW_MAX_FDTYPE];
-    swReactor_handler write_handler[SW_MAX_FDTYPE];
-    swReactor_handler error_handler[SW_MAX_FDTYPE];
+    swReactor_handler read_handler[SW_MAX_FDTYPE] = {};
+    swReactor_handler write_handler[SW_MAX_FDTYPE] = {};
+    swReactor_handler error_handler[SW_MAX_FDTYPE] = {};
 
-    swReactor_handler default_write_handler;
-    swReactor_handler default_error_handler;
+    swReactor_handler default_write_handler = nullptr;
+    swReactor_handler default_error_handler = nullptr;
 
-    int (*add)(Reactor *reactor, swSocket *socket, int events);
-    int (*set)(Reactor *reactor, swSocket *socket, int events);
-    int (*del)(Reactor *reactor, swSocket *socket);
-    int (*wait)(Reactor *reactor, struct timeval *);
-    void (*free)(Reactor *);
+    int (*add)(Reactor *reactor, swSocket *socket, int events) = nullptr;
+    int (*set)(Reactor *reactor, swSocket *socket, int events) = nullptr;
+    int (*del)(Reactor *reactor, swSocket *socket) = nullptr;
+    int (*wait)(Reactor *reactor, struct timeval *) = nullptr;
+    void (*free)(Reactor *) = nullptr;
 
-    CallbackManager *defer_tasks;
+    CallbackManager *defer_tasks = nullptr;
     CallbackManager destroy_callbacks;
 
     swDefer_callback idle_task;
@@ -103,8 +102,8 @@ public:
 
     std::function<void(Reactor *)> onBegin;
 
-    int (*write)(Reactor *reactor, swSocket *socket, const void *buf, int n);
-    int (*close)(Reactor *reactor, swSocket *socket);
+    int (*write)(Reactor *reactor, swSocket *socket, const void *buf, int n)  = nullptr;
+    int (*close)(Reactor *reactor, swSocket *socket)  = nullptr;
 
 private:
     std::map<int, std::function<void(Reactor *)>> end_callbacks;

@@ -64,52 +64,55 @@ Reactor::Reactor(int max_event)
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, this);
     }
 
-    set_end_callback(SW_REACTOR_PRIORITY_DEFER_TASK, [this](void *)
+    set_end_callback(SW_REACTOR_PRIORITY_DEFER_TASK, [](swReactor *reactor)
     {
-        CallbackManager *cm = defer_tasks;
-        defer_tasks = nullptr;
-        cm->execute();
-        delete cm;
-    });
-
-    set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFER_TASK, [this](swReactor *, int &event_num) -> bool
-    {
-        return defer_tasks == nullptr;
-    });
-
-    set_end_callback(SW_REACTOR_PRIORITY_IDLE_TASK, [this](void *)
-    {
-        if (idle_task.callback)
+        CallbackManager *cm = reactor->defer_tasks;
+        if (cm)
         {
-            idle_task.callback(idle_task.data);
+            reactor->defer_tasks = nullptr;
+            cm->execute();
+            delete cm;
         }
     });
 
-    set_end_callback(SW_REACTOR_PRIORITY_SIGNAL_CALLBACK, [this](void *)
+    set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFER_TASK, [](swReactor *reactor, int &event_num) -> bool
     {
-        if (sw_unlikely(singal_no))
+        return reactor->defer_tasks == nullptr;
+    });
+
+    set_end_callback(SW_REACTOR_PRIORITY_IDLE_TASK, [](swReactor *reactor)
+    {
+        if (reactor->idle_task.callback)
         {
-            swSignal_callback(singal_no);
-            singal_no = 0;
+            reactor->idle_task.callback(reactor->idle_task.data);
         }
     });
 
-    set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, [this](void *)
+    set_end_callback(SW_REACTOR_PRIORITY_SIGNAL_CALLBACK, [](swReactor *reactor)
     {
-        if (wait_exit && if_exit())
+        if (sw_unlikely(reactor->singal_no))
         {
-            running = 0;
+            swSignal_callback(reactor->singal_no);
+            reactor->singal_no = 0;
+        }
+    });
+
+    set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, [](swReactor *reactor)
+    {
+        if (reactor->wait_exit && reactor->if_exit())
+        {
+            reactor->running = 0;
         }
     });
 
 #ifdef SW_USE_MALLOC_TRIM
-    set_end_callback(SW_REACTOR_PRIORITY_MALLOC_TRIM, [this](void *)
+    set_end_callback(SW_REACTOR_PRIORITY_MALLOC_TRIM, [](swReactor *reactor)
     {
         time_t now = ::time(nullptr);
-        if (last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
+        if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
         {
             malloc_trim(SW_MALLOC_TRIM_PAD);
-            last_malloc_trim_time = now;
+            reactor->last_malloc_trim_time = now;
         }
     });
 #endif

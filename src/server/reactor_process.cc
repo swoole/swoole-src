@@ -322,6 +322,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
             return SW_ERR;
         }
     }
+
     swReactor *reactor = SwooleTG.reactor;
 
     if (SwooleTG.timer && SwooleTG.timer->reactor == nullptr)
