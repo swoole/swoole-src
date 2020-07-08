@@ -259,11 +259,7 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
                     }, nullptr);
                     exit_condition_cleaner = true;
                 }
-                if (sw_reactor())
-                {
-                    sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT,
-                            php_swoole_coroutine_reactor_can_exit);
-                }
+                PHPCoroutine::config.user_exit_condition = php_swoole_coroutine_reactor_can_exit;
             }
         }
         else
@@ -271,6 +267,7 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
             if (sw_reactor())
             {
                 sw_reactor()->remove_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT);
+                PHPCoroutine::config.user_exit_condition = nullptr;
             }
         }
     }

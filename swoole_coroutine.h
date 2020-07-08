@@ -95,15 +95,13 @@ SW_EXTERN_C_BEGIN
 PHP_METHOD(swoole_coroutine_scheduler, set);
 SW_EXTERN_C_END
 
-namespace swoole
-{
-
-namespace coroutine
-{
+namespace swoole { namespace coroutine {
+//------------------------------------------------------------------------------
 struct Config
 {
     uint64_t max_num;
     long hook_flags;
+    std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
     bool enable_preemptive_scheduler;
 };
 }
