@@ -184,6 +184,7 @@ static void reactor_test_func(swReactor *reactor)
 
 TEST(reactor, poll) {
     swReactor reactor(1024);
+    reactor.free(&reactor);
     reactor.wait_exit = 1;
     ASSERT_EQ(swReactorPoll_create(&reactor, 1024), SW_OK);
     reactor_test_func(&reactor);
@@ -191,6 +192,7 @@ TEST(reactor, poll) {
 
 TEST(reactor, select) {
     swReactor reactor(1024);
+    reactor.free(&reactor);
     reactor.wait_exit = 1;
     ASSERT_EQ(swReactorSelect_create(&reactor), SW_OK);
     reactor_test_func(&reactor);

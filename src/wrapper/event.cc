@@ -81,7 +81,7 @@ int swoole_event_wait()
 {
     swReactor *reactor = SwooleTG.reactor;
     int retval = 0;
-    if (!reactor->if_exit())
+    if (!reactor->wait_exit or !reactor->if_exit())
     {
         retval = SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
     }

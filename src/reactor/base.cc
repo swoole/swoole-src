@@ -372,12 +372,12 @@ void Reactor::add_destroy_callback(swCallback cb, void *data)
 
 void Reactor::set_end_callback(enum swReactor_end_callback id, std::function<void(Reactor *)> fn)
 {
-    end_callbacks.emplace(std::make_pair(id, fn));
+    end_callbacks[id] = fn;
 }
 
 void Reactor::set_exit_condition(enum swReactor_exit_condition id, std::function<bool(Reactor *, int &)> fn)
 {
-    exit_conditions.emplace(std::make_pair(id, fn));
+    exit_conditions[id] = fn;
 }
 
 void Reactor::defer(swCallback cb, void *data)
