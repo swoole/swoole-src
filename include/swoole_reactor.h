@@ -37,14 +37,14 @@ public:
     uint16_t signal_listener_num;
     uint16_t co_signal_listener_num;
 
-    uchar running :1;
-    uchar start :1;
-    uchar once :1;
-    uchar wait_exit :1;
+    bool running;
+    bool start;
+    bool once;
+    bool wait_exit;
     /**
      * callback signal
      */
-    uchar check_signalfd :1;
+    bool check_signalfd;
     /**
      * reactor->wait timeout (millisecond) or -1
      */
@@ -91,7 +91,7 @@ public:
     int (*close)(Reactor *reactor, swSocket *socket);
 
 public:
-    Reactor(int max_event);
+    Reactor(int max_event = SW_REACTOR_MAXEVENTS);
     ~Reactor();
     void defer(swCallback cb, void *data = nullptr);
     void add_end_callback(int priority, swCallback cb);

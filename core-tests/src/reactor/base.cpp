@@ -18,6 +18,7 @@
 */
 
 #include "tests.h"
+#include "pipe.h"
 
 TEST(reactor, create)
 {
@@ -41,7 +42,6 @@ TEST(reactor, create)
     ASSERT_EQ(reactor->can_exit, nullptr); // set in PHP_METHOD(swoole_coroutine_scheduler, set)
     ASSERT_NE(reactor->write, nullptr);
     ASSERT_NE(reactor->close, nullptr);
-    ASSERT_NE(reactor->defer, nullptr);
     ASSERT_EQ(reactor->defer_tasks, nullptr);
     ASSERT_NE(reactor->default_write_handler, nullptr);
 

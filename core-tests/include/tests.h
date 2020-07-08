@@ -2,7 +2,6 @@
 
 #ifdef HAVE_SWOOLE_DIR
 #include "swoole_api.h"
-#include "swoole_cxx.h"
 #include "client.h"
 #include "server.h"
 #else

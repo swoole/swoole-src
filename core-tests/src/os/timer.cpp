@@ -45,7 +45,7 @@ TEST(timer, sys) {
 
     while (1) {
         sleep(10);
-        if (SwooleWG.signal_alarm) {
+        if (SwooleG.signal_alarm) {
             swoole_timer_select();
             if (!timer_running) {
                 break;

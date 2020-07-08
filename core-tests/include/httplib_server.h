@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "swoole_cxx.h"
 #include "coroutine_system.h"
 #include "coroutine_socket.h"
 #include "httplib_client.h"

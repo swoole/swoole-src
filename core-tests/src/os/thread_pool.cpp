@@ -1,5 +1,7 @@
 #ifndef __MACH__
 #include "tests.h"
+#include "thread_pool.h"
+
 #include <sys/eventfd.h>
 
 static swThreadPool pool;

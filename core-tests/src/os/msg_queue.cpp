@@ -18,6 +18,7 @@
 */
 
 #include "tests.h"
+#include "msg_queue.h"
 
 TEST(msg_queue, rbac)
 {
