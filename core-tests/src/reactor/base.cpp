@@ -178,21 +178,20 @@ static void reactor_test_func(swReactor *reactor)
     reactor->add(reactor, p.getSocket(&p, SW_PIPE_READ), SW_EVENT_READ);
     reactor->add(reactor, p.getSocket(&p, SW_PIPE_WRITE), SW_EVENT_WRITE);
     reactor->wait(reactor, nullptr);
-    reactor->free(reactor);
 
     p.close(&p);
 }
 
-TEST(reactor, poll)
-{
-    swReactor reactor = {};
+TEST(reactor, poll) {
+    swReactor reactor(1024);
+    reactor.wait_exit = 1;
     ASSERT_EQ(swReactorPoll_create(&reactor, 1024), SW_OK);
     reactor_test_func(&reactor);
 }
 
-TEST(reactor, select)
-{
-    swReactor reactor = {};
+TEST(reactor, select) {
+    swReactor reactor(1024);
+    reactor.wait_exit = 1;
     ASSERT_EQ(swReactorSelect_create(&reactor), SW_OK);
     reactor_test_func(&reactor);
 }

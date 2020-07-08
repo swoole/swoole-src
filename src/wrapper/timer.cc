@@ -30,7 +30,7 @@ swTimer* sw_timer()
 
 swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
 
-swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data)
+swTimer_node *swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data)
 {
     if (sw_unlikely(SwooleTG.timer == nullptr))
     {
@@ -49,7 +49,7 @@ swTimer_node* swoole_timer_add(long ms, uchar persistent, swTimerCallback callba
     return swTimer_add(SwooleTG.timer, ms, persistent, private_data, callback);
 }
 
-uchar swoole_timer_del(swTimer_node* tnode)
+bool swoole_timer_del(swTimer_node* tnode)
 {
     return swTimer_del(SwooleTG.timer, tnode);
 }
@@ -90,7 +90,7 @@ long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data)
     }
 }
 
-uchar swoole_timer_exists(long timer_id)
+bool swoole_timer_exists(long timer_id)
 {
     if (!SwooleTG.timer)
     {
@@ -101,12 +101,12 @@ uchar swoole_timer_exists(long timer_id)
     return (tnode && !tnode->removed);
 }
 
-uchar swoole_timer_clear(long timer_id)
+bool swoole_timer_clear(long timer_id)
 {
     return swTimer_del(SwooleTG.timer, swTimer_get(SwooleTG.timer, timer_id));
 }
 
-swTimer_node* swoole_timer_get(long timer_id)
+swTimer_node *swoole_timer_get(long timer_id)
 {
     if (!SwooleTG.timer)
     {

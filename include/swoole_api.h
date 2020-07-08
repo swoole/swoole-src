@@ -29,10 +29,10 @@ enum swEvent_init_flags
 SW_API long swoole_timer_after(long ms, swTimerCallback callback, void *private_data);
 SW_API long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data);
 SW_API swTimer_node *swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data);
-SW_API uchar swoole_timer_del(swTimer_node *tnode);
-SW_API uchar swoole_timer_exists(long timer_id);
+SW_API bool swoole_timer_del(swTimer_node *tnode);
+SW_API bool swoole_timer_exists(long timer_id);
 SW_API swTimer_node *swoole_timer_get(long timer_id);
-SW_API uchar swoole_timer_clear(long timer_id);
+SW_API bool swoole_timer_clear(long timer_id);
 SW_API void swoole_timer_free();
 SW_API int swoole_timer_select();
 

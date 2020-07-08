@@ -888,9 +888,7 @@ int Server::start_reactor_threads()
         if (swPort_listen(*ls) < 0)
         {
             _failed:
-            reactor->free(reactor);
-            SwooleTG.reactor = nullptr;
-            sw_free(reactor);
+            swoole_event_free();
             return SW_ERR;
         }
         reactor->add(reactor, (*ls)->socket, SW_EVENT_READ);
@@ -1092,8 +1090,9 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
     }
 
     ReactorThread *thread = serv->get_thread(reactor_id);
-    swReactor *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
-    SwooleTG.reactor = reactor;
+
+    swoole_event_init(0);
+    swReactor *reactor = SwooleTG.reactor;
 
 #ifdef HAVE_CPU_AFFINITY
     //cpu affinity setting
@@ -1132,11 +1131,7 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
     SW_START_SLEEP;
 #endif
     //main loop
-    reactor->wait(reactor, nullptr);
-    //shutdown
-    reactor->free(reactor);
-
-    SwooleTG.reactor = nullptr;
+    swoole_event_wait();
 
     for (auto it = thread->send_buffers.begin(); it != thread->send_buffers.end(); it++)
     {
