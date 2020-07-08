@@ -20,7 +20,6 @@
 #include <string>
 #include <map>
 
-#include "base.hpp"
 #include "server.h"
 
 using namespace std;

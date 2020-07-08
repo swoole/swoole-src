@@ -1237,9 +1237,6 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     return ret;
 }
 
-//------------------------------Socket--------------------------------
-
-
 //------------------------------Process--------------------------------
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {

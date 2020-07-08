@@ -15,8 +15,7 @@
 */
 
 #include "swoole_api.h"
-#include "wrapper/base.hpp"
-#include "server.h"
+#include "swoole_timer.h"
 
 using namespace std;
 using namespace swoole;
