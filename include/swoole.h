@@ -1458,7 +1458,7 @@ typedef struct
 } swGlobal_t;
 
 extern swGlobal_t SwooleG;              //Local Global Variable
-extern __thread swThreadGlobal_t SwooleTG;   //Thread Global Variable
+extern thread_local swThreadGlobal_t SwooleTG;   //Thread Global Variable
 
 #define SW_CPU_NUM                    (SwooleG.cpu_num)
 

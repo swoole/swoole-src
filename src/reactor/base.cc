@@ -49,7 +49,7 @@ Reactor::Reactor(int max_event)
 
     if (ret < 0)
     {
-        throw std::system_error();
+        throw std::system_error(std::error_code(errno, std::system_category()));
     }
 
     running = 1;
