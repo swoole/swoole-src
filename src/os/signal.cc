@@ -15,6 +15,7 @@
 */
 
 #include "swoole_api.h"
+#include "swoole_signal.h"
 
 #include "coroutine.h"
 #include "coroutine_system.h"
@@ -25,13 +26,6 @@
 #ifdef HAVE_KQUEUE
 #include <sys/event.h>
 #endif
-
-struct swSignal
-{
-    swSignalHandler handler;
-    uint16_t signo;
-    uint16_t active;
-};
 
 #ifdef HAVE_SIGNALFD
 static void swSignalfd_set(int signo, swSignalHandler handler);
@@ -126,7 +120,7 @@ void swSignal_add(int signo, swSignalHandler handler)
         // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
         // see https://www.freebsd.org/cgi/man.cgi?kqueue
         // if there's no main reactor, signals cannot be monitored either
-        if (signo != SIGCHLD && SwooleTG.reactor)
+        if (signo != SIGCHLD && sw_reactor())
         {
             swKqueueSignal_set(signo, handler);
         }
@@ -143,9 +137,9 @@ void swSignal_add(int signo, swSignalHandler handler)
 
 static void swSignal_async_handler(int signo)
 {
-    if (SwooleTG.reactor)
+    if (sw_reactor())
     {
-        SwooleTG.reactor->singal_no = signo;
+        sw_reactor()->singal_no = signo;
     }
     else
     {
@@ -206,7 +200,7 @@ void swSignal_clear(void)
             if (signals[i].active)
             {
 #ifdef HAVE_KQUEUE
-                if (signals[i].signo != SIGCHLD && SwooleTG.reactor)
+                if (signals[i].signo != SIGCHLD && sw_reactor())
                 {
                     swKqueueSignal_set(signals[i].signo, nullptr);
                 }
@@ -247,9 +241,9 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
-    else if (SwooleTG.reactor)
+    else if (sw_reactor())
     {
-        swSignalfd_setup(SwooleTG.reactor);
+        swSignalfd_setup(sw_reactor());
     }
 }
 
@@ -353,7 +347,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 static void swKqueueSignal_set(int signo, swSignalHandler handler)
 {
     struct kevent ev;
-    swReactor *reactor = SwooleTG.reactor;
+    swReactor *reactor = sw_reactor();
     struct reactor_object
     {
         int fd;
@@ -409,7 +403,7 @@ bool System::wait_signal(int signo, double timeout)
     // exit condition
     if (!sw_reactor()->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER))
     {
-        SwooleTG.reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
+        sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
                 [](swReactor *reactor, int &event_num) -> bool
                 {
                     return SwooleTG.co_signal_listener_num == 0;

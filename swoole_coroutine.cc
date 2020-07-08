@@ -21,6 +21,7 @@
 
 #include "server.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_signal.h"
 
 #include "zend_builtin_functions.h"
 #include "ext/spl/spl_array.h"

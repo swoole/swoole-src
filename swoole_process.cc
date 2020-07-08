@@ -15,11 +15,13 @@
 */
 
 #include "php_swoole_cxx.h"
-#include "swoole_process.h"
 #include "php_streams.h"
 #include "php_network.h"
+
+#include "swoole_process.h"
 #include "server.h"
 #include "msg_queue.h"
+#include "swoole_signal.h"
 
 using namespace swoole;
 
