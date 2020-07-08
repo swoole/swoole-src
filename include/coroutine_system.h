@@ -18,8 +18,6 @@
 #pragma once
 
 #include "coroutine.h"
-#include <string>
-#include <vector>
 
 namespace swoole { namespace coroutine {
 //-------------------------------------------------------------------------------

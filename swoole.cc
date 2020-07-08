@@ -23,6 +23,7 @@
 
 #include "mime_type.h"
 #include "server.h"
+#include "swoole_process.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -292,7 +293,7 @@ static void fatal_error(int code, const char *format, ...)
     va_list args;
     zend_object *exception;
     va_start(args, format);
-    exception = zend_throw_exception(swoole_error_ce, swoole::cpp_string::vformat(format, args).c_str(), code);
+    exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
     zend_exception_error(exception, E_ERROR);
     // should never here
@@ -863,6 +864,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
     php_swoole_runtime_rshutdown();
+
     php_swoole_process_clean();
 
     SwooleG.running = 0;

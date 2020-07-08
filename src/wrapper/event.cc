@@ -15,6 +15,8 @@
 */
 
 #include "swoole_api.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
 #include "async.h"
 #include "coroutine_c_api.h"
 #include "coroutine_socket.h"
@@ -44,17 +46,7 @@ int swoole_event_init(int flags)
         swoole_init();
     }
 
-    swReactor *reactor = (swReactor *) sw_malloc(sizeof(swReactor));
-    if (!reactor)
-    {
-        swSysWarn("malloc failed");
-        return SW_ERR;
-    }
-    if (swReactor_create(reactor, SW_REACTOR_MAXEVENTS) < 0)
-    {
-        sw_free(reactor);
-        return SW_ERR;
-    }
+    swReactor *reactor = new swoole::Reactor(SW_REACTOR_MAXEVENTS);
     if (flags & SW_EVENTLOOP_WAIT_EXIT)
     {
         reactor->wait_exit = 1;
@@ -102,15 +94,14 @@ int swoole_event_free()
     {
         return SW_ERR;
     }
-    swReactor_destroy(SwooleTG.reactor);
-    sw_free(SwooleTG.reactor);
+    delete SwooleTG.reactor;
     SwooleTG.reactor = nullptr;
     return SW_OK;
 }
 
 void swoole_event_defer(swCallback cb, void *private_data)
 {
-    SwooleTG.reactor->defer(SwooleTG.reactor, cb, private_data);
+    SwooleTG.reactor->defer(cb, private_data);
 }
 
 /**

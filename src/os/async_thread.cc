@@ -15,6 +15,10 @@
  */
 
 #include "swoole_api.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
+#include "swoole_string.h"
+#include "pipe.h"
 #include "async.h"
 
 #include <thread>
@@ -398,9 +402,11 @@ static void swAio_free(void *private_data)
             delete pool;
             pool = nullptr;
 
-            SwooleTG.aio_pipe.close(&SwooleTG.aio_pipe);
+            SwooleTG.aio_pipe->close(SwooleTG.aio_pipe);
             SwooleTG.aio_read_socket = nullptr;
             SwooleTG.aio_write_socket = nullptr;
+            delete SwooleTG.aio_pipe;
+            SwooleTG.aio_pipe = nullptr;
         }
     }
 }
@@ -418,18 +424,20 @@ static int swAio_init()
         return SW_ERR;
     }
 
-    if (swPipeBase_create(&SwooleTG.aio_pipe, 0) < 0)
+    SwooleTG.aio_pipe = new swPipe();
+
+    if (swPipeBase_create(SwooleTG.aio_pipe, 0) < 0)
     {
         swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
     }
 
-    SwooleTG.aio_read_socket = SwooleTG.aio_pipe.getSocket(&SwooleTG.aio_pipe, 0);
-    SwooleTG.aio_write_socket = SwooleTG.aio_pipe.getSocket(&SwooleTG.aio_pipe, 1);
+    SwooleTG.aio_read_socket = SwooleTG.aio_pipe->getSocket(SwooleTG.aio_pipe, 0);
+    SwooleTG.aio_write_socket = SwooleTG.aio_pipe->getSocket(SwooleTG.aio_pipe, 1);
     SwooleTG.aio_read_socket->fdtype = SW_FD_AIO;
     SwooleTG.aio_write_socket->fdtype = SW_FD_AIO;
 
     swoole_event_add(SwooleTG.aio_read_socket, SW_EVENT_READ);
-    swReactor_add_destroy_callback(SwooleTG.reactor, swAio_free, nullptr);
+    SwooleTG.reactor->add_destroy_callback(swAio_free);
 
     init_lock.lock();
     if ((refcount++) == 0)

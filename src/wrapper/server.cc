@@ -122,7 +122,7 @@ static int task_pack(swEventData *task, const DataBuffer &data)
     //field fd save task_id
     task->info.fd = task_id++;
     //field reactor_id save the worker_id
-    task->info.reactor_id = SwooleWG.id;
+    task->info.reactor_id = SwooleG.process_id;
     swTask_type(task) = 0;
 
     if (data.length >= SW_IPC_MAX_SIZE - sizeof(task->info))
@@ -312,7 +312,7 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
         return false;
     }
 
-    if (worker_id == (int) SwooleWG.id)
+    if (worker_id == (int) SwooleG.process_id)
     {
         swWarn("cannot send message to self");
         return false;
@@ -336,7 +336,7 @@ bool Server::sendMessage(int worker_id, DataBuffer &data)
     }
 
     buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
-    buf.info.reactor_id = SwooleWG.id;
+    buf.info.reactor_id = SwooleG.process_id;
 
     swWorker *to_worker = serv.get_worker((uint16_t) worker_id);
     return swWorker_send_pipe_message(to_worker, &buf, sizeof(buf.info) + buf.info.len,
@@ -547,9 +547,9 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
     task_pack(&buf, data);
 
     uint64_t notify;
-    swEventData *task_result = &(serv.task_result[SwooleWG.id]);
+    swEventData *task_result = &(serv.task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(swEventData));
-    swPipe *task_notify_pipe = &serv.task_notify[SwooleWG.id];
+    swPipe *task_notify_pipe = &serv.task_notify[SwooleG.process_id];
     swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, 0);
 
     //clear history task
@@ -591,10 +591,10 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
     int list_of_id[1024];
 
     uint64_t notify;
-    swEventData *task_result = &(serv.task_result[SwooleWG.id]);
+    swEventData *task_result = &(serv.task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(swEventData));
-    swPipe *task_notify_pipe = &serv.task_notify[SwooleWG.id];
-    swWorker *worker = serv.get_worker(SwooleWG.id);
+    swPipe *task_notify_pipe = &serv.task_notify[SwooleG.process_id];
+    swWorker *worker = serv.get_worker(SwooleG.process_id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);

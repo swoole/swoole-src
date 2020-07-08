@@ -17,13 +17,9 @@
 
 #pragma once
 
-#include "swoole_cxx.h"
 #include "coroutine.h"
 #include "ssl.h"
 #include "socks5.h"
-
-#include <vector>
-#include <string>
 
 #define SW_DEFAULT_SOCKET_DNS_TIMEOUT       -1
 #define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1

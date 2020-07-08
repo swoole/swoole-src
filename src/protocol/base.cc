@@ -16,7 +16,9 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_cxx.h"
+#include "swoole.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
 
 using namespace swoole;
 

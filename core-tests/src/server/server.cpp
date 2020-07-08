@@ -64,9 +64,8 @@ TEST(server, base)
         exit(2);
     }
 
-    swLock lock;
-    swMutex_create(&lock, 0);
-    lock.lock(&lock);
+    mutex lock;
+    lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -74,7 +73,7 @@ TEST(server, base)
     {
         swSignal_none();
 
-        lock.lock(&lock);
+        lock.lock();
 
         swoole::Client c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
@@ -88,7 +87,7 @@ TEST(server, base)
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        lock.unlock(&lock);
+        lock.unlock();
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int
@@ -169,6 +168,8 @@ TEST(server, process)
     };
 
     ASSERT_EQ(serv.start(), 0);
+
+    SwooleG.memory_pool->free(SwooleG.memory_pool, lock);
 }
 
 TEST(server, task_worker)

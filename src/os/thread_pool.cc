@@ -14,10 +14,10 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
+#include "thread_pool.h"
 
 #define swThreadPool_thread(p,id) (&p->threads[id])
-static void* swThreadPool_loop(void *arg);
+static void *swThreadPool_loop(void *arg);
 
 int swThreadPool_create(swThreadPool *pool, int thread_num)
 {

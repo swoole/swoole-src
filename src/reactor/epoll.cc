@@ -15,6 +15,7 @@
  */
 
 #include "swoole.h"
+#include "swoole_reactor.h"
 
 #define EVENT_DEBUG   1
 
@@ -31,7 +32,6 @@
 typedef struct swReactorEpoll_s swReactorEpoll;
 
 #if EVENT_DEBUG
-#include <unordered_map>
 static thread_local std::unordered_map<int, swSocket *> event_map;
 
 swSocket* swoole_event_map_get(int sockfd)

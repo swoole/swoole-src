@@ -95,7 +95,7 @@ static void signal_init()
             swSignalfd_setup(reactor);
         }
 #endif
-        swReactor_add_destroy_callback(reactor, (swCallback) signal_free, nullptr);
+        reactor->add_destroy_callback(signal_free);
         signal_ready = true;
     }
 }

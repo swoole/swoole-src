@@ -298,7 +298,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     SwooleG.process_type = SW_PROCESS_WORKER;
     SwooleG.pid = getpid();
 
-    SwooleWG.id = worker->id;
+    SwooleG.process_id = worker->id;
     if (serv->max_request > 0)
     {
         SwooleWG.run_always = 0;
@@ -468,7 +468,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
     {
         void *hook_args[2];
         hook_args[0] = serv;
-        hook_args[1] = (void *)(uintptr_t)SwooleWG.id;
+        hook_args[1] = (void *)(uintptr_t)SwooleG.process_id;
         serv->call_hook(SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
     }
 
@@ -534,9 +534,9 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data)
         return SW_ERR;
     }
     //proxy
-    if (session->reactor_id != SwooleWG.id)
+    if (session->reactor_id != SwooleG.process_id)
     {
-        swTrace("session->reactor_id=%d, SwooleWG.id=%d", session->reactor_id, SwooleWG.id);
+        swTrace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, SwooleG.process_id);
         swWorker *worker = swProcessPool_get_worker(&serv->gs->event_workers, session->reactor_id);
         swEventData proxy_msg;
         sw_memset_zero(&proxy_msg.info, sizeof(proxy_msg.info));
@@ -544,7 +544,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data)
         if (data->info.type == SW_SERVER_EVENT_SEND_DATA)
         {
             proxy_msg.info.fd = session_id;
-            proxy_msg.info.reactor_id = SwooleWG.id;
+            proxy_msg.info.reactor_id = SwooleG.process_id;
             proxy_msg.info.type = SW_SERVER_EVENT_PROXY_START;
 
             size_t send_n = data->info.len;

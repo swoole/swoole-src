@@ -14,10 +14,14 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_cxx.h"
+#include "swoole.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
 #include "coroutine_c_api.h"
+#include <system_error>
 
 using swoole::CallbackManager;
+using swoole::Reactor;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -30,45 +34,86 @@ using swoole::CallbackManager;
 static void reactor_timeout(swReactor *reactor);
 static void reactor_finish(swReactor *reactor);
 static void reactor_begin(swReactor *reactor);
-static void defer_task_do(swReactor *reactor);
-static void defer_task_add(swReactor *reactor, swCallback callback, void *data);
 
-int swReactor_create(swReactor *reactor, int max_event)
+Reactor::Reactor(int max_event)
 {
     int ret;
-    sw_memset_zero(reactor, sizeof(swReactor));
 
 #ifdef HAVE_EPOLL
-    ret = swReactorEpoll_create(reactor, max_event);
+    ret = swReactorEpoll_create(this, max_event);
 #elif defined(HAVE_KQUEUE)
-    ret = swReactorKqueue_create(reactor, max_event);
+    ret = swReactorKqueue_create(this, max_event);
 #elif defined(HAVE_POLL)
-    ret = swReactorPoll_create(reactor, max_event);
+    ret = swReactorPoll_create(this, max_event);
 #else
-    ret = swReactorSelect_create(reactor);
+    ret = swReactorSelect_create(this);
 #endif
 
-    reactor->running = 1;
+    if (ret < 0)
+    {
+        throw std::system_error();
+    }
 
-    reactor->onFinish = reactor_finish;
-    reactor->onTimeout = reactor_timeout;
-    reactor->is_empty = swReactor_empty;
-    reactor->can_exit = SwooleG.reactor_can_exit;
+    running = 1;
 
-    reactor->write = swReactor_write;
-    reactor->close = swReactor_close;
+    onFinish = reactor_finish;
+    onTimeout = reactor_timeout;
+    can_exit = SwooleG.reactor_can_exit;
 
-    reactor->defer = defer_task_add;
-    reactor->defer_tasks = nullptr;
+    write = swReactor_write;
+    close = swReactor_close;
 
-    reactor->default_write_handler = swReactor_onWrite;
+    default_write_handler = swReactor_onWrite;
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE])
     {
-        swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, reactor);
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, this);
     }
 
-    return ret;
+    add_end_callback(SW_REACTOR_PRIORITY_DEFER_TASKS, [this](void *)
+    {
+        CallbackManager *cm = defer_tasks;
+        defer_tasks = nullptr;
+        cm->execute();
+        delete cm;
+    });
+
+    add_end_callback(SW_REACTOR_PRIORITY_IDLE_TASK, [this](void *)
+    {
+        if (idle_task.callback)
+        {
+            idle_task.callback(idle_task.data);
+        }
+    });
+
+    add_end_callback(SW_REACTOR_PRIORITY_SIGNAL_CALLBACK, [this](void *)
+    {
+        if (sw_unlikely(singal_no))
+        {
+            swSignal_callback(singal_no);
+            singal_no = 0;
+        }
+    });
+
+    add_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, [this](void *)
+    {
+        if (wait_exit && is_empty(this))
+        {
+            running = 0;
+        }
+    });
+
+#ifdef SW_USE_MALLOC_TRIM
+    add_end_callback(SW_REACTOR_PRIORITY_MALLOC_TRIM, [this](void *)
+    {
+        time_t now = ::time(nullptr);
+        if (last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
+        {
+            malloc_trim(SW_MALLOC_TRIM_PAD);
+            last_malloc_trim_time = now;
+        }
+    });
+#endif
 }
 
 int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler handle)
@@ -104,10 +149,10 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
 
 int swReactor_empty(swReactor *reactor)
 {
-    if (reactor->timer && reactor->timer->num > 0)
-    {
-        return SW_FALSE;
-    }
+//    if (reactor->timer && reactor->timer->num > 0)
+//    {
+//        return SW_FALSE;
+//    }
     if (reactor->defer_tasks)
     {
         return SW_FALSE;
@@ -116,11 +161,11 @@ int swReactor_empty(swReactor *reactor)
     {
         return SW_FALSE;
     }
-    if (SwooleTG.reactor->co_signal_listener_num > 0)
+    if (reactor->co_signal_listener_num > 0)
     {
         return SW_FALSE;
     }
-    if (SwooleTG.reactor->signal_listener_num > 0 && SwooleG.wait_signal)
+    if (reactor->signal_listener_num > 0 && SwooleG.wait_signal)
     {
         return SW_FALSE;
     }
@@ -155,40 +200,10 @@ int swReactor_empty(swReactor *reactor)
  */
 static void reactor_finish(swReactor *reactor)
 {
-    //check timer
-    if (reactor->check_timer)
+    for (auto kv : reactor->end_callbacks)
     {
-        swTimer_select(reactor->timer);
+        kv.second(reactor);
     }
-    //defer tasks
-    if (reactor->defer_tasks)
-    {
-        defer_task_do(reactor);
-    }
-    //callback at the end
-    if (reactor->idle_task.callback)
-    {
-        reactor->idle_task.callback(reactor->idle_task.data);
-    }
-    //check signal
-    if (sw_unlikely(reactor->singal_no))
-    {
-        swSignal_callback(reactor->singal_no);
-        reactor->singal_no = 0;
-    }
-    //the event loop is empty
-    if (reactor->wait_exit && reactor->is_empty(reactor))
-    {
-        reactor->running = 0;
-    }
-#ifdef SW_USE_MALLOC_TRIM
-    time_t now = ::time(nullptr);
-    if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
-    {
-        malloc_trim(SW_MALLOC_TRIM_PAD);
-        reactor->last_malloc_trim_time = now;
-    }
-#endif
 }
 
 static void reactor_timeout(swReactor *reactor)
@@ -394,44 +409,27 @@ int swReactor_wait_write_buffer(swReactor *reactor, swSocket *socket)
     return SW_OK;
 }
 
-void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *data)
+void Reactor::add_destroy_callback(swCallback cb, void *data)
 {
-    CallbackManager *cm = reactor->destroy_callbacks;
-    if (cm == nullptr)
-    {
-        cm = new CallbackManager;
-        reactor->destroy_callbacks = cm;
-    }
-    cm->append(cb, data);
+    destroy_callbacks.append(cb, data);
 }
 
-static void defer_task_do(swReactor *reactor)
+void Reactor::add_end_callback(int priority, swCallback fn)
 {
-    CallbackManager *cm = reactor->defer_tasks;
-    reactor->defer_tasks = nullptr;
-    cm->execute();
-    delete cm;
+    end_callbacks.emplace(std::make_pair(priority, fn));
 }
 
-static void defer_task_add(swReactor *reactor, swCallback callback, void *data)
+void Reactor::defer(swCallback cb, void *data)
 {
-    CallbackManager *cm = reactor->defer_tasks;
-    if (cm == nullptr)
+    if (defer_tasks == nullptr)
     {
-        cm = new CallbackManager;
-        reactor->defer_tasks = cm;
+        defer_tasks = new CallbackManager;
     }
-    cm->append(callback, data);
+    defer_tasks->append(cb, data);
 }
 
-void swReactor_destroy(swReactor *reactor)
+Reactor::~Reactor()
 {
-    if (reactor->destroy_callbacks)
-    {
-        CallbackManager *cm = reactor->destroy_callbacks;
-        cm->execute();
-        reactor->destroy_callbacks = nullptr;
-        delete cm;
-    }
-    reactor->free(reactor);
+    destroy_callbacks.execute();
+    this->free(this);
 }

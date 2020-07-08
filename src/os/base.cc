@@ -16,10 +16,12 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_cxx.h"
+#include "swoole.h"
+#include "swoole_string.h"
 #include "async.h"
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <mutex>
 
 #if 0
 swAsyncIO SwooleAIO;
@@ -503,20 +505,24 @@ void swAio_handler_write(swAio_event *event)
     event->ret = ret;
 }
 
+#ifndef HAVE_GETHOSTBYNAME2_R
+static std::mutex g_gethostbyname2_lock;
+#endif
+
 void swAio_handler_gethostbyname(swAio_event *event)
 {
     char addr[SW_IP_MAX_LENGTH];
     int ret;
 
 #ifndef HAVE_GETHOSTBYNAME2_R
-    SwooleG.lock.lock(&SwooleG.lock);
+    g_gethostbyname2_lock.lock();
 #endif
 
     ret = swoole_gethostbyname(event->flags, (char*) event->buf, addr);
     
     sw_memset_zero(event->buf, event->nbytes);
 #ifndef HAVE_GETHOSTBYNAME2_R
-    SwooleG.lock.unlock(&SwooleG.lock);
+    g_gethostbyname2_lock.unlock();
 #endif
 
     if (ret < 0)

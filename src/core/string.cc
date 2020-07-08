@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_cxx.h"
+#include "swoole_string.h"
 
 using swoole::StringExplodeHandler;
 

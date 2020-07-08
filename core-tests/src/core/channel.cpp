@@ -18,13 +18,15 @@
 */
 
 #include "tests.h"
+#include "channel.h"
 
 using namespace std;
+using namespace swoole;
 
 const int N = 10000000;
 
 TEST(channel, push) {
-    auto c = swChannel_new(128 * 1024, 8192, SW_CHAN_LOCK | SW_CHAN_NOTIFY);
+    auto *c = Channel::make(128 * 1024, 8192, SW_CHAN_LOCK | SW_CHAN_NOTIFY);
     map<int, string> m;
 
     size_t bytes = 0;
@@ -50,7 +52,7 @@ TEST(channel, push) {
         size_t bytes = 0;
 
         while(bytes < N) {
-            if (swChannel_push(c, next->second.c_str(), next->second.length()) == SW_OK) {
+            if (c.push(next->second.c_str(), next->second.length()) == SW_OK) {
                 swTrace("[PUSH] index=%d, size=%d\n", index, next->second.length());
                 bytes += next->second.length();
                 next = m.find(index++);
@@ -69,7 +71,7 @@ TEST(channel, push) {
         size_t bytes = 0;
         int index = 0;
         while(bytes < N) {
-            int retval = swChannel_pop(c, buf, sizeof(buf));
+            int retval = c.pop(buf, sizeof(buf));
             if (retval > 0) {
                 swTrace("[POP] index=%d, size=%ld\n", index, retval);
                 string &_data = m[index++];

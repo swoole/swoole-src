@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "pipe.h"
 
 static int swPipeBase_read(swPipe *p, void *data, int length);
 static int swPipeBase_write(swPipe *p, const void *data, int length);

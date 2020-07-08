@@ -18,7 +18,6 @@
 #include "http2.h"
 #include "websocket.h"
 #include "static_handler.h"
-#include "swoole_cxx.h"
 
 #include <assert.h>
 #include <stddef.h>

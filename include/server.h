@@ -17,7 +17,13 @@
 #pragma once
 
 #include "swoole_api.h"
-#include "swoole_cxx.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_timer.h"
+#include "swoole_reactor.h"
+#include "process_pool.h"
+#include "pipe.h"
+#include "channel.h"
 #include "ssl.h"
 #include "http.h"
 
@@ -276,7 +282,6 @@ namespace swoole {
 struct ReactorThread
 {
     std::thread thread;
-    swReactor reactor = {};
     swSocket *notify_pipe = nullptr;
     uint32_t pipe_num = 0;
     swSocket *pipe_sockets = nullptr;
@@ -546,7 +551,7 @@ class Server
     ReactorThread *reactor_threads = nullptr;
     swWorker *workers = nullptr;
 
-    swChannel *message_box = nullptr;
+    swoole::Channel *message_box = nullptr;
 
     ServerGS *gs = nullptr;
 
@@ -672,7 +677,6 @@ class Server
         {
             delete port;
         }
-        SwooleG.serv = nullptr;
     }
 
     bool set_document_root(const std::string &path)
@@ -911,12 +915,7 @@ class Server
 
     int send_to_connection(swSendData *);
     int send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
-
-    inline int send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags)
-    {
-        return swWorker_send_pipe_message(dst_worker, buf, len, flags);
-    }
-
+    int send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
     int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
 
     void init_reactor(swReactor *reactor);
@@ -1179,9 +1178,11 @@ static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
     return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
 }
 
-static sw_inline swServer *sw_server()
+extern swServer *g_server_instance;
+
+static inline swServer *sw_server()
 {
-    return (swServer *) SwooleG.serv;
+    return g_server_instance;
 }
 
 #define swServer_support_send_yield swServer_dispatch_mode_is_mod
@@ -1202,6 +1203,7 @@ int swWorker_loop(swServer *serv, swWorker *worker);
 void swWorker_clean_pipe_buffer(swServer *serv);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
+int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);

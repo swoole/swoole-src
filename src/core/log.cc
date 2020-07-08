@@ -319,11 +319,11 @@ void swLog_put(int level, const char *content, size_t length)
         break;
     case SW_PROCESS_WORKER:
         process_flag = '*';
-        process_id = SwooleWG.id;
+        process_id = SwooleG.process_id;
         break;
     case SW_PROCESS_TASKWORKER:
         process_flag = '^';
-        process_id = SwooleWG.id;
+        process_id = SwooleG.process_id;
         break;
     default:
         break;

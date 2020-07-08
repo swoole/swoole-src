@@ -375,7 +375,7 @@ static bool inline process_is_supported_send_yield(swServer *serv, swConnection 
     }
     else
     {
-        return swServer_worker_schedule(serv, conn->fd, nullptr) == (int) SwooleWG.id;
+        return swServer_worker_schedule(serv, conn->fd, nullptr) == (int) SwooleG.process_id;
     }
 }
 
@@ -463,9 +463,9 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp)
     buf->info.fd = session_id;
     buf->info.type = resp->info.type;
     buf->info.reactor_id = conn->reactor_id;
-    buf->info.server_fd = SwooleWG.id;
+    buf->info.server_fd = SwooleG.process_id;
 
-    swTrace("worker_id=%d, type=%d",SwooleWG.id, buf->info.type);
+    swTrace("worker_id=%d, type=%d", SwooleG.process_id, buf->info.type);
 
     return process_send_packet(serv, buf, resp, process_sendto_reactor, conn);
 }

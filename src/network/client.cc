@@ -15,10 +15,11 @@
  */
 
 #include "swoole_api.h"
-#include <assert.h>
 #include "client.h"
 #include "socks5.h"
 #include "async.h"
+
+#include <assert.h>
 
 static int swClient_inet_addr(swClient *cli, const char *host, int port);
 static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, double _timeout, int udp_connect);

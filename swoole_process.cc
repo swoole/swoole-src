@@ -14,11 +14,11 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole_cxx.h"
+#include "swoole_process.h"
 #include "php_streams.h"
 #include "php_network.h"
-
 #include "server.h"
+#include "msg_queue.h"
 
 using namespace swoole;
 
@@ -775,7 +775,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     }
 
     php_swoole_process_clean();
-    SwooleWG.id = process->id;
+    SwooleG.process_id = process->id;
     SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);

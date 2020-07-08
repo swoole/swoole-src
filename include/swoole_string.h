@@ -19,89 +19,84 @@
 
 #include "swoole.h"
 
-#include <list>
-#include <memory>
-#include <string>
-#include <cstdio>
-#include <functional>
-#include <vector>
-#include <set>
-#include <chrono>
+struct swString
+{
+    size_t length;
+    size_t size;
+    off_t offset;
+    char *str;
+    const swAllocator *allocator;
+};
+
+#define SW_STRINGL(s)      s->str, s->length
+#define SW_STRINGS(s)      s->str, s->size
+#define SW_STRINGCVL(s)    s->str + s->offset, s->length - s->offset
+
+swString *swString_new(size_t size);
+swString *swString_dup(const char *src_str, size_t length);
+swString *swString_dup2(swString *src);
+int swString_repeat(swString *src, const char *data, size_t len, size_t n);
+void swString_print(swString *str);
+int swString_append(swString *str, const swString *append_str);
+int swString_append_ptr(swString *str, const char *append_str, size_t length);
+int swString_append_int(swString *str, int value);
+int swString_append_random_bytes(swString *str, size_t length);
+int swString_write(swString *str, off_t offset, swString *write_str);
+int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
+int swString_extend(swString *str, size_t new_size);
+void swString_reduce(swString *str, off_t offset);
+char *swString_pop(swString *str, size_t init_size);
+char *swString_alloc(swString *str, size_t __size);
+
+static inline void swString_clear(swString *str)
+{
+    str->length = 0;
+    str->offset = 0;
+}
+
+static inline void swString_free(swString *str)
+{
+    if (str->str)
+    {
+        str->allocator->free(str->str);
+    }
+    str->allocator->free(str);
+}
+
+static inline int swString_extend_align(swString *str, size_t _new_size)
+{
+    size_t align_size = SW_MEM_ALIGNED_SIZE(str->size * 2);
+    while (align_size < _new_size)
+    {
+        align_size *= 2;
+    }
+    return swString_extend(str, align_size);
+}
+
+static inline int swString_grow(swString *str, size_t incr_value)
+{
+    str->length += incr_value;
+    if (str->length == str->size && swString_extend(str, str->size * 2) < 0)
+    {
+        return SW_ERR;
+    }
+    else
+    {
+        return SW_OK;
+    }
+}
+
+static inline int swString_contains(swString *str, const char *needle, size_t l_needle)
+{
+    return swoole_strnstr(str->str, str->length, needle, l_needle) != NULL;
+}
 
 namespace swoole {
-//-------------------------------------------------------------------------------
+
+typedef std::function<bool(char *, size_t)> StringExplodeHandler;
+
 swString *make_string(size_t size, const swAllocator *allocator = nullptr);
-
-namespace cpp_string
-{
-template<typename ...Args>
-inline std::string format(const char *format, Args ...args)
-{
-    size_t size = snprintf(nullptr, 0, format, args...) + 1; // Extra space for '\0'
-    std::unique_ptr<char[]> buf(new char[size]);
-    snprintf(buf.get(), size, format, args...);
-    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
-}
-
-inline std::string vformat(const char *format, va_list args)
-{
-    va_list _args;
-    va_copy(_args, args);
-    size_t size = vsnprintf(nullptr, 0, format, _args) + 1; // Extra space for '\0'
-    va_end(_args);
-    std::unique_ptr<char[]> buf(new char[size]);
-    vsnprintf(buf.get(), size, format, args);
-    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
-}
-}
-
-static inline int hook_add(void **hooks, int type, swCallback func, int push_back)
-{
-    if (hooks[type] == nullptr)
-    {
-        hooks[type] = new std::list<swCallback>;
-    }
-
-    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
-    if (push_back)
-    {
-        l->push_back(func);
-    }
-    else
-    {
-        l->push_front(func);
-    }
-
-    return SW_OK;
-}
-
-static inline void hook_call(void **hooks, int type, void *arg)
-{
-    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
-    for (auto i = l->begin(); i != l->end(); i++)
-    {
-        (*i)(arg);
-    }
-}
-
-template <typename T>
-static inline long time(bool steady = false)
-{
-    if (steady)
-    {
-        auto now = std::chrono::steady_clock::now();
-        return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
-    }
-    else
-    {
-        auto now = std::chrono::system_clock::now();
-        return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
-    }
-}
-
-typedef std::function<bool (char *, size_t)> StringExplodeHandler;
 size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
-std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
 
 class String
 {
@@ -180,6 +175,4 @@ public:
         }
     }
 };
-
-//-------------------------------------------------------------------------------
 }

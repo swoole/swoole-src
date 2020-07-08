@@ -99,16 +99,16 @@ public:
     inline void non_sql_error(int code, const char *msg)
     {
         error_code = code;
-        error_msg = cpp_string::format("SQLSTATE[" MYSQLND_UNKNOWN_SQLSTATE "] [%d] %s", code, msg);
+        error_msg = std_string::format("SQLSTATE[" MYSQLND_UNKNOWN_SQLSTATE "] [%d] %s", code, msg);
     }
 
     template<typename ...Args>
     inline void non_sql_error(int code, const char *format, Args ...args)
     {
         error_code = code;
-        error_msg = cpp_string::format(
+        error_msg = std_string::format(
             "SQLSTATE[" MYSQLND_UNKNOWN_SQLSTATE "] [%d] %s",
-            code, cpp_string::format(format, args...).c_str()
+            code, std_string::format(format, args...).c_str()
         );
     }
 
@@ -144,7 +144,7 @@ public:
     {
         mysql::err_packet err_packet(data);
         error_code = err_packet.code;
-        error_msg = cpp_string::format("SQLSTATE[%s] [%d] %s", err_packet.sql_state, err_packet.code, err_packet.msg.c_str());
+        error_msg = std_string::format("SQLSTATE[%s] [%d] %s", err_packet.sql_state, err_packet.code, err_packet.msg.c_str());
         state = SW_MYSQL_STATE_IDLE;
     }
 

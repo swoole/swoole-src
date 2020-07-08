@@ -40,15 +40,14 @@ TEST(server, send_buffer)
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    swLock lock;
-    swMutex_create(&lock, 0);
-    lock.lock(&lock);
+    mutex lock;
+    lock.lock();
 
     std::thread t1([&]()
     {
         swSignal_none();
 
-        lock.lock(&lock);
+        lock.lock();
 
         swoole::Client c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
@@ -72,7 +71,7 @@ TEST(server, send_buffer)
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        lock.unlock(&lock);
+        lock.unlock();
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int

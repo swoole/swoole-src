@@ -15,6 +15,7 @@
  */
 
 #include "swoole_api.h"
+#include "swoole_timer.h"
 
 int swSystemTimer_init(swTimer *timer, long msec);
 
@@ -47,25 +48,25 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
 
 static void swReactorTimer_close(swTimer *timer)
 {
-    timer->reactor->check_timer = false;
     swReactorTimer_set(timer, -1);
-}
-
-static void swReactorTimer_free(swTimer *timer)
-{
-    swoole_timer_free();
 }
 
 static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_msec)
 {
-    reactor->check_timer = true;
     reactor->timeout_msec = exec_msec;
-    reactor->timer = timer;
     timer->reactor = reactor;
     timer->set = swReactorTimer_set;
     timer->close = swReactorTimer_close;
 
-    swReactor_add_destroy_callback(reactor, (swCallback) swReactorTimer_free, timer);
+    reactor->add_end_callback(SW_REACTOR_PRIORITY_TIMER, [timer](void *)
+    {
+        swTimer_select(timer);
+    });
+
+    reactor->add_destroy_callback([](void *)
+    {
+        swoole_timer_free();
+    });
 
     return SW_OK;
 }

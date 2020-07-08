@@ -15,7 +15,8 @@
 */
 
 #include "swoole.h"
-#include <unordered_map>
+#include "swoole_reactor.h"
+
 #include <sys/select.h>
 
 struct swReactorSelect

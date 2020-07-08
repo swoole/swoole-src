@@ -16,10 +16,11 @@
 
 #include "server.h"
 #include <assert.h>
-#include "swoole_cxx.h"
 #include "http.h"
 
 using namespace swoole;
+
+Server *g_server_instance = nullptr;
 
 static void swServer_signal_handler(int sig);
 
@@ -594,11 +595,11 @@ int swServer_worker_init(swServer *serv, swWorker *worker)
         CPU_ZERO(&cpu_set);
         if (serv->cpu_affinity_available_num)
         {
-            CPU_SET(serv->cpu_affinity_available[SwooleWG.id % serv->cpu_affinity_available_num], &cpu_set);
+            CPU_SET(serv->cpu_affinity_available[SwooleG.process_id % serv->cpu_affinity_available_num], &cpu_set);
         }
         else
         {
-            CPU_SET(SwooleWG.id % SW_CPU_NUM, &cpu_set);
+            CPU_SET(SwooleG.process_id % SW_CPU_NUM, &cpu_set);
         }
 #ifdef __FreeBSD__
         if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1,
@@ -870,7 +871,7 @@ Server::Server(enum swServer_mode mode)
     move_buffer = swServer_worker_move_buffer;
     get_packet = swServer_worker_get_packet;
 
-    SwooleG.serv = this;
+    g_server_instance = this;
 }
 
 int Server::create()
@@ -1058,7 +1059,7 @@ void Server::destroy()
     gs = nullptr;
     workers = nullptr;
 
-    SwooleG.serv = nullptr;
+    g_server_instance = nullptr;
 }
 
 /**
@@ -1539,7 +1540,7 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
     if (swServer_dispatch_mode_is_mod(serv))
     {
         int worker_id = swServer_worker_schedule(serv, conn->fd, nullptr);
-        if (worker_id != (int) SwooleWG.id)
+        if (worker_id != (int) SwooleG.process_id)
         {
             worker = serv->get_worker(worker_id);
             goto _notify;
@@ -1580,7 +1581,6 @@ void swServer_signal_init(swServer *serv)
 #ifdef SIGRTMIN
     swSignal_add(SIGRTMIN, swServer_signal_handler);
 #endif
-    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
     //for test
     swSignal_add(SIGVTALRM, swServer_signal_handler);
 
@@ -1818,9 +1818,6 @@ static void swServer_signal_handler(int sig)
     case SIGTERM:
         serv->shutdown();
         break;
-    case SIGALRM:
-        swSystemTimer_signal_handler(SIGALRM);
-        break;
     case SIGCHLD:
         if (!serv->running)
         {
@@ -1961,7 +1958,7 @@ swConnection* Server::add_connection(swListenPort *ls, swSocket *_socket, int se
     now = ::time(nullptr);
 
     connection->fd = fd;
-    connection->reactor_id = factory_mode == SW_MODE_BASE ? SwooleWG.id : fd % reactor_num;
+    connection->reactor_id = factory_mode == SW_MODE_BASE ? SwooleG.process_id : fd % reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
     connection->connect_time = now;
     connection->last_time = now;

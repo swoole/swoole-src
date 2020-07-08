@@ -37,9 +37,8 @@ TEST(stream, send) {
     port->open_length_check = true;
     swStream_set_protocol(&port->protocol);
 
-    swLock lock;
-    swMutex_create(&lock, 0);
-    lock.lock(&lock);
+    mutex lock;
+    lock.lock();
 
     char buf[65536];
     ASSERT_EQ(swoole_random_bytes(buf, sizeof(buf)), sizeof(buf));
@@ -50,7 +49,7 @@ TEST(stream, send) {
     {
         swSignal_none();
 
-        lock.lock(&lock);
+        lock.lock();
 
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
@@ -80,7 +79,7 @@ TEST(stream, send) {
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        lock.unlock(&lock);
+        lock.unlock();
     };
 
     serv.onReceive = [&buf](swServer *serv, swEventData *req) -> int

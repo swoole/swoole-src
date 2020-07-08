@@ -14,8 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
+#include "msg_queue.h"
+#include "pipe.h"
 #include "server.h"
+#include "process_pool.h"
 #include "client.h"
+#include "swoole_string.h"
 
 /**
  * call onTask
@@ -539,10 +543,10 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
          */
         if (n < 0)
         {
-            if (errno == EINTR && SwooleWG.signal_alarm && SwooleTG.timer)
+            if (errno == EINTR && SwooleG.signal_alarm && SwooleTG.timer)
             {
                 _alarm_handler:
-                SwooleWG.signal_alarm = 0;
+                SwooleG.signal_alarm = false;
                 swTimer_select(SwooleTG.timer);
             }
             continue;
@@ -566,7 +570,7 @@ static int swProcessPool_worker_loop(swProcessPool *pool, swWorker *worker)
         /**
          * timer
          */
-        if (SwooleWG.signal_alarm)
+        if (SwooleG.signal_alarm)
         {
             goto _alarm_handler;
         }
@@ -687,10 +691,10 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
          */
         if (n < 0)
         {
-            if (errno == EINTR && SwooleWG.signal_alarm && SwooleTG.timer)
+            if (errno == EINTR && SwooleG.signal_alarm && SwooleTG.timer)
             {
                 _alarm_handler:
-                SwooleWG.signal_alarm = 0;
+                SwooleG.signal_alarm = false;
                 swTimer_select(SwooleTG.timer);
             }
             continue;
@@ -715,7 +719,7 @@ static int swProcessPool_worker_loop_ex(swProcessPool *pool, swWorker *worker)
         /**
          * timer
          */
-        if (SwooleWG.signal_alarm)
+        if (SwooleG.signal_alarm)
         {
             goto _alarm_handler;
         }
@@ -749,9 +753,9 @@ int swProcessPool_wait(swProcessPool *pool)
     while (pool->running)
     {
         pid = wait(&status);
-        if (SwooleWG.signal_alarm && SwooleTG.timer)
+        if (SwooleG.signal_alarm && SwooleTG.timer)
         {
-            SwooleWG.signal_alarm = 0;
+            SwooleG.signal_alarm = false;
             swTimer_select(SwooleTG.timer);
         }
         if (pid < 0)

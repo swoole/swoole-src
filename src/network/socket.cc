@@ -15,7 +15,10 @@
  */
 
 #include "swoole_api.h"
+#include "swoole_socket.h"
 #include "ssl.h"
+
+#include <assert.h>
 
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL        0
@@ -382,7 +385,7 @@ int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec)
 #endif
 }
 
-swSocket* swSocket_new(int fd, enum swFd_type type)
+swSocket *swSocket_new(int fd, enum swFd_type type)
 {
     swSocket *socket = (swSocket *) sw_calloc(1, sizeof(*socket));
     if (!socket)

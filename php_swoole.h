@@ -279,9 +279,6 @@ void php_swoole_coroutine_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
 
-void php_swoole_process_clean();
-int php_swoole_process_start(swWorker *process, zval *zobject);
-
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(HashTable *vht);
 

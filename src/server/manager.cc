@@ -223,7 +223,7 @@ int Server::start_manager_process()
         }
     }
 
-    message_box = swChannel_new(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
+    message_box = Channel::make(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
     if (message_box == nullptr)
     {
         return SW_ERR;
@@ -344,7 +344,7 @@ static int swManager_loop(swServer *serv)
         if (ManagerProcess.read_message)
         {
             swWorkerStopMessage msg;
-            while (swChannel_pop(serv->message_box, &msg, sizeof(msg)) > 0)
+            while (serv->message_box->pop(&msg, sizeof(msg)) > 0)
             {
                 if (serv->running == 0)
                 {
@@ -366,9 +366,9 @@ static int swManager_loop(swServer *serv)
             ManagerProcess.read_message = false;
         }
 
-        if (SwooleWG.signal_alarm && SwooleTG.timer)
+        if (SwooleG.signal_alarm && SwooleTG.timer)
         {
-            SwooleWG.signal_alarm = 0;
+            SwooleG.signal_alarm = 0;
             swTimer_select(SwooleTG.timer);
         }
 
@@ -617,7 +617,7 @@ static void swManager_signal_handler(int sig)
         ManagerProcess.read_message = true;
         break;
     case SIGALRM:
-        SwooleWG.signal_alarm = 1;
+        SwooleG.signal_alarm = 1;
         if (ManagerProcess.force_kill)
         {
             alarm(0);
@@ -776,8 +776,8 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     else if (pid == 0)
     {
         SwooleG.process_type = SW_PROCESS_USERWORKER;
+        SwooleG.process_id = worker->id;
         SwooleWG.worker = worker;
-        SwooleWG.id = worker->id;
         worker->pid = getpid();
         //close tcp listen socket
         if (serv->factory_mode == SW_MODE_BASE)

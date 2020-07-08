@@ -119,7 +119,7 @@ public:
 
     inline void nghttp2_error(int code, const char *msg)
     {
-        update_error_properties(code, cpp_string::format("%s with error: %s", msg, nghttp2_strerror(code)).c_str());
+        update_error_properties(code, std_string::format("%s with error: %s", msg, nghttp2_strerror(code)).c_str());
     }
 
     inline bool is_available()
@@ -1100,7 +1100,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
         if (!h2c->ssl ? h2c->port != 80 : h2c->port != 443)
 #endif
         {
-            _host = cpp_string::format("%s:%d", h2c->host.c_str(), h2c->port);
+            _host = std_string::format("%s:%d", h2c->host.c_str(), h2c->port);
             host = &_host;
         } else {
             host = &h2c->host;
@@ -1331,7 +1331,7 @@ bool http2_client::write_data(uint32_t stream_id, zval *zdata, bool end)
 
     if (stream == nullptr || !(stream->flags & SW_HTTP2_STREAM_PIPELINE_REQUEST) || (stream->flags & SW_HTTP2_STREAM_REQUEST_END))
     {
-        update_error_properties(EINVAL, cpp_string::format("unable to found active pipeline stream#%u", stream_id).c_str());
+        update_error_properties(EINVAL, std_string::format("unable to found active pipeline stream#%u", stream_id).c_str());
         return false;
     }
 

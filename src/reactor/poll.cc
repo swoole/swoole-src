@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "swoole_reactor.h"
 #include <poll.h>
 
 static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events);

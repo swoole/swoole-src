@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "swoole_cxx.h"
+#include "php_swoole_cxx.h"
 
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_RSA
@@ -820,12 +820,12 @@ inline std::string datetime(const char *p, uint8_t length, uint32_t decimals)
         }
     }
     if (decimals > 0 && decimals < 7) {
-        return swoole::cpp_string::format(
+        return swoole::std_string::format(
             "%04u-%02u-%02u %02u:%02u:%02u.%0*u",
             y, m, d, h, i, s, decimals, (uint32_t) (sp / ::pow(10, (double) (6 - decimals)))
         );
     } else {
-        return swoole::cpp_string::format(
+        return swoole::std_string::format(
             "%04u-%02u-%02u %02u:%02u:%02u",
             y, m, d, h, i, s
         );
@@ -854,12 +854,12 @@ inline std::string time(const char *p, uint8_t length, uint32_t decimals)
         }
     }
     if (decimals > 0 && decimals < 7) {
-        return swoole::cpp_string::format(
+        return swoole::std_string::format(
             "%s%02u:%02u:%02u.%0*u",
             (neg ? "-" : ""), h, m, s, decimals, (uint32_t) (sp / ::pow(10, (double) (6 - decimals)))
         );
     } else {
-        return swoole::cpp_string::format(
+        return swoole::std_string::format(
             "%s%02u:%02u:%02u",
             (neg ? "-" : ""), h, m, s
         );
@@ -876,7 +876,7 @@ inline std::string date(const char *p, uint8_t length)
         m = *(uint8_t *) (p + 2);
         d = *(uint8_t *) (p + 3);
     }
-    return swoole::cpp_string::format("%04u-%02u-%02u", y, m, d);
+    return swoole::std_string::format("%04u-%02u-%02u", y, m, d);
 }
 
 class result_info

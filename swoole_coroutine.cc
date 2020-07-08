@@ -362,7 +362,7 @@ inline void PHPCoroutine::activate()
     /**
      * deactivate when reactor free.
      */
-    swReactor_add_destroy_callback(SwooleTG.reactor, deactivate, nullptr);
+    SwooleTG.reactor->add_destroy_callback(deactivate, nullptr);
     active = true;
 }
 

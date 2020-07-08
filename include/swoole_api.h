@@ -16,13 +16,10 @@
  +----------------------------------------------------------------------+
  */
 
-#ifndef _SW_API_H_
-#define _SW_API_H_
+#pragma once
 
 #include "swoole.h"
 #include "coroutine_c_api.h"
-
-SW_EXTERN_C_BEGIN
 
 enum swEvent_init_flags
 {
@@ -58,6 +55,3 @@ swTimer* sw_timer();
 #define sw_timer()         (SwooleTG.timer)
 #endif
 
-SW_EXTERN_C_END
-
-#endif /* _SW_API_H_ */

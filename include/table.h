@@ -16,7 +16,8 @@
 
 #pragma once
 
-#include "swoole_cxx.h"
+#include "swoole.h"
+#include "lock.h"
 #include "atomic.h"
 #include "hash.h"
 #include <unordered_map>

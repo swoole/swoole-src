@@ -1072,7 +1072,7 @@ bool http_client::send()
         if (!ssl ? port != 80 : port != 443)
 #endif
         {
-            __host = cpp_string::format("%s:%u", host.c_str(), port);
+            __host = std_string::format("%s:%u", host.c_str(), port);
             _host = &__host;
         } else {
             _host = &host;

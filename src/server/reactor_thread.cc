@@ -14,13 +14,13 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_cxx.h"
 #include "server.h"
+#include "thread_pool.h"
 #include "hash.h"
 #include "client.h"
 #include "websocket.h"
 
-#include <unordered_map>
+#include <assert.h>
 
 using std::unordered_map;
 using namespace swoole;
@@ -1091,8 +1091,6 @@ static int swReactorThread_is_empty(swReactor *reactor)
  */
 static void swReactorThread_loop(swServer *serv, int reactor_id)
 {
-    int ret;
-
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
@@ -1103,8 +1101,7 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
     }
 
     ReactorThread *thread = serv->get_thread(reactor_id);
-    swReactor *reactor = &thread->reactor;
-
+    swReactor *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
     SwooleTG.reactor = reactor;
 
 #ifdef HAVE_CPU_AFFINITY
@@ -1129,12 +1126,6 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
         }
     }
 #endif
-
-    ret = swReactor_create(reactor, SW_REACTOR_MAXEVENTS);
-    if (ret < 0)
-    {
-        return;
-    }
 
     swSignal_none();
 
@@ -1304,6 +1295,11 @@ void Server::destroy_reactor_threads()
     factory.free(&factory);
     sw_shm_free(connection_list);
     delete[] reactor_threads;
+
+    if (message_box)
+    {
+        message_box->destroy();
+    }
 }
 
 void Server::start_heartbeat_thread()

@@ -17,6 +17,8 @@
  */
 
 #include "swoole.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
 #include "redis.h"
 
 typedef struct

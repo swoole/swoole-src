@@ -15,7 +15,7 @@
  */
 
 #include "swoole_api.h"
-#include "swoole_cxx.h"
+#include "swoole_string.h"
 #include "atomic.h"
 #include "async.h"
 #include "coroutine_c_api.h"
@@ -65,8 +65,7 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
 #include <set>
 
 swGlobal_t SwooleG;
-swWorkerGlobal_t SwooleWG;
-__thread swThreadGlobal_t SwooleTG;
+thread_local swThreadGlobal_t SwooleTG;
 
 #ifdef __MACH__
 static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];
@@ -88,7 +87,6 @@ void swoole_init(void)
     }
 
     sw_memset_zero(&SwooleG, sizeof(SwooleG));
-    sw_memset_zero(&SwooleWG, sizeof(SwooleWG));
     sw_memset_zero(sw_error, SW_ERROR_MSG_SIZE);
 
     SwooleG.running = 1;
@@ -124,12 +122,6 @@ void swoole_init(void)
     if (SwooleG.memory_pool == nullptr)
     {
         printf("[Core] Fatal Error: global memory allocation failure");
-        exit(1);
-    }
-
-    if (swMutex_create(&SwooleG.lock, 0) < 0)
-    {
-        printf("[Core] mutex init failure");
         exit(1);
     }
 
@@ -284,10 +276,6 @@ pid_t swoole_fork(int flags)
          * reset signal handler
          */
         swSignal_clear();
-        /**
-         * reset global struct
-         */
-        sw_memset_zero(&SwooleWG, sizeof(SwooleWG));
     }
 
     return pid;
@@ -1345,7 +1333,7 @@ SW_API int swoole_add_function(const char *name, void* func)
 {
     if (SwooleG.functions == nullptr)
     {
-        SwooleG.functions = new std::map<std::string, void*>;
+        SwooleG.functions = new std::unordered_map<std::string, void*>;
     }
     std::string _name(name);
     auto iter = SwooleG.functions->find(_name);

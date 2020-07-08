@@ -128,7 +128,6 @@ static void swTaskWorker_signal_init(swProcessPool *pool)
     swSignal_add(SIGUSR1, swWorker_signal_handler);
     swSignal_add(SIGUSR2, nullptr);
     swSignal_add(SIGTERM, swWorker_signal_handler);
-    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
 #ifdef SIGRTMIN
     swSignal_add(SIGRTMIN, swWorker_signal_handler);
 #endif
@@ -137,7 +136,7 @@ static void swTaskWorker_signal_init(swProcessPool *pool)
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = (swServer *) pool->ptr;
-    SwooleWG.id = worker_id;
+    SwooleG.process_id = worker_id;
 
     if (serv->factory_mode == SW_MODE_BASE)
     {

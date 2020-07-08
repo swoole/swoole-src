@@ -14,10 +14,10 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_cxx.h"
-#include "coroutine.h"
 #include "coroutine_system.h"
 #include "lru_cache.h"
+
+#include <assert.h>
 
 using namespace std;
 using namespace swoole;
@@ -426,7 +426,7 @@ static inline void socket_poll_trigger_event(swReactor *reactor, coro_poll_task 
             swoole_timer_del(task->timer);
             task->timer = nullptr;
         }
-        reactor->defer(reactor, socket_poll_completed, task);
+        reactor->defer(socket_poll_completed, task);
     }
 }
 
@@ -605,11 +605,12 @@ struct event_waiter
 
 static inline void event_waiter_callback(swReactor *reactor, event_waiter *waiter, enum swEvent_type event)
 {
-    if (waiter->revents == 0) {
-        reactor->defer(reactor, [](void *data) {
-            event_waiter *waiter = (event_waiter *) data;
+    if (waiter->revents == 0)
+    {
+        reactor->defer([waiter](void *data)
+        {
             waiter->co->resume();
-        }, waiter);
+        });
     }
     waiter->revents |= event;
 }
