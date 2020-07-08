@@ -18,6 +18,7 @@
 
 #include "php_swoole_cxx.h"
 #include "server.h"
+#include "swoole_signal.h"
 
 using namespace swoole;
 using namespace std;
