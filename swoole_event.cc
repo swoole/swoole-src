@@ -259,6 +259,12 @@ int php_swoole_reactor_init()
 
         php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
     }
+
+    if (sw_reactor() && !sw_reactor()->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT))
+    {
+        sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT, SwooleG.user_exit_condition);
+    }
+
     return SW_OK;
 }
 

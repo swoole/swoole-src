@@ -108,14 +108,14 @@ enum swHttp2_stream_flag
         swHttp2FrameTraceLogFlags \
     );
 
-typedef struct _swHttp2_settings
+struct swHttp2_settings
 {
     uint32_t header_table_size;
     uint32_t window_size;
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
     uint32_t max_header_list_size;
-} swHttp2_settings;
+};
 
 /**
  +-----------------------------------------------+
@@ -128,7 +128,7 @@ typedef struct _swHttp2_settings
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-typedef struct _swHttp2_frame
+struct swHttp2_frame
 {
     uint32_t length :24;
     uint32_t type :8;
@@ -136,7 +136,7 @@ typedef struct _swHttp2_frame
     uint32_t rsv1 :1;
     uint32_t identifier :31;
     char data[0];
-} swHttp2_frame;
+};
 
 static sw_inline ssize_t swHttp2_get_length(const char *buf)
 {

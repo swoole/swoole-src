@@ -261,7 +261,7 @@ static void server_free_object(zend_object *object)
     }
 
     zend_object_std_dtor(object);
-    if (serv)
+    if (serv && swIsMaster())
     {
         delete serv;
     }

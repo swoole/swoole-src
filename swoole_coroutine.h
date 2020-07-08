@@ -101,7 +101,6 @@ struct Config
 {
     uint64_t max_num;
     long hook_flags;
-    std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
     bool enable_preemptive_scheduler;
 };
 }

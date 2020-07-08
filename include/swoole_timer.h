@@ -18,6 +18,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "heap.h"
 #include "swoole_reactor.h"
 
 #define SW_TIMER_MIN_MS  1

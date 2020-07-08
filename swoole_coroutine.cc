@@ -91,8 +91,6 @@ swoole::coroutine::Config PHPCoroutine::config =
     /* TODO: enable hook in v5.0.0 */
     // SW_HOOK_ALL
     0,
-    // user_exit_condition
-    nullptr,
     false,
 };
 
@@ -355,11 +353,6 @@ inline void PHPCoroutine::activate()
         /* create a thread to interrupt the coroutine that takes up too much time */
         interrupt_thread_start();
     }
-
-    if (config.user_exit_condition) {
-        sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT, config.user_exit_condition);
-    }
-
     if (config.hook_flags)
     {
         enable_hook(config.hook_flags);

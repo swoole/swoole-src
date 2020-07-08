@@ -15,41 +15,8 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_ATOMIC_H_
-#define SW_ATOMIC_H_
+#pragma once
 
-#ifdef _WIN32
-typedef int32_t                     sw_atomic_int32_t;
-typedef uint32_t                    sw_atomic_uint32_t;
-typedef int64_t                     sw_atomic_int64_t;
-typedef uint64_t                    sw_atomic_uint64_t;
-typedef sw_atomic_uint32_t          sw_atomic_t;
-typedef sw_atomic_uint64_t          sw_atomic_long_t;
-
-static inline sw_atomic_t sw_atomic_cmp_set(sw_atomic_t *lock, sw_atomic_t old, sw_atomic_t set)
-{
-    if (*lock == old) {
-        *lock = set;
-        return 1;
-    }
-
-    return 0;
-}
-
-static inline sw_atomic_t sw_atomic_fetch_add(sw_atomic_t *value, sw_atomic_t add)
-{
-    sw_atomic_t  old;
-
-    old = *value;
-    *value += add;
-
-    return old;
-}
-
-#define sw_memory_barrier()
-#define sw_atomic_cpu_pause()
-
-#else
 typedef volatile int32_t                  sw_atomic_int32_t;
 typedef volatile uint32_t                 sw_atomic_uint32_t;
 
@@ -87,7 +54,4 @@ typedef sw_atomic_uint32_t                sw_atomic_t;
 #define sw_spinlock_release(lock)         __sync_lock_release(lock)
 #else
 #define sw_spinlock_release(lock)         *(lock) = 0
-#endif
-#endif
-
 #endif

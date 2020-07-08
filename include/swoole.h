@@ -193,7 +193,6 @@ typedef unsigned long ulong_t;
 #include "swoole_version.h"
 #include "atomic.h"
 #include "buffer.h"
-#include "heap.h"
 #include "ring_queue.h"
 #include "error.h"
 
@@ -270,6 +269,7 @@ struct swTimer;
 struct swMsgQueue;
 struct swPipe;
 struct swString;
+struct swHeap_node;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s)             s, sizeof(s)
@@ -689,8 +689,8 @@ struct swSocket
 
     swSocketAddress info;
 
-    struct _swBuffer *out_buffer;
-    struct _swBuffer *in_buffer;
+    swBuffer *out_buffer;
+    swBuffer *in_buffer;
     swString *recv_buffer;
 
 #ifdef SW_DEBUG
@@ -1454,7 +1454,7 @@ typedef struct
 
     std::unordered_map<std::string, void*> *functions;
     void *hooks[SW_MAX_HOOK_TYPE];
-
+    std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
 } swGlobal_t;
 
 extern swGlobal_t SwooleG;              //Local Global Variable
