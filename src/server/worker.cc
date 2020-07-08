@@ -17,7 +17,6 @@
 #include "server.h"
 #include "client.h"
 #include "async.h"
-#include "swoole_signal.h"
 
 #include <assert.h>
 #include <pwd.h>

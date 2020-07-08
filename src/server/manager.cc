@@ -15,7 +15,6 @@
 */
 
 #include "server.h"
-#include "swoole_signal.h"
 
 #include <unordered_map>
 #include <vector>

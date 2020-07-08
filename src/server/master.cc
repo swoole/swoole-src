@@ -16,7 +16,6 @@
 
 #include "server.h"
 #include "http.h"
-#include "swoole_signal.h"
 
 #include <assert.h>
 

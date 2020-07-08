@@ -557,7 +557,6 @@ swSocket* swSocket_create_server(enum swSocket_type type, const char *address, i
     return sock;
 }
 
-
 int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
 {
     int ret;

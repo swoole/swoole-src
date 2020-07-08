@@ -19,7 +19,6 @@
 #include "hash.h"
 #include "client.h"
 #include "websocket.h"
-#include "swoole_signal.h"
 
 #include <assert.h>
 

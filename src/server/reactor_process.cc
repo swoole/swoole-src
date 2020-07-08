@@ -15,7 +15,6 @@
  */
 
 #include "server.h"
-#include "swoole_signal.h"
 
 using namespace swoole;
 

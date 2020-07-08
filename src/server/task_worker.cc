@@ -15,7 +15,6 @@
 */
 
 #include "server.h"
-#include "swoole_signal.h"
 
 static swEventData *g_current_task = nullptr;
 

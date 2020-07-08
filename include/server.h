@@ -21,6 +21,7 @@
 #include "swoole_socket.h"
 #include "swoole_timer.h"
 #include "swoole_reactor.h"
+#include "swoole_signal.h"
 #include "process_pool.h"
 #include "pipe.h"
 #include "channel.h"
