@@ -75,7 +75,7 @@ void swSignal_none(void)
 /**
  * setup signal
  */
-swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask)
+swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask)
 {
     //ignore
     if (func == nullptr)
@@ -99,7 +99,7 @@ swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mas
         sigemptyset(&act.sa_mask);
     }
     act.sa_flags = 0;
-    if (sigaction(sig, &act, &oact) < 0)
+    if (sigaction(signo, &act, &oact) < 0)
     {
         return nullptr;
     }

@@ -25,16 +25,14 @@ struct swSignal
     uint16_t active;
 };
 
-char* swSignal_str(int sig);
-void swSignal_none(void);
-swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask);
-void swSignal_add(int signo, swSignalHandler func);
-void swSignal_callback(int signo);
-swSignalHandler swSignal_get_handler(int signo);
-void swSignal_clear(void);
 #ifdef HAVE_SIGNALFD
 void swSignalfd_init();
 int swSignalfd_setup(swReactor *reactor);
 #endif
-
-
+swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask);
+void swSignal_add(int signo, swSignalHandler func);
+swSignalHandler swSignal_get_handler(int signo);
+void swSignal_clear(void);
+void swSignal_none(void);
+char* swSignal_str(int sig);
+void swSignal_callback(int signo);
