@@ -19,7 +19,7 @@
 
 #include "coroutine.h"
 #include "ssl.h"
-#include "socks5.h"
+#include "proxy.h"
 
 #define SW_DEFAULT_SOCKET_DNS_TIMEOUT       -1
 #define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
@@ -73,8 +73,8 @@ public:
     bool http2 = false;
 
     swProtocol protocol = {};
-    struct _swSocks5 *socks5_proxy = nullptr;
-    struct _http_proxy* http_proxy = nullptr;
+    swSocks5_proxy *socks5_proxy = nullptr;
+    swHttp_proxy *http_proxy = nullptr;
 
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;

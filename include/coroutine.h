@@ -36,7 +36,6 @@
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
 #define SW_CORO_MAX_NUM_LIMIT      LONG_MAX
 
-// TODO: remove it
 typedef enum
 {
     SW_CORO_ERR_END = 0,

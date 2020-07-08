@@ -15,7 +15,7 @@
 */
 
 #include "php_swoole_cxx.h"
-#include "socks5.h"
+#include "proxy.h"
 #include "mqtt.h"
 
 #include "ext/standard/basic_functions.h"
@@ -415,7 +415,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp))
         {
             php_swoole_client_coro_socket_free_socks5_proxy(cli);
-            cli->socks5_proxy = (struct _swSocks5 *) ecalloc(1, sizeof(swSocks5));
+            cli->socks5_proxy = (swSocks5_proxy *) ecalloc(1, sizeof(swSocks5_proxy));
             cli->socks5_proxy->host = estrdup(host.val());
             cli->socks5_proxy->port = zval_get_long(ztmp);
             cli->socks5_proxy->dns_tunnel = 1;
@@ -456,7 +456,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp))
         {
             php_swoole_client_coro_socket_free_http_proxy(cli);
-            cli->http_proxy = (struct _http_proxy*) ecalloc(1, sizeof(*cli->http_proxy) - sizeof(cli->http_proxy->buf));
+            cli->http_proxy = (swHttp_proxy *) ecalloc(1, sizeof(*cli->http_proxy) - sizeof(cli->http_proxy->buf));
             cli->http_proxy->proxy_host = estrdup(host.val());
             cli->http_proxy->proxy_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) || php_swoole_array_get_value(vht, "http_proxy_user", ztmp))

@@ -20,41 +20,13 @@
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
-#include "socks5.h"
+#include "proxy.h"
 #include "ssl.h"
 
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
 
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE  "HTTP/1.1 200 Connection established"
-
-enum swClient_pipe_flag
-{
-    SW_CLIENT_PIPE_TCP_SESSION = 1,
-};
-
-enum swHttp_proxy_state
-{
-    SW_HTTP_PROXY_STATE_WAIT = 0,
-    SW_HTTP_PROXY_STATE_HANDSHAKE,
-    SW_HTTP_PROXY_STATE_READY,
-};
-
-struct swHttp_proxy
-{
-    uint8_t state;
-    uint8_t dont_handshake;
-    int proxy_port;
-    const char *proxy_host;
-    const char *user;
-    const char *password;
-    int l_user;
-    int l_password;
-    const char *target_host;
-    int l_target_host;
-    int target_port;
-    char buf[512];
-};
 
 struct swClient
 {
@@ -87,7 +59,7 @@ struct swClient
     uchar open_eof_check :1;
 
     swProtocol protocol;
-    swSocks5 *socks5_proxy;
+    swSocks5_proxy *socks5_proxy;
     swHttp_proxy *http_proxy;
 
     uint32_t reuse_count;

@@ -23,6 +23,7 @@
 
 #include "mime_type.h"
 #include "server.h"
+#include "client.h"
 #include "swoole_process.h"
 
 #include <netinet/in.h>

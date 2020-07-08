@@ -305,7 +305,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
 
 bool Socket::socks5_handshake()
 {
-    swSocks5 *ctx = socks5_proxy;
+    swSocks5_proxy *ctx = socks5_proxy;
     char *p;
     ssize_t n;
     uchar version, method, result;

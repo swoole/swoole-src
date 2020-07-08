@@ -20,6 +20,29 @@ struct swClient;
 
 #define SW_SOCKS5_VERSION_CODE    0x05
 
+enum swHttp_proxy_state
+{
+    SW_HTTP_PROXY_STATE_WAIT = 0,
+    SW_HTTP_PROXY_STATE_HANDSHAKE,
+    SW_HTTP_PROXY_STATE_READY,
+};
+
+struct swHttp_proxy
+{
+    uint8_t state;
+    uint8_t dont_handshake;
+    int proxy_port;
+    const char *proxy_host;
+    const char *user;
+    const char *password;
+    int l_user;
+    int l_password;
+    const char *target_host;
+    int l_target_host;
+    int target_port;
+    char buf[512];
+};
+
 enum swSocks5_state
 {
     SW_SOCKS5_STATE_WAIT = 0,
@@ -34,7 +57,7 @@ enum swSocks5_method
     SW_SOCKS5_METHOD_AUTH = 0x02,
 };
 
-struct swSocks5
+struct swSocks5_proxy
 {
     const char *host;
     int port;
@@ -63,6 +86,6 @@ static sw_inline void swSocks5_pack(char *buf, int method)
     buf[2] = method;
 }
 
-const char* swSocks5_strerror(int code);
+const char *swSocks5_strerror(int code);
 int swSocks5_connect(swClient *cli, char *recv_data, int length);
 

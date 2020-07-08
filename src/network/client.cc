@@ -17,7 +17,7 @@
 #include "swoole.h"
 #include "swoole_api.h"
 #include "client.h"
-#include "socks5.h"
+#include "proxy.h"
 #include "async.h"
 
 #include <assert.h>

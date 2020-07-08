@@ -574,7 +574,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset)
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp))
         {
             php_swoole_client_socket_free_socks5_proxy(cli);
-            cli->socks5_proxy = (swSocks5 *) ecalloc(1, sizeof(swSocks5));
+            cli->socks5_proxy = (swSocks5_proxy *) ecalloc(1, sizeof(swSocks5_proxy));
             cli->socks5_proxy->host = estrdup(host.val());
             cli->socks5_proxy->port = zval_get_long(ztmp);
             cli->socks5_proxy->dns_tunnel = 1;
