@@ -14,10 +14,9 @@
  +----------------------------------------------------------------------+
  */
 
-#include "client.h"
-#include "swoole_socket.h"
-#include "swoole_string.h"
+#include "swoole.h"
 #include "swoole_api.h"
+#include "client.h"
 #include "socks5.h"
 #include "async.h"
 
@@ -1476,4 +1475,3 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
 
     return SW_OK;
 }
-

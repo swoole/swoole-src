@@ -14,15 +14,9 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_SOCKS5_H_
-#define SW_SOCKS5_H_
+#pragma once
 
-#ifdef __cplusplus
-extern "C"
-{
-#endif
-
-#include "client.h"
+struct swClient;
 
 #define SW_SOCKS5_VERSION_CODE    0x05
 
@@ -40,7 +34,7 @@ enum swSocks5_method
     SW_SOCKS5_METHOD_AUTH = 0x02,
 };
 
-typedef struct _swSocks5
+struct swSocks5
 {
     const char *host;
     int port;
@@ -60,7 +54,7 @@ typedef struct _swSocks5
     uint16_t l_target_host;
 
     char buf[600];
-} swSocks5;
+};
 
 static sw_inline void swSocks5_pack(char *buf, int method)
 {
@@ -72,8 +66,3 @@ static sw_inline void swSocks5_pack(char *buf, int method)
 const char* swSocks5_strerror(int code);
 int swSocks5_connect(swClient *cli, char *recv_data, int length);
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* SW_SOCKS5_H_ */
