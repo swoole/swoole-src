@@ -25,7 +25,6 @@
 #include "pipe.h"
 #include "channel.h"
 #include "ssl.h"
-#include "http.h"
 
 #ifdef SW_USE_OPENSSL
 #include "dtls.h"
@@ -104,6 +103,8 @@ enum swServer_mode
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
+
+struct swHttpRequest;
 
 struct swListenPort
 {

@@ -334,7 +334,6 @@ void swoole_php_socket_free(zval *zsocket);
 #endif
 
 ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length);
-int php_swoole_client_onPackage(swConnection *conn, const char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)

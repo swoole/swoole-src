@@ -79,7 +79,7 @@ int swClient_create(swClient *cli, enum swSocket_type type, int async)
     cli->socket = swSocket_new(sockfd, cli->reactor_fdtype);
     if (!cli->socket)
     {
-        swWarn("malloc(%d) failed", (int ) sizeof(swConnection));
+        swWarn("malloc(%d) failed", (int ) sizeof(*cli->socket));
         close(sockfd);
         return SW_ERR;
     }

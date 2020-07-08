@@ -13,13 +13,9 @@
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
+#pragma once
 
-#ifndef SW_HTTP_H_
-#define SW_HTTP_H_
-
-#include "swoole.h"
-
-SW_EXTERN_C_BEGIN
+#include "server.h"
 
 enum swHttp_version
 {
@@ -89,7 +85,7 @@ enum swHttp_status_code
     SW_HTTP_INSUFFICIENT_STORAGE = 507
 };
 
-typedef struct _swHttpRequest
+struct swHttpRequest
 {
     uint8_t method;
     uint8_t version;
@@ -111,7 +107,7 @@ typedef struct _swHttpRequest
     uint32_t content_length;
 
     swString *buffer;
-} swHttpRequest;
+};
 
 int swHttp_get_method(const char *method_str, size_t method_len);
 const char* swHttp_get_method_string(int method);
@@ -141,6 +137,3 @@ uint8_t swHttpMix_get_package_length_size(swSocket *conn);
 int swHttpMix_dispatch_frame(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
 #endif
 
-SW_EXTERN_C_END
-
-#endif /* SW_HTTP_H_ */

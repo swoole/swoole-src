@@ -19,6 +19,7 @@
 #include "swoole.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
+#include "server.h"
 #include "redis.h"
 
 typedef struct

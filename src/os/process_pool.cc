@@ -19,7 +19,6 @@
 #include "server.h"
 #include "process_pool.h"
 #include "client.h"
-#include "swoole_string.h"
 
 /**
  * call onTask
