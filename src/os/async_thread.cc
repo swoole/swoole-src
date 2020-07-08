@@ -437,7 +437,16 @@ static int swAio_init()
     SwooleTG.aio_write_socket->fdtype = SW_FD_AIO;
 
     swoole_event_add(SwooleTG.aio_read_socket, SW_EVENT_READ);
-    SwooleTG.reactor->add_destroy_callback(swAio_free);
+
+    sw_reactor()->add_destroy_callback(swAio_free);
+    sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_AIO_TASK, [](swReactor *reactor, int &event_num) -> bool
+    {
+        if (SwooleTG.aio_init && SwooleTG.aio_task_num == 0)
+        {
+            event_num--;
+        }
+        return true;
+    });
 
     init_lock.lock();
     if ((refcount++) == 0)

@@ -276,11 +276,17 @@ int swSignalfd_setup(swReactor *reactor)
         swSysWarn("sigprocmask() failed");
         goto _error;
     }
-    swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
+    swoole_event_set_handler(SW_FD_SIGNAL, swSignalfd_onSignal);
     if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0)
     {
         goto _error;
     }
+    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNALFD, [](swReactor *reactor, int &event_num) -> bool
+    {
+        event_num--;
+        return true;
+    });
+
     SwooleG.signal_fd = signal_fd;
 
     return SW_OK;
@@ -385,7 +391,7 @@ bool System::wait_signal(int signo, double timeout)
     static Coroutine* listeners[SW_SIGNO_MAX];
     Coroutine *co = Coroutine::get_current_safe();
 
-    if (SwooleTG.reactor->signal_listener_num > 0)
+    if (SwooleTG.signal_listener_num > 0)
     {
         errno = EBUSY;
         return false;
@@ -399,7 +405,16 @@ bool System::wait_signal(int signo, double timeout)
     /* resgiter signal */
     listeners[signo] = co;
     // for swSignalfd_setup
-    SwooleTG.reactor->check_signalfd = 1;
+    sw_reactor()->check_signalfd = 1;
+    // exit condition
+    if (!sw_reactor()->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER))
+    {
+        SwooleTG.reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
+                [](swReactor *reactor, int &event_num) -> bool
+                {
+                    return SwooleTG.co_signal_listener_num == 0;
+                });
+    }
     /* always enable signalfd */
     SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
     swSignal_add(signo, [](int signo) {
@@ -410,7 +425,7 @@ bool System::wait_signal(int signo, double timeout)
             co->resume();
         }
     });
-    SwooleTG.reactor->co_signal_listener_num++;
+    SwooleTG.co_signal_listener_num++;
 
     swTimer_node* timer = nullptr;
     if (timeout > 0)
@@ -424,7 +439,7 @@ bool System::wait_signal(int signo, double timeout)
     co->yield();
 
     swSignal_add(signo, nullptr);
-    SwooleTG.reactor->co_signal_listener_num--;
+    SwooleTG.co_signal_listener_num--;
 
     if (listeners[signo] != nullptr)
     {

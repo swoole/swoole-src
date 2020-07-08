@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
+#include "php_swoole_cxx.h"
 #include "swoole_process.h"
 #include "server.h"
 

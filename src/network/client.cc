@@ -14,8 +14,10 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_api.h"
 #include "client.h"
+#include "swoole_socket.h"
+#include "swoole_string.h"
+#include "swoole_api.h"
 #include "socks5.h"
 #include "async.h"
 
@@ -56,10 +58,10 @@ static sw_inline void execute_onConnect(swClient *cli)
 
 void swClient_init_reactor(swReactor *reactor)
 {
-    swReactor_set_handler(reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
-    swReactor_set_handler(reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
-    swReactor_set_handler(reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
-    swReactor_set_handler(reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
+    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
+    reactor->set_handler(SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
+    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
+    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
 }
 
 int swClient_create(swClient *cli, enum swSocket_type type, int async)

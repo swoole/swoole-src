@@ -14,16 +14,13 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_CLIENT_H_
-#define SW_CLIENT_H_
+#pragma once
 
 #include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "ssl.h"
-
-SW_EXTERN_C_BEGIN
 
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
@@ -180,7 +177,3 @@ void swStream_set_protocol(swProtocol *protocol);
 void swStream_set_max_length(swStream *stream, uint32_t max_length);
 int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len);
 //----------------------------------------Stream End------------------------------------
-
-SW_EXTERN_C_END
-
-#endif /* SW_CLIENT_H_ */

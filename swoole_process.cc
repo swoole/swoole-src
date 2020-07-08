@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
+#include "php_swoole_cxx.h"
 #include "swoole_process.h"
 #include "php_streams.h"
 #include "php_network.h"
@@ -583,7 +584,7 @@ static PHP_METHOD(swoole_process, signal)
             swSignal_add(signo, nullptr);
             signal_fci_caches[signo] = nullptr;
             swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
-            SwooleTG.reactor->signal_listener_num--;
+            SwooleTG.signal_listener_num--;
             RETURN_TRUE;
         }
         else
@@ -614,6 +615,14 @@ static PHP_METHOD(swoole_process, signal)
 
     // for swSignalfd_setup
     SwooleTG.reactor->check_signalfd = 1;
+    if (!SwooleTG.reactor->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER))
+    {
+        SwooleTG.reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER,
+                [](swReactor *reactor, int &event_num) -> bool
+                {
+                    return SwooleTG.signal_listener_num == 0 or !SwooleG.wait_signal;
+                });
+    }
 
     if (signal_fci_caches[signo])
     {
@@ -622,7 +631,7 @@ static PHP_METHOD(swoole_process, signal)
     }
     else
     {
-        SwooleTG.reactor->signal_listener_num++;
+        SwooleTG.signal_listener_num++;
     }
     signal_fci_caches[signo] = fci_cache;
 

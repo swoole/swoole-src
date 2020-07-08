@@ -31,8 +31,6 @@ using swoole::Reactor;
 #endif
 #endif
 
-static void reactor_timeout(swReactor *reactor);
-static void reactor_finish(swReactor *reactor);
 static void reactor_begin(swReactor *reactor);
 
 Reactor::Reactor(int max_event)
@@ -56,10 +54,6 @@ Reactor::Reactor(int max_event)
 
     running = 1;
 
-    onFinish = reactor_finish;
-    onTimeout = reactor_timeout;
-    can_exit = SwooleG.reactor_can_exit;
-
     write = swReactor_write;
     close = swReactor_close;
 
@@ -70,7 +64,7 @@ Reactor::Reactor(int max_event)
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, this);
     }
 
-    add_end_callback(SW_REACTOR_PRIORITY_DEFER_TASKS, [this](void *)
+    set_end_callback(SW_REACTOR_PRIORITY_DEFER_TASK, [this](void *)
     {
         CallbackManager *cm = defer_tasks;
         defer_tasks = nullptr;
@@ -78,7 +72,12 @@ Reactor::Reactor(int max_event)
         delete cm;
     });
 
-    add_end_callback(SW_REACTOR_PRIORITY_IDLE_TASK, [this](void *)
+    set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFER_TASK, [this](swReactor *, int &event_num) -> bool
+    {
+        return defer_tasks == nullptr;
+    });
+
+    set_end_callback(SW_REACTOR_PRIORITY_IDLE_TASK, [this](void *)
     {
         if (idle_task.callback)
         {
@@ -86,7 +85,7 @@ Reactor::Reactor(int max_event)
         }
     });
 
-    add_end_callback(SW_REACTOR_PRIORITY_SIGNAL_CALLBACK, [this](void *)
+    set_end_callback(SW_REACTOR_PRIORITY_SIGNAL_CALLBACK, [this](void *)
     {
         if (sw_unlikely(singal_no))
         {
@@ -95,16 +94,16 @@ Reactor::Reactor(int max_event)
         }
     });
 
-    add_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, [this](void *)
+    set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, [this](void *)
     {
-        if (wait_exit && is_empty(this))
+        if (wait_exit && if_exit())
         {
             running = 0;
         }
     });
 
 #ifdef SW_USE_MALLOC_TRIM
-    add_end_callback(SW_REACTOR_PRIORITY_MALLOC_TRIM, [this](void *)
+    set_end_callback(SW_REACTOR_PRIORITY_MALLOC_TRIM, [this](void *)
     {
         time_t now = ::time(nullptr);
         if (last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL)
@@ -114,9 +113,14 @@ Reactor::Reactor(int max_event)
         }
     });
 #endif
+
+    set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFAULT, [](swReactor *reactor, int &event_num) -> bool
+    {
+        return event_num == 0;
+    });
 }
 
-int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler handle)
+int Reactor::set_handler(int _fdtype, swReactor_handler handler)
 {
     int fdtype = swReactor_fdtype(_fdtype);
 
@@ -128,15 +132,15 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
 
     if (swReactor_event_read(_fdtype))
     {
-        reactor->read_handler[fdtype] = handle;
+        read_handler[fdtype] = handler;
     }
     else if (swReactor_event_write(_fdtype))
     {
-        reactor->write_handler[fdtype] = handle;
+        write_handler[fdtype] = handler;
     }
     else if (swReactor_event_error(_fdtype))
     {
-        reactor->error_handler[fdtype] = handle;
+        error_handler[fdtype] = handler;
     }
     else
     {
@@ -147,68 +151,17 @@ int swReactor_set_handler(swReactor *reactor, int _fdtype, swReactor_handler han
     return SW_OK;
 }
 
-int swReactor_empty(swReactor *reactor)
+bool Reactor::if_exit()
 {
-//    if (reactor->timer && reactor->timer->num > 0)
-//    {
-//        return SW_FALSE;
-//    }
-    if (reactor->defer_tasks)
+    int _event_num = event_num;
+    for (auto kv : exit_conditions)
     {
-        return SW_FALSE;
+        if (kv.second(this, _event_num) == false)
+        {
+            return false;
+        }
     }
-    if (swoole_coroutine_wait_count() > 0)
-    {
-        return SW_FALSE;
-    }
-    if (reactor->co_signal_listener_num > 0)
-    {
-        return SW_FALSE;
-    }
-    if (reactor->signal_listener_num > 0 && SwooleG.wait_signal)
-    {
-        return SW_FALSE;
-    }
-
-    int event_num = reactor->event_num;
-    int empty = SW_FALSE;
-    //aio thread pool
-    if (SwooleTG.aio_init && SwooleTG.aio_task_num == 0)
-    {
-        event_num--;
-    }
-    //signalfd
-    if (swReactor_isset_handler(reactor, SW_FD_SIGNAL))
-    {
-        event_num--;
-    }
-    //no event
-    if (event_num == 0)
-    {
-        empty = SW_TRUE;
-    }
-    //custom
-    if (reactor->can_exit && !reactor->can_exit(reactor))
-    {
-        empty = SW_FALSE;
-    }
-    return empty;
-}
-
-/**
- * execute when reactor timeout and reactor finish
- */
-static void reactor_finish(swReactor *reactor)
-{
-    for (auto kv : reactor->end_callbacks)
-    {
-        kv.second(reactor);
-    }
-}
-
-static void reactor_timeout(swReactor *reactor)
-{
-    reactor_finish(reactor);
+    return true;
 }
 
 void swReactor_activate_future_task(swReactor *reactor)
@@ -414,9 +367,14 @@ void Reactor::add_destroy_callback(swCallback cb, void *data)
     destroy_callbacks.append(cb, data);
 }
 
-void Reactor::add_end_callback(int priority, swCallback fn)
+void Reactor::set_end_callback(enum swReactor_end_callback id, std::function<void(Reactor *)> fn)
 {
-    end_callbacks.emplace(std::make_pair(priority, fn));
+    end_callbacks.emplace(std::make_pair(id, fn));
+}
+
+void Reactor::set_exit_condition(enum swReactor_exit_condition id, std::function<bool(Reactor *, int &)> fn)
+{
+    exit_conditions.emplace(std::make_pair(id, fn));
 }
 
 void Reactor::defer(swCallback cb, void *data)
@@ -426,6 +384,14 @@ void Reactor::defer(swCallback cb, void *data)
         defer_tasks = new CallbackManager;
     }
     defer_tasks->append(cb, data);
+}
+
+void Reactor::execute_end_callbacks(bool timedout)
+{
+    for (auto kv : end_callbacks)
+    {
+        kv.second(this);
+    }
 }
 
 Reactor::~Reactor()

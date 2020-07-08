@@ -77,12 +77,6 @@ static void signal_handler(int signo)
     }
 }
 
-static void signal_free(void *nullopt)
-{
-    signal_ready = false;
-    swSignal_clear();
-}
-
 static void signal_init()
 {
     if (!signal_ready)
@@ -90,12 +84,23 @@ static void signal_init()
         swReactor *reactor = SwooleTG.reactor;
         swSignal_add(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
-        if (SwooleG.use_signalfd && !swReactor_isset_handler(reactor, SW_FD_SIGNAL))
+        if (SwooleG.use_signalfd && !reactor->isset_handler(SW_FD_SIGNAL))
         {
             swSignalfd_setup(reactor);
         }
 #endif
-        reactor->add_destroy_callback(signal_free);
+
+        reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_WAIT_PID, [](swReactor *reactor, int &event_num) -> bool
+        {
+            return swoole_coroutine_wait_count() == 0;
+        });
+
+        reactor->add_destroy_callback([](void *)
+        {
+            signal_ready = false;
+            swSignal_clear();
+        });
+
         signal_ready = true;
     }
 }

@@ -1513,6 +1513,8 @@ typedef struct
     swPipe *aio_pipe;
     swSocket *aio_read_socket;
     swSocket *aio_write_socket;
+    uint32_t signal_listener_num;
+    uint32_t co_signal_listener_num;
     int error;
 #ifdef SW_AIO_WRITE_LOCK
     swLock aio_lock;
@@ -1589,7 +1591,6 @@ typedef struct
     std::unordered_map<std::string, void*> *functions;
     void *hooks[SW_MAX_HOOK_TYPE];
 
-    int (*reactor_can_exit)(swReactor *);
 } swGlobal_t;
 
 extern swGlobal_t SwooleG;              //Local Global Variable

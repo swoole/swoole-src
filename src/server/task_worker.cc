@@ -229,9 +229,9 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     worker->status = SW_WORKER_IDLE;
 
     swSocket_set_nonblock(socket);
-    SwooleTG.reactor->ptr = pool;
+    sw_reactor()->ptr = pool;
     swoole_event_add(socket, SW_EVENT_READ);
-    swReactor_set_handler(SwooleTG.reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
+    swoole_event_set_handler(SW_FD_PIPE, swTaskWorker_onPipeReceive);
 
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
@@ -240,8 +240,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
         worker->pipe_worker->buffer_size = UINT_MAX;
     }
 
-    //main loop
-    return SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
+    return swoole_event_wait();
 }
 
 /**

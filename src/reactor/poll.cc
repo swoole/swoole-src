@@ -220,10 +220,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
         }
         else if (ret == 0)
         {
-            if (reactor->onTimeout)
-            {
-                reactor->onTimeout(reactor);
-            }
+            reactor->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         }
         else
@@ -282,10 +279,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo)
             }
         }
         _continue:
-        if (reactor->onFinish)
-        {
-            reactor->onFinish(reactor);
-        }
+        reactor->execute_end_callbacks(false);
         SW_REACTOR_CONTINUE;
     }
     return SW_OK;

@@ -373,11 +373,11 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker)
 
     //set event handler
     //connect
-    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, Server::accept_connection);
+    reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
     //close
     reactor->default_error_handler = swReactorProcess_onClose;
     //pipe
-    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
     swServer_store_listen_socket(serv);
 

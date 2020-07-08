@@ -311,10 +311,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
         else if (n == 0)
         {
-            if (reactor->onTimeout)
-            {
-                reactor->onTimeout(reactor);
-            }
+            reactor->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         }
 
@@ -386,10 +383,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
 
         _continue:
-        if (reactor->onFinish)
-        {
-            reactor->onFinish(reactor);
-        }
+        reactor->execute_end_callbacks(false);
         SW_REACTOR_CONTINUE;
     }
     return 0;

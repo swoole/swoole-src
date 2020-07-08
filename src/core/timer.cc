@@ -58,9 +58,14 @@ static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_mse
     timer->set = swReactorTimer_set;
     timer->close = swReactorTimer_close;
 
-    reactor->add_end_callback(SW_REACTOR_PRIORITY_TIMER, [timer](void *)
+    reactor->set_end_callback(SW_REACTOR_PRIORITY_TIMER, [timer](void *)
     {
         swTimer_select(timer);
+    });
+
+    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_TIMER, [timer](swReactor *reactor, int &event_num) -> bool
+    {
+        return timer->num == 0;
     });
 
     reactor->add_destroy_callback([](void *)

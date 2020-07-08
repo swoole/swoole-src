@@ -180,9 +180,9 @@ public:
 
     static inline void init_reactor(swReactor *reactor)
     {
-        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_READ, readable_event_callback);
-        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_WRITE, writable_event_callback);
-        swReactor_set_handler(reactor, SW_FD_CORO_SOCKET | SW_EVENT_ERROR, error_event_callback);
+        reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_READ, readable_event_callback);
+        reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_WRITE, writable_event_callback);
+        reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_ERROR, error_event_callback);
     }
 
     inline enum swSocket_type get_type()

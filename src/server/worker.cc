@@ -33,7 +33,7 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
-static int swWorker_reactor_is_empty(swReactor *reactor);
+static void swWorker_reactor_try_to_exit(swReactor *reactor);
 
 void swWorker_signal_init(void)
 {
@@ -542,17 +542,17 @@ void swWorker_stop(swWorker *worker)
     }
 
     _try_to_exit: swReactor_wait_exit(reactor, 1);
-    reactor->is_empty = swWorker_reactor_is_empty;
+    reactor->set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, swWorker_reactor_try_to_exit);
     SwooleWG.exit_time = time(nullptr);
 
-    if (swWorker_reactor_is_empty(reactor))
+    swWorker_reactor_try_to_exit(reactor);
+    if (!reactor->running)
     {
         serv->running = false;
-        reactor->running = 0;
     }
 }
 
-static int swWorker_reactor_is_empty(swReactor *reactor)
+static void swWorker_reactor_try_to_exit(swReactor *reactor)
 {
     swServer *serv;
     if (SwooleG.process_type == SW_PROCESS_TASKWORKER)
@@ -568,9 +568,10 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
 
     while (1)
     {
-        if (swReactor_empty(reactor))
+        if (reactor->if_exit())
         {
-            return SW_TRUE;
+            reactor->running = false;
+            break;
         }
         else
         {
@@ -584,7 +585,8 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
             if (remaining_time <= 0)
             {
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
-                return SW_TRUE;
+                reactor->running = false;
+                break;
             }
             else
             {
@@ -597,8 +599,6 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
         }
         break;
     }
-
-    return SW_FALSE;
 }
 
 void swWorker_clean_pipe_buffer(swServer *serv)
@@ -656,13 +656,13 @@ int swWorker_loop(swServer *serv, swWorker *worker)
     swSocket_set_nonblock(worker->pipe_worker);
     reactor->ptr = serv;
     reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ);
-    swReactor_set_handler(reactor, SW_FD_PIPE, swWorker_onPipeReceive);
+    reactor->set_handler(SW_FD_PIPE, swWorker_onPipeReceive);
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
         reactor->add(reactor, serv->stream_socket, SW_EVENT_READ);
-        swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, swWorker_onStreamAccept);
-        swReactor_set_handler(reactor, SW_FD_STREAM, swWorker_onStreamRead);
+        reactor->set_handler(SW_FD_STREAM_SERVER, swWorker_onStreamAccept);
+        reactor->set_handler(SW_FD_STREAM, swWorker_onStreamRead);
         swStream_set_protocol(&serv->stream_protocol);
         serv->stream_protocol.private_data_2 = serv;
         serv->stream_protocol.package_max_length = UINT_MAX;

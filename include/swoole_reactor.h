@@ -19,6 +19,31 @@
 
 #include "swoole.h"
 
+enum swReactor_end_callback
+{
+    SW_REACTOR_PRIORITY_TIMER = 0,
+    SW_REACTOR_PRIORITY_DEFER_TASK,
+    SW_REACTOR_PRIORITY_IDLE_TASK,
+    SW_REACTOR_PRIORITY_SIGNAL_CALLBACK,
+    SW_REACTOR_PRIORITY_TRY_EXIT,
+    SW_REACTOR_PRIORITY_MALLOC_TRIM,
+};
+
+enum swReactor_exit_condition
+{
+    SW_REACTOR_EXIT_CONDITION_TIMER = 0,
+    SW_REACTOR_EXIT_CONDITION_DEFER_TASK,
+    SW_REACTOR_EXIT_CONDITION_WAIT_PID,
+    SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
+    SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER,
+    SW_REACTOR_EXIT_CONDITION_AIO_TASK,
+    SW_REACTOR_EXIT_CONDITION_SIGNALFD,
+    SW_REACTOR_EXIT_CONDITION_USER_BEFORE_DEFAULT,
+    SW_REACTOR_EXIT_CONDITION_DEFAULT = 999,
+    SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT,
+
+};
+
 namespace swoole {
 
 class Reactor
@@ -34,8 +59,6 @@ public:
 
     uint32_t event_num;
     uint32_t max_event_num;
-    uint16_t signal_listener_num;
-    uint16_t co_signal_listener_num;
 
     bool running;
     bool start;
@@ -78,24 +101,37 @@ public:
     swDefer_callback idle_task;
     swDefer_callback future_task;
 
-    std::map<int, swCallback> end_callbacks;
-
-    void (*onTimeout)(Reactor *reactor);
-    void (*onFinish)(Reactor *reactor);
-    void (*onBegin)(Reactor *reactor);
-
-    int (*is_empty)(Reactor *reactor);
-    int (*can_exit)(Reactor *reactor);
+    std::function<void(Reactor *)> onBegin;
 
     int (*write)(Reactor *reactor, swSocket *socket, const void *buf, int n);
     int (*close)(Reactor *reactor, swSocket *socket);
 
+private:
+    std::map<int, std::function<void(Reactor *)>> end_callbacks;
+    std::map<int, std::function<bool(Reactor *, int &)>> exit_conditions;
+
 public:
     Reactor(int max_event = SW_REACTOR_MAXEVENTS);
     ~Reactor();
+    bool if_exit();
     void defer(swCallback cb, void *data = nullptr);
-    void add_end_callback(int priority, swCallback cb);
+    void set_end_callback(enum swReactor_end_callback id, std::function<void(Reactor *)> fn);
+    void set_exit_condition(enum swReactor_exit_condition id, std::function<bool(Reactor *, int &)> fn);
+    inline size_t remove_exit_condition(enum swReactor_exit_condition id)
+    {
+        return exit_conditions.erase(id);
+    }
+    inline bool isset_exit_condition(enum swReactor_exit_condition id)
+    {
+        return exit_conditions.find(id) != exit_conditions.end();
+    }
+    inline bool isset_handler(int fdtype)
+    {
+        return read_handler[fdtype] != nullptr;
+    }
+    int set_handler(int _fdtype, swReactor_handler handler);
     void add_destroy_callback(swCallback cb, void *data = nullptr);
+    void execute_end_callbacks(bool timedout = false);
 };
 }
 
@@ -163,13 +199,6 @@ static inline void swReactor_wait_exit(swReactor *reactor, int value)
 }
 
 #define SW_REACTOR_CONTINUE   if (reactor->once) {break;} else {continue;}
-
-int swReactor_empty(swReactor *reactor);
-
-static sw_inline int swReactor_isset_handler(swReactor *reactor, int fdtype)
-{
-    return reactor->read_handler[fdtype] != NULL;
-}
 
 static sw_inline void swReactor_add(swReactor *reactor, swSocket *_socket, int events)
 {
@@ -293,14 +322,10 @@ static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor, enu
     return NULL;
 }
 
-int swReactor_set_handler(swReactor *reactor, int fdtype, swReactor_handler);
-
 static sw_inline int swReactor_trigger_close_event(swReactor *reactor, swEvent *event)
 {
     return reactor->default_error_handler(reactor, event);
 }
-
-
 
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);
