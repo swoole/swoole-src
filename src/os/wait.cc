@@ -18,6 +18,7 @@
 
 #include "coroutine.h"
 #include "coroutine_system.h"
+#include "swoole_signal.h"
 
 #include <list>
 #include <unordered_map>

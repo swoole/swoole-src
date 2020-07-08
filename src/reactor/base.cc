@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
+#include "swoole_signal.h"
 #include "coroutine_c_api.h"
 #include <system_error>
 

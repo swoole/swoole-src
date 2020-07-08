@@ -1260,19 +1260,6 @@ static sw_inline int swoole_kill(pid_t __pid, int __sig)
     return kill(__pid, __sig);
 }
 
-swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask);
-void swSignal_add(int signo, swSignalHandler func);
-void swSignal_callback(int signo);
-swSignalHandler swSignal_get_handler(int signo);
-void swSignal_clear(void);
-void swSignal_none(void);
-char* swSignal_str(int sig);
-
-#ifdef HAVE_SIGNALFD
-void swSignalfd_init();
-int swSignalfd_setup(swReactor *reactor);
-#endif
-
 typedef struct _swDefer_callback
 {
     struct _swDefer_callback *next, *prev;

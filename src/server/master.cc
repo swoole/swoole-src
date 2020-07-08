@@ -15,8 +15,10 @@
 */
 
 #include "server.h"
-#include <assert.h>
 #include "http.h"
+#include "swoole_signal.h"
+
+#include <assert.h>
 
 using namespace swoole;
 
