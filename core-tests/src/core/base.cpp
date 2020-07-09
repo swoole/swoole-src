@@ -39,7 +39,11 @@ TEST(base, dec2hex)
 
 TEST(base, swoole_hex2dec)
 {
-    ASSERT_EQ(swoole_hex2dec("9fff9123"), 2684326179);
-    ASSERT_EQ(swoole_hex2dec("0x9fff9123"), 2684326179);
-    ASSERT_EQ(swoole_hex2dec("f"), 15);
+    size_t n_parsed;
+    ASSERT_EQ(swoole_hex2dec("9fff9123", n_parsed), 2684326179);
+    ASSERT_EQ(n_parsed, 8);
+    ASSERT_EQ(swoole_hex2dec("0x9fff9123", n_parsed), 2684326179);
+    ASSERT_EQ(n_parsed, 10);
+    ASSERT_EQ(swoole_hex2dec("f", n_parsed), 15);
+    ASSERT_EQ(n_parsed, 1);
 }

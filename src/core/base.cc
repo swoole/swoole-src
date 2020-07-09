@@ -451,34 +451,30 @@ char *swoole_dec2hex(ulong_t value, int base)
     return sw_strndup(ptr, end - ptr);
 }
 
-ulong_t swoole_hex2dec(const char *hex)
-{
+ulong_t swoole_hex2dec(const char *hex, size_t &parsed_bytes) {
     size_t value = 0;
-    if (strncasecmp(hex, "0x", 2) == 0)
-    {
-        hex += 2;
+    parsed_bytes = 0;
+    const char *p = hex;
+
+    if (strncasecmp(hex, "0x", 2) == 0) {
+        p += 2;
     }
-    while (1)
-    {
-        char c = *hex;
-        if ((c >= '0') && (c <= '9'))
-        {
+
+    while (1) {
+        char c = *p;
+        if ((c >= '0') && (c <= '9')) {
             value = value * 16 + (c - '0');
-        }
-        else
-        {
+        } else {
             c = toupper(c);
-            if ((c >= 'A') && (c <= 'Z'))
-            {
+            if ((c >= 'A') && (c <= 'Z')) {
                 value = value * 16 + (c - 'A') + 10;
-            }
-            else
-            {
+            } else {
                 break;
             }
         }
-        hex++;
+        p++;
     }
+    parsed_bytes = p - hex;
     return value;
 }
 
