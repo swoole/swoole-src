@@ -62,8 +62,6 @@ public:
     std::string log_real_file;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
 
-    Log();
-
     int open(const char *logfile);
     void put(int level, const char *content, size_t length);
     void reopen();
