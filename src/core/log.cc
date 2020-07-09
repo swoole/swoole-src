@@ -179,7 +179,7 @@ int Log::set_date_format(const char *format)
     }
 }
 
-void Log::set_date_with_microseconds(uchar enable)
+void Log::set_date_with_microseconds(bool enable)
 {
     date_with_microseconds = enable;
 }

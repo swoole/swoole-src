@@ -16,11 +16,9 @@
 
 #pragma once
 
-#include "swoole.h"
-
-#include <sys/file.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <string>
-#include <chrono>
 
 #define SW_LOG_BUFFER_SIZE  (SW_ERROR_MSG_SIZE+256)
 #define SW_LOG_DATE_STRLEN  128
@@ -76,7 +74,7 @@ public:
     const char *get_file();
     int is_opened();
     int redirect_stdout_and_stderr(int enable);
-    void set_date_with_microseconds(uchar enable);
+    void set_date_with_microseconds(bool enable);
     static std::string gen_real_file(const std::string &file);
 };
 }
