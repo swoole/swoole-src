@@ -40,9 +40,9 @@ enum swLog_rotation_type
     SW_LOG_ROTATION_SINGLE = 0,
     SW_LOG_ROTATION_DAILY,
 };
-//-------------------------------------------------------------------------------
+
 namespace swoole {
-class Log
+class Logger
 {
 private:
     bool opened = false;
@@ -79,57 +79,57 @@ public:
 };
 }
 
-extern swoole::Log swLog_G;
+swoole::Logger &sw_logger();
 
 #define swInfo(str,...) \
-    if (SW_LOG_INFO >= swLog_G.get_level()) { \
+    if (SW_LOG_INFO >= sw_logger().get_level()) { \
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__); \
-        swLog_G.put(SW_LOG_INFO, sw_error, _sw_error_len); \
+        sw_logger().put(SW_LOG_INFO, sw_error, _sw_error_len); \
     }
 
 #define swNotice(str,...) \
-    if (SW_LOG_NOTICE >= swLog_G.get_level()) { \
+    if (SW_LOG_NOTICE >= sw_logger().get_level()) { \
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,str,##__VA_ARGS__); \
-        swLog_G.put(SW_LOG_NOTICE, sw_error, _sw_error_len); \
+        sw_logger().put(SW_LOG_NOTICE, sw_error, _sw_error_len); \
     }
 
 #define swSysNotice(str,...) \
     do{ \
         SwooleG.error = errno; \
-        if (SW_LOG_ERROR >= swLog_G.get_level()) { \
+        if (SW_LOG_ERROR >= sw_logger().get_level()) { \
             size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,swoole_strerror(errno),errno); \
-            swLog_G.put(SW_LOG_NOTICE, sw_error, _sw_error_len); \
+            sw_logger().put(SW_LOG_NOTICE, sw_error, _sw_error_len); \
         } \
     } while(0)
 
 #define swWarn(str,...) \
     do{ \
-        if (SW_LOG_WARNING >= swLog_G.get_level()) { \
+        if (SW_LOG_WARNING >= sw_logger().get_level()) { \
             size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s: " str,__func__,##__VA_ARGS__); \
-            swLog_G.put(SW_LOG_WARNING, sw_error, _sw_error_len); \
+            sw_logger().put(SW_LOG_WARNING, sw_error, _sw_error_len); \
         } \
     } while(0)
 
 #define swSysWarn(str,...) \
     do{ \
         SwooleG.error = errno; \
-        if (SW_LOG_ERROR >= swLog_G.get_level()) { \
+        if (SW_LOG_ERROR >= sw_logger().get_level()) { \
             size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,swoole_strerror(errno),errno); \
-            swLog_G.put(SW_LOG_WARNING, sw_error, _sw_error_len); \
+            sw_logger().put(SW_LOG_WARNING, sw_error, _sw_error_len); \
         } \
     } while(0)
 
 #define swError(str,...) \
     do{ \
         size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__); \
-        swLog_G.put(SW_LOG_ERROR, sw_error, _sw_error_len); \
+        sw_logger().put(SW_LOG_ERROR, sw_error, _sw_error_len); \
         exit(1); \
     } while(0)
 
 #define swSysError(str,...) \
     do{ \
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str ", Error: %s[%d]",__func__,__LINE__,##__VA_ARGS__,swoole_strerror(errno),errno); \
-        swLog_G.put(SW_LOG_ERROR, sw_error, _sw_error_len); \
+        sw_logger().put(SW_LOG_ERROR, sw_error, _sw_error_len); \
         exit(1); \
     } while(0)
 
@@ -142,17 +142,17 @@ extern swoole::Log swLog_G;
 #define swoole_error_log(level, __errno, str, ...) \
     do{ \
         SwooleG.error = __errno; \
-        if (level >= swLog_G.get_level()){ \
+        if (level >= sw_logger().get_level()){ \
             size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERRNO %d): " str,__func__,__errno,##__VA_ARGS__); \
-            swLog_G.put(level, sw_error, _sw_error_len); \
+            sw_logger().put(level, sw_error, _sw_error_len); \
         } \
     } while(0)
 
 #ifdef SW_DEBUG
 #define swDebug(str,...) \
-    if (SW_LOG_DEBUG >= swLog_G.get_level()) { \
+    if (SW_LOG_DEBUG >= sw_logger().get_level()) { \
         size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__); \
-        swLog_G.put(SW_LOG_DEBUG, sw_error, _sw_error_len); \
+        sw_logger().put(SW_LOG_DEBUG, sw_error, _sw_error_len); \
     }
 
 #define swHexDump(data, length) \
@@ -224,9 +224,9 @@ enum swTrace_type
 
 #ifdef SW_LOG_TRACE_OPEN
 #define swTraceLog(what,str,...) \
-    if (SW_LOG_TRACE >= swLog_G.get_level() && (what & SwooleG.trace_flags)) {\
+    if (SW_LOG_TRACE >= sw_logger().get_level() && (what & SwooleG.trace_flags)) {\
         size_t _sw_error_len = sw_snprintf(sw_error,SW_ERROR_MSG_SIZE,"%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);\
-        swLog_G.put(SW_LOG_TRACE, sw_error, _sw_error_len);\
+        sw_logger().put(SW_LOG_TRACE, sw_error, _sw_error_len);\
     }
 #else
 #define swTraceLog(what,str,...)
