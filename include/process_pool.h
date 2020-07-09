@@ -240,4 +240,23 @@ int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_get_max_request(swProcessPool *pool);
 void swProcessPool_free(swProcessPool *pool);
 
+static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
+{
+    int ret;
+    do
+    {
+        ret = waitpid(__pid, __stat_loc, __options);
+    } while (ret < 0 && errno == EINTR);
+    return ret;
+}
+
+static sw_inline int swoole_kill(pid_t __pid, int __sig)
+{
+    if (__pid <= 0)
+    {
+        return -1;
+    }
+    return kill(__pid, __sig);
+}
+
 extern swWorkerGlobal SwooleWG;             //Worker Global Variable

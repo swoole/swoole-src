@@ -857,7 +857,7 @@ class Server
     int add_worker(swWorker *worker);
     swListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
-    int add_hook(enum swServer_hook_type type, swCallback func, int push_back);
+    int add_hook(enum swServer_hook_type type, std::function<void(void *)> func, int push_back);
     Connection *add_connection(swListenPort *ls, swSocket *_socket, int server_fd);
 
     int get_idle_worker_num();

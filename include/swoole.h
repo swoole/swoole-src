@@ -54,7 +54,6 @@
 
 #include <sys/time.h>
 #include <sys/utsname.h>
-#include <sys/wait.h>
 #include <sys/types.h>
 
 #if defined(HAVE_CPU_AFFINITY)
@@ -859,33 +858,6 @@ void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
-
-//------------------------------Process--------------------------------
-static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
-{
-    int ret;
-    do
-    {
-        ret = waitpid(__pid, __stat_loc, __options);
-    } while (ret < 0 && errno == EINTR);
-    return ret;
-}
-
-static sw_inline int swoole_kill(pid_t __pid, int __sig)
-{
-    if (__pid <= 0)
-    {
-        return -1;
-    }
-    return kill(__pid, __sig);
-}
-
-typedef struct _swDefer_callback
-{
-    struct _swDefer_callback *next, *prev;
-    swCallback callback;
-    void *data;
-} swDefer_callback;
 
 //--------------------------------timer------------------------------
 

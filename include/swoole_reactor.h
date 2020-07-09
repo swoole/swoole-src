@@ -50,6 +50,13 @@ enum swReactor_exit_condition
 
 namespace swoole {
 
+struct swDefer_callback
+{
+    struct _swDefer_callback *next, *prev;
+    swCallback callback;
+    void *data;
+};
+
 struct Callback
 {
     swCallback fn_;
