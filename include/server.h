@@ -23,6 +23,7 @@
 #include "swoole_reactor.h"
 #include "swoole_signal.h"
 #include "swoole_protocol.h"
+#include "swoole_log.h"
 #include "process_pool.h"
 #include "pipe.h"
 #include "channel.h"

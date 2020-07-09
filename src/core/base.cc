@@ -21,6 +21,7 @@
 #include "swoole_memory.h"
 #include "swoole_protocol.h"
 #include "swoole_util.h"
+#include "swoole_log.h"
 #include "atomic.h"
 #include "async.h"
 #include "coroutine_c_api.h"
@@ -112,7 +113,6 @@ void swoole_init(void)
     SwooleG.std_allocator.realloc = sw_realloc;
     SwooleG.std_allocator.free = sw_free;
 
-    SwooleG.write_log = swLog_put;
     SwooleG.fatal_error = swoole_fatal_error;
 
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
@@ -125,10 +125,10 @@ void swoole_init(void)
     SwooleG.pid = getpid();
 
 #ifdef SW_DEBUG
-    swLog_set_level(0);
+    swLog_G.set_level(0);
     SwooleG.trace_flags = 0x7fffffff;
 #else
-    swLog_set_level(SW_LOG_INFO);
+    swLog_G.set_level(SW_LOG_INFO);
 #endif
 
     //init global shared memory
@@ -269,7 +269,7 @@ pid_t swoole_fork(int flags)
             /**
              * reopen log file
              */
-            swLog_reopen();
+            swLog_G.reopen();
             /**
              * reset eventLoop
              */
@@ -284,7 +284,7 @@ pid_t swoole_fork(int flags)
             /**
              * close log fd
              */
-            swLog_close();
+            swLog_G.close();
         }
         /**
          * reset signal handler
@@ -1611,7 +1611,7 @@ static void swoole_fatal_error(int code, const char *format, ...)
     va_start(args, format);
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
-    SwooleG.write_log(SW_LOG_ERROR, sw_error, retval);
+    swLog_G.put(SW_LOG_ERROR, sw_error, retval);
     exit(1);
 }
 

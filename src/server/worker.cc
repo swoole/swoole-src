@@ -16,6 +16,7 @@
 
 #include "server.h"
 #include "swoole_memory.h"
+#include "swoole_log.h"
 #include "msg_queue.h"
 #include "client.h"
 #include "async.h"
@@ -85,13 +86,13 @@ void swWorker_signal_handler(int signo)
         break;
     case SIGUSR1:
     case SIGUSR2:
-        swLog_reopen();
+        swLog_G.reopen();
         break;
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN)
         {
-            swLog_reopen();
+            swLog_G.reopen();
         }
 #endif
         break;
@@ -430,9 +431,9 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-    if (swLog_is_opened())
+    if (swLog_G.is_opened())
     {
-        swLog_reopen();
+        swLog_G.reopen();
     }
 
     SwooleWG.worker = serv->get_worker(SwooleG.process_id);

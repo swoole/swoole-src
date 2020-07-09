@@ -19,6 +19,7 @@
 #include "swoole_reactor.h"
 #include "swoole_string.h"
 #include "swoole_signal.h"
+#include "swoole_log.h"
 #include "pipe.h"
 #include "async.h"
 

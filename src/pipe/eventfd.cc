@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "pipe.h"
+#include "swoole_log.h"
 
 #ifdef HAVE_EVENTFD
 #include <sys/eventfd.h>

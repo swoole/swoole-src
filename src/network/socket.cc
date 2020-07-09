@@ -16,6 +16,7 @@
 
 #include "swoole_api.h"
 #include "swoole_socket.h"
+#include "swoole_log.h"
 #include "ssl.h"
 
 #include <assert.h>

@@ -18,15 +18,19 @@
 */
 
 #include "tests.h"
+#include "swoole_log.h"
 
 using namespace std;
+using namespace swoole;
+
+static Log logger;
 
 TEST(stream, send) {
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
-    int ori_log_level = swLog_get_level();
-    swLog_set_level(SW_LOG_ERROR);
+    int ori_log_level = logger.get_level();
+    logger.set_level(SW_LOG_ERROR);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
     if (!port) {
@@ -107,5 +111,5 @@ TEST(stream, send) {
     serv.start();
     t1.join();
 
-    swLog_set_level(ori_log_level);
+    logger.set_level(ori_log_level);
 }

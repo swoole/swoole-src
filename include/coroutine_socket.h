@@ -20,6 +20,7 @@
 #include "swoole_api.h"
 #include "coroutine.h"
 #include "swoole_protocol.h"
+#include "swoole_log.h"
 #include "ssl.h"
 #include "proxy.h"
 

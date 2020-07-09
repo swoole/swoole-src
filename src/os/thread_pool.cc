@@ -16,6 +16,7 @@
 
 #include "thread_pool.h"
 #include "swoole_signal.h"
+#include "swoole_log.h"
 
 #define swThreadPool_thread(p,id) (&p->threads[id])
 static void *swThreadPool_loop(void *arg);
