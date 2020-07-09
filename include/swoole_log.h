@@ -16,25 +16,20 @@
 
 #pragma once
 
-#include "swoole.h"
+#include <stddef.h>
+#include <stdint.h>
 
-typedef void (*swSignalHandler)(int);
-
-struct swSignal
-{
-    swSignalHandler handler;
-    uint16_t signo;
-    uint16_t active;
-};
-
-#ifdef HAVE_SIGNALFD
-void swSignalfd_init();
-int swSignalfd_setup(swReactor *reactor);
-#endif
-void swSignal_set(int signo, swSignalHandler func);
-swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask);
-swSignalHandler swSignal_get_handler(int signo);
-void swSignal_clear(void);
-void swSignal_none(void);
-char* swSignal_str(int sig);
-void swSignal_callback(int signo);
+int swLog_open(const char *logfile);
+void swLog_put(int level, const char *content, size_t length);
+void swLog_reopen();
+void swLog_close(void);
+void swLog_reset();
+void swLog_set_level(int lv);
+int swLog_get_level();
+int swLog_set_date_format(const char *format);
+void swLog_set_rotation(int rotation);
+const char *swLog_get_real_file();
+const char *swLog_get_file();
+int swLog_is_opened();
+int swLog_redirect_stdout_and_stderr(bool enable);
+void swLog_set_date_with_microseconds(bool enable);

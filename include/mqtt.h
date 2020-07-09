@@ -18,6 +18,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "swoole_protocol.h"
 
 #define SW_MQTT_MIN_LENGTH                   2
 #define SW_MQTT_MAX_PAYLOAD_SIZE             268435455

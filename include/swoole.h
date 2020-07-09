@@ -49,24 +49,13 @@
 #include <stdarg.h>
 #include <signal.h>
 #include <time.h>
-
 #include <fcntl.h>
 #include <unistd.h>
-#include <pthread.h>
 
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
-#include <netdb.h>
-#include <sys/socket.h>
 #include <sys/time.h>
-#include <sys/select.h>
-#include <sys/ipc.h>
-#include <sys/wait.h>
-#include <sys/un.h>
-#include <sys/types.h>
 #include <sys/utsname.h>
-#include <sys/stat.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
@@ -148,10 +137,6 @@ typedef unsigned long ulong_t;
 #define MAP_HUGE_PAGE 1
 #endif
 
-#ifndef SOCK_NONBLOCK
-#define SOCK_NONBLOCK O_NONBLOCK
-#endif
-
 #ifndef CLOCK_REALTIME
 #define CLOCK_REALTIME 0
 #endif
@@ -189,6 +174,7 @@ typedef unsigned long ulong_t;
 
 #include "swoole_config.h"
 #include "swoole_version.h"
+#include "swoole_log.h"
 #include "atomic.h"
 #include "error.h"
 
@@ -268,6 +254,8 @@ struct swString;
 struct swHeap_node;
 struct swBuffer;
 struct swMemoryPool;
+struct swSocket;
+struct swProtocol;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s)             s, sizeof(s)
@@ -628,99 +616,6 @@ struct swAllocator
     void (*free)(void *ptr);
 };
 
-struct swSocketAddress
-{
-    union
-    {
-        struct sockaddr ss;
-        struct sockaddr_in inet_v4;
-        struct sockaddr_in6 inet_v6;
-        struct sockaddr_un un;
-    } addr;
-    socklen_t len;
-};
-
-struct swSocket
-{
-    int fd;
-    enum swFd_type fdtype;
-    enum swSocket_type socket_type;
-    int events;
-
-    uchar removed :1;
-    uchar nonblock :1;
-    uchar cloexec :1;
-    uchar direct_send :1;
-#ifdef SW_USE_OPENSSL
-    uchar ssl_send :1;
-    uchar ssl_want_read :1;
-    uchar ssl_want_write :1;
-    uchar ssl_renegotiation :1;
-    uchar ssl_handshake_buffer_set :1;
-    uchar ssl_quiet_shutdown :1;
-#ifdef SW_SUPPORT_DTLS
-    uchar dtls :1;
-#endif
-#endif
-    uchar dontwait :1;
-    uchar close_wait :1;
-    uchar send_wait :1;
-    uchar tcp_nopush :1;
-    uchar tcp_nodelay :1;
-    uchar skip_recv :1;
-    uchar recv_wait :1;
-    uchar event_hup :1;
-
-    /**
-     * memory buffer size;
-     */
-    uint32_t buffer_size;
-    uint32_t chunk_size;
-
-    void *object;
-
-#ifdef SW_USE_OPENSSL
-    SSL *ssl;
-    uint32_t ssl_state;
-#endif
-
-    swSocketAddress info;
-
-    swBuffer *out_buffer;
-    swBuffer *in_buffer;
-    swString *recv_buffer;
-
-#ifdef SW_DEBUG
-    size_t total_recv_bytes;
-    size_t total_send_bytes;
-#endif
-};
-
-typedef struct _swProtocol
-{
-    /* one package: eof check */
-    uint8_t split_by_eof;
-    uint8_t package_eof_len;
-    char package_eof[SW_DATA_EOF_MAXLEN];
-
-    char package_length_type;
-    uint8_t package_length_size;
-    uint16_t package_length_offset;
-    uint16_t package_body_offset;
-    uint32_t package_max_length;
-
-    void *private_data;
-    void *private_data_2;
-    uint16_t real_header_length;
-    uint16_t ext_flags;
-
-    int (*onPackage)(struct _swProtocol *, swSocket *, const char *, uint32_t);
-    ssize_t (*get_package_length)(struct _swProtocol *, swSocket *, const char *, uint32_t);
-    uint8_t (*get_package_length_size)(swSocket *);
-} swProtocol;
-
-typedef ssize_t (*swProtocol_length_function)(struct _swProtocol *, swSocket *, const char *, uint32_t);
-//------------------------------String--------------------------------
 #define swoole_tolower(c)      (uchar) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c)      (uchar) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
@@ -759,7 +654,7 @@ enum _swEventData_flag
     SW_EVENT_DATA_POP_PTR = 1u << 5,
 };
 
-typedef struct _swDataHead
+struct swDataHead
 {
     int fd;
     uint32_t len;
@@ -771,7 +666,13 @@ typedef struct _swDataHead
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif
-} swDataHead;
+};
+
+struct swEventData
+{
+    swDataHead info;
+    char data[SW_IPC_BUFFER_SIZE];
+};
 
 void swDataHead_dump(const swDataHead *data);
 
@@ -799,14 +700,6 @@ struct swEvent
     enum swFd_type type;
     swSocket *socket;
 };
-
-struct swEventData
-{
-    swDataHead info;
-    char data[SW_IPC_BUFFER_SIZE];
-};
-
-typedef void (*swSignalHandler)(int);
 
 typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 
@@ -867,22 +760,6 @@ enum swPipe_type
 #define swIsManager()         (SwooleG.process_type==SW_PROCESS_MANAGER)
 #define swIsUserWorker()      (SwooleG.process_type==SW_PROCESS_USERWORKER)
 
-//----------------------Logger---------------------
-int swLog_open(const char *logfile);
-void swLog_put(int level, const char *content, size_t length);
-void swLog_reopen();
-void swLog_close(void);
-void swLog_reset();
-void swLog_set_level(int lv);
-int swLog_get_level();
-int swLog_set_date_format(const char *format);
-void swLog_set_rotation(int rotation);
-const char *swLog_get_real_file();
-const char *swLog_get_file();
-int swLog_is_opened();
-int swLog_redirect_stdout_and_stderr(int enable);
-void swLog_set_date_with_microseconds(uchar enable);
-
 //----------------------Tool Function---------------------
 uint64_t swoole_hash_key(const char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
@@ -890,74 +767,6 @@ uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
 extern void swoole_sha1(const char *str, int _len, uchar *digest);
 extern void swoole_sha256(const char *str, int _len, uchar *digest);
-
-static sw_inline uint16_t swoole_swap_endian16(uint16_t x)
-{
-    return (((x & 0xff) << 8) | ((x & 0xff00) >> 8));
-}
-
-static sw_inline uint32_t swoole_swap_endian32(uint32_t x)
-{
-    return (((x & 0xff) << 24) | ((x & 0xff00) << 8) | ((x & 0xff0000) >> 8) | ((x & 0xff000000) >> 24));
-}
-
-static sw_inline int32_t swoole_unpack(char type, const void *data)
-{
-    switch(type)
-    {
-    /*-------------------------16bit-----------------------------*/
-    case 'c':
-        return *((int8_t *) data);
-    case 'C':
-        return *((uint8_t *) data);
-    /*-------------------------16bit-----------------------------*/
-    /**
-     * signed short (always 16 bit, machine byte order)
-     */
-    case 's':
-        return *((int16_t *) data);
-    /**
-     * unsigned short (always 16 bit, machine byte order)
-     */
-    case 'S':
-        return *((uint16_t *) data);
-    /**
-     * unsigned short (always 16 bit, big endian byte order)
-     */
-    case 'n':
-        return ntohs(*((uint16_t *) data));
-    /**
-     * unsigned short (always 32 bit, little endian byte order)
-     */
-    case 'v':
-        return swoole_swap_endian16(ntohs(*((uint16_t *) data)));
-
-    /*-------------------------32bit-----------------------------*/
-    /**
-     * unsigned long (always 32 bit, machine byte order)
-     */
-    case 'L':
-        return *((uint32_t *) data);
-    /**
-     * signed long (always 32 bit, machine byte order)
-     */
-    case 'l':
-        return *((int *) data);
-    /**
-     * unsigned long (always 32 bit, big endian byte order)
-     */
-    case 'N':
-        return ntohl(*((uint32_t *) data));
-    /**
-     * unsigned short (always 32 bit, little endian byte order)
-     */
-    case 'V':
-        return swoole_swap_endian32(ntohl(*((uint32_t *) data)));
-
-    default:
-        return *((uint32_t *) data);
-    }
-}
 
 static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
 {
@@ -1068,38 +877,6 @@ SW_API void *swoole_get_function(const char *name, uint32_t length);
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
 SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
-static sw_inline uint64_t swoole_hton64(uint64_t host)
-{
-    uint64_t ret = 0;
-    uint32_t high, low;
-
-    low = host & 0xFFFFFFFF;
-    high = (host >> 32) & 0xFFFFFFFF;
-    low = htonl(low);
-    high = htonl(high);
-
-    ret = low;
-    ret <<= 32;
-    ret |= high;
-    return ret;
-}
-
-static sw_inline uint64_t swoole_ntoh64(uint64_t net)
-{
-    uint64_t ret = 0;
-    uint32_t high, low;
-
-    low = net & 0xFFFFFFFF;
-    high = net >> 32;
-    low = ntohl(low);
-    high = ntohl(high);
-
-    ret = low;
-    ret <<= 32;
-    ret |= high;
-    return ret;
-}
-
 //------------------------------Process--------------------------------
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
@@ -1126,50 +903,6 @@ typedef struct _swDefer_callback
     swCallback callback;
     void *data;
 } swDefer_callback;
-
-namespace swoole {
-
-struct Callback
-{
-    swCallback fn_;
-    void *private_data_;
-
-    Callback(swCallback fn, void *private_data) :
-            fn_(fn), private_data_(private_data)
-    {
-
-    }
-};
-
-class CallbackManager
-{
-public:
-    inline void append(swCallback fn, void *private_data)
-    {
-        list_.emplace_back(fn, private_data);
-    }
-    inline void prepend(swCallback fn, void *private_data)
-    {
-        list_.emplace_front(fn, private_data);
-    }
-    inline void execute()
-    {
-        while (!list_.empty())
-        {
-            std::pair<swCallback, void *> task = list_.front();
-            list_.pop_front();
-            task.first(task.second);
-        }
-    }
-protected:
-    std::list<std::pair<swCallback, void *>> list_;
-};
-}
-
-//--------------------------------protocol------------------------------
-ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t size);
-int swProtocol_recv_check_length(swProtocol *protocol, swSocket *socket, swString *buffer);
-int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *buffer);
 
 //--------------------------------timer------------------------------
 

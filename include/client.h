@@ -20,6 +20,7 @@
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
+#include "swoole_protocol.h"
 #include "proxy.h"
 #include "ssl.h"
 

@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "swoole_api.h"
 #include "coroutine.h"
+#include "swoole_protocol.h"
 #include "ssl.h"
 #include "proxy.h"
 

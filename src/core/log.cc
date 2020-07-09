@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "swoole_log.h"
 #include <sys/file.h>
 #include <string>
 #include <chrono>
@@ -114,7 +115,7 @@ void swLog_set_rotation(int _rotation)
     swLog_G.log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
 }
 
-int swLog_redirect_stdout_and_stderr(int enable)
+int swLog_redirect_stdout_and_stderr(bool enable)
 {
     if (enable)
     {
@@ -198,7 +199,7 @@ int swLog_set_date_format(const char *format)
     }
 }
 
-void swLog_set_date_with_microseconds(uchar enable)
+void swLog_set_date_with_microseconds(bool enable)
 {
     swLog_G.date_with_microseconds = enable;
 }

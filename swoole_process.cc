@@ -23,6 +23,8 @@
 #include "msg_queue.h"
 #include "swoole_signal.h"
 
+#include <sys/ipc.h>
+
 using namespace swoole;
 
 zend_class_entry *swoole_process_ce;

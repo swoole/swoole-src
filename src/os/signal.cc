@@ -14,11 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
+#include "swoole.h"
 #include "swoole_api.h"
 #include "swoole_signal.h"
-
-#include "coroutine.h"
-#include "coroutine_system.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
+#include "swoole_string.h"
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
@@ -378,76 +379,3 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
 }
 #endif
 
-namespace swoole { namespace coroutine {
-
-bool System::wait_signal(int signo, double timeout)
-{
-    static Coroutine* listeners[SW_SIGNO_MAX];
-    Coroutine *co = Coroutine::get_current_safe();
-
-    if (SwooleTG.signal_listener_num > 0)
-    {
-        errno = EBUSY;
-        return false;
-    }
-    if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD)
-    {
-        errno = EINVAL;
-        return false;
-    }
-
-    /* resgiter signal */
-    listeners[signo] = co;
-    // for swSignalfd_setup
-    sw_reactor()->check_signalfd = 1;
-    // exit condition
-    if (!sw_reactor()->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER))
-    {
-        sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
-                [](swReactor *reactor, int &event_num) -> bool
-                {
-                    return SwooleTG.co_signal_listener_num == 0;
-                });
-    }
-    /* always enable signalfd */
-    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
-    swSignal_set(signo, [](int signo) {
-        Coroutine *co = listeners[signo];
-        if (co)
-        {
-            listeners[signo] = nullptr;
-            co->resume();
-        }
-    });
-    SwooleTG.co_signal_listener_num++;
-
-    swTimer_node* timer = nullptr;
-    if (timeout > 0)
-    {
-        timer = swoole_timer_add(timeout * 1000, 0, [](swTimer *timer, swTimer_node *tnode) {
-            Coroutine *co = (Coroutine *) tnode->data;
-            co->resume();
-        }, co);
-    }
-
-    co->yield();
-
-    swSignal_set(signo, nullptr);
-    SwooleTG.co_signal_listener_num--;
-
-    if (listeners[signo] != nullptr)
-    {
-        listeners[signo] = nullptr;
-        errno = ETIMEDOUT;
-        return false;
-    }
-
-    if (timer)
-    {
-        swoole_timer_del(timer);
-    }
-
-    return true;
-}
-
-}}

@@ -416,3 +416,33 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
     }
     return ret;
 }
+
+swString *swTaskWorker_large_unpack(swEventData *task_result)
+{
+    swPacket_task _pkg;
+    memcpy(&_pkg, task_result->data, sizeof(_pkg));
+
+    int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
+    if (tmp_file_fd < 0)
+    {
+        swSysWarn("open(%s) failed", _pkg.tmpfile);
+        return nullptr;
+    }
+    if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
+    {
+        close(tmp_file_fd);
+        return nullptr;
+    }
+    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) != _pkg.length)
+    {
+        close(tmp_file_fd);
+        return nullptr;
+    }
+    close(tmp_file_fd);
+    if (!(swTask_type(task_result) & SW_TASK_PEEK))
+    {
+        unlink(_pkg.tmpfile);
+    }
+    SwooleTG.buffer_stack->length = _pkg.length;
+    return SwooleTG.buffer_stack;
+}

@@ -74,7 +74,7 @@
 #else
 #define SW_IPC_MAX_SIZE            8192  // for IPC, dgram and message-queue max size
 #endif
-#define SW_IPC_BUFFER_SIZE         (SW_IPC_MAX_SIZE - sizeof(struct _swDataHead))
+#define SW_IPC_BUFFER_SIZE         (SW_IPC_MAX_SIZE - sizeof(swDataHead))
 // !!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_STD         8192

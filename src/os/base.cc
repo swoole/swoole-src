@@ -19,8 +19,10 @@
 #include "swoole.h"
 #include "swoole_string.h"
 #include "async.h"
+
 #include <sys/file.h>
 #include <sys/stat.h>
+#include <arpa/inet.h>
 #include <mutex>
 
 #if 0

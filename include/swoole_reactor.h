@@ -18,6 +18,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "swoole_socket.h"
 
 enum swReactor_end_callback
 {
@@ -45,6 +46,42 @@ enum swReactor_exit_condition
 };
 
 namespace swoole {
+
+struct Callback
+{
+    swCallback fn_;
+    void *private_data_;
+
+    Callback(swCallback fn, void *private_data) :
+            fn_(fn), private_data_(private_data)
+    {
+
+    }
+};
+
+class CallbackManager
+{
+public:
+    inline void append(swCallback fn, void *private_data)
+    {
+        list_.emplace_back(fn, private_data);
+    }
+    inline void prepend(swCallback fn, void *private_data)
+    {
+        list_.emplace_front(fn, private_data);
+    }
+    inline void execute()
+    {
+        while (!list_.empty())
+        {
+            std::pair<swCallback, void *> task = list_.front();
+            list_.pop_front();
+            task.first(task.second);
+        }
+    }
+protected:
+    std::list<std::pair<swCallback, void *>> list_;
+};
 
 class Reactor
 {

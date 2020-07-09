@@ -18,7 +18,15 @@
 #pragma once
 
 #include "swoole.h"
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "buffer.h"
+
+#ifndef SOCK_NONBLOCK
+#define SOCK_NONBLOCK O_NONBLOCK
+#endif
 
 //OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
@@ -40,6 +48,71 @@ struct swSendFile_request {
     off_t offset;
     size_t length;
     char filename[0];
+};
+
+struct swSocketAddress {
+    union {
+        struct sockaddr ss;
+        struct sockaddr_in inet_v4;
+        struct sockaddr_in6 inet_v6;
+        struct sockaddr_un un;
+    } addr;
+    socklen_t len;
+};
+
+struct swSocket {
+    int fd;
+    enum swFd_type fdtype;
+    enum swSocket_type socket_type;
+    int events;
+
+    uchar removed :1;
+    uchar nonblock :1;
+    uchar cloexec :1;
+    uchar direct_send :1;
+#ifdef SW_USE_OPENSSL
+    uchar ssl_send :1;
+    uchar ssl_want_read :1;
+    uchar ssl_want_write :1;
+    uchar ssl_renegotiation :1;
+    uchar ssl_handshake_buffer_set :1;
+    uchar ssl_quiet_shutdown :1;
+#ifdef SW_SUPPORT_DTLS
+    uchar dtls :1;
+#endif
+#endif
+    uchar dontwait :1;
+    uchar close_wait :1;
+    uchar send_wait :1;
+    uchar tcp_nopush :1;
+    uchar tcp_nodelay :1;
+    uchar skip_recv :1;
+    uchar recv_wait :1;
+    uchar event_hup :1;
+
+    /**
+     * memory buffer size;
+     */
+    uint32_t buffer_size;
+    uint32_t chunk_size;
+
+    void *object;
+
+#ifdef SW_USE_OPENSSL
+    SSL *ssl;
+    uint32_t ssl_state;
+#endif
+
+    swSocketAddress info;
+
+    swBuffer *out_buffer;
+    swBuffer *in_buffer;
+    swString *recv_buffer;
+
+#ifdef SW_DEBUG
+    size_t total_recv_bytes;
+    size_t total_send_bytes;
+#endif
 };
 
 int swSocket_set_timeout(swSocket *sock, double timeout);
