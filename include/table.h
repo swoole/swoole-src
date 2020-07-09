@@ -17,6 +17,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "swoole_memory.h"
 #include "lock.h"
 #include "atomic.h"
 #include "hash.h"

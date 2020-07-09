@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "swoole_memory.h"
 
 #include <vector>
 #include <list>

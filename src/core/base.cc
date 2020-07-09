@@ -17,6 +17,7 @@
 #include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_signal.h"
+#include "swoole_memory.h"
 #include "atomic.h"
 #include "async.h"
 #include "coroutine_c_api.h"

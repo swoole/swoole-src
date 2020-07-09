@@ -15,6 +15,8 @@
 */
 
 #include "server.h"
+#include "swoole_memory.h"
+#include "msg_queue.h"
 #include "client.h"
 #include "async.h"
 
@@ -22,7 +24,7 @@
 #include <pwd.h>
 #include <grp.h>
 #include <sys/uio.h>
-#include "msg_queue.h"
+#include <sys/mman.h>
 
 using namespace swoole;
 

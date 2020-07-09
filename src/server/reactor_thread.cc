@@ -15,6 +15,7 @@
  */
 
 #include "server.h"
+#include "swoole_memory.h"
 #include "thread_pool.h"
 #include "hash.h"
 #include "client.h"

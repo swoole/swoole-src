@@ -18,6 +18,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "buffer.h"
 
 //OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
@@ -26,6 +27,20 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #include <sys/sendfile.h>
 #define swoole_sendfile(out_fd, in_fd, offset, limit)    sendfile(out_fd, in_fd, offset, limit)
 #endif
+
+struct swTask_sendfile {
+    char *filename;
+    uint16_t name_len;
+    int fd;
+    size_t length;
+    off_t offset;
+};
+
+struct swSendFile_request {
+    off_t offset;
+    size_t length;
+    char filename[0];
+};
 
 int swSocket_set_timeout(swSocket *sock, double timeout);
 swSocket *swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);

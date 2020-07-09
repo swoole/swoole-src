@@ -14,12 +14,14 @@
   +----------------------------------------------------------------------+
 */
 
+#include "swoole_api.h"
+#include "swoole_memory.h"
+#include "swoole_signal.h"
 #include "msg_queue.h"
 #include "pipe.h"
 #include "server.h"
 #include "process_pool.h"
 #include "client.h"
-#include "swoole_signal.h"
 
 /**
  * call onTask

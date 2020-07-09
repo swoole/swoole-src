@@ -217,8 +217,24 @@ struct swListenPort
     int (*onRead)(swReactor *reactor, swListenPort *port, swEvent *event);
 };
 
-struct swWorkerStopMessage
-{
+struct swSendData {
+    swDataHead info;
+    const char *data;
+};
+
+struct swPipeBuffer {
+    swDataHead info;
+    char data[0];
+};
+
+struct swDgramPacket {
+    int socket_type;
+    swSocketAddress socket_addr;
+    uint32_t length;
+    char data[0];
+};
+
+struct swWorkerStopMessage {
     pid_t pid;
     uint16_t worker_id;
 };

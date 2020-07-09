@@ -20,10 +20,6 @@
 
 #include <assert.h>
 
-#ifndef MSG_NOSIGNAL
-#define MSG_NOSIGNAL        0
-#endif
-
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout)
 {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;

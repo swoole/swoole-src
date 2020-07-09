@@ -19,6 +19,16 @@
 
 #include "swoole.h"
 
+enum swLock_type
+{
+    SW_RWLOCK = 1,
+    SW_FILELOCK = 2,
+    SW_MUTEX = 3,
+    SW_SEM = 4,
+    SW_SPINLOCK = 5,
+    SW_ATOMLOCK = 6,
+};
+
 struct swMutex
 {
     pthread_mutex_t _lock;

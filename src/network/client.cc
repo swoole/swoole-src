@@ -16,6 +16,9 @@
 
 #include "swoole.h"
 #include "swoole_api.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
 #include "client.h"
 #include "proxy.h"
 #include "async.h"

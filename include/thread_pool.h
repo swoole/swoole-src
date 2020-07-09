@@ -19,6 +19,7 @@
 
 #include "swoole.h"
 #include "swoole_string.h"
+#include "ring_queue.h"
 #include "lock.h"
 
 struct swThreadPool;

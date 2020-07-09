@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include "swoole_memory.h"
 #include "lock.h"
 
 static zend_class_entry *swoole_lock_ce;

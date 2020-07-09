@@ -114,8 +114,14 @@ struct swWorkerGlobal
     swString **output_buffer;
     swWorker *worker;
     time_t exit_time;
+};
 
-} ;
+struct swStreamInfo {
+    swSocket *socket;
+    swSocket *last_connection;
+    char *socket_file;
+    swString *response_buffer;
+};
 
 struct swProcessPool
 {

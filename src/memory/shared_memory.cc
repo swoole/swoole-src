@@ -15,7 +15,9 @@
 */
 
 #include "swoole.h"
-#include <sys/shm.h>
+#include "swoole_memory.h"
+
+#include <sys/mman.h>
 
 void* sw_shm_malloc(size_t size)
 {

@@ -19,6 +19,7 @@
 
 #include "tests.h"
 #include "test_server.h"
+#include "swoole_memory.h"
 
 using namespace swoole::test;
 

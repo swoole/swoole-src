@@ -53,7 +53,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
-#include <poll.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -62,7 +61,6 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/select.h>
-#include <sys/mman.h>
 #include <sys/ipc.h>
 #include <sys/wait.h>
 #include <sys/un.h>
@@ -192,8 +190,6 @@ typedef unsigned long ulong_t;
 #include "swoole_config.h"
 #include "swoole_version.h"
 #include "atomic.h"
-#include "buffer.h"
-#include "ring_queue.h"
 #include "error.h"
 
 #define SW_MAX(A, B)           ((A) > (B) ? (A) : (B))
@@ -270,6 +266,8 @@ struct swMsgQueue;
 struct swPipe;
 struct swString;
 struct swHeap_node;
+struct swBuffer;
+struct swMemoryPool;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s)             s, sizeof(s)
@@ -620,7 +618,6 @@ typedef unsigned char uchar;
 #endif
 #endif
 
-typedef void (*swDestructor)(void *data);
 typedef std::function<void(void *)> swCallback;
 
 struct swAllocator
@@ -698,15 +695,6 @@ struct swSocket
     size_t total_send_bytes;
 #endif
 };
-
-typedef struct _swTask_sendfile
-{
-    char *filename;
-    uint16_t name_len;
-    int fd;
-    size_t length;
-    off_t offset;
-} swTask_sendfile;
 
 typedef struct _swProtocol
 {
@@ -804,67 +792,30 @@ enum swTask_type
     SW_TASK_NOREPLY    = 128, //don't reply
 };
 
-typedef struct _swEvent
+struct swEvent
 {
     int fd;
     int16_t reactor_id;
     enum swFd_type type;
     swSocket *socket;
-} swEvent;
+};
 
-typedef struct
+struct swEventData
 {
     swDataHead info;
     char data[SW_IPC_BUFFER_SIZE];
-} swEventData;
-
-typedef struct
-{
-    swDataHead info;
-    char data[0];
-} swPipeBuffer;
-
-typedef struct _swDgramPacket
-{
-    int socket_type;
-    swSocketAddress socket_addr;
-    uint32_t length;
-    char data[0];
-} swDgramPacket;
-
-typedef struct _swSendData
-{
-    swDataHead info;
-    const char *data;
-} swSendData;
-
-typedef struct
-{
-    off_t offset;
-    size_t length;
-    char filename[0];
-} swSendFile_request;
+};
 
 typedef void (*swSignalHandler)(int);
 
 typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
-//------------------Lock--------------------------------------
-enum SW_LOCKS
-{
-    SW_RWLOCK = 1,
-    SW_FILELOCK = 2,
-    SW_MUTEX = 3,
-    SW_SEM = 4,
-    SW_SPINLOCK = 5,
-    SW_ATOMLOCK = 6,
-};
 
 enum swDNSLookup_cache_type
 {
     SW_DNS_LOOKUP_RANDOM  = (1u << 11),
 };
 
-typedef struct
+struct swRequest_getaddrinfo
 {
     const char *hostname;
     const char *service;
@@ -874,96 +825,8 @@ typedef struct
     int error;
     void *result;
     int count;
-} swRequest_getaddrinfo;
+};
 
-
-#define SW_SHM_MMAP_FILE_LEN  64
-
-typedef struct _swShareMemory_mmap
-{
-    size_t size;
-    char mapfile[SW_SHM_MMAP_FILE_LEN];
-    int tmpfd;
-    int key;
-    int shmid;
-    void *mem;
-} swShareMemory;
-
-void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile);
-int swShareMemory_mmap_free(swShareMemory *object);
-
-//-------------------memory manager-------------------------
-typedef struct _swMemoryPool
-{
-    void *object;
-    void* (*alloc)(struct _swMemoryPool *pool, uint32_t size);
-    void (*free)(struct _swMemoryPool *pool, void *ptr);
-    void (*destroy)(struct _swMemoryPool *pool);
-} swMemoryPool;
-
-typedef struct _swFixedPool_slice
-{
-    uint8_t lock;
-    struct _swFixedPool_slice *next;
-    struct _swFixedPool_slice *pre;
-    char data[0];
-} swFixedPool_slice;
-
-typedef struct _swFixedPool
-{
-    void *memory;
-    size_t size;
-
-    swFixedPool_slice *head;
-    swFixedPool_slice *tail;
-
-    /**
-     * total memory size
-     */
-    uint32_t slice_num;
-
-    /**
-     * memory usage
-     */
-    uint32_t slice_use;
-
-    /**
-     * Fixed slice size, not include the memory used by swFixedPool_slice
-     */
-    uint32_t slice_size;
-
-    /**
-     * use shared memory
-     */
-    uint8_t shared;
-
-} swFixedPool;
-/**
- * FixedPool, random alloc/free fixed size memory
- */
-swMemoryPool *swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
-swMemoryPool *swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
-
-/**
- * RingBuffer, In order for malloc / free
- */
-swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared);
-
-/**
- * Global memory, the program life cycle only malloc / free one time
- */
-swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared);
-
-void swFixedPool_debug(swMemoryPool *pool);
-
-/**
- * alloc shared memory
- */
-void *sw_shm_malloc(size_t size);
-void sw_shm_free(void *ptr);
-void *sw_shm_calloc(size_t num, size_t _size);
-int sw_shm_protect(void *addr, int flags);
-void *sw_shm_realloc(void *ptr, size_t new_size);
 
 #ifdef __MACH__
 char *sw_error_();
@@ -1303,15 +1166,6 @@ protected:
 };
 }
 
-
-typedef struct
-{
-    swSocket *socket;
-    swSocket *last_connection;
-    char *socket_file;
-    swString *response_buffer;
-} swStreamInfo;
-
 //--------------------------------protocol------------------------------
 ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t size);
 int swProtocol_recv_check_length(swProtocol *protocol, swSocket *socket, swString *buffer);
@@ -1347,7 +1201,7 @@ struct swTimer_node
 
 //--------------------------------------------------------------
 
-typedef struct
+struct swThreadGlobal_t
 {
     uint16_t id;
     uint8_t type;
@@ -1367,18 +1221,9 @@ typedef struct
 #ifdef SW_AIO_WRITE_LOCK
     swLock aio_lock;
 #endif
-} swThreadGlobal_t;
+};
 
-typedef struct
-{
-    union
-    {
-        char v4[INET_ADDRSTRLEN];
-        char v6[INET6_ADDRSTRLEN];
-    } address;
-} swDNS_server;
-
-typedef struct
+struct swGlobal_t
 {
     uchar init :1;
     uchar running :1;
@@ -1439,7 +1284,7 @@ typedef struct
     std::unordered_map<std::string, void*> *functions;
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
-} swGlobal_t;
+} ;
 
 extern swGlobal_t SwooleG;              //Local Global Variable
 extern thread_local swThreadGlobal_t SwooleTG;   //Thread Global Variable
