@@ -4,6 +4,11 @@
  * ./bin/test_server
  */
 #include "server.h"
+#include "swoole_log.h"
+
+using namespace swoole;
+
+Log logger;
 
 int my_onPacket(swServer *serv, swEventData *req);
 int my_onReceive(swServer *serv, swEventData *req);
@@ -20,8 +25,8 @@ int main(int argc, char **argv)
 {
     swoole_init();
 
-    swLog_set_date_format("%F %T");
-    swLog_set_date_with_microseconds(true);
+    logger.set_date_format("%F %T");
+    logger.set_date_with_microseconds(true);
 
     swServer serv;
 
