@@ -80,7 +80,7 @@ public:
 };
 }
 
-extern swoole::Log swLog_G;;
+extern swoole::Log swLog_G;
 
 #define swInfo(str,...) \
     if (SW_LOG_INFO >= swLog_G.get_level()) { \

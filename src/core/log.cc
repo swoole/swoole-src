@@ -20,9 +20,9 @@
 #include <string>
 #include <chrono>
 
-namespace swoole {
+swoole::Log swLog_G;
 
-Log swLog_G;
+namespace swoole {
 
 int Log::open(const char *_log_file)
 {
