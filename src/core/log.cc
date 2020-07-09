@@ -20,84 +20,64 @@
 #include <string>
 #include <chrono>
 
-#define SW_LOG_BUFFER_SIZE  (SW_ERROR_MSG_SIZE+256)
-#define SW_LOG_DATE_STRLEN  128
-#define SW_LOG_DEFAULT_DATE_FORMAT  "%F %T"
+namespace swoole {
 
-static struct
+Log swLog_G;
+
+int Log::open(const char *_log_file)
 {
-    bool opened = false;
-    /**
-     * Redirect stdin and stdout to log_fd
-     */
-    bool redirected = false;
-    int stdout_fd = -1;
-    int stderr_fd = -1;
-    int log_fd = STDOUT_FILENO;
-    int log_level = SW_LOG_INFO;
-    bool date_with_microseconds = false;
-    std::string date_format = SW_LOG_DEFAULT_DATE_FORMAT;
-    std::string log_file = "";
-    std::string log_real_file;
-    int log_rotation = SW_LOG_ROTATION_SINGLE;
-} swLog_G;
-
-static std::string swLog_gen_real_file(const std::string &file);
-
-int swLog_open(const char *_log_file)
-{
-    if (swLog_G.opened)
+    if (opened)
     {
-        swLog_close();
+        close();
     }
 
-    swLog_G.log_file = _log_file;
+    log_file = _log_file;
 
-    if (swLog_G.log_rotation)
+    if (log_rotation)
     {
-        swLog_G.log_real_file = swLog_gen_real_file(swLog_G.log_file);
+        log_real_file = gen_real_file(log_file);
     }
     else
     {
-        swLog_G.log_real_file = swLog_G.log_file;
+        log_real_file = log_file;
     }
 
-    swLog_G.log_fd = open(swLog_G.log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
-    if (swLog_G.log_fd < 0)
+    log_fd = ::open(log_real_file.c_str(), O_APPEND | O_RDWR | O_CREAT, 0666);
+    if (log_fd < 0)
     {
-        printf("open(%s) failed. Error: %s[%d]\n", swLog_G.log_real_file.c_str(), strerror(errno), errno);
-        swLog_G.log_fd = STDOUT_FILENO;
-        swLog_G.opened = false;
-        swLog_G.log_file = "";
-        swLog_G.log_real_file = "";
+        printf("open(%s) failed. Error: %s[%d]\n", log_real_file.c_str(), strerror(errno), errno);
+        log_fd = STDOUT_FILENO;
+        opened = false;
+        log_file = "";
+        log_real_file = "";
 
         return SW_ERR;
     }
     else
     {
-        swLog_G.opened = true;
+        opened = true;
 
         return SW_OK;
     }
 }
 
-void swLog_close(void)
+void Log::close(void)
 {
-    if (swLog_G.opened)
+    if (opened)
     {
-        close(swLog_G.log_fd);
-        swLog_G.log_fd = STDOUT_FILENO;
-        swLog_G.log_file = "";
-        swLog_G.opened = false;
+        ::close(log_fd);
+        log_fd = STDOUT_FILENO;
+        log_file = "";
+        opened = false;
     }
 }
 
-int swLog_get_level()
+int Log::get_level()
 {
-    return swLog_G.log_level;
+    return log_level;
 }
 
-void swLog_set_level(int level)
+void Log::set_level(int level)
 {
     if (level < SW_LOG_DEBUG)
     {
@@ -107,80 +87,80 @@ void swLog_set_level(int level)
     {
         level = SW_LOG_NONE;
     }
-    swLog_G.log_level = level;
+    log_level = level;
 }
 
-void swLog_set_rotation(int _rotation)
+void Log::set_rotation(int _rotation)
 {
-    swLog_G.log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
+    log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
 }
 
-int swLog_redirect_stdout_and_stderr(bool enable)
+int Log::redirect_stdout_and_stderr(int enable)
 {
     if (enable)
     {
-        if (!swLog_G.opened)
+        if (!opened)
         {
             swWarn("no log file opened");
             return SW_ERR;
         }
-        if (swLog_G.redirected)
+        if (redirected)
         {
             swWarn("has been redirected");
             return SW_ERR;
         }
-        if ((swLog_G.stdout_fd = dup(STDOUT_FILENO)) < 0)
+        if ((stdout_fd = dup(STDOUT_FILENO)) < 0)
         {
             swSysWarn("dup(STDOUT_FILENO) failed");
             return SW_ERR;
         }
-        if ((swLog_G.stderr_fd = dup(STDERR_FILENO)) < 0)
+        if ((stderr_fd = dup(STDERR_FILENO)) < 0)
         {
             swSysWarn("dup(STDERR_FILENO) failed");
             return SW_ERR;
         }
-        swoole_redirect_stdout(swLog_G.log_fd);
-        swLog_G.redirected = true;
+        swoole_redirect_stdout(log_fd);
+        redirected = true;
     }
     else
     {
-        if (!swLog_G.redirected)
+        if (!redirected)
         {
             swWarn("no redirected");
             return SW_ERR;
         }
-        if (dup2(swLog_G.stdout_fd, STDOUT_FILENO) < 0)
+        if (dup2(stdout_fd, STDOUT_FILENO) < 0)
         {
             swSysWarn("dup2(STDOUT_FILENO) failed");
         }
-        if (dup2(swLog_G.stderr_fd, STDERR_FILENO) < 0)
+        if (dup2(stderr_fd, STDERR_FILENO) < 0)
         {
             swSysWarn("dup2(STDERR_FILENO) failed");
         }
-        close(swLog_G.stdout_fd);
-        close(swLog_G.stderr_fd);
-        swLog_G.stdout_fd = -1;
-        swLog_G.stderr_fd = -1;
-        swLog_G.redirected = false;
+        ::close(stdout_fd);
+        ::close(stderr_fd);
+        stdout_fd = -1;
+        stderr_fd = -1;
+        redirected = false;
     }
 
     return SW_OK;
 }
 
-void swLog_reset()
+void Log::reset()
 {
-    swLog_G.date_format = SW_LOG_DEFAULT_DATE_FORMAT;
-    swLog_G.date_with_microseconds = false;
-    swLog_G.log_rotation = SW_LOG_ROTATION_SINGLE;
-    swLog_G.log_level = SW_LOG_INFO;
+    date_format = SW_LOG_DEFAULT_DATE_FORMAT;
+    date_with_microseconds = false;
+    log_rotation = SW_LOG_ROTATION_SINGLE;
+    log_level = SW_LOG_INFO;
 }
 
-int swLog_set_date_format(const char *format)
+int Log::set_date_format(const char *format)
 {
     char date_str[SW_LOG_DATE_STRLEN];
     time_t now_sec;
 
-    now_sec = time(nullptr);
+    now_sec = ::time(nullptr);
     size_t l_data_str = std::strftime(date_str, sizeof(date_str), format, std::localtime(&now_sec));
 
     if (l_data_str == 0)
@@ -193,72 +173,72 @@ int swLog_set_date_format(const char *format)
     }
     else
     {
-        swLog_G.date_format = format;
+        date_format = format;
 
         return SW_OK;
     }
 }
 
-void swLog_set_date_with_microseconds(bool enable)
+void Log::set_date_with_microseconds(uchar enable)
 {
-    swLog_G.date_with_microseconds = enable;
+    date_with_microseconds = enable;
 }
 
 /**
  * reopen log file
  */
-void swLog_reopen()
+void Log::reopen()
 {
-    if (!swLog_G.opened)
+    if (!opened)
     {
         return;
     }
 
-    std::string new_log_file(swLog_G.log_file);
-    swLog_close();
-    swLog_open(new_log_file.c_str());
+    std::string new_log_file(log_file);
+    close();
+    open(new_log_file.c_str());
     /**
      * redirect STDOUT & STDERR to log file
      */
-    if (swLog_G.redirected)
+    if (redirected)
     {
-        swoole_redirect_stdout(swLog_G.log_fd);
+        swoole_redirect_stdout(log_fd);
     }
 }
 
-const char* swLog_get_real_file()
+const char* Log::get_real_file()
 {
-    return swLog_G.log_real_file.c_str();
+    return log_real_file.c_str();
 }
 
-const char* swLog_get_file()
+const char* Log::get_file()
 {
-    return swLog_G.log_file.c_str();
+    return log_file.c_str();
 }
 
-static std::string swLog_gen_real_file(const std::string &file)
+std::string Log::gen_real_file(const std::string &file)
 {
     char date_str[16];
-    auto now_sec = time(nullptr);
+    auto now_sec = ::time(nullptr);
     size_t l_data_str = std::strftime(date_str, sizeof(date_str), "%Y%m%d", std::localtime(&now_sec));
     std::string real_file = file + "." + std::string(date_str, l_data_str);
 
     return real_file;
 }
 
-int swLog_is_opened()
+int Log::is_opened()
 {
-    return swLog_G.opened;
+    return opened;
 }
 
-void swLog_put(int level, const char *content, size_t length)
+void Log::put(int level, const char *content, size_t length)
 {
     const char *level_str;
     char date_str[SW_LOG_DATE_STRLEN];
     char log_str[SW_LOG_BUFFER_SIZE];
     int n;
 
-    if (level < swLog_G.log_level)
+    if (level < log_level)
     {
         return;
     }
@@ -288,18 +268,18 @@ void swLog_put(int level, const char *content, size_t length)
 
     auto now = std::chrono::system_clock::now();
     auto now_sec = std::chrono::system_clock::to_time_t(now);
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), swLog_G.date_format.c_str(), std::localtime(&now_sec));
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), date_format.c_str(), std::localtime(&now_sec));
 
-    if (swLog_G.log_rotation)
+    if (log_rotation)
     {
-        std::string tmp = swLog_gen_real_file(swLog_G.log_file);
-        if (tmp != swLog_G.log_real_file)
+        std::string tmp = gen_real_file(log_file);
+        if (tmp != log_real_file)
         {
-            swLog_reopen();
+            reopen();
         }
     }
 
-    if (swLog_G.date_with_microseconds)
+    if (date_with_microseconds)
     {
         auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
         l_data_str += sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%ld>",
@@ -332,17 +312,18 @@ void swLog_put(int level, const char *content, size_t length)
 
     n = sw_snprintf(log_str, SW_LOG_BUFFER_SIZE, "[%.*s %c%d.%d]\t%s\t%.*s\n", (int) l_data_str, date_str, process_flag, SwooleG.pid, process_id, level_str, (int) length, content);
 
-    if (swLog_G.opened && flock(swLog_G.log_fd, LOCK_EX) == -1)
+    if (opened && flock(log_fd, LOCK_EX) == -1)
     {
-        printf("flock(%d, LOCK_EX) failed. Error: %s[%d]\n", swLog_G.log_fd, strerror(errno), errno);
+        printf("flock(%d, LOCK_EX) failed. Error: %s[%d]\n", log_fd, strerror(errno), errno);
         goto _print;
     }
-    if (write(swLog_G.log_fd, log_str, n) < 0)
+    if (write(log_fd, log_str, n) < 0)
     {
-        _print: printf("write(log_fd=%d, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", swLog_G.log_fd, n, strerror(errno), errno, n, log_str);
+        _print: printf("write(log_fd=%d, size=%d) failed. Error: %s[%d].\nMessage: %.*s\n", log_fd, n, strerror(errno), errno, n, log_str);
     }
-    if (swLog_G.opened && flock(swLog_G.log_fd, LOCK_UN) == -1)
+    if (opened && flock(log_fd, LOCK_UN) == -1)
     {
-        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", swLog_G.log_fd, strerror(errno), errno);
+        printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", log_fd, strerror(errno), errno);
     }
+}
 }

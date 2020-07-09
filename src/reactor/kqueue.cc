@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "swoole_reactor.h"
 #include "swoole_signal.h"
+#include "swoole_log.h"
 
 #ifdef IDE_HELPER
 #ifdef HAVE_KQUEUE

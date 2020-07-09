@@ -18,6 +18,7 @@
 
 #include "swoole.h"
 #include "swoole_string.h"
+#include "swoole_log.h"
 #include "async.h"
 
 #include <sys/file.h>

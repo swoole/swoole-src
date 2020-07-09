@@ -19,6 +19,7 @@
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
+#include "swoole_log.h"
 #include "client.h"
 #include "proxy.h"
 #include "async.h"

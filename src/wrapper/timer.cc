@@ -16,6 +16,7 @@
 
 #include "swoole_api.h"
 #include "swoole_timer.h"
+#include "swoole_log.h"
 
 using namespace std;
 using namespace swoole;

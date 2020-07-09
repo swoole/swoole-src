@@ -16,6 +16,7 @@
 
 #include "server.h"
 #include "swoole_memory.h"
+#include "swoole_log.h"
 #include "http.h"
 #include "lock.h"
 
@@ -688,9 +689,9 @@ int Server::start()
         /**
          * redirect STDOUT to log file
          */
-        if (swLog_is_opened())
+        if (swLog_G.is_opened())
         {
-            swLog_redirect_stdout_and_stderr(1);
+            swLog_G.redirect_stdout_and_stderr(1);
         }
         /**
          * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
@@ -1862,7 +1863,7 @@ static void swServer_signal_handler(int sig)
         {
             swoole_kill(serv->gs->manager_pid, sig);
         }
-        swLog_reopen();
+        swLog_G.reopen();
         break;
     default:
 
@@ -1880,7 +1881,7 @@ static void swServer_signal_handler(int sig)
             {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
-            swLog_reopen();
+            swLog_G.reopen();
         }
 #endif
         break;

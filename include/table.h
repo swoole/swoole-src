@@ -19,6 +19,7 @@
 #include "swoole.h"
 #include "swoole_memory.h"
 #include "swoole_util.h"
+#include "swoole_log.h"
 #include "lock.h"
 #include "atomic.h"
 #include "hash.h"

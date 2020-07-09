@@ -18,6 +18,7 @@
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
 #include "swoole_util.h"
+#include "swoole_log.h"
 
 #if !defined( HAVE_CLOCK_GETTIME) && defined(__MACH__)
 #include <mach/clock.h>

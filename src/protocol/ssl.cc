@@ -17,6 +17,7 @@
 #include "swoole.h"
 #include "swoole_string.h"
 #include "swoole_socket.h"
+#include "swoole_log.h"
 #include "ssl.h"
 
 #ifdef SW_USE_OPENSSL

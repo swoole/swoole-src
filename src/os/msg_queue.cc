@@ -15,6 +15,7 @@
 */
 
 #include "msg_queue.h"
+#include "swoole_log.h"
 
 #include <sys/types.h>
 #include <sys/ipc.h>
