@@ -8,8 +8,6 @@
 
 using namespace swoole;
 
-static Log logger;
-
 int my_onPacket(swServer *serv, swEventData *req);
 int my_onReceive(swServer *serv, swEventData *req);
 void my_onStart(swServer *serv);
@@ -25,8 +23,8 @@ int main(int argc, char **argv)
 {
     swoole_init();
 
-    logger.set_date_format("%F %T");
-    logger.set_date_with_microseconds(true);
+    sw_logger().set_date_format("%F %T");
+    sw_logger().set_date_with_microseconds(true);
 
     swServer serv;
 

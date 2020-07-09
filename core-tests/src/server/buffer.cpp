@@ -24,8 +24,6 @@
 using namespace std;
 using namespace swoole;
 
-static Log logger;
-
 static const char *packet = "hello world\n";
 
 TEST(server, send_buffer)
@@ -33,7 +31,7 @@ TEST(server, send_buffer)
     swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
 
-    logger.set_level(SW_LOG_WARNING);
+    sw_logger().set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
