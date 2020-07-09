@@ -15,6 +15,7 @@
  */
 
 #include "wrapper/server.hpp"
+#include "lock.h"
 #include <sys/stat.h>
 
 namespace swoole { namespace wrapper {

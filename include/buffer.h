@@ -16,7 +16,7 @@
 
 #pragma once
 
-enum swBufferChunk
+enum swBuffer_chunk_type
 {
     SW_CHUNK_DATA,
     SW_CHUNK_SENDFILE,

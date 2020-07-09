@@ -19,6 +19,7 @@
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
+#include "swoole_protocol.h"
 #include "swoole_log.h"
 #include "client.h"
 #include "proxy.h"
@@ -36,9 +37,9 @@ static int swClient_udp_send(swClient *cli, const char *data, size_t length, int
 
 static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t offset, size_t length);
 static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_t offset, size_t length);
-static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flags);
+static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, uint32_t len, int flags);
 static int swClient_udp_connect(swClient *cli, const char *host, int port, double _timeout, int udp_connect);
-static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
+static int swClient_udp_recv(swClient *cli, char *data, uint32_t len, int waitall);
 static int swClient_close(swClient *cli);
 
 static int swClient_onDgramRead(swReactor *reactor, swEvent *event);
@@ -817,7 +818,7 @@ static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_
 /**
  * Only for synchronous client
  */
-static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flag)
+static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, uint32_t len, int flag)
 {
     int ret;
 
@@ -983,7 +984,7 @@ static int swClient_udp_send(swClient *cli, const char *data, size_t len, int fl
     }
 }
 
-static int swClient_udp_recv(swClient *cli, char *data, int length, int flags)
+static int swClient_udp_recv(swClient *cli, char *data, uint32_t length, int flags)
 {
 #ifdef HAVE_KQUEUE
     if (!cli->async)

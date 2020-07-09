@@ -24,7 +24,7 @@
 
 namespace swoole {
 
-enum ChannelFlag
+enum Channel_flag
 {
     SW_CHAN_LOCK     = 1u << 1,
     SW_CHAN_NOTIFY   = 1u << 2,

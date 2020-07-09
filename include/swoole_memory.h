@@ -19,18 +19,6 @@
 
 #include "swoole.h"
 
-#define SW_SHM_MMAP_FILE_LEN  64
-
-struct swShareMemory {
-    size_t size;
-    char mapfile[SW_SHM_MMAP_FILE_LEN];
-    int tmpfd;
-    void *mem;
-};
-
-void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile);
-int swShareMemory_mmap_free(swShareMemory *object);
-
 //-------------------memory manager-------------------------
 struct swMemoryPool {
     void *object;

@@ -33,6 +33,10 @@
 #include "dtls.h"
 #endif
 
+#ifdef __MACH__
+#include <sys/syslimits.h>
+#endif
+
 #include <string>
 #include <queue>
 #include <thread>

@@ -118,7 +118,7 @@ struct swClient
     int (*connect)(swClient *cli, const char *host, int port, double _timeout, int sock_flag);
     int (*send)(swClient *cli, const char *data, size_t length, int flags);
     int (*sendfile)(swClient *cli, const char *filename, off_t offset, size_t length);
-    int (*recv)(swClient *cli, char *data, int len, int flags);
+    int (*recv)(swClient *cli, char *data, uint32_t len, int flags);
     int (*close)(swClient *cli);
 };
 

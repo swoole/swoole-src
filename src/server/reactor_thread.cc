@@ -18,6 +18,7 @@
 #include "swoole_memory.h"
 #include "thread_pool.h"
 #include "hash.h"
+#include "http.h"
 #include "client.h"
 #include "websocket.h"
 

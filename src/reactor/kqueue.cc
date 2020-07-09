@@ -15,6 +15,7 @@
  */
 
 #include "swoole.h"
+#include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "swoole_signal.h"
 #include "swoole_log.h"
@@ -35,12 +36,11 @@
 
 #ifdef HAVE_KQUEUE
 
-typedef struct
-{
+struct swReactorKqueue {
     int epfd;
     int event_max;
     struct kevent *events;
-} swReactorKqueue;
+};
 
 static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events);
 static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events);
