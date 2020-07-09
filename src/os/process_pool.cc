@@ -17,6 +17,8 @@
 #include "swoole_api.h"
 #include "swoole_memory.h"
 #include "swoole_signal.h"
+#include "swoole_socket.h"
+#include "swoole_string.h"
 #include "msg_queue.h"
 #include "pipe.h"
 #include "server.h"

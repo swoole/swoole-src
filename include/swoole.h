@@ -622,6 +622,7 @@ struct swDataHead
 #ifdef SW_BUFFER_RECV_TIME
     double time;
 #endif
+    size_t dump(char *buf, size_t len);
 };
 
 struct swEventData
@@ -630,7 +631,6 @@ struct swEventData
     char data[SW_IPC_BUFFER_SIZE];
 };
 
-void swDataHead_dump(const swDataHead *data);
 
 #define swTask_type(task)                  ((task)->info.server_fd)
 
@@ -676,7 +676,6 @@ struct swRequest_getaddrinfo
     int count;
 };
 
-
 #ifdef __MACH__
 char *sw_error_();
 #define sw_error     sw_error_()
@@ -691,14 +690,6 @@ enum swProcess_type
     SW_PROCESS_MANAGER    = 3,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
-};
-
-enum swIPC_type
-{
-    SW_IPC_NONE     = 0,
-    SW_IPC_UNIXSOCK = 1,
-    SW_IPC_MSGQUEUE = 2,
-    SW_IPC_SOCKET   = 3,
 };
 
 enum swPipe_type
@@ -717,12 +708,8 @@ enum swPipe_type
 #define swIsUserWorker()      (SwooleG.process_type==SW_PROCESS_USERWORKER)
 
 //----------------------Tool Function---------------------
-uint64_t swoole_hash_key(const char *str, int str_len);
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
-
-extern void swoole_sha1(const char *str, int _len, uchar *digest);
-extern void swoole_sha256(const char *str, int _len, uchar *digest);
 
 static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
 {
@@ -787,10 +774,6 @@ static inline void swoole_strtolower(char *str, int length)
 }
 
 int swoole_itoa(char *buf, long value);
-void swoole_dump_ascii(const char *data, size_t size);
-void swoole_dump_bin(const char *data, char type, size_t size);
-void swoole_dump_hex(const char *data, size_t outlen);
-int swoole_type_size(char type);
 int swoole_mkdir_recursive(const char *dir);
 char* swoole_dirname(char *file);
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
@@ -803,8 +786,6 @@ int swoole_tmpfile(char *filename);
 swString *swoole_file_get_contents(const char *filename);
 int swoole_file_put_contents(const char *filename, const char *content, size_t length);
 long swoole_file_size(const char *filename);
-char *swoole_dec2hex(int value, int base);
-size_t swoole_hex2dec(char** hex);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);

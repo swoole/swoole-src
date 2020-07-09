@@ -754,7 +754,7 @@ int swHttpRequest_get_chunked_body_length(swHttpRequest *request)
             return SW_ERR;
         }
         char *head = p;
-        size_t chunk_length = swoole_hex2dec(&head);
+        size_t chunk_length = swoole_hex2dec(head);
         if (*head != '\r')
         {
             request->excepted = 1;

@@ -618,6 +618,9 @@ static sw_inline int php_swoole_array_length_safe(zval *zarray)
     }
 }
 
+void php_swoole_sha1(const char *str, int _len, uchar *digest);
+void php_swoole_sha256(const char *str, int _len, uchar *digest);
+
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val); \

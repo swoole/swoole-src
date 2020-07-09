@@ -149,6 +149,13 @@ static sw_inline uint64_t swoole_ntoh64(uint64_t net)
     return ret;
 }
 
+void swoole_dump_ascii(const char *data, size_t size);
+void swoole_dump_bin(const char *data, char type, size_t size);
+void swoole_dump_hex(const char *data, size_t outlen);
+char *swoole_dec2hex(ulong_t value, int base);
+ulong_t swoole_hex2dec(const char *hex);
+int swoole_type_size(char type);
+
 ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t size);
 int swProtocol_recv_check_length(swProtocol *protocol, swSocket *socket, swString *buffer);
 int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *buffer);

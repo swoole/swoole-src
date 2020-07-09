@@ -29,6 +29,14 @@ enum swWorker_status
     SW_WORKER_IDLE = 2,
 };
 
+enum swIPC_type
+{
+    SW_IPC_NONE     = 0,
+    SW_IPC_UNIXSOCK = 1,
+    SW_IPC_MSGQUEUE = 2,
+    SW_IPC_SOCKET   = 3,
+};
+
 struct swWorker
 {
     /**

@@ -20,6 +20,7 @@
 
 #include "swoole_server.h"
 #include "swoole_http.h"
+#include "http.h"
 #include "websocket.h"
 
 int swoole_websocket_onMessage(swServer *serv, swEventData *req);

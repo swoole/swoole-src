@@ -616,7 +616,7 @@ static const zend_function_entry swoole_mysql_coro_statement_methods[] =
     PHP_FE_END
 };
 
-void swoole_sha256(const char *str, int len, unsigned char *digest)
+void php_swoole_sha256(const char *str, int len, unsigned char *digest)
 {
     PHP_SHA256_CTX context;
     PHP_SHA256Init(&context);

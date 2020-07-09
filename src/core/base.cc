@@ -14,6 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
+#include "swoole.h"
 #include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_signal.h"
@@ -37,6 +38,10 @@
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
+#endif
+
+#ifdef __MACH__
+#include <sys/syslimits.h>
 #endif
 
 #ifdef HAVE_GETRANDOM
@@ -180,7 +185,7 @@ void swoole_init(void)
 #endif
 }
 
-SW_API const char* swoole_version(void)
+SW_API const char *swoole_version(void)
 {
     return SWOOLE_VERSION;
 }
@@ -288,18 +293,6 @@ pid_t swoole_fork(int flags)
     }
 
     return pid;
-}
-
-uint64_t swoole_hash_key(const char *str, int str_len)
-{
-    uint64_t hash = 5381;
-    int c, i = 0;
-    for (c = *str++; i < str_len; i++)
-    {
-        hash = (*((hash * 33) + str)) & 0x7fffffff;
-        hash = ((hash << 5) + hash) + c;
-    }
-    return hash;
 }
 
 void swoole_dump_ascii(const char *data, size_t size)
@@ -438,12 +431,12 @@ int swoole_type_size(char type)
     }
 }
 
-char *swoole_dec2hex(int value, int base)
+char *swoole_dec2hex(ulong_t value, int base)
 {
     assert(base > 1 && base < 37);
 
     static char digits[] = "0123456789abcdefghijklmnopqrstuvwxyz";
-    char buf[(sizeof(unsigned long) << 3) + 1];
+    char buf[(sizeof(ulong_t) << 3) + 1];
     char *ptr, *end;
 
     end = ptr = buf + sizeof(buf) - 1;
@@ -458,12 +451,16 @@ char *swoole_dec2hex(int value, int base)
     return sw_strndup(ptr, end - ptr);
 }
 
-size_t swoole_hex2dec(char** hex)
+ulong_t swoole_hex2dec(const char *hex)
 {
     size_t value = 0;
+    if (strncasecmp(hex, "0x", 2) == 0)
+    {
+        hex += 2;
+    }
     while (1)
     {
-        char c = **hex;
+        char c = *hex;
         if ((c >= '0') && (c <= '9'))
         {
             value = value * 16 + (c - '0');
@@ -480,7 +477,7 @@ size_t swoole_hex2dec(char** hex)
                 break;
             }
         }
-        (*hex)++;
+        hex++;
     }
     return value;
 }
@@ -1622,9 +1619,9 @@ static void swoole_fatal_error(int code, const char *format, ...)
     exit(1);
 }
 
-void swDataHead_dump(const swDataHead *data)
+size_t swDataHead::dump(char *_buf, size_t _len)
 {
-    printf("swDataHead[%p]\n"
+    return sw_snprintf(_buf, _len, "swDataHead[%p]\n"
             "{\n"
             "    int fd = %d;\n"
             "    uint32_t len = %d;\n"
@@ -1632,7 +1629,7 @@ void swDataHead_dump(const swDataHead *data)
             "    uint8_t type = %d;\n"
             "    uint8_t flags = %d;\n"
             "    uint16_t server_fd = %d;\n"
-            "}\n", data, data->fd, data->len, data->reactor_id, data->type, data->flags, data->server_fd);
+            "}\n", this, fd, len, reactor_id, type, flags, server_fd);
 }
 
 /**
