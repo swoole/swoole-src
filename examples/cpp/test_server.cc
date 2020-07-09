@@ -53,7 +53,7 @@ int main(int argc, char **argv)
     serv.onWorkerStart = my_onWorkerStart;
     serv.onWorkerStop = my_onWorkerStop;
 
-    // swSignal_add(SIGINT, user_signal);
+    // swSignal_set(SIGINT, user_signal);
 
     if (serv.create())
     {

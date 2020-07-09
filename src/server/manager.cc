@@ -307,17 +307,17 @@ static int swManager_loop(swServer *serv)
     }
 
     //for reload
-    swSignal_add(SIGHUP, nullptr);
-    swSignal_add(SIGCHLD, swManager_signal_handler);
-    swSignal_add(SIGTERM, swManager_signal_handler);
-    swSignal_add(SIGUSR1, swManager_signal_handler);
-    swSignal_add(SIGUSR2, swManager_signal_handler);
-    swSignal_add(SIGIO, swManager_signal_handler);
-    swSignal_add(SIGALRM, swManager_signal_handler);
+    swSignal_set(SIGHUP, nullptr);
+    swSignal_set(SIGCHLD, swManager_signal_handler);
+    swSignal_set(SIGTERM, swManager_signal_handler);
+    swSignal_set(SIGUSR1, swManager_signal_handler);
+    swSignal_set(SIGUSR2, swManager_signal_handler);
+    swSignal_set(SIGIO, swManager_signal_handler);
+    swSignal_set(SIGALRM, swManager_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swManager_signal_handler);
+    swSignal_set(SIGRTMIN, swManager_signal_handler);
 #endif
-    //swSignal_add(SIGINT, swManager_signal_handler);
+    //swSignal_set(SIGINT, swManager_signal_handler);
 #ifdef __linux__
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 #endif

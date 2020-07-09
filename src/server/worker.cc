@@ -42,16 +42,16 @@ void swWorker_signal_init(void)
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_add(SIGHUP, nullptr);
-    swSignal_add(SIGPIPE, nullptr);
-    swSignal_add(SIGUSR1, nullptr);
-    swSignal_add(SIGUSR2, nullptr);
-    //swSignal_add(SIGINT, swWorker_signal_handler);
-    swSignal_add(SIGTERM, swWorker_signal_handler);
+    swSignal_set(SIGHUP, nullptr);
+    swSignal_set(SIGPIPE, nullptr);
+    swSignal_set(SIGUSR1, nullptr);
+    swSignal_set(SIGUSR2, nullptr);
+    //swSignal_set(SIGINT, swWorker_signal_handler);
+    swSignal_set(SIGTERM, swWorker_signal_handler);
     //for test
-    swSignal_add(SIGVTALRM, swWorker_signal_handler);
+    swSignal_set(SIGVTALRM, swWorker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swWorker_signal_handler);
+    swSignal_set(SIGRTMIN, swWorker_signal_handler);
 #endif
 }
 

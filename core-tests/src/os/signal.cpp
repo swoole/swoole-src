@@ -20,7 +20,7 @@ TEST(os_signal, swSignalfd_set)
     ASSERT_EQ(ret, 0);
 
     swSignalfd_init();
-    swSignal_add(SIGUSR1,sig_usr1);
+    swSignal_set(SIGUSR1,sig_usr1);
     swSignalfd_setup(SwooleTG.reactor);
 
     sigemptyset(&curset);
@@ -28,7 +28,7 @@ TEST(os_signal, swSignalfd_set)
     ret = sigismember(&curset,SIGUSR1);
     ASSERT_EQ(ret, 1);
 
-    swSignal_add(SIGUSR1, NULL);
+    swSignal_set(SIGUSR1, NULL);
     swSignal_clear();
 
     sigemptyset(&curset);

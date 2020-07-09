@@ -569,9 +569,9 @@ static PHP_METHOD(swoole_process_pool, start)
 
     SwooleG.use_signalfd = 0;
 
-    swSignal_add(SIGTERM, pool_signal_handler);
-    swSignal_add(SIGUSR1, pool_signal_handler);
-    swSignal_add(SIGUSR2, pool_signal_handler);
+    swSignal_set(SIGTERM, pool_signal_handler);
+    swSignal_set(SIGUSR1, pool_signal_handler);
+    swSignal_set(SIGUSR2, pool_signal_handler);
 
     if (pool->ipc_mode == SW_IPC_NONE || pp->enable_coroutine)
     {

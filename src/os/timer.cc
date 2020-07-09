@@ -34,7 +34,7 @@ int swSystemTimer_init(swTimer *timer, long interval)
     {
         return SW_ERR;
     }
-    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
+    swSignal_set(SIGALRM, swSystemTimer_signal_handler);
     return SW_OK;
 }
 

@@ -123,13 +123,13 @@ static void swTaskWorker_signal_init(swProcessPool *pool)
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_add(SIGHUP, nullptr);
-    swSignal_add(SIGPIPE, nullptr);
-    swSignal_add(SIGUSR1, swWorker_signal_handler);
-    swSignal_add(SIGUSR2, nullptr);
-    swSignal_add(SIGTERM, swWorker_signal_handler);
+    swSignal_set(SIGHUP, nullptr);
+    swSignal_set(SIGPIPE, nullptr);
+    swSignal_set(SIGUSR1, swWorker_signal_handler);
+    swSignal_set(SIGUSR2, nullptr);
+    swSignal_set(SIGTERM, swWorker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swWorker_signal_handler);
+    swSignal_set(SIGRTMIN, swWorker_signal_handler);
 #endif
 }
 
