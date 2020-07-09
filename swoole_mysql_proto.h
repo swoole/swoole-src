@@ -301,7 +301,7 @@ enum sw_mysql_server_status_flags
 
 #if defined(SW_DEBUG) && defined(SW_LOG_TRACE_OPEN)
 #define swMysqlPacketDump(length, number, data, title) \
-    if (SW_LOG_TRACE >= swLog_G.get_level() && (SW_TRACE_MYSQL_CLIENT & SwooleG.trace_flags)) \
+    if (SW_LOG_TRACE >= sw_logger().get_level() && (SW_TRACE_MYSQL_CLIENT & SwooleG.trace_flags)) \
     { \
         swDebug("+----------+------------+-------------------------------------------------------+"); \
         swDebug("| P#%-6u | L%-9u | %-10u %42s |", number, SW_MYSQL_PACKET_HEADER_SIZE + length, length, title); \

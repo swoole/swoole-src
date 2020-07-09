@@ -689,9 +689,9 @@ int Server::start()
         /**
          * redirect STDOUT to log file
          */
-        if (swLog_G.is_opened())
+        if (sw_logger().is_opened())
         {
-            swLog_G.redirect_stdout_and_stderr(1);
+            sw_logger().redirect_stdout_and_stderr(1);
         }
         /**
          * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
@@ -1863,7 +1863,7 @@ static void swServer_signal_handler(int sig)
         {
             swoole_kill(serv->gs->manager_pid, sig);
         }
-        swLog_G.reopen();
+        sw_logger().reopen();
         break;
     default:
 
@@ -1881,7 +1881,7 @@ static void swServer_signal_handler(int sig)
             {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
-            swLog_G.reopen();
+            sw_logger().reopen();
         }
 #endif
         break;

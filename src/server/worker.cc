@@ -86,13 +86,13 @@ void swWorker_signal_handler(int signo)
         break;
     case SIGUSR1:
     case SIGUSR2:
-        swLog_G.reopen();
+        sw_logger().reopen();
         break;
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN)
         {
-            swLog_G.reopen();
+            sw_logger().reopen();
         }
 #endif
         break;
@@ -431,9 +431,9 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-    if (swLog_G.is_opened())
+    if (sw_logger().is_opened())
     {
-        swLog_G.reopen();
+        sw_logger().reopen();
     }
 
     SwooleWG.worker = serv->get_worker(SwooleG.process_id);

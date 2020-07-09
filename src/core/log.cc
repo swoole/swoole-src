@@ -20,11 +20,16 @@
 #include <string>
 #include <chrono>
 
-swoole::Log swLog_G;
+static swoole::Logger g_logger_instance;
+
+swoole::Logger &sw_logger()
+{
+    return g_logger_instance;
+}
 
 namespace swoole {
 
-int Log::open(const char *_log_file)
+int Logger::open(const char *_log_file)
 {
     if (opened)
     {
@@ -61,7 +66,7 @@ int Log::open(const char *_log_file)
     }
 }
 
-void Log::close(void)
+void Logger::close(void)
 {
     if (opened)
     {
@@ -72,12 +77,12 @@ void Log::close(void)
     }
 }
 
-int Log::get_level()
+int Logger::get_level()
 {
     return log_level;
 }
 
-void Log::set_level(int level)
+void Logger::set_level(int level)
 {
     if (level < SW_LOG_DEBUG)
     {
@@ -90,12 +95,12 @@ void Log::set_level(int level)
     log_level = level;
 }
 
-void Log::set_rotation(int _rotation)
+void Logger::set_rotation(int _rotation)
 {
     log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
 }
 
-int Log::redirect_stdout_and_stderr(int enable)
+int Logger::redirect_stdout_and_stderr(int enable)
 {
     if (enable)
     {
@@ -147,7 +152,7 @@ int Log::redirect_stdout_and_stderr(int enable)
     return SW_OK;
 }
 
-void Log::reset()
+void Logger::reset()
 {
     date_format = SW_LOG_DEFAULT_DATE_FORMAT;
     date_with_microseconds = false;
@@ -155,7 +160,7 @@ void Log::reset()
     log_level = SW_LOG_INFO;
 }
 
-int Log::set_date_format(const char *format)
+int Logger::set_date_format(const char *format)
 {
     char date_str[SW_LOG_DATE_STRLEN];
     time_t now_sec;
@@ -179,7 +184,7 @@ int Log::set_date_format(const char *format)
     }
 }
 
-void Log::set_date_with_microseconds(bool enable)
+void Logger::set_date_with_microseconds(bool enable)
 {
     date_with_microseconds = enable;
 }
@@ -187,7 +192,7 @@ void Log::set_date_with_microseconds(bool enable)
 /**
  * reopen log file
  */
-void Log::reopen()
+void Logger::reopen()
 {
     if (!opened)
     {
@@ -206,17 +211,17 @@ void Log::reopen()
     }
 }
 
-const char* Log::get_real_file()
+const char* Logger::get_real_file()
 {
     return log_real_file.c_str();
 }
 
-const char* Log::get_file()
+const char* Logger::get_file()
 {
     return log_file.c_str();
 }
 
-std::string Log::gen_real_file(const std::string &file)
+std::string Logger::gen_real_file(const std::string &file)
 {
     char date_str[16];
     auto now_sec = ::time(nullptr);
@@ -226,12 +231,12 @@ std::string Log::gen_real_file(const std::string &file)
     return real_file;
 }
 
-int Log::is_opened()
+int Logger::is_opened()
 {
     return opened;
 }
 
-void Log::put(int level, const char *content, size_t length)
+void Logger::put(int level, const char *content, size_t length)
 {
     const char *level_str;
     char date_str[SW_LOG_DATE_STRLEN];

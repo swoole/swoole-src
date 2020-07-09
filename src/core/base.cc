@@ -125,10 +125,10 @@ void swoole_init(void)
     SwooleG.pid = getpid();
 
 #ifdef SW_DEBUG
-    swLog_G.set_level(0);
+    sw_logger().set_level(0);
     SwooleG.trace_flags = 0x7fffffff;
 #else
-    swLog_G.set_level(SW_LOG_INFO);
+    sw_logger().set_level(SW_LOG_INFO);
 #endif
 
     //init global shared memory
@@ -269,7 +269,7 @@ pid_t swoole_fork(int flags)
             /**
              * reopen log file
              */
-            swLog_G.reopen();
+            sw_logger().reopen();
             /**
              * reset eventLoop
              */
@@ -284,7 +284,7 @@ pid_t swoole_fork(int flags)
             /**
              * close log fd
              */
-            swLog_G.close();
+            sw_logger().close();
         }
         /**
          * reset signal handler
@@ -1611,7 +1611,7 @@ static void swoole_fatal_error(int code, const char *format, ...)
     va_start(args, format);
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
-    swLog_G.put(SW_LOG_ERROR, sw_error, retval);
+    sw_logger().put(SW_LOG_ERROR, sw_error, retval);
     exit(1);
 }
 
