@@ -4,7 +4,7 @@
 
 using namespace swoole;
 
-Log logger;
+static Log logger;
 
 const char* file = "/tmp/swoole_log_test.log";
 

@@ -25,7 +25,7 @@
 using namespace swoole;
 using namespace std;
 
-Log logger;
+static Log logger;
 
 static void test_run_server(function<void(swServer *)> fn)
 {

@@ -24,7 +24,7 @@
 using namespace std;
 using namespace swoole;
 
-Log logger;
+static Log logger;
 
 static const char *packet = "hello world\n";
 

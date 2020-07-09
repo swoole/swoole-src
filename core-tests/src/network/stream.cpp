@@ -23,7 +23,7 @@
 using namespace std;
 using namespace swoole;
 
-Log logger;
+static Log logger;
 
 TEST(stream, send) {
     swServer serv;

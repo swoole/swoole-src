@@ -8,7 +8,7 @@
 
 using namespace swoole;
 
-Log logger;
+static Log logger;
 
 int my_onPacket(swServer *serv, swEventData *req);
 int my_onReceive(swServer *serv, swEventData *req);
