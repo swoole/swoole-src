@@ -18,6 +18,7 @@
 #pragma once
 
 #include "php_swoole_cxx.h"
+#include "swoole_util.h"
 
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_RSA

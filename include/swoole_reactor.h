@@ -20,6 +20,9 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 
+#include <list>
+#include <map>
+
 enum swReactor_end_callback
 {
     SW_REACTOR_PRIORITY_TIMER = 0,

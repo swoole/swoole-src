@@ -17,6 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
+#include "swoole_util.h"
 #include "coroutine_socket.h"
 #include "coroutine_system.h"
 #include "buffer.h"

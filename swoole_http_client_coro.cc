@@ -19,6 +19,7 @@
 
 #include "php_swoole_cxx.h"
 #include "coroutine_c_api.h"
+#include "swoole_util.h"
 #include "swoole_http_client.h"
 
 #include "mime_type.h"

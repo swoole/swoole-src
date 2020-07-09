@@ -23,6 +23,8 @@
 #include "ssl.h"
 #include "proxy.h"
 
+#include <vector>
+
 #define SW_DEFAULT_SOCKET_DNS_TIMEOUT       -1
 #define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
 #define SW_DEFAULT_SOCKET_READ_TIMEOUT      -1

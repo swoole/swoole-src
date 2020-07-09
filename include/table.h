@@ -18,9 +18,12 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
+#include "swoole_util.h"
 #include "lock.h"
 #include "atomic.h"
 #include "hash.h"
+
+#include <vector>
 #include <unordered_map>
 
 typedef uint32_t swTable_string_length_t;

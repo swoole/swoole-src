@@ -21,6 +21,8 @@
 #include "heap.h"
 #include "swoole_reactor.h"
 
+#include <unordered_map>
+
 #define SW_TIMER_MIN_MS  1
 #define SW_TIMER_MIN_SEC 0.001
 #define SW_TIMER_MAX_MS  LONG_MAX

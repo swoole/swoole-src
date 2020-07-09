@@ -13,6 +13,8 @@
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
+
+#include "swoole_util.h"
 #include "server.h"
 #include "http.h"
 #include "http2.h"

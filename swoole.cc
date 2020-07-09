@@ -25,6 +25,7 @@
 #include "server.h"
 #include "client.h"
 #include "swoole_process.h"
+#include "swoole_util.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>

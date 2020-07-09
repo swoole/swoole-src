@@ -18,6 +18,7 @@
 */
 
 #include "tests.h"
+#include "swoole_util.h"
 
 static int timer1_count = 0;
 static int timer2_count = 0;

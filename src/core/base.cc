@@ -19,6 +19,7 @@
 #include "swoole_signal.h"
 #include "swoole_memory.h"
 #include "swoole_protocol.h"
+#include "swoole_util.h"
 #include "atomic.h"
 #include "async.h"
 #include "coroutine_c_api.h"
@@ -67,9 +68,12 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags)
 
 #include <list>
 #include <set>
+#include <unordered_map>
 
 swGlobal_t SwooleG;
 thread_local swThreadGlobal_t SwooleTG;
+
+static std::unordered_map<std::string, void*> functions;
 
 #ifdef __MACH__
 static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];
@@ -1333,50 +1337,32 @@ int swoole_getaddrinfo(swRequest_getaddrinfo *req)
     return SW_OK;
 }
 
-SW_API int swoole_add_function(const char *name, void* func)
-{
-    if (SwooleG.functions == nullptr)
-    {
-        SwooleG.functions = new std::unordered_map<std::string, void*>;
-    }
+SW_API int swoole_add_function(const char *name, void* func) {
     std::string _name(name);
-    auto iter = SwooleG.functions->find(_name);
-    if (iter != SwooleG.functions->end())
-    {
+    auto iter = functions.find(_name);
+    if (iter != functions.end()) {
         swWarn("Function '%s' has already been added", name);
         return SW_ERR;
-    }
-    else
-    {
-        SwooleG.functions->emplace(std::make_pair(_name, func));
+    } else {
+        functions.emplace(std::make_pair(_name, func));
         return SW_OK;
     }
 }
 
-SW_API void* swoole_get_function(const char *name, uint32_t length)
-{
-    if (!SwooleG.functions)
-    {
-        return nullptr;
-    }
-    auto iter = SwooleG.functions->find(std::string(name));
-    if (iter != SwooleG.functions->end())
-    {
+SW_API void* swoole_get_function(const char *name, uint32_t length) {
+    auto iter = functions.find(std::string(name));
+    if (iter != functions.end()) {
         return iter->second;
-    }
-    else
-    {
+    } else {
         return nullptr;
     }
 }
 
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back)
-{
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back) {
     return swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg)
-{
+SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
     swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
@@ -1748,3 +1734,28 @@ size_t swoole::string_split(swString *str, const char *delimiter, size_t delimit
 
     return ret;
 }
+namespace swoole {
+//-------------------------------------------------------------------------------
+int hook_add(void **hooks, int type, swCallback func, int push_back) {
+    if (hooks[type] == nullptr) {
+        hooks[type] = new std::list<swCallback>;
+    }
+
+    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
+    if (push_back) {
+        l->push_back(func);
+    } else {
+        l->push_front(func);
+    }
+
+    return SW_OK;
+}
+
+inline void hook_call(void **hooks, int type, void *arg) {
+    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
+    for (auto i = l->begin(); i != l->end(); i++) {
+        (*i)(arg);
+    }
+}
+//-------------------------------------------------------------------------------
+};

@@ -19,6 +19,8 @@
 
 #include "coroutine.h"
 
+#include <vector>
+
 namespace swoole { namespace coroutine {
 //-------------------------------------------------------------------------------
 class System

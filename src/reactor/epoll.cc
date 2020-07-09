@@ -17,7 +17,9 @@
 #include "swoole.h"
 #include "swoole_reactor.h"
 
-#define EVENT_DEBUG   1
+#include <unordered_map>
+
+#define EVENT_DEBUG   0
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>

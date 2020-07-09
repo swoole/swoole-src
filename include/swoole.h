@@ -68,16 +68,7 @@ typedef cpuset_t cpu_set_t;
 #endif
 #endif
 
-#include <list>
-#include <memory>
-#include <string>
-#include <cstdio>
 #include <functional>
-#include <vector>
-#include <set>
-#include <map>
-#include <chrono>
-#include <unordered_map>
 
 #ifdef __MACH__
 #include <mach/clock.h>
@@ -869,14 +860,6 @@ void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 
-SW_API const char* swoole_version(void);
-SW_API int swoole_version_id(void);
-
-SW_API int swoole_add_function(const char *name, void* func);
-SW_API void *swoole_get_function(const char *name, uint32_t length);
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
-
 //------------------------------Process--------------------------------
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 {
@@ -1014,10 +997,9 @@ struct swGlobal_t
     double aio_max_idle_time;
     swSocket *aio_default_socket;
 
-    std::unordered_map<std::string, void*> *functions;
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
-} ;
+};
 
 extern swGlobal_t SwooleG;              //Local Global Variable
 extern thread_local swThreadGlobal_t SwooleTG;   //Thread Global Variable
@@ -1066,76 +1048,14 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
     }
 }
 
-namespace swoole
-{
-//-------------------------------------------------------------------------------
-namespace std_string
-{
-template<typename ...Args>
-inline std::string format(const char *format, Args ...args)
-{
-    size_t size = snprintf(nullptr, 0, format, args...) + 1; // Extra space for '\0'
-    std::unique_ptr<char[]> buf(new char[size]);
-    snprintf(buf.get(), size, format, args...);
-    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
-}
+SW_API const char* swoole_version(void);
+SW_API int swoole_version_id(void);
+SW_API int swoole_add_function(const char *name, void* func);
+SW_API void *swoole_get_function(const char *name, uint32_t length);
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
+SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
-inline std::string vformat(const char *format, va_list args)
-{
-    va_list _args;
-    va_copy(_args, args);
-    size_t size = vsnprintf(nullptr, 0, format, _args) + 1; // Extra space for '\0'
-    va_end(_args);
-    std::unique_ptr<char[]> buf(new char[size]);
-    vsnprintf(buf.get(), size, format, args);
-    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
-}
-}
-
-static inline int hook_add(void **hooks, int type, swCallback func, int push_back)
-{
-    if (hooks[type] == nullptr)
-    {
-        hooks[type] = new std::list<swCallback>;
-    }
-
-    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
-    if (push_back)
-    {
-        l->push_back(func);
-    }
-    else
-    {
-        l->push_front(func);
-    }
-
-    return SW_OK;
-}
-
-static inline void hook_call(void **hooks, int type, void *arg)
-{
-    std::list<swCallback> *l = static_cast<std::list<swCallback>*>(hooks[type]);
-    for (auto i = l->begin(); i != l->end(); i++)
-    {
-        (*i)(arg);
-    }
-}
-
-template<typename T>
-static inline long time(bool steady = false)
-{
-    if (steady)
-    {
-        auto now = std::chrono::steady_clock::now();
-        return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
-    }
-    else
-    {
-        auto now = std::chrono::system_clock::now();
-        return std::chrono::duration_cast<T>(now.time_since_epoch()).count();
-    }
-}
-
-std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
-
+namespace swoole {
+int hook_add(void **hooks, int type, swCallback func, int push_back);
+void hook_call(void **hooks, int type, void *arg);
 }
