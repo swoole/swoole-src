@@ -20,8 +20,12 @@
 #include "tests.h"
 #include "swoole_memory.h"
 #include "wrapper/client.hpp"
+#include "swoole_log.h"
 
 using namespace std;
+using namespace swoole;
+
+Log logger;
 
 static void test_create_server(swServer *serv)
 {
@@ -56,7 +60,7 @@ TEST(server, base)
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
 
-    swLog_set_level(SW_LOG_WARNING);
+    logger.set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
@@ -115,7 +119,7 @@ TEST(server, process)
 
     SwooleG.running = 1;
 
-    swLog_set_level(SW_LOG_WARNING);
+    logger.set_level(SW_LOG_WARNING);
 
     swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
     swMutex_create(lock, 1);

@@ -20,9 +20,12 @@
 #include "tests.h"
 #include "httplib_client.h"
 #include "wrapper/client.hpp"
+#include "swoole_log.h"
 
 using namespace swoole;
 using namespace std;
+
+Log logger;
 
 static void test_run_server(function<void(swServer *)> fn)
 {
@@ -35,7 +38,7 @@ static void test_run_server(function<void(swServer *)> fn)
     serv.set_document_root(test::get_root_path());
     serv.add_static_handler_location("/examples");
 
-    swLog_set_level(SW_LOG_WARNING);
+    logger.set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
