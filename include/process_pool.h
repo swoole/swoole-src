@@ -18,6 +18,7 @@
 #pragma once
 
 #include "swoole.h"
+#include <signal.h>
 #include "lock.h"
 
 struct swProcessPool;

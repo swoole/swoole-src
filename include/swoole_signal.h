@@ -17,6 +17,7 @@
 #pragma once
 
 #include "swoole.h"
+#include <signal.h>
 
 typedef void (*swSignalHandler)(int);
 

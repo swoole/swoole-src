@@ -19,6 +19,8 @@
 
 #include "swoole.h"
 
+#include <string>
+
 struct swString
 {
     size_t length;
