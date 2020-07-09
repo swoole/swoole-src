@@ -28,17 +28,17 @@
 #endif
 
 #ifdef HAVE_SIGNALFD
-static void swSignalfd_set(int signo, swSignalHandler handler);
+static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler);
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
 static swSocket *signal_socket = nullptr;
-#endif
-
-#ifdef HAVE_KQUEUE
-static void swKqueueSignal_set(int signo, swSignalHandler handler);
+#elif HAVE_KQUEUE
+static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
+#else
+static swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask);
 #endif
 
 static void swSignal_async_handler(int signo);
@@ -73,7 +73,7 @@ void swSignal_none(void)
 }
 
 /**
- * setup signal
+ * set new signal handler and return origin signal handler
  */
 swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask)
 {
@@ -106,12 +106,15 @@ swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int m
     return oact.sa_handler;
 }
 
-void swSignal_set(int signo, swSignalHandler handler)
+/**
+ * set new signal handler and return origin signal handler
+ */
+swSignalHandler swSignal_set(int signo, swSignalHandler handler)
 {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
     {
-        swSignalfd_set(signo, handler);
+        return swSignalfd_set(signo, handler);
     }
     else
 #endif
@@ -122,7 +125,7 @@ void swSignal_set(int signo, swSignalHandler handler)
         // if there's no main reactor, signals cannot be monitored either
         if (signo != SIGCHLD && sw_reactor())
         {
-            swKqueueSignal_set(signo, handler);
+            return swKqueueSignal_set(signo, handler);
         }
         else
 #endif
@@ -130,7 +133,7 @@ void swSignal_set(int signo, swSignalHandler handler)
             signals[signo].handler = handler;
             signals[signo].active = 1;
             signals[signo].signo = signo;
-            swSignal_set(signo, swSignal_async_handler, 1, 0);
+            return swSignal_set(signo, swSignal_async_handler, 1, 0);
         }
     }
 }
@@ -222,8 +225,13 @@ void swSignalfd_init()
     sw_memset_zero(&signals, sizeof(signals));
 }
 
-static void swSignalfd_set(int signo, swSignalHandler handler)
+/**
+ * set new signal handler and return origin signal handler
+ */
+static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler)
 {
+    swSignalHandler origin_handler = nullptr;
+
     if (handler == nullptr && signals[signo].active)
     {
         sigdelset(&signalfd_mask, signo);
@@ -232,6 +240,7 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
     else
     {
         sigaddset(&signalfd_mask, signo);
+        origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].active = 1;
@@ -245,6 +254,8 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
     {
         swSignalfd_setup(sw_reactor());
     }
+
+    return origin_handler;
 }
 
 int swSignalfd_setup(swReactor *reactor)
@@ -344,9 +355,13 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 #endif
 
 #ifdef HAVE_KQUEUE
-static void swKqueueSignal_set(int signo, swSignalHandler handler)
+/**
+ * set new signal handler and return origin signal handler
+ */
+static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler)
 {
     struct kevent ev;
+    swSignalHandler origin_handler = nullptr;
     swReactor *reactor = sw_reactor();
     struct reactor_object
     {
@@ -364,6 +379,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     else
     {
         signal(signo, SIG_IGN);
+        origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].active = 1;
@@ -375,6 +391,8 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     {
         swSysWarn("kevent set signal[%d] error", signo);
     }
+
+    return origin_handler;
 }
 #endif
 
