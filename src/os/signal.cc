@@ -106,7 +106,7 @@ swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int m
     return oact.sa_handler;
 }
 
-void swSignal_add(int signo, swSignalHandler handler)
+void swSignal_set(int signo, swSignalHandler handler)
 {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
@@ -411,7 +411,7 @@ bool System::wait_signal(int signo, double timeout)
     }
     /* always enable signalfd */
     SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
-    swSignal_add(signo, [](int signo) {
+    swSignal_set(signo, [](int signo) {
         Coroutine *co = listeners[signo];
         if (co)
         {
@@ -432,7 +432,7 @@ bool System::wait_signal(int signo, double timeout)
 
     co->yield();
 
-    swSignal_add(signo, nullptr);
+    swSignal_set(signo, nullptr);
     SwooleTG.co_signal_listener_num--;
 
     if (listeners[signo] != nullptr)

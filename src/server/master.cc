@@ -1570,20 +1570,20 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset)
 
 void swServer_signal_init(swServer *serv)
 {
-    swSignal_add(SIGPIPE, nullptr);
-    swSignal_add(SIGHUP, nullptr);
+    swSignal_set(SIGPIPE, nullptr);
+    swSignal_set(SIGHUP, nullptr);
     if (serv->factory_mode == SW_MODE_PROCESS)
     {
-        swSignal_add(SIGCHLD, swServer_signal_handler);
+        swSignal_set(SIGCHLD, swServer_signal_handler);
     }
-    swSignal_add(SIGUSR1, swServer_signal_handler);
-    swSignal_add(SIGUSR2, swServer_signal_handler);
-    swSignal_add(SIGTERM, swServer_signal_handler);
+    swSignal_set(SIGUSR1, swServer_signal_handler);
+    swSignal_set(SIGUSR2, swServer_signal_handler);
+    swSignal_set(SIGTERM, swServer_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swServer_signal_handler);
+    swSignal_set(SIGRTMIN, swServer_signal_handler);
 #endif
     //for test
-    swSignal_add(SIGVTALRM, swServer_signal_handler);
+    swSignal_set(SIGVTALRM, swServer_signal_handler);
 
     serv->set_minfd(SwooleG.signal_fd);
 }
