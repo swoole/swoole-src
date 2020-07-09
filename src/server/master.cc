@@ -17,6 +17,9 @@
 #include "server.h"
 #include "swoole_memory.h"
 #include "http.h"
+#include "lock.h"
+
+#include <sys/time.h>
 
 #include <assert.h>
 

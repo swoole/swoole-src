@@ -39,22 +39,14 @@
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
-#include <inttypes.h>
-#include <limits.h>
-#include <math.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdarg.h>
-#include <signal.h>
-#include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <sys/time.h>
 #include <sys/utsname.h>
-#include <sys/types.h>
 
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
@@ -68,21 +60,6 @@ typedef cpuset_t cpu_set_t;
 #endif
 
 #include <functional>
-
-#ifdef __MACH__
-#include <mach/clock.h>
-#include <mach/mach_time.h>
-#include <sys/sysctl.h>
-
-#define ORWL_NANO (+1.0E-9)
-#define ORWL_GIGA UINT64_C(1000000000)
-
-static double orwl_timebase = 0.0;
-static uint64_t orwl_timestart = 0;
-#ifndef HAVE_CLOCK_GETTIME
-int clock_gettime(clock_id_t which_clock, struct timespec *t);
-#endif
-#endif
 
 #ifndef ulong
 #define ulong unsigned long
@@ -117,18 +94,6 @@ typedef unsigned long ulong_t;
 #define SW_API __attribute__ ((visibility("default")))
 #else
 #define SW_API
-#endif
-
-#if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
-#define MAP_ANONYMOUS MAP_ANON
-#endif
-
-#if defined(MAP_HUGETLB) || defined(MAP_ALIGNED_SUPER)
-#define MAP_HUGE_PAGE 1
-#endif
-
-#ifndef CLOCK_REALTIME
-#define CLOCK_REALTIME 0
 #endif
 
 #if !defined(__GNUC__) || __GNUC__ < 3

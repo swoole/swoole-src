@@ -18,6 +18,9 @@
 #include "swoole_signal.h"
 #include "swoole_util.h"
 
+#include <signal.h>
+#include <sys/time.h>
+
 static int swSystemTimer_signal_set(swTimer *timer, long interval);
 static int swSystemTimer_set(swTimer *timer, long new_interval);
 static void swSystemTimer_close(swTimer *timer);
