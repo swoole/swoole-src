@@ -46,7 +46,7 @@ enum swLog_rotation_type
 namespace swoole {
 class Log
 {
-public:
+private:
     bool opened = false;
     /**
      * Redirect stdin and stdout to log_fd
@@ -62,6 +62,7 @@ public:
     std::string log_real_file;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
 
+public:
     int open(const char *logfile);
     void put(int level, const char *content, size_t length);
     void reopen();
