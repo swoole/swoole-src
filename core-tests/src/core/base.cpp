@@ -19,9 +19,8 @@
 
 #include "tests.h"
 
-TEST(base, DataHead_dump)
-{
-    swDataHead data = {};
+TEST(base, DataHead_dump) {
+    swDataHead data = { };
     data.fd = 123;
     char buf[128];
     size_t n = data.dump(buf, sizeof(buf));
@@ -30,20 +29,18 @@ TEST(base, DataHead_dump)
     ASSERT_EQ(sizeof(data), 16);
 }
 
-TEST(base, dec2hex)
-{
+TEST(base, dec2hex) {
     auto result = swoole_dec2hex(2684326179, 16);
     ASSERT_STREQ(result, "9fff9123");
     sw_free(result);
 }
 
-TEST(base, swoole_hex2dec)
-{
+TEST(base, swoole_hex2dec) {
     size_t n_parsed;
-    ASSERT_EQ(swoole_hex2dec("9fff9123", n_parsed), 2684326179);
+    ASSERT_EQ(swoole_hex2dec("9fff9123", &n_parsed), 2684326179);
     ASSERT_EQ(n_parsed, 8);
-    ASSERT_EQ(swoole_hex2dec("0x9fff9123", n_parsed), 2684326179);
+    ASSERT_EQ(swoole_hex2dec("0x9fff9123", &n_parsed), 2684326179);
     ASSERT_EQ(n_parsed, 10);
-    ASSERT_EQ(swoole_hex2dec("f", n_parsed), 15);
+    ASSERT_EQ(swoole_hex2dec("f", &n_parsed), 15);
     ASSERT_EQ(n_parsed, 1);
 }

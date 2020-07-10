@@ -300,7 +300,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket)
 
     if (port->open_http_protocol && conn->object)
     {
-        swHttpRequest_free(conn);
+        swHttp_free_request(conn);
     }
     if (port->open_redis_protocol && conn->object)
     {

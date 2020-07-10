@@ -19,6 +19,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <string>
+#include <unistd.h>
 
 #define SW_LOG_BUFFER_SIZE  (SW_ERROR_MSG_SIZE+256)
 #define SW_LOG_DATE_STRLEN  128

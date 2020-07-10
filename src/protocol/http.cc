@@ -14,17 +14,17 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_util.h"
-#include "server.h"
 #include "http.h"
-#include "http2.h"
-#include "websocket.h"
-#include "static_handler.h"
 
 #include <assert.h>
 #include <stddef.h>
 
 #include <string>
+
+#include "swoole_util.h"
+#include "http2.h"
+#include "websocket.h"
+#include "static_handler.h"
 
 using std::string;
 using swoole::Server;
@@ -37,7 +37,6 @@ static const char *method_strings[] =
     "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
 };
 
-string swHttpRequest_get_date_if_modified_since(swHttpRequest *request);
 
 int swHttp_get_method(const char *method_str, size_t method_len)
 {
@@ -61,7 +60,7 @@ const char* swHttp_get_method_string(int method)
     return method_strings[method - 1];
 }
 
-bool Server::select_static_handler(swHttpRequest *request, swConnection *conn)
+bool Server::select_static_handler(http::Request *request, swConnection *conn)
 {
     const char *url = request->buffer->str + request->url_offset;
     size_t url_length = request->url_length;
@@ -97,7 +96,7 @@ bool Server::select_static_handler(swHttpRequest *request, swConnection *conn)
     auto date_str = handler.get_date();
     auto date_str_last_modified = handler.get_date_last_modified();
 
-    string date_if_modified_since = swHttpRequest_get_date_if_modified_since(request);
+    string date_if_modified_since = request->get_date_if_modified_since();
     if (!date_if_modified_since.empty() && handler.is_modified(date_if_modified_since))
     {
         response.info.len = sw_snprintf(header_buffer, sizeof(header_buffer),
@@ -426,265 +425,183 @@ char* swHttp_url_encode(char const *str, size_t len)
 
     return ret;
 }
-
+namespace swoole { namespace http {
+//-----------------------------------------------------------------
 /**
  * only GET/POST
  */
-int swHttpRequest_get_protocol(swHttpRequest *request)
-{
-    char *p = request->buffer->str;
-    char *pe = p + request->buffer->length;
+int Request::get_protocol() {
+    char *p = buffer->str;
+    char *pe = p + buffer->length;
 
-    if (request->buffer->length < (sizeof("GET / HTTP/1.x\r\n") - 1))
-    {
+    if (buffer->length < (sizeof("GET / HTTP/1.x\r\n") - 1)) {
         return SW_ERR;
     }
 
     //http method
-    if (memcmp(p, SW_STRL("GET")) == 0)
-    {
-        request->method = SW_HTTP_GET;
+    if (memcmp(p, SW_STRL("GET")) == 0) {
+        method = SW_HTTP_GET;
         p += 3;
-    }
-    else if (memcmp(p, SW_STRL("POST")) == 0)
-    {
-        request->method = SW_HTTP_POST;
+    } else if (memcmp(p, SW_STRL("POST")) == 0) {
+        method = SW_HTTP_POST;
         p += 4;
-    }
-    else if (memcmp(p, SW_STRL("PUT")) == 0)
-    {
-        request->method = SW_HTTP_PUT;
+    } else if (memcmp(p, SW_STRL("PUT")) == 0) {
+        method = SW_HTTP_PUT;
         p += 3;
-    }
-    else if (memcmp(p, SW_STRL("PATCH")) == 0)
-    {
-        request->method = SW_HTTP_PATCH;
+    } else if (memcmp(p, SW_STRL("PATCH")) == 0) {
+        method = SW_HTTP_PATCH;
         p += 5;
-    }
-    else if (memcmp(p, SW_STRL("DELETE")) == 0)
-    {
-        request->method = SW_HTTP_DELETE;
+    } else if (memcmp(p, SW_STRL("DELETE")) == 0) {
+        method = SW_HTTP_DELETE;
         p += 6;
-    }
-    else if (memcmp(p, SW_STRL("HEAD")) == 0)
-    {
-        request->method = SW_HTTP_HEAD;
+    } else if (memcmp(p, SW_STRL("HEAD")) == 0) {
+        method = SW_HTTP_HEAD;
         p += 4;
-    }
-    else if (memcmp(p, SW_STRL("OPTIONS")) == 0)
-    {
-        request->method = SW_HTTP_OPTIONS;
+    } else if (memcmp(p, SW_STRL("OPTIONS")) == 0) {
+        method = SW_HTTP_OPTIONS;
         p += 7;
-    }
-    else if (memcmp(p, SW_STRL("COPY")) == 0)
-    {
-        request->method = SW_HTTP_COPY;
+    } else if (memcmp(p, SW_STRL("COPY")) == 0) {
+        method = SW_HTTP_COPY;
         p += 4;
-    }
-    else if (memcmp(p, SW_STRL("LOCK")) == 0)
-    {
-        request->method = SW_HTTP_LOCK;
+    } else if (memcmp(p, SW_STRL("LOCK")) == 0) {
+        method = SW_HTTP_LOCK;
         p += 4;
-    }
-    else if (memcmp(p, SW_STRL("MKCOL")) == 0)
-    {
-        request->method = SW_HTTP_MKCOL;
+    } else if (memcmp(p, SW_STRL("MKCOL")) == 0) {
+        method = SW_HTTP_MKCOL;
         p += 5;
-    }
-    else if (memcmp(p, SW_STRL("MOVE")) == 0)
-    {
-        request->method = SW_HTTP_MOVE;
+    } else if (memcmp(p, SW_STRL("MOVE")) == 0) {
+        method = SW_HTTP_MOVE;
         p += 4;
-    }
-    else if (memcmp(p, SW_STRL("PROPFIND")) == 0)
-    {
-        request->method = SW_HTTP_PROPFIND;
+    } else if (memcmp(p, SW_STRL("PROPFIND")) == 0) {
+        method = SW_HTTP_PROPFIND;
         p += 8;
-    }
-    else if (memcmp(p, SW_STRL("PROPPATCH")) == 0)
-    {
-        request->method = SW_HTTP_PROPPATCH;
+    } else if (memcmp(p, SW_STRL("PROPPATCH")) == 0) {
+        method = SW_HTTP_PROPPATCH;
         p += 9;
-    }
-    else if (memcmp(p, SW_STRL("UNLOCK")) == 0)
-    {
-        request->method = SW_HTTP_UNLOCK;
+    } else if (memcmp(p, SW_STRL("UNLOCK")) == 0) {
+        method = SW_HTTP_UNLOCK;
         p += 6;
-    }
-    else if (memcmp(p, SW_STRL("REPORT")) == 0)
-    {
-        request->method = SW_HTTP_REPORT;
+    } else if (memcmp(p, SW_STRL("REPORT")) == 0) {
+        method = SW_HTTP_REPORT;
         p += 6;
-    }
-    else if (memcmp(p, SW_STRL("PURGE")) == 0)
-    {
-        request->method = SW_HTTP_PURGE;
+    } else if (memcmp(p, SW_STRL("PURGE")) == 0) {
+        method = SW_HTTP_PURGE;
         p += 5;
     }
 #ifdef SW_USE_HTTP2
     // HTTP2 Connection Preface
-    else if (memcmp(p, SW_STRL("PRI")) == 0)
-    {
-        request->method = SW_HTTP_PRI;
-        if (
-            request->buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) &&
-            memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0
-        )
-        {
-            request->buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
+    else if (memcmp(p, SW_STRL("PRI")) == 0) {
+        method = SW_HTTP_PRI;
+        if (buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) && memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0) {
+            buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
             return SW_OK;
-        }
-        else
-        {
+        } else {
             goto _excepted;
         }
     }
 #endif
-    else
-    {
-        _excepted:
-        request->excepted = 1;
+    else {
+        _excepted: excepted = 1;
         return SW_ERR;
     }
 
     //http version
     char state = 0;
-    for (; p < pe; p++)
-    {
-        switch(state)
-        {
-        case 0:
-            if (isspace(*p))
-            {
-                continue;
-            }
-            state = 1;
-            request->url_offset = p - request->buffer->str;
-            break;
-        case 1:
-            if (isspace(*p))
-            {
-                state = 2;
-                request->url_length = p - request->buffer->str - request->url_offset;
-                continue;
-            }
-            break;
-        case 2:
-            if (isspace(*p))
-            {
-                continue;
-            }
-            if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1))
-            {
-                return SW_ERR;
-            }
-            if (memcmp(p, SW_STRL("HTTP/1.1")) == 0)
-            {
-                request->version = SW_HTTP_VERSION_11;
-                goto _end;
-            }
-            else if (memcmp(p, SW_STRL("HTTP/1.0")) == 0)
-            {
-                request->version = SW_HTTP_VERSION_10;
-                goto _end;
-            }
-            else
-            {
-                goto _excepted;
-            }
-        default:
-            break;
+    for (; p < pe; p++) {
+        switch (state) {
+            case 0:
+                if (isspace(*p)) {
+                    continue;
+                }
+                state = 1;
+                url_offset = p - buffer->str;
+                break;
+            case 1:
+                if (isspace(*p)) {
+                    state = 2;
+                    url_length = p - buffer->str - url_offset;
+                    continue;
+                }
+                break;
+            case 2:
+                if (isspace(*p)) {
+                    continue;
+                }
+                if ((size_t) (pe - p) < (sizeof("HTTP/1.x") - 1)) {
+                    return SW_ERR;
+                }
+                if (memcmp(p, SW_STRL("HTTP/1.1")) == 0) {
+                    version = SW_HTTP_VERSION_11;
+                    goto _end;
+                } else if (memcmp(p, SW_STRL("HTTP/1.0")) == 0) {
+                    version = SW_HTTP_VERSION_10;
+                    goto _end;
+                } else {
+                    goto _excepted;
+                }
+            default:
+                break;
         }
     }
-    _end:
-    p += sizeof("HTTP/1.x") - 1;
-    request->request_line_length = request->buffer->offset = p - request->buffer->str;
+    _end: p += sizeof("HTTP/1.x") - 1;
+    request_line_length = buffer->offset = p - buffer->str;
     return SW_OK;
-}
-
-void swHttpRequest_free(swConnection *conn)
-{
-    swHttpRequest *request = (swHttpRequest *) conn->object;
-    if (!request)
-    {
-        return;
-    }
-    sw_memset_zero(request, sizeof(swHttpRequest));
-    sw_free(request);
-    conn->object = nullptr;
 }
 
 /**
  * simple get headers info
  */
-void swHttpRequest_parse_header_info(swHttpRequest *request)
-{
-    swString *buffer = request->buffer;
+void Request::parse_header_info() {
     // header field start
-    char *p = buffer->str + request->request_line_length + (sizeof("\r\n") - 1);
+    char *p = buffer->str + request_line_length + (sizeof("\r\n") - 1);
     // point-end: start + strlen(all-header) without strlen("\r\n\r\n")
-    char *pe = buffer->str + request->header_length - (sizeof("\r\n\r\n") - 1);
+    char *pe = buffer->str + header_length - (sizeof("\r\n\r\n") - 1);
 
-    for (; p < pe; p++)
-    {
-        if (*(p - 1) == '\n' && *(p - 2) == '\r')
-        {
-            if (SW_STRCASECT(p, pe - p, "Content-Length:"))
-            {
+    for (; p < pe; p++) {
+        if (*(p - 1) == '\n' && *(p - 2) == '\r') {
+            if (SW_STRCASECT(p, pe - p, "Content-Length:")) {
                 unsigned long long content_length;
                 // strlen("Content-Length:")
                 p += (sizeof("Content-Length:") - 1);
                 // skip spaces
-                while (*p == ' ')
-                {
+                while (*p == ' ') {
                     p++;
                 }
                 content_length = strtoull(p, nullptr, 10);
-                request->content_length = SW_MIN(content_length, UINT32_MAX);
-                request->known_length = 1;
-            }
-            else if (SW_STRCASECT(p, pe - p, "Connection:"))
-            {
+                content_length = SW_MIN(content_length, UINT32_MAX);
+                known_length = 1;
+            } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
                 // strlen("Connection:")
                 p += (sizeof("Connection:") - 1);
                 // skip spaces
-                while (*p == ' ')
-                {
+                while (*p == ' ') {
                     p++;
                 }
-                if (SW_STRCASECT(p, pe - p, "keep-alive"))
-                {
-                    request->keep_alive = 1;
+                if (SW_STRCASECT(p, pe - p, "keep-alive")) {
+                    keep_alive = 1;
                 }
-            }
-            else if (SW_STRCASECT(p, pe - p, "Transfer-Encoding:"))
-            {
+            } else if (SW_STRCASECT(p, pe - p, "Transfer-Encoding:")) {
                 // strlen("Transfer-Encoding:")
                 p += (sizeof("Transfer-Encoding:") - 1);
                 // skip spaces
-                while (*p == ' ')
-                {
+                while (*p == ' ') {
                     p++;
                 }
-                if (SW_STRCASECT(p, pe - p, "chunked"))
-                {
-                    request->chunked = 1;
+                if (SW_STRCASECT(p, pe - p, "chunked")) {
+                    chunked = 1;
                 }
             }
         }
     }
 
-    request->header_parsed = 1;
-    if (request->chunked && request->known_length && request->content_length == 0)
-    {
-        request->nobody_chunked = 1;
+    header_parsed = 1;
+    if (chunked && known_length && content_length == 0) {
+        nobody_chunked = 1;
     }
 }
 
 #ifdef SW_HTTP_100_CONTINUE
-int swHttpRequest_has_expect_header(swHttpRequest *request)
-{
-    swString *buffer = request->buffer;
+bool Request::has_expect_header() {
     //char *buf = buffer->str + buffer->offset;
     char *buf = buffer->str;
     //int len = buffer->length - buffer->offset;
@@ -693,45 +610,33 @@ int swHttpRequest_has_expect_header(swHttpRequest *request)
     char *pe = buf + len;
     char *p;
 
-    for (p = buf; p < pe; p++)
-    {
-        if (*p == '\r' && pe - p > sizeof("\r\nExpect"))
-        {
+    for (p = buf; p < pe; p++) {
+        if (*p == '\r' && pe - p > sizeof("\r\nExpect")) {
             p += 2;
-            if (SW_STRCASECT(p, pe - p, "Expect: "))
-            {
+            if (SW_STRCASECT(p, pe - p, "Expect: ")) {
                 p += sizeof("Expect: ") - 1;
-                if (SW_STRCASECT(p, pe - p, "100-continue"))
-                {
-                    return 1;
+                if (SW_STRCASECT(p, pe - p, "100-continue")) {
+                    return true;
+                } else {
+                    return false;
                 }
-                else
-                {
-                    return 0;
-                }
-            }
-            else
-            {
+            } else {
                 p++;
             }
         }
     }
-    return 0;
+    return false;
 }
 #endif
 
-int swHttpRequest_get_header_length(swHttpRequest *request)
-{
-    swString *buffer = request->buffer;
+int Request::get_header_length() {
     char *p = buffer->str + buffer->offset;
     char *pe = buffer->str + buffer->length;
 
-    for (; p <= pe - (sizeof("\r\n\r\n") - 1); p++)
-    {
-        if (memcmp(p, SW_STRL("\r\n\r\n")) == 0)
-        {
+    for (; p <= pe - (sizeof("\r\n\r\n") - 1); p++) {
+        if (memcmp(p, SW_STRL("\r\n\r\n")) == 0) {
             // strlen(header) + strlen("\r\n\r\n")
-            request->header_length = buffer->offset = p - buffer->str + (sizeof("\r\n\r\n") - 1);
+            header_length = buffer->offset = p - buffer->str + (sizeof("\r\n\r\n") - 1);
             return SW_OK;
         }
     }
@@ -740,51 +645,43 @@ int swHttpRequest_get_header_length(swHttpRequest *request)
     return SW_ERR;
 }
 
-int swHttpRequest_get_chunked_body_length(swHttpRequest *request)
-{
-    swString *buffer = request->buffer;
+int Request::get_chunked_body_length() {
     char *p = buffer->str + buffer->offset;
     char *pe = buffer->str + buffer->length;
 
-    while (1)
-    {
-        if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1)))
-        {
+    while (1) {
+        if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1))) {
             /* need the next chunk */
             return SW_ERR;
         }
         char *head = p;
         size_t n_parsed;
-        size_t chunk_length = swoole_hex2dec(head, n_parsed);
+        size_t chunk_length = swoole_hex2dec(head, &n_parsed);
         head += n_parsed;
-        if (*head != '\r')
-        {
-            request->excepted = 1;
+        if (*head != '\r') {
+            excepted = 1;
             return SW_ERR;
         }
         p = head + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
         /* used to check package_max_length */
-        request->content_length = p - (buffer->str + request->header_length);
-        if (p > pe)
-        {
+        content_length = p - (buffer->str + header_length);
+        if (p > pe) {
             /* need recv chunk body again */
             return SW_ERR;
         }
         buffer->offset = p - buffer->str;
-        if (chunk_length == 0)
-        {
+        if (chunk_length == 0) {
             break;
         }
     }
-    request->known_length = 1;
+    known_length = 1;
 
     return SW_OK;
 }
 
-string swHttpRequest_get_date_if_modified_since(swHttpRequest *request)
-{
-    char *p = request->buffer->str + request->url_offset + request->url_length + 10;
-    char *pe = request->buffer->str + request->header_length;
+string Request::get_date_if_modified_since() {
+    char *p = buffer->str + url_offset + url_length + 10;
+    char *pe = buffer->str + header_length;
 
     string result;
 
@@ -792,37 +689,43 @@ string swHttpRequest_get_date_if_modified_since(swHttpRequest *request)
     size_t length_if_modified_since = 0;
 
     int state = 0;
-    for (; p < pe; p++)
-    {
-        switch (state)
-        {
-        case 0:
-            if (SW_STRCASECT(p, pe - p, "If-Modified-Since"))
-            {
-                p += sizeof("If-Modified-Since");
-                state = 1;
-            }
-            break;
-        case 1:
-            if (!isspace(*p))
-            {
-                date_if_modified_since = p;
-                state = 2;
-            }
-            break;
-        case 2:
-            if (SW_STRCASECT(p, pe - p, "\r\n"))
-            {
-                length_if_modified_since = p - date_if_modified_since;
-                return string(date_if_modified_since, length_if_modified_since);
-            }
-            break;
-        default:
-            break;
+    for (; p < pe; p++) {
+        switch (state) {
+            case 0:
+                if (SW_STRCASECT(p, pe - p, "If-Modified-Since")) {
+                    p += sizeof("If-Modified-Since");
+                    state = 1;
+                }
+                break;
+            case 1:
+                if (!isspace(*p)) {
+                    date_if_modified_since = p;
+                    state = 2;
+                }
+                break;
+            case 2:
+                if (SW_STRCASECT(p, pe - p, "\r\n")) {
+                    length_if_modified_since = p - date_if_modified_since;
+                    return string(date_if_modified_since, length_if_modified_since);
+                }
+                break;
+            default:
+                break;
         }
     }
 
     return string("");
+}
+//-----------------------------------------------------------------
+}}
+
+void swHttp_free_request(swConnection *conn) {
+    auto request = reinterpret_cast<swoole::http::Request *>(conn->object);
+    if (!request) {
+        return;
+    }
+    delete request;
+    conn->object = nullptr;
 }
 
 #ifdef SW_USE_HTTP2

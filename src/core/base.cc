@@ -14,7 +14,27 @@
  +----------------------------------------------------------------------+
  */
 
+#include <stdarg.h>
+#include <assert.h>
+
+#include <arpa/inet.h>
+#include <sys/stat.h>
+#include <sys/resource.h>
+#include <sys/ioctl.h>
+#include <sys/time.h>
+
 #include "swoole.h"
+
+#ifdef HAVE_EXECINFO
+#include <execinfo.h>
+#endif
+
+#ifdef __MACH__
+#include <sys/syslimits.h>
+#endif
+
+#include <algorithm>
+
 #include "swoole_api.h"
 #include "swoole_string.h"
 #include "swoole_signal.h"
@@ -25,25 +45,6 @@
 #include "atomic.h"
 #include "async.h"
 #include "coroutine_c_api.h"
-
-#include <stdarg.h>
-#include <assert.h>
-
-#include <arpa/inet.h>
-#include <sys/stat.h>
-#include <sys/resource.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
-
-#include <algorithm>
-
-#ifdef HAVE_EXECINFO
-#include <execinfo.h>
-#endif
-
-#ifdef __MACH__
-#include <sys/syslimits.h>
-#endif
 
 #ifdef HAVE_GETRANDOM
 #include <sys/random.h>
@@ -451,9 +452,9 @@ char *swoole_dec2hex(ulong_t value, int base)
     return sw_strndup(ptr, end - ptr);
 }
 
-ulong_t swoole_hex2dec(const char *hex, size_t &parsed_bytes) {
+ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes) {
     size_t value = 0;
-    parsed_bytes = 0;
+    *parsed_bytes = 0;
     const char *p = hex;
 
     if (strncasecmp(hex, "0x", 2) == 0) {
@@ -474,7 +475,7 @@ ulong_t swoole_hex2dec(const char *hex, size_t &parsed_bytes) {
         }
         p++;
     }
-    parsed_bytes = p - hex;
+    *parsed_bytes = p - hex;
     return value;
 }
 

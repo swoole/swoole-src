@@ -85,8 +85,10 @@ enum swHttp_status_code
     SW_HTTP_INSUFFICIENT_STORAGE = 507
 };
 
-struct swHttpRequest
-{
+namespace swoole { namespace http {
+//-----------------------------------------------------------------
+struct Request {
+ public:
     uint8_t method;
     uint8_t version;
     uchar excepted :1;
@@ -107,29 +109,30 @@ struct swHttpRequest
     uint32_t content_length;
 
     swString *buffer;
+
+ public:
+    inline void clean() {
+        memset(this, 0, offsetof(Request, buffer));
+    }
+
+    int get_protocol();
+    int get_header_length();
+    int get_chunked_body_length();
+    void parse_header_info();
+    std::string get_date_if_modified_since();
+#ifdef SW_HTTP_100_CONTINUE
+    bool has_expect_header();
+#endif
 };
+//-----------------------------------------------------------------
+}}
 
 int swHttp_get_method(const char *method_str, size_t method_len);
 const char* swHttp_get_method_string(int method);
 const char *swHttp_get_status_message(int code);
-
 size_t swHttp_url_decode(char *str, size_t len);
 char* swHttp_url_encode(char const *str, size_t len);
-
-int swHttpRequest_get_protocol(swHttpRequest *request);
-int swHttpRequest_get_header_length(swHttpRequest *request);
-int swHttpRequest_get_chunked_body_length(swHttpRequest *request);
-void swHttpRequest_parse_header_info(swHttpRequest *request);
-void swHttpRequest_free(swConnection *conn);
-
-static inline void swHttpRequest_clean(swHttpRequest *request)
-{
-    memset(request, 0, offsetof(swHttpRequest, buffer));
-}
-
-#ifdef SW_HTTP_100_CONTINUE
-int swHttpRequest_has_expect_header(swHttpRequest *request);
-#endif
+void swHttp_free_request(swConnection *conn);
 
 #ifdef SW_USE_HTTP2
 ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);

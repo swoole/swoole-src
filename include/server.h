@@ -111,8 +111,6 @@ enum swServer_mode
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
 #define SW_SERVER_MIN_FD_INDEX          1 //min listen socket
 
-struct swHttpRequest;
-
 struct swListenPort
 {
     /**
@@ -308,6 +306,10 @@ enum swServer_hook_type
 };
 
 namespace swoole {
+
+namespace http {
+    struct Request;
+}
 
 struct Session
 {
@@ -853,7 +855,7 @@ class Server
 
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
-    bool select_static_handler(swHttpRequest *request, Connection *conn);
+    bool select_static_handler(http::Request *request, Connection *conn);
 
     int create();
     int start();
