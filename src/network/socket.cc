@@ -15,11 +15,11 @@
  */
 
 #include "swoole_api.h"
+#include "swoole_socket.h"
+#include "swoole_log.h"
 #include "ssl.h"
 
-#ifndef MSG_NOSIGNAL
-#define MSG_NOSIGNAL        0
-#endif
+#include <assert.h>
 
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout)
 {
@@ -188,7 +188,16 @@ ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len
 
     while (written < (ssize_t) __len)
     {
-        n = write(sock->fd, (char *) __data + written, __len - written);
+#ifdef SW_USE_OPENSSL
+        if (sock->ssl)
+        {
+            n = swSSL_send(sock, (char *) __data + written, __len - written);
+        }
+        else
+#endif
+        {
+            n = write(sock->fd, (char *) __data + written, __len - written);
+        }
         if (n < 0)
         {
             if (errno == EINTR)
@@ -382,7 +391,7 @@ int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec)
 #endif
 }
 
-swSocket* swSocket_new(int fd, enum swFd_type type)
+swSocket *swSocket_new(int fd, enum swFd_type type)
 {
     swSocket *socket = (swSocket *) sw_calloc(1, sizeof(*socket));
     if (!socket)
@@ -553,7 +562,6 @@ swSocket* swSocket_create_server(enum swSocket_type type, const char *address, i
 
     return sock;
 }
-
 
 int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk)
 {

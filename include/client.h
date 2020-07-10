@@ -14,48 +14,22 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_CLIENT_H_
-#define SW_CLIENT_H_
+#pragma once
 
 #include "swoole_api.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
+#include "swoole_protocol.h"
+#include "proxy.h"
 #include "ssl.h"
-
-SW_EXTERN_C_BEGIN
 
 #define SW_SOCK_ASYNC    1
 #define SW_SOCK_SYNC     0
 
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE  "HTTP/1.1 200 Connection established"
 
-enum swClient_pipe_flag
-{
-    SW_CLIENT_PIPE_TCP_SESSION = 1,
-};
-
-enum swHttp_proxy_state
-{
-    SW_HTTP_PROXY_STATE_WAIT = 0,
-    SW_HTTP_PROXY_STATE_HANDSHAKE,
-    SW_HTTP_PROXY_STATE_READY,
-};
-
-struct _http_proxy
-{
-    uint8_t state;
-    uint8_t dont_handshake;
-    int proxy_port;
-    const char *proxy_host;
-    const char *user;
-    const char *password;
-    int l_user;
-    int l_password;
-    const char *target_host;
-    int l_target_host;
-    int target_port;
-    char buf[512];
-};
-
-typedef struct _swClient
+struct swClient
 {
     int id;
     int type;
@@ -86,8 +60,8 @@ typedef struct _swClient
     uchar open_eof_check :1;
 
     swProtocol protocol;
-    struct _swSocks5 *socks5_proxy;
-    struct _http_proxy* http_proxy;
+    swSocks5_proxy *socks5_proxy;
+    swHttp_proxy *http_proxy;
 
     uint32_t reuse_count;
 
@@ -134,20 +108,19 @@ typedef struct _swClient
     swSSL_option ssl_option;
 #endif
 
-    void (*onConnect)(struct _swClient *cli);
-    void (*onError)(struct _swClient *cli);
-    void (*onReceive)(struct _swClient *cli, const char *data, uint32_t length);
-    void (*onClose)(struct _swClient *cli);
-    void (*onBufferFull)(struct _swClient *cli);
-    void (*onBufferEmpty)(struct _swClient *cli);
+    void (*onConnect)(swClient *cli);
+    void (*onError)(swClient *cli);
+    void (*onReceive)(swClient *cli, const char *data, uint32_t length);
+    void (*onClose)(swClient *cli);
+    void (*onBufferFull)(swClient *cli);
+    void (*onBufferEmpty)(swClient *cli);
 
-    int (*connect)(struct _swClient *cli, const char *host, int port, double _timeout, int sock_flag);
-    int (*send)(struct _swClient *cli, const char *data, size_t length, int flags);
-    int (*sendfile)(struct _swClient *cli, const char *filename, off_t offset, size_t length);
-    int (*recv)(struct _swClient *cli, char *data, int len, int flags);
-    int (*close)(struct _swClient *cli);
-
-} swClient;
+    int (*connect)(swClient *cli, const char *host, int port, double _timeout, int sock_flag);
+    int (*send)(swClient *cli, const char *data, size_t length, int flags);
+    int (*sendfile)(swClient *cli, const char *filename, off_t offset, size_t length);
+    int (*recv)(swClient *cli, char *data, uint32_t len, int flags);
+    int (*close)(swClient *cli);
+};
 
 void swClient_init_reactor(swReactor *reactor);
 int swClient_create(swClient *cli, enum swSocket_type type, int async);
@@ -161,15 +134,15 @@ int swClient_ssl_verify(swClient *cli, int allow_self_signed);
 #endif
 void swClient_free(swClient *cli);
 //----------------------------------------Stream---------------------------------------
-typedef struct _swStream
+struct swStream
 {
     swString *buffer;
     uint8_t cancel;
     int errCode;
     void *private_data;
-    void (*response)(struct _swStream *stream, const char *data, uint32_t length);
+    void (*response)(swStream *stream, const char *data, uint32_t length);
     swClient client;
-} swStream;
+};
 
 swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type type);
 int swStream_send(swStream *stream, const char *data, size_t length);
@@ -177,7 +150,3 @@ void swStream_set_protocol(swProtocol *protocol);
 void swStream_set_max_length(swStream *stream, uint32_t max_length);
 int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len);
 //----------------------------------------Stream End------------------------------------
-
-SW_EXTERN_C_END
-
-#endif /* SW_CLIENT_H_ */

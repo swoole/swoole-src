@@ -279,9 +279,6 @@ void php_swoole_coroutine_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
 
-void php_swoole_process_clean();
-int php_swoole_process_start(swWorker *process, zval *zobject);
-
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(HashTable *vht);
 
@@ -337,7 +334,6 @@ void swoole_php_socket_free(zval *zsocket);
 #endif
 
 ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length);
-int php_swoole_client_onPackage(swConnection *conn, const char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
@@ -622,6 +618,9 @@ static sw_inline int php_swoole_array_length_safe(zval *zarray)
     }
 }
 
+void php_swoole_sha1(const char *str, int _len, uchar *digest);
+void php_swoole_sha256(const char *str, int _len, uchar *digest);
+
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\
     ZEND_HASH_FOREACH_STR_KEY_VAL(ht, _foreach_key, _val); \
@@ -629,23 +628,23 @@ static sw_inline int php_swoole_array_length_safe(zval *zarray)
     else {k = ZSTR_VAL(_foreach_key), klen=ZSTR_LEN(_foreach_key); ktype = 1;} {
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
-static sw_inline int add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t key_len, zend_ulong value)
+static sw_inline void add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t key_len, zend_ulong value)
 {
     if (sw_likely(value <= ZEND_LONG_MAX))
     {
-        return add_assoc_long_ex(arg, key, key_len, value);
+        add_assoc_long_ex(arg, key, key_len, value);
     }
     else
     {
         char buf[MAX_LENGTH_OF_LONG + 1];
         size_t len = sw_snprintf(buf, sizeof(buf), ZEND_ULONG_FMT, value);
-        return add_assoc_stringl_ex(arg, key, key_len, buf, len);
+        add_assoc_stringl_ex(arg, key, key_len, buf, len);
     }
 }
 
-static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
+static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
 {
-    return add_assoc_ulong_safe_ex(arg, key, strlen(key), value);
+    add_assoc_ulong_safe_ex(arg, key, strlen(key), value);
 }
 
 //----------------------------------Class API------------------------------------
@@ -1001,7 +1000,9 @@ static sw_inline int sw_zend_call_function_ex(zval *function_name, zend_fcall_in
     fci.retval = retval ? retval : &_retval;
     fci.param_count = param_count;
     fci.params = params;
+#if PHP_VERSION_ID < 80000
     fci.no_separation = 0;
+#endif
 
     ret = zend_call_function(&fci, fci_cache);
 

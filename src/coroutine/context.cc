@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 #include "context.h"
+#include "swoole_log.h"
+
 #if __linux__
 #include <sys/mman.h>
 #endif

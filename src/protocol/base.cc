@@ -16,7 +16,11 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_cxx.h"
+#include "swoole.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_protocol.h"
+#include "swoole_log.h"
 
 using namespace swoole;
 
@@ -47,10 +51,9 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, co
     //Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0)
     {
-        swConnection *conn = (swConnection *) socket->object;
         swWarn(
-            "invalid package (size=%d) from session#%u<%s:%d>",
-            size, conn->session_id,
+            "invalid package (size=%d) from socket#%u<%s:%d>",
+            size, socket->fd,
             swSocket_get_ip(socket->socket_type, &socket->info),
             swSocket_get_port(socket->socket_type, &socket->info)
         );

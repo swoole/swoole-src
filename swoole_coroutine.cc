@@ -21,6 +21,7 @@
 
 #include "server.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_signal.h"
 
 #include "zend_builtin_functions.h"
 #include "ext/spl/spl_array.h"
@@ -88,9 +89,9 @@ bool PHPCoroutine::active = false;
 swoole::coroutine::Config PHPCoroutine::config =
 {
     SW_DEFAULT_MAX_CORO_NUM,
-    0,
     /* TODO: enable hook in v5.0.0 */
     // SW_HOOK_ALL
+    0,
     false,
 };
 
@@ -353,7 +354,6 @@ inline void PHPCoroutine::activate()
         /* create a thread to interrupt the coroutine that takes up too much time */
         interrupt_thread_start();
     }
-
     if (config.hook_flags)
     {
         enable_hook(config.hook_flags);
@@ -362,7 +362,7 @@ inline void PHPCoroutine::activate()
     /**
      * deactivate when reactor free.
      */
-    swReactor_add_destroy_callback(SwooleTG.reactor, deactivate, nullptr);
+    SwooleTG.reactor->add_destroy_callback(deactivate, nullptr);
     active = true;
 }
 
@@ -940,10 +940,8 @@ PHP_METHOD(swoole_coroutine, stats)
 {
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleTG.reactor ? SwooleTG.reactor->event_num : 0);
-    add_assoc_long_ex(
-        return_value, ZEND_STRL("signal_listener_num"),
-        SwooleTG.reactor ? (SwooleTG.reactor->signal_listener_num + SwooleTG.reactor->co_signal_listener_num) : 0
-    );
+    add_assoc_long_ex(return_value, ZEND_STRL("signal_listener_num"),
+            SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
     add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.aio_task_num);
     add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swAio_thread_count());
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());

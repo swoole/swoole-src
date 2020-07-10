@@ -15,6 +15,40 @@
  */
 
 #include "swoole_api.h"
+#include "swoole_reactor.h"
+#include "swoole_timer.h"
+#include "swoole_util.h"
+#include "swoole_log.h"
+
+#if !defined( HAVE_CLOCK_GETTIME) && defined(__MACH__)
+#include <mach/clock.h>
+#include <mach/mach_time.h>
+#include <sys/sysctl.h>
+
+#define ORWL_NANO (+1.0E-9)
+#define ORWL_GIGA UINT64_C(1000000000)
+
+static double orwl_timebase = 0.0;
+static uint64_t orwl_timestart = 0;
+
+static int clock_gettime(clock_id_t which_clock, struct timespec *t)
+{
+    // be more careful in a multithreaded environement
+    if (!orwl_timestart)
+    {
+        mach_timebase_info_data_t tb =
+        {   0};
+        mach_timebase_info(&tb);
+        orwl_timebase = tb.numer;
+        orwl_timebase /= tb.denom;
+        orwl_timestart = mach_absolute_time();
+    }
+    double diff = (mach_absolute_time() - orwl_timestart) * orwl_timebase;
+    t->tv_sec = diff * ORWL_NANO;
+    t->tv_nsec = diff - (t->tv_sec * ORWL_GIGA);
+    return 0;
+}
+#endif
 
 int swSystemTimer_init(swTimer *timer, long msec);
 
@@ -47,25 +81,30 @@ static int swReactorTimer_set(swTimer *timer, long exec_msec)
 
 static void swReactorTimer_close(swTimer *timer)
 {
-    timer->reactor->check_timer = false;
     swReactorTimer_set(timer, -1);
-}
-
-static void swReactorTimer_free(swTimer *timer)
-{
-    swoole_timer_free();
 }
 
 static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_msec)
 {
-    reactor->check_timer = true;
     reactor->timeout_msec = exec_msec;
-    reactor->timer = timer;
     timer->reactor = reactor;
     timer->set = swReactorTimer_set;
     timer->close = swReactorTimer_close;
 
-    swReactor_add_destroy_callback(reactor, (swCallback) swReactorTimer_free, timer);
+    reactor->set_end_callback(SW_REACTOR_PRIORITY_TIMER, [timer](swReactor *)
+    {
+        swTimer_select(timer);
+    });
+
+    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_TIMER, [timer](swReactor *reactor, int &event_num) -> bool
+    {
+        return timer->num == 0;
+    });
+
+    reactor->add_destroy_callback([](void *)
+    {
+        swoole_timer_free();
+    });
 
     return SW_OK;
 }

@@ -15,6 +15,9 @@
  */
 
 #include "swoole_server.h"
+#include "swoole_process.h"
+#include "msg_queue.h"
+
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"
 
@@ -258,7 +261,7 @@ static void server_free_object(zend_object *object)
     }
 
     zend_object_std_dtor(object);
-    if (serv)
+    if (serv && swIsMaster())
     {
         delete serv;
     }
@@ -859,7 +862,7 @@ int php_swoole_task_pack(swEventData *task, zval *zdata)
         php_swoole_task_id = 0;
     }
     //field reactor_id save the worker_id
-    task->info.reactor_id = SwooleWG.id;
+    task->info.reactor_id = SwooleG.process_id;
     swTask_type(task) = 0;
 
     char *task_data_str;
@@ -1825,7 +1828,7 @@ static void php_swoole_onUserWorkerStart(swServer *serv, swWorker *worker)
         SwooleG.enable_coroutine = 1;
     }
     zval *object = (zval *) worker->ptr;
-    zend_update_property_long(swoole_process_ce, object, ZEND_STRL("id"), SwooleWG.id);
+    zend_update_property_long(swoole_process_ce, object, ZEND_STRL("id"), SwooleG.process_id);
 
     zval *zserv = (zval *) serv->ptr2;
     zend_update_property_long(swoole_server_ce, zserv, ZEND_STRL("master_pid"), serv->gs->master_pid);
@@ -3455,9 +3458,9 @@ static PHP_METHOD(swoole_server, taskwait)
     int task_id = buf.info.fd;
 
     uint64_t notify;
-    swEventData *task_result = &(serv->task_result[SwooleWG.id]);
+    swEventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(swEventData));
-    swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
+    swPipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
     swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     //clear history task
@@ -3552,10 +3555,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti)
     int list_of_id[SW_MAX_CONCURRENT_TASK] = {};
 
     uint64_t notify;
-    swEventData *task_result = &(serv->task_result[SwooleWG.id]);
+    swEventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(swEventData));
-    swPipe *task_notify_pipe = &serv->task_notify[SwooleWG.id];
-    swWorker *worker = serv->get_worker(SwooleWG.id);
+    swPipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
+    swWorker *worker = serv->get_worker(SwooleG.process_id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
     int _tmpfile_fd = swoole_tmpfile(_tmpfile);
@@ -3848,7 +3851,7 @@ static PHP_METHOD(swoole_server, sendMessage)
         RETURN_FALSE;
     }
 
-    if (worker_id == SwooleWG.id)
+    if (worker_id == SwooleG.process_id)
     {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
@@ -3868,7 +3871,7 @@ static PHP_METHOD(swoole_server, sendMessage)
     }
 
     buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
-    buf.info.reactor_id = SwooleWG.id;
+    buf.info.reactor_id = SwooleG.process_id;
 
     swWorker *to_worker = serv->get_worker(worker_id);
     SW_CHECK_RETURN(serv->send_to_worker_from_worker(to_worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER | SW_PIPE_NONBLOCK));
@@ -4273,7 +4276,7 @@ static PHP_METHOD(swoole_server, getWorkerId)
     }
     else
     {
-        RETURN_LONG(SwooleWG.id);
+        RETURN_LONG(SwooleG.process_id);
     }
 }
 
@@ -4286,7 +4289,7 @@ static PHP_METHOD(swoole_server, getWorkerStatus)
         RETURN_FALSE;
     }
 
-    zend_long worker_id = SwooleWG.id;
+    zend_long worker_id = SwooleG.process_id;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE)
     {
         RETURN_FALSE;
@@ -4357,22 +4360,22 @@ static PHP_METHOD(swoole_server, stop)
     }
 
     zend_bool wait_reactor = 0;
-    long worker_id = SwooleWG.id;
+    long worker_id = SwooleG.process_id;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|lb", &worker_id, &wait_reactor) == FAILURE)
     {
         RETURN_FALSE;
     }
 
-    if (worker_id == SwooleWG.id && wait_reactor == 0)
+    if (worker_id == SwooleG.process_id && wait_reactor == 0)
     {
         if (SwooleTG.reactor != nullptr)
         {
-            SwooleTG.reactor->defer(SwooleTG.reactor, [](void *data) {
+            SwooleTG.reactor->defer([](void *data)
+            {
                 swReactor *reactor = (swReactor *) data;
                 reactor->running = 0;
             }, SwooleTG.reactor);
         }
-
         serv->running = 0;
     }
     else

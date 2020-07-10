@@ -17,7 +17,7 @@
 #ifndef _SW_RINGQUEUE_H_
 #define _SW_RINGQUEUE_H_
 
-typedef struct _swRingQueue
+struct swRingQueue
 {
     int head;
     int tail;
@@ -27,7 +27,7 @@ typedef struct _swRingQueue
     int tag;
     int size;
     void **data;
-} swRingQueue;
+};
 
 int swRingQueue_init(swRingQueue *queue, int buffer_size);
 int swRingQueue_push(swRingQueue *queue, void *);

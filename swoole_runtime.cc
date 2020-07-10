@@ -1888,7 +1888,9 @@ static PHP_FUNCTION(swoole_user_func_handler)
     fci.retval = return_value;
     fci.param_count = ZEND_NUM_ARGS();
     fci.params = ZEND_CALL_ARG(execute_data, 1);
+#if PHP_VERSION_ID < 80000
     fci.no_separation = 1;
+#endif
 
     real_func *rf = (real_func *) zend_hash_find_ptr(function_table, execute_data->func->common.function_name);
     zend_call_function(&fci, rf->fci_cache);

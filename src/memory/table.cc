@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "table.h"
 
 //#define SW_TABLE_DEBUG 1
@@ -26,11 +25,9 @@ static int insert_count = 0;
 static int conflict_max_level = 0;
 #endif
 
-static inline void swTable_check_key_length(int &keylen)
-{
-    if (keylen >= SW_TABLE_KEY_SIZE)
-    {
-        keylen = SW_TABLE_KEY_SIZE - 1;
+static inline void swTable_check_key_length(uint16_t *keylen) {
+    if (*keylen >= SW_TABLE_KEY_SIZE) {
+        *keylen = SW_TABLE_KEY_SIZE - 1;
     }
 }
 
@@ -257,9 +254,9 @@ void swTable_iterator_forward(swTable *table)
     table->iterator->row = nullptr;
 }
 
-swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableRow** rowlock)
+swTableRow* swTableRow_get(swTable *table, const char *key, uint16_t keylen, swTableRow** rowlock)
 {
-    swTable_check_key_length(keylen);
+    swTable_check_key_length(&keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     *rowlock = row;
@@ -299,9 +296,9 @@ static inline void swTableRow_init(swTable *table, swTableRow *new_row, const ch
     sw_atomic_fetch_add(&(table->row_num), 1);
 }
 
-swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableRow **rowlock)
+swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock)
 {
-    swTable_check_key_length(keylen);
+    swTable_check_key_length(&keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     *rowlock = row;
@@ -362,9 +359,9 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
     return row;
 }
 
-int swTableRow_del(swTable *table, const char *key, int keylen)
+int swTableRow_del(swTable *table, const char *key, uint16_t keylen)
 {
-    swTable_check_key_length(keylen);
+    swTable_check_key_length(&keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     //no exists

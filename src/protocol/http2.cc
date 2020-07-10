@@ -17,6 +17,7 @@
  */
 
 #include "swoole.h"
+#include "swoole_socket.h"
 #include "http2.h"
 
 int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *_socket)

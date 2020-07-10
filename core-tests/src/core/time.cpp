@@ -1,4 +1,5 @@
 #include "tests.h"
+#include "swoole_util.h"
 
 TEST(time, get_ms)
 {

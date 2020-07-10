@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "swoole_cxx.h"
 #include "coroutine_system.h"
 #include "coroutine_socket.h"
 #include "httplib_client.h"
@@ -998,10 +997,10 @@ class CoSocketStream : public detail::SocketStream {
     ~CoSocketStream() {
 
     }
-    bool is_readable() {
+    bool is_readable() const {
         return true;
     }
-    bool is_writable() {
+    bool is_writable() const {
         return true;
     }
     ssize_t read(char *ptr, size_t size) {
@@ -1010,7 +1009,7 @@ class CoSocketStream : public detail::SocketStream {
     ssize_t write(const char *ptr, size_t size) {
         return sock_->write(ptr, size);
     }
-    void get_remote_ip_and_port(std::string &ip, int &port) {
+    void get_remote_ip_and_port(std::string &ip, int &port) const {
         swSocketAddress sa;
         sock_->getpeername(&sa);
         ip = std::string(swSocket_get_ip(sock_->get_type(), &sa));

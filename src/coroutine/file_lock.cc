@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "coroutine.h"
 #include "coroutine_c_api.h"
 
@@ -22,8 +21,6 @@
 #include <sys/file.h>
 
 #include <queue>
-#include <string>
-#include <unordered_map>
 
 using namespace std;
 using namespace swoole;

@@ -15,6 +15,7 @@
 */
 
 #include "server.h"
+#include "swoole_log.h"
 
 #include <unordered_map>
 #include <vector>
@@ -223,7 +224,7 @@ int Server::start_manager_process()
         }
     }
 
-    message_box = swChannel_new(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
+    message_box = Channel::make(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
     if (message_box == nullptr)
     {
         return SW_ERR;
@@ -307,17 +308,17 @@ static int swManager_loop(swServer *serv)
     }
 
     //for reload
-    swSignal_add(SIGHUP, nullptr);
-    swSignal_add(SIGCHLD, swManager_signal_handler);
-    swSignal_add(SIGTERM, swManager_signal_handler);
-    swSignal_add(SIGUSR1, swManager_signal_handler);
-    swSignal_add(SIGUSR2, swManager_signal_handler);
-    swSignal_add(SIGIO, swManager_signal_handler);
-    swSignal_add(SIGALRM, swManager_signal_handler);
+    swSignal_set(SIGHUP, nullptr);
+    swSignal_set(SIGCHLD, swManager_signal_handler);
+    swSignal_set(SIGTERM, swManager_signal_handler);
+    swSignal_set(SIGUSR1, swManager_signal_handler);
+    swSignal_set(SIGUSR2, swManager_signal_handler);
+    swSignal_set(SIGIO, swManager_signal_handler);
+    swSignal_set(SIGALRM, swManager_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swManager_signal_handler);
+    swSignal_set(SIGRTMIN, swManager_signal_handler);
 #endif
-    //swSignal_add(SIGINT, swManager_signal_handler);
+    //swSignal_set(SIGINT, swManager_signal_handler);
 #ifdef __linux__
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 #endif
@@ -344,7 +345,7 @@ static int swManager_loop(swServer *serv)
         if (ManagerProcess.read_message)
         {
             swWorkerStopMessage msg;
-            while (swChannel_pop(serv->message_box, &msg, sizeof(msg)) > 0)
+            while (serv->message_box->pop(&msg, sizeof(msg)) > 0)
             {
                 if (serv->running == 0)
                 {
@@ -366,9 +367,9 @@ static int swManager_loop(swServer *serv)
             ManagerProcess.read_message = false;
         }
 
-        if (SwooleWG.signal_alarm && SwooleTG.timer)
+        if (SwooleG.signal_alarm && SwooleTG.timer)
         {
-            SwooleWG.signal_alarm = 0;
+            SwooleG.signal_alarm = 0;
             swTimer_select(SwooleTG.timer);
         }
 
@@ -600,7 +601,7 @@ static void swManager_signal_handler(int sig)
             ManagerProcess.reloading = true;
             ManagerProcess.reload_all_worker = true;
         }
-        swLog_reopen();
+        sw_logger().reopen();
         break;
         /**
          * only reload task workers
@@ -611,13 +612,13 @@ static void swManager_signal_handler(int sig)
             ManagerProcess.reloading = true;
             ManagerProcess.reload_task_worker = true;
         }
-        swLog_reopen();
+        sw_logger().reopen();
         break;
     case SIGIO:
         ManagerProcess.read_message = true;
         break;
     case SIGALRM:
-        SwooleWG.signal_alarm = 1;
+        SwooleG.signal_alarm = 1;
         if (ManagerProcess.force_kill)
         {
             alarm(0);
@@ -631,7 +632,7 @@ static void swManager_signal_handler(int sig)
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN)
         {
-            swLog_reopen();
+            sw_logger().reopen();
         }
 #endif
         break;
@@ -776,8 +777,8 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker)
     else if (pid == 0)
     {
         SwooleG.process_type = SW_PROCESS_USERWORKER;
+        SwooleG.process_id = worker->id;
         SwooleWG.worker = worker;
-        SwooleWG.id = worker->id;
         worker->pid = getpid();
         //close tcp listen socket
         if (serv->factory_mode == SW_MODE_BASE)

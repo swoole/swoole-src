@@ -18,7 +18,12 @@
 #include "php_streams.h"
 #include "php_network.h"
 
+#include "swoole_process.h"
 #include "server.h"
+#include "msg_queue.h"
+#include "swoole_signal.h"
+
+#include <sys/ipc.h>
 
 using namespace swoole;
 
@@ -580,10 +585,10 @@ static PHP_METHOD(swoole_process, signal)
         fci_cache = signal_fci_caches[signo];
         if (fci_cache)
         {
-            swSignal_add(signo, nullptr);
+            swSignal_set(signo, nullptr);
             signal_fci_caches[signo] = nullptr;
             swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
-            SwooleTG.reactor->signal_listener_num--;
+            SwooleTG.signal_listener_num--;
             RETURN_TRUE;
         }
         else
@@ -614,6 +619,14 @@ static PHP_METHOD(swoole_process, signal)
 
     // for swSignalfd_setup
     SwooleTG.reactor->check_signalfd = 1;
+    if (!SwooleTG.reactor->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER))
+    {
+        SwooleTG.reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER,
+                [](swReactor *reactor, int &event_num) -> bool
+                {
+                    return SwooleTG.signal_listener_num == 0 or !SwooleG.wait_signal;
+                });
+    }
 
     if (signal_fci_caches[signo])
     {
@@ -622,14 +635,14 @@ static PHP_METHOD(swoole_process, signal)
     }
     else
     {
-        SwooleTG.reactor->signal_listener_num++;
+        SwooleTG.signal_listener_num++;
     }
     signal_fci_caches[signo] = fci_cache;
 
     // use user settings
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_add(signo, handler);
+    swSignal_set(signo, handler);
 
     RETURN_TRUE;
 }
@@ -775,7 +788,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject)
     }
 
     php_swoole_process_clean();
-    SwooleWG.id = process->id;
+    SwooleG.process_id = process->id;
     SwooleWG.worker = process;
 
     zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);

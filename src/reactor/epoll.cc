@@ -15,8 +15,12 @@
  */
 
 #include "swoole.h"
+#include "swoole_reactor.h"
+#include "swoole_log.h"
 
-#define EVENT_DEBUG   1
+#include <unordered_map>
+
+#define EVENT_DEBUG   0
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -31,7 +35,6 @@
 typedef struct swReactorEpoll_s swReactorEpoll;
 
 #if EVENT_DEBUG
-#include <unordered_map>
 static thread_local std::unordered_map<int, swSocket *> event_map;
 
 swSocket* swoole_event_map_get(int sockfd)
@@ -232,10 +235,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         }
         else if (n == 0)
         {
-            if (reactor->onTimeout)
-            {
-                reactor->onTimeout(reactor);
-            }
+            reactor->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         }
         for (i = 0; i < n; i++)
@@ -291,10 +291,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo)
         }
 
         _continue:
-        if (reactor->onFinish)
-        {
-            reactor->onFinish(reactor);
-        }
+        reactor->execute_end_callbacks(false);
         SW_REACTOR_CONTINUE;
     }
     return 0;

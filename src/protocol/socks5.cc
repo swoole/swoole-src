@@ -18,7 +18,7 @@
 
 #include "swoole.h"
 #include "client.h"
-#include "socks5.h"
+#include "swoole_log.h"
 
 const char* swSocks5_strerror(int code)
 {
@@ -47,7 +47,7 @@ const char* swSocks5_strerror(int code)
 
 int swSocks5_connect(swClient *cli, char *recv_data, int length)
 {
-    swSocks5 *ctx = cli->socks5_proxy;
+    swSocks5_proxy *ctx = cli->socks5_proxy;
     char *buf = ctx->buf;
     uchar version, status, result, method;
 

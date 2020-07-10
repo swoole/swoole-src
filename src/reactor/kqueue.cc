@@ -15,7 +15,10 @@
  */
 
 #include "swoole.h"
-#include <string.h>
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
+#include "swoole_signal.h"
+#include "swoole_log.h"
 
 #ifdef IDE_HELPER
 #ifdef HAVE_KQUEUE
@@ -33,12 +36,11 @@
 
 #ifdef HAVE_KQUEUE
 
-typedef struct
-{
+struct swReactorKqueue {
     int epfd;
     int event_max;
     struct kevent *events;
-} swReactorKqueue;
+};
 
 static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events);
 static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events);
@@ -311,10 +313,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
         else if (n == 0)
         {
-            if (reactor->onTimeout)
-            {
-                reactor->onTimeout(reactor);
-            }
+            reactor->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         }
 
@@ -386,10 +385,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo)
         }
 
         _continue:
-        if (reactor->onFinish)
-        {
-            reactor->onFinish(reactor);
-        }
+        reactor->execute_end_callbacks(false);
         SW_REACTOR_CONTINUE;
     }
     return 0;

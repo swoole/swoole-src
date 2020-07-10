@@ -14,8 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_ERRNO_H_
-#define SW_ERRNO_H_
+#pragma once
 
 enum swErrorCode
 {
@@ -153,5 +152,3 @@ enum swErrorCode
 
     SW_ERROR_END
 };
-
-#endif /* SW_ERRNO_H_ */

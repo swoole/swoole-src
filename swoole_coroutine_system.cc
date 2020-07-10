@@ -234,10 +234,10 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event)
 static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETERS)
 {
     php_swoole_check_reactor();
-    if (!swReactor_isset_handler(SwooleTG.reactor, PHP_SWOOLE_FD_SOCKET))
+    if (!swoole_event_isset_handler(PHP_SWOOLE_FD_SOCKET))
     {
-        swReactor_set_handler(SwooleTG.reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_READ, co_socket_onReadable);
-        swReactor_set_handler(SwooleTG.reactor, PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
+        swoole_event_set_handler(PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_READ, co_socket_onReadable);
+        swoole_event_set_handler(PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
     }
 
     tmp_socket *sock = (tmp_socket *) ecalloc(1, sizeof(tmp_socket));

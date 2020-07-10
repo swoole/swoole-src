@@ -18,15 +18,17 @@
 */
 
 #include "tests.h"
+#include "swoole_log.h"
 
 using namespace std;
+using namespace swoole;
 
 TEST(stream, send) {
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
-    int ori_log_level = swLog_get_level();
-    swLog_set_level(SW_LOG_ERROR);
+    int ori_log_level = sw_logger().get_level();
+    sw_logger().set_level(SW_LOG_ERROR);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
     if (!port) {
@@ -37,9 +39,8 @@ TEST(stream, send) {
     port->open_length_check = true;
     swStream_set_protocol(&port->protocol);
 
-    swLock lock;
-    swMutex_create(&lock, 0);
-    lock.lock(&lock);
+    mutex lock;
+    lock.lock();
 
     char buf[65536];
     ASSERT_EQ(swoole_random_bytes(buf, sizeof(buf)), sizeof(buf));
@@ -50,7 +51,7 @@ TEST(stream, send) {
     {
         swSignal_none();
 
-        lock.lock(&lock);
+        lock.lock();
 
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
@@ -80,7 +81,7 @@ TEST(stream, send) {
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        lock.unlock(&lock);
+        lock.unlock();
     };
 
     serv.onReceive = [&buf](swServer *serv, swEventData *req) -> int
@@ -108,5 +109,5 @@ TEST(stream, send) {
     serv.start();
     t1.join();
 
-    swLog_set_level(ori_log_level);
+    sw_logger().set_level(ori_log_level);
 }

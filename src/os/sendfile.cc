@@ -15,9 +15,10 @@
 */
 
 #include "swoole.h"
+#include "swoole_log.h"
 
 #ifdef HAVE_KQUEUE
-
+#include <sys/socket.h>
 #include <sys/uio.h>
 
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)

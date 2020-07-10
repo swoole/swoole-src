@@ -16,9 +16,18 @@
 
 #pragma once
 
-#include "swoole_cxx.h"
+#include "swoole.h"
+#include "swoole_memory.h"
+#include "swoole_util.h"
+#include "swoole_log.h"
+#include "lock.h"
 #include "atomic.h"
 #include "hash.h"
+
+#include <signal.h>
+#include <sys/time.h>
+
+#include <vector>
 #include <unordered_map>
 
 typedef uint32_t swTable_string_length_t;
@@ -118,13 +127,13 @@ size_t swTable_get_memory_size(swTable *table);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
 bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size);
-swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableRow **rowlock);
-swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableRow **rowlock);
+swTableRow* swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock);
+swTableRow* swTableRow_get(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock);
 
 void swTable_iterator_rewind(swTable *table);
 swTableRow* swTable_iterator_current(swTable *table);
 void swTable_iterator_forward(swTable *table);
-int swTableRow_del(swTable *table, const char *key, int keylen);
+int swTableRow_del(swTable *table, const char *key, uint16_t keylen);
 
 static sw_inline swTableColumn* swTableColumn_get(swTable *table, const std::string &key)
 {

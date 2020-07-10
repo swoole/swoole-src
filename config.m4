@@ -410,8 +410,8 @@ if test "$PHP_SWOOLE" != "no"; then
         php_swoole_cxx.cc \
         src/core/base.cc \
         src/core/channel.cc \
-        src/core/error.cc \
         src/core/crc32.cc \
+        src/core/error.cc \
         src/core/heap.cc \
         src/core/log.cc \
         src/core/ring_queue.cc \
@@ -478,10 +478,10 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/static_handler.cc \
         src/server/task_worker.cc \
         src/server/worker.cc \
-        src/wrapper/event.cc \
-        src/wrapper/timer.cc \
-        src/wrapper/server.cc \
         src/wrapper/client.cc \
+        src/wrapper/event.cc \
+        src/wrapper/server.cc \
+        src/wrapper/timer.cc \
         swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \

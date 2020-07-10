@@ -14,10 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_cxx.h"
-#include "coroutine.h"
 #include "coroutine_system.h"
 #include "lru_cache.h"
+#include "swoole_signal.h"
+
+#include <fcntl.h>
+#include <assert.h>
 
 using namespace std;
 using namespace swoole;
@@ -350,6 +352,76 @@ vector<string> System::getaddrinfo(const string &hostname, int family, int sockt
     return retval;
 }
 
+bool System::wait_signal(int signo, double timeout)
+{
+    static Coroutine* listeners[SW_SIGNO_MAX];
+    Coroutine *co = Coroutine::get_current_safe();
+
+    if (SwooleTG.signal_listener_num > 0)
+    {
+        errno = EBUSY;
+        return false;
+    }
+    if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD)
+    {
+        errno = EINVAL;
+        return false;
+    }
+
+    /* resgiter signal */
+    listeners[signo] = co;
+    // for swSignalfd_setup
+    sw_reactor()->check_signalfd = 1;
+    // exit condition
+    if (!sw_reactor()->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER))
+    {
+        sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
+                [](swReactor *reactor, int &event_num) -> bool
+                {
+                    return SwooleTG.co_signal_listener_num == 0;
+                });
+    }
+    /* always enable signalfd */
+    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
+    swSignal_set(signo, [](int signo) {
+        Coroutine *co = listeners[signo];
+        if (co)
+        {
+            listeners[signo] = nullptr;
+            co->resume();
+        }
+    });
+    SwooleTG.co_signal_listener_num++;
+
+    swTimer_node* timer = nullptr;
+    if (timeout > 0)
+    {
+        timer = swoole_timer_add(timeout * 1000, 0, [](swTimer *timer, swTimer_node *tnode) {
+            Coroutine *co = (Coroutine *) tnode->data;
+            co->resume();
+        }, co);
+    }
+
+    co->yield();
+
+    swSignal_set(signo, nullptr);
+    SwooleTG.co_signal_listener_num--;
+
+    if (listeners[signo] != nullptr)
+    {
+        listeners[signo] = nullptr;
+        errno = ETIMEDOUT;
+        return false;
+    }
+
+    if (timer)
+    {
+        swoole_timer_del(timer);
+    }
+
+    return true;
+}
+
 struct coro_poll_task
 {
     std::unordered_map<int, socket_poll_fd> *fds;
@@ -426,7 +498,7 @@ static inline void socket_poll_trigger_event(swReactor *reactor, coro_poll_task 
             swoole_timer_del(task->timer);
             task->timer = nullptr;
         }
-        reactor->defer(reactor, socket_poll_completed, task);
+        reactor->defer(socket_poll_completed, task);
     }
 }
 
@@ -605,11 +677,12 @@ struct event_waiter
 
 static inline void event_waiter_callback(swReactor *reactor, event_waiter *waiter, enum swEvent_type event)
 {
-    if (waiter->revents == 0) {
-        reactor->defer(reactor, [](void *data) {
-            event_waiter *waiter = (event_waiter *) data;
+    if (waiter->revents == 0)
+    {
+        reactor->defer([waiter](void *data)
+        {
             waiter->co->resume();
-        }, waiter);
+        });
     }
     waiter->revents |= event;
 }
@@ -680,15 +753,15 @@ int System::wait_event(int fd, int events, double timeout)
 
 void System::init_reactor(swReactor *reactor)
 {
-    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
-    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
-    swReactor_set_handler(reactor, SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+    reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
+    reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
+    reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
 
-    swReactor_set_handler(reactor, SW_FD_CORO_EVENT | SW_EVENT_READ, event_waiter_read_callback);
-    swReactor_set_handler(reactor, SW_FD_CORO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
-    swReactor_set_handler(reactor, SW_FD_CORO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
+    reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_READ, event_waiter_read_callback);
+    reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
+    reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
 
-    swReactor_set_handler(reactor, SW_FD_AIO | SW_EVENT_READ, swAio_callback);
+    reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, swAio_callback);
 }
 
 static void async_task_completed(swAio_event *event)

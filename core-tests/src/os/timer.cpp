@@ -18,6 +18,7 @@
 */
 
 #include "tests.h"
+#include "swoole_util.h"
 
 static int timer1_count = 0;
 static int timer2_count = 0;
@@ -45,7 +46,7 @@ TEST(timer, sys) {
 
     while (1) {
         sleep(10);
-        if (SwooleWG.signal_alarm) {
+        if (SwooleG.signal_alarm) {
             swoole_timer_select();
             if (!timer_running) {
                 break;

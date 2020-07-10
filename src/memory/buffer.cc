@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "buffer.h"
+#include "swoole_log.h"
 
 /**
  * create new buffer

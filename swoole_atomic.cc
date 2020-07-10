@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole.h"
+#include "swoole_memory.h"
 
 #ifdef HAVE_FUTEX
 #include <linux/futex.h>

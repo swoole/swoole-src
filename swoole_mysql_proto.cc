@@ -300,17 +300,17 @@ uint8_t get_static_type_size(uint8_t type)
 static uint32_t sha1_password_with_nonce(char* buf, const char* nonce, const char* password)
 {
     char hash_0[20] = {};
-    swoole_sha1(password, strlen(password), (uchar *) hash_0);
+    php_swoole_sha1(password, strlen(password), (uchar *) hash_0);
 
     char hash_1[20] = {};
-    swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
+    php_swoole_sha1(hash_0, sizeof (hash_0), (uchar *) hash_1);
 
     char str[40];
     memcpy(str, nonce, 20);
     memcpy(str + 20, hash_1, 20);
 
     char hash_2[20];
-    swoole_sha1(str, sizeof (str), (uchar *) hash_2);
+    php_swoole_sha1(str, sizeof (str), (uchar *) hash_2);
 
     char hash_3[20];
 
@@ -331,13 +331,13 @@ static uint32_t sha256_password_with_nonce(char* buf, const char* nonce, const c
 {
     // XOR(SHA256(password), SHA256(SHA256(SHA256(password)), nonce))
     char hashed[32], double_hashed[32];
-    swoole_sha256(password, strlen(password), (unsigned char *) hashed);
-    swoole_sha256(hashed, 32, (unsigned char *) double_hashed);
+    php_swoole_sha256(password, strlen(password), (unsigned char *) hashed);
+    php_swoole_sha256(hashed, 32, (unsigned char *) double_hashed);
     char combined[32 + SW_MYSQL_NONCE_LENGTH]; //double-hashed + nonce
     memcpy(combined, double_hashed, 32);
     memcpy(combined + 32, nonce, SW_MYSQL_NONCE_LENGTH);
     char xor_bytes[32];
-    swoole_sha256(combined, 32 + SW_MYSQL_NONCE_LENGTH, (unsigned char *) xor_bytes);
+    php_swoole_sha256(combined, 32 + SW_MYSQL_NONCE_LENGTH, (unsigned char *) xor_bytes);
     int i;
     for (i = 0; i < 32; i++)
     {

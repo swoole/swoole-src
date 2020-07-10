@@ -14,13 +14,15 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_cxx.h"
 #include "server.h"
+#include "swoole_memory.h"
+#include "thread_pool.h"
 #include "hash.h"
+#include "http.h"
 #include "client.h"
 #include "websocket.h"
 
-#include <unordered_map>
+#include <assert.h>
 
 using std::unordered_map;
 using namespace swoole;
@@ -34,7 +36,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev);
 static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event);
 static int swReactorThread_onClose(swReactor *reactor, swEvent *event);
 static void swReactorThread_onStreamResponse(swStream *stream, const char *data, uint32_t length);
-static int swReactorThread_is_empty(swReactor *reactor);
 static void swReactorThread_shutdown(swReactor *reactor);
 static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode);
 
@@ -299,7 +300,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket)
 
     if (port->open_http_protocol && conn->object)
     {
-        swHttpRequest_free(conn);
+        swHttp_free_request(conn);
     }
     if (port->open_redis_protocol && conn->object)
     {
@@ -640,11 +641,11 @@ void Server::init_reactor(swReactor *reactor)
         swString_extend_align(SwooleTG.buffer_stack, SwooleTG.buffer_stack->size * 2);
     }
     //UDP Packet
-    swReactor_set_handler(reactor, SW_FD_DGRAM_SERVER, swReactorThread_onPacketReceived);
+    reactor->set_handler(SW_FD_DGRAM_SERVER, swReactorThread_onPacketReceived);
     //Write
-    swReactor_set_handler(reactor, SW_FD_SESSION | SW_EVENT_WRITE, swReactorThread_onWrite);
+    reactor->set_handler(SW_FD_SESSION | SW_EVENT_WRITE, swReactorThread_onWrite);
     //Read
-    swReactor_set_handler(reactor, SW_FD_SESSION | SW_EVENT_READ, swReactorThread_onRead);
+    reactor->set_handler(SW_FD_SESSION | SW_EVENT_READ, swReactorThread_onRead);
 
     if (dispatch_mode == SW_DISPATCH_STREAM)
     {
@@ -889,9 +890,7 @@ int Server::start_reactor_threads()
         if (swPort_listen(*ls) < 0)
         {
             _failed:
-            reactor->free(reactor);
-            SwooleTG.reactor = nullptr;
-            sw_free(reactor);
+            swoole_event_free();
             return SW_ERR;
         }
         reactor->add(reactor, (*ls)->socket, SW_EVENT_READ);
@@ -962,7 +961,7 @@ int Server::start_reactor_threads()
     SwooleG.process_type = SW_PROCESS_MASTER;
 
     reactor->ptr = this;
-    swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, Server::accept_connection);
+    reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
 
     if (hooks[SW_SERVER_HOOK_MASTER_START])
     {
@@ -994,12 +993,16 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     reactor->wait_exit = 0;
     reactor->max_socket = serv->max_connection;
     reactor->close = Server::close_connection;
-    reactor->is_empty = swReactorThread_is_empty;
+
+    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFAULT, [thread](swReactor *reactor, int &event_num) -> bool
+    {
+        return reactor->event_num == thread->pipe_num;
+    });
 
     reactor->default_error_handler = swReactorThread_onClose;
 
-    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeRead);
-    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, swReactorThread_onPipeRead);
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, swReactorThread_onPipeWrite);
 
     //listen UDP port
     if (serv->have_dgram_sock == 1)
@@ -1074,25 +1077,11 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     return SW_OK;
 }
 
-static int swReactorThread_is_empty(swReactor *reactor)
-{
-    if (reactor->defer_tasks)
-    {
-        return SW_FALSE;
-    }
-
-    Server *serv = (Server *) reactor->ptr;
-    ReactorThread *thread = serv->get_thread(reactor->id);
-    return reactor->event_num == thread->pipe_num;
-}
-
 /**
  * ReactorThread main Loop
  */
 static void swReactorThread_loop(swServer *serv, int reactor_id)
 {
-    int ret;
-
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
@@ -1103,9 +1092,9 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
     }
 
     ReactorThread *thread = serv->get_thread(reactor_id);
-    swReactor *reactor = &thread->reactor;
 
-    SwooleTG.reactor = reactor;
+    swoole_event_init(0);
+    swReactor *reactor = SwooleTG.reactor;
 
 #ifdef HAVE_CPU_AFFINITY
     //cpu affinity setting
@@ -1130,12 +1119,6 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
     }
 #endif
 
-    ret = swReactor_create(reactor, SW_REACTOR_MAXEVENTS);
-    if (ret < 0)
-    {
-        return;
-    }
-
     swSignal_none();
 
     if (swReactorThread_init(serv, reactor, reactor_id) < 0)
@@ -1150,11 +1133,7 @@ static void swReactorThread_loop(swServer *serv, int reactor_id)
     SW_START_SLEEP;
 #endif
     //main loop
-    reactor->wait(reactor, nullptr);
-    //shutdown
-    reactor->free(reactor);
-
-    SwooleTG.reactor = nullptr;
+    swoole_event_wait();
 
     for (auto it = thread->send_buffers.begin(); it != thread->send_buffers.end(); it++)
     {
@@ -1304,6 +1283,11 @@ void Server::destroy_reactor_threads()
     factory.free(&factory);
     sw_shm_free(connection_list);
     delete[] reactor_threads;
+
+    if (message_box)
+    {
+        message_box->destroy();
+    }
 }
 
 void Server::start_heartbeat_thread()
