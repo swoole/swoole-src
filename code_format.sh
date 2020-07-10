@@ -1,0 +1,13 @@
+clang-format -i src/core/*.cc
+clang-format -i src/coroutine/*.cc
+clang-format -i src/lock/*.cc
+clang-format -i src/memory/*.cc
+clang-format -i src/network/*.cc
+clang-format -i src/os/*.cc
+clang-format -i src/pipe/*.cc
+clang-format -i src/protocol/*.cc
+clang-format -i src/reactor/*.cc
+clang-format -i src/server/*.cc
+clang-format -i src/wrapper/*.cc
+clang-format -i include/*.h
+clang-format -i *.cc
