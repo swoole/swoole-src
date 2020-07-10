@@ -188,7 +188,16 @@ ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len
 
     while (written < (ssize_t) __len)
     {
-        n = write(sock->fd, (char *) __data + written, __len - written);
+#ifdef SW_USE_OPENSSL
+        if (sock->ssl)
+        {
+            n = swSSL_send(sock, (char *) __data + written, __len - written);
+        }
+        else
+#endif
+        {
+            n = write(sock->fd, (char *) __data + written, __len - written);
+        }
         if (n < 0)
         {
             if (errno == EINTR)
