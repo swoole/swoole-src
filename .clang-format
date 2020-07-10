@@ -44,7 +44,7 @@ BreakConstructorInitializersBeforeComma: false
 BreakConstructorInitializers: BeforeColon
 BreakAfterJavaFieldAnnotations: false
 BreakStringLiterals: true
-ColumnLimit:      80
+ColumnLimit:      120
 CommentPragmas:  '^ IWYU pragma:'
 CompactNamespaces: false
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
@@ -70,9 +70,9 @@ IncludeCategories:
   - Regex:           '.*'
     Priority:        3
 IncludeIsMainRegex: '([-_](test|unittest))?$'
-IndentCaseLabels: true
+IndentCaseLabels: false
 IndentPPDirectives: None
-IndentWidth:     2
+IndentWidth:     4
 IndentWrappedFunctionNames: false
 JavaScriptQuotes: Leave
 JavaScriptWrapImports: true
@@ -91,9 +91,9 @@ PenaltyBreakFirstLessLess: 120
 PenaltyBreakString: 1000
 PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 200
-PointerAlignment: Left
+PointerAlignment: Right
 ReflowComments:  true
-SortIncludes:    true
+SortIncludes:    false
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: true
