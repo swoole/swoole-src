@@ -17,12 +17,24 @@
 #pragma once
 
 #include "swoole_api.h"
-#include "swoole_cxx.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_timer.h"
+#include "swoole_reactor.h"
+#include "swoole_signal.h"
+#include "swoole_protocol.h"
+#include "swoole_log.h"
+#include "process_pool.h"
+#include "pipe.h"
+#include "channel.h"
 #include "ssl.h"
-#include "http.h"
 
 #ifdef SW_USE_OPENSSL
 #include "dtls.h"
+#endif
+
+#ifdef __MACH__
+#include <sys/syslimits.h>
 #endif
 
 #include <string>
@@ -88,6 +100,12 @@ enum swFactory_dispatch_result
     SW_DISPATCH_RESULT_DISCARD_PACKET    = -1,
     SW_DISPATCH_RESULT_CLOSE_CONNECTION  = -2,
     SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
+};
+
+enum swServer_mode
+{
+    SW_MODE_BASE         =  1,
+    SW_MODE_PROCESS      =  2,
 };
 
 #define SW_SERVER_MAX_FD_INDEX          0 //max connection socket
@@ -203,8 +221,24 @@ struct swListenPort
     int (*onRead)(swReactor *reactor, swListenPort *port, swEvent *event);
 };
 
-struct swWorkerStopMessage
-{
+struct swSendData {
+    swDataHead info;
+    const char *data;
+};
+
+struct swPipeBuffer {
+    swDataHead info;
+    char data[0];
+};
+
+struct swDgramPacket {
+    int socket_type;
+    swSocketAddress socket_addr;
+    uint32_t length;
+    char data[0];
+};
+
+struct swWorkerStopMessage {
     pid_t pid;
     uint16_t worker_id;
 };
@@ -273,10 +307,136 @@ enum swServer_hook_type
 
 namespace swoole {
 
+namespace http {
+    struct Request;
+}
+
+struct Session
+{
+    uint32_t id;
+    uint32_t fd :24;
+    uint32_t reactor_id :8;
+};
+
+struct Connection
+{
+    /**
+     * file descript
+     */
+    int fd;
+    /**
+     * session id
+     */
+    uint32_t session_id;
+    /**
+     * socket type, SW_SOCK_TCP or SW_SOCK_UDP
+     */
+    enum swSocket_type socket_type;
+    //--------------------------------------------------------------
+    /**
+     * is active
+     * system fd must be 0. en: signalfd, listen socket
+     */
+    uint8_t active;
+#ifdef SW_USE_OPENSSL
+    uint8_t ssl;
+    uint8_t ssl_ready;
+#endif
+    //--------------------------------------------------------------
+    uint8_t overflow;
+    uint8_t high_watermark;
+    //--------------------------------------------------------------
+    uint8_t http_upgrade;
+#ifdef SW_USE_HTTP2
+    uint8_t http2_stream;
+#endif
+#ifdef SW_HAVE_ZLIB
+    uint8_t websocket_compression;
+#endif
+    //--------------------------------------------------------------
+    /**
+     * server is actively close the connection
+     */
+    uint8_t close_actively;
+    uint8_t closed;
+    uint8_t close_queued;
+    uint8_t closing;
+    uint8_t close_reset;
+    uint8_t peer_closed;
+    /**
+     * protected connection, cannot be closed by heartbeat thread.
+     */
+    uint8_t protect;
+    //--------------------------------------------------------------
+    uint8_t close_notify;
+    uint8_t close_force;
+    //--------------------------------------------------------------
+    /**
+     * ReactorThread id
+     */
+    uint16_t reactor_id;
+    /**
+     * close error code
+     */
+    uint16_t close_errno;
+    /**
+     * from which socket fd
+     */
+    sw_atomic_t server_fd;
+    sw_atomic_t queued_bytes;
+    uint16_t waiting_time;
+    swTimer_node *timer;
+    /**
+     * socket address
+     */
+    swSocketAddress info;
+    /**
+     * link any thing, for kernel, do not use with application.
+     */
+    void *object;
+    /**
+     * socket info
+     */
+    swSocket *socket;
+    /**
+     * connect time(seconds)
+     */
+    time_t connect_time;
+
+    /**
+     * received time with last data
+     */
+    time_t last_time;
+
+#ifdef SW_BUFFER_RECV_TIME
+    /**
+     * received time(microseconds) with last data
+     */
+    double last_time_usec;
+#endif
+    /**
+     * bind uid
+     */
+    uint32_t uid;
+    /**
+     * upgarde websocket
+     */
+    uint8_t websocket_status;
+    /**
+     * unfinished data frame
+     */
+    swString *websocket_buffer;
+
+#ifdef SW_USE_OPENSSL
+    swString *ssl_client_cert;
+    uint16_t ssl_client_cert_pid;
+#endif
+    sw_atomic_t lock;
+};
+
 struct ReactorThread
 {
     std::thread thread;
-    swReactor reactor = {};
     swSocket *notify_pipe = nullptr;
     uint32_t pipe_num = 0;
     swSocket *pipe_sockets = nullptr;
@@ -546,7 +706,7 @@ class Server
     ReactorThread *reactor_threads = nullptr;
     swWorker *workers = nullptr;
 
-    swChannel *message_box = nullptr;
+    swoole::Channel *message_box = nullptr;
 
     ServerGS *gs = nullptr;
 
@@ -558,8 +718,8 @@ class Server
     pthread_barrier_t barrier = {};
 #endif
 
-    swConnection *connection_list = nullptr;
-    swSession *session_list = nullptr;
+    Connection *connection_list = nullptr;
+    Session *session_list = nullptr;
     uint32_t *port_connnection_num_list = nullptr;
 
     /**
@@ -643,7 +803,7 @@ class Server
     int (*sendfile)(Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) = nullptr;
     int (*sendwait)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
     int (*close)(Server *serv, int session_id, int reset) = nullptr;
-    int (*notify)(Server *serv, swConnection *conn, int event) = nullptr;
+    int (*notify)(Server *serv, Connection *conn, int event) = nullptr;
     int (*feedback)(Server *serv, int session_id, int event) = nullptr;
     /**
      * Chunk control
@@ -657,7 +817,7 @@ class Server
     /**
      * Hook
      */
-    int (*dispatch_func)(Server *, swConnection *, swSendData *) = nullptr;
+    int (*dispatch_func)(Server *, Connection *, swSendData *) = nullptr;
 
  public:
     Server(enum swServer_mode mode = SW_MODE_BASE);
@@ -672,7 +832,6 @@ class Server
         {
             delete port;
         }
-        SwooleG.serv = nullptr;
     }
 
     bool set_document_root(const std::string &path)
@@ -696,7 +855,7 @@ class Server
 
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
-    bool select_static_handler(swHttpRequest *request, swConnection *conn);
+    bool select_static_handler(http::Request *request, Connection *conn);
 
     int create();
     int start();
@@ -705,8 +864,8 @@ class Server
     int add_worker(swWorker *worker);
     swListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
-    int add_hook(enum swServer_hook_type type, swCallback func, int push_back);
-    swConnection *add_connection(swListenPort *ls, swSocket *_socket, int server_fd);
+    int add_hook(enum swServer_hook_type type, std::function<void(void *)> func, int push_back);
+    Connection *add_connection(swListenPort *ls, swSocket *_socket, int server_fd);
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
@@ -839,11 +998,11 @@ class Server
         return session_list[session_id % SW_SESSION_LIST_SIZE].fd;
     }
 
-    inline swConnection *get_connection_verify_no_ssl(uint32_t session_id)
+    inline Connection *get_connection_verify_no_ssl(uint32_t session_id)
     {
-        swSession *session = get_session(session_id);
+        Session *session = get_session(session_id);
         int fd = session->fd;
-        swConnection *conn = get_connection(fd);
+        Connection *conn = get_connection(fd);
         if (!conn || conn->active == 0)
         {
             return nullptr;
@@ -855,9 +1014,9 @@ class Server
         return conn;
     }
 
-    inline swConnection *get_connection_verify(uint32_t session_id)
+    inline Connection *get_connection_verify(uint32_t session_id)
     {
-        swConnection *conn = get_connection_verify_no_ssl(session_id);
+        Connection *conn = get_connection_verify_no_ssl(session_id);
 #ifdef SW_USE_OPENSSL
         if (conn && conn->ssl && !conn->ssl_ready)
         {
@@ -868,7 +1027,7 @@ class Server
         return conn;
     }
 
-    inline swConnection *get_connection(int fd)
+    inline Connection *get_connection(int fd)
     {
         if ((uint32_t) fd > max_connection)
         {
@@ -877,12 +1036,12 @@ class Server
         return &connection_list[fd];
     }
 
-    inline swConnection *get_connection_by_session_id(int session_id)
+    inline Connection *get_connection_by_session_id(int session_id)
     {
         return get_connection(get_connection_fd(session_id));
     }
 
-    inline swSession *get_session(uint32_t session_id)
+    inline Session *get_session(uint32_t session_id)
     {
         return &session_list[session_id % SW_SESSION_LIST_SIZE];
     }
@@ -911,12 +1070,7 @@ class Server
 
     int send_to_connection(swSendData *);
     int send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
-
-    inline int send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags)
-    {
-        return swWorker_send_pipe_message(dst_worker, buf, len, flags);
-    }
-
+    int send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
     int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
 
     void init_reactor(swReactor *reactor);
@@ -950,6 +1104,8 @@ class Server
 }
 
 typedef swoole::Server swServer;
+typedef swoole::Connection swConnection;
+typedef swoole::Session swSession;
 typedef swoole::ReactorThread swReactorThread;
 
 typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData *);
@@ -1006,36 +1162,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
 void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, const void *data, size_t data_len);
 int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int flags, swEventData *current_task);
-
-static sw_inline swString *swTaskWorker_large_unpack(swEventData *task_result)
-{
-    swPacket_task _pkg;
-    memcpy(&_pkg, task_result->data, sizeof(_pkg));
-
-    int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
-    if (tmp_file_fd < 0)
-    {
-        swSysWarn("open(%s) failed", _pkg.tmpfile);
-        return nullptr;
-    }
-    if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
-    {
-        close(tmp_file_fd);
-        return nullptr;
-    }
-    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) != _pkg.length)
-    {
-        close(tmp_file_fd);
-        return nullptr;
-    }
-    close(tmp_file_fd);
-    if (!(swTask_type(task_result) & SW_TASK_PEEK))
-    {
-        unlink(_pkg.tmpfile);
-    }
-    SwooleTG.buffer_stack->length = _pkg.length;
-    return SwooleTG.buffer_stack;
-}
+swString *swTaskWorker_large_unpack(swEventData *task_result);
 
 static sw_inline int swServer_connection_valid(swServer *serv, swConnection *conn)
 {
@@ -1179,9 +1306,11 @@ static sw_inline uint8_t swServer_dispatch_mode_is_mod(swServer *serv)
     return serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD;
 }
 
-static sw_inline swServer *sw_server()
+extern swServer *g_server_instance;
+
+static inline swServer *sw_server()
 {
-    return (swServer *) SwooleG.serv;
+    return g_server_instance;
 }
 
 #define swServer_support_send_yield swServer_dispatch_mode_is_mod
@@ -1202,6 +1331,7 @@ int swWorker_loop(swServer *serv, swWorker *worker);
 void swWorker_clean_pipe_buffer(swServer *serv);
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
+int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
 pid_t swManager_spawn_user_worker(swServer *serv, swWorker* worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);

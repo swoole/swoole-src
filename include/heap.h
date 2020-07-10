@@ -14,33 +14,32 @@
  +----------------------------------------------------------------------+
  */
 
-#ifndef SW_MINHEAP_H_
-#define SW_MINHEAP_H_
+#pragma once
 
 enum swHeap_type
 {
     SW_MIN_HEAP, SW_MAX_HEAP,
 };
 
-typedef struct swHeap_node
+struct swHeap_node
 {
     uint64_t priority;
     uint32_t position;
     void *data;
-} swHeap_node;
+};
 
-typedef struct _swHeap
+struct swHeap
 {
     uint32_t num;
     uint32_t size;
     uint8_t type;
     swHeap_node **nodes;
-} swHeap;
+};
 
 swHeap *swHeap_new(size_t n, uint8_t type);
 void swHeap_free(swHeap *heap);
 uint32_t swHeap_size(swHeap *heap);
-swHeap_node* swHeap_push(swHeap *heap, uint64_t priority, void *data);
+swHeap_node *swHeap_push(swHeap *heap, uint64_t priority, void *data);
 void *swHeap_pop(swHeap *heap);
 void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void* ptr);
 void swHeap_remove(swHeap *heap, swHeap_node *node);
@@ -55,5 +54,3 @@ static inline swHeap_node *swHeap_top(swHeap *heap)
     }
     return heap->nodes[1];
 }
-
-#endif /* SW_MINHEAP_H_ */

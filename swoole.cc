@@ -23,6 +23,10 @@
 
 #include "mime_type.h"
 #include "server.h"
+#include "client.h"
+#include "swoole_process.h"
+#include "swoole_util.h"
+#include "swoole_log.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -233,7 +237,7 @@ void php_swoole_set_global_option(HashTable *vht)
 #ifdef SW_DEBUG
     if (php_swoole_array_get_value(vht, "debug_mode", ztmp) && zval_is_true(ztmp))
     {
-        swLog_set_level(0);
+        sw_logger().set_level(0);
     }
 #endif
     if (php_swoole_array_get_value(vht, "trace_flags", ztmp))
@@ -242,23 +246,23 @@ void php_swoole_set_global_option(HashTable *vht)
     }
     if (php_swoole_array_get_value(vht, "log_file", ztmp))
     {
-        swLog_open(zend::string(ztmp).val());
+        sw_logger().open(zend::string(ztmp).val());
     }
     if (php_swoole_array_get_value(vht, "log_level", ztmp))
     {
-        swLog_set_level(zval_get_long(ztmp));
+        sw_logger().set_level(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_date_format", ztmp))
     {
-        swLog_set_date_format(zend::string(ztmp).val());
+        sw_logger().set_date_format(zend::string(ztmp).val());
     }
     if (php_swoole_array_get_value(vht, "log_date_with_microseconds", ztmp))
     {
-        swLog_set_date_with_microseconds(zval_is_true(ztmp));
+        sw_logger().set_date_with_microseconds(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_rotation", ztmp))
     {
-        swLog_set_rotation(zval_get_long(ztmp));
+        sw_logger().set_rotation(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp))
     {
@@ -292,7 +296,7 @@ static void fatal_error(int code, const char *format, ...)
     va_list args;
     zend_object *exception;
     va_start(args, format);
-    exception = zend_throw_exception(swoole_error_ce, swoole::cpp_string::vformat(format, args).c_str(), code);
+    exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
     zend_exception_error(exception, E_ERROR);
     // should never here
@@ -438,6 +442,7 @@ PHP_MINIT_FUNCTION(swoole)
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_QUEUE_FULL", SW_ERROR_QUEUE_FULL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_OPERATION_NOT_SUPPORT", SW_ERROR_OPERATION_NOT_SUPPORT);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_PROTOCOL_ERROR", SW_ERROR_PROTOCOL_ERROR);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_WRONG_OPERATION", SW_ERROR_WRONG_OPERATION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_FILE_NOT_EXIST", SW_ERROR_FILE_NOT_EXIST);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_FILE_TOO_LARGE", SW_ERROR_FILE_TOO_LARGE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_FILE_EMPTY", SW_ERROR_FILE_EMPTY);
@@ -863,6 +868,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole)
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
     php_swoole_runtime_rshutdown();
+
     php_swoole_process_clean();
 
     SwooleG.running = 0;

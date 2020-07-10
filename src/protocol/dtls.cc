@@ -1,4 +1,5 @@
 #include "server.h"
+#include "swoole_log.h"
 
 #ifdef SW_SUPPORT_DTLS
 

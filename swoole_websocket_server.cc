@@ -333,7 +333,7 @@ void swoole_websocket_onRequest(http_context *ctx)
     ctx->close(ctx);
 }
 
-void swoole_sha1(const char *str, int _len, unsigned char *digest)
+void php_swoole_sha1(const char *str, int _len, unsigned char *digest)
 {
     PHP_SHA1_CTX context;
     PHP_SHA1Init(&context);
@@ -369,7 +369,7 @@ bool swoole_websocket_handshake(http_context *ctx)
     memcpy(sec_buf, str_pData.val(), str_pData.len());
     memcpy(sec_buf + str_pData.len(), SW_WEBSOCKET_GUID, sizeof(SW_WEBSOCKET_GUID) - 1);
     // sha1 sec_websocket_accept
-    swoole_sha1(sec_buf, str_pData.len() + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
+    php_swoole_sha1(sec_buf, str_pData.len() + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
     // base64 encode
     int sec_len = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), sec_buf);
 

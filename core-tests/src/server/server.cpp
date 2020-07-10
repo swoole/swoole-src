@@ -18,9 +18,12 @@
 */
 
 #include "tests.h"
+#include "swoole_memory.h"
 #include "wrapper/client.hpp"
+#include "swoole_log.h"
 
 using namespace std;
+using namespace swoole;
 
 static void test_create_server(swServer *serv)
 {
@@ -55,7 +58,7 @@ TEST(server, base)
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
 
-    swLog_set_level(SW_LOG_WARNING);
+    sw_logger().set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
@@ -64,9 +67,8 @@ TEST(server, base)
         exit(2);
     }
 
-    swLock lock;
-    swMutex_create(&lock, 0);
-    lock.lock(&lock);
+    mutex lock;
+    lock.lock();
 
     ASSERT_EQ(serv.create(), SW_OK);
 
@@ -74,7 +76,7 @@ TEST(server, base)
     {
         swSignal_none();
 
-        lock.lock(&lock);
+        lock.lock();
 
         swoole::Client c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
@@ -88,7 +90,7 @@ TEST(server, base)
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        lock.unlock(&lock);
+        lock.unlock();
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int
@@ -115,7 +117,7 @@ TEST(server, process)
 
     SwooleG.running = 1;
 
-    swLog_set_level(SW_LOG_WARNING);
+    sw_logger().set_level(SW_LOG_WARNING);
 
     swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
     swMutex_create(lock, 1);
@@ -169,6 +171,8 @@ TEST(server, process)
     };
 
     ASSERT_EQ(serv.start(), 0);
+
+    SwooleG.memory_pool->free(SwooleG.memory_pool, lock);
 }
 
 TEST(server, task_worker)

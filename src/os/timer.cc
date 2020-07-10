@@ -14,11 +14,18 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
+#include "swoole_timer.h"
+#include "swoole_signal.h"
+#include "swoole_util.h"
+#include "swoole_log.h"
+
+#include <signal.h>
+#include <sys/time.h>
 
 static int swSystemTimer_signal_set(swTimer *timer, long interval);
 static int swSystemTimer_set(swTimer *timer, long new_interval);
 static void swSystemTimer_close(swTimer *timer);
+static void swSystemTimer_signal_handler(int sig);
 
 /**
  * create timer
@@ -32,7 +39,7 @@ int swSystemTimer_init(swTimer *timer, long interval)
     {
         return SW_ERR;
     }
-    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
+    swSignal_set(SIGALRM, swSystemTimer_signal_handler);
     return SW_OK;
 }
 
@@ -98,5 +105,5 @@ static int swSystemTimer_set(swTimer *timer, long exec_msec)
 
 void swSystemTimer_signal_handler(int sig)
 {
-    SwooleWG.signal_alarm = 1;
+    SwooleG.signal_alarm = 1;
 }

@@ -14,11 +14,18 @@
  +----------------------------------------------------------------------+
  */
 
+#include "swoole.h"
 #include "swoole_api.h"
-#include <assert.h>
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
+#include "swoole_protocol.h"
+#include "swoole_log.h"
 #include "client.h"
-#include "socks5.h"
+#include "proxy.h"
 #include "async.h"
+
+#include <assert.h>
 
 static int swClient_inet_addr(swClient *cli, const char *host, int port);
 static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, double _timeout, int udp_connect);
@@ -30,9 +37,9 @@ static int swClient_udp_send(swClient *cli, const char *data, size_t length, int
 
 static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t offset, size_t length);
 static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_t offset, size_t length);
-static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flags);
+static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, uint32_t len, int flags);
 static int swClient_udp_connect(swClient *cli, const char *host, int port, double _timeout, int udp_connect);
-static int swClient_udp_recv(swClient *cli, char *data, int len, int waitall);
+static int swClient_udp_recv(swClient *cli, char *data, uint32_t len, int waitall);
 static int swClient_close(swClient *cli);
 
 static int swClient_onDgramRead(swReactor *reactor, swEvent *event);
@@ -55,10 +62,10 @@ static sw_inline void execute_onConnect(swClient *cli)
 
 void swClient_init_reactor(swReactor *reactor)
 {
-    swReactor_set_handler(reactor, SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
-    swReactor_set_handler(reactor, SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
-    swReactor_set_handler(reactor, SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
-    swReactor_set_handler(reactor, SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
+    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_READ, swClient_onStreamRead);
+    reactor->set_handler(SW_FD_DGRAM_CLIENT | SW_EVENT_READ, swClient_onDgramRead);
+    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_WRITE, swClient_onWrite);
+    reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, swClient_onError);
 }
 
 int swClient_create(swClient *cli, enum swSocket_type type, int async)
@@ -76,7 +83,7 @@ int swClient_create(swClient *cli, enum swSocket_type type, int async)
     cli->socket = swSocket_new(sockfd, cli->reactor_fdtype);
     if (!cli->socket)
     {
-        swWarn("malloc(%d) failed", (int ) sizeof(swConnection));
+        swWarn("malloc(%d) failed", (int ) sizeof(*cli->socket));
         close(sockfd);
         return SW_ERR;
     }
@@ -811,7 +818,7 @@ static int swClient_tcp_sendfile_async(swClient *cli, const char *filename, off_
 /**
  * Only for synchronous client
  */
-static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, int len, int flag)
+static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, uint32_t len, int flag)
 {
     int ret;
 
@@ -977,7 +984,7 @@ static int swClient_udp_send(swClient *cli, const char *data, size_t len, int fl
     }
 }
 
-static int swClient_udp_recv(swClient *cli, char *data, int length, int flags)
+static int swClient_udp_recv(swClient *cli, char *data, uint32_t length, int flags)
 {
 #ifdef HAVE_KQUEUE
     if (!cli->async)
@@ -1473,4 +1480,3 @@ static int swClient_onWrite(swReactor *reactor, swEvent *event)
 
     return SW_OK;
 }
-

@@ -14,7 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_cxx.h"
 #include "coroutine_cxx_api.h"
 
 #include <sys/file.h>

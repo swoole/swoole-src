@@ -18,6 +18,7 @@
 */
 
 #include "tests.h"
+#include "pipe.h"
 
 TEST(reactor, create)
 {
@@ -35,13 +36,8 @@ TEST(reactor, create)
     ASSERT_NE(reactor->free, nullptr);
 
     ASSERT_EQ(reactor->running, 1);
-    ASSERT_NE(reactor->onFinish, nullptr);
-    ASSERT_NE(reactor->onTimeout, nullptr);
-    ASSERT_NE(reactor->is_empty, nullptr);
-    ASSERT_EQ(reactor->can_exit, nullptr); // set in PHP_METHOD(swoole_coroutine_scheduler, set)
     ASSERT_NE(reactor->write, nullptr);
     ASSERT_NE(reactor->close, nullptr);
-    ASSERT_NE(reactor->defer, nullptr);
     ASSERT_EQ(reactor->defer_tasks, nullptr);
     ASSERT_NE(reactor->default_write_handler, nullptr);
 
@@ -72,13 +68,13 @@ TEST(reactor, set_handler)
 {
     swReactor reactor;
 
-    swReactor_set_handler(&reactor, SW_EVENT_READ, (swReactor_handler) 0x1);
+    reactor.set_handler(SW_EVENT_READ, (swReactor_handler) 0x1);
     ASSERT_EQ(reactor.read_handler[swReactor_fdtype(SW_EVENT_READ)], (swReactor_handler) 0x1);
 
-    swReactor_set_handler(&reactor, SW_EVENT_WRITE, (swReactor_handler) 0x2);
+    reactor.set_handler(SW_EVENT_WRITE, (swReactor_handler) 0x2);
     ASSERT_EQ(reactor.write_handler[swReactor_fdtype(SW_EVENT_WRITE)], (swReactor_handler) 0x2);
 
-    swReactor_set_handler(&reactor, SW_EVENT_ERROR, (swReactor_handler) 0x3);
+    reactor.set_handler(SW_EVENT_ERROR, (swReactor_handler) 0x3);
     ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
 }
 
@@ -157,17 +153,9 @@ static const char* pkt = "hello world\r\n";
 
 static void reactor_test_func(swReactor *reactor)
 {
-    reactor->onFinish = [](swReactor *reactor)
-    {
-        if (reactor->event_num == 0)
-        {
-            reactor->running = 0;
-        }
-    };
-
     swPipe p;
     ASSERT_EQ(swPipeBase_create(&p, 1), SW_OK);
-    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *event) -> int
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *event) -> int
     {
         char buf[1024];
         size_t l = strlen(pkt);
@@ -179,7 +167,7 @@ static void reactor_test_func(swReactor *reactor)
 
         return SW_OK;
     });
-    swReactor_set_handler(reactor, SW_FD_PIPE | SW_EVENT_WRITE, [](swReactor *reactor, swEvent *event) -> int
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](swReactor *reactor, swEvent *event) -> int
     {
         size_t l = strlen(pkt);
         EXPECT_EQ(write(event->fd, pkt, l), l);
@@ -190,21 +178,22 @@ static void reactor_test_func(swReactor *reactor)
     reactor->add(reactor, p.getSocket(&p, SW_PIPE_READ), SW_EVENT_READ);
     reactor->add(reactor, p.getSocket(&p, SW_PIPE_WRITE), SW_EVENT_WRITE);
     reactor->wait(reactor, nullptr);
-    reactor->free(reactor);
 
     p.close(&p);
 }
 
-TEST(reactor, poll)
-{
-    swReactor reactor = {};
+TEST(reactor, poll) {
+    swReactor reactor(1024);
+    reactor.free(&reactor);
+    reactor.wait_exit = 1;
     ASSERT_EQ(swReactorPoll_create(&reactor, 1024), SW_OK);
     reactor_test_func(&reactor);
 }
 
-TEST(reactor, select)
-{
-    swReactor reactor = {};
+TEST(reactor, select) {
+    swReactor reactor(1024);
+    reactor.free(&reactor);
+    reactor.wait_exit = 1;
     ASSERT_EQ(swReactorSelect_create(&reactor), SW_OK);
     reactor_test_func(&reactor);
 }

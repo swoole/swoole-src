@@ -16,6 +16,10 @@
 
 #include "php_swoole_cxx.h"
 
+#include "server.h"
+#include "swoole_process.h"
+#include "swoole_signal.h"
+
 using namespace swoole;
 
 struct process_pool_property
@@ -209,7 +213,7 @@ static void pool_onWorkerStart(swProcessPool *pool, int worker_id)
     process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(zobject);
 
     php_swoole_process_clean();
-    SwooleWG.id = worker_id;
+    SwooleG.process_id = worker_id;
     current_pool = pool;
 
     //main function
@@ -305,7 +309,7 @@ static PHP_METHOD(swoole_process_pool, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleG.serv)
+    if (sw_server())
     {
         php_swoole_fatal_error(E_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
@@ -565,9 +569,9 @@ static PHP_METHOD(swoole_process_pool, start)
 
     SwooleG.use_signalfd = 0;
 
-    swSignal_add(SIGTERM, pool_signal_handler);
-    swSignal_add(SIGUSR1, pool_signal_handler);
-    swSignal_add(SIGUSR2, pool_signal_handler);
+    swSignal_set(SIGTERM, pool_signal_handler);
+    swSignal_set(SIGUSR1, pool_signal_handler);
+    swSignal_set(SIGUSR2, pool_signal_handler);
 
     if (pool->ipc_mode == SW_IPC_NONE || pp->enable_coroutine)
     {
@@ -636,7 +640,7 @@ static PHP_METHOD(swoole_process_pool, getProcess)
     }
     else if (worker_id < 0)
     {
-        worker_id = SwooleWG.id;
+        worker_id = SwooleG.process_id;
     }
 
     zval *zworkers = sw_zend_read_and_convert_property_array(swoole_process_pool_ce, ZEND_THIS, ZEND_STRL("workers"), 0);
@@ -653,12 +657,12 @@ static PHP_METHOD(swoole_process_pool, getProcess)
         *worker = current_pool->workers[worker_id];
 
         object_init_ex(zprocess, swoole_process_ce);
-        zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("id"), SwooleWG.id);
+        zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("id"), SwooleG.process_id);
         zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pid"), worker->pid);
         if (current_pool->ipc_mode == SW_IPC_UNIXSOCK)
         {
             //current process
-            if (worker->id == SwooleWG.id)
+            if (worker->id == SwooleG.process_id)
             {
                 worker->pipe_current = worker->pipe_worker;
             }

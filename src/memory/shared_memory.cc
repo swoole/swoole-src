@@ -15,9 +15,32 @@
 */
 
 #include "swoole.h"
-#include <sys/shm.h>
+#include "swoole_memory.h"
+#include "swoole_log.h"
 
-void* sw_shm_malloc(size_t size)
+#if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
+#define MAP_ANONYMOUS MAP_ANON
+#endif
+
+#if defined(MAP_HUGETLB) || defined(MAP_ALIGNED_SUPER)
+#define MAP_HUGE_PAGE 1
+#endif
+
+#include <sys/mman.h>
+
+#define SW_SHM_MMAP_FILE_LEN  64
+
+struct swShareMemory {
+    size_t size;
+    char mapfile[SW_SHM_MMAP_FILE_LEN];
+    int tmpfd;
+    void *mem;
+};
+
+static void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile);
+static int swShareMemory_mmap_free(swShareMemory *object);
+
+void *sw_shm_malloc(size_t size)
 {
     size = SW_MEM_ALIGNED_SIZE(size);
     swShareMemory object;
@@ -35,7 +58,7 @@ void* sw_shm_malloc(size_t size)
     }
 }
 
-void* sw_shm_calloc(size_t num, size_t _size)
+void *sw_shm_calloc(size_t num, size_t _size)
 {
     swShareMemory object;
     void *mem;
@@ -69,7 +92,7 @@ void sw_shm_free(void *ptr)
     swShareMemory_mmap_free(object);
 }
 
-void* sw_shm_realloc(void *ptr, size_t new_size)
+void *sw_shm_realloc(void *ptr, size_t new_size)
 {
     swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
     void *new_ptr;
@@ -86,7 +109,7 @@ void* sw_shm_realloc(void *ptr, size_t new_size)
     }
 }
 
-void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile)
+static void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile)
 {
     void *mem;
     int tmpfd = -1;
@@ -138,7 +161,7 @@ void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *
     }
 }
 
-int swShareMemory_mmap_free(swShareMemory *object)
+static int swShareMemory_mmap_free(swShareMemory *object)
 {
     return munmap(object->mem, object->size);
 }

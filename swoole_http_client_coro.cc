@@ -19,6 +19,7 @@
 
 #include "php_swoole_cxx.h"
 #include "coroutine_c_api.h"
+#include "swoole_util.h"
 #include "swoole_http_client.h"
 
 #include "mime_type.h"
@@ -1072,7 +1073,7 @@ bool http_client::send()
         if (!ssl ? port != 80 : port != 443)
 #endif
         {
-            __host = cpp_string::format("%s:%u", host.c_str(), port);
+            __host = std_string::format("%s:%u", host.c_str(), port);
             _host = &__host;
         } else {
             _host = &host;

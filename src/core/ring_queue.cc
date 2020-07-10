@@ -13,9 +13,11 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-#include <stdio.h>
 #include "swoole.h"
 #include "ring_queue.h"
+#include "swoole_log.h"
+
+#include <stdio.h>
 
 int swRingQueue_init(swRingQueue *queue, int buffer_size)
 {

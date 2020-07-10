@@ -19,8 +19,10 @@
 
 #include "tests.h"
 #include "wrapper/client.hpp"
+#include "swoole_log.h"
 
 using namespace std;
+using namespace swoole;
 
 static const char *packet = "hello world\n";
 
@@ -29,7 +31,7 @@ TEST(server, send_buffer)
     swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
 
-    swLog_set_level(SW_LOG_WARNING);
+    sw_logger().set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port)
@@ -40,15 +42,14 @@ TEST(server, send_buffer)
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    swLock lock;
-    swMutex_create(&lock, 0);
-    lock.lock(&lock);
+    mutex lock;
+    lock.lock();
 
     std::thread t1([&]()
     {
         swSignal_none();
 
-        lock.lock(&lock);
+        lock.lock();
 
         swoole::Client c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
@@ -72,7 +73,7 @@ TEST(server, send_buffer)
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
     {
-        lock.unlock(&lock);
+        lock.unlock();
     };
 
     serv.onReceive = [](swServer *serv, swEventData *req) -> int

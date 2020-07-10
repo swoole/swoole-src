@@ -14,10 +14,12 @@
   +----------------------------------------------------------------------+
 */
 
+#include "swoole.h"
 #include "swoole_api.h"
-
-#include "coroutine.h"
-#include "coroutine_system.h"
+#include "swoole_signal.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
+#include "swoole_string.h"
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
@@ -26,25 +28,18 @@
 #include <sys/event.h>
 #endif
 
-struct swSignal
-{
-    swSignalHandler handler;
-    uint16_t signo;
-    uint16_t active;
-};
-
 #ifdef HAVE_SIGNALFD
-static void swSignalfd_set(int signo, swSignalHandler handler);
+static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler);
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
 
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
 static swSocket *signal_socket = nullptr;
-#endif
-
-#ifdef HAVE_KQUEUE
-static void swKqueueSignal_set(int signo, swSignalHandler handler);
+#elif HAVE_KQUEUE
+static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
+#else
+static swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask);
 #endif
 
 static void swSignal_async_handler(int signo);
@@ -79,9 +74,9 @@ void swSignal_none(void)
 }
 
 /**
- * setup signal
+ * set new signal handler and return origin signal handler
  */
-swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mask)
+swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask)
 {
     //ignore
     if (func == nullptr)
@@ -105,19 +100,22 @@ swSignalHandler swSignal_set(int sig, swSignalHandler func, int restart, int mas
         sigemptyset(&act.sa_mask);
     }
     act.sa_flags = 0;
-    if (sigaction(sig, &act, &oact) < 0)
+    if (sigaction(signo, &act, &oact) < 0)
     {
         return nullptr;
     }
     return oact.sa_handler;
 }
 
-void swSignal_add(int signo, swSignalHandler handler)
+/**
+ * set new signal handler and return origin signal handler
+ */
+swSignalHandler swSignal_set(int signo, swSignalHandler handler)
 {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd)
     {
-        swSignalfd_set(signo, handler);
+        return swSignalfd_set(signo, handler);
     }
     else
 #endif
@@ -126,9 +124,9 @@ void swSignal_add(int signo, swSignalHandler handler)
         // SIGCHLD can not be monitored by kqueue, if blocked by SIG_IGN
         // see https://www.freebsd.org/cgi/man.cgi?kqueue
         // if there's no main reactor, signals cannot be monitored either
-        if (signo != SIGCHLD && SwooleTG.reactor)
+        if (signo != SIGCHLD && sw_reactor())
         {
-            swKqueueSignal_set(signo, handler);
+            return swKqueueSignal_set(signo, handler);
         }
         else
 #endif
@@ -136,16 +134,16 @@ void swSignal_add(int signo, swSignalHandler handler)
             signals[signo].handler = handler;
             signals[signo].active = 1;
             signals[signo].signo = signo;
-            swSignal_set(signo, swSignal_async_handler, 1, 0);
+            return swSignal_set(signo, swSignal_async_handler, 1, 0);
         }
     }
 }
 
 static void swSignal_async_handler(int signo)
 {
-    if (SwooleTG.reactor)
+    if (sw_reactor())
     {
-        SwooleTG.reactor->singal_no = signo;
+        sw_reactor()->singal_no = signo;
     }
     else
     {
@@ -206,7 +204,7 @@ void swSignal_clear(void)
             if (signals[i].active)
             {
 #ifdef HAVE_KQUEUE
-                if (signals[i].signo != SIGCHLD && SwooleTG.reactor)
+                if (signals[i].signo != SIGCHLD && sw_reactor())
                 {
                     swKqueueSignal_set(signals[i].signo, nullptr);
                 }
@@ -228,8 +226,13 @@ void swSignalfd_init()
     sw_memset_zero(&signals, sizeof(signals));
 }
 
-static void swSignalfd_set(int signo, swSignalHandler handler)
+/**
+ * set new signal handler and return origin signal handler
+ */
+static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler)
 {
+    swSignalHandler origin_handler = nullptr;
+
     if (handler == nullptr && signals[signo].active)
     {
         sigdelset(&signalfd_mask, signo);
@@ -238,6 +241,7 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
     else
     {
         sigaddset(&signalfd_mask, signo);
+        origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].active = 1;
@@ -247,10 +251,12 @@ static void swSignalfd_set(int signo, swSignalHandler handler)
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
-    else if (SwooleTG.reactor)
+    else if (sw_reactor())
     {
-        swSignalfd_setup(SwooleTG.reactor);
+        swSignalfd_setup(sw_reactor());
     }
+
+    return origin_handler;
 }
 
 int swSignalfd_setup(swReactor *reactor)
@@ -276,11 +282,17 @@ int swSignalfd_setup(swReactor *reactor)
         swSysWarn("sigprocmask() failed");
         goto _error;
     }
-    swReactor_set_handler(reactor, SW_FD_SIGNAL, swSignalfd_onSignal);
+    swoole_event_set_handler(SW_FD_SIGNAL, swSignalfd_onSignal);
     if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0)
     {
         goto _error;
     }
+    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNALFD, [](swReactor *reactor, int &event_num) -> bool
+    {
+        event_num--;
+        return true;
+    });
+
     SwooleG.signal_fd = signal_fd;
 
     return SW_OK;
@@ -344,10 +356,14 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event)
 #endif
 
 #ifdef HAVE_KQUEUE
-static void swKqueueSignal_set(int signo, swSignalHandler handler)
+/**
+ * set new signal handler and return origin signal handler
+ */
+static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler)
 {
     struct kevent ev;
-    swReactor *reactor = SwooleTG.reactor;
+    swSignalHandler origin_handler = nullptr;
+    swReactor *reactor = sw_reactor();
     struct reactor_object
     {
         int fd;
@@ -364,6 +380,7 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     else
     {
         signal(signo, SIG_IGN);
+        origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].active = 1;
@@ -375,70 +392,8 @@ static void swKqueueSignal_set(int signo, swSignalHandler handler)
     {
         swSysWarn("kevent set signal[%d] error", signo);
     }
+
+    return origin_handler;
 }
 #endif
 
-namespace swoole { namespace coroutine {
-
-bool System::wait_signal(int signo, double timeout)
-{
-    static Coroutine* listeners[SW_SIGNO_MAX];
-    Coroutine *co = Coroutine::get_current_safe();
-
-    if (SwooleTG.reactor->signal_listener_num > 0)
-    {
-        errno = EBUSY;
-        return false;
-    }
-    if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD)
-    {
-        errno = EINVAL;
-        return false;
-    }
-
-    /* resgiter signal */
-    listeners[signo] = co;
-    // for swSignalfd_setup
-    SwooleTG.reactor->check_signalfd = 1;
-    /* always enable signalfd */
-    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
-    swSignal_add(signo, [](int signo) {
-        Coroutine *co = listeners[signo];
-        if (co)
-        {
-            listeners[signo] = nullptr;
-            co->resume();
-        }
-    });
-    SwooleTG.reactor->co_signal_listener_num++;
-
-    swTimer_node* timer = nullptr;
-    if (timeout > 0)
-    {
-        timer = swoole_timer_add(timeout * 1000, 0, [](swTimer *timer, swTimer_node *tnode) {
-            Coroutine *co = (Coroutine *) tnode->data;
-            co->resume();
-        }, co);
-    }
-
-    co->yield();
-
-    swSignal_add(signo, nullptr);
-    SwooleTG.reactor->co_signal_listener_num--;
-
-    if (listeners[signo] != nullptr)
-    {
-        listeners[signo] = nullptr;
-        errno = ETIMEDOUT;
-        return false;
-    }
-
-    if (timer)
-    {
-        swoole_timer_del(timer);
-    }
-
-    return true;
-}
-
-}}

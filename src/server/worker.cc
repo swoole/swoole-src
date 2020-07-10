@@ -15,21 +15,28 @@
 */
 
 #include "server.h"
+#include "swoole_memory.h"
+#include "swoole_log.h"
+#include "msg_queue.h"
 #include "client.h"
 #include "async.h"
 
+#include <assert.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/uio.h>
+#include <sys/mman.h>
 
 using namespace swoole;
+
+swWorkerGlobal SwooleWG = {};
 
 static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
 static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const char *data, uint32_t length);
 static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
-static int swWorker_reactor_is_empty(swReactor *reactor);
+static void swWorker_reactor_try_to_exit(swReactor *reactor);
 
 void swWorker_signal_init(void)
 {
@@ -38,17 +45,16 @@ void swWorker_signal_init(void)
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_add(SIGHUP, nullptr);
-    swSignal_add(SIGPIPE, nullptr);
-    swSignal_add(SIGUSR1, nullptr);
-    swSignal_add(SIGUSR2, nullptr);
-    //swSignal_add(SIGINT, swWorker_signal_handler);
-    swSignal_add(SIGTERM, swWorker_signal_handler);
-    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
+    swSignal_set(SIGHUP, nullptr);
+    swSignal_set(SIGPIPE, nullptr);
+    swSignal_set(SIGUSR1, nullptr);
+    swSignal_set(SIGUSR2, nullptr);
+    //swSignal_set(SIGINT, swWorker_signal_handler);
+    swSignal_set(SIGTERM, swWorker_signal_handler);
     //for test
-    swSignal_add(SIGVTALRM, swWorker_signal_handler);
+    swSignal_set(SIGVTALRM, swWorker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swWorker_signal_handler);
+    swSignal_set(SIGRTMIN, swWorker_signal_handler);
 #endif
 }
 
@@ -72,9 +78,6 @@ void swWorker_signal_handler(int signo)
             SwooleWG.shutdown = 1;
         }
         break;
-    case SIGALRM:
-        swSystemTimer_signal_handler(SIGALRM);
-        break;
     /**
      * for test
      */
@@ -83,13 +86,13 @@ void swWorker_signal_handler(int signo)
         break;
     case SIGUSR1:
     case SIGUSR2:
-        swLog_reopen();
+        sw_logger().reopen();
         break;
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN)
         {
-            swLog_reopen();
+            sw_logger().reopen();
         }
 #endif
         break;
@@ -360,7 +363,7 @@ int Server::accept_task(swEventData *task)
 
 void swWorker_onStart(swServer *serv)
 {
-    if (SwooleWG.id >= serv->worker_num)
+    if (SwooleG.process_id >= serv->worker_num)
     {
         SwooleG.process_type = SW_PROCESS_TASKWORKER;
     }
@@ -418,7 +421,7 @@ void swWorker_onStart(swServer *serv)
     for (uint32_t i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
         swWorker *worker = serv->get_worker(i);
-        if (SwooleWG.id == i)
+        if (SwooleG.process_id == i)
         {
             continue;
         }
@@ -428,12 +431,12 @@ void swWorker_onStart(swServer *serv)
         }
     }
 
-    if (swLog_is_opened())
+    if (sw_logger().is_opened())
     {
-        swLog_reopen();
+        sw_logger().reopen();
     }
 
-    SwooleWG.worker = serv->get_worker(SwooleWG.id);
+    SwooleWG.worker = serv->get_worker(SwooleG.process_id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
     if (serv->factory_mode == SW_MODE_PROCESS)
@@ -462,7 +465,7 @@ void swWorker_onStop(swServer *serv)
 {
     if (serv->onWorkerStop)
     {
-        serv->onWorkerStop(serv, SwooleWG.id);
+        serv->onWorkerStop(serv, SwooleG.process_id);
     }
 }
 
@@ -529,10 +532,10 @@ void swWorker_stop(swWorker *worker)
 
     swWorkerStopMessage msg;
     msg.pid = SwooleG.pid;
-    msg.worker_id = SwooleWG.id;
+    msg.worker_id = SwooleG.process_id;
 
     //send message to manager
-    if (serv->message_box && swChannel_push(serv->message_box, &msg, sizeof(msg)) < 0)
+    if (serv->message_box && serv->message_box->push(&msg, sizeof(msg)) < 0)
     {
         serv->running = 0;
     }
@@ -542,17 +545,17 @@ void swWorker_stop(swWorker *worker)
     }
 
     _try_to_exit: swReactor_wait_exit(reactor, 1);
-    reactor->is_empty = swWorker_reactor_is_empty;
+    reactor->set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, swWorker_reactor_try_to_exit);
     SwooleWG.exit_time = time(nullptr);
 
-    if (swWorker_reactor_is_empty(reactor))
+    swWorker_reactor_try_to_exit(reactor);
+    if (!reactor->running)
     {
         serv->running = false;
-        reactor->running = 0;
     }
 }
 
-static int swWorker_reactor_is_empty(swReactor *reactor)
+static void swWorker_reactor_try_to_exit(swReactor *reactor)
 {
     swServer *serv;
     if (SwooleG.process_type == SW_PROCESS_TASKWORKER)
@@ -568,15 +571,16 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
 
     while (1)
     {
-        if (swReactor_empty(reactor))
+        if (reactor->if_exit())
         {
-            return SW_TRUE;
+            reactor->running = false;
+            break;
         }
         else
         {
             if (serv->onWorkerExit && call_worker_exit_func == 0)
             {
-                serv->onWorkerExit(serv, SwooleWG.id);
+                serv->onWorkerExit(serv, SwooleG.process_id);
                 call_worker_exit_func = 1;
                 continue;
             }
@@ -584,7 +588,8 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
             if (remaining_time <= 0)
             {
                 swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
-                return SW_TRUE;
+                reactor->running = false;
+                break;
             }
             else
             {
@@ -597,8 +602,6 @@ static int swWorker_reactor_is_empty(swReactor *reactor)
         }
         break;
     }
-
-    return SW_FALSE;
 }
 
 void swWorker_clean_pipe_buffer(swServer *serv)
@@ -627,7 +630,7 @@ void swWorker_clean_pipe_buffer(swServer *serv)
 int swWorker_loop(swServer *serv, swWorker *worker)
 {
     //worker_id
-    SwooleWG.id = worker->id;
+    SwooleG.process_id = worker->id;
 
     swServer_worker_init(serv, worker);
 
@@ -656,13 +659,13 @@ int swWorker_loop(swServer *serv, swWorker *worker)
     swSocket_set_nonblock(worker->pipe_worker);
     reactor->ptr = serv;
     reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ);
-    swReactor_set_handler(reactor, SW_FD_PIPE, swWorker_onPipeReceive);
+    reactor->set_handler(SW_FD_PIPE, swWorker_onPipeReceive);
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM)
     {
         reactor->add(reactor, serv->stream_socket, SW_EVENT_READ);
-        swReactor_set_handler(reactor, SW_FD_STREAM_SERVER, swWorker_onStreamAccept);
-        swReactor_set_handler(reactor, SW_FD_STREAM, swWorker_onStreamRead);
+        reactor->set_handler(SW_FD_STREAM_SERVER, swWorker_onStreamAccept);
+        reactor->set_handler(SW_FD_STREAM, swWorker_onStreamRead);
         swStream_set_protocol(&serv->stream_protocol);
         serv->stream_protocol.private_data_2 = serv;
         serv->stream_protocol.package_max_length = UINT_MAX;
@@ -693,13 +696,25 @@ int swWorker_loop(swServer *serv, swWorker *worker)
 /**
  * Send data to ReactorThread
  */
-int Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id) {
+int Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id)
+{
     swSocket *pipe_sock = swServer_get_send_pipe(this, session_id, ev_data->info.reactor_id);
-    if (SwooleTG.reactor) {
+    if (SwooleTG.reactor)
+    {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, ev_data, sendn);
-    } else {
+    }
+    else
+    {
         return swSocket_write_blocking(pipe_sock, ev_data, sendn);
     }
+}
+
+/**
+ * send message from worker to another worker
+ */
+int Server::send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags)
+{
+    return swWorker_send_pipe_message(dst_worker, buf, len, flags);
 }
 
 /**
@@ -762,7 +777,7 @@ static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event)
                 swTraceLog(
                     SW_TRACE_WORKER,
                     "worker process[%lu] receives the chunk data to the maximum[%d], return to event loop",
-                    SwooleWG.id, recv_chunk_count
+                    SwooleG.process_id, recv_chunk_count
                 );
                 return SW_OK;
             }

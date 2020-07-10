@@ -124,7 +124,7 @@ void php_swoole_coroutine_scheduler_minit(int module_number)
 static zend_fcall_info_cache exit_condition_fci_cache;
 static bool exit_condition_cleaner;
 
-static int php_swoole_coroutine_reactor_can_exit(swReactor *reactor)
+static bool php_swoole_coroutine_reactor_can_exit(swReactor *reactor, int &event_num)
 {
     zval retval;
     int success;
@@ -259,19 +259,19 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
                     }, nullptr);
                     exit_condition_cleaner = true;
                 }
-                SwooleG.reactor_can_exit = php_swoole_coroutine_reactor_can_exit;
-                if (SwooleTG.reactor)
-                {
-                    SwooleTG.reactor->can_exit = php_swoole_coroutine_reactor_can_exit;
+                SwooleG.user_exit_condition = php_swoole_coroutine_reactor_can_exit;
+                if (sw_reactor()) {
+                    sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT,
+                                                     SwooleG.user_exit_condition);
                 }
             }
         }
         else
         {
-            SwooleG.reactor_can_exit = nullptr;
-            if (SwooleTG.reactor)
+            if (sw_reactor())
             {
-                SwooleTG.reactor->can_exit = nullptr;
+                sw_reactor()->remove_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT);
+                SwooleG.user_exit_condition = nullptr;
             }
         }
     }

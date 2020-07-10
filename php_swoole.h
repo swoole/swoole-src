@@ -279,9 +279,6 @@ void php_swoole_coroutine_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
 
-void php_swoole_process_clean();
-int php_swoole_process_start(swWorker *process, zval *zobject);
-
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(HashTable *vht);
 
@@ -337,7 +334,6 @@ void swoole_php_socket_free(zval *zsocket);
 #endif
 
 ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length);
-int php_swoole_client_onPackage(swConnection *conn, const char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
@@ -621,6 +617,9 @@ static sw_inline int php_swoole_array_length_safe(zval *zarray)
         return 0;
     }
 }
+
+void php_swoole_sha1(const char *str, int _len, uchar *digest);
+void php_swoole_sha256(const char *str, int _len, uchar *digest);
 
 #define SW_HASHTABLE_FOREACH_START(ht, _val) ZEND_HASH_FOREACH_VAL(ht, _val);  {
 #define SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, _val) zend_string *_foreach_key;\

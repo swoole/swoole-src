@@ -1,4 +1,5 @@
 #include "tests.h"
+#include "pipe.h"
 
 TEST(pipe, unixsock)
 {

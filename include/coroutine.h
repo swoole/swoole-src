@@ -18,6 +18,11 @@
 #pragma once
 
 #include "swoole_api.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_reactor.h"
+#include "swoole_timer.h"
+#include "swoole_log.h"
 #include "context.h"
 #include "async.h"
 
@@ -32,7 +37,6 @@
 #define SW_CORO_MAX_STACK_SIZE     (16 * 1024 * 1024)
 #define SW_CORO_MAX_NUM_LIMIT      LONG_MAX
 
-// TODO: remove it
 typedef enum
 {
     SW_CORO_ERR_END = 0,

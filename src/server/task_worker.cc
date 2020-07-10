@@ -123,21 +123,20 @@ static void swTaskWorker_signal_init(swProcessPool *pool)
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_add(SIGHUP, nullptr);
-    swSignal_add(SIGPIPE, nullptr);
-    swSignal_add(SIGUSR1, swWorker_signal_handler);
-    swSignal_add(SIGUSR2, nullptr);
-    swSignal_add(SIGTERM, swWorker_signal_handler);
-    swSignal_add(SIGALRM, swSystemTimer_signal_handler);
+    swSignal_set(SIGHUP, nullptr);
+    swSignal_set(SIGPIPE, nullptr);
+    swSignal_set(SIGUSR1, swWorker_signal_handler);
+    swSignal_set(SIGUSR2, nullptr);
+    swSignal_set(SIGTERM, swWorker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_add(SIGRTMIN, swWorker_signal_handler);
+    swSignal_set(SIGRTMIN, swWorker_signal_handler);
 #endif
 }
 
 void swTaskWorker_onStart(swProcessPool *pool, int worker_id)
 {
     swServer *serv = (swServer *) pool->ptr;
-    SwooleWG.id = worker_id;
+    SwooleG.process_id = worker_id;
 
     if (serv->factory_mode == SW_MODE_BASE)
     {
@@ -230,9 +229,9 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
     worker->status = SW_WORKER_IDLE;
 
     swSocket_set_nonblock(socket);
-    SwooleTG.reactor->ptr = pool;
+    sw_reactor()->ptr = pool;
     swoole_event_add(socket, SW_EVENT_READ);
-    swReactor_set_handler(SwooleTG.reactor, SW_FD_PIPE, swTaskWorker_onPipeReceive);
+    swoole_event_set_handler(SW_FD_PIPE, swTaskWorker_onPipeReceive);
 
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++)
     {
@@ -241,8 +240,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker)
         worker->pipe_worker->buffer_size = UINT_MAX;
     }
 
-    //main loop
-    return SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
+    return swoole_event_wait();
 }
 
 /**
@@ -417,4 +415,34 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
         swSysWarn("TaskWorker: send result to worker failed");
     }
     return ret;
+}
+
+swString *swTaskWorker_large_unpack(swEventData *task_result)
+{
+    swPacket_task _pkg;
+    memcpy(&_pkg, task_result->data, sizeof(_pkg));
+
+    int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
+    if (tmp_file_fd < 0)
+    {
+        swSysWarn("open(%s) failed", _pkg.tmpfile);
+        return nullptr;
+    }
+    if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0)
+    {
+        close(tmp_file_fd);
+        return nullptr;
+    }
+    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) != _pkg.length)
+    {
+        close(tmp_file_fd);
+        return nullptr;
+    }
+    close(tmp_file_fd);
+    if (!(swTask_type(task_result) & SW_TASK_PEEK))
+    {
+        unlink(_pkg.tmpfile);
+    }
+    SwooleTG.buffer_stack->length = _pkg.length;
+    return SwooleTG.buffer_stack;
 }
