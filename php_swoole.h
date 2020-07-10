@@ -629,23 +629,23 @@ static sw_inline int php_swoole_array_length_safe(zval *zarray)
     else {k = ZSTR_VAL(_foreach_key), klen=ZSTR_LEN(_foreach_key); ktype = 1;} {
 #define SW_HASHTABLE_FOREACH_END()                 } ZEND_HASH_FOREACH_END();
 
-static sw_inline int add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t key_len, zend_ulong value)
+static sw_inline void add_assoc_ulong_safe_ex(zval *arg, const char *key, size_t key_len, zend_ulong value)
 {
     if (sw_likely(value <= ZEND_LONG_MAX))
     {
-        return add_assoc_long_ex(arg, key, key_len, value);
+        add_assoc_long_ex(arg, key, key_len, value);
     }
     else
     {
         char buf[MAX_LENGTH_OF_LONG + 1];
         size_t len = sw_snprintf(buf, sizeof(buf), ZEND_ULONG_FMT, value);
-        return add_assoc_stringl_ex(arg, key, key_len, buf, len);
+        add_assoc_stringl_ex(arg, key, key_len, buf, len);
     }
 }
 
-static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
+static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong value)
 {
-    return add_assoc_ulong_safe_ex(arg, key, strlen(key), value);
+    add_assoc_ulong_safe_ex(arg, key, strlen(key), value);
 }
 
 //----------------------------------Class API------------------------------------
@@ -1001,7 +1001,9 @@ static sw_inline int sw_zend_call_function_ex(zval *function_name, zend_fcall_in
     fci.retval = retval ? retval : &_retval;
     fci.param_count = param_count;
     fci.params = params;
+#if PHP_VERSION_ID < 80000
     fci.no_separation = 0;
+#endif
 
     ret = zend_call_function(&fci, fci_cache);
 
