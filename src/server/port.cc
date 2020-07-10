@@ -523,7 +523,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     // parse http header and got http body length
     if (!request->header_parsed) {
         request->parse_header_info();
-        swTraceLog(SW_TRACE_SERVER, "content-length=%u, keep-alive=%u, chunked=%u", request->content_length, request->keep_alive, request->chunked);
+        swTraceLog(SW_TRACE_SERVER, "content-length=%u, keep-alive=%u, chunked=%u", request->content_length_, request->keep_alive, request->chunked);
     }
 
     // content length (equal to 0) or (field not found but not chunked)
@@ -588,7 +588,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             goto _recv_data;
         } else {
             request_length = request->header_length_ + request->content_length_;
-        } swTraceLog(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length);
+        } swTraceLog(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length_);
     } else {
         request_length = request->header_length_ + request->content_length_;
         if (request_length > protocol->package_max_length) {
