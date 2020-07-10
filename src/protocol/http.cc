@@ -37,7 +37,6 @@ static const char *method_strings[] =
     "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
 };
 
-
 int swHttp_get_method(const char *method_str, size_t method_len)
 {
     int i = 0;
@@ -62,8 +61,8 @@ const char* swHttp_get_method_string(int method)
 
 bool Server::select_static_handler(http::Request *request, swConnection *conn)
 {
-    const char *url = request->buffer->str + request->url_offset;
-    size_t url_length = request->url_length;
+    const char *url = request->buffer_->str + request->url_offset_;
+    size_t url_length = request->url_length_;
 
     StaticHandler handler(this, url, url_length);
     if (!handler.hit())
@@ -431,10 +430,10 @@ namespace swoole { namespace http {
  * only GET/POST
  */
 int Request::get_protocol() {
-    char *p = buffer->str;
-    char *pe = p + buffer->length;
+    char *p = buffer_->str;
+    char *pe = p + buffer_->length;
 
-    if (buffer->length < (sizeof("GET / HTTP/1.x\r\n") - 1)) {
+    if (buffer_->length < (sizeof("GET / HTTP/1.x\r\n") - 1)) {
         return SW_ERR;
     }
 
@@ -492,8 +491,8 @@ int Request::get_protocol() {
     // HTTP2 Connection Preface
     else if (memcmp(p, SW_STRL("PRI")) == 0) {
         method = SW_HTTP_PRI;
-        if (buffer->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) && memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0) {
-            buffer->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
+        if (buffer_->length >= (sizeof(SW_HTTP2_PRI_STRING) - 1) && memcmp(p, SW_STRL(SW_HTTP2_PRI_STRING)) == 0) {
+            buffer_->offset = sizeof(SW_HTTP2_PRI_STRING) - 1;
             return SW_OK;
         } else {
             goto _excepted;
@@ -514,12 +513,12 @@ int Request::get_protocol() {
                     continue;
                 }
                 state = 1;
-                url_offset = p - buffer->str;
+                url_offset_ = p - buffer_->str;
                 break;
             case 1:
                 if (isspace(*p)) {
                     state = 2;
-                    url_length = p - buffer->str - url_offset;
+                    url_length_ = p - buffer_->str - url_offset_;
                     continue;
                 }
                 break;
@@ -544,7 +543,7 @@ int Request::get_protocol() {
         }
     }
     _end: p += sizeof("HTTP/1.x") - 1;
-    request_line_length = buffer->offset = p - buffer->str;
+    request_line_length_ = buffer_->offset = p - buffer_->str;
     return SW_OK;
 }
 
@@ -553,9 +552,9 @@ int Request::get_protocol() {
  */
 void Request::parse_header_info() {
     // header field start
-    char *p = buffer->str + request_line_length + (sizeof("\r\n") - 1);
+    char *p = buffer_->str + request_line_length_ + (sizeof("\r\n") - 1);
     // point-end: start + strlen(all-header) without strlen("\r\n\r\n")
-    char *pe = buffer->str + header_length - (sizeof("\r\n\r\n") - 1);
+    char *pe = buffer_->str + header_length_ - (sizeof("\r\n\r\n") - 1);
 
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
@@ -568,7 +567,7 @@ void Request::parse_header_info() {
                     p++;
                 }
                 content_length = strtoull(p, nullptr, 10);
-                content_length = SW_MIN(content_length, UINT32_MAX);
+                content_length_ = SW_MIN(content_length, UINT32_MAX);
                 known_length = 1;
             } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
                 // strlen("Connection:")
@@ -595,7 +594,7 @@ void Request::parse_header_info() {
     }
 
     header_parsed = 1;
-    if (chunked && known_length && content_length == 0) {
+    if (chunked && known_length && content_length_ == 0) {
         nobody_chunked = 1;
     }
 }
@@ -603,9 +602,9 @@ void Request::parse_header_info() {
 #ifdef SW_HTTP_100_CONTINUE
 bool Request::has_expect_header() {
     //char *buf = buffer->str + buffer->offset;
-    char *buf = buffer->str;
+    char *buf = buffer_->str;
     //int len = buffer->length - buffer->offset;
-    int len = buffer->length;
+    int len = buffer_->length;
 
     char *pe = buf + len;
     char *p;
@@ -630,24 +629,24 @@ bool Request::has_expect_header() {
 #endif
 
 int Request::get_header_length() {
-    char *p = buffer->str + buffer->offset;
-    char *pe = buffer->str + buffer->length;
+    char *p = buffer_->str + buffer_->offset;
+    char *pe = buffer_->str + buffer_->length;
 
     for (; p <= pe - (sizeof("\r\n\r\n") - 1); p++) {
         if (memcmp(p, SW_STRL("\r\n\r\n")) == 0) {
             // strlen(header) + strlen("\r\n\r\n")
-            header_length = buffer->offset = p - buffer->str + (sizeof("\r\n\r\n") - 1);
+            header_length_ = buffer_->offset = p - buffer_->str + (sizeof("\r\n\r\n") - 1);
             return SW_OK;
         }
     }
 
-    buffer->offset = p - buffer->str;
+    buffer_->offset = p - buffer_->str;
     return SW_ERR;
 }
 
 int Request::get_chunked_body_length() {
-    char *p = buffer->str + buffer->offset;
-    char *pe = buffer->str + buffer->length;
+    char *p = buffer_->str + buffer_->offset;
+    char *pe = buffer_->str + buffer_->length;
 
     while (1) {
         if ((size_t) (pe - p) < (1 + (sizeof("\r\n") - 1))) {
@@ -664,12 +663,12 @@ int Request::get_chunked_body_length() {
         }
         p = head + (sizeof("\r\n") - 1) + chunk_length + (sizeof("\r\n") - 1);
         /* used to check package_max_length */
-        content_length = p - (buffer->str + header_length);
+        content_length_ = p - (buffer_->str + header_length_);
         if (p > pe) {
             /* need recv chunk body again */
             return SW_ERR;
         }
-        buffer->offset = p - buffer->str;
+        buffer_->offset = p - buffer_->str;
         if (chunk_length == 0) {
             break;
         }
@@ -680,8 +679,8 @@ int Request::get_chunked_body_length() {
 }
 
 string Request::get_date_if_modified_since() {
-    char *p = buffer->str + url_offset + url_length + 10;
-    char *pe = buffer->str + header_length;
+    char *p = buffer_->str + url_offset_ + url_length_ + 10;
+    char *pe = buffer_->str + header_length_;
 
     string result;
 

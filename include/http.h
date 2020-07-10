@@ -101,20 +101,23 @@ struct Request {
     uchar chunked :1;
     uchar nobody_chunked :1;
 
-    uint32_t url_offset;
-    uint32_t url_length;
+    uint32_t url_offset_;
+    uint32_t url_length_;
 
-    uint32_t request_line_length; /* without \r\n  */
-    uint32_t header_length; /* include request_line_length + \r\n */
-    uint32_t content_length;
+    uint32_t request_line_length_; /* without \r\n  */
+    uint32_t header_length_; /* include request_line_length + \r\n */
+    uint32_t content_length_;
 
-    swString *buffer;
+    swString *buffer_;
 
  public:
-    inline void clean() {
-        memset(this, 0, offsetof(Request, buffer));
+    Request() {
+        clean();
+        buffer_ = nullptr;
     }
-
+    inline void clean() {
+        memset(this, 0, offsetof(Request, buffer_));
+    }
     int get_protocol();
     int get_header_length();
     int get_chunked_body_length();

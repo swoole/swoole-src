@@ -422,15 +422,15 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
         request = reinterpret_cast<Request *>(conn->object);
     }
 
-    if (!request->buffer) {
-        request->buffer = serv->get_recv_buffer(_socket);
-        if (!request->buffer) {
+    if (!request->buffer_) {
+        request->buffer_ = serv->get_recv_buffer(_socket);
+        if (!request->buffer_) {
             swReactor_trigger_close_event(reactor, event);
             return SW_ERR;
         }
     }
 
-    swString *buffer = request->buffer;
+    swString *buffer = request->buffer_;
 
     _recv_data: ssize_t n = swSocket_recv(_socket, buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
@@ -509,7 +509,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     }
 
     // http header is not the end
-    if (request->header_length == 0) {
+    if (request->header_length_ == 0) {
         if (request->get_header_length() < 0) {
             if (buffer->size == buffer->length) {
                 swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL,
@@ -530,26 +530,26 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
     if (!request->tried_to_dispatch) {
         // recv nobody_chunked eof
         if (request->nobody_chunked) {
-            if (buffer->length < request->header_length + (sizeof("0\r\n\r\n") - 1)) {
+            if (buffer->length < request->header_length_ + (sizeof("0\r\n\r\n") - 1)) {
                 goto _recv_data;
             }
-            request->header_length += (sizeof("0\r\n\r\n") - 1);
+            request->header_length_ += (sizeof("0\r\n\r\n") - 1);
         }
         request->tried_to_dispatch = 1;
         // (know content-length is equal to 0) or (no content-length field and no chunked)
-        if (request->content_length == 0 && (request->known_length || !request->chunked)) {
-            buffer->offset = request->header_length;
+        if (request->content_length_ == 0 && (request->known_length || !request->chunked)) {
+            buffer->offset = request->header_length_;
             // send static file content directly in the reactor thread
             if (!serv->enable_static_handler || !serv->select_static_handler(request, conn)) {
                 // dynamic request, dispatch to worker
-                Server::dispatch_task(protocol, _socket, buffer->str, request->header_length);
+                Server::dispatch_task(protocol, _socket, buffer->str, request->header_length_);
             }
             if (!conn->active || _socket->removed) {
                 return SW_OK;
             }
-            if (buffer->length > request->header_length) {
+            if (buffer->length > request->header_length_) {
                 // http pipeline, multi requests, parse the next one
-                swString_reduce(buffer, request->header_length);
+                swString_reduce(buffer, request->header_length_);
                 request->clean();
                 goto _parse;
             } else {
@@ -570,7 +570,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
                                  CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
-            request_length = request->header_length + request->content_length;
+            request_length = request->header_length_ + request->content_length_;
             if (request_length > protocol->package_max_length) {
                 swoole_error_log(
                         SW_LOG_TRACE,
@@ -587,16 +587,16 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             }
             goto _recv_data;
         } else {
-            request_length = request->header_length + request->content_length;
+            request_length = request->header_length_ + request->content_length_;
         } swTraceLog(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length);
     } else {
-        request_length = request->header_length + request->content_length;
+        request_length = request->header_length_ + request->content_length_;
         if (request_length > protocol->package_max_length) {
             swoole_error_log(
                     SW_LOG_TRACE,
                     SW_ERROR_HTTP_INVALID_PROTOCOL,
                     "Request Entity Too Large: header-length (%u) + content-length (%u) is greater than the package_max_length(%u)" CLIENT_INFO_FMT,
-                    request->header_length, request->content_length, protocol->package_max_length, CLIENT_INFO_ARGS);
+                    request->header_length_, request->content_length_, protocol->package_max_length, CLIENT_INFO_ARGS);
             goto _too_large;
         }
 
@@ -612,7 +612,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
             } else {
                 swTraceLog(
                         SW_TRACE_SERVER, "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
-                        request->content_length, buffer->length, request->header_length
+                        request->content_length, buffer_->length, request->header_length
                 );
             }
 #endif
