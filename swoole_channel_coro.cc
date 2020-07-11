@@ -26,8 +26,7 @@ using swoole::coroutine::Channel;
 static zend_class_entry *swoole_channel_coro_ce;
 static zend_object_handlers swoole_channel_coro_handlers;
 
-struct channel_coro
-{
+struct channel_coro {
     Channel *chan;
     zend_object std;
 };
@@ -43,6 +42,7 @@ static PHP_METHOD(swoole_channel_coro, isEmpty);
 static PHP_METHOD(swoole_channel_coro, isFull);
 SW_EXTERN_C_END
 
+// clang-format off
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_channel_coro_construct, 0, 0, 0)
     ZEND_ARG_INFO(0, size)
 ZEND_END_ARG_INFO()
@@ -71,6 +71,7 @@ static const zend_function_entry swoole_channel_coro_methods[] =
     PHP_ME(swoole_channel_coro, length, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
+// clang-format end
 
 enum swChannelErrorCode
 {

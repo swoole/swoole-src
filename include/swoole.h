@@ -25,7 +25,7 @@
 
 #ifdef __cplusplus
 #define SW_EXTERN_C_BEGIN extern "C" {
-#define SW_EXTERN_C_END   }
+#define SW_EXTERN_C_END }
 #else
 #define SW_EXTERN_C_BEGIN
 #define SW_EXTERN_C_END
@@ -92,7 +92,7 @@ typedef unsigned long ulong_t;
 #endif
 
 #if defined(__GNUC__) && __GNUC__ >= 4
-#define SW_API __attribute__ ((visibility("default")))
+#define SW_API __attribute__((visibility("default")))
 #else
 #define SW_API
 #endif
@@ -101,31 +101,31 @@ typedef unsigned long ulong_t;
 #define __builtin_expect(x, expected_value) (x)
 #endif
 
-#define sw_likely(x)        __builtin_expect(!!(x), 1)
-#define sw_unlikely(x)      __builtin_expect(!!(x), 0)
+#define sw_likely(x) __builtin_expect(!!(x), 1)
+#define sw_unlikely(x) __builtin_expect(!!(x), 0)
 
-#define SW_START_LINE  "-------------------------START----------------------------"
-#define SW_END_LINE    "--------------------------END-----------------------------"
-#define SW_ECHO_RED               "\e[31m%s\e[0m"
-#define SW_ECHO_GREEN             "\e[32m%s\e[0m"
-#define SW_ECHO_YELLOW            "\e[33m%s\e[0m"
-#define SW_ECHO_BLUE              "\e[34m%s\e[0m"
-#define SW_ECHO_MAGENTA           "\e[35m%s\e[0m"
-#define SW_ECHO_CYAN              "\e[36m%s\e[0m"
-#define SW_ECHO_WHITE             "\e[37m%s\e[0m"
-#define SW_COLOR_RED              1
-#define SW_COLOR_GREEN            2
-#define SW_COLOR_YELLOW           3
-#define SW_COLOR_BLUE             4
-#define SW_COLOR_MAGENTA          5
-#define SW_COLOR_CYAN             6
-#define SW_COLOR_WHITE            7
+#define SW_START_LINE "-------------------------START----------------------------"
+#define SW_END_LINE "--------------------------END-----------------------------"
+#define SW_ECHO_RED "\e[31m%s\e[0m"
+#define SW_ECHO_GREEN "\e[32m%s\e[0m"
+#define SW_ECHO_YELLOW "\e[33m%s\e[0m"
+#define SW_ECHO_BLUE "\e[34m%s\e[0m"
+#define SW_ECHO_MAGENTA "\e[35m%s\e[0m"
+#define SW_ECHO_CYAN "\e[36m%s\e[0m"
+#define SW_ECHO_WHITE "\e[37m%s\e[0m"
+#define SW_COLOR_RED 1
+#define SW_COLOR_GREEN 2
+#define SW_COLOR_YELLOW 3
+#define SW_COLOR_BLUE 4
+#define SW_COLOR_MAGENTA 5
+#define SW_COLOR_CYAN 6
+#define SW_COLOR_WHITE 7
 
-#define SW_SPACE                  ' '
-#define SW_CRLF                   "\r\n"
-#define SW_CRLF_LEN               2
-#define SW_ASCII_CODE_0           64
-#define SW_ASCII_CODE_Z           106
+#define SW_SPACE ' '
+#define SW_CRLF "\r\n"
+#define SW_CRLF_LEN 2
+#define SW_ASCII_CODE_0 64
+#define SW_ASCII_CODE_Z 106
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
@@ -134,66 +134,64 @@ typedef unsigned long ulong_t;
 #include "atomic.h"
 #include "error.h"
 
-#define SW_MAX(A, B)           ((A) > (B) ? (A) : (B))
-#define SW_MIN(A, B)           ((A) < (B) ? (A) : (B))
+#define SW_MAX(A, B) ((A) > (B) ? (A) : (B))
+#define SW_MIN(A, B) ((A) < (B) ? (A) : (B))
 
 #ifndef MAX
-#define MAX(A, B)              SW_MAX(A, B)
+#define MAX(A, B) SW_MAX(A, B)
 #endif
 #ifndef MIN
-#define MIN(A, B)              SW_MIN(A, B)
+#define MIN(A, B) SW_MIN(A, B)
 #endif
 
 #ifdef SW_DEBUG
-#define SW_ASSERT(e)           assert(e)
-#define SW_ASSERT_1BYTE(v)     do { \
-    size_t i = 0, n = 0; \
-    for (; i < sizeof(v); i++) { \
-        n += ((v >> i) & 1) ? 1 : 0; \
-    } \
-    assert(n == 1); \
-} while (0)
+#define SW_ASSERT(e) assert(e)
+#define SW_ASSERT_1BYTE(v)                                                                                             \
+    do {                                                                                                               \
+        size_t i = 0, n = 0;                                                                                           \
+        for (; i < sizeof(v); i++) {                                                                                   \
+            n += ((v >> i) & 1) ? 1 : 0;                                                                               \
+        }                                                                                                              \
+        assert(n == 1);                                                                                                \
+    } while (0)
 #else
 #define SW_ASSERT(e)
 #define SW_ASSERT_1BYTE(v)
 #endif
-#define SW_START_SLEEP         usleep(100000)  //sleep 1s,wait fork and pthread_create
+#define SW_START_SLEEP usleep(100000)  // sleep 1s,wait fork and pthread_create
 
 /*-----------------------------------Memory------------------------------------*/
 
 // Evaluates to the number of elements in 'array'
 #define SW_ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
 
-#define SW_DEFAULT_ALIGNMENT   sizeof(unsigned long)
-#define SW_MEM_ALIGNED_SIZE(size) \
-        SW_MEM_ALIGNED_SIZE_EX(size, SW_DEFAULT_ALIGNMENT)
-#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) \
-        (((size) + ((alignment) - 1LL)) & ~((alignment) - 1LL))
+#define SW_DEFAULT_ALIGNMENT sizeof(unsigned long)
+#define SW_MEM_ALIGNED_SIZE(size) SW_MEM_ALIGNED_SIZE_EX(size, SW_DEFAULT_ALIGNMENT)
+#define SW_MEM_ALIGNED_SIZE_EX(size, alignment) (((size) + ((alignment) -1LL)) & ~((alignment) -1LL))
 
 #ifdef SW_USE_EMALLOC
-#define sw_malloc              emalloc
-#define sw_free                efree
-#define sw_calloc              ecalloc
-#define sw_realloc             erealloc
+#define sw_malloc emalloc
+#define sw_free efree
+#define sw_calloc ecalloc
+#define sw_realloc erealloc
 #else
 #ifdef SW_USE_JEMALLOC
 #include <jemalloc/jemalloc.h>
-#define sw_malloc              je_malloc
-#define sw_free                je_free
-#define sw_calloc              je_calloc
-#define sw_realloc             je_realloc
+#define sw_malloc je_malloc
+#define sw_free je_free
+#define sw_calloc je_calloc
+#define sw_realloc je_realloc
 #else
-#define sw_malloc              malloc
-#define sw_free                free
-#define sw_calloc              calloc
-#define sw_realloc             realloc
+#define sw_malloc malloc
+#define sw_free free
+#define sw_calloc calloc
+#define sw_realloc realloc
 #endif
 #endif
 
-#define sw_memset_zero(s, n)   memset(s, '\0', n)
+#define sw_memset_zero(s, n) memset(s, '\0', n)
 
-static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2)
-{
+static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
     return s1 == s2 && memcmp(v1, v2, s2) == 0;
 }
 
@@ -214,15 +212,15 @@ struct swSocket;
 struct swProtocol;
 /*----------------------------------String-------------------------------------*/
 
-#define SW_STRS(s)             s, sizeof(s)
-#define SW_STRL(s)             s, sizeof(s)-1
+#define SW_STRS(s) s, sizeof(s)
+#define SW_STRL(s) s, sizeof(s) - 1
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
-#define sw_strdup              swoole_strdup
-#define sw_strndup             swoole_strndup
+#define sw_strdup swoole_strdup
+#define sw_strndup swoole_strndup
 #else
-#define sw_strdup              strdup
-#define sw_strndup             strndup
+#define sw_strdup strdup
+#define sw_strndup strndup
 #endif
 
 #define SW_Z_BEST_SPEED 1
@@ -231,76 +229,65 @@ struct swProtocol;
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 
-static sw_inline char* swoole_strdup(const char *s)
-{
+static sw_inline char *swoole_strdup(const char *s) {
     size_t l = strlen(s) + 1;
     char *p = (char *) sw_malloc(l);
-    if (sw_likely(p))
-    {
+    if (sw_likely(p)) {
         memcpy(p, s, l);
     }
     return p;
 }
 
-static sw_inline char *swoole_strndup(const char *s, size_t n)
-{
+static sw_inline char *swoole_strndup(const char *s, size_t n) {
     char *p = (char *) sw_malloc(n + 1);
-    if (sw_likely(p))
-    {
+    if (sw_likely(p)) {
         strncpy(p, s, n)[n] = '\0';
     }
     return p;
 }
 
 /* string equal */
-static sw_inline unsigned int swoole_streq(const char *str1, size_t len1, const char *str2, size_t len2)
-{
+static sw_inline unsigned int swoole_streq(const char *str1, size_t len1, const char *str2, size_t len2) {
     return (len1 == len2) && (strncmp(str1, str2, len1) == 0);
 }
 
-static sw_inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, const char *str2, size_t len2)
-{
+static sw_inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, const char *str2, size_t len2) {
     return (len1 == len2) && (strncasecmp(str1, str2, len1) == 0);
 }
 
-static sw_inline unsigned int swoole_strct(const char *pstr, size_t plen, const char *sstr, size_t slen)
-{
+static sw_inline unsigned int swoole_strct(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncmp(pstr, sstr, slen) == 0);
 }
 
-static sw_inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const char *sstr, size_t slen)
-{
+static sw_inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncasecmp(pstr, sstr, slen) == 0);
 }
 
-#define SW_STREQ(str, len, const_str)      swoole_streq(str, len, SW_STRL(const_str))
-#define SW_STRCASEEQ(str, len, const_str)  swoole_strcaseeq(str, len, SW_STRL(const_str))
+#define SW_STREQ(str, len, const_str) swoole_streq(str, len, SW_STRL(const_str))
+#define SW_STRCASEEQ(str, len, const_str) swoole_strcaseeq(str, len, SW_STRL(const_str))
 
 /* string contain */
-#define SW_STRCT(str, len, const_sub_str)      swoole_strct(str, len, SW_STRL(const_sub_str))
-#define SW_STRCASECT(str, len, const_sub_str)  swoole_strcasect(str, len, SW_STRL(const_sub_str))
+#define SW_STRCT(str, len, const_sub_str) swoole_strct(str, len, SW_STRL(const_sub_str))
+#define SW_STRCASECT(str, len, const_sub_str) swoole_strcasect(str, len, SW_STRL(const_sub_str))
 
 /*--------------------------------Constants------------------------------------*/
-enum swResult_code
-{
+enum swResult_code {
     SW_OK = 0,
     SW_ERR = -1,
 };
 
-enum swReturn_code
-{
+enum swReturn_code {
     SW_CONTINUE = 1,
-    SW_WAIT     = 2,
-    SW_CLOSE    = 3,
-    SW_ERROR    = 4,
-    SW_READY    = 5,
+    SW_WAIT = 2,
+    SW_CLOSE = 3,
+    SW_ERROR = 4,
+    SW_READY = 5,
 };
 
-enum swFd_type
-{
-    SW_FD_SESSION,       //server stream session
-    SW_FD_STREAM_SERVER, //server stream port
-    SW_FD_DGRAM_SERVER,  //server dgram port
+enum swFd_type {
+    SW_FD_SESSION,        // server stream session
+    SW_FD_STREAM_SERVER,  // server stream port
+    SW_FD_DGRAM_SERVER,   // server dgram port
     SW_FD_PIPE,
     SW_FD_STREAM,
     SW_FD_AIO,
@@ -329,25 +316,22 @@ enum swFd_type
     SW_FD_DGRAM_CLIENT,
 };
 
-enum swBool_type
-{
+enum swBool_type {
     SW_TRUE = 1,
     SW_FALSE = 0,
 };
 
-enum swEvent_type
-{
-    SW_EVENT_NULL   = 0,
+enum swEvent_type {
+    SW_EVENT_NULL = 0,
     SW_EVENT_DEAULT = 1u << 8,
-    SW_EVENT_READ   = 1u << 9,
-    SW_EVENT_WRITE  = 1u << 10,
-    SW_EVENT_RDWR   = SW_EVENT_READ | SW_EVENT_WRITE,
-    SW_EVENT_ERROR  = 1u << 11,
-    SW_EVENT_ONCE   = 1u << 12,
+    SW_EVENT_READ = 1u << 9,
+    SW_EVENT_WRITE = 1u << 10,
+    SW_EVENT_RDWR = SW_EVENT_READ | SW_EVENT_WRITE,
+    SW_EVENT_ERROR = 1u << 11,
+    SW_EVENT_ONCE = 1u << 12,
 };
 
-enum swGlobal_hook_type
-{
+enum swGlobal_hook_type {
     SW_GLOBAL_HOOK_BEFORE_SERVER_START,
     SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
     SW_GLOBAL_HOOK_BEFORE_WORKER_START,
@@ -356,29 +340,27 @@ enum swGlobal_hook_type
     SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
 };
 
-enum swFork_type
-{
-    SW_FORK_SPAWN    = 0,
-    SW_FORK_EXEC     = 1 << 1,
-    SW_FORK_DAEMON   = 1 << 2,
+enum swFork_type {
+    SW_FORK_SPAWN = 0,
+    SW_FORK_EXEC = 1 << 1,
+    SW_FORK_DAEMON = 1 << 2,
     SW_FORK_PRECHECK = 1 << 3,
 };
 
 //-------------------------------------------------------------------------------
-enum swSocket_type
-{
-    SW_SOCK_TCP          =  1,
-    SW_SOCK_UDP          =  2,
-    SW_SOCK_TCP6         =  3,
-    SW_SOCK_UDP6         =  4,
-    SW_SOCK_UNIX_STREAM  =  5,  //unix sock stream
-    SW_SOCK_UNIX_DGRAM   =  6,  //unix sock dgram
+enum swSocket_type {
+    SW_SOCK_TCP = 1,
+    SW_SOCK_UDP = 2,
+    SW_SOCK_TCP6 = 3,
+    SW_SOCK_UDP6 = 4,
+    SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
+    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
 };
-#define SW_SOCK_SSL         (1u << 9)
+#define SW_SOCK_SSL (1u << 9)
 //-------------------------------------------------------------------------------
 
-#define swYield()              sched_yield() //or usleep(1)
-#define SW_MAX_FDTYPE          32 //32 kinds of event
+#define swYield() sched_yield()  // or usleep(1)
+#define SW_MAX_FDTYPE 32         // 32 kinds of event
 
 //------------------------------Base--------------------------------
 #ifndef uchar
@@ -394,28 +376,24 @@ typedef unsigned char uchar;
 
 typedef std::function<void(void *)> swCallback;
 
-struct swAllocator
-{
-    void* (*malloc)(size_t size);
-    void* (*calloc)(size_t nmemb, size_t size);
-    void* (*realloc)(void *ptr, size_t size);
+struct swAllocator {
+    void *(*malloc)(size_t size);
+    void *(*calloc)(size_t nmemb, size_t size);
+    void *(*realloc)(void *ptr, size_t size);
     void (*free)(void *ptr);
 };
 
-#define swoole_tolower(c)      (uchar) ((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
-#define swoole_toupper(c)      (uchar) ((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
+#define swoole_tolower(c) (uchar)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
+#define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
 uint32_t swoole_utf8_decode(uchar **p, size_t n);
 size_t swoole_utf8_length(uchar *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
 size_t swoole_random_bytes(char *buf, size_t size);
 
-static sw_inline char *swoole_strlchr(char *p, char *last, char c)
-{
-    while (p < last)
-    {
-        if (*p == c)
-        {
+static sw_inline char *swoole_strlchr(char *p, char *last, char c) {
+    while (p < last) {
+        if (*p == c) {
             return p;
         }
         p++;
@@ -423,15 +401,12 @@ static sw_inline char *swoole_strlchr(char *p, char *last, char c)
     return NULL;
 }
 
-static sw_inline size_t swoole_size_align(size_t size, int pagesize)
-{
+static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
     return size + (pagesize - (size % pagesize));
 }
 
-
 //------------------------------Base--------------------------------
-enum _swEventData_flag
-{
+enum _swEventData_flag {
     SW_EVENT_DATA_NORMAL,
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
@@ -440,8 +415,7 @@ enum _swEventData_flag
     SW_EVENT_DATA_POP_PTR = 1u << 5,
 };
 
-struct swDataHead
-{
+struct swDataHead {
     int fd;
     uint32_t len;
     int16_t reactor_id;
@@ -455,32 +429,28 @@ struct swDataHead
     size_t dump(char *buf, size_t len);
 };
 
-struct swEventData
-{
+struct swEventData {
     swDataHead info;
     char data[SW_IPC_BUFFER_SIZE];
 };
 
-
-#define swTask_type(task)                  ((task)->info.server_fd)
+#define swTask_type(task) ((task)->info.server_fd)
 
 /**
  * use swDataHead->server_fd, 1 byte 8 bit
  */
-enum swTask_type
-{
-    SW_TASK_TMPFILE    = 1,  //tmp file
-    SW_TASK_SERIALIZE  = 2,  //php serialize
-    SW_TASK_NONBLOCK   = 4,  //task
-    SW_TASK_CALLBACK   = 8,  //callback
-    SW_TASK_WAITALL    = 16, //for taskWaitAll
-    SW_TASK_COROUTINE  = 32, //coroutine
-    SW_TASK_PEEK       = 64, //peek
-    SW_TASK_NOREPLY    = 128, //don't reply
+enum swTask_type {
+    SW_TASK_TMPFILE = 1,     // tmp file
+    SW_TASK_SERIALIZE = 2,   // php serialize
+    SW_TASK_NONBLOCK = 4,    // task
+    SW_TASK_CALLBACK = 8,    // callback
+    SW_TASK_WAITALL = 16,    // for taskWaitAll
+    SW_TASK_COROUTINE = 32,  // coroutine
+    SW_TASK_PEEK = 64,       // peek
+    SW_TASK_NOREPLY = 128,   // don't reply
 };
 
-struct swEvent
-{
+struct swEvent {
     int fd;
     int16_t reactor_id;
     enum swFd_type type;
@@ -489,13 +459,11 @@ struct swEvent
 
 typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 
-enum swDNSLookup_cache_type
-{
-    SW_DNS_LOOKUP_RANDOM  = (1u << 11),
+enum swDNSLookup_cache_type {
+    SW_DNS_LOOKUP_RANDOM = (1u << 11),
 };
 
-struct swRequest_getaddrinfo
-{
+struct swRequest_getaddrinfo {
     const char *hostname;
     const char *service;
     int family;
@@ -508,50 +476,47 @@ struct swRequest_getaddrinfo
 
 #ifdef __MACH__
 char *sw_error_();
-#define sw_error     sw_error_()
+#define sw_error sw_error_()
 #else
 extern __thread char sw_error[SW_ERROR_MSG_SIZE];
 #endif
 
-enum swProcess_type
-{
-    SW_PROCESS_MASTER     = 1,
-    SW_PROCESS_WORKER     = 2,
-    SW_PROCESS_MANAGER    = 3,
+enum swProcess_type {
+    SW_PROCESS_MASTER = 1,
+    SW_PROCESS_WORKER = 2,
+    SW_PROCESS_MANAGER = 3,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
 };
 
-enum swPipe_type
-{
-    SW_PIPE_WORKER     = 0,
-    SW_PIPE_MASTER     = 1,
-    SW_PIPE_READ       = 0,
-    SW_PIPE_WRITE      = 1,
-    SW_PIPE_NONBLOCK   = 2,
+enum swPipe_type {
+    SW_PIPE_WORKER = 0,
+    SW_PIPE_MASTER = 1,
+    SW_PIPE_READ = 0,
+    SW_PIPE_WRITE = 1,
+    SW_PIPE_NONBLOCK = 2,
 };
 
-#define swIsMaster()          (SwooleG.process_type==SW_PROCESS_MASTER)
-#define swIsWorker()          (SwooleG.process_type==SW_PROCESS_WORKER)
-#define swIsTaskWorker()      (SwooleG.process_type==SW_PROCESS_TASKWORKER)
-#define swIsManager()         (SwooleG.process_type==SW_PROCESS_MANAGER)
-#define swIsUserWorker()      (SwooleG.process_type==SW_PROCESS_USERWORKER)
+#define swIsMaster() (SwooleG.process_type == SW_PROCESS_MASTER)
+#define swIsWorker() (SwooleG.process_type == SW_PROCESS_WORKER)
+#define swIsTaskWorker() (SwooleG.process_type == SW_PROCESS_TASKWORKER)
+#define swIsManager() (SwooleG.process_type == SW_PROCESS_MANAGER)
+#define swIsUserWorker() (SwooleG.process_type == SW_PROCESS_USERWORKER)
 
 //----------------------Tool Function---------------------
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
 
-static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
-{
+static inline const char *swoole_strnstr(const char *haystack,
+                                         uint32_t haystack_length,
+                                         const char *needle,
+                                         uint32_t needle_length) {
     assert(needle_length > 0);
     uint32_t i;
 
-    if (sw_likely(needle_length <= haystack_length))
-    {
-        for (i = 0; i < haystack_length - needle_length + 1; i++)
-        {
-            if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
-            {
+    if (sw_likely(needle_length <= haystack_length)) {
+        for (i = 0; i < haystack_length - needle_length + 1; i++) {
+            if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
                 return haystack;
             }
             haystack++;
@@ -561,8 +526,10 @@ static inline const char *swoole_strnstr(const char *haystack, uint32_t haystack
     return NULL;
 }
 
-static inline ssize_t swoole_strnpos(const char *haystack, uint32_t haystack_length, const char *needle, uint32_t needle_length)
-{
+static inline ssize_t swoole_strnpos(const char *haystack,
+                                     uint32_t haystack_length,
+                                     const char *needle,
+                                     uint32_t needle_length) {
     assert(needle_length > 0);
     const char *pos;
 
@@ -570,17 +537,14 @@ static inline ssize_t swoole_strnpos(const char *haystack, uint32_t haystack_len
     return pos == NULL ? -1 : pos - haystack;
 }
 
-static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, uint32_t length)
-{
+static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, uint32_t length) {
     uint32_t needle_length = strlen(needle);
     assert(needle_length > 0);
     uint32_t i;
     haystack += (length - needle_length);
 
-    for (i = length - needle_length; i > 0; i--)
-    {
-        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length)))
-        {
+    for (i = length - needle_length; i > 0; i--) {
+        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
             return i;
         }
         haystack--;
@@ -589,15 +553,13 @@ static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, 
     return -1;
 }
 
-static inline void swoole_strtolower(char *str, int length)
-{
+static inline void swoole_strtolower(char *str, int length) {
     char *c, *e;
 
     c = str;
     e = c + length;
 
-    while (c < e)
-    {
+    while (c < e) {
         *c = tolower(*c);
         c++;
     }
@@ -605,7 +567,7 @@ static inline void swoole_strtolower(char *str, int length)
 
 int swoole_itoa(char *buf, long value);
 int swoole_mkdir_recursive(const char *dir);
-char* swoole_dirname(char *file);
+char *swoole_dirname(char *file);
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
 size_t swoole_sync_readfile(int fd, void *buf, size_t len);
 swString *swoole_sync_readfile_eof(int fd);
@@ -624,7 +586,7 @@ int swoole_ioctl_set_block(int sock, int nonblock);
 int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 int swoole_gethostbyname(int type, const char *name, char *addr);
 int swoole_getaddrinfo(swRequest_getaddrinfo *req);
-char* swoole_string_format(size_t n, const char *format, ...);
+char *swoole_string_format(size_t n, const char *format, ...);
 int swoole_get_systemd_listen_fds();
 
 void swoole_init(void);
@@ -641,14 +603,12 @@ int swoole_daemon(int nochdir, int noclose);
 typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
 typedef void (*swTimerDtor)(swTimer_node *);
 
-enum swTimer_type
-{
+enum swTimer_type {
     SW_TIMER_TYPE_KERNEL,
     SW_TIMER_TYPE_PHP,
 };
 
-struct swTimer_node
-{
+struct swTimer_node {
     /*----------------properties--------------*/
     long id;
     enum swTimer_type type;
@@ -666,8 +626,7 @@ struct swTimer_node
 
 //--------------------------------------------------------------
 
-struct swThreadGlobal_t
-{
+struct swThreadGlobal_t {
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
@@ -688,17 +647,16 @@ struct swThreadGlobal_t
 #endif
 };
 
-struct swGlobal_t
-{
-    uchar init :1;
-    uchar running :1;
-    uchar enable_coroutine :1;
-    uchar use_signalfd :1;
-    uchar wait_signal :1;
-    uchar enable_signalfd :1;
-    uchar socket_dontwait :1;
-    uchar dns_lookup_random :1;
-    uchar use_async_resolver :1;
+struct swGlobal_t {
+    uchar init : 1;
+    uchar running : 1;
+    uchar enable_coroutine : 1;
+    uchar use_signalfd : 1;
+    uchar wait_signal : 1;
+    uchar enable_signalfd : 1;
+    uchar socket_dontwait : 1;
+    uchar dns_lookup_random : 1;
+    uchar use_async_resolver : 1;
 
     int error;
 
@@ -749,45 +707,36 @@ struct swGlobal_t
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
 };
 
-extern swGlobal_t SwooleG;              //Local Global Variable
-extern thread_local swThreadGlobal_t SwooleTG;   //Thread Global Variable
+extern swGlobal_t SwooleG;                      // Local Global Variable
+extern thread_local swThreadGlobal_t SwooleTG;  // Thread Global Variable
 
-#define SW_CPU_NUM                    (SwooleG.cpu_num)
+#define SW_CPU_NUM (SwooleG.cpu_num)
 
-static sw_inline void swoole_set_last_error(int error)
-{
+static sw_inline void swoole_set_last_error(int error) {
     SwooleTG.error = error;
 }
 
-static sw_inline int swoole_get_last_error()
-{
+static sw_inline int swoole_get_last_error() {
     return SwooleTG.error;
 }
 
-SW_API const char* swoole_strerror(int code);
+SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 
 //-----------------------------------------------
-static sw_inline void sw_spinlock(sw_atomic_t *lock)
-{
+static sw_inline void sw_spinlock(sw_atomic_t *lock) {
     uint32_t i, n;
-    while (1)
-    {
-        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
-        {
+    while (1) {
+        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
             return;
         }
-        if (SW_CPU_NUM > 1)
-        {
-            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1)
-            {
-                for (i = 0; i < n; i++)
-                {
+        if (SW_CPU_NUM > 1) {
+            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1) {
+                for (i = 0; i < n; i++) {
                     sw_atomic_cpu_pause();
                 }
 
-                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1))
-                {
+                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
                     return;
                 }
             }
@@ -796,9 +745,9 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock)
     }
 }
 
-SW_API const char* swoole_version(void);
+SW_API const char *swoole_version(void);
 SW_API int swoole_version_id(void);
-SW_API int swoole_add_function(const char *name, void* func);
+SW_API int swoole_add_function(const char *name, void *func);
 SW_API void *swoole_get_function(const char *name, uint32_t length);
 SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
 SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
@@ -806,4 +755,4 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 namespace swoole {
 int hook_add(void **hooks, int type, swCallback func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
-}
+}  // namespace swoole

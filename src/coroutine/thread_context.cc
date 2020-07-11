@@ -27,20 +27,15 @@ static swReactor *g_reactor = nullptr;
 static swTimer *g_timer = nullptr;
 static mutex *current_lock = nullptr;
 
-static void empty_timer(swTimer *timer, swTimer_node *tnode)
-{
-    //do nothing
+static void empty_timer(swTimer *timer, swTimer_node *tnode) {
+    // do nothing
 }
 
-Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
-       fn_(fn), private_data_(private_data)
-{
-    if (sw_unlikely(current_lock == nullptr))
-    {
+Context::Context(size_t stack_size, coroutine_func_t fn, void *private_data) : fn_(fn), private_data_(private_data) {
+    if (sw_unlikely(current_lock == nullptr)) {
         current_lock = &global_lock;
         g_reactor = SwooleTG.reactor;
-        if (SwooleTG.timer == nullptr)
-        {
+        if (SwooleTG.timer == nullptr) {
             swoole_timer_add(1, 0, empty_timer, nullptr);
         }
         g_timer = SwooleTG.timer;
@@ -51,28 +46,24 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void* private_data) :
     thread_ = thread(Context::context_func, this);
 }
 
-Context::~Context()
-{
+Context::~Context() {
     thread_.join();
 }
 
-bool Context::swap_in()
-{
+bool Context::swap_in() {
     swap_lock_ = current_lock;
     current_lock = &lock_;
     lock_.unlock();
     swap_lock_->lock();
 }
 
-bool Context::swap_out()
-{
+bool Context::swap_out() {
     current_lock = swap_lock_;
     swap_lock_->unlock();
     lock_.lock();
 }
 
-void Context::context_func(void *arg)
-{
+void Context::context_func(void *arg) {
     Context *_this = (Context *) arg;
     SwooleTG.reactor = g_reactor;
     SwooleTG.timer = g_timer;

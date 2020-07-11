@@ -17,31 +17,47 @@
 
 #include "server.h"
 
-enum swHttp_version
-{
+enum swHttp_version {
     SW_HTTP_VERSION_10 = 1,
     SW_HTTP_VERSION_11,
 };
 
-enum swHttp_method
-{
-    SW_HTTP_DELETE = 1, SW_HTTP_GET, SW_HTTP_HEAD, SW_HTTP_POST, SW_HTTP_PUT, SW_HTTP_PATCH,
+enum swHttp_method {
+    SW_HTTP_DELETE = 1,
+    SW_HTTP_GET,
+    SW_HTTP_HEAD,
+    SW_HTTP_POST,
+    SW_HTTP_PUT,
+    SW_HTTP_PATCH,
     /* pathological */
-    SW_HTTP_CONNECT, SW_HTTP_OPTIONS, SW_HTTP_TRACE,
+    SW_HTTP_CONNECT,
+    SW_HTTP_OPTIONS,
+    SW_HTTP_TRACE,
     /* webdav */
-    SW_HTTP_COPY, SW_HTTP_LOCK, SW_HTTP_MKCOL, SW_HTTP_MOVE, SW_HTTP_PROPFIND, SW_HTTP_PROPPATCH, SW_HTTP_UNLOCK,
+    SW_HTTP_COPY,
+    SW_HTTP_LOCK,
+    SW_HTTP_MKCOL,
+    SW_HTTP_MOVE,
+    SW_HTTP_PROPFIND,
+    SW_HTTP_PROPPATCH,
+    SW_HTTP_UNLOCK,
     /* subversion */
-    SW_HTTP_REPORT, SW_HTTP_MKACTIVITY, SW_HTTP_CHECKOUT, SW_HTTP_MERGE,
+    SW_HTTP_REPORT,
+    SW_HTTP_MKACTIVITY,
+    SW_HTTP_CHECKOUT,
+    SW_HTTP_MERGE,
     /* upnp */
-    SW_HTTP_MSEARCH, SW_HTTP_NOTIFY, SW_HTTP_SUBSCRIBE, SW_HTTP_UNSUBSCRIBE,
+    SW_HTTP_MSEARCH,
+    SW_HTTP_NOTIFY,
+    SW_HTTP_SUBSCRIBE,
+    SW_HTTP_UNSUBSCRIBE,
     /* proxy */
     SW_HTTP_PURGE,
     /* Http2 */
     SW_HTTP_PRI,
 };
 
-enum swHttp_status_code
-{
+enum swHttp_status_code {
     SW_HTTP_CONTINUE = 100,
     SW_HTTP_SWITCHING_PROTOCOLS = 101,
     SW_HTTP_PROCESSING = 102,
@@ -85,39 +101,38 @@ enum swHttp_status_code
     SW_HTTP_INSUFFICIENT_STORAGE = 507
 };
 
-namespace swoole { namespace http {
+namespace swoole {
+namespace http {
 //-----------------------------------------------------------------
 struct Request {
- public:
+   public:
     uint8_t method;
     uint8_t version;
-    uchar excepted :1;
+    uchar excepted : 1;
 
-    uchar header_parsed :1;
-    uchar tried_to_dispatch :1;
+    uchar header_parsed : 1;
+    uchar tried_to_dispatch : 1;
 
-    uchar known_length :1;
-    uchar keep_alive :1;
-    uchar chunked :1;
-    uchar nobody_chunked :1;
+    uchar known_length : 1;
+    uchar keep_alive : 1;
+    uchar chunked : 1;
+    uchar nobody_chunked : 1;
 
     uint32_t url_offset_;
     uint32_t url_length_;
 
     uint32_t request_line_length_; /* without \r\n  */
-    uint32_t header_length_; /* include request_line_length + \r\n */
+    uint32_t header_length_;       /* include request_line_length + \r\n */
     uint32_t content_length_;
 
     swString *buffer_;
 
- public:
+   public:
     Request() {
         clean();
         buffer_ = nullptr;
     }
-    inline void clean() {
-        memset(this, 0, offsetof(Request, buffer_));
-    }
+    inline void clean() { memset(this, 0, offsetof(Request, buffer_)); }
     int get_protocol();
     int get_header_length();
     int get_chunked_body_length();
@@ -128,13 +143,14 @@ struct Request {
 #endif
 };
 //-----------------------------------------------------------------
-}}
+}  // namespace http
+}  // namespace swoole
 
 int swHttp_get_method(const char *method_str, size_t method_len);
-const char* swHttp_get_method_string(int method);
+const char *swHttp_get_method_string(int method);
 const char *swHttp_get_status_message(int code);
 size_t swHttp_url_decode(char *str, size_t len);
-char* swHttp_url_encode(char const *str, size_t len);
+char *swHttp_url_encode(char const *str, size_t len);
 void swHttp_free_request(swConnection *conn);
 
 #ifdef SW_USE_HTTP2
@@ -142,4 +158,3 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *conn, const
 uint8_t swHttpMix_get_package_length_size(swSocket *conn);
 int swHttpMix_dispatch_frame(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
 #endif
-

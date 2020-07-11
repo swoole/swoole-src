@@ -1,41 +1,38 @@
 #include "tests.h"
 #include "pipe.h"
 
-TEST(pipe, unixsock)
-{
+TEST(pipe, unixsock) {
     swPipe p;
     char buf[1024];
     sw_memset_zero(&p, sizeof(p));
     int ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, 0);
 
-    ret = p.write(&p, (void*) SW_STRS("hello world1"));
+    ret = p.write(&p, (void *) SW_STRS("hello world1"));
     ASSERT_GT(ret, 0);
-    ret = p.write(&p, (void*) SW_STRS("hello world2"));
+    ret = p.write(&p, (void *) SW_STRS("hello world2"));
     ASSERT_GT(ret, 0);
-    ret = p.write(&p, (void*) SW_STRS("hello world3"));
+    ret = p.write(&p, (void *) SW_STRS("hello world3"));
     ASSERT_GT(ret, 0);
 
-    //1
+    // 1
     ret = p.read(&p, buf, sizeof(buf));
-    if (ret < 0)
-    {
+    if (ret < 0) {
         swSysWarn("read() failed.");
     }
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world1", buf), 0);
-    //2
+    // 2
     ret = p.read(&p, buf, sizeof(buf));
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world2", buf), 0);
-    //3
+    // 3
     ret = p.read(&p, buf, sizeof(buf));
     ASSERT_GT(ret, 0);
     ASSERT_EQ(strcmp("hello world3", buf), 0);
 }
 
-TEST(pipe, base)
-{
+TEST(pipe, base) {
     swPipe p;
     int ret;
     char data[256];

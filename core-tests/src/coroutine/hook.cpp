@@ -26,10 +26,8 @@ using swoole::test::coroutine;
 const char *host_1 = "www.baidu.com";
 const char *host_2 = "www.xxxxxxxxxxxxxxxxxxxxx00000xxxxxxxxx----not_found.com";
 
-TEST(coroutine_hook, gethostbyname)
-{
-    coroutine::run([](void *arg)
-    {
+TEST(coroutine_hook, gethostbyname) {
+    coroutine::run([](void *arg) {
         auto result1 = swoole_coroutine_gethostbyname(host_1);
         ASSERT_NE(result1, nullptr);
 
@@ -39,10 +37,8 @@ TEST(coroutine_hook, gethostbyname)
     });
 }
 
-TEST(coroutine_hook, getaddrinfo)
-{
-    coroutine::run([](void *arg)
-    {
+TEST(coroutine_hook, getaddrinfo) {
+    coroutine::run([](void *arg) {
         struct addrinfo hints;
         sw_memset_zero(&hints, sizeof(struct addrinfo));
         hints.ai_family = AF_INET;
@@ -58,10 +54,9 @@ TEST(coroutine_hook, getaddrinfo)
 
         curr = result;
         count = 0;
-        while (curr && curr->ai_addr)
-        {
+        while (curr && curr->ai_addr) {
             curr = curr->ai_next;
-            count ++;
+            count++;
         }
         ASSERT_GE(count, 1);
         freeaddrinfo(result);

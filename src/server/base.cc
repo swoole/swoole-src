@@ -25,8 +25,7 @@ static void swFactory_free(swFactory *factory);
 
 using swoole::Server;
 
-int swFactory_create(swFactory *factory)
-{
+int swFactory_create(swFactory *factory) {
     factory->dispatch = swFactory_dispatch;
     factory->finish = swFactory_finish;
     factory->start = swFactory_start;
@@ -38,62 +37,53 @@ int swFactory_create(swFactory *factory)
     return SW_OK;
 }
 
-static int swFactory_start(swFactory *factory)
-{
+static int swFactory_start(swFactory *factory) {
     SwooleWG.run_always = 1;
     return SW_OK;
 }
 
-static int swFactory_shutdown(swFactory *factory)
-{
+static int swFactory_shutdown(swFactory *factory) {
     return SW_OK;
 }
 
-static int swFactory_dispatch(swFactory *factory, swSendData *task)
-{
+static int swFactory_dispatch(swFactory *factory, swSendData *task) {
     Server *serv = (Server *) factory->ptr;
     swPacket_ptr pkg;
     swConnection *conn = nullptr;
 
-    if (swEventData_is_stream(task->info.type))
-    {
+    if (swEventData_is_stream(task->info.type)) {
         conn = serv->get_connection(task->info.fd);
-        if (conn == nullptr || conn->active == 0)
-        {
+        if (conn == nullptr || conn->active == 0) {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);
             return SW_ERR;
         }
-        //server active close, discard data.
-        if (conn->closed)
-        {
+        // server active close, discard data.
+        if (conn->closed) {
             swWarn("dispatch[type=%d] failed, connection#%d is closed by server", task->info.type, task->info.fd);
             return SW_OK;
         }
-        //converted fd to session_id
+        // converted fd to session_id
         task->info.fd = conn->session_id;
         task->info.server_fd = conn->server_fd;
     }
-    //with data
-    if (task->info.len > 0)
-    {
+    // with data
+    if (task->info.len > 0) {
         memcpy(&pkg.info, &task->info, sizeof(pkg.info));
         pkg.info.flags = SW_EVENT_DATA_PTR;
         swString_clear(&pkg.data);
         pkg.data.length = task->info.len;
-        pkg.data.str = (char*) task->data;
+        pkg.data.str = (char *) task->data;
 
-        if (conn && conn->socket->recv_buffer && task->data == conn->socket->recv_buffer->str
-                && conn->socket->recv_buffer->offset > 0
-                && conn->socket->recv_buffer->length == (size_t) conn->socket->recv_buffer->offset)
-        {
+        if (conn && conn->socket->recv_buffer && task->data == conn->socket->recv_buffer->str &&
+            conn->socket->recv_buffer->offset > 0 &&
+            conn->socket->recv_buffer->length == (size_t) conn->socket->recv_buffer->offset) {
             pkg.info.flags |= SW_EVENT_DATA_POP_PTR;
         }
 
         return serv->accept_task((swEventData *) &pkg);
     }
-    //no data
-    else
-    {
+    // no data
+    else {
         return serv->accept_task((swEventData *) &task->info);
     }
 }
@@ -101,22 +91,19 @@ static int swFactory_dispatch(swFactory *factory, swSendData *task)
 /**
  * only stream fd
  */
-static int swFactory_notify(swFactory *factory, swDataHead *info)
-{
+static int swFactory_notify(swFactory *factory, swDataHead *info) {
     Server *serv = (Server *) factory->ptr;
     swConnection *conn = serv->get_connection(info->fd);
-    if (conn == nullptr || conn->active == 0)
-    {
+    if (conn == nullptr || conn->active == 0) {
         swWarn("dispatch[type=%d] failed, connection#%d is not active", info->type, info->fd);
         return SW_ERR;
     }
-    //server active close, discard data.
-    if (conn->closed)
-    {
+    // server active close, discard data.
+    if (conn->closed) {
         swWarn("dispatch[type=%d] failed, connection#%d is closed by server", info->type, info->fd);
         return SW_OK;
     }
-    //converted fd to session_id
+    // converted fd to session_id
     info->fd = conn->session_id;
     info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
@@ -124,8 +111,7 @@ static int swFactory_notify(swFactory *factory, swDataHead *info)
     return serv->accept_task((swEventData *) info);
 }
 
-static int swFactory_end(swFactory *factory, int fd)
-{
+static int swFactory_end(swFactory *factory, int fd) {
     Server *serv = (Server *) factory->ptr;
     swSendData _send;
     swDataHead info;
@@ -136,37 +122,24 @@ static int swFactory_end(swFactory *factory, int fd)
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
     swConnection *conn = serv->get_connection_by_session_id(fd);
-    if (conn == nullptr || conn->active == 0)
-    {
-        //swWarn("can not close. Connection[%d] not found", _send.info.fd);
+    if (conn == nullptr || conn->active == 0) {
+        // swWarn("can not close. Connection[%d] not found", _send.info.fd);
         return SW_ERR;
-    }
-    else if (conn->close_force)
-    {
+    } else if (conn->close_force) {
         goto _do_close;
-    }
-    else if (conn->closing)
-    {
+    } else if (conn->closing) {
         swWarn("The connection[%d] is closing", fd);
         return SW_ERR;
-    }
-    else if (conn->closed)
-    {
+    } else if (conn->closed) {
         return SW_ERR;
-    }
-    else
-    {
-        _do_close:
+    } else {
+    _do_close:
         conn->closing = 1;
-        if (serv->onClose != nullptr)
-        {
+        if (serv->onClose != nullptr) {
             info.fd = fd;
-            if (conn->close_actively)
-            {
+            if (conn->close_actively) {
                 info.reactor_id = -1;
-            }
-            else
-            {
+            } else {
                 info.reactor_id = conn->reactor_id;
             }
             info.server_fd = conn->server_fd;
@@ -176,13 +149,10 @@ static int swFactory_end(swFactory *factory, int fd)
         conn->closed = 1;
         conn->close_errno = 0;
 
-        if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed)
-        {
+        if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed) {
             swReactor *reactor = SwooleTG.reactor;
             return Server::close_connection(reactor, conn->socket);
-        }
-        else
-        {
+        } else {
             swBuffer_chunk *chunk = swBuffer_new_chunk(conn->socket->out_buffer, SW_CHUNK_CLOSE, 0);
             chunk->store.data.val1 = _send.info.type;
             conn->close_queued = 1;
@@ -194,12 +164,8 @@ static int swFactory_end(swFactory *factory, int fd)
 /**
  * @return: success returns SW_OK, failure returns SW_ERR.
  */
-int swFactory_finish(swFactory *factory, swSendData *resp)
-{
+int swFactory_finish(swFactory *factory, swSendData *resp) {
     return ((Server *) factory->ptr)->send_to_connection(resp);
 }
 
-static void swFactory_free(swFactory *factory)
-{
-
-}
+static void swFactory_free(swFactory *factory) {}

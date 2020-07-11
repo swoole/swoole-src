@@ -25,18 +25,15 @@ static int swRWLock_trylock_rw(swLock *lock);
 static int swRWLock_trylock_rd(swLock *lock);
 static int swRWLock_free(swLock *lock);
 
-int swRWLock_create(swLock *lock, int use_in_process)
-{
+int swRWLock_create(swLock *lock, int use_in_process) {
     int ret;
     sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_RWLOCK;
     pthread_rwlockattr_init(&lock->object.rwlock.attr);
-    if (use_in_process == 1)
-    {
+    if (use_in_process == 1) {
         pthread_rwlockattr_setpshared(&lock->object.rwlock.attr, PTHREAD_PROCESS_SHARED);
     }
-    if ((ret = pthread_rwlock_init(&lock->object.rwlock._lock, &lock->object.rwlock.attr)) < 0)
-    {
+    if ((ret = pthread_rwlock_init(&lock->object.rwlock._lock, &lock->object.rwlock.attr)) < 0) {
         return SW_ERR;
     }
     lock->lock_rd = swRWLock_lock_rd;
@@ -48,33 +45,27 @@ int swRWLock_create(swLock *lock, int use_in_process)
     return SW_OK;
 }
 
-static int swRWLock_lock_rd(swLock *lock)
-{
+static int swRWLock_lock_rd(swLock *lock) {
     return pthread_rwlock_rdlock(&lock->object.rwlock._lock);
 }
 
-static int swRWLock_lock_rw(swLock *lock)
-{
+static int swRWLock_lock_rw(swLock *lock) {
     return pthread_rwlock_wrlock(&lock->object.rwlock._lock);
 }
 
-static int swRWLock_unlock(swLock *lock)
-{
+static int swRWLock_unlock(swLock *lock) {
     return pthread_rwlock_unlock(&lock->object.rwlock._lock);
 }
 
-static int swRWLock_trylock_rd(swLock *lock)
-{
+static int swRWLock_trylock_rd(swLock *lock) {
     return pthread_rwlock_tryrdlock(&lock->object.rwlock._lock);
 }
 
-static int swRWLock_trylock_rw(swLock *lock)
-{
+static int swRWLock_trylock_rw(swLock *lock) {
     return pthread_rwlock_trywrlock(&lock->object.rwlock._lock);
 }
 
-static int swRWLock_free(swLock *lock)
-{
+static int swRWLock_free(swLock *lock) {
     return pthread_rwlock_destroy(&lock->object.rwlock._lock);
 }
 

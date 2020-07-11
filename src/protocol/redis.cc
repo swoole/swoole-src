@@ -22,8 +22,7 @@
 #include "server.h"
 #include "redis.h"
 
-typedef struct
-{
+typedef struct {
     uint8_t state;
 
     int n_lines_total;
@@ -36,8 +35,7 @@ typedef struct
 
 } swRedis_request;
 
-int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
-{
+int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer) {
     char *p, *pe;
     int ret;
     char *buf_ptr;
@@ -46,31 +44,25 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
     swRedis_request *request;
     swSocket *socket = conn->socket;
 
-    if (conn->object == nullptr)
-    {
+    if (conn->object == nullptr) {
         request = (swRedis_request *) sw_malloc(sizeof(swRedis_request));
-        if (!request)
-        {
+        if (!request) {
             swWarn("malloc(%ld) failed", sizeof(swRedis_request));
             return SW_ERR;
         }
         sw_memset_zero(request, sizeof(swRedis_request));
         conn->object = request;
-    }
-    else
-    {
+    } else {
         request = (swRedis_request *) conn->object;
     }
 
-    _recv_data:
+_recv_data:
     buf_ptr = buffer->str + buffer->length;
     buf_size = buffer->size - buffer->length;
 
     int n = swSocket_recv(socket, buf_ptr, buf_size, 0);
-    if (n < 0)
-    {
-        switch (swSocket_error(errno))
-        {
+    if (n < 0) {
+        switch (swSocket_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from socket#%d failed", conn->fd);
             return SW_OK;
@@ -79,32 +71,22 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
         default:
             return SW_OK;
         }
-    }
-    else if (n == 0)
-    {
+    } else if (n == 0) {
         return SW_ERR;
-    }
-    else
-    {
+    } else {
         buffer->length += n;
 
-        if (strncmp(buffer->str + buffer->length - SW_CRLF_LEN, SW_CRLF, SW_CRLF_LEN) != 0)
-        {
-            if (buffer->size < protocol->package_max_length)
-            {
+        if (strncmp(buffer->str + buffer->length - SW_CRLF_LEN, SW_CRLF, SW_CRLF_LEN) != 0) {
+            if (buffer->size < protocol->package_max_length) {
                 uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
-                if (extend_size > protocol->package_max_length)
-                {
+                if (extend_size > protocol->package_max_length) {
                     extend_size = protocol->package_max_length;
                 }
-                if (swString_extend(buffer, extend_size) < 0)
-                {
+                if (swString_extend(buffer, extend_size) < 0) {
                     return SW_ERR;
                 }
-            }
-            else if (buffer->length == buffer->size)
-            {
-                _package_too_big:
+            } else if (buffer->length == buffer->size) {
+            _package_too_big:
                 swWarn("Package is too big. package_length=%ld", buffer->length);
                 return SW_ERR;
             }
@@ -114,13 +96,10 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
         p = buffer->str;
         pe = p + buffer->length;
 
-        do
-        {
-            switch(request->state)
-            {
+        do {
+            switch (request->state) {
             case SW_REDIS_RECEIVE_TOTAL_LINE:
-                if (*p == '*' && (p = swRedis_get_number(p, &ret)))
-                {
+                if (*p == '*' && (p = swRedis_get_number(p, &ret))) {
                     request->n_lines_total = ret;
                     request->state = SW_REDIS_RECEIVE_LENGTH;
                     break;
@@ -128,49 +107,39 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
                 /* no break */
 
             case SW_REDIS_RECEIVE_LENGTH:
-                if (*p == '$' && (p = swRedis_get_number(p, &ret)))
-                {
-                    if (ret < 0)
-                    {
+                if (*p == '$' && (p = swRedis_get_number(p, &ret))) {
+                    if (ret < 0) {
                         break;
                     }
-                    if (ret + (p - buffer->str) > protocol->package_max_length)
-                    {
+                    if (ret + (p - buffer->str) > protocol->package_max_length) {
                         goto _package_too_big;
                     }
                     request->n_bytes_total = ret;
                     request->state = SW_REDIS_RECEIVE_STRING;
                     break;
                 }
-                //integer
-                else if (*p == ':' && (p = swRedis_get_number(p, &ret)))
-                {
+                // integer
+                else if (*p == ':' && (p = swRedis_get_number(p, &ret))) {
                     break;
                 }
                 /* no break */
 
             case SW_REDIS_RECEIVE_STRING:
-                if (pe - p < request->n_bytes_total - request->n_bytes_received)
-                {
+                if (pe - p < request->n_bytes_total - request->n_bytes_received) {
                     request->n_bytes_received += pe - p;
                     return SW_OK;
-                }
-                else
-                {
+                } else {
                     p += request->n_bytes_total + SW_CRLF_LEN;
                     request->n_bytes_total = 0;
                     request->n_lines_received++;
                     request->state = SW_REDIS_RECEIVE_LENGTH;
                     buffer->offset = buffer->length;
 
-                    if (request->n_lines_received == request->n_lines_total)
-                    {
-                        if (protocol->onPackage(protocol, socket, buffer->str, buffer->length) < 0)
-                        {
+                    if (request->n_lines_received == request->n_lines_total) {
+                        if (protocol->onPackage(protocol, socket, buffer->str, buffer->length) < 0) {
                             return SW_ERR;
                         }
-                        if (socket->removed)
-                        {
+                        if (socket->removed) {
                             return SW_OK;
                         }
                         swString_clear(buffer);
@@ -183,9 +152,9 @@ int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer)
             default:
                 goto _failed;
             }
-        } while(p < pe);
+        } while (p < pe);
     }
-    _failed:
+_failed:
     swWarn("redis protocol error");
     return SW_ERR;
 }

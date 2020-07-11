@@ -16,15 +16,13 @@
 
 #pragma once
 
-enum swRedis_receive_state
-{
+enum swRedis_receive_state {
     SW_REDIS_RECEIVE_TOTAL_LINE,
     SW_REDIS_RECEIVE_LENGTH,
     SW_REDIS_RECEIVE_STRING,
 };
 
-enum swRedis_reply_type
-{
+enum swRedis_reply_type {
     SW_REDIS_REPLY_ERROR,
     SW_REDIS_REPLY_NIL,
     SW_REDIS_REPLY_STATUS,
@@ -34,25 +32,21 @@ enum swRedis_reply_type
     SW_REDIS_REPLY_MAP,
 };
 
-#define SW_REDIS_RETURN_NIL                 "$-1\r\n"
+#define SW_REDIS_RETURN_NIL "$-1\r\n"
 
-#define SW_REDIS_MAX_COMMAND_SIZE           64
-#define SW_REDIS_MAX_LINES                  128
-#define SW_REDIS_MAX_STRING_SIZE            536870912  //512M
+#define SW_REDIS_MAX_COMMAND_SIZE 64
+#define SW_REDIS_MAX_LINES 128
+#define SW_REDIS_MAX_STRING_SIZE 536870912  // 512M
 
-static sw_inline char* swRedis_get_number(char *p, int *_ret)
-{
+static sw_inline char *swRedis_get_number(char *p, int *_ret) {
     char *endptr;
     p++;
     int ret = strtol(p, &endptr, 10);
-    if (strncmp(SW_CRLF, endptr, SW_CRLF_LEN) == 0)
-    {
+    if (strncmp(SW_CRLF, endptr, SW_CRLF_LEN) == 0) {
         p += (endptr - p) + SW_CRLF_LEN;
         *_ret = ret;
         return p;
-    }
-    else
-    {
+    } else {
         return nullptr;
     }
 }

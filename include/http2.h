@@ -17,10 +17,9 @@
 
 #pragma once
 
-#define SW_HTTP2_PRI_STRING  "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
+#define SW_HTTP2_PRI_STRING "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
-enum swHttp2_error_code
-{
+enum swHttp2_error_code {
     SW_HTTP2_ERROR_NO_ERROR = 0,
     SW_HTTP2_ERROR_PROTOCOL_ERROR = 1,
     SW_HTTP2_ERROR_INTERNAL_ERROR = 2,
@@ -36,8 +35,7 @@ enum swHttp2_error_code
     SW_HTTP2_ERROR_INADEQUATE_SECURITY = 12,
 };
 
-enum swHttp2_frame_type
-{
+enum swHttp2_frame_type {
     SW_HTTP2_TYPE_DATA = 0,
     SW_HTTP2_TYPE_HEADERS = 1,
     SW_HTTP2_TYPE_PRIORITY = 2,
@@ -50,8 +48,7 @@ enum swHttp2_frame_type
     SW_HTTP2_TYPE_CONTINUATION = 9,
 };
 
-enum swHttp2_frame_flag
-{
+enum swHttp2_frame_flag {
     SW_HTTP2_FLAG_NONE = 0x00,
     SW_HTTP2_FLAG_ACK = 0x01,
     SW_HTTP2_FLAG_END_STREAM = 0x01,
@@ -60,56 +57,60 @@ enum swHttp2_frame_flag
     SW_HTTP2_FLAG_PRIORITY = 0x20,
 };
 
-enum swHttp2_setting_id
-{
-    SW_HTTP2_SETTING_HEADER_TABLE_SIZE       = 0x1,
-    SW_HTTP2_SETTINGS_ENABLE_PUSH            = 0x2,
+enum swHttp2_setting_id {
+    SW_HTTP2_SETTING_HEADER_TABLE_SIZE = 0x1,
+    SW_HTTP2_SETTINGS_ENABLE_PUSH = 0x2,
     SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS = 0x3,
-    SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE       = 0x4,
-    SW_HTTP2_SETTINGS_MAX_FRAME_SIZE         = 0x5,
-    SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE   = 0x6,
+    SW_HTTP2_SETTINGS_INIT_WINDOW_SIZE = 0x4,
+    SW_HTTP2_SETTINGS_MAX_FRAME_SIZE = 0x5,
+    SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE = 0x6,
 };
 
-enum swHttp2_stream_flag
-{
-    SW_HTTP2_STREAM_NORMAL            = 0,
-    SW_HTTP2_STREAM_REQUEST_END       = 1 << 0,
-    SW_HTTP2_STREAM_PIPELINE_REQUEST  = 1 << 1,
+enum swHttp2_stream_flag {
+    SW_HTTP2_STREAM_NORMAL = 0,
+    SW_HTTP2_STREAM_REQUEST_END = 1 << 0,
+    SW_HTTP2_STREAM_PIPELINE_REQUEST = 1 << 1,
     SW_HTTP2_STREAM_PIPELINE_RESPONSE = 1 << 2,
     SW_HTTP2_STREAM_USE_PIPELINE_READ = 1 << 3,
 };
 
-#define SW_HTTP2_FRAME_HEADER_SIZE            9
-#define SW_HTTP2_SETTING_OPTION_SIZE          6
-#define SW_HTTP2_FRAME_PING_PAYLOAD_SIZE      8
+#define SW_HTTP2_FRAME_HEADER_SIZE 9
+#define SW_HTTP2_SETTING_OPTION_SIZE 6
+#define SW_HTTP2_FRAME_PING_PAYLOAD_SIZE 8
 
-#define SW_HTTP2_RST_STREAM_SIZE              4
-#define SW_HTTP2_PRIORITY_SIZE                5
-#define SW_HTTP2_PING_SIZE                    8
-#define SW_HTTP2_RST_STREAM_SIZE              4
-#define SW_HTTP2_GOAWAY_SIZE                  8
-#define SW_HTTP2_WINDOW_UPDATE_SIZE           4
-#define SW_HTTP2_STREAM_ID_SIZE               4
-#define SW_HTTP2_SETTINGS_PARAM_SIZE          6
+#define SW_HTTP2_RST_STREAM_SIZE 4
+#define SW_HTTP2_PRIORITY_SIZE 5
+#define SW_HTTP2_PING_SIZE 8
+#define SW_HTTP2_RST_STREAM_SIZE 4
+#define SW_HTTP2_GOAWAY_SIZE 8
+#define SW_HTTP2_WINDOW_UPDATE_SIZE 4
+#define SW_HTTP2_STREAM_ID_SIZE 4
+#define SW_HTTP2_SETTINGS_PARAM_SIZE 6
 
-#define swHttp2FrameTraceLogFlags \
-    ((flags & SW_HTTP2_FLAG_ACK) ? "\nEND_ACK |" : ""), \
-    ((flags & SW_HTTP2_FLAG_END_STREAM) ? "\nEND_STREAM |" : ""), \
-    ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS |" : ""), \
-    ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED |" : ""), \
-    ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY |" : "")
+#define swHttp2FrameTraceLogFlags                                                                                      \
+    ((flags & SW_HTTP2_FLAG_ACK) ? "\nEND_ACK |" : ""), ((flags & SW_HTTP2_FLAG_END_STREAM) ? "\nEND_STREAM |" : ""),  \
+        ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS |" : ""),                                                \
+        ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED |" : ""),                                                      \
+        ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY |" : "")
 
-#define swHttp2FrameTraceLog(recv, str, ...) \
-    swTraceLog( \
-        SW_TRACE_HTTP2, \
-        "\nrecv [" "\e[3" "%d" "m" "%s" "\e[0m" "] frame <length=%jd, flags=%d, stream_id=%d> " str "%s%s%s%s%s", \
-        swHttp2_get_type_color(type), swHttp2_get_type(type), length, flags, stream_id, \
-        ##__VA_ARGS__, \
-        swHttp2FrameTraceLogFlags \
-    );
+#define swHttp2FrameTraceLog(recv, str, ...)                                                                           \
+    swTraceLog(SW_TRACE_HTTP2,                                                                                         \
+               "\nrecv ["                                                                                              \
+               "\e[3"                                                                                                  \
+               "%d"                                                                                                    \
+               "m"                                                                                                     \
+               "%s"                                                                                                    \
+               "\e[0m"                                                                                                 \
+               "] frame <length=%jd, flags=%d, stream_id=%d> " str "%s%s%s%s%s",                                       \
+               swHttp2_get_type_color(type),                                                                           \
+               swHttp2_get_type(type),                                                                                 \
+               length,                                                                                                 \
+               flags,                                                                                                  \
+               stream_id,                                                                                              \
+               ##__VA_ARGS__,                                                                                          \
+               swHttp2FrameTraceLogFlags);
 
-struct swHttp2_settings
-{
+struct swHttp2_settings {
     uint32_t header_table_size;
     uint32_t window_size;
     uint32_t max_concurrent_streams;
@@ -128,28 +129,25 @@ struct swHttp2_settings
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-struct swHttp2_frame
-{
-    uint32_t length :24;
-    uint32_t type :8;
-    uint32_t flags :8;
-    uint32_t rsv1 :1;
-    uint32_t identifier :31;
+struct swHttp2_frame {
+    uint32_t length : 24;
+    uint32_t type : 8;
+    uint32_t flags : 8;
+    uint32_t rsv1 : 1;
+    uint32_t identifier : 31;
     char data[0];
 };
 
-static sw_inline ssize_t swHttp2_get_length(const char *buf)
-{
+static sw_inline ssize_t swHttp2_get_length(const char *buf) {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
 ssize_t swHttp2_get_frame_length(swProtocol *protocol, swSocket *conn, const char *buf, uint32_t length);
 int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *conn);
-const char* swHttp2_get_type(int type);
+const char *swHttp2_get_type(int type);
 int swHttp2_get_type_color(int type);
 
-static sw_inline void swHttp2_init_settings(swHttp2_settings *settings)
-{
+static sw_inline void swHttp2_init_settings(swHttp2_settings *settings) {
     settings->header_table_size = SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE;
     settings->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     settings->max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
@@ -168,8 +166,8 @@ static sw_inline void swHttp2_init_settings(swHttp2_settings *settings)
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-static sw_inline void swHttp2_set_frame_header(char *buffer, uint8_t type, uint32_t length, uint8_t flags, uint32_t stream_id)
-{
+static sw_inline void swHttp2_set_frame_header(
+    char *buffer, uint8_t type, uint32_t length, uint8_t flags, uint32_t stream_id) {
     buffer[0] = length >> 16;
     buffer[1] = length >> 8;
     buffer[2] = length;

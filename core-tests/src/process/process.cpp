@@ -2,48 +2,40 @@
 
 using swoole::test::Process;
 
-Process::Process(std::function<void (Process*)> fn, int pipe_type):
-    handler(fn)
-{
-    if (pipe_type > 0)
-    {
+Process::Process(std::function<void(Process *)> fn, int pipe_type) : handler(fn) {
+    if (pipe_type > 0) {
         swPipe *pipe = (swPipe *) malloc(sizeof(swPipe));
         swPipeUnsock_create(pipe, 1, SOCK_DGRAM);
 
         worker.pipe_master = pipe->getSocket(pipe, SW_PIPE_MASTER);
         worker.pipe_worker = pipe->getSocket(pipe, SW_PIPE_WORKER);
-        
+
         worker.pipe_object = pipe;
         worker.pipe_current = worker.pipe_master;
     }
 }
 
-Process::~Process()
-{
+Process::~Process() {
     if (worker.pipe_object) {
         worker.pipe_object->close(worker.pipe_object);
         free(worker.pipe_object);
     }
 }
 
-pid_t Process::start()
-{
+pid_t Process::start() {
     pid_t pid = fork();
 
-    if (pid < 0)
-    {
+    if (pid < 0) {
         printf("[Worker] Fatal Error: fork() failed");
         exit(1);
-    }
-    else if (pid == 0) // child
+    } else if (pid == 0)  // child
     {
         worker.child_process = 1;
         worker.pipe_current = worker.pipe_worker;
         handler(this);
 
         exit(0);
-    }
-    else // parent
+    } else  // parent
     {
         worker.pid = pid;
         worker.child_process = 0;
@@ -52,12 +44,10 @@ pid_t Process::start()
     }
 }
 
-ssize_t Process::write(const void *__buf, size_t __n)
-{
+ssize_t Process::write(const void *__buf, size_t __n) {
     return ::write(worker.pipe_current->fd, __buf, __n);
 }
 
-ssize_t Process::read(void *__buf, size_t __nbytes)
-{
+ssize_t Process::read(void *__buf, size_t __nbytes) {
     return ::read(worker.pipe_current->fd, __buf, __nbytes);
 }

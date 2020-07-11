@@ -5,10 +5,8 @@ using swoole::coroutine::Channel;
 using namespace std;
 using namespace swoole::test;
 
-TEST(coroutine_channel, push_pop)
-{
-    coroutine::run([](void *arg)
-    {
+TEST(coroutine_channel, push_pop) {
+    coroutine::run([](void *arg) {
         Channel chan(1);
         int i = 1;
         bool ret;
@@ -19,63 +17,59 @@ TEST(coroutine_channel, push_pop)
     });
 }
 
-TEST(coroutine_channel, push_yield)
-{
+TEST(coroutine_channel, push_yield) {
     Channel chan(1);
 
-    coroutine::run({
-        make_pair([](void *arg)
-        {
-            auto chan = (Channel *) arg;
-            int i = 1;
-            bool ret;
+    coroutine::run({make_pair(
+                        [](void *arg) {
+                            auto chan = (Channel *) arg;
+                            int i = 1;
+                            bool ret;
 
-            ret = chan->push(new int(i));
-            ASSERT_TRUE(ret);
-            ret = chan->push(new int(i));
-            ASSERT_TRUE(ret);
-        }, &chan),
+                            ret = chan->push(new int(i));
+                            ASSERT_TRUE(ret);
+                            ret = chan->push(new int(i));
+                            ASSERT_TRUE(ret);
+                        },
+                        &chan),
 
-        make_pair([](void *arg)
-        {
-            auto chan = (Channel *) arg;
-            ASSERT_EQ(*(int *) chan->pop(), 1);
-            ASSERT_EQ(*(int *) chan->pop(), 1);
-        }, &chan)
-    });
+                    make_pair(
+                        [](void *arg) {
+                            auto chan = (Channel *) arg;
+                            ASSERT_EQ(*(int *) chan->pop(), 1);
+                            ASSERT_EQ(*(int *) chan->pop(), 1);
+                        },
+                        &chan)});
 }
 
-TEST(coroutine_channel, pop_yield)
-{
+TEST(coroutine_channel, pop_yield) {
     Channel chan(1);
 
-    coroutine::run({
-        make_pair([](void *arg)
-        {
-            auto chan = (Channel *) arg;
+    coroutine::run({make_pair(
+                        [](void *arg) {
+                            auto chan = (Channel *) arg;
 
-            ASSERT_EQ(*(int *) chan->pop(), 1);
-            ASSERT_EQ(*(int *) chan->pop(), 1);
-        }, &chan),
+                            ASSERT_EQ(*(int *) chan->pop(), 1);
+                            ASSERT_EQ(*(int *) chan->pop(), 1);
+                        },
+                        &chan),
 
-        make_pair([](void *arg)
-        {
-            auto chan = (Channel *) arg;
-            int i = 1;
-            bool ret;
+                    make_pair(
+                        [](void *arg) {
+                            auto chan = (Channel *) arg;
+                            int i = 1;
+                            bool ret;
 
-            ret = chan->push(&i);
-            ASSERT_TRUE(ret);
-            ret = chan->push(&i);
-            ASSERT_TRUE(ret);
-        }, &chan)
-    });
+                            ret = chan->push(&i);
+                            ASSERT_TRUE(ret);
+                            ret = chan->push(&i);
+                            ASSERT_TRUE(ret);
+                        },
+                        &chan)});
 }
 
-TEST(coroutine_channel, push_timeout)
-{
-    coroutine::run([](void *arg)
-    {
+TEST(coroutine_channel, push_timeout) {
+    coroutine::run([](void *arg) {
         Channel chan(1);
         bool ret;
 
@@ -86,10 +80,8 @@ TEST(coroutine_channel, push_timeout)
     });
 }
 
-TEST(coroutine_channel, pop_timeout)
-{
-    coroutine::run([](void *arg)
-    {
+TEST(coroutine_channel, pop_timeout) {
+    coroutine::run([](void *arg) {
         Channel chan(1);
         void *ret;
 

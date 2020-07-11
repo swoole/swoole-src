@@ -18,51 +18,46 @@
 #pragma once
 
 #ifdef SW_USE_THREAD_CONTEXT
-    #include <thread>
-    #include <mutex>
+#include <thread>
+#include <mutex>
 #elif !defined(SW_USE_ASM_CONTEXT)
-    #define USE_UCONTEXT 1
-    #include <ucontext.h>
+#define USE_UCONTEXT 1
+#include <ucontext.h>
 #else
-    #define USE_ASM_CONTEXT 1
-    #include "asm_context.h"
+#define USE_ASM_CONTEXT 1
+#include "asm_context.h"
 #endif
 
 #if defined(HAVE_VALGRIND) && !defined(HAVE_KQUEUE)
-    #define USE_VALGRIND 1
-    #include <valgrind/valgrind.h>
+#define USE_VALGRIND 1
+#include <valgrind/valgrind.h>
 #endif
 
 #include "swoole.h"
 #include "error.h"
 
 #ifdef USE_UCONTEXT
-    typedef ucontext_t coroutine_context_t;
+typedef ucontext_t coroutine_context_t;
 #elif defined(USE_ASM_CONTEXT)
-    typedef fcontext_t coroutine_context_t;
+typedef fcontext_t coroutine_context_t;
 #endif
 
-typedef void (*coroutine_func_t)(void*);
+typedef void (*coroutine_func_t)(void *);
 
-namespace swoole
-{
-class Context
-{
-public:
-    Context(size_t stack_size, coroutine_func_t fn, void* private_data);
+namespace swoole {
+class Context {
+   public:
+    Context(size_t stack_size, coroutine_func_t fn, void *private_data);
     ~Context();
     bool swap_in();
     bool swap_out();
 #if !defined(SW_USE_THREAD_CONTEXT) && defined(SW_CONTEXT_DETECT_STACK_USAGE)
     ssize_t get_stack_usage();
 #endif
-    inline bool is_end()
-    {
-        return end_;
-    }
-    static void context_func(void* arg);
+    inline bool is_end() { return end_; }
+    static void context_func(void *arg);
 
-protected:
+   protected:
     coroutine_func_t fn_;
 #ifdef SW_USE_THREAD_CONTEXT
     std::thread thread_;
@@ -71,7 +66,7 @@ protected:
 #else
     coroutine_context_t ctx_;
     coroutine_context_t swap_ctx_;
-    char* stack_;
+    char *stack_;
     uint32_t stack_size_;
 #endif
 #ifdef USE_VALGRIND
@@ -80,5 +75,5 @@ protected:
     void *private_data_;
     bool end_;
 };
-//namespace end
-}
+// namespace end
+}  // namespace swoole

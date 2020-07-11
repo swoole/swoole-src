@@ -25,12 +25,11 @@
 using namespace swoole;
 using namespace std;
 
-static void test_run_server(function<void(swServer *)> fn)
-{
+static void test_run_server(function<void(swServer *)> fn) {
     thread child_thread;
     swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
-    serv.ptr2 = (void*) &fn;
+    serv.ptr2 = (void *) &fn;
 
     serv.enable_static_handler = true;
     serv.set_document_root(test::get_root_path());
@@ -39,8 +38,7 @@ static void test_run_server(function<void(swServer *)> fn)
     sw_logger().set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    if (!port)
-    {
+    if (!port) {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
@@ -48,14 +46,12 @@ static void test_run_server(function<void(swServer *)> fn)
 
     serv.create();
 
-    serv.onWorkerStart = [&child_thread](swServer *serv, int worker_id)
-    {
-        function<void(swServer *)> fn = *(function<void(swServer *)> *)serv->ptr2;
+    serv.onWorkerStart = [&child_thread](swServer *serv, int worker_id) {
+        function<void(swServer *)> fn = *(function<void(swServer *)> *) serv->ptr2;
         child_thread = thread(fn, serv);
     };
 
-    serv.onReceive = [](swServer *serv, swEventData *task) -> int
-    {
+    serv.onReceive = [](swServer *serv, swEventData *task) -> int {
         char *data = nullptr;
         size_t length = serv->get_packet(serv, task, &data);
         string req(data, length);
@@ -73,10 +69,8 @@ static void test_run_server(function<void(swServer *)> fn)
     child_thread.join();
 }
 
-TEST(http_server, get)
-{
-    test_run_server([](swServer *serv)
-    {
+TEST(http_server, get) {
+    test_run_server([](swServer *serv) {
         swSignal_none();
 
         auto port = serv->get_primary_port();
@@ -90,10 +84,8 @@ TEST(http_server, get)
     });
 }
 
-TEST(http_server, post)
-{
-    test_run_server([](swServer *serv)
-    {
+TEST(http_server, post) {
+    test_run_server([](swServer *serv) {
         swSignal_none();
 
         auto port = serv->get_primary_port();
@@ -110,10 +102,8 @@ TEST(http_server, post)
     });
 }
 
-TEST(http_server, static_get)
-{
-    test_run_server([](swServer *serv)
-    {
+TEST(http_server, static_get) {
+    test_run_server([](swServer *serv) {
         swSignal_none();
 
         auto port = serv->get_primary_port();

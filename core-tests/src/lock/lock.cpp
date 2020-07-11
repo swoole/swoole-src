@@ -20,15 +20,12 @@
 #include "tests.h"
 #include <thread>
 
-static void test_func(swLock &lock)
-{
+static void test_func(swLock &lock) {
     int count = 0;
     const int N = 100000;
 
-    auto fn = [&]()
-    {
-        for (int i=0; i<N; i++)
-        {
+    auto fn = [&]() {
+        for (int i = 0; i < N; i++) {
             ASSERT_EQ(lock.lock(&lock), 0);
             count++;
             ASSERT_EQ(lock.unlock(&lock), 0);
@@ -44,30 +41,26 @@ static void test_func(swLock &lock)
     ASSERT_EQ(count, N * 2);
 }
 
-TEST(lock, atomic)
-{
+TEST(lock, atomic) {
     swLock lock;
     swAtomicLock_create(&lock);
     test_func(lock);
 }
 
-TEST(lock, mutex)
-{
+TEST(lock, mutex) {
     swLock lock;
     swMutex_create(&lock, 0);
     test_func(lock);
 }
 
-TEST(lock, rwlock)
-{
+TEST(lock, rwlock) {
     swLock lock;
     swRWLock_create(&lock, 0);
     test_func(lock);
 }
 
 #ifdef HAVE_SPINLOCK
-TEST(lock, spinlock)
-{
+TEST(lock, spinlock) {
     swLock lock;
     swSpinLock_create(&lock, 0);
     test_func(lock);

@@ -26,15 +26,13 @@
 
 #include <vector>
 
-#define SW_DEFAULT_SOCKET_DNS_TIMEOUT       -1
-#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT    1
-#define SW_DEFAULT_SOCKET_READ_TIMEOUT      -1
-#define SW_DEFAULT_SOCKET_WRITE_TIMEOUT     -1
+#define SW_DEFAULT_SOCKET_DNS_TIMEOUT -1
+#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT 1
+#define SW_DEFAULT_SOCKET_READ_TIMEOUT -1
+#define SW_DEFAULT_SOCKET_WRITE_TIMEOUT -1
 
-namespace swoole
-{
-enum swTimeout_type
-{
+namespace swoole {
+enum swTimeout_type {
     SW_TIMEOUT_DNS = 1 << 0,
     SW_TIMEOUT_CONNECT = 1 << 1,
     SW_TIMEOUT_READ = 1 << 2,
@@ -43,16 +41,14 @@ enum swTimeout_type
     SW_TIMEOUT_ALL = SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT | SW_TIMEOUT_RDWR,
 };
 
-static constexpr enum swTimeout_type swTimeout_type_list[] =
-{
-    SW_TIMEOUT_DNS, SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE
-};
-}
+static constexpr enum swTimeout_type swTimeout_type_list[] = {
+    SW_TIMEOUT_DNS, SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE};
+}  // namespace swoole
 
-namespace swoole { namespace coroutine {
+namespace swoole {
+namespace coroutine {
 //-------------------------------------------------------------------------------
-struct EventBarrier
-{
+struct EventBarrier {
     size_t n;
     size_t total_bytes;
     ssize_t retval;
@@ -60,9 +56,8 @@ struct EventBarrier
     bool hold;
 };
 
-class Socket
-{
-public:
+class Socket {
+   public:
     static double default_dns_timeout;
     static double default_connect_timeout;
     static double default_read_timeout;
@@ -98,20 +93,14 @@ public:
     bool cancel(const enum swEvent_type event);
     bool close();
 
-    inline bool is_connect()
-    {
-        return activated && !closed;
-    }
+    inline bool is_connect() { return activated && !closed; }
 
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
     ssize_t send(const void *__buf, size_t __n);
 
-    inline ssize_t send(const std::string &buf)
-    {
-        return send(buf.c_str(), buf.length());
-    }
+    inline ssize_t send(const std::string &buf) { return send(buf.c_str(), buf.length()); }
 
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
@@ -122,14 +111,10 @@ public:
     ssize_t recv_packet(double timeout = 0);
     ssize_t recv_with_buffer(void *__buf, size_t __n);
 
-    inline char *pop_packet()
-    {
-        if (read_buffer->offset == 0)
-        {
+    inline char *pop_packet() {
+        if (read_buffer->offset == 0) {
             return nullptr;
-        }
-        else
-        {
+        } else {
             return swString_pop(read_buffer, buffer_init_size);
         }
     }
@@ -150,10 +135,8 @@ public:
     std::string ssl_get_peer_cert();
 #endif
 
-    static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0)
-    {
-        switch (domain)
-        {
+    static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0) {
+        switch (domain) {
         case AF_INET:
             return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
         case AF_INET6:
@@ -165,249 +148,178 @@ public:
         }
     }
 
-    static inline enum swSocket_type convert_to_type(std::string &host)
-    {
-        if (host.compare(0, 6, "unix:/", 0, 6) == 0)
-        {
+    static inline enum swSocket_type convert_to_type(std::string &host) {
+        if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
             host = host.substr(sizeof("unix:") - 1);
             host.erase(0, host.find_first_not_of('/') - 1);
             return SW_SOCK_UNIX_STREAM;
-        }
-        else if (host.find(':') != std::string::npos)
-        {
+        } else if (host.find(':') != std::string::npos) {
             return SW_SOCK_TCP6;
-        }
-        else
-        {
+        } else {
             return SW_SOCK_TCP;
         }
     }
 
-    static inline void init_reactor(swReactor *reactor)
-    {
+    static inline void init_reactor(swReactor *reactor) {
         reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_READ, readable_event_callback);
         reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_WRITE, writable_event_callback);
         reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_ERROR, error_event_callback);
     }
 
-    inline enum swSocket_type get_type()
-    {
-        return type;
-    }
+    inline enum swSocket_type get_type() { return type; }
 
-    inline int get_sock_domain()
-    {
-        return sock_domain;
-    }
+    inline int get_sock_domain() { return sock_domain; }
 
-    inline int get_sock_type()
-    {
-        return sock_type;
-    }
+    inline int get_sock_type() { return sock_type; }
 
-    inline int get_sock_protocol()
-    {
-        return sock_protocol;
-    }
+    inline int get_sock_protocol() { return sock_protocol; }
 
-    inline int get_fd()
-    {
-        return sock_fd;
-    }
+    inline int get_fd() { return sock_fd; }
 
-    inline int get_bind_port()
-    {
-        return bind_port;
-    }
+    inline int get_bind_port() { return bind_port; }
 
     bool getsockname(swSocketAddress *sa);
     bool getpeername(swSocketAddress *sa);
     const char *get_ip();
     int get_port();
 
-    inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR)
-    {
-        return get_bound_co(event) != nullptr;
-    }
+    inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) { return get_bound_co(event) != nullptr; }
 
-    inline Coroutine* get_bound_co(const enum swEvent_type event)
-    {
-        if (event & SW_EVENT_READ)
-        {
-            if (read_co)
-            {
+    inline Coroutine *get_bound_co(const enum swEvent_type event) {
+        if (event & SW_EVENT_READ) {
+            if (read_co) {
                 return read_co;
             }
         }
-        if (event & SW_EVENT_WRITE)
-        {
-            if (write_co)
-            {
+        if (event & SW_EVENT_WRITE) {
+            if (write_co) {
                 return write_co;
             }
         }
         return nullptr;
     }
 
-    inline long get_bound_cid(const enum swEvent_type event = SW_EVENT_RDWR)
-    {
+    inline long get_bound_cid(const enum swEvent_type event = SW_EVENT_RDWR) {
         Coroutine *co = get_bound_co(event);
         return co ? co->get_cid() : 0;
     }
 
-    inline void check_bound_co(const enum swEvent_type event)
-    {
+    inline void check_bound_co(const enum swEvent_type event) {
         long cid = get_bound_cid(event);
-        if (sw_unlikely(cid))
-        {
-            swFatalError(
-                SW_ERROR_CO_HAS_BEEN_BOUND,
-                "Socket#%d has already been bound to another coroutine#%ld, "
-                "%s of the same socket in coroutine#%ld at the same time is not allowed",
-                sock_fd, cid,
-                (event == SW_EVENT_READ ? "reading" : (event == SW_EVENT_WRITE ? "writing" :
-                        (read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing")))),
-                Coroutine::get_current_cid()
-            );
+        if (sw_unlikely(cid)) {
+            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND,
+                         "Socket#%d has already been bound to another coroutine#%ld, "
+                         "%s of the same socket in coroutine#%ld at the same time is not allowed",
+                         sock_fd,
+                         cid,
+                         (event == SW_EVENT_READ
+                              ? "reading"
+                              : (event == SW_EVENT_WRITE ? "writing"
+                                                         : (read_co && write_co ? "reading or writing"
+                                                                                : (read_co ? "reading" : "writing")))),
+                         Coroutine::get_current_cid());
         }
     }
 
-    inline void set_err(int e)
-    {
+    inline void set_err(int e) {
         errCode = errno = e;
         errMsg = e ? swoole_strerror(e) : "";
     }
 
-    inline void set_err(int e, const char *s)
-    {
+    inline void set_err(int e, const char *s) {
         errCode = errno = e;
         errMsg = s;
     }
 
-
-    inline void set_err(int e, std::string s)
-    {
+    inline void set_err(int e, std::string s) {
         errCode = errno = e;
         errString = s;
         errMsg = errString.c_str();
     }
 
     /* set connect read write timeout */
-    inline void set_timeout(double timeout, int type = SW_TIMEOUT_ALL)
-    {
-        if (timeout == 0)
-        {
+    inline void set_timeout(double timeout, int type = SW_TIMEOUT_ALL) {
+        if (timeout == 0) {
             return;
         }
-        if (type & SW_TIMEOUT_DNS)
-        {
+        if (type & SW_TIMEOUT_DNS) {
             dns_timeout = timeout;
         }
-        if (type & SW_TIMEOUT_CONNECT)
-        {
+        if (type & SW_TIMEOUT_CONNECT) {
             connect_timeout = timeout;
         }
-        if (type & SW_TIMEOUT_READ)
-        {
+        if (type & SW_TIMEOUT_READ) {
             read_timeout = timeout;
         }
-        if (type & SW_TIMEOUT_WRITE)
-        {
+        if (type & SW_TIMEOUT_WRITE) {
             write_timeout = timeout;
         }
     }
 
-    inline void set_timeout(struct timeval *timeout, int type = SW_TIMEOUT_ALL)
-    {
+    inline void set_timeout(struct timeval *timeout, int type = SW_TIMEOUT_ALL) {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
 
-    inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL)
-    {
+    inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL) {
         SW_ASSERT_1BYTE(type);
-        if (type == SW_TIMEOUT_DNS)
-        {
+        if (type == SW_TIMEOUT_DNS) {
             return dns_timeout;
-        }
-        else if (type == SW_TIMEOUT_CONNECT)
-        {
+        } else if (type == SW_TIMEOUT_CONNECT) {
             return connect_timeout;
-        }
-        else if (type == SW_TIMEOUT_READ)
-        {
+        } else if (type == SW_TIMEOUT_READ) {
             return read_timeout;
-        }
-        else // if (type == SW_TIMEOUT_WRITE)
+        } else  // if (type == SW_TIMEOUT_WRITE)
         {
             return write_timeout;
         }
     }
 
-    inline bool set_option(int level, int optname, int optval)
-    {
-        if (setsockopt(sock_fd, level, optname, &optval, sizeof(optval)) != 0)
-        {
+    inline bool set_option(int level, int optname, int optval) {
+        if (setsockopt(sock_fd, level, optname, &optval, sizeof(optval)) != 0) {
             swSysWarn("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
             return false;
         }
         return true;
     }
 
-    inline swString *get_read_buffer()
-    {
-        if (sw_unlikely(!read_buffer))
-        {
+    inline swString *get_read_buffer() {
+        if (sw_unlikely(!read_buffer)) {
             read_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-            if (!read_buffer)
-            {
+            if (!read_buffer) {
                 throw std::bad_alloc();
             }
         }
         return read_buffer;
     }
 
-    inline swString *get_write_buffer()
-    {
-        if (sw_unlikely(!write_buffer))
-        {
+    inline swString *get_write_buffer() {
+        if (sw_unlikely(!write_buffer)) {
             write_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
-            if (!write_buffer)
-            {
+            if (!write_buffer) {
                 throw std::bad_alloc();
             }
         }
         return write_buffer;
     }
 
-    inline void set_zero_copy(bool enable)
-    {
-        zero_copy = enable;
-    }
+    inline void set_zero_copy(bool enable) { zero_copy = enable; }
 
-    inline void set_buffer_allocator(swAllocator *allocator)
-    {
-        buffer_allocator = allocator;
-    }
+    inline void set_buffer_allocator(swAllocator *allocator) { buffer_allocator = allocator; }
 
-    inline void set_buffer_init_size(size_t size)
-    {
-        if (size == 0)
-        {
+    inline void set_buffer_init_size(size_t size) {
+        if (size == 0) {
             return;
         }
         buffer_init_size = size;
     }
 
 #ifdef SW_USE_OPENSSL
-    inline bool is_ssl_enable()
-    {
-        return socket && ssl_handshaked;
-    }
+    inline bool is_ssl_enable() { return socket && ssl_handshaked; }
 
     bool ssl_shutdown();
 #endif
 
-private:
+   private:
     enum swSocket_type type;
     int sock_domain = 0;
     int sock_type = 0;
@@ -467,10 +379,8 @@ private:
     inline bool init_sock();
     bool init_reactor_socket(int fd);
 
-    inline void init_options()
-    {
-        if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6)
-        {
+    inline void init_options() {
+        if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6) {
             set_option(IPPROTO_TCP, TCP_NODELAY, 1);
         }
         protocol.package_length_type = 'N';
@@ -486,14 +396,11 @@ private:
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
 
-    inline bool is_available(const enum swEvent_type event)
-    {
-        if (event != SW_EVENT_NULL)
-        {
+    inline bool is_available(const enum swEvent_type event) {
+        if (event != SW_EVENT_NULL) {
             check_bound_co(event);
         }
-        if (sw_unlikely(closed))
-        {
+        if (sw_unlikely(closed)) {
             set_err(ECONNRESET);
             return false;
         }
@@ -504,117 +411,89 @@ private:
     bool socks5_handshake();
     bool http_proxy_handshake();
 
-    class timer_controller
-    {
-    public:
-        timer_controller(swTimer_node **timer_pp, double timeout, Socket *sock, swTimerCallback callback) :
-            timer_pp(timer_pp), timeout(timeout), socket_(sock), callback(callback)
-        {
-        }
-        bool start()
-        {
-            if (timeout != 0 && !*timer_pp)
-            {
+    class timer_controller {
+       public:
+        timer_controller(swTimer_node **timer_pp, double timeout, Socket *sock, swTimerCallback callback)
+            : timer_pp(timer_pp), timeout(timeout), socket_(sock), callback(callback) {}
+        bool start() {
+            if (timeout != 0 && !*timer_pp) {
                 enabled = true;
-                if (timeout > 0)
-                {
+                if (timeout > 0) {
                     *timer_pp = swoole_timer_add((long) (timeout * 1000), SW_FALSE, callback, socket_);
                     return *timer_pp != nullptr;
-                }
-                else // if (timeout < 0)
+                } else  // if (timeout < 0)
                 {
                     *timer_pp = (swTimer_node *) -1;
                 }
             }
             return true;
         }
-        ~timer_controller()
-        {
-            if (enabled && *timer_pp)
-            {
-                if (*timer_pp != (swTimer_node *) -1)
-                {
+        ~timer_controller() {
+            if (enabled && *timer_pp) {
+                if (*timer_pp != (swTimer_node *) -1) {
                     swoole_timer_del(*timer_pp);
                 }
                 *timer_pp = nullptr;
             }
         }
-    private:
+
+       private:
         bool enabled = false;
-        swTimer_node** timer_pp;
+        swTimer_node **timer_pp;
         double timeout;
         Socket *socket_;
         swTimerCallback callback;
     };
 
-public:
-    class timeout_setter
-    {
-    public:
-        timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type) :
-            socket_(socket), timeout(timeout), type(type)
-        {
-            if (timeout == 0)
-            {
+   public:
+    class timeout_setter {
+       public:
+        timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type)
+            : socket_(socket), timeout(timeout), type(type) {
+            if (timeout == 0) {
                 return;
             }
-            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++)
-            {
-                if (type & swTimeout_type_list[i])
-                {
+            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++) {
+                if (type & swTimeout_type_list[i]) {
                     original_timeout[i] = socket->get_timeout(swTimeout_type_list[i]);
-                    if (timeout != original_timeout[i])
-                    {
+                    if (timeout != original_timeout[i]) {
                         socket->set_timeout(timeout, swTimeout_type_list[i]);
                     }
                 }
             }
         }
-        ~timeout_setter()
-        {
-            if (timeout == 0)
-            {
+        ~timeout_setter() {
+            if (timeout == 0) {
                 return;
             }
-            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++)
-            {
-                if (type & swTimeout_type_list[i])
-                {
-                    if (timeout != original_timeout[i])
-                    {
+            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++) {
+                if (type & swTimeout_type_list[i]) {
+                    if (timeout != original_timeout[i]) {
                         socket_->set_timeout(original_timeout[i], swTimeout_type_list[i]);
                     }
                 }
             }
         }
-    protected:
+
+       protected:
         Socket *socket_;
         double timeout;
         enum swTimeout_type type;
         double original_timeout[sizeof(swTimeout_type_list)] = {};
     };
 
-    class timeout_controller: public timeout_setter
-    {
-    public:
-        timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type) :
-                timeout_setter(socket, timeout, type)
-        {
-        }
-        inline bool has_timedout(const enum swTimeout_type type)
-        {
+    class timeout_controller : public timeout_setter {
+       public:
+        timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type)
+            : timeout_setter(socket, timeout, type) {}
+        inline bool has_timedout(const enum swTimeout_type type) {
             SW_ASSERT_1BYTE(type);
-            if (timeout > 0)
-            {
-                if (sw_unlikely(startup_time == 0))
-                {
+            if (timeout > 0) {
+                if (sw_unlikely(startup_time == 0)) {
                     startup_time = swoole_microtime();
-                }
-                else
-                {
+                } else {
                     double used_time = swoole_microtime() - startup_time;
-                    if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC))
-                    {
+                    if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC)) {
                         socket_->set_err(ETIMEDOUT);
                         return true;
                     }
@@ -623,10 +502,12 @@ public:
             }
             return false;
         }
-    protected:
+
+       protected:
         double startup_time = 0;
     };
 };
 std::vector<std::string> dns_lookup(const char *domain, double timeout = 2.0);
 //-------------------------------------------------------------------------------
-}}
+}  // namespace coroutine
+}  // namespace swoole

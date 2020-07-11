@@ -25,38 +25,31 @@
 using namespace std;
 using namespace swoole;
 
-class file_lock_manager
-{
-public:
+class file_lock_manager {
+   public:
     bool lock_ex = false;
     bool lock_sh = false;
     queue<Coroutine *> _queue;
 };
 
-static unordered_map<string, file_lock_manager*> lock_pool;
+static unordered_map<string, file_lock_manager *> lock_pool;
 
-static inline file_lock_manager* get_manager(char *filename)
-{
+static inline file_lock_manager *get_manager(char *filename) {
     string key(filename);
     auto i = lock_pool.find(key);
-    file_lock_manager* lm;
-    if (i == lock_pool.end())
-    {
+    file_lock_manager *lm;
+    if (i == lock_pool.end()) {
         lm = new file_lock_manager;
         lock_pool[key] = lm;
-    }
-    else
-    {
+    } else {
         lm = i->second;
     }
     return lm;
 }
 
-static inline int lock_ex(char *filename, int fd)
-{
-    file_lock_manager*lm = get_manager(filename);
-    if (lm->lock_ex || lm->lock_sh)
-    {
+static inline int lock_ex(char *filename, int fd) {
+    file_lock_manager *lm = get_manager(filename);
+    if (lm->lock_ex || lm->lock_sh) {
         Coroutine *co = Coroutine::get_current();
         lm->_queue.push(co);
         co->yield();
@@ -65,11 +58,9 @@ static inline int lock_ex(char *filename, int fd)
     return ::flock(fd, LOCK_EX);
 }
 
-static inline int lock_sh(char *filename, int fd)
-{
-    file_lock_manager*lm = get_manager(filename);
-    if (lm->lock_ex)
-    {
+static inline int lock_sh(char *filename, int fd) {
+    file_lock_manager *lm = get_manager(filename);
+    if (lm->lock_ex) {
         Coroutine *co = Coroutine::get_current();
         lm->_queue.push(co);
         co->yield();
@@ -78,23 +69,18 @@ static inline int lock_sh(char *filename, int fd)
     return ::flock(fd, LOCK_SH);
 }
 
-static inline int lock_release(char *filename, int fd)
-{
+static inline int lock_release(char *filename, int fd) {
     string key(filename);
     auto i = lock_pool.find(key);
-    if (i == lock_pool.end())
-    {
+    if (i == lock_pool.end()) {
         return ::flock(fd, LOCK_UN);
     }
-    file_lock_manager* lm = i->second;
-    if (lm->_queue.empty())
-    {
+    file_lock_manager *lm = i->second;
+    if (lm->_queue.empty()) {
         delete lm;
         lock_pool.erase(i);
         return ::flock(fd, LOCK_UN);
-    }
-    else
-    {
+    } else {
         Coroutine *co = lm->_queue.front();
         lm->_queue.pop();
         int retval = ::flock(fd, LOCK_UN);
@@ -104,18 +90,13 @@ static inline int lock_release(char *filename, int fd)
 }
 
 #ifdef LOCK_NB
-static inline int lock_nb(char *filename, int fd, int operation)
-{
+static inline int lock_nb(char *filename, int fd, int operation) {
     int retval = ::flock(fd, operation | LOCK_NB);
-    if (retval == 0)
-    {
-        file_lock_manager*lm = get_manager(filename);
-        if (operation == LOCK_EX)
-        {
+    if (retval == 0) {
+        file_lock_manager *lm = get_manager(filename);
+        if (operation == LOCK_EX) {
             lm->lock_ex = true;
-        }
-        else
-        {
+        } else {
             lm->lock_sh = true;
         }
     }
@@ -123,24 +104,20 @@ static inline int lock_nb(char *filename, int fd, int operation)
 }
 #endif
 
-int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
-{
+int swoole_coroutine_flock_ex(char *filename, int fd, int operation) {
     Coroutine *co = Coroutine::get_current();
-    if (sw_unlikely(SwooleTG.reactor == nullptr || !co))
-    {
+    if (sw_unlikely(SwooleTG.reactor == nullptr || !co)) {
         return ::flock(fd, operation);
     }
 
     char *real = realpath(filename, SwooleTG.buffer_stack->str);
-    if (real == nullptr)
-    {
+    if (real == nullptr) {
         errno = ENOENT;
         swoole_set_last_error(ENOENT);
         return -1;
     }
 
-    switch (operation)
-    {
+    switch (operation) {
     case LOCK_EX:
         return lock_ex(real, fd);
     case LOCK_SH:
@@ -149,8 +126,7 @@ int swoole_coroutine_flock_ex(char *filename, int fd, int operation)
         return lock_release(real, fd);
     default:
 #ifdef LOCK_NB
-        if (operation & LOCK_NB)
-        {
+        if (operation & LOCK_NB) {
             return lock_nb(real, fd, operation & (~LOCK_NB));
         }
 #endif

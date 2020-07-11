@@ -7,8 +7,7 @@ static string root_path;
 
 static void init_root_path(const char *);
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
     swoole_init();
     init_root_path(argv[0]);
 
@@ -26,12 +25,9 @@ static void init_root_path(const char *_exec_file) {
     string file = string(dir) + "/" + _exec_file;
     string relative_root_path = file.substr(0, file.rfind('/')) + "/../../";
     char *_realpath = realpath(relative_root_path.c_str(), buf);
-    if (_realpath == nullptr)
-    {
+    if (_realpath == nullptr) {
         root_path = relative_root_path;
-    }
-    else
-    {
+    } else {
         root_path = string(_realpath);
     }
 }

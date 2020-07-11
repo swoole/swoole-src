@@ -23,4 +23,4 @@
 #include "coroutine_system.h"
 #include "coroutine_socket.h"
 
-swoole::coroutine::Socket* swoole_coroutine_get_socket_object(int sockfd);
+swoole::coroutine::Socket *swoole_coroutine_get_socket_object(int sockfd);

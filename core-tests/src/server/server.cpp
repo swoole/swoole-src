@@ -25,8 +25,7 @@
 using namespace std;
 using namespace swoole;
 
-static void test_create_server(swServer *serv)
-{
+static void test_create_server(swServer *serv) {
     serv->create();
 
     SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
@@ -34,8 +33,7 @@ static void test_create_server(swServer *serv)
     swFactoryProcess_create(&serv->factory, serv->worker_num);
 }
 
-TEST(server, create_pipe_buffers)
-{
+TEST(server, create_pipe_buffers) {
     int ret;
     swServer serv;
 
@@ -44,16 +42,14 @@ TEST(server, create_pipe_buffers)
     ret = serv.create_pipe_buffers();
     ASSERT_EQ(0, ret);
     ASSERT_NE(nullptr, serv.pipe_buffers);
-    for (uint32_t i = 0; i < serv.reactor_num; i++)
-    {
+    for (uint32_t i = 0; i < serv.reactor_num; i++) {
         ASSERT_NE(nullptr, serv.pipe_buffers[i]);
     }
 }
 
 static const char *packet = "hello world\n";
 
-TEST(server, base)
-{
+TEST(server, base) {
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
@@ -61,8 +57,7 @@ TEST(server, base)
     sw_logger().set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    if (!port)
-    {
+    if (!port) {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
@@ -72,8 +67,7 @@ TEST(server, base)
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    std::thread t1([&]()
-    {
+    std::thread t1([&]() {
         swSignal_none();
 
         lock.lock();
@@ -88,13 +82,9 @@ TEST(server, base)
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
-    {
-        lock.unlock();
-    };
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, swEventData *req) -> int
-    {
+    serv.onReceive = [](swServer *serv, swEventData *req) -> int {
         char *data = nullptr;
         size_t length = serv->get_packet(serv, req, &data);
         EXPECT_EQ(string(data, length), string(packet));
@@ -109,8 +99,7 @@ TEST(server, base)
     t1.join();
 }
 
-TEST(server, process)
-{
+TEST(server, process) {
     swServer serv;
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_PROCESS;
@@ -124,16 +113,14 @@ TEST(server, process)
     lock->lock(lock);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    if (!port)
-    {
+    if (!port) {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.onStart = [&lock](swServer *serv)
-    {
+    serv.onStart = [&lock](swServer *serv) {
         thread t1([=]() {
             swSignal_none();
 
@@ -153,13 +140,9 @@ TEST(server, process)
         t1.detach();
     };
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
-    {
-        lock->unlock(lock);
-    };
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock->unlock(lock); };
 
-    serv.onReceive = [](swServer *serv, swEventData *req) -> int
-    {
+    serv.onReceive = [](swServer *serv, swEventData *req) -> int {
         char *data = nullptr;
         size_t length = serv->get_packet(serv, req, &data);
         EXPECT_EQ(string(data, length), string(packet));
@@ -175,21 +158,18 @@ TEST(server, process)
     SwooleG.memory_pool->free(SwooleG.memory_pool, lock);
 }
 
-TEST(server, task_worker)
-{
+TEST(server, task_worker) {
     swServer serv;
     serv.worker_num = 1;
     serv.task_worker_num = 1;
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    if (!port)
-    {
+    if (!port) {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
-    serv.onTask = [](swServer *serv, swEventData *task) -> int
-    {
+    serv.onTask = [](swServer *serv, swEventData *task) -> int {
         EXPECT_EQ(string(task->data, task->info.len), string(packet));
         serv->gs->task_workers.running = 0;
         return 0;
@@ -198,7 +178,7 @@ TEST(server, task_worker)
     ASSERT_EQ(serv.create(), SW_OK);
     ASSERT_EQ(serv.create_task_workers(), SW_OK);
 
-    thread t1([&serv](){
+    thread t1([&serv]() {
         serv.gs->task_workers.running = 1;
         serv.gs->task_workers.main_loop(&serv.gs->task_workers, &serv.gs->task_workers.workers[0]);
     });

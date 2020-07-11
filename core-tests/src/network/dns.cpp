@@ -22,14 +22,9 @@
 using namespace swoole;
 using namespace swoole::test;
 
-
-TEST(dns, lookup)
-{
-    test::coroutine::run([](void *arg)
-    {
+TEST(dns, lookup) {
+    test::coroutine::run([](void *arg) {
         auto list = swoole::coroutine::dns_lookup("www.baidu.com", 10);
         ASSERT_GE(list.size(), 1);
     });
 }
-
-

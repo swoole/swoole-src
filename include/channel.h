@@ -24,16 +24,14 @@
 
 namespace swoole {
 
-enum Channel_flag
-{
-    SW_CHAN_LOCK     = 1u << 1,
-    SW_CHAN_NOTIFY   = 1u << 2,
-    SW_CHAN_SHM      = 1u << 3,
+enum Channel_flag {
+    SW_CHAN_LOCK = 1u << 1,
+    SW_CHAN_NOTIFY = 1u << 2,
+    SW_CHAN_SHM = 1u << 3,
 };
 
-class Channel
-{
-private:
+class Channel {
+   private:
     off_t head;
     off_t tail;
     size_t size;
@@ -53,15 +51,10 @@ private:
     void *mem;
     swLock lock;
     swPipe *notify_pipe;
-public:
-    inline bool empty()
-    {
-        return num == 0;
-    }
-    inline bool full()
-    {
-        return ((head == tail && tail_tag != head_tag) || (bytes + sizeof(int) * num == size));
-    }
+
+   public:
+    inline bool empty() { return num == 0; }
+    inline bool full() { return ((head == tail && tail_tag != head_tag) || (bytes + sizeof(int) * num == size)); }
     int pop(void *out_buf, int buffer_length);
     int push(const void *in_data, int data_length);
     int out(void *out_buf, int buffer_length);
@@ -72,8 +65,9 @@ public:
     void destroy();
     void print();
     static Channel *make(size_t size, size_t maxlen, int flags);
-private:
+
+   private:
     Channel();
     ~Channel();
 };
-}
+}  // namespace swoole

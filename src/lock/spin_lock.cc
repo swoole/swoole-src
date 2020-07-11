@@ -23,13 +23,11 @@ static int swSpinLock_unlock(swLock *lock);
 static int swSpinLock_trylock(swLock *lock);
 static int swSpinLock_free(swLock *lock);
 
-int swSpinLock_create(swLock *lock, int use_in_process)
-{
+int swSpinLock_create(swLock *lock, int use_in_process) {
     int ret;
     sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_SPINLOCK;
-    if ((ret = pthread_spin_init(&lock->object.spin_lock, use_in_process)) < 0)
-    {
+    if ((ret = pthread_spin_init(&lock->object.spin_lock, use_in_process)) < 0) {
         return -1;
     }
     lock->lock = swSpinLock_lock;
@@ -39,23 +37,19 @@ int swSpinLock_create(swLock *lock, int use_in_process)
     return 0;
 }
 
-static int swSpinLock_lock(swLock *lock)
-{
+static int swSpinLock_lock(swLock *lock) {
     return pthread_spin_lock(&lock->object.spin_lock);
 }
 
-static int swSpinLock_unlock(swLock *lock)
-{
+static int swSpinLock_unlock(swLock *lock) {
     return pthread_spin_unlock(&lock->object.spin_lock);
 }
 
-static int swSpinLock_trylock(swLock *lock)
-{
+static int swSpinLock_trylock(swLock *lock) {
     return pthread_spin_trylock(&lock->object.spin_lock);
 }
 
-static int swSpinLock_free(swLock *lock)
-{
+static int swSpinLock_free(swLock *lock) {
     return pthread_spin_destroy(&lock->object.spin_lock);
 }
 

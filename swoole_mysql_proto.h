@@ -247,6 +247,7 @@ enum sw_mysql_server_status_flags
 // other names on doc: challenge/scramble/salt
 #define SW_MYSQL_NONCE_LENGTH 20
 
+// clang-format off
 #define sw_mysql_uint2korr2korr(A)  (uint16_t) (((uint16_t) ((uchar) (A)[0])) +\
                                ((uint16_t) ((uchar) (A)[1]) << 8))
 #define sw_mysql_uint2korr3korr(A)  (uint32_t) (((uint32_t) ((uchar) (A)[0])) +\
@@ -293,6 +294,8 @@ enum sw_mysql_server_status_flags
                   *(((char *)(T))+3) = (char)(((A) >> 24)); \
                   *(((char *)(T))+4) = (char)(((A) >> 32)); \
                   *(((char *)(T))+5) = (char)(((A) >> 40)); } while (0)
+
+// clang-format on
 
 #define sw_mysql_int8store(T,A)  do { \
                 uint32_t def_temp= (uint32_t) (A), def_temp2= (uint32_t) ((A) >> 32); \

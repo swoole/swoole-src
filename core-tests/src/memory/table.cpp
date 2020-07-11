@@ -22,44 +22,34 @@
 
 #include <exception>
 
-struct exception_t: public std::exception
-{
+struct exception_t : public std::exception {
     int code;
     std::string msg;
-    exception_t(std::string _msg, int _code) :
-            std::exception()
-    {
+    exception_t(std::string _msg, int _code) : std::exception() {
         msg = _msg;
         code = _code;
     }
-    const char *what() const throw ()
-    {
-        return msg.c_str();
-    }
+    const char *what() const throw() { return msg.c_str(); }
 };
 
-struct row_t
-{
+struct row_t {
     std::string name;
     long id;
     double score;
 };
 
-class table_t
-{
-private:
+class table_t {
+   private:
     swTableColumn *column_id;
     swTableColumn *column_name;
     swTableColumn *column_score;
 
     swTable *table;
 
-public:
-    table_t(uint32_t rows_size, float conflict_proportion = 0.2)
-    {
+   public:
+    table_t(uint32_t rows_size, float conflict_proportion = 0.2) {
         table = swTable_new(rows_size, conflict_proportion);
-        if (swTable_create(table), 0)
-        {
+        if (swTable_create(table), 0) {
             throw exception_t("alloc failed", SwooleG.error);
         }
 
@@ -67,8 +57,7 @@ public:
         swTableColumn_add(table, "name", SW_TABLE_STRING, 32);
         swTableColumn_add(table, "score", SW_TABLE_FLOAT, 0);
 
-        if (swTable_create(table) < 0)
-        {
+        if (swTable_create(table) < 0) {
             throw exception_t("create failed", SwooleG.error);
         }
         column_id = swTableColumn_get(table, std::string("id"));
@@ -76,32 +65,28 @@ public:
         column_score = swTableColumn_get(table, std::string("score"));
     }
 
-    bool set(const std::string &key, const row_t &value)
-    {
+    bool set(const std::string &key, const row_t &value) {
         swTableRow *_rowlock = nullptr;
         swTableRow *row = swTableRow_set(table, key.c_str(), key.length(), &_rowlock);
-        if (!row)
-        {
+        if (!row) {
             swTableRow_unlock(_rowlock);
             return false;
         }
 
-        swTableRow_set_value(row, column_id, (void*) &value.id, sizeof(value.id));
-        swTableRow_set_value(row, column_name, (void*) value.name.c_str(), value.name.length());
-        swTableRow_set_value(row, column_score, (void*) &value.score, sizeof(value.score));
+        swTableRow_set_value(row, column_id, (void *) &value.id, sizeof(value.id));
+        swTableRow_set_value(row, column_name, (void *) value.name.c_str(), value.name.length());
+        swTableRow_set_value(row, column_score, (void *) &value.score, sizeof(value.score));
 
         swTableRow_unlock(_rowlock);
 
         return true;
     }
 
-    row_t get(const std::string &key)
-    {
+    row_t get(const std::string &key) {
         row_t result;
         swTableRow *_rowlock = nullptr;
         swTableRow *row = swTableRow_get(table, key.c_str(), key.length(), &_rowlock);
-        if (row)
-        {
+        if (row) {
             memcpy(&result.id, row->data + column_id->index, sizeof(result.id));
             memcpy(&result.score, row->data + column_score->index, sizeof(result.score));
 
@@ -114,13 +99,9 @@ public:
         return result;
     }
 
-    bool del(const std::string &key)
-    {
-        return swTableRow_del(table, key.c_str(), key.length()) == SW_OK;
-    }
+    bool del(const std::string &key) { return swTableRow_del(table, key.c_str(), key.length()) == SW_OK; }
 
-    bool exists(const std::string &key)
-    {
+    bool exists(const std::string &key) {
         swTableRow *_rowlock = nullptr;
         swTableRow *row = swTableRow_get(table, key.c_str(), key.length(), &_rowlock);
         swTableRow_unlock(_rowlock);
@@ -128,22 +109,16 @@ public:
         return row != nullptr;
     }
 
-    size_t count()
-    {
-        return table->row_num;
-    }
+    size_t count() { return table->row_num; }
 
-    ~table_t()
-    {
-        if (table)
-        {
+    ~table_t() {
+        if (table) {
             swTable_free(table);
         }
     }
 };
 
-TEST(table, create)
-{
+TEST(table, create) {
     table_t table(1024);
 
     table.set("php", {"php", 1, 1.245});

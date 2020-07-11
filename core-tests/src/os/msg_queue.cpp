@@ -20,8 +20,7 @@
 #include "tests.h"
 #include "msg_queue.h"
 
-TEST(msg_queue, rbac)
-{
+TEST(msg_queue, rbac) {
     swMsgQueue q;
     ASSERT_EQ(swMsgQueue_create(&q, 0, 0, 0), SW_OK);
     swQueue_data in;
@@ -41,5 +40,3 @@ TEST(msg_queue, rbac)
     ASSERT_EQ(out.mtype, in.mtype);
     ASSERT_STREQ(out.mdata, in.mdata);
 }
-
-

@@ -16,20 +16,18 @@
 
 #pragma once
 
-enum swHeap_type
-{
-    SW_MIN_HEAP, SW_MAX_HEAP,
+enum swHeap_type {
+    SW_MIN_HEAP,
+    SW_MAX_HEAP,
 };
 
-struct swHeap_node
-{
+struct swHeap_node {
     uint64_t priority;
     uint32_t position;
     void *data;
 };
 
-struct swHeap
-{
+struct swHeap {
     uint32_t num;
     uint32_t size;
     uint8_t type;
@@ -41,15 +39,13 @@ void swHeap_free(swHeap *heap);
 uint32_t swHeap_size(swHeap *heap);
 swHeap_node *swHeap_push(swHeap *heap, uint64_t priority, void *data);
 void *swHeap_pop(swHeap *heap);
-void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void* ptr);
+void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void *ptr);
 void swHeap_remove(swHeap *heap, swHeap_node *node);
 void *swHeap_peek(swHeap *heap);
 void swHeap_print(swHeap *heap);
 
-static inline swHeap_node *swHeap_top(swHeap *heap)
-{
-    if (heap->num == 1)
-    {
+static inline swHeap_node *swHeap_top(swHeap *heap) {
+    if (heap->num == 1) {
         return NULL;
     }
     return heap->nodes[1];

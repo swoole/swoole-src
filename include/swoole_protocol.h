@@ -47,21 +47,16 @@ struct swProtocol {
 
 typedef ssize_t (*swProtocol_length_function)(swProtocol *, swSocket *, const char *, uint32_t);
 
-
-static sw_inline uint16_t swoole_swap_endian16(uint16_t x)
-{
+static sw_inline uint16_t swoole_swap_endian16(uint16_t x) {
     return (((x & 0xff) << 8) | ((x & 0xff00) >> 8));
 }
 
-static sw_inline uint32_t swoole_swap_endian32(uint32_t x)
-{
+static sw_inline uint32_t swoole_swap_endian32(uint32_t x) {
     return (((x & 0xff) << 24) | ((x & 0xff00) << 8) | ((x & 0xff0000) >> 8) | ((x & 0xff000000) >> 24));
 }
 
-static sw_inline int32_t swoole_unpack(char type, const void *data)
-{
-    switch(type)
-    {
+static sw_inline int32_t swoole_unpack(char type, const void *data) {
+    switch (type) {
     /*-------------------------16bit-----------------------------*/
     case 'c':
         return *((int8_t *) data);
@@ -116,9 +111,7 @@ static sw_inline int32_t swoole_unpack(char type, const void *data)
     }
 }
 
-
-static sw_inline uint64_t swoole_hton64(uint64_t host)
-{
+static sw_inline uint64_t swoole_hton64(uint64_t host) {
     uint64_t ret = 0;
     uint32_t high, low;
 
@@ -133,8 +126,7 @@ static sw_inline uint64_t swoole_hton64(uint64_t host)
     return ret;
 }
 
-static sw_inline uint64_t swoole_ntoh64(uint64_t net)
-{
+static sw_inline uint64_t swoole_ntoh64(uint64_t net) {
     uint64_t ret = 0;
     uint32_t high, low;
 

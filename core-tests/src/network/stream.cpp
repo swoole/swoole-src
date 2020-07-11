@@ -47,15 +47,14 @@ TEST(stream, send) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    std::thread t1([&]()
-    {
+    std::thread t1([&]() {
         swSignal_none();
 
         lock.lock();
 
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
-        //bad request
+        // bad request
         auto stream1 = swStream_new(TEST_HOST, 39999, SW_SOCK_TCP);
         stream1->response = [](swStream *stream, const char *data, uint32_t length) {
             EXPECT_EQ(data, nullptr);
@@ -63,7 +62,7 @@ TEST(stream, send) {
         };
         ASSERT_EQ(swStream_send(stream1, buf, sizeof(buf)), SW_OK);
 
-        //success requset
+        // success requset
         auto stream2 = swStream_new(TEST_HOST, TEST_PORT, SW_SOCK_TCP);
         stream2->private_data = new string(buf, sizeof(buf));
         stream2->response = [](swStream *stream, const char *data, uint32_t length) {
@@ -79,13 +78,9 @@ TEST(stream, send) {
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
-    {
-        lock.unlock();
-    };
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [&buf](swServer *serv, swEventData *req) -> int
-    {
+    serv.onReceive = [&buf](swServer *serv, swEventData *req) -> int {
         char *data = nullptr;
         size_t length = serv->get_packet(serv, req, &data);
 
@@ -99,7 +94,7 @@ TEST(stream, send) {
         serv->send(serv, req->info.fd, &packed_len, sizeof(packed_len));
         serv->send(serv, req->info.fd, pkt.c_str(), pkt.length());
 
-        //end stream
+        // end stream
         packed_len = htonl(0);
         serv->send(serv, req->info.fd, &packed_len, sizeof(packed_len));
 

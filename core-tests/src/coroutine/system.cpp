@@ -25,7 +25,7 @@ using namespace swoole::test;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-static const  char *test_file = "/tmp/swoole-core-test";
+static const char *test_file = "/tmp/swoole-core-test";
 
 TEST(coroutine_system, file) {
     test::coroutine::run([](void *arg) {

@@ -26,35 +26,29 @@
 
 namespace swoole {
 
-#define SW_CHANNEL_MIN_MEM (1024*64)
+#define SW_CHANNEL_MIN_MEM (1024 * 64)
 
-struct Channel_item
-{
+struct Channel_item {
     int length;
     char data[0];
 };
 
-Channel *Channel::make(size_t size, size_t maxlen, int flags)
-{
+Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     assert(size >= maxlen);
     int ret;
     void *mem;
 
-    //use shared memory
-    if (flags & SW_CHAN_SHM)
-    {
+    // use shared memory
+    if (flags & SW_CHAN_SHM) {
         /**
          * overflow space
          */
         mem = sw_shm_malloc(size + sizeof(Channel) + maxlen + sizeof(Channel_item));
-    }
-    else
-    {
+    } else {
         mem = sw_malloc(size + sizeof(Channel) + maxlen + sizeof(Channel_item));
     }
 
-    if (mem == nullptr)
-    {
+    if (mem == nullptr) {
         swWarn("alloc(%ld) failed", size);
         return nullptr;
     }
@@ -63,29 +57,25 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags)
 
     sw_memset_zero(object, sizeof(Channel));
 
-    //overflow space
+    // overflow space
     object->size = size;
     object->mem = mem;
     object->maxlen = maxlen;
     object->flags = flags;
 
-    //use lock
-    if (flags & SW_CHAN_LOCK)
-    {
-        //init lock
-        if (swMutex_create(&object->lock, 1) < 0)
-        {
+    // use lock
+    if (flags & SW_CHAN_LOCK) {
+        // init lock
+        if (swMutex_create(&object->lock, 1) < 0) {
             swWarn("mutex init failed");
             return nullptr;
         }
     }
-    //use notify
-    if (flags & SW_CHAN_NOTIFY)
-    {
+    // use notify
+    if (flags & SW_CHAN_NOTIFY) {
         object->notify_pipe = new swPipe();
         ret = swPipeNotify_auto(object->notify_pipe, 1, 1);
-        if (ret < 0)
-        {
+        if (ret < 0) {
             swWarn("notify_fd init failed");
             return nullptr;
         }
@@ -97,32 +87,25 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags)
 /**
  * push data(no lock)
  */
-int Channel::in(const void *in_data, int data_length)
-{
+int Channel::in(const void *in_data, int data_length) {
     assert(data_length <= maxlen);
-    if (full())
-    {
+    if (full()) {
         return SW_ERR;
     }
     Channel_item *item;
     int msize = sizeof(item->length) + data_length;
 
-    if (tail < head)
-    {
-        //no enough memory space
-        if ((head - tail) < msize)
-        {
+    if (tail < head) {
+        // no enough memory space
+        if ((head - tail) < msize) {
             return SW_ERR;
         }
-        item = (Channel_item *) ((char*) mem + tail);
+        item = (Channel_item *) ((char *) mem + tail);
         tail += msize;
-    }
-    else
-    {
-        item = (Channel_item *) ((char*) mem + tail);
+    } else {
+        item = (Channel_item *) ((char *) mem + tail);
         tail += msize;
-        if (tail >= (off_t) size)
-        {
+        if (tail >= (off_t) size) {
             tail = 0;
             tail_tag = 1 - tail_tag;
         }
@@ -137,19 +120,16 @@ int Channel::in(const void *in_data, int data_length)
 /**
  * pop data(no lock)
  */
-int Channel::out(void *out_buf, int buffer_length)
-{
-    if (empty())
-    {
+int Channel::out(void *out_buf, int buffer_length) {
+    if (empty()) {
         return SW_ERR;
     }
 
-    Channel_item *item = (Channel_item *) ((char*) mem + head);
+    Channel_item *item = (Channel_item *) ((char *) mem + head);
     assert(buffer_length >= item->length);
     memcpy(out_buf, item->data, item->length);
     head += (item->length + sizeof(item->length));
-    if (head >= (off_t) size)
-    {
+    if (head >= (off_t) size) {
         head = 0;
         head_tag = 1 - head_tag;
     }
@@ -161,16 +141,14 @@ int Channel::out(void *out_buf, int buffer_length)
 /**
  * peek data
  */
-int Channel::peek(void *out, int buffer_length)
-{
-    if (empty())
-    {
+int Channel::peek(void *out, int buffer_length) {
+    if (empty()) {
         return SW_ERR;
     }
 
     int length;
     lock.lock(&lock);
-    Channel_item *item = (Channel_item *) ((char*) mem + head);
+    Channel_item *item = (Channel_item *) ((char *) mem + head);
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     length = item->length;
@@ -182,8 +160,7 @@ int Channel::peek(void *out, int buffer_length)
 /**
  * wait notify
  */
-int Channel::wait()
-{
+int Channel::wait() {
     assert(flags & SW_CHAN_NOTIFY);
     uint64_t value;
     return notify_pipe->read(notify_pipe, &value, sizeof(value));
@@ -192,8 +169,7 @@ int Channel::wait()
 /**
  * new data coming, notify to customer
  */
-int Channel::notify()
-{
+int Channel::notify() {
     assert(flags & SW_CHAN_NOTIFY);
     uint64_t value = 1;
     return notify_pipe->write(notify_pipe, &value, sizeof(value));
@@ -202,8 +178,7 @@ int Channel::notify()
 /**
  * push data (lock)
  */
-int Channel::push(const void *in_data, int data_length)
-{
+int Channel::push(const void *in_data, int data_length) {
     assert(flags & SW_CHAN_LOCK);
     lock.lock(&lock);
     int ret = in(in_data, data_length);
@@ -214,23 +189,17 @@ int Channel::push(const void *in_data, int data_length)
 /**
  * free channel
  */
-void Channel::destroy()
-{
-    if (flags & SW_CHAN_LOCK)
-    {
+void Channel::destroy() {
+    if (flags & SW_CHAN_LOCK) {
         lock.free(&lock);
     }
-    if (flags & SW_CHAN_NOTIFY)
-    {
+    if (flags & SW_CHAN_NOTIFY) {
         notify_pipe->close(notify_pipe);
         delete notify_pipe;
     }
-    if (flags & SW_CHAN_SHM)
-    {
+    if (flags & SW_CHAN_SHM) {
         sw_shm_free(this);
-    }
-    else
-    {
+    } else {
         sw_free(this);
     }
 }
@@ -238,8 +207,7 @@ void Channel::destroy()
 /**
  * pop data (lock)
  */
-int Channel::pop(void *out_buf, int buffer_length)
-{
+int Channel::pop(void *out_buf, int buffer_length) {
     assert(flags & SW_CHAN_LOCK);
     lock.lock(&lock);
     int n = out(out_buf, buffer_length);
@@ -247,19 +215,27 @@ int Channel::pop(void *out_buf, int buffer_length)
     return n;
 }
 
-void Channel::print()
-{
+void Channel::print() {
     printf("Channel\n{\n"
-            "    off_t head = %ld;\n"
-            "    off_t tail = %ld;\n"
-            "    size_t size = %ld;\n"
-            "    char head_tag = %d;\n"
-            "    char tail_tag = %d;\n"
-            "    int num = %d;\n"
-            "    size_t bytes = %ld;\n"
-            "    int flag = %d;\n"
-            "    int maxlen = %d;\n"
-            "\n}\n", (long) head, (long) tail, size, tail_tag, head_tag, num, bytes, flags, maxlen);
+           "    off_t head = %ld;\n"
+           "    off_t tail = %ld;\n"
+           "    size_t size = %ld;\n"
+           "    char head_tag = %d;\n"
+           "    char tail_tag = %d;\n"
+           "    int num = %d;\n"
+           "    size_t bytes = %ld;\n"
+           "    int flag = %d;\n"
+           "    int maxlen = %d;\n"
+           "\n}\n",
+           (long) head,
+           (long) tail,
+           size,
+           tail_tag,
+           head_tag,
+           num,
+           bytes,
+           flags,
+           maxlen);
 }
 
-}
+}  // namespace swoole

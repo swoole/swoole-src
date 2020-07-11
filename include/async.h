@@ -19,17 +19,15 @@
 #pragma once
 
 #ifndef O_DIRECT
-#define O_DIRECT         040000
+#define O_DIRECT 040000
 #endif
 
-enum swAio_flag
-{
+enum swAio_flag {
     SW_AIO_WRITE_FSYNC = 1u << 1,
-    SW_AIO_EOF         = 1u << 2,
+    SW_AIO_EOF = 1u << 2,
 };
 
-struct swAio_event
-{
+struct swAio_event {
     int fd;
     size_t task_id;
     uint8_t lock;

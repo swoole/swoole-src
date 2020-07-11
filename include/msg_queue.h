@@ -19,14 +19,12 @@
 
 #include "swoole.h"
 
-struct swQueue_data
-{
-    long mtype; /* type of received/sent message */
+struct swQueue_data {
+    long mtype;                      /* type of received/sent message */
     char mdata[sizeof(swEventData)]; /* text of the message */
 };
 
-struct swMsgQueue
-{
+struct swMsgQueue {
     int blocking;
     int msg_id;
     int flags;

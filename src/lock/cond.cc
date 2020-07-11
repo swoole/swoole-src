@@ -25,15 +25,12 @@ static int swCond_lock(swCond *cond);
 static int swCond_unlock(swCond *cond);
 static void swCond_free(swCond *cond);
 
-int swCond_create(swCond *cond)
-{
-    if (pthread_cond_init(&cond->_cond, nullptr) < 0)
-    {
+int swCond_create(swCond *cond) {
+    if (pthread_cond_init(&cond->_cond, nullptr) < 0) {
         swSysWarn("pthread_cond_init fail");
         return SW_ERR;
     }
-    if (swMutex_create(&cond->_lock, 0) < 0)
-    {
+    if (swMutex_create(&cond->_lock, 0) < 0) {
         return SW_ERR;
     }
 
@@ -48,18 +45,15 @@ int swCond_create(swCond *cond)
     return SW_OK;
 }
 
-static int swCond_notify(swCond *cond)
-{
+static int swCond_notify(swCond *cond) {
     return pthread_cond_signal(&cond->_cond);
 }
 
-static int swCond_broadcast(swCond *cond)
-{
+static int swCond_broadcast(swCond *cond) {
     return pthread_cond_broadcast(&cond->_cond);
 }
 
-static int swCond_timewait(swCond *cond, long sec, long nsec)
-{
+static int swCond_timewait(swCond *cond, long sec, long nsec) {
     struct timespec timeo;
 
     timeo.tv_sec = sec;
@@ -68,23 +62,19 @@ static int swCond_timewait(swCond *cond, long sec, long nsec)
     return pthread_cond_timedwait(&cond->_cond, &cond->_lock.object.mutex._lock, &timeo);
 }
 
-static int swCond_wait(swCond *cond)
-{
+static int swCond_wait(swCond *cond) {
     return pthread_cond_wait(&cond->_cond, &cond->_lock.object.mutex._lock);
 }
 
-static int swCond_lock(swCond *cond)
-{
+static int swCond_lock(swCond *cond) {
     return cond->_lock.lock(&cond->_lock);
 }
 
-static int swCond_unlock(swCond *cond)
-{
+static int swCond_unlock(swCond *cond) {
     return cond->_lock.unlock(&cond->_lock);
 }
 
-static void swCond_free(swCond *cond)
-{
+static void swCond_free(swCond *cond) {
     pthread_cond_destroy(&cond->_cond);
     cond->_lock.free(&cond->_lock);
 }

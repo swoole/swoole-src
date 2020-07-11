@@ -20,11 +20,10 @@
 #include "swoole.h"
 #include "swoole_protocol.h"
 
-#define SW_MQTT_MIN_LENGTH                   2
-#define SW_MQTT_MAX_PAYLOAD_SIZE             268435455
+#define SW_MQTT_MIN_LENGTH 2
+#define SW_MQTT_MAX_PAYLOAD_SIZE 268435455
 
-enum swMqtt_opcode
-{
+enum swMqtt_opcode {
     SW_MQTT_CONNECT = 0x10,
     SW_MQTT_CONNACK = 0x20,
     SW_MQTT_PUBLISH = 0x30,
@@ -41,19 +40,18 @@ enum swMqtt_opcode
     SW_MQTT_DISCONNECT = 0xE0,
 };
 
-struct swMqtt_packet
-{
-    uint8_t type :4;
-    uint8_t dup :1;
-    uint8_t qos :2;
-    uint8_t retain :1;
+struct swMqtt_packet {
+    uint8_t type : 4;
+    uint8_t dup : 1;
+    uint8_t qos : 2;
+    uint8_t retain : 1;
     uint32_t length;
     char protocol_name[8];
 };
 
-#define SETRETAIN(HDR, R)   (HDR | (R))
-#define SETQOS(HDR, Q)      (HDR | ((Q) << 1))
-#define SETDUP(HDR, D)      (HDR | ((D) << 3))
+#define SETRETAIN(HDR, R) (HDR | (R))
+#define SETQOS(HDR, Q) (HDR | ((Q) << 1))
+#define SETDUP(HDR, D) (HDR | ((D) << 3))
 
 ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size);
 void swMqtt_set_protocol(swProtocol *protocol);

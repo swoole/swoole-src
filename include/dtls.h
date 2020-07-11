@@ -21,7 +21,8 @@
 #ifdef SW_SUPPORT_DTLS
 #include <deque>
 
-namespace swoole { namespace dtls {
+namespace swoole {
+namespace dtls {
 //-------------------------------------------------------------------------------
 
 int BIO_write(BIO *b, const char *data, int dlen);
@@ -32,30 +33,25 @@ int BIO_destroy(BIO *b);
 BIO_METHOD *BIO_get_methods(void);
 void BIO_meth_free(void);
 
-struct Buffer
-{
+struct Buffer {
     uint16_t length;
     uchar data[0];
 };
 
-struct Session
-{
+struct Session {
     SSL_CTX *ctx;
     bool listened = false;
     swSocket *socket;
-    std::deque<Buffer*> rxqueue;
+    std::deque<Buffer *> rxqueue;
     bool peek_mode = false;
 
-    Session(swSocket *_sock, SSL_CTX *_ctx)
-    {
+    Session(swSocket *_sock, SSL_CTX *_ctx) {
         socket = _sock;
         ctx = _ctx;
     }
 
-    ~Session()
-    {
-        while(!rxqueue.empty())
-        {
+    ~Session() {
+        while (!rxqueue.empty()) {
             Buffer *buffer = rxqueue.front();
             rxqueue.pop_front();
             delete buffer;
@@ -65,23 +61,19 @@ struct Session
     bool init();
     bool listen();
 
-    void append(const char* data, ssize_t len);
+    void append(const char *data, ssize_t len);
 
-    inline void append(Buffer *buffer)
-    {
-        rxqueue.push_back(buffer);
-    }
+    inline void append(Buffer *buffer) { rxqueue.push_back(buffer); }
 
-    inline size_t get_buffer_length()
-    {
+    inline size_t get_buffer_length() {
         size_t total_length = 0;
-        for (auto i : rxqueue)
-        {
+        for (auto i : rxqueue) {
             total_length += i->length;
         }
         return total_length;
     }
 };
 //-------------------------------------------------------------------------------
-}}
+}  // namespace dtls
+}  // namespace swoole
 #endif

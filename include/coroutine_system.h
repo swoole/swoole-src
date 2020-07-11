@@ -21,23 +21,25 @@
 
 #include <vector>
 
-namespace swoole { namespace coroutine {
+namespace swoole {
+namespace coroutine {
 //-------------------------------------------------------------------------------
-class System
-{
-public:
+class System {
+   public:
     static void init_reactor(swReactor *reactor);
     /* sleep */
     static int sleep(double sec);
     /* file */
-    static swString* read_file(const char *file, bool lock = false);
+    static swString *read_file(const char *file, bool lock = false);
     static ssize_t write_file(const char *file, char *buf, size_t length, bool lock = 0, int flags = 0);
     /* dns */
     static std::string gethostbyname(const std::string &hostname, int domain, double timeout = -1);
-    static std::vector<std::string> getaddrinfo(
-        const std::string &hostname, int family = AF_INET, int socktype = SOCK_STREAM, int protocol = IPPROTO_TCP,
-        const std::string &service = "", double timeout = -1
-    );
+    static std::vector<std::string> getaddrinfo(const std::string &hostname,
+                                                int family = AF_INET,
+                                                int socktype = SOCK_STREAM,
+                                                int protocol = IPPROTO_TCP,
+                                                const std::string &service = "",
+                                                double timeout = -1);
     static void set_dns_cache_expire(time_t expire);
     static void set_dns_cache_capacity(size_t capacity);
     static void clear_dns_cache();
@@ -52,4 +54,5 @@ public:
     static int wait_event(int fd, int events, double timeout);
 };
 //-------------------------------------------------------------------------------
-}}
+}  // namespace coroutine
+}  // namespace swoole

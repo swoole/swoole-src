@@ -20,8 +20,7 @@
 #include "tests.h"
 #include "pipe.h"
 
-TEST(reactor, create)
-{
+TEST(reactor, create) {
     swoole_event_init(0);
 
     swReactor *reactor = SwooleTG.reactor;
@@ -64,8 +63,7 @@ TEST(reactor, create)
     swoole_event_free();
 }
 
-TEST(reactor, set_handler)
-{
+TEST(reactor, set_handler) {
     swReactor reactor;
 
     reactor.set_handler(SW_EVENT_READ, (swReactor_handler) 0x1);
@@ -78,8 +76,7 @@ TEST(reactor, set_handler)
     ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
 }
 
-TEST(reactor, wait)
-{
+TEST(reactor, wait) {
     int ret;
     swPipe p;
 
@@ -90,8 +87,7 @@ TEST(reactor, wait)
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
-    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
-    {
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
@@ -113,8 +109,7 @@ TEST(reactor, wait)
     ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
 
-TEST(reactor, write)
-{
+TEST(reactor, write) {
     int ret;
     swPipe p;
 
@@ -125,15 +120,14 @@ TEST(reactor, write)
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
-    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int
-    {
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
         reactor->del(reactor, ev->socket);
-        
+
         return SW_OK;
     });
 
@@ -148,15 +142,12 @@ TEST(reactor, write)
     ASSERT_EQ(SwooleTG.reactor, nullptr);
 }
 
+static const char *pkt = "hello world\r\n";
 
-static const char* pkt = "hello world\r\n";
-
-static void reactor_test_func(swReactor *reactor)
-{
+static void reactor_test_func(swReactor *reactor) {
     swPipe p;
     ASSERT_EQ(swPipeBase_create(&p, 1), SW_OK);
-    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *event) -> int
-    {
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *event) -> int {
         char buf[1024];
         size_t l = strlen(pkt);
         size_t n = read(event->fd, buf, sizeof(buf));
@@ -167,8 +158,7 @@ static void reactor_test_func(swReactor *reactor)
 
         return SW_OK;
     });
-    reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](swReactor *reactor, swEvent *event) -> int
-    {
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](swReactor *reactor, swEvent *event) -> int {
         size_t l = strlen(pkt);
         EXPECT_EQ(write(event->fd, pkt, l), l);
         reactor->del(reactor, event->socket);

@@ -29,8 +29,8 @@
 namespace swoole {
 
 namespace std_string {
-template<typename ...Args>
-inline std::string format(const char *format, Args ...args) {
+template <typename... Args>
+inline std::string format(const char *format, Args... args) {
     size_t size = snprintf(nullptr, 0, format, args...) + 1;  // Extra space for '\0'
     std::unique_ptr<char[]> buf(new char[size]);
     snprintf(buf.get(), size, format, args...);
@@ -46,9 +46,9 @@ inline std::string vformat(const char *format, va_list args) {
     vsnprintf(buf.get(), size, format, args);
     return std::string(buf.get(), buf.get() + size - 1);  // We don't want the '\0' inside
 }
-}
+}  // namespace std_string
 
-template<typename T>
+template <typename T>
 static inline long time(bool steady = false) {
     if (steady) {
         auto now = std::chrono::steady_clock::now();
@@ -60,4 +60,4 @@ static inline long time(bool steady = false) {
 }
 
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
-}
+}  // namespace swoole

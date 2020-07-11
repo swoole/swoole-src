@@ -18,6 +18,8 @@
 
 #include "php_swoole_cxx.h"
 
+// clang-format off
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_exec, 0, 0, 1)
     ZEND_ARG_INFO(0, command)
     ZEND_ARG_INFO(0, get_error_stream)
@@ -95,6 +97,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_system_waitEvent, 0, 0, 1)
     ZEND_ARG_INFO(0, events)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
+// clang-format on
 
 SW_EXTERN_C_BEGIN
 PHP_METHOD(swoole_coroutine_system, exec);
