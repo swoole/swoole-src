@@ -42,7 +42,7 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
 #endif
 
 class http_server {
-   public:
+  public:
     Socket *socket;
     zend_fcall_info_cache *default_handler;
     map<string, zend_fcall_info_cache> handlers;

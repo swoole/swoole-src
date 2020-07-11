@@ -24,11 +24,11 @@
 
 using namespace std;
 
-namespace swoole { namespace wrapper {
+namespace swoole {
+namespace wrapper {
 //-----------------------------------namespace begin------------------------------------------------
-class ClientInfo
-{
-public:
+class ClientInfo {
+   public:
     char address[256];
     int port;
     int server_socket;
@@ -36,49 +36,33 @@ public:
 
 extern swString *_callback_buffer;
 
-struct DataBuffer
-{
+struct DataBuffer {
     size_t length;
     void *buffer;
 
-    DataBuffer()
-    {
+    DataBuffer() {
         length = 0;
         buffer = nullptr;
     }
 
-    DataBuffer(const char *str)
-    {
-        copy((void *) str, strlen(str));
-    }
+    DataBuffer(const char *str) { copy((void *) str, strlen(str)); }
 
-    DataBuffer(string &str)
-    {
-        copy((void *) str.c_str(), str.length());
-    }
+    DataBuffer(string &str) { copy((void *) str.c_str(), str.length()); }
 
-    DataBuffer(const char *str, size_t length)
-    {
-        copy((void *) str, length);
-    }
+    DataBuffer(const char *str, size_t length) { copy((void *) str, length); }
 
-    void copy(void *_data, size_t _length)
-    {
+    void copy(void *_data, size_t _length) {
         alloc(_length);
         memcpy(buffer, _data, _length);
     }
 
-    void *alloc(size_t _size)
-    {
-        if (_size >= _callback_buffer->size)
-        {
+    void *alloc(size_t _size) {
+        if (_size >= _callback_buffer->size) {
             size_t new_size = _callback_buffer->size * 2;
-            while (new_size < _size + 1)
-            {
+            while (new_size < _size + 1) {
                 new_size *= 2;
             }
-            if (swString_extend(_callback_buffer, new_size) < 0)
-            {
+            if (swString_extend(_callback_buffer, new_size) < 0) {
                 abort();
             }
         }
@@ -89,8 +73,7 @@ struct DataBuffer
     }
 };
 
-enum
-{
+enum {
     EVENT_onStart = 1u << 1,
     EVENT_onShutdown = 1u << 2,
     EVENT_onWorkerStart = 1u << 3,
@@ -104,19 +87,15 @@ enum
     EVENT_onPipeMessage = 1u << 11,
 };
 
-class Server
-{
-public:
+class Server {
+   public:
     Server(string _host, int _port, enum swServer_mode _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP);
 
-    virtual ~Server()
-    {
-    }
-    ;
+    virtual ~Server(){};
 
     bool start(void);
     void setEvents(int _events);
-    bool listen(string host, int port,  enum swSocket_type type);
+    bool listen(string host, int port, enum swSocket_type type);
     bool send(int fd, const char *data, int length);
     bool send(int fd, const DataBuffer &data);
     bool sendfile(int fd, string &file, off_t offset = 0, size_t length = 0);
@@ -129,10 +108,7 @@ public:
     DataBuffer taskwait(const DataBuffer &data, double timeout = SW_TASKWAIT_TIMEOUT, int dst_worker_id = -1);
     map<int, DataBuffer> taskWaitMulti(const vector<DataBuffer> &data, double timeout = SW_TASKWAIT_TIMEOUT);
 
-    int getLastError()
-    {
-        return SwooleG.error;
-    }
+    int getLastError() { return swoole_get_last_error(); }
 
     virtual void onStart() = 0;
     virtual void onShutdown() = 0;
@@ -146,7 +122,7 @@ public:
     virtual void onTask(int, int, const DataBuffer &) = 0;
     virtual void onFinish(int, const DataBuffer &) = 0;
 
-public:
+   public:
     static int _onReceive(swServer *serv, swEventData *req);
     static void _onConnect(swServer *serv, swDataHead *info);
     static void _onClose(swServer *serv, swDataHead *info);
@@ -159,10 +135,10 @@ public:
     static int _onTask(swServer *serv, swEventData *task);
     static int _onFinish(swServer *serv, swEventData *task);
 
-private:
+   private:
     int check_task_param(int dst_worker_id);
 
-protected:
+   protected:
     swServer serv;
     string host;
     int port;
@@ -170,4 +146,5 @@ protected:
     int events;
 };
 //-----------------------------------namespace end------------------------------------------------
-}}
+}  // namespace wrapper
+}  // namespace swoole

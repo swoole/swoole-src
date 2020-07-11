@@ -901,7 +901,9 @@ int swoole_http2_server_parse(http2_session *client, const char *buf) {
 
         break;
     }
-    default: { swHttp2FrameTraceLog(recv, ""); }
+    default: {
+        swHttp2FrameTraceLog(recv, "");
+    }
     }
     return SW_OK;
 }

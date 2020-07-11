@@ -16,10 +16,9 @@
 
 #include "coroutine_channel.h"
 
-using swoole::coroutine::Channel;
-
 #include <unordered_map>
 
+using swoole::coroutine::Channel;
 using namespace swoole;
 
 void Channel::timer_callback(swTimer *timer, swTimer_node *tnode) {

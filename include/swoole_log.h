@@ -42,7 +42,7 @@ enum swLog_rotation_type {
 
 namespace swoole {
 class Logger {
-   private:
+  private:
     bool opened = false;
     /**
      * Redirect stdin and stdout to log_fd
@@ -58,7 +58,7 @@ class Logger {
     std::string log_real_file;
     int log_rotation = SW_LOG_ROTATION_SINGLE;
 
-   public:
+  public:
     int open(const char *logfile);
     void put(int level, const char *content, size_t length);
     void reopen();
@@ -77,24 +77,24 @@ class Logger {
 };
 }  // namespace swoole
 
-swoole::Logger &sw_logger();
+swoole::Logger *sw_logger();
 
 #define swInfo(str, ...)                                                                                               \
-    if (SW_LOG_INFO >= sw_logger().get_level()) {                                                                      \
+    if (SW_LOG_INFO >= sw_logger()->get_level()) {                                                                     \
         size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);                           \
-        sw_logger().put(SW_LOG_INFO, sw_error, _sw_error_len);                                                         \
+        sw_logger()->put(SW_LOG_INFO, sw_error, _sw_error_len);                                                        \
     }
 
 #define swNotice(str, ...)                                                                                             \
-    if (SW_LOG_NOTICE >= sw_logger().get_level()) {                                                                    \
+    if (SW_LOG_NOTICE >= sw_logger()->get_level()) {                                                                   \
         size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);                           \
-        sw_logger().put(SW_LOG_NOTICE, sw_error, _sw_error_len);                                                       \
+        sw_logger()->put(SW_LOG_NOTICE, sw_error, _sw_error_len);                                                      \
     }
 
 #define swSysNotice(str, ...)                                                                                          \
     do {                                                                                                               \
-        SwooleG.error = errno;                                                                                         \
-        if (SW_LOG_ERROR >= sw_logger().get_level()) {                                                                 \
+        swoole_set_last_error(errno);                                                                                  \
+        if (SW_LOG_ERROR >= sw_logger()->get_level()) {                                                                \
             size_t _sw_error_len = sw_snprintf(sw_error,                                                               \
                                                SW_ERROR_MSG_SIZE,                                                      \
                                                "%s(:%d): " str ", Error: %s[%d]",                                      \
@@ -103,22 +103,22 @@ swoole::Logger &sw_logger();
                                                ##__VA_ARGS__,                                                          \
                                                swoole_strerror(errno),                                                 \
                                                errno);                                                                 \
-            sw_logger().put(SW_LOG_NOTICE, sw_error, _sw_error_len);                                                   \
+            sw_logger()->put(SW_LOG_NOTICE, sw_error, _sw_error_len);                                                  \
         }                                                                                                              \
     } while (0)
 
 #define swWarn(str, ...)                                                                                               \
     do {                                                                                                               \
-        if (SW_LOG_WARNING >= sw_logger().get_level()) {                                                               \
+        if (SW_LOG_WARNING >= sw_logger()->get_level()) {                                                              \
             size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s: " str, __func__, ##__VA_ARGS__);      \
-            sw_logger().put(SW_LOG_WARNING, sw_error, _sw_error_len);                                                  \
+            sw_logger()->put(SW_LOG_WARNING, sw_error, _sw_error_len);                                                 \
         }                                                                                                              \
     } while (0)
 
 #define swSysWarn(str, ...)                                                                                            \
     do {                                                                                                               \
-        SwooleG.error = errno;                                                                                         \
-        if (SW_LOG_ERROR >= sw_logger().get_level()) {                                                                 \
+        swoole_set_last_error(errno);                                                                                  \
+        if (SW_LOG_ERROR >= sw_logger()->get_level()) {                                                                \
             size_t _sw_error_len = sw_snprintf(sw_error,                                                               \
                                                SW_ERROR_MSG_SIZE,                                                      \
                                                "%s(:%d): " str ", Error: %s[%d]",                                      \
@@ -127,14 +127,14 @@ swoole::Logger &sw_logger();
                                                ##__VA_ARGS__,                                                          \
                                                swoole_strerror(errno),                                                 \
                                                errno);                                                                 \
-            sw_logger().put(SW_LOG_WARNING, sw_error, _sw_error_len);                                                  \
+            sw_logger()->put(SW_LOG_WARNING, sw_error, _sw_error_len);                                                 \
         }                                                                                                              \
     } while (0)
 
 #define swError(str, ...)                                                                                              \
     do {                                                                                                               \
         size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);                           \
-        sw_logger().put(SW_LOG_ERROR, sw_error, _sw_error_len);                                                        \
+        sw_logger()->put(SW_LOG_ERROR, sw_error, _sw_error_len);                                                       \
         exit(1);                                                                                                       \
     } while (0)
 
@@ -148,7 +148,7 @@ swoole::Logger &sw_logger();
                                            ##__VA_ARGS__,                                                              \
                                            swoole_strerror(errno),                                                     \
                                            errno);                                                                     \
-        sw_logger().put(SW_LOG_ERROR, sw_error, _sw_error_len);                                                        \
+        sw_logger()->put(SW_LOG_ERROR, sw_error, _sw_error_len);                                                       \
         exit(1);                                                                                                       \
     } while (0)
 
@@ -160,20 +160,20 @@ swoole::Logger &sw_logger();
 
 #define swoole_error_log(level, __errno, str, ...)                                                                     \
     do {                                                                                                               \
-        SwooleG.error = __errno;                                                                                       \
-        if (level >= sw_logger().get_level()) {                                                                        \
+        swoole_set_last_error(__errno);                                                                                \
+        if (level >= sw_logger()->get_level()) {                                                                       \
             size_t _sw_error_len =                                                                                     \
                 sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERRNO %d): " str, __func__, __errno, ##__VA_ARGS__);     \
-            sw_logger().put(level, sw_error, _sw_error_len);                                                           \
+            sw_logger()->put(level, sw_error, _sw_error_len);                                                          \
         }                                                                                                              \
     } while (0)
 
 #ifdef SW_DEBUG
 #define swDebug(str, ...)                                                                                              \
-    if (SW_LOG_DEBUG >= sw_logger().get_level()) {                                                                     \
+    if (SW_LOG_DEBUG >= sw_logger()->get_level()) {                                                                    \
         size_t _sw_error_len =                                                                                         \
             sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);              \
-        sw_logger().put(SW_LOG_DEBUG, sw_error, _sw_error_len);                                                        \
+        sw_logger()->put(SW_LOG_DEBUG, sw_error, _sw_error_len);                                                       \
     }
 
 #define swHexDump(data, length)                                                                                        \
@@ -241,10 +241,10 @@ enum swTrace_type {
 
 #ifdef SW_LOG_TRACE_OPEN
 #define swTraceLog(what, str, ...)                                                                                     \
-    if (SW_LOG_TRACE >= sw_logger().get_level() && (what & SwooleG.trace_flags)) {                                     \
+    if (SW_LOG_TRACE >= sw_logger()->get_level() && (what & SwooleG.trace_flags)) {                                    \
         size_t _sw_error_len =                                                                                         \
             sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s(:%d): " str, __func__, __LINE__, ##__VA_ARGS__);              \
-        sw_logger().put(SW_LOG_TRACE, sw_error, _sw_error_len);                                                        \
+        sw_logger()->put(SW_LOG_TRACE, sw_error, _sw_error_len);                                                       \
     }
 #else
 #define swTraceLog(what, str, ...)

@@ -14,19 +14,19 @@
   +----------------------------------------------------------------------+
 */
 
-#include "coroutine.h"
-#include "coroutine_c_api.h"
-
 #include <fcntl.h>
 #include <sys/file.h>
 
 #include <queue>
 
+#include "coroutine.h"
+#include "coroutine_c_api.h"
+
 using namespace std;
 using namespace swoole;
 
 class file_lock_manager {
-   public:
+  public:
     bool lock_ex = false;
     bool lock_sh = false;
     queue<Coroutine *> _queue;

@@ -57,7 +57,7 @@ static const swoole_http_parser_settings http_parser_settings =
 // clang-format on
 
 class http_client {
-   public:
+  public:
     /* request info */
     std::string host = "127.0.0.1";
     uint16_t port = 80;
@@ -105,7 +105,7 @@ class http_client {
 
     http_client(zval *zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
 
-   private:
+  private:
 #ifdef SW_HAVE_ZLIB
     bool gzip_stream_active = false;
     z_stream gzip_stream;
@@ -119,7 +119,7 @@ class http_client {
     bool send();
     void reset();
 
-   public:
+  public:
 #ifdef SW_HAVE_COMPRESSION
     bool decompress_response(const char *in, size_t in_len);
 #endif
@@ -184,7 +184,7 @@ class http_client {
 
     ~http_client();
 
-   private:
+  private:
     Socket *socket = nullptr;
     swSocket_type socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};

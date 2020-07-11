@@ -27,7 +27,7 @@ namespace swoole {
  * This cache isn't thread safe
  */
 class LRUCache {
-   private:
+  private:
     typedef std::pair<time_t, std::shared_ptr<void>> cache_node_t;
     typedef std::list<std::pair<std::string, cache_node_t>> cache_list_t;
 
@@ -35,7 +35,7 @@ class LRUCache {
     cache_list_t cache_list;
     size_t cache_capacity;
 
-   public:
+  public:
     explicit LRUCache(size_t capacity) { cache_capacity = capacity; }
 
     inline std::shared_ptr<void> get(const std::string &key) {

@@ -90,10 +90,10 @@ swString *make_string(size_t size, const swAllocator *allocator = nullptr);
 size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
 
 class String {
-   private:
+  private:
     swString *str;
 
-   public:
+  public:
     String(const char *_str, size_t length) { str = swString_dup(_str, length); }
     String(swString *_str) { str = _str; }
     String(String &&src) {

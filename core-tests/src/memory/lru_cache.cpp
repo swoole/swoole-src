@@ -13,7 +13,7 @@ LRUCache cache(2);
 
 int dtor_num = 0;
 class lru_cache_test_class {
-   public:
+  public:
     lru_cache_test_class() {}
 
     ~lru_cache_test_class() { ++dtor_num; }

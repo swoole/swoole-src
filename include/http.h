@@ -105,7 +105,7 @@ namespace swoole {
 namespace http {
 //-----------------------------------------------------------------
 struct Request {
-   public:
+  public:
     uint8_t method;
     uint8_t version;
     uchar excepted : 1;
@@ -127,7 +127,7 @@ struct Request {
 
     swString *buffer_;
 
-   public:
+  public:
     Request() {
         clean();
         buffer_ = nullptr;

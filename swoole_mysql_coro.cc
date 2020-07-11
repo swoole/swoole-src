@@ -59,7 +59,7 @@ using swoole::coroutine::Socket;
 namespace swoole {
 class mysql_statement;
 class mysql_client {
-   public:
+  public:
     /* session related {{{ */
     Socket *socket = nullptr;
     Socket::timeout_controller *tc = nullptr;
@@ -295,7 +295,7 @@ class mysql_client {
         close();
     }
 
-   private:
+  private:
     int error_code = 0;
     std::string error_msg = "";
 
@@ -311,7 +311,7 @@ class mysql_client {
 };
 
 class mysql_statement {
-   public:
+  public:
     std::string statement;
     mysql::statement info;
     mysql::result_info result;
@@ -389,7 +389,7 @@ class mysql_statement {
     void fetch_all(zval *return_value);
     void next_result(zval *return_value);
 
-   private:
+  private:
     mysql_client *client = nullptr;
     int error_code = 0;
     std::string error_msg;

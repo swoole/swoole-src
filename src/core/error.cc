@@ -14,13 +14,14 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include <string>
+
+#include "swoole.h"
 
 namespace swoole {
 
 class Exception {
-   public:
+  public:
     int code;
     const char *msg;
 

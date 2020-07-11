@@ -69,7 +69,7 @@ struct socket_poll_fd {
 };
 
 class Coroutine {
-   public:
+  public:
     void resume();
     void yield();
 
@@ -144,7 +144,7 @@ class Coroutine {
 
     static void print_list();
 
-   protected:
+  protected:
     static Coroutine *current;
     static long last_cid;
     static uint64_t peak_num;

@@ -198,7 +198,7 @@ void php_swoole_runtime_rshutdown() {
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(function_table, ptr) {
-        real_func *rf = static_cast<real_func *>(ptr);
+        real_func *rf = reinterpret_cast<real_func *>(ptr);
         /**
          * php library function
          */

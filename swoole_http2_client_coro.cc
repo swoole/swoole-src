@@ -59,7 +59,7 @@ struct http2_client_stream {
 };
 
 class http2_client {
-   public:
+  public:
     std::string host;
     int port;
     bool ssl;
@@ -163,7 +163,7 @@ class http2_client {
 
     ~http2_client() { close(); }
 
-   private:
+  private:
     bool send_setting();
     int parse_header(http2_client_stream *stream, int flags, char *in, size_t inlen);
 
@@ -617,7 +617,9 @@ enum swReturn_code http2_client::parse_frame(zval *return_value, bool pipeline_r
         // return SW_READY;
         return SW_CONTINUE;
     }
-    default: { swHttp2FrameTraceLog(recv, ""); }
+    default: {
+        swHttp2FrameTraceLog(recv, "");
+    }
     }
 
     http2_client_stream *stream = get_stream(stream_id);

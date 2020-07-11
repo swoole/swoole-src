@@ -27,7 +27,7 @@ namespace swoole {
 namespace http {
 
 class StaticHandler {
-   private:
+  private:
     swServer *serv;
     std::string request_url;
     std::string dir_path;
@@ -41,7 +41,7 @@ class StaticHandler {
     struct stat file_stat;
     bool last;
 
-   public:
+  public:
     int status_code;
     StaticHandler(swServer *_server, const char *url, size_t url_length) : request_url(url, url_length) {
         serv = _server;

@@ -39,18 +39,18 @@ struct row_t {
 };
 
 class table_t {
-   private:
+  private:
     swTableColumn *column_id;
     swTableColumn *column_name;
     swTableColumn *column_score;
 
     swTable *table;
 
-   public:
+  public:
     table_t(uint32_t rows_size, float conflict_proportion = 0.2) {
         table = swTable_new(rows_size, conflict_proportion);
         if (swTable_create(table), 0) {
-            throw exception_t("alloc failed", SwooleG.error);
+            throw exception_t("alloc failed", swoole_get_last_error());
         }
 
         swTableColumn_add(table, "id", SW_TABLE_INT, 0);
@@ -58,7 +58,7 @@ class table_t {
         swTableColumn_add(table, "score", SW_TABLE_FLOAT, 0);
 
         if (swTable_create(table) < 0) {
-            throw exception_t("create failed", SwooleG.error);
+            throw exception_t("create failed", swoole_get_last_error());
         }
         column_id = swTableColumn_get(table, std::string("id"));
         column_name = swTableColumn_get(table, std::string("name"));
