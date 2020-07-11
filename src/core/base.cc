@@ -123,6 +123,8 @@ void swoole_init(void) {
 
     SwooleG.pid = getpid();
 
+    g_logger_instance = new swoole::Logger;
+
 #ifdef SW_DEBUG
     sw_logger()->set_level(0);
     SwooleG.trace_flags = 0x7fffffff;
@@ -167,8 +169,6 @@ void swoole_init(void) {
     if (tmp_dir) {
         sw_free(tmp_dir);
     }
-
-    g_logger_instance = new swoole::Logger;
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
