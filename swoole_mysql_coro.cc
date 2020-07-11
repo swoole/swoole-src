@@ -59,7 +59,7 @@ using swoole::coroutine::Socket;
 namespace swoole {
 class mysql_statement;
 class mysql_client {
-   public:
+  public:
     /* session related {{{ */
     Socket *socket = nullptr;
     Socket::timeout_controller *tc = nullptr;
@@ -295,7 +295,7 @@ class mysql_client {
         close();
     }
 
-   private:
+  private:
     int error_code = 0;
     std::string error_msg = "";
 
@@ -311,7 +311,7 @@ class mysql_client {
 };
 
 class mysql_statement {
-   public:
+  public:
     std::string statement;
     mysql::statement info;
     mysql::result_info result;
@@ -389,7 +389,7 @@ class mysql_statement {
     void fetch_all(zval *return_value);
     void next_result(zval *return_value);
 
-   private:
+  private:
     mysql_client *client = nullptr;
     int error_code = 0;
     std::string error_msg;
@@ -472,7 +472,7 @@ ZEND_END_ARG_INFO()
 
 #ifdef SW_USE_MYSQLND
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_escape, 0, 0, 1)
-    ZEND_ARG_INFO(0, string)
+    ZEND_ARG_INFO(0, String)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 #endif
@@ -1219,7 +1219,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params) {
                 *((buffer->str + null_start_offset) + (index / 8)) |= (1UL << (index % 8));
                 sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_NULL);
             } else {
-                zend::string str_value(value);
+                zend::String str_value(value);
                 uint8_t lcb_size = mysql::write_lcb(stack_buffer, str_value.len());
                 sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
                 if (swString_append_ptr(buffer, stack_buffer, lcb_size) < 0) {
@@ -1715,7 +1715,7 @@ static PHP_METHOD(swoole_mysql_coro, connect) {
         zval *ztmp;
 
         if (php_swoole_array_get_value(ht, "host", ztmp)) {
-            mc->host = std::string(zend::string(ztmp).val());
+            mc->host = std::string(zend::String(ztmp).val());
         } else {
             zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [host] is required", EINVAL);
             RETURN_FALSE;
@@ -1736,19 +1736,19 @@ static PHP_METHOD(swoole_mysql_coro, connect) {
 #endif
         }
         if (php_swoole_array_get_value(ht, "user", ztmp)) {
-            mc->user = std::string(zend::string(ztmp).val());
+            mc->user = std::string(zend::String(ztmp).val());
         } else {
             zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [user] is required", EINVAL);
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(ht, "password", ztmp)) {
-            mc->password = std::string(zend::string(ztmp).val());
+            mc->password = std::string(zend::String(ztmp).val());
         } else {
             zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [password] is required", EINVAL);
             RETURN_FALSE;
         }
         if (php_swoole_array_get_value(ht, "database", ztmp)) {
-            mc->database = std::string(zend::string(ztmp).val());
+            mc->database = std::string(zend::String(ztmp).val());
         } else {
             zend_throw_exception(swoole_mysql_coro_exception_ce, "Parameter [database] is required", EINVAL);
             RETURN_FALSE;
@@ -1757,7 +1757,7 @@ static PHP_METHOD(swoole_mysql_coro, connect) {
             mc->connect_timeout = zval_get_double(ztmp);
         }
         if (php_swoole_array_get_value(ht, "charset", ztmp)) {
-            zend::string zstr_charset(ztmp);
+            zend::String zstr_charset(ztmp);
             char charset = mysql::get_charset(zstr_charset.val());
             if (UNEXPECTED(charset < 0)) {
                 zend_throw_exception_ex(

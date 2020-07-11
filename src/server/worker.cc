@@ -14,18 +14,18 @@
   +----------------------------------------------------------------------+
 */
 
+#include <assert.h>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/uio.h>
+#include <sys/mman.h>
+
 #include "server.h"
 #include "swoole_memory.h"
 #include "swoole_log.h"
 #include "msg_queue.h"
 #include "client.h"
 #include "async.h"
-
-#include <assert.h>
-#include <pwd.h>
-#include <grp.h>
-#include <sys/uio.h>
-#include <sys/mman.h>
 
 using namespace swoole;
 
@@ -81,12 +81,12 @@ void swWorker_signal_handler(int signo) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        sw_logger().reopen();
+        sw_logger()->reopen();
         break;
     default:
 #ifdef SIGRTMIN
         if (signo == SIGRTMIN) {
-            sw_logger().reopen();
+            sw_logger()->reopen();
         }
 #endif
         break;
@@ -369,8 +369,8 @@ void swWorker_onStart(swServer *serv) {
         }
     }
 
-    if (sw_logger().is_opened()) {
-        sw_logger().reopen();
+    if (sw_logger()->is_opened()) {
+        sw_logger()->reopen();
     }
 
     SwooleWG.worker = serv->get_worker(SwooleG.process_id);

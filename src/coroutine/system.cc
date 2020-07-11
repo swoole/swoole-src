@@ -340,13 +340,14 @@ bool System::wait_signal(int signo, double timeout) {
 
     swTimer_node *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add(timeout * 1000,
-                                 0,
-                                 [](swTimer *timer, swTimer_node *tnode) {
-                                     Coroutine *co = (Coroutine *) tnode->data;
-                                     co->resume();
-                                 },
-                                 co);
+        timer = swoole_timer_add(
+            timeout * 1000,
+            0,
+            [](swTimer *timer, swTimer_node *tnode) {
+                Coroutine *co = (Coroutine *) tnode->data;
+                co->resume();
+            },
+            co);
     }
 
     co->yield();

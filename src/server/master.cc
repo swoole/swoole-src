@@ -46,19 +46,20 @@ static void swServer_worker_move_buffer(swServer *serv, swPipeBuffer *buffer);
 static size_t swServer_worker_get_packet(swServer *serv, swEventData *req, char **data_ptr);
 
 void Server::disable_accept() {
-    enable_accept_timer = swoole_timer_add(SW_ACCEPT_RETRY_TIME * 1000,
-                                           0,
-                                           [](swTimer *timer, swTimer_node *tnode) {
-                                               Server *serv = (Server *) tnode->data;
-                                               for (auto port : serv->ports) {
-                                                   if (swSocket_is_dgram(port->type)) {
-                                                       continue;
-                                                   }
-                                                   swoole_event_add(port->socket, SW_EVENT_READ);
-                                               }
-                                               serv->enable_accept_timer = nullptr;
-                                           },
-                                           this);
+    enable_accept_timer = swoole_timer_add(
+        SW_ACCEPT_RETRY_TIME * 1000,
+        0,
+        [](swTimer *timer, swTimer_node *tnode) {
+            Server *serv = (Server *) tnode->data;
+            for (auto port : serv->ports) {
+                if (swSocket_is_dgram(port->type)) {
+                    continue;
+                }
+                swoole_event_add(port->socket, SW_EVENT_READ);
+            }
+            serv->enable_accept_timer = nullptr;
+        },
+        this);
 
     if (enable_accept_timer == nullptr) {
         return;
@@ -576,8 +577,8 @@ int Server::start() {
         /**
          * redirect STDOUT to log file
          */
-        if (sw_logger().is_opened()) {
-            sw_logger().redirect_stdout_and_stderr(1);
+        if (sw_logger()->is_opened()) {
+            sw_logger()->redirect_stdout_and_stderr(1);
         }
         /**
          * redirect STDOUT_FILENO/STDERR_FILENO to /dev/null
@@ -877,7 +878,7 @@ void Server::destroy() {
     }
     for (auto i = 0; i < SW_MAX_HOOK_TYPE; i++) {
         if (hooks[i]) {
-            std::list<swCallback> *l = static_cast<std::list<swCallback> *>(hooks[i]);
+            std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[i]);
             hooks[i] = nullptr;
             delete l;
         }
@@ -1580,7 +1581,7 @@ static void swServer_signal_handler(int sig) {
         } else {
             swoole_kill(serv->gs->manager_pid, sig);
         }
-        sw_logger().reopen();
+        sw_logger()->reopen();
         break;
     default:
 
@@ -1595,7 +1596,7 @@ static void swServer_signal_handler(int sig) {
             if (sw_server()->factory_mode == SW_MODE_PROCESS) {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
-            sw_logger().reopen();
+            sw_logger()->reopen();
         }
 #endif
         break;

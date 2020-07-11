@@ -198,7 +198,7 @@ void php_swoole_runtime_rshutdown() {
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(function_table, ptr) {
-        real_func *rf = static_cast<real_func *>(ptr);
+        real_func *rf = reinterpret_cast<real_func *>(ptr);
         /**
          * php library function
          */
@@ -1330,7 +1330,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
         }
         auto i = fds.find(sock);
         if (i == fds.end()) {
-            fds.emplace(make_pair(sock, socket_poll_fd(event, new zend::key_value(index, key, elem))));
+            fds.emplace(make_pair(sock, socket_poll_fd(event, new zend::KeyValue(index, key, elem))));
         } else {
             i->second.events |= event;
         }
@@ -1468,7 +1468,7 @@ static PHP_FUNCTION(swoole_stream_select) {
     }
 
     for (auto &i : fds) {
-        zend::key_value *kv = (zend::key_value *) i.second.ptr;
+        zend::KeyValue *kv = (zend::KeyValue *) i.second.ptr;
         int revents = i.second.revents;
         SW_ASSERT((revents & (~(SW_EVENT_READ | SW_EVENT_WRITE | SW_EVENT_ERROR))) == 0);
         if (revents > 0) {

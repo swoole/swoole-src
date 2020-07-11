@@ -73,7 +73,7 @@ static void php_swoole_process_free_object(zend_object *object) {
             efree(worker->queue);
         }
 
-        zend::process *proc = (zend::process *) worker->ptr2;
+        zend::Process *proc = (zend::Process *) worker->ptr2;
         if (proc) {
             delete proc;
         }
@@ -388,7 +388,7 @@ static PHP_METHOD(swoole_process, __construct) {
         zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("pipe"), process->pipe_master->fd);
     }
 
-    zend::process *proc = new zend::process((enum zend::process_pipe_type) pipe_type, enable_coroutine);
+    zend::Process *proc = new zend::Process((enum zend::process_pipe_type) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
     zend_update_property(swoole_process_ce, ZEND_THIS, ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
@@ -679,7 +679,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject) {
         return SW_ERR;
     }
 
-    zend::process *proc = (zend::process *) process->ptr2;
+    zend::Process *proc = (zend::Process *) process->ptr2;
 
     process->pipe_current = process->pipe_worker;
     process->pid = getpid();
@@ -834,7 +834,7 @@ static PHP_METHOD(swoole_process, exportSocket) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot export stream");
         RETURN_FALSE;
     }
-    zend::process *proc = (zend::process *) process->ptr2;
+    zend::Process *proc = (zend::Process *) process->ptr2;
     if (!proc->zsocket) {
         proc->zsocket =
             php_swoole_dup_socket(process->pipe_current->fd,
@@ -1101,7 +1101,7 @@ static PHP_METHOD(swoole_process, set) {
     vht = Z_ARRVAL_P(zset);
 
     swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
-    zend::process *proc = (zend::process *) process->ptr2;
+    zend::Process *proc = (zend::Process *) process->ptr2;
 
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
         proc->enable_coroutine = zval_is_true(ztmp);

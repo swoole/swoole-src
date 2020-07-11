@@ -2312,15 +2312,15 @@ static PHP_METHOD(swoole_server, set)
 
     if (php_swoole_array_get_value(vht, "chroot", ztmp))
     {
-        serv->chroot = zend::string(ztmp).to_std_string();
+        serv->chroot = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "user", ztmp))
     {
-        serv->user = zend::string(ztmp).to_std_string();
+        serv->user = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "group", ztmp))
     {
-        serv->group = zend::string(ztmp).to_std_string();
+        serv->group = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "daemonize", ztmp))
     {
@@ -2328,7 +2328,7 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "pid_file", ztmp))
     {
-        serv->pid_file = zend::string(ztmp).to_std_string();
+        serv->pid_file = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "reactor_num", ztmp))
     {
@@ -2484,7 +2484,7 @@ static PHP_METHOD(swoole_server, set)
      */
     if (php_swoole_array_get_value(vht, "task_tmpdir", ztmp))
     {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
             php_swoole_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s]", str_v.val());
@@ -2660,7 +2660,7 @@ static PHP_METHOD(swoole_server, set)
     //temporary directory for HTTP uploaded file.
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", ztmp))
     {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0)
         {
             php_swoole_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
@@ -2677,7 +2677,7 @@ static PHP_METHOD(swoole_server, set)
     }
     if (php_swoole_array_get_value(vht, "document_root", ztmp))
     {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (str_v.len() >= PATH_MAX)
         {
             php_swoole_fatal_error(E_ERROR, "The length of document_root must be less than %d", PATH_MAX);
@@ -2695,7 +2695,7 @@ static PHP_METHOD(swoole_server, set)
         {
             zval *_http_index_files;
             SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), _http_index_files)
-                zend::string __http_index_files(_http_index_files);
+                zend::String __http_index_files(_http_index_files);
                 if (__http_index_files.len() > 0)
                 {
                     serv->add_static_handler_index_files(__http_index_files.to_std_string());
@@ -2717,7 +2717,7 @@ static PHP_METHOD(swoole_server, set)
         {
             zval *_location;
             SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztmp), _location)
-                zend::string __location(_location);
+                zend::String __location(_location);
                 if (__location.len() > 0 && __location.val()[0] == '/')
                 {
                     serv->add_static_handler_location(__location.to_std_string());
@@ -2794,8 +2794,8 @@ static PHP_METHOD(swoole_server, on)
     }
     efree(func_name);
 
-    zend::string _event_name_ori(name);
-    zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
+    zend::String _event_name_ori(name);
+    zend::String _event_name_tolower(zend_string_tolower(_event_name_ori.get()), false);
 
     auto i = server_event_map.find(_event_name_tolower.to_std_string());
     if (i == server_event_map.end())
@@ -2831,8 +2831,8 @@ static PHP_METHOD(swoole_server, getCallback)
         Z_PARAM_ZVAL(name)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend::string _event_name_ori(name);
-    zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
+    zend::String _event_name_ori(name);
+    zend::String _event_name_tolower(zend_string_tolower(_event_name_ori.get()), false);
     auto i = server_event_map.find(_event_name_tolower.to_std_string());
     if (i != server_event_map.end())
     {

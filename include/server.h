@@ -451,7 +451,7 @@ struct ServerGS {
 };
 
 class Server {
-   public:
+  public:
     /**
      * reactor thread/process num
      */
@@ -797,7 +797,7 @@ class Server {
      */
     int (*dispatch_func)(Server *, Connection *, swSendData *) = nullptr;
 
-   public:
+  public:
     Server(enum swServer_mode mode = SW_MODE_BASE);
 
     ~Server() {
@@ -995,7 +995,7 @@ class Server {
     int create_worker(swWorker *worker);
     void disable_accept();
 
-   private:
+  private:
     /**
      * http static file directory
      */

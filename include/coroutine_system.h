@@ -25,7 +25,7 @@ namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
 class System {
-   public:
+  public:
     static void init_reactor(swReactor *reactor);
     /* sleep */
     static int sleep(double sec);

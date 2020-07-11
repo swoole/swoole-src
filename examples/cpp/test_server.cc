@@ -22,8 +22,8 @@ static int g_receive_count = 0;
 int main(int argc, char **argv) {
     swoole_init();
 
-    sw_logger().set_date_format("%F %T");
-    sw_logger().set_date_with_microseconds(true);
+    sw_logger()->set_date_format("%F %T");
+    sw_logger()->set_date_with_microseconds(true);
 
     swServer serv;
 

@@ -42,7 +42,7 @@ static void http2_server_onRequest(http2_session *session, http2_stream *stream)
 #endif
 
 class http_server {
-   public:
+  public:
     Socket *socket;
     zend_fcall_info_cache *default_handler;
     map<string, zend_fcall_info_cache> handlers;
@@ -452,7 +452,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
 #endif
     // temporary directory for HTTP uploaded file.
     if (php_swoole_array_get_value(vht, "upload_tmp_dir", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0) {
             php_swoole_fatal_error(E_ERROR, "Unable to create upload_tmp_dir[%s]", str_v.val());
             return;

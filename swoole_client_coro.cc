@@ -332,7 +332,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
          * bind address
          */
         if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
-            if (!cli->bind(zend::string(ztmp).val(), bind_port)) {
+            if (!cli->bind(zend::String(ztmp).val(), bind_port)) {
                 ret = false;
             }
         }
@@ -367,7 +367,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
      * socks5 proxy
      */
     if (php_swoole_array_get_value(vht, "socks5_host", ztmp)) {
-        zend::string host(ztmp);
+        zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "socks5_port", ztmp)) {
             php_swoole_client_coro_socket_free_socks5_proxy(cli);
             cli->socks5_proxy = (swSocks5_proxy *) ecalloc(1, sizeof(swSocks5_proxy));
@@ -375,9 +375,9 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
             cli->socks5_proxy->port = zval_get_long(ztmp);
             cli->socks5_proxy->dns_tunnel = 1;
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp)) {
-                zend::string username(ztmp);
+                zend::String username(ztmp);
                 if (username.len() > 0 && php_swoole_array_get_value(vht, "socks5_password", ztmp)) {
-                    zend::string password(ztmp);
+                    zend::String password(ztmp);
                     if (password.len() > 0) {
                         cli->socks5_proxy->method = 0x02;
                         cli->socks5_proxy->username = estrdup(username.val());
@@ -399,7 +399,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
      * http proxy
      */
     else if (php_swoole_array_get_value(vht, "http_proxy_host", ztmp)) {
-        zend::string host(ztmp);
+        zend::String host(ztmp);
         if (php_swoole_array_get_value(vht, "http_proxy_port", ztmp)) {
             php_swoole_client_coro_socket_free_http_proxy(cli);
             cli->http_proxy = (swHttp_proxy *) ecalloc(1, sizeof(*cli->http_proxy) - sizeof(cli->http_proxy->buf));
@@ -407,9 +407,9 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
             cli->http_proxy->proxy_port = zval_get_long(ztmp);
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) ||
                 php_swoole_array_get_value(vht, "http_proxy_user", ztmp)) {
-                zend::string username(ztmp);
+                zend::String username(ztmp);
                 if (username.len() > 0 && php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
-                    zend::string password(ztmp);
+                    zend::String password(ztmp);
                     if (password.len() > 0) {
                         cli->http_proxy->user = estrdup(username.val());
                         cli->http_proxy->l_user = username.len();
@@ -451,7 +451,7 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         sock->ssl_option.disable_compress = !zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (sock->ssl_option.cert_file) {
             sw_free(sock->ssl_option.cert_file);
             sock->ssl_option.cert_file = nullptr;
@@ -464,7 +464,7 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (sock->ssl_option.key_file) {
             sw_free(sock->ssl_option.key_file);
             sock->ssl_option.key_file = nullptr;
@@ -485,14 +485,14 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         if (sock->ssl_option.passphrase) {
             sw_free(sock->ssl_option.passphrase);
         }
-        sock->ssl_option.passphrase = zend::string(ztmp).dup();
+        sock->ssl_option.passphrase = zend::String(ztmp).dup();
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
         if (sock->ssl_option.tls_host_name) {
             sw_free(sock->ssl_option.tls_host_name);
         }
-        sock->ssl_option.tls_host_name = zend::string(ztmp).dup();
+        sock->ssl_option.tls_host_name = zend::String(ztmp).dup();
         /* if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically */
         sock->ssl_option.disable_tls_host_name = !sock->ssl_option.tls_host_name;
     }
@@ -507,13 +507,13 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         if (sock->ssl_option.cafile) {
             sw_free(sock->ssl_option.cafile);
         }
-        sock->ssl_option.cafile = zend::string(ztmp).dup();
+        sock->ssl_option.cafile = zend::String(ztmp).dup();
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
         if (sock->ssl_option.capath) {
             sw_free(sock->ssl_option.capath);
         }
-        sock->ssl_option.capath = zend::string(ztmp).dup();
+        sock->ssl_option.capath = zend::String(ztmp).dup();
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
         zend_long v = zval_get_long(ztmp);

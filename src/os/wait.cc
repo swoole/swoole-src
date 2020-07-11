@@ -139,13 +139,14 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
     /* timeout controller */
     swTimer_node *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add(timeout * 1000,
-                                 0,
-                                 [](swTimer *timer, swTimer_node *tnode) {
-                                     Coroutine *co = (Coroutine *) tnode->data;
-                                     co->resume();
-                                 },
-                                 task.co);
+        timer = swoole_timer_add(
+            timeout * 1000,
+            0,
+            [](swTimer *timer, swTimer_node *tnode) {
+                Coroutine *co = (Coroutine *) tnode->data;
+                co->resume();
+            },
+            task.co);
     }
 
     task.co->yield();

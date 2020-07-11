@@ -62,7 +62,7 @@ struct Callback {
 };
 
 class CallbackManager {
-   public:
+  public:
     inline void append(swCallback fn, void *private_data) { list_.emplace_back(fn, private_data); }
     inline void prepend(swCallback fn, void *private_data) { list_.emplace_front(fn, private_data); }
     inline void execute() {
@@ -73,12 +73,12 @@ class CallbackManager {
         }
     }
 
-   protected:
+  protected:
     std::list<std::pair<swCallback, void *>> list_;
 };
 
 class Reactor {
-   public:
+  public:
     void *object = nullptr;
     void *ptr = nullptr;
 
@@ -135,11 +135,11 @@ class Reactor {
     int (*write)(Reactor *reactor, swSocket *socket, const void *buf, int n) = nullptr;
     int (*close)(Reactor *reactor, swSocket *socket) = nullptr;
 
-   private:
+  private:
     std::map<int, std::function<void(Reactor *)>> end_callbacks;
     std::map<int, std::function<bool(Reactor *, int &)>> exit_conditions;
 
-   public:
+  public:
     Reactor(int max_event = SW_REACTOR_MAXEVENTS);
     ~Reactor();
     bool if_exit();

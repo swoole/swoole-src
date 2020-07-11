@@ -658,8 +658,6 @@ struct swGlobal_t {
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
 
-    int error;
-
     int process_type;
     uint32_t process_id;
     pid_t pid;

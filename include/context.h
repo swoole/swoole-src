@@ -46,7 +46,7 @@ typedef void (*coroutine_func_t)(void *);
 
 namespace swoole {
 class Context {
-   public:
+  public:
     Context(size_t stack_size, coroutine_func_t fn, void *private_data);
     ~Context();
     bool swap_in();
@@ -57,7 +57,7 @@ class Context {
     inline bool is_end() { return end_; }
     static void context_func(void *arg);
 
-   protected:
+  protected:
     coroutine_func_t fn_;
 #ifdef SW_USE_THREAD_CONTEXT
     std::thread thread_;

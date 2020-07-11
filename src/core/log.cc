@@ -14,17 +14,14 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
 #include "swoole_log.h"
+
+#include <string.h>
 #include <sys/file.h>
 #include <string>
 #include <chrono>
 
-static swoole::Logger g_logger_instance;
-
-swoole::Logger &sw_logger() {
-    return g_logger_instance;
-}
+#include "swoole.h"
 
 namespace swoole {
 

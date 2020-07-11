@@ -241,26 +241,26 @@ void php_swoole_set_global_option(HashTable *vht) {
 
 #ifdef SW_DEBUG
     if (php_swoole_array_get_value(vht, "debug_mode", ztmp) && zval_is_true(ztmp)) {
-        sw_logger().set_level(0);
+        sw_logger()->set_level(0);
     }
 #endif
     if (php_swoole_array_get_value(vht, "trace_flags", ztmp)) {
         SwooleG.trace_flags = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_file", ztmp)) {
-        sw_logger().open(zend::string(ztmp).val());
+        sw_logger()->open(zend::String(ztmp).val());
     }
     if (php_swoole_array_get_value(vht, "log_level", ztmp)) {
-        sw_logger().set_level(zval_get_long(ztmp));
+        sw_logger()->set_level(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_date_format", ztmp)) {
-        sw_logger().set_date_format(zend::string(ztmp).val());
+        sw_logger()->set_date_format(zend::String(ztmp).val());
     }
     if (php_swoole_array_get_value(vht, "log_date_with_microseconds", ztmp)) {
-        sw_logger().set_date_with_microseconds(zval_is_true(ztmp));
+        sw_logger()->set_date_with_microseconds(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "log_rotation", ztmp)) {
-        sw_logger().set_rotation(zval_get_long(ztmp));
+        sw_logger()->set_rotation(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "display_errors", ztmp)) {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
@@ -269,7 +269,7 @@ void php_swoole_set_global_option(HashTable *vht) {
         if (SwooleG.dns_server_v4) {
             sw_free(SwooleG.dns_server_v4);
         }
-        SwooleG.dns_server_v4 = zend::string(ztmp).dup();
+        SwooleG.dns_server_v4 = zend::String(ztmp).dup();
     }
     if (php_swoole_array_get_value(vht, "socket_send_timeout", ztmp)) {
         SwooleG.socket_send_timeout = zval_get_double(ztmp);

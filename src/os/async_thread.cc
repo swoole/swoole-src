@@ -44,7 +44,7 @@ namespace swoole {
 namespace async {
 //-------------------------------------------------------------------------------
 class EventQueue {
-   public:
+  public:
     inline void push(AsyncEvent *event) { _queue.push(event); }
 
     inline AsyncEvent *pop() {
@@ -67,12 +67,12 @@ class EventQueue {
 
     inline size_t count() { return _queue.size(); }
 
-   private:
+  private:
     queue<AsyncEvent *> _queue;
 };
 
 class ThreadPool {
-   public:
+  public:
     ThreadPool(size_t _core_worker_num, size_t _worker_num, double _max_wait_time, double _max_idle_time) {
         running = false;
 
@@ -189,7 +189,7 @@ class ThreadPool {
     void notify_one() { _cv.notify_one(); }
 #endif
 
-   private:
+  private:
     void create_thread(const bool is_core_worker = false);
 
     size_t core_worker_num;
@@ -317,7 +317,7 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker) {
 }
 
 static void aio_thread_release(swAio_event *event) {
-    thread::id *tid = static_cast<thread::id *>(event->object);
+    thread::id *tid = reinterpret_cast<thread::id *>(event->object);
     pool->release_thread(*tid);
     delete tid;
     // balance

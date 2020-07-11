@@ -316,7 +316,7 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // package eof
     if (php_swoole_array_get_value(vht, "package_eof", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         port->protocol.package_eof_len = str_v.len();
         if (port->protocol.package_eof_len == 0) {
             php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
@@ -339,7 +339,7 @@ static PHP_METHOD(swoole_server_port, set) {
         }
     }
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (port->websocket_subprotocol) {
             sw_free(port->websocket_subprotocol);
         }
@@ -396,7 +396,7 @@ static PHP_METHOD(swoole_server_port, set) {
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         port->protocol.package_length_type = str_v.val()[0];
         port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
         if (port->protocol.package_length_size == 0) {
@@ -470,7 +470,7 @@ static PHP_METHOD(swoole_server_port, set) {
 #ifdef SW_USE_OPENSSL
     if (port->ssl) {
         if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
-            zend::string str_v(ztmp);
+            zend::String str_v(ztmp);
             if (access(str_v.val(), R_OK) < 0) {
                 php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
                 return;
@@ -482,7 +482,7 @@ static PHP_METHOD(swoole_server_port, set) {
             port->open_ssl_encrypt = 1;
         }
         if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
-            zend::string str_v(ztmp);
+            zend::String str_v(ztmp);
             if (access(str_v.val(), R_OK) < 0) {
                 php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
                 return;
@@ -512,7 +512,7 @@ static PHP_METHOD(swoole_server_port, set) {
         }
         // verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", ztmp)) {
-            zend::string str_v(ztmp);
+            zend::String str_v(ztmp);
             if (access(str_v.val(), R_OK) < 0) {
                 php_swoole_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found", str_v.val());
                 return;
@@ -545,19 +545,19 @@ static PHP_METHOD(swoole_server_port, set) {
             if (port->ssl_config.ciphers) {
                 sw_free(port->ssl_config.ciphers);
             }
-            port->ssl_config.ciphers = zend::string(ztmp).dup();
+            port->ssl_config.ciphers = zend::String(ztmp).dup();
         }
         if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", ztmp)) {
             if (port->ssl_config.ecdh_curve) {
                 sw_free(port->ssl_config.ecdh_curve);
             }
-            port->ssl_config.ecdh_curve = zend::string(ztmp).dup();
+            port->ssl_config.ecdh_curve = zend::String(ztmp).dup();
         }
         if (php_swoole_array_get_value(vht, "ssl_dhparam", ztmp)) {
             if (port->ssl_config.dhparam) {
                 sw_free(port->ssl_config.dhparam);
             }
-            port->ssl_config.dhparam = zend::string(ztmp).dup();
+            port->ssl_config.dhparam = zend::String(ztmp).dup();
         }
         //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_cache"))))
         //    {
@@ -664,8 +664,8 @@ static PHP_METHOD(swoole_server_port, getCallback) {
     Z_PARAM_ZVAL(name)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend::string _event_name_ori(name);
-    zend::string _event_name_tolower(zend_string_tolower(_event_name_ori.get()));
+    zend::String _event_name_ori(name);
+    zend::String _event_name_tolower(zend_string_tolower(_event_name_ori.get()), false);
     auto i = server_port_event_map.find(_event_name_tolower.to_std_string());
     if (i != server_port_event_map.end()) {
         string property_name = "on" + i->second.name;

@@ -188,7 +188,7 @@ static sw_inline int php_swoole_websocket_frame_pack_ex(swString *buffer,
         return SW_ERR;
     }
 
-    zend::string str_zdata;
+    zend::String str_zdata;
     if (zdata && !ZVAL_IS_NULL(zdata)) {
         str_zdata = zdata;
         data = str_zdata.val();
@@ -326,7 +326,7 @@ bool swoole_websocket_handshake(http_context *ctx) {
         return false;
     }
 
-    zend::string str_pData(pData);
+    zend::String str_pData(pData);
 
     if (str_pData.len() != BASE64_ENCODE_OUT_SIZE(SW_WEBSOCKET_SEC_KEY_LEN)) {
         goto _bad_request;

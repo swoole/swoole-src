@@ -14,8 +14,6 @@
   +----------------------------------------------------------------------+
 */
 
-#include "coroutine_cxx_api.h"
-
 #include <sys/file.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -23,9 +21,12 @@
 #include <netdb.h>
 #include <poll.h>
 #include <dirent.h>
+
 #include <string>
 #include <iostream>
 #include <unordered_map>
+
+#include "coroutine_cxx_api.h"
 
 using std::unordered_map;
 using swoole::Coroutine;

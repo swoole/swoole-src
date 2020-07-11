@@ -54,7 +54,7 @@ TEST(server, base) {
     serv.worker_num = 1;
     serv.factory_mode = SW_MODE_BASE;
 
-    sw_logger().set_level(SW_LOG_WARNING);
+    sw_logger()->set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
@@ -106,7 +106,7 @@ TEST(server, process) {
 
     SwooleG.running = 1;
 
-    sw_logger().set_level(SW_LOG_WARNING);
+    sw_logger()->set_level(SW_LOG_WARNING);
 
     swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
     swMutex_create(lock, 1);

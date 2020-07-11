@@ -7,17 +7,17 @@ using namespace swoole;
 const char *file = "/tmp/swoole_log_test.log";
 
 TEST(log, level) {
-    sw_logger().reset();
-    sw_logger().set_level(SW_LOG_NOTICE);
-    sw_logger().open(file);
+    sw_logger()->reset();
+    sw_logger()->set_level(SW_LOG_NOTICE);
+    sw_logger()->open(file);
 
-    sw_logger().put(SW_LOG_INFO, SW_STRL("hello info"));
-    sw_logger().put(SW_LOG_NOTICE, SW_STRL("hello notice"));
-    sw_logger().put(SW_LOG_WARNING, SW_STRL("hello warning"));
+    sw_logger()->put(SW_LOG_INFO, SW_STRL("hello info"));
+    sw_logger()->put(SW_LOG_NOTICE, SW_STRL("hello notice"));
+    sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello warning"));
 
     swoole::String content(swoole_file_get_contents(file));
 
-    sw_logger().close();
+    sw_logger()->close();
     unlink(file);
 
     ASSERT_FALSE(swString_contains(content.get(), SW_STRL("hello info")));
@@ -26,14 +26,14 @@ TEST(log, level) {
 }
 
 TEST(log, date_format) {
-    sw_logger().reset();
-    sw_logger().set_date_format("day %d of %B in the year %Y. Time: %I:%S %p");
-    sw_logger().open(file);
+    sw_logger()->reset();
+    sw_logger()->set_date_format("day %d of %B in the year %Y. Time: %I:%S %p");
+    sw_logger()->open(file);
 
-    sw_logger().put(SW_LOG_WARNING, SW_STRL("hello world"));
+    sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
     swoole::String content(swoole_file_get_contents(file));
 
-    sw_logger().close();
+    sw_logger()->close();
     unlink(file);
 
     int data[16];
@@ -55,29 +55,29 @@ TEST(log, date_format) {
 }
 
 TEST(log, date_format_long_string) {
-    sw_logger().reset();
-    sw_logger().set_level(SW_LOG_ERROR);
+    sw_logger()->reset();
+    sw_logger()->set_level(SW_LOG_ERROR);
     swoole::String content(swString_new(256));
     auto str = content.get();
 
     swString_repeat(str, "x", 1, 120);
     swString_append_ptr(str, SW_STRL("day %d of %B in the year %Y. Time: %I:%S %p"));
 
-    int retval = sw_logger().set_date_format(str->str);
+    int retval = sw_logger()->set_date_format(str->str);
 
     ASSERT_EQ(retval, SW_ERR);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
 }
 
 TEST(log, date_with_microseconds) {
-    sw_logger().reset();
-    sw_logger().set_date_with_microseconds(true);
-    sw_logger().open(file);
+    sw_logger()->reset();
+    sw_logger()->set_date_with_microseconds(true);
+    sw_logger()->open(file);
 
-    sw_logger().put(SW_LOG_WARNING, SW_STRL("hello world"));
+    sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
     swoole::String content(swoole_file_get_contents(file));
 
-    sw_logger().close();
+    sw_logger()->close();
     unlink(file);
 
     std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s@\\d+\\.\\d+\\]\tWARNING\thello world");
@@ -85,18 +85,18 @@ TEST(log, date_with_microseconds) {
 }
 
 TEST(log, rotation) {
-    sw_logger().reset();
-    sw_logger().set_rotation(SW_LOG_ROTATION_DAILY);
-    sw_logger().open(file);
+    sw_logger()->reset();
+    sw_logger()->set_rotation(SW_LOG_ROTATION_DAILY);
+    sw_logger()->open(file);
 
-    sw_logger().put(SW_LOG_WARNING, SW_STRL("hello world"));
+    sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
 
-    ASSERT_EQ(access(sw_logger().get_file(), R_OK), -1);
+    ASSERT_EQ(access(sw_logger()->get_file(), R_OK), -1);
     ASSERT_EQ(errno, ENOENT);
-    ASSERT_EQ(access(sw_logger().get_real_file(), R_OK), 0);
+    ASSERT_EQ(access(sw_logger()->get_real_file(), R_OK), 0);
 
-    sw_logger().close();
-    unlink(sw_logger().get_real_file());
+    sw_logger()->close();
+    unlink(sw_logger()->get_real_file());
 }
 
 TEST(log, redirect) {
@@ -106,20 +106,20 @@ TEST(log, redirect) {
         return;
     }
 
-    sw_logger().reset();
-    retval = sw_logger().open(file);
+    sw_logger()->reset();
+    retval = sw_logger()->open(file);
     ASSERT_EQ(retval, SW_OK);
 
-    retval = sw_logger().redirect_stdout_and_stderr(1);
+    retval = sw_logger()->redirect_stdout_and_stderr(1);
     ASSERT_EQ(retval, SW_OK);
     printf("hello world\n");
     swoole::String content(swoole_file_get_contents(file));
     ASSERT_NE(content.get(), nullptr);
 
-    sw_logger().close();
-    retval = sw_logger().redirect_stdout_and_stderr(0);
+    sw_logger()->close();
+    retval = sw_logger()->redirect_stdout_and_stderr(0);
     ASSERT_EQ(retval, SW_OK);
-    unlink(sw_logger().get_real_file());
+    unlink(sw_logger()->get_real_file());
 
     ASSERT_TRUE(swString_contains(content.get(), SW_STRL("hello world\n")));
 }

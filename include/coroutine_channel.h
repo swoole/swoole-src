@@ -31,7 +31,7 @@ namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
 class Channel {
-   public:
+  public:
     enum opcode {
         PRODUCER = 1,
         CONSUMER = 2,
@@ -87,7 +87,7 @@ class Channel {
         return data;
     }
 
-   protected:
+  protected:
     size_t capacity = 1;
     bool closed = false;
     std::list<Coroutine *> producer_queue;

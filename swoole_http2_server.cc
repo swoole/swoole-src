@@ -110,7 +110,7 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer) {
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
-            zend::string str_value(zvalue);
+            zend::String str_value(zvalue);
             trailer.add(ZSTR_VAL(key), ZSTR_LEN(key), str_value.val(), str_value.len());
         }
         ZEND_HASH_FOREACH_END();
@@ -181,7 +181,7 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx) {
             }
         }
 
-        zend::string _filename(handler.get_filename_std_string());
+        zend::String _filename(handler.get_filename_std_string());
         zval zfilename;
         ZVAL_STR(&zfilename, _filename.get());
         zval retval; /* do not care the retval (the connection will be closed if failed) */
@@ -261,7 +261,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
-            zend::string str_value(zvalue);
+            zend::String str_value(zvalue);
             char *c_key = ZSTR_VAL(key);
             size_t c_keylen = ZSTR_LEN(key);
             if (SW_STREQ(c_key, c_keylen, "server")) {
@@ -901,7 +901,9 @@ int swoole_http2_server_parse(http2_session *client, const char *buf) {
 
         break;
     }
-    default: { swHttp2FrameTraceLog(recv, ""); }
+    default: {
+        swHttp2FrameTraceLog(recv, "");
+    }
     }
     return SW_OK;
 }

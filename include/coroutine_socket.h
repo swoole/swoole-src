@@ -57,7 +57,7 @@ struct EventBarrier {
 };
 
 class Socket {
-   public:
+  public:
     static double default_dns_timeout;
     static double default_connect_timeout;
     static double default_read_timeout;
@@ -319,7 +319,7 @@ class Socket {
     bool ssl_shutdown();
 #endif
 
-   private:
+  private:
     enum swSocket_type type;
     int sock_domain = 0;
     int sock_type = 0;
@@ -412,7 +412,7 @@ class Socket {
     bool http_proxy_handshake();
 
     class timer_controller {
-       public:
+      public:
         timer_controller(swTimer_node **timer_pp, double timeout, Socket *sock, swTimerCallback callback)
             : timer_pp(timer_pp), timeout(timeout), socket_(sock), callback(callback) {}
         bool start() {
@@ -437,7 +437,7 @@ class Socket {
             }
         }
 
-       private:
+      private:
         bool enabled = false;
         swTimer_node **timer_pp;
         double timeout;
@@ -445,9 +445,9 @@ class Socket {
         swTimerCallback callback;
     };
 
-   public:
+  public:
     class timeout_setter {
-       public:
+      public:
         timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type)
             : socket_(socket), timeout(timeout), type(type) {
             if (timeout == 0) {
@@ -475,7 +475,7 @@ class Socket {
             }
         }
 
-       protected:
+      protected:
         Socket *socket_;
         double timeout;
         enum swTimeout_type type;
@@ -483,7 +483,7 @@ class Socket {
     };
 
     class timeout_controller : public timeout_setter {
-       public:
+      public:
         timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type)
             : timeout_setter(socket, timeout, type) {}
         inline bool has_timedout(const enum swTimeout_type type) {
@@ -503,7 +503,7 @@ class Socket {
             return false;
         }
 
-       protected:
+      protected:
         double startup_time = 0;
     };
 };

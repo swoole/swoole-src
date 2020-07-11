@@ -78,6 +78,7 @@ swGlobal_t SwooleG;
 thread_local swThreadGlobal_t SwooleTG;
 
 static std::unordered_map<std::string, void *> functions;
+static swoole::Logger *g_logger_instance = nullptr;
 
 #ifdef __MACH__
 static __thread char _sw_error_buf[SW_ERROR_MSG_SIZE];
@@ -89,6 +90,10 @@ __thread char sw_error[SW_ERROR_MSG_SIZE];
 #endif
 
 static void swoole_fatal_error(int code, const char *format, ...);
+
+swoole::Logger *sw_logger() {
+    return g_logger_instance;
+}
 
 void swoole_init(void) {
     if (SwooleG.init) {
@@ -118,11 +123,13 @@ void swoole_init(void) {
 
     SwooleG.pid = getpid();
 
+    g_logger_instance = new swoole::Logger;
+
 #ifdef SW_DEBUG
-    sw_logger().set_level(0);
+    sw_logger()->set_level(0);
     SwooleG.trace_flags = 0x7fffffff;
 #else
-    sw_logger().set_level(SW_LOG_INFO);
+    sw_logger()->set_level(SW_LOG_INFO);
 #endif
 
     // init global shared memory
@@ -192,6 +199,10 @@ void swoole_clean(void) {
     if (SwooleG.memory_pool != nullptr) {
         SwooleG.memory_pool->destroy(SwooleG.memory_pool);
     }
+    if (g_logger_instance) {
+        delete g_logger_instance;
+        g_logger_instance = nullptr;
+    }
     sw_memset_zero(&SwooleG, sizeof(SwooleG));
 }
 
@@ -239,7 +250,7 @@ pid_t swoole_fork(int flags) {
             /**
              * reopen log file
              */
-            sw_logger().reopen();
+            sw_logger()->reopen();
             /**
              * reset eventLoop
              */
@@ -251,7 +262,7 @@ pid_t swoole_fork(int flags) {
             /**
              * close log fd
              */
-            sw_logger().close();
+            sw_logger()->close();
         }
         /**
          * reset signal handler
@@ -1326,7 +1337,7 @@ static void swoole_fatal_error(int code, const char *format, ...) {
     va_start(args, format);
     retval += sw_vsnprintf(sw_error + retval, SW_ERROR_MSG_SIZE - retval, format, args);
     va_end(args);
-    sw_logger().put(SW_LOG_ERROR, sw_error, retval);
+    sw_logger()->put(SW_LOG_ERROR, sw_error, retval);
     exit(1);
 }
 
@@ -1435,7 +1446,7 @@ int hook_add(void **hooks, int type, swCallback func, int push_back) {
         hooks[type] = new std::list<swCallback>;
     }
 
-    std::list<swCallback> *l = static_cast<std::list<swCallback> *>(hooks[type]);
+    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
     if (push_back) {
         l->push_back(func);
     } else {
@@ -1446,7 +1457,7 @@ int hook_add(void **hooks, int type, swCallback func, int push_back) {
 }
 
 inline void hook_call(void **hooks, int type, void *arg) {
-    std::list<swCallback> *l = static_cast<std::list<swCallback> *>(hooks[type]);
+    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);
     }

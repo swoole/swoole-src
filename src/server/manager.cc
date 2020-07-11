@@ -506,7 +506,7 @@ static void swManager_signal_handler(int sig) {
             ManagerProcess.reloading = true;
             ManagerProcess.reload_all_worker = true;
         }
-        sw_logger().reopen();
+        sw_logger()->reopen();
         break;
         /**
          * only reload task workers
@@ -516,7 +516,7 @@ static void swManager_signal_handler(int sig) {
             ManagerProcess.reloading = true;
             ManagerProcess.reload_task_worker = true;
         }
-        sw_logger().reopen();
+        sw_logger()->reopen();
         break;
     case SIGIO:
         ManagerProcess.read_message = true;
@@ -533,7 +533,7 @@ static void swManager_signal_handler(int sig) {
     default:
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN) {
-            sw_logger().reopen();
+            sw_logger()->reopen();
         }
 #endif
         break;
