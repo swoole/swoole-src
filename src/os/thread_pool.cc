@@ -18,23 +18,20 @@
 #include "swoole_signal.h"
 #include "swoole_log.h"
 
-#define swThreadPool_thread(p,id) (&p->threads[id])
+#define swThreadPool_thread(p, id) (&p->threads[id])
 static void *swThreadPool_loop(void *arg);
 
-int swThreadPool_create(swThreadPool *pool, int thread_num)
-{
+int swThreadPool_create(swThreadPool *pool, int thread_num) {
     sw_memset_zero(pool, sizeof(swThreadPool));
 
     pool->threads = (swThread *) sw_calloc(thread_num, sizeof(swThread));
-    if (!pool->threads)
-    {
+    if (!pool->threads) {
         swWarn("malloc[1] failed");
         return SW_ERR;
     }
 
     pool->params = (swThreadParam *) sw_calloc(thread_num, sizeof(swThreadParam));
-    if (!pool->params)
-    {
+    if (!pool->params) {
         sw_free(pool->threads);
         swWarn("malloc[2] failed");
         return SW_ERR;
@@ -44,8 +41,7 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
 
 #ifdef SW_THREADPOOL_USE_CHANNEL
     pool->chan = swChannel_create(1024 * 256, 512, 0);
-    if (pool->chan == nullptr)
-    {
+    if (pool->chan == nullptr) {
         sw_free(pool->threads);
         sw_free(pool->params);
         swWarn("swThreadPool_create create channel failed");
@@ -53,15 +49,13 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
     }
 #else
     int size = SW_MAX(SwooleG.max_sockets + 1, SW_THREADPOOL_QUEUE_LEN);
-    if (swRingQueue_init(&pool->queue, size) < 0)
-    {
+    if (swRingQueue_init(&pool->queue, size) < 0) {
         sw_free(pool->threads);
         sw_free(pool->params);
         return SW_ERR;
     }
 #endif
-    if (swCond_create(&pool->cond) < 0)
-    {
+    if (swCond_create(&pool->cond) < 0) {
         sw_free(pool->threads);
         sw_free(pool->params);
         return SW_ERR;
@@ -70,20 +64,18 @@ int swThreadPool_create(swThreadPool *pool, int thread_num)
     return SW_OK;
 }
 
-int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len)
-{
+int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len) {
     int ret;
 
     pool->cond.lock(&pool->cond);
 #ifdef SW_THREADPOOL_USE_CHANNEL
     ret = swChannel_in(pool->chan, task, task_len);
 #else
-    ret = swRingQueue_push(&pool->queue, (char*) task);
+    ret = swRingQueue_push(&pool->queue, (char *) task);
 #endif
     pool->cond.unlock(&pool->cond);
 
-    if (ret < 0)
-    {
+    if (ret < 0) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full");
         return SW_ERR;
     }
@@ -94,15 +86,12 @@ int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len)
     return pool->cond.notify(&pool->cond);
 }
 
-int swThreadPool_run(swThreadPool *pool)
-{
+int swThreadPool_run(swThreadPool *pool) {
     pool->running = 1;
-    for (int i = 0; i < pool->thread_num; i++)
-    {
+    for (int i = 0; i < pool->thread_num; i++) {
         pool->params[i].pti = i;
         pool->params[i].object = pool;
-        if (pthread_create(&(swThreadPool_thread(pool,i)->tid), nullptr, swThreadPool_loop, &pool->params[i]) < 0)
-        {
+        if (pthread_create(&(swThreadPool_thread(pool, i)->tid), nullptr, swThreadPool_loop, &pool->params[i]) < 0) {
             swSysWarn("pthread_create failed");
             return SW_ERR;
         }
@@ -111,21 +100,18 @@ int swThreadPool_run(swThreadPool *pool)
     return SW_OK;
 }
 
-int swThreadPool_free(swThreadPool *pool)
-{
+int swThreadPool_free(swThreadPool *pool) {
     int i;
-    if (!pool->running)
-    {
+    if (!pool->running) {
         return -1;
     }
     pool->running = 0;
 
-    //broadcast all thread
+    // broadcast all thread
     pool->cond.broadcast(&(pool->cond));
 
-    for (i = 0; i < pool->thread_num; i++)
-    {
-        pthread_join((swThreadPool_thread(pool,i)->tid), nullptr);
+    for (i = 0; i < pool->thread_num; i++) {
+        pthread_join((swThreadPool_thread(pool, i)->tid), nullptr);
     }
 
 #ifdef SW_THREADPOOL_USE_CHANNEL
@@ -139,8 +125,7 @@ int swThreadPool_free(swThreadPool *pool)
     return SW_OK;
 }
 
-static void* swThreadPool_loop(void *arg)
-{
+static void *swThreadPool_loop(void *arg) {
     swThreadParam *param = (swThreadParam *) arg;
     swThreadPool *pool = (swThreadPool *) param->object;
 
@@ -149,31 +134,26 @@ static void* swThreadPool_loop(void *arg)
     void *task;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
-    if (SwooleTG.buffer_stack == nullptr)
-    {
+    if (SwooleTG.buffer_stack == nullptr) {
         return nullptr;
     }
 
     swSignal_none();
 
-    if (pool->onStart)
-    {
+    if (pool->onStart) {
         pool->onStart(pool, id);
     }
 
-    while (pool->running)
-    {
+    while (pool->running) {
         pool->cond.lock(&pool->cond);
 
-        if (!pool->running)
-        {
+        if (!pool->running) {
             pool->cond.unlock(&pool->cond);
             swTrace("thread [%d] will exit", id);
             pthread_exit(nullptr);
         }
 
-        if (pool->task_num == 0)
-        {
+        if (pool->task_num == 0) {
             pool->cond.wait(&pool->cond);
         }
 
@@ -182,8 +162,7 @@ static void* swThreadPool_loop(void *arg)
         ret = swRingQueue_pop(&pool->queue, &task);
         pool->cond.unlock(&pool->cond);
 
-        if (ret >= 0)
-        {
+        if (ret >= 0) {
             sw_atomic_t *task_num = &pool->task_num;
             sw_atomic_fetch_sub(task_num, 1);
 
@@ -191,8 +170,7 @@ static void* swThreadPool_loop(void *arg)
         }
     }
 
-    if (pool->onStop)
-    {
+    if (pool->onStop) {
         pool->onStop(pool, id);
     }
 

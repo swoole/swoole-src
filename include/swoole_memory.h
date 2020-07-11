@@ -22,7 +22,7 @@
 //-------------------memory manager-------------------------
 struct swMemoryPool {
     void *object;
-    void* (*alloc)(swMemoryPool *pool, uint32_t size);
+    void *(*alloc)(swMemoryPool *pool, uint32_t size);
     void (*free)(swMemoryPool *pool, void *ptr);
     void (*destroy)(swMemoryPool *pool);
 };

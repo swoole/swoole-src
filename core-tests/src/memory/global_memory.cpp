@@ -20,8 +20,7 @@
 #include "tests.h"
 #include "swoole_memory.h"
 
-TEST(global_memory, alloc)
-{
+TEST(global_memory, alloc) {
     auto m = swMemoryGlobal_new(2 * 1024 * 1024, false);
 
     void *ptr1 = m->alloc(m, 199);

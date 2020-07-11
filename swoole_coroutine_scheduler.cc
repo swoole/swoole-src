@@ -22,21 +22,19 @@
 #include <queue>
 
 using namespace std;
-using swoole::coroutine::System;
-using swoole::coroutine::Socket;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
+using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 
-struct scheduler_task_t
-{
+struct scheduler_task_t {
     zend_long count;
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 };
 
-struct scheduler_t
-{
-    queue<scheduler_task_t*> *list;
+struct scheduler_t {
+    queue<scheduler_task_t *> *list;
     bool started;
     zend_object std;
 };
@@ -44,37 +42,17 @@ struct scheduler_t
 static zend_class_entry *swoole_coroutine_scheduler_ce;
 static zend_object_handlers swoole_coroutine_scheduler_handlers;
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_add, 0, 0, 1)
-    ZEND_ARG_CALLABLE_INFO(0, func, 0)
-    ZEND_ARG_VARIADIC_INFO(0, params)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_parallel, 0, 0, 1)
-    ZEND_ARG_INFO(0, n)
-    ZEND_ARG_CALLABLE_INFO(0, func, 0)
-    ZEND_ARG_VARIADIC_INFO(0, params)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine_scheduler, add);
 static PHP_METHOD(swoole_coroutine_scheduler, parallel);
 static PHP_METHOD(swoole_coroutine_scheduler, start);
 SW_EXTERN_C_END
 
-static sw_inline scheduler_t* scheduler_get_object(zend_object *obj)
-{
+static sw_inline scheduler_t *scheduler_get_object(zend_object *obj) {
     return (scheduler_t *) ((char *) obj - swoole_coroutine_scheduler_handlers.offset);
 }
 
-static zend_object *scheduler_create_object(zend_class_entry *ce)
-{
+static zend_object *scheduler_create_object(zend_class_entry *ce) {
     scheduler_t *s = (scheduler_t *) zend_object_alloc(sizeof(scheduler_t), ce);
     zend_object_std_init(&s->std, ce);
     object_properties_init(&s->std, ce);
@@ -82,13 +60,10 @@ static zend_object *scheduler_create_object(zend_class_entry *ce)
     return &s->std;
 }
 
-static void scheduler_free_object(zend_object *object)
-{
+static void scheduler_free_object(zend_object *object) {
     scheduler_t *s = scheduler_get_object(object);
-    if (s->list)
-    {
-        while(!s->list->empty())
-        {
+    if (s->list) {
+        while (!s->list->empty()) {
             scheduler_task_t *task = s->list->front();
             s->list->pop();
             sw_zend_fci_cache_discard(&task->fci_cache);
@@ -101,14 +76,32 @@ static void scheduler_free_object(zend_object *object)
     zend_object_std_dtor(&s->std);
 }
 
-static const zend_function_entry swoole_coroutine_scheduler_methods[] =
-{
+// clang-format on
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_add, 0, 0, 1)
+ZEND_ARG_CALLABLE_INFO(0, func, 0)
+ZEND_ARG_VARIADIC_INFO(0, params)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_parallel, 0, 0, 1)
+ZEND_ARG_INFO(0, n)
+ZEND_ARG_CALLABLE_INFO(0, func, 0)
+ZEND_ARG_VARIADIC_INFO(0, params)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_set, 0, 0, 1)
+ZEND_ARG_ARRAY_INFO(0, settings, 0)
+ZEND_END_ARG_INFO()
+
+static const zend_function_entry swoole_coroutine_scheduler_methods[] = {
     PHP_ME(swoole_coroutine_scheduler, add, arginfo_swoole_coroutine_scheduler_add, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_scheduler, parallel, arginfo_swoole_coroutine_scheduler_parallel, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_scheduler_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_coroutine_scheduler, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_FE_END
-};
+        PHP_ME(swoole_coroutine_scheduler, parallel, arginfo_swoole_coroutine_scheduler_parallel, ZEND_ACC_PUBLIC)
+            PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_scheduler_set, ZEND_ACC_PUBLIC)
+                PHP_ME(swoole_coroutine_scheduler, start, arginfo_swoole_void, ZEND_ACC_PUBLIC) PHP_FE_END};
+
+// clang-format off
 
 void php_swoole_coroutine_scheduler_minit(int module_number)
 {

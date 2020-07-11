@@ -24,20 +24,15 @@
 
 static void swStream_free(swStream *stream);
 
-static void swStream_onConnect(swClient *cli)
-{
-    swStream *stream = (swStream*) cli->object;
-    if (stream->cancel)
-    {
+static void swStream_onConnect(swClient *cli) {
+    swStream *stream = (swStream *) cli->object;
+    if (stream->cancel) {
         cli->close(cli);
     }
     *((uint32_t *) stream->buffer->str) = ntohl(stream->buffer->length - 4);
-    if (cli->send(cli, stream->buffer->str, stream->buffer->length, 0) < 0)
-    {
+    if (cli->send(cli, stream->buffer->str, stream->buffer->length, 0) < 0) {
         cli->close(cli);
-    }
-    else
-    {
+    } else {
         swString_free(stream->buffer);
         stream->buffer = nullptr;
     }
@@ -47,8 +42,10 @@ static void swStream_onError(swClient *cli) {
     swStream *stream = (swStream *) cli->object;
     stream->errCode = swoole_get_last_error();
 
-    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_CONNECT_FAIL,
-                     " connect() failed (%d: %s) while connecting to worker process", stream->errCode,
+    swoole_error_log(SW_LOG_WARNING,
+                     SW_ERROR_SERVER_CONNECT_FAIL,
+                     " connect() failed (%d: %s) while connecting to worker process",
+                     stream->errCode,
                      swoole_strerror(stream->errCode));
 
     stream->response(stream, nullptr, 0);
@@ -56,49 +53,41 @@ static void swStream_onError(swClient *cli) {
     swStream_free(stream);
 }
 
-static void swStream_onReceive(swClient *cli, const char *data, uint32_t length)
-{
-    swStream *stream = (swStream*) cli->object;
-    if (length == 4)
-    {
+static void swStream_onReceive(swClient *cli, const char *data, uint32_t length) {
+    swStream *stream = (swStream *) cli->object;
+    if (length == 4) {
         cli->socket->close_wait = 1;
-    }
-    else
-    {
+    } else {
         stream->response(stream, data + 4, length - 4);
     }
 }
 
-static void swStream_onClose(swClient *cli)
-{
-    swoole_event_defer([](void *data) {
-        swClient *cli = (swClient *) data;
-        swClient_free(cli);
-        swStream_free((swStream *) cli->object);
-    }, cli);
+static void swStream_onClose(swClient *cli) {
+    swoole_event_defer(
+        [](void *data) {
+            swClient *cli = (swClient *) data;
+            swClient_free(cli);
+            swStream_free((swStream *) cli->object);
+        },
+        cli);
 }
 
-static void swStream_free(swStream *stream)
-{
-    if (stream->buffer)
-    {
+static void swStream_free(swStream *stream) {
+    if (stream->buffer) {
         swString_free(stream->buffer);
     }
     sw_free(stream);
 }
 
-swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type type)
-{
-    swStream *stream = (swStream*) sw_malloc(sizeof(swStream));
-    if (!stream)
-    {
+swStream *swStream_new(const char *dst_host, int dst_port, enum swSocket_type type) {
+    swStream *stream = (swStream *) sw_malloc(sizeof(swStream));
+    if (!stream) {
         return nullptr;
     }
     sw_memset_zero(stream, sizeof(swStream));
 
     swClient *cli = &stream->client;
-    if (swClient_create(cli, type, 1) < 0)
-    {
+    if (swClient_create(cli, type, 1) < 0) {
         swStream_free(stream);
         return nullptr;
     }
@@ -112,13 +101,10 @@ swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type ty
     cli->open_length_check = 1;
     swStream_set_protocol(&cli->protocol);
 
-    if (cli->connect(cli, dst_host, dst_port, -1, 0) < 0)
-    {
+    if (cli->connect(cli, dst_host, dst_port, -1, 0) < 0) {
         swSysWarn("failed to connect to [%s:%d]", dst_host, dst_port);
         return nullptr;
-    }
-    else
-    {
+    } else {
         return stream;
     }
 }
@@ -126,8 +112,7 @@ swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type ty
 /**
  * Stream Protocol: Length(32bit/Network Byte Order) + Body
  */
-void swStream_set_protocol(swProtocol *protocol)
-{
+void swStream_set_protocol(swProtocol *protocol) {
     protocol->get_package_length = swProtocol_get_package_length;
     protocol->package_length_size = 4;
     protocol->package_length_type = 'N';
@@ -135,55 +120,42 @@ void swStream_set_protocol(swProtocol *protocol)
     protocol->package_length_offset = 0;
 }
 
-void swStream_set_max_length(swStream *stream, uint32_t max_length)
-{
+void swStream_set_max_length(swStream *stream, uint32_t max_length) {
     stream->client.protocol.package_max_length = max_length;
 }
 
-int swStream_send(swStream *stream, const char *data, size_t length)
-{
-    if (stream->buffer == nullptr)
-    {
+int swStream_send(swStream *stream, const char *data, size_t length) {
+    if (stream->buffer == nullptr) {
         stream->buffer = swString_new(swoole_size_align(length + 4, SwooleG.pagesize));
-        if (stream->buffer == nullptr)
-        {
+        if (stream->buffer == nullptr) {
             return SW_ERR;
         }
         stream->buffer->length = 4;
     }
-    if (swString_append_ptr(stream->buffer, data, length) < 0)
-    {
+    if (swString_append_ptr(stream->buffer, data, length) < 0) {
         return SW_ERR;
     }
     return SW_OK;
 }
 
-int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len)
-{
+int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len) {
     int tmp = 0;
     ssize_t ret = swSocket_recv_blocking(sock, &tmp, sizeof(tmp), MSG_WAITALL);
 
-    if (ret <= 0)
-    {
+    if (ret <= 0) {
         return SW_CLOSE;
     }
     int length = (int) ntohl(tmp);
-    if (length <= 0)
-    {
+    if (length <= 0) {
         return SW_CLOSE;
-    }
-    else if (length > (int) __len)
-    {
+    } else if (length > (int) __len) {
         return SW_CLOSE;
     }
 
     ret = swSocket_recv_blocking(sock, __buf, length, MSG_WAITALL);
-    if (ret <= 0)
-    {
+    if (ret <= 0) {
         return SW_CLOSE;
-    }
-    else
-    {
+    } else {
         return SW_READY;
     }
 }

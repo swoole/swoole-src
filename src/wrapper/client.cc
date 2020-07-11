@@ -18,4 +18,3 @@
 */
 
 #include "wrapper/client.hpp"
-

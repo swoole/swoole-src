@@ -21,8 +21,7 @@
 
 #include <string>
 
-struct swString
-{
+struct swString {
     size_t length;
     size_t size;
     off_t offset;
@@ -30,9 +29,9 @@ struct swString
     const swAllocator *allocator;
 };
 
-#define SW_STRINGL(s)      s->str, s->length
-#define SW_STRINGS(s)      s->str, s->size
-#define SW_STRINGCVL(s)    s->str + s->offset, s->length - s->offset
+#define SW_STRINGL(s) s->str, s->length
+#define SW_STRINGS(s) s->str, s->size
+#define SW_STRINGCVL(s) s->str + s->offset, s->length - s->offset
 
 swString *swString_new(size_t size);
 swString *swString_dup(const char *src_str, size_t length);
@@ -50,46 +49,36 @@ void swString_reduce(swString *str, off_t offset);
 char *swString_pop(swString *str, size_t init_size);
 char *swString_alloc(swString *str, size_t __size);
 
-static inline void swString_clear(swString *str)
-{
+static inline void swString_clear(swString *str) {
     str->length = 0;
     str->offset = 0;
 }
 
-static inline void swString_free(swString *str)
-{
-    if (str->str)
-    {
+static inline void swString_free(swString *str) {
+    if (str->str) {
         str->allocator->free(str->str);
     }
     str->allocator->free(str);
 }
 
-static inline int swString_extend_align(swString *str, size_t _new_size)
-{
+static inline int swString_extend_align(swString *str, size_t _new_size) {
     size_t align_size = SW_MEM_ALIGNED_SIZE(str->size * 2);
-    while (align_size < _new_size)
-    {
+    while (align_size < _new_size) {
         align_size *= 2;
     }
     return swString_extend(str, align_size);
 }
 
-static inline int swString_grow(swString *str, size_t incr_value)
-{
+static inline int swString_grow(swString *str, size_t incr_value) {
     str->length += incr_value;
-    if (str->length == str->size && swString_extend(str, str->size * 2) < 0)
-    {
+    if (str->length == str->size && swString_extend(str, str->size * 2) < 0) {
         return SW_ERR;
-    }
-    else
-    {
+    } else {
         return SW_OK;
     }
 }
 
-static inline int swString_contains(swString *str, const char *needle, size_t l_needle)
-{
+static inline int swString_contains(swString *str, const char *needle, size_t l_needle) {
     return swoole_strnstr(str->str, str->length, needle, l_needle) != NULL;
 }
 
@@ -100,81 +89,48 @@ typedef std::function<bool(char *, size_t)> StringExplodeHandler;
 swString *make_string(size_t size, const swAllocator *allocator = nullptr);
 size_t string_split(swString *str, const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
 
-class String
-{
-private:
+class String {
+   private:
     swString *str;
-public:
-    String(const char *_str, size_t length)
-    {
-        str = swString_dup(_str, length);
-    }
-    String(swString *_str)
-    {
-        str = _str;
-    }
-    String(String &&src)
-    {
+
+   public:
+    String(const char *_str, size_t length) { str = swString_dup(_str, length); }
+    String(swString *_str) { str = _str; }
+    String(String &&src) {
         str = src.str;
         src.str = nullptr;
     }
-    String(String &src)
-    {
-        str = swString_dup2(src.get());
-    }
-    String& operator =(String& src)
-    {
-        if (&src == this)
-        {
+    String(String &src) { str = swString_dup2(src.get()); }
+    String &operator=(String &src) {
+        if (&src == this) {
             return *this;
         }
-        if (str)
-        {
+        if (str) {
             swString_free(str);
         }
         str = swString_dup2(src.get());
         return *this;
     }
-    String& operator=(String&& src)
-    {
-        if (&src == this)
-        {
+    String &operator=(String &&src) {
+        if (&src == this) {
             return *this;
         }
-        if (str)
-        {
+        if (str) {
             swString_free(str);
         }
         str = src.str;
         src.str = nullptr;
         return *this;
     }
-    inline char* value()
-    {
-        return str->str;
-    }
-    inline size_t length()
-    {
-        return str->length;
-    }
-    inline size_t size()
-    {
-        return str->size;
-    }
-    inline swString* get()
-    {
-        return str;
-    }
-    std::string to_std_string()
-    {
-        return std::string(str->str, str->length);
-    }
-    ~String()
-    {
-        if (str)
-        {
+    inline char *value() { return str->str; }
+    inline size_t length() { return str->length; }
+    inline size_t size() { return str->size; }
+    inline swString *get() { return str; }
+    std::string to_std_string() { return std::string(str->str, str->length); }
+    ~String() {
+        if (str) {
             swString_free(str);
         }
     }
 };
-}
+}  // namespace swoole

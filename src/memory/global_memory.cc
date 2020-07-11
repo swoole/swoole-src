@@ -24,14 +24,13 @@
 
 using namespace std;
 
-#define SW_MIN_PAGE_SIZE  4096
-#define SW_MIN_EXPONENT   5     //32
-#define SW_MAX_EXPONENT   21    //2M
+#define SW_MIN_PAGE_SIZE 4096
+#define SW_MIN_EXPONENT 5   // 32
+#define SW_MAX_EXPONENT 21  // 2M
 
 struct MemoryBlock;
 
-struct MemoryPool
-{
+struct MemoryPool {
     pid_t create_pid;
     bool shared;
     uint32_t pagesize;
@@ -42,8 +41,7 @@ struct MemoryPool
     swMemoryPool allocator;
 };
 
-struct MemoryBlock
-{
+struct MemoryBlock {
     uint32_t size;
     uint32_t index;
     bool shared;
@@ -56,8 +54,7 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr);
 static void swMemoryGlobal_destroy(swMemoryPool *pool);
 static char *swMemoryGlobal_new_page(MemoryPool *gm);
 
-swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
-{
+swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared) {
     assert(pagesize >= SW_MIN_PAGE_SIZE);
 
     MemoryPool *gm = new MemoryPool();
@@ -68,8 +65,7 @@ swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
     gm->pool.resize(20);
 
     char *page = swMemoryGlobal_new_page(gm);
-    if (page == nullptr)
-    {
+    if (page == nullptr) {
         return nullptr;
     }
 
@@ -82,11 +78,9 @@ swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared)
     return allocator;
 }
 
-static char *swMemoryGlobal_new_page(MemoryPool *gm)
-{
+static char *swMemoryGlobal_new_page(MemoryPool *gm) {
     char *page = (char *) (gm->shared ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize));
-    if (page == nullptr)
-    {
+    if (page == nullptr) {
         return nullptr;
     }
     sw_memset_zero(page, gm->pagesize);
@@ -97,26 +91,21 @@ static char *swMemoryGlobal_new_page(MemoryPool *gm)
     return page;
 }
 
-static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
-{
+static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size) {
     MemoryPool *gm = (MemoryPool *) pool->object;
     MemoryBlock *block;
     uint32_t alloc_size = sizeof(MemoryBlock) + size;
     unique_lock<mutex> lock(gm->lock);
 
-    if (alloc_size > gm->pagesize)
-    {
+    if (alloc_size > gm->pagesize) {
         swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, gm->pagesize);
         return nullptr;
     }
 
     int index = SW_MIN_EXPONENT;
-    if (alloc_size > (1 << SW_MIN_EXPONENT))
-    {
-        for (; index <= SW_MAX_EXPONENT; index++)
-        {
-            if ((alloc_size >> index) == 1)
-            {
+    if (alloc_size > (1 << SW_MIN_EXPONENT)) {
+        for (; index <= SW_MAX_EXPONENT; index++) {
+            if ((alloc_size >> index) == 1) {
                 break;
             }
         }
@@ -127,18 +116,15 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     index -= SW_MIN_EXPONENT;
 
     list<MemoryBlock *> &free_blocks = gm->pool.at(index);
-    if (!free_blocks.empty())
-    {
+    if (!free_blocks.empty()) {
         block = free_blocks.back();
         free_blocks.pop_back();
         return block->memory;
     }
 
-    if (gm->alloc_offset + alloc_size > gm->pagesize)
-    {
+    if (gm->alloc_offset + alloc_size > gm->pagesize) {
         char *page = swMemoryGlobal_new_page(gm);
-        if (page == nullptr)
-        {
+        if (page == nullptr) {
             swWarn("alloc memory error");
             return nullptr;
         }
@@ -155,17 +141,18 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size)
     return block->memory;
 }
 
-static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
-{
+static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr) {
     MemoryPool *gm = (MemoryPool *) pool->object;
-    MemoryBlock *block = (MemoryBlock *) ((char*) ptr - sizeof(*block));
+    MemoryBlock *block = (MemoryBlock *) ((char *) ptr - sizeof(*block));
     unique_lock<mutex> lock(gm->lock);
 
-    swTrace("[PID=%d] gm->create_pid=%d, block->create_pid=%d, SwooleG.pid=%d\n", getpid(), gm->create_pid,
-            block->create_pid, SwooleG.pid);
+    swTrace("[PID=%d] gm->create_pid=%d, block->create_pid=%d, SwooleG.pid=%d\n",
+            getpid(),
+            gm->create_pid,
+            block->create_pid,
+            SwooleG.pid);
 
-    if (block->shared && (gm->create_pid != block->create_pid or block->create_pid != SwooleG.pid))
-    {
+    if (block->shared && (gm->create_pid != block->create_pid or block->create_pid != SwooleG.pid)) {
         return;
     }
 
@@ -175,18 +162,15 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr)
     free_blocks.push_back(block);
 }
 
-static void swMemoryGlobal_destroy(swMemoryPool *pool)
-{
+static void swMemoryGlobal_destroy(swMemoryPool *pool) {
     MemoryPool *gm = (MemoryPool *) pool->object;
 
-    if (gm->shared and gm->create_pid != SwooleG.pid)
-    {
+    if (gm->shared and gm->create_pid != SwooleG.pid) {
         delete gm;
         return;
     }
 
-    for (auto page : gm->pages)
-    {
+    for (auto page : gm->pages) {
         gm->shared ? sw_shm_free(page) : sw_free(page);
     }
     delete gm;

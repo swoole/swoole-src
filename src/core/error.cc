@@ -17,31 +17,23 @@
 #include "swoole.h"
 #include <string>
 
-namespace swoole
-{
+namespace swoole {
 
-class Exception
-{
-public:
+class Exception {
+   public:
     int code;
     const char *msg;
 
-    Exception(int code) : code(code)
-    {
-        msg = swoole_strerror(code);
-    }
+    Exception(int code) : code(code) { msg = swoole_strerror(code); }
 };
-}
+}  // namespace swoole
 
-const char* swoole_strerror(int code)
-{
-    if (code < SW_ERROR_BEGIN)
-    {
+const char *swoole_strerror(int code) {
+    if (code < SW_ERROR_BEGIN) {
         return strerror(code);
     }
     /* swstrerror {{{*/
-    switch(code)
-    {
+    switch (code) {
     case SW_ERROR_MALLOC_FAIL:
         return "Malloc fail";
     case SW_ERROR_SYSTEM_CALL_FAIL:
@@ -219,10 +211,9 @@ const char* swoole_strerror(int code)
 #endif
         return buffer;
     }
-/*}}}*/
+    /*}}}*/
 }
 
-void swoole_throw_error(int code)
-{
+void swoole_throw_error(int code) {
     throw swoole::Exception(code);
 }

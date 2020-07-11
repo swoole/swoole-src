@@ -24,8 +24,7 @@
 
 struct swThreadPool;
 
-enum swThread_type
-{
+enum swThread_type {
     SW_THREAD_MASTER = 1,
     SW_THREAD_REACTOR = 2,
     SW_THREAD_WORKER = 3,
@@ -34,21 +33,18 @@ enum swThread_type
     SW_THREAD_HEARTBEAT = 6,
 };
 
-struct swThread
-{
+struct swThread {
     pthread_t tid;
     int id;
     swThreadPool *pool;
 };
 
-struct swThreadParam
-{
+struct swThreadParam {
     void *object;
     int pti;
 };
 
-struct swThreadPool
-{
+struct swThreadPool {
     swCond cond;
 
     swThread *threads;
@@ -70,7 +66,6 @@ struct swThreadPool
     void (*onStart)(swThreadPool *pool, int id);
     void (*onStop)(swThreadPool *pool, int id);
     int (*onTask)(swThreadPool *pool, void *task, int task_len);
-
 };
 
 int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len);

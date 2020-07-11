@@ -25,56 +25,44 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length);
 static int swPipeEventfd_write(swPipe *p, const void *data, int length);
 static int swPipeEventfd_close(swPipe *p);
 
-typedef struct _swPipeEventfd
-{
+typedef struct _swPipeEventfd {
     int event_fd;
 } swPipeEventfd;
 
-int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
-{
+int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
     int efd;
     int flag = 0;
     swPipeEventfd *object = (swPipeEventfd *) sw_malloc(sizeof(swPipeEventfd));
-    if (object == nullptr)
-    {
+    if (object == nullptr) {
         return -1;
     }
 
     flag = EFD_NONBLOCK;
 
-    if (blocking == 1)
-    {
-        if (timeout > 0)
-        {
+    if (blocking == 1) {
+        if (timeout > 0) {
             flag = 0;
             p->timeout = -1;
-        }
-        else
-        {
+        } else {
             p->timeout = timeout;
         }
     }
 
 #ifdef EFD_SEMAPHORE
-    if (semaphore == 1)
-    {
+    if (semaphore == 1) {
         flag |= EFD_SEMAPHORE;
     }
 #endif
 
     p->blocking = blocking;
     efd = eventfd(0, flag);
-    if (efd < 0)
-    {
+    if (efd < 0) {
         swSysWarn("eventfd create failed");
         sw_free(object);
         return -1;
-    }
-    else
-    {
+    } else {
         p->master_socket = swSocket_new(efd, SW_FD_PIPE);
-        if (p->master_socket == nullptr)
-        {
+        if (p->master_socket == nullptr) {
             close(efd);
             sw_free(object);
             return -1;
@@ -90,25 +78,20 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout)
     return 0;
 }
 
-static int swPipeEventfd_read(swPipe *p, void *data, int length)
-{
+static int swPipeEventfd_read(swPipe *p, void *data, int length) {
     int ret = -1;
     swPipeEventfd *object = (swPipeEventfd *) p->object;
 
-    //eventfd not support socket timeout
-    if (p->blocking == 1 && p->timeout > 0)
-    {
-        if (swSocket_wait(object->event_fd, p->timeout * 1000, SW_EVENT_READ) < 0)
-        {
+    // eventfd not support socket timeout
+    if (p->blocking == 1 && p->timeout > 0) {
+        if (swSocket_wait(object->event_fd, p->timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }
 
-    while (1)
-    {
+    while (1) {
         ret = read(object->event_fd, data, sizeof(uint64_t));
-        if (ret < 0 && errno == EINTR)
-        {
+        if (ret < 0 && errno == EINTR) {
             continue;
         }
         break;
@@ -116,17 +99,13 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length)
     return ret;
 }
 
-static int swPipeEventfd_write(swPipe *p, const void *data, int length)
-{
+static int swPipeEventfd_write(swPipe *p, const void *data, int length) {
     int ret;
     swPipeEventfd *object = (swPipeEventfd *) p->object;
-    while (1)
-    {
+    while (1) {
         ret = write(object->event_fd, data, sizeof(uint64_t));
-        if (ret < 0)
-        {
-            if (errno == EINTR)
-            {
+        if (ret < 0) {
+            if (errno == EINTR) {
                 continue;
             }
         }
@@ -135,8 +114,7 @@ static int swPipeEventfd_write(swPipe *p, const void *data, int length)
     return ret;
 }
 
-static int swPipeEventfd_close(swPipe *p)
-{
+static int swPipeEventfd_close(swPipe *p) {
     swSocket_free(p->master_socket);
     sw_free(p->object);
     return SW_OK;

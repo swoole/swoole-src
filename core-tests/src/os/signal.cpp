@@ -1,12 +1,9 @@
 #include "tests.h"
 
 #ifdef HAVE_SIGNALFD
-static void sig_usr1(int signo ){
+static void sig_usr1(int signo) {}
 
-}
-
-TEST(os_signal, swSignalfd_set)
-{
+TEST(os_signal, swSignalfd_set) {
     int ret;
     sigset_t curset;
 
@@ -16,16 +13,16 @@ TEST(os_signal, swSignalfd_set)
 
     sigemptyset(&curset);
     sigprocmask(SIG_BLOCK, NULL, &curset);
-    ret = sigismember(&curset,SIGUSR1);
+    ret = sigismember(&curset, SIGUSR1);
     ASSERT_EQ(ret, 0);
 
     swSignalfd_init();
-    swSignal_set(SIGUSR1,sig_usr1);
+    swSignal_set(SIGUSR1, sig_usr1);
     swSignalfd_setup(SwooleTG.reactor);
 
     sigemptyset(&curset);
     sigprocmask(SIG_BLOCK, NULL, &curset);
-    ret = sigismember(&curset,SIGUSR1);
+    ret = sigismember(&curset, SIGUSR1);
     ASSERT_EQ(ret, 1);
 
     swSignal_set(SIGUSR1, NULL);
@@ -33,7 +30,7 @@ TEST(os_signal, swSignalfd_set)
 
     sigemptyset(&curset);
     sigprocmask(SIG_BLOCK, NULL, &curset);
-    ret = sigismember(&curset,SIGUSR1);
+    ret = sigismember(&curset, SIGUSR1);
     ASSERT_EQ(ret, 0);
 
     swoole_event_wait();

@@ -24,40 +24,39 @@
 #include "proxy.h"
 #include "ssl.h"
 
-#define SW_SOCK_ASYNC    1
-#define SW_SOCK_SYNC     0
+#define SW_SOCK_ASYNC 1
+#define SW_SOCK_SYNC 0
 
-#define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE  "HTTP/1.1 200 Connection established"
+#define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established"
 
-struct swClient
-{
+struct swClient {
     int id;
     int type;
-    long timeout_id; //timeout node id
+    long timeout_id;  // timeout node id
     int _sock_type;
     int _sock_domain;
     int _protocol;
     enum swFd_type reactor_fdtype;
 
-    uchar active :1;
-    uchar async :1;
-    uchar keep :1;
-    uchar destroyed :1;
-    uchar http2 :1;
-    uchar sleep :1;
-    uchar wait_dns :1;
-    uchar shutdow_rw :1;
-    uchar shutdown_read :1;
-    uchar shutdown_write :1;
-    uchar remove_delay :1;
-    uchar closed :1;
-    uchar high_watermark :1;
+    uchar active : 1;
+    uchar async : 1;
+    uchar keep : 1;
+    uchar destroyed : 1;
+    uchar http2 : 1;
+    uchar sleep : 1;
+    uchar wait_dns : 1;
+    uchar shutdow_rw : 1;
+    uchar shutdown_read : 1;
+    uchar shutdown_write : 1;
+    uchar remove_delay : 1;
+    uchar closed : 1;
+    uchar high_watermark : 1;
 
     /**
      * one package: length check
      */
-    uchar open_length_check :1;
-    uchar open_eof_check :1;
+    uchar open_length_check : 1;
+    uchar open_eof_check : 1;
 
     swProtocol protocol;
     swSocks5_proxy *socks5_proxy;
@@ -102,8 +101,8 @@ struct swClient
     uint32_t buffer_low_watermark;
 
 #ifdef SW_USE_OPENSSL
-    uchar open_ssl :1;
-    uchar ssl_wait_handshake :1;
+    uchar open_ssl : 1;
+    uchar ssl_wait_handshake : 1;
     SSL_CTX *ssl_context;
     swSSL_option ssl_option;
 #endif
@@ -134,8 +133,7 @@ int swClient_ssl_verify(swClient *cli, int allow_self_signed);
 #endif
 void swClient_free(swClient *cli);
 //----------------------------------------Stream---------------------------------------
-struct swStream
-{
+struct swStream {
     swString *buffer;
     uint8_t cancel;
     int errCode;
@@ -144,7 +142,7 @@ struct swStream
     swClient client;
 };
 
-swStream* swStream_new(const char *dst_host, int dst_port, enum swSocket_type type);
+swStream *swStream_new(const char *dst_host, int dst_port, enum swSocket_type type);
 int swStream_send(swStream *stream, const char *data, size_t length);
 void swStream_set_protocol(swProtocol *protocol);
 void swStream_set_max_length(swStream *stream, uint32_t max_length);

@@ -21,11 +21,9 @@
 /**
  * create new buffer
  */
-swBuffer* swBuffer_new(uint32_t chunk_size)
-{
+swBuffer *swBuffer_new(uint32_t chunk_size) {
     swBuffer *buffer = (swBuffer *) sw_malloc(sizeof(swBuffer));
-    if (buffer == nullptr)
-    {
+    if (buffer == nullptr) {
         swSysWarn("malloc for buffer failed");
         return nullptr;
     }
@@ -39,23 +37,19 @@ swBuffer* swBuffer_new(uint32_t chunk_size)
 /**
  * create new chunk
  */
-swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size)
-{
+swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size) {
     swBuffer_chunk *chunk = (swBuffer_chunk *) sw_malloc(sizeof(swBuffer_chunk));
-    if (chunk == nullptr)
-    {
+    if (chunk == nullptr) {
         swSysWarn("malloc for chunk failed");
         return nullptr;
     }
 
     sw_memset_zero(chunk, sizeof(swBuffer_chunk));
 
-    //require alloc memory
-    if (type == SW_CHUNK_DATA && size > 0)
-    {
+    // require alloc memory
+    if (type == SW_CHUNK_DATA && size > 0) {
         void *buf = sw_malloc(size);
-        if (buf == nullptr)
-        {
+        if (buf == nullptr) {
             swSysWarn("malloc(%d) for data failed", size);
             sw_free(chunk);
             return nullptr;
@@ -65,14 +59,11 @@ swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t siz
     }
 
     chunk->type = type;
-    buffer->chunk_num ++;
+    buffer->chunk_num++;
 
-    if (buffer->head == nullptr)
-    {
+    if (buffer->head == nullptr) {
         buffer->tail = buffer->head = chunk;
-    }
-    else
-    {
+    } else {
         buffer->tail->next = chunk;
         buffer->tail = chunk;
     }
@@ -83,27 +74,21 @@ swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t siz
 /**
  * pop the head chunk
  */
-void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk)
-{
-    if (chunk->next == nullptr)
-    {
+void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk) {
+    if (chunk->next == nullptr) {
         buffer->head = nullptr;
         buffer->tail = nullptr;
         buffer->length = 0;
         buffer->chunk_num = 0;
-    }
-    else
-    {
+    } else {
         buffer->head = chunk->next;
         buffer->length -= chunk->length;
         buffer->chunk_num--;
     }
-    if (chunk->type == SW_CHUNK_DATA)
-    {
+    if (chunk->type == SW_CHUNK_DATA) {
         sw_free(chunk->store.ptr);
     }
-    if (chunk->destroy)
-    {
+    if (chunk->destroy) {
         chunk->destroy(chunk);
     }
     sw_free(chunk);
@@ -112,18 +97,14 @@ void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk)
 /**
  * free buffer
  */
-int swBuffer_free(swBuffer *buffer)
-{
+int swBuffer_free(swBuffer *buffer) {
     swBuffer_chunk *chunk = buffer->head;
-    swBuffer_chunk *will_free_chunk;  //free the point
-    while (chunk != nullptr)
-    {
-        if (chunk->type == SW_CHUNK_DATA)
-        {
+    swBuffer_chunk *will_free_chunk;  // free the point
+    while (chunk != nullptr) {
+        if (chunk->type == SW_CHUNK_DATA) {
             sw_free(chunk->store.ptr);
         }
-        if (chunk->destroy)
-        {
+        if (chunk->destroy) {
             chunk->destroy(chunk);
         }
         will_free_chunk = chunk;
@@ -137,20 +118,17 @@ int swBuffer_free(swBuffer *buffer)
 /**
  * append to buffer queue
  */
-int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size)
-{
+int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size) {
     uint32_t _length = size;
-    char* _pos = (char*) data;
+    char *_pos = (char *) data;
     uint32_t _n;
 
-    //buffer enQueue
-    while (_length > 0)
-    {
+    // buffer enQueue
+    while (_length > 0) {
         _n = _length >= buffer->chunk_size ? buffer->chunk_size : _length;
 
         swBuffer_chunk *chunk = swBuffer_new_chunk(buffer, SW_CHUNK_DATA, _n);
-        if (chunk == nullptr)
-        {
+        if (chunk == nullptr) {
             return SW_ERR;
         }
 
@@ -159,8 +137,8 @@ int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size)
 
         memcpy(chunk->store.ptr, _pos, _n);
 
-        swTraceLog(SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", buffer->chunk_num, _n,
-                chunk->length, chunk);
+        swTraceLog(
+            SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", buffer->chunk_num, _n, chunk->length, chunk);
 
         _pos += _n;
         _length -= _n;
@@ -172,17 +150,14 @@ int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size)
 /**
  * print buffer
  */
-void swBuffer_debug(swBuffer *buffer, int print_data)
-{
+void swBuffer_debug(swBuffer *buffer, int print_data) {
     int i = 0;
     volatile swBuffer_chunk *chunk = buffer->head;
     printf("%s\n%s\n", SW_START_LINE, __func__);
-    while (chunk != nullptr)
-    {
+    while (chunk != nullptr) {
         i++;
         printf("%d.\tlen=%d", i, chunk->length);
-        if (print_data)
-        {
+        if (print_data) {
             printf("\tdata=%s", (char *) chunk->store.ptr);
         }
         printf("\n");

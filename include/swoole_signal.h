@@ -21,8 +21,7 @@
 
 typedef void (*swSignalHandler)(int);
 
-struct swSignal
-{
+struct swSignal {
     swSignalHandler handler;
     uint16_t signo;
     uint16_t active;
@@ -37,5 +36,5 @@ swSignalHandler swSignal_set(int signo, swSignalHandler func);
 swSignalHandler swSignal_get_handler(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);
-char* swSignal_str(int sig);
+char *swSignal_str(int sig);
 void swSignal_callback(int signo);

@@ -31,44 +31,34 @@ static inline void swTable_check_key_length(uint16_t *keylen) {
     }
 }
 
-swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
-{
-    if (rows_size >= 0x80000000)
-    {
+swTable *swTable_new(uint32_t rows_size, float conflict_proportion) {
+    if (rows_size >= 0x80000000) {
         rows_size = 0x80000000;
-    }
-    else
-    {
+    } else {
         uint32_t i = 6;
-        while ((1U << i) < rows_size)
-        {
+        while ((1U << i) < rows_size) {
             i++;
         }
         rows_size = 1 << i;
     }
 
-    if (conflict_proportion > 1.0)
-    {
+    if (conflict_proportion > 1.0) {
         conflict_proportion = 1.0;
-    }
-    else if (conflict_proportion < SW_TABLE_CONFLICT_PROPORTION)
-    {
+    } else if (conflict_proportion < SW_TABLE_CONFLICT_PROPORTION) {
         conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
     swTable *table = (swTable *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swTable));
-    if (table == nullptr)
-    {
+    if (table == nullptr) {
         return nullptr;
     }
-    if (swMutex_create(&table->lock, 1) < 0)
-    {
+    if (swMutex_create(&table->lock, 1) < 0) {
         swWarn("mutex create failed");
         return nullptr;
     }
     table->iterator = new swTable_iterator;
-    table->column_map = new std::unordered_map<std::string, swTableColumn*>;
-    table->column_list = new std::vector<swTableColumn*>;
+    table->column_map = new std::unordered_map<std::string, swTableColumn *>;
+    table->column_list = new std::vector<swTableColumn *>;
     table->size = rows_size;
     table->mask = rows_size - 1;
     table->conflict_proportion = conflict_proportion;
@@ -84,10 +74,8 @@ swTable* swTable_new(uint32_t rows_size, float conflict_proportion)
     return table;
 }
 
-bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size)
-{
-    if (type < SW_TABLE_INT || type > SW_TABLE_STRING)
-    {
+bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size) {
+    if (type < SW_TABLE_INT || type > SW_TABLE_STRING) {
         swWarn("unkown column type");
         return false;
     }
@@ -101,8 +89,7 @@ bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColu
     return true;
 }
 
-size_t swTable_get_memory_size(swTable *table)
-{
+size_t swTable_get_memory_size(swTable *table) {
     /**
      * table size + conflict size
      */
@@ -131,14 +118,12 @@ size_t swTable_get_memory_size(swTable *table)
     return memory_size;
 }
 
-int swTable_create(swTable *table)
-{
+int swTable_create(swTable *table) {
     size_t memory_size = swTable_get_memory_size(table);
     size_t row_memory_size = sizeof(swTableRow) + table->item_size;
 
     void *memory = sw_shm_malloc(memory_size);
-    if (memory == nullptr)
-    {
+    if (memory == nullptr) {
         return SW_ERR;
     }
 
@@ -149,8 +134,7 @@ int swTable_create(swTable *table)
     memory = (char *) memory + table->size * sizeof(swTableRow *);
     memory_size -= table->size * sizeof(swTableRow *);
 
-    for (size_t i = 0; i < table->size; i++)
-    {
+    for (size_t i = 0; i < table->size; i++) {
         table->rows[i] = (swTableRow *) ((char *) memory + (row_memory_size * i));
         memset(table->rows[i], 0, sizeof(swTableRow));
     }
@@ -163,16 +147,17 @@ int swTable_create(swTable *table)
     return SW_OK;
 }
 
-void swTable_free(swTable *table)
-{
+void swTable_free(swTable *table) {
 #ifdef SW_TABLE_DEBUG
-    printf("swoole_table: size=%d, conflict_count=%d, conflict_max_level=%d, insert_count=%d\n", table->size,
-            conflict_count, conflict_max_level, insert_count);
+    printf("swoole_table: size=%d, conflict_count=%d, conflict_max_level=%d, insert_count=%d\n",
+           table->size,
+           conflict_count,
+           conflict_max_level,
+           insert_count);
 #endif
 
     auto i = table->column_map->begin();
-    while (i != table->column_map->end())
-    {
+    while (i != table->column_map->end()) {
         delete i->second;
         table->column_map->erase(i++);
     }
@@ -180,69 +165,53 @@ void swTable_free(swTable *table)
     delete table->column_list;
     delete table->iterator;
 
-    if (table->create_pid != SwooleG.pid)
-    {
+    if (table->create_pid != SwooleG.pid) {
         return;
     }
 
-    if (table->memory)
-    {
+    if (table->memory) {
         sw_shm_free(table->memory);
     }
     SwooleG.memory_pool->free(SwooleG.memory_pool, table);
 }
 
-static sw_inline swTableRow* swTable_hash(swTable *table, const char *key, int keylen)
-{
+static sw_inline swTableRow *swTable_hash(swTable *table, const char *key, int keylen) {
     uint64_t hashv = table->hash_func(key, keylen);
     uint64_t index = hashv & table->mask;
     assert(index < table->size);
     return table->rows[index];
 }
 
-void swTable_iterator_rewind(swTable *table)
-{
+void swTable_iterator_rewind(swTable *table) {
     sw_memset_zero(table->iterator, sizeof(swTable_iterator));
 }
 
-static sw_inline swTableRow* swTable_iterator_get(swTable *table, uint32_t index)
-{
+static sw_inline swTableRow *swTable_iterator_get(swTable *table, uint32_t index) {
     swTableRow *row = table->rows[index];
     return row->active ? row : nullptr;
 }
 
-swTableRow* swTable_iterator_current(swTable *table)
-{
+swTableRow *swTable_iterator_current(swTable *table) {
     return table->iterator->row;
 }
 
-void swTable_iterator_forward(swTable *table)
-{
-    for (; table->iterator->absolute_index < table->size; table->iterator->absolute_index++)
-    {
+void swTable_iterator_forward(swTable *table) {
+    for (; table->iterator->absolute_index < table->size; table->iterator->absolute_index++) {
         swTableRow *row = swTable_iterator_get(table, table->iterator->absolute_index);
-        if (row == nullptr)
-        {
+        if (row == nullptr) {
             continue;
-        }
-        else if (row->next == nullptr)
-        {
+        } else if (row->next == nullptr) {
             table->iterator->absolute_index++;
             table->iterator->row = row;
             return;
-        }
-        else
-        {
+        } else {
             uint32_t i = 0;
-            for (;; i++)
-            {
-                if (row == nullptr)
-                {
+            for (;; i++) {
+                if (row == nullptr) {
                     table->iterator->collision_index = 0;
                     break;
                 }
-                if (i == table->iterator->collision_index)
-                {
+                if (i == table->iterator->collision_index) {
                     table->iterator->collision_index++;
                     table->iterator->row = row;
                     return;
@@ -254,31 +223,23 @@ void swTable_iterator_forward(swTable *table)
     table->iterator->row = nullptr;
 }
 
-swTableRow* swTableRow_get(swTable *table, const char *key, uint16_t keylen, swTableRow** rowlock)
-{
+swTableRow *swTableRow_get(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock) {
     swTable_check_key_length(&keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     *rowlock = row;
     swTableRow_lock(row);
 
-    for (;;)
-    {
-        if (sw_mem_equal(row->key, row->key_len, key, keylen))
-        {
-            if (!row->active)
-            {
+    for (;;) {
+        if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
+            if (!row->active) {
                 row = nullptr;
             }
             break;
-        }
-        else if (row->next == nullptr)
-        {
+        } else if (row->next == nullptr) {
             row = nullptr;
             break;
-        }
-        else
-        {
+        } else {
             row = row->next;
         }
     }
@@ -286,8 +247,7 @@ swTableRow* swTableRow_get(swTable *table, const char *key, uint16_t keylen, swT
     return row;
 }
 
-static inline void swTableRow_init(swTable *table, swTableRow *new_row, const char *key, int keylen)
-{
+static inline void swTableRow_init(swTable *table, swTableRow *new_row, const char *key, int keylen) {
     sw_memset_zero(new_row, sizeof(swTableRow));
     memcpy(new_row->key, key, keylen);
     new_row->key[keylen] = '\0';
@@ -296,8 +256,7 @@ static inline void swTableRow_init(swTable *table, swTableRow *new_row, const ch
     sw_atomic_fetch_add(&(table->row_num), 1);
 }
 
-swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock)
-{
+swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock) {
     swTable_check_key_length(&keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
@@ -308,50 +267,39 @@ swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swT
     int _conflict_level = 0;
 #endif
 
-    if (row->active)
-    {
-        for (;;)
-        {
-            if (sw_mem_equal(row->key, row->key_len, key, keylen))
-            {
+    if (row->active) {
+        for (;;) {
+            if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
                 break;
-            }
-            else if (row->next == nullptr)
-            {
+            } else if (row->next == nullptr) {
                 table->lock.lock(&table->lock);
                 swTableRow *new_row = (swTableRow *) table->pool->alloc(table->pool, 0);
 
 #ifdef SW_TABLE_DEBUG
-                conflict_count ++;
-                if (_conflict_level > conflict_max_level)
-                {
+                conflict_count++;
+                if (_conflict_level > conflict_max_level) {
                     conflict_max_level = _conflict_level;
                 }
 
 #endif
                 table->lock.unlock(&table->lock);
-                if (!new_row)
-                {
+                if (!new_row) {
                     return nullptr;
                 }
                 swTableRow_init(table, new_row, key, keylen);
                 row->next = new_row;
                 row = new_row;
                 break;
-            }
-            else
-            {
+            } else {
                 row = row->next;
 #ifdef SW_TABLE_DEBUG
                 _conflict_level++;
 #endif
             }
         }
-    }
-    else
-    {
+    } else {
 #ifdef SW_TABLE_DEBUG
-        insert_count ++;
+        insert_count++;
 #endif
         swTableRow_init(table, row, key, keylen);
     }
@@ -359,65 +307,52 @@ swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swT
     return row;
 }
 
-int swTableRow_del(swTable *table, const char *key, uint16_t keylen)
-{
+int swTableRow_del(swTable *table, const char *key, uint16_t keylen) {
     swTable_check_key_length(&keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
-    //no exists
-    if (!row->active)
-    {
+    // no exists
+    if (!row->active) {
         return SW_ERR;
     }
 
     swTableRow *tmp, *prev = nullptr;
 
     swTableRow_lock(row);
-    if (row->next == nullptr)
-    {
-        if (sw_mem_equal(row->key, row->key_len, key, keylen))
-        {
+    if (row->next == nullptr) {
+        if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
             sw_memset_zero(row, sizeof(swTableRow));
             goto _delete_element;
-        }
-        else
-        {
+        } else {
             goto _not_exists;
         }
-    }
-    else
-    {
+    } else {
         tmp = row;
-        while (tmp)
-        {
-            if (sw_mem_equal(tmp->key, tmp->key_len, key, keylen))
-            {
+        while (tmp) {
+            if (sw_mem_equal(tmp->key, tmp->key_len, key, keylen)) {
                 break;
             }
             prev = tmp;
             tmp = tmp->next;
         }
 
-        if (tmp == nullptr)
-        {
-            _not_exists:
+        if (tmp == nullptr) {
+        _not_exists:
             swTableRow_unlock(row);
 
             return SW_ERR;
         }
 
-        //when the deleting element is root, we should move the first element's data to root,
-        //and remove the element from the collision list.
-        if (tmp == row)
-        {
+        // when the deleting element is root, we should move the first element's data to root,
+        // and remove the element from the collision list.
+        if (tmp == row) {
             tmp = tmp->next;
             row->next = tmp->next;
             memcpy(row->key, tmp->key, tmp->key_len + 1);
             row->key_len = tmp->key_len;
             memcpy(row->data, tmp->data, table->item_size);
         }
-        if (prev)
-        {
+        if (prev) {
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
@@ -426,7 +361,7 @@ int swTableRow_del(swTable *table, const char *key, uint16_t keylen)
         table->lock.unlock(&table->lock);
     }
 
-    _delete_element:
+_delete_element:
     sw_atomic_fetch_sub(&(table->row_num), 1);
     swTableRow_unlock(row);
 

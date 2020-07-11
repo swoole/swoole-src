@@ -21,18 +21,15 @@ static int swMutex_unlock(swLock *lock);
 static int swMutex_trylock(swLock *lock);
 static int swMutex_free(swLock *lock);
 
-int swMutex_create(swLock *lock, int use_in_process)
-{
+int swMutex_create(swLock *lock, int use_in_process) {
     int ret;
     sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_MUTEX;
     pthread_mutexattr_init(&lock->object.mutex.attr);
-    if (use_in_process == 1)
-    {
+    if (use_in_process == 1) {
         pthread_mutexattr_setpshared(&lock->object.mutex.attr, PTHREAD_PROCESS_SHARED);
     }
-    if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0)
-    {
+    if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0) {
         return SW_ERR;
     }
     lock->lock = swMutex_lock;
@@ -42,49 +39,39 @@ int swMutex_create(swLock *lock, int use_in_process)
     return SW_OK;
 }
 
-static int swMutex_lock(swLock *lock)
-{
+static int swMutex_lock(swLock *lock) {
     return pthread_mutex_lock(&lock->object.mutex._lock);
 }
 
-static int swMutex_unlock(swLock *lock)
-{
+static int swMutex_unlock(swLock *lock) {
     return pthread_mutex_unlock(&lock->object.mutex._lock);
 }
 
-static int swMutex_trylock(swLock *lock)
-{
+static int swMutex_trylock(swLock *lock) {
     return pthread_mutex_trylock(&lock->object.mutex._lock);
 }
 
 #ifdef HAVE_MUTEX_TIMEDLOCK
-int swMutex_lockwait(swLock *lock, int timeout_msec)
-{
+int swMutex_lockwait(swLock *lock, int timeout_msec) {
     struct timespec timeo;
     timeo.tv_sec = timeout_msec / 1000;
     timeo.tv_nsec = (timeout_msec - timeo.tv_sec * 1000) * 1000 * 1000;
     return pthread_mutex_timedlock(&lock->object.mutex._lock, &timeo);
 }
 #else
-int swMutex_lockwait(swLock *lock, int timeout_msec)
-{
+int swMutex_lockwait(swLock *lock, int timeout_msec) {
     int sub = 1;
     int sleep_ms = 1000;
 
-    if (timeout_msec > 100)
-    {
+    if (timeout_msec > 100) {
         sub = 10;
         sleep_ms = 10000;
     }
 
-    while( timeout_msec > 0)
-    {
-        if (pthread_mutex_trylock(&lock->object.mutex._lock) == 0)
-        {
+    while (timeout_msec > 0) {
+        if (pthread_mutex_trylock(&lock->object.mutex._lock) == 0) {
             return 0;
-        }
-        else
-        {
+        } else {
             usleep(sleep_ms);
             timeout_msec -= sub;
         }
@@ -93,8 +80,7 @@ int swMutex_lockwait(swLock *lock, int timeout_msec)
 }
 #endif
 
-static int swMutex_free(swLock *lock)
-{
+static int swMutex_free(swLock *lock) {
     pthread_mutexattr_destroy(&lock->object.mutex.attr);
     return pthread_mutex_destroy(&lock->object.mutex._lock);
 }

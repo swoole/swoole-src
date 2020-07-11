@@ -20,6 +20,8 @@
 #include <string.h>
 #include "base64.h"
 
+// clang-format off
+
 /* BASE 64 encode table */
 static char base64en[] =
 {
@@ -56,15 +58,14 @@ static signed char base64de[] = {
         44, 45, 46, 47, 48, 49, 50, 51,
 };
 
-size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out)
-{
+// clang-format on
+
+size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out) {
     size_t i, j;
 
-    for (i = j = 0; i < inlen; i++)
-    {
+    for (i = j = 0; i < inlen; i++) {
         int s = i % 3; /* from 6/gcd(6, 8) */
-        switch (s)
-        {
+        switch (s) {
         case 0:
             out[j++] = base64en[(in[i] >> 2) & 0x3F];
             continue;
@@ -79,14 +80,11 @@ size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out)
     /* move back */
     i -= 1;
     /* check the last and add padding */
-    if ((i % 3) == 0)
-    {
+    if ((i % 3) == 0) {
         out[j++] = base64en[(in[i] & 0x3) << 4];
         out[j++] = BASE64_PAD;
         out[j++] = BASE64_PAD;
-    }
-    else if ((i % 3) == 1)
-    {
+    } else if ((i % 3) == 1) {
         out[j++] = base64en[(in[i] & 0xF) << 2];
         out[j++] = BASE64_PAD;
     }
@@ -95,41 +93,34 @@ size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out)
     return j;
 }
 
-size_t swBase64_decode(const char *in, size_t inlen, char* out)
-{
+size_t swBase64_decode(const char *in, size_t inlen, char *out) {
     size_t i, j;
 
-    for (i = j = 0; i < inlen; i++)
-    {
+    for (i = j = 0; i < inlen; i++) {
         int c;
         int s = i % 4; /* from 8/gcd(6, 8) */
 
-        if (in[i] == '=')
-        {
+        if (in[i] == '=') {
             break;
         }
 
-        if (in[i] < BASE64DE_FIRST || in[i] > BASE64DE_LAST || (c = base64de[in[i] - BASE64DE_FIRST]) == -1)
-        {
+        if (in[i] < BASE64DE_FIRST || in[i] > BASE64DE_LAST || (c = base64de[in[i] - BASE64DE_FIRST]) == -1) {
             return 0;
         }
 
-        switch (s)
-        {
+        switch (s) {
         case 0:
             out[j] = c << 2;
             continue;
         case 1:
             out[j++] += (c >> 4) & 0x3;
             /* if not last char with padding */
-            if (i < (inlen - 3) || in[inlen - 2] != '=')
-                out[j] = (c & 0xF) << 4;
+            if (i < (inlen - 3) || in[inlen - 2] != '=') out[j] = (c & 0xF) << 4;
             continue;
         case 2:
             out[j++] += (c >> 2) & 0xF;
             /* if not last char with padding */
-            if (i < (inlen - 2) || in[inlen - 1] != '=')
-                out[j] = (c & 0x3) << 6;
+            if (i < (inlen - 2) || in[inlen - 1] != '=') out[j] = (c & 0x3) << 6;
             continue;
         case 3:
             out[j++] += c;

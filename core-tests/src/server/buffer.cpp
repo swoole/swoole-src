@@ -26,16 +26,14 @@ using namespace swoole;
 
 static const char *packet = "hello world\n";
 
-TEST(server, send_buffer)
-{
+TEST(server, send_buffer) {
     swServer serv(SW_MODE_BASE);
     serv.worker_num = 1;
 
     sw_logger().set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    if (!port)
-    {
+    if (!port) {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
@@ -45,8 +43,7 @@ TEST(server, send_buffer)
     mutex lock;
     lock.lock();
 
-    std::thread t1([&]()
-    {
+    std::thread t1([&]() {
         swSignal_none();
 
         lock.lock();
@@ -56,11 +53,9 @@ TEST(server, send_buffer)
         c.send(packet, strlen(packet));
         char buf[4096];
 
-        while(1)
-        {
+        while (1) {
             ssize_t retval = c.recv(buf, sizeof(buf));
-            if (retval <= 0)
-            {
+            if (retval <= 0) {
                 break;
             }
             usleep(100);
@@ -71,18 +66,14 @@ TEST(server, send_buffer)
         kill(getpid(), SIGTERM);
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id)
-    {
-        lock.unlock();
-    };
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, swEventData *req) -> int
-    {
+    serv.onReceive = [](swServer *serv, swEventData *req) -> int {
         char *data = nullptr;
         size_t length = serv->get_packet(serv, req, &data);
         EXPECT_EQ(string(data, length), string(packet));
 
-        swoole::String resp(swoole::make_string(1024*1024*16));
+        swoole::String resp(swoole::make_string(1024 * 1024 * 16));
         auto str = resp.get();
         swString_repeat(str, "A", 1, resp.size());
         serv->send(serv, req->info.fd, str->str, str->length);
@@ -94,4 +85,3 @@ TEST(server, send_buffer)
     serv.start();
     t1.join();
 }
-

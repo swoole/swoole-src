@@ -21,8 +21,7 @@
 #include <sys/socket.h>
 #include <sys/uio.h>
 
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
-{
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     int ret;
 
 #ifdef __MACH__
@@ -35,16 +34,16 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     off_t sent_bytes;
 #endif
 
-
-    _do_sendfile:
+_do_sendfile:
 #ifdef __MACH__
     ret = sendfile(in_fd, out_fd, *offset, (off_t *) &size, &hdtr, 0);
 #else
     ret = sendfile(in_fd, out_fd, *offset, size, 0, &sent_bytes, 0);
 #endif
 
-    //sent_bytes = (off_t)size;
-    swTrace("send file, ret:%d, out_fd:%d, in_fd:%d, offset:%jd, size:%zu", ret, out_fd, in_fd, (intmax_t) *offset, size);
+    // sent_bytes = (off_t)size;
+    swTrace(
+        "send file, ret:%d, out_fd:%d, in_fd:%d, offset:%jd, size:%zu", ret, out_fd, in_fd, (intmax_t) *offset, size);
 
 #ifdef __MACH__
     *offset += size;
@@ -52,52 +51,37 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
     *offset += sent_bytes;
 #endif
 
-    if (ret == -1)
-    {
-        if (errno == EINTR)
-        {
+    if (ret == -1) {
+        if (errno == EINTR) {
             goto _do_sendfile;
-        }
-        else
-        {
+        } else {
             return ret;
         }
-    }
-    else if (ret == 0)
-    {
+    } else if (ret == 0) {
         return size;
-    }
-    else
-    {
+    } else {
         swSysWarn("sendfile failed");
         return SW_ERR;
     }
     return SW_OK;
 }
 #elif !defined(HAVE_SENDFILE)
-int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size)
-{
+int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     char buf[SW_BUFFER_SIZE_BIG];
     int readn = size > sizeof(buf) ? sizeof(buf) : size;
 
     int ret;
     int n = pread(in_fd, buf, readn, *offset);
 
-    if (n > 0)
-    {
+    if (n > 0) {
         ret = write(out_fd, buf, n);
-        if (ret < 0)
-        {
+        if (ret < 0) {
             swSysWarn("write() failed");
-        }
-        else
-        {
+        } else {
             *offset += ret;
         }
         return ret;
-    }
-    else
-    {
+    } else {
         swSysWarn("pread() failed");
         return SW_ERR;
     }

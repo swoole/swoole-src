@@ -25,7 +25,6 @@ using namespace httplib;
 using namespace std;
 
 TEST(coroutine_http_server, get) {
-
     std::thread t1([]() {
         usleep(10000);
         Client cli(TEST_HOST, 8080);
@@ -41,18 +40,14 @@ TEST(coroutine_http_server, get) {
     coroutine::run([](void *arg) {
         Server svr;
 
-        svr.Get("/hi", [](const Request &req, Response &res) {
-            res.set_content("Hello World!", "text/plain");
-        });
+        svr.Get("/hi", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
         svr.Get("/stop", [&svr](const Request &req, Response &res) {
             res.set_content("Stop Server!", "text/plain");
             svr.stop();
         });
 
-        svr.Post("/post", [](const Request &req, Response &res) {
-            res.set_content("Hello World!", "text/plain");
-        });
+        svr.Post("/post", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
         svr.listen(TEST_HOST, 8080);
     });
@@ -61,7 +56,6 @@ TEST(coroutine_http_server, get) {
 }
 
 TEST(coroutine_http_server, post) {
-
     std::thread t1([]() {
         usleep(10000);
         Client cli(TEST_HOST, 8080);
@@ -87,9 +81,7 @@ TEST(coroutine_http_server, post) {
             svr.stop();
         });
 
-        svr.Post("/post", [](const Request &req, Response &res) {
-            res.set_content("Hello World!", "text/plain");
-        });
+        svr.Post("/post", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
         svr.listen(TEST_HOST, 8080);
     });

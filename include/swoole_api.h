@@ -21,8 +21,7 @@
 #include "swoole.h"
 #include "coroutine_c_api.h"
 
-enum swEvent_init_flags
-{
+enum swEvent_init_flags {
     SW_EVENTLOOP_WAIT_EXIT = 1,
 };
 
@@ -48,10 +47,9 @@ SW_API int swoole_event_set_handler(int fdtype, swReactor_handler handler);
 SW_API int swoole_event_isset_handler(int fdtype);
 
 #ifdef __MACH__
-swReactor* sw_reactor();
-swTimer* sw_timer();
+swReactor *sw_reactor();
+swTimer *sw_timer();
 #else
-#define sw_reactor()       (SwooleTG.reactor)
-#define sw_timer()         (SwooleTG.timer)
+#define sw_reactor() (SwooleTG.reactor)
+#define sw_timer() (SwooleTG.timer)
 #endif
-

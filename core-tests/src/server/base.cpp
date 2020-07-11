@@ -23,13 +23,11 @@
 
 using namespace swoole::test;
 
-Server::Server(std::string _host, int _port, enum swServer_mode _mode, int _type):
-        serv(_mode), host(_host), port(_port), mode(_mode), type(_type)
-{
+Server::Server(std::string _host, int _port, enum swServer_mode _mode, int _type)
+    : serv(_mode), host(_host), port(_port), mode(_mode), type(_type) {
     serv.worker_num = 1;
 
-    if (mode == SW_MODE_BASE)
-    {
+    if (mode == SW_MODE_BASE) {
         serv.reactor_num = 1;
         serv.worker_num = 1;
     }
@@ -37,73 +35,48 @@ Server::Server(std::string _host, int _port, enum swServer_mode _mode, int _type
     serv.dispatch_mode = 2;
     serv.ptr2 = this;
 
-    if (!listen(host, port, (swSocket_type) type))
-    {
+    if (!listen(host, port, (swSocket_type) type)) {
         swWarn("listen fail[error=%d].", errno);
         exit(0);
     }
 
-    if (serv.create() < 0)
-    {
+    if (serv.create() < 0) {
         swWarn("create server fail[error=%d].", errno);
         exit(0);
     }
 }
 
-Server::~Server()
-{
-}
+Server::~Server() {}
 
-void Server::on(std::string event, void *fn)
-{
-    if (event == "Start")
-    {
+void Server::on(std::string event, void *fn) {
+    if (event == "Start") {
         serv.onStart = (_onStart) fn;
-    }
-    else if (event == "onShutdown")
-    {
+    } else if (event == "onShutdown") {
         serv.onShutdown = (_onShutdown) fn;
-    }
-    else if (event == "onPipeMessage")
-    {
+    } else if (event == "onPipeMessage") {
         serv.onPipeMessage = (_onPipeMessage) fn;
-    }
-    else if (event == "onWorkerStart")
-    {
+    } else if (event == "onWorkerStart") {
         serv.onWorkerStart = (_onWorkerStart) fn;
-    }
-    else if (event == "onWorkerStop")
-    {
+    } else if (event == "onWorkerStop") {
         serv.onWorkerStop = (_onWorkerStop) fn;
-    }
-    else if (event == "onReceive")
-    {
+    } else if (event == "onReceive") {
         serv.onReceive = (_onReceive) fn;
-    }
-    else if (event == "onPacket")
-    {
+    } else if (event == "onPacket") {
         serv.onPacket = (_onPacket) fn;
-    }
-    else if (event == "onClose")
-    {
+    } else if (event == "onClose") {
         serv.onClose = (_onClose) fn;
-    }
-    else
-    {
+    } else {
         serv.onConnect = (_onConnect) fn;
     }
 }
 
-bool Server::start()
-{
+bool Server::start() {
     return serv.start() == 0;
 }
 
-bool Server::listen(std::string host, int port, enum swSocket_type type)
-{
+bool Server::listen(std::string host, int port, enum swSocket_type type) {
     swListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
-    if (ls == nullptr)
-    {
+    if (ls == nullptr) {
         return false;
     }
 
@@ -111,18 +84,15 @@ bool Server::listen(std::string host, int port, enum swSocket_type type)
     return true;
 }
 
-size_t Server::get_packet(swEventData *req, char **data_ptr)
-{
+size_t Server::get_packet(swEventData *req, char **data_ptr) {
     return serv.get_packet(&serv, req, data_ptr);
 }
 
-int Server::send(int session_id, void *data, uint32_t length)
-{
+int Server::send(int session_id, void *data, uint32_t length) {
     return serv.send(&serv, session_id, data, length);
 }
 
-ssize_t Server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket)
-{
+ssize_t Server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket) {
     char ip[256];
     uint16_t port;
 
@@ -132,7 +102,6 @@ ssize_t Server::sendto(swSocketAddress *address, const char *__buf, size_t __n, 
     return swSocket_udp_sendto(server_socket, ip, port, __buf, __n);
 }
 
-int Server::close(int session_id, int reset)
-{
+int Server::close(int session_id, int reset) {
     return serv.close(&serv, session_id, reset);
 }

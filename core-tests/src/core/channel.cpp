@@ -45,13 +45,12 @@ TEST(channel, push) {
 
     swTrace("size=%d\n", m.size());
 
-    thread t1([&]()
-    {
+    thread t1([&]() {
         auto next = m.find(0);
         int index = 1;
         size_t bytes = 0;
 
-        while(bytes < N) {
+        while (bytes < N) {
             if (c->push(next->second.c_str(), next->second.length()) == SW_OK) {
                 swTrace("[PUSH] index=%d, size=%d\n", index, next->second.length());
                 bytes += next->second.length();
@@ -65,12 +64,11 @@ TEST(channel, push) {
         }
     });
 
-    thread t2([&]()
-    {
+    thread t2([&]() {
         char buf[8000];
         size_t bytes = 0;
         int index = 0;
-        while(bytes < N) {
+        while (bytes < N) {
             int retval = c->pop(buf, sizeof(buf));
             if (retval > 0) {
                 swTrace("[POP] index=%d, size=%ld\n", index, retval);

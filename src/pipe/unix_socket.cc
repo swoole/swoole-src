@@ -22,8 +22,7 @@ static int swPipeUnsock_read(swPipe *p, void *data, int length);
 static int swPipeUnsock_write(swPipe *p, const void *data, int length);
 static int swPipeUnsock_close(swPipe *p);
 
-typedef struct _swPipeUnsock
-{
+typedef struct _swPipeUnsock {
     /**
      * master : socks[1]
      * worker : socks[0]
@@ -39,38 +38,30 @@ typedef struct _swPipeUnsock
     uint8_t pipe_worker_closed;
 } swPipeUnsock;
 
-static int swPipeUnsock_close(swPipe *p)
-{
+static int swPipeUnsock_close(swPipe *p) {
     swPipeUnsock *object = (swPipeUnsock *) p->object;
     int ret = swPipeUnsock_close_ext(p, 0);
     sw_free(object);
     return ret;
 }
 
-int swPipeUnsock_close_ext(swPipe *p, int which)
-{
+int swPipeUnsock_close_ext(swPipe *p, int which) {
     swPipeUnsock *object = (swPipeUnsock *) p->object;
 
-    if (which == SW_PIPE_CLOSE_MASTER)
-    {
-        if (object->pipe_master_closed)
-        {
+    if (which == SW_PIPE_CLOSE_MASTER) {
+        if (object->pipe_master_closed) {
             return SW_ERR;
         }
         swSocket_free(p->master_socket);
         object->pipe_master_closed = 1;
-    }
-    else if (which == SW_PIPE_CLOSE_WORKER)
-    {
-        if (object->pipe_worker_closed)
-        {
+    } else if (which == SW_PIPE_CLOSE_WORKER) {
+        if (object->pipe_worker_closed) {
             return SW_ERR;
         }
-        swSocket_free(p->worker_socket);;
+        swSocket_free(p->worker_socket);
+        ;
         object->pipe_worker_closed = 1;
-    }
-    else
-    {
+    } else {
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_MASTER);
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_WORKER);
     }
@@ -78,28 +69,22 @@ int swPipeUnsock_close_ext(swPipe *p, int which)
     return SW_OK;
 }
 
-int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
-{
+int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
     int ret;
     swPipeUnsock *object = (swPipeUnsock *) sw_malloc(sizeof(swPipeUnsock));
-    if (object == nullptr)
-    {
+    if (object == nullptr) {
         swWarn("malloc() failed");
         return SW_ERR;
     }
     sw_memset_zero(object, sizeof(swPipeUnsock));
     p->blocking = blocking;
     ret = socketpair(AF_UNIX, protocol, 0, object->socks);
-    if (ret < 0)
-    {
+    if (ret < 0) {
         swSysWarn("socketpair() failed");
         sw_free(object);
         return SW_ERR;
-    }
-    else
-    {
-        if (swPipe_init_socket(p, object->socks[1], object->socks[0], blocking) < 0)
-        {
+    } else {
+        if (swPipe_init_socket(p, object->socks[1], object->socks[0], blocking) < 0) {
             sw_free(object);
             return SW_ERR;
         }
@@ -117,12 +102,10 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol)
     return 0;
 }
 
-static int swPipeUnsock_read(swPipe *p, void *data, int length)
-{
+static int swPipeUnsock_read(swPipe *p, void *data, int length) {
     return read(((swPipeUnsock *) p->object)->socks[0], data, length);
 }
 
-static int swPipeUnsock_write(swPipe *p, const void *data, int length)
-{
+static int swPipeUnsock_write(swPipe *p, const void *data, int length) {
     return write(((swPipeUnsock *) p->object)->socks[1], data, length);
 }

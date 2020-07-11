@@ -23,13 +23,12 @@
 
 #include <unordered_map>
 
-#define SW_TIMER_MIN_MS  1
+#define SW_TIMER_MIN_MS 1
 #define SW_TIMER_MIN_SEC 0.001
-#define SW_TIMER_MAX_MS  LONG_MAX
+#define SW_TIMER_MAX_MS LONG_MAX
 #define SW_TIMER_MAX_SEC ((double) (LONG_MAX / 1000))
 
-struct swTimer
-{
+struct swTimer {
     /*--------------signal timer--------------*/
     swReactor *reactor;
     swHeap *heap;
@@ -55,34 +54,26 @@ void swTimer_free(swTimer *timer);
 int swTimer_select(swTimer *timer);
 int swTimer_now(struct timeval *time);
 
-static sw_inline swTimer_node *swTimer_get(swTimer *timer, long id)
-{
+static sw_inline swTimer_node *swTimer_get(swTimer *timer, long id) {
     auto it = timer->map->find(id);
-    if (it == timer->map->end())
-    {
+    if (it == timer->map->end()) {
         return nullptr;
-    }
-    else
-    {
+    } else {
         return it->second;
     }
 }
 
-static sw_inline swTimer_node* swTimer_get_ex(swTimer *timer, long id, const enum swTimer_type type)
-{
-    swTimer_node* tnode = swTimer_get(timer, id);
+static sw_inline swTimer_node *swTimer_get_ex(swTimer *timer, long id, const enum swTimer_type type) {
+    swTimer_node *tnode = swTimer_get(timer, id);
     return (tnode && tnode->type == type) ? tnode : NULL;
 }
 
-static sw_inline int64_t swTimer_get_relative_msec()
-{
+static sw_inline int64_t swTimer_get_relative_msec() {
     struct timeval now;
-    if (!SwooleTG.timer)
-    {
+    if (!SwooleTG.timer) {
         return SW_ERR;
     }
-    if (swTimer_now(&now) < 0)
-    {
+    if (swTimer_now(&now) < 0) {
         return SW_ERR;
     }
     int64_t msec1 = (now.tv_sec - SwooleTG.timer->basetime.tv_sec) * 1000;
@@ -90,11 +81,9 @@ static sw_inline int64_t swTimer_get_relative_msec()
     return msec1 + msec2;
 }
 
-static sw_inline int64_t swTimer_get_absolute_msec()
-{
+static sw_inline int64_t swTimer_get_absolute_msec() {
     struct timeval now;
-    if (swTimer_now(&now) < 0)
-    {
+    if (swTimer_now(&now) < 0) {
         return SW_ERR;
     }
     int64_t msec1 = (now.tv_sec) * 1000;

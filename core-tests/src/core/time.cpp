@@ -1,8 +1,7 @@
 #include "tests.h"
 #include "swoole_util.h"
 
-TEST(time, get_ms)
-{
+TEST(time, get_ms) {
     const int us = 3000;
     long ms1 = swoole::time<std::chrono::milliseconds>();
     usleep(us);
@@ -10,8 +9,7 @@ TEST(time, get_ms)
     EXPECT_GE(ms2 - ms1, us / 1000);
 }
 
-TEST(time, get_ms_steady)
-{
+TEST(time, get_ms_steady) {
     const int us = 3000;
     long ms1 = swoole::time<std::chrono::milliseconds>(true);
     usleep(us);
@@ -19,8 +17,7 @@ TEST(time, get_ms_steady)
     EXPECT_GE(ms2 - ms1, us / 1000);
 }
 
-TEST(time, get_seconds)
-{
+TEST(time, get_seconds) {
     long sec1 = swoole::time<std::chrono::seconds>();
     time_t sec2 = time(NULL);
     EXPECT_EQ(sec1, sec2);

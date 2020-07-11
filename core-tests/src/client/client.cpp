@@ -6,28 +6,25 @@
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)
 
+using swoole::AsyncClient;
 using swoole::test::Process;
 using swoole::test::Server;
-using swoole::AsyncClient;
 
-TEST(client, tcp)
-{
+TEST(client, tcp) {
     int ret;
     swClient cli;
     char buf[128];
 
     pid_t pid;
 
-    Process proc([](Process *proc)
-    {
-        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
-        {
+    Process proc([](Process *proc) {
+        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
             char *data_ptr = NULL;
             size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
 
             SERVER_THIS->send(req->info.fd, data_ptr, data_len);
         };
-        
+
         Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
@@ -35,7 +32,7 @@ TEST(client, tcp)
 
     pid = proc.start();
 
-    sleep(1); // wait for the test server to start
+    sleep(1);  // wait for the test server to start
 
     ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
     ASSERT_EQ(ret, 0);
@@ -50,18 +47,15 @@ TEST(client, tcp)
     kill(pid, SIGKILL);
 }
 
-TEST(client, udp)
-{
+TEST(client, udp) {
     int ret;
     swClient cli;
     char buf[128];
 
     pid_t pid;
 
-    Process proc([](Process *proc)
-    {
-        on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS)
-        {
+    Process proc([](Process *proc) {
+        on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS) {
             swDgramPacket *packet = nullptr;
             SERVER_THIS->get_packet(req, (char **) &packet);
 
@@ -75,7 +69,7 @@ TEST(client, udp)
 
     pid = proc.start();
 
-    sleep(1); // wait for the test server to start
+    sleep(1);  // wait for the test server to start
 
     ret = swClient_create(&cli, SW_SOCK_UDP, SW_SOCK_SYNC);
     ASSERT_EQ(ret, 0);
@@ -90,17 +84,14 @@ TEST(client, udp)
     kill(pid, SIGKILL);
 }
 
-TEST(client, async_tcp)
-{
+TEST(client, async_tcp) {
     pid_t pid;
 
     swPipe p;
     ASSERT_EQ(swPipeNotify_auto(&p, 1, 1), 0);
 
-    Process proc([&p](Process *proc)
-    {
-        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS)
-        {
+    Process proc([&p](Process *proc) {
+        on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
             char *data_ptr = NULL;
             size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
 
@@ -113,8 +104,7 @@ TEST(client, async_tcp)
 
         serv.on("onReceive", (void *) receive_fn);
 
-        on_workerstart_lambda_type worker_start_fn = [] (ON_WORKERSTART_PARAMS)
-        {
+        on_workerstart_lambda_type worker_start_fn = [](ON_WORKERSTART_PARAMS) {
             swPipe *p = (swPipe *) SERVER_THIS->get_private_data("pipe");
             int64_t value = 1;
             p->write(p, &value, sizeof(value));
@@ -135,22 +125,16 @@ TEST(client, async_tcp)
 
     AsyncClient ac(SW_SOCK_TCP);
 
-    ac.on_connect([](AsyncClient *ac)
-    {
-        ac->send(SW_STRS(GREETER));
-    });
+    ac.on_connect([](AsyncClient *ac) { ac->send(SW_STRS(GREETER)); });
 
-    ac.on_close([](AsyncClient *ac)
-    {
+    ac.on_close([](AsyncClient *ac) {
 
     });
-    ac.on_error([](AsyncClient *ac)
-    {
+    ac.on_error([](AsyncClient *ac) {
 
     });
 
-    ac.on_receive([](AsyncClient *ac, const char *data, size_t len)
-    {
+    ac.on_receive([](AsyncClient *ac, const char *data, size_t len) {
         ASSERT_EQ(len, GREETER_SIZE);
         ASSERT_STREQ(GREETER, data);
         ac->close();

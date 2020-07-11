@@ -16,8 +16,7 @@
 
 #pragma once
 
-enum swErrorCode
-{
+enum swErrorCode {
     /**
      * Prevent repetition with errno [syscall error]
      */

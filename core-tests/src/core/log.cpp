@@ -4,10 +4,9 @@
 
 using namespace swoole;
 
-const char* file = "/tmp/swoole_log_test.log";
+const char *file = "/tmp/swoole_log_test.log";
 
-TEST(log, level)
-{
+TEST(log, level) {
     sw_logger().reset();
     sw_logger().set_level(SW_LOG_NOTICE);
     sw_logger().open(file);
@@ -26,8 +25,7 @@ TEST(log, level)
     ASSERT_TRUE(swString_contains(content.get(), SW_STRL("hello warning")));
 }
 
-TEST(log, date_format)
-{
+TEST(log, date_format) {
     sw_logger().reset();
     sw_logger().set_date_format("day %d of %B in the year %Y. Time: %I:%S %p");
     sw_logger().open(file);
@@ -42,14 +40,21 @@ TEST(log, date_format)
     char *month = nullptr;
     char *am = nullptr;
 
-    int n = std::sscanf(content.value(), "[day %d of %s in the year %d. Time: %d:%d %s @%d.%d]\tWARNING\thello world", data,
-            month, data + 1, data + 2, data + 3, am, data + 4, data + 5);
+    int n = std::sscanf(content.value(),
+                        "[day %d of %s in the year %d. Time: %d:%d %s @%d.%d]\tWARNING\thello world",
+                        data,
+                        month,
+                        data + 1,
+                        data + 2,
+                        data + 3,
+                        am,
+                        data + 4,
+                        data + 5);
 
     ASSERT_TRUE(n);
 }
 
-TEST(log, date_format_long_string)
-{
+TEST(log, date_format_long_string) {
     sw_logger().reset();
     sw_logger().set_level(SW_LOG_ERROR);
     swoole::String content(swString_new(256));
@@ -64,8 +69,7 @@ TEST(log, date_format_long_string)
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
 }
 
-TEST(log, date_with_microseconds)
-{
+TEST(log, date_with_microseconds) {
     sw_logger().reset();
     sw_logger().set_date_with_microseconds(true);
     sw_logger().open(file);
@@ -80,8 +84,7 @@ TEST(log, date_with_microseconds)
     ASSERT_TRUE(std::regex_search(content.value(), e));
 }
 
-TEST(log, rotation)
-{
+TEST(log, rotation) {
     sw_logger().reset();
     sw_logger().set_rotation(SW_LOG_ROTATION_DAILY);
     sw_logger().open(file);
@@ -96,12 +99,10 @@ TEST(log, rotation)
     unlink(sw_logger().get_real_file());
 }
 
-TEST(log, redirect)
-{
+TEST(log, redirect) {
     int retval;
     char *p = getenv("GITHUB_ACTIONS");
-    if (p)
-    {
+    if (p) {
         return;
     }
 

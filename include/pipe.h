@@ -20,8 +20,7 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 
-struct swPipe
-{
+struct swPipe {
     void *object;
     int blocking;
     double timeout;
@@ -35,13 +34,12 @@ struct swPipe
     int (*close)(swPipe *);
 };
 
-enum swPipe_close_which
-{
+enum swPipe_close_which {
     SW_PIPE_CLOSE_MASTER = 1,
     SW_PIPE_CLOSE_WORKER = 2,
-    SW_PIPE_CLOSE_READ   = 3,
-    SW_PIPE_CLOSE_WRITE  = 4,
-    SW_PIPE_CLOSE_BOTH   = 0,
+    SW_PIPE_CLOSE_READ = 3,
+    SW_PIPE_CLOSE_WRITE = 4,
+    SW_PIPE_CLOSE_BOTH = 0,
 };
 
 int swPipeBase_create(swPipe *p, int blocking);
@@ -51,17 +49,14 @@ int swPipeUnsock_close_ext(swPipe *p, int which);
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking);
 swSocket *swPipe_getSocket(swPipe *p, int master);
 
-static inline void swPipe_set_timeout(swPipe *p, double timeout)
-{
+static inline void swPipe_set_timeout(swPipe *p, double timeout) {
     p->timeout = timeout;
 }
 
-static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore)
-{
+static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore) {
 #ifdef HAVE_EVENTFD
     return swPipeEventfd_create(p, blocking, semaphore, 0);
 #else
     return swPipeBase_create(p, blocking);
 #endif
 }
-

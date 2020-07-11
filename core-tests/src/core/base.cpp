@@ -20,7 +20,7 @@
 #include "tests.h"
 
 TEST(base, DataHead_dump) {
-    swDataHead data = { };
+    swDataHead data = {};
     data.fd = 123;
     char buf[128];
     size_t n = data.dump(buf, sizeof(buf));

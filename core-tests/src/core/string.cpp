@@ -2,8 +2,7 @@
 
 using namespace std;
 
-TEST(string, rtrim)
-{
+TEST(string, rtrim) {
     char buf[1024];
     strcpy(buf, "hello world  ");
     swoole_rtrim(buf, strlen(buf));
@@ -15,10 +14,9 @@ TEST(string, rtrim)
     ASSERT_EQ(strlen(buf), 0);
 }
 
-TEST(string, strnpos)
-{
+TEST(string, strnpos) {
     {
-        string  haystack= "hello world";
+        string haystack = "hello world";
         string needle = " ";
         int pos;
 
@@ -26,7 +24,7 @@ TEST(string, strnpos)
         ASSERT_EQ(pos, 5);
     }
     {
-        string  haystack= "hello world";
+        string haystack = "hello world";
         string needle = "*";
         int pos;
 
@@ -35,10 +33,9 @@ TEST(string, strnpos)
     }
 }
 
-TEST(string, strnstr)
-{
+TEST(string, strnstr) {
     {
-        string  haystack= "hello world";
+        string haystack = "hello world";
         string needle = " ";
         const char *pos;
 
@@ -46,7 +43,7 @@ TEST(string, strnstr)
         ASSERT_EQ(haystack.c_str() + 5, pos);
     }
     {
-        string  haystack= "hello world";
+        string haystack = "hello world";
         string needle = "*";
         const char *pos;
 
@@ -55,14 +52,13 @@ TEST(string, strnstr)
     }
 }
 
-TEST(string, explode)
-{
-    string  haystack= "hello world";
+TEST(string, explode) {
+    string haystack = "hello world";
     string needle = " ";
 
     swString str;
     swString_clear(&str);
-    str.str = (char*) haystack.c_str();
+    str.str = (char *) haystack.c_str();
     str.length = haystack.length();
 
     int value_1 = 0;
@@ -70,8 +66,7 @@ TEST(string, explode)
     const char *explode_str = nullptr;
     size_t explode_length = 0;
 
-    swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
-    {
+    swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int {
         explode_str = data;
         explode_length = length;
         value_1 = 5;
@@ -83,23 +78,21 @@ TEST(string, explode)
     ASSERT_EQ(5, value_1);
 }
 
-TEST(string, explode_2)
-{
+TEST(string, explode_2) {
     string haystack = "hello,world,swoole,php,last";
     string needle = ",";
 
     swString str;
     swString_clear(&str);
-    str.str = (char*) haystack.c_str();
+    str.str = (char *) haystack.c_str();
     str.length = haystack.length();
 
     int count = 0;
     vector<string> list;
 
-    size_t n = swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int
-    {
-        list.push_back(string(data, length-1));
-        count ++;
+    size_t n = swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int {
+        list.push_back(string(data, length - 1));
+        count++;
         return true;
     });
 
@@ -107,7 +100,7 @@ TEST(string, explode_2)
     ASSERT_EQ(list[1], string("world"));
     ASSERT_EQ(list[2], string("swoole"));
     ASSERT_EQ(list[3], string("php"));
-    ASSERT_EQ("last", string(str.str + n, str.length -n));
+    ASSERT_EQ("last", string(str.str + n, str.length - n));
     ASSERT_EQ(4, count);
     ASSERT_EQ(list.size(), count);
 }
@@ -115,8 +108,7 @@ TEST(string, explode_2)
 static const int init_size = 1024;
 static string test_data = "hello,world,swoole,php,last";
 
-TEST(string, pop_1)
-{
+TEST(string, pop_1) {
     auto str = swoole::make_string(init_size);
     swoole::String s(str);
 
@@ -135,8 +127,7 @@ TEST(string, pop_1)
     str->allocator->free(str_1);
 }
 
-TEST(string, pop_2)
-{
+TEST(string, pop_2) {
     auto str = swoole::make_string(init_size);
     swoole::String s(str);
 
@@ -155,8 +146,7 @@ TEST(string, pop_2)
     str->allocator->free(str_1);
 }
 
-TEST(string, reduce_1)
-{
+TEST(string, reduce_1) {
     auto str = swoole::make_string(init_size);
     swoole::String s(str);
 
@@ -169,8 +159,7 @@ TEST(string, reduce_1)
     EXPECT_EQ(string(",swoole,php,last"), string(str->str, str->length));
 }
 
-TEST(string, reduce_2)
-{
+TEST(string, reduce_2) {
     auto str = swoole::make_string(init_size);
     swoole::String s(str);
 
@@ -182,8 +171,7 @@ TEST(string, reduce_2)
     EXPECT_EQ(str->length, 0);
 }
 
-TEST(string, reduce_3)
-{
+TEST(string, reduce_3) {
     auto str = swoole::make_string(init_size);
     swoole::String s(str);
 

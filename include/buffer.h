@@ -16,23 +16,19 @@
 
 #pragma once
 
-enum swBuffer_chunk_type
-{
+enum swBuffer_chunk_type {
     SW_CHUNK_DATA,
     SW_CHUNK_SENDFILE,
     SW_CHUNK_CLOSE,
 };
 
-struct swBuffer_chunk
-{
+struct swBuffer_chunk {
     uint32_t type;
     uint32_t length;
     uint32_t offset;
-    union
-    {
+    union {
         void *ptr;
-        struct
-        {
+        struct {
             uint32_t val1;
             uint32_t val2;
         } data;
@@ -42,8 +38,7 @@ struct swBuffer_chunk
     swBuffer_chunk *next;
 };
 
-struct swBuffer
-{
+struct swBuffer {
     int fd;
     uint32_t chunk_num;
     /**
@@ -55,13 +50,11 @@ struct swBuffer
     swBuffer_chunk *tail;
 };
 
-static inline swBuffer_chunk *swBuffer_get_chunk(swBuffer *buffer)
-{
+static inline swBuffer_chunk *swBuffer_get_chunk(swBuffer *buffer) {
     return buffer->head;
 }
 
-static inline bool swBuffer_empty(swBuffer *buffer)
-{
+static inline bool swBuffer_empty(swBuffer *buffer) {
     return buffer == nullptr || buffer->head == nullptr;
 }
 

@@ -19,8 +19,7 @@
 
 #include "swoole.h"
 
-enum swLock_type
-{
+enum swLock_type {
     SW_RWLOCK = 1,
     SW_FILELOCK = 2,
     SW_MUTEX = 3,
@@ -29,25 +28,21 @@ enum swLock_type
     SW_ATOMLOCK = 6,
 };
 
-struct swMutex
-{
+struct swMutex {
     pthread_mutex_t _lock;
     pthread_mutexattr_t attr;
 };
 
 #ifdef HAVE_RWLOCK
-struct swRWLock
-{
+struct swRWLock {
     pthread_rwlock_t _lock;
     pthread_rwlockattr_t attr;
 };
 #endif
 
-struct swLock
-{
+struct swLock {
     int type;
-    union
-    {
+    union {
         swMutex mutex;
 #ifdef HAVE_RWLOCK
         swRWLock rwlock;
@@ -66,9 +61,8 @@ struct swLock
     int (*free)(swLock *);
 };
 
-//Thread Condition
-struct swCond
-{
+// Thread Condition
+struct swCond {
     swLock _lock;
     pthread_cond_t _cond;
 

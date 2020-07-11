@@ -20,8 +20,7 @@ static int swAtomicLock_lock(swLock *lock);
 static int swAtomicLock_unlock(swLock *lock);
 static int swAtomicLock_trylock(swLock *lock);
 
-int swAtomicLock_create(swLock *lock)
-{
+int swAtomicLock_create(swLock *lock) {
     sw_memset_zero(lock, sizeof(swLock));
     lock->type = SW_ATOMLOCK;
     lock->lock = swAtomicLock_lock;
@@ -30,20 +29,17 @@ int swAtomicLock_create(swLock *lock)
     return SW_OK;
 }
 
-static int swAtomicLock_lock(swLock *lock)
-{
+static int swAtomicLock_lock(swLock *lock) {
     sw_spinlock(&lock->object.atomic_lock);
     return SW_OK;
 }
 
-static int swAtomicLock_unlock(swLock *lock)
-{
+static int swAtomicLock_unlock(swLock *lock) {
     sw_spinlock_release(&lock->object.atomic_lock);
     return SW_OK;
 }
 
-static int swAtomicLock_trylock(swLock *lock)
-{
+static int swAtomicLock_trylock(swLock *lock) {
     sw_atomic_t *atomic = &lock->object.atomic_lock;
     return (*(atomic) == 0 && sw_atomic_cmp_set(atomic, 0, 1));
 }

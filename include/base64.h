@@ -21,4 +21,3 @@
 
 size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out);
 size_t swBase64_decode(const char *in, size_t inlen, char *out);
-

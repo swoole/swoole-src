@@ -22,35 +22,28 @@ static int swPipeBase_read(swPipe *p, void *data, int length);
 static int swPipeBase_write(swPipe *p, const void *data, int length);
 static int swPipeBase_close(swPipe *p);
 
-typedef struct _swPipeBase
-{
+typedef struct _swPipeBase {
     int pipes[2];
 } swPipeBase;
 
-int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking)
-{
+int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking) {
     p->master_socket = swSocket_new(master_fd, SW_FD_PIPE);
-    if (p->master_socket == nullptr)
-    {
-        _error:
+    if (p->master_socket == nullptr) {
+    _error:
         close(master_fd);
         close(worker_fd);
         return SW_ERR;
     }
     p->worker_socket = swSocket_new(worker_fd, SW_FD_PIPE);
-    if (p->worker_socket == nullptr)
-    {
+    if (p->worker_socket == nullptr) {
         swSocket_free(p->master_socket);
         goto _error;
     }
 
-    if (blocking)
-    {
+    if (blocking) {
         swSocket_set_block(p->worker_socket);
         swSocket_set_block(p->master_socket);
-    }
-    else
-    {
+    } else {
         swSocket_set_nonblock(p->worker_socket);
         swSocket_set_nonblock(p->master_socket);
     }
@@ -58,31 +51,24 @@ int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking)
     return SW_OK;
 }
 
-swSocket* swPipe_getSocket(swPipe *p, int master)
-{
+swSocket *swPipe_getSocket(swPipe *p, int master) {
     return master ? p->master_socket : p->worker_socket;
 }
 
-int swPipeBase_create(swPipe *p, int blocking)
-{
+int swPipeBase_create(swPipe *p, int blocking) {
     int ret;
     swPipeBase *object = (swPipeBase *) sw_malloc(sizeof(swPipeBase));
-    if (object == nullptr)
-    {
+    if (object == nullptr) {
         return -1;
     }
     p->blocking = blocking;
     ret = pipe(object->pipes);
-    if (ret < 0)
-    {
+    if (ret < 0) {
         swSysWarn("pipe() failed");
         sw_free(object);
         return -1;
-    }
-    else
-    {
-        if (swPipe_init_socket(p, object->pipes[1], object->pipes[0], blocking) < 0)
-        {
+    } else {
+        if (swPipe_init_socket(p, object->pipes[1], object->pipes[0], blocking) < 0) {
             sw_free(object);
             return SW_ERR;
         }
@@ -97,27 +83,22 @@ int swPipeBase_create(swPipe *p, int blocking)
     return 0;
 }
 
-static int swPipeBase_read(swPipe *p, void *data, int length)
-{
+static int swPipeBase_read(swPipe *p, void *data, int length) {
     swPipeBase *object = (swPipeBase *) p->object;
-    if (p->blocking == 1 && p->timeout > 0)
-    {
-        if (swSocket_wait(object->pipes[SW_PIPE_READ], p->timeout * 1000, SW_EVENT_READ) < 0)
-        {
+    if (p->blocking == 1 && p->timeout > 0) {
+        if (swSocket_wait(object->pipes[SW_PIPE_READ], p->timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }
     return read(object->pipes[SW_PIPE_READ], data, length);
 }
 
-static int swPipeBase_write(swPipe *p, const void *data, int length)
-{
+static int swPipeBase_write(swPipe *p, const void *data, int length) {
     swPipeBase *object = (swPipeBase *) p->object;
     return write(object->pipes[SW_PIPE_WRITE], data, length);
 }
 
-static int swPipeBase_close(swPipe *p)
-{
+static int swPipeBase_close(swPipe *p) {
     swPipeBase *object = (swPipeBase *) p->object;
     swSocket_free(p->master_socket);
     swSocket_free(p->worker_socket);

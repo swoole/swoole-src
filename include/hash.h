@@ -21,24 +21,41 @@ SW_EXTERN_C_BEGIN
 
 #include <stdint.h>
 
-#define HASH_JEN_MIX(a,b,c)                                                      \
-do {                                                                             \
-  a -= b; a -= c; a ^= ( c >> 13 );                                              \
-  b -= c; b -= a; b ^= ( a << 8 );                                               \
-  c -= a; c -= b; c ^= ( b >> 13 );                                              \
-  a -= b; a -= c; a ^= ( c >> 12 );                                              \
-  b -= c; b -= a; b ^= ( a << 16 );                                              \
-  c -= a; c -= b; c ^= ( b >> 5 );                                               \
-  a -= b; a -= c; a ^= ( c >> 3 );                                               \
-  b -= c; b -= a; b ^= ( a << 10 );                                              \
-  c -= a; c -= b; c ^= ( b >> 15 );                                              \
-} while (0)
+#define HASH_JEN_MIX(a, b, c)                                                                                          \
+    do {                                                                                                               \
+        a -= b;                                                                                                        \
+        a -= c;                                                                                                        \
+        a ^= (c >> 13);                                                                                                \
+        b -= c;                                                                                                        \
+        b -= a;                                                                                                        \
+        b ^= (a << 8);                                                                                                 \
+        c -= a;                                                                                                        \
+        c -= b;                                                                                                        \
+        c ^= (b >> 13);                                                                                                \
+        a -= b;                                                                                                        \
+        a -= c;                                                                                                        \
+        a ^= (c >> 12);                                                                                                \
+        b -= c;                                                                                                        \
+        b -= a;                                                                                                        \
+        b ^= (a << 16);                                                                                                \
+        c -= a;                                                                                                        \
+        c -= b;                                                                                                        \
+        c ^= (b >> 5);                                                                                                 \
+        a -= b;                                                                                                        \
+        a -= c;                                                                                                        \
+        a ^= (c >> 3);                                                                                                 \
+        b -= c;                                                                                                        \
+        b -= a;                                                                                                        \
+        b ^= (a << 10);                                                                                                \
+        c -= a;                                                                                                        \
+        c -= b;                                                                                                        \
+        c ^= (b >> 15);                                                                                                \
+    } while (0)
 
 /**
  * jenkins
  */
-static inline uint64_t swoole_hash_jenkins(const char *key, size_t keylen)
-{
+static inline uint64_t swoole_hash_jenkins(const char *key, size_t keylen) {
     uint64_t hashv;
 
     unsigned i, j, k;
@@ -46,14 +63,10 @@ static inline uint64_t swoole_hash_jenkins(const char *key, size_t keylen)
     i = j = 0x9e3779b9;
     k = (unsigned) (keylen);
 
-    while (k >= 12)
-    {
-        i += (key[0] + ((unsigned) key[1] << 8) + ((unsigned) key[2] << 16)
-                + ((unsigned) key[3] << 24));
-        j += (key[4] + ((unsigned) key[5] << 8) + ((unsigned) key[6] << 16)
-                + ((unsigned) key[7] << 24));
-        hashv += (key[8] + ((unsigned) key[9] << 8) + ((unsigned) key[10] << 16)
-                + ((unsigned) key[11] << 24));
+    while (k >= 12) {
+        i += (key[0] + ((unsigned) key[1] << 8) + ((unsigned) key[2] << 16) + ((unsigned) key[3] << 24));
+        j += (key[4] + ((unsigned) key[5] << 8) + ((unsigned) key[6] << 16) + ((unsigned) key[7] << 24));
+        hashv += (key[8] + ((unsigned) key[9] << 8) + ((unsigned) key[10] << 16) + ((unsigned) key[11] << 24));
 
         HASH_JEN_MIX(i, j, hashv);
 
@@ -61,8 +74,7 @@ static inline uint64_t swoole_hash_jenkins(const char *key, size_t keylen)
         k -= 12;
     }
     hashv += keylen;
-    switch (k)
-    {
+    switch (k) {
     case 11:
         hashv += ((unsigned) key[10] << 24);
         /* no break */
@@ -103,14 +115,12 @@ static inline uint64_t swoole_hash_jenkins(const char *key, size_t keylen)
 /**
  * MurmurHash2(Austin Appleby)
  */
-static inline uint32_t swoole_hash_austin(const char *key, unsigned int keylen)
-{
+static inline uint32_t swoole_hash_austin(const char *key, unsigned int keylen) {
     unsigned int h, k;
     h = 0 ^ keylen;
 
-    while (keylen >= 4)
-    {
-        k  = key[0];
+    while (keylen >= 4) {
+        k = key[0];
         k |= key[1] << 8;
         k |= key[2] << 16;
         k |= key[3] << 24;
@@ -126,8 +136,7 @@ static inline uint32_t swoole_hash_austin(const char *key, unsigned int keylen)
         keylen -= 4;
     }
 
-    switch (keylen)
-    {
+    switch (keylen) {
     case 3:
         h ^= key[2] << 16;
         /* no break */
@@ -176,12 +185,10 @@ static inline uint32_t swoole_hash_austin(const char *key, unsigned int keylen)
  *
  *                  -- Ralf S. Engelschall <rse@engelschall.com>
  */
-static inline uint64_t swoole_hash_php(const char *key, size_t len)
-{
+static inline uint64_t swoole_hash_php(const char *key, size_t len) {
     ulong_t hash = 5381;
     /* variant with the hash unrolled eight times */
-    for (; len >= 8; len -= 8)
-    {
+    for (; len >= 8; len -= 8) {
         hash = ((hash << 5) + hash) + *key++;
         hash = ((hash << 5) + hash) + *key++;
         hash = ((hash << 5) + hash) + *key++;
@@ -192,28 +199,37 @@ static inline uint64_t swoole_hash_php(const char *key, size_t len)
         hash = ((hash << 5) + hash) + *key++;
     }
 
-    switch (len)
-    {
-        case 7: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
-        /* no break */
-        case 6: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
-        /* no break */
-        case 5: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
-        /* no break */
-        case 4: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
-        /* no break */
-        case 3: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
-        /* no break */
-        case 2: hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
-        /* no break */
-        case 1: hash = ((hash << 5) + hash) + *key++; break;
-        case 0: break;
-        default: break;
+    switch (len) {
+    case 7:
+        hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+    /* no break */
+    case 6:
+        hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+    /* no break */
+    case 5:
+        hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+    /* no break */
+    case 4:
+        hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+    /* no break */
+    case 3:
+        hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+    /* no break */
+    case 2:
+        hash = ((hash << 5) + hash) + *key++; /* fallthrough... */
+    /* no break */
+    case 1:
+        hash = ((hash << 5) + hash) + *key++;
+        break;
+    case 0:
+        break;
+    default:
+        break;
     }
     return hash;
 }
 
-#define CRC_STRING_MAXLEN      256
+#define CRC_STRING_MAXLEN 256
 
 uint32_t swoole_crc32(const char *data, uint32_t size);
 

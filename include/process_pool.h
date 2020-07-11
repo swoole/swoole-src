@@ -23,22 +23,19 @@
 
 struct swProcessPool;
 
-enum swWorker_status
-{
+enum swWorker_status {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
 };
 
-enum swIPC_type
-{
-    SW_IPC_NONE     = 0,
+enum swIPC_type {
+    SW_IPC_NONE = 0,
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
-    SW_IPC_SOCKET   = 3,
+    SW_IPC_SOCKET = 3,
 };
 
-struct swWorker
-{
+struct swWorker {
     /**
      * worker process
      */
@@ -58,17 +55,17 @@ struct swWorker
     /**
      * redirect stdout to pipe_master
      */
-    uchar redirect_stdout :1;
+    uchar redirect_stdout : 1;
 
     /**
      * redirect stdin to pipe_worker
      */
-    uchar redirect_stdin :1;
+    uchar redirect_stdin : 1;
 
     /**
      * redirect stderr to pipe_worker
      */
-    uchar redirect_stderr :1;
+    uchar redirect_stderr : 1;
 
     /**
      * worker status, IDLE or BUSY
@@ -105,8 +102,7 @@ struct swWorker
     void *ptr2;
 };
 
-struct swWorkerGlobal
-{
+struct swWorkerGlobal {
     /**
      * Always run
      */
@@ -116,7 +112,7 @@ struct swWorkerGlobal
      */
     int pipe_used;
 
-    uchar shutdown :1;
+    uchar shutdown : 1;
 
     uint32_t max_request;
 
@@ -132,8 +128,7 @@ struct swStreamInfo {
     swString *response_buffer;
 };
 
-struct swProcessPool
-{
+struct swProcessPool {
     /**
      * reloading
      */
@@ -207,27 +202,22 @@ struct swProcessPool
     void *ptr2;
 };
 
-static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type)
-{
+static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type) {
     uint32_t i;
     pool->type = type;
-    for (i = 0; i < pool->worker_num; i++)
-    {
+    for (i = 0; i < pool->worker_num; i++) {
         pool->workers[i].type = type;
     }
 }
 
-static sw_inline swWorker *swProcessPool_get_worker(swProcessPool *pool, int worker_id)
-{
+static sw_inline swWorker *swProcessPool_get_worker(swProcessPool *pool, int worker_id) {
     return &(pool->workers[worker_id - pool->start_id]);
 }
 
-static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id)
-{
+static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id) {
     uint32_t i;
     pool->start_id = start_id;
-    for (i = 0; i < pool->worker_num; i++)
-    {
+    for (i = 0; i < pool->worker_num; i++) {
         pool->workers[i].id = pool->start_id + i;
     }
 }
@@ -249,23 +239,19 @@ int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
 int swProcessPool_get_max_request(swProcessPool *pool);
 void swProcessPool_free(swProcessPool *pool);
 
-static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
-{
+static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
     int ret;
-    do
-    {
+    do {
         ret = waitpid(__pid, __stat_loc, __options);
     } while (ret < 0 && errno == EINTR);
     return ret;
 }
 
-static sw_inline int swoole_kill(pid_t __pid, int __sig)
-{
-    if (__pid <= 0)
-    {
+static sw_inline int swoole_kill(pid_t __pid, int __sig) {
+    if (__pid <= 0) {
         return -1;
     }
     return kill(__pid, __sig);
 }
 
-extern swWorkerGlobal SwooleWG;             //Worker Global Variable
+extern swWorkerGlobal SwooleWG;  // Worker Global Variable

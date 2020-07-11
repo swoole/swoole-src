@@ -19,11 +19,9 @@
 
 #include <stdio.h>
 
-int swRingQueue_init(swRingQueue *queue, int buffer_size)
-{
-    queue->data = (void **) sw_calloc(buffer_size, sizeof(void*));
-    if (queue->data == nullptr)
-    {
+int swRingQueue_init(swRingQueue *queue, int buffer_size) {
+    queue->data = (void **) sw_calloc(buffer_size, sizeof(void *));
+    if (queue->data == nullptr) {
         swWarn("malloc failed");
         return -1;
     }
@@ -34,40 +32,33 @@ int swRingQueue_init(swRingQueue *queue, int buffer_size)
     return 0;
 }
 
-void swRingQueue_free(swRingQueue *queue)
-{
+void swRingQueue_free(swRingQueue *queue) {
     sw_free(queue->data);
 }
 
-int swRingQueue_push(swRingQueue *queue, void *push_data)
-{
-    if (swRingQueue_full(queue))
-    {
+int swRingQueue_push(swRingQueue *queue, void *push_data) {
+    if (swRingQueue_full(queue)) {
         return SW_ERR;
     }
 
     queue->data[queue->tail] = push_data;
     queue->tail = (queue->tail + 1) % queue->size;
 
-    if (queue->tail == queue->head)
-    {
+    if (queue->tail == queue->head) {
         queue->tag = 1;
     }
     return SW_OK;
 }
 
-int swRingQueue_pop(swRingQueue *queue, void **pop_data)
-{
-    if (swRingQueue_empty(queue))
-    {
+int swRingQueue_pop(swRingQueue *queue, void **pop_data) {
+    if (swRingQueue_empty(queue)) {
         return SW_ERR;
     }
 
     *pop_data = queue->data[queue->head];
     queue->head = (queue->head + 1) % queue->size;
 
-    if (queue->tail == queue->head)
-    {
+    if (queue->tail == queue->head) {
         queue->tag = 0;
     }
     return SW_OK;
