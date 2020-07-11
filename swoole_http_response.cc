@@ -400,7 +400,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
                 header_flag |= HTTP_HEADER_TRANSFER_ENCODING;
             }
             if (!ZVAL_IS_NULL(zvalue)) {
-                zend::string str_value(zvalue);
+                zend::String str_value(zvalue);
                 n = sw_snprintf(
                     buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
                 swString_append_ptr(response, buf, n);

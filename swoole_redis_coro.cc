@@ -1041,7 +1041,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis) {
     zval *ztmp;
     zval *zhost = sw_zend_read_property_ex(swoole_redis_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HOST), 0);
     zval *zport = sw_zend_read_property_ex(swoole_redis_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_PORT), 0);
-    zend::string host(zhost);
+    zend::String host(zhost);
     zend_long port = zval_get_long(zport);
 
     if (host.len() == 0) {
@@ -1117,7 +1117,7 @@ static bool swoole_redis_coro_connect(swRedisClient *redis) {
     HashTable *vht = Z_ARRVAL_P(zsetting);
 
     if (php_swoole_array_get_value(vht, "password", ztmp)) {
-        zend::string passowrd(ztmp);
+        zend::String passowrd(ztmp);
         if (passowrd.len() > 0 && !redis_auth(redis, passowrd.val(), passowrd.len())) {
             swoole_redis_coro_close(redis);
             return false;
@@ -3815,7 +3815,7 @@ static PHP_METHOD(swoole_redis_coro, hMGet) {
         array_init(&zret);
 
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_arr), zkey) {
-            zend::string zkey_str(zkey);
+            zend::String zkey_str(zkey);
 
             zvalue = zend_hash_index_find(Z_ARRVAL_P(return_value), index++);
             if (ZVAL_IS_NULL(zvalue)) {

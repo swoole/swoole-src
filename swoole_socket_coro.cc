@@ -893,7 +893,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     }
     // package eof
     if (php_swoole_array_get_value(vht, "package_eof", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         if (str_v.len() == 0) {
             php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
             ret = false;
@@ -940,7 +940,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
-        zend::string str_v(ztmp);
+        zend::String str_v(ztmp);
         sock->protocol.package_length_type = str_v.val()[0];
         sock->protocol.package_length_size = swoole_type_size(sock->protocol.package_length_type);
         if (sock->protocol.package_length_size == 0) {

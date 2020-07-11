@@ -980,7 +980,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
             if (UNEXPECTED(!key || *ZSTR_VAL(key) == ':' || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
-            zend::string str_value(zvalue);
+            zend::String str_value(zvalue);
             if (SW_STRCASEEQ(ZSTR_VAL(key), ZSTR_LEN(key), "host")) {
                 headers.add(HTTP2_CLIENT_HOST_HEADER_INDEX, ZEND_STRL(":authority"), str_value.val(), str_value.len());
                 find_host = true;
@@ -1018,7 +1018,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
-            zend::string str_value(zvalue);
+            zend::String str_value(zvalue);
             swString_clear(buffer);
             swString_append_ptr(buffer, ZSTR_VAL(key), ZSTR_LEN(key));
             swString_append_ptr(buffer, "=", 1);
@@ -1168,7 +1168,7 @@ uint32_t http2_client::send_request(zval *zrequest) {
         char *p;
         size_t len;
         smart_str formstr_s = {};
-        zend::string str_zpost_data;
+        zend::String str_zpost_data;
 
         int flag = (stream->flags & SW_HTTP2_STREAM_PIPELINE_REQUEST) ? 0 : SW_HTTP2_FLAG_END_STREAM;
         if (ZVAL_IS_ARRAY(zdata)) {
@@ -1236,7 +1236,7 @@ bool http2_client::write_data(uint32_t stream_id, zval *zdata, bool end) {
         }
         smart_str_free(&formstr_s);
     } else {
-        zend::string data(zdata);
+        zend::String data(zdata);
         swHttp2_set_frame_header(buffer, SW_HTTP2_TYPE_DATA, data.len(), flag, stream_id);
         swTraceLog(SW_TRACE_HTTP2,
                    "[" SW_ECHO_GREEN ",%s STREAM#%d] length=%zu",
