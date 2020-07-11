@@ -64,6 +64,12 @@ class Channel {
     int notify();
     void destroy();
     void print();
+    inline int count() {
+        return num;
+    }
+    inline int get_bytes() {
+        return bytes;
+    }
     static Channel *make(size_t size, size_t maxlen, int flags);
 
   private:
