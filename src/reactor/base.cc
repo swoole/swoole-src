@@ -131,7 +131,7 @@ int Reactor::set_handler(int _fdtype, swReactor_handler handler) {
 
 bool Reactor::if_exit() {
     int _event_num = event_num;
-    for (auto kv : exit_conditions) {
+    for (auto &kv : exit_conditions) {
         if (kv.second(this, _event_num) == false) {
             return false;
         }
@@ -314,7 +314,7 @@ void Reactor::defer(swCallback cb, void *data) {
 }
 
 void Reactor::execute_end_callbacks(bool timedout) {
-    for (auto kv : end_callbacks) {
+    for (auto &kv : end_callbacks) {
         kv.second(this);
     }
 }

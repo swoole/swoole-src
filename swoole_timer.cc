@@ -138,7 +138,7 @@ bool php_swoole_timer_clear_all() {
 
     uint32_t num = SwooleTG.timer->map->size(), index = 0;
     swTimer_node **list = (swTimer_node **) emalloc(num * sizeof(swTimer_node *));
-    for (auto kv : *SwooleTG.timer->map) {
+    for (auto &kv : *SwooleTG.timer->map) {
         swTimer_node *tnode = kv.second;
         if (tnode->type == SW_TIMER_TYPE_PHP) {
             list[index++] = tnode;
@@ -298,7 +298,7 @@ static PHP_FUNCTION(swoole_timer_list) {
     zval zlist;
     array_init(&zlist);
     if (EXPECTED(SwooleTG.timer)) {
-        for (auto kv : *SwooleTG.timer->map) {
+        for (auto &kv : *SwooleTG.timer->map) {
             swTimer_node *tnode = kv.second;
             if (tnode->type == SW_TIMER_TYPE_PHP) {
                 add_next_index_long(&zlist, tnode->id);

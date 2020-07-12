@@ -580,11 +580,11 @@ void swManager_kill_user_workers(swServer *serv) {
         return;
     }
 
-    for (auto kv : *serv->user_worker_map) {
+    for (auto &kv : *serv->user_worker_map) {
         swoole_kill(kv.second->pid, SIGTERM);
     }
 
-    for (auto kv : *serv->user_worker_map) {
+    for (auto &kv : *serv->user_worker_map) {
         int __stat_loc;
         if (swoole_waitpid(kv.second->pid, &__stat_loc, 0) < 0) {
             swSysWarn("waitpid(%d) failed", kv.second->pid);
