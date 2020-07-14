@@ -52,6 +52,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
         swWarn("alloc(%ld) failed", size);
         return nullptr;
     }
+
     Channel *object = (Channel *) mem;
     mem = (char *) mem + sizeof(Channel);
 

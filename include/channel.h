@@ -30,8 +30,7 @@ enum Channel_flag {
     SW_CHAN_SHM = 1u << 3,
 };
 
-class Channel {
-  private:
+struct Channel {
     off_t head;
     off_t tail;
     size_t size;
@@ -52,7 +51,6 @@ class Channel {
     swLock lock;
     swPipe *notify_pipe;
 
-  public:
     inline bool empty() { return num == 0; }
     inline bool full() { return ((head == tail && tail_tag != head_tag) || (bytes + sizeof(int) * num == size)); }
     int pop(void *out_buf, int buffer_length);
