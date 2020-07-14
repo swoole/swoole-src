@@ -92,6 +92,7 @@ void php_swoole_server_port_deref(zend_object *object) {
                 property->caches[j] = nullptr;
             }
         }
+        property->serv = nullptr;
     }
 
     swListenPort *port = server_port->port;
@@ -101,6 +102,7 @@ void php_swoole_server_port_deref(zend_object *object) {
             efree(port->protocol.private_data);
             port->protocol.private_data = nullptr;
         }
+        server_port->port = nullptr;
     }
 }
 
