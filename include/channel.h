@@ -69,9 +69,5 @@ struct Channel {
         return bytes;
     }
     static Channel *make(size_t size, size_t maxlen, int flags);
-
-  private:
-    Channel();
-    ~Channel();
 };
 }  // namespace swoole
