@@ -55,7 +55,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     Channel *object = (Channel *) mem;
     mem = (char *) mem + sizeof(Channel);
 
-    sw_memset_zero(object, sizeof(Channel));
+    *object = {};
 
     // overflow space
     object->size = size;
