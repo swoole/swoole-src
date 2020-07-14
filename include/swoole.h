@@ -660,6 +660,7 @@ struct swGlobal_t {
 
     int process_type;
     uint32_t process_id;
+    long task_id;
     pid_t pid;
 
     int signal_fd;

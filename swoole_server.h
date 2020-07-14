@@ -56,18 +56,17 @@ enum php_swoole_server_port_callback_type
 #define PHP_SWOOLE_SERVER_CALLBACK_NUM         (SW_SERVER_CB_onPipeMessage + 1)
 #define PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM    (SW_SERVER_CB_onBufferEmpty + 1)
 
-typedef struct
-{
+struct php_swoole_server_port_property {
     zval *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     zend_fcall_info_cache *caches[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     zval _callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
     swServer *serv;
     swListenPort *port;
     zval *zsetting;
-} php_swoole_server_port_property;
+};
 
 void php_swoole_server_register_callbacks(swServer *serv);
-zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
+zend_fcall_info_cache *php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
 int php_swoole_create_dir(const char* path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_init_global_variant();
@@ -82,4 +81,5 @@ void php_swoole_onClose(swServer *, swDataHead *);
 void php_swoole_onBufferFull(swServer *, swDataHead *);
 void php_swoole_onBufferEmpty(swServer *, swDataHead *);
 
-swServer* php_swoole_server_get_and_check_server(zval *zobject);
+swServer *php_swoole_server_get_and_check_server(zval *zobject);
+void php_swoole_server_port_deref(zend_object *object);
