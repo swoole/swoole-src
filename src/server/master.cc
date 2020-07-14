@@ -1541,6 +1541,10 @@ static void swServer_signal_handler(int sig) {
     swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
     swServer *serv = sw_server();
+    if (!serv) {
+        return;
+    }
+
     int status;
     pid_t pid;
     switch (sig) {
@@ -1572,7 +1576,7 @@ static void swServer_signal_handler(int sig) {
          */
     case SIGUSR1:
     case SIGUSR2:
-        if (sw_server()->factory_mode == SW_MODE_BASE) {
+        if (serv->factory_mode == SW_MODE_BASE) {
             if (serv->gs->event_workers.reloading) {
                 break;
             }
@@ -1589,11 +1593,11 @@ static void swServer_signal_handler(int sig) {
         if (sig == SIGRTMIN) {
             uint32_t i;
             swWorker *worker;
-            for (i = 0; i < sw_server()->worker_num + serv->task_worker_num + sw_server()->user_worker_num; i++) {
+            for (i = 0; i < serv->worker_num + serv->task_worker_num + serv->user_worker_num; i++) {
                 worker = serv->get_worker(i);
                 swoole_kill(worker->pid, SIGRTMIN);
             }
-            if (sw_server()->factory_mode == SW_MODE_PROCESS) {
+            if (serv->factory_mode == SW_MODE_PROCESS) {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
             sw_logger()->reopen();
