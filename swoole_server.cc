@@ -3686,6 +3686,7 @@ static PHP_METHOD(swoole_server, taskCo)
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
 
     zval *ztasks;
     zval *ztask;
@@ -3728,6 +3729,8 @@ static PHP_METHOD(swoole_server, taskCo)
         RETURN_FALSE;
     }
 
+    task_co->server_object = server_object;
+
     zval *result = sw_malloc_zval();
     array_init(result);
 
@@ -3751,7 +3754,7 @@ static PHP_METHOD(swoole_server, taskCo)
         }
         else
         {
-            task_co->server_object->property->task_coroutine_map[buf.info.fd] = task_co;
+            server_object->property->task_coroutine_map[buf.info.fd] = task_co;
         }
         list[i] = task_id;
         i++;
