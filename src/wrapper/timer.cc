@@ -27,9 +27,9 @@ swTimer *sw_timer() {
 }
 #endif
 
-swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, swTimerCallback callback);
+swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, const swTimerCallback &callback);
 
-swTimer_node *swoole_timer_add(long ms, uchar persistent, swTimerCallback callback, void *private_data) {
+swTimer_node *swoole_timer_add(long ms, uchar persistent, const swTimerCallback &callback, void *private_data) {
     if (sw_unlikely(SwooleTG.timer == nullptr)) {
         SwooleTG.timer = (swTimer *) sw_malloc(sizeof(swTimer));
         if (sw_unlikely(SwooleTG.timer == nullptr)) {
@@ -48,7 +48,7 @@ bool swoole_timer_del(swTimer_node *tnode) {
     return swTimer_del(SwooleTG.timer, tnode);
 }
 
-long swoole_timer_after(long ms, swTimerCallback callback, void *private_data) {
+long swoole_timer_after(long ms, const swTimerCallback &callback, void *private_data) {
     if (ms <= 0) {
         swWarn("Timer must be greater than 0");
         return SW_ERR;
@@ -61,7 +61,7 @@ long swoole_timer_after(long ms, swTimerCallback callback, void *private_data) {
     }
 }
 
-long swoole_timer_tick(long ms, swTimerCallback callback, void *private_data) {
+long swoole_timer_tick(long ms, const swTimerCallback &callback, void *private_data) {
     if (ms <= 0) {
         swWarn("Timer must be greater than 0");
         return SW_ERR;

@@ -767,7 +767,7 @@ int Server::start_reactor_threads() {
     ReactorThread *thread;
     int i;
 
-    swServer_store_listen_socket(this);
+    store_listen_socket();
 
     if (single_thread) {
         swReactorThread_init(this, reactor, 0);

@@ -363,38 +363,38 @@ int Server::start_check() {
     return SW_OK;
 }
 
-void swServer_store_listen_socket(swServer *serv) {
+void Server::store_listen_socket() {
     int sockfd;
 
-    for (auto ls : serv->ports) {
+    for (auto ls : ports) {
         sockfd = ls->socket->fd;
         // save server socket to connection_list
-        serv->connection_list[sockfd].fd = sockfd;
+        connection_list[sockfd].fd = sockfd;
         // socket type
-        serv->connection_list[sockfd].socket_type = ls->type;
+        connection_list[sockfd].socket_type = ls->type;
         // save listen_host object
-        serv->connection_list[sockfd].object = ls;
+        connection_list[sockfd].object = ls;
 
         if (swSocket_is_dgram(ls->type)) {
             if (ls->type == SW_SOCK_UDP) {
-                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
+                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
             } else if (ls->type == SW_SOCK_UDP6) {
-                serv->udp_socket_ipv6 = sockfd;
-                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
+                udp_socket_ipv6 = sockfd;
+                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
         } else {
             // IPv4
             if (ls->type == SW_SOCK_TCP) {
-                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
+                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
             }
             // IPv6
             else if (ls->type == SW_SOCK_TCP6) {
-                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
+                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
         }
         if (sockfd >= 0) {
-            serv->set_minfd(sockfd);
-            serv->set_maxfd(sockfd);
+            set_minfd(sockfd);
+            set_maxfd(sockfd);
         }
     }
 }
@@ -791,15 +791,16 @@ void swServer_clear_timer(swServer *serv) {
 }
 
 void Server::shutdown() {
-    running = 0;
+    running = false;
     // stop all thread
     if (SwooleTG.reactor) {
         swReactor *reactor = SwooleTG.reactor;
         swReactor_wait_exit(reactor, 1);
-        for (auto ls : ports) {
-            if (swSocket_is_stream(ls->type)) {
-                reactor->del(reactor, ls->socket);
+        for (auto port : ports) {
+            if (swSocket_is_dgram(port->type) and factory_mode == SW_MODE_PROCESS) {
+                continue;
             }
+            reactor->del(reactor, port->socket);
         }
         swServer_clear_timer(this);
     }

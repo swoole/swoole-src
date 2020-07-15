@@ -842,19 +842,31 @@ class Server {
     int get_idle_worker_num();
     int get_idle_task_worker_num();
 
-    inline int get_minfd() { return connection_list[SW_SERVER_MIN_FD_INDEX].fd; }
+    inline int get_minfd() {
+        return connection_list[SW_SERVER_MIN_FD_INDEX].fd;
+    }
 
-    inline int get_maxfd() { return connection_list[SW_SERVER_MAX_FD_INDEX].fd; }
+    inline int get_maxfd() {
+        return connection_list[SW_SERVER_MAX_FD_INDEX].fd;
+    }
     /**
      *  connection_list[0] => the largest fd
      */
-    inline void set_maxfd(int maxfd) { connection_list[SW_SERVER_MAX_FD_INDEX].fd = maxfd; }
+    inline void set_maxfd(int maxfd) {
+        connection_list[SW_SERVER_MAX_FD_INDEX].fd = maxfd;
+    }
     /**
      * connection_list[1] => the smallest fd
      */
-    inline void set_minfd(int minfd) { connection_list[SW_SERVER_MIN_FD_INDEX].fd = minfd; }
+    inline void set_minfd(int minfd) {
+        connection_list[SW_SERVER_MIN_FD_INDEX].fd = minfd;
+    }
 
-    inline const std::string &get_document_root() { return document_root; }
+    void store_listen_socket();
+
+    inline const std::string &get_document_root() {
+        return document_root;
+    }
 
     inline swString *get_recv_buffer(swSocket *_socket) {
         swString *buffer = _socket->recv_buffer;
@@ -925,9 +937,13 @@ class Server {
         }
     }
 
-    inline ReactorThread *get_thread(int reactor_id) { return &reactor_threads[reactor_id]; }
+    inline ReactorThread *get_thread(int reactor_id) {
+        return &reactor_threads[reactor_id];
+    }
 
-    inline int get_connection_fd(uint32_t session_id) { return session_list[session_id % SW_SESSION_LIST_SIZE].fd; }
+    inline int get_connection_fd(uint32_t session_id) {
+        return session_list[session_id % SW_SESSION_LIST_SIZE].fd;
+    }
 
     inline Connection *get_connection_verify_no_ssl(uint32_t session_id) {
         Session *session = get_session(session_id);
@@ -966,9 +982,13 @@ class Server {
 
     inline Session *get_session(uint32_t session_id) { return &session_list[session_id % SW_SESSION_LIST_SIZE]; }
 
-    inline void lock() { lock_.lock(); }
+    inline void lock() {
+        lock_.lock();
+    }
 
-    inline void unlock() { lock_.unlock(); }
+    inline void unlock() {
+        lock_.unlock();
+    }
 
     int create_task_workers();
     int create_user_workers();

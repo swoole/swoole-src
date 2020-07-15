@@ -28,6 +28,24 @@
 #define SW_TIMER_MAX_MS LONG_MAX
 #define SW_TIMER_MAX_SEC ((double) (LONG_MAX / 1000))
 
+enum swTimer_type {
+    SW_TIMER_TYPE_KERNEL,
+    SW_TIMER_TYPE_PHP,
+};
+
+struct swTimer_node {
+    long id;
+    enum swTimer_type type;
+    int64_t exec_msec;
+    int64_t interval;
+    uint64_t round;
+    uint8_t removed;
+    swHeap_node *heap_node;
+    swTimerCallback callback;
+    void *data;
+    swTimerDestructor dtor;
+};
+
 struct swTimer {
     /*--------------signal timer--------------*/
     swReactor *reactor;
@@ -39,9 +57,9 @@ struct swTimer {
     long _current_id;
     long _next_msec;
     /*---------------event timer--------------*/
-    struct timeval basetime;
+    struct timeval base_time;
     /*---------------system timer-------------*/
-    long lasttime;
+    long last_time;
     /*----------------------------------------*/
     int (*set)(swTimer *timer, long exec_msec);
     void (*close)(swTimer *timer);
@@ -76,8 +94,8 @@ static sw_inline int64_t swTimer_get_relative_msec() {
     if (swTimer_now(&now) < 0) {
         return SW_ERR;
     }
-    int64_t msec1 = (now.tv_sec - SwooleTG.timer->basetime.tv_sec) * 1000;
-    int64_t msec2 = (now.tv_usec - SwooleTG.timer->basetime.tv_usec) / 1000;
+    int64_t msec1 = (now.tv_sec - SwooleTG.timer->base_time.tv_sec) * 1000;
+    int64_t msec2 = (now.tv_usec - SwooleTG.timer->base_time.tv_usec) / 1000;
     return msec1 + msec2;
 }
 

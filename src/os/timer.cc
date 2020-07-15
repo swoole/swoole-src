@@ -33,7 +33,7 @@ static void swSystemTimer_signal_handler(int sig);
 int swSystemTimer_init(swTimer *timer, long interval) {
     timer->set = swSystemTimer_set;
     timer->close = swSystemTimer_close;
-    timer->lasttime = interval;
+    timer->last_time = interval;
     if (swSystemTimer_signal_set(timer, interval) < 0) {
         return SW_ERR;
     }

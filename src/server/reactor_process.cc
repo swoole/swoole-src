@@ -331,7 +331,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     // pipe
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, swReactorProcess_onPipeRead);
 
-    swServer_store_listen_socket(serv);
+    serv->store_listen_socket();
 
     if (worker->pipe_worker) {
         swSocket_set_nonblock(worker->pipe_worker);
