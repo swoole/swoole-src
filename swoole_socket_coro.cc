@@ -1211,6 +1211,7 @@ static PHP_METHOD(swoole_socket_coro, recvPacket) {
     if (retval < 0) {
         RETURN_FALSE;
     } else if (retval == 0) {
+        swString_clear(sock->socket->get_read_buffer());
         RETURN_EMPTY_STRING();
     } else {
         auto strval = sock->socket->pop_packet();
