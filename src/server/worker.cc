@@ -584,10 +584,6 @@ int swWorker_loop(swServer *serv, swWorker *worker) {
     // worker shutdown
     swWorker_onStop(serv);
 
-    if (serv->worker_input_buffers) {
-        serv->free_buffers(serv, serv->get_worker_buffer_num(), serv->worker_input_buffers);
-    }
-
     if (serv->buffer_pool) {
         delete serv->buffer_pool;
     }
