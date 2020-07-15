@@ -92,4 +92,4 @@ $pm->run();
 ?>
 --EXPECTREGEX--
 end
-Total count=100000?, bytes=\d+
+Total count=\d+, bytes=\d+
