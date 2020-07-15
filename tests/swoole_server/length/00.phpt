@@ -1,11 +1,12 @@
 --TEST--
 swoole_server: (length protocol) recv 100k packet
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../include/bootstrap.php';
-require __DIR__ . '/../include/api/swoole_server/TestServer.php';
+require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../../include/api/swoole_server/TestServer.php';
 
 TestServer::$PKG_NUM = MAX_PACKET_NUM;
 

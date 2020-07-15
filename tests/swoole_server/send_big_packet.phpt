@@ -13,7 +13,7 @@ const SIZE = 2 * 1024 * 1024;
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    for ($i = 0; $i < MAX_CONCURRENCY_MID; $i++) {
+    for ($i = 0; $i < MAX_CONCURRENCY_LOW; $i++) {
         go(function () use ($pm, $i) {
             $cli = new Co\Client(SWOOLE_SOCK_TCP);
             $cli->set([
@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 echo "ERROR\n";
                 return;
             }
-            for ($i = 0; $i < MAX_REQUESTS_MID; $i++) {
+            for ($i = 0; $i < MAX_REQUESTS_LOW; $i++) {
                 $sid = strval(rand(10000000, 99999999));
                 $send_data = str_repeat('A', 1000) . $sid;
                 $cli->send(pack('N', strlen($send_data)) . $send_data);
