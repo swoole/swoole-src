@@ -62,9 +62,6 @@ typedef cpuset_t cpu_set_t;
 
 #include <functional>
 
-#ifndef ulong
-#define ulong unsigned long
-#endif
 typedef unsigned long ulong_t;
 
 #ifndef PRId64
