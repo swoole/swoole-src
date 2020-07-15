@@ -56,7 +56,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
     $recv = $client->recv();
     echo $recv;
-    //echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
+    //echo "send ".TestServer::$PKG_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
 };
 

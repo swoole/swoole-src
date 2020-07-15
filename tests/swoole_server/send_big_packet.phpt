@@ -8,7 +8,6 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-const REQ_N = 16;
 const SIZE = 2 * 1024 * 1024;
 
 $pm = new SwooleTest\ProcessManager;
