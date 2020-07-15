@@ -118,6 +118,7 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, swListenPor
  * Worker Buffer
  */
 static void **php_swoole_server_worker_create_buffers(swServer *serv, uint buffer_num);
+static void php_swoole_server_worker_free_buffers(swServer *serv, uint buffer_num, void **buffers);
 static void *php_swoole_server_worker_get_buffer(swServer *serv, swDataHead *info);
 static size_t php_swoole_server_worker_get_buffer_len(swServer *serv, swDataHead *info);
 static void php_swoole_server_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
@@ -1092,6 +1093,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject) {
      * init method
      */
     serv->create_buffers = php_swoole_server_worker_create_buffers;
+    serv->free_buffers = php_swoole_server_worker_free_buffers;
     serv->get_buffer = php_swoole_server_worker_get_buffer;
     serv->get_buffer_len = php_swoole_server_worker_get_buffer_len;
     serv->add_buffer_len = php_swoole_server_worker_add_buffer_len;
@@ -1958,6 +1960,10 @@ static void **php_swoole_server_worker_create_buffers(swServer *serv, uint buffe
         swError("malloc for worker input_buffers failed");
     }
     return (void **) buffers;
+}
+
+static void php_swoole_server_worker_free_buffers(swServer *serv, uint buffer_num, void **buffers) {
+    sw_free(buffers);
 }
 
 static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id) {

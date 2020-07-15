@@ -160,7 +160,7 @@ swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     tnode->removed = 0;
     tnode->callback = callback;
     tnode->round = timer->round;
-    tnode->dtor = nullptr;
+    tnode->destructor = nullptr;
 
     if (timer->_next_msec < 0 || timer->_next_msec > _msec) {
         timer->set(timer, _msec);
@@ -211,8 +211,8 @@ bool swTimer_del(swTimer *timer, swTimer_node *tnode) {
         swHeap_remove(timer->heap, tnode->heap_node);
         sw_free(tnode->heap_node);
     }
-    if (tnode->dtor) {
-        tnode->dtor(tnode);
+    if (tnode->destructor) {
+        tnode->destructor(tnode);
     }
     timer->num--;
     swTraceLog(SW_TRACE_TIMER,

@@ -205,7 +205,7 @@ int Server::start_manager_process() {
         if (!gs->start) {
             return SW_OK;
         }
-        swServer_close_port(this, SW_TRUE);
+        close_port(true);
 
         if (swManager_spawn_task_workers(this) < 0) {
             return SW_ERR;
@@ -658,7 +658,7 @@ pid_t swManager_spawn_user_worker(swServer *serv, swWorker *worker) {
         worker->pid = getpid();
         // close tcp listen socket
         if (serv->factory_mode == SW_MODE_BASE) {
-            swServer_close_port(serv, SW_TRUE);
+            serv->close_port(true);
         }
         serv->onUserWorkerStart(serv, worker);
         exit(0);

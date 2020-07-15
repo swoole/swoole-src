@@ -38,7 +38,8 @@ static int swServer_tcp_sendfile(
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static void **swServer_worker_create_buffers(swServer *serv, uint buffer_num);
+static void **swServer_worker_create_buffers(swServer *serv, uint32_t buffer_num);
+static void swServer_worker_free_buffers(swServer *serv, uint32_t buffer_num, void **buffers);
 static void *swServer_worker_get_buffer(swServer *serv, swDataHead *info);
 static size_t swServer_worker_get_buffer_len(swServer *serv, swDataHead *info);
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
@@ -73,8 +74,8 @@ void Server::disable_accept() {
     }
 }
 
-void swServer_close_port(swServer *serv, enum swBool_type only_stream_port) {
-    for (auto port : serv->ports) {
+void Server::close_port(bool only_stream_port) {
+    for (auto port : ports) {
         if (only_stream_port && swSocket_is_dgram(port->type)) {
             continue;
         }
@@ -399,18 +400,7 @@ void Server::store_listen_socket() {
     }
 }
 
-uint32_t sw_inline swServer_worker_buffer_num(swServer *serv) {
-    uint32_t buffer_num;
-
-    if (serv->factory_mode == SW_MODE_BASE) {
-        buffer_num = 1;
-    } else {
-        buffer_num = serv->reactor_num + serv->dgram_port_num;
-    }
-    return buffer_num;
-}
-
-void **swServer_worker_create_buffers(swServer *serv, uint buffer_num) {
+static void **swServer_worker_create_buffers(swServer *serv, uint32_t buffer_num) {
     swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
     if (buffers == nullptr) {
         swError("malloc for worker input_buffers failed");
@@ -424,6 +414,13 @@ void **swServer_worker_create_buffers(swServer *serv, uint buffer_num) {
     }
 
     return (void **) buffers;
+}
+
+static void swServer_worker_free_buffers(swServer *serv, uint32_t buffer_num, void **buffers) {
+    for (uint i = 0; i < buffer_num; i++) {
+        swString_free((swString *) buffers[i]);
+    }
+    sw_free(buffers);
 }
 
 /**
@@ -500,13 +497,13 @@ int Server::create_worker(swWorker *worker) {
 /**
  * [Worker]
  */
-int swServer_worker_init(swServer *serv, swWorker *worker) {
+void Server::init_worker(swWorker *worker) {
 #ifdef HAVE_CPU_AFFINITY
-    if (serv->open_cpu_affinity) {
+    if (open_cpu_affinity) {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-        if (serv->cpu_affinity_available_num) {
-            CPU_SET(serv->cpu_affinity_available[SwooleG.process_id % serv->cpu_affinity_available_num], &cpu_set);
+        if (cpu_affinity_available_num) {
+            CPU_SET(cpu_affinity_available[SwooleG.process_id % cpu_affinity_available_num], &cpu_set);
         } else {
             CPU_SET(SwooleG.process_id % SW_CPU_NUM, &cpu_set);
         }
@@ -524,24 +521,22 @@ int swServer_worker_init(swServer *serv, swWorker *worker) {
     // signal init
     swWorker_signal_init();
 
-    serv->worker_input_buffers = (void **) serv->create_buffers(serv, swServer_worker_buffer_num(serv));
-    if (!serv->worker_input_buffers) {
-        return SW_ERR;
+    worker_input_buffers = (void **) create_buffers(this, get_worker_buffer_num());
+    if (!worker_input_buffers) {
+        swError("failed to create worker buffers");
     }
 
-    if (serv->max_request < 1) {
+    if (max_request < 1) {
         SwooleWG.run_always = 1;
     } else {
-        SwooleWG.max_request = serv->max_request;
-        if (serv->max_request_grace > 0) {
-            SwooleWG.max_request += swoole_system_random(1, serv->max_request_grace);
+        SwooleWG.max_request = max_request;
+        if (max_request_grace > 0) {
+            SwooleWG.max_request += swoole_system_random(1, max_request_grace);
         }
     }
 
-    worker->start_time = time(nullptr);
+    worker->start_time = ::time(nullptr);
     worker->request_count = 0;
-
-    return SW_OK;
 }
 
 void Server::call_worker_start_callback(swWorker *worker) {
@@ -735,6 +730,7 @@ Server::Server(enum swServer_mode mode) {
      * init method
      */
     create_buffers = swServer_worker_create_buffers;
+    free_buffers = swServer_worker_free_buffers;
     get_buffer = swServer_worker_get_buffer;
     get_buffer_len = swServer_worker_get_buffer_len;
     add_buffer_len = swServer_worker_add_buffer_len;

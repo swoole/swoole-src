@@ -786,7 +786,8 @@ class Server {
     /**
      * Chunk control
      */
-    void **(*create_buffers)(Server *serv, uint buffer_num) = nullptr;
+    void **(*create_buffers)(Server *serv, uint32_t buffer_num) = nullptr;
+    void (*free_buffers)(Server *serv, uint32_t buffer_num, void **buffers) = nullptr;
     void *(*get_buffer)(Server *serv, swDataHead *info) = nullptr;
     size_t (*get_buffer_len)(Server *serv, swDataHead *info) = nullptr;
     void (*add_buffer_len)(Server *serv, swDataHead *info, size_t len) = nullptr;
@@ -879,6 +880,10 @@ class Server {
         }
 
         return buffer;
+    }
+
+    inline uint32_t get_worker_buffer_num() {
+        return factory_mode == SW_MODE_BASE ? 1 : reactor_num + dgram_port_num;
     }
 
     inline bool is_support_unsafe_events() {
@@ -980,7 +985,9 @@ class Server {
         return get_connection(get_connection_fd(session_id));
     }
 
-    inline Session *get_session(uint32_t session_id) { return &session_list[session_id % SW_SESSION_LIST_SIZE]; }
+    inline Session *get_session(uint32_t session_id) {
+        return &session_list[session_id % SW_SESSION_LIST_SIZE];
+    }
 
     inline void lock() {
         lock_.lock();
@@ -989,6 +996,8 @@ class Server {
     inline void unlock() {
         lock_.unlock();
     }
+
+    void close_port(bool only_stream_port);
 
     int create_task_workers();
     int create_user_workers();
@@ -1008,6 +1017,7 @@ class Server {
     int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
 
     void init_reactor(swReactor *reactor);
+    void init_worker(swWorker *worker);
     void init_port_protocol(swListenPort *port);
 
     void set_ipc_max_size();
@@ -1047,7 +1057,6 @@ typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
 
 void swServer_signal_init(swServer *serv);
-void swServer_close_port(swServer *serv, enum swBool_type only_stream_port);
 void swServer_clear_timer(swServer *serv);
 
 #ifdef SW_SUPPORT_DTLS
@@ -1082,8 +1091,6 @@ static sw_inline int swEventData_is_stream(uint8_t type) {
 
 void swServer_store_pipe_fd(swServer *serv, swPipe *p);
 void swServer_store_listen_socket(swServer *serv);
-
-int swServer_worker_init(swServer *serv, swWorker *worker);
 
 void swTaskWorker_init(swServer *serv);
 int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);

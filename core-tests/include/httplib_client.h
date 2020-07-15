@@ -234,6 +234,8 @@ inline const unsigned char *ASN1_STRING_get0_data(const ASN1_STRING *asn1) {
  */
 namespace httplib {
 
+const std::string USER_AGENT = "cpp-httplib/0.7";
+
 namespace detail {
 
 struct ci {
@@ -3503,7 +3505,7 @@ inline bool Client::write_request(Stream &strm, const Request &req,
   if (!req.has_header("Accept")) { headers.emplace("Accept", "*/*"); }
 
   if (!req.has_header("User-Agent")) {
-    headers.emplace("User-Agent", "cpp-httplib/0.7");
+    headers.emplace("User-Agent", USER_AGENT);
   }
 
   if (req.body.empty()) {

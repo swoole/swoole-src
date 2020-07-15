@@ -43,7 +43,7 @@ struct swTimer_node {
     swHeap_node *heap_node;
     swTimerCallback callback;
     void *data;
-    swTimerDestructor dtor;
+    swTimerDestructor destructor;
 };
 
 struct swTimer {

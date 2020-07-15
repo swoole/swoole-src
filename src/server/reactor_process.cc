@@ -272,7 +272,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
         SwooleTG.update_time = 1;
     }
 
-    swServer_worker_init(serv, worker);
+    serv->init_worker(worker);
 
     // create reactor
     if (!SwooleTG.reactor) {
@@ -412,10 +412,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     }
 
     swoole_event_free();
-
-    if (serv->onWorkerStop) {
-        serv->onWorkerStop(serv, worker->id);
-    }
+    swWorker_onStop(serv);
+    swReactor_free_output_buffer(n_buffer);
 
     return retval;
 }

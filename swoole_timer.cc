@@ -196,7 +196,7 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) 
         goto _failed;
     }
     tnode->type = SW_TIMER_TYPE_PHP;
-    tnode->dtor = php_swoole_timer_dtor;
+    tnode->destructor = php_swoole_timer_dtor;
     if (persistent) {
         if (fci->fci.param_count > 0) {
             uint32_t i;
