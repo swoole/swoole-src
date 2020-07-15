@@ -8,7 +8,7 @@ skip_if_in_valgrind();
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-const WORKER_N = 4;
+const WORKER_N = 16;
 
 use Swoole\Coroutine\Client;
 use Swoole\Timer;
@@ -55,8 +55,10 @@ $pm->parentFunc = function ($pid) use ($port) {
     Event::wait();
     Swoole\Process::kill($pid);
     phpt_var_dump($stats);
-    Assert::assert(($stats[5] + $stats[10]) < MAX_REQUESTS);
-    Assert::same(array_sum($stats) / count($stats), MAX_REQUESTS);
+    Assert::eq(count($stats), WORKER_N);
+    Assert::lessThan($stats[5], MAX_REQUESTS);
+    Assert::lessThan($stats[10], MAX_REQUESTS);
+    Assert::same(array_sum($stats), MAX_REQUESTS * MAX_CONCURRENCY_MID);
     echo "DONE\n";
 };
 

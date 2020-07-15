@@ -6,20 +6,15 @@ swoole_server: bug Github#2308
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-const N = 64;
-const M = 512;
-
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm)
-{
+$pm->childFunc = function () use ($pm) {
     $server = new \Swoole\Server('0.0.0.0', 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $server->set([
-        'worker_num' => 4,
+        'worker_num' => MAX_PROCESS_NUM,
         'log_file' => '/dev/null',
         'enable_coroutine' => false,
     ]);
@@ -37,8 +32,7 @@ $pm->childFunc = function () use ($pm)
             $server->stop();
         });
     });
-    $server->on('Receive',function (swoole_server $server, int $fd, int $reactor_id, string $data){
-
+    $server->on('Receive', function (swoole_server $server, int $fd, int $reactor_id, string $data) {
     });
     $server->start();
 };
