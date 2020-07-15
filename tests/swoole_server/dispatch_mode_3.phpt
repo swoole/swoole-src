@@ -23,7 +23,7 @@ $port = get_one_free_port();
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($port) {
     global $count, $stats;
-    for ($i = 0; $i < MAX_CONCURRENCY_MID; $i++) {
+    for ($i = 0; $i < MAX_CONCURRENCY; $i++) {
         go(function () use ($port) {
             $cli = new Client(SWOOLE_SOCK_TCP);
             $cli->set([
