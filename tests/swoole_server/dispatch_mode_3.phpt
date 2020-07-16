@@ -58,7 +58,7 @@ $pm->parentFunc = function ($pid) use ($port) {
     Assert::eq(count($stats), WORKER_N);
     Assert::lessThan($stats[5], MAX_REQUESTS);
     Assert::lessThan($stats[10], MAX_REQUESTS);
-    Assert::same(array_sum($stats), MAX_REQUESTS * MAX_CONCURRENCY_MID);
+    Assert::same(array_sum($stats), MAX_REQUESTS * MAX_CONCURRENCY);
     echo "DONE\n";
 };
 
