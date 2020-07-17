@@ -4,7 +4,7 @@
 using httplib::Client;
 using httplib::WebSocketFrame;
 
-bool Client::Push(const std::string &data, int opcode) {
+bool Client::Push(const char *data, size_t length, int opcode) {
     if (!socket_.is_open()) {
         return false;
     }
@@ -14,10 +14,10 @@ bool Client::Push(const std::string &data, int opcode) {
         buffer.size = sizeof(buf);
         buffer.str = buf;
 
-        swWebSocket_encode(&buffer, data.c_str(), data.length(), opcode,
+        swWebSocket_encode(&buffer, data, length, opcode,
                            SW_WEBSOCKET_FLAG_FIN | SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY);
         strm.write(buffer.str, buffer.length);
-        strm.write(data.c_str(), data.length());
+        strm.write(data, length);
         return true;
     });
 }

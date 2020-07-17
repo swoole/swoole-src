@@ -557,7 +557,10 @@ public:
                                 const Params &params);
 
   // websocket
-  bool Push(const std::string &data, int opcode = WEBSOCKET_OPCODE_TEXT);
+  inline bool Push(const std::string &data, int opcode = WEBSOCKET_OPCODE_TEXT) {
+      return Push(data.c_str(), data.length(), WEBSOCKET_OPCODE_TEXT);
+  }
+  bool Push(const char *data, size_t length, int opcode = WEBSOCKET_OPCODE_TEXT);
   std::shared_ptr<WebSocketFrame> Recv();
 
   std::shared_ptr<Response> Patch(const char *path, const std::string &body,

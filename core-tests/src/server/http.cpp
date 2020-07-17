@@ -118,6 +118,7 @@ static void test_run_server(function<void(swServer *)> fn) {
         auto conn = serv->get_connection_by_session_id(session_id);
 
         if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
+            swString_clear(SwooleTG.buffer_stack);
             std::string resp = "Swoole: " + string(req->data, req->info.len);
             swWebSocket_encode(SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN );
             serv->send(serv, session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
@@ -228,7 +229,7 @@ TEST(http_server, static_get) {
     });
 }
 
-static void websocket_test(int server_port, const string &data) {
+static void websocket_test(int server_port, const char *data, size_t length) {
     httplib::Headers headers;
 
     headers.emplace("Connection", "Upgrade");
@@ -241,7 +242,7 @@ static void websocket_test(int server_port, const string &data) {
     auto resp = cli.Get("/websocket", headers);
     EXPECT_EQ(resp->status, 101);
 
-    EXPECT_TRUE(cli.Push(data));
+    EXPECT_TRUE(cli.Push(data, length));
     auto msg = cli.Recv();
 
     EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: ") + data);
@@ -250,7 +251,7 @@ static void websocket_test(int server_port, const string &data) {
 TEST(http_server, websocket_small) {
     test_run_server([](swServer *serv) {
         swSignal_none();
-        websocket_test(serv->get_primary_port()->port, "hello world, swoole is best!");
+        websocket_test(serv->get_primary_port()->port, SW_STRL("hello world, swoole is best!"));
         kill(getpid(), SIGTERM);
     });
 }
@@ -261,7 +262,7 @@ TEST(http_server, websocket_medium) {
 
         swString *str = make_string(8192);
         swString_repeat(str, "A", 1, 8192);
-        websocket_test(serv->get_primary_port()->port, string(str->str, str->length));
+        websocket_test(serv->get_primary_port()->port, str->str, str->length);
 
         swString_free(str);
 
@@ -275,7 +276,7 @@ TEST(http_server, websocket_big) {
 
         swString *str = make_string(128*1024);
         swString_repeat(str, "A", 1, str->size - 1);
-        websocket_test(serv->get_primary_port()->port, string(str->str, str->length));
+        websocket_test(serv->get_primary_port()->port, str->str, str->length);
 
         swString_free(str);
 
