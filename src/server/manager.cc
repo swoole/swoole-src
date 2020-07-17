@@ -153,7 +153,9 @@ int Server::start_manager_process() {
         pid_t pid;
 
         if (task_worker_num > 0) {
-            return swProcessPool_start(&gs->task_workers);
+            if (swProcessPool_start(&gs->task_workers) == SW_ERR) {
+                return SW_ERR;
+            }
         }
 
         for (uint32_t i = 0; i < worker_num; i++) {
