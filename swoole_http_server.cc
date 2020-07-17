@@ -39,7 +39,7 @@ static bool http_context_send_data(http_context *ctx, const char *data, size_t l
 static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context *ctx);
 
-int php_swoole_http_onReceive(swServer *serv, swEventData *req) {
+int php_swoole_http_onReceive(swServer *serv, swRecvData *req) {
     int fd = req->info.fd;
     int server_fd = req->info.server_fd;
 

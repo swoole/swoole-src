@@ -41,11 +41,13 @@ enum swWebsocket_status {
 enum swWebSocket_frame_flag {
     SW_WEBSOCKET_FLAG_FIN = 1 << 0, /* BC: must be 1 */
     SW_WEBSOCKET_FLAG_COMPRESS = 1 << 1,
-    /* readonly for user */
+    // readonly for user
     SW_WEBSOCKET_FLAG_RSV1 = 1 << 2,
     SW_WEBSOCKET_FLAG_RSV2 = 1 << 3,
     SW_WEBSOCKET_FLAG_RSV3 = 1 << 4,
     SW_WEBSOCKET_FLAG_MASK = 1 << 5,
+    // for encoder/decoder
+    SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY = 1 << 6,
 };
 
 enum swWebSocket_frame_union_flag {
@@ -54,27 +56,26 @@ enum swWebSocket_frame_union_flag {
     SW_WEBSOCKET_FLAG_MASK | SW_WEBSOCKET_FLAG_COMPRESS
 };
 
-typedef struct {
+struct swWebSocket_frame_header {
     /**
      * fin:1 rsv1:1 rsv2:1 rsv3:1 opcode:4
      */
-    uchar OPCODE : 4;
-    uchar RSV3 : 1;
-    uchar RSV2 : 1;
-    uchar RSV1 : 1;
-    uchar FIN : 1;
-    uchar LENGTH : 7;
-    uchar MASK : 1;
+    uchar OPCODE :4;
+    uchar RSV3 :1;
+    uchar RSV2 :1;
+    uchar RSV1 :1;
+    uchar FIN :1;
+    uchar LENGTH :7;
+    uchar MASK :1;
+};
 
-} swWebSocket_frame_header;
-
-typedef struct {
+struct swWebSocket_frame {
     swWebSocket_frame_header header;
     char mask_key[SW_WEBSOCKET_MASK_LEN];
     uint16_t header_length;
     size_t payload_length;
     char *payload;
-} swWebSocket_frame;
+};
 
 #define WEBSOCKET_VERSION 13
 
@@ -142,10 +143,14 @@ static inline uchar swWebSocket_set_flags(uchar fin, uchar mask, uchar rsv1, uch
     return flags;
 }
 
-void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t flags);
-void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
+bool swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t flags);
+bool swWebSocket_decode(swWebSocket_frame *frame, char *data, size_t length);
 int swWebSocket_pack_close_frame(swString *buffer, int code, char *reason, size_t length, uint8_t flags);
 void swWebSocket_print_frame(swWebSocket_frame *frame);
+
+inline bool swWebSocket_decode(swWebSocket_frame *frame, swString *str) {
+    return swWebSocket_decode(frame, str->str, str->length);
+}
 
 ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
 int swWebSocket_dispatch_frame(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);

@@ -40,7 +40,7 @@ struct http_context {
         response_headers[key] = value;
     }
 
-    void response(int code, string body) {
+    void response(enum swHttp_status_code code, string body) {
         response_headers["Content-Length"] = to_string(body.length());
         response(code);
         server->send(server, fd, body.c_str(), body.length());
@@ -112,9 +112,18 @@ static void test_run_server(function<void(swServer *)> fn) {
         child_thread = thread(fn, serv);
     };
 
-    serv.onReceive = [](swServer *serv, swEventData *task) -> int {
-        char *data = nullptr;
-        size_t length = serv->get_packet(serv, task, &data);
+    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+
+        int session_id = req->info.fd;
+        auto conn = serv->get_connection_by_session_id(session_id);
+
+        if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
+            swString_clear(SwooleTG.buffer_stack);
+            std::string resp = "Swoole: " + string(req->data, req->info.len);
+            swWebSocket_encode(SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN );
+            serv->send(serv, session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
+            return SW_OK;
+        }
 
         llhttp_t parser = {};
         llhttp_settings_t settings = {};
@@ -122,17 +131,17 @@ static void test_run_server(function<void(swServer *)> fn) {
 
         http_context ctx = {};
         parser.data = &ctx;
+        ctx.server = serv;
+        ctx.fd = session_id;
 
         settings.on_url = handle_on_url;
         settings.on_header_field = handle_on_header_field;
         settings.on_header_value = handle_on_header_value;
         settings.on_message_complete = handle_on_message_complete;
 
-        enum llhttp_errno err = llhttp_execute(&parser, data, length);
+        enum llhttp_errno err = llhttp_execute(&parser, req->data, req->info.len);
 
         if (err == HPE_PAUSED_UPGRADE) {
-            ctx.server = serv;
-            ctx.fd = task->info.fd;
 
             ctx.setHeader("Connection", "Upgrade");
             ctx.setHeader("Sec-WebSocket-Accept", "IIRiohCjop4iJrmvySrFcwcXpHo=");
@@ -140,7 +149,9 @@ static void test_run_server(function<void(swServer *)> fn) {
             ctx.setHeader("Upgrade", "websocket");
             ctx.setHeader("Content-Length", "0");
 
-            ctx.response(101);
+            ctx.response(SW_HTTP_SWITCHING_PROTOCOLS);
+
+            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
             return SW_OK;
         }
@@ -152,9 +163,7 @@ static void test_run_server(function<void(swServer *)> fn) {
         }
         EXPECT_EQ(err, HPE_OK);
 
-        ctx.server = serv;
-        ctx.fd = task->info.fd;
-        ctx.response(200, "hello world");
+        ctx.response(SW_HTTP_OK, "hello world");
 
         EXPECT_EQ(ctx.headers["User-Agent"], httplib::USER_AGENT);
 
@@ -220,22 +229,49 @@ TEST(http_server, static_get) {
     });
 }
 
-TEST(http_server, websocket) {
+static void websocket_test(int server_port, const char *data, size_t length) {
+
+    httplib::Client cli(TEST_HOST, server_port);
+
+    httplib::Headers headers;
+    EXPECT_TRUE(cli.Upgrade("/websocket", headers));
+    EXPECT_TRUE(cli.Push(data, length));
+
+    auto msg = cli.Recv();
+    EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: ") + string(data, length));
+}
+
+TEST(http_server, websocket_small) {
+    test_run_server([](swServer *serv) {
+        swSignal_none();
+        websocket_test(serv->get_primary_port()->port, SW_STRL("hello world, swoole is best!"));
+        kill(getpid(), SIGTERM);
+    });
+}
+
+TEST(http_server, websocket_medium) {
     test_run_server([](swServer *serv) {
         swSignal_none();
 
-        auto port = serv->get_primary_port();
+        swString *str = make_string(8192);
+        swString_repeat(str, "A", 1, 8192);
+        websocket_test(serv->get_primary_port()->port, str->str, str->length);
 
-        httplib::Headers headers;
+        swString_free(str);
 
-        headers.emplace("Connection", "Upgrade");
-        headers.emplace("Upgrade", "websocket");
-        headers.emplace("Sec-Websocket-Key", "sN9cRrP/n9NdMgdcy2VJFQ==");
-        headers.emplace("Sec-WebSocket-Version", "13");
+        kill(getpid(), SIGTERM);
+    });
+}
 
-        httplib::Client cli(TEST_HOST, port->port);
-        auto resp = cli.Get("/websocket", headers);
-        EXPECT_EQ(resp->status, 101);
+TEST(http_server, websocket_big) {
+    test_run_server([](swServer *serv) {
+        swSignal_none();
+
+        swString *str = make_string(128*1024);
+        swString_repeat(str, "A", 1, str->size - 1);
+        websocket_test(serv->get_primary_port()->port, str->str, str->length);
+
+        swString_free(str);
 
         kill(getpid(), SIGTERM);
     });

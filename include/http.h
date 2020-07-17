@@ -15,7 +15,7 @@
  */
 #pragma once
 
-#include "server.h"
+#include "swoole.h"
 
 enum swHttp_version {
     SW_HTTP_VERSION_10 = 1,
@@ -151,7 +151,6 @@ const char *swHttp_get_method_string(int method);
 const char *swHttp_get_status_message(int code);
 size_t swHttp_url_decode(char *str, size_t len);
 char *swHttp_url_encode(char const *str, size_t len);
-void swHttp_free_request(swConnection *conn);
 
 #ifdef SW_USE_HTTP2
 ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);

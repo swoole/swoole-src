@@ -947,7 +947,7 @@ static int swServer_tcp_send(swServer *serv, int session_id, const void *data, u
     }
 
     _send.info.fd = session_id;
-    _send.info.type = SW_SERVER_EVENT_SEND_DATA;
+    _send.info.type = SW_SERVER_EVENT_RECV_DATA;
     _send.data = (char *) data;
     _send.info.len = length;
     return factory->finish(factory, &_send);
@@ -968,7 +968,7 @@ int Server::send_to_connection(swSendData *_send) {
         conn = get_connection_verify_no_ssl(session_id);
     }
     if (!conn) {
-        if (_send->info.type == SW_SERVER_EVENT_SEND_DATA) {
+        if (_send->info.type == SW_SERVER_EVENT_RECV_DATA) {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
                              "send %d byte failed, session#%d does not exist",
@@ -1538,7 +1538,7 @@ static void swServer_signal_handler(int sig) {
     swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
     swServer *serv = sw_server();
-    if (!serv) {
+    if (!SwooleG.running or !serv) {
         return;
     }
 

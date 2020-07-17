@@ -19,6 +19,7 @@
 
 #include "tests.h"
 #include "swoole_memory.h"
+#include "lock.h"
 #include "wrapper/client.hpp"
 #include "swoole_log.h"
 
@@ -84,10 +85,8 @@ TEST(server, base) {
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, swEventData *req) -> int {
-        char *data = nullptr;
-        size_t length = serv->get_packet(serv, req, &data);
-        EXPECT_EQ(string(data, length), string(packet));
+    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
         serv->send(serv, req->info.fd, resp.c_str(), resp.length());
@@ -142,10 +141,8 @@ TEST(server, process) {
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock->unlock(lock); };
 
-    serv.onReceive = [](swServer *serv, swEventData *req) -> int {
-        char *data = nullptr;
-        size_t length = serv->get_packet(serv, req, &data);
-        EXPECT_EQ(string(data, length), string(packet));
+    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
         serv->send(serv, req->info.fd, resp.c_str(), resp.length());

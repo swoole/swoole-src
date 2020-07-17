@@ -48,10 +48,11 @@
 #define SW_WORKER_NUM (SW_CPU_NUM * 2)
 
 enum swServer_event_type {
-    // data payload
-    SW_SERVER_EVENT_SEND_DATA,
+    // recv data payload
+    SW_SERVER_EVENT_RECV_DATA,
+    SW_SERVER_EVENT_RECV_DGRAM,
+    // send data
     SW_SERVER_EVENT_SEND_FILE,
-    SW_SERVER_EVENT_SNED_DGRAM,
     // connection event
     SW_SERVER_EVENT_CLOSE,
     SW_SERVER_EVENT_CONNECT,
@@ -216,6 +217,11 @@ struct swListenPort {
 };
 
 struct swSendData {
+    swDataHead info;
+    const char *data;
+};
+
+struct swRecvData {
     swDataHead info;
     const char *data;
 };
@@ -762,8 +768,8 @@ class Server {
     /**
      * Connection
      */
-    std::function<int(Server *, swEventData *)> onReceive;
-    std::function<int(Server *, swEventData *)> onPacket;
+    std::function<int(Server *, swRecvData *)> onReceive;
+    std::function<int(Server *, swRecvData *)> onPacket;
     std::function<void(Server *, swDataHead *)> onClose;
     std::function<void(Server *, swDataHead *)> onConnect;
     std::function<void(Server *, swDataHead *)> onBufferFull;
@@ -1025,6 +1031,8 @@ class Server {
     int create_worker(swWorker *worker);
     void disable_accept();
 
+    void destroy_http_request(Connection *conn);
+
   private:
     /**
      * http static file directory
@@ -1067,7 +1075,7 @@ swoole::dtls::Session *swServer_dtls_accept(swServer *serv, swListenPort *ls, sw
 
 static sw_inline int swEventData_is_dgram(uint8_t type) {
     switch (type) {
-    case SW_SERVER_EVENT_SNED_DGRAM:
+    case SW_SERVER_EVENT_RECV_DGRAM:
         return SW_TRUE;
     default:
         return SW_FALSE;
@@ -1076,7 +1084,7 @@ static sw_inline int swEventData_is_dgram(uint8_t type) {
 
 static sw_inline int swEventData_is_stream(uint8_t type) {
     switch (type) {
-    case SW_SERVER_EVENT_SEND_DATA:
+    case SW_SERVER_EVENT_RECV_DATA:
     case SW_SERVER_EVENT_CONNECT:
     case SW_SERVER_EVENT_CLOSE:
     case SW_SERVER_EVENT_PAUSE_RECV:

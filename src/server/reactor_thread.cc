@@ -132,7 +132,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event) 
 
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
-    task.info.type = SW_SERVER_EVENT_SNED_DGRAM;
+    task.info.type = SW_SERVER_EVENT_RECV_DGRAM;
 #ifdef SW_BUFFER_RECV_TIME
     task.info.time = swoole_microtime();
 #endif
@@ -260,7 +260,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket) {
     sw_atomic_fetch_sub(port->connection_num, 1);
 
     if (port->open_http_protocol && conn->object) {
-        swHttp_free_request(conn);
+        serv->destroy_http_request(conn);
     }
     if (port->open_redis_protocol && conn->object) {
         sw_free(conn->object);
@@ -1009,7 +1009,7 @@ int Server::dispatch_task(swProtocol *proto, swSocket *_socket, const char *data
     task.info.reactor_id = conn->reactor_id;
     task.info.ext_flags = proto->ext_flags;
     proto->ext_flags = 0;
-    task.info.type = SW_SERVER_EVENT_SEND_DATA;
+    task.info.type = SW_SERVER_EVENT_RECV_DATA;
 #ifdef SW_BUFFER_RECV_TIME
     task.info.info.time = conn->last_time_usec;
 #endif

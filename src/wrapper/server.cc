@@ -128,10 +128,11 @@ static DataBuffer task_unpack(swEventData *task_result) {
     return retval;
 }
 
-static DataBuffer get_recv_data(swServer *serv, swEventData *req, char *header, uint32_t header_length) {
-    char *data_ptr = nullptr;
+static DataBuffer get_recv_data(swServer *serv, swRecvData *req, char *header, uint32_t header_length) {
+
     DataBuffer retval;
-    size_t data_len = serv->get_packet(serv, req, &data_ptr);
+    const char *data_ptr = req->data;
+    size_t data_len = req->info.len;
 
     if (header_length >= (uint32_t) data_len) {
         return retval;
@@ -337,7 +338,7 @@ bool Server::start(void) {
     return true;
 }
 
-int Server::_onReceive(swServer *serv, swEventData *req) {
+int Server::_onReceive(swServer *serv, swRecvData *req) {
     DataBuffer data = get_recv_data(serv, req, nullptr, 0);
     Server *_this = (Server *) serv->ptr2;
     _this->onReceive(req->info.fd, data);
@@ -354,15 +355,14 @@ void Server::_onWorkerStop(swServer *serv, int worker_id) {
     _this->onWorkerStop(worker_id);
 }
 
-int Server::_onPacket(swServer *serv, swEventData *req) {
+int Server::_onPacket(swServer *serv, swRecvData *req) {
     swDgramPacket *packet;
 
-    char *buffer;
-    serv->get_packet(serv, req, &buffer);
+    const char *buffer = req->data;
     packet = (swDgramPacket *) buffer;
 
     char *data = nullptr;
-    int length = 0;
+    uint32_t length = 0;
     ClientInfo clientInfo;
     clientInfo.server_socket = req->info.server_fd;
     data = packet->data;

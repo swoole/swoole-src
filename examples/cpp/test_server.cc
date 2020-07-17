@@ -8,8 +8,8 @@
 
 using namespace swoole;
 
-int my_onPacket(swServer *serv, swEventData *req);
-int my_onReceive(swServer *serv, swEventData *req);
+int my_onPacket(swServer *serv, swRecvData *req);
+int my_onReceive(swServer *serv, swRecvData *req);
 void my_onStart(swServer *serv);
 void my_onShutdown(swServer *serv);
 void my_onConnect(swServer *serv, swDataHead *info);
@@ -92,24 +92,25 @@ void my_onWorkerStop(swServer *serv, int worker_id) {
     swNotice("WorkerStop[%d]PID=%d", worker_id, getpid());
 }
 
-int my_onReceive(swServer *serv, swEventData *req) {
+int my_onReceive(swServer *serv, swRecvData *req) {
     int ret;
+    char req_data[SW_IPC_BUFFER_SIZE];
     char resp_data[SW_IPC_BUFFER_SIZE];
 
     g_receive_count++;
 
-    swPacket_ptr *req_pkg = (swPacket_ptr *) req;
-    swConnection *conn = serv->get_connection_by_session_id(req_pkg->info.fd);
+    swConnection *conn = serv->get_connection_by_session_id(req->info.fd);
 
-    swoole_rtrim(req_pkg->data.str, req_pkg->data.length);
+    memcpy(req_data, req->data, req->info.len);
+    swoole_rtrim(req_data, req->info.len);
     swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d",
              g_receive_count,
              swSocket_get_ip(conn->socket_type, &conn->info),
              swSocket_get_port(conn->socket_type, &conn->info),
-             req_pkg->data.str,
-             req_pkg->data.length);
+             req_data,
+             req->info.len);
 
-    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req_pkg->data.length, req_pkg->data.str);
+    int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req_data);
 
     ret = serv->send(serv, req->info.fd, resp_data, n);
     if (ret < 0) {
@@ -120,17 +121,14 @@ int my_onReceive(swServer *serv, swEventData *req) {
     return SW_OK;
 }
 
-int my_onPacket(swServer *serv, swEventData *req) {
-    char *data;
-    int length;
+int my_onPacket(swServer *serv, swRecvData *req) {
     char address[256];
     int port = 0;
     int ret = 0;
 
     swDgramPacket *packet;
 
-    serv->get_packet(serv, req, &data);
-    packet = (swDgramPacket *) data;
+    packet = (swDgramPacket *) req->data;
 
     int serv_sock = req->info.server_fd;
 
@@ -146,8 +144,8 @@ int my_onPacket(swServer *serv, swEventData *req) {
         abort();
     }
 
-    data = packet->data;
-    length = packet->length;
+    char *data = packet->data;
+    uint32_t length = packet->length;
 
     swNotice("Packet[client=%s:%d, %d bytes]: data=%.*s", address, port, length, length, data);
 

@@ -861,10 +861,9 @@ int php_swoole_task_pack(swEventData *task, zval *zdata) {
     return task->info.fd;
 }
 
-void php_swoole_get_recv_data(swServer *serv, zval *zdata, swEventData *req) {
-    char *data = nullptr;
-
-    size_t length = serv->get_packet(serv, req, &data);
+void php_swoole_get_recv_data(swServer *serv, zval *zdata, swRecvData *req) {
+    const char *data = req->data;
+    uint32_t length = req->info.len;
     if (length == 0) {
         ZVAL_EMPTY_STRING(zdata);
     } else {
@@ -1314,7 +1313,7 @@ static void php_swoole_onPipeMessage(swServer *serv, swEventData *req) {
     sw_zval_free(zdata);
 }
 
-int php_swoole_onReceive(swServer *serv, swEventData *req) {
+int php_swoole_onReceive(swServer *serv, swRecvData *req) {
     zend_fcall_info_cache *fci_cache =
         php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onReceive);
 
@@ -1337,17 +1336,14 @@ int php_swoole_onReceive(swServer *serv, swEventData *req) {
     return SW_OK;
 }
 
-int php_swoole_onPacket(swServer *serv, swEventData *req) {
+int php_swoole_onPacket(swServer *serv, swRecvData *req) {
     zval *zserv = (zval *) serv->ptr2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zval zaddr;
 
-    char *buffer;
-    serv->get_packet(serv, req, &buffer);
-
     array_init(&zaddr);
 
-    swDgramPacket *packet = (swDgramPacket *) buffer;
+    swDgramPacket *packet = (swDgramPacket *) req->data;
 
     add_assoc_long(&zaddr, "server_socket", req->info.server_fd);
     swConnection *from_sock = serv->get_connection(req->info.server_fd);

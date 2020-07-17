@@ -38,20 +38,26 @@ extern swString *_callback_buffer;
 
 struct DataBuffer {
     size_t length;
-    void *buffer;
+    char *buffer;
 
     DataBuffer() {
         length = 0;
         buffer = nullptr;
     }
 
-    DataBuffer(const char *str) { copy((void *) str, strlen(str)); }
+    DataBuffer(const char *str) {
+        copy(str, strlen(str));
+    }
 
-    DataBuffer(string &str) { copy((void *) str.c_str(), str.length()); }
+    DataBuffer(string &str) {
+        copy(str.c_str(), str.length());
+    }
 
-    DataBuffer(const char *str, size_t length) { copy((void *) str, length); }
+    DataBuffer(const char *str, size_t length) {
+        copy(str, length);
+    }
 
-    void copy(void *_data, size_t _length) {
+    void copy(const char *_data, size_t _length) {
         alloc(_length);
         memcpy(buffer, _data, _length);
     }
@@ -123,10 +129,10 @@ class Server {
     virtual void onFinish(int, const DataBuffer &) = 0;
 
    public:
-    static int _onReceive(swServer *serv, swEventData *req);
+    static int _onReceive(swServer *serv, swRecvData *req);
+    static int _onPacket(swServer *serv, swRecvData *req);
     static void _onConnect(swServer *serv, swDataHead *info);
     static void _onClose(swServer *serv, swDataHead *info);
-    static int _onPacket(swServer *serv, swEventData *req);
     static void _onPipeMessage(swServer *serv, swEventData *req);
     static void _onStart(swServer *serv);
     static void _onShutdown(swServer *serv);

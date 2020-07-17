@@ -215,7 +215,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event) {
         swString_append_ptr(output_buffer, task.data, task.info.len);
         if (task.info.type == SW_SERVER_EVENT_PROXY_END) {
             memcpy(&_send.info, &task.info, sizeof(_send.info));
-            _send.info.type = SW_SERVER_EVENT_SEND_DATA;
+            _send.info.type = SW_SERVER_EVENT_RECV_DATA;
             _send.data = output_buffer->str;
             _send.info.len = output_buffer->length;
             factory->finish(factory, &_send);
@@ -465,7 +465,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data) {
         swEventData proxy_msg;
         sw_memset_zero(&proxy_msg.info, sizeof(proxy_msg.info));
 
-        if (data->info.type == SW_SERVER_EVENT_SEND_DATA) {
+        if (data->info.type == SW_SERVER_EVENT_RECV_DATA) {
             proxy_msg.info.fd = session_id;
             proxy_msg.info.reactor_id = SwooleG.process_id;
             proxy_msg.info.type = SW_SERVER_EVENT_PROXY_START;

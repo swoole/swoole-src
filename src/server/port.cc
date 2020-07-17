@@ -337,7 +337,7 @@ static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *e
 
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
         if (conn->http_upgrade == 0) {
-            swHttp_free_request(conn);
+            serv->destroy_http_request(conn);
             conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             conn->http_upgrade = 1;
         }
@@ -405,7 +405,7 @@ _recv_data:
 #endif
         }
     _close_fd:
-        swHttp_free_request(conn);
+        serv->destroy_http_request(conn);
         swReactor_trigger_close_event(reactor, event);
         return SW_OK;
     }
@@ -444,12 +444,12 @@ _parse:
         conn->http2_stream = 1;
         swHttp2_send_setting_frame(protocol, _socket);
         if (buffer->length == sizeof(SW_HTTP2_PRI_STRING) - 1) {
-            swHttp_free_request(conn);
+            serv->destroy_http_request(conn);
             swString_clear(buffer);
             return SW_OK;
         }
         swString_reduce(buffer, buffer->offset);
-        swHttp_free_request(conn);
+        serv->destroy_http_request(conn);
         conn->socket->skip_recv = 1;
         return swPort_onRead_check_length(reactor, port, event);
 #endif
@@ -506,7 +506,7 @@ _parse:
                 request->clean();
                 goto _parse;
             } else {
-                swHttp_free_request(conn);
+                serv->destroy_http_request(conn);
                 swString_clear(buffer);
                 return SW_OK;
             }
@@ -593,7 +593,7 @@ _parse:
     buffer->offset = request_length;
     Server::dispatch_task(protocol, _socket, buffer->str, buffer->length);
     if (conn->active && !_socket->removed) {
-        swHttp_free_request(conn);
+        serv->destroy_http_request(conn);
         swString_clear(buffer);
     }
 
