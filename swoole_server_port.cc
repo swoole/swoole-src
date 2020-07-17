@@ -81,9 +81,9 @@ static php_swoole_server_port_property *php_swoole_server_port_get_and_check_pro
     return property;
 }
 
-static void php_swoole_server_port_free_object(zend_object *object) {
+// Dereference from server object
+void php_swoole_server_port_deref(zend_object *object) {
     server_port_t *server_port = php_swoole_server_port_fetch_object(object);
-
     php_swoole_server_port_property *property = &server_port->property;
     if (property->serv) {
         for (int j = 0; j < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; j++) {
@@ -92,6 +92,7 @@ static void php_swoole_server_port_free_object(zend_object *object) {
                 property->caches[j] = nullptr;
             }
         }
+        property->serv = nullptr;
     }
 
     swListenPort *port = server_port->port;
@@ -101,8 +102,12 @@ static void php_swoole_server_port_free_object(zend_object *object) {
             efree(port->protocol.private_data);
             port->protocol.private_data = nullptr;
         }
+        server_port->port = nullptr;
     }
+}
 
+static void php_swoole_server_port_free_object(zend_object *object) {
+    php_swoole_server_port_deref(object);
     zend_object_std_dtor(object);
 }
 

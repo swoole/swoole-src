@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     swServer serv;
 
     serv.reactor_num = 4;
-    serv.worker_num = 2;
+    serv.worker_num = 1;
 
     serv.factory_mode = SW_MODE_BASE;
     serv.max_connection = 10000;
@@ -57,10 +57,9 @@ int main(int argc, char **argv) {
 
     // swSignal_set(SIGINT, user_signal);
 
-    if (serv.create()) {
-        swWarn("create server fail[error=%d]", swoole_get_last_error());
-        exit(1);
-    }
+    serv.add_port(SW_SOCK_UDP, "0.0.0.0", 9502);
+    serv.add_port(SW_SOCK_TCP6, "::", 9503);
+    serv.add_port(SW_SOCK_UDP6, "::", 9504);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
     if (!port) {
@@ -73,9 +72,10 @@ int main(int argc, char **argv) {
     port->backlog = 128;
     memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n"));
 
-    serv.add_port(SW_SOCK_UDP, "0.0.0.0", 9502);
-    serv.add_port(SW_SOCK_TCP6, "::", 9503);
-    serv.add_port(SW_SOCK_UDP6, "::", 9504);
+    if (serv.create()) {
+        swWarn("create server fail[error=%d]", swoole_get_last_error());
+        exit(1);
+    }
 
     if (serv.start() < 0) {
         swWarn("start server fail[error=%d]", swoole_get_last_error());

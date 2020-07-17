@@ -14,14 +14,14 @@
  +----------------------------------------------------------------------+
  */
 
-#include "server.h"
-
 #include <signal.h>
 
-typedef struct _swFactoryProcess {
+#include "server.h"
+
+struct swFactoryProcess {
     swPipe *pipes;
     swPipeBuffer *send_buffer;
-} swFactoryProcess;
+};
 
 typedef int (*send_func_t)(swServer *, swPipeBuffer *, size_t, void *);
 

@@ -5,8 +5,6 @@ swoole_server: dispatch_fallback
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-const REQ_N = MAX_REQUESTS * 32;
-const CLIENT_N = 16;
 const WORKER_N = 4;
 
 use Swoole\Coroutine\Client;
@@ -23,7 +21,7 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)
 {
     global $count, $stats;
-    for ($i = 0; $i < CLIENT_N; $i++)
+    for ($i = 0; $i < MAX_CONCURRENCY_MID; $i++)
     {
         go(function () use ($port) {
             $cli = new Client(SWOOLE_SOCK_TCP);
@@ -33,12 +31,12 @@ $pm->parentFunc = function ($pid) use ($port)
             ]);
             $r = $cli->connect(TCP_SERVER_HOST, $port, 1);
             Assert::assert($r);
-            for ($i = 0; $i < REQ_N; $i++)
+            for ($i = 0; $i < MAX_REQUESTS; $i++)
             {
                 $cli->send("hello world\r\n\r\n");
             }
             $cli->count = 0;
-            for ($i = 0; $i < REQ_N; $i++)
+            for ($i = 0; $i < MAX_REQUESTS; $i++)
             {
                 $data = $cli->recv();
                 global $stats;
@@ -52,7 +50,7 @@ $pm->parentFunc = function ($pid) use ($port)
                     $stats[$wid] = 1;
                 }
                 $cli->count++;
-                if ($cli->count == REQ_N)
+                if ($cli->count == MAX_REQUESTS)
                 {
                     $cli->close();
                 }
@@ -64,7 +62,7 @@ $pm->parentFunc = function ($pid) use ($port)
     phpt_var_dump($stats);
     foreach ($stats as $s)
     {
-        Assert::same($s, REQ_N * CLIENT_N / WORKER_N);
+        Assert::same($s, MAX_REQUESTS * MAX_CONCURRENCY_MID / WORKER_N);
     }
     echo "DONE\n";
 };

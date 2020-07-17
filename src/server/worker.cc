@@ -399,6 +399,9 @@ void swWorker_onStop(swServer *serv) {
     if (serv->onWorkerStop) {
         serv->onWorkerStop(serv, SwooleG.process_id);
     }
+    if (serv->worker_input_buffers) {
+        serv->free_buffers(serv, serv->get_worker_buffer_num(), serv->worker_input_buffers);
+    }
 }
 
 void swWorker_stop(swWorker *worker) {
@@ -533,7 +536,7 @@ int swWorker_loop(swServer *serv, swWorker *worker) {
     // worker_id
     SwooleG.process_id = worker->id;
 
-    swServer_worker_init(serv, worker);
+    serv->init_worker(worker);
 
     if (swoole_event_init(0) < 0) {
         return SW_ERR;

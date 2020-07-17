@@ -124,7 +124,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
     SwooleG.process_id = worker_id;
 
     if (serv->factory_mode == SW_MODE_BASE) {
-        swServer_close_port(serv, SW_TRUE);
+        serv->close_port(true);
     }
 
     /**

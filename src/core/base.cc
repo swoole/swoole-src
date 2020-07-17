@@ -100,7 +100,7 @@ void swoole_init(void) {
         return;
     }
 
-    sw_memset_zero(&SwooleG, sizeof(SwooleG));
+    SwooleG = {};
     sw_memset_zero(sw_error, SW_ERROR_MSG_SIZE);
 
     SwooleG.running = 1;
@@ -203,7 +203,7 @@ void swoole_clean(void) {
         delete g_logger_instance;
         g_logger_instance = nullptr;
     }
-    sw_memset_zero(&SwooleG, sizeof(SwooleG));
+    SwooleG = {};
 }
 
 pid_t swoole_fork(int flags) {
@@ -1456,7 +1456,7 @@ int hook_add(void **hooks, int type, swCallback func, int push_back) {
     return SW_OK;
 }
 
-inline void hook_call(void **hooks, int type, void *arg) {
+void hook_call(void **hooks, int type, void *arg) {
     std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);

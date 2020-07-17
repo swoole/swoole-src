@@ -62,9 +62,6 @@ typedef cpuset_t cpu_set_t;
 
 #include <functional>
 
-#ifndef ulong
-#define ulong unsigned long
-#endif
 typedef unsigned long ulong_t;
 
 #ifndef PRId64
@@ -375,6 +372,8 @@ typedef unsigned char uchar;
 #endif
 
 typedef std::function<void(void *)> swCallback;
+typedef std::function<void(swTimer *, swTimer_node *)> swTimerCallback;
+typedef std::function<void(swTimer_node *)> swTimerDestructor;
 
 struct swAllocator {
     void *(*malloc)(size_t size);
@@ -598,34 +597,6 @@ void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 
-//--------------------------------timer------------------------------
-
-typedef void (*swTimerCallback)(swTimer *, swTimer_node *);
-typedef void (*swTimerDtor)(swTimer_node *);
-
-enum swTimer_type {
-    SW_TIMER_TYPE_KERNEL,
-    SW_TIMER_TYPE_PHP,
-};
-
-struct swTimer_node {
-    /*----------------properties--------------*/
-    long id;
-    enum swTimer_type type;
-    int64_t exec_msec;
-    int64_t interval;
-    uint64_t round;
-    uint8_t removed;
-    swHeap_node *heap_node;
-    /*-----------------callback---------------*/
-    swTimerCallback callback;
-    void *data;
-    /*-----------------destructor-------------*/
-    swTimerDtor dtor;
-};
-
-//--------------------------------------------------------------
-
 struct swThreadGlobal_t {
     uint16_t id;
     uint8_t type;
@@ -660,6 +631,7 @@ struct swGlobal_t {
 
     int process_type;
     uint32_t process_id;
+    long task_id;
     pid_t pid;
 
     int signal_fd;

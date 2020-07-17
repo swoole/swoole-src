@@ -12,11 +12,9 @@ use Swoole\Event;
 use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
-    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 0.5, 0))
-    {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort(), 0.5, 0)) {
         echo "Over flow. errno=" . $client->errCode;
         die("\n");
     }
@@ -27,19 +25,15 @@ $pm->parentFunc = function ($pid) use ($pm)
         'content' => str_repeat('A', 8192 * rand(1, 3)),
     );
 
-    $_serialize_data = serialize($data). "\r\n\r\n";
+    $_serialize_data = serialize($data) . "\r\n\r\n";
 
     $chunk_size = 2048;
     $len = strlen($_serialize_data);
     $chunk_num = intval($len / $chunk_size) + 1;
-    for ($i = 0; $i < $chunk_num; $i++)
-    {
-        if ($len < ($i + 1) * $chunk_size)
-        {
+    for ($i = 0; $i < $chunk_num; $i++) {
+        if ($len < ($i + 1) * $chunk_size) {
             $sendn = $len - ($i * $chunk_size);
-        }
-        else
-        {
+        } else {
             $sendn = $chunk_size;
         }
         $client->send(substr($_serialize_data, $i * $chunk_size, $sendn));
@@ -49,8 +43,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm)
-{
+$pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         'package_eof' => "\r\n\r\n",
@@ -62,19 +55,14 @@ $pm->childFunc = function () use ($pm)
         'log_file' => '/dev/null',
         "reload_async" => true,
     ));
-    $serv->on("WorkerStart", function (Server $serv)  use ($pm)
-    {
+    $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (Server $serv, $fd, $rid, $data)
-    {
+    $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
         $_data = unserialize(rtrim($data));
-        if ($_data and is_array($_data) and $_data['sid'] == 1000236)
-        {
+        if ($_data and is_array($_data) and $_data['sid'] == 1000236) {
             $serv->send($fd, "SUCCESS\n");
-        }
-        else
-        {
+        } else {
             $serv->send($fd, "ERROR\n");
         }
     });

@@ -592,8 +592,10 @@ _parse:
 
     buffer->offset = request_length;
     Server::dispatch_task(protocol, _socket, buffer->str, buffer->length);
-    swHttp_free_request(conn);
-    swString_clear(buffer);
+    if (conn->active && !_socket->removed) {
+        swHttp_free_request(conn);
+        swString_clear(buffer);
+    }
 
     return SW_OK;
 }

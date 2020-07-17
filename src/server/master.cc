@@ -38,7 +38,8 @@ static int swServer_tcp_sendfile(
 static int swServer_tcp_notify(swServer *serv, swConnection *conn, int event);
 static int swServer_tcp_feedback(swServer *serv, int session_id, int event);
 
-static void **swServer_worker_create_buffers(swServer *serv, uint buffer_num);
+static void **swServer_worker_create_buffers(swServer *serv, uint32_t buffer_num);
+static void swServer_worker_free_buffers(swServer *serv, uint32_t buffer_num, void **buffers);
 static void *swServer_worker_get_buffer(swServer *serv, swDataHead *info);
 static size_t swServer_worker_get_buffer_len(swServer *serv, swDataHead *info);
 static void swServer_worker_add_buffer_len(swServer *serv, swDataHead *info, size_t len);
@@ -73,8 +74,8 @@ void Server::disable_accept() {
     }
 }
 
-void swServer_close_port(swServer *serv, enum swBool_type only_stream_port) {
-    for (auto port : serv->ports) {
+void Server::close_port(bool only_stream_port) {
+    for (auto port : ports) {
         if (only_stream_port && swSocket_is_dgram(port->type)) {
             continue;
         }
@@ -363,54 +364,43 @@ int Server::start_check() {
     return SW_OK;
 }
 
-void swServer_store_listen_socket(swServer *serv) {
+void Server::store_listen_socket() {
     int sockfd;
 
-    for (auto ls : serv->ports) {
+    for (auto ls : ports) {
         sockfd = ls->socket->fd;
         // save server socket to connection_list
-        serv->connection_list[sockfd].fd = sockfd;
+        connection_list[sockfd].fd = sockfd;
         // socket type
-        serv->connection_list[sockfd].socket_type = ls->type;
+        connection_list[sockfd].socket_type = ls->type;
         // save listen_host object
-        serv->connection_list[sockfd].object = ls;
+        connection_list[sockfd].object = ls;
 
         if (swSocket_is_dgram(ls->type)) {
             if (ls->type == SW_SOCK_UDP) {
-                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
+                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
             } else if (ls->type == SW_SOCK_UDP6) {
-                serv->udp_socket_ipv6 = sockfd;
-                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
+                udp_socket_ipv6 = sockfd;
+                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
         } else {
             // IPv4
             if (ls->type == SW_SOCK_TCP) {
-                serv->connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
+                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
             }
             // IPv6
             else if (ls->type == SW_SOCK_TCP6) {
-                serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
+                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
         }
         if (sockfd >= 0) {
-            serv->set_minfd(sockfd);
-            serv->set_maxfd(sockfd);
+            set_minfd(sockfd);
+            set_maxfd(sockfd);
         }
     }
 }
 
-uint32_t sw_inline swServer_worker_buffer_num(swServer *serv) {
-    uint32_t buffer_num;
-
-    if (serv->factory_mode == SW_MODE_BASE) {
-        buffer_num = 1;
-    } else {
-        buffer_num = serv->reactor_num + serv->dgram_port_num;
-    }
-    return buffer_num;
-}
-
-void **swServer_worker_create_buffers(swServer *serv, uint buffer_num) {
+static void **swServer_worker_create_buffers(swServer *serv, uint32_t buffer_num) {
     swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
     if (buffers == nullptr) {
         swError("malloc for worker input_buffers failed");
@@ -424,6 +414,13 @@ void **swServer_worker_create_buffers(swServer *serv, uint buffer_num) {
     }
 
     return (void **) buffers;
+}
+
+static void swServer_worker_free_buffers(swServer *serv, uint32_t buffer_num, void **buffers) {
+    for (uint i = 0; i < buffer_num; i++) {
+        swString_free((swString *) buffers[i]);
+    }
+    sw_free(buffers);
 }
 
 /**
@@ -500,13 +497,13 @@ int Server::create_worker(swWorker *worker) {
 /**
  * [Worker]
  */
-int swServer_worker_init(swServer *serv, swWorker *worker) {
+void Server::init_worker(swWorker *worker) {
 #ifdef HAVE_CPU_AFFINITY
-    if (serv->open_cpu_affinity) {
+    if (open_cpu_affinity) {
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
-        if (serv->cpu_affinity_available_num) {
-            CPU_SET(serv->cpu_affinity_available[SwooleG.process_id % serv->cpu_affinity_available_num], &cpu_set);
+        if (cpu_affinity_available_num) {
+            CPU_SET(cpu_affinity_available[SwooleG.process_id % cpu_affinity_available_num], &cpu_set);
         } else {
             CPU_SET(SwooleG.process_id % SW_CPU_NUM, &cpu_set);
         }
@@ -524,24 +521,22 @@ int swServer_worker_init(swServer *serv, swWorker *worker) {
     // signal init
     swWorker_signal_init();
 
-    serv->worker_input_buffers = (void **) serv->create_buffers(serv, swServer_worker_buffer_num(serv));
-    if (!serv->worker_input_buffers) {
-        return SW_ERR;
+    worker_input_buffers = (void **) create_buffers(this, get_worker_buffer_num());
+    if (!worker_input_buffers) {
+        swError("failed to create worker buffers");
     }
 
-    if (serv->max_request < 1) {
+    if (max_request < 1) {
         SwooleWG.run_always = 1;
     } else {
-        SwooleWG.max_request = serv->max_request;
-        if (serv->max_request_grace > 0) {
-            SwooleWG.max_request += swoole_system_random(1, serv->max_request_grace);
+        SwooleWG.max_request = max_request;
+        if (max_request_grace > 0) {
+            SwooleWG.max_request += swoole_system_random(1, max_request_grace);
         }
     }
 
-    worker->start_time = time(nullptr);
+    worker->start_time = ::time(nullptr);
     worker->request_count = 0;
-
-    return SW_OK;
 }
 
 void Server::call_worker_start_callback(swWorker *worker) {
@@ -735,6 +730,7 @@ Server::Server(enum swServer_mode mode) {
      * init method
      */
     create_buffers = swServer_worker_create_buffers;
+    free_buffers = swServer_worker_free_buffers;
     get_buffer = swServer_worker_get_buffer;
     get_buffer_len = swServer_worker_get_buffer_len;
     add_buffer_len = swServer_worker_add_buffer_len;
@@ -791,15 +787,16 @@ void swServer_clear_timer(swServer *serv) {
 }
 
 void Server::shutdown() {
-    running = 0;
+    running = false;
     // stop all thread
     if (SwooleTG.reactor) {
         swReactor *reactor = SwooleTG.reactor;
         swReactor_wait_exit(reactor, 1);
-        for (auto ls : ports) {
-            if (swSocket_is_stream(ls->type)) {
-                reactor->del(reactor, ls->socket);
+        for (auto port : ports) {
+            if (swSocket_is_dgram(port->type) and factory_mode == SW_MODE_PROCESS) {
+                continue;
             }
+            reactor->del(reactor, port->socket);
         }
         swServer_clear_timer(this);
     }
@@ -1541,6 +1538,10 @@ static void swServer_signal_handler(int sig) {
     swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
     swServer *serv = sw_server();
+    if (!serv) {
+        return;
+    }
+
     int status;
     pid_t pid;
     switch (sig) {
@@ -1572,7 +1573,7 @@ static void swServer_signal_handler(int sig) {
          */
     case SIGUSR1:
     case SIGUSR2:
-        if (sw_server()->factory_mode == SW_MODE_BASE) {
+        if (serv->factory_mode == SW_MODE_BASE) {
             if (serv->gs->event_workers.reloading) {
                 break;
             }
@@ -1589,11 +1590,11 @@ static void swServer_signal_handler(int sig) {
         if (sig == SIGRTMIN) {
             uint32_t i;
             swWorker *worker;
-            for (i = 0; i < sw_server()->worker_num + serv->task_worker_num + sw_server()->user_worker_num; i++) {
+            for (i = 0; i < serv->worker_num + serv->task_worker_num + serv->user_worker_num; i++) {
                 worker = serv->get_worker(i);
                 swoole_kill(worker->pid, SIGRTMIN);
             }
-            if (sw_server()->factory_mode == SW_MODE_PROCESS) {
+            if (serv->factory_mode == SW_MODE_PROCESS) {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
             sw_logger()->reopen();
