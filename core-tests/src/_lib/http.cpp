@@ -52,10 +52,11 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
             }
          }
 
-        char *data = (char *) malloc(packet_len);
+        char *data = (char *) malloc(packet_len + 1);
         if (data == nullptr) {
             return false;
         }
+        data[packet_len] = 0;
 
         uint32_t header_len = proto.real_header_length > 0 ? proto.real_header_length : SW_WEBSOCKET_HEADER_LEN;
         memcpy(data, buf, header_len);

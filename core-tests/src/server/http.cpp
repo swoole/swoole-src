@@ -245,7 +245,7 @@ static void websocket_test(int server_port, const char *data, size_t length) {
     EXPECT_TRUE(cli.Push(data, length));
     auto msg = cli.Recv();
 
-    EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: ") + data);
+    EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: ") + string(data, length));
 }
 
 TEST(http_server, websocket_small) {
