@@ -178,7 +178,7 @@ int Server::start_reactor_processes() {
     swProcessPool_wait(&gs->event_workers);
     swProcessPool_shutdown(&gs->event_workers);
 
-    swManager_kill_user_workers(this);
+    kill_user_workers();
 
     if (onManagerStop) {
         onManagerStop(this);
@@ -366,14 +366,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     /**
      * 1 second timer
      */
-    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == nullptr) {
+    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, Server::timer_callback, serv)) == nullptr) {
     _fail:
         swReactor_free_output_buffer(n_buffer);
         swoole_event_free();
         return SW_ERR;
     }
 
-    swWorker_onStart(serv);
+    serv->worker_start_callback();
 
     /**
      * for heartbeat check
@@ -413,7 +413,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     }
 
     swoole_event_free();
-    swWorker_onStop(serv);
+    serv->worker_stop_callback();
     swReactor_free_output_buffer(n_buffer);
 
     return retval;
@@ -450,7 +450,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data) {
     swServer *serv = (swServer *) factory->ptr;
     int session_id = data->info.fd;
 
-    swSession *session = serv->get_session(session_id);
+    Session *session = serv->get_session(session_id);
     if (session->fd == 0) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_NOT_EXIST,
@@ -528,7 +528,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
         conn = serv->get_connection(fd);
-        if (swServer_connection_valid(serv, conn)) {
+        if (serv->is_valid_connection(conn)) {
             if (conn->protect || conn->last_time > checktime) {
                 continue;
             }

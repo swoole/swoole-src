@@ -151,8 +151,7 @@ void php_swoole_server_rshutdown() {
     }
 
     swServer *serv = sw_server();
-
-    swWorker_clean_pipe_buffer(serv);
+    serv->drain_worker_pipe();
 
     if (serv->gs->start > 0 && !swIsUserWorker()) {
         if (PG(last_error_message)) {
@@ -848,7 +847,7 @@ int php_swoole_task_pack(swEventData *task, zval *zdata) {
     }
 
     if (task_data_len >= (int) (SW_IPC_MAX_SIZE - sizeof(task->info))) {
-        if (swTaskWorker_large_pack(task, task_data_str, task_data_len) < 0) {
+        if (swEventData_large_pack(task, task_data_str, task_data_len) < 0) {
             php_swoole_fatal_error(E_WARNING, "large task pack failed");
             task->info.fd = SW_ERR;
             task->info.len = 0;
@@ -906,7 +905,7 @@ zval *php_swoole_task_unpack(swEventData *task_result) {
      * Large result package
      */
     if (swTask_type(task_result) & SW_TASK_TMPFILE) {
-        large_packet = swTaskWorker_large_unpack(task_result);
+        large_packet = swEventData_large_unpack(task_result);
         /**
          * unpack failed
          */
@@ -1156,7 +1155,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject) {
             return;
         }
 #endif
-        if (port->open_http2_protocol && !swServer_dispatch_mode_is_mod(serv)) {
+        if (port->open_http2_protocol && !serv->is_mode_dispatch_mode()) {
             php_swoole_fatal_error(
                 E_ERROR,
                 "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true",
@@ -2210,10 +2209,10 @@ static PHP_METHOD(swoole_server, set) {
         }
     }
     if (php_swoole_array_get_value(vht, "dispatch_func", ztmp)) {
-        swServer_dispatch_function c_dispatch_func = nullptr;
+        Server::dispatch_function c_dispatch_func = nullptr;
         while (1) {
             if (Z_TYPE_P(ztmp) == IS_STRING) {
-                c_dispatch_func = (swServer_dispatch_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp));
+                c_dispatch_func = (Server::dispatch_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp));
                 if (c_dispatch_func) {
                     break;
                 }
@@ -3032,7 +3031,7 @@ static PHP_METHOD(swoole_server, heartbeat) {
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
         swTrace("heartbeat check fd=%d", fd);
         swConnection *conn = serv->get_connection(fd);
-        if (swServer_connection_valid(serv, conn)) {
+        if (serv->is_valid_connection(conn)) {
             if (conn->protect || conn->last_time > checktime) {
                 continue;
             }

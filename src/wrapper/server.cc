@@ -108,7 +108,7 @@ static int task_pack(swEventData *task, const DataBuffer &data) {
     swTask_type(task) = 0;
 
     if (data.length >= SW_IPC_MAX_SIZE - sizeof(task->info)) {
-        if (swTaskWorker_large_pack(task, (char *) data.buffer, (int) data.length) < 0) {
+        if (swEventData_large_pack(task, (char *) data.buffer, (int) data.length) < 0) {
             swWarn("large task pack failed()");
             return SW_ERR;
         }
@@ -121,7 +121,7 @@ static int task_pack(swEventData *task, const DataBuffer &data) {
 
 static DataBuffer task_unpack(swEventData *task_result) {
     DataBuffer retval;
-    swString *result = swTaskWorker_large_unpack(task_result);
+    swString *result = swEventData_large_unpack(task_result);
     if (result) {
         retval.copy(task_result->data, (size_t) task_result->info.len);
     }

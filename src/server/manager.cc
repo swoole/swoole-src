@@ -45,8 +45,6 @@ typedef std::unordered_map<uint32_t, pid_t> reload_list_t;
 
 static int swManager_loop(swServer *serv);
 static void swManager_signal_handler(int sig);
-static void swManager_kill_workers(swServer *serv);
-static void swManager_kill_task_workers(swServer *serv);
 
 static swManagerProcess ManagerProcess;
 
@@ -136,7 +134,7 @@ int Server::start_manager_process() {
         }
     }
 
-    message_box = Channel::make(65536, sizeof(swWorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
+    message_box = Channel::make(65536, sizeof(WorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
     if (message_box == nullptr) {
         return SW_ERR;
     }
@@ -261,7 +259,7 @@ static int swManager_loop(swServer *serv) {
         pid = wait(&status);
 
         if (ManagerProcess.read_message) {
-            swWorkerStopMessage msg;
+            WorkerStopMessage msg;
             while (serv->message_box->pop(&msg, sizeof(msg)) > 0) {
                 if (serv->running == 0) {
                     continue;
@@ -445,9 +443,9 @@ static int swManager_loop(swServer *serv) {
          */
         alarm(serv->max_wait_time * 2);
     }
-    swManager_kill_workers(serv);
-    swManager_kill_task_workers(serv);
-    swManager_kill_user_workers(serv);
+    serv->kill_event_workers();
+    serv->kill_task_workers();
+    serv->kill_user_workers();
     // force kill
     if (serv->max_wait_time) {
         alarm(0);
@@ -559,16 +557,16 @@ int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status) {
 /**
  * kill and wait all user process
  */
-void swManager_kill_user_workers(swServer *serv) {
-    if (!serv->user_worker_map) {
+void Server::kill_user_workers() {
+    if (!user_worker_map) {
         return;
     }
 
-    for (auto &kv : *serv->user_worker_map) {
+    for (auto &kv : *user_worker_map) {
         swoole_kill(kv.second->pid, SIGTERM);
     }
 
-    for (auto &kv : *serv->user_worker_map) {
+    for (auto &kv : *user_worker_map) {
         int __stat_loc;
         if (swoole_waitpid(kv.second->pid, &__stat_loc, 0) < 0) {
             swSysWarn("waitpid(%d) failed", kv.second->pid);
@@ -579,20 +577,20 @@ void swManager_kill_user_workers(swServer *serv) {
 /**
  * kill and wait all child process
  */
-static void swManager_kill_workers(swServer *serv) {
+void Server::kill_event_workers() {
     int status;
 
-    if (serv->worker_num == 0) {
+    if (worker_num == 0) {
         return;
     }
 
-    for (uint32_t i = 0; i < serv->worker_num; i++) {
+    for (uint32_t i = 0; i < worker_num; i++) {
         swTrace("[Manager]kill worker processor");
-        swoole_kill(serv->workers[i].pid, SIGTERM);
+        swoole_kill(workers[i].pid, SIGTERM);
     }
-    for (uint32_t i = 0; i < serv->worker_num; i++) {
-        if (swoole_waitpid(serv->workers[i].pid, &status, 0) < 0) {
-            swSysWarn("waitpid(%d) failed", serv->workers[i].pid);
+    for (uint32_t i = 0; i < worker_num; i++) {
+        if (swoole_waitpid(workers[i].pid, &status, 0) < 0) {
+            swSysWarn("waitpid(%d) failed", workers[i].pid);
         }
     }
 }
@@ -600,11 +598,11 @@ static void swManager_kill_workers(swServer *serv) {
 /**
  * kill and wait task process
  */
-static void swManager_kill_task_workers(swServer *serv) {
-    if (serv->task_worker_num == 0) {
+void Server::kill_task_workers() {
+    if (task_worker_num == 0) {
         return;
     }
-    swProcessPool_shutdown(&serv->gs->task_workers);
+    swProcessPool_shutdown(&gs->task_workers);
 }
 
 pid_t Server::spawn_event_worker(swWorker *worker) {
@@ -619,7 +617,7 @@ pid_t Server::spawn_event_worker(swWorker *worker) {
     }
     // worker child processor
     else if (pid == 0) {
-        exit(swWorker_loop(this, worker));
+        exit(start_event_worker(worker));
     }
     // parent,add to writer
     else {

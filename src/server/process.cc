@@ -212,7 +212,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
     swServer *serv = (swServer *) factory->ptr;
     int fd = task->info.fd;
 
-    int target_worker_id = swServer_worker_schedule(serv, fd, task);
+    int target_worker_id = serv->schedule_worker(fd, task);
     if (target_worker_id < 0) {
         switch (target_worker_id) {
         case SW_DISPATCH_RESULT_DISCARD_PACKET:
@@ -330,10 +330,10 @@ _ipc_use_chunk:
 }
 
 static bool inline process_is_supported_send_yield(swServer *serv, swConnection *conn) {
-    if (!swServer_dispatch_mode_is_mod(serv)) {
+    if (!serv->is_mode_dispatch_mode()) {
         return false;
     } else {
-        return swServer_worker_schedule(serv, conn->fd, nullptr) == (int) SwooleG.process_id;
+        return serv->schedule_worker(conn->fd, nullptr) == (int) SwooleG.process_id;
     }
 }
 

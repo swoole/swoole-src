@@ -63,7 +63,7 @@ static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task) {
     return ret;
 }
 
-int swTaskWorker_large_pack(swEventData *task, const void *data, size_t data_len) {
+int swEventData_large_pack(swEventData *task, const void *data, size_t data_len) {
     swPacket_task pkg;
     sw_memset_zero(&pkg, sizeof(pkg));
 
@@ -130,7 +130,7 @@ static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
     }
 
     swTaskWorker_signal_init(pool);
-    swWorker_onStart(serv);
+    serv->worker_start_callback();
 
     swWorker *worker = swProcessPool_get_worker(pool, worker_id);
     worker->start_time = time(nullptr);
@@ -151,7 +151,7 @@ static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
 static void swTaskWorker_onStop(swProcessPool *pool, int worker_id) {
     swoole_event_free();
     swServer *serv = (swServer *) pool->ptr;
-    swWorker_onStop(serv);
+    serv->worker_stop_callback();
 }
 
 /**
@@ -161,6 +161,7 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
     swEventData task;
     swProcessPool *pool = (swProcessPool *) reactor->ptr;
     swWorker *worker = SwooleWG.worker;
+    swServer *serv = (swServer *) pool->ptr;
 
     if (read(event->fd, &task, sizeof(task)) > 0) {
         worker->status = SW_WORKER_BUSY;
@@ -169,7 +170,7 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
         worker->request_count++;
         // maximum number of requests, process will exit.
         if (!SwooleWG.run_always && worker->request_count >= SwooleWG.max_request) {
-            swWorker_stop(worker);
+            serv->stop_async_worker(worker);
         }
         return retval;
     } else {
@@ -245,7 +246,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
 
         // write to file
         if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info)) {
-            if (swTaskWorker_large_pack(&buf, data, data_len) < 0) {
+            if (swEventData_large_pack(&buf, data, data_len) < 0) {
                 swWarn("large task pack failed()");
                 return SW_ERR;
             }
@@ -285,7 +286,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
                 swTask_type(&buf) = flags;
                 // result pack
                 if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info)) {
-                    if (swTaskWorker_large_pack(&buf, data, data_len) < 0) {
+                    if (swEventData_large_pack(&buf, data, data_len) < 0) {
                         swWarn("large task pack failed()");
                         buf.info.len = 0;
                     }
@@ -307,7 +308,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
             swTask_type(result) = flags;
 
             if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info)) {
-                if (swTaskWorker_large_pack(result, data, data_len) < 0) {
+                if (swEventData_large_pack(result, data, data_len) < 0) {
                     // unlock worker
                     worker->lock.unlock(&worker->lock);
                     swWarn("large task pack failed()");
@@ -339,7 +340,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
     return ret;
 }
 
-swString *swTaskWorker_large_unpack(swEventData *task_result) {
+swString *swEventData_large_unpack(swEventData *task_result) {
     swPacket_task _pkg;
     memcpy(&_pkg, task_result->data, sizeof(_pkg));
 

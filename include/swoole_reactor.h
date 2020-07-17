@@ -241,7 +241,7 @@ static sw_inline int swReactor_get_timeout_msec(swReactor *reactor) {
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, swSocket *socket);
 int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n);
-int swReactor_wait_write_buffer(swReactor *reactor, swSocket *socket);
+int swReactor_drain_write_buffer(swReactor *reactor, swSocket *socket);
 void swReactor_activate_future_task(swReactor *reactor);
 
 static sw_inline int swReactor_add_event(swReactor *reactor, swSocket *_socket, enum swEvent_type event_type) {

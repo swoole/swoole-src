@@ -144,7 +144,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
         }
 #endif
         if (serv->single_thread) {
-            if (swServer_connection_incoming(serv, reactor, conn) < 0) {
+            if (serv->connection_incoming(reactor, conn) < 0) {
                 reactor->close(reactor, sock);
                 return SW_OK;
             }
@@ -152,7 +152,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
             swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = sock->fd;
-            swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+            swSocket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
             if (reactor->write(reactor, _pipe_sock, &ev, sizeof(ev)) < 0) {
                 reactor->close(reactor, sock);
                 return SW_OK;
@@ -164,7 +164,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
 }
 
 #ifdef SW_SUPPORT_DTLS
-dtls::Session *swServer_dtls_accept(swServer *serv, swListenPort *port, swSocketAddress *sa) {
+dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddress *sa) {
     swSocket *sock = nullptr;
     dtls::Session *session = nullptr;
     swConnection *conn = nullptr;
@@ -234,7 +234,7 @@ dtls::Session *swServer_dtls_accept(swServer *serv, swListenPort *port, swSocket
     sock->cloexec = 1;
     sock->chunk_size = SW_BUFFER_SIZE_STD;
 
-    conn = serv->add_connection(port, sock, port->socket->fd);
+    conn = add_connection(port, sock, port->socket->fd);
     if (conn == nullptr) {
         goto _cleanup;
     }
@@ -258,7 +258,7 @@ _cleanup:
     if (session) {
         delete session;
     }
-    close(fd);
+    ::close(fd);
 
     return nullptr;
 }
@@ -286,7 +286,7 @@ int Server::start_check() {
             }
             disable_notify = 1;
         }
-        if (!swServer_support_send_yield(this)) {
+        if (!is_support_send_yield()) {
             send_yield = 0;
         }
     } else {
@@ -742,9 +742,9 @@ Server::Server(enum swServer_mode mode) {
 int Server::create() {
     factory.ptr = this;
 
-    session_list = (swSession *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(swSession));
+    session_list = (Session *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(Session));
     if (session_list == nullptr) {
-        swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(swSession));
+        swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(Session));
         return SW_ERR;
     }
 
@@ -1302,8 +1302,8 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset) {
     swWorker *worker;
     swDataHead ev = {};
 
-    if (swServer_dispatch_mode_is_mod(serv)) {
-        int worker_id = swServer_worker_schedule(serv, conn->fd, nullptr);
+    if (serv->is_mode_dispatch_mode()) {
+        int worker_id = serv->schedule_worker(conn->fd, nullptr);
         if (worker_id != (int) SwooleG.process_id) {
             worker = serv->get_worker(worker_id);
             goto _notify;
@@ -1342,7 +1342,7 @@ void Server::init_signal_handler() {
     set_minfd(SwooleG.signal_fd);
 }
 
-void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode) {
+void Server::timer_callback(swTimer *timer, swTimer_node *tnode) {
     swServer *serv = (swServer *) tnode->data;
     time_t now = time(nullptr);
     if (serv->scheduler_warning && serv->warning_time < now) {
@@ -1603,15 +1603,15 @@ static void swServer_signal_handler(int sig) {
     }
 }
 
-void swServer_connection_each(swServer *serv, void (*callback)(swConnection *conn)) {
+void Server::foreach_connection(const std::function<void(Connection *)> &callback) {
     swConnection *conn;
 
     int fd;
-    int serv_max_fd = serv->get_maxfd();
-    int serv_min_fd = serv->get_minfd();
+    int serv_max_fd = get_maxfd();
+    int serv_min_fd = get_minfd();
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-        conn = serv->get_connection(fd);
+        conn = get_connection(fd);
         if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION) {
             callback(conn);
         }
@@ -1681,7 +1681,7 @@ swConnection *Server::add_connection(swListenPort *ls, swSocket *_socket, int se
         _socket->direct_send = 1;
     }
 
-    swSession *session;
+    Session *session;
     sw_spinlock(&gs->spinlock);
     uint32_t i;
     uint32_t session_id = gs->session_round;
