@@ -230,21 +230,14 @@ TEST(http_server, static_get) {
 }
 
 static void websocket_test(int server_port, const char *data, size_t length) {
-    httplib::Headers headers;
-
-    headers.emplace("Connection", "Upgrade");
-    headers.emplace("Upgrade", "websocket");
-    headers.emplace("Sec-Websocket-Key", "sN9cRrP/n9NdMgdcy2VJFQ==");
-    headers.emplace("Sec-WebSocket-Version", "13");
 
     httplib::Client cli(TEST_HOST, server_port);
-    cli.set_keep_alive(true);
-    auto resp = cli.Get("/websocket", headers);
-    EXPECT_EQ(resp->status, 101);
 
+    httplib::Headers headers;
+    EXPECT_TRUE(cli.Upgrade("/websocket", headers));
     EXPECT_TRUE(cli.Push(data, length));
-    auto msg = cli.Recv();
 
+    auto msg = cli.Recv();
     EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: ") + string(data, length));
 }
 

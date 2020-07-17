@@ -1,8 +1,26 @@
 #include "tests.h"
 #include "httplib_client.h"
+#include "http.h"
 
 using httplib::Client;
 using httplib::WebSocketFrame;
+using httplib::Headers;
+
+bool Client::Upgrade(const char *path, Headers &_headers) {
+
+    set_keep_alive(true);
+    _headers.emplace("Connection", "Upgrade");
+    _headers.emplace("Upgrade", "websocket");
+    _headers.emplace("Sec-Websocket-Key", "sN9cRrP/n9NdMgdcy2VJFQ==");
+    _headers.emplace("Sec-WebSocket-Version", "13");
+
+    auto resp = Get("/websocket", _headers);
+    if (resp == nullptr or resp->status != SW_HTTP_SWITCHING_PROTOCOLS) {
+        return false;
+    }
+
+    return true;
+}
 
 bool Client::Push(const char *data, size_t length, int opcode) {
     if (!socket_.is_open()) {

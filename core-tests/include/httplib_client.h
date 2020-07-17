@@ -500,6 +500,8 @@ public:
                                 ContentReceiver content_receiver,
                                 Progress progress);
 
+  bool Upgrade(const char *path, Headers &headers);
+
   std::shared_ptr<Response> Head(const char *path);
 
   std::shared_ptr<Response> Head(const char *path, const Headers &headers);
