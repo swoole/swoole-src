@@ -726,6 +726,7 @@ class Server {
     swSocket *stream_socket = nullptr;
     swProtocol stream_protocol = {};
     swSocket *last_stream_socket = nullptr;
+    swEventData *last_task = nullptr;
     std::queue<swString *> *buffer_pool = nullptr;
 
     swAllocator *buffer_allocator = &SwooleG.std_allocator;
@@ -870,6 +871,7 @@ class Server {
     }
 
     void store_listen_socket();
+    void store_pipe_fd(swPipe *p);
 
     inline const std::string &get_document_root() {
         return document_root;
@@ -1004,6 +1006,7 @@ class Server {
     }
 
     void close_port(bool only_stream_port);
+    void clear_timer();
 
     int create_task_workers();
     int create_user_workers();
@@ -1021,10 +1024,13 @@ class Server {
     int send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
     int send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
     int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
+    int reply_task_result(const char *data, size_t data_len, int flags, swEventData *current_task);
 
     void init_reactor(swReactor *reactor);
     void init_worker(swWorker *worker);
+    void init_task_workers();
     void init_port_protocol(swListenPort *port);
+    void init_signal_handler();
 
     void set_ipc_max_size();
     int create_pipe_buffers();
@@ -1032,6 +1038,14 @@ class Server {
     void disable_accept();
 
     void destroy_http_request(Connection *conn);
+
+    /**
+     * [Manager]
+     */
+    pid_t spawn_event_worker(swWorker *worker);
+    pid_t spawn_user_worker(swWorker *worker);
+    pid_t spawn_task_worker(swWorker *worker);
+    void check_worker_exit_status(int worker_id, pid_t pid, int status);
 
   private:
     /**
@@ -1064,9 +1078,6 @@ typedef int (*swServer_dispatch_function)(swServer *, swConnection *, swSendData
 
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
 
-void swServer_signal_init(swServer *serv);
-void swServer_clear_timer(swServer *serv);
-
 #ifdef SW_SUPPORT_DTLS
 swoole::dtls::Session *swServer_dtls_accept(swServer *serv, swListenPort *ls, swSocketAddress *sa);
 #endif
@@ -1097,16 +1108,7 @@ static sw_inline int swEventData_is_stream(uint8_t type) {
     }
 }
 
-void swServer_store_pipe_fd(swServer *serv, swPipe *p);
-void swServer_store_listen_socket(swServer *serv);
-
-void swTaskWorker_init(swServer *serv);
-int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
-int swTaskWorker_onFinish(swReactor *reactor, swEvent *event);
-void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
-void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
 int swTaskWorker_large_pack(swEventData *task, const void *data, size_t data_len);
-int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int flags, swEventData *current_task);
 swString *swTaskWorker_large_unpack(swEventData *task_result);
 
 static sw_inline int swServer_connection_valid(swServer *serv, swConnection *conn) {
@@ -1249,6 +1251,5 @@ void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
 int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
-pid_t swManager_spawn_user_worker(swServer *serv, swWorker *worker);
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
 void swManager_kill_user_workers(swServer *serv);

@@ -457,7 +457,7 @@ int Server::create_task_workers() {
         }
     }
 
-    swTaskWorker_init(this);
+    init_task_workers();
 
     return SW_OK;
 }
@@ -666,8 +666,7 @@ int Server::start() {
     if (factory.start(&factory) < 0) {
         return SW_ERR;
     }
-    // signal Init
-    swServer_signal_init(this);
+    init_signal_handler();
 
     // write PID file
     if (!pid_file.empty()) {
@@ -771,18 +770,18 @@ int Server::create() {
     }
 }
 
-void swServer_clear_timer(swServer *serv) {
-    if (serv->master_timer) {
-        swoole_timer_del(serv->master_timer);
-        serv->master_timer = nullptr;
+void Server::clear_timer() {
+    if (master_timer) {
+        swoole_timer_del(master_timer);
+        master_timer = nullptr;
     }
-    if (serv->heartbeat_timer) {
-        swoole_timer_del(serv->heartbeat_timer);
-        serv->heartbeat_timer = nullptr;
+    if (heartbeat_timer) {
+        swoole_timer_del(heartbeat_timer);
+        heartbeat_timer = nullptr;
     }
-    if (serv->enable_accept_timer) {
-        swoole_timer_del(serv->enable_accept_timer);
-        serv->enable_accept_timer = nullptr;
+    if (enable_accept_timer) {
+        swoole_timer_del(enable_accept_timer);
+        enable_accept_timer = nullptr;
     }
 }
 
@@ -798,7 +797,7 @@ void Server::shutdown() {
             }
             reactor->del(reactor, port->socket);
         }
-        swServer_clear_timer(this);
+        clear_timer();
     }
 
     if (factory_mode == SW_MODE_BASE) {
@@ -916,18 +915,18 @@ static int swServer_tcp_feedback(swServer *serv, int session_id, int event) {
     }
 }
 
-void swServer_store_pipe_fd(swServer *serv, swPipe *p) {
+void Server::store_pipe_fd(swPipe *p) {
     swSocket *master_socket = p->getSocket(p, SW_PIPE_MASTER);
     swSocket *worker_socket = p->getSocket(p, SW_PIPE_WORKER);
 
-    serv->connection_list[master_socket->fd].object = p;
-    serv->connection_list[worker_socket->fd].object = p;
+    connection_list[master_socket->fd].object = p;
+    connection_list[worker_socket->fd].object = p;
 
-    if (master_socket->fd > serv->get_maxfd()) {
-        serv->set_maxfd(master_socket->fd);
+    if (master_socket->fd > get_maxfd()) {
+        set_maxfd(master_socket->fd);
     }
-    if (worker_socket->fd > serv->get_maxfd()) {
-        serv->set_maxfd(worker_socket->fd);
+    if (worker_socket->fd > get_maxfd()) {
+        set_maxfd(worker_socket->fd);
     }
 }
 
@@ -1325,10 +1324,10 @@ static int swServer_tcp_close(swServer *serv, int session_id, int reset) {
     return retval;
 }
 
-void swServer_signal_init(swServer *serv) {
+void Server::init_signal_handler() {
     swSignal_set(SIGPIPE, nullptr);
     swSignal_set(SIGHUP, nullptr);
-    if (serv->factory_mode == SW_MODE_PROCESS) {
+    if (factory_mode == SW_MODE_PROCESS) {
         swSignal_set(SIGCHLD, swServer_signal_handler);
     }
     swSignal_set(SIGUSR1, swServer_signal_handler);
@@ -1340,7 +1339,7 @@ void swServer_signal_init(swServer *serv) {
     // for test
     swSignal_set(SIGVTALRM, swServer_signal_handler);
 
-    serv->set_minfd(SwooleG.signal_fd);
+    set_minfd(SwooleG.signal_fd);
 }
 
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode) {

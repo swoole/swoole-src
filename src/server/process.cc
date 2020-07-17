@@ -127,7 +127,7 @@ static int swFactoryProcess_create_pipes(swFactory *factory) {
             serv->workers[i].pipe_worker->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
 
         serv->workers[i].pipe_object = &object->pipes[i];
-        swServer_store_pipe_fd(serv, serv->workers[i].pipe_object);
+        serv->store_pipe_fd(serv->workers[i].pipe_object);
     }
 
     return SW_OK;

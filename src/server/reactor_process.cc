@@ -145,9 +145,9 @@ int Server::start_reactor_processes() {
              * store the pipe object
              */
             if (worker->pipe_object) {
-                swServer_store_pipe_fd(this, worker->pipe_object);
+                store_pipe_fd(worker->pipe_object);
             }
-            swManager_spawn_user_worker(this, worker);
+            spawn_user_worker(worker);
         }
     }
 
@@ -163,7 +163,8 @@ int Server::start_reactor_processes() {
     SwooleG.use_signalfd = 0;
 
     swProcessPool_start(&gs->event_workers);
-    swServer_signal_init(this);
+
+    init_signal_handler();
 
     if (onStart) {
         swWarn("The onStart event with SWOOLE_BASE is deprecated");

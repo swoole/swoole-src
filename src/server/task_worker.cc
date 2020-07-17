@@ -16,55 +16,43 @@
 
 #include "server.h"
 
-static swEventData *g_current_task = nullptr;
+using swoole::Server;
 
 static void swTaskWorker_signal_init(swProcessPool *pool);
 static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
 static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker);
+static void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
+static void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
+static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 
 /**
  * after pool->create, before pool->start
  */
-void swTaskWorker_init(swServer *serv) {
-    swProcessPool *pool = &serv->gs->task_workers;
-    pool->ptr = serv;
+void Server::init_task_workers() {
+    swProcessPool *pool = &gs->task_workers;
+    pool->ptr = this;
     pool->onTask = swTaskWorker_onTask;
     pool->onWorkerStart = swTaskWorker_onStart;
     pool->onWorkerStop = swTaskWorker_onStop;
     /**
      * Make the task worker support asynchronous
      */
-    if (serv->task_enable_coroutine) {
-        if (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
+    if (task_enable_coroutine) {
+        if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
             swError("cannot use msgqueue when task_enable_coroutine is enable");
             return;
         }
         pool->main_loop = swTaskWorker_loop_async;
     }
-    if (serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
+    if (task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;
     }
 }
 
-/**
- * in worker process
- */
-int swTaskWorker_onFinish(swReactor *reactor, swEvent *event) {
-    swServer *serv = (swServer *) reactor->ptr;
-    swEventData task;
-    int n;
-
-    do {
-        n = read(event->fd, &task, sizeof(task));
-    } while (n < 0 && errno == EINTR);
-
-    return serv->onFinish(serv, &task);
-}
-
-int swTaskWorker_onTask(swProcessPool *pool, swEventData *task) {
+static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task) {
     int ret = SW_OK;
     swServer *serv = (swServer *) pool->ptr;
-    g_current_task = task;
+    serv->last_task = task;
 
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         serv->onPipeMessage(serv, task);
@@ -119,7 +107,7 @@ static void swTaskWorker_signal_init(swProcessPool *pool) {
 #endif
 }
 
-void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
+static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
     swServer *serv = (swServer *) pool->ptr;
     SwooleG.process_id = worker_id;
 
@@ -160,7 +148,7 @@ void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
     }
 }
 
-void swTaskWorker_onStop(swProcessPool *pool, int worker_id) {
+static void swTaskWorker_onStop(swProcessPool *pool, int worker_id) {
     swoole_event_free();
     swServer *serv = (swServer *) pool->ptr;
     swWorker_onStop(serv);
@@ -215,15 +203,15 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker) {
 /**
  * Send the task result to worker
  */
-int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int flags, swEventData *current_task) {
+int Server::reply_task_result(const char *data, size_t data_len, int flags, swEventData *current_task) {
     swEventData buf;
     sw_memset_zero(&buf.info, sizeof(buf.info));
-    if (serv->task_worker_num < 1) {
-        swWarn("cannot use task/finish, because no set serv->task_worker_num");
+    if (task_worker_num < 1) {
+        swWarn("cannot use task/finish, because no set task_worker_num");
         return SW_ERR;
     }
     if (current_task == nullptr) {
-        current_task = g_current_task;
+        current_task = last_task;
     }
     if (current_task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         swWarn("task/finish is not supported in onPipeMessage callback");
@@ -235,7 +223,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
     }
 
     uint16_t source_worker_id = current_task->info.reactor_id;
-    swWorker *worker = serv->get_worker(source_worker_id);
+    swWorker *worker = get_worker(source_worker_id);
 
     if (worker == nullptr) {
         swWarn("invalid worker_id[%d]", source_worker_id);
@@ -273,7 +261,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
                 ret = swSocket_write_blocking(worker->pool->stream->last_connection, data, data_len);
             }
         } else {
-            ret = serv->send_to_worker_from_worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
+            ret = send_to_worker_from_worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);
         }
     } else {
         uint64_t flag = 1;
@@ -281,8 +269,8 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
         /**
          * Use worker shm store the result
          */
-        swEventData *result = &(serv->task_result[source_worker_id]);
-        swPipe *task_notify_pipe = &(serv->task_notify[source_worker_id]);
+        swEventData *result = &(task_result[source_worker_id]);
+        swPipe *task_notify_pipe = &(task_notify[source_worker_id]);
 
         // lock worker
         worker->lock.lock(&worker->lock);
@@ -311,7 +299,7 @@ int swTaskWorker_finish(swServer *serv, const char *data, size_t data_len, int f
                     swSysWarn("write(%s, %ld) failed", _tmpfile, sizeof(buf.info) + buf.info.len);
                 }
                 sw_atomic_fetch_add(finish_count, 1);
-                close(fd);
+                ::close(fd);
             }
         } else {
             result->info.type = SW_SERVER_EVENT_FINISH;

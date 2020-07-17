@@ -1280,7 +1280,7 @@ static int php_swoole_task_finish(swServer *serv, zval *zdata, swEventData *curr
         data_len = Z_STRLEN_P(zdata);
     }
 
-    ret = swTaskWorker_finish(serv, data_str, data_len, flags, current_task);
+    ret = serv->reply_task_result(data_str, data_len, flags, current_task);
     smart_str_free(&serialized_data);
     return ret;
 }

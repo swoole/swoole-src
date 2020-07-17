@@ -457,7 +457,7 @@ void swWorker_stop(swWorker *worker) {
                 swReactor_remove_read_event(reactor, conn->socket);
             }
         }
-        swServer_clear_timer(serv);
+        serv->clear_timer();
         goto _try_to_exit;
     }
 

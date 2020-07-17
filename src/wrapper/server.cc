@@ -193,7 +193,7 @@ bool Server::finish(DataBuffer &data) {
         swWarn("Server is not running");
         return false;
     }
-    return swTaskWorker_finish(&serv, (char *) data.buffer, (int) data.length, 0, nullptr) == 0;
+    return serv.reply_task_result(data.buffer, data.length, 0, nullptr) == 0;
 }
 
 bool Server::sendto(const string &ip, int port, const DataBuffer &data, int server_socket) {
