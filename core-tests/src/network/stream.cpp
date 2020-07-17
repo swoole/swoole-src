@@ -80,11 +80,9 @@ TEST(stream, send) {
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [&buf](swServer *serv, swEventData *req) -> int {
-        char *data = nullptr;
-        size_t length = serv->get_packet(serv, req, &data);
+    serv.onReceive = [&buf](swServer *serv, swRecvData *req) -> int {
 
-        string req_body(data + 4, length - 4);
+        string req_body(req->data + 4, req->info.len - 4);
 
         EXPECT_EQ(string(buf, sizeof(buf)), req_body);
 

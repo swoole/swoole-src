@@ -137,6 +137,9 @@ void swWebSocket_encode(swString *buffer, const char *data, size_t length, char 
      */
     if (header->MASK) {
         swString_append_ptr(buffer, SW_WEBSOCKET_MASK_DATA, SW_WEBSOCKET_MASK_LEN);
+        if (_flags & SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY) {
+            return;
+        }
         if (length > 0) {
             size_t offset = buffer->length;
             // Warn: buffer may be extended, string pointer will change
@@ -144,7 +147,7 @@ void swWebSocket_encode(swString *buffer, const char *data, size_t length, char 
             swWebSocket_mask(buffer->str + offset, length, SW_WEBSOCKET_MASK_DATA);
         }
     } else {
-        if (length > 0) {
+        if (length > 0 and !(_flags & SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY)) {
             swString_append_ptr(buffer, data, length);
         }
     }

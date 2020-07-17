@@ -19,10 +19,7 @@ TEST(client, tcp) {
 
     Process proc([](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
-            char *data_ptr = NULL;
-            size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
-
-            SERVER_THIS->send(req->info.fd, data_ptr, data_len);
+            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
         Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
@@ -56,9 +53,7 @@ TEST(client, udp) {
 
     Process proc([](Process *proc) {
         on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS) {
-            swDgramPacket *packet = nullptr;
-            SERVER_THIS->get_packet(req, (char **) &packet);
-
+            swDgramPacket *packet = (swDgramPacket *) req->data;
             SERVER_THIS->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
         };
 
@@ -92,10 +87,7 @@ TEST(client, async_tcp) {
 
     Process proc([&p](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
-            char *data_ptr = NULL;
-            size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
-
-            SERVER_THIS->send(req->info.fd, data_ptr, data_len);
+            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
         Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);

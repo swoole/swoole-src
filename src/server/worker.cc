@@ -58,6 +58,9 @@ void swWorker_signal_init(void) {
 }
 
 void swWorker_signal_handler(int signo) {
+    if (!SwooleG.running) {
+        return;
+    }
     switch (signo) {
     case SIGTERM:
         /**
@@ -212,16 +215,19 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
     return SW_OK;
 }
 
-typedef std::function<int(swServer *, swEventData *)> task_callback;
+typedef std::function<int(swServer *, swRecvData *)> task_callback;
 
 static sw_inline void swWorker_do_task(swServer *serv,
                                        swWorker *worker,
                                        swEventData *task,
                                        const task_callback &callback) {
+    swRecvData recv_data;
+    recv_data.info = task->info;
+    recv_data.info.len = serv->get_packet(serv, task, const_cast<char **>(&recv_data.data));
 #ifdef SW_BUFFER_RECV_TIME
     serv->last_receive_usec = task->info.time;
 #endif
-    callback(serv, task);
+    callback(serv, &recv_data);
 #ifdef SW_BUFFER_RECV_TIME
     serv->last_receive_usec = 0;
 #endif
@@ -235,7 +241,7 @@ int Server::accept_task(swEventData *task) {
     worker->status = SW_WORKER_BUSY;
 
     switch (task->info.type) {
-    case SW_SERVER_EVENT_SEND_DATA: {
+    case SW_SERVER_EVENT_RECV_DATA: {
         swConnection *conn = get_connection_verify(task->info.fd);
         if (conn && max_queued_bytes && task->info.len > 0) {
             sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
@@ -248,7 +254,7 @@ int Server::accept_task(swEventData *task) {
         swWorker_do_task(this, worker, task, onReceive);
         break;
     }
-    case SW_SERVER_EVENT_SNED_DGRAM: {
+    case SW_SERVER_EVENT_RECV_DGRAM: {
         swWorker_do_task(this, worker, task, onPacket);
         break;
     }

@@ -15,6 +15,7 @@
  */
 
 #include "http.h"
+#include "server.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -68,7 +69,7 @@ bool Server::select_static_handler(http::Request *request, swConnection *conn) {
     char header_buffer[1024];
     swSendData response;
     response.info.fd = conn->session_id;
-    response.info.type = SW_SERVER_EVENT_SEND_DATA;
+    response.info.type = SW_SERVER_EVENT_RECV_DATA;
 
     if (handler.status_code == SW_HTTP_NOT_FOUND) {
         response.info.len = sw_snprintf(header_buffer,
@@ -694,7 +695,7 @@ string Request::get_date_if_modified_since() {
 }  // namespace http
 }  // namespace swoole
 
-void swHttp_free_request(swConnection *conn) {
+void Server::destroy_http_request(Connection *conn) {
     auto request = reinterpret_cast<swoole::http::Request *>(conn->object);
     if (!request) {
         return;

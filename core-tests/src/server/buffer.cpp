@@ -68,10 +68,8 @@ TEST(server, send_buffer) {
 
     serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
-    serv.onReceive = [](swServer *serv, swEventData *req) -> int {
-        char *data = nullptr;
-        size_t length = serv->get_packet(serv, req, &data);
-        EXPECT_EQ(string(data, length), string(packet));
+    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         swoole::String resp(swoole::make_string(1024 * 1024 * 16));
         auto str = resp.get();

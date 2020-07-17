@@ -84,11 +84,7 @@ bool Server::listen(std::string host, int port, enum swSocket_type type) {
     return true;
 }
 
-size_t Server::get_packet(swEventData *req, char **data_ptr) {
-    return serv.get_packet(&serv, req, data_ptr);
-}
-
-int Server::send(int session_id, void *data, uint32_t length) {
+int Server::send(int session_id, const void *data, uint32_t length) {
     return serv.send(&serv, session_id, data, length);
 }
 

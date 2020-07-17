@@ -252,7 +252,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
         return serv->send_to_worker_from_master(worker, &task->info, sizeof(task->info));
     }
 
-    if (task->info.type == SW_SERVER_EVENT_SEND_DATA) {
+    if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
         worker->dispatch_count++;
     }
 

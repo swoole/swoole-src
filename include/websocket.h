@@ -41,11 +41,13 @@ enum swWebsocket_status {
 enum swWebSocket_frame_flag {
     SW_WEBSOCKET_FLAG_FIN = 1 << 0, /* BC: must be 1 */
     SW_WEBSOCKET_FLAG_COMPRESS = 1 << 1,
-    /* readonly for user */
+    // readonly for user
     SW_WEBSOCKET_FLAG_RSV1 = 1 << 2,
     SW_WEBSOCKET_FLAG_RSV2 = 1 << 3,
     SW_WEBSOCKET_FLAG_RSV3 = 1 << 4,
     SW_WEBSOCKET_FLAG_MASK = 1 << 5,
+    // for encoder/decoder
+    SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY = 1 << 6,
 };
 
 enum swWebSocket_frame_union_flag {
@@ -54,27 +56,26 @@ enum swWebSocket_frame_union_flag {
     SW_WEBSOCKET_FLAG_MASK | SW_WEBSOCKET_FLAG_COMPRESS
 };
 
-typedef struct {
+struct swWebSocket_frame_header {
     /**
      * fin:1 rsv1:1 rsv2:1 rsv3:1 opcode:4
      */
-    uchar OPCODE : 4;
-    uchar RSV3 : 1;
-    uchar RSV2 : 1;
-    uchar RSV1 : 1;
-    uchar FIN : 1;
-    uchar LENGTH : 7;
-    uchar MASK : 1;
+    uchar OPCODE :4;
+    uchar RSV3 :1;
+    uchar RSV2 :1;
+    uchar RSV1 :1;
+    uchar FIN :1;
+    uchar LENGTH :7;
+    uchar MASK :1;
+};
 
-} swWebSocket_frame_header;
-
-typedef struct {
+struct swWebSocket_frame {
     swWebSocket_frame_header header;
     char mask_key[SW_WEBSOCKET_MASK_LEN];
     uint16_t header_length;
     size_t payload_length;
     char *payload;
-} swWebSocket_frame;
+};
 
 #define WEBSOCKET_VERSION 13
 

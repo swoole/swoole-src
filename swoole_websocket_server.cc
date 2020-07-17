@@ -538,7 +538,7 @@ static bool websocket_message_compress(swString *buffer, const char *data, size_
 }
 #endif
 
-int swoole_websocket_onMessage(swServer *serv, swEventData *req) {
+int swoole_websocket_onMessage(swServer *serv, swRecvData *req) {
     int fd = req->info.fd;
     uchar flags = 0;
     zend_long opcode = 0;

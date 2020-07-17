@@ -40,7 +40,7 @@ struct http_context {
         response_headers[key] = value;
     }
 
-    void response(int code, string body) {
+    void response(enum swHttp_status_code code, string body) {
         response_headers["Content-Length"] = to_string(body.length());
         response(code);
         server->send(server, fd, body.c_str(), body.length());
@@ -112,9 +112,7 @@ static void test_run_server(function<void(swServer *)> fn) {
         child_thread = thread(fn, serv);
     };
 
-    serv.onReceive = [](swServer *serv, swEventData *task) -> int {
-        char *data = nullptr;
-        size_t length = serv->get_packet(serv, task, &data);
+    serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
 
         llhttp_t parser = {};
         llhttp_settings_t settings = {};
@@ -128,11 +126,11 @@ static void test_run_server(function<void(swServer *)> fn) {
         settings.on_header_value = handle_on_header_value;
         settings.on_message_complete = handle_on_message_complete;
 
-        enum llhttp_errno err = llhttp_execute(&parser, data, length);
+        enum llhttp_errno err = llhttp_execute(&parser, req->data, req->info.len);
 
         if (err == HPE_PAUSED_UPGRADE) {
             ctx.server = serv;
-            ctx.fd = task->info.fd;
+            ctx.fd = req->info.fd;
 
             ctx.setHeader("Connection", "Upgrade");
             ctx.setHeader("Sec-WebSocket-Accept", "IIRiohCjop4iJrmvySrFcwcXpHo=");
@@ -140,7 +138,8 @@ static void test_run_server(function<void(swServer *)> fn) {
             ctx.setHeader("Upgrade", "websocket");
             ctx.setHeader("Content-Length", "0");
 
-            ctx.response(101);
+            ctx.response(SW_HTTP_SWITCHING_PROTOCOLS);
+
 
             return SW_OK;
         }
@@ -153,8 +152,8 @@ static void test_run_server(function<void(swServer *)> fn) {
         EXPECT_EQ(err, HPE_OK);
 
         ctx.server = serv;
-        ctx.fd = task->info.fd;
-        ctx.response(200, "hello world");
+        ctx.fd = req->info.fd;
+        ctx.response(SW_HTTP_OK, "hello world");
 
         EXPECT_EQ(ctx.headers["User-Agent"], httplib::USER_AGENT);
 
@@ -234,8 +233,13 @@ TEST(http_server, websocket) {
         headers.emplace("Sec-WebSocket-Version", "13");
 
         httplib::Client cli(TEST_HOST, port->port);
+        cli.set_keep_alive(true);
         auto resp = cli.Get("/websocket", headers);
         EXPECT_EQ(resp->status, 101);
+
+        cli.Push("hello world, swoole is best!");
+
+        sleep(5);
 
         kill(getpid(), SIGTERM);
     });

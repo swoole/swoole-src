@@ -94,7 +94,7 @@ void php_swoole_redis_server_rshutdown() {
     redis_handlers.clear();
 }
 
-static int redis_onReceive(swServer *serv, swEventData *req) {
+static int redis_onReceive(swServer *serv, swRecvData *req) {
     int fd = req->info.fd;
     swConnection *conn = serv->get_connection_by_session_id(fd);
     if (!conn) {

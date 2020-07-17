@@ -23,7 +23,7 @@
 #include "http.h"
 #include "websocket.h"
 
-int swoole_websocket_onMessage(swServer *serv, swEventData *req);
+int swoole_websocket_onMessage(swServer *serv, swRecvData *req);
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_context *ctx);
 void swoole_websocket_onOpen(http_context *ctx);
 void swoole_websocket_onRequest(http_context *ctx);
@@ -33,7 +33,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 
 #ifdef SW_USE_HTTP2
 
-int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swEventData *req);
+int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swRecvData *req);
 int swoole_http2_server_parse(http2_session *client, const char *buf);
 void swoole_http2_server_session_free(swConnection *conn);
 int swoole_http2_server_ping(http_context *ctx);

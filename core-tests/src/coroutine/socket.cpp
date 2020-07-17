@@ -60,10 +60,7 @@ TEST(coroutine_socket, recv_success) {
 
     Process proc([](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
-            char *data_ptr = NULL;
-            size_t data_len = SERVER_THIS->get_packet(req, (char **) &data_ptr);
-
-            SERVER_THIS->send(req->info.fd, data_ptr, data_len);
+            SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
         Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
