@@ -258,6 +258,8 @@ using Match = std::smatch;
 using Progress = std::function<bool(uint64_t current, uint64_t total)>;
 
 struct Response;
+struct WebSocketFrame;
+
 using ResponseHandler = std::function<bool(const Response &response)>;
 
 struct MultipartFormData {
@@ -405,9 +407,13 @@ struct Response {
   std::function<void()> content_provider_resource_releaser_;
 };
 
-struct WebSocketFrame {
-
-
+struct WebSocketFrame : public swWebSocket_frame {
+    WebSocketFrame() = default;
+    ~WebSocketFrame() {
+        if (payload) {
+            sw_free(payload - header_length);
+        }
+    }
 };
 
 class Stream {
@@ -552,7 +558,7 @@ public:
 
   // websocket
   bool Push(const std::string &data, int opcode = WEBSOCKET_OPCODE_TEXT);
-  std::shared_ptr<swWebSocket_frame> Recv();
+  std::shared_ptr<WebSocketFrame> Recv();
 
   std::shared_ptr<Response> Patch(const char *path, const std::string &body,
                                   const char *content_type);

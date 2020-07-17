@@ -2,6 +2,7 @@
 #include "httplib_client.h"
 
 using httplib::Client;
+using httplib::WebSocketFrame;
 
 bool Client::Push(const std::string &data, int opcode) {
     if (!socket_.is_open()) {
@@ -21,9 +22,9 @@ bool Client::Push(const std::string &data, int opcode) {
     });
 }
 
-std::shared_ptr<swWebSocket_frame> Client::Recv() {
+std::shared_ptr<WebSocketFrame> Client::Recv() {
 
-    auto msg = std::make_shared<swWebSocket_frame>();
+    auto msg = std::make_shared<WebSocketFrame>();
     auto retval = process_socket(socket_, [&](Stream &strm) {
 
         swProtocol proto = {};
