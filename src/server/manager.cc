@@ -146,7 +146,8 @@ int Server::start_manager_process() {
         // wait master process
         SW_START_SLEEP;
         if (!gs->start) {
-            return SW_OK;
+            swError("master process is not running");
+            return SW_ERR;
         }
         close_port(true);
 
@@ -154,6 +155,7 @@ int Server::start_manager_process() {
 
         if (task_worker_num > 0) {
             if (swProcessPool_start(&gs->task_workers) == SW_ERR) {
+                swError("failed to start task workers");
                 return SW_ERR;
             }
         }
@@ -176,6 +178,7 @@ int Server::start_manager_process() {
                 }
                 pid = spawn_user_worker(worker);
                 if (pid < 0) {
+                    swError("failed to start user workers");
                     return SW_ERR;
                 }
             }
