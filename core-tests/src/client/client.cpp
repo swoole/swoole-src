@@ -41,7 +41,10 @@ TEST(client, tcp) {
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
     cli.close(&cli);
-    kill(pid, SIGKILL);
+
+    kill(pid, SIGTERM);
+    int status;
+    wait(&status);
 }
 
 TEST(client, udp) {
@@ -76,7 +79,10 @@ TEST(client, udp) {
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
     cli.close(&cli);
-    kill(pid, SIGKILL);
+
+    kill(pid, SIGTERM);
+    int status;
+    wait(&status);
 }
 
 TEST(client, async_tcp) {
@@ -137,5 +143,7 @@ TEST(client, async_tcp) {
 
     swoole_event_wait();
 
-    kill(pid, SIGKILL);
+    kill(pid, SIGTERM);
+    int status;
+    wait(&status);
 }
