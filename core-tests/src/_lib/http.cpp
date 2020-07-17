@@ -33,27 +33,26 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
         proto.package_max_length = SW_INPUT_BUFFER_SIZE;
 
         char buf[1024];
-        ssize_t retval;
+        ssize_t packet_len;
 
         if (strm.read(buf, SW_WEBSOCKET_HEADER_LEN) <= 0) {
             return false;
         }
-        retval = proto.get_package_length(&proto, nullptr, buf, 2);
-        if (retval < 0) {
+        packet_len = proto.get_package_length(&proto, nullptr, buf, 2);
+        if (packet_len < 0) {
             return false;
         }
-
-        if (retval == 0) {
+        if (packet_len == 0) {
             if (strm.read(buf + SW_WEBSOCKET_HEADER_LEN, proto.real_header_length - SW_WEBSOCKET_HEADER_LEN) <= 0) {
                 return false;
             }
-            retval = proto.get_package_length(&proto, nullptr, buf, proto.real_header_length);
-            if (retval <= 0) {
+            packet_len = proto.get_package_length(&proto, nullptr, buf, proto.real_header_length);
+            if (packet_len <= 0) {
                 return false;
             }
-        }
+         }
 
-        char *data = (char *) malloc(retval);
+        char *data = (char *) malloc(packet_len);
         if (data == nullptr) {
             return false;
         }
@@ -61,12 +60,17 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
         uint32_t header_len = proto.real_header_length > 0 ? proto.real_header_length : SW_WEBSOCKET_HEADER_LEN;
         memcpy(data, buf, header_len);
 
-        if (strm.read(data + header_len, retval - header_len) <= 0) {
-            free(data);
-            return false;
+        ssize_t read_bytes = header_len;
+        while(read_bytes < packet_len) {
+            auto n_read = strm.read(data + read_bytes, packet_len - read_bytes);
+            if (n_read <= 0) {
+                free(data);
+                return false;
+            }
+            read_bytes += n_read;
         }
 
-        return swWebSocket_decode(msg.get(), data, retval);
+        return swWebSocket_decode(msg.get(), data, packet_len);
     });
 
     return retval ? msg : nullptr;

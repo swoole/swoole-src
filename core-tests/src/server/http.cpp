@@ -228,28 +228,56 @@ TEST(http_server, static_get) {
     });
 }
 
-TEST(http_server, websocket) {
+static void websocket_test(int server_port, const string &data) {
+    httplib::Headers headers;
+
+    headers.emplace("Connection", "Upgrade");
+    headers.emplace("Upgrade", "websocket");
+    headers.emplace("Sec-Websocket-Key", "sN9cRrP/n9NdMgdcy2VJFQ==");
+    headers.emplace("Sec-WebSocket-Version", "13");
+
+    httplib::Client cli(TEST_HOST, server_port);
+    cli.set_keep_alive(true);
+    auto resp = cli.Get("/websocket", headers);
+    EXPECT_EQ(resp->status, 101);
+
+    EXPECT_TRUE(cli.Push(data));
+    auto msg = cli.Recv();
+
+    EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: ") + data);
+}
+
+TEST(http_server, websocket_small) {
+    test_run_server([](swServer *serv) {
+        swSignal_none();
+        websocket_test(serv->get_primary_port()->port, "hello world, swoole is best!");
+        kill(getpid(), SIGTERM);
+    });
+}
+
+TEST(http_server, websocket_medium) {
     test_run_server([](swServer *serv) {
         swSignal_none();
 
-        auto port = serv->get_primary_port();
+        swString *str = make_string(8192);
+        swString_repeat(str, "A", 1, 8192);
+        websocket_test(serv->get_primary_port()->port, string(str->str, str->length));
 
-        httplib::Headers headers;
+        swString_free(str);
 
-        headers.emplace("Connection", "Upgrade");
-        headers.emplace("Upgrade", "websocket");
-        headers.emplace("Sec-Websocket-Key", "sN9cRrP/n9NdMgdcy2VJFQ==");
-        headers.emplace("Sec-WebSocket-Version", "13");
+        kill(getpid(), SIGTERM);
+    });
+}
 
-        httplib::Client cli(TEST_HOST, port->port);
-        cli.set_keep_alive(true);
-        auto resp = cli.Get("/websocket", headers);
-        EXPECT_EQ(resp->status, 101);
+TEST(http_server, websocket_big) {
+    test_run_server([](swServer *serv) {
+        swSignal_none();
 
-        EXPECT_TRUE(cli.Push("hello world, swoole is best!"));
-        auto msg = cli.Recv();
+        swString *str = make_string(128*1024);
+        swString_repeat(str, "A", 1, str->size - 1);
+        websocket_test(serv->get_primary_port()->port, string(str->str, str->length));
 
-        EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: hello world, swoole is best!"));
+        swString_free(str);
 
         kill(getpid(), SIGTERM);
     });
