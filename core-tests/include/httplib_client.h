@@ -75,7 +75,7 @@
 #endif
 
 #ifndef CPPHTTPLIB_TCP_NODELAY
-#define CPPHTTPLIB_TCP_NODELAY false
+#define CPPHTTPLIB_TCP_NODELAY true
 #endif
 
 #ifndef CPPHTTPLIB_RECV_BUFSIZ
@@ -550,9 +550,9 @@ public:
   std::shared_ptr<Response> Put(const char *path, const Headers &headers,
                                 const Params &params);
 
-    // websocket
-    bool Push(const std::string &data, int opcode = WEBSOCKET_OPCODE_TEXT);
-    std::shared_ptr<WebSocketFrame> Recv(double timeout = 1);
+  // websocket
+  bool Push(const std::string &data, int opcode = WEBSOCKET_OPCODE_TEXT);
+  std::shared_ptr<swWebSocket_frame> Recv();
 
   std::shared_ptr<Response> Patch(const char *path, const std::string &body,
                                   const char *content_type);
@@ -3899,24 +3899,6 @@ inline std::shared_ptr<Response> Client::Put(const char *path,
                                              const Params &params) {
   return Put(path, Headers(), params);
 }
-
-inline bool Client::Push(const std::string &data, int opcode) {
-    if (!socket_.is_open()) {
-        return false;
-    }
-    return process_socket(socket_, [&](Stream &strm) {
-        swString buffer = {};
-        char buf[32];
-        buffer.size = sizeof(buf);
-        buffer.str = buf;
-
-        swWebSocket_encode(&buffer, data.c_str(), data.length(), opcode, SW_WEBSOCKET_FLAG_FIN | SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY);
-        strm.write(buffer.str, buffer.length);
-        strm.write(data.c_str(), data.length());
-        return true;
-    });
-}
-
 
 inline std::shared_ptr<Response>
 Client::Put(const char *path, const Headers &headers, const Params &params) {

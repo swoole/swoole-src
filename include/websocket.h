@@ -143,10 +143,14 @@ static inline uchar swWebSocket_set_flags(uchar fin, uchar mask, uchar rsv1, uch
     return flags;
 }
 
-void swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t flags);
-void swWebSocket_decode(swWebSocket_frame *frame, swString *data);
+bool swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t flags);
+bool swWebSocket_decode(swWebSocket_frame *frame, char *data, size_t length);
 int swWebSocket_pack_close_frame(swString *buffer, int code, char *reason, size_t length, uint8_t flags);
 void swWebSocket_print_frame(swWebSocket_frame *frame);
+
+inline bool swWebSocket_decode(swWebSocket_frame *frame, swString *str) {
+    return swWebSocket_decode(frame, str->str, str->length);
+}
 
 ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
 int swWebSocket_dispatch_frame(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);

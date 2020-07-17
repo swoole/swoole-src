@@ -114,12 +114,24 @@ static void test_run_server(function<void(swServer *)> fn) {
 
     serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
 
+        int session_id = req->info.fd;
+        auto conn = serv->get_connection_by_session_id(session_id);
+
+        if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
+            std::string resp = "Swoole: " + string(req->data, req->info.len);
+            swWebSocket_encode(SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN );
+            serv->send(serv, session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
+            return SW_OK;
+        }
+
         llhttp_t parser = {};
         llhttp_settings_t settings = {};
         llhttp_init(&parser, HTTP_REQUEST, &settings);
 
         http_context ctx = {};
         parser.data = &ctx;
+        ctx.server = serv;
+        ctx.fd = session_id;
 
         settings.on_url = handle_on_url;
         settings.on_header_field = handle_on_header_field;
@@ -129,8 +141,6 @@ static void test_run_server(function<void(swServer *)> fn) {
         enum llhttp_errno err = llhttp_execute(&parser, req->data, req->info.len);
 
         if (err == HPE_PAUSED_UPGRADE) {
-            ctx.server = serv;
-            ctx.fd = req->info.fd;
 
             ctx.setHeader("Connection", "Upgrade");
             ctx.setHeader("Sec-WebSocket-Accept", "IIRiohCjop4iJrmvySrFcwcXpHo=");
@@ -140,6 +150,7 @@ static void test_run_server(function<void(swServer *)> fn) {
 
             ctx.response(SW_HTTP_SWITCHING_PROTOCOLS);
 
+            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
 
             return SW_OK;
         }
@@ -151,8 +162,6 @@ static void test_run_server(function<void(swServer *)> fn) {
         }
         EXPECT_EQ(err, HPE_OK);
 
-        ctx.server = serv;
-        ctx.fd = req->info.fd;
         ctx.response(SW_HTTP_OK, "hello world");
 
         EXPECT_EQ(ctx.headers["User-Agent"], httplib::USER_AGENT);
@@ -237,9 +246,10 @@ TEST(http_server, websocket) {
         auto resp = cli.Get("/websocket", headers);
         EXPECT_EQ(resp->status, 101);
 
-        cli.Push("hello world, swoole is best!");
+        EXPECT_TRUE(cli.Push("hello world, swoole is best!"));
+        auto msg = cli.Recv();
 
-        sleep(5);
+        EXPECT_EQ(string(msg->payload, msg->payload_length), string("Swoole: hello world, swoole is best!"));
 
         kill(getpid(), SIGTERM);
     });
