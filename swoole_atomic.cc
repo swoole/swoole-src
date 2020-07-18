@@ -304,16 +304,20 @@ PHP_METHOD(swoole_atomic, wait) {
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
 #else
+    if(sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
+        RETURN_TRUE;
+    }
     timeout = timeout <= 0 ? INT_MAX : timeout;
-    int32_t i = (int32_t) sw_atomic_add_fetch(atomic, 1);
+    int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
     while (timeout > 0) {
-        if ((int32_t) *atomic < i) {
+        if ((int32_t) *atomic > i) {
             RETURN_TRUE;
         } else {
             usleep(1000);
             timeout -= 0.001;
         }
     }
+    sw_atomic_fetch_add(atomic, 1);
     RETURN_FALSE;
 #endif
 }
@@ -330,7 +334,10 @@ PHP_METHOD(swoole_atomic, wakeup) {
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int) n));
 #else
-    sw_atomic_fetch_sub(atomic, n);
+    if(1 == (int32_t) *atomic) {
+        RETURN_TRUE;
+    }
+    sw_atomic_fetch_add(atomic, n);
     RETURN_TRUE;
 #endif
 }
