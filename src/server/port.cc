@@ -22,61 +22,51 @@
 #include "redis.h"
 
 using swoole::Server;
+using swoole::ListenPort;
 using swoole::http::Request;
 
-static int swPort_onRead_raw(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_check_length(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_http(swReactor *reactor, swListenPort *lp, swEvent *event);
-static int swPort_onRead_redis(swReactor *reactor, swListenPort *lp, swEvent *event);
+static int swPort_onRead_raw(swReactor *reactor, ListenPort *lp, swEvent *event);
+static int swPort_onRead_check_length(swReactor *reactor, ListenPort *lp, swEvent *event);
+static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *lp, swEvent *event);
+static int swPort_onRead_http(swReactor *reactor, ListenPort *lp, swEvent *event);
+static int swPort_onRead_redis(swReactor *reactor, ListenPort *lp, swEvent *event);
 
-void swPort_init(swListenPort *port) {
-    sw_memset_zero(port, sizeof(*port));
-    // listen backlog
-    port->backlog = SW_BACKLOG;
-    // tcp keepalive
-    port->tcp_keepcount = SW_TCP_KEEPCOUNT;
-    port->tcp_keepinterval = SW_TCP_KEEPINTERVAL;
-    port->tcp_keepidle = SW_TCP_KEEPIDLE;
-    port->open_tcp_nopush = 1;
-
-    port->protocol.package_length_type = 'N';
-    port->protocol.package_length_size = 4;
-    port->protocol.package_body_offset = 4;
-    port->protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
-
-    port->socket_buffer_size = SwooleG.socket_buffer_size;
+ListenPort::ListenPort() {
+    protocol.package_length_type = 'N';
+    protocol.package_length_size = 4;
+    protocol.package_body_offset = 4;
+    protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
 
     char eof[] = SW_DATA_EOF;
-    port->protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
-    memcpy(port->protocol.package_eof, eof, port->protocol.package_eof_len);
+    protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
+    memcpy(protocol.package_eof, eof, protocol.package_eof_len);
 }
 
 #ifdef SW_USE_OPENSSL
-int swPort_enable_ssl_encrypt(swListenPort *ls) {
-    if (ls->ssl_option.cert_file == nullptr || ls->ssl_option.key_file == nullptr) {
+int ListenPort::enable_ssl_encrypt() {
+    if (ssl_option.cert_file == nullptr || ssl_option.key_file == nullptr) {
         swWarn("SSL error, require ssl_cert_file and ssl_key_file");
         return SW_ERR;
     }
-    ls->ssl_context = swSSL_get_context(&ls->ssl_option);
-    if (ls->ssl_context == nullptr) {
+    ssl_context = swSSL_get_context(&ssl_option);
+    if (ssl_context == nullptr) {
         swWarn("swSSL_get_context() error");
         return SW_ERR;
     }
-    if (ls->ssl_option.client_cert_file &&
-        swSSL_set_client_certificate(ls->ssl_context, ls->ssl_option.client_cert_file, ls->ssl_option.verify_depth) ==
+    if (ssl_option.client_cert_file &&
+        swSSL_set_client_certificate(ssl_context, ssl_option.client_cert_file, ssl_option.verify_depth) ==
             SW_ERR) {
         swWarn("swSSL_set_client_certificate() error");
         return SW_ERR;
     }
-    if (ls->open_http_protocol) {
-        ls->ssl_config.http = 1;
+    if (open_http_protocol) {
+        ssl_config.http = 1;
     }
-    if (ls->open_http2_protocol) {
-        ls->ssl_config.http_v2 = 1;
-        swSSL_server_http_advise(ls->ssl_context, &ls->ssl_config);
+    if (open_http2_protocol) {
+        ssl_config.http_v2 = 1;
+        swSSL_server_http_advise(ssl_context, &ssl_config);
     }
-    if (swSSL_server_set_cipher(ls->ssl_context, &ls->ssl_config) < 0) {
+    if (swSSL_server_set_cipher(ssl_context, &ssl_config) < 0) {
         swWarn("swSSL_server_set_cipher() error");
         return SW_ERR;
     }
@@ -84,64 +74,64 @@ int swPort_enable_ssl_encrypt(swListenPort *ls) {
 }
 #endif
 
-int swPort_listen(swListenPort *ls) {
-    int sock = ls->socket->fd;
+int ListenPort::listen() {
+    int sock = socket->fd;
     int option = 1;
 
     // listen stream socket
-    if (listen(sock, ls->backlog) < 0) {
-        swSysWarn("listen(%s:%d, %d) failed", ls->host, ls->port, ls->backlog);
+    if (::listen(sock, backlog) < 0) {
+        swSysWarn("listen(%s:%d, %d) failed", host, port, backlog);
         return SW_ERR;
     }
 
 #ifdef TCP_DEFER_ACCEPT
-    if (ls->tcp_defer_accept) {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void *) &ls->tcp_defer_accept, sizeof(int)) != 0) {
+    if (tcp_defer_accept) {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void *) &tcp_defer_accept, sizeof(int)) != 0) {
             swSysWarn("setsockopt(TCP_DEFER_ACCEPT) failed");
         }
     }
 #endif
 
 #ifdef TCP_FASTOPEN
-    if (ls->tcp_fastopen) {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void *) &ls->tcp_fastopen, sizeof(int)) != 0) {
+    if (tcp_fastopen) {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void *) &tcp_fastopen, sizeof(int)) != 0) {
             swSysWarn("setsockopt(TCP_FASTOPEN) failed");
         }
     }
 #endif
 
 #ifdef SO_KEEPALIVE
-    if (ls->open_tcp_keepalive == 1) {
+    if (open_tcp_keepalive == 1) {
         if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) != 0) {
             swSysWarn("setsockopt(SO_KEEPALIVE) failed");
         }
 #ifdef TCP_KEEPIDLE
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void *) &ls->tcp_keepidle, sizeof(int)) < 0) {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void *) &tcp_keepidle, sizeof(int)) < 0) {
             swSysWarn("setsockopt(TCP_KEEPIDLE) failed");
         }
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &ls->tcp_keepinterval, sizeof(int)) < 0) {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &tcp_keepinterval, sizeof(int)) < 0) {
             swSysWarn("setsockopt(TCP_KEEPINTVL) failed");
         }
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &ls->tcp_keepcount, sizeof(int)) < 0) {
+        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &tcp_keepcount, sizeof(int)) < 0) {
             swSysWarn("setsockopt(TCP_KEEPCNT) failed");
         }
 #endif
 #ifdef TCP_USER_TIMEOUT
-        if (ls->tcp_user_timeout > 0 &&
-            setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &ls->tcp_user_timeout, sizeof(int)) != 0) {
+        if (tcp_user_timeout > 0 &&
+            setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &tcp_user_timeout, sizeof(int)) != 0) {
             swSysWarn("setsockopt(TCP_USER_TIMEOUT) failed");
         }
 #endif
     }
 #endif
 
-    ls->buffer_high_watermark = ls->socket_buffer_size * 0.8;
-    ls->buffer_low_watermark = 0;
+    buffer_high_watermark = socket_buffer_size * 0.8;
+    buffer_low_watermark = 0;
 
     return SW_OK;
 }
 
-void Server::init_port_protocol(swListenPort *ls) {
+void Server::init_port_protocol(ListenPort *ls) {
     ls->protocol.private_data_2 = this;
     // Thread mode must copy the data.
     // will free after onFinish
@@ -190,9 +180,9 @@ void Server::init_port_protocol(swListenPort *ls) {
 }
 
 /**
- * @description: set the swListenPort.host and swListenPort.port in swListenPort from sock
+ * @description: set the ListenPort.host and ListenPort.port in ListenPort from sock
  */
-int swPort_set_address(swListenPort *ls, int sock) {
+int ListenPort::set_address(int sock) {
     socklen_t optlen;
     swSocketAddress address;
     int sock_type, sock_family;
@@ -223,32 +213,30 @@ int swPort_set_address(swListenPort *ls, int sock) {
         return -1;
     }
 
-    swPort_init(ls);
-
     switch (sock_family) {
     case AF_INET:
         if (sock_type == SOCK_STREAM) {
-            ls->type = SW_SOCK_TCP;
+            type = SW_SOCK_TCP;
         } else {
-            ls->type = SW_SOCK_UDP;
+            type = SW_SOCK_UDP;
         }
-        ls->port = ntohs(address.addr.inet_v4.sin_port);
-        strncpy(ls->host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
+        port = ntohs(address.addr.inet_v4.sin_port);
+        strncpy(host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
         break;
     case AF_INET6:
         if (sock_type == SOCK_STREAM) {
-            ls->type = SW_SOCK_TCP6;
+            type = SW_SOCK_TCP6;
         } else {
-            ls->type = SW_SOCK_UDP6;
+            type = SW_SOCK_UDP6;
         }
-        ls->port = ntohs(address.addr.inet_v6.sin6_port);
+        port = ntohs(address.addr.inet_v6.sin6_port);
         inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-        strncpy(ls->host, tmp, SW_HOST_MAXSIZE - 1);
+        strncpy(host, tmp, SW_HOST_MAXSIZE - 1);
         break;
     case AF_UNIX:
-        ls->type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-        ls->port = 0;
-        strncpy(ls->host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
+        type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+        port = 0;
+        strncpy(host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
         break;
     default:
         swWarn("Unknown socket family[%d]", sock_family);
@@ -258,19 +246,19 @@ int swPort_set_address(swListenPort *ls, int sock) {
     return 0;
 }
 
-void swPort_clear_protocol(swListenPort *ls) {
-    ls->open_eof_check = 0;
-    ls->open_length_check = 0;
-    ls->open_http_protocol = 0;
-    ls->open_websocket_protocol = 0;
+void ListenPort::clear_protocol() {
+    open_eof_check = 0;
+    open_length_check = 0;
+    open_http_protocol = 0;
+    open_websocket_protocol = 0;
 #ifdef SW_USE_HTTP2
-    ls->open_http2_protocol = 0;
+    open_http2_protocol = 0;
 #endif
-    ls->open_mqtt_protocol = 0;
-    ls->open_redis_protocol = 0;
+    open_mqtt_protocol = 0;
+    open_redis_protocol = 0;
 }
 
-static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *event) {
+static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *event) {
     ssize_t n;
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
@@ -303,7 +291,7 @@ static int swPort_onRead_raw(swReactor *reactor, swListenPort *port, swEvent *ev
     }
 }
 
-static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, swEvent *event) {
+static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swProtocol *protocol = &port->protocol;
@@ -330,7 +318,7 @@ static int swPort_onRead_check_length(swReactor *reactor, swListenPort *port, sw
 /**
  * For Http Protocol
  */
-static int swPort_onRead_http(swReactor *reactor, swListenPort *port, swEvent *event) {
+static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swServer *serv = (swServer *) reactor->ptr;
@@ -600,7 +588,7 @@ _parse:
     return SW_OK;
 }
 
-static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *event) {
+static int swPort_onRead_redis(swReactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swProtocol *protocol = &port->protocol;
@@ -620,7 +608,7 @@ static int swPort_onRead_redis(swReactor *reactor, swListenPort *port, swEvent *
     return SW_OK;
 }
 
-static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEvent *event) {
+static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swProtocol *protocol = &port->protocol;
@@ -640,32 +628,32 @@ static int swPort_onRead_check_eof(swReactor *reactor, swListenPort *port, swEve
     return SW_OK;
 }
 
-void swPort_free(swListenPort *port) {
+void ListenPort::close() {
 #ifdef SW_USE_OPENSSL
-    if (port->ssl) {
-        if (port->ssl_context) {
-            swSSL_free_context(port->ssl_context);
+    if (ssl) {
+        if (ssl_context) {
+            swSSL_free_context(ssl_context);
         }
-        sw_free(port->ssl_option.cert_file);
-        sw_free(port->ssl_option.key_file);
-        if (port->ssl_option.client_cert_file) {
-            sw_free(port->ssl_option.client_cert_file);
+        sw_free(ssl_option.cert_file);
+        sw_free(ssl_option.key_file);
+        if (ssl_option.client_cert_file) {
+            sw_free(ssl_option.client_cert_file);
         }
 #ifdef SW_SUPPORT_DTLS
-        if (port->dtls_sessions) {
-            delete port->dtls_sessions;
+        if (dtls_sessions) {
+            delete dtls_sessions;
         }
 #endif
     }
 #endif
 
-    if (port->socket) {
-        swSocket_free(port->socket);
-        port->socket = nullptr;
+    if (socket) {
+        swSocket_free(socket);
+        socket = nullptr;
     }
 
     // remove unix socket file
-    if (port->type == SW_SOCK_UNIX_STREAM || port->type == SW_SOCK_UNIX_DGRAM) {
-        unlink(port->host);
+    if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
+        unlink(host);
     }
 }

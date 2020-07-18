@@ -161,7 +161,7 @@ _do_recvfrom:
     swListenPort *port = (swListenPort *) server_sock->object;
 
     if (port->ssl_option.dtls) {
-        swoole::dtls::Session *session = swServer_dtls_accept(serv, port, &pkt->socket_addr);
+        dtls::Session *session = serv->accept_dtls_connection(port, &pkt->socket_addr);
 
         if (!session) {
             return SW_ERR;
@@ -175,7 +175,7 @@ _do_recvfrom:
 
         swConnection *conn = (swConnection *) session->socket->object;
         if (serv->single_thread) {
-            if (swServer_connection_incoming(serv, reactor, conn) < 0) {
+            if (serv->connection_incoming(reactor, conn) < 0) {
                 reactor->close(reactor, session->socket);
                 return SW_OK;
             }
@@ -183,7 +183,7 @@ _do_recvfrom:
             swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = session->socket->fd;
-            swSocket *_pipe_sock = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+            swSocket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
             ReactorThread *thread = serv->get_thread(SwooleTG.id);
             swSocket *socket = &thread->pipe_sockets[_pipe_sock->fd];
             if (reactor->write(reactor, socket, &ev, sizeof(ev)) < 0) {
@@ -278,7 +278,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket) {
     }
 #endif
 
-    swSession *session = serv->get_session(conn->session_id);
+    Session *session = serv->get_session(conn->session_id);
     session->fd = 0;
     /**
      * reset maxfd, for connection_list
@@ -349,7 +349,7 @@ static void swReactorThread_shutdown(swReactor *reactor) {
     // stop listen UDP Port
     if (serv->have_dgram_sock == 1) {
         for (auto ls : serv->ports) {
-            if (swSocket_is_dgram(ls->type)) {
+            if (ls->is_dgram()) {
                 if (ls->socket->fd % serv->reactor_num != reactor->id) {
                     continue;
                 }
@@ -367,7 +367,7 @@ static void swReactorThread_shutdown(swReactor *reactor) {
             continue;
         }
         swConnection *conn = serv->get_connection(fd);
-        if (swServer_connection_valid(serv, conn) && !conn->peer_closed && !conn->socket->removed) {
+        if (serv->is_valid_connection(conn) && !conn->peer_closed && !conn->socket->removed) {
             swReactor_remove_read_event(reactor, conn->socket);
         }
     }
@@ -427,7 +427,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev) {
                 if (resp->info.type == SW_SERVER_EVENT_INCOMING) {
                     int fd = resp->info.fd;
                     swConnection *conn = serv->get_connection(fd);
-                    if (swServer_connection_incoming(serv, reactor, conn) < 0) {
+                    if (serv->connection_incoming(reactor, conn) < 0) {
                         return reactor->close(reactor, conn->socket);
                     }
                 }
@@ -555,7 +555,7 @@ void Server::init_reactor(swReactor *reactor) {
 
     // listen the all tcp port
     for (auto port : ports) {
-        if (swSocket_is_dgram(port->type)
+        if (port->is_dgram()
 #ifdef SW_SUPPORT_DTLS
             && !port->ssl_option.dtls
 #endif
@@ -747,18 +747,16 @@ int Server::start_reactor_threads() {
     }
 #endif
 
-    // set listen socket options
-    std::vector<swListenPort *>::iterator ls;
-    for (ls = ports.begin(); ls != ports.end(); ls++) {
-        if (swSocket_is_dgram((*ls)->type)) {
+    for (auto iter = ports.begin(); iter != ports.end(); iter++) {
+        auto port = *iter;
+        if (port->is_dgram()) {
             continue;
         }
-        if (swPort_listen(*ls) < 0) {
-        _failed:
+        if (port->listen() < 0) {
             swoole_event_free();
             return SW_ERR;
         }
-        reactor->add(reactor, (*ls)->socket, SW_EVENT_READ);
+        reactor->add(reactor, port->socket, SW_EVENT_READ);
     }
 
     /**
@@ -830,8 +828,9 @@ _init_master_thread:
     /**
      * 1 second timer
      */
-    if ((master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, this)) == nullptr) {
-        goto _failed;
+    if ((master_timer = swoole_timer_add(1000, SW_TRUE, Server::timer_callback, this)) == nullptr) {
+        swoole_event_free();
+        return SW_ERR;
     }
 
     if (onStart) {
@@ -862,7 +861,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     // listen UDP port
     if (serv->have_dgram_sock == 1) {
         for (auto ls : serv->ports) {
-            if (swSocket_is_stream(ls->type)) {
+            if (ls->is_stream()) {
                 continue;
             }
             int server_fd = ls->socket->fd;
@@ -1120,7 +1119,7 @@ void Server::start_heartbeat_thread() {
             for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
                 swTrace("check fd=%d", fd);
                 swConnection *conn = get_connection(fd);
-                if (swServer_connection_valid(this, conn)) {
+                if (is_valid_connection(conn)) {
                     if (conn->protect || conn->last_time > checktime) {
                         continue;
                     }
@@ -1128,7 +1127,7 @@ void Server::start_heartbeat_thread() {
                     ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                     // convert fd to session_id, in order to verify the connection before the force close connection
                     ev.fd = conn->session_id;
-                    swSocket *_pipe_sock = swServer_get_send_pipe(this, conn->session_id, conn->reactor_id);
+                    swSocket *_pipe_sock = get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
                     swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
                 }
             }

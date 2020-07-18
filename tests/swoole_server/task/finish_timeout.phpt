@@ -63,4 +63,4 @@ unlink(TMP_LOG_FILE);
 ?>
 --EXPECTF--
 [%s]	WARNING	swSocket_write_blocking(:%d): write %d bytes failed, Error: Resource temporarily unavailable[11]
-[%s]	WARNING	swTaskWorker_finish(:%d): TaskWorker: send result to worker failed, Error: Resource temporarily unavailable[11]
+[%s]	WARNING	reply_task_result(:%d): TaskWorker: send result to worker failed, Error: Resource temporarily unavailable[11]

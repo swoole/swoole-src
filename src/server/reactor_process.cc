@@ -64,7 +64,7 @@ int Server::start_reactor_processes() {
     // listen TCP
     if (have_stream_sock == 1) {
         for (auto ls : ports) {
-            if (swSocket_is_dgram(ls->type)) {
+            if (ls->is_dgram()) {
                 continue;
             }
 #ifdef HAVE_REUSEPORT
@@ -77,7 +77,7 @@ int Server::start_reactor_processes() {
 #endif
             {
                 // listen server socket
-                if (swPort_listen(ls) < 0) {
+                if (ls->listen() < 0) {
                     return SW_ERR;
                 }
             }
@@ -145,9 +145,9 @@ int Server::start_reactor_processes() {
              * store the pipe object
              */
             if (worker->pipe_object) {
-                swServer_store_pipe_fd(this, worker->pipe_object);
+                store_pipe_fd(worker->pipe_object);
             }
-            swManager_spawn_user_worker(this, worker);
+            spawn_user_worker(worker);
         }
     }
 
@@ -163,7 +163,8 @@ int Server::start_reactor_processes() {
     SwooleG.use_signalfd = 0;
 
     swProcessPool_start(&gs->event_workers);
-    swServer_signal_init(this);
+
+    init_signal_handler();
 
     if (onStart) {
         swWarn("The onStart event with SWOOLE_BASE is deprecated");
@@ -177,7 +178,7 @@ int Server::start_reactor_processes() {
     swProcessPool_wait(&gs->event_workers);
     swProcessPool_shutdown(&gs->event_workers);
 
-    swManager_kill_user_workers(this);
+    kill_user_workers();
 
     if (onManagerStop) {
         onManagerStop(this);
@@ -295,7 +296,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     int fdtype;
 
     for (auto ls : serv->ports) {
-        fdtype = swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
+        fdtype = ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_STREAM_SERVER && serv->enable_reuse_port) {
             if (swReactorProcess_reuse_port(ls) < 0) {
@@ -365,14 +366,14 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     /**
      * 1 second timer
      */
-    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, swServer_master_onTimer, serv)) == nullptr) {
+    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, Server::timer_callback, serv)) == nullptr) {
     _fail:
         swReactor_free_output_buffer(n_buffer);
         swoole_event_free();
         return SW_ERR;
     }
 
-    swWorker_onStart(serv);
+    serv->worker_start_callback();
 
     /**
      * for heartbeat check
@@ -412,7 +413,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     }
 
     swoole_event_free();
-    swWorker_onStop(serv);
+    serv->worker_stop_callback();
     swReactor_free_output_buffer(n_buffer);
 
     return retval;
@@ -449,7 +450,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data) {
     swServer *serv = (swServer *) factory->ptr;
     int session_id = data->info.fd;
 
-    swSession *session = serv->get_session(session_id);
+    Session *session = serv->get_session(session_id);
     if (session->fd == 0) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_NOT_EXIST,
@@ -527,7 +528,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
         conn = serv->get_connection(fd);
-        if (swServer_connection_valid(serv, conn)) {
+        if (serv->is_valid_connection(conn)) {
             if (conn->protect || conn->last_time > checktime) {
                 continue;
             }
@@ -565,6 +566,6 @@ static int swReactorProcess_reuse_port(swListenPort *ls) {
     }
     ls->socket->nonblock = 1;
     ls->socket->cloexec = 1;
-    return swPort_listen(ls);
+    return ls->listen();
 }
 #endif

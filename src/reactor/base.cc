@@ -281,14 +281,19 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
     return SW_OK;
 }
 
-int swReactor_wait_write_buffer(swReactor *reactor, swSocket *socket) {
-    swEvent event = {};
+int swReactor_drain_write_buffer(swReactor *reactor, swSocket *socket) {
+    swEvent event = { };
+    event.socket = socket;
+    event.fd = socket->fd;
 
-    if (!swBuffer_empty(socket->out_buffer)) {
-        swSocket_set_block(socket);
-        event.socket = socket;
-        event.fd = socket->fd;
-        return swReactor_onWrite(reactor, &event);
+    while (!swBuffer_empty(socket->out_buffer)) {
+        if (swSocket_wait(socket->fd, SwooleG.socket_send_timeout, SW_EVENT_WRITE) == SW_ERR) {
+            break;
+        }
+        swReactor_onWrite(reactor, &event);
+        if (socket->close_wait || socket->removed) {
+            break;
+        }
     }
 
     return SW_OK;

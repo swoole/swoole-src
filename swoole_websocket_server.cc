@@ -385,11 +385,11 @@ bool swoole_websocket_handshake(http_context *ctx) {
     if (conn) {
         conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
         swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
-        if (port && port->websocket_subprotocol) {
+        if (port && !port->websocket_subprotocol.empty()) {
             swoole_http_response_set_header(ctx,
                                             ZEND_STRL("Sec-WebSocket-Protocol"),
-                                            port->websocket_subprotocol,
-                                            port->websocket_subprotocol_length,
+                                            port->websocket_subprotocol.c_str(),
+                                            port->websocket_subprotocol.length(),
                                             false);
         }
 #ifdef SW_HAVE_ZLIB
