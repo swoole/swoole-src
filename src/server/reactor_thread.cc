@@ -349,7 +349,7 @@ static void swReactorThread_shutdown(swReactor *reactor) {
     // stop listen UDP Port
     if (serv->have_dgram_sock == 1) {
         for (auto ls : serv->ports) {
-            if (swSocket_is_dgram(ls->type)) {
+            if (ls->is_dgram()) {
                 if (ls->socket->fd % serv->reactor_num != reactor->id) {
                     continue;
                 }
@@ -555,7 +555,7 @@ void Server::init_reactor(swReactor *reactor) {
 
     // listen the all tcp port
     for (auto port : ports) {
-        if (swSocket_is_dgram(port->type)
+        if (port->is_dgram()
 #ifdef SW_SUPPORT_DTLS
             && !port->ssl_option.dtls
 #endif
@@ -747,18 +747,16 @@ int Server::start_reactor_threads() {
     }
 #endif
 
-    // set listen socket options
-    std::vector<swListenPort *>::iterator ls;
-    for (ls = ports.begin(); ls != ports.end(); ls++) {
-        if (swSocket_is_dgram((*ls)->type)) {
+    for (auto iter = ports.begin(); iter != ports.end(); iter++) {
+        auto port = *iter;
+        if (port->is_dgram()) {
             continue;
         }
-        if ((*ls)->listen() < 0) {
-        _failed:
+        if (port->listen() < 0) {
             swoole_event_free();
             return SW_ERR;
         }
-        reactor->add(reactor, (*ls)->socket, SW_EVENT_READ);
+        reactor->add(reactor, port->socket, SW_EVENT_READ);
     }
 
     /**
@@ -831,7 +829,8 @@ _init_master_thread:
      * 1 second timer
      */
     if ((master_timer = swoole_timer_add(1000, SW_TRUE, Server::timer_callback, this)) == nullptr) {
-        goto _failed;
+        swoole_event_free();
+        return SW_ERR;
     }
 
     if (onStart) {
@@ -862,7 +861,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
     // listen UDP port
     if (serv->have_dgram_sock == 1) {
         for (auto ls : serv->ports) {
-            if (swSocket_is_stream(ls->type)) {
+            if (ls->is_stream()) {
                 continue;
             }
             int server_fd = ls->socket->fd;

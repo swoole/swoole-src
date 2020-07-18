@@ -64,7 +64,7 @@ int Server::start_reactor_processes() {
     // listen TCP
     if (have_stream_sock == 1) {
         for (auto ls : ports) {
-            if (swSocket_is_dgram(ls->type)) {
+            if (ls->is_dgram()) {
                 continue;
             }
 #ifdef HAVE_REUSEPORT
@@ -296,7 +296,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     int fdtype;
 
     for (auto ls : serv->ports) {
-        fdtype = swSocket_is_dgram(ls->type) ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
+        fdtype = ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT
         if (fdtype == SW_FD_STREAM_SERVER && serv->enable_reuse_port) {
             if (swReactorProcess_reuse_port(ls) < 0) {

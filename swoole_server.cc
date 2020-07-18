@@ -1180,7 +1180,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject) {
                 return;
             }
         } else if (!port->open_redis_protocol) {
-            if (swSocket_is_stream(port->type) &&
+            if (port->is_stream() &&
                 !php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onReceive)) {
                 php_swoole_fatal_error(E_ERROR, "require onReceive callback");
                 return;

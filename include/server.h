@@ -434,6 +434,14 @@ struct ListenPort {
 
     int (*onRead)(swReactor *reactor, ListenPort *port, swEvent *event) = nullptr;
 
+    inline bool is_dgram() {
+        return swSocket_is_dgram(type);
+    }
+
+    inline bool is_stream() {
+        return swSocket_is_stream(type);
+    }
+
     ListenPort();
     ~ListenPort() = default;
     int listen();
@@ -936,17 +944,17 @@ class Server {
 
     inline bool if_require_packet_callback(ListenPort *port, bool isset) {
 #ifdef SW_USE_OPENSSL
-        return (swSocket_is_dgram(port->type) && !port->ssl && !isset);
+        return (port->is_dgram() && !port->ssl && !isset);
 #else
-        return (swSocket_is_dgram(port->type) && !isset);
+        return (port->is_dgram() && !isset);
 #endif
     }
 
     inline bool if_require_receive_callback(ListenPort *port, bool isset) {
 #ifdef SW_USE_OPENSSL
-        return (((swSocket_is_dgram(port->type) && port->ssl) || swSocket_is_stream(port->type)) && !isset);
+        return (((port->is_dgram() && port->ssl) || port->is_stream()) && !isset);
 #else
-        return (swSocket_is_stream(port->type) && !isset);
+        return (port->is_stream() && !isset);
 #endif
     }
 
