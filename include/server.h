@@ -107,115 +107,6 @@ enum swServer_mode {
 #define SW_SERVER_MAX_FD_INDEX 0  // max connection socket
 #define SW_SERVER_MIN_FD_INDEX 1  // min listen socket
 
-struct swListenPort {
-    /**
-     * tcp socket listen backlog
-     */
-    uint16_t backlog;
-    /**
-     * open tcp_defer_accept option
-     */
-    int tcp_defer_accept;
-    /**
-     * TCP_FASTOPEN
-     */
-    int tcp_fastopen;
-    /**
-     * TCP KeepAlive
-     */
-    int tcp_keepidle;
-    int tcp_keepinterval;
-    int tcp_keepcount;
-
-    int tcp_user_timeout;
-
-    int socket_buffer_size;
-    uint32_t buffer_high_watermark;
-    uint32_t buffer_low_watermark;
-
-    enum swSocket_type type;
-    uint8_t ssl;
-    int port;
-    int socket_fd;
-    swSocket *socket;
-    pthread_t thread_id;
-    char host[SW_HOST_MAXSIZE];
-
-    /**
-     * check data eof
-     */
-    uchar open_eof_check : 1;
-    /**
-     * built-in http protocol
-     */
-    uchar open_http_protocol : 1;
-    /**
-     * built-in http2.0 protocol
-     */
-    uchar open_http2_protocol : 1;
-    /**
-     * built-in websocket protocol
-     */
-    uchar open_websocket_protocol : 1;
-    /**
-     * open websocket close frame
-     */
-    uchar open_websocket_close_frame : 1;
-    /**
-     *  one package: length check
-     */
-    uchar open_length_check : 1;
-    /**
-     * for mqtt protocol
-     */
-    uchar open_mqtt_protocol : 1;
-    /**
-     *  redis protocol
-     */
-    uchar open_redis_protocol : 1;
-    /**
-     * open tcp nodelay option
-     */
-    uchar open_tcp_nodelay : 1;
-    /**
-     * open tcp nopush option(for sendfile)
-     */
-    uchar open_tcp_nopush : 1;
-    /**
-     * open tcp keepalive
-     */
-    uchar open_tcp_keepalive : 1;
-    /**
-     * open tcp keepalive
-     */
-    uchar open_ssl_encrypt : 1;
-    /**
-     * Sec-WebSocket-Protocol
-     */
-    char *websocket_subprotocol;
-    uint16_t websocket_subprotocol_length;
-    /**
-     * set socket option
-     */
-    int kernel_socket_recv_buffer_size;
-    int kernel_socket_send_buffer_size;
-
-#ifdef SW_USE_OPENSSL
-    SSL_CTX *ssl_context;
-    swSSL_config ssl_config;
-    swSSL_option ssl_option;
-#ifdef SW_SUPPORT_DTLS
-    std::unordered_map<int, swoole::dtls::Session *> *dtls_sessions;
-#endif
-#endif
-
-    sw_atomic_t *connection_num;
-
-    swProtocol protocol;
-    void *ptr;
-    int (*onRead)(swReactor *reactor, swListenPort *port, swEvent *event);
-};
-
 struct swSendData {
     swDataHead info;
     const char *data;
@@ -435,6 +326,125 @@ struct WorkerStopMessage {
     uint16_t worker_id;
 };
 
+struct ListenPort {
+    /**
+     * tcp socket listen backlog
+     */
+    uint16_t backlog = SW_BACKLOG;
+    /**
+     * open tcp_defer_accept option
+     */
+    int tcp_defer_accept = 0;
+    /**
+     * TCP_FASTOPEN
+     */
+    int tcp_fastopen = 0;
+    /**
+     * TCP KeepAlive
+     */
+    int tcp_keepidle = SW_TCP_KEEPIDLE;
+    int tcp_keepinterval = SW_TCP_KEEPINTERVAL;
+    int tcp_keepcount = SW_TCP_KEEPCOUNT;
+
+    int tcp_user_timeout = 0;
+
+    int socket_buffer_size  = SwooleG.socket_buffer_size;
+    uint32_t buffer_high_watermark = 0;
+    uint32_t buffer_low_watermark = 0;
+
+    enum swSocket_type type = SW_SOCK_TCP;
+    uint8_t ssl = 0;
+    int port = 0;
+    int socket_fd = 0;
+    swSocket *socket = nullptr;
+    pthread_t thread_id = 0;
+    char host[SW_HOST_MAXSIZE] = {};
+
+    /**
+     * check data eof
+     */
+    bool open_eof_check = false;
+    /**
+     * built-in http protocol
+     */
+    bool open_http_protocol = false;
+    /**
+     * built-in http2.0 protocol
+     */
+    bool open_http2_protocol = false;
+    /**
+     * built-in websocket protocol
+     */
+    bool open_websocket_protocol = false;
+    /**
+     * open websocket close frame
+     */
+    bool open_websocket_close_frame = false;
+    /**
+     *  one package: length check
+     */
+    bool open_length_check = false;
+    /**
+     * for mqtt protocol
+     */
+    bool open_mqtt_protocol = false;
+    /**
+     *  redis protocol
+     */
+    bool open_redis_protocol = false;
+    /**
+     * open tcp nodelay option
+     */
+    bool open_tcp_nodelay = false;
+    /**
+     * open tcp nopush option(for sendfile)
+     */
+    bool open_tcp_nopush = true;
+    /**
+     * open tcp keepalive
+     */
+    bool open_tcp_keepalive = false;
+    /**
+     * open tcp keepalive
+     */
+    bool open_ssl_encrypt = false;
+    /**
+     * Sec-WebSocket-Protocol
+     */
+    std::string websocket_subprotocol;
+    /**
+     * set socket option
+     */
+    int kernel_socket_recv_buffer_size = 0;
+    int kernel_socket_send_buffer_size = 0;
+
+#ifdef SW_USE_OPENSSL
+    SSL_CTX *ssl_context = nullptr;
+    swSSL_config ssl_config = {};
+    swSSL_option ssl_option = {};
+#ifdef SW_SUPPORT_DTLS
+    std::unordered_map<int, swoole::dtls::Session *> *dtls_sessions = nullptr;
+#endif
+#endif
+
+    sw_atomic_t *connection_num = nullptr;
+
+    swProtocol protocol = {};
+    void *ptr = nullptr;
+
+    int (*onRead)(swReactor *reactor, ListenPort *port, swEvent *event) = nullptr;
+
+    ListenPort();
+    ~ListenPort() = default;
+    int listen();
+    void close();
+    int set_address(int sock);
+#ifdef SW_USE_OPENSSL
+    int enable_ssl_encrypt();
+#endif
+    void clear_protocol();
+};
+
 struct ServerGS {
     pid_t master_pid;
     pid_t manager_pid;
@@ -648,11 +658,11 @@ class Server {
     void *private_data_3 = nullptr;
 
     swFactory factory;
-    std::vector<swListenPort *> ports;
+    std::vector<ListenPort *> ports;
 
-    inline swListenPort *get_primary_port() { return ports.front(); }
+    inline ListenPort *get_primary_port() { return ports.front(); }
 
-    swListenPort *get_port(int _port) {
+    ListenPort *get_port(int _port) {
         for (auto port : ports) {
             if (port->port == _port || _port == 0) {
                 return port;
@@ -661,9 +671,9 @@ class Server {
         return nullptr;
     }
 
-    swListenPort *get_port_by_fd(int fd) {
+    ListenPort *get_port_by_fd(int fd) {
         sw_atomic_t server_fd = connection_list[fd].server_fd;
-        return (swListenPort *) connection_list[server_fd].object;
+        return (ListenPort *) connection_list[server_fd].object;
     }
 
     std::thread heartbeat_thread;
@@ -842,10 +852,10 @@ class Server {
     void shutdown();
 
     int add_worker(swWorker *worker);
-    swListenPort *add_port(enum swSocket_type type, const char *host, int port);
+    ListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum swServer_hook_type type, std::function<void(void *)> func, int push_back);
-    Connection *add_connection(swListenPort *ls, swSocket *_socket, int server_fd);
+    Connection *add_connection(ListenPort *ls, swSocket *_socket, int server_fd);
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
@@ -924,7 +934,7 @@ class Server {
         return is_mode_dispatch_mode();
     }
 
-    inline bool if_require_packet_callback(swListenPort *port, bool isset) {
+    inline bool if_require_packet_callback(ListenPort *port, bool isset) {
 #ifdef SW_USE_OPENSSL
         return (swSocket_is_dgram(port->type) && !port->ssl && !isset);
 #else
@@ -932,7 +942,7 @@ class Server {
 #endif
     }
 
-    inline bool if_require_receive_callback(swListenPort *port, bool isset) {
+    inline bool if_require_receive_callback(ListenPort *port, bool isset) {
 #ifdef SW_USE_OPENSSL
         return (((swSocket_is_dgram(port->type) && port->ssl) || swSocket_is_stream(port->type)) && !isset);
 #else
@@ -1048,7 +1058,7 @@ class Server {
     int accept_task(swEventData *task);
     static int accept_connection(swReactor *reactor, swEvent *event);
 #ifdef SW_SUPPORT_DTLS
-    dtls::Session *accept_dtls_connection(swListenPort *ls, swSocketAddress *sa);
+    dtls::Session *accept_dtls_connection(ListenPort *ls, swSocketAddress *sa);
 #endif
     static int close_connection(swReactor *reactor, swSocket *_socket);
     static int dispatch_task(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
@@ -1062,7 +1072,7 @@ class Server {
     void init_reactor(swReactor *reactor);
     void init_worker(swWorker *worker);
     void init_task_workers();
-    void init_port_protocol(swListenPort *port);
+    void init_port_protocol(ListenPort *port);
     void init_signal_handler();
 
     void set_ipc_max_size();
@@ -1191,7 +1201,7 @@ class Server {
     std::mutex lock_;
 
     int start_check();
-    void check_port_type(swListenPort *ls);
+    void check_port_type(ListenPort *ls);
     void destroy();
     void destroy_reactor_threads();
     void destroy_reactor_processes();
@@ -1207,6 +1217,7 @@ class Server {
 }  // namespace swoole
 
 typedef swoole::Server swServer;
+typedef swoole::ListenPort swListenPort;
 typedef swoole::Connection swConnection;
 
 #define SW_MAX_SESSION_ID 0x1000000
@@ -1244,15 +1255,6 @@ static inline swServer *sw_server() {
     return g_server_instance;
 }
 
-//------------------------------------Listen Port-------------------------------------------
-void swPort_init(swListenPort *port);
-void swPort_free(swListenPort *port);
-int swPort_listen(swListenPort *ls);
-int swPort_set_address(swListenPort *ls, int sock);
-#ifdef SW_USE_OPENSSL
-int swPort_enable_ssl_encrypt(swListenPort *ls);
-#endif
-void swPort_clear_protocol(swListenPort *ls);
 //------------------------------------Worker Process-------------------------------------------
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);

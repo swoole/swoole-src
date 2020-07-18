@@ -753,7 +753,7 @@ int Server::start_reactor_threads() {
         if (swSocket_is_dgram((*ls)->type)) {
             continue;
         }
-        if (swPort_listen(*ls) < 0) {
+        if ((*ls)->listen() < 0) {
         _failed:
             swoole_event_free();
             return SW_ERR;

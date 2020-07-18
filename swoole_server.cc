@@ -2717,7 +2717,7 @@ static PHP_METHOD(swoole_server, start) {
             add_assoc_bool(zsetting, "open_websocket_protocol", 1);
             protocol_flag |= SW_WEBSOCKET_PROTOCOL;
         }
-        swPort_clear_protocol(primary_port);
+        primary_port->clear_protocol();
         primary_port->open_http_protocol = 1;
         primary_port->open_http2_protocol = !!(protocol_flag & SW_HTTP2_PROTOCOL);
         primary_port->open_websocket_protocol = !!(protocol_flag & SW_WEBSOCKET_PROTOCOL);

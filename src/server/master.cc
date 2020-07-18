@@ -829,7 +829,7 @@ void Server::destroy() {
     }
 
     for (auto port : ports) {
-        swPort_free(port);
+        port->close();
     }
 
     /**
@@ -1420,10 +1420,10 @@ int Server::add_systemd_socket() {
     int sock;
 
     for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++) {
-        std::unique_ptr<swListenPort> ptr(new swListenPort);
-        swListenPort *ls = ptr.get();
+        std::unique_ptr<ListenPort> ptr(new ListenPort());
+        ListenPort *ls = ptr.get();
 
-        if (swPort_set_address(ls, sock) < 0) {
+        if (ls->set_address(sock) < 0) {
             return count;
         }
         ls->host[SW_HOST_MAXSIZE - 1] = 0;
@@ -1470,7 +1470,6 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
     std::unique_ptr<swListenPort> ptr(new swListenPort);
     swListenPort *ls = ptr.get();
 
-    swPort_init(ls);
     ls->type = type;
     ls->port = port;
     strncpy(ls->host, host, SW_HOST_MAXSIZE - 1);

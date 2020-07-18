@@ -344,12 +344,7 @@ static PHP_METHOD(swoole_server_port, set) {
         }
     }
     if (php_swoole_array_get_value(vht, "websocket_subprotocol", ztmp)) {
-        zend::String str_v(ztmp);
-        if (port->websocket_subprotocol) {
-            sw_free(port->websocket_subprotocol);
-        }
-        port->websocket_subprotocol = str_v.dup();
-        port->websocket_subprotocol_length = str_v.len();
+        port->websocket_subprotocol = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "open_websocket_close_frame", ztmp)) {
         port->open_websocket_close_frame = zval_is_true(ztmp);
@@ -568,7 +563,7 @@ static PHP_METHOD(swoole_server_port, set) {
         //    {
         //        port->ssl_config.session_cache = zend::string_dup(v);
         //    }
-        if (swPort_enable_ssl_encrypt(port) < 0) {
+        if (port->enable_ssl_encrypt() < 0) {
             php_swoole_fatal_error(E_ERROR, "swPort_enable_ssl_encrypt() failed");
             RETURN_FALSE;
         }

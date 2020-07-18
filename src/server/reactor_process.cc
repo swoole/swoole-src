@@ -77,7 +77,7 @@ int Server::start_reactor_processes() {
 #endif
             {
                 // listen server socket
-                if (swPort_listen(ls) < 0) {
+                if (ls->listen() < 0) {
                     return SW_ERR;
                 }
             }
@@ -566,6 +566,6 @@ static int swReactorProcess_reuse_port(swListenPort *ls) {
     }
     ls->socket->nonblock = 1;
     ls->socket->cloexec = 1;
-    return swPort_listen(ls);
+    return ls->listen();
 }
 #endif
