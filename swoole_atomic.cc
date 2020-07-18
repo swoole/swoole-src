@@ -204,7 +204,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_wait, 0, 0, 0)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_waitup, 0, 0, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_atomic_wakeup, 0, 0, 0)
     ZEND_ARG_INFO(0, count)
 ZEND_END_ARG_INFO()
 
@@ -216,7 +216,7 @@ static const zend_function_entry swoole_atomic_methods[] =
     PHP_ME(swoole_atomic, get, arginfo_swoole_atomic_get, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, set, arginfo_swoole_atomic_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, wait, arginfo_swoole_atomic_wait, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, wakeup, arginfo_swoole_atomic_waitup, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, wakeup, arginfo_swoole_atomic_wakeup, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_atomic, cmpset, arginfo_swoole_atomic_cmpset, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
