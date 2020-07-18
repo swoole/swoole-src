@@ -52,6 +52,32 @@ static sw_inline int swoole_futex_wakeup(sw_atomic_t *atomic, int n) {
 }
 #endif
 
+static sw_inline int swoole_atomic_wait(sw_atomic_t *atomic, double timeout) {
+    if(sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
+        return SW_OK;
+    }
+    timeout = timeout <= 0 ? INT_MAX : timeout;
+    int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
+    while (timeout > 0) {
+        if ((int32_t) *atomic > i) {
+            return SW_OK;
+        } else {
+            usleep(1000);
+            timeout -= 0.001;
+        }
+    }
+    sw_atomic_fetch_add(atomic, 1);
+    return SW_ERR;
+}
+
+static sw_inline int swoole_atomic_wakeup(sw_atomic_t *atomic, int n) {
+    if(1 == (int32_t) *atomic) {
+        return SW_OK;
+    }
+    sw_atomic_fetch_add(atomic, n);
+    return SW_OK;
+}
+
 zend_class_entry *swoole_atomic_ce;
 static zend_object_handlers swoole_atomic_handlers;
 
@@ -304,21 +330,7 @@ PHP_METHOD(swoole_atomic, wait) {
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wait(atomic, timeout));
 #else
-    if(sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
-        RETURN_TRUE;
-    }
-    timeout = timeout <= 0 ? INT_MAX : timeout;
-    int32_t i = (int32_t) sw_atomic_sub_fetch(atomic, 1);
-    while (timeout > 0) {
-        if ((int32_t) *atomic > i) {
-            RETURN_TRUE;
-        } else {
-            usleep(1000);
-            timeout -= 0.001;
-        }
-    }
-    sw_atomic_fetch_add(atomic, 1);
-    RETURN_FALSE;
+    SW_CHECK_RETURN(swoole_atomic_wait(atomic, timeout));
 #endif
 }
 
@@ -334,11 +346,7 @@ PHP_METHOD(swoole_atomic, wakeup) {
 #ifdef HAVE_FUTEX
     SW_CHECK_RETURN(swoole_futex_wakeup(atomic, (int) n));
 #else
-    if(1 == (int32_t) *atomic) {
-        RETURN_TRUE;
-    }
-    sw_atomic_fetch_add(atomic, n);
-    RETURN_TRUE;
+    SW_CHECK_RETURN(swoole_atomic_wakeup(atomic, n));
 #endif
 }
 
