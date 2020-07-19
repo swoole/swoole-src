@@ -320,7 +320,7 @@ static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
         origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
         signals[signo].signo = signo;
-        signals[signo].activated = 1;
+        signals[signo].activated = true;
         // save swSignal* as udata
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, &signals[signo]);
     }
