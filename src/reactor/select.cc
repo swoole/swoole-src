@@ -127,7 +127,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo) {
 
     swReactor_before_wait(reactor);
 
-    while (reactor->running > 0) {
+    while (reactor->running) {
         FD_ZERO(&(object->rfds));
         FD_ZERO(&(object->wfds));
         FD_ZERO(&(object->efds));

@@ -39,7 +39,7 @@ static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnod
     uint32_t i;
     pid_t reload_worker_pid = 0;
     swProcessPool *pool = (swProcessPool *) tnode->data;
-    pool->reloading = 0;
+    pool->reloading = false;
 
     for (i = 0; i < pool->worker_num; i++) {
         if (i >= pool->reload_worker_i) {
@@ -56,7 +56,7 @@ static void swProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnod
     }
     errno = 0;
     pool->reload_worker_i = 0;
-    pool->reload_init = 0;
+    pool->reload_init = false;
 }
 /**
  * Process manager
@@ -175,8 +175,7 @@ int swProcessPool_start(swProcessPool *pool) {
     }
 
     uint32_t i;
-    pool->started = 1;
-    pool->running = 1;
+    pool->running = pool->started = true;
 
     for (i = 0; i < pool->worker_num; i++) {
         pool->workers[i].pool = pool;
@@ -323,7 +322,7 @@ void swProcessPool_shutdown(swProcessPool *pool) {
         }
     }
     swProcessPool_free(pool);
-    pool->started = 0;
+    pool->started = false;
 }
 
 pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker) {
@@ -628,18 +627,18 @@ int swProcessPool_wait(swProcessPool *pool) {
             swTimer_select(SwooleTG.timer);
         }
         if (pid < 0) {
-            if (pool->running == 0) {
+            if (!pool->running) {
                 break;
             }
-            if (pool->reloading == 0) {
+            if (!pool->reloading) {
                 if (errno > 0 && errno != EINTR) {
                     swSysWarn("[Manager] wait failed");
                 }
                 continue;
             } else {
-                if (pool->reload_init == 0) {
+                if (!pool->reload_init) {
                     swInfo("reload workers");
-                    pool->reload_init = 1;
+                    pool->reload_init = true;
                     memcpy(pool->reload_workers, pool->workers, sizeof(swWorker) * pool->worker_num);
                     if (pool->max_wait_time) {
                         swoole_timer_add(
@@ -650,7 +649,7 @@ int swProcessPool_wait(swProcessPool *pool) {
             }
         }
 
-        if (pool->running == 1) {
+        if (pool->running) {
             auto iter = pool->map->find(pid);
             if (iter == pool->map->end()) {
                 if (pool->onWorkerNotFound) {
@@ -683,10 +682,11 @@ int swProcessPool_wait(swProcessPool *pool) {
         }
     // reload worker
     _kill_worker:
-        if (pool->reloading == 1) {
+        if (pool->reloading) {
             // reload finish
             if (pool->reload_worker_i >= pool->worker_num) {
-                pool->reloading = pool->reload_init = reload_worker_pid = pool->reload_worker_i = 0;
+                pool->reloading = pool->reload_init = false;
+                reload_worker_pid = pool->reload_worker_i = 0;
                 continue;
             }
             reload_worker_pid = pool->reload_workers[pool->reload_worker_i].pid;

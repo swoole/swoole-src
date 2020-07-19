@@ -116,7 +116,7 @@ swSignalHandler swSignal_set(int signo, swSignalHandler handler) {
 #endif
         {
             signals[signo].handler = handler;
-            signals[signo].active = 1;
+            signals[signo].activated = true;
             signals[signo].signo = signo;
             return swSignal_set(signo, swSignal_async_handler, 1, 0);
         }
@@ -168,7 +168,7 @@ void swSignal_clear(void) {
     {
         int i;
         for (i = 0; i < SW_SIGNO_MAX; i++) {
-            if (signals[i].active) {
+            if (signals[i].activated) {
 #ifdef HAVE_KQUEUE
                 if (signals[i].signo != SIGCHLD && sw_reactor()) {
                     swKqueueSignal_set(signals[i].signo, nullptr);
@@ -195,7 +195,7 @@ void swSignalfd_init() {
 static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
     swSignalHandler origin_handler = nullptr;
 
-    if (handler == nullptr && signals[signo].active) {
+    if (handler == nullptr && signals[signo].activated) {
         sigdelset(&signalfd_mask, signo);
         sw_memset_zero(&signals[signo], sizeof(swSignal));
     } else {
@@ -203,7 +203,7 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
         origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
         signals[signo].signo = signo;
-        signals[signo].active = 1;
+        signals[signo].activated = true;
     }
     if (signal_fd > 0) {
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
@@ -281,7 +281,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event) {
         swWarn("unknown signal[%d]", siginfo.ssi_signo);
         return SW_OK;
     }
-    if (signals[siginfo.ssi_signo].active) {
+    if (signals[siginfo.ssi_signo].activated) {
         if (signals[siginfo.ssi_signo].handler) {
             signals[siginfo.ssi_signo].handler(siginfo.ssi_signo);
         } else {
@@ -320,7 +320,7 @@ static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
         origin_handler = signals[signo].handler;
         signals[signo].handler = handler;
         signals[signo].signo = signo;
-        signals[signo].active = 1;
+        signals[signo].activated = true;
         // save swSignal* as udata
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, &signals[signo]);
     }

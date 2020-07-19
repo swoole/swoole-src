@@ -420,8 +420,8 @@ void Server::stop_async_worker(swWorker *worker) {
      * force to end.
      */
     if (serv->reload_async == 0) {
-        serv->running = 0;
-        reactor->running = 0;
+        serv->running = false;
+        reactor->running = false;
         return;
     }
 
@@ -473,7 +473,7 @@ void Server::stop_async_worker(swWorker *worker) {
     }
 
 _try_to_exit:
-    swReactor_wait_exit(reactor, 1);
+    swReactor_wait_exit(reactor, true);
     reactor->set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, swWorker_reactor_try_to_exit);
     SwooleWG.exit_time = time(nullptr);
 

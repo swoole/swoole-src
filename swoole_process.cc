@@ -561,7 +561,7 @@ static PHP_METHOD(swoole_process, signal) {
     }
 
     // for swSignalfd_setup
-    SwooleTG.reactor->check_signalfd = 1;
+    SwooleTG.reactor->check_signalfd = true;
     if (!SwooleTG.reactor->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER)) {
         SwooleTG.reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER,
                                              [](swReactor *reactor, int &event_num) -> bool {

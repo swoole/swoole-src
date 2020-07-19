@@ -132,12 +132,12 @@ struct swProcessPool {
     /**
      * reloading
      */
-    uint8_t reloading;
-    uint8_t running;
-    uint8_t reload_init;
+    bool reloading;
+    bool running;
+    bool reload_init;
+    bool started;
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
-    uint8_t started;
     uint32_t reload_worker_i;
     uint32_t max_wait_time;
     swWorker *reload_workers;

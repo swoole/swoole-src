@@ -240,7 +240,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo) {
 
     swReactor_before_wait(reactor);
 
-    while (reactor->running > 0) {
+    while (reactor->running) {
         if (reactor->onBegin != nullptr) {
             reactor->onBegin(reactor);
         }

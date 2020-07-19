@@ -24,7 +24,7 @@ typedef void (*swSignalHandler)(int);
 struct swSignal {
     swSignalHandler handler;
     uint16_t signo;
-    uint16_t active;
+    bool activated;
 };
 
 #ifdef HAVE_SIGNALFD
