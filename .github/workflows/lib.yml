@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
 
-    - name: gtest_install
+    - name: install dependencies
       run: sudo apt install -y googletest libgtest-dev redis-server &&
            cd /usr/src/googletest/googletest &&
            sudo mkdir build &&
