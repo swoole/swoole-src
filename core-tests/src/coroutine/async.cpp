@@ -1,5 +1,5 @@
 #include "test_coroutine.h"
-
+#include "swoole_async.h"
 #include <iostream>
 #include <regex>
 

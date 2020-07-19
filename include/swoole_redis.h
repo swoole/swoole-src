@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include <vector>
+#include <string>
+
 enum swRedis_receive_state {
     SW_REDIS_RECEIVE_TOTAL_LINE,
     SW_REDIS_RECEIVE_LENGTH,
@@ -38,7 +41,7 @@ enum swRedis_reply_type {
 #define SW_REDIS_MAX_LINES 128
 #define SW_REDIS_MAX_STRING_SIZE 536870912  // 512M
 
-static sw_inline char *swRedis_get_number(char *p, int *_ret) {
+static sw_inline const char *swRedis_get_number(const char *p, int *_ret) {
     char *endptr;
     p++;
     int ret = strtol(p, &endptr, 10);
@@ -51,4 +54,7 @@ static sw_inline char *swRedis_get_number(char *p, int *_ret) {
     }
 }
 
-int swRedis_recv(swProtocol *protocol, swConnection *conn, swString *buffer);
+std::vector<std::string> swRedis_parse(const char *data, size_t len);
+bool swRedis_format(swString *buf, nullptr_t null);
+bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::string &value);
+bool swRedis_format(swString *buf, enum swRedis_reply_type type, long value);

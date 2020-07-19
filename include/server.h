@@ -1269,3 +1269,4 @@ void swWorker_signal_init(void);
 int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
+int swServer_recv_redis_packet(swProtocol *protocol, swConnection *conn, swString *buffer);

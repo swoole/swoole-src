@@ -4,7 +4,7 @@
 #include <sys/file.h>
 
 #include "coroutine_c_api.h"
-#include "async.h"
+#include "swoole_async.h"
 
 #include <string>
 

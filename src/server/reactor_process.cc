@@ -85,7 +85,8 @@ int Server::start_reactor_processes() {
     }
 
     swProcessPool *pool = &gs->event_workers;
-    if (swProcessPool_create(pool, worker_num, 0, SW_IPC_UNIXSOCK) < 0) {
+    int ipc_type = worker_num == 1 ? SW_IPC_NONE : SW_IPC_UNIXSOCK;
+    if (swProcessPool_create(pool, worker_num, 0, ipc_type) < 0) {
         return SW_ERR;
     }
     swProcessPool_set_max_request(pool, max_request, max_request_grace);

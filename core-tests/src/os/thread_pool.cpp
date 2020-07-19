@@ -1,5 +1,5 @@
 #ifndef __MACH__
-#include "tests.h"
+#include "test_core.h"
 #include "thread_pool.h"
 
 #include <sys/eventfd.h>

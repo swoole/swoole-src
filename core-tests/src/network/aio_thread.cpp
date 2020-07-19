@@ -1,6 +1,7 @@
-#include "tests.h"
+#include "test_core.h"
+
 #ifdef HAVE_SWOOLE_DIR
-#include "async.h"
+#include "swoole_async.h"
 #else
 #include "swoole/async.h"
 #endif

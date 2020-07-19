@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_core.h"
 
 TEST(base, DataHead_dump) {
     swDataHead data = {};

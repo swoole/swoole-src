@@ -37,7 +37,14 @@ if(CODE_COVERAGE)
     endif()
 endif(CODE_COVERAGE)
 
-file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc thirdparty/boost/asm/combined.S)
+file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc
+            thirdparty/boost/asm/combined.S
+            thirdparty/hiredis/async.c
+            thirdparty/hiredis/hiredis.c
+            thirdparty/hiredis/net.c
+            thirdparty/hiredis/read.c
+            thirdparty/hiredis/sds.c
+)
 file(GLOB_RECURSE HEAD_FILES FOLLOW_SYMLINKS include/*.h)
 file(GLOB_RECURSE HEAD_WAPPER_FILES FOLLOW_SYMLINKS include/wrapper/*.hpp)
 
@@ -55,7 +62,7 @@ include_directories(BEFORE ./include ./include/wrapper ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 # find OpenSSL
-if (DEFINED openssl_dir) 
+if (DEFINED openssl_dir)
     include_directories(BEFORE ${openssl_dir}/include)
     link_directories(${openssl_dir}/lib)
 else()
@@ -69,7 +76,7 @@ else()
     endif()
 endif()
 
-if (DEFINED brotli_dir) 
+if (DEFINED brotli_dir)
     include_directories(BEFORE ${brotli_dir}/include)
     link_directories(${brotli_dir}/lib)
 endif()
@@ -122,11 +129,6 @@ set(ext_src_list  ${ext_cxx_files}
         thirdparty/php/standard/proc_open.cc
         thirdparty/swoole_http_parser.c
         thirdparty/multipart_parser.c
-        thirdparty/hiredis/async.c
-        thirdparty/hiredis/hiredis.c
-        thirdparty/hiredis/net.c
-        thirdparty/hiredis/read.c
-        thirdparty/hiredis/sds.c
         thirdparty/nghttp2/nghttp2_hd.c
         thirdparty/nghttp2/nghttp2_rcbuf.c
         thirdparty/nghttp2/nghttp2_helper.c

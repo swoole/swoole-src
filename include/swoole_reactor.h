@@ -94,6 +94,7 @@ class Reactor {
     bool start = false;
     bool once = false;
     bool wait_exit = false;
+    bool destroyed = false;
     /**
      * callback signal
      */

@@ -325,6 +325,7 @@ void Reactor::execute_end_callbacks(bool timedout) {
 }
 
 Reactor::~Reactor() {
+    destroyed = true;
     destroy_callbacks.execute();
-    this->free(this);
+    free(this);
 }

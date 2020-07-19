@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_core.h"
 #include "base64.h"
 
 TEST(base64, encode) {

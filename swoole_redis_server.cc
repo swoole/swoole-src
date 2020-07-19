@@ -15,7 +15,7 @@
 */
 
 #include "swoole_server.h"
-#include "redis.h"
+#include "swoole_redis.h"
 
 #include <unordered_map>
 #include <string>
@@ -110,8 +110,8 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
 
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req);
-    char *p = Z_STRVAL(zdata);
-    char *pe = p + Z_STRLEN(zdata);
+    const char *p = Z_STRVAL(zdata);
+    const char *pe = p + Z_STRLEN(zdata);
     int ret;
     int length = 0;
 
@@ -120,7 +120,7 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;
     int add_param = 0;
-    char *command = nullptr;
+    const char *command = nullptr;
     int command_len = 0;
 
     do {
@@ -173,7 +173,6 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
     }
 
     char _command[SW_REDIS_MAX_COMMAND_SIZE];
-    command[command_len] = 0;
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%.*s", command_len, command);
     php_strtolower(_command, _command_len);
 
@@ -315,7 +314,6 @@ static PHP_METHOD(swoole_redis_server, format) {
 
     char message[256];
     int length;
-    zval *item;
 
     swString *format_buffer = SwooleTG.buffer_stack;
 
@@ -323,16 +321,16 @@ static PHP_METHOD(swoole_redis_server, format) {
         RETURN_STRINGL(SW_REDIS_RETURN_NIL, sizeof(SW_REDIS_RETURN_NIL) - 1);
     } else if (type == SW_REDIS_REPLY_STATUS) {
         if (value) {
-            convert_to_string(value);
-            length = sw_snprintf(message, sizeof(message), "+%.*s\r\n", (int) Z_STRLEN_P(value), Z_STRVAL_P(value));
+            zend::String str_value(value);
+            length = sw_snprintf(message, sizeof(message), "+%.*s\r\n", (int) str_value.len(), str_value.val());
         } else {
             length = sw_snprintf(message, sizeof(message), "+%s\r\n", "OK");
         }
         RETURN_STRINGL(message, length);
     } else if (type == SW_REDIS_REPLY_ERROR) {
         if (value) {
-            convert_to_string(value);
-            length = sw_snprintf(message, sizeof(message), "-%.*s\r\n", (int) Z_STRLEN_P(value), Z_STRVAL_P(value));
+            zend::String str_value(value);
+            length = sw_snprintf(message, sizeof(message), "-%.*s\r\n", (int) str_value.len(), str_value.val());
         } else {
             length = sw_snprintf(message, sizeof(message), "-%s\r\n", "ERR");
         }
@@ -341,7 +339,6 @@ static PHP_METHOD(swoole_redis_server, format) {
         if (!value) {
             goto _no_value;
         }
-
         length = sw_snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
         RETURN_STRINGL(message, length);
     } else if (type == SW_REDIS_REPLY_STRING) {
@@ -350,15 +347,15 @@ static PHP_METHOD(swoole_redis_server, format) {
             php_swoole_fatal_error(E_WARNING, "require more parameters");
             RETURN_FALSE;
         }
-        convert_to_string(value);
-        if (Z_STRLEN_P(value) > SW_REDIS_MAX_STRING_SIZE || Z_STRLEN_P(value) < 1) {
+        zend::String str_value(value);
+        if (str_value.len() > SW_REDIS_MAX_STRING_SIZE || str_value.len() < 1) {
             php_swoole_fatal_error(E_WARNING, "invalid string size");
             RETURN_FALSE;
         }
         swString_clear(format_buffer);
-        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(value));
+        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
         swString_append_ptr(format_buffer, message, length);
-        swString_append_ptr(format_buffer, Z_STRVAL_P(value), Z_STRLEN_P(value));
+        swString_append_ptr(format_buffer, str_value.val(), str_value.len());
         swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
     } else if (type == SW_REDIS_REPLY_SET) {
@@ -372,21 +369,13 @@ static PHP_METHOD(swoole_redis_server, format) {
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
         swString_append_ptr(format_buffer, message, length);
 
+        zval *item;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
-        zval _copy;
-        if (Z_TYPE_P(item) != IS_STRING) {
-            _copy = *item;
-            zval_copy_ctor(&_copy);
-            item = &_copy;
-        }
-        convert_to_string(item);
-        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", Z_STRLEN_P(item));
-        swString_append_ptr(format_buffer, message, length);
-        swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
-        swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-        if (item == &_copy) {
-            zval_dtor(item);
-        }
+            zend::String str_value(item);
+            length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
+            swString_append_ptr(format_buffer, message, length);
+            swString_append_ptr(format_buffer, str_value.val(), str_value.len());
+            swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
         SW_HASHTABLE_FOREACH_END();
 
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
@@ -404,27 +393,18 @@ static PHP_METHOD(swoole_redis_server, format) {
         char *key;
         uint32_t keylen;
         int keytype;
+        zval *item;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), key, keylen, keytype, item)
-        if (key == nullptr || keylen == 0) {
-            continue;
-        }
-        zval _copy;
-        if (Z_TYPE_P(item) != IS_STRING) {
-            _copy = *item;
-            zval_copy_ctor(&_copy);
-            item = &_copy;
-        }
-        convert_to_string(item);
-        length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, Z_STRLEN_P(item));
-        swString_append_ptr(format_buffer, message, length);
-        swString_append_ptr(format_buffer, Z_STRVAL_P(item), Z_STRLEN_P(item));
-        swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-
-        if (item == &_copy) {
-            zval_dtor(item);
-        }
-        (void) keytype;
+            if (key == nullptr || keylen == 0) {
+                continue;
+            }
+            zend::String str_value(item);
+            length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, str_value.len());
+            swString_append_ptr(format_buffer, message, length);
+            swString_append_ptr(format_buffer, str_value.val(), str_value.len());
+            swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
+            (void) keytype;
         SW_HASHTABLE_FOREACH_END();
 
         RETURN_STRINGL(format_buffer->str, format_buffer->length);

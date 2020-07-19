@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_core.h"
 #include "swoole_memory.h"
 #include "lock.h"
 #include "wrapper/client.hpp"
@@ -58,10 +58,7 @@ TEST(server, base) {
     sw_logger()->set_level(SW_LOG_WARNING);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
-    if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
-        exit(2);
-    }
+    ASSERT_TRUE(port);
 
     mutex lock;
     lock.lock();
