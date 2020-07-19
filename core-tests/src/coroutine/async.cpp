@@ -1,5 +1,9 @@
 #include "test_coroutine.h"
+#ifdef HAVE_SWOOLE_DIR
 #include "swoole_async.h"
+#else
+#include "swoole/swoole_async.h"
+#endif
 #include <iostream>
 #include <regex>
 
