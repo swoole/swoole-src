@@ -58,7 +58,7 @@ TEST(redis, server) {
         swoole::Coroutine::create([](void *arg) {
             Server *serv = reinterpret_cast<Server *>(arg);
             RedisClient redis;
-            ASSERT_TRUE(redis.Connect("127.0.0.1", 6379));
+            ASSERT_TRUE(redis.Connect("127.0.0.1", serv->get_primary_port()->port));
             ASSERT_TRUE(redis.Set(REDIS_TEST_KEY, REDIS_TEST_VALUE));
             ASSERT_EQ(redis.Get(REDIS_TEST_KEY), REDIS_TEST_VALUE );
             serv->shutdown();
