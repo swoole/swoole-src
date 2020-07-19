@@ -61,7 +61,7 @@ TEST(redis, server) {
             ASSERT_TRUE(redis.Connect("127.0.0.1", serv->get_primary_port()->port));
             ASSERT_TRUE(redis.Set(REDIS_TEST_KEY, REDIS_TEST_VALUE));
             ASSERT_EQ(redis.Get(REDIS_TEST_KEY), REDIS_TEST_VALUE );
-            serv->shutdown();
+            kill(serv->gs->master_pid, SIGTERM);
         }, serv);
     };
 
