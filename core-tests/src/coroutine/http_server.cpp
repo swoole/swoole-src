@@ -25,8 +25,12 @@ using namespace httplib;
 using namespace std;
 
 TEST(coroutine_http_server, get) {
-    std::thread t1([]() {
-        usleep(10000);
+    Server svr;
+    mutex lock;
+    lock.lock();
+
+    thread t1([&lock]() {
+        lock.lock();
         Client cli(TEST_HOST, 8080);
         auto resp1 = cli.Get("/hi");
         EXPECT_EQ(resp1->status, 200);
@@ -37,9 +41,7 @@ TEST(coroutine_http_server, get) {
         EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
-    coroutine::run([](void *arg) {
-        Server svr;
-
+    coroutine::run([&lock, &svr](void *arg) {
         svr.Get("/hi", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
         svr.Get("/stop", [&svr](const Request &req, Response &res) {
@@ -49,6 +51,10 @@ TEST(coroutine_http_server, get) {
 
         svr.Post("/post", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
+        svr.BeforeListen([&lock]() {
+            lock.unlock();
+        });
+
         svr.listen(TEST_HOST, 8080);
     });
 
@@ -56,8 +62,14 @@ TEST(coroutine_http_server, get) {
 }
 
 TEST(coroutine_http_server, post) {
-    std::thread t1([]() {
-        usleep(10000);
+
+    Server svr;
+    mutex lock;
+    lock.lock();
+
+    std::thread t1([&lock]() {
+        lock.lock();
+
         Client cli(TEST_HOST, 8080);
 
         httplib::Params params;
@@ -73,8 +85,7 @@ TEST(coroutine_http_server, post) {
         EXPECT_EQ(resp2->body, string("Stop Server!"));
     });
 
-    coroutine::run([](void *arg) {
-        Server svr;
+    coroutine::run([&lock, &svr](void *arg) {
 
         svr.Get("/stop", [&svr](const Request &req, Response &res) {
             res.set_content("Stop Server!", "text/plain");
@@ -82,6 +93,10 @@ TEST(coroutine_http_server, post) {
         });
 
         svr.Post("/post", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
+
+        svr.BeforeListen([&lock]() {
+            lock.unlock();
+        });
 
         svr.listen(TEST_HOST, 8080);
     });

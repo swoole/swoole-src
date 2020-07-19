@@ -88,6 +88,10 @@ class Server {
 
     bool listen(const char *host, int port, int socket_flags = 0);
 
+    inline void BeforeListen(std::function<void(void)> fn) {
+        before_listen_callback_ = fn;
+    }
+
     bool is_running() const;
     void stop();
 
@@ -106,6 +110,8 @@ class Server {
     time_t idle_interval_sec_ = CPPHTTPLIB_IDLE_INTERVAL_SECOND;
     time_t idle_interval_usec_ = CPPHTTPLIB_IDLE_INTERVAL_USECOND;
     size_t payload_max_length_ = CPPHTTPLIB_PAYLOAD_MAX_LENGTH;
+
+    std::function<void(void)> before_listen_callback_ = nullptr;
 
   private:
     using Handlers = std::vector<std::pair<std::regex, Handler>>;
@@ -723,6 +729,10 @@ inline bool Server::listen_internal() {
     }
 
     is_running_ = true;
+
+    if (before_listen_callback_) {
+        before_listen_callback_();
+    }
 
     while (is_running_) {
         auto client_sock = svr_sock_->accept();
