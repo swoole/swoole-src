@@ -157,7 +157,7 @@ swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, 
     tnode->type = SW_TIMER_TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = interval ? _msec : 0;
-    tnode->removed = 0;
+    tnode->removed = false;
     tnode->callback = callback;
     tnode->round = timer->round;
     tnode->destructor = nullptr;
@@ -195,7 +195,7 @@ bool swTimer_del(swTimer *timer, swTimer_node *tnode) {
         return false;
     }
     if (sw_unlikely(timer->_current_id > 0 && tnode->id == timer->_current_id)) {
-        tnode->removed = 1;
+        tnode->removed = true;
         swTraceLog(SW_TRACE_TIMER,
                    "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
                    tnode->id,

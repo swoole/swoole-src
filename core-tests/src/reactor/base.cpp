@@ -34,7 +34,7 @@ TEST(reactor, create) {
     ASSERT_NE(reactor->wait, nullptr);
     ASSERT_NE(reactor->free, nullptr);
 
-    ASSERT_EQ(reactor->running, 1);
+    ASSERT_TRUE(reactor->running);
     ASSERT_NE(reactor->write, nullptr);
     ASSERT_NE(reactor->close, nullptr);
     ASSERT_EQ(reactor->defer_tasks, nullptr);
@@ -175,7 +175,7 @@ static void reactor_test_func(swReactor *reactor) {
 TEST(reactor, poll) {
     swReactor reactor(1024);
     reactor.free(&reactor);
-    reactor.wait_exit = 1;
+    reactor.wait_exit = true;
     ASSERT_EQ(swReactorPoll_create(&reactor, 1024), SW_OK);
     reactor_test_func(&reactor);
 }
@@ -183,7 +183,7 @@ TEST(reactor, poll) {
 TEST(reactor, select) {
     swReactor reactor(1024);
     reactor.free(&reactor);
-    reactor.wait_exit = 1;
+    reactor.wait_exit = true;
     ASSERT_EQ(swReactorSelect_create(&reactor), SW_OK);
     reactor_test_func(&reactor);
 }

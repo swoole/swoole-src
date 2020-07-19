@@ -661,7 +661,7 @@ int Server::start() {
             i++;
         }
     }
-    running = 1;
+    running = true;
     // factory start
     if (factory.start(&factory) < 0) {
         return SW_ERR;
@@ -790,7 +790,7 @@ void Server::shutdown() {
     // stop all thread
     if (SwooleTG.reactor) {
         swReactor *reactor = SwooleTG.reactor;
-        swReactor_wait_exit(reactor, 1);
+        swReactor_wait_exit(reactor, true);
         for (auto port : ports) {
             if (port->is_dgram() and factory_mode == SW_MODE_PROCESS) {
                 continue;
@@ -1575,8 +1575,8 @@ static void Server_signal_handler(int sig) {
             if (serv->gs->event_workers.reloading) {
                 break;
             }
-            serv->gs->event_workers.reloading = 1;
-            serv->gs->event_workers.reload_init = 0;
+            serv->gs->event_workers.reloading = true;
+            serv->gs->event_workers.reload_init = false;
         } else {
             swoole_kill(serv->gs->manager_pid, sig);
         }

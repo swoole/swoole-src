@@ -266,7 +266,7 @@ static int swManager_loop(swServer *serv) {
         if (ManagerProcess.read_message) {
             WorkerStopMessage msg;
             while (serv->message_box->pop(&msg, sizeof(msg)) > 0) {
-                if (serv->running == 0) {
+                if (!serv->running) {
                     continue;
                 }
                 if (msg.worker_id >= serv->worker_num) {
@@ -357,7 +357,7 @@ static int swManager_loop(swServer *serv) {
                 goto _error;
             }
         }
-        if (serv->running == 1) {
+        if (serv->running) {
             // event workers
             for (i = 0; i < serv->worker_num; i++) {
                 // find worker
@@ -465,7 +465,7 @@ static int swManager_loop(swServer *serv) {
 static void swManager_signal_handler(int sig) {
     switch (sig) {
     case SIGTERM:
-        sw_server()->running = 0;
+        sw_server()->running = false;
         break;
         /**
          * reload all workers

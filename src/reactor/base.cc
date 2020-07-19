@@ -51,7 +51,7 @@ Reactor::Reactor(int max_event) {
         throw std::system_error(std::error_code(errno, std::system_category()));
     }
 
-    running = 1;
+    running = true;
 
     write = swReactor_write;
     close = swReactor_close;
@@ -89,7 +89,7 @@ Reactor::Reactor(int max_event) {
 
     set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, [](swReactor *reactor) {
         if (reactor->wait_exit && reactor->if_exit()) {
-            reactor->running = 0;
+            reactor->running = false;
         }
     });
 

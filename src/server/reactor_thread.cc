@@ -372,7 +372,7 @@ static void swReactorThread_shutdown(swReactor *reactor) {
         }
     }
 
-    swReactor_wait_exit(reactor, 1);
+    swReactor_wait_exit(reactor, true);
 }
 
 /**

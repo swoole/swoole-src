@@ -199,12 +199,11 @@ static sw_inline int swReactor_events(int flags) {
 }
 
 static inline void swReactor_before_wait(swReactor *reactor) {
-    reactor->running = 1;
-    reactor->start = 1;
+    reactor->start = reactor->running = true;
 }
 
-static inline void swReactor_wait_exit(swReactor *reactor, int value) {
-    reactor->wait_exit = value;
+static inline void swReactor_wait_exit(swReactor *reactor, bool enable) {
+    reactor->wait_exit = enable;
 }
 
 #define SW_REACTOR_CONTINUE                                                                                            \

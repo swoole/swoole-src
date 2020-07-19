@@ -39,7 +39,7 @@ struct swTimer_node {
     int64_t exec_msec;
     int64_t interval;
     uint64_t round;
-    uint8_t removed;
+    bool removed;
     swHeap_node *heap_node;
     swTimerCallback callback;
     void *data;

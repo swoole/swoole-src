@@ -3858,11 +3858,11 @@ static PHP_METHOD(swoole_server, stop) {
             SwooleTG.reactor->defer(
                 [](void *data) {
                     swReactor *reactor = (swReactor *) data;
-                    reactor->running = 0;
+                    reactor->running = false;
                 },
                 SwooleTG.reactor);
         }
-        serv->running = 0;
+        serv->running = false;
     } else {
         swWorker *worker = serv->get_worker(worker_id);
         if (worker == nullptr) {

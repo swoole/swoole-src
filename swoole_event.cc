@@ -298,7 +298,7 @@ void php_swoole_event_wait() {
 
 void php_swoole_event_exit() {
     if (sw_reactor()) {
-        sw_reactor()->running = 0;
+        sw_reactor()->running = false;
     }
 }
 
@@ -733,7 +733,7 @@ static PHP_FUNCTION(swoole_event_dispatch) {
     if (!sw_reactor()) {
         RETURN_FALSE;
     }
-    sw_reactor()->once = 1;
+    sw_reactor()->once = true;
 
 #ifdef HAVE_SIGNALFD
     if (sw_reactor()->check_signalfd) {
@@ -746,7 +746,7 @@ static PHP_FUNCTION(swoole_event_dispatch) {
         php_swoole_sys_error(E_ERROR, "reactor wait failed");
     }
 
-    sw_reactor()->once = 0;
+    sw_reactor()->once = false;
     RETURN_TRUE;
 }
 

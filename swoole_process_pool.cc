@@ -258,12 +258,12 @@ static void pool_onWorkerStop(swProcessPool *pool, int worker_id) {
 static void pool_signal_handler(int sig) {
     switch (sig) {
     case SIGTERM:
-        current_pool->running = 0;
+        current_pool->running = false;
         break;
     case SIGUSR1:
     case SIGUSR2:
-        current_pool->reloading = 1;
-        current_pool->reload_init = 0;
+        current_pool->reloading = true;
+        current_pool->reload_init = false;
         break;
     default:
         break;
@@ -358,7 +358,7 @@ static PHP_METHOD(swoole_process_pool, on) {
 
     swProcessPool *pool = php_swoole_process_pool_get_and_check_pool(ZEND_THIS);
 
-    if (pool->started > 0) {
+    if (pool->started) {
         php_swoole_fatal_error(E_WARNING, "process pool is started. unable to register event callback function");
         RETURN_FALSE;
     }
@@ -432,7 +432,7 @@ static PHP_METHOD(swoole_process_pool, listen) {
 
     swProcessPool *pool = php_swoole_process_pool_get_and_check_pool(ZEND_THIS);
 
-    if (pool->started > 0) {
+    if (pool->started) {
         php_swoole_fatal_error(E_WARNING, "process pool is started. unable to listen");
         RETURN_FALSE;
     }
