@@ -18,6 +18,8 @@
 #include "swoole_log.h"
 #include "base64.h"
 
+#include <memory>
+
 using swoole::StringExplodeHandler;
 
 swString *swoole::make_string(size_t size, const swAllocator *allocator) {
@@ -184,10 +186,9 @@ int swString_append_random_bytes(swString *str, size_t length, bool base64) {
     }
 
     if (base64) {
-        char *out = new char[base_encode_size];
-        n = swBase64_encode((uchar *) str->str + str->length, length, out);
-        memcpy(str->str + str->length, out, n);
-        delete[] out;
+        std::unique_ptr <char []> out (new char [base_encode_size]);
+        n = swBase64_encode((uchar *) str->str + str->length, length, out.get());
+        memcpy(str->str + str->length, out.get(), n);
     }
 
     str->length += n;
