@@ -40,8 +40,13 @@ int swString_repeat(swString *src, const char *data, size_t len, size_t n);
 void swString_print(swString *str);
 int swString_append(swString *str, const swString *append_str);
 int swString_append_ptr(swString *str, const char *append_str, size_t length);
+
+inline int swString_append(swString *str, const std::string append_str) {
+    return swString_append_ptr(str, append_str.c_str(), append_str.length());
+}
+
 int swString_append_int(swString *str, int value);
-int swString_append_random_bytes(swString *str, size_t length);
+int swString_append_random_bytes(swString *str, size_t length, bool base64 = false);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
@@ -80,6 +85,20 @@ static inline int swString_grow(swString *str, size_t incr_value) {
 
 static inline int swString_contains(swString *str, const char *needle, size_t l_needle) {
     return swoole_strnstr(str->str, str->length, needle, l_needle) != NULL;
+}
+
+template<typename ... Args>
+static inline size_t swString_format(swString *str, const char *format, Args ... args) {
+    size_t size = sw_snprintf(nullptr, 0, format, args...);
+    if (size == 0) {
+        return 0;
+    }
+    // store \0 terminator
+    size++;
+    if (size > str->size && swString_extend(str, size) < 0) {
+        return 0;
+    }
+    return (str->length = sw_snprintf(str->str, str->size, format, args...));
 }
 
 namespace swoole {

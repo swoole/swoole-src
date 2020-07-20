@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tests.h"
+#include "test_core.h"
 
 #define SERVER_THIS ((swoole::test::Server *) serv->ptr2)
 

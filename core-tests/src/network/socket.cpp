@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_core.h"
 
 TEST(socket, swSocket_unix_sendto) {
     int fd1, fd2, ret;

@@ -21,7 +21,7 @@
 #include "swoole_signal.h"
 #include "swoole_log.h"
 #include "pipe.h"
-#include "async.h"
+#include "swoole_async.h"
 
 #include <thread>
 #include <atomic>
@@ -308,6 +308,7 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker) {
                     --n_waiting;
                 }
             }
+            swString_free(SwooleTG.buffer_stack);
         });
         threads[_thread->get_id()] = _thread;
     } catch (const std::system_error &e) {

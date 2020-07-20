@@ -1,4 +1,4 @@
-#include "tests.h"
+#include "test_core.h"
 #include "test_server.h"
 #include "wrapper/client.hpp"
 #include "test_process.h"

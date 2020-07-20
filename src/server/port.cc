@@ -19,7 +19,7 @@
 #include "http2.h"
 #include "websocket.h"
 #include "mqtt.h"
-#include "redis.h"
+#include "swoole_redis.h"
 
 using swoole::Server;
 using swoole::ListenPort;
@@ -600,7 +600,7 @@ static int swPort_onRead_redis(swReactor *reactor, ListenPort *port, swEvent *ev
         return SW_ERR;
     }
 
-    if (swRedis_recv(protocol, conn, buffer) < 0) {
+    if (swServer_recv_redis_packet(protocol, conn, buffer) < 0) {
         conn->close_errno = errno;
         swReactor_trigger_close_event(reactor, event);
     }

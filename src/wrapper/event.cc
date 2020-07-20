@@ -18,7 +18,7 @@
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "client.h"
-#include "async.h"
+#include "swoole_async.h"
 #include "coroutine_c_api.h"
 #include "coroutine_socket.h"
 #include "coroutine_system.h"
@@ -104,6 +104,10 @@ int swoole_event_set_handler(int fdtype, swReactor_handler handler) {
     return SwooleTG.reactor->set_handler(fdtype, handler);
 }
 
-int swoole_event_isset_handler(int fdtype) {
+bool swoole_event_isset_handler(int fdtype) {
     return SwooleTG.reactor->isset_handler(fdtype);
+}
+
+bool swoole_event_is_available() {
+    return SwooleTG.reactor and !SwooleTG.reactor->destroyed;
 }

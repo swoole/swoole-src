@@ -1,4 +1,4 @@
-#include "tests.h"
+#include "test_core.h"
 #include "httplib_client.h"
 #include "http.h"
 

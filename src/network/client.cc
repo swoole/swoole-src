@@ -24,7 +24,7 @@
 #include "swoole_log.h"
 #include "client.h"
 #include "proxy.h"
-#include "async.h"
+#include "swoole_async.h"
 
 #include <assert.h>
 

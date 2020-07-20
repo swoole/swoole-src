@@ -43,7 +43,7 @@
 #include "swoole_util.h"
 #include "swoole_log.h"
 #include "atomic.h"
-#include "async.h"
+#include "swoole_async.h"
 #include "coroutine_c_api.h"
 
 #ifdef HAVE_GETRANDOM
@@ -784,7 +784,11 @@ size_t sw_snprintf(char *buf, size_t size, const char *format, ...) {
     va_start(args, format);
     int retval = vsnprintf(buf, size, format, args);
     va_end(args);
-    if (sw_unlikely(retval < 0)) {
+
+    if (size == 0) {
+        return retval;
+    }
+    else if (sw_unlikely(retval < 0)) {
         retval = 0;
         buf[0] = '\0';
     } else if (sw_unlikely(retval >= (int) size)) {

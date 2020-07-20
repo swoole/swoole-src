@@ -15,6 +15,7 @@
 */
 
 #include "swoole.h"
+#include "swoole_socket.h"
 #include "pipe.h"
 #include "swoole_log.h"
 

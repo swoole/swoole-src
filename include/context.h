@@ -42,7 +42,7 @@ typedef ucontext_t coroutine_context_t;
 typedef fcontext_t coroutine_context_t;
 #endif
 
-typedef void (*coroutine_func_t)(void *);
+typedef std::function<void(void *)> coroutine_func_t;
 
 namespace swoole {
 class Context {

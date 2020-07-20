@@ -25,7 +25,7 @@
 #include "swoole_log.h"
 #include "msg_queue.h"
 #include "client.h"
-#include "async.h"
+#include "swoole_async.h"
 
 using namespace swoole;
 

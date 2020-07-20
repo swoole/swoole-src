@@ -1,4 +1,4 @@
-#include "tests.h"
+#include "test_core.h"
 #include <map>
 
 typedef struct node_t {

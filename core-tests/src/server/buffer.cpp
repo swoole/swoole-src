@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_core.h"
 #include "wrapper/client.hpp"
 #include "swoole_log.h"
 

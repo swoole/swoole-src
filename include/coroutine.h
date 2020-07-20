@@ -24,7 +24,7 @@
 #include "swoole_timer.h"
 #include "swoole_log.h"
 #include "context.h"
-#include "async.h"
+#include "swoole_async.h"
 
 #include <limits.h>
 

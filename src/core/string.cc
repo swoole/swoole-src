@@ -16,6 +16,7 @@
 
 #include "swoole_string.h"
 #include "swoole_log.h"
+#include "base64.h"
 
 using swoole::StringExplodeHandler;
 
@@ -162,8 +163,15 @@ int swString_append_ptr(swString *str, const char *append_str, size_t length) {
     return SW_OK;
 }
 
-int swString_append_random_bytes(swString *str, size_t length) {
+int swString_append_random_bytes(swString *str, size_t length, bool base64) {
     size_t new_size = str->length + length;
+    size_t base_encode_size;
+
+    if (base64) {
+        base_encode_size = BASE64_ENCODE_OUT_SIZE(length) + 1;
+        new_size += base_encode_size;
+    }
+
     if (new_size > str->size) {
         if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0) {
             return SW_ERR;
@@ -173,10 +181,18 @@ int swString_append_random_bytes(swString *str, size_t length) {
     size_t n = swoole_random_bytes(str->str + str->length, length);
     if (n != length) {
         return SW_ERR;
-    } else {
-        str->length += n;
-        return SW_OK;
     }
+
+    if (base64) {
+        char *out = new char[base_encode_size];
+        n = swBase64_encode((uchar *) str->str + str->length, length, out);
+        memcpy(str->str + str->length, out, n);
+        delete[] out;
+    }
+
+    str->length += n;
+
+    return SW_OK;
 }
 
 int swString_write(swString *str, off_t offset, swString *write_str) {

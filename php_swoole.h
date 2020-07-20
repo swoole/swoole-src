@@ -51,7 +51,7 @@
 #endif
 
 #include "swoole_api.h"
-#include "async.h"
+#include "swoole_async.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>

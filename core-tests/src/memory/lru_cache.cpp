@@ -1,4 +1,4 @@
-#include "tests.h"
+#include "test_core.h"
 
 #ifdef HAVE_SWOOLE_DIR
 #include "lru_cache.h"

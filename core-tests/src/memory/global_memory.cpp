@@ -17,7 +17,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "tests.h"
+#include "test_core.h"
 #include "swoole_memory.h"
 
 TEST(global_memory, alloc) {

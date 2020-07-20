@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tests.h"
+#include "test_core.h"
 
 #ifdef HAVE_SWOOLE_DIR
 #include "coroutine.h"
