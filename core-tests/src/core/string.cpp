@@ -182,3 +182,19 @@ TEST(string, reduce_3) {
 
     EXPECT_EQ(str->length, test_data.length());
 }
+
+TEST(string, format) {
+    auto str = swoole::make_string(128);
+    swoole::String s(str);
+
+    int a = swoole_rand(1000000, 9000000);
+
+    auto str2 = swoole::make_string(1024);
+    swoole::String s2(str2);
+    swString_append_random_bytes(str2, 1024, true);
+
+    swString_format(str, "a=%d, b=%.*s\r\n", a, str2->length, str2->str);
+
+    EXPECT_GT(str->size, 1024);
+    EXPECT_STREQ(str->str + str->length - 2, "\r\n");
+}

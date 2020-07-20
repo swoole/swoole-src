@@ -46,7 +46,7 @@ inline int swString_append(swString *str, const std::string append_str) {
 }
 
 int swString_append_int(swString *str, int value);
-int swString_append_random_bytes(swString *str, size_t length);
+int swString_append_random_bytes(swString *str, size_t length, bool base64 = false);
 int swString_write(swString *str, off_t offset, swString *write_str);
 int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length);
 int swString_extend(swString *str, size_t new_size);
@@ -88,11 +88,13 @@ static inline int swString_contains(swString *str, const char *needle, size_t l_
 }
 
 template<typename ... Args>
-inline size_t swString_format(swString *str, const char *format, Args ... args) {
+static inline size_t swString_format(swString *str, const char *format, Args ... args) {
     size_t size = sw_snprintf(nullptr, 0, format, args...);
     if (size == 0) {
         return 0;
     }
+    // store \0 terminator
+    size++;
     if (size > str->size && swString_extend(str, size) < 0) {
         return 0;
     }
