@@ -444,11 +444,15 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
         }
 #else
         ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+        if (ret < 0 && errno == EINPROGRESS) {
+            errno = ETIMEDOUT;
+        }
 #endif
         if (ret < 0) {
             if (errno == EINTR) {
                 continue;
             }
+            swoole_set_last_error(errno);
         }
         break;
     }
