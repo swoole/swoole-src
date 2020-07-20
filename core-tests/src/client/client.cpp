@@ -147,3 +147,26 @@ TEST(client, async_tcp) {
     int status;
     wait(&status);
 }
+
+TEST(client, connect_refuse) {
+    int ret;
+    swClient cli;
+
+    ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
+    ret = cli.connect(&cli, TEST_HOST, TEST_PORT + 10001, -1, 0);
+    ASSERT_EQ(ret, -1);
+    ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
+    cli.close(&cli);
+}
+
+TEST(client, connect_timeout) {
+    int ret;
+    swClient cli;
+
+    ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
+    ret = cli.connect(&cli, "19.168.0.99", TEST_PORT + 10001, 0.2, 0);
+    ASSERT_EQ(ret, -1);
+    ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
+    cli.close(&cli);
+}
+

@@ -22,7 +22,7 @@
 #include "client.h"
 
 void php_swoole_client_free(zval *zobject, swClient *cli);
-swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
+swClient *php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset);
 #ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);

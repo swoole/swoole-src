@@ -68,7 +68,7 @@ RedisReply RedisClient::Request(const vector<string> &args) {
     delete[] argv;
     delete[] argvlen;
 
-    return std::move(reply);
+    return reply;
 }
 
 }  // namespace swoole
