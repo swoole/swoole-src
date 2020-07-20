@@ -18,6 +18,8 @@
 #include "swoole_log.h"
 #include "base64.h"
 
+#include <memory>
+
 using swoole::StringExplodeHandler;
 
 swString *swoole::make_string(size_t size, const swAllocator *allocator) {
