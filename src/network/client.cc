@@ -423,13 +423,23 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
                 if (errno != EINPROGRESS) {
                     return SW_ERR;
                 }
-                if (swSocket_wait(cli->socket->fd, timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) <
-                    0) {
+                if (swSocket_wait(cli->socket->fd, timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
+                    swoole_set_last_error(ETIMEDOUT);
                     return SW_ERR;
-                } else {
-                    swSocket_set_block(cli->socket);
-                    ret = 0;
                 }
+                int err;
+                socklen_t len = sizeof(len);
+                ret = getsockopt(cli->socket->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+                if (ret < 0) {
+                    swoole_set_last_error(errno);
+                    return SW_ERR;
+                }
+                if (err != 0) {
+                    swoole_set_last_error(err);
+                    return SW_ERR;
+                }
+                swSocket_set_block(cli->socket);
+                ret = 0;
             }
         }
 #else
