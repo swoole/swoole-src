@@ -487,11 +487,31 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
 
     bool error = false;
 
-    if (body->length != 0) {
-        if (!stream->send_body(body, end_stream, client->max_frame_size)) {
-            error = true;
-        } else {
-            client->send_window -= body->length;  // TODO: flow control?
+
+    while (true) {
+        size_t send_len = body->length - body->offset;
+
+        if (send_len != 0) {
+            if (stream->send_window == 0) {
+                Coroutine *wait_co = Coroutine::get_current();
+                stream->wait_cid = wait_co->get_cid();
+                wait_co->yield();
+                continue;
+            } else if (send_len <= stream->send_window) {
+                error = !stream->send_body(body, true, client->max_frame_size, body->offset, send_len);
+                break;
+            } else {
+                send_len = client->max_frame_size;
+                error = !stream->send_body(body, false, client->max_frame_size, body->offset, send_len);
+            }
+            if (!error) {
+                body->offset += send_len;
+                if (send_len > stream->send_window) {
+                    stream->send_window = 0;
+                } else {
+                    stream->send_window -= send_len;
+                }
+            }
         }
     }
 
@@ -868,7 +888,12 @@ int swoole_http2_server_parse(http2_session *client, const char *buf) {
             client->send_window += value;
         } else if (client->streams.find(stream_id) != client->streams.end()) {
             stream = client->streams[stream_id];
+            uint32_t origin_send_window = stream->send_window;
             stream->send_window += value;
+            if (origin_send_window == 0) {
+                Coroutine *wait_co = Coroutine::get_by_cid(stream->wait_cid);
+                wait_co->resume();
+            }
         }
         swHttp2FrameTraceLog(recv, "window_size_increment=%d", value);
         break;
@@ -947,7 +972,7 @@ void swoole_http2_server_session_free(swConnection *conn) {
 }
 
 void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value) {
-    swString http_body;
+    swString http_body = {};
     if (zdata) {
         http_body.length = php_swoole_get_send_data(zdata, &http_body.str);
     } else {

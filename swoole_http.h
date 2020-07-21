@@ -180,6 +180,7 @@ public:
     // flow control
     uint32_t send_window;
     uint32_t recv_window;
+    long wait_cid;
 
     http2_stream(http2_session *client, uint32_t _id);
     ~http2_stream();
