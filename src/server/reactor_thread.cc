@@ -268,7 +268,7 @@ int Server::close_connection(swReactor *reactor, swSocket *socket) {
     }
 
 #ifdef SW_USE_SOCKET_LINGER
-    if (conn->close_force) {
+    if (conn->close_force || conn->close_reset) {
         struct linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;

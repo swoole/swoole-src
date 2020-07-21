@@ -678,16 +678,28 @@ struct swGlobal_t {
 };
 
 extern swGlobal_t SwooleG;                      // Local Global Variable
-extern thread_local swThreadGlobal_t SwooleTG;  // Thread Global Variable
+extern __thread swThreadGlobal_t SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
 
-static sw_inline void swoole_set_last_error(int error) {
+static inline void swoole_set_last_error(int error) {
     SwooleTG.error = error;
 }
 
-static sw_inline int swoole_get_last_error() {
+static inline int swoole_get_last_error() {
     return SwooleTG.error;
+}
+
+static inline int swoole_get_thread_id() {
+    return SwooleTG.id;
+}
+
+static inline int swoole_get_process_type() {
+    return SwooleG.process_type;
+}
+
+static inline int swoole_get_process_id() {
+    return SwooleG.process_id;
 }
 
 SW_API const char *swoole_strerror(int code);

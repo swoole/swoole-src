@@ -75,7 +75,7 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
 #include <unordered_map>
 
 swGlobal_t SwooleG;
-thread_local swThreadGlobal_t SwooleTG;
+__thread swThreadGlobal_t SwooleTG;
 
 static std::unordered_map<std::string, void *> functions;
 static swoole::Logger *g_logger_instance = nullptr;
@@ -1443,6 +1443,7 @@ size_t swoole::string_split(swString *str,
 
     return ret;
 }
+
 namespace swoole {
 //-------------------------------------------------------------------------------
 int hook_add(void **hooks, int type, swCallback func, int push_back) {

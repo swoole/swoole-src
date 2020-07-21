@@ -245,21 +245,21 @@ void Logger::put(int level, const char *content, size_t length) {
     char process_flag = '@';
     int process_id = 0;
 
-    switch (SwooleG.process_type) {
+    switch (swoole_get_process_type()) {
     case SW_PROCESS_MASTER:
         process_flag = '#';
-        process_id = SwooleTG.id;
+        process_id = swoole_get_thread_id();
         break;
     case SW_PROCESS_MANAGER:
         process_flag = '$';
         break;
     case SW_PROCESS_WORKER:
         process_flag = '*';
-        process_id = SwooleG.process_id;
+        process_id = swoole_get_process_id();
         break;
     case SW_PROCESS_TASKWORKER:
         process_flag = '^';
-        process_id = SwooleG.process_id;
+        process_id = swoole_get_process_id();
         break;
     default:
         break;

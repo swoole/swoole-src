@@ -293,12 +293,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
         return SW_ERR;
     }
 
-    int fdtype;
-
     for (auto ls : serv->ports) {
-        fdtype = ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
 #ifdef HAVE_REUSEPORT
-        if (fdtype == SW_FD_STREAM_SERVER && serv->enable_reuse_port) {
+        if (ls->is_stream() && serv->enable_reuse_port) {
             if (swReactorProcess_reuse_port(ls) < 0) {
                 swReactor_free_output_buffer(n_buffer);
                 swoole_event_free();
