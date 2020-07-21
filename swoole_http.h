@@ -123,6 +123,7 @@ struct http_context
 #endif
     uchar send_chunked :1;
     uchar recv_chunked :1;
+    uchar send_trailer :1;
     uchar keepalive :1;
     uchar websocket :1;
 #ifdef SW_HAVE_ZLIB
@@ -254,6 +255,7 @@ size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t len
 
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
+void swoole_http_response_send_trailer(http_context *ctx, zval *return_value);
 
 #ifdef SW_HAVE_COMPRESSION
 int swoole_http_response_compress(const char *data, size_t length, int method, int level);

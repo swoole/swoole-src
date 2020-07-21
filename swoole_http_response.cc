@@ -49,7 +49,8 @@ using swoole::coroutine::Socket;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
-static void http_build_header(http_context *, swString *response, size_t body_length);
+static void http_build_header(http_context *ctx, swString *response, size_t body_length);
+static ssize_t http_build_trailer(http_context *ctx, swString *response);
 
 static inline void http_header_key_format(char *key, int length) {
     int i, state = 0;
@@ -279,9 +280,7 @@ void php_swoole_http_response_minit(int module_number) {
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
-#ifdef SW_USE_HTTP2
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
-#endif
 }
 
 static PHP_METHOD(swoole_http_response, write) {
@@ -483,6 +482,43 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     ctx->send_header = 1;
 }
 
+static ssize_t http_build_trailer(http_context *ctx, swString *response) {
+    char *buf = SwooleTG.buffer_stack->str;
+    size_t l_buf = SwooleTG.buffer_stack->size;
+    int n;
+    ssize_t ret = 0;
+
+    zval *ztrailer =
+        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+    uint32_t size = php_swoole_array_length_safe(ztrailer);
+
+    if (size > 0) {
+        const char *key;
+        uint32_t keylen;
+        int type;
+        zval *zvalue;
+
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(ztrailer), key, keylen, type, zvalue) {
+            if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
+                continue;
+            }
+            
+            if (!ZVAL_IS_NULL(zvalue)) {
+                zend::String str_value(zvalue);
+                n = sw_snprintf(
+                    buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
+                swString_append_ptr(response, buf, n);
+                ret += n;
+            }
+        }
+        SW_HASHTABLE_FOREACH_END();
+        (void) type;
+        swString_append_ptr(response, ZEND_STRL("\r\n"));
+    }
+
+    return ret;
+}
+
 #ifdef SW_HAVE_ZLIB
 voidpf php_zlib_alloc(voidpf opaque, uInt items, uInt size) {
     return (voidpf) safe_emalloc(items, size, 0);
@@ -616,10 +652,8 @@ static PHP_METHOD(swoole_http_response, initHeader) {
         swoole_http_response_ce, zresponse_object, &ctx->response.zheader, ZEND_STRL("header"));
     swoole_http_init_and_read_property(
         swoole_http_response_ce, zresponse_object, &ctx->response.zcookie, ZEND_STRL("cookie"));
-#ifdef SW_USE_HTTP2
     swoole_http_init_and_read_property(
         swoole_http_response_ce, zresponse_object, &ctx->response.ztrailer, ZEND_STRL("trailer"));
-#endif
     RETURN_TRUE;
 }
 
@@ -646,6 +680,20 @@ static PHP_METHOD(swoole_http_response, end) {
     }
 }
 
+void swoole_http_response_send_trailer(http_context *ctx, zval *return_value) {
+    swString *http_buffer = http_get_write_buffer(ctx);
+
+    swString_clear(http_buffer);
+    if (http_build_trailer(ctx, http_buffer) == 0) {
+        return;
+    }
+    if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
+        ctx->end = 1;
+        ctx->close(ctx);
+        RETURN_FALSE;
+    }
+}
+
 void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value) {
     struct {
         char *str;
@@ -659,8 +707,17 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     }
 
     if (ctx->send_chunked) {
-        if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n"))) {
-            RETURN_FALSE;
+        if (ctx->send_trailer) {
+            if (!ctx->send(ctx, ZEND_STRL("0\r\n"))) {
+                RETURN_FALSE;
+            }
+            swoole_http_response_send_trailer(ctx, return_value);
+            ctx->send_trailer = 0;
+        }
+        else {
+            if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n"))) {
+                RETURN_FALSE;
+            }
         }
         ctx->send_chunked = 0;
     }
@@ -1020,7 +1077,7 @@ static PHP_METHOD(swoole_http_response, trailer) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
-    if (!ctx || !ctx->http2) {
+    if (!ctx) {
         RETURN_FALSE;
     }
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1)) {
@@ -1036,6 +1093,7 @@ static PHP_METHOD(swoole_http_response, trailer) {
     } else {
         add_assoc_stringl_ex(ztrailer, key_buf, klen, v, vlen);
     }
+    ctx->send_trailer = 1;
     RETURN_TRUE;
 }
 
