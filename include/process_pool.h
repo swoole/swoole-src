@@ -167,7 +167,7 @@ struct ProcessPool {
     uint8_t use_socket;
 
     char *packet_buffer;
-    uint32_t max_packet_size;
+    uint32_t max_packet_size_;
 
     /**
      * message queue key
@@ -224,7 +224,7 @@ struct ProcessPool {
         return &(workers[worker_id - start_id]);
     }
 
-    void set_max_request(uint32_t max_request, uint32_t max_request_grace);
+    void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
     int get_max_request();
     int set_protocol(int task_protocol, uint32_t max_packet_size);
     int wait();

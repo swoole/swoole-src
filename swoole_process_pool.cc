@@ -305,7 +305,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
                                SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
-    swProcessPool *pool = (swProcessPool *) emalloc(sizeof(swProcessPool));
+    ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));
     if (ProcessPool::create(pool, worker_num, (key_t) msgq_key, ipc_type) < 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
         efree(pool);

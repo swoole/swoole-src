@@ -498,7 +498,7 @@ int ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
                 return SW_ERR;
             }
         }
-        max_packet_size = max_packet_size;
+        max_packet_size_ = max_packet_size;
         main_loop = ProcessPool_worker_loop_ex;
     }
 
@@ -542,7 +542,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             n = ntohl(tmp);
             if (n <= 0) {
                 goto _close;
-            } else if (n > pool->max_packet_size) {
+            } else if (n > pool->max_packet_size_) {
                 goto _close;
             }
             if (swSocket_recv_blocking(conn, pool->packet_buffer, n, MSG_WAITALL) <= 0) {
@@ -553,7 +553,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
-            n = read(worker->pipe_worker->fd, pool->packet_buffer, pool->max_packet_size);
+            n = read(worker->pipe_worker->fd, pool->packet_buffer, pool->max_packet_size_);
             if (n < 0 && errno != EINTR) {
                 swSysWarn("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
             }
