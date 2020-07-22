@@ -538,7 +538,7 @@ static int http_parser_on_message_complete(swoole_http_parser *parser) {
     if (http->download_file_fd <= 0) {
         zend_update_property_stringl(swoole_http_client_coro_ce, zobject, ZEND_STRL("body"), SW_STRINGL(http->body));
     } else {
-        http->download_file_name = zend::String();
+        http->download_file_name.release();
     }
 
     if (parser->upgrade) {
@@ -1532,7 +1532,7 @@ void http_client::reset() {
     if (download_file_fd >= 0) {
         ::close(download_file_fd);
         download_file_fd = -1;
-        download_file_name = zend::String();
+        download_file_name.release();
         download_offset = 0;
         zend_update_property_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadFile"));
         zend_update_property_long(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadOffset"), 0);
