@@ -55,6 +55,6 @@ static sw_inline const char *swRedis_get_number(const char *p, int *_ret) {
 }
 
 std::vector<std::string> swRedis_parse(const char *data, size_t len);
-bool swRedis_format(swString *buf, nullptr_t null);
+bool swRedis_format(swString *buf);
 bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::string &value);
 bool swRedis_format(swString *buf, enum swRedis_reply_type type, long value);
