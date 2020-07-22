@@ -157,9 +157,7 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx) {
         }
 
         if (handler.status_code == SW_HTTP_NOT_FOUND) {
-            swString null_body;
-            null_body.length = 0;
-            null_body.str = nullptr;
+            swString null_body = {};
 
             ctx->response.status = SW_HTTP_NOT_FOUND;
             swoole_http2_server_respond(ctx, &null_body);
