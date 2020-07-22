@@ -637,6 +637,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
     }
 
     swoole_zlib_buffer->length = zstream.total_out;
+    swoole_zlib_buffer->offset = 0;
     return SW_OK;
 #endif
 }
