@@ -21,8 +21,6 @@
 #include <signal.h>
 #include "lock.h"
 
-struct swProcessPool;
-
 enum swWorker_status {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
@@ -35,7 +33,39 @@ enum swIPC_type {
     SW_IPC_SOCKET = 3,
 };
 
-struct swWorker {
+
+struct swStreamInfo {
+    swSocket *socket;
+    swSocket *last_connection;
+    char *socket_file;
+    swString *response_buffer;
+};
+
+namespace swoole {
+
+struct ProcessPool;
+struct Worker;
+
+struct WorkerGlobal {
+    /**
+     * Always run
+     */
+    uint8_t run_always;
+    /**
+     * pipe_worker
+     */
+    int pipe_used;
+
+    uchar shutdown : 1;
+
+    uint32_t max_request;
+
+    swString **output_buffer;
+    Worker *worker;
+    time_t exit_time;
+};
+    
+struct Worker {
     /**
      * worker process
      */
@@ -46,7 +76,7 @@ struct swWorker {
      */
     pthread_t tid;
 
-    swProcessPool *pool;
+    swoole::ProcessPool *pool;
 
     swMemoryPool *pool_output;
 
@@ -102,33 +132,7 @@ struct swWorker {
     void *ptr2;
 };
 
-struct swWorkerGlobal {
-    /**
-     * Always run
-     */
-    uint8_t run_always;
-    /**
-     * pipe_worker
-     */
-    int pipe_used;
-
-    uchar shutdown : 1;
-
-    uint32_t max_request;
-
-    swString **output_buffer;
-    swWorker *worker;
-    time_t exit_time;
-};
-
-struct swStreamInfo {
-    swSocket *socket;
-    swSocket *last_connection;
-    char *socket_file;
-    swString *response_buffer;
-};
-
-struct swProcessPool {
+struct ProcessPool {
     /**
      * reloading
      */
@@ -140,7 +144,7 @@ struct swProcessPool {
     uint8_t ipc_mode;
     uint32_t reload_worker_i;
     uint32_t max_wait_time;
-    swWorker *reload_workers;
+    Worker *reload_workers;
 
     /**
      * process type
@@ -180,64 +184,70 @@ struct swProcessPool {
     uint8_t scheduler_warning;
     time_t warning_time;
 
-    int (*onTask)(swProcessPool *pool, swEventData *task);
+    std::function<int(ProcessPool *pool, swEventData *task)> onTask;
+    std::function<void(ProcessPool *pool, int worker_id)> onWorkerStart;
+    std::function<void(ProcessPool *pool, const char *data, uint32_t length)> onMessage;
+    std::function<void(ProcessPool *pool, int worker_id)> onWorkerStop;
 
-    void (*onWorkerStart)(swProcessPool *pool, int worker_id);
-    void (*onMessage)(swProcessPool *pool, const char *data, uint32_t length);
-    void (*onWorkerStop)(swProcessPool *pool, int worker_id);
-
-    int (*main_loop)(swProcessPool *pool, swWorker *worker);
-    int (*onWorkerNotFound)(swProcessPool *pool, pid_t pid, int status);
+    std::function<int(ProcessPool *pool, Worker *worker)> main_loop;
+    std::function<int(ProcessPool *pool, pid_t pid, int status)> onWorkerNotFound;
 
     sw_atomic_t round_id;
 
-    swWorker *workers;
+    Worker *workers;
     swPipe *pipes;
-    std::unordered_map<pid_t, swWorker *> *map;
+    std::unordered_map<pid_t, Worker *> *map;
     swReactor *reactor;
     swMsgQueue *queue;
-    swStreamInfo *stream;
+    swStreamInfo *stream_info_;
 
     void *ptr;
     void *ptr2;
+
+    inline void set_type(int _type) {
+        uint32_t i;
+        type = _type;
+        for (i = 0; i < worker_num; i++) {
+            workers[i].type = type;
+        }
+    }
+
+    inline void set_start_id(int _start_id) {
+        uint32_t i;
+        start_id = _start_id;
+        for (i = 0; i < worker_num; i++) {
+            workers[i].id = start_id + i;
+        }
+    }
+    
+    inline Worker *get_worker(int worker_id) {
+        return &(workers[worker_id - start_id]);
+    }
+
+    void set_max_request(uint32_t max_request, uint32_t max_request_grace);
+    int get_max_request();
+    int set_protocol(int task_protocol, uint32_t max_packet_size);
+    int wait();
+    int start();
+    void shutdown();
+    pid_t spawn(Worker *worker);
+    int dispatch(swEventData *data, int *worker_id);
+    int response(const char *data, int length);
+    int dispatch_blocking(swEventData *data, int *dst_worker_id);
+    int add_worker(Worker *worker);
+    int del_worker(Worker *worker);
+    void destroy();
+    int create_unix_socket(const char *socket_file, int blacklog);
+    int create_tcp_socket(const char *host, int port, int blacklog);
+    int schedule();
+
+    static int create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
+};
 };
 
-static sw_inline void swProcessPool_set_type(swProcessPool *pool, int type) {
-    uint32_t i;
-    pool->type = type;
-    for (i = 0; i < pool->worker_num; i++) {
-        pool->workers[i].type = type;
-    }
-}
-
-static sw_inline swWorker *swProcessPool_get_worker(swProcessPool *pool, int worker_id) {
-    return &(pool->workers[worker_id - pool->start_id]);
-}
-
-static sw_inline void swProcessPool_set_start_id(swProcessPool *pool, int start_id) {
-    uint32_t i;
-    pool->start_id = start_id;
-    for (i = 0; i < pool->worker_num; i++) {
-        pool->workers[i].id = pool->start_id + i;
-    }
-}
-
-int swProcessPool_create(swProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
-int swProcessPool_create_unix_socket(swProcessPool *pool, const char *socket_file, int blacklog);
-int swProcessPool_create_tcp_socket(swProcessPool *pool, const char *host, int port, int blacklog);
-int swProcessPool_set_protocol(swProcessPool *pool, int task_protocol, uint32_t max_packet_size);
-void swProcessPool_set_max_request(swProcessPool *pool, uint32_t max_request, uint32_t max_request_grace);
-int swProcessPool_wait(swProcessPool *pool);
-int swProcessPool_start(swProcessPool *pool);
-void swProcessPool_shutdown(swProcessPool *pool);
-pid_t swProcessPool_spawn(swProcessPool *pool, swWorker *worker);
-int swProcessPool_dispatch(swProcessPool *pool, swEventData *data, int *worker_id);
-int swProcessPool_response(swProcessPool *pool, const char *data, int length);
-int swProcessPool_dispatch_blocking(swProcessPool *pool, swEventData *data, int *dst_worker_id);
-int swProcessPool_add_worker(swProcessPool *pool, swWorker *worker);
-int swProcessPool_del_worker(swProcessPool *pool, swWorker *worker);
-int swProcessPool_get_max_request(swProcessPool *pool);
-void swProcessPool_free(swProcessPool *pool);
+typedef swoole::ProcessPool swProcessPool;
+typedef swoole::Worker swWorker;
+typedef swoole::WorkerGlobal swWorkerGlobal;
 
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
     int ret;

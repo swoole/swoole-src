@@ -188,8 +188,8 @@ TEST(server, task_worker) {
 
     int _dst_worker_id = 0;
 
-    ASSERT_GE(swProcessPool_dispatch(&serv.gs->task_workers, &buf, &_dst_worker_id), 0);
+    ASSERT_GE(serv.gs->task_workers.dispatch(&buf, &_dst_worker_id), 0);
 
     t1.join();
-    swProcessPool_free(&serv.gs->task_workers);
+    serv.gs->task_workers.destroy();
 }

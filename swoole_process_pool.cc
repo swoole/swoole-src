@@ -34,14 +34,14 @@ static zend_class_entry *swoole_process_pool_ce;
 static zend_object_handlers swoole_process_pool_handlers;
 static swProcessPool *current_pool;
 
-struct process_pool_t {
+struct ProcessPoolObject {
     swProcessPool *pool;
     process_pool_property *pp;
     zend_object std;
 };
 
-static sw_inline process_pool_t *php_swoole_process_pool_fetch_object(zend_object *obj) {
-    return (process_pool_t *) ((char *) obj - swoole_process_pool_handlers.offset);
+static sw_inline ProcessPoolObject *php_swoole_process_pool_fetch_object(zend_object *obj) {
+    return (ProcessPoolObject *) ((char *) obj - swoole_process_pool_handlers.offset);
 }
 
 static sw_inline swProcessPool *php_swoole_process_pool_get_pool(zval *zobject) {
@@ -77,7 +77,7 @@ static sw_inline void php_swoole_process_pool_set_pp(zval *zobject, process_pool
 }
 
 static void php_swoole_process_pool_free_object(zend_object *object) {
-    process_pool_t *process_pool = php_swoole_process_pool_fetch_object(object);
+    ProcessPoolObject *process_pool = php_swoole_process_pool_fetch_object(object);
 
     swProcessPool *pool = process_pool->pool;
     if (pool) {
@@ -110,7 +110,7 @@ static void php_swoole_process_pool_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_process_pool_create_object(zend_class_entry *ce) {
-    process_pool_t *process_pool = (process_pool_t *) zend_object_alloc(sizeof(process_pool_t), ce);
+    ProcessPoolObject *process_pool = (ProcessPoolObject *) zend_object_alloc(sizeof(ProcessPoolObject), ce);
     zend_object_std_init(&process_pool->std, ce);
     object_properties_init(&process_pool->std, ce);
     process_pool->std.handlers = &swoole_process_pool_handlers;
@@ -188,7 +188,7 @@ void php_swoole_process_pool_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_process_pool,
                                php_swoole_process_pool_create_object,
                                php_swoole_process_pool_free_object,
-                               process_pool_t,
+                               ProcessPoolObject,
                                std);
 
     zend_declare_property_long(swoole_process_pool_ce, ZEND_STRL("master_pid"), -1, ZEND_ACC_PUBLIC);
@@ -306,7 +306,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
     }
 
     swProcessPool *pool = (swProcessPool *) emalloc(sizeof(swProcessPool));
-    if (swProcessPool_create(pool, worker_num, (key_t) msgq_key, ipc_type) < 0) {
+    if (ProcessPool::create(pool, worker_num, (key_t) msgq_key, ipc_type) < 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
         efree(pool);
         RETURN_FALSE;
@@ -318,7 +318,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
         pool->main_loop = nullptr;
     } else {
         if (ipc_type > 0) {
-            if (swProcessPool_set_protocol(pool, 0, SW_INPUT_BUFFER_SIZE) < 0) {
+            if (pool->set_protocol(0, SW_INPUT_BUFFER_SIZE) < 0) {
                 zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
                 RETURN_FALSE;
             }
@@ -449,14 +449,14 @@ static PHP_METHOD(swoole_process_pool, listen) {
     int ret;
     // unix socket
     if (SW_STRCASECT(host, l_host, "unix:/")) {
-        ret = swProcessPool_create_unix_socket(pool, host + 5, backlog);
+        ret = pool->create_unix_socket(host + 5, backlog);
     } else {
-        ret = swProcessPool_create_tcp_socket(pool, host, port, backlog);
+        ret = pool->create_tcp_socket(host, port, backlog);
     }
 
-    swoole_fcntl_set_option(pool->stream->socket->fd, 0, 1);
-    pool->stream->socket->nonblock = 0;
-    pool->stream->socket->cloexec = 1;
+    swoole_fcntl_set_option(pool->stream_info_->socket->fd, 0, 1);
+    pool->stream_info_->socket->nonblock = 0;
+    pool->stream_info_->socket->cloexec = 1;
 
     SW_CHECK_RETURN(ret);
 }
@@ -477,7 +477,7 @@ static PHP_METHOD(swoole_process_pool, write) {
     if (length == 0) {
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(swProcessPool_response(pool, data, length));
+    SW_CHECK_RETURN(pool->response(data, length));
 }
 
 static PHP_METHOD(swoole_process_pool, start) {
@@ -515,7 +515,7 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     zend_update_property_long(swoole_process_pool_ce, ZEND_THIS, ZEND_STRL("master_pid"), getpid());
 
-    if (swProcessPool_start(pool) < 0) {
+    if (pool->start() < 0) {
         RETURN_FALSE;
     }
 
@@ -529,8 +529,8 @@ static PHP_METHOD(swoole_process_pool, start) {
         }
     }
 
-    swProcessPool_wait(pool);
-    swProcessPool_shutdown(pool);
+    pool->wait();
+    pool->shutdown();
 }
 
 extern void php_swoole_process_set_worker(zval *zobject, swWorker *worker);

@@ -440,19 +440,19 @@ int Server::create_task_workers() {
     }
 
     swProcessPool *pool = &gs->task_workers;
-    if (swProcessPool_create(pool, task_worker_num, key, ipc_mode) < 0) {
+    if (swProcessPool::create(pool, task_worker_num, key, ipc_mode) < 0) {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
 
-    swProcessPool_set_max_request(pool, task_max_request, task_max_request_grace);
-    swProcessPool_set_start_id(pool, worker_num);
-    swProcessPool_set_type(pool, SW_PROCESS_TASKWORKER);
+    pool->set_max_request(task_max_request, task_max_request_grace);
+    pool->set_start_id(worker_num);
+    pool->set_type(SW_PROCESS_TASKWORKER);
 
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
-        if (swProcessPool_create_unix_socket(&gs->task_workers, sockfile, 2048) < 0) {
+        if (gs->task_workers.create_unix_socket(sockfile, 2048) < 0) {
             return SW_ERR;
         }
     }
@@ -822,7 +822,7 @@ void Server::destroy() {
     if (factory_mode == SW_MODE_BASE) {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
-            swProcessPool_shutdown(&gs->task_workers);
+            gs->task_workers.shutdown();
         }
     } else {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads");
