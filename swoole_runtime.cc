@@ -1156,17 +1156,12 @@ bool PHPCoroutine::disable_hook() {
     return enable_hook(0);
 }
 
-bool swoole_short_sleep() {
-    swAio_event ev;
-    sw_memset_zero(&ev, sizeof(swAio_event));
-    ev.handler = [](swAio_event *event) { };
-    ev.callback = [](swAio_event *event) {
-        ((Coroutine *) event->object)->resume();
-    };
-    ev.object = Coroutine::get_current();
-    ssize_t ret = swAio_dispatch(&ev);
-    ((Coroutine *) ev.object)->yield();
-    return ret >= 0;
+void swoole_short_sleep() {
+    Coroutine *coroutine = Coroutine::get_current();
+    swoole_event_defer([](void *data) {
+        ((Coroutine *) data)->resume();
+    }, coroutine);
+    coroutine->yield();
 }
 
 static PHP_METHOD(swoole_runtime, enableCoroutine) {
@@ -1230,7 +1225,8 @@ static PHP_FUNCTION(swoole_sleep) {
         if(num >= SW_TIMER_MIN_SEC) {
             RETURN_LONG(System::sleep((double) num) < 0 ? num : 0);
         } else {
-            RETURN_LONG(swoole_short_sleep() ? 0 : -1);
+            swoole_short_sleep();
+            RETURN_LONG(0);
         }
     } else {
         RETURN_LONG(php_sleep(num));
