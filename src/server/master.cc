@@ -439,8 +439,8 @@ int Server::create_task_workers() {
         ipc_mode = SW_IPC_UNIXSOCK;
     }
 
-    swProcessPool *pool = &gs->task_workers;
-    if (swProcessPool::create(pool, task_worker_num, key, ipc_mode) < 0) {
+    ProcessPool *pool = &gs->task_workers;
+    if (ProcessPool::create(pool, task_worker_num, key, ipc_mode) < 0) {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }

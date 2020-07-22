@@ -184,13 +184,13 @@ struct ProcessPool {
     uint8_t scheduler_warning;
     time_t warning_time;
 
-    std::function<int(ProcessPool *pool, swEventData *task)> onTask;
-    std::function<void(ProcessPool *pool, int worker_id)> onWorkerStart;
-    std::function<void(ProcessPool *pool, const char *data, uint32_t length)> onMessage;
-    std::function<void(ProcessPool *pool, int worker_id)> onWorkerStop;
+    int (*onTask)(ProcessPool *pool, swEventData *task);
+    void (*onWorkerStart)(ProcessPool *pool, int worker_id);
+    void (*onMessage)(ProcessPool *pool, const char *data, uint32_t length);
+    void (*onWorkerStop)(ProcessPool *pool, int worker_id);
 
-    std::function<int(ProcessPool *pool, Worker *worker)> main_loop;
-    std::function<int(ProcessPool *pool, pid_t pid, int status)> onWorkerNotFound;
+    int (*main_loop)(ProcessPool *pool, Worker *worker);
+    int (*onWorkerNotFound)(ProcessPool *pool, pid_t pid, int status);
 
     sw_atomic_t round_id;
 
