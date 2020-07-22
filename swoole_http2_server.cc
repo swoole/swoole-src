@@ -501,7 +501,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
                 wait_co->yield();
                 continue;
             } else if (send_len <= stream->send_window) {
-                error = !stream->send_body(body, true, client->max_frame_size, body->offset, send_len);
+                error = !stream->send_body(body, true && end_stream, client->max_frame_size, body->offset, send_len);
                 break;
             } else {
                 send_len = client->max_frame_size;
