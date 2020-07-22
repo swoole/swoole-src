@@ -52,10 +52,10 @@ $pm->run();
 %s
 1 [%s] start to reload
 [%s]	INFO	reload workers
-[%s]	WARNING	swProcessPool_kill_timeout_worker: swKill(%d, SIGKILL) [%d]
-[%s]	WARNING	swProcessPool_kill_timeout_worker: swKill(%d, SIGKILL) [%d]
-[%s]	WARNING	swProcessPool_wait: worker#%d abnormal exit, status=0, signal=9
-[%s]	WARNING	swProcessPool_wait: worker#%d abnormal exit, status=0, signal=9
+[%s]	WARNING ProcessPool_kill_timeout_worker: swKill(%d, SIGKILL) [%d]
+[%s]	WARNING	ProcessPool_kill_timeout_worker: swKill(%d, SIGKILL) [%d]
+[%s]	WARNING	wait: worker#%d abnormal exit, status=0, signal=9
+[%s]	WARNING	wait: worker#%d abnormal exit, status=0, signal=9
 %s
 %s
 [%s]	INFO	Server is shutdown now
