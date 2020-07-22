@@ -176,6 +176,7 @@ class String {
     inline void release() {
         if (str) {
             zend_string_release(str);
+            str = nullptr;
         }
     }
 
