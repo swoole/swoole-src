@@ -487,11 +487,14 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
 
     bool error = false;
 
-
     while (true) {
         size_t send_len = body->length - body->offset;
 
-        if (send_len != 0) {
+        if (send_len == 0) {
+            break;
+        }
+
+        if (send_len > 0) {
             if (stream->send_window == 0) {
                 Coroutine *wait_co = Coroutine::get_current();
                 stream->wait_cid = wait_co->get_cid();
@@ -505,6 +508,8 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
                 error = !stream->send_body(body, false, client->max_frame_size, body->offset, send_len);
             }
             if (!error) {
+                swTraceLog(SW_TRACE_HTTP2, "body: send length=%zu", send_len);
+
                 body->offset += send_len;
                 if (send_len > stream->send_window) {
                     stream->send_window = 0;
