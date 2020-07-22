@@ -1156,6 +1156,19 @@ bool PHPCoroutine::disable_hook() {
     return enable_hook(0);
 }
 
+bool swoole_short_sleep() {
+    swAio_event ev;
+    sw_memset_zero(&ev, sizeof(swAio_event));
+    ev.handler = [](swAio_event *event) { };
+    ev.callback = [](swAio_event *event) {
+        ((Coroutine *) event->object)->resume();
+    };
+    ev.object = Coroutine::get_current();
+    ssize_t ret = swAio_dispatch(&ev);
+    ((Coroutine *) ev.object)->yield();
+    return ret >= 0;
+}
+
 static PHP_METHOD(swoole_runtime, enableCoroutine) {
     zval *zflags = nullptr;
     /*TODO:[v4.6] enable SW_HOOK_CURL by default after curl handler completed */
@@ -1213,8 +1226,12 @@ static PHP_FUNCTION(swoole_sleep) {
         RETURN_FALSE;
     }
 
-    if (num >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
-        RETURN_LONG(System::sleep((double) num) < 0 ? num : 0);
+    if(Coroutine::get_current()) {
+        if(num >= SW_TIMER_MIN_SEC) {
+            RETURN_LONG(System::sleep((double) num) < 0 ? num : 0);
+        } else {
+            RETURN_LONG(swoole_short_sleep() ? 0 : -1);
+        }
     } else {
         RETURN_LONG(php_sleep(num));
     }
@@ -1230,8 +1247,12 @@ static PHP_FUNCTION(swoole_usleep) {
         RETURN_FALSE;
     }
     double sec = (double) num / 1000000;
-    if (sec >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
-        System::sleep(sec);
+    if(Coroutine::get_current()) {
+        if(sec >= SW_TIMER_MIN_SEC) {
+            System::sleep(sec);
+        } else {
+            swoole_short_sleep();
+        }
     } else {
         usleep((unsigned int) num);
     }
@@ -1252,8 +1273,12 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
-        System::sleep(_time);
+    if(Coroutine::get_current()) {
+        if(_time >= SW_TIMER_MIN_SEC) {
+            System::sleep(_time);
+        } else {
+            swoole_short_sleep();
+        }
     } else {
         struct timespec php_req, php_rem;
         php_req.tv_sec = (time_t) tv_sec;
@@ -1269,6 +1294,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
             php_swoole_error(E_WARNING, "nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
         }
     }
+    RETURN_TRUE;
 }
 
 static PHP_FUNCTION(swoole_time_sleep_until) {
@@ -1297,8 +1323,12 @@ static PHP_FUNCTION(swoole_time_sleep_until) {
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
-        System::sleep(_time);
+    if(Coroutine::get_current()) {
+        if(_time >= SW_TIMER_MIN_SEC) {
+            System::sleep(_time);
+        } else {
+            swoole_short_sleep();
+        }
     } else {
         while (nanosleep(&php_req, &php_rem)) {
             if (errno == EINTR) {
