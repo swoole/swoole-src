@@ -159,7 +159,7 @@ _failed:
     return SW_ERR;
 }
 
-bool swRedis_format(swString *buf, nullptr_t null) {
+bool swRedis_format(swString *buf) {
     return swString_append_ptr(buf, SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
 }
 
