@@ -924,7 +924,7 @@ zval *php_swoole_task_unpack(swEventData *task_result) {
 
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
         // unserialize success
-        if (php_var_unserialize(*&result_unserialized_data,
+        if (php_var_unserialize(result_unserialized_data,
                                 (const unsigned char **) &result_data_str,
                                 (const unsigned char *) (result_data_str + result_data_len),
                                 &var_hash)) {
@@ -954,7 +954,7 @@ static void php_swoole_task_wait_co(
     Z_LVAL(task_co->context.coro_params) = req->info.fd;
 
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
-    if (swProcessPool_dispatch(&serv->gs->task_workers, req, &dst_worker_id) < 0) {
+    if (serv->gs->task_workers.dispatch(req, &dst_worker_id) < 0) {
         sw_atomic_fetch_sub(&serv->gs->tasking_num, 1);
         RETURN_FALSE;
     } else {
@@ -1655,7 +1655,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id) {
     if (SwooleWG.shutdown) {
         return;
     }
-    SwooleWG.shutdown = 1;
+    SwooleWG.shutdown = true;
 
     zval *zserv = (zval *) serv->ptr2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
@@ -3098,7 +3098,7 @@ static PHP_METHOD(swoole_server, taskwait) {
 
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
 
-    if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &_dst_worker_id) >= 0) {
+    if (serv->gs->task_workers.dispatch_blocking(&buf, &_dst_worker_id) >= 0) {
         while (1) {
             if (swSocket_wait(task_notify_socket->fd, (int) (timeout * 1000), SW_EVENT_READ) != SW_OK) {
                 break;
@@ -3197,7 +3197,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     swTask_type(&buf) |= SW_TASK_WAITALL;
     dst_worker_id = -1;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
-    if (swProcessPool_dispatch_blocking(&serv->gs->task_workers, &buf, &dst_worker_id) < 0) {
+    if (serv->gs->task_workers.dispatch_blocking(&buf, &dst_worker_id) < 0) {
         php_swoole_sys_error(E_WARNING, "taskwait failed");
         task_id = -1;
     _fail:
@@ -3325,7 +3325,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
     dst_worker_id = -1;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
-    if (swProcessPool_dispatch(&serv->gs->task_workers, &buf, &dst_worker_id) < 0) {
+    if (serv->gs->task_workers.dispatch(&buf, &dst_worker_id) < 0) {
         task_id = -1;
     _fail:
         add_index_bool(result, i, 0);
@@ -3400,7 +3400,7 @@ static PHP_METHOD(swoole_server, task) {
     int _dst_worker_id = (int) dst_worker_id;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
 
-    if (swProcessPool_dispatch(&serv->gs->task_workers, &buf, &_dst_worker_id) >= 0) {
+    if (serv->gs->task_workers.dispatch(&buf, &_dst_worker_id) >= 0) {
         RETURN_LONG(buf.info.fd);
     }
 

@@ -132,7 +132,7 @@ static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
     swTaskWorker_signal_init(pool);
     serv->worker_start_callback();
 
-    swWorker *worker = swProcessPool_get_worker(pool, worker_id);
+    swWorker *worker = pool->get_worker(worker_id);
     worker->start_time = time(nullptr);
     worker->request_count = 0;
     SwooleWG.worker = worker;
@@ -141,10 +141,10 @@ static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
      * task_max_request
      */
     if (pool->max_request > 0) {
-        SwooleWG.run_always = 0;
-        SwooleWG.max_request = swProcessPool_get_max_request(pool);
+        SwooleWG.run_always = false;
+        SwooleWG.max_request = pool->get_max_request();
     } else {
-        SwooleWG.run_always = 1;
+        SwooleWG.run_always = true;
     }
 }
 
@@ -255,11 +255,11 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
             buf.info.len = data_len;
         }
 
-        if (worker->pool->use_socket && worker->pool->stream->last_connection) {
+        if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
             int32_t _len = htonl(data_len);
-            ret = swSocket_write_blocking(worker->pool->stream->last_connection, (void *) &_len, sizeof(_len));
+            ret = swSocket_write_blocking(worker->pool->stream_info_->last_connection, (void *) &_len, sizeof(_len));
             if (ret > 0) {
-                ret = swSocket_write_blocking(worker->pool->stream->last_connection, data, data_len);
+                ret = swSocket_write_blocking(worker->pool->stream_info_->last_connection, data, data_len);
             }
         } else {
             ret = send_to_worker_from_worker(worker, &buf, sizeof(buf.info) + buf.info.len, SW_PIPE_MASTER);

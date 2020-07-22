@@ -84,11 +84,11 @@ int Server::start_reactor_processes() {
         }
     }
 
-    swProcessPool *pool = &gs->event_workers;
-    if (swProcessPool_create(pool, worker_num, 0, SW_IPC_UNIXSOCK) < 0) {
+    ProcessPool *pool = &gs->event_workers;
+    if (ProcessPool::create(pool, worker_num, 0, SW_IPC_UNIXSOCK) < 0) {
         return SW_ERR;
     }
-    swProcessPool_set_max_request(pool, max_request, max_request_grace);
+    pool->set_max_request(max_request, max_request_grace);
 
     /**
      * store to swProcessPool object
@@ -110,7 +110,7 @@ int Server::start_reactor_processes() {
     if (swServer_is_single(this)) {
         int retval = swReactorProcess_loop(&gs->event_workers, &gs->event_workers.workers[0]);
         if (retval == SW_OK) {
-            swProcessPool_free(&gs->event_workers);
+            gs->event_workers.destroy();
         }
         return retval;
     }
@@ -126,7 +126,7 @@ int Server::start_reactor_processes() {
         if (create_task_workers() < 0) {
             return SW_ERR;
         }
-        if (swProcessPool_start(&gs->task_workers) < 0) {
+        if (gs->task_workers.start() < 0) {
             return SW_ERR;
         }
     }
@@ -162,7 +162,7 @@ int Server::start_reactor_processes() {
      */
     SwooleG.use_signalfd = 0;
 
-    swProcessPool_start(&gs->event_workers);
+    gs->event_workers.start();
 
     init_signal_handler();
 
@@ -175,8 +175,8 @@ int Server::start_reactor_processes() {
         onManagerStart(this);
     }
 
-    swProcessPool_wait(&gs->event_workers);
-    swProcessPool_shutdown(&gs->event_workers);
+    gs->event_workers.wait();
+    gs->event_workers.shutdown();
 
     kill_user_workers();
 
@@ -263,7 +263,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
 
     SwooleG.process_id = worker->id;
     if (serv->max_request > 0) {
-        SwooleWG.run_always = 0;
+        SwooleWG.run_always = false;
     }
     SwooleWG.max_request = serv->max_request;
     SwooleWG.worker = worker;
@@ -459,7 +459,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data) {
     // proxy
     if (session->reactor_id != SwooleG.process_id) {
         swTrace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, SwooleG.process_id);
-        swWorker *worker = swProcessPool_get_worker(&serv->gs->event_workers, session->reactor_id);
+        swWorker *worker = serv->gs->event_workers.get_worker(session->reactor_id);
         swEventData proxy_msg;
         sw_memset_zero(&proxy_msg.info, sizeof(proxy_msg.info));
 

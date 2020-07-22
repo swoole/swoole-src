@@ -38,7 +38,7 @@ int swFactory_create(swFactory *factory) {
 }
 
 static int swFactory_start(swFactory *factory) {
-    SwooleWG.run_always = 1;
+    SwooleWG.run_always = true;
     return SW_OK;
 }
 
