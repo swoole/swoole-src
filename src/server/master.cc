@@ -527,7 +527,7 @@ void Server::init_worker(swWorker *worker) {
     }
 
     if (max_request < 1) {
-        SwooleWG.run_always = 1;
+        SwooleWG.run_always = true;
     } else {
         SwooleWG.max_request = max_request;
         if (max_request_grace > 0) {

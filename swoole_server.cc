@@ -1655,7 +1655,7 @@ static void php_swoole_onWorkerStop(swServer *serv, int worker_id) {
     if (SwooleWG.shutdown) {
         return;
     }
-    SwooleWG.shutdown = 1;
+    SwooleWG.shutdown = true;
 
     zval *zserv = (zval *) serv->ptr2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));

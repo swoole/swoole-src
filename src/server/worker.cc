@@ -73,7 +73,7 @@ void swWorker_signal_handler(int signo) {
          * Task worker
          */
         else {
-            SwooleWG.shutdown = 1;
+            SwooleWG.shutdown = true;
         }
         break;
     /**

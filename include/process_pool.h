@@ -50,13 +50,12 @@ struct WorkerGlobal {
     /**
      * Always run
      */
-    uint8_t run_always;
+    bool run_always;
+    bool shutdown;
     /**
      * pipe_worker
      */
     int pipe_used;
-
-    uchar shutdown : 1;
 
     uint32_t max_request;
 
@@ -81,21 +80,10 @@ struct Worker {
     swMemoryPool *pool_output;
 
     swMsgQueue *queue;
-
-    /**
-     * redirect stdout to pipe_master
-     */
-    uchar redirect_stdout : 1;
-
-    /**
-     * redirect stdin to pipe_worker
-     */
-    uchar redirect_stdin : 1;
-
-    /**
-     * redirect stderr to pipe_worker
-     */
-    uchar redirect_stderr : 1;
+    
+    bool redirect_stdout;
+    bool redirect_stdin;
+    bool redirect_stderr;
 
     /**
      * worker status, IDLE or BUSY

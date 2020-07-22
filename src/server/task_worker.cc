@@ -141,10 +141,10 @@ static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
      * task_max_request
      */
     if (pool->max_request > 0) {
-        SwooleWG.run_always = 0;
+        SwooleWG.run_always = false;
         SwooleWG.max_request = pool->get_max_request();
     } else {
-        SwooleWG.run_always = 1;
+        SwooleWG.run_always = true;
     }
 }
 

@@ -360,9 +360,9 @@ static PHP_METHOD(swoole_process, __construct) {
     process->id = php_swoole_worker_round_id++;
 
     if (redirect_stdin_and_stdout) {
-        process->redirect_stdin = 1;
-        process->redirect_stdout = 1;
-        process->redirect_stderr = 1;
+        process->redirect_stdin = true;
+        process->redirect_stdout = true;
+        process->redirect_stderr = true;
         /**
          * Forced to use stream pipe
          */
