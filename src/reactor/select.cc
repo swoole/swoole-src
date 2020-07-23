@@ -51,7 +51,7 @@ static void swReactorSelect_free(swReactor *reactor);
 
 int swReactorSelect_create(swReactor *reactor) {
     // create reactor object
-    swReactorSelect *object = new swReactorSelect;
+    swReactorSelect *object = new swReactorSelect();
     reactor->object = object;
     // binding method
     reactor->add = swReactorSelect_add;
@@ -76,7 +76,7 @@ int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events) {
     }
 
     swReactorSelect *object = (swReactorSelect *) reactor->object;
-    swReactor_add(reactor, socket, events);
+    reactor->_add(socket, events);
     object->fds.emplace(fd, socket);
     if (fd > object->maxfd) {
         object->maxfd = fd;
@@ -95,7 +95,7 @@ int swReactorSelect_del(swReactor *reactor, swSocket *socket) {
     SW_FD_CLR(fd, &object->rfds);
     SW_FD_CLR(fd, &object->wfds);
     SW_FD_CLR(fd, &object->efds);
-    swReactor_del(reactor, socket);
+    reactor->_del(socket);
     return SW_OK;
 }
 
@@ -106,7 +106,7 @@ int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events) {
         swWarn("swReactorSelect: sock[%d] not found", socket->fd);
         return SW_ERR;
     }
-    swReactor_set(reactor, socket, events);
+    reactor->_set(socket, events);
     return SW_OK;
 }
 
@@ -125,7 +125,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo) {
         }
     }
 
-    swReactor_before_wait(reactor);
+    reactor->before_wait();
 
     while (reactor->running) {
         FD_ZERO(&(object->rfds));
@@ -185,7 +185,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo) {
 
                 // read
                 if (SW_FD_ISSET(event.fd, &(object->rfds)) && !event.socket->removed) {
-                    handler = swReactor_get_handler(reactor, SW_EVENT_READ, event.type);
+                    handler = reactor->get_handler(SW_EVENT_READ, event.type);
                     ret = handler(reactor, &event);
                     if (ret < 0) {
                         swSysWarn("[Reactor#%d] select event[type=READ, fd=%d] handler fail", reactor->id, event.fd);
@@ -193,7 +193,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo) {
                 }
                 // write
                 if (SW_FD_ISSET(event.fd, &(object->wfds)) && !event.socket->removed) {
-                    handler = swReactor_get_handler(reactor, SW_EVENT_WRITE, event.type);
+                    handler = reactor->get_handler(SW_EVENT_WRITE, event.type);
                     ret = handler(reactor, &event);
                     if (ret < 0) {
                         swSysWarn("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail", reactor->id, event.fd);
@@ -201,7 +201,7 @@ int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo) {
                 }
                 // error
                 if (SW_FD_ISSET(event.fd, &(object->efds)) && !event.socket->removed) {
-                    handler = swReactor_get_handler(reactor, SW_EVENT_ERROR, event.type);
+                    handler = reactor->get_handler(SW_EVENT_ERROR, event.type);
                     ret = handler(reactor, &event);
                     if (ret < 0) {
                         swSysWarn("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail", reactor->id, event.fd);

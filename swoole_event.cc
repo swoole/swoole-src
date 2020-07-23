@@ -177,9 +177,9 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event) {
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
-            return swReactor_get_handler(reactor, SW_EVENT_READ, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_READ, event->socket->fdtype)(reactor, event);
         } else {
-            return swReactor_get_handler(reactor, SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
         }
     }
 
@@ -706,7 +706,7 @@ static PHP_FUNCTION(swoole_event_cycle) {
         sw_reactor()->future_task.callback = php_swoole_event_onEndCallback;
         sw_reactor()->future_task.data = fci_cache;
         // Registration onBegin callback function
-        swReactor_activate_future_task(sw_reactor());
+        sw_reactor()->activate_future_task();
     }
 
     RETURN_TRUE;

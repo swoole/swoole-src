@@ -283,7 +283,7 @@ static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *even
         }
     } else if (n == 0) {
     _close_fd:
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_OK;
     } else {
         buffer->offset = buffer->length = n;
@@ -299,14 +299,14 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
 
     swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_ERR;
     }
 
     if (swProtocol_recv_check_length(protocol, _socket, buffer) < 0) {
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
         conn->close_errno = errno;
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
     }
 
     return SW_OK;
@@ -351,7 +351,7 @@ static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *eve
     if (!request->buffer_) {
         request->buffer_ = serv->get_recv_buffer(_socket);
         if (!request->buffer_) {
-            swReactor_trigger_close_event(reactor, event);
+            reactor->trigger_close_event(event);
             return SW_ERR;
         }
     }
@@ -394,7 +394,7 @@ _recv_data:
         }
     _close_fd:
         serv->destroy_http_request(conn);
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_OK;
     }
 
@@ -596,13 +596,13 @@ static int swPort_onRead_redis(swReactor *reactor, ListenPort *port, swEvent *ev
 
     swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_ERR;
     }
 
     if (swServer_recv_redis_packet(protocol, conn, buffer) < 0) {
         conn->close_errno = errno;
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
     }
 
     return SW_OK;
@@ -616,13 +616,13 @@ static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent
 
     swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_ERR;
     }
 
     if (swProtocol_recv_check_eof(protocol, _socket, buffer) < 0) {
         conn->close_errno = errno;
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
     }
 
     return SW_OK;

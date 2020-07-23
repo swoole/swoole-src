@@ -215,7 +215,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 socket->out_buffer = buffer;
             }
 
-            swReactor_add_write_event(reactor, socket);
+            reactor->add_write_event(socket);
             goto _append_buffer;
         } else if (errno == EINTR) {
             goto _do_send;
@@ -275,13 +275,13 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
 
     // remove EPOLLOUT event
     if (swBuffer_empty(buffer)) {
-        swReactor_remove_write_event(reactor, ev->socket);
+        reactor->remove_write_event(ev->socket);
     }
 
     return SW_OK;
 }
 
-int swReactor_drain_write_buffer(swReactor *reactor, swSocket *socket) {
+int Reactor::drain_write_buffer(swSocket *socket) {
     swEvent event = { };
     event.socket = socket;
     event.fd = socket->fd;
@@ -290,7 +290,7 @@ int swReactor_drain_write_buffer(swReactor *reactor, swSocket *socket) {
         if (swSocket_wait(socket->fd, SwooleG.socket_send_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
-        swReactor_onWrite(reactor, &event);
+        swReactor_onWrite(this, &event);
         if (socket->close_wait || socket->removed) {
             break;
         }

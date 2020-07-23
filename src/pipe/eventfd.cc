@@ -14,6 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
+#include <memory>
+
 #include "swoole.h"
 #include "pipe.h"
 #include "swoole_log.h"
@@ -25,17 +27,13 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length);
 static int swPipeEventfd_write(swPipe *p, const void *data, int length);
 static int swPipeEventfd_close(swPipe *p);
 
-typedef struct _swPipeEventfd {
+struct swPipeEventfd {
     int event_fd;
-} swPipeEventfd;
+};
 
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
-    int efd;
     int flag = 0;
-    swPipeEventfd *object = (swPipeEventfd *) sw_malloc(sizeof(swPipeEventfd));
-    if (object == nullptr) {
-        return -1;
-    }
+    std::unique_ptr<swPipeEventfd> object(new swPipeEventfd());
 
     flag = EFD_NONBLOCK;
 
@@ -55,26 +53,25 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
 #endif
 
     p->blocking = blocking;
-    efd = eventfd(0, flag);
-    if (efd < 0) {
+    object->event_fd = eventfd(0, flag);
+    if (object->event_fd < 0) {
         swSysWarn("eventfd create failed");
-        sw_free(object);
         return -1;
-    } else {
-        p->master_socket = swSocket_new(efd, SW_FD_PIPE);
-        if (p->master_socket == nullptr) {
-            close(efd);
-            sw_free(object);
-            return -1;
-        }
-        p->worker_socket = p->master_socket;
-        p->object = object;
-        p->read = swPipeEventfd_read;
-        p->write = swPipeEventfd_write;
-        p->getSocket = swPipe_getSocket;
-        p->close = swPipeEventfd_close;
-        object->event_fd = efd;
     }
+
+    p->master_socket = swSocket_new(object->event_fd, SW_FD_PIPE);
+    if (p->master_socket == nullptr) {
+        close(object->event_fd);
+        return -1;
+    }
+
+    p->worker_socket = p->master_socket;
+    p->object = object.release();
+    p->read = swPipeEventfd_read;
+    p->write = swPipeEventfd_write;
+    p->getSocket = swPipe_getSocket;
+    p->close = swPipeEventfd_close;
+    
     return 0;
 }
 
@@ -115,8 +112,9 @@ static int swPipeEventfd_write(swPipe *p, const void *data, int length) {
 }
 
 static int swPipeEventfd_close(swPipe *p) {
+    swPipeEventfd *object = (swPipeEventfd *) p->object;
     swSocket_free(p->master_socket);
-    sw_free(p->object);
+    delete object;
     return SW_OK;
 }
 

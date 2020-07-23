@@ -105,7 +105,7 @@ static void swReactorThread_onStreamResponse(swStream *stream, const char *data,
         swEvent _ev = {};
         _ev.fd = conn->fd;
         _ev.socket = conn->socket;
-        swReactor_trigger_close_event(sw_reactor(), &_ev);
+        sw_reactor()->trigger_close_event(&_ev);
         return;
     }
     response.info.fd = conn->session_id;
@@ -368,11 +368,11 @@ static void swReactorThread_shutdown(swReactor *reactor) {
         }
         swConnection *conn = serv->get_connection(fd);
         if (serv->is_valid_connection(conn) && !conn->peer_closed && !conn->socket->removed) {
-            swReactor_remove_read_event(reactor, conn->socket);
+            reactor->remove_read_event(conn->socket);
         }
     }
 
-    swReactor_wait_exit(reactor, true);
+    reactor->set_wait_exit(true);
 }
 
 /**
@@ -452,7 +452,7 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev) {
                     swEvent _ev = {};
                     _ev.fd = conn->fd;
                     _ev.socket = conn->socket;
-                    swReactor_trigger_close_event(reactor, &_ev);
+                    reactor->trigger_close_event(&_ev);
                 } else {
                     _send.info = resp->info;
                     _send.data = resp->data;
@@ -529,7 +529,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev) {
     }
 
     if (swBuffer_empty(buffer)) {
-        if (swReactor_remove_write_event(reactor, ev->socket) < 0) {
+        if (reactor->remove_write_event(ev->socket) < 0) {
             swSysWarn("reactor->set(%d) failed", ev->fd);
         }
     }
@@ -621,7 +621,7 @@ static int swReactorThread_onRead(swReactor *reactor, swEvent *event) {
         conn->waiting_time = 1;
         conn->timer = swoole_timer_add(conn->waiting_time, false, swReactorThread_resume_data_receiving, event->socket);
         if (conn->timer) {
-            swReactor_remove_read_event(sw_reactor(), event->socket);
+            reactor->remove_read_event(event->socket);
         }
     }
     return retval;
@@ -990,7 +990,7 @@ static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *
         }
     }
 
-    swReactor_add_read_event(sw_reactor(), _socket);
+    timer->reactor->add_read_event(_socket);
     conn->timer = nullptr;
 }
 

@@ -20,7 +20,7 @@
 
 #include <unordered_map>
 
-#define EVENT_DEBUG 1
+#define EVENT_DEBUG 0
 
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
@@ -32,7 +32,10 @@
 #error "require linux kernel version 2.6.32 or later"
 #endif
 
-typedef struct swReactorEpoll_s swReactorEpoll;
+struct swReactorEpoll {
+    int epfd;
+    struct epoll_event *events;
+};
 
 #if EVENT_DEBUG
 static thread_local std::unordered_map<int, swSocket *> event_map;
@@ -66,40 +69,24 @@ static sw_inline int swReactorEpoll_event_set(int fdtype) {
     return flag;
 }
 
-struct swReactorEpoll_s {
-    int epfd;
-    struct epoll_event *events;
-};
-
 int swReactorEpoll_create(swReactor *reactor, int max_event_num) {
-    swReactorEpoll *object = (swReactorEpoll *) sw_malloc(sizeof(swReactorEpoll));
-    if (object == nullptr) {
-        swWarn("malloc[0] failed");
-        return SW_ERR;
-    }
-    sw_memset_zero(object, sizeof(swReactorEpoll));
-    reactor->object = object;
-    reactor->max_event_num = max_event_num;
-
-    object->events = (struct epoll_event *) sw_calloc(max_event_num, sizeof(struct epoll_event));
-    if (object->events == nullptr) {
-        swWarn("malloc[1] failed");
-        sw_free(object);
-        return SW_ERR;
-    }
-
-    object->epfd = epoll_create(512);
-    if (object->epfd < 0) {
+    int epfd = epoll_create(512);
+    if (epfd < 0) {
         swSysWarn("epoll_create failed");
-        sw_free(object);
         return SW_ERR;
     }
-    // binding method
+
     reactor->add = swReactorEpoll_add;
     reactor->set = swReactorEpoll_set;
     reactor->del = swReactorEpoll_del;
     reactor->wait = swReactorEpoll_wait;
     reactor->free = swReactorEpoll_free;
+
+    swReactorEpoll *object = new swReactorEpoll();
+    object->events = new struct epoll_event[max_event_num];
+    object->epfd = epfd;
+    reactor->max_event_num = max_event_num;
+    reactor->object = object;
 
     return SW_OK;
 }
@@ -107,8 +94,8 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num) {
 static void swReactorEpoll_free(swReactor *reactor) {
     swReactorEpoll *object = (swReactorEpoll *) reactor->object;
     close(object->epfd);
-    sw_free(object->events);
-    sw_free(object);
+    delete[] object->events;
+    delete object;
 }
 
 static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events) {
@@ -127,7 +114,7 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events) 
     event_map[socket->fd] = socket;
 #endif
 
-    swReactor_add(reactor, socket, events);
+    reactor->_add(socket, events);
     swTraceLog(
         SW_TRACE_EVENT, "add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fdtype, events);
 
@@ -146,7 +133,7 @@ static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket) {
 #endif
 
     swTraceLog(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor->id, _socket->fd);
-    swReactor_del(reactor, _socket);
+    reactor->_del(_socket);
 
     return SW_OK;
 }
@@ -166,7 +153,7 @@ static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events) 
     }
 
     swTraceLog(SW_TRACE_EVENT, "set event[reactor_id=%d, fd=%d, events=%d]", reactor->id, fd, events);
-    swReactor_set(reactor, socket, events);
+    reactor->_set(socket, events);
 
     return SW_OK;
 }
@@ -190,13 +177,13 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo) {
         }
     }
 
-    swReactor_before_wait(reactor);
+    reactor->before_wait();
 
     while (reactor->running) {
         if (reactor->onBegin != nullptr) {
             reactor->onBegin(reactor);
         }
-        n = epoll_wait(epoll_fd, events, max_event_num, swReactor_get_timeout_msec(reactor));
+        n = epoll_wait(epoll_fd, events, max_event_num, reactor->get_timeout_msec());
         if (n < 0) {
             if (swReactor_error(reactor) < 0) {
                 swSysWarn("[Reactor#%d] epoll_wait failed", reactor_id);
@@ -219,7 +206,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo) {
                 if (events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) {
                     event.socket->event_hup = 1;
                 }
-                handler = swReactor_get_handler(reactor, SW_EVENT_READ, event.type);
+                handler = reactor->get_handler(SW_EVENT_READ, event.type);
                 ret = handler(reactor, &event);
                 if (ret < 0) {
                     swSysWarn("EPOLLIN handle failed. fd=%d", event.fd);
@@ -227,7 +214,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo) {
             }
             // write
             if ((events[i].events & EPOLLOUT) && !event.socket->removed) {
-                handler = swReactor_get_handler(reactor, SW_EVENT_WRITE, event.type);
+                handler = reactor->get_handler(SW_EVENT_WRITE, event.type);
                 ret = handler(reactor, &event);
                 if (ret < 0) {
                     swSysWarn("EPOLLOUT handle failed. fd=%d", event.fd);
@@ -239,14 +226,14 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo) {
                 if ((events[i].events & EPOLLIN) || (events[i].events & EPOLLOUT)) {
                     continue;
                 }
-                handler = swReactor_get_handler(reactor, SW_EVENT_ERROR, event.type);
+                handler = reactor->get_handler(SW_EVENT_ERROR, event.type);
                 ret = handler(reactor, &event);
                 if (ret < 0) {
                     swSysWarn("EPOLLERR handle failed. fd=%d", event.fd);
                 }
             }
             if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE)) {
-                swReactor_del(reactor, event.socket);
+                reactor->_del(event.socket);
             }
         }
 

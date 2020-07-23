@@ -67,35 +67,24 @@ static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSock
 }
 
 int swReactorKqueue_create(swReactor *reactor, int max_event_num) {
-    // create reactor object
-    swReactorKqueue *object = (swReactorKqueue *) sw_calloc(1, sizeof(swReactorKqueue));
-    if (object == nullptr) {
-        swWarn("[swReactorKqueueCreate] calloc[0] fail");
-        return SW_ERR;
-    }
-
-    reactor->object = object;
-    reactor->max_event_num = max_event_num;
-    object->events = (struct kevent *) sw_calloc(max_event_num, sizeof(struct kevent));
-
-    if (object->events == nullptr) {
-        swWarn("[swReactorKqueueCreate] calloc[1] fail");
-        return SW_ERR;
-    }
-    // kqueue create
-    object->event_max = max_event_num;
-    object->epfd = kqueue();
-    if (object->epfd < 0) {
+    int epfd = kqueue();
+    if (epfd < 0) {
         swWarn("[swReactorKqueueCreate] kqueue_create[0] fail");
         return SW_ERR;
     }
 
-    // binding method
     reactor->add = swReactorKqueue_add;
     reactor->set = swReactorKqueue_set;
     reactor->del = swReactorKqueue_del;
     reactor->wait = swReactorKqueue_wait;
     reactor->free = swReactorKqueue_free;
+
+    swReactorKqueue *object = new swReactorKqueue();
+    reactor->max_event_num = max_event_num;
+    object->event_max = max_event_num;
+    object->events = new struct kevent[max_event_num];
+    object->epfd = epfd;
+    reactor->object = object;
 
     return SW_OK;
 }
@@ -103,8 +92,8 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num) {
 static void swReactorKqueue_free(swReactor *reactor) {
     swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     close(object->epfd);
-    sw_free(object->events);
-    sw_free(object);
+    delete[] object->events;
+    delete object;
 }
 
 static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events) {
@@ -136,7 +125,7 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
         }
     }
 
-    swReactor_add(reactor, socket, events);
+    reactor->_add(socket, events);
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, socket->events);
 
     return SW_OK;
@@ -185,7 +174,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
         }
     }
 
-    swReactor_set(reactor, socket, events);
+    reactor->_set(socket, events);
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, socket->events);
 
     return SW_OK;
@@ -215,7 +204,7 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
         }
     }
 
-    swReactor_del(reactor, socket);
+    reactor->_del(socket);
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d", SwooleTG.id, object->epfd, fd);
 
     return SW_OK;
@@ -238,7 +227,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo) {
         }
     }
 
-    swReactor_before_wait(reactor);
+    reactor->before_wait();
 
     while (reactor->running) {
         if (reactor->onBegin != nullptr) {
@@ -281,8 +270,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo) {
             case EVFILT_READ:
             case EVFILT_WRITE: {
                 if (swReactorKqueue_fetch_event(reactor, &event, udata)) {
-                    handler = swReactor_get_handler(
-                        reactor, kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
+                    handler = reactor->get_handler(kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
                     if (sw_unlikely(handler(reactor, &event) < 0)) {
                         swSysWarn("kqueue event %s socket#%d handler failed",
                                   kevent->filter == EVFILT_READ ? "read" : "write",
