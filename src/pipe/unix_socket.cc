@@ -88,8 +88,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
     swSocket_set_buffer_size(p->master_socket, sbsize);
     swSocket_set_buffer_size(p->worker_socket, sbsize);
 
-    object.release();
-    p->object = object.get();
+    p->object = object.release();
     p->read = swPipeUnsock_read;
     p->write = swPipeUnsock_write;
     p->getSocket = swPipe_getSocket;

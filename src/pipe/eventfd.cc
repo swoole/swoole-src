@@ -66,8 +66,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
         return -1;
     }
     p->worker_socket = p->master_socket;
-    object.release();
-    p->object = object.get();
+    p->object = object.release();
     p->read = swPipeEventfd_read;
     p->write = swPipeEventfd_write;
     p->getSocket = swPipe_getSocket;

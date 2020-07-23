@@ -51,7 +51,7 @@ static void swReactorSelect_free(swReactor *reactor);
 
 int swReactorSelect_create(swReactor *reactor) {
     // create reactor object
-    swReactorSelect *object = new swReactorSelect;
+    swReactorSelect *object = new swReactorSelect();
     reactor->object = object;
     // binding method
     reactor->add = swReactorSelect_add;

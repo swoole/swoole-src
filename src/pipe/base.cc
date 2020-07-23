@@ -72,8 +72,7 @@ int swPipeBase_create(swPipe *p, int blocking) {
     }
 
     p->timeout = -1;
-    object.release();
-    p->object = object.get();
+    p->object = object.release();
     p->read = swPipeBase_read;
     p->write = swPipeBase_write;
     p->getSocket = swPipe_getSocket;
