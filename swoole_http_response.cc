@@ -502,7 +502,7 @@ static ssize_t http_build_trailer(http_context *ctx, swString *response) {
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
-            
+
             if (!ZVAL_IS_NULL(zvalue)) {
                 zend::String str_value(zvalue);
                 n = sw_snprintf(

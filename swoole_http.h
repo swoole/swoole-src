@@ -170,7 +170,11 @@ struct http_context
 };
 
 #ifdef SW_USE_HTTP2
+namespace swoole {
+class Coroutine;
+}
 class http2_session;
+
 class http2_stream
 {
 public:
@@ -180,7 +184,7 @@ public:
     // flow control
     uint32_t send_window;
     uint32_t recv_window;
-    long wait_cid;
+    swoole::Coroutine *waiting_coroutine;
 
     http2_stream(http2_session *client, uint32_t _id);
     ~http2_stream();
