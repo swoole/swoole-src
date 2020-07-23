@@ -184,7 +184,7 @@ public:
     // flow control
     uint32_t send_window;
     uint32_t recv_window;
-    swoole::Coroutine *waiting_coroutine;
+    swoole::Coroutine *waiting_coroutine = nullptr;
 
     http2_stream(http2_session *client, uint32_t _id);
     ~http2_stream();

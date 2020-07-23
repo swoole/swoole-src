@@ -506,6 +506,7 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
         if (stream->send_window == 0) {
             stream->waiting_coroutine = Coroutine::get_current();
             stream->waiting_coroutine->yield();
+            stream->waiting_coroutine = nullptr;
             continue;
         } else if (send_len <= stream->send_window) {
             error = !stream->send_body(body, true && end_stream, client->max_frame_size, body->offset, send_len);
@@ -898,14 +899,13 @@ int swoole_http2_server_parse(http2_session *client, const char *buf) {
         if (stream_id == 0) {
             client->send_window += value;
         } else if (client->streams.find(stream_id) != client->streams.end()) {
+            swServer *serv;
+
             stream = client->streams[stream_id];
-            uint32_t origin_send_window = stream->send_window;
+            serv = (swServer *) stream->ctx->private_data;
+
             stream->send_window += value;
-            /**
-             * Because send_window does not have an initial value of 0,
-             * so when send_window is 0, the coroutine is waiting for WINDOW_UPDATE, we should resume the coroutine
-             */
-            if (origin_send_window == 0) {
+            if (serv->send_yield && stream->waiting_coroutine) {
                 stream->waiting_coroutine->resume();
             }
         }
