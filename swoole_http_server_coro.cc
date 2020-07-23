@@ -29,8 +29,11 @@ using namespace std;
 using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+
+#ifdef SW_USE_HTTP2
 using Http2Stream = swoole::http2::Stream;
 using Http2Session = swoole::http2::Session;
+#endif
 
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
