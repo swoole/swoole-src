@@ -34,7 +34,7 @@ void swoole_http_server_init_context(swServer *serv, http_context *ctx);
 #ifdef SW_USE_HTTP2
 
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swRecvData *req);
-int swoole_http2_server_parse(http2_session *client, const char *buf);
+int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
 void swoole_http2_server_session_free(swConnection *conn);
 int swoole_http2_server_ping(http_context *ctx);
 

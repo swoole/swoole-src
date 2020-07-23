@@ -29,6 +29,8 @@ using namespace std;
 using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using Http2Stream = swoole::http2::Stream;
+using Http2Session = swoole::http2::Session;
 
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
@@ -38,7 +40,7 @@ static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t 
 static bool http_context_disconnect(http_context *ctx);
 
 #ifdef SW_USE_HTTP2
-static void http2_server_onRequest(http2_session *session, http2_stream *stream);
+static void http2_server_onRequest(Http2Session *session, Http2Stream *stream);
 #endif
 
 class http_server {
@@ -146,7 +148,7 @@ class http_server {
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length = swHttp2_get_frame_length;
 
-        http2_session session(ctx->fd);
+        Http2Session session(ctx->fd);
         session.default_ctx = ctx;
         session.handle = http2_server_onRequest;
         session.private_data = this;
@@ -656,7 +658,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 }
 
 #ifdef SW_USE_HTTP2
-static void http2_server_onRequest(http2_session *session, http2_stream *stream) {
+static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     http_context *ctx = stream->ctx;
     http_server *hs = (http_server *) session->private_data;
     Socket *sock = (Socket *) ctx->private_data;

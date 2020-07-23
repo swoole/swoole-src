@@ -31,12 +31,14 @@ using namespace swoole;
 using std::string;
 using swoole::coroutine::System;
 using swoole::http::StaticHandler;
+using Http2Stream = swoole::http2::Stream;
+using Http2Session = swoole::http2::Session;
 
-static std::unordered_map<int, http2_session *> http2_sessions;
+static std::unordered_map<int, Http2Session *> http2_sessions;
 
 static bool swoole_http2_server_respond(http_context *ctx, swString *body);
 
-http2_stream::http2_stream(http2_session *client, uint32_t _id) {
+Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
     swoole_http_context_copy(client->default_ctx, ctx);
     ctx->http2 = true;
@@ -47,13 +49,13 @@ http2_stream::http2_stream(http2_session *client, uint32_t _id) {
     recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
 }
 
-http2_stream::~http2_stream() {
+Http2Stream::~Stream() {
     ctx->stream = nullptr;
     ctx->end = true;
     swoole_http_context_free(ctx);
 }
 
-void http2_stream::reset(uint32_t error_code) {
+void Http2Stream::reset(uint32_t error_code) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE];
     swTraceLog(SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, error_code=%u", "RST_STREAM", id, error_code);
     *(uint32_t *) ((char *) frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(error_code);
@@ -61,7 +63,7 @@ void http2_stream::reset(uint32_t error_code) {
     ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE);
 }
 
-http2_session::http2_session(int _fd) {
+Http2Session::Session(int _fd) {
     fd = _fd;
     header_table_size = SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE;
     send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
@@ -72,7 +74,7 @@ http2_session::http2_session(int _fd) {
     http2_sessions[_fd] = this;
 }
 
-http2_session::~http2_session() {
+Http2Session::~Session() {
     for (auto iter = streams.begin(); iter != streams.end(); iter++) {
         delete iter->second;
     }
@@ -117,7 +119,7 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer) {
 
         ssize_t rv;
         size_t buflen;
-        http2_session *client = http2_sessions[ctx->fd];
+        Http2Session *client = http2_sessions[ctx->fd];
         nghttp2_hd_deflater *deflater = client->deflater;
 
         if (!deflater) {
@@ -192,7 +194,7 @@ static bool swoole_http2_is_static_file(swServer *serv, http_context *ctx) {
     return false;
 }
 
-static void swoole_http2_onRequest(http2_session *client, http2_stream *stream) {
+static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     http_context *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
     swServer *serv = (swServer *) ctx->private_data;
@@ -324,7 +326,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
     ret = swoole_itoa(intbuf[1], body_length);
     headers.add(ZEND_STRL("content-length"), intbuf[1], ret);
 
-    http2_session *client = http2_sessions[ctx->fd];
+    Http2Session *client = http2_sessions[ctx->fd];
     nghttp2_hd_deflater *deflater = client->deflater;
     if (!deflater) {
         ret = nghttp2_hd_deflate_new2(&deflater, client->header_table_size, php_nghttp2_mem());
@@ -359,7 +361,7 @@ int swoole_http2_server_ping(http_context *ctx) {
     return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) ? SW_OK : SW_ERR;
 }
 
-bool http2_stream::send_header(size_t body_length, bool end_stream) {
+bool Http2Stream::send_header(size_t body_length, bool end_stream) {
     char header_buffer[SW_BUFFER_SIZE_STD];
     ssize_t bytes = http2_build_header(ctx, (uchar *) header_buffer, body_length);
     if (bytes < 0) {
@@ -401,7 +403,7 @@ bool http2_stream::send_header(size_t body_length, bool end_stream) {
     return true;
 }
 
-bool http2_stream::send_body(swString *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
+bool Http2Stream::send_body(swString *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
@@ -434,7 +436,7 @@ bool http2_stream::send_body(swString *body, bool end_stream, size_t max_frame_s
     return true;
 }
 
-bool http2_stream::send_trailer() {
+bool Http2Stream::send_trailer() {
     char header_buffer[SW_BUFFER_SIZE_STD] = {};
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
 
@@ -454,8 +456,8 @@ bool http2_stream::send_trailer() {
 }
 
 static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
-    http2_session *client = http2_sessions[ctx->fd];
-    http2_stream *stream = ctx->stream;
+    Http2Session *client = http2_sessions[ctx->fd];
+    Http2Stream *stream = ctx->stream;
     swServer *serv = (swServer *) ctx->private_data;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -544,8 +546,8 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
 }
 
 static bool http2_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    http2_session *client = http2_sessions[ctx->fd];
-    http2_stream *stream = (http2_stream *) ctx->stream;
+    Http2Session *client = http2_sessions[ctx->fd];
+    Http2Stream *stream = (Http2Stream *) ctx->stream;
     swString *body;
 
 #ifdef SW_HAVE_COMPRESSION
@@ -618,7 +620,7 @@ static bool http2_context_sendfile(http_context *ctx, const char *file, uint32_t
     return true;
 }
 
-static int http2_parse_header(http2_session *client, http_context *ctx, int flags, const char *in, size_t inlen) {
+static int http2_parse_header(Http2Session *client, http_context *ctx, int flags, const char *in, size_t inlen) {
     nghttp2_hd_inflater *inflater = client->inflater;
 
     if (!inflater) {
@@ -738,8 +740,8 @@ static int http2_parse_header(http2_session *client, http_context *ctx, int flag
     return SW_OK;
 }
 
-int swoole_http2_server_parse(http2_session *client, const char *buf) {
-    http2_stream *stream = nullptr;
+int swoole_http2_server_parse(Http2Session *client, const char *buf) {
+    Http2Stream *stream = nullptr;
     int type = buf[3];
     int flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
@@ -807,7 +809,7 @@ int swoole_http2_server_parse(http2_session *client, const char *buf) {
         swHttp2FrameTraceLog(recv, "%s", (stream ? "exist stream" : "new stream"));
         http_context *ctx;
         if (!stream) {
-            stream = new http2_stream(client, stream_id);
+            stream = new Http2Stream(client, stream_id);
             if (sw_unlikely(!stream->ctx)) {
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_NO_HEADER, "http2 create stream#%d context error", stream_id);
@@ -952,9 +954,9 @@ int swoole_http2_server_parse(http2_session *client, const char *buf) {
  */
 int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swRecvData *req) {
     int session_id = req->info.fd;
-    http2_session *client = http2_sessions[session_id];
+    Http2Session *client = http2_sessions[session_id];
     if (client == nullptr) {
-        client = new http2_session(session_id);
+        client = new Http2Session(session_id);
     }
 
     client->handle = swoole_http2_onRequest;
@@ -963,7 +965,7 @@ int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swRecvData *
         swoole_http_server_init_context(serv, client->default_ctx);
         client->default_ctx->fd = session_id;
         client->default_ctx->http2 = true;
-        client->default_ctx->stream = (http2_stream *) -1;
+        client->default_ctx->stream = (Http2Stream *) -1;
         client->default_ctx->keepalive = true;
         client->default_ctx->sendfile = http2_context_sendfile;
     }
@@ -981,7 +983,7 @@ void swoole_http2_server_session_free(swConnection *conn) {
     if (session_iterator == http2_sessions.end()) {
         return;
     }
-    http2_session *client = session_iterator->second;
+    Http2Session *client = session_iterator->second;
     delete client;
 }
 
