@@ -27,14 +27,16 @@ static int swSystemTimer_set(swTimer *timer, long new_interval);
 static void swSystemTimer_close(swTimer *timer);
 static void swSystemTimer_signal_handler(int sig);
 
+using swoole::Timer;
+
 /**
  * create timer
  */
-int swSystemTimer_init(swTimer *timer, long interval) {
-    timer->set = swSystemTimer_set;
-    timer->close = swSystemTimer_close;
-    timer->last_time = interval;
-    if (swSystemTimer_signal_set(timer, interval) < 0) {
+int Timer::init_system_timer(long interval) {
+    set = swSystemTimer_set;
+    close = swSystemTimer_close;
+    last_time = interval;
+    if (swSystemTimer_signal_set(this, interval) < 0) {
         return SW_ERR;
     }
     swSignal_set(SIGALRM, swSystemTimer_signal_handler);
@@ -93,5 +95,5 @@ static int swSystemTimer_set(swTimer *timer, long exec_msec) {
 }
 
 void swSystemTimer_signal_handler(int sig) {
-    SwooleG.signal_alarm = 1;
+    SwooleG.signal_alarm = true;
 }

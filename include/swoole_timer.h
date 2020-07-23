@@ -33,7 +33,9 @@ enum swTimer_type {
     SW_TIMER_TYPE_PHP,
 };
 
-struct swTimer_node {
+namespace swoole {
+
+struct TimerNode {
     long id;
     enum swTimer_type type;
     int64_t exec_msec;
@@ -46,12 +48,13 @@ struct swTimer_node {
     swTimerDestructor destructor;
 };
 
-struct swTimer {
+class Timer {
+
+ private:
     /*--------------signal timer--------------*/
-    swReactor *reactor;
+    Reactor *reactor_ = nullptr;
     swHeap *heap;
-    std::unordered_map<long, swTimer_node *> *map;
-    uint32_t num;
+    std::unordered_map<long, TimerNode *> map;
     uint64_t round;
     long _next_id;
     long _current_id;
@@ -61,47 +64,66 @@ struct swTimer {
     /*---------------system timer-------------*/
     long last_time;
     /*----------------------------------------*/
-    int (*set)(swTimer *timer, long exec_msec);
-    void (*close)(swTimer *timer);
+    int (*set)(Timer *timer, long exec_msec) = nullptr;
+    void (*close)(Timer *timer) = nullptr;
+ public:
+    Timer();
+    ~Timer();
+    static int now(struct timeval *time);
+
+    inline int64_t get_relative_msec() {
+        struct timeval _now;
+        if (now(&_now) < 0) {
+            return SW_ERR;
+        }
+        int64_t msec1 = (_now.tv_sec - base_time.tv_sec) * 1000;
+        int64_t msec2 = (_now.tv_usec - base_time.tv_usec) / 1000;
+        return msec1 + msec2;
+    }
+
+    inline Reactor *get_reactor() {
+        return reactor_;
+    }
+
+    int init(long msec);
+    int init_reactor(swReactor *reactor, long exec_msec);
+    int init_system_timer(long interval);
+    TimerNode *add(long _msec, int interval, void *data, const swTimerCallback &callback);
+    bool del(TimerNode *tnode);
+    void reinit(swReactor *reactor);
+    int select();
+
+    inline TimerNode *get(long id) {
+        auto it = map.find(id);
+        if (it == map.end()) {
+            return nullptr;
+        } else {
+            return it->second;
+        }
+    }
+
+    inline size_t count() {
+        return map.size();
+    }
+
+    inline uint64_t get_round() {
+        return round;
+    }
+
+    inline TimerNode *get_ex(long id, const enum swTimer_type type) {
+        swTimer_node *tnode = get(id);
+        return (tnode && tnode->type == type) ? tnode : nullptr;
+    }
+
+    inline const std::unordered_map<long, TimerNode *> &get_map() {
+        return map;
+    }
 };
-
-int swTimer_init(swTimer *timer, long msec);
-void swTimer_reinit(swTimer *timer, swReactor *reactor);
-bool swTimer_del(swTimer *timer, swTimer_node *node);
-void swTimer_free(swTimer *timer);
-int swTimer_select(swTimer *timer);
-int swTimer_now(struct timeval *time);
-
-static sw_inline swTimer_node *swTimer_get(swTimer *timer, long id) {
-    auto it = timer->map->find(id);
-    if (it == timer->map->end()) {
-        return nullptr;
-    } else {
-        return it->second;
-    }
-}
-
-static sw_inline swTimer_node *swTimer_get_ex(swTimer *timer, long id, const enum swTimer_type type) {
-    swTimer_node *tnode = swTimer_get(timer, id);
-    return (tnode && tnode->type == type) ? tnode : NULL;
-}
-
-static sw_inline int64_t swTimer_get_relative_msec() {
-    struct timeval now;
-    if (!SwooleTG.timer) {
-        return SW_ERR;
-    }
-    if (swTimer_now(&now) < 0) {
-        return SW_ERR;
-    }
-    int64_t msec1 = (now.tv_sec - SwooleTG.timer->base_time.tv_sec) * 1000;
-    int64_t msec2 = (now.tv_usec - SwooleTG.timer->base_time.tv_usec) / 1000;
-    return msec1 + msec2;
 }
 
 static sw_inline int64_t swTimer_get_absolute_msec() {
     struct timeval now;
-    if (swTimer_now(&now) < 0) {
+    if (swTimer::now(&now) < 0) {
         return SW_ERR;
     }
     int64_t msec1 = (now.tv_sec) * 1000;

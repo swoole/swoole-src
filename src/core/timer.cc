@@ -47,10 +47,211 @@ static int clock_gettime(clock_id_t which_clock, struct timespec *t) {
 }
 #endif
 
-int swSystemTimer_init(swTimer *timer, long msec);
+namespace swoole {
 
-int swTimer_now(struct timeval *time) {
+Timer::Timer() {
+    heap = swHeap_new(1024, SW_MIN_HEAP);
+    if (!heap) {
+        throw std::bad_alloc();
+    }
+    _current_id = -1;
+    _next_msec = 0;
+    _next_id = 1;
+    last_time = 0;
+    round = 0;
+}
+
+int Timer::init(long msec) {
+    if (now(&base_time) < 0) {
+        return SW_ERR;
+    }
+    if (SwooleTG.reactor) {
+        return init_reactor(SwooleTG.reactor, msec);
+    } else {
+        return init_system_timer(msec);
+    }
+}
+
+int Timer::init_reactor(swReactor *reactor, long exec_msec) {
+    reactor_ = reactor;
+    reactor->timeout_msec = exec_msec;
+    set = [](Timer *timer, long exec_msec) -> int {
+        timer->reactor_->timeout_msec = exec_msec;
+        return SW_OK;
+    };
+    close = [](swTimer *timer) {
+        timer->set(timer, -1);
+    };
+
+    reactor->set_end_callback(SW_REACTOR_PRIORITY_TIMER, [this](swReactor *) { select(); });
+
+    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_TIMER,
+                                [this](swReactor *reactor, int &event_num) -> bool { return count() == 0; });
+
+    reactor->add_destroy_callback([](void *) { swoole_timer_free(); });
+
+    return SW_OK;
+}
+
+void Timer::reinit(swReactor *reactor) {
+    init_reactor(reactor, _next_msec);
+}
+
+Timer::~Timer() {
+    if (close) {
+        close(this);
+    }
+    if (heap) {
+        swHeap_free(heap);
+    }
+    for (auto iter = map.begin(); iter != map.end(); iter++) {
+        auto tnode = iter->second;
+        delete tnode;
+    }
+}
+
+TimerNode *Timer::add(long _msec, int interval, void *data, const swTimerCallback &callback) {
+    if (sw_unlikely(_msec <= 0)) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] is invalid", _msec);
+        return nullptr;
+    }
+
+    int64_t now_msec = get_relative_msec();
+    if (sw_unlikely(now_msec < 0)) {
+        return nullptr;
+    }
+
+    TimerNode *tnode = new TimerNode();
+    tnode->data = data;
+    tnode->type = SW_TIMER_TYPE_KERNEL;
+    tnode->exec_msec = now_msec + _msec;
+    tnode->interval = interval ? _msec : 0;
+    tnode->removed = false;
+    tnode->callback = callback;
+    tnode->round = round;
+    tnode->destructor = nullptr;
+
+    if (_next_msec < 0 || _next_msec > _msec) {
+        set(this, _msec);
+        _next_msec = _msec;
+    }
+
+    tnode->id = _next_id++;
+    if (sw_unlikely(tnode->id < 0)) {
+        tnode->id = 1;
+        _next_id = 2;
+    }
+
+    tnode->heap_node = swHeap_push(heap, tnode->exec_msec, tnode);
+    if (sw_unlikely(tnode->heap_node == nullptr)) {
+        delete tnode;
+        return nullptr;
+    }
+    map.emplace(std::make_pair(tnode->id, tnode));
+    swTraceLog(SW_TRACE_TIMER,
+               "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%u",
+               tnode->id,
+               tnode->exec_msec,
+               _msec,
+               tnode->round,
+               num);
+    return tnode;
+}
+
+bool Timer::del(TimerNode *tnode) {
+    if (sw_unlikely(!tnode || tnode->removed)) {
+        return false;
+    }
+    if (sw_unlikely(_current_id > 0 && tnode->id == _current_id)) {
+        tnode->removed = true;
+        swTraceLog(SW_TRACE_TIMER,
+                   "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
+                   tnode->id,
+                   tnode->exec_msec,
+                   tnode->round,
+                   num);
+        return true;
+    }
+    if (sw_unlikely(!map.erase(tnode->id))) {
+        return false;
+    }
+    if (tnode->heap_node) {
+        swHeap_remove(heap, tnode->heap_node);
+        sw_free(tnode->heap_node);
+    }
+    if (tnode->destructor) {
+        tnode->destructor(tnode);
+    }
+    swTraceLog(SW_TRACE_TIMER,
+               "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
+               tnode->id,
+               tnode->exec_msec,
+               tnode->round,
+               num);
+    delete tnode;
+    return true;
+}
+
+int Timer::select() {
+    int64_t now_msec = get_relative_msec();
+    if (sw_unlikely(now_msec < 0)) {
+        return SW_ERR;
+    }
+
+    TimerNode *tnode = nullptr;
+    swHeap_node *tmp;
+
+    swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, round);
+
+    while ((tmp = swHeap_top(heap))) {
+        tnode = (TimerNode *) tmp->data;
+        if (tnode->exec_msec > now_msec || tnode->round == round) {
+            break;
+        }
+
+        _current_id = tnode->id;
+        if (!tnode->removed) {
+            swTraceLog(SW_TRACE_TIMER,
+                    "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
+                    tnode->id,
+                    tnode->exec_msec,
+                    tnode->round,
+                    num - 1);
+            tnode->callback(this, tnode);
+        }
+        _current_id = -1;
+
+        // persistent timer
+        if (tnode->interval > 0 && !tnode->removed) {
+            while (tnode->exec_msec <= now_msec) {
+                tnode->exec_msec += tnode->interval;
+            }
+            swHeap_change_priority(heap, tnode->exec_msec, tmp);
+            continue;
+        }
+
+        swHeap_pop(heap);
+        map.erase(tnode->id);
+        delete tnode;
+    }
+
+    if (!tnode || !tmp) {
+        _next_msec = -1;
+        set(this, -1);
+    } else {
+        long next_msec = tnode->exec_msec - now_msec;
+        if (next_msec <= 0) {
+            next_msec = 1;
+        }
+        set(this, next_msec);
+    }
+    round++;
+
+    return SW_OK;
+}
+
 #if defined(SW_USE_MONOTONIC_TIME) && defined(CLOCK_MONOTONIC)
+int Timer::now(struct timeval *time) {
     struct timespec _now;
     if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0) {
         swSysWarn("clock_gettime(CLOCK_MONOTONIC) failed");
@@ -67,218 +268,4 @@ int swTimer_now(struct timeval *time) {
     return SW_OK;
 }
 
-static int swReactorTimer_set(swTimer *timer, long exec_msec) {
-    timer->reactor->timeout_msec = exec_msec;
-    return SW_OK;
-}
-
-static void swReactorTimer_close(swTimer *timer) {
-    swReactorTimer_set(timer, -1);
-}
-
-static int swReactorTimer_init(swReactor *reactor, swTimer *timer, long exec_msec) {
-    reactor->timeout_msec = exec_msec;
-    timer->reactor = reactor;
-    timer->set = swReactorTimer_set;
-    timer->close = swReactorTimer_close;
-
-    reactor->set_end_callback(SW_REACTOR_PRIORITY_TIMER, [timer](swReactor *) { swTimer_select(timer); });
-
-    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_TIMER,
-                                [timer](swReactor *reactor, int &event_num) -> bool { return timer->num == 0; });
-
-    reactor->add_destroy_callback([](void *) { swoole_timer_free(); });
-
-    return SW_OK;
-}
-
-int swTimer_init(swTimer *timer, long msec) {
-    sw_memset_zero(timer, sizeof(swTimer));
-    if (swTimer_now(&timer->base_time) < 0) {
-        return SW_ERR;
-    }
-
-    timer->heap = swHeap_new(1024, SW_MIN_HEAP);
-    if (!timer->heap) {
-        return SW_ERR;
-    }
-
-    timer->map = new std::unordered_map<long, swTimer_node *>;
-    timer->_current_id = -1;
-    timer->_next_msec = msec;
-    timer->_next_id = 1;
-
-    int ret;
-    if (SwooleTG.reactor) {
-        ret = swReactorTimer_init(SwooleTG.reactor, timer, msec);
-    } else {
-        ret = swSystemTimer_init(timer, msec);
-    }
-    if (sw_likely(ret != SW_OK)) {
-        swTimer_free(timer);
-    }
-    return ret;
-}
-
-void swTimer_reinit(swTimer *timer, swReactor *reactor) {
-    swReactorTimer_init(reactor, timer, timer->_next_msec);
-}
-
-void swTimer_free(swTimer *timer) {
-    if (timer->close) {
-        timer->close(timer);
-    }
-    if (timer->heap) {
-        swHeap_free(timer->heap);
-    }
-    if (timer->map) {
-        for (auto iter = timer->map->begin(); iter != timer->map->end(); iter++) {
-            auto tnode = iter->second;
-            delete tnode;
-        }
-        delete timer->map;
-    }
-    memset(timer, 0, sizeof(swTimer));
-}
-
-swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, const swTimerCallback &callback) {
-    if (sw_unlikely(_msec <= 0)) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] is invalid", _msec);
-        return nullptr;
-    }
-
-    int64_t now_msec = swTimer_get_relative_msec();
-    if (sw_unlikely(now_msec < 0)) {
-        return nullptr;
-    }
-
-    swTimer_node *tnode = new swTimer_node();
-    tnode->data = data;
-    tnode->type = SW_TIMER_TYPE_KERNEL;
-    tnode->exec_msec = now_msec + _msec;
-    tnode->interval = interval ? _msec : 0;
-    tnode->removed = false;
-    tnode->callback = callback;
-    tnode->round = timer->round;
-    tnode->destructor = nullptr;
-
-    if (timer->_next_msec < 0 || timer->_next_msec > _msec) {
-        timer->set(timer, _msec);
-        timer->_next_msec = _msec;
-    }
-
-    tnode->id = timer->_next_id++;
-    if (sw_unlikely(tnode->id < 0)) {
-        tnode->id = 1;
-        timer->_next_id = 2;
-    }
-
-    tnode->heap_node = swHeap_push(timer->heap, tnode->exec_msec, tnode);
-    if (sw_unlikely(tnode->heap_node == nullptr)) {
-        delete tnode;
-        return nullptr;
-    }
-    timer->map->emplace(std::make_pair(tnode->id, tnode));
-    timer->num++;
-    swTraceLog(SW_TRACE_TIMER,
-               "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%u",
-               tnode->id,
-               tnode->exec_msec,
-               _msec,
-               tnode->round,
-               timer->num);
-    return tnode;
-}
-
-bool swTimer_del(swTimer *timer, swTimer_node *tnode) {
-    if (sw_unlikely(!tnode || tnode->removed)) {
-        return false;
-    }
-    if (sw_unlikely(timer->_current_id > 0 && tnode->id == timer->_current_id)) {
-        tnode->removed = true;
-        swTraceLog(SW_TRACE_TIMER,
-                   "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
-                   tnode->id,
-                   tnode->exec_msec,
-                   tnode->round,
-                   timer->num);
-        return true;
-    }
-    if (sw_unlikely(!timer->map->erase(tnode->id))) {
-        return false;
-    }
-    if (tnode->heap_node) {
-        swHeap_remove(timer->heap, tnode->heap_node);
-        sw_free(tnode->heap_node);
-    }
-    if (tnode->destructor) {
-        tnode->destructor(tnode);
-    }
-    timer->num--;
-    swTraceLog(SW_TRACE_TIMER,
-               "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
-               tnode->id,
-               tnode->exec_msec,
-               tnode->round,
-               timer->num);
-    delete tnode;
-    return true;
-}
-
-int swTimer_select(swTimer *timer) {
-    int64_t now_msec = swTimer_get_relative_msec();
-    if (sw_unlikely(now_msec < 0)) {
-        return SW_ERR;
-    }
-
-    swTimer_node *tnode = nullptr;
-    swHeap_node *tmp;
-
-    swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, timer->round);
-    while ((tmp = swHeap_top(timer->heap))) {
-        tnode = (swTimer_node *) tmp->data;
-        if (tnode->exec_msec > now_msec || tnode->round == timer->round) {
-            break;
-        }
-
-        timer->_current_id = tnode->id;
-        if (!tnode->removed) {
-            swTraceLog(SW_TRACE_TIMER,
-                       "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
-                       tnode->id,
-                       tnode->exec_msec,
-                       tnode->round,
-                       timer->num - 1);
-            tnode->callback(timer, tnode);
-        }
-        timer->_current_id = -1;
-
-        // persistent timer
-        if (tnode->interval > 0 && !tnode->removed) {
-            while (tnode->exec_msec <= now_msec) {
-                tnode->exec_msec += tnode->interval;
-            }
-            swHeap_change_priority(timer->heap, tnode->exec_msec, tmp);
-            continue;
-        }
-
-        timer->num--;
-        swHeap_pop(timer->heap);
-        timer->map->erase(tnode->id);
-        delete tnode;
-    }
-
-    if (!tnode || !tmp) {
-        timer->_next_msec = -1;
-        timer->set(timer, -1);
-    } else {
-        long next_msec = tnode->exec_msec - now_msec;
-        if (next_msec <= 0) {
-            next_msec = 1;
-        }
-        timer->set(timer, next_msec);
-    }
-    timer->round++;
-
-    return SW_OK;
-}
+};
