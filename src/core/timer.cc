@@ -142,11 +142,6 @@ void swTimer_free(swTimer *timer) {
 }
 
 swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, const swTimerCallback &callback) {
-    if (sw_unlikely(_msec <= 0)) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] is invalid", _msec);
-        return nullptr;
-    }
-
     int64_t now_msec = swTimer_get_relative_msec();
     if (sw_unlikely(now_msec < 0)) {
         return nullptr;

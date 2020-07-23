@@ -1156,14 +1156,6 @@ bool PHPCoroutine::disable_hook() {
     return enable_hook(0);
 }
 
-void swoole_short_sleep() {
-    Coroutine *coroutine = Coroutine::get_current();
-    swoole_event_defer([](void *data) {
-        ((Coroutine *) data)->resume();
-    }, coroutine);
-    coroutine->yield();
-}
-
 static PHP_METHOD(swoole_runtime, enableCoroutine) {
     zval *zflags = nullptr;
     /*TODO:[v4.6] enable SW_HOOK_CURL by default after curl handler completed */
@@ -1222,12 +1214,7 @@ static PHP_FUNCTION(swoole_sleep) {
     }
 
     if(Coroutine::get_current()) {
-        if(num >= SW_TIMER_MIN_SEC) {
-            RETURN_LONG(System::sleep((double) num) < 0 ? num : 0);
-        } else {
-            swoole_short_sleep();
-            RETURN_LONG(0);
-        }
+        RETURN_LONG(System::sleep((double) num >= SW_TIMER_MIN_SEC ? num : 0) < 0 ? num : 0);
     } else {
         RETURN_LONG(php_sleep(num));
     }
@@ -1244,11 +1231,7 @@ static PHP_FUNCTION(swoole_usleep) {
     }
     double sec = (double) num / 1000000;
     if(Coroutine::get_current()) {
-        if(sec >= SW_TIMER_MIN_SEC) {
-            System::sleep(sec);
-        } else {
-            swoole_short_sleep();
-        }
+        System::sleep(sec >= SW_TIMER_MIN_SEC ? sec : 0);
     } else {
         usleep((unsigned int) num);
     }
@@ -1270,11 +1253,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
     if(Coroutine::get_current()) {
-        if(_time >= SW_TIMER_MIN_SEC) {
-            System::sleep(_time);
-        } else {
-            swoole_short_sleep();
-        }
+        System::sleep(_time >= SW_TIMER_MIN_SEC ? _time : 0);
     } else {
         struct timespec php_req, php_rem;
         php_req.tv_sec = (time_t) tv_sec;
@@ -1320,11 +1299,7 @@ static PHP_FUNCTION(swoole_time_sleep_until) {
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
     if(Coroutine::get_current()) {
-        if(_time >= SW_TIMER_MIN_SEC) {
-            System::sleep(_time);
-        } else {
-            swoole_short_sleep();
-        }
+        System::sleep(_time >= SW_TIMER_MIN_SEC ? _time : 0);
     } else {
         while (nanosleep(&php_req, &php_rem)) {
             if (errno == EINTR) {
