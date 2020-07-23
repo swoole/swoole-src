@@ -1,3 +1,4 @@
+
 English | [中文](./README-CN.md)
 
 # Swoole
@@ -480,7 +481,20 @@ After compiling and installing to the system successfully, you have to add a new
 + `--enable-http2`
 + `--enable-mysqlnd` (need mysqlnd, it just for supporting `$mysql->escape` method)
 
-### Upgrade
+#### Using SSL Certificates on a Web Socket Server
+1. To be able to use SSL certificates on a WS server, you must compile with `--enable-openssl` and `--enable-sockets`. The full command to compile is `./configure --enable-openssl --enable-sockets`. If you do not recompile then you will see an error when trying to load the SSL certficates.
+2. Apply for an SSL certificate (Let's Encrypt works, too) and put the `certificateFile.pem` and `privateKey.pem` in a directory accessible to the PHP script.
+3. Example configuration... 
+
+$server = new Server("0.0.0.0", 9898, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+
+$server->set([
+    'ssl_cert_file' => '/etc/letsencrypt/live/website.com/certificateFile.pem',
+    'ssl_key_file' => '/etc/letsencrypt/live/website.com/privateKey.pem'
+]);
+
+   
+   ### Upgrade
 
 >  ⚠️ If you upgrade from source, don't forget to `make clean` before you upgrade your swoole
 
