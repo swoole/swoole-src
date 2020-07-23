@@ -32,7 +32,6 @@ struct swPipeEventfd {
 };
 
 int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
-    int efd;
     int flag = 0;
     std::unique_ptr<swPipeEventfd> object(new swPipeEventfd());
 
@@ -54,24 +53,24 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
 #endif
 
     p->blocking = blocking;
-    efd = eventfd(0, flag);
-    if (efd < 0) {
+    object->event_fd = eventfd(0, flag);
+    if (object->event_fd < 0) {
         swSysWarn("eventfd create failed");
         return -1;
     }
 
-    p->master_socket = swSocket_new(efd, SW_FD_PIPE);
+    p->master_socket = swSocket_new(object->event_fd, SW_FD_PIPE);
     if (p->master_socket == nullptr) {
-        close(efd);
+        close(object->event_fd);
         return -1;
     }
+
     p->worker_socket = p->master_socket;
     p->object = object.release();
     p->read = swPipeEventfd_read;
     p->write = swPipeEventfd_write;
     p->getSocket = swPipe_getSocket;
     p->close = swPipeEventfd_close;
-    object->event_fd = efd;
     
     return 0;
 }
