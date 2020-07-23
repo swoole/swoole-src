@@ -182,12 +182,8 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo) {
     int max_event_num = reactor->max_event_num;
     struct epoll_event *events = object->events;
 
-    if (reactor->timeout_msec == 0) {
-        if (timeo == nullptr) {
-            reactor->timeout_msec = -1;
-        } else {
-            reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
-        }
+    if (reactor->timeout_msec == 0 && timeo != nullptr) {
+        reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
     }
 
     swReactor_before_wait(reactor);

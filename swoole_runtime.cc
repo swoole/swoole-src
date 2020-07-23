@@ -1213,8 +1213,8 @@ static PHP_FUNCTION(swoole_sleep) {
         RETURN_FALSE;
     }
 
-    if(Coroutine::get_current()) {
-        RETURN_LONG(System::sleep((double) num >= SW_TIMER_MIN_SEC ? num : 0) < 0 ? num : 0);
+    if (Coroutine::get_current()) {
+        RETURN_LONG(System::sleep((double) (num >= SW_TIMER_MIN_SEC ? num : 0)) < 0 ? num : 0);
     } else {
         RETURN_LONG(php_sleep(num));
     }
@@ -1230,7 +1230,7 @@ static PHP_FUNCTION(swoole_usleep) {
         RETURN_FALSE;
     }
     double sec = (double) num / 1000000;
-    if(Coroutine::get_current()) {
+    if (Coroutine::get_current()) {
         System::sleep(sec >= SW_TIMER_MIN_SEC ? sec : 0);
     } else {
         usleep((unsigned int) num);
@@ -1252,7 +1252,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if(Coroutine::get_current()) {
+    if (Coroutine::get_current()) {
         System::sleep(_time >= SW_TIMER_MIN_SEC ? _time : 0);
     } else {
         struct timespec php_req, php_rem;
@@ -1298,7 +1298,7 @@ static PHP_FUNCTION(swoole_time_sleep_until) {
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if(Coroutine::get_current()) {
+    if (Coroutine::get_current()) {
         System::sleep(_time >= SW_TIMER_MIN_SEC ? _time : 0);
     } else {
         while (nanosleep(&php_req, &php_rem)) {
