@@ -154,7 +154,7 @@ TimerNode *Timer::add(long _msec, int interval, void *data, const swTimerCallbac
                tnode->exec_msec,
                _msec,
                tnode->round,
-               num);
+               count());
     return tnode;
 }
 
@@ -169,7 +169,7 @@ bool Timer::del(TimerNode *tnode) {
                    tnode->id,
                    tnode->exec_msec,
                    tnode->round,
-                   num);
+                   count());
         return true;
     }
     if (sw_unlikely(!map.erase(tnode->id))) {
@@ -187,7 +187,7 @@ bool Timer::del(TimerNode *tnode) {
                tnode->id,
                tnode->exec_msec,
                tnode->round,
-               num);
+               count());
     delete tnode;
     return true;
 }
@@ -216,7 +216,7 @@ int Timer::select() {
                     tnode->id,
                     tnode->exec_msec,
                     tnode->round,
-                    num - 1);
+                    count() - 1);
             tnode->callback(this, tnode);
         }
         _current_id = -1;
