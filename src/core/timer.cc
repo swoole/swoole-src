@@ -158,7 +158,7 @@ TimerNode *Timer::add(long _msec, int interval, void *data, const swTimerCallbac
     return tnode;
 }
 
-bool Timer::del(TimerNode *tnode) {
+bool Timer::remove(TimerNode *tnode) {
     if (sw_unlikely(!tnode || tnode->removed)) {
         return false;
     }

@@ -89,7 +89,7 @@ class Timer {
     int init_reactor(swReactor *reactor, long exec_msec);
     int init_system_timer(long interval);
     TimerNode *add(long _msec, int interval, void *data, const swTimerCallback &callback);
-    bool del(TimerNode *tnode);
+    bool remove(TimerNode *tnode);
     void reinit(swReactor *reactor);
     int select();
 
@@ -113,6 +113,10 @@ class Timer {
     inline TimerNode *get_ex(long id, const enum swTimer_type type) {
         swTimer_node *tnode = get(id);
         return (tnode && tnode->type == type) ? tnode : nullptr;
+    }
+
+    inline bool remove_by_id(long id) {
+        return remove(get(id));
     }
 
     inline const std::unordered_map<long, TimerNode *> &get_map() {

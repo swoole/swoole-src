@@ -40,7 +40,7 @@ TimerNode *swoole_timer_add(long ms, uchar persistent, const swTimerCallback &ca
 }
 
 bool swoole_timer_del(swTimer_node *tnode) {
-    return SwooleTG.timer->del(tnode);
+    return SwooleTG.timer->remove(tnode);
 }
 
 long swoole_timer_after(long ms, const swTimerCallback &callback, void *private_data) {
@@ -79,7 +79,7 @@ bool swoole_timer_exists(long timer_id) {
 }
 
 bool swoole_timer_clear(long timer_id) {
-    return SwooleTG.timer->del(SwooleTG.timer->get(timer_id));
+    return SwooleTG.timer->remove(SwooleTG.timer->get(timer_id));
 }
 
 swTimer_node *swoole_timer_get(long timer_id) {
