@@ -456,6 +456,7 @@ bool http2_stream::send_trailer() {
 static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
     http2_session *client = http2_sessions[ctx->fd];
     http2_stream *stream = ctx->stream;
+    swServer *serv = (swServer *) ctx->private_data;
 
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression) {
@@ -492,27 +493,35 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
             break;
         }
 
-        if (send_len > 0) {
-            if (stream->send_window == 0) {
-                stream->waiting_coroutine = Coroutine::get_current();
-                stream->waiting_coroutine->yield();
-                continue;
-            } else if (send_len <= stream->send_window) {
-                error = !stream->send_body(body, true && end_stream, client->max_frame_size, body->offset, send_len);
-                break;
-            } else {
-                send_len = client->max_frame_size;
-                error = !stream->send_body(body, false, client->max_frame_size, body->offset, send_len);
+        /**
+         * If send_yield is not supported, ignore flow control
+         */
+        if (!serv->send_yield) {
+            if (!stream->send_body(body, end_stream, client->max_frame_size)) {
+                error = true;
             }
-            if (!error) {
-                swTraceLog(SW_TRACE_HTTP2, "body: send length=%zu", send_len);
+            break;
+        }
 
-                body->offset += send_len;
-                if (send_len > stream->send_window) {
-                    stream->send_window = 0;
-                } else {
-                    stream->send_window -= send_len;
-                }
+        if (stream->send_window == 0) {
+            stream->waiting_coroutine = Coroutine::get_current();
+            stream->waiting_coroutine->yield();
+            continue;
+        } else if (send_len <= stream->send_window) {
+            error = !stream->send_body(body, true && end_stream, client->max_frame_size, body->offset, send_len);
+            break;
+        } else {
+            send_len = client->max_frame_size;
+            error = !stream->send_body(body, false, client->max_frame_size, body->offset, send_len);
+        }
+        if (!error) {
+            swTraceLog(SW_TRACE_HTTP2, "body: send length=%zu", send_len);
+
+            body->offset += send_len;
+            if (send_len > stream->send_window) {
+                stream->send_window = 0;
+            } else {
+                stream->send_window -= send_len;
             }
         }
     }
