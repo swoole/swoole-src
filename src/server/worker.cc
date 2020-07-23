@@ -437,7 +437,7 @@ void Server::stop_async_worker(swWorker *worker) {
     }
 
     if (worker->pipe_worker) {
-        swReactor_remove_read_event(reactor, worker->pipe_worker);
+        reactor->remove_read_event(worker->pipe_worker);
     }
 
     if (serv->factory_mode == SW_MODE_BASE && swIsWorker()) {
@@ -445,7 +445,7 @@ void Server::stop_async_worker(swWorker *worker) {
             reactor->del(reactor, ls->socket);
         }
         if (worker->pipe_master) {
-            swReactor_remove_read_event(reactor, worker->pipe_master);
+            reactor->remove_read_event(worker->pipe_master);
         }
         int fd;
         int serv_max_fd = serv->get_maxfd();
@@ -454,7 +454,7 @@ void Server::stop_async_worker(swWorker *worker) {
         for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
             swConnection *conn = serv->get_connection(fd);
             if (conn && conn->socket && conn->active && !conn->peer_closed && conn->socket->fdtype == SW_FD_SESSION) {
-                swReactor_remove_read_event(reactor, conn->socket);
+                reactor->remove_read_event(conn->socket);
             }
         }
         serv->clear_timer();
@@ -473,7 +473,7 @@ void Server::stop_async_worker(swWorker *worker) {
     }
 
 _try_to_exit:
-    swReactor_wait_exit(reactor, true);
+    reactor->set_wait_exit(true);
     reactor->set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, swWorker_reactor_try_to_exit);
     SwooleWG.exit_time = time(nullptr);
 
@@ -523,12 +523,12 @@ static void swWorker_reactor_try_to_exit(swReactor *reactor) {
 void Server::drain_worker_pipe() {
     for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
         swWorker *worker = get_worker(i);
-        if (SwooleTG.reactor) {
+        if (sw_reactor()) {
             if (worker->pipe_worker) {
-                swReactor_drain_write_buffer(SwooleTG.reactor, worker->pipe_worker);
+                sw_reactor()->drain_write_buffer(worker->pipe_worker);
             }
             if (worker->pipe_master) {
-                swReactor_drain_write_buffer(SwooleTG.reactor, worker->pipe_master);
+                sw_reactor()->drain_write_buffer(worker->pipe_master);
             }
         }
     }

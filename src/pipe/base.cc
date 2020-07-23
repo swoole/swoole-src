@@ -14,6 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
+#include <memory>
+
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "pipe.h"
@@ -23,9 +25,9 @@ static int swPipeBase_read(swPipe *p, void *data, int length);
 static int swPipeBase_write(swPipe *p, const void *data, int length);
 static int swPipeBase_close(swPipe *p);
 
-typedef struct _swPipeBase {
+struct swPipeBase {
     int pipes[2];
-} swPipeBase;
+};
 
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking) {
     p->master_socket = swSocket_new(master_fd, SW_FD_PIPE);
@@ -58,29 +60,25 @@ swSocket *swPipe_getSocket(swPipe *p, int master) {
 
 int swPipeBase_create(swPipe *p, int blocking) {
     int ret;
-    swPipeBase *object = (swPipeBase *) sw_malloc(sizeof(swPipeBase));
-    if (object == nullptr) {
-        return -1;
-    }
+    std::unique_ptr<swPipeBase> object(new swPipeBase());
     p->blocking = blocking;
     ret = pipe(object->pipes);
     if (ret < 0) {
         swSysWarn("pipe() failed");
-        sw_free(object);
         return -1;
-    } else {
-        if (swPipe_init_socket(p, object->pipes[1], object->pipes[0], blocking) < 0) {
-            sw_free(object);
-            return SW_ERR;
-        }
-
-        p->timeout = -1;
-        p->object = object;
-        p->read = swPipeBase_read;
-        p->write = swPipeBase_write;
-        p->getSocket = swPipe_getSocket;
-        p->close = swPipeBase_close;
     }
+    if (swPipe_init_socket(p, object->pipes[1], object->pipes[0], blocking) < 0) {
+        return SW_ERR;
+    }
+
+    p->timeout = -1;
+    object.release();
+    p->object = object.get();
+    p->read = swPipeBase_read;
+    p->write = swPipeBase_write;
+    p->getSocket = swPipe_getSocket;
+    p->close = swPipeBase_close;
+    
     return 0;
 }
 
@@ -103,6 +101,6 @@ static int swPipeBase_close(swPipe *p) {
     swPipeBase *object = (swPipeBase *) p->object;
     swSocket_free(p->master_socket);
     swSocket_free(p->worker_socket);
-    sw_free(object);
+    delete object;
     return SW_OK;
 }

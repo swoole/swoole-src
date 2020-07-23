@@ -14,6 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
+#include <memory>
+
 #include "swoole.h"
 #include "pipe.h"
 #include "swoole_log.h"
@@ -22,7 +24,7 @@ static int swPipeUnsock_read(swPipe *p, void *data, int length);
 static int swPipeUnsock_write(swPipe *p, const void *data, int length);
 static int swPipeUnsock_close(swPipe *p);
 
-typedef struct _swPipeUnsock {
+struct swPipeUnsock {
     /**
      * master : socks[1]
      * worker : socks[0]
@@ -31,17 +33,17 @@ typedef struct _swPipeUnsock {
     /**
      * master pipe is closed
      */
-    uint8_t pipe_master_closed;
+    bool pipe_master_closed;
     /**
      * worker pipe is closed
      */
-    uint8_t pipe_worker_closed;
-} swPipeUnsock;
+    bool pipe_worker_closed;
+};
 
 static int swPipeUnsock_close(swPipe *p) {
     swPipeUnsock *object = (swPipeUnsock *) p->object;
     int ret = swPipeUnsock_close_ext(p, 0);
-    sw_free(object);
+    delete object;
     return ret;
 }
 
@@ -53,14 +55,13 @@ int swPipeUnsock_close_ext(swPipe *p, int which) {
             return SW_ERR;
         }
         swSocket_free(p->master_socket);
-        object->pipe_master_closed = 1;
+        object->pipe_master_closed = true;
     } else if (which == SW_PIPE_CLOSE_WORKER) {
         if (object->pipe_worker_closed) {
             return SW_ERR;
         }
         swSocket_free(p->worker_socket);
-        ;
-        object->pipe_worker_closed = 1;
+        object->pipe_worker_closed = true;
     } else {
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_MASTER);
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_WORKER);
@@ -71,34 +72,29 @@ int swPipeUnsock_close_ext(swPipe *p, int which) {
 
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
     int ret;
-    swPipeUnsock *object = (swPipeUnsock *) sw_malloc(sizeof(swPipeUnsock));
-    if (object == nullptr) {
-        swWarn("malloc() failed");
-        return SW_ERR;
-    }
-    sw_memset_zero(object, sizeof(swPipeUnsock));
+    std::unique_ptr<swPipeUnsock> object(new swPipeUnsock());
     p->blocking = blocking;
     ret = socketpair(AF_UNIX, protocol, 0, object->socks);
     if (ret < 0) {
         swSysWarn("socketpair() failed");
-        sw_free(object);
         return SW_ERR;
-    } else {
-        if (swPipe_init_socket(p, object->socks[1], object->socks[0], blocking) < 0) {
-            sw_free(object);
-            return SW_ERR;
-        }
-
-        uint32_t sbsize = SwooleG.socket_buffer_size;
-        swSocket_set_buffer_size(p->master_socket, sbsize);
-        swSocket_set_buffer_size(p->worker_socket, sbsize);
-
-        p->object = object;
-        p->read = swPipeUnsock_read;
-        p->write = swPipeUnsock_write;
-        p->getSocket = swPipe_getSocket;
-        p->close = swPipeUnsock_close;
     }
+
+    if (swPipe_init_socket(p, object->socks[1], object->socks[0], blocking) < 0) {
+        return SW_ERR;
+    }
+
+    uint32_t sbsize = SwooleG.socket_buffer_size;
+    swSocket_set_buffer_size(p->master_socket, sbsize);
+    swSocket_set_buffer_size(p->worker_socket, sbsize);
+
+    object.release();
+    p->object = object.get();
+    p->read = swPipeUnsock_read;
+    p->write = swPipeUnsock_write;
+    p->getSocket = swPipe_getSocket;
+    p->close = swPipeUnsock_close;
+    
     return 0;
 }
 

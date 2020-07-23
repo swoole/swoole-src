@@ -52,7 +52,7 @@ void php_swoole_async_coro_rshutdown() {
 }
 
 PHP_FUNCTION(swoole_async_set) {
-    if (SwooleTG.reactor) {
+    if (sw_reactor()) {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;
     }

@@ -233,10 +233,9 @@ _failed:
     {
         swReactor *reactor = SwooleTG.reactor;
         if (sw_likely(added_event == SW_EVENT_READ)) {
-            swReactor_remove_read_event(reactor, socket);
-        } else  // if (added_event == SW_EVENT_WRITE)
-        {
-            swReactor_remove_write_event(reactor, socket);
+            reactor->remove_read_event(socket);
+        } else {
+            reactor->remove_write_event(socket);
         }
     }
 #ifdef SW_USE_OPENSSL

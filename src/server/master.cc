@@ -794,7 +794,7 @@ void Server::shutdown() {
     // stop all thread
     if (SwooleTG.reactor) {
         swReactor *reactor = SwooleTG.reactor;
-        swReactor_wait_exit(reactor, true);
+        reactor->set_wait_exit(true);
         for (auto port : ports) {
             if (port->is_dgram() and factory_mode == SW_MODE_PROCESS) {
                 continue;

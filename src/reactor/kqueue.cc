@@ -136,7 +136,7 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
         }
     }
 
-    swReactor_add(reactor, socket, events);
+    reactor->_add(socket, events);
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, socket->events);
 
     return SW_OK;
@@ -185,7 +185,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
         }
     }
 
-    swReactor_set(reactor, socket, events);
+    reactor->_set(socket, events);
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d, events=%d", SwooleTG.id, object->epfd, fd, socket->events);
 
     return SW_OK;
@@ -215,7 +215,7 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
         }
     }
 
-    swReactor_del(reactor, socket);
+    reactor->_del(socket);
     swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]EP=%d|FD=%d", SwooleTG.id, object->epfd, fd);
 
     return SW_OK;
@@ -238,7 +238,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo) {
         }
     }
 
-    swReactor_before_wait(reactor);
+    reactor->before_wait();
 
     while (reactor->running) {
         if (reactor->onBegin != nullptr) {
@@ -281,8 +281,7 @@ static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo) {
             case EVFILT_READ:
             case EVFILT_WRITE: {
                 if (swReactorKqueue_fetch_event(reactor, &event, udata)) {
-                    handler = swReactor_get_handler(
-                        reactor, kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
+                    handler = reactor->get_handler(kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE, event.type);
                     if (sw_unlikely(handler(reactor, &event) < 0)) {
                         swSysWarn("kqueue event %s socket#%d handler failed",
                                   kevent->filter == EVFILT_READ ? "read" : "write",
