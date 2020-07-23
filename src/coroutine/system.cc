@@ -90,7 +90,9 @@ static void sleep_timeout(swTimer *timer, swTimer_node *tnode) {
 
 int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
-    if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == nullptr) {
+    if (sec < SW_TIMER_MIN_SEC) {
+        swoole_event_defer([co](void *data) { co->resume(); }, nullptr);
+    } else if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == nullptr) {
         return -1;
     }
     co->yield();
