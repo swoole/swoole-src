@@ -40,7 +40,7 @@ class String {
         length = 0;
         size = _size;
         offset = 0;
-        str = (char *) allocator->malloc(_size);
+        str = (char *) _allocator->malloc(_size);
         allocator = _allocator;
 
         if (str == nullptr) {
@@ -99,7 +99,7 @@ class String {
         if (&src == this) {
             return *this;
         }
-        if (str) {
+        if (allocator && str) {
             allocator->free(str);
         }
         alloc(src.size, src.allocator);
@@ -113,7 +113,7 @@ class String {
         if (&src == this) {
             return *this;
         }
-        if (str) {
+        if (allocator && str) {
             allocator->free(str);
         }
         move(std::move(src));
@@ -121,7 +121,7 @@ class String {
     }
 
     ~String() {
-        if (str) {
+        if (allocator && str) {
             allocator->free(str);
         }
     }
@@ -226,8 +226,8 @@ static inline int swString_grow(swString *str, size_t incr_value) {
     }
 }
 
-inline swString *swString_new(size_t size) {
-    return new swString(size, nullptr);
+inline swoole::String *swString_new(size_t size) {
+    return new swoole::String(size);
 }
 
 inline int swString_extend(swString *str, size_t new_size) {

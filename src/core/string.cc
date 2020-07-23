@@ -182,12 +182,12 @@ size_t String::split(const char *delimiter, size_t delimiter_length, const Strin
                offset);
 
     while (delimiter_addr) {
-        size_t length = delimiter_addr - start_addr + delimiter_length;
-        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, length + offset);
-        if (handler((char *) start_addr - _offset, length + _offset) == false) {
+        size_t _length = delimiter_addr - start_addr + delimiter_length;
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, _length + offset);
+        if (handler((char *) start_addr - _offset, _length + _offset) == false) {
             return -1;
         }
-        offset += length;
+        offset += _length;
         start_addr = str + offset;
         delimiter_addr = swoole_strnstr(start_addr, length - offset, delimiter, delimiter_length);
         _offset = 0;
@@ -204,7 +204,7 @@ size_t String::split(const char *delimiter, size_t delimiter_length, const Strin
         offset = length - delimiter_length;
     }
 
-    ret = start_addr - str - offset;
+    ret = start_addr - str - _offset;
     if (ret > 0 && ret < length) {
         swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, length - offset);
     } else if (ret >= length) {
