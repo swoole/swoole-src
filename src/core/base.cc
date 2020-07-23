@@ -1446,7 +1446,7 @@ size_t swoole::string_split(swString *str,
 
 namespace swoole {
 //-------------------------------------------------------------------------------
-int hook_add(void **hooks, int type, swCallback func, int push_back) {
+int hook_add(void **hooks, int type, const swCallback &func, int push_back) {
     if (hooks[type] == nullptr) {
         hooks[type] = new std::list<swCallback>;
     }

@@ -47,7 +47,7 @@ typedef std::function<void(void *)> coroutine_func_t;
 namespace swoole {
 class Context {
   public:
-    Context(size_t stack_size, coroutine_func_t fn, void *private_data);
+    Context(size_t stack_size, const coroutine_func_t &fn, void *private_data);
     ~Context();
     bool swap_in();
     bool swap_out();

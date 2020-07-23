@@ -1380,7 +1380,7 @@ int Server::add_worker(swWorker *worker) {
     return worker->id;
 }
 
-int Server::add_hook(enum swServer_hook_type type, swCallback func, int push_back) {
+int Server::add_hook(enum swServer_hook_type type, const swCallback &func, int push_back) {
     return swoole::hook_add(hooks, (int) type, func, push_back);
 }
 
