@@ -436,7 +436,7 @@ _parse:
             swString_clear(buffer);
             return SW_OK;
         }
-        swString_reduce(buffer, buffer->offset);
+        buffer->reduce(buffer->offset);
         serv->destroy_http_request(conn);
         conn->socket->skip_recv = 1;
         return swPort_onRead_check_length(reactor, port, event);
@@ -490,7 +490,7 @@ _parse:
             }
             if (buffer->length > request->header_length_) {
                 // http pipeline, multi requests, parse the next one
-                swString_reduce(buffer, request->header_length_);
+                buffer->reduce(request->header_length_);
                 request->clean();
                 goto _parse;
             } else {

@@ -115,7 +115,7 @@ class Socket {
         if (read_buffer->offset == 0) {
             return nullptr;
         } else {
-            return swString_pop(read_buffer, buffer_init_size);
+            return read_buffer->pop(buffer_init_size);
         }
     }
 

@@ -902,7 +902,7 @@ ssize_t Socket::recv_with_buffer(void *__buf, size_t __n) {
     }
 
     if ((size_t) buffer->offset >= buffer->size / 2) {
-        swString_reduce(buffer, buffer->offset);
+        buffer->reduce(buffer->offset);
     }
 
     ssize_t retval = recv(buffer->str + buffer->length, buffer->size - buffer->length);
@@ -1604,7 +1604,7 @@ ssize_t Socket::recv_packet(double timeout) {
 
     // unprocessed data
     if (read_buffer->offset > 0) {
-        swString_reduce(read_buffer, read_buffer->offset);
+        read_buffer->reduce(read_buffer->offset);
     }
 
     if (open_length_check) {

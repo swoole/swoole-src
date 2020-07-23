@@ -195,13 +195,14 @@ static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, siz
 /*-------------------------------Declare Struct--------------------------------*/
 namespace swoole {
 class Reactor;
+class String;
 }
 typedef swoole::Reactor swReactor;
+typedef swoole::String swString;
 struct swTimer_node;
 struct swTimer;
 struct swMsgQueue;
 struct swPipe;
-struct swString;
 struct swHeap_node;
 struct swBuffer;
 struct swMemoryPool;

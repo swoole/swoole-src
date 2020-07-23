@@ -287,7 +287,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
                        swSocket_get_port(conn->socket_type, &conn->info));
                 return SW_ERR;
             }
-            conn->websocket_buffer = swString_dup(data + offset, length - offset);
+            conn->websocket_buffer = new swoole::String(data + offset, length - offset);
             conn->websocket_buffer->offset = proto->ext_flags;
         } else {
             Server::dispatch_task(proto, _socket, data + offset, length - offset);

@@ -1428,7 +1428,7 @@ bool http_client::recv_http_response(double timeout) {
             if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {
                 buffer->length = retval;
                 buffer->offset = parsed_n;
-                swString_reduce(buffer, parsed_n);
+                buffer->reduce(parsed_n);
             }
             return true;
         }
