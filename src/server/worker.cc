@@ -276,7 +276,7 @@ int Server::accept_task(swEventData *task) {
             swConnection *conn = get_connection_verify_no_ssl(task->info.fd);
             char *cert_data = nullptr;
             size_t length = get_packet(this, task, &cert_data);
-            conn->ssl_client_cert = swString_dup(cert_data, length);
+            conn->ssl_client_cert = new String(cert_data, length);
             conn->ssl_client_cert_pid = SwooleG.pid;
         }
 #endif

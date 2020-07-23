@@ -1384,66 +1384,6 @@ std::string swoole::intersection(std::vector<std::string> &vec1, std::set<std::s
     return result;
 }
 
-/**
- * @return retval
- * 1. less than zero, the execution of the string_split function was terminated prematurely
- * 2. equal to zero, eof was not found in the target string
- * 3. greater than zero, 0 to retval has eof in the target string, and the position of retval is eof
- */
-size_t swoole::string_split(swString *str,
-                            const char *delimiter,
-                            size_t delimiter_length,
-                            const StringExplodeHandler &handler) {
-#ifdef SW_LOG_TRACE_OPEN
-    static int count;
-    count++;
-#endif
-    const char *start_addr = str->str + str->offset;
-    const char *delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
-    off_t offset = str->offset;
-    size_t ret;
-
-    swTraceLog(SW_TRACE_EOF_PROTOCOL,
-               "#[0] count=%d, length=%ld, size=%ld, offset=%ld",
-               count,
-               str->length,
-               str->size,
-               (long) str->offset);
-
-    while (delimiter_addr) {
-        size_t length = delimiter_addr - start_addr + delimiter_length;
-        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, length + offset);
-        if (handler((char *) start_addr - offset, length + offset) == false) {
-            return -1;
-        }
-        str->offset += length;
-        start_addr = str->str + str->offset;
-        delimiter_addr = swoole_strnstr(start_addr, str->length - str->offset, delimiter, delimiter_length);
-        offset = 0;
-    }
-
-    /**
-     * not found eof in str
-     */
-    if (offset == str->offset) {
-        /**
-         * why is str->offset not equal to str->length,
-         * because the str->length may contain part of eof and the other part in the next recv
-         */
-        str->offset = str->length - delimiter_length;
-    }
-
-    ret = start_addr - str->str - offset;
-    if (ret > 0 && ret < str->length) {
-        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, str->length - str->offset);
-    } else if (ret >= str->length) {
-        swTraceLog(
-            SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", str->length, str->size, (long) str->offset);
-    }
-
-    return ret;
-}
-
 namespace swoole {
 //-------------------------------------------------------------------------------
 int hook_add(void **hooks, int type, swCallback func, int push_back) {

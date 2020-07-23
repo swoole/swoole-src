@@ -169,4 +169,3 @@ TEST(client, connect_timeout) {
     ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
     cli.close(&cli);
 }
-

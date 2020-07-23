@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "http.h"
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 

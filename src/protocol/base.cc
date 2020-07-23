@@ -68,17 +68,16 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
 
     int retval;
 
-    size_t n =
-        string_split(buffer, protocol->package_eof, protocol->package_eof_len, [&](char *data, size_t length) -> int {
-            if (protocol->onPackage(protocol, socket, data, length) < 0) {
-                retval = SW_CLOSE;
-                return false;
-            }
-            if (socket->removed) {
-                return false;
-            }
-            return true;
-        });
+    size_t n = buffer->split(protocol->package_eof, protocol->package_eof_len, [&](const char *data, size_t length) -> int {
+        if (protocol->onPackage(protocol, socket, data, length) < 0) {
+            retval = SW_CLOSE;
+            return false;
+        }
+        if (socket->removed) {
+            return false;
+        }
+        return true;
+    });
 
     if (socket->removed) {
         return SW_CLOSE;
@@ -90,7 +89,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
         return SW_CONTINUE;
     } else if (n < buffer->length) {
         off_t offset;
-        swString_reduce(buffer, n);
+        buffer->reduce(n);
         offset = buffer->length - protocol->package_eof_len;
         buffer->offset = offset > 0 ? offset : 0;
     } else {
@@ -165,7 +164,7 @@ _do_recv:
                 socket->recv_wait = 0;
 
                 if (buffer->length > (size_t) buffer->offset) {
-                    swString_reduce(buffer, buffer->offset);
+                    buffer->reduce(buffer->offset);
                     goto _do_get_length;
                 } else {
                     swString_clear(buffer);

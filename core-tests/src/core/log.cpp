@@ -15,14 +15,14 @@ TEST(log, level) {
     sw_logger()->put(SW_LOG_NOTICE, SW_STRL("hello notice"));
     sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello warning"));
 
-    swoole::String content(swoole_file_get_contents(file));
+    std::unique_ptr<swString> content(swoole_file_get_contents(file));
 
     sw_logger()->close();
     unlink(file);
 
-    ASSERT_FALSE(swString_contains(content.get(), SW_STRL("hello info")));
-    ASSERT_TRUE(swString_contains(content.get(), SW_STRL("hello notice")));
-    ASSERT_TRUE(swString_contains(content.get(), SW_STRL("hello warning")));
+    ASSERT_FALSE(content->contains(SW_STRL("hello info")));
+    ASSERT_TRUE(content->contains(SW_STRL("hello notice")));
+    ASSERT_TRUE(content->contains(SW_STRL("hello warning")));
 }
 
 TEST(log, date_format) {
@@ -31,7 +31,7 @@ TEST(log, date_format) {
     sw_logger()->open(file);
 
     sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
-    swoole::String content(swoole_file_get_contents(file));
+    std::unique_ptr<swString> content(swoole_file_get_contents(file));
 
     sw_logger()->close();
     unlink(file);
@@ -40,7 +40,7 @@ TEST(log, date_format) {
     char *month = nullptr;
     char *am = nullptr;
 
-    int n = std::sscanf(content.value(),
+    int n = std::sscanf(content->value(),
                         "[day %d of %s in the year %d. Time: %d:%d %s @%d.%d]\tWARNING\thello world",
                         data,
                         month,
@@ -57,10 +57,10 @@ TEST(log, date_format) {
 TEST(log, date_format_long_string) {
     sw_logger()->reset();
     sw_logger()->set_level(SW_LOG_ERROR);
-    swoole::String content(swString_new(256));
+    std::unique_ptr<swString> content(swString_new(256));
     auto str = content.get();
 
-    swString_repeat(str, "x", 1, 120);
+    str->repeat("x", 1, 120);
     swString_append_ptr(str, SW_STRL("day %d of %B in the year %Y. Time: %I:%S %p"));
 
     int retval = sw_logger()->set_date_format(str->str);
@@ -75,13 +75,13 @@ TEST(log, date_with_microseconds) {
     sw_logger()->open(file);
 
     sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
-    swoole::String content(swoole_file_get_contents(file));
+    std::unique_ptr<swString> content(swoole_file_get_contents(file));
 
     sw_logger()->close();
     unlink(file);
 
     std::regex e("\\[\\S+\\s\\d{2}:\\d{2}:\\d{2}\\<\\.(\\d+)\\>\\s@\\d+\\.\\d+\\]\tWARNING\thello world");
-    ASSERT_TRUE(std::regex_search(content.value(), e));
+    ASSERT_TRUE(std::regex_search(content->value(), e));
 }
 
 TEST(log, rotation) {
@@ -113,7 +113,7 @@ TEST(log, redirect) {
     retval = sw_logger()->redirect_stdout_and_stderr(1);
     ASSERT_EQ(retval, SW_OK);
     printf("hello world\n");
-    swoole::String content(swoole_file_get_contents(file));
+    std::unique_ptr<swString> content(swoole_file_get_contents(file));
     ASSERT_NE(content.get(), nullptr);
 
     sw_logger()->close();
@@ -121,5 +121,5 @@ TEST(log, redirect) {
     ASSERT_EQ(retval, SW_OK);
     unlink(sw_logger()->get_real_file());
 
-    ASSERT_TRUE(swString_contains(content.get(), SW_STRL("hello world\n")));
+    ASSERT_TRUE(content->contains(SW_STRL("hello world\n")));
 }

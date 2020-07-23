@@ -26,6 +26,7 @@ using namespace swoole::test;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::Server;
+using swoole::String;
 
 TEST(coroutine_socket, connect_refused) {
     coroutine::run([](void *arg) {
@@ -332,7 +333,7 @@ TEST(coroutine_socket, eof_5) {
         EXPECT_EQ(string(buf, l), string("start\r\n"));
 
         swString *s = swoole::make_string(128 * 1024);
-        swString_repeat(s, "A", 1, 128 * 1024 - 16);
+        s->repeat("A", 1, 128 * 1024 - 16);
         swString_append_ptr(s, SW_STRL(CRLF));
 
         conn->send_all(s->str, s->length);
@@ -364,11 +365,11 @@ TEST(coroutine_socket, eof_6) {
         ssize_t l = conn->recv(buf, sizeof(buf));
         EXPECT_EQ(string(buf, l), string("start\r\n"));
 
-        swString *s = swoole::make_string(128 * 1024);
-        swString_repeat(s, "A", 1, 128 * 1024 - 16);
-        swString_append_ptr(s, SW_STRL(CRLF));
+        swString s(128 * 1024);
+        s.repeat("A", 1, 128 * 1024 - 16);
+        swString_append_ptr(&s, SW_STRL(CRLF));
 
-        conn->send_all(s->str, s->length);
+        conn->send_all(s.value(), s.get_length());
     },
 
     [](void *arg) {
@@ -514,26 +515,25 @@ static void length_protocol_server_func(void *arg) {
     ASSERT_EQ(sock.listen(128), true);
 
     Socket *conn = sock.accept();
-    auto strbuf = swoole::make_string(256 * 1024);
-    swoole::String s(strbuf);
+    String strbuf(256 * 1024);
 
     uint32_t pack_len;
 
     size_t l_1 = swoole_rand(65536, 65536 * 2);
     pack_len = htonl(l_1);
-    swString_append_ptr(strbuf, (char *) &pack_len, sizeof(pack_len));
-    swString_append_random_bytes(strbuf, l_1);
+    strbuf.append((char *) &pack_len, sizeof(pack_len));
+    strbuf.append_random_bytes(l_1);
 
-    pkt_1 = string(strbuf->str, l_1 + 4);
+    pkt_1 = string(strbuf.str, l_1 + 4);
 
     size_t l_2 = swoole_rand(65536, 65536 * 2);
     pack_len = htonl(l_2);
-    swString_append_ptr(strbuf, (char *) &pack_len, sizeof(pack_len));
-    swString_append_random_bytes(strbuf, l_2);
+    strbuf.append((char *) &pack_len, sizeof(pack_len));
+    strbuf.append_random_bytes(l_2);
 
-    pkt_2 = string(strbuf->str + pkt_1.length(), l_2 + 4);
+    pkt_2 = string(strbuf.str + pkt_1.length(), l_2 + 4);
 
-    conn->send_all(strbuf->str, strbuf->length);
+    conn->send_all(strbuf.str, strbuf.length);
 }
 
 TEST(coroutine_socket, length_4) {
