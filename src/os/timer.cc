@@ -22,20 +22,19 @@
 #include <signal.h>
 #include <sys/time.h>
 
-static int swSystemTimer_signal_set(swTimer *timer, long next_msec);
-static int swSystemTimer_set(swTimer *timer, long new_interval);
-static void swSystemTimer_close(swTimer *timer);
-static void swSystemTimer_signal_handler(int sig);
+namespace swoole {
 
-using swoole::Timer;
+static int SystemTimer_set(Timer *timer, long next_msec);
+static void SystemTimer_close(Timer *timer);
+static void SystemTimer_signal_handler(int sig);
 
 /**
  * create timer
  */
 bool Timer::init_system_timer() {
-    set = swSystemTimer_set;
-    close = swSystemTimer_close;
-    swSignal_set(SIGALRM, swSystemTimer_signal_handler);
+    set = SystemTimer_set;
+    close = SystemTimer_close;
+    swSignal_set(SIGALRM, SystemTimer_signal_handler);
 
     return true;
 }
@@ -43,7 +42,7 @@ bool Timer::init_system_timer() {
 /**
  * setitimer
  */
-static int swSystemTimer_signal_set(swTimer *timer, long next_msec) {
+static int SystemTimer_set(Timer *timer, long next_msec) {
     struct itimerval timer_set;
     struct timeval now;
     if (gettimeofday(&now, nullptr) < 0) {
@@ -74,25 +73,11 @@ static int swSystemTimer_signal_set(swTimer *timer, long next_msec) {
     return SW_OK;
 }
 
-static void swSystemTimer_close(swTimer *timer) {
-    swSystemTimer_signal_set(timer, -1);
+static void SystemTimer_close(Timer *timer) {
+    SystemTimer_set(timer, -1);
 }
 
-static int swSystemTimer_set(swTimer *timer, long exec_msec) {
-    if (exec_msec == 0) {
-        exec_msec = 1;
-    }
-    /**
-     * The execution time is later than the current timer time,
-     * no need to modify the system timer setting
-     */
-    if (exec_msec >= timer->next_msec_) {
-        return SW_OK;
-    }
-    timer->next_msec_ = exec_msec;
-    return swSystemTimer_signal_set(timer, exec_msec);
-}
-
-void swSystemTimer_signal_handler(int sig) {
+static void SystemTimer_signal_handler(int sig) {
     SwooleG.signal_alarm = true;
+}
 }
