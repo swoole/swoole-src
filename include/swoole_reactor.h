@@ -204,7 +204,6 @@ class Reactor {
             return set(this, _socket, _socket->events);
         } else {
             return add(this, _socket, SW_EVENT_WRITE);
-            ;
         }
     }
 
