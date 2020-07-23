@@ -303,11 +303,11 @@ void Reactor::add_destroy_callback(swCallback cb, void *data) {
     destroy_callbacks.append(cb, data);
 }
 
-void Reactor::set_end_callback(enum swReactor_end_callback id, std::function<void(Reactor *)> fn) {
+void Reactor::set_end_callback(enum swReactor_end_callback id, const std::function<void(Reactor *)> &fn) {
     end_callbacks[id] = fn;
 }
 
-void Reactor::set_exit_condition(enum swReactor_exit_condition id, std::function<bool(Reactor *, int &)> fn) {
+void Reactor::set_exit_condition(enum swReactor_exit_condition id, const std::function<bool(Reactor *, int &)> &fn) {
     exit_conditions[id] = fn;
 }
 

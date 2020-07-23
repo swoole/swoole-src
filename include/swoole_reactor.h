@@ -145,8 +145,8 @@ class Reactor {
     ~Reactor();
     bool if_exit();
     void defer(swCallback cb, void *data = nullptr);
-    void set_end_callback(enum swReactor_end_callback id, std::function<void(Reactor *)> fn);
-    void set_exit_condition(enum swReactor_exit_condition id, std::function<bool(Reactor *, int &)> fn);
+    void set_end_callback(enum swReactor_end_callback id, const std::function<void(Reactor *)> &fn);
+    void set_exit_condition(enum swReactor_exit_condition id, const std::function<bool(Reactor *, int &)> &fn);
     inline size_t remove_exit_condition(enum swReactor_exit_condition id) { return exit_conditions.erase(id); }
     inline bool isset_exit_condition(enum swReactor_exit_condition id) {
         return exit_conditions.find(id) != exit_conditions.end();

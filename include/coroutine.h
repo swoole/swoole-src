@@ -99,7 +99,7 @@ class Coroutine {
     static void set_on_close(sw_coro_on_swap_t func);
     static void bailout(sw_coro_bailout_t func);
 
-    static inline long create(coroutine_func_t fn, void *args = nullptr) { return (new Coroutine(fn, args))->run(); }
+    static inline long create(const coroutine_func_t &fn, void *args = nullptr) { return (new Coroutine(fn, args))->run(); }
 
     static inline Coroutine *get_current() { return current; }
 
@@ -161,7 +161,7 @@ class Coroutine {
     Context ctx;
     Coroutine *origin;
 
-    Coroutine(coroutine_func_t fn, void *private_data) : ctx(stack_size, fn, private_data) {
+    Coroutine(const coroutine_func_t &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
         coroutines[cid] = this;
         if (sw_unlikely(count() > peak_num)) {
@@ -195,7 +195,7 @@ class Coroutine {
 namespace coroutine {
 bool async(swAio_handler handler, swAio_event &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
-bool run(coroutine_func_t fn, void *arg = nullptr);
+bool run(const coroutine_func_t &fn, void *arg = nullptr);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
 }  // namespace swoole

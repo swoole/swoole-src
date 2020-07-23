@@ -731,10 +731,10 @@ SW_API const char *swoole_version(void);
 SW_API int swoole_version_id(void);
 SW_API int swoole_add_function(const char *name, void *func);
 SW_API void *swoole_get_function(const char *name, uint32_t length);
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, const swCallback &func, int push_back);
 SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
 namespace swoole {
-int hook_add(void **hooks, int type, swCallback func, int push_back);
+int hook_add(void **hooks, int type, const swCallback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 }  // namespace swoole
