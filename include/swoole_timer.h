@@ -58,15 +58,18 @@ class Timer {
     uint64_t round;
     long _next_id;
     long _current_id;
-    long _next_msec;
     /*---------------event timer--------------*/
     struct timeval base_time;
-    /*---------------system timer-------------*/
-    long last_time;
     /*----------------------------------------*/
     int (*set)(Timer *timer, long exec_msec) = nullptr;
     void (*close)(Timer *timer) = nullptr;
+
+    bool init_reactor(swReactor *reactor);
+    bool init_system_timer();
+
  public:
+    long next_msec_;
+
     Timer();
     ~Timer();
     static int now(struct timeval *time);
@@ -85,10 +88,8 @@ class Timer {
         return reactor_;
     }
 
-    int init(long msec);
-    int init_reactor(swReactor *reactor, long exec_msec);
-    int init_system_timer(long interval);
-    TimerNode *add(long _msec, int interval, void *data, const swTimerCallback &callback);
+    bool init();
+    TimerNode *add(long _msec, bool persistent, void *data, const swTimerCallback &callback);
     bool remove(TimerNode *tnode);
     void reinit(swReactor *reactor);
     int select();

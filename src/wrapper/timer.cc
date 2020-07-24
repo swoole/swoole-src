@@ -27,10 +27,10 @@ swTimer *sw_timer() {
 }
 #endif
 
-TimerNode *swoole_timer_add(long ms, uchar persistent, const swTimerCallback &callback, void *private_data) {
+TimerNode *swoole_timer_add(long ms, bool persistent, const swTimerCallback &callback, void *private_data) {
     if (sw_unlikely(SwooleTG.timer == nullptr)) {
         SwooleTG.timer = new swTimer();
-        if (sw_unlikely(SwooleTG.timer->init(ms) != SW_OK)) {
+        if (sw_unlikely(!SwooleTG.timer->init())) {
             delete SwooleTG.timer;
             SwooleTG.timer = nullptr;
             return nullptr;

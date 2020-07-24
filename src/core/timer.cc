@@ -55,26 +55,24 @@ Timer::Timer() {
         throw std::bad_alloc();
     }
     _current_id = -1;
-    _next_msec = 0;
+    next_msec_ = -1;
     _next_id = 1;
-    last_time = 0;
     round = 0;
 }
 
-int Timer::init(long msec) {
+bool Timer::init() {
     if (now(&base_time) < 0) {
-        return SW_ERR;
+        return false;
     }
     if (SwooleTG.reactor) {
-        return init_reactor(SwooleTG.reactor, msec);
+        return init_reactor(SwooleTG.reactor);
     } else {
-        return init_system_timer(msec);
+        return init_system_timer();
     }
 }
 
-int Timer::init_reactor(swReactor *reactor, long exec_msec) {
+bool Timer::init_reactor(swReactor *reactor) {
     reactor_ = reactor;
-    reactor->timeout_msec = exec_msec;
     set = [](Timer *timer, long exec_msec) -> int {
         timer->reactor_->timeout_msec = exec_msec;
         return SW_OK;
@@ -90,11 +88,12 @@ int Timer::init_reactor(swReactor *reactor, long exec_msec) {
 
     reactor->add_destroy_callback([](void *) { swoole_timer_free(); });
 
-    return SW_OK;
+    return true;
 }
 
 void Timer::reinit(swReactor *reactor) {
-    init_reactor(reactor, _next_msec);
+    init_reactor(reactor);
+    reactor->timeout_msec = next_msec_;
 }
 
 Timer::~Timer() {
@@ -110,7 +109,7 @@ Timer::~Timer() {
     }
 }
 
-TimerNode *Timer::add(long _msec, int interval, void *data, const swTimerCallback &callback) {
+TimerNode *Timer::add(long _msec, bool persistent, void *data, const swTimerCallback &callback) {
     if (sw_unlikely(_msec <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] is invalid", _msec);
         return nullptr;
@@ -125,15 +124,15 @@ TimerNode *Timer::add(long _msec, int interval, void *data, const swTimerCallbac
     tnode->data = data;
     tnode->type = SW_TIMER_TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
-    tnode->interval = interval ? _msec : 0;
+    tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;
     tnode->callback = callback;
     tnode->round = round;
     tnode->destructor = nullptr;
 
-    if (_next_msec < 0 || _next_msec > _msec) {
+    if (next_msec_ < 0 || next_msec_ > _msec) {
         set(this, _msec);
-        _next_msec = _msec;
+        next_msec_ = _msec;
     }
 
     tnode->id = _next_id++;
@@ -236,7 +235,7 @@ int Timer::select() {
     }
 
     if (!tnode || !tmp) {
-        _next_msec = -1;
+        next_msec_ = -1;
         set(this, -1);
     } else {
         long next_msec = tnode->exec_msec - now_msec;
