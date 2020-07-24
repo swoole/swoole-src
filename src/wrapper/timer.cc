@@ -27,25 +27,20 @@ swTimer *sw_timer() {
 }
 #endif
 
-swTimer_node *swTimer_add(swTimer *timer, long _msec, int interval, void *data, const swTimerCallback &callback);
-
-swTimer_node *swoole_timer_add(long ms, uchar persistent, const swTimerCallback &callback, void *private_data) {
+TimerNode *swoole_timer_add(long ms, bool persistent, const swTimerCallback &callback, void *private_data) {
     if (sw_unlikely(SwooleTG.timer == nullptr)) {
-        SwooleTG.timer = (swTimer *) sw_malloc(sizeof(swTimer));
-        if (sw_unlikely(SwooleTG.timer == nullptr)) {
-            return nullptr;
-        }
-        if (sw_unlikely(swTimer_init(SwooleTG.timer, ms) != SW_OK)) {
-            sw_free(SwooleTG.timer);
+        SwooleTG.timer = new swTimer();
+        if (sw_unlikely(!SwooleTG.timer->init())) {
+            delete SwooleTG.timer;
             SwooleTG.timer = nullptr;
             return nullptr;
         }
     }
-    return swTimer_add(SwooleTG.timer, ms, persistent, private_data, callback);
+    return SwooleTG.timer->add(ms, persistent, private_data, callback);
 }
 
 bool swoole_timer_del(swTimer_node *tnode) {
-    return swTimer_del(SwooleTG.timer, tnode);
+    return SwooleTG.timer->remove(tnode);
 }
 
 long swoole_timer_after(long ms, const swTimerCallback &callback, void *private_data) {
@@ -79,12 +74,12 @@ bool swoole_timer_exists(long timer_id) {
         swWarn("no timer");
         return false;
     }
-    swTimer_node *tnode = swTimer_get(SwooleTG.timer, timer_id);
+    swTimer_node *tnode = SwooleTG.timer->get(timer_id);
     return (tnode && !tnode->removed);
 }
 
 bool swoole_timer_clear(long timer_id) {
-    return swTimer_del(SwooleTG.timer, swTimer_get(SwooleTG.timer, timer_id));
+    return SwooleTG.timer->remove(SwooleTG.timer->get(timer_id));
 }
 
 swTimer_node *swoole_timer_get(long timer_id) {
@@ -92,21 +87,21 @@ swTimer_node *swoole_timer_get(long timer_id) {
         swWarn("no timer");
         return nullptr;
     }
-    return swTimer_get(SwooleTG.timer, timer_id);
+    return SwooleTG.timer->get(timer_id);
 }
 
 void swoole_timer_free() {
     if (!SwooleTG.timer) {
         return;
     }
-    swTimer_free(SwooleTG.timer);
-    sw_free(SwooleTG.timer);
+    delete SwooleTG.timer;
     SwooleTG.timer = nullptr;
+    SwooleG.signal_alarm = false;
 }
 
 int swoole_timer_select() {
     if (!SwooleTG.timer) {
         return SW_ERR;
     }
-    return swTimer_select(SwooleTG.timer);
+    return SwooleTG.timer->select();
 }

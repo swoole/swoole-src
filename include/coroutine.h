@@ -139,7 +139,7 @@ class Coroutine {
 
     static inline long get_elapsed(long cid) {
         Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
-        return sw_likely(co) ? swTimer_get_absolute_msec() - co->get_init_msec() : -1;
+        return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() : -1;
     }
 
     static void print_list();
@@ -156,7 +156,7 @@ class Coroutine {
 
     sw_coro_state state = SW_CORO_INIT;
     long cid;
-    long init_msec = swTimer_get_absolute_msec();
+    long init_msec = Timer::get_absolute_msec();
     void *task = nullptr;
     Context ctx;
     Coroutine *origin;

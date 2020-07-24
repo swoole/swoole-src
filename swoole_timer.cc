@@ -136,9 +136,9 @@ bool php_swoole_timer_clear_all() {
         return SW_FALSE;
     }
 
-    uint32_t num = SwooleTG.timer->map->size(), index = 0;
-    swTimer_node **list = (swTimer_node **) emalloc(num * sizeof(swTimer_node *));
-    for (auto &kv : *SwooleTG.timer->map) {
+    size_t num = SwooleTG.timer->count(), index = 0;
+    TimerNode **list = (TimerNode **) emalloc(num * sizeof(TimerNode *));
+    for (auto &kv : SwooleTG.timer->get_map()) {
         swTimer_node *tnode = kv.second;
         if (tnode->type == SW_TIMER_TYPE_PHP) {
             list[index++] = tnode;
@@ -285,8 +285,8 @@ static PHP_FUNCTION(swoole_timer_stats) {
     array_init(return_value);
     if (SwooleTG.timer) {
         add_assoc_bool(return_value, "initialized", 1);
-        add_assoc_long(return_value, "num", SwooleTG.timer->num);
-        add_assoc_long(return_value, "round", SwooleTG.timer->round);
+        add_assoc_long(return_value, "num", SwooleTG.timer->count());
+        add_assoc_long(return_value, "round", SwooleTG.timer->get_round());
     } else {
         add_assoc_bool(return_value, "initialized", 0);
         add_assoc_long(return_value, "num", 0);
@@ -298,7 +298,7 @@ static PHP_FUNCTION(swoole_timer_list) {
     zval zlist;
     array_init(&zlist);
     if (EXPECTED(SwooleTG.timer)) {
-        for (auto &kv : *SwooleTG.timer->map) {
+        for (auto &kv : SwooleTG.timer->get_map()) {
             swTimer_node *tnode = kv.second;
             if (tnode->type == SW_TIMER_TYPE_PHP) {
                 add_next_index_long(&zlist, tnode->id);

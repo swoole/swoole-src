@@ -284,8 +284,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
 
     swReactor *reactor = SwooleTG.reactor;
 
-    if (SwooleTG.timer && SwooleTG.timer->reactor == nullptr) {
-        swTimer_reinit(SwooleTG.timer, reactor);
+    if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
+        SwooleTG.timer->reinit(reactor);
     }
 
     int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;

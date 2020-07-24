@@ -811,8 +811,8 @@ _init_master_thread:
     SwooleTG.update_time = 1;
     SwooleTG.reactor = reactor;
 
-    if (SwooleTG.timer && SwooleTG.timer->reactor == nullptr) {
-        swTimer_reinit(SwooleTG.timer, reactor);
+    if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
+        SwooleTG.timer->reinit(reactor);
     }
 
     SwooleG.pid = getpid();
@@ -990,7 +990,7 @@ static void swReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *
         }
     }
 
-    timer->reactor->add_read_event(_socket);
+    timer->get_reactor()->add_read_event(_socket);
     conn->timer = nullptr;
 }
 

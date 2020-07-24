@@ -449,7 +449,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
             if (errno == EINTR && SwooleG.signal_alarm && SwooleTG.timer) {
             _alarm_handler:
                 SwooleG.signal_alarm = false;
-                swTimer_select(SwooleTG.timer);
+                SwooleTG.timer->select();
             }
             continue;
         }
@@ -567,7 +567,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             if (errno == EINTR && SwooleG.signal_alarm && SwooleTG.timer) {
             _alarm_handler:
                 SwooleG.signal_alarm = false;
-                swTimer_select(SwooleTG.timer);
+                SwooleTG.timer->select();
             }
             continue;
         }
@@ -620,7 +620,7 @@ int ProcessPool::wait() {
         pid = ::wait(&status);
         if (SwooleG.signal_alarm && SwooleTG.timer) {
             SwooleG.signal_alarm = false;
-            swTimer_select(SwooleTG.timer);
+            SwooleTG.timer->select();
         }
         if (pid < 0) {
             if (!running) {

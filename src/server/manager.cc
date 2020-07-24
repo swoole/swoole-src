@@ -284,7 +284,7 @@ static int swManager_loop(swServer *serv) {
 
         if (SwooleG.signal_alarm && SwooleTG.timer) {
             SwooleG.signal_alarm = 0;
-            swTimer_select(SwooleTG.timer);
+            SwooleTG.timer->select();
         }
 
         if (pid < 0) {

@@ -171,7 +171,7 @@ public:
 
     static inline bool is_schedulable(php_coro_task *task)
     {
-        return task->enable_scheduler && (swTimer_get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
+        return task->enable_scheduler && (Timer::get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
     }
 
     static inline bool enable_scheduler()
@@ -224,7 +224,7 @@ protected:
     {
         if (interrupt_thread_running)
         {
-            task->last_msec = swTimer_get_absolute_msec();
+            task->last_msec = Timer::get_absolute_msec();
         }
     }
 };
