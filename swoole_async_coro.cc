@@ -30,6 +30,7 @@ using std::vector;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
+using swoole::Timer;
 
 struct dns_cache {
     char address[16];
@@ -134,7 +135,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
 
     if (request_cache_map.find(key) != request_cache_map.end()) {
         cache = request_cache_map[key];
-        if (cache->update_time > swTimer_get_absolute_msec()) {
+        if (cache->update_time > Timer::get_absolute_msec()) {
             RETURN_STRING(cache->address);
         }
     }
@@ -163,5 +164,5 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     }
     memcpy(cache->address, Z_STRVAL_P(return_value), Z_STRLEN_P(return_value));
     cache->address[Z_STRLEN_P(return_value)] = '\0';
-    cache->update_time = swTimer_get_absolute_msec() + (int64_t)(SwooleG.dns_cache_refresh_time * 1000);
+    cache->update_time = Timer::get_absolute_msec() + (int64_t)(SwooleG.dns_cache_refresh_time * 1000);
 }

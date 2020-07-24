@@ -49,7 +49,6 @@ struct TimerNode {
 };
 
 class Timer {
-
  private:
     /*--------------signal timer--------------*/
     Reactor *reactor_ = nullptr;
@@ -84,6 +83,16 @@ class Timer {
         return msec1 + msec2;
     }
 
+    inline static int64_t get_absolute_msec() {
+        struct timeval now;
+        if (swTimer::now(&now) < 0) {
+            return SW_ERR;
+        }
+        int64_t msec1 = (now.tv_sec) * 1000;
+        int64_t msec2 = (now.tv_usec) / 1000;
+        return msec1 + msec2;
+    }
+
     inline Reactor *get_reactor() {
         return reactor_;
     }
@@ -103,6 +112,11 @@ class Timer {
         }
     }
 
+    inline TimerNode *get(long id, const enum swTimer_type type) {
+        swTimer_node *tnode = get(id);
+        return (tnode && tnode->type == type) ? tnode : nullptr;
+    }
+
     inline size_t count() {
         return map.size();
     }
@@ -111,12 +125,7 @@ class Timer {
         return round;
     }
 
-    inline TimerNode *get_ex(long id, const enum swTimer_type type) {
-        swTimer_node *tnode = get(id);
-        return (tnode && tnode->type == type) ? tnode : nullptr;
-    }
-
-    inline bool remove_by_id(long id) {
+    inline bool remove(long id) {
         return remove(get(id));
     }
 
@@ -124,14 +133,4 @@ class Timer {
         return map;
     }
 };
-}
-
-static sw_inline int64_t swTimer_get_absolute_msec() {
-    struct timeval now;
-    if (swTimer::now(&now) < 0) {
-        return SW_ERR;
-    }
-    int64_t msec1 = (now.tv_sec) * 1000;
-    int64_t msec2 = (now.tv_usec) / 1000;
-    return msec1 + msec2;
 }

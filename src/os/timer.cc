@@ -25,17 +25,15 @@
 namespace swoole {
 
 static int SystemTimer_set(Timer *timer, long next_msec);
-static void SystemTimer_close(Timer *timer);
-static void SystemTimer_signal_handler(int sig);
 
-/**
- * create timer
- */
 bool Timer::init_system_timer() {
     set = SystemTimer_set;
-    close = SystemTimer_close;
-    swSignal_set(SIGALRM, SystemTimer_signal_handler);
-
+    close = [](Timer *timer) {
+        SystemTimer_set(timer, -1);
+    };
+    swSignal_set(SIGALRM, [](int sig) {
+        SwooleG.signal_alarm = true;
+    });
     return true;
 }
 
@@ -73,11 +71,4 @@ static int SystemTimer_set(Timer *timer, long next_msec) {
     return SW_OK;
 }
 
-static void SystemTimer_close(Timer *timer) {
-    SystemTimer_set(timer, -1);
-}
-
-static void SystemTimer_signal_handler(int sig) {
-    SwooleG.signal_alarm = true;
-}
 }
