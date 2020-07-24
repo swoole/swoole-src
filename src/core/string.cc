@@ -20,8 +20,7 @@
 
 #include <memory>
 
-using swoole::StringExplodeHandler;
-using swoole::String;
+namespace swoole {
 
 char *String::pop(size_t init_size) {
     assert(length >= (size_t) offset);
@@ -213,4 +212,6 @@ size_t String::split(const char *delimiter, size_t delimiter_length, const Strin
     }
 
     return ret;
+}
+
 }
