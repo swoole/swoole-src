@@ -448,7 +448,7 @@ swSocket *swSocket_create_server(enum swSocket_type type, const char *address, i
     return sock;
 }
 
-int Socket::on_sendfile(swBuffer_chunk *chunk) {
+int Socket::handle_sendfile(swBuffer_chunk *chunk) {
     int ret;
     swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
 
@@ -531,7 +531,7 @@ int Socket::on_sendfile(swBuffer_chunk *chunk) {
 /**
  * send buffer to client
  */
-int Socket::buffer_send() {
+int Socket::handle_send() {
     swBuffer *buffer = out_buffer;
     swBuffer_chunk *chunk = swBuffer_get_chunk(buffer);
     uint32_t sendn = chunk->length - chunk->offset;

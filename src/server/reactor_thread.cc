@@ -671,9 +671,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev) {
             reactor->close(reactor, socket);
             return SW_OK;
         } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = socket->on_sendfile(chunk);
+            ret = socket->handle_sendfile(chunk);
         } else {
-            ret = socket->buffer_send();
+            ret = socket->handle_send();
         }
 
         if (ret < 0) {

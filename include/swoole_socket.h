@@ -116,6 +116,15 @@ struct Socket {
     size_t total_send_bytes;
 #endif
 
+    /**
+     * for reactor
+     */
+    int handle_send();
+    int handle_sendfile(swBuffer_chunk *chunk);
+    /**
+     * socket option
+     */
+    int set_buffer_size(uint32_t _buffer_size);
     int set_timeout(double timeout);
 
     inline int set_nonblock() {
@@ -136,10 +145,6 @@ struct Socket {
         }
     }
 
-    int buffer_send();
-    int on_sendfile(swBuffer_chunk *chunk);
-    int set_buffer_size(uint32_t _buffer_size);
-
     inline int set_tcp_nopush(int nopush) {
         tcp_nopush = nopush;
 #ifdef TCP_CORK
@@ -149,7 +154,9 @@ struct Socket {
         return 0;
 #endif
     }
-
+    /**
+     * socket io operation
+     */ 
     int sendfile(const char *filename, off_t offset, size_t length);
     ssize_t recv(void *__buf, size_t __n, int __flags);
     ssize_t send(const void *__buf, size_t __n, int __flags);
