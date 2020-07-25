@@ -180,10 +180,9 @@ bool Server::select_static_handler(http::Request *request, swConnection *conn) {
 
 #ifdef HAVE_TCP_NOPUSH
     if (conn->socket->tcp_nopush == 0) {
-        if (swSocket_tcp_nopush(conn->fd, 1) == -1) {
-            swSysWarn("swSocket_tcp_nopush() failed");
+        if (conn->set_tcp_nopush(1) == -1) {
+            swSysWarn("set_tcp_nopush() failed");
         }
-        conn->socket->tcp_nopush = 1;
     }
 #endif
     send_to_connection(&response);

@@ -20,9 +20,8 @@
 
 #include "ext/standard/basic_functions.h"
 
-using swoole::coroutine::Socket;
-
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;

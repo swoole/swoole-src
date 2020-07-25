@@ -454,7 +454,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset) {
         if (value <= 0) {
             value = INT_MAX;
         }
-        swSocket_set_buffer_size(cli->socket, value);
+        cli->socket->set_buffer_size(value);
         cli->socket->buffer_size = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
@@ -478,7 +478,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset) {
          */
         if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
             zend::String str_v(ztmp);
-            swSocket_bind(cli->socket, str_v.val(), &bind_port);
+            cli->socket->bind(str_v.val(), &bind_port);
         }
     }
     /**

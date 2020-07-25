@@ -198,20 +198,24 @@ class Reactor;
 class String;
 class Timer;
 class TimerNode;
+namespace network {
+    struct Socket;
+}
+struct Protocol;
 }
 
 typedef swoole::Reactor swReactor;
 typedef swoole::String swString;
 typedef swoole::Timer swTimer;
 typedef swoole::TimerNode swTimer_node;
+typedef swoole::network::Socket swSocket;
+typedef swoole::Protocol swProtocol;
 
 struct swMsgQueue;
 struct swPipe;
 struct swHeap_node;
 struct swBuffer;
 struct swMemoryPool;
-struct swSocket;
-struct swProtocol;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s) s, sizeof(s)

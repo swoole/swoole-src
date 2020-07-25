@@ -63,7 +63,7 @@ class Socket {
     static double default_read_timeout;
     static double default_write_timeout;
 
-    swSocket *socket = nullptr;
+    network::Socket *socket = nullptr;
     int errCode = 0;
     const char *errMsg = "";
     std::string errString;
@@ -72,7 +72,7 @@ class Socket {
     bool open_eof_check = false;
     bool http2 = false;
 
-    swProtocol protocol = {};
+    swoole::Protocol protocol = {};
     swSocks5_proxy *socks5_proxy = nullptr;
     swHttp_proxy *http_proxy = nullptr;
 

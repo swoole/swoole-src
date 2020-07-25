@@ -23,6 +23,7 @@
 #include <string>
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 zend_class_entry *swoole_socket_coro_ce;
 static zend_object_handlers swoole_socket_coro_handlers;

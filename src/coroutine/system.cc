@@ -389,7 +389,7 @@ static inline void socket_poll_clean(coro_poll_task *task) {
          * Temporary socket, fd marked -1, skip close
          */
         socket->fd = -1;
-        swSocket_free(socket);
+        socket->free();
         i->second.socket = nullptr;
         if (retval < 0) {
             continue;
@@ -513,11 +513,9 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     task.co = Coroutine::get_current_safe();
 
     for (auto i = fds.begin(); i != fds.end(); i++) {
-        i->second.socket = swSocket_new(i->first, SW_FD_CORO_POLL);
-        if (i->second.socket == nullptr) {
-            continue;
-        }
+        i->second.socket = swoole::make_socket(i->first, SW_FD_CORO_POLL);
         if (swoole_event_add(i->second.socket, i->second.events) < 0) {
+            i->second.socket->free();
             continue;
         }
         i->second.socket->object = &task;
@@ -545,10 +543,7 @@ struct event_waiter {
 
     event_waiter(int fd, int events, double timeout) {
         revents = 0;
-        if (!(socket = swSocket_new(fd, SW_FD_CORO_EVENT))) {
-            swoole_set_last_error(errno);
-            return;
-        }
+        socket = swoole::make_socket(fd, SW_FD_CORO_EVENT);
         socket->object = this;
         if (swoole_event_add(socket, events) < 0) {
             swoole_set_last_error(errno);
@@ -578,7 +573,7 @@ struct event_waiter {
         swoole_event_del(socket);
     _done:
         socket->fd = -1; /* skip close */
-        swSocket_free(socket);
+        socket->free();
     }
 };
 

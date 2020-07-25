@@ -161,7 +161,7 @@ int swReactor_close(swReactor *reactor, swSocket *socket) {
 
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
 
-    swSocket_free(socket);
+    socket->free();
 
     return SW_OK;
 }
@@ -194,7 +194,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         }
 #endif
     _do_send:
-        ret = swSocket_send(socket, ptr, n, 0);
+        ret = socket->send(ptr, n, 0);
 
         if (ret > 0) {
             if (n == ret) {
@@ -259,9 +259,9 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
             reactor->close(reactor, ev->socket);
             return SW_OK;
         } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = swSocket_onSendfile(socket, chunk);
+            ret = socket->on_sendfile(chunk);
         } else {
-            ret = swSocket_buffer_send(socket);
+            ret = socket->buffer_send();
         }
 
         if (ret < 0) {

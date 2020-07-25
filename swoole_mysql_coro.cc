@@ -36,9 +36,6 @@ SW_EXTERN_C_END
 
 #include <unordered_map>
 
-using namespace swoole;
-using swoole::coroutine::Socket;
-
 /* keep same with pdo and mysqli */
 #define MYSQLND_UNKNOWN_SQLSTATE "HY000"
 #define MYSQLND_SERVER_GONE "MySQL server has gone away"
@@ -55,6 +52,9 @@ using swoole::coroutine::Socket;
 #define MYSQLND_CR_PARAMS_NOT_BOUND 2031
 #define MYSQLND_CR_INVALID_PARAMETER_NO 2034
 #define MYSQLND_CR_INVALID_BUFFER_USE 2035
+
+using swoole::coroutine::Socket;
+using namespace swoole;
 
 namespace swoole {
 class mysql_statement;
@@ -394,7 +394,14 @@ class mysql_statement {
     int error_code = 0;
     std::string error_msg;
 };
-}  // namespace swoole
+}
+
+using swoole::mysql_statement;
+using swoole::mysql_client;
+using swoole::SW_TIMEOUT_CONNECT;
+using swoole::SW_TIMEOUT_READ;
+using swoole::SW_TIMEOUT_WRITE;
+using swoole::SW_TIMEOUT_RDWR;
 
 static zend_class_entry *swoole_mysql_coro_ce;
 static zend_object_handlers swoole_mysql_coro_handlers;

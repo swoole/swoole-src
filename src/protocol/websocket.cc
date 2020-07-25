@@ -307,7 +307,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
             swWebSocket_encode(
                 &send_frame, data += offset, length - offset, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
         }
-        swSocket_send(_socket, send_frame.str, send_frame.length, 0);
+        _socket->send(send_frame.str, send_frame.length, 0);
         break;
 
     case WEBSOCKET_OPCODE_PONG:
@@ -331,7 +331,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
             // Get payload and return it as it is
             memcpy(send_frame.str + SW_WEBSOCKET_HEADER_LEN, data + length - ws.payload_length, ws.payload_length);
             send_frame.length = SW_WEBSOCKET_HEADER_LEN + ws.payload_length;
-            swSocket_send(_socket, send_frame.str, send_frame.length, 0);
+            _socket->send(send_frame.str, send_frame.length, 0);
         } else {
             // Server attempt to close, frame sent by swoole_websocket_server->disconnect()
             conn->websocket_status = 0;

@@ -45,8 +45,8 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
-using namespace swoole;
 using namespace std;
+using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 

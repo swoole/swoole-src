@@ -28,7 +28,6 @@
 #include "buffer.h"
 #include "base64.h"
 
-using namespace swoole;
 using namespace std;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
@@ -107,7 +106,7 @@ int Socket::readable_event_callback(swReactor *reactor, swEvent *event) {
 #endif
     {
         if (socket->recv_barrier.hold) {
-            socket->recv_barrier.retval = swSocket_recv(socket->socket,
+            socket->recv_barrier.retval = socket->socket->recv(
                                                         socket->recv_barrier.buf + socket->recv_barrier.total_bytes,
                                                         socket->recv_barrier.n - socket->recv_barrier.total_bytes,
                                                         0);
@@ -134,7 +133,7 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event) {
 #endif
     {
         if (socket->send_barrier.hold) {
-            socket->send_barrier.retval = swSocket_send(socket->socket,
+            socket->send_barrier.retval = socket->socket->send(
                                                         socket->send_barrier.buf + socket->send_barrier.total_bytes,
                                                         socket->send_barrier.n - socket->send_barrier.total_bytes,
                                                         0);
@@ -516,11 +515,7 @@ bool Socket::init_reactor_socket(int _fd) {
     if (sw_unlikely(!reactor)) {
         swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
     }
-    socket = swSocket_new(_fd, SW_FD_CORO_SOCKET);
-    if (socket == nullptr) {
-        return false;
-    }
-
+    socket = swoole::make_socket(_fd, SW_FD_CORO_SOCKET);
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
@@ -552,7 +547,7 @@ Socket::Socket(int _fd, enum swSocket_type _type) {
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
     }
-    swSocket_set_nonblock(socket);
+    socket->set_nonblock();
     init_options();
 }
 
@@ -562,7 +557,7 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol)
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
     }
-    swSocket_set_nonblock(socket);
+    socket->set_nonblock();
     init_options();
 }
 
@@ -814,7 +809,7 @@ bool Socket::check_liveness() {
     } else {
         char buf;
         errno = 0;
-        ssize_t retval = swSocket_peek(socket, &buf, sizeof(buf), 0);
+        ssize_t retval = socket->peek(&buf, sizeof(buf), 0);
         if (retval == 0 || (retval < 0 && swSocket_error(errno) != SW_WAIT)) {
             set_err(errno ? errno : ECONNRESET);
             return false;
@@ -825,7 +820,7 @@ bool Socket::check_liveness() {
 }
 
 ssize_t Socket::peek(void *__buf, size_t __n) {
-    ssize_t retval = swSocket_peek(socket, __buf, __n, 0);
+    ssize_t retval = socket->peek(__buf, __n, 0);
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -849,7 +844,7 @@ ssize_t Socket::recv(void *__buf, size_t __n) {
     ssize_t retval;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
-        retval = swSocket_recv(socket, __buf, __n, 0);
+        retval = socket->recv(__buf, __n, 0);
     } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
@@ -862,7 +857,7 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
     ssize_t retval;
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
-        retval = swSocket_send(socket, __buf, __n, 0);
+        retval = socket->send(__buf, __n, 0);
     } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
@@ -939,7 +934,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
     ssize_t retval, total_bytes = 0;
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
 
-    retval = swSocket_recv(socket, __buf, __n, 0);
+    retval = socket->recv(__buf, __n, 0);
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
@@ -973,7 +968,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     ssize_t retval, total_bytes = 0;
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
 
-    retval = swSocket_send(socket, __buf, __n, 0);
+    retval = socket->send(__buf, __n, 0);
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
@@ -1143,13 +1138,13 @@ Socket *Socket::accept(double timeout) {
         return nullptr;
     }
     swSocketAddress client_addr;
-    swSocket *conn = swSocket_accept(socket, &client_addr);
+    swSocket *conn = socket->accept(&client_addr);
     if (conn == nullptr && errno == EAGAIN) {
         timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
         if (!timer.start() || !wait_event(SW_EVENT_READ)) {
             return nullptr;
         }
-        conn = swSocket_accept(socket, &client_addr);
+        conn = socket->accept(&client_addr);
     }
     if (conn == nullptr) {
         set_err(errno);
@@ -1783,5 +1778,5 @@ Socket::~Socket() {
     if (sock_type == SW_SOCK_UNIX_DGRAM) {
         ::unlink(socket->info.addr.un.sun_path);
     }
-    swSocket_free(socket);
+    socket->free();
 }

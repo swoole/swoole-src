@@ -80,7 +80,7 @@ void Server::close_port(bool only_stream_port) {
             continue;
         }
         if (port->socket) {
-            swSocket_free(port->socket);
+            port->socket->free();
             port->socket = nullptr;
         }
     }
@@ -92,7 +92,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
     swSocketAddress client_addr;
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++) {
-        swSocket *sock = swSocket_accept(event->socket, &client_addr);
+        swSocket *sock = event->socket->accept(&client_addr);
         if (sock == nullptr) {
             switch (errno) {
             case EAGAIN:
@@ -118,7 +118,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
         if (sock->fd >= (int) serv->max_connection) {
             swoole_error_log(
                 SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", sock->fd);
-            swSocket_free(sock);
+            sock->free();
             serv->disable_accept();
             return SW_OK;
         }
@@ -126,7 +126,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
         // add to connection_list
         swConnection *conn = serv->add_connection(listen_host, sock, event->fd);
         if (conn == nullptr) {
-            swSocket_free(sock);
+            sock->free();
             return SW_OK;
         }
         sock->chunk_size = SW_SEND_BUFFER_SIZE;
@@ -223,7 +223,7 @@ dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddres
         break;
     }
 
-    sock = swSocket_new(fd, SW_FD_SESSION);
+    sock = swoole::make_socket(fd, SW_FD_SESSION);
     if (!sock) {
         goto _cleanup;
     }
@@ -1058,7 +1058,7 @@ int Server::send_to_connection(swSendData *_send) {
             ssize_t n;
 
         _direct_send:
-            n = swSocket_send(_socket, _send_data, _send_length, 0);
+            n = _socket->send(_send_data, _send_length, 0);
             if (n == _send_length) {
                 return SW_OK;
             } else if (n > 0) {
@@ -1096,7 +1096,7 @@ int Server::send_to_connection(swSendData *_send) {
     // sendfile to client
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         swSendFile_request *req = (swSendFile_request *) _send_data;
-        if (swSocket_sendfile(conn->socket, req->filename, req->offset, req->length) < 0) {
+        if (conn->socket->sendfile(req->filename, req->offset, req->length) < 0) {
             return SW_ERR;
         }
     }
@@ -1223,7 +1223,7 @@ static int Server_tcp_sendwait(Server *serv, int session_id, const void *data, u
                          session_id);
         return SW_ERR;
     }
-    return swSocket_write_blocking(conn->socket, data, length);
+    return conn->socket->send_blocking(data, length);
 }
 
 static sw_inline void Server_worker_set_buffer(Server *serv, swDataHead *info, swString *addr) {
@@ -1387,7 +1387,7 @@ int Server::add_hook(enum swServer_hook_type type, const swCallback &func, int p
 void Server::check_port_type(swListenPort *ls) {
     if (ls->is_dgram()) {
         // dgram socket, setting socket buffer size
-        swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
+        ls->socket->set_buffer_size(ls->socket_buffer_size);
         have_dgram_sock = 1;
         dgram_port_num++;
         if (ls->type == SW_SOCK_UDP) {
@@ -1434,7 +1434,7 @@ int Server::add_systemd_socket() {
 
         // O_NONBLOCK & O_CLOEXEC
         swoole_fcntl_set_option(sock, 1, 1);
-        ls->socket = swSocket_new(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
+        ls->socket = swoole::make_socket(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
         if (ls->socket == nullptr) {
             ::close(sock);
             return count;
@@ -1517,7 +1517,7 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
         setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
     }
 #endif
-    ls->socket = swSocket_new(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
+    ls->socket = swoole::make_socket(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
     if (ls->socket == nullptr) {
         ::close(sock);
         return nullptr;
@@ -1525,8 +1525,8 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
     ls->socket->nonblock = 1;
     ls->socket->cloexec = 1;
     ls->socket->socket_type = ls->type;
-    if (swSocket_bind(ls->socket, ls->host, &ls->port) < 0) {
-        swSocket_free(ls->socket);
+    if (ls->socket->bind(ls->host, &ls->port) < 0) {
+        ls->socket->free();
         return nullptr;
     }
     check_port_type(ls);

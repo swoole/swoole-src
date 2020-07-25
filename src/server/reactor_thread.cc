@@ -476,7 +476,7 @@ int Server::send_to_worker_from_master(swWorker *worker, const void *data, size_
         swSocket *socket = &thread->pipe_sockets[worker->pipe_master->fd];
         return swoole_event_write(socket, data, len);
     } else {
-        return swSocket_write_blocking(worker->pipe_master, data, len);
+        return worker->pipe_master->send_blocking(data, len);
     }
 }
 
@@ -520,7 +520,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev) {
             }
         }
 
-        ret = swSocket_send(ev->socket, chunk->store.ptr, chunk->length, 0);
+        ret = ev->socket->send(chunk->store.ptr, chunk->length, 0);
         if (ret < 0) {
             return (swSocket_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {
@@ -671,9 +671,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev) {
             reactor->close(reactor, socket);
             return SW_OK;
         } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = swSocket_onSendfile(socket, chunk);
+            ret = socket->on_sendfile(chunk);
         } else {
-            ret = swSocket_buffer_send(socket);
+            ret = socket->buffer_send();
         }
 
         if (ret < 0) {
@@ -904,7 +904,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
             continue;
         }
 
-        swSocket_set_nonblock(socket);
+        socket->set_nonblock();
 
         if (reactor->add(reactor, socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
@@ -1075,7 +1075,7 @@ void Server::join_reactor_thread() {
         if (thread->notify_pipe) {
             swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
-            if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0) {
+            if (thread->notify_pipe->send_blocking((void *) &ev, sizeof(ev)) < 0) {
                 goto _cancel;
             }
         } else {
@@ -1128,7 +1128,7 @@ void Server::start_heartbeat_thread() {
                     // convert fd to session_id, in order to verify the connection before the force close connection
                     ev.fd = conn->session_id;
                     swSocket *_pipe_sock = get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
-                    swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
+                    _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
                 }
             }
             sleep(heartbeat_check_interval);

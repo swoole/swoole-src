@@ -815,7 +815,7 @@ static PHP_METHOD(swoole_process, write) {
         }
     } else {
     _blocking_read:
-        ret = swSocket_write_blocking(process->pipe_current, data, data_len);
+        ret = process->pipe_current->send_blocking(data, data_len);
     }
 
     if (ret < 0) {
@@ -1119,7 +1119,7 @@ static PHP_METHOD(swoole_process, setTimeout) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot setTimeout the pipe");
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(swSocket_set_timeout(process->pipe_current, seconds));
+    SW_CHECK_RETURN(process->pipe_current->set_timeout(seconds));
 }
 
 static PHP_METHOD(swoole_process, setBlocking) {
@@ -1134,8 +1134,8 @@ static PHP_METHOD(swoole_process, setBlocking) {
         RETURN_FALSE;
     }
     if (blocking) {
-        swSocket_set_block(process->pipe_current);
+        process->pipe_current->set_block();
     } else {
-        swSocket_set_nonblock(process->pipe_current);
+        process->pipe_current->set_nonblock();
     }
 }

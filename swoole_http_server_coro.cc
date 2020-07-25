@@ -26,9 +26,9 @@
 #include <algorithm>
 
 using namespace std;
-using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::PHPCoroutine;
 
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;

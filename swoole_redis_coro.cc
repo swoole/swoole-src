@@ -21,8 +21,8 @@
 
 #include "ext/standard/php_var.h"
 
-using namespace swoole;
 using swoole::coroutine::Socket;
+using namespace swoole;
 
 #define SW_REDIS_COMMAND_ALLOC_ARGS_ARR zval *z_args = (zval *) emalloc(argc * sizeof(zval));
 #define SW_REDIS_COMMAND_ARGS_TYPE(arg) Z_TYPE(arg)

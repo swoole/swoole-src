@@ -136,7 +136,7 @@ _do_recv:
         recv_size = protocol->package_length_offset + package_length_size;
     }
 
-    recv_n = swSocket_recv(socket, buffer->str + buffer->length, recv_size, 0);
+    recv_n = socket->recv(buffer->str + buffer->length, recv_size, 0);
     if (recv_n < 0) {
         switch (swSocket_error(errno)) {
         case SW_ERROR:
@@ -240,7 +240,7 @@ _recv_data:
         buf_size = SW_BUFFER_SIZE_STD;
     }
 
-    int n = swSocket_recv(socket, buf_ptr, buf_size, 0);
+    int n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
         switch (swSocket_error(errno)) {
         case SW_ERROR:

@@ -332,8 +332,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     serv->store_listen_socket();
 
     if (worker->pipe_worker) {
-        swSocket_set_nonblock(worker->pipe_worker);
-        swSocket_set_nonblock(worker->pipe_master);
+        worker->pipe_worker->set_nonblock();
+        worker->pipe_master->set_nonblock();
         if (reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
@@ -346,7 +346,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     if (serv->task_worker_num > 0) {
         if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK) {
             for (uint32_t i = 0; i < serv->gs->task_workers.worker_num; i++) {
-                swSocket_set_nonblock(serv->gs->task_workers.workers[i].pipe_master);
+                serv->gs->task_workers.workers[i].pipe_master->set_nonblock();
             }
         }
     }
@@ -437,7 +437,7 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event) {
 
 static int swReactorProcess_send2worker(swSocket *socket, const void *data, size_t length) {
     if (!SwooleTG.reactor) {
-        return swSocket_write_blocking(socket, data, length);
+        return socket->send_blocking(data, length);
     } else {
         return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, length);
     }
@@ -557,7 +557,7 @@ static int swReactorProcess_reuse_port(swListenPort *ls) {
     }
     ls->socket->fd = sock;
     // bind address and port
-    if (swSocket_bind(ls->socket, ls->host, &ls->port) < 0) {
+    if (ls->socket->bind(ls->host, &ls->port) < 0) {
         close(ls->socket->fd);
         return SW_ERR;
     }

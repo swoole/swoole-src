@@ -21,6 +21,8 @@
 
 #include <assert.h>
 
+using swoole::network::Socket;
+
 int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
     int file_fd = open(filename, O_RDONLY);
@@ -44,11 +46,11 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
     int n, sendn;
     while (offset < (off_t) length) {
         if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0) {
-            close(file_fd);
+            ::close(file_fd);
             return SW_ERR;
         } else {
             sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-            n = swoole_sendfile(sock, file_fd, &offset, sendn);
+            n = ::swoole_sendfile(sock, file_fd, &offset, sendn);
             if (n <= 0) {
                 close(file_fd);
                 swSysWarn("sendfile(%d, %s) failed", sock, filename);
@@ -147,27 +149,27 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events) {
     return SW_OK;
 }
 
-ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len) {
+ssize_t Socket::send_blocking(const void *__data, size_t __len) {
     ssize_t n = 0;
     ssize_t written = 0;
 
     while (written < (ssize_t) __len) {
 #ifdef SW_USE_OPENSSL
-        if (sock->ssl) {
-            n = swSSL_send(sock, (char *) __data + written, __len - written);
+        if (ssl) {
+            n = swSSL_send(this, (char *) __data + written, __len - written);
         } else
 #endif
         {
-            n = write(sock->fd, (char *) __data + written, __len - written);
+            n = ::send(fd, (char *) __data + written, __len - written, 0);
         }
         if (n < 0) {
             if (errno == EINTR) {
                 continue;
             } else if (swSocket_error(errno) == SW_WAIT &&
-                       swSocket_wait(sock->fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
+                       swSocket_wait(fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
-                swSysWarn("write %d bytes failed", __len);
+                swSysWarn("send %d bytes failed", __len);
                 return SW_ERR;
             }
         }
@@ -177,13 +179,13 @@ ssize_t swSocket_write_blocking(swSocket *sock, const void *__data, size_t __len
     return written;
 }
 
-ssize_t swSocket_recv_blocking(swSocket *sock, void *__data, size_t __len, int flags) {
+ssize_t Socket::recv_blocking(void *__data, size_t __len, int flags) {
     ssize_t ret;
     size_t read_bytes = 0;
 
     while (read_bytes != __len) {
         errno = 0;
-        ret = recv(sock->fd, (char *) __data + read_bytes, __len - read_bytes, flags);
+        ret = ::recv(fd, (char *) __data + read_bytes, __len - read_bytes, flags);
         if (ret > 0) {
             read_bytes += ret;
         } else if (ret == 0 && errno == 0) {
@@ -195,19 +197,19 @@ ssize_t swSocket_recv_blocking(swSocket *sock, void *__data, size_t __len, int f
     return read_bytes;
 }
 
-swSocket *swSocket_accept(swSocket *server_socket, swSocketAddress *sa) {
+swSocket *Socket::accept(swSocketAddress *sa) {
     int conn;
     sa->len = sizeof(sa->addr);
 #ifdef HAVE_ACCEPT4
     int flags = SOCK_CLOEXEC;
-    if (server_socket->nonblock) {
+    if (nonblock) {
         flags |= SOCK_NONBLOCK;
     }
-    conn = accept4(server_socket->fd, (struct sockaddr *) &sa->addr, &sa->len, flags);
+    conn = accept4(fd, (struct sockaddr *) &sa->addr, &sa->len, flags);
 #else
-    conn = accept(server_socket->fd, (struct sockaddr *) &sa->addr, &sa->len);
+    conn = accept(fd, (struct sockaddr *) &sa->addr, &sa->len);
     if (conn >= 0) {
-        swoole_fcntl_set_option(conn, server_socket->nonblock, 1);
+        swoole_fcntl_set_option(conn, nonblock, 1);
     }
 #endif
 
@@ -215,16 +217,12 @@ swSocket *swSocket_accept(swSocket *server_socket, swSocketAddress *sa) {
         return nullptr;
     }
 
-    swSocket *socket = swSocket_new(conn, SW_FD_SESSION);
-    if (!socket) {
-        close(conn);
-    } else {
-        socket->socket_type = server_socket->socket_type;
-        socket->nonblock = server_socket->nonblock;
-        socket->cloexec = 1;
-        memcpy(&socket->info.addr, sa, sa->len);
-        socket->info.len = sa->len;
-    }
+    swSocket *socket = swoole::make_socket(conn, SW_FD_SESSION);
+    socket->socket_type = socket_type;
+    socket->nonblock = nonblock;
+    socket->cloexec = 1;
+    memcpy(&socket->info.addr, sa, sa->len);
+    socket->info.len = sa->len;
 
     return socket;
 }
@@ -317,12 +315,8 @@ int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec) {
 #endif
 }
 
-swSocket *swSocket_new(int fd, enum swFd_type type) {
-    swSocket *socket = (swSocket *) sw_calloc(1, sizeof(*socket));
-    if (!socket) {
-        swSysWarn("calloc(1, %ld) failed", sizeof(*socket));
-        return nullptr;
-    }
+Socket *swoole::make_socket(int fd, enum swFd_type type) {
+    Socket *socket = new Socket();
     socket->fd = fd;
     socket->fdtype = type;
     socket->removed = 1;
@@ -337,42 +331,42 @@ static void socket_free_defer(void *ptr) {
     sw_free(sock);
 }
 
-void swSocket_free(swSocket *sock) {
+void Socket::free() {
     if (swoole_event_is_available()) {
-        sock->removed = 1;
-        swoole_event_defer(socket_free_defer, sock);
+        removed = 1;
+        swoole_event_defer(socket_free_defer, this);
     } else {
-        socket_free_defer(sock);
+        socket_free_defer(this);
     }
 }
 
-int swSocket_bind(swSocket *sock, const char *host, int *port) {
+int Socket::bind(const char *host, int *port) {
     int ret;
     swSocketAddress address = {};
 
     int option = 1;
-    if (setsockopt(sock->fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", sock->fd);
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", fd);
     }
     // UnixSocket
-    if (sock->socket_type == SW_SOCK_UNIX_DGRAM || sock->socket_type == SW_SOCK_UNIX_STREAM) {
+    if (socket_type == SW_SOCK_UNIX_DGRAM || socket_type == SW_SOCK_UNIX_STREAM) {
         unlink(host);
         address.addr.un.sun_family = AF_UNIX;
         strncpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path) - 1);
-        ret = bind(sock->fd, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
+        ret = ::bind(fd, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
     }
     // IPv6
-    else if (sock->socket_type > SW_SOCK_UDP) {
+    else if (socket_type > SW_SOCK_UDP) {
         if (inet_pton(AF_INET6, host, &address.addr.inet_v6.sin6_addr) < 0) {
             swSysWarn("inet_pton(AF_INET6, %s) failed", host);
             return SW_ERR;
         }
         address.addr.inet_v6.sin6_port = htons(*port);
         address.addr.inet_v6.sin6_family = AF_INET6;
-        ret = bind(sock->fd, (struct sockaddr *) &address.addr.inet_v6, sizeof(address.addr.inet_v6));
+        ret = ::bind(fd, (struct sockaddr *) &address.addr.inet_v6, sizeof(address.addr.inet_v6));
         if (ret == 0 && *port == 0) {
             address.len = sizeof(address.addr.inet_v6);
-            if (getsockname(sock->fd, (struct sockaddr *) &address.addr.inet_v6, &address.len) != -1) {
+            if (getsockname(fd, (struct sockaddr *) &address.addr.inet_v6, &address.len) != -1) {
                 *port = ntohs(address.addr.inet_v6.sin6_port);
             }
         }
@@ -385,10 +379,10 @@ int swSocket_bind(swSocket *sock, const char *host, int *port) {
         }
         address.addr.inet_v4.sin_port = htons(*port);
         address.addr.inet_v4.sin_family = AF_INET;
-        ret = bind(sock->fd, (struct sockaddr *) &address.addr.inet_v4, sizeof(address.addr.inet_v4));
+        ret = ::bind(fd, (struct sockaddr *) &address.addr.inet_v4, sizeof(address.addr.inet_v4));
         if (ret == 0 && *port == 0) {
             address.len = sizeof(address.addr.inet_v4);
-            if (getsockname(sock->fd, (struct sockaddr *) &address.addr.inet_v4, &address.len) != -1) {
+            if (getsockname(fd, (struct sockaddr *) &address.addr.inet_v4, &address.len) != -1) {
                 *port = ntohs(address.addr.inet_v4.sin_port);
             }
         }
@@ -402,30 +396,30 @@ int swSocket_bind(swSocket *sock, const char *host, int *port) {
     return ret;
 }
 
-int swSocket_set_buffer_size(swSocket *sock, uint32_t buffer_size) {
-    int fd = sock->fd;
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &buffer_size, sizeof(buffer_size)) != 0) {
-        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, buffer_size);
+int Socket::set_buffer_size(uint32_t _buffer_size) {
+    // TODO: buffer_size = _buffer_size;
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
         return SW_ERR;
     }
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &buffer_size, sizeof(buffer_size)) != 0) {
-        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, buffer_size);
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
         return SW_ERR;
     }
     return SW_OK;
 }
 
-int swSocket_set_timeout(swSocket *sock, double timeout) {
+int Socket::set_timeout(double timeout) {
     int ret;
     struct timeval timeo;
     timeo.tv_sec = (int) timeout;
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-    ret = setsockopt(sock->fd, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
+    ret = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0) {
         swSysWarn("setsockopt(SO_SNDTIMEO) failed");
         return SW_ERR;
     }
-    ret = setsockopt(sock->fd, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
+    ret = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
     if (ret < 0) {
         swSysWarn("setsockopt(SO_RCVTIMEO) failed");
         return SW_ERR;
@@ -439,47 +433,42 @@ swSocket *swSocket_create_server(enum swSocket_type type, const char *address, i
         swSysWarn("socket() failed");
         return nullptr;
     }
-    swSocket *sock = swSocket_new(fd, SW_FD_STREAM_SERVER);
-    if (!sock) {
-        close(fd);
-        return nullptr;
-    }
+    swSocket *sock = swoole::make_socket(fd, SW_FD_STREAM_SERVER);
     sock->socket_type = type;
-    if (swSocket_bind(sock, address, &port) < 0) {
-        swSocket_free(sock);
+    if (sock->bind(address, &port) < 0) {
+        sock->free();
         return nullptr;
     }
     if (listen(fd, backlog) < 0) {
         swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
-        swSocket_free(sock);
+        sock->free();
         return nullptr;
     }
 
     return sock;
 }
 
-int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk) {
+int Socket::on_sendfile(swBuffer_chunk *chunk) {
     int ret;
     swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
 
 #ifdef HAVE_TCP_NOPUSH
-    if (task->offset == 0 && conn->tcp_nopush == 0) {
+    if (task->offset == 0 && tcp_nopush == 0) {
         /**
          * disable tcp_nodelay
          */
-        if (conn->tcp_nodelay) {
+        if (tcp_nodelay) {
             int tcp_nodelay = 0;
-            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0) {
+            if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0) {
                 swSysWarn("setsockopt(TCP_NODELAY) failed");
             }
         }
         /**
          * enable tcp_nopush
          */
-        if (swSocket_tcp_nopush(conn->fd, 1) == -1) {
-            swSysWarn("swSocket_tcp_nopush() failed");
+        if (set_tcp_nopush(1) == -1) {
+            swSysWarn("set_tcp_nopush() failed");
         }
-        conn->tcp_nopush = 1;
     }
 #endif
 
@@ -487,12 +476,12 @@ int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk) {
         (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
 
 #ifdef SW_USE_OPENSSL
-    if (conn->ssl) {
-        ret = swSSL_sendfile(conn, task->fd, &task->offset, sendn);
+    if (ssl) {
+        ret = swSSL_sendfile(this, task->fd, &task->offset, sendn);
     } else
 #endif
     {
-        ret = swoole_sendfile(conn->fd, task->fd, &task->offset, sendn);
+        ret = ::swoole_sendfile(fd, task->fd, &task->offset, sendn);
     }
 
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, (long) task->offset, sendn, task->length);
@@ -501,13 +490,13 @@ int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk) {
         switch (swSocket_error(errno)) {
         case SW_ERROR:
             swSysWarn("sendfile(%s, %ld, %d) failed", task->filename, (long) task->offset, sendn);
-            swBuffer_pop_chunk(conn->out_buffer, chunk);
+            swBuffer_pop_chunk(out_buffer, chunk);
             return SW_OK;
         case SW_CLOSE:
-            conn->close_wait = 1;
+            close_wait = 1;
             return SW_ERR;
         case SW_WAIT:
-            conn->send_wait = 1;
+            send_wait = 1;
             return SW_ERR;
         default:
             break;
@@ -516,23 +505,21 @@ int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk) {
 
     // sendfile finish
     if ((size_t) task->offset >= task->length) {
-        swBuffer_pop_chunk(conn->out_buffer, chunk);
+        swBuffer_pop_chunk(out_buffer, chunk);
 
 #ifdef HAVE_TCP_NOPUSH
         /**
          * disable tcp_nopush
          */
-        if (swSocket_tcp_nopush(conn->fd, 0) == -1) {
-            swSysWarn("swSocket_tcp_nopush() failed");
+        if (set_tcp_nopush(0) == -1) {
+            swSysWarn("set_tcp_nopush() failed");
         }
-        conn->tcp_nopush = 0;
-
         /**
          * enable tcp_nodelay
          */
-        if (conn->tcp_nodelay) {
+        if (tcp_nodelay) {
             int value = 1;
-            if (setsockopt(conn->fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0) {
+            if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0) {
                 swSysWarn("setsockopt(TCP_NODELAY) failed");
             }
         }
@@ -544,8 +531,8 @@ int swSocket_onSendfile(swSocket *conn, swBuffer_chunk *chunk) {
 /**
  * send buffer to client
  */
-int swSocket_buffer_send(swSocket *conn) {
-    swBuffer *buffer = conn->out_buffer;
+int Socket::buffer_send() {
+    swBuffer *buffer = out_buffer;
     swBuffer_chunk *chunk = swBuffer_get_chunk(buffer);
     uint32_t sendn = chunk->length - chunk->offset;
 
@@ -554,17 +541,17 @@ int swSocket_buffer_send(swSocket *conn) {
         return SW_OK;
     }
 
-    ssize_t ret = swSocket_send(conn, (char *) chunk->store.ptr + chunk->offset, sendn, 0);
+    ssize_t ret = send((char *) chunk->store.ptr + chunk->offset, sendn, 0);
     if (ret < 0) {
         switch (swSocket_error(errno)) {
         case SW_ERROR:
-            swSysWarn("send to fd[%d] failed", conn->fd);
+            swSysWarn("send to fd[%d] failed", fd);
             break;
         case SW_CLOSE:
-            conn->close_wait = 1;
+            close_wait = 1;
             return SW_ERR;
         case SW_WAIT:
-            conn->send_wait = 1;
+            send_wait = 1;
             return SW_ERR;
         default:
             break;
@@ -580,7 +567,7 @@ int swSocket_buffer_send(swSocket *conn) {
          * kernel is not fully processing and socket buffer is full.
          */
         if (ret < sendn) {
-            conn->send_wait = 1;
+            send_wait = 1;
             return SW_ERR;
         }
     }
@@ -617,7 +604,7 @@ void swSocket_sendfile_destructor(swBuffer_chunk *chunk) {
     sw_free(task);
 }
 
-int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t length) {
+int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0) {
         swSysWarn("open(%s) failed", filename);
@@ -637,9 +624,9 @@ int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t
         return SW_ERR;
     }
 
-    if (conn->out_buffer == nullptr) {
-        conn->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
-        if (conn->out_buffer == nullptr) {
+    if (out_buffer == nullptr) {
+        out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
+        if (out_buffer == nullptr) {
             return SW_ERR;
         }
     }
@@ -668,7 +655,7 @@ int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t
         task->length = length + offset;
     }
 
-    swBuffer_chunk *chunk = swBuffer_new_chunk(conn->out_buffer, SW_CHUNK_SENDFILE, 0);
+    swBuffer_chunk *chunk = swBuffer_new_chunk(out_buffer, SW_CHUNK_SENDFILE, 0);
     if (chunk == nullptr) {
         swWarn("get out_buffer chunk failed");
         error_chunk.store.ptr = task;
@@ -682,15 +669,15 @@ int swSocket_sendfile(swSocket *conn, const char *filename, off_t offset, size_t
     return SW_OK;
 }
 
-ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, int __flags) {
+ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
     ssize_t total_bytes = 0;
 
     do {
 #ifdef SW_USE_OPENSSL
-        if (conn->ssl) {
+        if (ssl) {
             ssize_t retval = 0;
             while ((size_t) total_bytes < __n) {
-                retval = swSSL_recv(conn, ((char *) __buf) + total_bytes, __n - total_bytes);
+                retval = swSSL_recv(this, ((char *) __buf) + total_bytes, __n - total_bytes);
                 if (retval <= 0) {
                     if (total_bytes == 0) {
                         total_bytes = retval;
@@ -698,7 +685,7 @@ ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, int __flags) {
                     break;
                 } else {
                     total_bytes += retval;
-                    if (!(conn->nonblock || (__flags & MSG_WAITALL))) {
+                    if (!(nonblock || (__flags & MSG_WAITALL))) {
                         break;
                     }
                 }
@@ -706,17 +693,17 @@ ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, int __flags) {
         } else
 #endif
         {
-            total_bytes = recv(conn->fd, __buf, __n, __flags);
+            total_bytes = ::recv(fd, __buf, __n, __flags);
         }
     } while (total_bytes < 0 && errno == EINTR);
 
 #ifdef SW_DEBUG
     if (total_bytes > 0) {
-        conn->total_recv_bytes += total_bytes;
+        total_recv_bytes += total_bytes;
     }
 #endif
 
-    if (total_bytes < 0 && swSocket_error(errno) == SW_WAIT && conn->event_hup) {
+    if (total_bytes < 0 && swSocket_error(errno) == SW_WAIT && event_hup) {
         total_bytes = 0;
     }
 
@@ -725,23 +712,23 @@ ssize_t swSocket_recv(swSocket *conn, void *__buf, size_t __n, int __flags) {
     return total_bytes;
 }
 
-ssize_t swSocket_send(swSocket *conn, const void *__buf, size_t __n, int __flags) {
+ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
     ssize_t retval;
 
     do {
 #ifdef SW_USE_OPENSSL
-        if (conn->ssl) {
-            retval = swSSL_send(conn, __buf, __n);
+        if (ssl) {
+            retval = swSSL_send(this, __buf, __n);
         } else
 #endif
         {
-            retval = send(conn->fd, __buf, __n, __flags);
+            retval = ::send(fd, __buf, __n, __flags);
         }
     } while (retval < 0 && errno == EINTR);
 
 #ifdef SW_DEBUG
     if (retval > 0) {
-        conn->total_send_bytes += retval;
+        total_send_bytes += retval;
     }
 #endif
 
@@ -750,17 +737,17 @@ ssize_t swSocket_send(swSocket *conn, const void *__buf, size_t __n, int __flags
     return retval;
 }
 
-ssize_t swSocket_peek(swSocket *conn, void *__buf, size_t __n, int __flags) {
+ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
     ssize_t retval;
     __flags |= MSG_PEEK;
     do {
 #ifdef SW_USE_OPENSSL
-        if (conn->ssl) {
-            retval = SSL_peek(conn->ssl, __buf, __n);
+        if (ssl) {
+            retval = SSL_peek(ssl, __buf, __n);
         } else
 #endif
         {
-            retval = recv(conn->fd, __buf, __n, __flags);
+            retval = ::recv(fd, __buf, __n, __flags);
         }
     } while (retval < 0 && errno == EINTR);
 

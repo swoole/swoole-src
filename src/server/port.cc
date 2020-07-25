@@ -269,7 +269,7 @@ static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *even
         return SW_ERR;
     }
 
-    n = swSocket_recv(_socket, buffer->str, buffer->size, 0);
+    n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
         switch (swSocket_error(errno)) {
         case SW_ERROR:
@@ -359,7 +359,7 @@ static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *eve
     swString *buffer = request->buffer_;
 
 _recv_data:
-    ssize_t n = swSocket_recv(_socket, buffer->str + buffer->length, buffer->size - buffer->length, 0);
+    ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
         switch (swSocket_error(errno)) {
         case SW_ERROR:
@@ -377,19 +377,19 @@ _recv_data:
         if (0) {
         _bad_request:
 #ifdef SW_HTTP_BAD_REQUEST_PACKET
-            swSocket_send(_socket, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
+            _socket->send(SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
 #endif
         }
         if (0) {
         _too_large:
 #ifdef SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET
-            swSocket_send(_socket, SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
+            _socket->send(SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
 #endif
         }
         if (0) {
         _unavailable:
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
-            swSocket_send(_socket, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
+            _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
 #endif
         }
     _close_fd:
@@ -555,7 +555,7 @@ _parse:
 #ifdef SW_HTTP_100_CONTINUE
             // Expect: 100-continue
             if (request->has_expect_header()) {
-                swSocket_send(_socket, SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
             } else {
                 swTraceLog(SW_TRACE_SERVER,
                            "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
@@ -648,7 +648,7 @@ void ListenPort::close() {
 #endif
 
     if (socket) {
-        swSocket_free(socket);
+        socket->free();
         socket = nullptr;
     }
 

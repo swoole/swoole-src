@@ -60,7 +60,7 @@ _recv_data:
     buf_ptr = buffer->str + buffer->length;
     buf_size = buffer->size - buffer->length;
 
-    int n = swSocket_recv(socket, buf_ptr, buf_size, 0);
+    int n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
         switch (swSocket_error(errno)) {
         case SW_ERROR:
