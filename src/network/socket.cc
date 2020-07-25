@@ -302,6 +302,9 @@ Socket *swoole::make_socket(enum swSocket_type type, enum swFd_type fdtype, int 
         sock_flags |= SOCK_CLOEXEC;
     }
     int sockfd = socket(sock_domain, sock_type | sock_flags, 0);
+    if (sockfd < 0) {
+        return nullptr;
+    }
 #else
     int sockfd = socket(sock_domain, sock_type, 0);
     if (sockfd < 0) {
@@ -334,7 +337,7 @@ static void socket_free_defer(void *ptr) {
     if (sock->fd != -1 && close(sock->fd) != 0) {
         swSysWarn("close(%d) failed", sock->fd);
     }
-    sw_free(sock);
+    delete sock;
 }
 
 void Socket::free() {

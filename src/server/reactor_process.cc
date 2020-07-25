@@ -73,6 +73,7 @@ int Server::start_reactor_processes() {
                     swSysWarn("close(%d) failed", ls->socket->fd);
                 }
                 delete ls->socket;
+                ls->socket = nullptr;
                 continue;
             } else
 #endif
