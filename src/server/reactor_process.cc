@@ -72,6 +72,7 @@ int Server::start_reactor_processes() {
                 if (::close(ls->socket->fd) < 0) {
                     swSysWarn("close(%d) failed", ls->socket->fd);
                 }
+                delete ls->socket;
                 continue;
             } else
 #endif
@@ -363,7 +364,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     /**
      * 1 second timer
      */
-    if ((serv->master_timer = swoole_timer_add(1000, SW_TRUE, Server::timer_callback, serv)) == nullptr) {
+    if ((serv->master_timer = swoole_timer_add(1000, true, Server::timer_callback, serv)) == nullptr) {
     _fail:
         swReactor_free_output_buffer(n_buffer);
         swoole_event_free();
@@ -377,7 +378,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
      */
     if (serv->heartbeat_check_interval > 0) {
         serv->heartbeat_timer = swoole_timer_add(
-            (long) (serv->heartbeat_check_interval * 1000), SW_TRUE, swReactorProcess_onTimeout, reactor);
+            (long) (serv->heartbeat_check_interval * 1000), true, swReactorProcess_onTimeout, reactor);
         if (serv->heartbeat_timer == nullptr) {
             goto _fail;
         }
@@ -545,24 +546,18 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
 
 #ifdef HAVE_REUSEPORT
 static int swReactorProcess_reuse_port(swListenPort *ls) {
-    int sock = swSocket_create(ls->type, 1, 1);
-    if (sock < 0) {
-        swSysWarn("create socket failed");
-        return SW_ERR;
-    }
+    ls->socket = swoole::make_socket(ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER,
+        SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK
+    );
     int option = 1;
-    if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0) {
-        close(sock);
+    if (setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0) {
+        ls->socket->free();
         return SW_ERR;
     }
-    ls->socket->fd = sock;
-    // bind address and port
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
-        close(ls->socket->fd);
+        ls->socket->free();
         return SW_ERR;
     }
-    ls->socket->nonblock = 1;
-    ls->socket->cloexec = 1;
     return ls->listen();
 }
 #endif

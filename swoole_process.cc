@@ -338,7 +338,7 @@ static PHP_METHOD(swoole_process, __construct) {
     php_swoole_fci func;
     zend_bool redirect_stdin_and_stdout = 0;
     zend_long pipe_type = 2;
-    zend_bool enable_coroutine = SW_FALSE;
+    zend_bool enable_coroutine = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
     Z_PARAM_FUNC(func.fci, func.fci_cache);

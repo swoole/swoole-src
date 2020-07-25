@@ -757,7 +757,7 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
     char *host;
     size_t host_len;
     zend_long port = 80;
-    zend_bool ssl = SW_FALSE;
+    zend_bool ssl = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
     Z_PARAM_STRING(host, host_len)

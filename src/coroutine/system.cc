@@ -92,7 +92,7 @@ int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
     if (sec < SW_TIMER_MIN_SEC) {
         swoole_event_defer([co](void *data) { co->resume(); }, nullptr);
-    } else if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == nullptr) {
+    } else if (swoole_timer_add((long) (sec * 1000), false, sleep_timeout, co) == nullptr) {
         return -1;
     }
     co->yield();
@@ -202,7 +202,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     swAio_event *event = swAio_dispatch2(&ev);
     swTimer_node *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, aio_onDNSTimeout, event);
+        timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
     }
     task.co->yield();
     if (ev.ret == 1) {
@@ -266,7 +266,7 @@ vector<string> System::getaddrinfo(
     swAio_event *event = swAio_dispatch2(&ev);
     swTimer_node *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, aio_onDNSTimeout, event);
+        timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
     }
     task.co->yield();
     if (timer) {
@@ -527,7 +527,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     }
 
     if (timeout > 0) {
-        task.timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, socket_poll_timeout, &task);
+        task.timer = swoole_timer_add((long) (timeout * 1000), false, socket_poll_timeout, &task);
     }
 
     task.co->yield();
@@ -551,7 +551,7 @@ struct event_waiter {
         }
         if (timeout > 0) {
             timer = swoole_timer_add((long) (timeout * 1000),
-                                     SW_FALSE,
+                                     false,
                                      [](swTimer *timer, swTimer_node *tnode) {
                                          event_waiter *waiter = (event_waiter *) tnode->data;
                                          waiter->timer = nullptr;
@@ -683,7 +683,7 @@ bool coroutine::async(swAio_handler handler, swAio_event &event, double timeout)
         return false;
     }
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, async_task_timeout, _ev);
+        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
     task.co->yield();
     if (event.error == SW_ERROR_AIO_TIMEOUT) {
@@ -733,7 +733,7 @@ bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
         return false;
     }
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, async_task_timeout, _ev);
+        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
     task.co->yield();
     if (event.error == SW_ERROR_AIO_TIMEOUT) {

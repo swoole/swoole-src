@@ -131,9 +131,9 @@ static inline zend_bool php_swoole_server_isset_callback(ServerObject *server_ob
                                                          int event_type) {
     php_swoole_server_port_property *property = (php_swoole_server_port_property *) port->ptr;
     if (property->callbacks[event_type] || server_object->property->primary_port->callbacks[event_type]) {
-        return SW_TRUE;
+        return true;
     } else {
-        return SW_FALSE;
+        return false;
     }
 }
 
@@ -962,7 +962,7 @@ static void php_swoole_task_wait_co(
     }
 
     long ms = (long) (timeout * 1000);
-    swTimer_node *timer = swoole_timer_add(ms, SW_FALSE, php_swoole_task_onTimeout, task_co);
+    swTimer_node *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
     if (timer) {
         task_co->timer = timer;
     }
@@ -1327,7 +1327,7 @@ int php_swoole_onReceive(swServer *serv, swRecvData *req) {
 
         if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, nullptr, SwooleG.enable_coroutine))) {
             php_swoole_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
-            serv->close(serv, req->info.fd, 0);
+            serv->close(serv, req->info.fd, false);
         }
         zval_ptr_dtor(&args[3]);
     }
@@ -1865,7 +1865,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     context->private_data = (void *) (long) fd;
     if (serv->send_timeout > 0) {
         context->timer =
-            swoole_timer_add((long) (serv->send_timeout * 1000), SW_FALSE, php_swoole_onSendTimeout, context);
+            swoole_timer_add((long) (serv->send_timeout * 1000), false, php_swoole_onSendTimeout, context);
     } else {
         context->timer = nullptr;
     }
@@ -2888,7 +2888,7 @@ static PHP_METHOD(swoole_server, close) {
     }
 
     zend_long fd;
-    zend_bool reset = SW_FALSE;
+    zend_bool reset = false;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_LONG(fd)
@@ -2896,7 +2896,7 @@ static PHP_METHOD(swoole_server, close) {
     Z_PARAM_BOOL(reset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    SW_CHECK_RETURN(serv->close(serv, (int) fd, (int) reset));
+    SW_CHECK_RETURN(serv->close(serv, (int) fd, reset));
 }
 
 static PHP_METHOD(swoole_server, pause) {
@@ -3349,7 +3349,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     task_co->list = list;
     task_co->count = n_task;
 
-    swTimer_node *timer = swoole_timer_add(ms, SW_FALSE, php_swoole_task_onTimeout, task_co);
+    swTimer_node *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
     if (timer) {
         task_co->timer = timer;
     }

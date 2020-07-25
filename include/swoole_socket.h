@@ -169,6 +169,7 @@ struct Socket {
 };
 }
 network::Socket *make_socket(int fd, enum swFd_type type);
+network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type fdtype, int flags);
 }
 
 swSocket *swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);
@@ -180,8 +181,6 @@ static sw_inline int swSocket_is_stream(uint8_t type) {
     return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
 }
 
-
-int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec);
 
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
@@ -262,4 +261,3 @@ static sw_inline int swSocket_get_domain_and_type(enum swSocket_type type, int *
 void swSocket_sendfile_destructor(swBuffer_chunk *chunk);
 const char *swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
 int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);
-

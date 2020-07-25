@@ -322,9 +322,19 @@ enum swFd_type {
     SW_FD_DGRAM_CLIENT,
 };
 
-enum swBool_type {
-    SW_TRUE = 1,
-    SW_FALSE = 0,
+enum swSocket_flag {
+    SW_SOCK_NONBLOCK = 1 << 2,
+    SW_SOCK_CLOEXEC = 1 << 3,
+    SW_SOCK_SSL = (1u << 9),
+};
+
+enum swSocket_type {
+    SW_SOCK_TCP = 1,
+    SW_SOCK_UDP = 2,
+    SW_SOCK_TCP6 = 3,
+    SW_SOCK_UDP6 = 4,
+    SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
+    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
 };
 
 enum swEvent_type {
@@ -353,16 +363,6 @@ enum swFork_type {
     SW_FORK_PRECHECK = 1 << 3,
 };
 
-//-------------------------------------------------------------------------------
-enum swSocket_type {
-    SW_SOCK_TCP = 1,
-    SW_SOCK_UDP = 2,
-    SW_SOCK_TCP6 = 3,
-    SW_SOCK_UDP6 = 4,
-    SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
-    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
-};
-#define SW_SOCK_SSL (1u << 9)
 //-------------------------------------------------------------------------------
 
 #define swYield() sched_yield()  // or usleep(1)

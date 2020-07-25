@@ -96,17 +96,17 @@ void swWorker_signal_handler(int signo) {
     }
 }
 
-static sw_inline int swWorker_discard_data(swServer *serv, swConnection *conn, swEventData *task) {
+static sw_inline bool swWorker_discard_data(swServer *serv, swConnection *conn, swEventData *task) {
     if (conn == nullptr) {
         if (serv->disable_notify && !serv->discard_timeout_request) {
-            return SW_FALSE;
+            return false;
         }
         goto _discard_data;
     } else {
         if (conn->closed) {
             goto _discard_data;
         } else {
-            return SW_FALSE;
+            return false;
         }
     }
 _discard_data : {
@@ -116,7 +116,7 @@ _discard_data : {
                      task->info.len,
                      task->info.fd);
 }
-    return SW_TRUE;
+    return true;
 }
 
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event) {
@@ -245,11 +245,9 @@ int Server::accept_task(swEventData *task) {
             sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
             swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->queued_bytes);
         }
-        // discard data
-        if (swWorker_discard_data(this, conn, task) == SW_TRUE) {
-            break;
+        if (!swWorker_discard_data(this, conn, task)) {
+            swWorker_do_task(this, worker, task, onReceive);
         }
-        swWorker_do_task(this, worker, task, onReceive);
         break;
     }
     case SW_SERVER_EVENT_RECV_DGRAM: {

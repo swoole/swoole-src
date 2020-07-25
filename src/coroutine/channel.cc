@@ -59,7 +59,7 @@ void *Channel::pop(double timeout) {
             msg.chan = this;
             msg.type = CONSUMER;
             msg.co = current_co;
-            msg.timer = swoole_timer_add(msec, SW_FALSE, timer_callback, &msg);
+            msg.timer = swoole_timer_add(msec, false, timer_callback, &msg);
         }
 
         yield(CONSUMER);
@@ -100,7 +100,7 @@ bool Channel::push(void *data, double timeout) {
             msg.chan = this;
             msg.type = PRODUCER;
             msg.co = current_co;
-            msg.timer = swoole_timer_add(msec, SW_FALSE, timer_callback, &msg);
+            msg.timer = swoole_timer_add(msec, false, timer_callback, &msg);
         }
 
         yield(PRODUCER);

@@ -828,7 +828,7 @@ _init_master_thread:
     /**
      * 1 second timer
      */
-    if ((master_timer = swoole_timer_add(1000, SW_TRUE, Server::timer_callback, this)) == nullptr) {
+    if ((master_timer = swoole_timer_add(1000, true, Server::timer_callback, this)) == nullptr) {
         swoole_event_free();
         return SW_ERR;
     }

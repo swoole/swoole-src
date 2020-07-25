@@ -68,20 +68,15 @@ void swClient_init_reactor(swReactor *reactor) {
 
 int swClient_create(swClient *cli, enum swSocket_type type, int async) {
     sw_memset_zero(cli, sizeof(swClient));
-
-    int sockfd = swSocket_create(type, async, 1);
-    if (sockfd < 0) {
+    cli->reactor_fdtype = swSocket_is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
+    cli->socket = swoole::make_socket(type, cli->reactor_fdtype, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
+    if (cli->socket == nullptr) {
         swSysWarn("socket() failed");
         return SW_ERR;
     }
 
-    cli->reactor_fdtype = swSocket_is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
-    cli->socket = swoole::make_socket(sockfd, cli->reactor_fdtype);
     cli->socket->object = cli;
     cli->input_buffer_size = SW_CLIENT_BUFFER_SIZE;
-
-    cli->socket->nonblock = async ? 1 : 0;
-    cli->socket->cloexec = 1;
     cli->socket->chunk_size = SW_SEND_BUFFER_SIZE;
 
     if (swSocket_is_stream(type)) {
@@ -570,7 +565,7 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
             return SW_ERR;
         }
         if (timeout > 0) {
-            cli->timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, swClient_onTimeout, cli);
+            cli->timer = swoole_timer_add((long) (timeout * 1000), false, swClient_onTimeout, cli);
         }
         return SW_OK;
     } else {

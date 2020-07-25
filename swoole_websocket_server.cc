@@ -741,7 +741,7 @@ static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swStr
         // Change status immediately to avoid double close
         conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
         // Server close connection immediately
-        return serv->close(serv, fd, SW_FALSE);
+        return serv->close(serv, fd, false);
     } else {
         return SW_ERR;
     }

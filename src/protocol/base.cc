@@ -229,7 +229,7 @@ _do_recv:
  * @return SW_OK: continue
  */
 int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *buffer) {
-    int recv_again = SW_FALSE;
+    bool recv_again = false;
     int buf_size;
 
 _recv_data:
@@ -263,7 +263,7 @@ _recv_data:
         if (protocol->split_by_eof) {
             int retval = swProtocol_split_package_by_eof(protocol, socket, buffer);
             if (retval == SW_CONTINUE) {
-                recv_again = SW_TRUE;
+                recv_again = true;
             } else if (retval == SW_CLOSE) {
                 return SW_ERR;
             } else {
@@ -296,7 +296,7 @@ _recv_data:
 
         // buffer is full, may have not read data
         if (buffer->length == buffer->size) {
-            recv_again = SW_TRUE;
+            recv_again = true;
             if (buffer->size < protocol->package_max_length) {
                 uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
                 if (extend_size > protocol->package_max_length) {

@@ -48,16 +48,16 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket);
 static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorKqueue_free(swReactor *reactor);
 
-static sw_inline enum swBool_type swReactorKqueue_fetch_event(swReactor *reactor, swEvent *event, void *udata) {
+static sw_inline bool swReactorKqueue_fetch_event(swReactor *reactor, swEvent *event, void *udata) {
     event->socket = (swSocket *) udata;
     event->fd = event->socket->fd;
     event->type = event->socket->fdtype;
     event->reactor_id = reactor->id;
 
     if (event->socket->removed) {
-        return SW_FALSE;
+        return false;
     }
-    return SW_TRUE;
+    return true;
 }
 
 static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSocket *socket) {

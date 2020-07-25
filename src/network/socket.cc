@@ -280,39 +280,45 @@ ssize_t swSocket_sendto_blocking(
     return n;
 }
 
-int swSocket_create(enum swSocket_type type, uchar nonblock, uchar cloexec) {
+Socket *swoole::make_socket(enum swSocket_type type, enum swFd_type fdtype, int flags) {
     int sock_domain;
     int sock_type;
 
     if (swSocket_get_domain_and_type(type, &sock_domain, &sock_type) < 0) {
         swWarn("unknown socket type [%d]", type);
         errno = ESOCKTNOSUPPORT;
-        return SW_ERR;
+        return nullptr;
     }
 
+    bool nonblock = flags & SW_SOCK_NONBLOCK;
+    bool cloexec = flags & SW_SOCK_CLOEXEC;
+
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
-    int flags = 0;
+    int sock_flags = 0;
     if (nonblock) {
-        flags |= SOCK_NONBLOCK;
+        sock_flags |= SOCK_NONBLOCK;
     }
     if (cloexec) {
-        flags |= SOCK_CLOEXEC;
+        sock_flags |= SOCK_CLOEXEC;
     }
-    return socket(sock_domain, sock_type | flags, 0);
+    int sockfd = socket(sock_domain, sock_type | sock_flags, 0);
 #else
     int sockfd = socket(sock_domain, sock_type, 0);
     if (sockfd < 0) {
-        return SW_ERR;
+        return nullptr;
     }
-    if (!nonblock && !cloexec) {
-        return sockfd;
+    if (nonblock || cloexec) {
+        if (swoole_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
+            close(sockfd);
+            return nullptr;
+        }
     }
-    if (swoole_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
-        close(sockfd);
-        return SW_ERR;
-    }
-    return sockfd;
 #endif
+    auto _socket = swoole::make_socket(sockfd, fdtype);
+    _socket->nonblock = nonblock;
+    _socket->cloexec = cloexec;
+    _socket->socket_type = type;
+    return _socket;
 }
 
 Socket *swoole::make_socket(int fd, enum swFd_type type) {
@@ -428,23 +434,20 @@ int Socket::set_timeout(double timeout) {
 }
 
 swSocket *swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog) {
-    int fd = swSocket_create(type, 0, 0);
-    if (fd < 0) {
+    swSocket *sock = swoole::make_socket(type, SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC);
+    if (sock == nullptr) {
         swSysWarn("socket() failed");
         return nullptr;
     }
-    swSocket *sock = swoole::make_socket(fd, SW_FD_STREAM_SERVER);
-    sock->socket_type = type;
     if (sock->bind(address, &port) < 0) {
         sock->free();
         return nullptr;
     }
-    if (listen(fd, backlog) < 0) {
+    if (listen(sock->fd, backlog) < 0) {
         swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
         sock->free();
         return nullptr;
     }
-
     return sock;
 }
 

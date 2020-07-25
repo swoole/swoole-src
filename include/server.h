@@ -820,7 +820,7 @@ class Server {
     int (*sendfile)(Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) =
         nullptr;
     int (*sendwait)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
-    int (*close)(Server *serv, int session_id, int reset) = nullptr;
+    int (*close)(Server *serv, int session_id, bool reset) = nullptr;
     int (*notify)(Server *serv, Connection *conn, int event) = nullptr;
     int (*feedback)(Server *serv, int session_id, int event) = nullptr;
     /**
@@ -1248,9 +1248,9 @@ typedef swoole::Connection swConnection;
 static sw_inline int swEventData_is_dgram(uint8_t type) {
     switch (type) {
     case SW_SERVER_EVENT_RECV_DGRAM:
-        return SW_TRUE;
+        return true;
     default:
-        return SW_FALSE;
+        return false;
     }
 }
 
@@ -1263,9 +1263,9 @@ static sw_inline int swEventData_is_stream(uint8_t type) {
     case SW_SERVER_EVENT_RESUME_RECV:
     case SW_SERVER_EVENT_BUFFER_FULL:
     case SW_SERVER_EVENT_BUFFER_EMPTY:
-        return SW_TRUE;
+        return true;
     default:
-        return SW_FALSE;
+        return false;
     }
 }
 

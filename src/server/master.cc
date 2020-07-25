@@ -32,7 +32,7 @@ static void Server_signal_handler(int sig);
 
 static int Server_tcp_send(Server *serv, int session_id, const void *data, uint32_t length);
 static int Server_tcp_sendwait(Server *serv, int session_id, const void *data, uint32_t length);
-static int Server_tcp_close(Server *serv, int session_id, int reset);
+static int Server_tcp_close(Server *serv, int session_id, bool reset);
 static int Server_tcp_sendfile(
     Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
 static int Server_tcp_notify(Server *serv, swConnection *conn, int event);
@@ -165,15 +165,15 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
 
 #ifdef SW_SUPPORT_DTLS
 dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddress *sa) {
-    swSocket *sock = nullptr;
     dtls::Session *session = nullptr;
     swConnection *conn = nullptr;
 
-    int fd = swSocket_create(port->type, 1, 1);
-    if (fd < 0) {
+    network::Socket *sock = swoole::make_socket(port->type, SW_FD_SESSION, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    if (!sock) {
         return nullptr;
     }
 
+    int fd = sock->fd;
     int on = 1, off = 0;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void *) &on, (socklen_t) sizeof(on));
 #ifdef HAVE_KQUEUE
@@ -223,15 +223,7 @@ dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddres
         break;
     }
 
-    sock = swoole::make_socket(fd, SW_FD_SESSION);
-    if (!sock) {
-        goto _cleanup;
-    }
-
     memcpy(&sock->info, sa, sizeof(*sa));
-    sock->socket_type = port->type;
-    sock->nonblock = 1;
-    sock->cloexec = 1;
     sock->chunk_size = SW_BUFFER_SIZE_STD;
 
     conn = add_connection(port, sock, port->socket->fd);
@@ -249,17 +241,13 @@ dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddres
     return session;
 
 _cleanup:
-    if (sock) {
-        sw_free(sock);
-    }
     if (conn) {
         sw_memset_zero(conn, sizeof(*conn));
     }
     if (session) {
         delete session;
     }
-    ::close(fd);
-
+    sock->free();
     return nullptr;
 }
 #endif
@@ -1285,7 +1273,7 @@ void Server::call_hook(enum swServer_hook_type type, void *arg) {
 /**
  * [Worker]
  */
-static int Server_tcp_close(Server *serv, int session_id, int reset) {
+static int Server_tcp_close(Server *serv, int session_id, bool reset) {
     if (sw_unlikely(swIsMaster())) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return SW_ERR;
@@ -1505,25 +1493,19 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
     }
 #endif
 
-    // create server socket
-    int sock = swSocket_create(ls->type, 1, 1);
-    if (sock < 0) {
-        swSysWarn("create socket failed");
+    ls->socket = swoole::make_socket(ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER,
+        SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK
+    );
+    if (ls->socket == nullptr) {
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
     if (ls->ssl_option.dtls) {
         int on = 1;
-        setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
+        setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
     }
 #endif
-    ls->socket = swoole::make_socket(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
-    if (ls->socket == nullptr) {
-        ::close(sock);
-        return nullptr;
-    }
-    ls->socket->nonblock = 1;
-    ls->socket->cloexec = 1;
+
     ls->socket->socket_type = ls->type;
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
         ls->socket->free();

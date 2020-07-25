@@ -503,25 +503,22 @@ void Socket::init_sock_type(enum swSocket_type _sw_type) {
 }
 
 bool Socket::init_sock() {
-    int _fd = swSocket_create(type, 1, 1);
-    if (sw_unlikely(_fd < 0)) {
+    socket = make_socket(type, SW_FD_CORO_SOCKET, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    if (socket == nullptr) {
         return false;
     }
-    return init_reactor_socket(_fd);
+    sock_fd = socket->fd;
+    socket->object = this;
+    return true;
 }
 
 bool Socket::init_reactor_socket(int _fd) {
-    swReactor *reactor = SwooleTG.reactor;
-    if (sw_unlikely(!reactor)) {
-        swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "operation not support (reactor is not ready)");
-    }
     socket = swoole::make_socket(_fd, SW_FD_CORO_SOCKET);
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
     socket->nonblock = 1;
     socket->cloexec = 1;
-
     return true;
 }
 

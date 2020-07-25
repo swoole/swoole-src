@@ -133,7 +133,7 @@ bool php_swoole_timer_clear(swTimer_node *tnode) {
 
 bool php_swoole_timer_clear_all() {
     if (UNEXPECTED(!SwooleTG.timer)) {
-        return SW_FALSE;
+        return false;
     }
 
     size_t num = SwooleTG.timer->count(), index = 0;
@@ -151,7 +151,7 @@ bool php_swoole_timer_clear_all() {
 
     efree(list);
 
-    return SW_TRUE;
+    return true;
 }
 
 static void php_swoole_onTimeout(swTimer *timer, swTimer_node *tnode) {
