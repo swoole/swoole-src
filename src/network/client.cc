@@ -405,10 +405,10 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
 #ifdef HAVE_KQUEUE
         if (nonblock == 2) {
             // special case on MacOS
-            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+            ret = cli->socket->connect(cli->server_addr);
         } else {
             cli->socket->set_nonblock();
-            ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+            ret = cli->socket->connect(cli->server_addr);
             if (ret < 0) {
                 if (errno != EINPROGRESS) {
                     return SW_ERR;
@@ -433,7 +433,7 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
             }
         }
 #else
-        ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+        ret = cli->socket->connect(cli->server_addr);
         if (ret < 0 && errno == EINPROGRESS) {
             errno = ETIMEDOUT;
         }
@@ -550,7 +550,7 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
     }
 
     while (1) {
-        ret = connect(cli->socket->fd, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
+        ret = cli->socket->connect(cli->server_addr);
         if (ret < 0) {
             if (errno == EINTR) {
                 continue;
@@ -741,7 +741,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
         goto _connect_ok;
     }
 
-    if (connect(cli->socket->fd, (struct sockaddr *) (&cli->server_addr), cli->server_addr.len) == 0) {
+    if (cli->socket->connect(cli->server_addr) == 0) {
         swSocket_clean(cli->socket->fd);
     _connect_ok:
 

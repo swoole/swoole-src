@@ -91,10 +91,9 @@ void Server::close_port(bool only_stream_port) {
 int Server::accept_connection(Reactor *reactor, swEvent *event) {
     Server *serv = (Server *) reactor->ptr;
     ListenPort *listen_host = (ListenPort *) serv->connection_list[event->fd].object;
-    Address client_addr;
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++) {
-        Socket *sock = event->socket->accept(&client_addr);
+        Socket *sock = event->socket->accept();
         if (sock == nullptr) {
             switch (errno) {
             case EAGAIN:

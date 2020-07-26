@@ -418,8 +418,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
                 break;
             }
         } else if (pool->use_socket) {
-            swSocketAddress sa;
-            swSocket *conn = pool->stream_info_->socket->accept(&sa);
+            swSocket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;
@@ -525,8 +524,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             data = outbuf->mdata;
             outbuf->mtype = 0;
         } else if (pool->use_socket) {
-            swSocketAddress sa;
-            swSocket *conn = pool->stream_info_->socket->accept(&sa);
+            swSocket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;

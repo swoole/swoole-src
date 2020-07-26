@@ -120,8 +120,7 @@ _discard_data : {
 }
 
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event) {
-    swSocketAddress client_addr;
-    swSocket *sock = event->socket->accept(&client_addr);
+    swSocket *sock = event->socket->accept();
     if (sock == nullptr) {
         switch (errno) {
         case EINTR:

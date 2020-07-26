@@ -19,6 +19,9 @@
 
 #include "test_core.h"
 
+using namespace std;
+using namespace swoole;
+
 TEST(socket, swSocket_unix_sendto) {
     int fd1, fd2, ret;
     struct sockaddr_un un1, un2;
@@ -48,4 +51,42 @@ TEST(socket, swSocket_unix_sendto) {
 
     unlink(sock1_path);
     unlink(sock2_path);
+}
+
+TEST(socket, sendfile_blocking) {
+    string file = test::get_root_path() + "/examples/test.jpg";
+    mutex m;
+    m.lock();
+
+    String *str = swoole_file_get_contents(file.c_str());
+
+    thread t1 ([&m, str](){
+        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+        m.unlock();
+        auto cli = svr->accept();
+        int len;
+        cli->recv_blocking(&len, sizeof(len), MSG_WAITALL);
+        int _len = ntohl(len);
+        ASSERT_EQ(_len, str->get_length());
+        ASSERT_LT(_len, 1024 * 1024);
+        std::unique_ptr<char> data(new char[_len]);
+        cli->recv_blocking(data.get(), _len, MSG_WAITALL);
+        ASSERT_STREQ(data.get(), str->value());
+    });
+
+    thread t2([&m, &file, str](){
+        m.lock();
+        auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+        network::Address addr;
+        addr.assign(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+        ASSERT_EQ(cli->connect(addr), SW_OK);
+        int len = htonl(str->get_length());
+        cli->send(&len, sizeof(len), 0);
+        ASSERT_EQ(cli->sendfile_blocking(file.c_str(), 0, 0, -1), SW_OK);
+        cli->free();
+    });
+
+    t1.join();
+    t2.join();
+    delete str;
 }

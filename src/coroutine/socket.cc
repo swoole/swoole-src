@@ -1137,14 +1137,13 @@ Socket *Socket::accept(double timeout) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return nullptr;
     }
-    swSocketAddress client_addr;
-    swSocket *conn = socket->accept(&client_addr);
+    swSocket *conn = socket->accept();
     if (conn == nullptr && errno == EAGAIN) {
         timer_controller timer(&read_timer, timeout == 0 ? read_timeout : timeout, this, timer_callback);
         if (!timer.start() || !wait_event(SW_EVENT_READ)) {
             return nullptr;
         }
-        conn = socket->accept(&client_addr);
+        conn = socket->accept();
     }
     if (conn == nullptr) {
         set_err(errno);

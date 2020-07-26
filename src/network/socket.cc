@@ -192,34 +192,30 @@ ssize_t Socket::recv_blocking(void *__data, size_t __len, int flags) {
     return read_bytes;
 }
 
-Socket *Socket::accept(Address *sa) {
-    int conn;
-    sa->len = sizeof(sa->addr);
+Socket *Socket::accept() {
+    Socket *socket = new Socket();
+    socket->removed = 1;
+    socket->socket_type = socket_type;
+    socket->info.len = sizeof(socket->info);
 #ifdef HAVE_ACCEPT4
     int flags = SOCK_CLOEXEC;
     if (nonblock) {
         flags |= SOCK_NONBLOCK;
     }
-    conn = ::accept4(fd, (struct sockaddr *) &sa->addr, &sa->len, flags);
+    socket->fd = ::accept4(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len, flags);
 #else
-    conn = ::accept(fd, (struct sockaddr *) &sa->addr, &sa->len);
-    if (conn >= 0) {
-        swoole_fcntl_set_option(conn, nonblock, 1);
+    socket->fd = ::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
+    if (socket->fd >= 0) {
+        swoole_fcntl_set_option(socket->fd, nonblock, 1);
     }
 #endif
-
-    if (conn < 0) {
+    if (socket->fd < 0) {
+        delete socket;
         return nullptr;
     }
-
-    Socket *socket = swoole::make_socket(conn, SW_FD_SESSION);
-    socket->socket_type = socket_type;
+    socket->info.type = socket_type;
     socket->nonblock = nonblock;
     socket->cloexec = 1;
-    memcpy(&socket->info.addr, sa, sa->len);
-    socket->info.len = sa->len;
-    socket->info.type = socket_type;
-
     return socket;
 }
 
@@ -589,6 +585,34 @@ int Address::get_port() {
     } else {
         return 0;
     }
+}
+
+bool Address::assign(enum swSocket_type _type, const char *_host, int _port) {
+    type = _type;
+
+    if (_type == SW_SOCK_TCP || _type == SW_SOCK_UDP) {
+        addr.inet_v4.sin_family = AF_INET;
+        addr.inet_v4.sin_port = htons(_port);
+        len = sizeof(addr.inet_v4);
+        if (inet_pton(AF_INET, _host, &addr.inet_v4.sin_addr.s_addr)) {
+            return true;
+        }
+    } else if (_type == SW_SOCK_TCP6 || _type == SW_SOCK_UDP6) {
+        addr.inet_v6.sin6_family = AF_INET6;
+        addr.inet_v6.sin6_port = htons(_port);
+        len = sizeof(addr.inet_v6);
+        if (inet_pton(AF_INET6, _host, addr.inet_v6.sin6_addr.s6_addr)) {
+            return true;
+        }
+    } else if (_type == SW_SOCK_UNIX_STREAM || _type == SW_SOCK_UNIX_DGRAM) {
+        addr.un.sun_family = AF_UNIX;
+        strncpy(addr.un.sun_path, _host, sizeof(addr.un.sun_path) - 1);
+        addr.un.sun_path[sizeof(addr.un.sun_path) - 1] = 0;
+        len = sizeof(addr.un.sun_path);
+        return true;
+    } 
+    
+    return false;
 }
 
 static void Socket_sendfile_destructor(swBuffer_chunk *chunk) {

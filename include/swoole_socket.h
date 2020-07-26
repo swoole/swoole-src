@@ -62,6 +62,7 @@ struct Address {
     socklen_t len;
     enum swSocket_type type;
 
+    bool assign(enum swSocket_type _type, const char *_host, int _port);
     const char *get_ip();
     int get_port();
 };
@@ -165,19 +166,21 @@ struct Socket {
     ssize_t recv(void *__buf, size_t __n, int __flags);
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
-    swSocket *accept(swSocketAddress *sa);
+    swSocket *accept();
     int bind(const char *host, int *port);
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
+    inline int connect(const Address &sa) {
+        return ::connect(fd, (struct sockaddr *) &sa.addr, sa.len);
+    }
     void free();
 };
 }
 network::Socket *make_socket(int fd, enum swFd_type type);
 network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type fdtype, int flags);
-network::Socket *make_server_socket(enum swSocket_type type, const char *address, int port, int backlog);
+network::Socket *make_server_socket(enum swSocket_type type, const char *address, int port, int backlog = SW_BACKLOG);
 }
-
 
 static sw_inline int swSocket_is_dgram(uint8_t type) {
     return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
