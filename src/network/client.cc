@@ -626,7 +626,7 @@ static int swClient_tcp_send_sync(swClient *cli, const char *data, size_t length
 }
 
 static int swClient_tcp_sendfile_sync(swClient *cli, const char *filename, off_t offset, size_t length) {
-    if (swSocket_sendfile_sync(cli->socket->fd, filename, offset, length, cli->timeout) < 0) {
+    if (cli->socket->sendfile_blocking(filename, offset, length, cli->timeout) < 0) {
         swoole_set_last_error(errno);
         return SW_ERR;
     }

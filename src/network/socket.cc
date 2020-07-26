@@ -20,10 +20,11 @@
 #include "ssl.h"
 
 #include <assert.h>
+#include <memory>
 
 using swoole::network::Socket;
 
-int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout) {
+int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
     int file_fd = open(filename, O_RDONLY);
     if (file_fd < 0) {
@@ -35,7 +36,7 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
         struct stat file_stat;
         if (fstat(file_fd, &file_stat) < 0) {
             swSysWarn("fstat() failed");
-            close(file_fd);
+            ::close(file_fd);
             return SW_ERR;
         }
         length = file_stat.st_size;
@@ -45,22 +46,22 @@ int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t 
 
     int n, sendn;
     while (offset < (off_t) length) {
-        if (swSocket_wait(sock, timeout_ms, SW_EVENT_WRITE) < 0) {
+        if (swSocket_wait(fd, timeout_ms, SW_EVENT_WRITE) < 0) {
             ::close(file_fd);
             return SW_ERR;
         } else {
             sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-            n = ::swoole_sendfile(sock, file_fd, &offset, sendn);
+            n = ::swoole_sendfile(fd, file_fd, &offset, sendn);
             if (n <= 0) {
-                close(file_fd);
-                swSysWarn("sendfile(%d, %s) failed", sock, filename);
+                ::close(file_fd);
+                swSysWarn("sendfile(%d, %s) failed", fd, filename);
                 return SW_ERR;
             } else {
                 continue;
             }
         }
     }
-    close(file_fd);
+    ::close(file_fd);
     return SW_OK;
 }
 
@@ -111,12 +112,8 @@ int swSocket_wait(int fd, int timeout_ms, int events) {
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events) {
     assert(n_fd < 65535);
 
-    struct pollfd *event_list = (struct pollfd *) sw_calloc(n_fd, sizeof(*event_list));
-    if (!event_list) {
-        swWarn("malloc[1] failed");
-        return SW_ERR;
-    }
-    int i;
+    std::unique_ptr<struct pollfd> _event_list(new struct pollfd[n_fd]);
+    auto event_list = _event_list.get();
 
     int _events = 0;
     if (events & SW_EVENT_READ) {
@@ -126,7 +123,7 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events) {
         _events |= POLLOUT;
     }
 
-    for (i = 0; i < n_fd; i++) {
+    for (int i = 0; i < n_fd; i++) {
         event_list[i].fd = list_of_fd[i];
         event_list[i].events = _events;
     }
@@ -134,18 +131,15 @@ int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events) {
     while (1) {
         int ret = poll(event_list, n_fd, timeout_ms);
         if (ret == 0) {
-            sw_free(event_list);
             return SW_ERR;
         } else if (ret < 0 && errno != EINTR) {
             swSysWarn("poll() failed");
-            sw_free(event_list);
             return SW_ERR;
         } else {
-            sw_free(event_list);
             return ret;
         }
     }
-    sw_free(event_list);
+
     return SW_OK;
 }
 
@@ -436,8 +430,8 @@ int Socket::set_timeout(double timeout) {
     return SW_OK;
 }
 
-swSocket *swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog) {
-    swSocket *sock = swoole::make_socket(type, SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC);
+Socket *swoole::make_server_socket(enum swSocket_type type, const char *address, int port, int backlog) {
+    Socket *sock = swoole::make_socket(type, SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC);
     if (sock == nullptr) {
         swSysWarn("socket() failed");
         return nullptr;
@@ -460,18 +454,14 @@ int Socket::handle_sendfile(swBuffer_chunk *chunk) {
 
 #ifdef HAVE_TCP_NOPUSH
     if (task->offset == 0 && tcp_nopush == 0) {
-        /**
-         * disable tcp_nodelay
-         */
+        // disable tcp_nodelay
         if (tcp_nodelay) {
             int tcp_nodelay = 0;
             if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0) {
                 swSysWarn("setsockopt(TCP_NODELAY) failed");
             }
         }
-        /**
-         * enable tcp_nopush
-         */
+        // enable tcp_nopush
         if (set_tcp_nopush(1) == -1) {
             swSysWarn("set_tcp_nopush() failed");
         }
@@ -514,15 +504,11 @@ int Socket::handle_sendfile(swBuffer_chunk *chunk) {
         swBuffer_pop_chunk(out_buffer, chunk);
 
 #ifdef HAVE_TCP_NOPUSH
-        /**
-         * disable tcp_nopush
-         */
+        // disable tcp_nopush
         if (set_tcp_nopush(0) == -1) {
             swSysWarn("set_tcp_nopush() failed");
         }
-        /**
-         * enable tcp_nodelay
-         */
+        // enable tcp_nodelay
         if (tcp_nodelay) {
             int value = 1;
             if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0) {
@@ -569,9 +555,7 @@ int Socket::handle_send() {
         swBuffer_pop_chunk(buffer, chunk);
     } else {
         chunk->offset += ret;
-        /**
-         * kernel is not fully processing and socket buffer is full.
-         */
+        // kernel is not fully processing and socket buffer is full
         if (ret < sendn) {
             send_wait = 1;
             return SW_ERR;
@@ -603,7 +587,7 @@ int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info) {
     }
 }
 
-void swSocket_sendfile_destructor(swBuffer_chunk *chunk) {
+static void Socket_sendfile_destructor(swBuffer_chunk *chunk) {
     swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
     close(task->fd);
     sw_free(task->filename);
@@ -652,7 +636,7 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     if (offset < 0 || (length + offset > (size_t) file_stat.st_size)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
         error_chunk.store.ptr = task;
-        swSocket_sendfile_destructor(&error_chunk);
+        Socket_sendfile_destructor(&error_chunk);
         return SW_OK;
     }
     if (length == 0) {
@@ -665,12 +649,12 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     if (chunk == nullptr) {
         swWarn("get out_buffer chunk failed");
         error_chunk.store.ptr = task;
-        swSocket_sendfile_destructor(&error_chunk);
+        Socket_sendfile_destructor(&error_chunk);
         return SW_ERR;
     }
 
     chunk->store.ptr = (void *) task;
-    chunk->destroy = swSocket_sendfile_destructor;
+    chunk->destroy = Socket_sendfile_destructor;
 
     return SW_OK;
 }

@@ -138,7 +138,7 @@ int ProcessPool::create_unix_socket(const char *socket_file, int blacklog) {
     if (stream_info_->socket_file == nullptr) {
         return SW_ERR;
     }
-    stream_info_->socket = swSocket_create_server(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, blacklog);
+    stream_info_->socket = make_server_socket(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, blacklog);
     if (!stream_info_->socket) {
         return SW_ERR;
     }
@@ -154,7 +154,7 @@ int ProcessPool::create_tcp_socket(const char *host, int port, int blacklog) {
     if (stream_info_->socket_file == nullptr) {
         return SW_ERR;
     }
-    stream_info_->socket = swSocket_create_server(SW_SOCK_TCP, host, port, blacklog);
+    stream_info_->socket = make_server_socket(SW_SOCK_TCP, host, port, blacklog);
     if (!stream_info_->socket) {
         return SW_ERR;
     }

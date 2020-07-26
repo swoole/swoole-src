@@ -165,14 +165,15 @@ struct Socket {
     int bind(const char *host, int *port);
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
+    int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
     void free();
 };
 }
 network::Socket *make_socket(int fd, enum swFd_type type);
 network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type fdtype, int flags);
+network::Socket *make_server_socket(enum swSocket_type type, const char *address, int port, int backlog);
 }
 
-swSocket *swSocket_create_server(enum swSocket_type type, const char *address, int port, int backlog);
 static sw_inline int swSocket_is_dgram(uint8_t type) {
     return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
 }
@@ -180,7 +181,6 @@ static sw_inline int swSocket_is_dgram(uint8_t type) {
 static sw_inline int swSocket_is_stream(uint8_t type) {
     return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
 }
-
 
 int swSocket_wait(int fd, int timeout_ms, int events);
 int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
@@ -191,7 +191,6 @@ ssize_t swSocket_sendto_blocking(
 ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
 ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
 ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len);
-int swSocket_sendfile_sync(int sock, const char *filename, off_t offset, size_t length, double timeout);
 
 static sw_inline int swSocket_error(int err) {
     switch (err) {
@@ -258,6 +257,5 @@ static sw_inline int swSocket_get_domain_and_type(enum swSocket_type type, int *
     return SW_OK;
 }
 
-void swSocket_sendfile_destructor(swBuffer_chunk *chunk);
 const char *swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
 int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);

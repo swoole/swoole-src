@@ -142,7 +142,7 @@ static int swFactoryProcess_start(swFactory *factory) {
         if (serv->stream_socket_file == nullptr) {
             return SW_ERR;
         }
-        swSocket *sock = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket_file, 0, 2048);
+        swSocket *sock = swoole::make_server_socket(SW_SOCK_UNIX_STREAM, serv->stream_socket_file, 0, 2048);
         if (sock == nullptr) {
             return SW_ERR;
         }

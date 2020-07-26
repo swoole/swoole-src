@@ -72,7 +72,7 @@ class Socket {
     bool open_eof_check = false;
     bool http2 = false;
 
-    swoole::Protocol protocol = {};
+    Protocol protocol = {};
     swSocks5_proxy *socks5_proxy = nullptr;
     swHttp_proxy *http_proxy = nullptr;
 
