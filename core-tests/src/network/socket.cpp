@@ -69,9 +69,11 @@ TEST(socket, sendfile_blocking) {
         int _len = ntohl(len);
         ASSERT_EQ(_len, str->get_length());
         ASSERT_LT(_len, 1024 * 1024);
-        std::unique_ptr<char> data(new char[_len]);
+        std::unique_ptr<char[]> data(new char[_len]);
         cli->recv_blocking(data.get(), _len, MSG_WAITALL);
         ASSERT_STREQ(data.get(), str->value());
+        cli->free();
+        svr->free();
     });
 
     thread t2([&m, &file, str](){
