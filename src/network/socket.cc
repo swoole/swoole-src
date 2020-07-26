@@ -562,7 +562,7 @@ int Socket::handle_send() {
     return SW_OK;
 }
 
-static char tmp_address[INET6_ADDRSTRLEN];
+static thread_local char tmp_address[INET6_ADDRSTRLEN];
 
 const char *Address::get_ip() {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {

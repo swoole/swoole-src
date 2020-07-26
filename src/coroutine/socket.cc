@@ -36,7 +36,6 @@ double Socket::default_dns_timeout = SW_DEFAULT_SOCKET_DNS_TIMEOUT;
 double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
 double Socket::default_read_timeout = SW_DEFAULT_SOCKET_READ_TIMEOUT;
 double Socket::default_write_timeout = SW_DEFAULT_SOCKET_WRITE_TIMEOUT;
-static thread_local char tmp_address[INET6_ADDRSTRLEN + 1];
 
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_NEXTPROTONEG
@@ -609,31 +608,6 @@ bool Socket::getpeername(swSocketAddress *sa) {
     }
     sa->type = type;
     return true;
-}
-
-const char *Socket::get_ip() {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        if (inet_ntop(AF_INET, &socket->info.addr.inet_v4.sin_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
-        }
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        if (inet_ntop(AF_INET6, &socket->info.addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
-        }
-    } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
-        return socket->info.addr.un.sun_path;
-    }
-    return "unknown";
-}
-
-int Socket::get_port() {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        return ntohs(socket->info.addr.inet_v4.sin_port);
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        return ntohs(socket->info.addr.inet_v6.sin6_port);
-    } else {
-        return 0;
-    }
 }
 
 bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {

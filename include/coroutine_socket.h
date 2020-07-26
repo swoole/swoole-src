@@ -180,8 +180,14 @@ class Socket {
 
     bool getsockname(swSocketAddress *sa);
     bool getpeername(swSocketAddress *sa);
-    const char *get_ip();
-    int get_port();
+    
+    inline const char *get_ip() {
+        return socket->info.get_ip();
+    }
+    
+    inline int get_port() {
+        return socket->info.get_port();
+    }
 
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) { return get_bound_co(event) != nullptr; }
 
