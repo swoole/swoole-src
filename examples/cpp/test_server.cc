@@ -105,8 +105,8 @@ int my_onReceive(swServer *serv, swRecvData *req) {
     swoole_rtrim(req_data, req->info.len);
     swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d",
              g_receive_count,
-             swSocket_get_ip(conn->socket_type, &conn->info),
-             swSocket_get_port(conn->socket_type, &conn->info),
+             conn->info.get_ip(),
+             conn->info.get_port(),
              req_data,
              req->info.len);
 

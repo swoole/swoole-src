@@ -854,9 +854,9 @@ enum swReturn_code swSSL_accept(swSocket *conn) {
         const char *error_string = ERR_reason_error_string(error);
         swWarn("bad SSL client[%s:%d], reason=%d, error_string=%s",
                 conn->info.get_ip(),
-                conn->info.get_port());
-               reason,
-               error_string);
+                conn->info.get_port(),
+                reason,
+                error_string);
         return SW_ERROR;
     } else if (err == SSL_ERROR_SYSCALL) {
 #ifdef SW_SUPPORT_DTLS
@@ -1061,7 +1061,7 @@ static sw_inline void swSSL_connection_error(swSocket *conn) {
                      "SSL connection#%d[%s:%d] protocol error[%d]",
                      conn->fd,
                      conn->info.get_ip(),
-                     conn->info.get_port());
+                     conn->info.get_port(),
                      reason);
 }
 

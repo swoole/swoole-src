@@ -1347,7 +1347,7 @@ int php_swoole_onPacket(swServer *serv, swRecvData *req) {
     add_assoc_long(&zaddr, "server_socket", req->info.server_fd);
     swConnection *from_sock = serv->get_connection(req->info.server_fd);
     if (from_sock) {
-        add_assoc_long(&zaddr, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
+        add_assoc_long(&zaddr, "server_port", from_sock->info.get_port());
     }
 
     char address[INET6_ADDRSTRLEN];
