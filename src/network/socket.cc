@@ -200,9 +200,9 @@ Socket *Socket::accept(Address *sa) {
     if (nonblock) {
         flags |= SOCK_NONBLOCK;
     }
-    conn = accept4(fd, (struct sockaddr *) &sa->addr, &sa->len, flags);
+    conn = ::accept4(fd, (struct sockaddr *) &sa->addr, &sa->len, flags);
 #else
-    conn = accept(fd, (struct sockaddr *) &sa->addr, &sa->len);
+    conn = ::accept(fd, (struct sockaddr *) &sa->addr, &sa->len);
     if (conn >= 0) {
         swoole_fcntl_set_option(conn, nonblock, 1);
     }

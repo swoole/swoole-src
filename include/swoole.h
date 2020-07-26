@@ -197,10 +197,10 @@ namespace swoole {
 class Reactor;
 class String;
 class Timer;
-class TimerNode;
+struct TimerNode;
 namespace network {
-    struct Socket;
-    struct Address;
+struct Socket;
+struct Address;
 }
 struct Protocol;
 }
