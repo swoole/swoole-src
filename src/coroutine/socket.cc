@@ -508,6 +508,7 @@ bool Socket::init_sock() {
     }
     sock_fd = socket->fd;
     socket->object = this;
+    socket->info.type = type;
     return true;
 }
 
@@ -518,6 +519,7 @@ bool Socket::init_reactor_socket(int _fd) {
     socket->socket_type = type;
     socket->nonblock = 1;
     socket->cloexec = 1;
+    socket->info.type = type;
     return true;
 }
 
