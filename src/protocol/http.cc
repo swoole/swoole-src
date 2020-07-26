@@ -709,8 +709,8 @@ static void protocol_status_error(swSocket *socket, swConnection *conn) {
                      SW_ERROR_PROTOCOL_ERROR,
                      "unexpected protocol status of session#%u<%s:%d>",
                      conn->session_id,
-                     swSocket_get_ip(conn->socket_type, &conn->info),
-                     swSocket_get_port(conn->socket_type, &conn->info));
+                     conn->info.get_ip(),
+                     conn->info.get_port());
 }
 
 ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t length) {

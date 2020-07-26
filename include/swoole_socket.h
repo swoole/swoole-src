@@ -50,7 +50,9 @@ struct swSendFile_request {
     char filename[0];
 };
 
-struct swSocketAddress {
+namespace swoole { namespace network {
+
+struct Address {
     union {
         struct sockaddr ss;
         struct sockaddr_in inet_v4;
@@ -58,9 +60,11 @@ struct swSocketAddress {
         struct sockaddr_un un;
     } addr;
     socklen_t len;
-};
+    enum swSocket_type type;
 
-namespace swoole { namespace network {
+    const char *get_ip();
+    int get_port();
+};
 
 struct Socket {
     int fd;
@@ -105,7 +109,7 @@ struct Socket {
     uint32_t ssl_state;
 #endif
 
-    swSocketAddress info;
+    Address info;
 
     swBuffer *out_buffer;
     swBuffer *in_buffer;
@@ -173,6 +177,7 @@ network::Socket *make_socket(int fd, enum swFd_type type);
 network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type fdtype, int flags);
 network::Socket *make_server_socket(enum swSocket_type type, const char *address, int port, int backlog);
 }
+
 
 static sw_inline int swSocket_is_dgram(uint8_t type) {
     return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
@@ -257,5 +262,3 @@ static sw_inline int swSocket_get_domain_and_type(enum swSocket_type type, int *
     return SW_OK;
 }
 
-const char *swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info);
-int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info);

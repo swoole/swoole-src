@@ -853,8 +853,8 @@ enum swReturn_code swSSL_accept(swSocket *conn) {
         int reason = ERR_GET_REASON(error);
         const char *error_string = ERR_reason_error_string(error);
         swWarn("bad SSL client[%s:%d], reason=%d, error_string=%s",
-               swSocket_get_ip(conn->socket_type, &conn->info),
-               swSocket_get_port(conn->socket_type, &conn->info),
+                conn->info.get_ip(),
+                conn->info.get_port());
                reason,
                error_string);
         return SW_ERROR;
@@ -1060,8 +1060,8 @@ static sw_inline void swSSL_connection_error(swSocket *conn) {
                      SW_ERROR_SSL_BAD_PROTOCOL,
                      "SSL connection#%d[%s:%d] protocol error[%d]",
                      conn->fd,
-                     swSocket_get_ip(conn->socket_type, &conn->info),
-                     swSocket_get_port(conn->socket_type, &conn->info),
+                     conn->info.get_ip(),
+                     conn->info.get_port());
                      reason);
 }
 

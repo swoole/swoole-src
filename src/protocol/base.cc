@@ -51,8 +51,8 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, co
         swWarn("invalid package (size=%d) from socket#%u<%s:%d>",
                size,
                socket->fd,
-               swSocket_get_ip(socket->socket_type, &socket->info),
-               swSocket_get_port(socket->socket_type, &socket->info));
+               socket->info.get_ip(),
+               socket->info.get_port());
         return SW_ERR;
     }
     swDebug("length=%d", protocol->package_body_offset + body_length);
@@ -198,8 +198,8 @@ _do_recv:
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                                  "package is too big, remote_addr=%s:%d, length=%zu",
-                                 swSocket_get_ip(socket->socket_type, &socket->info),
-                                 swSocket_get_port(socket->socket_type, &socket->info),
+                                 socket->info.get_ip(),
+                                 socket->info.get_port(),
                                  package_length);
                 return SW_ERR;
             }

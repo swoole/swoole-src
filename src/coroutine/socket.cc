@@ -597,6 +597,7 @@ bool Socket::getsockname(swSocketAddress *sa) {
         set_err(errno);
         return false;
     }
+    sa->type = type;
     return true;
 }
 
@@ -606,6 +607,7 @@ bool Socket::getpeername(swSocketAddress *sa) {
         set_err(errno);
         return false;
     }
+    sa->type = type;
     return true;
 }
 
@@ -1038,6 +1040,7 @@ bool Socket::bind(std::string address, int port) {
     bind_port = port;
 
     struct sockaddr *sock_addr = (struct sockaddr *) &bind_address_info.addr;
+    bind_address_info.type = type;
 
     int option = 1;
     if (::setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {

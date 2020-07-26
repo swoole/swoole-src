@@ -23,6 +23,7 @@
 #include <memory>
 
 using swoole::network::Socket;
+using swoole::network::Address;
 
 int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
@@ -191,7 +192,7 @@ ssize_t Socket::recv_blocking(void *__data, size_t __len, int flags) {
     return read_bytes;
 }
 
-swSocket *Socket::accept(swSocketAddress *sa) {
+Socket *Socket::accept(Address *sa) {
     int conn;
     sa->len = sizeof(sa->addr);
 #ifdef HAVE_ACCEPT4
@@ -211,12 +212,13 @@ swSocket *Socket::accept(swSocketAddress *sa) {
         return nullptr;
     }
 
-    swSocket *socket = swoole::make_socket(conn, SW_FD_SESSION);
+    Socket *socket = swoole::make_socket(conn, SW_FD_SESSION);
     socket->socket_type = socket_type;
     socket->nonblock = nonblock;
     socket->cloexec = 1;
     memcpy(&socket->info.addr, sa, sa->len);
     socket->info.len = sa->len;
+    socket->info.type = socket_type;
 
     return socket;
 }
@@ -566,24 +568,26 @@ int Socket::handle_send() {
 
 static char tmp_address[INET6_ADDRSTRLEN];
 
-const char *swSocket_get_ip(enum swSocket_type socket_type, swSocketAddress *info) {
-    if (socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_UDP) {
-        return inet_ntoa(info->addr.inet_v4.sin_addr);
-    } else if (socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6) {
-        if (inet_ntop(AF_INET6, &info->addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
+const char *Address::get_ip() {
+    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+        return inet_ntoa(addr.inet_v4.sin_addr);
+    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+        if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
             return tmp_address;
         }
-    } else if (socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM) {
-        return info->addr.un.sun_path;
+    } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
+        return addr.un.sun_path;
     }
     return "unknown";
 }
 
-int swSocket_get_port(enum swSocket_type socket_type, swSocketAddress *info) {
-    if (socket_type == SW_SOCK_TCP) {
-        return ntohs(info->addr.inet_v4.sin_port);
+int Address::get_port() {
+    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
+        return ntohs(addr.inet_v4.sin_port);
+    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
+        return ntohs(addr.inet_v6.sin6_port);
     } else {
-        return ntohs(info->addr.inet_v6.sin6_port);
+        return 0;
     }
 }
 

@@ -25,6 +25,8 @@
 #include <assert.h>
 
 using namespace swoole;
+using swoole::network::Socket;
+using swoole::network::Address;
 
 Server *g_server_instance = nullptr;
 
@@ -86,13 +88,13 @@ void Server::close_port(bool only_stream_port) {
     }
 }
 
-int Server::accept_connection(swReactor *reactor, swEvent *event) {
+int Server::accept_connection(Reactor *reactor, swEvent *event) {
     Server *serv = (Server *) reactor->ptr;
-    swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
-    swSocketAddress client_addr;
+    ListenPort *listen_host = (ListenPort *) serv->connection_list[event->fd].object;
+    Address client_addr;
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++) {
-        swSocket *sock = event->socket->accept(&client_addr);
+        Socket *sock = event->socket->accept(&client_addr);
         if (sock == nullptr) {
             switch (errno) {
             case EAGAIN:
@@ -124,7 +126,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
         }
 
         // add to connection_list
-        swConnection *conn = serv->add_connection(listen_host, sock, event->fd);
+        Connection *conn = serv->add_connection(listen_host, sock, event->fd);
         if (conn == nullptr) {
             sock->free();
             return SW_OK;
@@ -152,7 +154,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
             swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = sock->fd;
-            swSocket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
+            Socket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
             if (reactor->write(reactor, _pipe_sock, &ev, sizeof(ev)) < 0) {
                 reactor->close(reactor, sock);
                 return SW_OK;
@@ -381,6 +383,7 @@ void Server::store_listen_socket() {
                 connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
         }
+        connection_list[sockfd].info.type = ls->type;
         if (sockfd >= 0) {
             set_minfd(sockfd);
             set_maxfd(sockfd);
@@ -1606,7 +1609,7 @@ void Server::foreach_connection(const std::function<void(Connection *)> &callbac
 /**
  * new connection
  */
-swConnection *Server::add_connection(swListenPort *ls, swSocket *_socket, int server_fd) {
+Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_fd) {
     gs->accept_count++;
     sw_atomic_fetch_add(&gs->connection_num, 1);
     sw_atomic_fetch_add(ls->connection_num, 1);
@@ -1619,7 +1622,7 @@ swConnection *Server::add_connection(swListenPort *ls, swSocket *_socket, int se
         set_minfd(fd);
     }
 
-    swConnection *connection = &(connection_list[fd]);
+    Connection *connection = &(connection_list[fd]);
     sw_memset_zero(connection, sizeof(*connection));
     _socket->object = connection;
     _socket->removed = 1;
@@ -1661,6 +1664,7 @@ swConnection *Server::add_connection(swListenPort *ls, swSocket *_socket, int se
 
     memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
     connection->info.len = _socket->info.len;
+    connection->info.type = connection->socket_type;
 
     if (!ls->ssl) {
         _socket->direct_send = 1;

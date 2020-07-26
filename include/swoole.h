@@ -200,6 +200,7 @@ class Timer;
 class TimerNode;
 namespace network {
     struct Socket;
+    struct Address;
 }
 struct Protocol;
 }
@@ -209,6 +210,7 @@ typedef swoole::String swString;
 typedef swoole::Timer swTimer;
 typedef swoole::TimerNode swTimer_node;
 typedef swoole::network::Socket swSocket;
+typedef swoole::network::Address swSocketAddress;
 typedef swoole::Protocol swProtocol;
 
 struct swMsgQueue;

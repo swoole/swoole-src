@@ -154,8 +154,8 @@ class http_client {
         }
 
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) swSocket_get_ip(socket->get_type(), &sa));
-        add_assoc_long(return_value, "port", swSocket_get_port(socket->get_type(), &sa));
+        add_assoc_string(return_value, "address", (char *) sa.get_ip());
+        add_assoc_long(return_value, "port", sa.get_port());
     }
 
     void getpeername(zval *return_value) {
@@ -166,8 +166,8 @@ class http_client {
         }
 
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) swSocket_get_ip(socket->get_type(), &sa));
-        add_assoc_long(return_value, "port", swSocket_get_port(socket->get_type(), &sa));
+        add_assoc_string(return_value, "address", (char *) sa.get_ip());
+        add_assoc_long(return_value, "port", sa.get_port());
     }
 
 #ifdef SW_USE_OPENSSL
