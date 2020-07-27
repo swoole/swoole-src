@@ -325,9 +325,9 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
 
         while (1) {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
-            if (ret < 0 && swSocket_error(errno) == SW_WAIT) {
-                if (swSocket_wait(
-                        task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WRITE)->fd, -1, SW_EVENT_WRITE) == 0) {
+            auto _sock = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WRITE);
+            if (ret < 0 && _sock->catch_error(errno) == SW_WAIT) {
+                if (_sock->wait_event(-1, SW_EVENT_WRITE) == 0) {
                     continue;
                 }
             }

@@ -436,6 +436,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/ring_buffer.cc \
         src/memory/shared_memory.cc \
         src/memory/table.cc \
+        src/network/address.cc \
         src/network/client.cc \
         src/network/dns.cc \
         src/network/socket.cc \

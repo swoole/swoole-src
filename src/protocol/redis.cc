@@ -62,7 +62,7 @@ _recv_data:
 
     int n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from socket#%d failed", conn->fd);
             return SW_OK;

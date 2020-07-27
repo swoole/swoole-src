@@ -28,6 +28,8 @@
 
 #include <assert.h>
 
+using swoole::network::Socket;
+
 static int swClient_inet_addr(swClient *cli, const char *host, int port);
 static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, double _timeout, int udp_connect);
 static int swClient_tcp_connect_async(swClient *cli, const char *host, int port, double timeout, int nonblock);
@@ -68,7 +70,7 @@ void swClient_init_reactor(swReactor *reactor) {
 
 int swClient_create(swClient *cli, enum swSocket_type type, int async) {
     sw_memset_zero(cli, sizeof(swClient));
-    cli->reactor_fdtype = swSocket_is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
+    cli->reactor_fdtype = Socket::is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
     cli->socket = swoole::make_socket(type, cli->reactor_fdtype, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (cli->socket == nullptr) {
         swSysWarn("socket() failed");
@@ -79,7 +81,7 @@ int swClient_create(swClient *cli, enum swSocket_type type, int async) {
     cli->input_buffer_size = SW_CLIENT_BUFFER_SIZE;
     cli->socket->chunk_size = SW_SEND_BUFFER_SIZE;
 
-    if (swSocket_is_stream(type)) {
+    if (Socket::is_stream(type)) {
         cli->recv = swClient_tcp_recv_no_buffer;
         if (async) {
             cli->connect = swClient_tcp_connect_async;
@@ -97,7 +99,7 @@ int swClient_create(swClient *cli, enum swSocket_type type, int async) {
         cli->send = swClient_udp_send;
     }
 
-    swSocket_get_domain_and_type(type, &cli->_sock_domain, &cli->_sock_type);
+    Socket::get_domain_and_type(type, &cli->_sock_domain, &cli->_sock_type);
 
     cli->close = swClient_close;
     cli->type = type;
@@ -413,7 +415,7 @@ static int swClient_tcp_connect_sync(swClient *cli, const char *host, int port, 
                 if (errno != EINPROGRESS) {
                     return SW_ERR;
                 }
-                if (swSocket_wait(cli->socket->fd, timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
+                if (cli->socket->wait_event(timeout > 0 ? (int) (timeout * 1000) : timeout, SW_EVENT_WRITE) < 0) {
                     swoole_set_last_error(ETIMEDOUT);
                     return SW_ERR;
                 }
@@ -611,7 +613,7 @@ static int swClient_tcp_send_sync(swClient *cli, const char *data, size_t length
             if (errno == EINTR) {
                 continue;
             } else if (errno == EAGAIN) {
-                swSocket_wait(cli->socket->fd, 1000, SW_EVENT_WRITE);
+                cli->socket->wait_event(1000, SW_EVENT_WRITE);
                 continue;
             } else {
                 swoole_set_last_error(errno);
@@ -657,7 +659,7 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, uint32_t len, 
     while (1) {
 #ifdef HAVE_KQUEUE
         int timeout_ms = (int) (cli->timeout * 1000);
-        if (swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) < 0) {
+        if (cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
             return -1;
         }
 #endif
@@ -678,10 +680,10 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, uint32_t len, 
 #ifdef SW_USE_OPENSSL
         if (errno == EAGAIN && cli->socket->ssl) {
             int timeout_ms = (int) (cli->timeout * 1000);
-            if (cli->socket->ssl_want_read && swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) == SW_OK) {
+            if (cli->socket->ssl_want_read && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) == SW_OK) {
                 continue;
             } else if (cli->socket->ssl_want_write &&
-                       swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_WRITE) == SW_OK) {
+                       cli->socket->wait_event(timeout_ms, SW_EVENT_WRITE) == SW_OK) {
                 continue;
             }
         }
@@ -742,7 +744,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
     }
 
     if (cli->socket->connect(cli->server_addr) == 0) {
-        swSocket_clean(cli->socket->fd);
+        cli->socket->clean();
     _connect_ok:
 
         setsockopt(cli->socket->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
@@ -789,18 +791,15 @@ static int swClient_udp_recv(swClient *cli, char *data, uint32_t length, int fla
 #ifdef HAVE_KQUEUE
     if (!cli->async) {
         int timeout_ms = (int) (cli->timeout * 1000);
-        if (swSocket_wait(cli->socket->fd, timeout_ms, SW_EVENT_READ) < 0) {
+        if (cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
             return -1;
         }
     }
 #endif
-    cli->remote_addr.len = sizeof(cli->remote_addr.addr);
-    int ret = recvfrom(
-        cli->socket->fd, data, length, flags, (struct sockaddr *) &cli->remote_addr.addr, &cli->remote_addr.len);
+    int ret = cli->socket->recvfrom(data, length, flags, &cli->remote_addr);
     if (ret < 0) {
         if (errno == EINTR) {
-            ret = recvfrom(
-                cli->socket->fd, data, length, flags, (struct sockaddr *) &cli->remote_addr, &cli->remote_addr.len);
+            ret = cli->socket->recvfrom(data, length, flags, &cli->remote_addr);
         } else {
             return SW_ERR;
         }
@@ -977,7 +976,7 @@ _recv_again:
 #endif
     n = event->socket->recv(buf, buf_size, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (event->socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("Read from socket[%d] failed", event->fd);
             return SW_OK;

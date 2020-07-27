@@ -925,7 +925,7 @@ int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size) {
     if (n > 0) {
         ret = swSSL_send(conn, buf, n);
         if (ret < 0) {
-            if (swSocket_error(errno) == SW_ERROR) {
+            if (conn->catch_error(errno) == SW_ERROR) {
                 swSysWarn("write() failed");
             }
         } else {

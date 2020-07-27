@@ -130,7 +130,7 @@ int my_onPacket(swServer *serv, swRecvData *req) {
 
     packet = (swDgramPacket *) req->data;
 
-    int serv_sock = req->info.server_fd;
+    auto serv_socket = serv->get_server_socket(req->info.server_fd);
 
     if (packet->socket_type == SW_SOCK_UDP) {
         inet_ntop(AF_INET, &packet->socket_addr.addr.inet_v4.sin_addr, address, sizeof(address));
@@ -152,16 +152,7 @@ int my_onPacket(swServer *serv, swRecvData *req) {
     char resp_data[SW_IPC_BUFFER_SIZE];
     int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s", length, data);
 
-    if (packet->socket_type == SW_SOCK_UDP) {
-        ret = swSocket_udp_sendto(serv_sock, address, port, resp_data, n);
-    } else if (packet->socket_type == SW_SOCK_UDP6) {
-        ret = swSocket_udp_sendto6(serv_sock, address, port, resp_data, n);
-    } else if (packet->socket_type == SW_SOCK_UNIX_DGRAM) {
-        ret = swSocket_unix_sendto(serv_sock, address, resp_data, n);
-    } else {
-        assert(0);
-        return 1;
-    }
+    ret = serv_socket->sendto(address, port, resp_data, n);
 
     if (ret < 0) {
         swNotice("send to client fail. errno=%d", errno);

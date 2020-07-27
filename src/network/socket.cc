@@ -14,16 +14,17 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_api.h"
 #include "swoole_socket.h"
-#include "swoole_log.h"
-#include "ssl.h"
 
 #include <assert.h>
 #include <memory>
 
-using swoole::network::Socket;
-using swoole::network::Address;
+#include "swoole_api.h"
+#include "swoole_log.h"
+#include "ssl.h"
+
+namespace swoole {
+namespace network {
 
 int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
@@ -47,7 +48,7 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
 
     int n, sendn;
     while (offset < (off_t) length) {
-        if (swSocket_wait(fd, timeout_ms, SW_EVENT_WRITE) < 0) {
+        if (wait_event(timeout_ms, SW_EVENT_WRITE) < 0) {
             ::close(file_fd);
             return SW_ERR;
         } else {
@@ -69,16 +70,16 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
 /**
  * clear socket buffer.
  */
-void swSocket_clean(int fd) {
+void Socket::clean() {
     char buf[2048];
-    while (recv(fd, buf, sizeof(buf), MSG_DONTWAIT) > 0)
+    while (::recv(fd, buf, sizeof(buf), MSG_DONTWAIT) > 0)
         ;
 }
 
 /**
  * Wait socket can read or write.
  */
-int swSocket_wait(int fd, int timeout_ms, int events) {
+int Socket::wait_event(int timeout_ms, int events) {
     struct pollfd event;
     event.fd = fd;
     event.events = 0;
@@ -107,43 +108,6 @@ int swSocket_wait(int fd, int timeout_ms, int events) {
     return SW_OK;
 }
 
-/**
- * Wait some sockets can read or write.
- */
-int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events) {
-    assert(n_fd < 65535);
-
-    std::unique_ptr<struct pollfd> _event_list(new struct pollfd[n_fd]);
-    auto event_list = _event_list.get();
-
-    int _events = 0;
-    if (events & SW_EVENT_READ) {
-        _events |= POLLIN;
-    }
-    if (events & SW_EVENT_WRITE) {
-        _events |= POLLOUT;
-    }
-
-    for (int i = 0; i < n_fd; i++) {
-        event_list[i].fd = list_of_fd[i];
-        event_list[i].events = _events;
-    }
-
-    while (1) {
-        int ret = poll(event_list, n_fd, timeout_ms);
-        if (ret == 0) {
-            return SW_ERR;
-        } else if (ret < 0 && errno != EINTR) {
-            swSysWarn("poll() failed");
-            return SW_ERR;
-        } else {
-            return ret;
-        }
-    }
-
-    return SW_OK;
-}
-
 ssize_t Socket::send_blocking(const void *__data, size_t __len) {
     ssize_t n = 0;
     ssize_t written = 0;
@@ -160,8 +124,8 @@ ssize_t Socket::send_blocking(const void *__data, size_t __len) {
         if (n < 0) {
             if (errno == EINTR) {
                 continue;
-            } else if (swSocket_error(errno) == SW_WAIT &&
-                       swSocket_wait(fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
+            } else if (catch_error(errno) == SW_WAIT &&
+                       wait_event((int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
                 swSysWarn("send %d bytes failed", __len);
@@ -219,109 +183,26 @@ Socket *Socket::accept() {
     return socket;
 }
 
-ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len) {
-    struct sockaddr_in addr;
-    if (inet_aton(dst_ip, &addr.sin_addr) == 0) {
-        swWarn("ip[%s] is invalid", dst_ip);
-        return SW_ERR;
-    }
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(dst_port);
-    return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
-}
-
-ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len) {
-    struct sockaddr_in6 addr;
-    sw_memset_zero(&addr, sizeof(addr));
-    if (inet_pton(AF_INET6, dst_ip, &addr.sin6_addr) < 0) {
-        swWarn("ip[%s] is invalid", dst_ip);
-        return SW_ERR;
-    }
-    addr.sin6_port = (uint16_t) htons(dst_port);
-    addr.sin6_family = AF_INET6;
-    return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
-}
-
-ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len) {
-    struct sockaddr_un addr;
-    sw_memset_zero(&addr, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, dst_path, sizeof(addr.sun_path) - 1);
-    return swSocket_sendto_blocking(server_sock, data, len, 0, (struct sockaddr *) &addr, sizeof(addr));
-}
-
-ssize_t swSocket_sendto_blocking(
-    int fd, const void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len) {
+ssize_t Socket::sendto_blocking(
+    const void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len) {
     ssize_t n = 0;
 
     for (int i = 0; i < SW_SOCKET_SYNC_SEND_RETRY_COUNT; i++) {
-        n = sendto(fd, __buf, __n, flag, __addr, __addr_len);
+        n = ::sendto(fd, __buf, __n, flag, __addr, __addr_len);
         if (n >= 0) {
             break;
         }
         if (errno == EINTR) {
             continue;
         }
-        if (swSocket_error(errno) == SW_WAIT &&
-            swSocket_wait(fd, (int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
+        if (catch_error(errno) == SW_WAIT &&
+            wait_event((int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
             continue;
         }
         break;
     }
 
     return n;
-}
-
-Socket *swoole::make_socket(enum swSocket_type type, enum swFd_type fdtype, int flags) {
-    int sock_domain;
-    int sock_type;
-
-    if (swSocket_get_domain_and_type(type, &sock_domain, &sock_type) < 0) {
-        swWarn("unknown socket type [%d]", type);
-        errno = ESOCKTNOSUPPORT;
-        return nullptr;
-    }
-
-    bool nonblock = flags & SW_SOCK_NONBLOCK;
-    bool cloexec = flags & SW_SOCK_CLOEXEC;
-
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
-    int sock_flags = 0;
-    if (nonblock) {
-        sock_flags |= SOCK_NONBLOCK;
-    }
-    if (cloexec) {
-        sock_flags |= SOCK_CLOEXEC;
-    }
-    int sockfd = socket(sock_domain, sock_type | sock_flags, 0);
-    if (sockfd < 0) {
-        return nullptr;
-    }
-#else
-    int sockfd = socket(sock_domain, sock_type, 0);
-    if (sockfd < 0) {
-        return nullptr;
-    }
-    if (nonblock || cloexec) {
-        if (swoole_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
-            close(sockfd);
-            return nullptr;
-        }
-    }
-#endif
-    auto _socket = swoole::make_socket(sockfd, fdtype);
-    _socket->nonblock = nonblock;
-    _socket->cloexec = cloexec;
-    _socket->socket_type = type;
-    return _socket;
-}
-
-Socket *swoole::make_socket(int fd, enum swFd_type type) {
-    Socket *socket = new Socket();
-    socket->fd = fd;
-    socket->fdtype = type;
-    socket->removed = 1;
-    return socket;
 }
 
 static void socket_free_defer(void *ptr) {
@@ -428,24 +309,6 @@ int Socket::set_timeout(double timeout) {
     return SW_OK;
 }
 
-Socket *swoole::make_server_socket(enum swSocket_type type, const char *address, int port, int backlog) {
-    Socket *sock = swoole::make_socket(type, SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC);
-    if (sock == nullptr) {
-        swSysWarn("socket() failed");
-        return nullptr;
-    }
-    if (sock->bind(address, &port) < 0) {
-        sock->free();
-        return nullptr;
-    }
-    if (listen(sock->fd, backlog) < 0) {
-        swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
-        sock->free();
-        return nullptr;
-    }
-    return sock;
-}
-
 int Socket::handle_sendfile(swBuffer_chunk *chunk) {
     int ret;
     swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
@@ -481,7 +344,7 @@ int Socket::handle_sendfile(swBuffer_chunk *chunk) {
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, (long) task->offset, sendn, task->length);
 
     if (ret <= 0) {
-        switch (swSocket_error(errno)) {
+        switch (catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("sendfile(%s, %ld, %d) failed", task->filename, (long) task->offset, sendn);
             swBuffer_pop_chunk(out_buffer, chunk);
@@ -533,7 +396,7 @@ int Socket::handle_send() {
 
     ssize_t ret = send((char *) chunk->store.ptr + chunk->offset, sendn, 0);
     if (ret < 0) {
-        switch (swSocket_error(errno)) {
+        switch (catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("send to fd[%d] failed", fd);
             break;
@@ -560,59 +423,6 @@ int Socket::handle_send() {
         }
     }
     return SW_OK;
-}
-
-static thread_local char tmp_address[INET6_ADDRSTRLEN];
-
-const char *Address::get_ip() {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        return inet_ntoa(addr.inet_v4.sin_addr);
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
-            return tmp_address;
-        }
-    } else if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
-        return addr.un.sun_path;
-    }
-    return "unknown";
-}
-
-int Address::get_port() {
-    if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        return ntohs(addr.inet_v4.sin_port);
-    } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
-        return ntohs(addr.inet_v6.sin6_port);
-    } else {
-        return 0;
-    }
-}
-
-bool Address::assign(enum swSocket_type _type, const char *_host, int _port) {
-    type = _type;
-
-    if (_type == SW_SOCK_TCP || _type == SW_SOCK_UDP) {
-        addr.inet_v4.sin_family = AF_INET;
-        addr.inet_v4.sin_port = htons(_port);
-        len = sizeof(addr.inet_v4);
-        if (inet_pton(AF_INET, _host, &addr.inet_v4.sin_addr.s_addr)) {
-            return true;
-        }
-    } else if (_type == SW_SOCK_TCP6 || _type == SW_SOCK_UDP6) {
-        addr.inet_v6.sin6_family = AF_INET6;
-        addr.inet_v6.sin6_port = htons(_port);
-        len = sizeof(addr.inet_v6);
-        if (inet_pton(AF_INET6, _host, addr.inet_v6.sin6_addr.s6_addr)) {
-            return true;
-        }
-    } else if (_type == SW_SOCK_UNIX_STREAM || _type == SW_SOCK_UNIX_DGRAM) {
-        addr.un.sun_family = AF_UNIX;
-        strncpy(addr.un.sun_path, _host, sizeof(addr.un.sun_path) - 1);
-        addr.un.sun_path[sizeof(addr.un.sun_path) - 1] = 0;
-        len = sizeof(addr.un.sun_path);
-        return true;
-    } 
-    
-    return false;
 }
 
 static void Socket_sendfile_destructor(swBuffer_chunk *chunk) {
@@ -721,7 +531,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
     }
 #endif
 
-    if (total_bytes < 0 && swSocket_error(errno) == SW_WAIT && event_hup) {
+    if (total_bytes < 0 && catch_error(errno) == SW_WAIT && event_hup) {
         total_bytes = 0;
     }
 
@@ -773,3 +583,79 @@ ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
 
     return retval;
 }
+
+}  // namespace network
+
+using network::Socket;
+
+Socket *make_socket(enum swSocket_type type, enum swFd_type fdtype, int flags) {
+    int sock_domain;
+    int sock_type;
+
+    if (Socket::get_domain_and_type(type, &sock_domain, &sock_type) < 0) {
+        swWarn("unknown socket type [%d]", type);
+        errno = ESOCKTNOSUPPORT;
+        return nullptr;
+    }
+
+    bool nonblock = flags & SW_SOCK_NONBLOCK;
+    bool cloexec = flags & SW_SOCK_CLOEXEC;
+
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+    int sock_flags = 0;
+    if (nonblock) {
+        sock_flags |= SOCK_NONBLOCK;
+    }
+    if (cloexec) {
+        sock_flags |= SOCK_CLOEXEC;
+    }
+    int sockfd = socket(sock_domain, sock_type | sock_flags, 0);
+    if (sockfd < 0) {
+        return nullptr;
+    }
+#else
+    int sockfd = socket(sock_domain, sock_type, 0);
+    if (sockfd < 0) {
+        return nullptr;
+    }
+    if (nonblock || cloexec) {
+        if (swoole_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
+            close(sockfd);
+            return nullptr;
+        }
+    }
+#endif
+    auto _socket = swoole::make_socket(sockfd, fdtype);
+    _socket->nonblock = nonblock;
+    _socket->cloexec = cloexec;
+    _socket->socket_type = type;
+    return _socket;
+}
+
+Socket *make_server_socket(enum swSocket_type type, const char *address, int port, int backlog) {
+    Socket *sock = swoole::make_socket(type, SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC);
+    if (sock == nullptr) {
+        swSysWarn("socket() failed");
+        return nullptr;
+    }
+    if (sock->bind(address, &port) < 0) {
+        sock->free();
+        return nullptr;
+    }
+    if (listen(sock->fd, backlog) < 0) {
+        swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
+        sock->free();
+        return nullptr;
+    }
+    return sock;
+}
+
+Socket *make_socket(int fd, enum swFd_type type) {
+    Socket *socket = new Socket();
+    socket->fd = fd;
+    socket->fdtype = type;
+    socket->removed = 1;
+    return socket;
+}
+
+}  // namespace swoole

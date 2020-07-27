@@ -18,10 +18,14 @@
 #pragma once
 
 #include "swoole.h"
+
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#include <vector>
+
 #include "buffer.h"
 
 #ifndef SOCK_NONBLOCK
@@ -50,7 +54,8 @@ struct swSendFile_request {
     char filename[0];
 };
 
-namespace swoole { namespace network {
+namespace swoole {
+namespace network {
 
 struct Address {
     union {
@@ -140,7 +145,7 @@ struct Socket {
             return SW_OK;
         }
     }
-    
+
     inline int set_block() {
         if (swoole_fcntl_set_option(fd, 0, -1) < 0) {
             return SW_ERR;
@@ -161,107 +166,122 @@ struct Socket {
     }
     /**
      * socket io operation
-     */ 
+     */
     int sendfile(const char *filename, off_t offset, size_t length);
     ssize_t recv(void *__buf, size_t __n, int __flags);
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     swSocket *accept();
     int bind(const char *host, int *port);
+    void clean();
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
+
     inline int connect(const Address &sa) {
         return ::connect(fd, (struct sockaddr *) &sa.addr, sa.len);
     }
+
+    inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
+        sa->len = sizeof(sa->addr);
+        return ::recvfrom(fd, __buf, __len, flags, (struct sockaddr *) &sa->addr, &sa->len);
+    }
+
+    int wait_event(int timeout_ms, int events);
     void free();
+
+    static inline int is_dgram(uint8_t type) {
+        return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
+    }
+
+    static inline int is_stream(uint8_t type) {
+        return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
+    }
+
+    ssize_t sendto_blocking(const void *buf, size_t n, int flag, struct sockaddr *addr, socklen_t addr_len);
+
+    inline ssize_t sendto(const char *dst_host, int dst_port, const char *data, uint32_t len) {
+        Address addr;
+        if (!addr.assign(socket_type, dst_host, dst_port)) {
+            return SW_ERR;
+        }
+        return sendto(&addr, data, len);
+    }
+
+    inline ssize_t sendto(Address *dst_addr, const char *data, uint32_t len) {
+        return ::sendto(fd, data, len, 0, (struct sockaddr *) &dst_addr->addr, dst_addr->len);
+    }
+
+    inline int catch_error(int err) {
+        switch (err) {
+        case EFAULT:
+            abort();
+            return SW_ERROR;
+        case EBADF:
+        case ECONNRESET:
+#ifdef __CYGWIN__
+        case ECONNABORTED:
+#endif
+        case EPIPE:
+        case ENOTCONN:
+        case ETIMEDOUT:
+        case ECONNREFUSED:
+        case ENETDOWN:
+        case ENETUNREACH:
+        case EHOSTDOWN:
+        case EHOSTUNREACH:
+        case SW_ERROR_SSL_BAD_CLIENT:
+        case SW_ERROR_SSL_RESET:
+            return SW_CLOSE;
+        case EAGAIN:
+#ifdef HAVE_KQUEUE
+        case ENOBUFS:
+#endif
+        case 0:
+            return SW_WAIT;
+        default:
+            return SW_ERROR;
+        }
+    }
+
+    static inline int get_domain_and_type(enum swSocket_type type, int *sock_domain, int *sock_type) {
+        switch (type) {
+        case SW_SOCK_TCP6:
+            *sock_domain = AF_INET6;
+            *sock_type = SOCK_STREAM;
+            break;
+        case SW_SOCK_UNIX_STREAM:
+            *sock_domain = AF_UNIX;
+            *sock_type = SOCK_STREAM;
+            break;
+        case SW_SOCK_UDP:
+            *sock_domain = AF_INET;
+            *sock_type = SOCK_DGRAM;
+            break;
+        case SW_SOCK_UDP6:
+            *sock_domain = AF_INET6;
+            *sock_type = SOCK_DGRAM;
+            break;
+        case SW_SOCK_UNIX_DGRAM:
+            *sock_domain = AF_UNIX;
+            *sock_type = SOCK_DGRAM;
+            break;
+        case SW_SOCK_TCP:
+            *sock_domain = AF_INET;
+            *sock_type = SOCK_STREAM;
+            break;
+        default:
+            return SW_ERR;
+        }
+
+        return SW_OK;
+    }
 };
-}
+}  // namespace network
 network::Socket *make_socket(int fd, enum swFd_type type);
 network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type fdtype, int flags);
-network::Socket *make_server_socket(enum swSocket_type type, const char *address, int port, int backlog = SW_BACKLOG);
-}
-
-static sw_inline int swSocket_is_dgram(uint8_t type) {
-    return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
-}
-
-static sw_inline int swSocket_is_stream(uint8_t type) {
-    return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
-}
-
-int swSocket_wait(int fd, int timeout_ms, int events);
-int swSocket_wait_multi(int *list_of_fd, int n_fd, int timeout_ms, int events);
-void swSocket_clean(int fd);
-ssize_t swSocket_sendto_blocking(
-    int fd, const void *buf, size_t n, int flag, struct sockaddr *addr, socklen_t addr_len);
-
-ssize_t swSocket_udp_sendto(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
-ssize_t swSocket_udp_sendto6(int server_sock, const char *dst_ip, int dst_port, const char *data, uint32_t len);
-ssize_t swSocket_unix_sendto(int server_sock, const char *dst_path, const char *data, uint32_t len);
-
-static sw_inline int swSocket_error(int err) {
-    switch (err) {
-    case EFAULT:
-        abort();
-        return SW_ERROR;
-    case EBADF:
-    case ECONNRESET:
-#ifdef __CYGWIN__
-    case ECONNABORTED:
-#endif
-    case EPIPE:
-    case ENOTCONN:
-    case ETIMEDOUT:
-    case ECONNREFUSED:
-    case ENETDOWN:
-    case ENETUNREACH:
-    case EHOSTDOWN:
-    case EHOSTUNREACH:
-    case SW_ERROR_SSL_BAD_CLIENT:
-    case SW_ERROR_SSL_RESET:
-        return SW_CLOSE;
-    case EAGAIN:
-#ifdef HAVE_KQUEUE
-    case ENOBUFS:
-#endif
-    case 0:
-        return SW_WAIT;
-    default:
-        return SW_ERROR;
-    }
-}
-
-static sw_inline int swSocket_get_domain_and_type(enum swSocket_type type, int *sock_domain, int *sock_type) {
-    switch (type) {
-    case SW_SOCK_TCP6:
-        *sock_domain = AF_INET6;
-        *sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UNIX_STREAM:
-        *sock_domain = AF_UNIX;
-        *sock_type = SOCK_STREAM;
-        break;
-    case SW_SOCK_UDP:
-        *sock_domain = AF_INET;
-        *sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UDP6:
-        *sock_domain = AF_INET6;
-        *sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_UNIX_DGRAM:
-        *sock_domain = AF_UNIX;
-        *sock_type = SOCK_DGRAM;
-        break;
-    case SW_SOCK_TCP:
-        *sock_domain = AF_INET;
-        *sock_type = SOCK_STREAM;
-        break;
-    default:
-        return SW_ERR;
-    }
-
-    return SW_OK;
-}
-
+network::Socket *make_server_socket(enum swSocket_type type,
+                                    const char *address,
+                                    int port = 0,
+                                    int backlog = SW_BACKLOG);
+}  // namespace swoole

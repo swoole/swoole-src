@@ -122,13 +122,12 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event) 
     int fd = event->fd;
     int ret;
 
-    swServer *serv = (swServer *) reactor->ptr;
-    swConnection *server_sock = &serv->connection_list[fd];
+    Server *serv = (swServer *) reactor->ptr;
+    Connection *server_sock = &serv->connection_list[fd];
+    network::Socket *sock = server_sock->socket;
     swSendData task = {};
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
-
-    pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
@@ -141,13 +140,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event) 
 
 _do_recvfrom:
 
-    ret = recvfrom(fd,
-                   pkt->data,
-                   SwooleTG.buffer_stack->size - sizeof(*pkt),
-                   0,
-                   (struct sockaddr *) &pkt->socket_addr.addr,
-                   &pkt->socket_addr.len);
-
+    ret = sock->recvfrom(pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0, &pkt->socket_addr);
     if (ret <= 0) {
         if (errno == EAGAIN) {
             return SW_OK;
@@ -522,7 +515,7 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev) {
 
         ret = ev->socket->send(chunk->store.ptr, chunk->length, 0);
         if (ret < 0) {
-            return (swSocket_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
+            return (ev->socket->catch_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {
             swBuffer_pop_chunk(buffer, chunk);
         }

@@ -29,8 +29,9 @@
 #include "base64.h"
 
 using namespace std;
-using swoole::coroutine::Socket;
-using swoole::coroutine::System;
+
+namespace swoole {
+namespace coroutine {
 
 double Socket::default_dns_timeout = SW_DEFAULT_SOCKET_DNS_TIMEOUT;
 double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
@@ -105,10 +106,10 @@ int Socket::readable_event_callback(swReactor *reactor, swEvent *event) {
 #endif
     {
         if (socket->recv_barrier.hold) {
-            socket->recv_barrier.retval = socket->socket->recv(
-                                                        socket->recv_barrier.buf + socket->recv_barrier.total_bytes,
-                                                        socket->recv_barrier.n - socket->recv_barrier.total_bytes,
-                                                        0);
+            socket->recv_barrier.retval =
+                socket->socket->recv(socket->recv_barrier.buf + socket->recv_barrier.total_bytes,
+                                     socket->recv_barrier.n - socket->recv_barrier.total_bytes,
+                                     0);
             if (socket->recv_barrier.retval > 0 &&
                 (socket->recv_barrier.total_bytes += socket->recv_barrier.retval) < socket->recv_barrier.n) {
                 return SW_OK;
@@ -132,10 +133,10 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event) {
 #endif
     {
         if (socket->send_barrier.hold) {
-            socket->send_barrier.retval = socket->socket->send(
-                                                        socket->send_barrier.buf + socket->send_barrier.total_bytes,
-                                                        socket->send_barrier.n - socket->send_barrier.total_bytes,
-                                                        0);
+            socket->send_barrier.retval =
+                socket->socket->send(socket->send_barrier.buf + socket->send_barrier.total_bytes,
+                                     socket->send_barrier.n - socket->send_barrier.total_bytes,
+                                     0);
             if (socket->send_barrier.retval > 0 &&
                 (socket->send_barrier.total_bytes += socket->send_barrier.retval) < socket->send_barrier.n) {
                 return SW_OK;
@@ -498,7 +499,7 @@ bool Socket::http_proxy_handshake() {
 
 void Socket::init_sock_type(enum swSocket_type _sw_type) {
     type = _sw_type;
-    swSocket_get_domain_and_type(_sw_type, &sock_domain, &sock_type);
+    network::Socket::get_domain_and_type(_sw_type, &sock_domain, &sock_type);
 }
 
 bool Socket::init_sock() {
@@ -785,7 +786,7 @@ bool Socket::check_liveness() {
         char buf;
         errno = 0;
         ssize_t retval = socket->peek(&buf, sizeof(buf), 0);
-        if (retval == 0 || (retval < 0 && swSocket_error(errno) != SW_WAIT)) {
+        if (retval == 0 || (retval < 0 && socket->catch_error(errno) != SW_WAIT)) {
             set_err(errno ? errno : ECONNRESET);
             return false;
         }
@@ -820,7 +821,7 @@ ssize_t Socket::recv(void *__buf, size_t __n) {
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = socket->recv(__buf, __n, 0);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -833,7 +834,7 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = socket->send(__buf, __n, 0);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() &&
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;
@@ -847,7 +848,7 @@ ssize_t Socket::read(void *__buf, size_t __n) {
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = ::read(sock_fd, __buf, __n);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -896,7 +897,7 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = ::write(sock_fd, (void *) __buf, __n);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() &&
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);
     return retval;
@@ -913,7 +914,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
-    if (retval < 0 && swSocket_error(errno) != SW_WAIT) {
+    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
         set_err(errno);
         return retval;
     }
@@ -947,7 +948,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
-    if (retval < 0 && swSocket_error(errno) != SW_WAIT) {
+    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
         set_err(errno);
         return retval;
     }
@@ -978,7 +979,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags) {
     timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = ::recvmsg(sock_fd, msg, flags);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -994,7 +995,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
     timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = ::sendmsg(sock_fd, msg, flags);
-    } while (retval < 0 && swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1142,7 +1143,7 @@ bool Socket::ssl_check_context() {
     if (socket->ssl || ssl_context) {
         return true;
     }
-    if (swSocket_is_dgram(sock_type)) {
+    if (network::Socket::is_dgram(sock_type)) {
 #ifdef SW_SUPPORT_DTLS
         socket->dtls = 1;
         ssl_option.dtls = 1;
@@ -1394,7 +1395,7 @@ ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t _
         do {
             retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
             swTraceLog(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
-        } while (retval < 0 && (errno == EINTR || (swSocket_error(errno) == SW_WAIT && timer.start() &&
+        } while (retval < 0 && (errno == EINTR || (socket->catch_error(errno) == SW_WAIT && timer.start() &&
                                                    wait_event(SW_EVENT_WRITE, &__buf, __n))));
         set_err(retval < 0 ? errno : 0);
     }
@@ -1420,7 +1421,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, sockle
         retval = ::recvfrom(sock_fd, __buf, __n, 0, _addr, _socklen);
         swTraceLog(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);
     } while (retval < 0 &&
-             ((errno == EINTR) || (swSocket_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ))));
+             ((errno == EINTR) || (socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ))));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1755,3 +1756,6 @@ Socket::~Socket() {
     }
     socket->free();
 }
+
+}  // namespace coroutine
+}  // namespace swoole

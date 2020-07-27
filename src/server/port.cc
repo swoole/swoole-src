@@ -271,7 +271,7 @@ static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *even
 
     n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (_socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -361,7 +361,7 @@ static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *eve
 _recv_data:
     ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (_socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from connection#%d failed", event->fd);
             return SW_OK;

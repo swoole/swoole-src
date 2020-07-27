@@ -276,7 +276,7 @@ struct Connection {
     /**
      * socket info
      */
-    swSocket *socket;
+    network::Socket *socket;
     /**
      * connect time(seconds)
      */
@@ -429,17 +429,17 @@ struct ListenPort {
 
     sw_atomic_t *connection_num = nullptr;
 
-    swProtocol protocol = {};
+    Protocol protocol = {};
     void *ptr = nullptr;
 
     int (*onRead)(swReactor *reactor, ListenPort *port, swEvent *event) = nullptr;
 
     inline bool is_dgram() {
-        return swSocket_is_dgram(type);
+        return network::Socket::is_dgram(type);
     }
 
     inline bool is_stream() {
-        return swSocket_is_stream(type);
+        return network::Socket::is_stream(type);
     }
 
     inline void set_eof_protocol(const std::string &eof, bool find_from_right = false) {
@@ -466,6 +466,9 @@ struct ListenPort {
     int enable_ssl_encrypt();
 #endif
     void clear_protocol();
+    inline network::Socket *get_socket() {
+        return socket;
+    }
 };
 
 struct ServerGS {
@@ -533,8 +536,9 @@ class Server {
     uint32_t max_request = 0;
     uint32_t max_request_grace = 0;
 
-    int udp_socket_ipv4 = 0;
-    int udp_socket_ipv6 = 0;
+    network::Socket *udp_socket_ipv4 = nullptr;
+    network::Socket *udp_socket_ipv6 = nullptr;
+    network::Socket *dgram_socket = nullptr;
     int null_fd = -1;
 
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
@@ -697,6 +701,10 @@ class Server {
     ListenPort *get_port_by_fd(int fd) {
         sw_atomic_t server_fd = connection_list[fd].server_fd;
         return (ListenPort *) connection_list[server_fd].object;
+    }
+
+    inline network::Socket *get_server_socket(int server_socket_fd) {
+        return get_port_by_fd(server_socket_fd)->get_socket();
     }
 
     std::thread heartbeat_thread;

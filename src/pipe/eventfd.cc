@@ -81,7 +81,7 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length) {
 
     // eventfd not support socket timeout
     if (p->blocking == 1 && p->timeout > 0) {
-        if (swSocket_wait(object->event_fd, p->timeout * 1000, SW_EVENT_READ) < 0) {
+        if (p->master_socket->wait_event(p->timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }

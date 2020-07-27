@@ -369,7 +369,6 @@ void Server::store_listen_socket() {
             if (ls->type == SW_SOCK_UDP) {
                 connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
             } else if (ls->type == SW_SOCK_UDP6) {
-                udp_socket_ipv6 = sockfd;
                 connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
             }
         } else {
@@ -1381,9 +1380,11 @@ void Server::check_port_type(swListenPort *ls) {
         have_dgram_sock = 1;
         dgram_port_num++;
         if (ls->type == SW_SOCK_UDP) {
-            udp_socket_ipv4 = ls->socket->fd;
+            udp_socket_ipv4 = ls->socket;
         } else if (ls->type == SW_SOCK_UDP6) {
-            udp_socket_ipv6 = ls->socket->fd;
+            udp_socket_ipv6 = ls->socket;
+        } else if (ls->type == SW_SOCK_UNIX_DGRAM) {
+            dgram_socket = ls->socket;
         }
     } else {
         have_stream_sock = 1;

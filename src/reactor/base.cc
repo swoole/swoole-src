@@ -204,7 +204,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 n -= ret;
                 goto _do_buffer;
             }
-        } else if (swSocket_error(errno) == SW_WAIT) {
+        } else if (socket->catch_error(errno) == SW_WAIT) {
         _do_buffer:
             if (!socket->out_buffer) {
                 buffer = swBuffer_new(socket->chunk_size);
@@ -233,7 +233,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
                 swYield();
-                swSocket_wait(socket->fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
+                socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
         }
 
@@ -287,7 +287,7 @@ int Reactor::drain_write_buffer(swSocket *socket) {
     event.fd = socket->fd;
 
     while (!swBuffer_empty(socket->out_buffer)) {
-        if (swSocket_wait(socket->fd, SwooleG.socket_send_timeout, SW_EVENT_WRITE) == SW_ERR) {
+        if (socket->wait_event(SwooleG.socket_send_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
         swReactor_onWrite(this, &event);

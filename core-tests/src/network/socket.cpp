@@ -22,8 +22,7 @@
 using namespace std;
 using namespace swoole;
 
-TEST(socket, swSocket_unix_sendto) {
-    int fd1, fd2, ret;
+TEST(socket, sendto) {
     struct sockaddr_un un1, un2;
     char sock1_path[] = "/tmp/udp_unix1.sock";
     char sock2_path[] = "/tmp/udp_unix2.sock";
@@ -38,17 +37,25 @@ TEST(socket, swSocket_unix_sendto) {
     unlink(sock1_path);
     unlink(sock2_path);
 
-    fd1 = socket(AF_UNIX, SOCK_DGRAM, 0);
+    auto fd1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
     strncpy(un1.sun_path, sock1_path, sizeof(un1.sun_path) - 1);
-    bind(fd1, (struct sockaddr *) &un1, sizeof(un1));
+    bind(fd1->fd, (struct sockaddr *) &un1, sizeof(un1));
 
-    fd2 = socket(AF_UNIX, SOCK_DGRAM, 0);
+    auto fd2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
     strncpy(un2.sun_path, sock2_path, sizeof(un2.sun_path) - 1);
-    bind(fd2, (struct sockaddr *) &un2, sizeof(un2));
+    bind(fd2->fd, (struct sockaddr *) &un2, sizeof(un2));
 
-    ret = swSocket_unix_sendto(fd1, sock2_path, test_data, strlen(test_data));
-    ASSERT_GT(ret, 0);
+    ASSERT_GT(fd1->sendto(sock2_path, 0, test_data, strlen(test_data)), 0);
 
+    char buf[1024];
+    network::Address sa;
+    sa.type = SW_SOCK_UNIX_DGRAM;
+    ASSERT_GT(fd2->recvfrom(buf, sizeof(buf), 0, &sa), 0);
+    ASSERT_STREQ(test_data, buf);
+    ASSERT_STREQ(sa.get_ip(), sock1_path);
+
+    fd1->free();
+    fd2->free();
     unlink(sock1_path);
     unlink(sock2_path);
 }

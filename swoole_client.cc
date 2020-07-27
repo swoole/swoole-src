@@ -24,6 +24,7 @@
 #include <unordered_map>
 
 using namespace std;
+using swoole::network::Socket;
 
 #include "ext/standard/basic_functions.h"
 
@@ -674,7 +675,7 @@ swClient *php_swoole_client_new(zval *zobject, char *host, int host_len, int por
             q->pop();
             // try recv, check connection status
             ret = recv(cli->socket->fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
-            if (ret == 0 || (ret < 0 && swSocket_error(errno) == SW_CLOSE)) {
+            if (ret == 0 || (ret < 0 && cli->socket->catch_error(errno) == SW_CLOSE)) {
                 cli->close(cli);
                 php_swoole_client_free(zobject, cli);
                 cli = (swClient *) pemalloc(sizeof(swClient), 1);
@@ -940,12 +941,8 @@ static PHP_METHOD(swoole_client, sendto) {
     SwooleG.socket_send_timeout = cli->timeout;
 
     int ret = -1;
-    if (cli->type == SW_SOCK_UDP) {
-        ret = swSocket_udp_sendto(cli->socket->fd, ip, port, data, len);
-    } else if (cli->type == SW_SOCK_UDP6) {
-        ret = swSocket_udp_sendto6(cli->socket->fd, ip, port, data, len);
-    } else if (cli->type == SW_SOCK_UNIX_DGRAM) {
-        ret = swSocket_unix_sendto(cli->socket->fd, ip, data, len);
+    if (Socket::is_dgram(cli->type)) {
+        ret = cli->socket->sendto(ip, port, data, len);
     } else {
         php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
     }
@@ -1300,7 +1297,7 @@ static PHP_METHOD(swoole_client, close) {
     }
     // Connection error, or short tcp connection.
     // No keep connection
-    if (force || !cli->keep || swSocket_error(swoole_get_last_error()) == SW_CLOSE) {
+    if (force || !cli->keep || cli->socket->catch_error(swoole_get_last_error()) == SW_CLOSE) {
         ret = cli->close(cli);
         php_swoole_client_free(ZEND_THIS, cli);
     } else {

@@ -38,7 +38,6 @@ struct ServerProperty {
     vector<zval *> ports;
     vector<zval *> user_processes;
     php_swoole_server_port_property *primary_port;
-    int dgram_server_socket;
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
     unordered_map<int, zend_fcall_info_cache> task_callbacks;
     unordered_map<int, TaskCo *> task_coroutine_map;
@@ -1337,7 +1336,6 @@ int php_swoole_onReceive(swServer *serv, swRecvData *req) {
 
 int php_swoole_onPacket(swServer *serv, swRecvData *req) {
     zval *zserv = (zval *) serv->ptr2;
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zval zaddr;
 
     array_init(&zaddr);
@@ -1351,8 +1349,6 @@ int php_swoole_onPacket(swServer *serv, swRecvData *req) {
     }
 
     char address[INET6_ADDRSTRLEN];
-
-    server_object->property->dgram_server_socket = req->info.server_fd;
 
     if (packet->socket_type == SW_SOCK_UDP) {
         inet_ntop(AF_INET, &packet->socket_addr.addr.inet_v4.sin_addr, address, sizeof(address));
@@ -2738,7 +2734,6 @@ static PHP_METHOD(swoole_server, send) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
 
     int ret;
     zend_long fd;
@@ -2768,17 +2763,11 @@ static PHP_METHOD(swoole_server, send) {
 
     // UNIX DGRAM SOCKET
     if (serv->have_dgram_sock && Z_TYPE_P(zfd) == IS_STRING && Z_STRVAL_P(zfd)[0] == '/') {
-        struct sockaddr_un addr_un;
-        memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
-        addr_un.sun_family = AF_UNIX;
-        addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
-        ret =
-            swSocket_sendto_blocking(server_socket == -1 ? server_object->property->dgram_server_socket : server_socket,
-                                     data,
-                                     length,
-                                     0,
-                                     (struct sockaddr *) &addr_un,
-                                     sizeof(addr_un));
+        network::Socket *sock = server_socket == -1 ? serv->dgram_socket : serv->get_server_socket(server_socket);
+        if (sock == nullptr) {
+            RETURN_FALSE;
+        }
+        ret = sock->sendto(Z_STRVAL_P(zfd), 0, data, length);
         SW_CHECK_RETURN(ret);
     }
 
@@ -2808,7 +2797,7 @@ static PHP_METHOD(swoole_server, sendto) {
     zend_long port;
     char *data;
     size_t len;
-    zend_long server_socket = -1;
+    zend_long server_socket_fd = -1;
 
     zend_bool ipv6 = 0;
 
@@ -2817,7 +2806,7 @@ static PHP_METHOD(swoole_server, sendto) {
     Z_PARAM_LONG(port)
     Z_PARAM_STRING(data, len)
     Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(server_socket)
+    Z_PARAM_LONG(server_socket_fd)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (len == 0) {
@@ -2837,17 +2826,18 @@ static PHP_METHOD(swoole_server, sendto) {
         RETURN_FALSE;
     }
 
-    if (server_socket < 0) {
+    network::Socket *server_socket = nullptr;
+    if (server_socket_fd < 0) {
         server_socket = ipv6 ? serv->udp_socket_ipv6 : serv->udp_socket_ipv4;
+    } else {
+        server_socket = serv->get_server_socket(server_socket_fd);
     }
 
-    int ret;
-    if (ipv6) {
-        ret = swSocket_udp_sendto6(server_socket, ip, port, data, len);
-    } else {
-        ret = swSocket_udp_sendto(server_socket, ip, port, data, len);
+    if (server_socket == nullptr) {
+        RETURN_FALSE;
     }
-    SW_CHECK_RETURN(ret);
+
+    SW_CHECK_RETURN(server_socket->sendto(ip, port, data, len));
 }
 
 static PHP_METHOD(swoole_server, sendfile) {
@@ -3092,7 +3082,7 @@ static PHP_METHOD(swoole_server, taskwait) {
     swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     // clear history task
-    while (swSocket_wait(task_notify_socket->fd, 0, SW_EVENT_READ) == SW_OK) {
+    while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
         (void) read(task_notify_socket->fd, &notify, sizeof(notify));
     }
 
@@ -3100,7 +3090,7 @@ static PHP_METHOD(swoole_server, taskwait) {
 
     if (serv->gs->task_workers.dispatch_blocking(&buf, &_dst_worker_id) >= 0) {
         while (1) {
-            if (swSocket_wait(task_notify_socket->fd, (int) (timeout * 1000), SW_EVENT_READ) != SW_OK) {
+            if (task_notify_socket->wait_event((int) (timeout * 1000), SW_EVENT_READ) != SW_OK) {
                 break;
             }
             if (task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify)) > 0) {
