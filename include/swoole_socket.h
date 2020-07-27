@@ -40,14 +40,6 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)
 #endif
 
-struct swTask_sendfile {
-    char *filename;
-    uint16_t name_len;
-    int fd;
-    size_t length;
-    off_t offset;
-};
-
 struct swSendFile_request {
     off_t offset;
     size_t length;
@@ -70,6 +62,14 @@ struct Address {
     bool assign(enum swSocket_type _type, const char *_host, int _port);
     const char *get_ip();
     int get_port();
+};
+
+struct SendFileTask {
+    char *filename;
+    uint16_t name_len;
+    int fd;
+    size_t length;
+    off_t offset;
 };
 
 struct Socket {
@@ -179,12 +179,12 @@ struct Socket {
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
 
     inline int connect(const Address &sa) {
-        return ::connect(fd, (struct sockaddr *) &sa.addr, sa.len);
+        return ::connect(fd, &sa.addr.ss, sa.len);
     }
 
     inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
-        return ::recvfrom(fd, __buf, __len, flags, (struct sockaddr *) &sa->addr, &sa->len);
+        return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
     }
 
     int wait_event(int timeout_ms, int events);
@@ -209,7 +209,7 @@ struct Socket {
     }
 
     inline ssize_t sendto(Address *dst_addr, const char *data, uint32_t len) {
-        return ::sendto(fd, data, len, 0, (struct sockaddr *) &dst_addr->addr, dst_addr->len);
+        return ::sendto(fd, data, len, 0, &dst_addr->addr.ss, dst_addr->len);
     }
 
     inline int catch_error(int err) {

@@ -104,9 +104,6 @@ enum swServer_mode {
     SW_MODE_PROCESS = 2,
 };
 
-#define SW_SERVER_MAX_FD_INDEX 0  // max connection socket
-#define SW_SERVER_MIN_FD_INDEX 1  // min listen socket
-
 struct swSendData {
     swDataHead info;
     const char *data;
@@ -479,6 +476,9 @@ struct ServerGS {
     sw_atomic_t start;
     sw_atomic_t shutdown;
 
+    int max_fd;
+    int min_fd;
+
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
@@ -703,8 +703,8 @@ class Server {
         return (ListenPort *) connection_list[server_fd].object;
     }
 
-    inline network::Socket *get_server_socket(int server_socket_fd) {
-        return get_port_by_fd(server_socket_fd)->get_socket();
+    inline network::Socket *get_server_socket(int fd) {
+        return connection_list[fd].socket;
     }
 
     std::thread heartbeat_thread;
@@ -892,23 +892,19 @@ class Server {
     int get_idle_task_worker_num();
 
     inline int get_minfd() {
-        return connection_list[SW_SERVER_MIN_FD_INDEX].fd;
+        return gs->min_fd;
     }
 
     inline int get_maxfd() {
-        return connection_list[SW_SERVER_MAX_FD_INDEX].fd;
+        return gs->max_fd;
     }
-    /**
-     *  connection_list[0] => the largest fd
-     */
+
     inline void set_maxfd(int maxfd) {
-        connection_list[SW_SERVER_MAX_FD_INDEX].fd = maxfd;
+        gs->max_fd = maxfd;
     }
-    /**
-     * connection_list[1] => the smallest fd
-     */
+
     inline void set_minfd(int minfd) {
-        connection_list[SW_SERVER_MIN_FD_INDEX].fd = minfd;
+        gs->min_fd = minfd;
     }
 
     void store_listen_socket();

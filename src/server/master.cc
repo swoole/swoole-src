@@ -360,28 +360,10 @@ void Server::store_listen_socket() {
         sockfd = ls->socket->fd;
         // save server socket to connection_list
         connection_list[sockfd].fd = sockfd;
-        // socket type
+        connection_list[sockfd].socket = ls->socket;
         connection_list[sockfd].socket_type = ls->type;
-        // save listen_host object
         connection_list[sockfd].object = ls;
-
-        if (ls->is_dgram()) {
-            if (ls->type == SW_SOCK_UDP) {
-                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
-            } else if (ls->type == SW_SOCK_UDP6) {
-                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
-            }
-        } else {
-            // IPv4
-            if (ls->type == SW_SOCK_TCP) {
-                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
-            }
-            // IPv6
-            else if (ls->type == SW_SOCK_TCP6) {
-                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
-            }
-        }
-        connection_list[sockfd].info.type = ls->type;
+        connection_list[sockfd].info.assign(ls->type, ls->host, ls->port);
         if (sockfd >= 0) {
             set_minfd(sockfd);
             set_maxfd(sockfd);

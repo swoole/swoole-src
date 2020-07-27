@@ -311,7 +311,7 @@ int Socket::set_timeout(double timeout) {
 
 int Socket::handle_sendfile(swBuffer_chunk *chunk) {
     int ret;
-    swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
+    SendFileTask *task = (SendFileTask *) chunk->store.ptr;
 
 #ifdef HAVE_TCP_NOPUSH
     if (task->offset == 0 && tcp_nopush == 0) {
@@ -426,7 +426,7 @@ int Socket::handle_send() {
 }
 
 static void Socket_sendfile_destructor(swBuffer_chunk *chunk) {
-    swTask_sendfile *task = (swTask_sendfile *) chunk->store.ptr;
+    SendFileTask *task = (SendFileTask *) chunk->store.ptr;
     close(task->fd);
     sw_free(task->filename);
     sw_free(task);
@@ -460,12 +460,12 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     }
 
     swBuffer_chunk error_chunk;
-    swTask_sendfile *task = (swTask_sendfile *) sw_malloc(sizeof(swTask_sendfile));
+    SendFileTask *task = (SendFileTask *) sw_malloc(sizeof(SendFileTask));
     if (task == nullptr) {
-        swWarn("malloc for swTask_sendfile failed");
+        swWarn("malloc for SendFileTask failed");
         return SW_ERR;
     }
-    sw_memset_zero(task, sizeof(swTask_sendfile));
+    sw_memset_zero(task, sizeof(SendFileTask));
 
     task->filename = sw_strdup(filename);
     task->fd = file_fd;
