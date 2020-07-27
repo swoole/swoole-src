@@ -22,42 +22,67 @@
 using namespace std;
 using namespace swoole;
 
+char test_data[] = "hello swoole, hello world, php is best";
+
 TEST(socket, sendto) {
-    struct sockaddr_un un1, un2;
     char sock1_path[] = "/tmp/udp_unix1.sock";
     char sock2_path[] = "/tmp/udp_unix2.sock";
-    char test_data[] = "swoole";
-
-    sw_memset_zero(&un1, sizeof(struct sockaddr_un));
-    sw_memset_zero(&un2, sizeof(struct sockaddr_un));
-
-    un1.sun_family = AF_UNIX;
-    un2.sun_family = AF_UNIX;
 
     unlink(sock1_path);
     unlink(sock2_path);
 
-    auto fd1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    strncpy(un1.sun_path, sock1_path, sizeof(un1.sun_path) - 1);
-    bind(fd1->fd, (struct sockaddr *) &un1, sizeof(un1));
+    auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock1->bind(sock1_path, nullptr);
 
-    auto fd2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
-    strncpy(un2.sun_path, sock2_path, sizeof(un2.sun_path) - 1);
-    bind(fd2->fd, (struct sockaddr *) &un2, sizeof(un2));
+    auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock2->bind(sock2_path, nullptr);
 
-    ASSERT_GT(fd1->sendto(sock2_path, 0, test_data, strlen(test_data)), 0);
+    ASSERT_GT(sock1->sendto(sock2_path, 0, test_data, strlen(test_data)), 0);
 
     char buf[1024];
     network::Address sa;
     sa.type = SW_SOCK_UNIX_DGRAM;
-    ASSERT_GT(fd2->recvfrom(buf, sizeof(buf), 0, &sa), 0);
+    ASSERT_GT(sock2->recvfrom(buf, sizeof(buf), 0, &sa), 0);
     ASSERT_STREQ(test_data, buf);
     ASSERT_STREQ(sa.get_ip(), sock1_path);
 
-    fd1->free();
-    fd2->free();
+    sock1->free();
+    sock2->free();
     unlink(sock1_path);
     unlink(sock2_path);
+}
+
+static void test_sendto(enum swSocket_type sock_type) {
+    int port1 = 0, port2 = 0;
+    const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
+
+    auto sock1 = make_socket(sock_type, SW_FD_DGRAM_SERVER, 0);
+    sock1->bind(ip, &port1);
+
+    auto sock2 = make_socket(sock_type, SW_FD_DGRAM_SERVER, 0);
+    sock2->bind(ip, &port2);
+
+    ASSERT_GT(sock1->sendto(ip, port2, test_data, strlen(test_data)), 0);
+
+    char buf[1024];
+    network::Address sa;
+    sa.type = sock_type;
+    ASSERT_GT(sock2->recvfrom(buf, sizeof(buf), 0, &sa), 0);
+
+    ASSERT_STREQ(test_data, buf);
+    ASSERT_EQ(sa.get_port(), port1);
+    ASSERT_STREQ(sa.get_ip(), ip);
+
+    sock1->free();
+    sock2->free();
+}
+
+TEST(socket, sendto_ipv4) {
+    test_sendto(SW_SOCK_UDP);
+}
+
+TEST(socket, sendto_ipv6) {
+    test_sendto(SW_SOCK_UDP6);
 }
 
 TEST(socket, sendfile_blocking) {

@@ -471,16 +471,20 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset) {
     /**
      * bind port
      */
+    std::string bind_address;
+    int bind_port = 0;
     if (php_swoole_array_get_value(vht, "bind_port", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        int bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
-        /**
-         * bind address
-         */
-        if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
-            zend::String str_v(ztmp);
-            cli->socket->bind(str_v.val(), &bind_port);
-        }
+        bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+    }
+    /**
+     * bind address
+     */
+    if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
+        bind_address = zend::String(ztmp).to_std_string();
+    }
+    if (bind_port > 0 || bind_address.length() > 0) {
+        cli->socket->bind(bind_address.c_str(), &bind_port);
     }
     /**
      * client: tcp_nodelay

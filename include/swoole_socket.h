@@ -201,7 +201,7 @@ struct Socket {
     ssize_t sendto_blocking(const void *buf, size_t n, int flag, struct sockaddr *addr, socklen_t addr_len);
 
     inline ssize_t sendto(const char *dst_host, int dst_port, const char *data, uint32_t len) {
-        Address addr;
+        Address addr = {};
         if (!addr.assign(socket_type, dst_host, dst_port)) {
             return SW_ERR;
         }

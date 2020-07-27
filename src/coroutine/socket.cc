@@ -1015,76 +1015,9 @@ bool Socket::bind(std::string address, int port) {
 
     bind_address = address;
     bind_port = port;
-
-    struct sockaddr *sock_addr = (struct sockaddr *) &bind_address_info.addr;
     bind_address_info.type = type;
 
-    int option = 1;
-    if (::setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {
-        swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", sock_fd);
-    }
-
-    int retval;
-    socklen_t len;
-    switch (sock_domain) {
-    case AF_UNIX: {
-        struct sockaddr_un *sa = (struct sockaddr_un *) sock_addr;
-        sa->sun_family = AF_UNIX;
-
-        if (bind_address.size() >= sizeof(sa->sun_path)) {
-            set_err(EINVAL,
-                    std_string::format("UNIXSocket bind path(%s) is too long, the maxium limit of bytes number is %zu",
-                                       bind_address.c_str(),
-                                       sizeof(sa->sun_path)));
-            return false;
-        }
-        memcpy(&sa->sun_path, bind_address.c_str(), bind_address.size());
-
-        retval = ::bind(sock_fd, (struct sockaddr *) sa, offsetof(struct sockaddr_un, sun_path) + bind_address.size());
-        break;
-    }
-
-    case AF_INET: {
-        struct sockaddr_in *sa = (struct sockaddr_in *) sock_addr;
-        sa->sin_family = AF_INET;
-        sa->sin_port = htons((unsigned short) bind_port);
-        if (!inet_aton(bind_address.c_str(), &sa->sin_addr)) {
-            set_err(EINVAL);
-            return false;
-        }
-        retval = ::bind(sock_fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in));
-        if (retval == 0 && bind_port == 0) {
-            len = sizeof(struct sockaddr_in);
-            if (::getsockname(sock_fd, (struct sockaddr *) sa, &len) != -1) {
-                bind_port = ntohs(sa->sin_port);
-            }
-        }
-        break;
-    }
-
-    case AF_INET6: {
-        struct sockaddr_in6 *sa = (struct sockaddr_in6 *) sock_addr;
-        sa->sin6_family = AF_INET6;
-        sa->sin6_port = htons((unsigned short) bind_port);
-
-        if (!inet_pton(AF_INET6, bind_address.c_str(), &sa->sin6_addr)) {
-            return false;
-        }
-        retval = ::bind(sock_fd, (struct sockaddr *) sa, sizeof(struct sockaddr_in6));
-        if (retval == 0 && bind_port == 0) {
-            len = sizeof(struct sockaddr_in6);
-            if (::getsockname(sock_fd, (struct sockaddr *) sa, &len) != -1) {
-                bind_port = ntohs(sa->sin6_port);
-            }
-        }
-        break;
-    }
-    default:
-        set_err(EINVAL);
-        return false;
-    }
-
-    if (retval != 0) {
+    if (socket->bind(address.c_str(), &bind_port) != 0) {
         set_err(errno);
         return false;
     }

@@ -224,21 +224,30 @@ void Socket::free() {
 
 int Socket::bind(const char *host, int *port) {
     int ret;
-    swSocketAddress address = {};
+    Address address = {};
+    size_t l_host = strlen(host);
 
     int option = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "setsockopt(%d, SO_REUSEADDR) failed", fd);
+        swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", fd);
     }
     // UnixSocket
     if (socket_type == SW_SOCK_UNIX_DGRAM || socket_type == SW_SOCK_UNIX_STREAM) {
+        if (l_host == 0 || l_host > sizeof(address.addr.un) - 1) {
+            swWarn("bad unix socket file");
+            errno = EINVAL;
+            return SW_ERR;
+        }
         unlink(host);
         address.addr.un.sun_family = AF_UNIX;
         strncpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path) - 1);
         ret = ::bind(fd, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
     }
     // IPv6
-    else if (socket_type > SW_SOCK_UDP) {
+    else if (socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6) {
+        if (l_host == 0) {
+            host = "::";
+        }
         if (inet_pton(AF_INET6, host, &address.addr.inet_v6.sin6_addr) < 0) {
             swSysWarn("inet_pton(AF_INET6, %s) failed", host);
             return SW_ERR;
@@ -254,7 +263,10 @@ int Socket::bind(const char *host, int *port) {
         }
     }
     // IPv4
-    else {
+    else if (socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_TCP) {
+        if (l_host == 0) {
+            host = "0.0.0.0";
+        }
         if (inet_pton(AF_INET, host, &address.addr.inet_v4.sin_addr) < 0) {
             swSysWarn("inet_pton(AF_INET, %s) failed", host);
             return SW_ERR;
@@ -268,10 +280,14 @@ int Socket::bind(const char *host, int *port) {
                 *port = ntohs(address.addr.inet_v4.sin_port);
             }
         }
+    } else {
+        errno = EINVAL;
+        return -1;
     }
+
     // bind failed
     if (ret < 0) {
-        swSysWarn("bind(%s:%d) failed", host, *port);
+        swSysWarn("bind(%s:%d) failed", host, port ? *port : 0);
         return SW_ERR;
     }
 
