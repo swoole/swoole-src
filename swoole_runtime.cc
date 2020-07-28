@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole_cxx.h"
+#include "helper/scope_guard.h"
 
 #include "thirdparty/php/standard/proc_open.h"
 #include <unordered_map>
@@ -445,24 +446,30 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     if (host == nullptr) {
         return FAILURE;
     }
+    ON_SCOPE_EXIT {
+        if (ip_address) {
+            efree(ip_address);
+        }
+    };
     if (PHP_STREAM_CONTEXT(stream) &&
         (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "bindto")) != nullptr) {
         if (Z_TYPE_P(tmpzval) != IS_STRING) {
             if (xparam->want_errortext) {
                 xparam->outputs.error_text = strpprintf(0, "local_addr context option is not a string.");
             }
-            efree(ip_address);
             return FAILURE;
         }
         bindto = parse_ip_address_ex(
             Z_STRVAL_P(tmpzval), Z_STRLEN_P(tmpzval), &bindport, xparam->want_errortext, &xparam->outputs.error_text);
         if (bindto == nullptr) {
-            efree(ip_address);
             return FAILURE;
         }
+        ON_SCOPE_EXIT {
+            if (bindto) {
+                efree(bindto);
+            }
+        };
         if (!sock->bind(bindto, bindport)) {
-            efree(ip_address);
-            efree(bindto);
             return FAILURE;
         }
     }
@@ -476,12 +483,6 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
             xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), 0);
         }
         ret = -1;
-    }
-    if (ip_address) {
-        efree(ip_address);
-    }
-    if (bindto) {
-        efree(bindto);
     }
     return ret;
 }
@@ -500,9 +501,6 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
         host = xparam->inputs.name;
     }
     int ret = sock->bind(host, portno) ? 0 : -1;
-    if (ip_address) {
-        efree(ip_address);
-    }
     return ret;
 }
 
