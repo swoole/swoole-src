@@ -461,15 +461,18 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         }
         bindto = parse_ip_address_ex(
             Z_STRVAL_P(tmpzval), Z_STRLEN_P(tmpzval), &bindport, xparam->want_errortext, &xparam->outputs.error_text);
-        if (bindto == nullptr) {
-            return FAILURE;
-        }
+
         ON_SCOPE_EXIT {
             if (bindto) {
                 efree(bindto);
             }
         };
-        if (!sock->bind(bindto, bindport)) {
+        if (xparam->outputs.error_text) {
+            zend_string_release_ex(xparam->outputs.error_text, 0);
+            xparam->outputs.error_text = nullptr;
+        }
+
+        if (bindto && !sock->bind(bindto, bindport)) {
             return FAILURE;
         }
     }
