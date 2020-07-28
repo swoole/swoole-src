@@ -468,7 +468,11 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
             }
         };
         if (xparam->outputs.error_text) {
+#if PHP_VERSION_ID < 70300
+            zend_string_release(xparam->outputs.error_text);
+#else
             zend_string_release_ex(xparam->outputs.error_text, 0);
+#endif
             xparam->outputs.error_text = nullptr;
         }
 
