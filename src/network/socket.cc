@@ -313,7 +313,6 @@ int Socket::bind(const char *host, int *port) {
 
     // bind failed
     if (ret < 0) {
-        swSysWarn("bind(%s:%d) failed", host, port ? *port : 0);
         return SW_ERR;
     }
 
