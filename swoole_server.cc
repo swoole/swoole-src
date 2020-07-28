@@ -2818,10 +2818,10 @@ static PHP_METHOD(swoole_server, sendto) {
         ipv6 = 1;
     }
 
-    if (ipv6 == 0 && serv->udp_socket_ipv4 <= 0) {
+    if (ipv6 == 0 && !serv->udp_socket_ipv4) {
         php_swoole_fatal_error(E_WARNING, "UDP listener has to be added before executing sendto");
         RETURN_FALSE;
-    } else if (ipv6 == 1 && serv->udp_socket_ipv6 <= 0) {
+    } else if (ipv6 == 1 && !serv->udp_socket_ipv6) {
         php_swoole_fatal_error(E_WARNING, "UDP6 listener has to be added before executing sendto");
         RETURN_FALSE;
     }
