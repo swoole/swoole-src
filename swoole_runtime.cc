@@ -447,7 +447,9 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         return FAILURE;
     }
     ON_SCOPE_EXIT {
-        efree(ip_address);
+        if (ip_address) {
+            efree(ip_address);
+        }
     };
     if (PHP_STREAM_CONTEXT(stream) &&
         (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "bindto")) != nullptr) {
@@ -462,11 +464,11 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         if (bindto == nullptr) {
             return FAILURE;
         }
-        if (bindto) {
-            ON_SCOPE_EXIT {
+        ON_SCOPE_EXIT {
+            if (bindto) {
                 efree(bindto);
-            };
-        }
+            }
+        };
         if (!sock->bind(bindto, bindport)) {
             return FAILURE;
         }
