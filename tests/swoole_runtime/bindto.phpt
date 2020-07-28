@@ -25,6 +25,22 @@ $pm->parentFunc = function () use ($pm) {
         ]);
 
         file_get_contents("http://127.0.0.1:{$pm->getFreePort()}", false, $context);
+
+        $context = stream_context_create([
+            'socket' => [
+                'bindto' => 'null',
+            ],
+        ]);
+
+        file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/invalid", false, $context);
+
+        $context = stream_context_create([
+            'socket' => [
+                'bindto' => null,
+            ],
+        ]);
+
+        file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/invalid", false, $context);
         $pm->kill();
         echo "Done\n";
     });
@@ -37,6 +53,10 @@ $pm->childFunc = function () use ($pm) {
             Assert::eq($request->server['remote_port'], 9100);
             $response->end('success');
         });
+        $server->handle('/invalid', function (Request $request, Response $response) {
+            Assert::eq($request->server['remote_addr'], '127.0.0.1');
+            $response->end('success');
+        });
         $pm->wakeup();
         $server->start();
     });
@@ -44,5 +64,6 @@ $pm->childFunc = function () use ($pm) {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECT--
+--EXPECTF--
+Warning: file_get_contents(http://127.0.0.1:%d/invalid): failed to open stream: local_addr context option is not a string. in %s
 Done
