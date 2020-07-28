@@ -230,7 +230,7 @@ static void server_free_object(zend_object *object) {
         }
         for (auto zport : property->ports) {
             php_swoole_server_port_deref(Z_OBJ_P(zport));
-            sw_zval_free(zport);
+            efree(zport);
         }
         server_object->serv = nullptr;
     }
@@ -1038,7 +1038,6 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, swListenPor
         zval *zserv = (zval *) serv->ptr2;
         zval *zports = sw_zend_read_and_convert_property_array(Z_OBJCE_P(zserv), zserv, ZEND_STRL("ports"), 0);
         (void) add_next_index_zval(zports, zport);
-        Z_ADDREF_P(zport);
     } while (0);
 
     /* iterator */
