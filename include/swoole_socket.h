@@ -73,6 +73,12 @@ struct SendFileTask {
 };
 
 struct Socket {
+    static double default_dns_timeout;
+    static double default_connect_timeout;
+    static double default_read_timeout;
+    static double default_write_timeout;
+    static uint32_t default_buffer_size;
+
     int fd;
     enum swFd_type fdtype;
     enum swSocket_type socket_type;
@@ -116,8 +122,8 @@ struct Socket {
 #endif
 
     Address info;
-    double recv_timeout_ = SwooleG.socket_recv_timeout;
-    double send_timeout_ = SwooleG.socket_send_timeout;;
+    double recv_timeout_ = default_read_timeout;
+    double send_timeout_ = default_write_timeout;
 
     swBuffer *out_buffer;
     swBuffer *in_buffer;

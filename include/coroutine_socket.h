@@ -26,11 +26,6 @@
 
 #include <vector>
 
-#define SW_DEFAULT_SOCKET_DNS_TIMEOUT -1
-#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT 1
-#define SW_DEFAULT_SOCKET_READ_TIMEOUT -1
-#define SW_DEFAULT_SOCKET_WRITE_TIMEOUT -1
-
 namespace swoole {
 enum swTimeout_type {
     SW_TIMEOUT_DNS = 1 << 0,
@@ -58,11 +53,6 @@ struct EventBarrier {
 
 class Socket {
   public:
-    static double default_dns_timeout;
-    static double default_connect_timeout;
-    static double default_read_timeout;
-    static double default_write_timeout;
-
     network::Socket *socket = nullptr;
     int errCode = 0;
     const char *errMsg = "";
@@ -345,10 +335,10 @@ class Socket {
     int bind_port = 0;
     int backlog = 0;
 
-    double dns_timeout = default_dns_timeout;
-    double connect_timeout = default_connect_timeout;
-    double read_timeout = default_read_timeout;
-    double write_timeout = default_write_timeout;
+    double dns_timeout = network::Socket::default_dns_timeout;
+    double connect_timeout = network::Socket::default_connect_timeout;
+    double read_timeout = network::Socket::default_read_timeout;
+    double write_timeout = network::Socket::default_write_timeout;
     swTimer_node *read_timer = nullptr;
     swTimer_node *write_timer = nullptr;
 

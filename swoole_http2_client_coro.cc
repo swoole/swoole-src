@@ -63,7 +63,7 @@ class http2_client {
     std::string host;
     int port;
     bool ssl;
-    double timeout = Socket::default_read_timeout;
+    double timeout = network::Socket::default_read_timeout;
 
     Socket *client = nullptr;
 

@@ -656,35 +656,23 @@ struct swGlobal_t {
     uint16_t cpu_num;
     uint32_t pagesize;
     struct utsname uname;
-
-    //-----------------------[Socket]--------------------------
     uint32_t max_sockets;
-    /**
-     * tcp socket default buffer size
-     */
-    uint32_t socket_buffer_size;
-    double socket_send_timeout;
-    double socket_recv_timeout;
-
+    //-----------------------[Memory]--------------------------
     swMemoryPool *memory_pool;
     swAllocator std_allocator;
-
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
-
+    //-----------------------[DNS]--------------------------
     char *dns_server_v4;
     char *dns_server_v6;
     double dns_cache_refresh_time;
-
-    /**
-     * aio-threads
-     */
+    //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
     double aio_max_wait_time;
     double aio_max_idle_time;
     swSocket *aio_default_socket;
-
+    //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
 };

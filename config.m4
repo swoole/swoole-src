@@ -314,11 +314,11 @@ if test "$PHP_SWOOLE" != "no"; then
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
         CXXFLAGS="$CXXFLAGS -fsanitize=address -fno-omit-frame-pointer"
     fi
-    
+
     if test "$PHP_GCOV" != "no"; then
         PHP_DEBUG=1
-        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage"
-        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage"
+        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage -lgcov"
+        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage -lgcov"
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
@@ -483,7 +483,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/event.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
-        swoole.cc \
+        php_swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \
         swoole_channel_coro.cc \

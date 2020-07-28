@@ -33,11 +33,6 @@ using namespace std;
 namespace swoole {
 namespace coroutine {
 
-double Socket::default_dns_timeout = SW_DEFAULT_SOCKET_DNS_TIMEOUT;
-double Socket::default_connect_timeout = SW_DEFAULT_SOCKET_CONNECT_TIMEOUT;
-double Socket::default_read_timeout = SW_DEFAULT_SOCKET_READ_TIMEOUT;
-double Socket::default_write_timeout = SW_DEFAULT_SOCKET_WRITE_TIMEOUT;
-
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_NEXTPROTONEG
 

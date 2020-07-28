@@ -701,7 +701,7 @@ static int swClient_udp_connect(swClient *cli, const char *host, int port, doubl
 
     cli->active = 1;
     cli->timeout = timeout;
-    int bufsize = SwooleG.socket_buffer_size;
+    int bufsize = Socket::default_buffer_size;
 
     if (timeout > 0) {
         cli->socket->set_timeout(timeout);

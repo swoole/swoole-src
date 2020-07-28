@@ -1987,8 +1987,8 @@ static PHP_METHOD(swoole_redis_coro, __construct) {
     redis->zobject = &redis->_zobject;
     redis->_zobject = *ZEND_THIS;
 
-    redis->connect_timeout = Socket::default_connect_timeout;
-    redis->timeout = Socket::default_read_timeout;
+    redis->connect_timeout = network::Socket::default_connect_timeout;
+    redis->timeout = network::Socket::default_read_timeout;
     redis->reconnect_interval = 1;
 
     // settings init

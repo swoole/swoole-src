@@ -26,6 +26,12 @@
 namespace swoole {
 namespace network {
 
+double Socket::default_dns_timeout = SW_SOCKET_DEFAULT_DNS_TIMEOUT;
+double Socket::default_connect_timeout = SW_SOCKET_DEFAULT_CONNECT_TIMEOUT;
+double Socket::default_read_timeout = SW_SOCKET_DEFAULT_READ_TIMEOUT;
+double Socket::default_write_timeout = SW_SOCKET_DEFAULT_WRITE_TIMEOUT;
+uint32_t Socket::default_buffer_size = SW_SOCKET_BUFFER_SIZE;
+
 int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
     int file_fd = open(filename, O_RDONLY);
@@ -125,7 +131,7 @@ ssize_t Socket::send_blocking(const void *__data, size_t __len) {
             if (errno == EINTR) {
                 continue;
             } else if (catch_error(errno) == SW_WAIT &&
-                       wait_event((int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
+                       wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
                 swSysWarn("send %d bytes failed", __len);

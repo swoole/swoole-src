@@ -81,7 +81,7 @@ class mysql_client {
     std::string database = "test";
     char charset = SW_MYSQL_DEFAULT_CHARSET;
 
-    double connect_timeout = Socket::default_connect_timeout;
+    double connect_timeout = network::Socket::default_connect_timeout;
     bool strict_type = false;
 
     inline int get_error_code() { return error_code; }

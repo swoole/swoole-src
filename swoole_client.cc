@@ -941,8 +941,8 @@ static PHP_METHOD(swoole_client, sendto) {
         }
     }
 
-    double ori_timeout = SwooleG.socket_send_timeout;
-    SwooleG.socket_send_timeout = cli->timeout;
+    double ori_timeout = Socket::default_write_timeout;
+    Socket::default_write_timeout = cli->timeout;
 
     int ret = -1;
     if (Socket::is_dgram(cli->type)) {
@@ -950,7 +950,7 @@ static PHP_METHOD(swoole_client, sendto) {
     } else {
         php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
     }
-    SwooleG.socket_send_timeout = ori_timeout;
+    Socket::default_write_timeout = ori_timeout;
     SW_CHECK_RETURN(ret);
 }
 

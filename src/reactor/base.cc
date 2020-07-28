@@ -173,7 +173,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
     int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
-        socket->buffer_size = SwooleG.socket_buffer_size;
+        socket->buffer_size = swoole::network::Socket::default_buffer_size;;
     }
 
     if (socket->nonblock == 0) {
@@ -287,7 +287,7 @@ int Reactor::drain_write_buffer(swSocket *socket) {
     event.fd = socket->fd;
 
     while (!swBuffer_empty(socket->out_buffer)) {
-        if (socket->wait_event(SwooleG.socket_send_timeout, SW_EVENT_WRITE) == SW_ERR) {
+        if (socket->wait_event(network::Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
         swReactor_onWrite(this, &event);

@@ -148,10 +148,6 @@ void swoole_init(void) {
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
-    SwooleG.socket_buffer_size = SW_SOCKET_BUFFER_SIZE;
-    SwooleG.socket_send_timeout = SW_SOCKET_SEND_TIMEOUT;
-    SwooleG.socket_recv_timeout = SW_SOCKET_RECV_TIMEOUT;
-
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == nullptr) {
         exit(3);

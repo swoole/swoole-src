@@ -84,7 +84,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
         return SW_ERR;
     }
 
-    uint32_t sbsize = SwooleG.socket_buffer_size;
+    uint32_t sbsize = swoole::network::Socket::default_buffer_size;
     p->master_socket->set_buffer_size(sbsize);
     p->worker_socket->set_buffer_size(sbsize);
 

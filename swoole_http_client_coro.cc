@@ -67,7 +67,7 @@ class http_client {
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
 #endif
-    double connect_timeout = Socket::default_connect_timeout;
+    double connect_timeout = network::Socket::default_connect_timeout;
     bool defer = false;
     bool lowercase_header = true;
 

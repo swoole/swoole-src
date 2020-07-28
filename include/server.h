@@ -345,7 +345,7 @@ struct ListenPort {
 
     int tcp_user_timeout = 0;
 
-    int socket_buffer_size  = SwooleG.socket_buffer_size;
+    int socket_buffer_size  = network::Socket::default_buffer_size;
     uint32_t buffer_high_watermark = 0;
     uint32_t buffer_low_watermark = 0;
 

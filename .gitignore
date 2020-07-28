@@ -9,6 +9,7 @@
 *.pid
 *.gcno
 *.gcov
+*.gcda
 /Debug/*
 modules/*
 /.deps
