@@ -2,7 +2,7 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-$swoole_c = ROOT_DIR . '/swoole.cc';
+$swoole_c = ROOT_DIR . '/php_swoole.cc';
 $swoole_c_content = file_get_contents($swoole_c);
 $error_h = ROOT_DIR . '/include/error.h';
 $error_h_content = file_get_contents($error_h);

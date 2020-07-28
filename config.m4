@@ -407,6 +407,7 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     swoole_source_file=" \
+        php_swoole.cc \
         php_swoole_cxx.cc \
         src/core/base.cc \
         src/core/channel.cc \
@@ -483,7 +484,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/event.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
-        php_swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \
         swoole_channel_coro.cc \
