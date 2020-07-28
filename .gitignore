@@ -10,6 +10,7 @@
 *.gcno
 *.gcov
 *.gcda
+*.info
 /Debug/*
 modules/*
 /.deps
@@ -100,4 +101,4 @@ core-tests/samples/CMakeCache\.txt
 core-tests/samples/bin/
 core-tests/samples/CMakeFiles/
 /out
-coverage.info
+/gcov_result
