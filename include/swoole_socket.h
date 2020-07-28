@@ -116,6 +116,8 @@ struct Socket {
 #endif
 
     Address info;
+    double recv_timeout_ = SwooleG.socket_recv_timeout;
+    double send_timeout_ = SwooleG.socket_send_timeout;;
 
     swBuffer *out_buffer;
     swBuffer *in_buffer;
@@ -134,8 +136,10 @@ struct Socket {
     /**
      * socket option
      */
-    int set_buffer_size(uint32_t _buffer_size);
-    int set_timeout(double timeout);
+    bool set_buffer_size(uint32_t _buffer_size);
+    bool set_timeout(double timeout);
+    bool set_recv_timeout(double timeout);
+    bool set_send_timeout(double timeout);
 
     inline int set_nonblock() {
         if (swoole_fcntl_set_option(fd, 1, -1) < 0) {
@@ -199,6 +203,7 @@ struct Socket {
     }
 
     ssize_t sendto_blocking(const void *buf, size_t n, int flag, struct sockaddr *addr, socklen_t addr_len);
+    ssize_t recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa);
 
     inline ssize_t sendto(const char *dst_host, int dst_port, const char *data, uint32_t len) {
         Address addr = {};

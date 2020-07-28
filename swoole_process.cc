@@ -1119,7 +1119,7 @@ static PHP_METHOD(swoole_process, setTimeout) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot setTimeout the pipe");
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(process->pipe_current->set_timeout(seconds));
+    RETURN_BOOL(process->pipe_current->set_timeout(seconds));
 }
 
 static PHP_METHOD(swoole_process, setBlocking) {

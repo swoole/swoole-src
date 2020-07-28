@@ -664,6 +664,7 @@ struct swGlobal_t {
      */
     uint32_t socket_buffer_size;
     double socket_send_timeout;
+    double socket_recv_timeout;
 
     swMemoryPool *memory_pool;
     swAllocator std_allocator;

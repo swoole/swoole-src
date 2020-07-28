@@ -147,12 +147,19 @@ ssize_t Socket::recv_blocking(void *__data, size_t __len, int flags) {
         ret = ::recv(fd, (char *) __data + read_bytes, __len - read_bytes, flags);
         if (ret > 0) {
             read_bytes += ret;
-        } else if (ret == 0 && errno == 0) {
+        } else if (ret == 0) {
             return read_bytes;
-        } else if (ret <= 0 && errno != 0 && errno != EINTR) {
+        } else if (ret < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            if (catch_error(errno) == SW_WAIT && wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
+                continue;
+            }
             return ret;
         }
     }
+
     return read_bytes;
 }
 
@@ -183,11 +190,11 @@ Socket *Socket::accept() {
     return socket;
 }
 
-ssize_t Socket::sendto_blocking(
-    const void *__buf, size_t __n, int flag, struct sockaddr *__addr, socklen_t __addr_len) {
+ssize_t Socket::sendto_blocking(const void *__buf, size_t __n, int flag, struct sockaddr *__addr,
+                                socklen_t __addr_len) {
     ssize_t n = 0;
 
-    for (int i = 0; i < SW_SOCKET_SYNC_SEND_RETRY_COUNT; i++) {
+    for (int i = 0; i < SW_SOCKET_RETRY_COUNT; i++) {
         n = ::sendto(fd, __buf, __n, flag, __addr, __addr_len);
         if (n >= 0) {
             break;
@@ -195,8 +202,27 @@ ssize_t Socket::sendto_blocking(
         if (errno == EINTR) {
             continue;
         }
-        if (catch_error(errno) == SW_WAIT &&
-            wait_event((int) (SwooleG.socket_send_timeout * 1000), SW_EVENT_WRITE) == SW_OK) {
+        if (catch_error(errno) == SW_WAIT && wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
+            continue;
+        }
+        break;
+    }
+
+    return n;
+}
+
+ssize_t Socket::recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa) {
+    ssize_t n = 0;
+
+    for (int i = 0; i < SW_SOCKET_RETRY_COUNT; i++) {
+        n = recvfrom(__buf, __len, flags, sa);
+        if (n >= 0) {
+            break;
+        }
+        if (errno == EINTR) {
+            continue;
+        }
+        if (catch_error(errno) == SW_WAIT && wait_event((int) (recv_timeout_ * 1000), SW_EVENT_READ) == SW_OK) {
             continue;
         }
         break;
@@ -294,35 +320,54 @@ int Socket::bind(const char *host, int *port) {
     return ret;
 }
 
-int Socket::set_buffer_size(uint32_t _buffer_size) {
+bool Socket::set_buffer_size(uint32_t _buffer_size) {
     // TODO: buffer_size = _buffer_size;
     if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
-        return SW_ERR;
+        return false;
     }
     if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
-        return SW_ERR;
+        return false;
     }
-    return SW_OK;
+    return true;
 }
 
-int Socket::set_timeout(double timeout) {
+bool Socket::set_timeout(double timeout) {
+    return set_recv_timeout(timeout) and set_send_timeout(timeout);
+}
+
+static inline bool _set_timeout(int fd, int type, double timeout) {
     int ret;
     struct timeval timeo;
     timeo.tv_sec = (int) timeout;
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
-    ret = setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (void *) &timeo, sizeof(timeo));
+    ret = setsockopt(fd, SOL_SOCKET, type, (void *) &timeo, sizeof(timeo));
     if (ret < 0) {
-        swSysWarn("setsockopt(SO_SNDTIMEO) failed");
-        return SW_ERR;
+        swSysWarn("setsockopt(SO_SNDTIMEO, %s) failed", type == SO_SNDTIMEO ? "SEND" :"RECV");
+        return false;
     }
-    ret = setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (void *) &timeo, sizeof(timeo));
-    if (ret < 0) {
-        swSysWarn("setsockopt(SO_RCVTIMEO) failed");
-        return SW_ERR;
+    else {
+        return true;
     }
-    return SW_OK;
+}
+
+bool Socket::set_recv_timeout(double timeout) {
+    if (_set_timeout(fd, SO_SNDTIMEO, timeout)) {
+        send_timeout_ = timeout;
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool Socket::set_send_timeout(double timeout) {
+    if (_set_timeout(fd, SO_RCVTIMEO, timeout)) {
+        recv_timeout_ = timeout;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 int Socket::handle_sendfile(swBuffer_chunk *chunk) {
@@ -658,7 +703,7 @@ Socket *make_server_socket(enum swSocket_type type, const char *address, int por
         sock->free();
         return nullptr;
     }
-    if (listen(sock->fd, backlog) < 0) {
+    if (Socket::is_stream(type) && listen(sock->fd, backlog) < 0) {
         swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
         sock->free();
         return nullptr;
