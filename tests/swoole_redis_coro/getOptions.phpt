@@ -6,8 +6,8 @@ swoole_redis_coro: redis client get options
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 Co::set([
-    'connect_timeout' => 1,
-    'socket_timeout' => -1
+    'connect_timeout' => 100,
+    'socket_timeout' => 100,
 ]);
 $redis = new Swoole\Coroutine\Redis();
 var_dump($redis->getOptions());
@@ -22,9 +22,9 @@ var_dump($redis->getOptions());
 --EXPECT--
 array(6) {
   ["connect_timeout"]=>
-  float(1)
+  float(2)
   ["timeout"]=>
-  float(-1)
+  float(100)
   ["serialize"]=>
   bool(false)
   ["reconnect"]=>

@@ -298,6 +298,7 @@ void php_swoole_event_wait() {
 
 void php_swoole_event_exit() {
     if (sw_reactor()) {
+        php_swoole_timer_clear_all();
         sw_reactor()->running = false;
     }
 }
