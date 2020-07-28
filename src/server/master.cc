@@ -25,6 +25,8 @@
 #include <assert.h>
 
 using namespace swoole;
+using swoole::network::Socket;
+using swoole::network::Address;
 
 Server *g_server_instance = nullptr;
 
@@ -32,7 +34,7 @@ static void Server_signal_handler(int sig);
 
 static int Server_tcp_send(Server *serv, int session_id, const void *data, uint32_t length);
 static int Server_tcp_sendwait(Server *serv, int session_id, const void *data, uint32_t length);
-static int Server_tcp_close(Server *serv, int session_id, int reset);
+static int Server_tcp_close(Server *serv, int session_id, bool reset);
 static int Server_tcp_sendfile(
     Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
 static int Server_tcp_notify(Server *serv, swConnection *conn, int event);
@@ -80,19 +82,18 @@ void Server::close_port(bool only_stream_port) {
             continue;
         }
         if (port->socket) {
-            swSocket_free(port->socket);
+            port->socket->free();
             port->socket = nullptr;
         }
     }
 }
 
-int Server::accept_connection(swReactor *reactor, swEvent *event) {
+int Server::accept_connection(Reactor *reactor, swEvent *event) {
     Server *serv = (Server *) reactor->ptr;
-    swListenPort *listen_host = (swListenPort *) serv->connection_list[event->fd].object;
-    swSocketAddress client_addr;
+    ListenPort *listen_host = (ListenPort *) serv->connection_list[event->fd].object;
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++) {
-        swSocket *sock = swSocket_accept(event->socket, &client_addr);
+        Socket *sock = event->socket->accept();
         if (sock == nullptr) {
             switch (errno) {
             case EAGAIN:
@@ -118,15 +119,15 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
         if (sock->fd >= (int) serv->max_connection) {
             swoole_error_log(
                 SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", sock->fd);
-            swSocket_free(sock);
+            sock->free();
             serv->disable_accept();
             return SW_OK;
         }
 
         // add to connection_list
-        swConnection *conn = serv->add_connection(listen_host, sock, event->fd);
+        Connection *conn = serv->add_connection(listen_host, sock, event->fd);
         if (conn == nullptr) {
-            swSocket_free(sock);
+            sock->free();
             return SW_OK;
         }
         sock->chunk_size = SW_SEND_BUFFER_SIZE;
@@ -152,7 +153,7 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
             swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = sock->fd;
-            swSocket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
+            Socket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
             if (reactor->write(reactor, _pipe_sock, &ev, sizeof(ev)) < 0) {
                 reactor->close(reactor, sock);
                 return SW_OK;
@@ -165,15 +166,15 @@ int Server::accept_connection(swReactor *reactor, swEvent *event) {
 
 #ifdef SW_SUPPORT_DTLS
 dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddress *sa) {
-    swSocket *sock = nullptr;
     dtls::Session *session = nullptr;
     swConnection *conn = nullptr;
 
-    int fd = swSocket_create(port->type, 1, 1);
-    if (fd < 0) {
+    network::Socket *sock = swoole::make_socket(port->type, SW_FD_SESSION, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    if (!sock) {
         return nullptr;
     }
 
+    int fd = sock->fd;
     int on = 1, off = 0;
     setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void *) &on, (socklen_t) sizeof(on));
 #ifdef HAVE_KQUEUE
@@ -223,15 +224,7 @@ dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddres
         break;
     }
 
-    sock = swSocket_new(fd, SW_FD_SESSION);
-    if (!sock) {
-        goto _cleanup;
-    }
-
     memcpy(&sock->info, sa, sizeof(*sa));
-    sock->socket_type = port->type;
-    sock->nonblock = 1;
-    sock->cloexec = 1;
     sock->chunk_size = SW_BUFFER_SIZE_STD;
 
     conn = add_connection(port, sock, port->socket->fd);
@@ -249,17 +242,13 @@ dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddres
     return session;
 
 _cleanup:
-    if (sock) {
-        sw_free(sock);
-    }
     if (conn) {
         sw_memset_zero(conn, sizeof(*conn));
     }
     if (session) {
         delete session;
     }
-    ::close(fd);
-
+    sock->free();
     return nullptr;
 }
 #endif
@@ -371,28 +360,10 @@ void Server::store_listen_socket() {
         sockfd = ls->socket->fd;
         // save server socket to connection_list
         connection_list[sockfd].fd = sockfd;
-        // socket type
+        connection_list[sockfd].socket = ls->socket;
         connection_list[sockfd].socket_type = ls->type;
-        // save listen_host object
         connection_list[sockfd].object = ls;
-
-        if (ls->is_dgram()) {
-            if (ls->type == SW_SOCK_UDP) {
-                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
-            } else if (ls->type == SW_SOCK_UDP6) {
-                udp_socket_ipv6 = sockfd;
-                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
-            }
-        } else {
-            // IPv4
-            if (ls->type == SW_SOCK_TCP) {
-                connection_list[sockfd].info.addr.inet_v4.sin_port = htons(ls->port);
-            }
-            // IPv6
-            else if (ls->type == SW_SOCK_TCP6) {
-                connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
-            }
-        }
+        connection_list[sockfd].info.assign(ls->type, ls->host, ls->port);
         if (sockfd >= 0) {
             set_minfd(sockfd);
             set_maxfd(sockfd);
@@ -1058,7 +1029,7 @@ int Server::send_to_connection(swSendData *_send) {
             ssize_t n;
 
         _direct_send:
-            n = swSocket_send(_socket, _send_data, _send_length, 0);
+            n = _socket->send(_send_data, _send_length, 0);
             if (n == _send_length) {
                 return SW_OK;
             } else if (n > 0) {
@@ -1096,7 +1067,7 @@ int Server::send_to_connection(swSendData *_send) {
     // sendfile to client
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         swSendFile_request *req = (swSendFile_request *) _send_data;
-        if (swSocket_sendfile(conn->socket, req->filename, req->offset, req->length) < 0) {
+        if (conn->socket->sendfile(req->filename, req->offset, req->length) < 0) {
             return SW_ERR;
         }
     }
@@ -1223,7 +1194,7 @@ static int Server_tcp_sendwait(Server *serv, int session_id, const void *data, u
                          session_id);
         return SW_ERR;
     }
-    return swSocket_write_blocking(conn->socket, data, length);
+    return conn->socket->send_blocking(data, length);
 }
 
 static sw_inline void Server_worker_set_buffer(Server *serv, swDataHead *info, swString *addr) {
@@ -1285,7 +1256,7 @@ void Server::call_hook(enum swServer_hook_type type, void *arg) {
 /**
  * [Worker]
  */
-static int Server_tcp_close(Server *serv, int session_id, int reset) {
+static int Server_tcp_close(Server *serv, int session_id, bool reset) {
     if (sw_unlikely(swIsMaster())) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return SW_ERR;
@@ -1387,13 +1358,15 @@ int Server::add_hook(enum swServer_hook_type type, const swCallback &func, int p
 void Server::check_port_type(swListenPort *ls) {
     if (ls->is_dgram()) {
         // dgram socket, setting socket buffer size
-        swSocket_set_buffer_size(ls->socket, ls->socket_buffer_size);
+        ls->socket->set_buffer_size(ls->socket_buffer_size);
         have_dgram_sock = 1;
         dgram_port_num++;
         if (ls->type == SW_SOCK_UDP) {
-            udp_socket_ipv4 = ls->socket->fd;
+            udp_socket_ipv4 = ls->socket;
         } else if (ls->type == SW_SOCK_UDP6) {
-            udp_socket_ipv6 = ls->socket->fd;
+            udp_socket_ipv6 = ls->socket;
+        } else if (ls->type == SW_SOCK_UNIX_DGRAM) {
+            dgram_socket = ls->socket;
         }
     } else {
         have_stream_sock = 1;
@@ -1434,7 +1407,7 @@ int Server::add_systemd_socket() {
 
         // O_NONBLOCK & O_CLOEXEC
         swoole_fcntl_set_option(sock, 1, 1);
-        ls->socket = swSocket_new(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
+        ls->socket = swoole::make_socket(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
         if (ls->socket == nullptr) {
             ::close(sock);
             return count;
@@ -1505,28 +1478,22 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
     }
 #endif
 
-    // create server socket
-    int sock = swSocket_create(ls->type, 1, 1);
-    if (sock < 0) {
-        swSysWarn("create socket failed");
+    ls->socket = swoole::make_socket(ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER,
+        SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK
+    );
+    if (ls->socket == nullptr) {
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
     if (ls->ssl_option.dtls) {
         int on = 1;
-        setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
+        setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
     }
 #endif
-    ls->socket = swSocket_new(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
-    if (ls->socket == nullptr) {
-        ::close(sock);
-        return nullptr;
-    }
-    ls->socket->nonblock = 1;
-    ls->socket->cloexec = 1;
+
     ls->socket->socket_type = ls->type;
-    if (swSocket_bind(ls->socket, ls->host, &ls->port) < 0) {
-        swSocket_free(ls->socket);
+    if (ls->socket->bind(ls->host, &ls->port) < 0) {
+        ls->socket->free();
         return nullptr;
     }
     check_port_type(ls);
@@ -1624,7 +1591,7 @@ void Server::foreach_connection(const std::function<void(Connection *)> &callbac
 /**
  * new connection
  */
-swConnection *Server::add_connection(swListenPort *ls, swSocket *_socket, int server_fd) {
+Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_fd) {
     gs->accept_count++;
     sw_atomic_fetch_add(&gs->connection_num, 1);
     sw_atomic_fetch_add(ls->connection_num, 1);
@@ -1637,7 +1604,7 @@ swConnection *Server::add_connection(swListenPort *ls, swSocket *_socket, int se
         set_minfd(fd);
     }
 
-    swConnection *connection = &(connection_list[fd]);
+    Connection *connection = &(connection_list[fd]);
     sw_memset_zero(connection, sizeof(*connection));
     _socket->object = connection;
     _socket->removed = 1;
@@ -1679,6 +1646,7 @@ swConnection *Server::add_connection(swListenPort *ls, swSocket *_socket, int se
 
     memcpy(&connection->info.addr, &_socket->info.addr, _socket->info.len);
     connection->info.len = _socket->info.len;
+    connection->info.type = connection->socket_type;
 
     if (!ls->ssl) {
         _socket->direct_send = 1;

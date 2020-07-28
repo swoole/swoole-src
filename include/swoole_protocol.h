@@ -23,7 +23,9 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 
-struct swProtocol {
+namespace swoole {
+
+struct Protocol {
     /* one package: eof check */
     uint8_t split_by_eof;
     uint8_t package_eof_len;
@@ -44,6 +46,7 @@ struct swProtocol {
     ssize_t (*get_package_length)(swProtocol *, swSocket *, const char *, uint32_t);
     uint8_t (*get_package_length_size)(swSocket *);
 };
+}
 
 typedef ssize_t (*swProtocol_length_function)(swProtocol *, swSocket *, const char *, uint32_t);
 

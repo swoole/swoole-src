@@ -96,17 +96,17 @@ void swWorker_signal_handler(int signo) {
     }
 }
 
-static sw_inline int swWorker_discard_data(swServer *serv, swConnection *conn, swEventData *task) {
+static sw_inline bool swWorker_discard_data(swServer *serv, swConnection *conn, swEventData *task) {
     if (conn == nullptr) {
         if (serv->disable_notify && !serv->discard_timeout_request) {
-            return SW_FALSE;
+            return false;
         }
         goto _discard_data;
     } else {
         if (conn->closed) {
             goto _discard_data;
         } else {
-            return SW_FALSE;
+            return false;
         }
     }
 _discard_data : {
@@ -116,12 +116,11 @@ _discard_data : {
                      task->info.len,
                      task->info.fd);
 }
-    return SW_TRUE;
+    return true;
 }
 
 static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event) {
-    swSocketAddress client_addr;
-    swSocket *sock = swSocket_accept(event->socket, &client_addr);
+    swSocket *sock = event->socket->accept();
     if (sock == nullptr) {
         switch (errno) {
         case EINTR:
@@ -191,11 +190,9 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
     /**
      * passing memory pointer
      */
-    swPacket_ptr task;
+    swPacket_ptr task = {};
     memcpy(&task.info, data + 4, sizeof(task.info));
     task.info.flags = SW_EVENT_DATA_PTR;
-
-    sw_memset_zero(&task.data, sizeof(task.data));
     task.data.length = length - (uint32_t) sizeof(task.info) - 4;
     task.data.str = (char *) (data + 4 + sizeof(task.info));
 
@@ -247,11 +244,9 @@ int Server::accept_task(swEventData *task) {
             sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
             swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->queued_bytes);
         }
-        // discard data
-        if (swWorker_discard_data(this, conn, task) == SW_TRUE) {
-            break;
+        if (!swWorker_discard_data(this, conn, task)) {
+            swWorker_do_task(this, worker, task, onReceive);
         }
-        swWorker_do_task(this, worker, task, onReceive);
         break;
     }
     case SW_SERVER_EVENT_RECV_DGRAM: {
@@ -371,7 +366,7 @@ void Server::worker_start_callback() {
             continue;
         }
         if (swIsWorker() && worker->pipe_master) {
-            swSocket_set_nonblock(worker->pipe_master);
+            worker->pipe_master->set_nonblock();
         }
     }
 
@@ -432,7 +427,7 @@ void Server::stop_async_worker(swWorker *worker) {
 
     if (serv->stream_socket) {
         reactor->del(reactor, serv->stream_socket);
-        swSocket_free(serv->stream_socket);
+        serv->stream_socket->free();
         serv->stream_socket = nullptr;
     }
 
@@ -561,7 +556,7 @@ int Server::start_event_worker(swWorker *worker) {
         }
     }
 
-    swSocket_set_nonblock(worker->pipe_worker);
+    worker->pipe_worker->set_nonblock();
     reactor->ptr = this;
     reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ);
     reactor->set_handler(SW_FD_PIPE, swWorker_onPipeReceive);
@@ -604,7 +599,7 @@ int Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int sessi
     if (SwooleTG.reactor) {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, ev_data, sendn);
     } else {
-        return swSocket_write_blocking(pipe_sock, ev_data, sendn);
+        return pipe_sock->send_blocking(ev_data, sendn);
     }
 }
 
@@ -716,6 +711,6 @@ int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, 
     if ((flags & SW_PIPE_NONBLOCK) && SwooleTG.reactor) {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, buf, n);
     } else {
-        return swSocket_write_blocking(pipe_sock, buf, n);
+        return pipe_sock->send_blocking(buf, n);
     }
 }

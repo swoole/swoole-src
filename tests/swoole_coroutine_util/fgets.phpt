@@ -7,7 +7,7 @@ swoole_coroutine_util: fgets
 require __DIR__ . '/../include/bootstrap.php';
 
 go(function () {
-    $file = __DIR__ . '/../../swoole.cc';
+    $file = __DIR__ . '/../../examples/server.php';
 
     $coroutine = '';
     $fp = fopen($file, "r");

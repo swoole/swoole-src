@@ -24,6 +24,7 @@
 #include <unordered_map>
 
 using namespace std;
+using swoole::network::Socket;
 
 #include "ext/standard/basic_functions.h"
 
@@ -454,7 +455,7 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset) {
         if (value <= 0) {
             value = INT_MAX;
         }
-        swSocket_set_buffer_size(cli->socket, value);
+        cli->socket->set_buffer_size(value);
         cli->socket->buffer_size = value;
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
@@ -470,16 +471,20 @@ void php_swoole_client_check_setting(swClient *cli, zval *zset) {
     /**
      * bind port
      */
+    std::string bind_address;
+    int bind_port = 0;
     if (php_swoole_array_get_value(vht, "bind_port", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        int bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
-        /**
-         * bind address
-         */
-        if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
-            zend::String str_v(ztmp);
-            swSocket_bind(cli->socket, str_v.val(), &bind_port);
-        }
+        bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+    }
+    /**
+     * bind address
+     */
+    if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
+        bind_address = zend::String(ztmp).to_std_string();
+    }
+    if (bind_port > 0 || bind_address.length() > 0) {
+        cli->socket->bind(bind_address.c_str(), &bind_port);
     }
     /**
      * client: tcp_nodelay
@@ -674,7 +679,7 @@ swClient *php_swoole_client_new(zval *zobject, char *host, int host_len, int por
             q->pop();
             // try recv, check connection status
             ret = recv(cli->socket->fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
-            if (ret == 0 || (ret < 0 && swSocket_error(errno) == SW_CLOSE)) {
+            if (ret == 0 || (ret < 0 && cli->socket->catch_error(errno) == SW_CLOSE)) {
                 cli->close(cli);
                 php_swoole_client_free(zobject, cli);
                 cli = (swClient *) pemalloc(sizeof(swClient), 1);
@@ -936,20 +941,16 @@ static PHP_METHOD(swoole_client, sendto) {
         }
     }
 
-    double ori_timeout = SwooleG.socket_send_timeout;
-    SwooleG.socket_send_timeout = cli->timeout;
+    double ori_timeout = Socket::default_write_timeout;
+    Socket::default_write_timeout = cli->timeout;
 
     int ret = -1;
-    if (cli->type == SW_SOCK_UDP) {
-        ret = swSocket_udp_sendto(cli->socket->fd, ip, port, data, len);
-    } else if (cli->type == SW_SOCK_UDP6) {
-        ret = swSocket_udp_sendto6(cli->socket->fd, ip, port, data, len);
-    } else if (cli->type == SW_SOCK_UNIX_DGRAM) {
-        ret = swSocket_unix_sendto(cli->socket->fd, ip, data, len);
+    if (Socket::is_dgram(cli->type)) {
+        ret = cli->socket->sendto(ip, port, data, len);
     } else {
         php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
     }
-    SwooleG.socket_send_timeout = ori_timeout;
+    Socket::default_write_timeout = ori_timeout;
     SW_CHECK_RETURN(ret);
 }
 
@@ -1300,7 +1301,7 @@ static PHP_METHOD(swoole_client, close) {
     }
     // Connection error, or short tcp connection.
     // No keep connection
-    if (force || !cli->keep || swSocket_error(swoole_get_last_error()) == SW_CLOSE) {
+    if (force || !cli->keep || cli->socket->catch_error(swoole_get_last_error()) == SW_CLOSE) {
         ret = cli->close(cli);
         php_swoole_client_free(ZEND_THIS, cli);
     } else {

@@ -54,13 +54,13 @@ int swPipeUnsock_close_ext(swPipe *p, int which) {
         if (object->pipe_master_closed) {
             return SW_ERR;
         }
-        swSocket_free(p->master_socket);
+        p->master_socket->free();
         object->pipe_master_closed = true;
     } else if (which == SW_PIPE_CLOSE_WORKER) {
         if (object->pipe_worker_closed) {
             return SW_ERR;
         }
-        swSocket_free(p->worker_socket);
+        p->worker_socket->free();
         object->pipe_worker_closed = true;
     } else {
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_MASTER);
@@ -84,9 +84,9 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
         return SW_ERR;
     }
 
-    uint32_t sbsize = SwooleG.socket_buffer_size;
-    swSocket_set_buffer_size(p->master_socket, sbsize);
-    swSocket_set_buffer_size(p->worker_socket, sbsize);
+    uint32_t sbsize = swoole::network::Socket::default_buffer_size;
+    p->master_socket->set_buffer_size(sbsize);
+    p->worker_socket->set_buffer_size(sbsize);
 
     p->object = object.release();
     p->read = swPipeUnsock_read;

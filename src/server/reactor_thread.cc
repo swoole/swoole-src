@@ -122,13 +122,12 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event) 
     int fd = event->fd;
     int ret;
 
-    swServer *serv = (swServer *) reactor->ptr;
-    swConnection *server_sock = &serv->connection_list[fd];
+    Server *serv = (swServer *) reactor->ptr;
+    Connection *server_sock = &serv->connection_list[fd];
+    network::Socket *sock = server_sock->socket;
     swSendData task = {};
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
     swFactory *factory = &serv->factory;
-
-    pkt->socket_addr.len = sizeof(pkt->socket_addr.addr);
 
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
@@ -141,13 +140,7 @@ static int swReactorThread_onPacketReceived(swReactor *reactor, swEvent *event) 
 
 _do_recvfrom:
 
-    ret = recvfrom(fd,
-                   pkt->data,
-                   SwooleTG.buffer_stack->size - sizeof(*pkt),
-                   0,
-                   (struct sockaddr *) &pkt->socket_addr.addr,
-                   &pkt->socket_addr.len);
-
+    ret = sock->recvfrom(pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0, &pkt->socket_addr);
     if (ret <= 0) {
         if (errno == EAGAIN) {
             return SW_OK;
@@ -476,7 +469,7 @@ int Server::send_to_worker_from_master(swWorker *worker, const void *data, size_
         swSocket *socket = &thread->pipe_sockets[worker->pipe_master->fd];
         return swoole_event_write(socket, data, len);
     } else {
-        return swSocket_write_blocking(worker->pipe_master, data, len);
+        return worker->pipe_master->send_blocking(data, len);
     }
 }
 
@@ -520,9 +513,9 @@ static int swReactorThread_onPipeWrite(swReactor *reactor, swEvent *ev) {
             }
         }
 
-        ret = swSocket_send(ev->socket, chunk->store.ptr, chunk->length, 0);
+        ret = ev->socket->send(chunk->store.ptr, chunk->length, 0);
         if (ret < 0) {
-            return (swSocket_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
+            return (ev->socket->catch_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {
             swBuffer_pop_chunk(buffer, chunk);
         }
@@ -671,9 +664,9 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev) {
             reactor->close(reactor, socket);
             return SW_OK;
         } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = swSocket_onSendfile(socket, chunk);
+            ret = socket->handle_sendfile(chunk);
         } else {
-            ret = swSocket_buffer_send(socket);
+            ret = socket->handle_send();
         }
 
         if (ret < 0) {
@@ -828,7 +821,7 @@ _init_master_thread:
     /**
      * 1 second timer
      */
-    if ((master_timer = swoole_timer_add(1000, SW_TRUE, Server::timer_callback, this)) == nullptr) {
+    if ((master_timer = swoole_timer_add(1000, true, Server::timer_callback, this)) == nullptr) {
         swoole_event_free();
         return SW_ERR;
     }
@@ -904,7 +897,7 @@ static int swReactorThread_init(swServer *serv, swReactor *reactor, uint16_t rea
             continue;
         }
 
-        swSocket_set_nonblock(socket);
+        socket->set_nonblock();
 
         if (reactor->add(reactor, socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
@@ -1075,7 +1068,7 @@ void Server::join_reactor_thread() {
         if (thread->notify_pipe) {
             swDataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
-            if (swSocket_write_blocking(thread->notify_pipe, (void *) &ev, sizeof(ev)) < 0) {
+            if (thread->notify_pipe->send_blocking((void *) &ev, sizeof(ev)) < 0) {
                 goto _cancel;
             }
         } else {
@@ -1128,7 +1121,7 @@ void Server::start_heartbeat_thread() {
                     // convert fd to session_id, in order to verify the connection before the force close connection
                     ev.fd = conn->session_id;
                     swSocket *_pipe_sock = get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
-                    swSocket_write_blocking(_pipe_sock, (void *) &ev, sizeof(ev));
+                    _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
                 }
             }
             sleep(heartbeat_check_interval);

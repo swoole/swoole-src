@@ -197,21 +197,27 @@ namespace swoole {
 class Reactor;
 class String;
 class Timer;
-class TimerNode;
+struct TimerNode;
+namespace network {
+struct Socket;
+struct Address;
+}
+struct Protocol;
 }
 
 typedef swoole::Reactor swReactor;
 typedef swoole::String swString;
 typedef swoole::Timer swTimer;
 typedef swoole::TimerNode swTimer_node;
+typedef swoole::network::Socket swSocket;
+typedef swoole::network::Address swSocketAddress;
+typedef swoole::Protocol swProtocol;
 
 struct swMsgQueue;
 struct swPipe;
 struct swHeap_node;
 struct swBuffer;
 struct swMemoryPool;
-struct swSocket;
-struct swProtocol;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s) s, sizeof(s)
@@ -318,9 +324,19 @@ enum swFd_type {
     SW_FD_DGRAM_CLIENT,
 };
 
-enum swBool_type {
-    SW_TRUE = 1,
-    SW_FALSE = 0,
+enum swSocket_flag {
+    SW_SOCK_NONBLOCK = 1 << 2,
+    SW_SOCK_CLOEXEC = 1 << 3,
+    SW_SOCK_SSL = (1u << 9),
+};
+
+enum swSocket_type {
+    SW_SOCK_TCP = 1,
+    SW_SOCK_UDP = 2,
+    SW_SOCK_TCP6 = 3,
+    SW_SOCK_UDP6 = 4,
+    SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
+    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
 };
 
 enum swEvent_type {
@@ -349,16 +365,6 @@ enum swFork_type {
     SW_FORK_PRECHECK = 1 << 3,
 };
 
-//-------------------------------------------------------------------------------
-enum swSocket_type {
-    SW_SOCK_TCP = 1,
-    SW_SOCK_UDP = 2,
-    SW_SOCK_TCP6 = 3,
-    SW_SOCK_UDP6 = 4,
-    SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
-    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
-};
-#define SW_SOCK_SSL (1u << 9)
 //-------------------------------------------------------------------------------
 
 #define swYield() sched_yield()  // or usleep(1)
@@ -650,34 +656,23 @@ struct swGlobal_t {
     uint16_t cpu_num;
     uint32_t pagesize;
     struct utsname uname;
-
-    //-----------------------[Socket]--------------------------
     uint32_t max_sockets;
-    /**
-     * tcp socket default buffer size
-     */
-    uint32_t socket_buffer_size;
-    double socket_send_timeout;
-
+    //-----------------------[Memory]--------------------------
     swMemoryPool *memory_pool;
     swAllocator std_allocator;
-
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
-
+    //-----------------------[DNS]--------------------------
     char *dns_server_v4;
     char *dns_server_v6;
     double dns_cache_refresh_time;
-
-    /**
-     * aio-threads
-     */
+    //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
     double aio_max_wait_time;
     double aio_max_idle_time;
     swSocket *aio_default_socket;
-
+    //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
 };

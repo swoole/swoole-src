@@ -180,10 +180,9 @@ bool Server::select_static_handler(http::Request *request, swConnection *conn) {
 
 #ifdef HAVE_TCP_NOPUSH
     if (conn->socket->tcp_nopush == 0) {
-        if (swSocket_tcp_nopush(conn->fd, 1) == -1) {
-            swSysWarn("swSocket_tcp_nopush() failed");
+        if (conn->set_tcp_nopush(1) == -1) {
+            swSysWarn("set_tcp_nopush() failed");
         }
-        conn->socket->tcp_nopush = 1;
     }
 #endif
     send_to_connection(&response);
@@ -710,8 +709,8 @@ static void protocol_status_error(swSocket *socket, swConnection *conn) {
                      SW_ERROR_PROTOCOL_ERROR,
                      "unexpected protocol status of session#%u<%s:%d>",
                      conn->session_id,
-                     swSocket_get_ip(conn->socket_type, &conn->info),
-                     swSocket_get_port(conn->socket_type, &conn->info));
+                     conn->info.get_ip(),
+                     conn->info.get_port());
 }
 
 ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t length) {

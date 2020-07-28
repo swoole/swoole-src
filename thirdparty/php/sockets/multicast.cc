@@ -30,7 +30,7 @@
 
 #include "main/php_network.h"
 
-using namespace swoole;
+using swoole::coroutine::Socket;
 
 enum source_op {
 	JOIN_SOURCE,

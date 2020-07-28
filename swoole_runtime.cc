@@ -45,8 +45,8 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
-using namespace swoole;
 using namespace std;
+using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
@@ -322,7 +322,7 @@ static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
      */
     stream->eof =
-        (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT && swSocket_error(sock->errCode) == SW_CLOSE));
+        (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT && sock->socket->catch_error(sock->errCode) == SW_CLOSE));
     if (nr_bytes > 0) {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }

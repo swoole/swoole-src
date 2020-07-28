@@ -1018,8 +1018,8 @@ class CoSocketStream : public detail::SocketStream {
     void get_remote_ip_and_port(std::string &ip, int &port) const {
         swSocketAddress sa;
         sock_->getpeername(&sa);
-        ip = std::string(swSocket_get_ip(sock_->get_type(), &sa));
-        port = swSocket_get_port(sock_->get_type(), &sa);
+        ip = std::string(sa.get_ip());
+        port = sa.get_port();
     }
 
   private:

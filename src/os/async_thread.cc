@@ -151,7 +151,7 @@ class ThreadPool {
         auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
         _event_copy->timestamp = swoole_microtime();
-        _event_copy->pipe_fd = SwooleTG.aio_write_socket->fd;
+        _event_copy->pipe_socket = SwooleTG.aio_write_socket;
         event_mutex.lock();
         _queue.push(_event_copy);
         _cv.notify_one();
@@ -252,10 +252,10 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker) {
 
                 _send_event:
                     while (true) {
-                        int ret = write(event->pipe_fd, &event, sizeof(event));
+                        int ret = write(event->pipe_socket->fd, &event, sizeof(event));
                         if (ret < 0) {
                             if (errno == EAGAIN) {
-                                swSocket_wait(event->pipe_fd, 1000, SW_EVENT_WRITE);
+                                event->pipe_socket->wait_event(1000, SW_EVENT_WRITE);
                                 continue;
                             } else if (errno == EINTR) {
                                 continue;
@@ -294,7 +294,7 @@ void swoole::async::ThreadPool::create_thread(const bool is_core_worker) {
                                 event = new AsyncEvent;
                                 event->object = new thread::id(this_thread::get_id());
                                 event->callback = aio_thread_release;
-                                event->pipe_fd = SwooleG.aio_default_socket->fd;
+                                event->pipe_socket = SwooleG.aio_default_socket;
                                 event->canceled = false;
 
                                 --n_waiting;

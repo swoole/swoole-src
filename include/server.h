@@ -104,9 +104,6 @@ enum swServer_mode {
     SW_MODE_PROCESS = 2,
 };
 
-#define SW_SERVER_MAX_FD_INDEX 0  // max connection socket
-#define SW_SERVER_MIN_FD_INDEX 1  // min listen socket
-
 struct swSendData {
     swDataHead info;
     const char *data;
@@ -276,7 +273,7 @@ struct Connection {
     /**
      * socket info
      */
-    swSocket *socket;
+    network::Socket *socket;
     /**
      * connect time(seconds)
      */
@@ -348,7 +345,7 @@ struct ListenPort {
 
     int tcp_user_timeout = 0;
 
-    int socket_buffer_size  = SwooleG.socket_buffer_size;
+    int socket_buffer_size  = network::Socket::default_buffer_size;
     uint32_t buffer_high_watermark = 0;
     uint32_t buffer_low_watermark = 0;
 
@@ -429,17 +426,17 @@ struct ListenPort {
 
     sw_atomic_t *connection_num = nullptr;
 
-    swProtocol protocol = {};
+    Protocol protocol = {};
     void *ptr = nullptr;
 
     int (*onRead)(swReactor *reactor, ListenPort *port, swEvent *event) = nullptr;
 
     inline bool is_dgram() {
-        return swSocket_is_dgram(type);
+        return network::Socket::is_dgram(type);
     }
 
     inline bool is_stream() {
-        return swSocket_is_stream(type);
+        return network::Socket::is_stream(type);
     }
 
     inline void set_eof_protocol(const std::string &eof, bool find_from_right = false) {
@@ -466,6 +463,9 @@ struct ListenPort {
     int enable_ssl_encrypt();
 #endif
     void clear_protocol();
+    inline network::Socket *get_socket() {
+        return socket;
+    }
 };
 
 struct ServerGS {
@@ -475,6 +475,9 @@ struct ServerGS {
     uint32_t session_round : 24;
     sw_atomic_t start;
     sw_atomic_t shutdown;
+
+    int max_fd;
+    int min_fd;
 
     time_t start_time;
     sw_atomic_t connection_num;
@@ -533,8 +536,9 @@ class Server {
     uint32_t max_request = 0;
     uint32_t max_request_grace = 0;
 
-    int udp_socket_ipv4 = 0;
-    int udp_socket_ipv6 = 0;
+    network::Socket *udp_socket_ipv4 = nullptr;
+    network::Socket *udp_socket_ipv6 = nullptr;
+    network::Socket *dgram_socket = nullptr;
     int null_fd = -1;
 
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
@@ -699,6 +703,10 @@ class Server {
         return (ListenPort *) connection_list[server_fd].object;
     }
 
+    inline network::Socket *get_server_socket(int fd) {
+        return connection_list[fd].socket;
+    }
+
     std::thread heartbeat_thread;
 
     /**
@@ -820,7 +828,7 @@ class Server {
     int (*sendfile)(Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) =
         nullptr;
     int (*sendwait)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
-    int (*close)(Server *serv, int session_id, int reset) = nullptr;
+    int (*close)(Server *serv, int session_id, bool reset) = nullptr;
     int (*notify)(Server *serv, Connection *conn, int event) = nullptr;
     int (*feedback)(Server *serv, int session_id, int event) = nullptr;
     /**
@@ -884,23 +892,19 @@ class Server {
     int get_idle_task_worker_num();
 
     inline int get_minfd() {
-        return connection_list[SW_SERVER_MIN_FD_INDEX].fd;
+        return gs->min_fd;
     }
 
     inline int get_maxfd() {
-        return connection_list[SW_SERVER_MAX_FD_INDEX].fd;
+        return gs->max_fd;
     }
-    /**
-     *  connection_list[0] => the largest fd
-     */
+
     inline void set_maxfd(int maxfd) {
-        connection_list[SW_SERVER_MAX_FD_INDEX].fd = maxfd;
+        gs->max_fd = maxfd;
     }
-    /**
-     * connection_list[1] => the smallest fd
-     */
+
     inline void set_minfd(int minfd) {
-        connection_list[SW_SERVER_MIN_FD_INDEX].fd = minfd;
+        gs->min_fd = minfd;
     }
 
     void store_listen_socket();
@@ -1248,9 +1252,9 @@ typedef swoole::Connection swConnection;
 static sw_inline int swEventData_is_dgram(uint8_t type) {
     switch (type) {
     case SW_SERVER_EVENT_RECV_DGRAM:
-        return SW_TRUE;
+        return true;
     default:
-        return SW_FALSE;
+        return false;
     }
 }
 
@@ -1263,9 +1267,9 @@ static sw_inline int swEventData_is_stream(uint8_t type) {
     case SW_SERVER_EVENT_RESUME_RECV:
     case SW_SERVER_EVENT_BUFFER_FULL:
     case SW_SERVER_EVENT_BUFFER_EMPTY:
-        return SW_TRUE;
+        return true;
     default:
-        return SW_FALSE;
+        return false;
     }
 }
 

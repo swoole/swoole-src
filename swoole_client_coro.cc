@@ -20,9 +20,8 @@
 
 #include "ext/standard/basic_functions.h"
 
-using swoole::coroutine::Socket;
-
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
@@ -870,11 +869,11 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
 
     array_init(return_value);
     zval zaddress;
-    ZVAL_STRING(&zaddress, swSocket_get_ip(cli->get_type(), &sa));
+    ZVAL_STRING(&zaddress, sa.get_ip());
     add_assoc_zval(return_value, "host", &zaddress); /* backward compatibility */
     Z_ADDREF(zaddress);
     add_assoc_zval(return_value, "address", &zaddress);
-    add_assoc_long(return_value, "port", swSocket_get_port(cli->get_type(), &sa));
+    add_assoc_long(return_value, "port", sa.get_port());
 }
 
 /**
@@ -912,11 +911,11 @@ static PHP_METHOD(swoole_client_coro, getpeername) {
 
     array_init(return_value);
     zval zaddress;
-    ZVAL_STRING(&zaddress, swSocket_get_ip(cli->get_type(), &sa));
+    ZVAL_STRING(&zaddress, sa.get_ip());
     add_assoc_zval(return_value, "host", &zaddress); /* backward compatibility */
     Z_ADDREF(zaddress);
     add_assoc_zval(return_value, "address", &zaddress);
-    add_assoc_long(return_value, "port", swSocket_get_port(cli->get_type(), &sa));
+    add_assoc_long(return_value, "port", sa.get_port());
 }
 
 static PHP_METHOD(swoole_client_coro, close) {

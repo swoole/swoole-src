@@ -46,9 +46,9 @@ struct swAio_event {
     int ret;
     int error;
     /**
-     * reserved by system
+     * internal use only
      */
-    int pipe_fd;
+    swSocket *pipe_socket;
     double timestamp;
     void *object;
     void (*handler)(swAio_event *event);

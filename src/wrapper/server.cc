@@ -196,7 +196,7 @@ bool Server::finish(DataBuffer &data) {
     return serv.reply_task_result(data.buffer, data.length, 0, nullptr) == 0;
 }
 
-bool Server::sendto(const string &ip, int port, const DataBuffer &data, int server_socket) {
+bool Server::sendto(const string &ip, int port, const DataBuffer &data, int server_socket_fd) {
     if (serv.gs->start == 0) {
         return false;
     }
@@ -208,24 +208,20 @@ bool Server::sendto(const string &ip, int port, const DataBuffer &data, int serv
         ipv6 = true;
     }
 
-    if (ipv6 && serv.udp_socket_ipv6 <= 0) {
+    if (ipv6 && serv.udp_socket_ipv6 == nullptr) {
         return false;
-    } else if (serv.udp_socket_ipv4 <= 0) {
+    } else if (serv.udp_socket_ipv4  == nullptr) {
         swWarn("You must add an UDP listener to server before using sendto");
         return false;
     }
 
-    if (server_socket < 0) {
+    network::Socket *server_socket;
+    if (server_socket_fd < 0) {
         server_socket = ipv6 ? serv.udp_socket_ipv6 : serv.udp_socket_ipv4;
-    }
-
-    int ret;
-    if (ipv6) {
-        ret = swSocket_udp_sendto6(server_socket, (char *) ip.c_str(), port, (char *) data.buffer, data.length);
     } else {
-        ret = swSocket_udp_sendto(server_socket, (char *) ip.c_str(), port, (char *) data.buffer, data.length);
+        server_socket = serv.get_server_socket(server_socket_fd);
     }
-    return ret > 0;
+    return server_socket->sendto((char *) ip.c_str(), port, (char *) data.buffer, data.length) > 0;
 }
 
 bool Server::sendfile(int fd, string &file, off_t offset, size_t length) {

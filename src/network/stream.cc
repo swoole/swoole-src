@@ -20,6 +20,7 @@
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "swoole_log.h"
+#include "swoole_protocol.h"
 #include "client.h"
 
 static void swStream_free(swStream *stream);
@@ -140,7 +141,7 @@ int swStream_send(swStream *stream, const char *data, size_t length) {
 
 int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len) {
     int tmp = 0;
-    ssize_t ret = swSocket_recv_blocking(sock, &tmp, sizeof(tmp), MSG_WAITALL);
+    ssize_t ret = sock->recv_blocking(&tmp, sizeof(tmp), MSG_WAITALL);
 
     if (ret <= 0) {
         return SW_CLOSE;
@@ -152,7 +153,7 @@ int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len) {
         return SW_CLOSE;
     }
 
-    ret = swSocket_recv_blocking(sock, __buf, length, MSG_WAITALL);
+    ret = sock->recv_blocking(__buf, length, MSG_WAITALL);
     if (ret <= 0) {
         return SW_CLOSE;
     } else {

@@ -169,8 +169,8 @@ bool Session::listen() {
     } else if (retval < 0) {
         int reason = ERR_GET_REASON(ERR_peek_error());
         swWarn("DTLSv1_listen() failed, client[%s:%d], reason=%d, error_string=%s",
-               swSocket_get_ip(socket->socket_type, &socket->info),
-               swSocket_get_port(socket->socket_type, &socket->info),
+               socket->info.get_ip(),
+               socket->info.get_port(),
                reason,
                swSSL_get_error());
         return false;

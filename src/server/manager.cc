@@ -257,7 +257,7 @@ static int swManager_loop(swServer *serv) {
     }
 
     if (serv->manager_alarm > 0) {
-        swoole_timer_add((long) (serv->manager_alarm * 1000), SW_TRUE, swManager_onTimer, serv);
+        swoole_timer_add((long) (serv->manager_alarm * 1000), true, swManager_onTimer, serv);
     }
 
     while (serv->running) {

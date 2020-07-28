@@ -214,10 +214,10 @@ static void swoole_http2_onRequest(http2_session *client, http2_stream *stream) 
     add_assoc_long(zserver, "request_time", time(nullptr));
     add_assoc_double(zserver, "request_time_float", swoole_microtime());
     if (serv_sock) {
-        add_assoc_long(zserver, "server_port", swSocket_get_port(serv_sock->socket_type, &serv_sock->info));
+        add_assoc_long(zserver, "server_port", serv_sock->info.get_port());
     }
-    add_assoc_long(zserver, "remote_port", swSocket_get_port(conn->socket_type, &conn->info));
-    add_assoc_string(zserver, "remote_addr", (char *) swSocket_get_ip(conn->socket_type, &conn->info));
+    add_assoc_long(zserver, "remote_port", conn->info.get_port());
+    add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_ip());
     add_assoc_long(zserver, "master_time", conn->last_time);
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 

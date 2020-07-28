@@ -92,7 +92,7 @@ int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
     if (sec < SW_TIMER_MIN_SEC) {
         swoole_event_defer([co](void *data) { co->resume(); }, nullptr);
-    } else if (swoole_timer_add((long) (sec * 1000), SW_FALSE, sleep_timeout, co) == nullptr) {
+    } else if (swoole_timer_add((long) (sec * 1000), false, sleep_timeout, co) == nullptr) {
         return -1;
     }
     co->yield();
@@ -202,7 +202,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     swAio_event *event = swAio_dispatch2(&ev);
     swTimer_node *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, aio_onDNSTimeout, event);
+        timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
     }
     task.co->yield();
     if (ev.ret == 1) {
@@ -266,7 +266,7 @@ vector<string> System::getaddrinfo(
     swAio_event *event = swAio_dispatch2(&ev);
     swTimer_node *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, aio_onDNSTimeout, event);
+        timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
     }
     task.co->yield();
     if (timer) {
@@ -389,7 +389,7 @@ static inline void socket_poll_clean(coro_poll_task *task) {
          * Temporary socket, fd marked -1, skip close
          */
         socket->fd = -1;
-        swSocket_free(socket);
+        socket->free();
         i->second.socket = nullptr;
         if (retval < 0) {
             continue;
@@ -513,11 +513,9 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     task.co = Coroutine::get_current_safe();
 
     for (auto i = fds.begin(); i != fds.end(); i++) {
-        i->second.socket = swSocket_new(i->first, SW_FD_CORO_POLL);
-        if (i->second.socket == nullptr) {
-            continue;
-        }
+        i->second.socket = swoole::make_socket(i->first, SW_FD_CORO_POLL);
         if (swoole_event_add(i->second.socket, i->second.events) < 0) {
+            i->second.socket->free();
             continue;
         }
         i->second.socket->object = &task;
@@ -529,7 +527,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     }
 
     if (timeout > 0) {
-        task.timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, socket_poll_timeout, &task);
+        task.timer = swoole_timer_add((long) (timeout * 1000), false, socket_poll_timeout, &task);
     }
 
     task.co->yield();
@@ -545,10 +543,7 @@ struct event_waiter {
 
     event_waiter(int fd, int events, double timeout) {
         revents = 0;
-        if (!(socket = swSocket_new(fd, SW_FD_CORO_EVENT))) {
-            swoole_set_last_error(errno);
-            return;
-        }
+        socket = swoole::make_socket(fd, SW_FD_CORO_EVENT);
         socket->object = this;
         if (swoole_event_add(socket, events) < 0) {
             swoole_set_last_error(errno);
@@ -556,7 +551,7 @@ struct event_waiter {
         }
         if (timeout > 0) {
             timer = swoole_timer_add((long) (timeout * 1000),
-                                     SW_FALSE,
+                                     false,
                                      [](swTimer *timer, swTimer_node *tnode) {
                                          event_waiter *waiter = (event_waiter *) tnode->data;
                                          waiter->timer = nullptr;
@@ -578,7 +573,7 @@ struct event_waiter {
         swoole_event_del(socket);
     _done:
         socket->fd = -1; /* skip close */
-        swSocket_free(socket);
+        socket->free();
     }
 };
 
@@ -688,7 +683,7 @@ bool coroutine::async(swAio_handler handler, swAio_event &event, double timeout)
         return false;
     }
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, async_task_timeout, _ev);
+        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
     task.co->yield();
     if (event.error == SW_ERROR_AIO_TIMEOUT) {
@@ -738,7 +733,7 @@ bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
         return false;
     }
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), SW_FALSE, async_task_timeout, _ev);
+        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
     task.co->yield();
     if (event.error == SW_ERROR_AIO_TIMEOUT) {

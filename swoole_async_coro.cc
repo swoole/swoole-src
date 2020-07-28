@@ -79,12 +79,6 @@ PHP_FUNCTION(swoole_async_set) {
     if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", ztmp)) {
         SwooleG.dns_cache_refresh_time = zval_get_double(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        SwooleG.socket_buffer_size = zval_get_long(ztmp);
-        if (SwooleG.socket_buffer_size <= 0 || SwooleG.socket_buffer_size > INT_MAX) {
-            SwooleG.socket_buffer_size = INT_MAX;
-        }
-    }
     if (php_swoole_array_get_value(vht, "thread_num", ztmp) ||
         php_swoole_array_get_value(vht, "min_thread_num", ztmp)) {
         zend_long v = zval_get_long(ztmp);
@@ -114,7 +108,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     Coroutine::get_current_safe();
 
     zval *domain;
-    double timeout = Socket::default_dns_timeout;
+    double timeout = swoole::network::Socket::default_dns_timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE) {
         RETURN_FALSE;
     }

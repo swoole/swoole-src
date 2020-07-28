@@ -314,11 +314,11 @@ if test "$PHP_SWOOLE" != "no"; then
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
         CXXFLAGS="$CXXFLAGS -fsanitize=address -fno-omit-frame-pointer"
     fi
-    
+
     if test "$PHP_GCOV" != "no"; then
         PHP_DEBUG=1
-        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage"
-        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage"
+        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage -lgcov"
+        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage -lgcov"
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
@@ -407,6 +407,7 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     swoole_source_file=" \
+        php_swoole.cc \
         php_swoole_cxx.cc \
         src/core/base.cc \
         src/core/channel.cc \
@@ -436,6 +437,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/memory/ring_buffer.cc \
         src/memory/shared_memory.cc \
         src/memory/table.cc \
+        src/network/address.cc \
         src/network/client.cc \
         src/network/dns.cc \
         src/network/socket.cc \
@@ -482,7 +484,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/event.cc \
         src/wrapper/server.cc \
         src/wrapper/timer.cc \
-        swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \
         swoole_channel_coro.cc \

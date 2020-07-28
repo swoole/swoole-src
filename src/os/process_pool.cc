@@ -138,7 +138,7 @@ int ProcessPool::create_unix_socket(const char *socket_file, int blacklog) {
     if (stream_info_->socket_file == nullptr) {
         return SW_ERR;
     }
-    stream_info_->socket = swSocket_create_server(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, blacklog);
+    stream_info_->socket = make_server_socket(SW_SOCK_UNIX_STREAM, stream_info_->socket_file, 0, blacklog);
     if (!stream_info_->socket) {
         return SW_ERR;
     }
@@ -154,7 +154,7 @@ int ProcessPool::create_tcp_socket(const char *host, int port, int blacklog) {
     if (stream_info_->socket_file == nullptr) {
         return SW_ERR;
     }
-    stream_info_->socket = swSocket_create_server(SW_SOCK_TCP, host, port, blacklog);
+    stream_info_->socket = make_server_socket(SW_SOCK_TCP, host, port, blacklog);
     if (!stream_info_->socket) {
         return SW_ERR;
     }
@@ -418,8 +418,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
                 break;
             }
         } else if (pool->use_socket) {
-            swSocketAddress sa;
-            swSocket *conn = swSocket_accept(pool->stream_info_->socket, &sa);
+            swSocket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;
@@ -431,7 +430,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
 
             n = swStream_recv_blocking(conn, (void *) &out.buf, sizeof(out.buf));
             if (n == SW_CLOSE) {
-                swSocket_free(conn);
+                conn->free();
                 continue;
             }
             pool->stream_info_->last_connection = conn;
@@ -463,8 +462,8 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
 
         if (pool->use_socket && pool->stream_info_->last_connection) {
             int _end = 0;
-            swSocket_write_blocking(pool->stream_info_->last_connection, (void *) &_end, sizeof(_end));
-            swSocket_free(pool->stream_info_->last_connection);
+            pool->stream_info_->last_connection->send_blocking((void *) &_end, sizeof(_end));
+            pool->stream_info_->last_connection->free();
             pool->stream_info_->last_connection = nullptr;
         }
 
@@ -525,8 +524,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             data = outbuf->mdata;
             outbuf->mtype = 0;
         } else if (pool->use_socket) {
-            swSocketAddress sa;
-            swSocket *conn = swSocket_accept(pool->stream_info_->socket, &sa);
+            swSocket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;
@@ -536,7 +534,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
                 }
             }
             int tmp = 0;
-            if (swSocket_recv_blocking(conn, &tmp, sizeof(tmp), MSG_WAITALL) <= 0) {
+            if (conn->recv_blocking(&tmp, sizeof(tmp), MSG_WAITALL) <= 0) {
                 goto _close;
             }
             n = ntohl(tmp);
@@ -545,9 +543,9 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             } else if (n > pool->max_packet_size_) {
                 goto _close;
             }
-            if (swSocket_recv_blocking(conn, pool->packet_buffer, n, MSG_WAITALL) <= 0) {
+            if (conn->recv_blocking(pool->packet_buffer, n, MSG_WAITALL) <= 0) {
             _close:
-                swSocket_free(conn);
+                conn->free();
                 continue;
             }
             data = pool->packet_buffer;
@@ -578,11 +576,11 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             swString *resp_buf = pool->stream_info_->response_buffer;
             if (resp_buf && resp_buf->length > 0) {
                 int _l = htonl(resp_buf->length);
-                swSocket_write_blocking(pool->stream_info_->last_connection, &_l, sizeof(_l));
-                swSocket_write_blocking(pool->stream_info_->last_connection, resp_buf->str, resp_buf->length);
+                pool->stream_info_->last_connection->send_blocking(&_l, sizeof(_l));
+                pool->stream_info_->last_connection->send_blocking(resp_buf->str, resp_buf->length);
                 swString_clear(resp_buf);
             }
-            swSocket_free(pool->stream_info_->last_connection);
+            pool->stream_info_->last_connection->free();
             pool->stream_info_->last_connection = nullptr;
         }
 
@@ -724,7 +722,7 @@ void ProcessPool::destroy() {
             sw_free((void *) stream_info_->socket_file);
         }
         if (stream_info_->socket) {
-            swSocket_free(stream_info_->socket);
+            stream_info_->socket->free();
             stream_info_->socket = nullptr;
         }
         if (stream_info_->response_buffer) {

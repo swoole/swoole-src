@@ -338,7 +338,7 @@ static PHP_METHOD(swoole_process, __construct) {
     php_swoole_fci func;
     zend_bool redirect_stdin_and_stdout = 0;
     zend_long pipe_type = 2;
-    zend_bool enable_coroutine = SW_FALSE;
+    zend_bool enable_coroutine = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
     Z_PARAM_FUNC(func.fci, func.fci_cache);
@@ -815,7 +815,7 @@ static PHP_METHOD(swoole_process, write) {
         }
     } else {
     _blocking_read:
-        ret = swSocket_write_blocking(process->pipe_current, data, data_len);
+        ret = process->pipe_current->send_blocking(data, data_len);
     }
 
     if (ret < 0) {
@@ -1119,7 +1119,7 @@ static PHP_METHOD(swoole_process, setTimeout) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot setTimeout the pipe");
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(swSocket_set_timeout(process->pipe_current, seconds));
+    RETURN_BOOL(process->pipe_current->set_timeout(seconds));
 }
 
 static PHP_METHOD(swoole_process, setBlocking) {
@@ -1134,8 +1134,8 @@ static PHP_METHOD(swoole_process, setBlocking) {
         RETURN_FALSE;
     }
     if (blocking) {
-        swSocket_set_block(process->pipe_current);
+        process->pipe_current->set_block();
     } else {
-        swSocket_set_nonblock(process->pipe_current);
+        process->pipe_current->set_nonblock();
     }
 }

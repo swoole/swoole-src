@@ -161,7 +161,7 @@ int swReactor_close(swReactor *reactor, swSocket *socket) {
 
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
 
-    swSocket_free(socket);
+    socket->free();
 
     return SW_OK;
 }
@@ -173,7 +173,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
     int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
-        socket->buffer_size = SwooleG.socket_buffer_size;
+        socket->buffer_size = swoole::network::Socket::default_buffer_size;;
     }
 
     if (socket->nonblock == 0) {
@@ -194,7 +194,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         }
 #endif
     _do_send:
-        ret = swSocket_send(socket, ptr, n, 0);
+        ret = socket->send(ptr, n, 0);
 
         if (ret > 0) {
             if (n == ret) {
@@ -204,7 +204,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 n -= ret;
                 goto _do_buffer;
             }
-        } else if (swSocket_error(errno) == SW_WAIT) {
+        } else if (socket->catch_error(errno) == SW_WAIT) {
         _do_buffer:
             if (!socket->out_buffer) {
                 buffer = swBuffer_new(socket->chunk_size);
@@ -233,7 +233,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
                 swYield();
-                swSocket_wait(socket->fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
+                socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
         }
 
@@ -259,9 +259,9 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
             reactor->close(reactor, ev->socket);
             return SW_OK;
         } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = swSocket_onSendfile(socket, chunk);
+            ret = socket->handle_sendfile(chunk);
         } else {
-            ret = swSocket_buffer_send(socket);
+            ret = socket->handle_send();
         }
 
         if (ret < 0) {
@@ -287,7 +287,7 @@ int Reactor::drain_write_buffer(swSocket *socket) {
     event.fd = socket->fd;
 
     while (!swBuffer_empty(socket->out_buffer)) {
-        if (swSocket_wait(socket->fd, SwooleG.socket_send_timeout, SW_EVENT_WRITE) == SW_ERR) {
+        if (socket->wait_event(network::Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
         swReactor_onWrite(this, &event);

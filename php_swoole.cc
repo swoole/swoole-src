@@ -42,6 +42,8 @@
 #include <brotli/decode.h>
 #endif
 
+using swoole::network::Socket;
+
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
 extern sapi_module_struct sapi_module;
@@ -271,11 +273,35 @@ void php_swoole_set_global_option(HashTable *vht) {
         }
         SwooleG.dns_server_v4 = zend::String(ztmp).dup();
     }
-    if (php_swoole_array_get_value(vht, "socket_send_timeout", ztmp)) {
-        SwooleG.socket_send_timeout = zval_get_double(ztmp);
-        if (SwooleG.socket_send_timeout <= 0 || SwooleG.socket_send_timeout > INT_MAX) {
-            SwooleG.socket_send_timeout = INT_MAX;
+
+    auto timeout_format = [](zval *v) -> double {
+        double timeout = zval_get_double(v);
+        if (timeout <= 0 || timeout > INT_MAX) {
+            return INT_MAX;
+        } else {
+            return timeout;
         }
+    };
+
+    if (php_swoole_array_get_value(vht, "socket_dns_timeout", ztmp)) {
+        Socket::default_dns_timeout = timeout_format(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "socket_connect_timeout", ztmp)) {
+        Socket::default_connect_timeout = timeout_format(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "socket_write_timeout", ztmp) ||
+        php_swoole_array_get_value(vht, "socket_send_timeout", ztmp)) {
+        Socket::default_write_timeout = timeout_format(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "socket_read_timeout", ztmp) ||
+        php_swoole_array_get_value(vht, "socket_recv_timeout", ztmp)) {
+        Socket::default_read_timeout = timeout_format(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
+        Socket::default_buffer_size = zval_get_long(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
+        Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
     }
 }
 
@@ -621,7 +647,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_redis_server_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
-    SwooleG.socket_buffer_size = SWOOLE_G(socket_buffer_size);
+    Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
     SwooleG.dns_cache_refresh_time = 60;
 
     // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily

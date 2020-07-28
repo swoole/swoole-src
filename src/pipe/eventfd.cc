@@ -59,7 +59,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
         return -1;
     }
 
-    p->master_socket = swSocket_new(object->event_fd, SW_FD_PIPE);
+    p->master_socket = swoole::make_socket(object->event_fd, SW_FD_PIPE);
     if (p->master_socket == nullptr) {
         close(object->event_fd);
         return -1;
@@ -81,7 +81,7 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length) {
 
     // eventfd not support socket timeout
     if (p->blocking == 1 && p->timeout > 0) {
-        if (swSocket_wait(object->event_fd, p->timeout * 1000, SW_EVENT_READ) < 0) {
+        if (p->master_socket->wait_event(p->timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }
@@ -113,7 +113,7 @@ static int swPipeEventfd_write(swPipe *p, const void *data, int length) {
 
 static int swPipeEventfd_close(swPipe *p) {
     swPipeEventfd *object = (swPipeEventfd *) p->object;
-    swSocket_free(p->master_socket);
+    p->master_socket->free();
     delete object;
     return SW_OK;
 }

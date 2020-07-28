@@ -23,6 +23,7 @@
 #include <string>
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 zend_class_entry *swoole_socket_coro_ce;
 static zend_object_handlers swoole_socket_coro_handlers;
@@ -1374,29 +1375,29 @@ static PHP_METHOD(swoole_socket_coro, close) {
 static PHP_METHOD(swoole_socket_coro, getsockname) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    swSocketAddress sa;
+    network::Address sa;
     if (!sock->socket->getsockname(&sa)) {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
-    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
+    add_assoc_string(return_value, "address", (char *) sa.get_ip());
+    add_assoc_long(return_value, "port", sa.get_port());
 }
 
 static PHP_METHOD(swoole_socket_coro, getpeername) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    swSocketAddress sa;
+    network::Address sa;
     if (!sock->socket->getpeername(&sa)) {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
-    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
+    add_assoc_string(return_value, "address", (char *) sa.get_ip());
+    add_assoc_long(return_value, "port", sa.get_port());
 }
 
 static PHP_METHOD(swoole_socket_coro, getOption) {

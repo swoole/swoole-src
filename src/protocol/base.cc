@@ -51,8 +51,8 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, co
         swWarn("invalid package (size=%d) from socket#%u<%s:%d>",
                size,
                socket->fd,
-               swSocket_get_ip(socket->socket_type, &socket->info),
-               swSocket_get_port(socket->socket_type, &socket->info));
+               socket->info.get_ip(),
+               socket->info.get_port());
         return SW_ERR;
     }
     swDebug("length=%d", protocol->package_body_offset + body_length);
@@ -136,9 +136,9 @@ _do_recv:
         recv_size = protocol->package_length_offset + package_length_size;
     }
 
-    recv_n = swSocket_recv(socket, buffer->str + buffer->length, recv_size, 0);
+    recv_n = socket->recv(buffer->str + buffer->length, recv_size, 0);
     if (recv_n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv(%d, %d) failed", socket->fd, recv_size);
             return SW_OK;
@@ -198,8 +198,8 @@ _do_recv:
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                                  "package is too big, remote_addr=%s:%d, length=%zu",
-                                 swSocket_get_ip(socket->socket_type, &socket->info),
-                                 swSocket_get_port(socket->socket_type, &socket->info),
+                                 socket->info.get_ip(),
+                                 socket->info.get_port(),
                                  package_length);
                 return SW_ERR;
             }
@@ -229,7 +229,7 @@ _do_recv:
  * @return SW_OK: continue
  */
 int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *buffer) {
-    int recv_again = SW_FALSE;
+    bool recv_again = false;
     int buf_size;
 
 _recv_data:
@@ -240,9 +240,9 @@ _recv_data:
         buf_size = SW_BUFFER_SIZE_STD;
     }
 
-    int n = swSocket_recv(socket, buf_ptr, buf_size, 0);
+    int n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from socket#%d failed", socket->fd);
             return SW_OK;
@@ -263,7 +263,7 @@ _recv_data:
         if (protocol->split_by_eof) {
             int retval = swProtocol_split_package_by_eof(protocol, socket, buffer);
             if (retval == SW_CONTINUE) {
-                recv_again = SW_TRUE;
+                recv_again = true;
             } else if (retval == SW_CLOSE) {
                 return SW_ERR;
             } else {
@@ -296,7 +296,7 @@ _recv_data:
 
         // buffer is full, may have not read data
         if (buffer->length == buffer->size) {
-            recv_again = SW_TRUE;
+            recv_again = true;
             if (buffer->size < protocol->package_max_length) {
                 uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
                 if (extend_size > protocol->package_max_length) {

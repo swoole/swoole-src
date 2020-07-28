@@ -38,7 +38,6 @@ struct ServerProperty {
     vector<zval *> ports;
     vector<zval *> user_processes;
     php_swoole_server_port_property *primary_port;
-    int dgram_server_socket;
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
     unordered_map<int, zend_fcall_info_cache> task_callbacks;
     unordered_map<int, TaskCo *> task_coroutine_map;
@@ -131,9 +130,9 @@ static inline zend_bool php_swoole_server_isset_callback(ServerObject *server_ob
                                                          int event_type) {
     php_swoole_server_port_property *property = (php_swoole_server_port_property *) port->ptr;
     if (property->callbacks[event_type] || server_object->property->primary_port->callbacks[event_type]) {
-        return SW_TRUE;
+        return true;
     } else {
-        return SW_FALSE;
+        return false;
     }
 }
 
@@ -962,7 +961,7 @@ static void php_swoole_task_wait_co(
     }
 
     long ms = (long) (timeout * 1000);
-    swTimer_node *timer = swoole_timer_add(ms, SW_FALSE, php_swoole_task_onTimeout, task_co);
+    swTimer_node *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
     if (timer) {
         task_co->timer = timer;
     }
@@ -1327,7 +1326,7 @@ int php_swoole_onReceive(swServer *serv, swRecvData *req) {
 
         if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, nullptr, SwooleG.enable_coroutine))) {
             php_swoole_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
-            serv->close(serv, req->info.fd, 0);
+            serv->close(serv, req->info.fd, false);
         }
         zval_ptr_dtor(&args[3]);
     }
@@ -1337,7 +1336,6 @@ int php_swoole_onReceive(swServer *serv, swRecvData *req) {
 
 int php_swoole_onPacket(swServer *serv, swRecvData *req) {
     zval *zserv = (zval *) serv->ptr2;
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zval zaddr;
 
     array_init(&zaddr);
@@ -1347,12 +1345,10 @@ int php_swoole_onPacket(swServer *serv, swRecvData *req) {
     add_assoc_long(&zaddr, "server_socket", req->info.server_fd);
     swConnection *from_sock = serv->get_connection(req->info.server_fd);
     if (from_sock) {
-        add_assoc_long(&zaddr, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
+        add_assoc_long(&zaddr, "server_port", from_sock->info.get_port());
     }
 
     char address[INET6_ADDRSTRLEN];
-
-    server_object->property->dgram_server_socket = req->info.server_fd;
 
     if (packet->socket_type == SW_SOCK_UDP) {
         inet_ntop(AF_INET, &packet->socket_addr.addr.inet_v4.sin_addr, address, sizeof(address));
@@ -1865,7 +1861,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     context->private_data = (void *) (long) fd;
     if (serv->send_timeout > 0) {
         context->timer =
-            swoole_timer_add((long) (serv->send_timeout * 1000), SW_FALSE, php_swoole_onSendTimeout, context);
+            swoole_timer_add((long) (serv->send_timeout * 1000), false, php_swoole_onSendTimeout, context);
     } else {
         context->timer = nullptr;
     }
@@ -2738,7 +2734,6 @@ static PHP_METHOD(swoole_server, send) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
 
     int ret;
     zend_long fd;
@@ -2768,17 +2763,11 @@ static PHP_METHOD(swoole_server, send) {
 
     // UNIX DGRAM SOCKET
     if (serv->have_dgram_sock && Z_TYPE_P(zfd) == IS_STRING && Z_STRVAL_P(zfd)[0] == '/') {
-        struct sockaddr_un addr_un;
-        memcpy(addr_un.sun_path, Z_STRVAL_P(zfd), Z_STRLEN_P(zfd));
-        addr_un.sun_family = AF_UNIX;
-        addr_un.sun_path[Z_STRLEN_P(zfd)] = 0;
-        ret =
-            swSocket_sendto_blocking(server_socket == -1 ? server_object->property->dgram_server_socket : server_socket,
-                                     data,
-                                     length,
-                                     0,
-                                     (struct sockaddr *) &addr_un,
-                                     sizeof(addr_un));
+        network::Socket *sock = server_socket == -1 ? serv->dgram_socket : serv->get_server_socket(server_socket);
+        if (sock == nullptr) {
+            RETURN_FALSE;
+        }
+        ret = sock->sendto(Z_STRVAL_P(zfd), 0, data, length);
         SW_CHECK_RETURN(ret);
     }
 
@@ -2808,7 +2797,7 @@ static PHP_METHOD(swoole_server, sendto) {
     zend_long port;
     char *data;
     size_t len;
-    zend_long server_socket = -1;
+    zend_long server_socket_fd = -1;
 
     zend_bool ipv6 = 0;
 
@@ -2817,7 +2806,7 @@ static PHP_METHOD(swoole_server, sendto) {
     Z_PARAM_LONG(port)
     Z_PARAM_STRING(data, len)
     Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(server_socket)
+    Z_PARAM_LONG(server_socket_fd)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (len == 0) {
@@ -2837,17 +2826,18 @@ static PHP_METHOD(swoole_server, sendto) {
         RETURN_FALSE;
     }
 
-    if (server_socket < 0) {
+    network::Socket *server_socket = nullptr;
+    if (server_socket_fd < 0) {
         server_socket = ipv6 ? serv->udp_socket_ipv6 : serv->udp_socket_ipv4;
+    } else {
+        server_socket = serv->get_server_socket(server_socket_fd);
     }
 
-    int ret;
-    if (ipv6) {
-        ret = swSocket_udp_sendto6(server_socket, ip, port, data, len);
-    } else {
-        ret = swSocket_udp_sendto(server_socket, ip, port, data, len);
+    if (server_socket == nullptr) {
+        RETURN_FALSE;
     }
-    SW_CHECK_RETURN(ret);
+
+    SW_CHECK_RETURN(server_socket->sendto(ip, port, data, len));
 }
 
 static PHP_METHOD(swoole_server, sendfile) {
@@ -2888,7 +2878,7 @@ static PHP_METHOD(swoole_server, close) {
     }
 
     zend_long fd;
-    zend_bool reset = SW_FALSE;
+    zend_bool reset = false;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_LONG(fd)
@@ -2896,7 +2886,7 @@ static PHP_METHOD(swoole_server, close) {
     Z_PARAM_BOOL(reset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    SW_CHECK_RETURN(serv->close(serv, (int) fd, (int) reset));
+    SW_CHECK_RETURN(serv->close(serv, (int) fd, reset));
 }
 
 static PHP_METHOD(swoole_server, pause) {
@@ -3092,7 +3082,7 @@ static PHP_METHOD(swoole_server, taskwait) {
     swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     // clear history task
-    while (swSocket_wait(task_notify_socket->fd, 0, SW_EVENT_READ) == SW_OK) {
+    while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
         (void) read(task_notify_socket->fd, &notify, sizeof(notify));
     }
 
@@ -3100,7 +3090,7 @@ static PHP_METHOD(swoole_server, taskwait) {
 
     if (serv->gs->task_workers.dispatch_blocking(&buf, &_dst_worker_id) >= 0) {
         while (1) {
-            if (swSocket_wait(task_notify_socket->fd, (int) (timeout * 1000), SW_EVENT_READ) != SW_OK) {
+            if (task_notify_socket->wait_event((int) (timeout * 1000), SW_EVENT_READ) != SW_OK) {
                 break;
             }
             if (task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify)) > 0) {
@@ -3349,7 +3339,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     task_co->list = list;
     task_co->count = n_task;
 
-    swTimer_node *timer = swoole_timer_add(ms, SW_FALSE, php_swoole_task_onTimeout, task_co);
+    swTimer_node *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
     if (timer) {
         task_co->timer = timer;
     }
@@ -3604,15 +3594,15 @@ static PHP_METHOD(swoole_server, getClientInfo) {
         }
 #endif
         // server socket
-        swConnection *from_sock = serv->get_connection(conn->server_fd);
+        Connection *from_sock = serv->get_connection(conn->server_fd);
         if (from_sock) {
-            add_assoc_long(return_value, "server_port", swSocket_get_port(from_sock->socket_type, &from_sock->info));
+            add_assoc_long(return_value, "server_port", from_sock->info.get_port());
         }
         add_assoc_long(return_value, "server_fd", conn->server_fd);
         add_assoc_long(return_value, "socket_fd", conn->fd);
         add_assoc_long(return_value, "socket_type", conn->socket_type);
-        add_assoc_long(return_value, "remote_port", swSocket_get_port(conn->socket_type, &conn->info));
-        add_assoc_string(return_value, "remote_ip", (char *) swSocket_get_ip(conn->socket_type, &conn->info));
+        add_assoc_long(return_value, "remote_port", conn->info.get_port());
+        add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_ip());
         add_assoc_long(return_value, "reactor_id", conn->reactor_id);
         add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", conn->last_time);

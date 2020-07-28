@@ -30,25 +30,25 @@ struct swPipeBase {
 };
 
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking) {
-    p->master_socket = swSocket_new(master_fd, SW_FD_PIPE);
+    p->master_socket = swoole::make_socket(master_fd, SW_FD_PIPE);
     if (p->master_socket == nullptr) {
     _error:
         close(master_fd);
         close(worker_fd);
         return SW_ERR;
     }
-    p->worker_socket = swSocket_new(worker_fd, SW_FD_PIPE);
+    p->worker_socket = swoole::make_socket(worker_fd, SW_FD_PIPE);
     if (p->worker_socket == nullptr) {
-        swSocket_free(p->master_socket);
+        p->master_socket->free();
         goto _error;
     }
 
     if (blocking) {
-        swSocket_set_block(p->worker_socket);
-        swSocket_set_block(p->master_socket);
+        p->worker_socket->set_block();
+        p->master_socket->set_block();
     } else {
-        swSocket_set_nonblock(p->worker_socket);
-        swSocket_set_nonblock(p->master_socket);
+        p->worker_socket->set_nonblock();
+        p->master_socket->set_nonblock();
     }
 
     return SW_OK;
@@ -82,24 +82,22 @@ int swPipeBase_create(swPipe *p, int blocking) {
 }
 
 static int swPipeBase_read(swPipe *p, void *data, int length) {
-    swPipeBase *object = (swPipeBase *) p->object;
     if (p->blocking == 1 && p->timeout > 0) {
-        if (swSocket_wait(object->pipes[SW_PIPE_READ], p->timeout * 1000, SW_EVENT_READ) < 0) {
+        if (p->worker_socket->wait_event(p->timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }
-    return read(object->pipes[SW_PIPE_READ], data, length);
+    return read(p->worker_socket->fd, data, length);
 }
 
 static int swPipeBase_write(swPipe *p, const void *data, int length) {
-    swPipeBase *object = (swPipeBase *) p->object;
-    return write(object->pipes[SW_PIPE_WRITE], data, length);
+    return write(p->master_socket->fd, data, length);
 }
 
 static int swPipeBase_close(swPipe *p) {
     swPipeBase *object = (swPipeBase *) p->object;
-    swSocket_free(p->master_socket);
-    swSocket_free(p->worker_socket);
+    p->master_socket->free();
+    p->worker_socket->free();
     delete object;
     return SW_OK;
 }

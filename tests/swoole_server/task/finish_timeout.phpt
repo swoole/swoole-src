@@ -62,5 +62,5 @@ $pm->run();
 unlink(TMP_LOG_FILE);
 ?>
 --EXPECTF--
-[%s]	WARNING	swSocket_write_blocking(:%d): write %d bytes failed, Error: Resource temporarily unavailable[11]
+[%s]	WARNING	send_blocking(:%d): send %d bytes failed, Error: Resource temporarily unavailable[11]
 [%s]	WARNING	reply_task_result(:%d): TaskWorker: send result to worker failed, Error: Resource temporarily unavailable[11]

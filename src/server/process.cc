@@ -87,7 +87,7 @@ static void swFactoryProcess_free(swFactory *factory) {
     if (serv->stream_socket_file) {
         unlink(serv->stream_socket_file);
         sw_free(serv->stream_socket_file);
-        swSocket_free(serv->stream_socket);
+        serv->stream_socket->free();
     }
 
     for (i = 0; i < serv->worker_num; i++) {
@@ -142,7 +142,7 @@ static int swFactoryProcess_start(swFactory *factory) {
         if (serv->stream_socket_file == nullptr) {
             return SW_ERR;
         }
-        swSocket *sock = swSocket_create_server(SW_SOCK_UNIX_STREAM, serv->stream_socket_file, 0, 2048);
+        swSocket *sock = swoole::make_server_socket(SW_SOCK_UNIX_STREAM, serv->stream_socket_file);
         if (sock == nullptr) {
             return SW_ERR;
         }

@@ -76,32 +76,34 @@ static void scheduler_free_object(zend_object *object) {
     zend_object_std_dtor(&s->std);
 }
 
-// clang-format on
+// clang-format off
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_add, 0, 0, 1)
-ZEND_ARG_CALLABLE_INFO(0, func, 0)
-ZEND_ARG_VARIADIC_INFO(0, params)
+    ZEND_ARG_CALLABLE_INFO(0, func, 0)
+    ZEND_ARG_VARIADIC_INFO(0, params)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_parallel, 0, 0, 1)
-ZEND_ARG_INFO(0, n)
-ZEND_ARG_CALLABLE_INFO(0, func, 0)
-ZEND_ARG_VARIADIC_INFO(0, params)
+    ZEND_ARG_INFO(0, n)
+    ZEND_ARG_CALLABLE_INFO(0, func, 0)
+    ZEND_ARG_VARIADIC_INFO(0, params)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_scheduler_set, 0, 0, 1)
-ZEND_ARG_ARRAY_INFO(0, settings, 0)
+    ZEND_ARG_ARRAY_INFO(0, settings, 0)
 ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_coroutine_scheduler_methods[] = {
     PHP_ME(swoole_coroutine_scheduler, add, arginfo_swoole_coroutine_scheduler_add, ZEND_ACC_PUBLIC)
-        PHP_ME(swoole_coroutine_scheduler, parallel, arginfo_swoole_coroutine_scheduler_parallel, ZEND_ACC_PUBLIC)
-            PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_scheduler_set, ZEND_ACC_PUBLIC)
-                PHP_ME(swoole_coroutine_scheduler, start, arginfo_swoole_void, ZEND_ACC_PUBLIC) PHP_FE_END};
+    PHP_ME(swoole_coroutine_scheduler, parallel, arginfo_swoole_coroutine_scheduler_parallel, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_scheduler_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_coroutine_scheduler, start, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_FE_END
+};
 
-// clang-format off
+// clang-format on
 
 void php_swoole_coroutine_scheduler_minit(int module_number)
 {
@@ -166,32 +168,6 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     {
         Coroutine::set_stack_size(zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "socket_dns_timeout", ztmp))
-    {
-        double t = zval_get_double(ztmp);
-        if (t != 0) { Socket::default_dns_timeout = t; }
-    }
-    if (php_swoole_array_get_value(vht, "socket_connect_timeout", ztmp))
-    {
-        double t = zval_get_double(ztmp);
-        if (t != 0) { Socket::default_connect_timeout = t; }
-    }
-    if (php_swoole_array_get_value(vht, "socket_timeout", ztmp))
-    {
-        double t = zval_get_double(ztmp);
-        if (t != 0) { Socket::default_read_timeout = Socket::default_write_timeout = t; }
-    }
-    if (php_swoole_array_get_value(vht, "socket_read_timeout", ztmp))
-    {
-        double t = zval_get_double(ztmp);
-        if (t != 0) { Socket::default_read_timeout = t; }
-    }
-    if (php_swoole_array_get_value(vht, "socket_write_timeout", ztmp))
-    {
-        double t = zval_get_double(ztmp);
-        if (t != 0) { Socket::default_write_timeout = t; }
-    }
-
     if (php_swoole_array_get_value(vht, "dns_cache_expire", ztmp))
     {
         System::set_dns_cache_expire((time_t) zval_get_long(ztmp));

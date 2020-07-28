@@ -26,7 +26,7 @@ static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events);
 static int swReactorPoll_del(swReactor *reactor, swSocket *socket);
 static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorPoll_free(swReactor *reactor);
-static int swReactorPoll_exist(swReactor *reactor, int fd);
+static bool swReactorPoll_exist(swReactor *reactor, int fd);
 
 struct swReactorPoll {
     uint32_t max_fd_num;
@@ -224,12 +224,12 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
     return SW_OK;
 }
 
-static int swReactorPoll_exist(swReactor *reactor, int fd) {
+static bool swReactorPoll_exist(swReactor *reactor, int fd) {
     swReactorPoll *object = (swReactorPoll *) reactor->object;
     for (uint32_t i = 0; i < reactor->event_num; i++) {
         if (object->events[i].fd == fd) {
-            return SW_TRUE;
+            return true;
         }
     }
-    return SW_FALSE;
+    return false;
 }

@@ -67,7 +67,7 @@ class http_client {
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
 #endif
-    double connect_timeout = Socket::default_connect_timeout;
+    double connect_timeout = network::Socket::default_connect_timeout;
     bool defer = false;
     bool lowercase_header = true;
 
@@ -154,8 +154,8 @@ class http_client {
         }
 
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) swSocket_get_ip(socket->get_type(), &sa));
-        add_assoc_long(return_value, "port", swSocket_get_port(socket->get_type(), &sa));
+        add_assoc_string(return_value, "address", (char *) sa.get_ip());
+        add_assoc_long(return_value, "port", sa.get_port());
     }
 
     void getpeername(zval *return_value) {
@@ -166,8 +166,8 @@ class http_client {
         }
 
         array_init(return_value);
-        add_assoc_string(return_value, "address", (char *) swSocket_get_ip(socket->get_type(), &sa));
-        add_assoc_long(return_value, "port", swSocket_get_port(socket->get_type(), &sa));
+        add_assoc_string(return_value, "address", (char *) sa.get_ip());
+        add_assoc_long(return_value, "port", sa.get_port());
     }
 
 #ifdef SW_USE_OPENSSL

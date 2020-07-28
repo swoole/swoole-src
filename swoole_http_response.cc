@@ -43,7 +43,6 @@ extern "C" {
 #include "http2.h"
 #endif
 
-using namespace swoole;
 using swoole::coroutine::Socket;
 
 zend_class_entry *swoole_http_response_ce;
