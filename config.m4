@@ -46,8 +46,8 @@ PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
 
-PHP_ARG_ENABLE(gcov, enable gcov,
-[  --enable-gcov             Enable gcov], no, no)
+PHP_ARG_ENABLE(swoole-coverage,      whether to enable swoole coverage support,
+[  --enable-swoole-coverage Enable swoole coverage support], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -313,12 +313,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
         CXXFLAGS="$CXXFLAGS -fsanitize=address -fno-omit-frame-pointer"
-    fi
-
-    if test "$PHP_GCOV" != "no"; then
-        PHP_DEBUG=1
-        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage -lgcov"
-        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage -lgcov"
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
@@ -624,6 +618,15 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
+
+    AC_MSG_CHECKING([swoole coverage])
+    if test "$PHP_SWOOLE_COVERAGE" != "no"; then
+        AC_MSG_RESULT([enabled])
+
+        PHP_ADD_MAKEFILE_FRAGMENT
+    else
+        AC_MSG_RESULT([disabled])
+    fi
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
