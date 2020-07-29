@@ -21,6 +21,8 @@
 
 #include "swoole.h"
 
+SW_EXTERN_C_BEGIN
+
 #define SW_MQTT_PAYLOAD_LENGTH_SIZE 4
 #define SW_MQTT_MAX_PAYLOAD_SIZE    268435455
 
