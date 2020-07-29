@@ -23,7 +23,7 @@ void swMqtt_print_package(swMqtt_packet *pkg) {
 }
 
 void swMqtt_set_protocol(swProtocol *protocol) {
-    protocol->package_length_size = SW_MQTT_MIN_LENGTH;
+    protocol->package_length_size = SW_MQTT_PAYLOAD_LENGTH_SIZE;
     protocol->package_length_offset = 1;
     protocol->package_body_offset = 0;
     protocol->get_package_length = swMqtt_get_package_length;
