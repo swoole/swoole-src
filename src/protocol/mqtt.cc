@@ -29,7 +29,7 @@ void swMqtt_set_protocol(swProtocol *protocol) {
     protocol->get_package_length = swMqtt_get_package_length;
 }
 
-static sw_inline ssize_t swMqtt_get_length(const char *data, uint32_t size, ssize_t *count) {
+static sw_inline ssize_t swMqtt_get_length(const char *data, ssize_t *count) {
     uint8_t byte;
     int mul = 1;
     ssize_t length = 0;
@@ -70,6 +70,6 @@ ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const ch
         return 0;
     }
     ssize_t count = 0;
-    ssize_t length = swMqtt_get_length(data, size, &count);
+    ssize_t length = swMqtt_get_length(data, &count);
     return length + count + 1;
 }
