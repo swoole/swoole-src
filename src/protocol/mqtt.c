@@ -71,7 +71,7 @@ int swMqtt_unpack(swMqtt_packet *pkg, char *data, uint32_t size)
 
 ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, char *data, uint32_t size)
 {
-    if (size < SW_MQTT_MIN_LENGTH)
+    if ((size - 1) < SW_MQTT_PAYLOAD_LENGTH_SIZE)
     {
         return 0;
     }
