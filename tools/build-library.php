@@ -12,7 +12,7 @@ preg_match(
 );
 $file_change = (int) ($file_change[1] ?? 0);
 if ($file_change > 0) {
-    swoole_error($file_change . ' file changed in [' . LIBRARY_DIR . ']');
+    swoole_warn($file_change . ' file changed in [' . LIBRARY_DIR . ']');
 }
 $commit_id = trim(shell_exec('cd ' . LIBRARY_DIR . ' && git rev-parse HEAD'));
 if (!$commit_id || strlen($commit_id) != 40) {
@@ -36,6 +36,7 @@ $files = [
     'core/Coroutine/Server/Connection.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
+    'core/Database/ObjectProxy.php',
     'core/Database/MysqliConfig.php',
     'core/Database/MysqliException.php',
     'core/Database/MysqliPool.php',
@@ -51,6 +52,8 @@ $files = [
     'core/Http/Status.php',
     'core/Curl/Exception.php',
     'core/Curl/Handler.php',
+    # <core for functions> #
+    'core/Coroutine/functions.php',
     # <ext> #
     'ext/curl.php',
     # <finalizer> #

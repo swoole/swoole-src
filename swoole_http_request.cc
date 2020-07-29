@@ -271,7 +271,7 @@ static void php_swoole_http_request_free_object(zend_object *object)
 
 static zend_object *php_swoole_http_request_create_object(zend_class_entry *ce)
 {
-    http_request_t *request = (http_request_t *) ecalloc(1, sizeof(http_request_t) + zend_object_properties_size(ce));
+    http_request_t *request = (http_request_t *) zend_object_alloc(sizeof(http_request_t), ce);
     zend_object_std_init(&request->std, ce);
     object_properties_init(&request->std, ce);
     request->std.handlers = &swoole_http_request_handlers;
@@ -866,12 +866,13 @@ static int multipart_body_on_data_end(multipart_parser* p)
 
 static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length)
 {
-    http_context *ctx = (http_context *) parser->data;
-
     if (length == 0)
     {
         return 0;
     }
+
+    http_context *ctx = (http_context *) parser->data;
+    bool is_beginning =  (ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length) == 0;
 
     if (ctx->recv_chunked)
     {
@@ -901,13 +902,20 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
     else if (ctx->mt_parser != NULL)
     {
         multipart_parser *multipart_parser = ctx->mt_parser;
-        char *c = (char *) at;
-        while (*c == '\r' && *(c + 1) == '\n')
+        if (is_beginning)
         {
-            c += 2;
-            length -= 2;
+            /* Compatibility: some clients may send extra EOL */
+            do
+            {
+                if (*at != '\r' && *at != '\n')
+                {
+                    break;
+                }
+                at++;
+                length--;
+            } while (length != 0);
         }
-        size_t n = multipart_parser_execute(multipart_parser, c, length);
+        size_t n = multipart_parser_execute(multipart_parser, at, length);
         if (n != length)
         {
             swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);

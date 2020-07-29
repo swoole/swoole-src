@@ -120,7 +120,7 @@ static void php_swoole_server_port_free_object(zend_object *object)
 
 static zend_object *php_swoole_server_port_create_object(zend_class_entry *ce)
 {
-    server_port_t *server_port = (server_port_t *) ecalloc(1, sizeof(server_port_t) + zend_object_properties_size(ce));
+    server_port_t *server_port = (server_port_t *) zend_object_alloc(sizeof(server_port_t), ce);
     zend_object_std_init(&server_port->std, ce);
     object_properties_init(&server_port->std, ce);
     server_port->std.handlers = &swoole_server_port_handlers;

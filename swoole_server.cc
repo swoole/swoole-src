@@ -247,7 +247,7 @@ static void php_swoole_server_free_object(zend_object *object)
 
 static zend_object *php_swoole_server_create_object(zend_class_entry *ce)
 {
-    server_t *server = (server_t *) ecalloc(1, sizeof(server_t) + zend_object_properties_size(ce));
+    server_t *server = (server_t *) zend_object_alloc(sizeof(server_t), ce);
     zend_object_std_init(&server->std, ce);
     object_properties_init(&server->std, ce);
     server->std.handlers = &swoole_server_handlers;
@@ -287,7 +287,7 @@ static void php_swoole_connection_iterator_free_object(zend_object *object)
 
 static zend_object *php_swoole_connection_iterator_create_object(zend_class_entry *ce)
 {
-    connection_iterator_t *connection = (connection_iterator_t *) ecalloc(1, sizeof(connection_iterator_t) + zend_object_properties_size(ce));
+    connection_iterator_t *connection = (connection_iterator_t *) zend_object_alloc(sizeof(connection_iterator_t), ce);
     zend_object_std_init(&connection->std, ce);
     object_properties_init(&connection->std, ce);
     connection->std.handlers = &swoole_connection_iterator_handlers;
@@ -343,7 +343,7 @@ static void php_swoole_server_task_free_object(zend_object *object)
 
 static zend_object *php_swoole_server_task_create_object(zend_class_entry *ce)
 {
-    server_task_t *server_task = (server_task_t *) ecalloc(1, sizeof(server_task_t) + zend_object_properties_size(ce));
+    server_task_t *server_task = (server_task_t *) zend_object_alloc(sizeof(server_task_t), ce);
     zend_object_std_init(&server_task->std, ce);
     object_properties_init(&server_task->std, ce);
     server_task->std.handlers = &swoole_server_task_handlers;
@@ -751,7 +751,7 @@ zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int serve
     }
 }
 
-static int php_swoole_create_dir(const char* path, size_t length)
+int php_swoole_create_dir(const char* path, size_t length)
 {
     if (access(path, F_OK) == 0)
     {
@@ -2073,12 +2073,6 @@ static PHP_METHOD(swoole_server, __construct)
         RETURN_FALSE;
     }
 
-    if (SwooleTG.reactor)
-    {
-        zend_throw_exception_ex(swoole_exception_ce, -2, "eventLoop has already been created. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
-        RETURN_FALSE;
-    }
-
     if (SwooleG.serv != NULL)
     {
         zend_throw_exception_ex(swoole_exception_ce, -3, "server is running. unable to create %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -2869,6 +2863,7 @@ static PHP_METHOD(swoole_server, start)
 {
     zval *zserv = ZEND_THIS;
     swServer *serv = php_swoole_server_get_and_check_server(zserv);
+
     if (serv->gs->start > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -2877,6 +2872,12 @@ static PHP_METHOD(swoole_server, start)
     if (serv->gs->shutdown > 0)
     {
         php_swoole_fatal_error(E_WARNING, "server have been shutdown, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        RETURN_FALSE;
+    }
+
+    if (SwooleTG.reactor)
+    {
+        php_swoole_fatal_error(E_WARNING, "eventLoop has already been created, unable to start %s", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }
 
@@ -3304,22 +3305,21 @@ static PHP_METHOD(swoole_server, heartbeat)
     array_init(return_value);
 
     int fd;
-    int checktime = (int) serv->gs->now - serv->heartbeat_idle_time;
-    swConnection *conn;
+    int checktime = (int) time(NULL) - serv->heartbeat_idle_time;
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++)
     {
         swTrace("heartbeat check fd=%d", fd);
-        conn = &serv->connection_list[fd];
-
-        if (1 == conn->active && conn->last_time < checktime)
+        swConnection *conn = swServer_connection_get(serv, fd);
+        if (swServer_connection_valid(serv, conn))
         {
-            conn->close_force = 1;
-            /**
-             * Close the connection
-             */
+            if (conn->protect || conn->last_time > checktime)
+            {
+                continue;
+            }
             if (close_connection)
             {
+                conn->close_force = 1;
                 serv->factory.end(&serv->factory, fd);
             }
             add_next_index_long(return_value, conn->session_id);

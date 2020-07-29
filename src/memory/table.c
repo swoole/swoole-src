@@ -303,7 +303,7 @@ swTableRow* swTableRow_get(swTable *table, const char *key, int keylen, swTableR
 
     for (;;)
     {
-        if (strncmp(row->key, key, keylen) == 0)
+        if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
             if (!row->active)
             {
@@ -344,7 +344,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
     {
         for (;;)
         {
-            if (strncmp(row->key, key, keylen) == 0)
+            if (sw_mem_equal(row->key, row->key_len, key, keylen))
             {
                 break;
             }
@@ -393,6 +393,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
 
     memcpy(row->key, key, keylen);
     row->key[keylen] = '\0';
+    row->key_len = keylen;
     row->active = 1;
     return row;
 }
@@ -414,9 +415,9 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     swTableRow_lock(row);
     if (row->next == NULL)
     {
-        if (strncmp(row->key, key, keylen) == 0)
+        if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
-            bzero(row, sizeof(swTableRow) + table->item_size);
+            bzero(row, sizeof(swTableRow));
             goto _delete_element;
         }
         else
@@ -431,7 +432,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
 
         while (tmp)
         {
-            if ((strncmp(tmp->key, key, keylen) == 0))
+            if (sw_mem_equal(tmp->key, tmp->key_len, key, keylen))
             {
                 break;
             }
@@ -452,7 +453,8 @@ int swTableRow_del(swTable *table, char *key, int keylen)
         {
             tmp = tmp->next;
             row->next = tmp->next;
-            memcpy(row->key, tmp->key, strlen(tmp->key) + 1);
+            memcpy(row->key, tmp->key, tmp->key_len + 1);
+            row->key_len = tmp->key_len;
             memcpy(row->data, tmp->data, table->item_size);
         }
         if (prev)
@@ -460,7 +462,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
-        bzero(tmp, sizeof(swTableRow) + table->item_size);
+        bzero(tmp, sizeof(swTableRow));
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }

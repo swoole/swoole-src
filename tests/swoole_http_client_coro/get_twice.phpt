@@ -16,7 +16,11 @@ Swoole\Coroutine\Run(function () {
     for ($i = 0; $i < N; $i++) {
         $rand = mt_rand(100000, 999999999);
         $path = "/email_subscribe?email=" . $rand . "@" . substr(md5(microtime(true)), 0, 8) . ".com";
-        Assert::assert($client->get($path));
+        $result = $client->get($path);
+        if (!$result) {
+            var_dump("ERROR: ".$client->getStatusCode());
+        }
+        Assert::assert($result);
         Assert::assert($client->getStatusCode() == 200);
         $client->close();
     }

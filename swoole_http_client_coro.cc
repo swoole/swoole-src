@@ -880,6 +880,14 @@ bool http_client::send()
     zcookies = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("cookies"), 0);
     z_download_file = sw_zend_read_property_not_null(swoole_http_client_coro_ce, zobject, ZEND_STRL("downloadFile"), 0);
 
+    // ============   host   ============
+    zend::string str_host;
+
+    if ((ZVAL_IS_ARRAY(zheaders)) && ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))) || (zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))
+    {
+        str_host = zvalue;
+    }
+
     // ============ download ============
     if (z_download_file)
     {
@@ -943,18 +951,13 @@ bool http_client::send()
     if (socket->http_proxy)
 #endif
     {
-        zend::string str_host;
         const static char *pre = "http://";
         char *_host = (char *) host.c_str();
         size_t _host_len = host.length();
-        if (ZVAL_IS_ARRAY(zheaders))
+        if (str_host.get())
         {
-            if ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))))
-            {
-                str_host = zvalue;
-                _host = str_host.val();
-                _host_len = str_host.len();
-            }
+            _host = str_host.val();
+            _host_len = str_host.len();
         }
         size_t proxy_uri_len = path.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char*) emalloc(proxy_uri_len);
@@ -977,20 +980,25 @@ bool http_client::send()
 
     // As much as possible to ensure that Host is the first header.
     // See: http://tools.ietf.org/html/rfc7230#section-5.4
-    if ((ZVAL_IS_ARRAY(zheaders)) && ((zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("Host"))) || (zvalue = zend_hash_str_find(Z_ARRVAL_P(zheaders), ZEND_STRL("host")))))
+    if (str_host.get())
     {
-        zend::string str_value(zvalue);
-        http_client_swString_append_headers(buffer, ZEND_STRL("Host"), str_value.val(), str_value.len());
+        http_client_swString_append_headers(buffer, ZEND_STRL("Host"), str_host.val(), str_host.len());
     }
     else
     {
         // See: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.23
-        const std::string *_host = &host;
+        const std::string *_host;
         std::string __host;
-        if (port != 80 && port != 443)
+#ifndef SW_USE_OPENSSL
+        if (port != 80)
+#else
+        if (!ssl ? port != 80 : port != 443)
+#endif
         {
             __host = cpp_string::format("%s:%u", host.c_str(), port);
             _host = &__host;
+        } else {
+            _host = &host;
         }
         http_client_swString_append_headers(buffer, ZEND_STRL("Host"), _host->c_str(), _host->length());
     }
@@ -1693,7 +1701,7 @@ static void php_swoole_http_client_coro_free_object(zend_object *object)
 
 static zend_object *php_swoole_http_client_coro_create_object(zend_class_entry *ce)
 {
-    http_client_coro *hcc = (http_client_coro *) ecalloc(1, sizeof(http_client_coro) + zend_object_properties_size(ce));
+    http_client_coro *hcc = (http_client_coro *) zend_object_alloc(sizeof(http_client_coro), ce);
     zend_object_std_init(&hcc->std, ce);
     object_properties_init(&hcc->std, ce);
     hcc->std.handlers = &swoole_http_client_coro_handlers;
@@ -1854,7 +1862,7 @@ static PHP_METHOD(swoole_http_client_coro, setHeaders)
     zval *headers;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ARRAY(headers)
+        Z_PARAM_ARRAY_EX(headers, 0, 1)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     zend_update_property(swoole_http_client_coro_ce, ZEND_THIS, ZEND_STRL("requestHeaders"), headers);

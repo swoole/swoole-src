@@ -10,7 +10,7 @@ static int thread_onTask(swThreadPool *pool, void *task, int task_len)
 {
     sw_atomic_long_t *n = (sw_atomic_long_t *) task;
     sw_atomic_fetch_add(n, 1);
-    if (*n == N - 1)
+    if (*n == N)
     {
         write(_pipe, (void*) n, sizeof(long));
     }

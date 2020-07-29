@@ -102,10 +102,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      4
-#define SWOOLE_RELEASE_VERSION    16
+#define SWOOLE_RELEASE_VERSION    19
 #define SWOOLE_EXTRA_VERSION      ""
-#define SWOOLE_VERSION            "4.4.16"
-#define SWOOLE_VERSION_ID         40416
+#define SWOOLE_VERSION            "4.4.19"
+#define SWOOLE_VERSION_ID         40419
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -121,6 +121,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 #define ulong unsigned long
 #endif
 typedef unsigned long ulong_t;
+
+#ifndef PRId64
+#define PRId64 "lld"
+#endif
 
 #ifndef PRIu64
 #define PRIu64 "llu"

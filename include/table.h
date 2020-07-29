@@ -33,6 +33,7 @@ typedef struct _swTableRow
      * 1:used, 0:empty
      */
     uint8_t active;
+    uint8_t key_len;
     /**
      * next slot
      */

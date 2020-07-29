@@ -92,25 +92,39 @@ static sw_inline Channel * php_swoole_get_channel(zval *zobject)
     return chan;
 }
 
-static void php_swoole_channel_coro_free_object(zend_object *object)
+static void php_swoole_channel_coro_dtor_object(zend_object *object)
 {
-    channel_coro *chan_t = php_swoole_channel_coro_fetch_object(object);
-    Channel *chan = chan_t->chan;
+    zend_objects_destroy_object(object);
+
+    channel_coro *chan_coro = php_swoole_channel_coro_fetch_object(object);
+    Channel *chan = chan_coro->chan;
     if (chan)
     {
+        chan->close();
         zval *data;
         while ((data = (zval *) chan->pop_data()))
         {
             sw_zval_free(data);
         }
         delete chan;
+        chan_coro->chan = nullptr;
     }
-    zend_object_std_dtor(&chan_t->std);
+}
+
+static void php_swoole_channel_coro_free_object(zend_object *object)
+{
+    channel_coro *chan_coro = php_swoole_channel_coro_fetch_object(object);
+    Channel *chan = chan_coro->chan;
+    if (chan)
+    {
+        delete chan;
+    }
+    zend_object_std_dtor(object);
 }
 
 static zend_object *php_swoole_channel_coro_create_object(zend_class_entry *ce)
 {
-    channel_coro *chan_t = (channel_coro *) ecalloc(1, sizeof(channel_coro) + zend_object_properties_size(ce));
+    channel_coro *chan_t = (channel_coro *) zend_object_alloc(sizeof(channel_coro), ce);
     zend_object_std_init(&chan_t->std, ce);
     object_properties_init(&chan_t->std, ce);
     chan_t->std.handlers = &swoole_channel_coro_handlers;
@@ -124,6 +138,7 @@ void php_swoole_channel_coro_minit(int module_number)
     SW_SET_CLASS_CLONEABLE(swoole_channel_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_channel_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_channel_coro, php_swoole_channel_coro_create_object, php_swoole_channel_coro_free_object, channel_coro, std);
+    SW_SET_CLASS_DTOR(swoole_channel_coro, php_swoole_channel_coro_dtor_object);
     if (SWOOLE_G(use_shortname))
     {
         SW_CLASS_ALIAS("Chan", swoole_channel_coro);

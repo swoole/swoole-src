@@ -217,22 +217,37 @@ static void reactor_begin(swReactor *reactor)
     }
 }
 
+static void socket_close(void *ptr)
+{
+    swSocket *sock = (swSocket *) ptr;
+    if (sock->fd != -1 && close(sock->fd) != 0)
+    {
+        swSysWarn("close(%d) failed", sock->fd);
+    }
+}
+
 int swReactor_close(swReactor *reactor, int fd)
 {
     swSocket *socket = swReactor_get(reactor, fd);
     if (socket->out_buffer)
     {
         swBuffer_free(socket->out_buffer);
+        socket->out_buffer = NULL;
     }
     if (socket->in_buffer)
     {
         swBuffer_free(socket->in_buffer);
+        socket->in_buffer = NULL;
     }
 
     bzero(socket, sizeof(swSocket));
     socket->removed = 1;
+    socket->fd = fd;
+
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", fd);
-    return close(fd);
+    swoole_event_defer(socket_close, socket);
+
+    return SW_OK;
 }
 
 int swReactor_write(swReactor *reactor, int fd, const void *buf, int n)
@@ -432,17 +447,11 @@ void swReactor_add_destroy_callback(swReactor *reactor, swCallback cb, void *dat
     cm->append(cb, data);
 }
 
-void swReactor_defer_task_destroy(swReactor *reactor)
-{
-    CallbackManager *tasks = (CallbackManager *) reactor->defer_tasks;
-    delete tasks;
-}
-
 static void defer_task_do(swReactor *reactor)
 {
     CallbackManager *cm = (CallbackManager *) reactor->defer_tasks;
-    cm->execute();
     reactor->defer_tasks = nullptr;
+    cm->execute();
     delete cm;
 }
 

@@ -98,7 +98,7 @@ static void php_swoole_atomic_free_object(zend_object *object)
 
 static zend_object *php_swoole_atomic_create_object(zend_class_entry *ce)
 {
-    atomic_t *atomic = (atomic_t *) ecalloc(1, sizeof(atomic_t) + zend_object_properties_size(ce));
+    atomic_t *atomic = (atomic_t *) zend_object_alloc(sizeof(atomic_t), ce);
     zend_object_std_init(&atomic->std, ce);
     object_properties_init(&atomic->std, ce);
     atomic->std.handlers = &swoole_atomic_handlers;
@@ -140,7 +140,7 @@ static void php_swoole_atomic_long_free_object(zend_object *object)
 
 static zend_object *php_swoole_atomic_long_create_object(zend_class_entry *ce)
 {
-    atomic_long_t *atomic_long = (atomic_long_t *) ecalloc(1, sizeof(atomic_long_t) + zend_object_properties_size(ce));
+    atomic_long_t *atomic_long = (atomic_long_t *) zend_object_alloc(sizeof(atomic_long_t), ce);
     zend_object_std_init(&atomic_long->std, ce);
     object_properties_init(&atomic_long->std, ce);
     atomic_long->std.handlers = &swoole_atomic_long_handlers;

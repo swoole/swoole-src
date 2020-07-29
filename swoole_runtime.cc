@@ -467,9 +467,10 @@ static int socket_stat(php_stream *stream, php_stream_statbuf *ssb)
 
 static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xport_param *xparam)
 {
-    char *host = NULL;
-    int portno = 0;
+    char *host = NULL, *bindto = NULL;
+    int portno = 0, bindport = 0;
     int ret = 0;
+    zval *tmpzval = NULL;
     char *ip_address = NULL;
 
     if (UNEXPECTED(sock->get_fd() < 0))
@@ -496,6 +497,31 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     {
         return FAILURE;
     }
+    if (PHP_STREAM_CONTEXT(stream) && (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "bindto")) != NULL)
+    {
+        if (Z_TYPE_P(tmpzval) != IS_STRING)
+        {
+            if (xparam->want_errortext)
+            {
+                xparam->outputs.error_text = strpprintf(0, "local_addr context option is not a string.");
+            }
+            efree(ip_address);
+            return FAILURE;
+        }
+        bindto = parse_ip_address_ex(Z_STRVAL_P(tmpzval), Z_STRLEN_P(tmpzval), &bindport, xparam->want_errortext, &xparam->outputs.error_text);
+        if (bindto == NULL)
+        {
+            efree(ip_address);
+            return FAILURE;
+        }
+        if (!sock->bind(bindto, bindport))
+        {
+            efree(ip_address);
+            efree(bindto);
+            return FAILURE;
+        }
+    }
+    
     if (xparam->inputs.timeout)
     {
         sock->set_timeout(xparam->inputs.timeout, SW_TIMEOUT_CONNECT);
@@ -512,6 +538,10 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     if (ip_address)
     {
         efree(ip_address);
+    }
+    if (bindto)
+    {
+        efree(bindto);
     }
     return ret;
 }
@@ -1169,9 +1199,12 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (hook_flags & SW_HOOK_TLS)
         {
-            if (ori_factory.tls != nullptr) {
+            if (ori_factory.tls != nullptr)
+            {
                 php_stream_xport_register("tls", ori_factory.tls);
-            } else {
+            }
+            else
+            {
                 php_stream_xport_unregister("tls");
             }
         }
@@ -1264,8 +1297,8 @@ bool PHPCoroutine::enable_hook(int flags)
         if (hook_flags & SW_HOOK_BLOCKING_FUNCTION)
         {
             SW_UNHOOK_FUNC(gethostbyname);
-            unhook_func(ZEND_STRL("exec"));
-            unhook_func(ZEND_STRL("shell_exec"));
+            SW_UNHOOK_FUNC(exec);
+            SW_UNHOOK_FUNC(shell_exec);
         }
     }
 
@@ -1289,16 +1322,16 @@ bool PHPCoroutine::enable_hook(int flags)
     {
         if (hook_flags & SW_HOOK_CURL)
         {
-            unhook_func(ZEND_STRL("curl_init"));
-            unhook_func(ZEND_STRL("curl_setopt"));
-            unhook_func(ZEND_STRL("curl_setopt_array"));
-            unhook_func(ZEND_STRL("curl_exec"));
-            unhook_func(ZEND_STRL("curl_getinfo"));
-            unhook_func(ZEND_STRL("curl_errno"));
-            unhook_func(ZEND_STRL("curl_error"));
-            unhook_func(ZEND_STRL("curl_reset"));
-            unhook_func(ZEND_STRL("curl_close"));
-            unhook_func(ZEND_STRL("curl_multi_getcontent"));
+            SW_UNHOOK_FUNC(curl_init);
+            SW_UNHOOK_FUNC(curl_setopt);
+            SW_UNHOOK_FUNC(curl_setopt_array);
+            SW_UNHOOK_FUNC(curl_exec);
+            SW_UNHOOK_FUNC(curl_getinfo);
+            SW_UNHOOK_FUNC(curl_errno);
+            SW_UNHOOK_FUNC(curl_error);
+            SW_UNHOOK_FUNC(curl_reset);
+            SW_UNHOOK_FUNC(curl_close);
+            SW_UNHOOK_FUNC(curl_multi_getcontent);
         }
     }
 
@@ -1314,7 +1347,7 @@ bool PHPCoroutine::disable_hook()
 static PHP_METHOD(swoole_runtime, enableCoroutine)
 {
     zval *zflags = nullptr;
-    /*TODO: enable SW_HOOK_CURL by default after curl handler completed */
+    /*TODO:[v4.6] enable SW_HOOK_CURL by default after curl handler completed */
     zend_long flags = SW_HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)

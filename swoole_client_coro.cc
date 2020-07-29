@@ -157,7 +157,7 @@ static void php_swoole_client_coro_free_object(zend_object *object)
 
 static zend_object *php_swoole_client_coro_create_object(zend_class_entry *ce)
 {
-    client_coro *sock_t = (client_coro *) ecalloc(1, sizeof(client_coro) + zend_object_properties_size(ce));
+    client_coro *sock_t = (client_coro *) zend_object_alloc(sizeof(client_coro), ce);
     zend_object_std_init(&sock_t->std, ce);
     object_properties_init(&sock_t->std, ce);
     sock_t->std.handlers = &swoole_client_coro_handlers;
@@ -361,7 +361,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
          */
         if (php_swoole_array_get_value(vht, "bind_address", ztmp))
         {
-            if (swSocket_bind(cli->get_fd(), cli->get_type(), zend::string(ztmp).val(), &bind_port) != SW_OK)
+            if (!cli->bind(zend::string(ztmp).val(), bind_port))
             {
                 ret = false;
             }
@@ -416,14 +416,17 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
             if (php_swoole_array_get_value(vht, "socks5_username", ztmp))
             {
                 zend::string username(ztmp);
-                if (php_swoole_array_get_value(vht, "socks5_password", ztmp))
+                if (username.len() > 0 && php_swoole_array_get_value(vht, "socks5_password", ztmp))
                 {
                     zend::string password(ztmp);
-                    cli->socks5_proxy->method = 0x02;
-                    cli->socks5_proxy->username = estrdup(username.val());
-                    cli->socks5_proxy->l_username = username.len();
-                    cli->socks5_proxy->password = estrdup(password.val());
-                    cli->socks5_proxy->l_password = password.len();
+                    if (password.len() > 0)
+                    {
+                        cli->socks5_proxy->method = 0x02;
+                        cli->socks5_proxy->username = estrdup(username.val());
+                        cli->socks5_proxy->l_username = username.len();
+                        cli->socks5_proxy->password = estrdup(password.val());
+                        cli->socks5_proxy->l_password = password.len();
+                    }
                 }
                 else
                 {
@@ -453,13 +456,16 @@ bool php_swoole_client_set(Socket *cli, zval *zset)
             if (php_swoole_array_get_value(vht, "http_proxy_username", ztmp) || php_swoole_array_get_value(vht, "http_proxy_user", ztmp))
             {
                 zend::string username(ztmp);
-                if (php_swoole_array_get_value(vht, "http_proxy_password", ztmp))
+                if (username.len() > 0 && php_swoole_array_get_value(vht, "http_proxy_password", ztmp))
                 {
                     zend::string password(ztmp);
-                    cli->http_proxy->user = estrdup(username.val());
-                    cli->http_proxy->l_user = username.len();
-                    cli->http_proxy->password = estrdup(password.val());
-                    cli->http_proxy->l_password = password.len();
+                    if (password.len() > 0)
+                    {
+                        cli->http_proxy->user = estrdup(username.val());
+                        cli->http_proxy->l_user = username.len();
+                        cli->http_proxy->password = estrdup(password.val());
+                        cli->http_proxy->l_password = password.len();
+                    }
                 }
                 else
                 {
@@ -683,6 +689,8 @@ static PHP_METHOD(swoole_client_coro, connect)
     Socket *cli = php_swoole_get_sock(ZEND_THIS);
     if (cli)
     {
+        zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), EISCONN);
+        zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), swoole_strerror(EISCONN));
         RETURN_FALSE;
     }
 
@@ -756,13 +764,13 @@ static PHP_METHOD(swoole_client_coro, send)
 
 static PHP_METHOD(swoole_client_coro, sendto)
 {
-    char* ip;
-    size_t ip_len;
+    char* host;
+    size_t host_len;
     long port;
     char *data;
     size_t len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &ip, &ip_len, &port, &data, &len) == FAILURE)
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "sls", &host, &host_len, &port, &data, &len) == FAILURE)
     {
         RETURN_FALSE;
     }
@@ -781,7 +789,15 @@ static PHP_METHOD(swoole_client_coro, sendto)
             RETURN_FALSE;
         }
     }
-    SW_CHECK_RETURN(cli->sendto(ip, port, data, len));
+
+    ssize_t ret = cli->sendto(host, port, data, len);
+    if (ret < 0)
+    {
+        zend_update_property_long(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), cli->errCode);
+        zend_update_property_string(swoole_client_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), cli->errMsg);
+        RETURN_FALSE;
+    }
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_client_coro, recvfrom)

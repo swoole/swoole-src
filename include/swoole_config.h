@@ -48,7 +48,7 @@
 #else
 #define SW_SOCKET_BUFFER_SIZE      8388608
 #endif
-#define SW_SOCKET_SEND_TIMEOUT     1.0
+#define SW_SOCKET_SEND_TIMEOUT     60.0
 #define SW_SOCKET_ARRAY_INIT_SIZE  1024
 #define SW_SOCKET_SYNC_SEND_RETRY_COUNT  10
 
@@ -199,8 +199,6 @@
 #define SW_HTTP_RESPONSE_INIT_SIZE       65536
 #define SW_HTTP_HEADER_MAX_SIZE          65536
 #define SW_HTTP_HEADER_KEY_SIZE          128
-#define SW_HTTP_HEADER_VALUE_SIZE        4096
-#define SW_HTTP_HEADER_BUFFER_SIZE       128
 #define SW_HTTP_UPLOAD_TMPDIR_SIZE       256
 #define SW_HTTP_DATE_FORMAT              "D, d M Y H:i:s T"
 #define SW_HTTP_RFC1123_DATE_GMT         "%a, %d %b %Y %T GMT"

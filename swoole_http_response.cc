@@ -52,7 +52,7 @@ using swoole::coroutine::Socket;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
-static void http_build_header(http_context *, swString *response, int body_length);
+static void http_build_header(http_context *, swString *response, size_t body_length);
 
 static inline void http_header_key_format(char *key, int length)
 {
@@ -123,7 +123,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
 
     if (ctx)
     {
-        if (!ctx->end && !ctx->detached)
+        if (!ctx->end && !ctx->detached && sw_reactor())
         {
             if (ctx->response.status == 0)
             {
@@ -165,7 +165,7 @@ static void php_swoole_http_response_free_object(zend_object *object)
 
 static zend_object *php_swoole_http_response_create_object(zend_class_entry *ce)
 {
-    http_response_t *response = (http_response_t *) ecalloc(1, sizeof(http_response_t) + zend_object_properties_size(ce));
+    http_response_t *response = (http_response_t *) zend_object_alloc(sizeof(http_response_t), ce);
     zend_object_std_init(&response->std, ce);
     object_properties_init(&response->std, ce);
     response->std.handlers = &swoole_http_response_handlers;
@@ -337,7 +337,7 @@ static PHP_METHOD(swoole_http_response, write)
     {
         ctx->send_chunked = 1;
         swString_clear(http_buffer);
-        http_build_header(ctx, http_buffer, -1);
+        http_build_header(ctx, http_buffer, 0);
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length))
         {
             ctx->send_chunked = 0;
@@ -378,7 +378,7 @@ static PHP_METHOD(swoole_http_response, write)
     RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
 }
 
-static void http_build_header(http_context *ctx, swString *response, int body_length)
+static void http_build_header(http_context *ctx, swString *response, size_t body_length)
 {
     char *buf = SwooleTG.buffer_stack->str;
     size_t l_buf = SwooleTG.buffer_stack->size;
@@ -454,17 +454,37 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
         (void)type;
     }
 
+    //http cookies
+    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
+    if (ZVAL_IS_ARRAY(zcookie))
+    {
+        zval *zvalue;
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue)
+        {
+            if (Z_TYPE_P(zvalue) != IS_STRING)
+            {
+                continue;
+            }
+            swString_append_ptr(response, ZEND_STRL("Set-Cookie: "));
+            swString_append_ptr(response, Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
+            swString_append_ptr(response, ZEND_STRL("\r\n"));
+        }
+        SW_HASHTABLE_FOREACH_END();
+    }
+
     if (!(header_flag & HTTP_HEADER_SERVER))
     {
         swString_append_ptr(response, ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
-    //websocket protocol
+
+    // websocket protocol (subsequent header info is unnecessary)
     if (ctx->upgrade == 1)
     {
         swString_append_ptr(response, ZEND_STRL("\r\n"));
         ctx->send_header = 1;
         return;
     }
+
     if (!(header_flag & HTTP_HEADER_CONNECTION))
     {
         if (ctx->keepalive)
@@ -490,6 +510,7 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
 
     if (ctx->send_chunked)
     {
+        SW_ASSERT(body_length == 0);
         if (!(header_flag & HTTP_HEADER_TRANSFER_ENCODING))
         {
             swString_append_ptr(response, ZEND_STRL("Transfer-Encoding: chunked\r\n"));
@@ -504,26 +525,8 @@ static void http_build_header(http_context *ctx, swString *response, int body_le
             body_length = swoole_zlib_buffer->length;
         }
 #endif
-        n = sw_snprintf(buf, l_buf, "Content-Length: %d\r\n", body_length);
+        n = sw_snprintf(buf, l_buf, "Content-Length: %zu\r\n", body_length);
         swString_append_ptr(response, buf, n);
-    }
-
-    //http cookies
-    zval *zcookie = sw_zend_read_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("cookie"), 0);
-    if (ZVAL_IS_ARRAY(zcookie))
-    {
-        zval *zvalue;
-        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zcookie), zvalue)
-        {
-            if (Z_TYPE_P(zvalue) != IS_STRING)
-            {
-                continue;
-            }
-            swString_append_ptr(response, ZEND_STRL("Set-Cookie: "));
-            swString_append_ptr(response, Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
-            swString_append_ptr(response, ZEND_STRL("\r\n"));
-        }
-        SW_HASHTABLE_FOREACH_END();
     }
 #ifdef SW_HAVE_COMPRESSION
     //http compress
@@ -858,11 +861,6 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         php_swoole_error(E_WARNING, "header key is too long");
         return false;
     }
-    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
-    {
-        php_swoole_error(E_WARNING, "header value is too long");
-        return false;
-    }
     zval *zheader = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
     if (ucwords)
     {
@@ -946,7 +944,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (file_stat.st_size == 0)
     {
-        php_swoole_sys_error(E_WARNING, "can't send empty file[%s]", file);
+        php_swoole_error(E_WARNING, "can't send empty file[%s]", file);
         RETURN_FALSE;
     }
     if (file_stat.st_size <= offset)
@@ -956,7 +954,7 @@ static PHP_METHOD(swoole_http_response, sendfile)
     }
     if (length > file_stat.st_size - offset)
     {
-        php_swoole_sys_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
+        php_swoole_error(E_WARNING, "parameter $length[" ZEND_LONG_FMT "] exceeds the file size", length);
         RETURN_FALSE;
     }
     if (length == 0)
@@ -1185,11 +1183,6 @@ static PHP_METHOD(swoole_http_response, trailer)
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1))
     {
         php_swoole_error(E_WARNING, "trailer key is too long");
-        RETURN_FALSE;
-    }
-    if (UNEXPECTED(vlen > SW_HTTP_HEADER_VALUE_SIZE - 1))
-    {
-        php_swoole_error(E_WARNING, "trailer value is too long");
         RETURN_FALSE;
     }
     zval *ztrailer = swoole_http_init_and_read_property(swoole_http_response_ce, ctx->response.zobject, &ctx->response.ztrailer, ZEND_STRL("trailer"));

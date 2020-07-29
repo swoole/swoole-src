@@ -247,6 +247,7 @@ Swoole\Timer::after(1000, function () use ($id) {
 ```
 
 #### 使用协程方式
+
 ```php
 go(function () {
     $i = 0;
@@ -296,7 +297,7 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 ### 你可以在一秒钟里做多少事?
 
-睡眠1万次，读取，写入，检查和删除文件1万次，使用PDO和MySQLi与数据库通信1万次，创建TCP服务器和多个客户端相互通信1万次，创建UDP服务器和多个客户端到相互通信1万次......一切都在一个进程中完美完成！
+睡眠1万次，读取，写入，检查和删除文件1万次，使用PDO和MySQLi与数据库通信1万次，创建TCP服务器和多个客户端相互通信1万次，创建UDP服务器和多个客户端相互通信1万次......一切都在一个进程中完美完成！
 
 ```php
 Swoole\Runtime::enableCoroutine();
@@ -441,23 +442,19 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 
 > 和任何开源项目一样, Swoole总是在**最新的发行版**提供最可靠的稳定性和最强的功能, 请尽量保证你使用的是最新版本
 
-### 1. 直接使用Swoole官方的二进制包 (初学者 + 开发环境)
-
-访问我们官网的[下载页面](https://www.swoole.com/page/download)
-
 ### 编译需求
 
 + Linux, OS X 系统 或 CygWin, WSL
 + PHP 7.0.0 或以上版本 (版本越高性能越好)
 + GCC 4.8 及以上
 
-### 2. 使用PHP官方的PECL工具安装 (初学者)
+### 1. 使用PHP官方的PECL工具安装 (初学者)
 
 ```shell
 pecl install swoole
 ```
 
-### 3. 从源码编译安装 (推荐)
+### 2. 从源码编译安装 (推荐)
 
 > 非内核开发研究之用途, 请下载[发布版本](https://github.com/swoole/swoole-src/releases)的源码编译
 
@@ -500,10 +497,10 @@ make && sudo make install
 
 ## 🛠 开发 & 讨论
 
-+ __中文文档__: <http://wiki.swoole.com>
++ __中文文档__: <https://wiki.swoole.com>
 + __Document__: <https://www.swoole.co.uk/docs>
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
-+ __中文社区及QQ群__: <https://wiki.swoole.com/wiki/page/p-discussion.html>
++ __中文社区及QQ群__: <https://wiki.swoole.com/#/other/discussion>
 + __Twitter__: <https://twitter.com/php_swoole>
 + __Slack Group__: <https://swoole.slack.com>
 
@@ -514,7 +511,7 @@ make && sudo make install
 
 ## 🔰️ 安全问题
 
-安全问题应通过电子邮件私下报告给Swoole开发团队[team@swoole.com](mailto：team@swoole.com)。您将会在24小时内收到回复，若由于某些原因您没有收到回复，请再次通过电子邮件跟进以确保我们收到了您的原始消息。
+安全问题应通过电子邮件私下报告给Swoole开发团队[team@swoole.com](mailto:team@swoole.com)。您将会在24小时内收到回复，若由于某些原因您没有收到回复，请再次通过电子邮件跟进以确保我们收到了您的原始消息。
 
 ## 🖊️ 如何贡献
 

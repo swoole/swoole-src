@@ -26,7 +26,6 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $client->send("SUCCESS");
         echo $client->recv();
         $client->close();
-        unlink(__DIR__ . '/client.sock');
     });
     @unlink(UNIXSOCK_PATH);
     $pm->kill();
