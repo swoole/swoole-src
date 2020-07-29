@@ -257,7 +257,7 @@ int Server::accept_task(swEventData *task) {
 #ifdef SW_USE_OPENSSL
         swConnection *conn = get_connection_verify_no_ssl(task->info.fd);
         if (conn && conn->ssl_client_cert && conn->ssl_client_cert_pid == SwooleG.pid) {
-            sw_free(conn->ssl_client_cert);
+            delete conn->ssl_client_cert;
             conn->ssl_client_cert = nullptr;
         }
 #endif
