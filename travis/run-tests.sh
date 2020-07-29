@@ -23,7 +23,7 @@ do
     fi
 done
 
-# run tests @params($1=list_file, $1=options)
+# run tests @params($1=list_file, $2=options)
 run_tests(){
     ./start.sh \
     "`tr '\n' ' ' < ${1} | xargs`" \
@@ -48,13 +48,15 @@ should_exit_with_error(){
 touch tests.list
 trap "rm -f tests.list; echo ''; echo '⌛ Done on '`date "+%Y-%m-%d %H:%M:%S"`;" EXIT
 
+cpu_num="$(/usr/bin/env php -r "echo swoole_cpu_num() * 2;")"
+options="-j${cpu_num}"
+
 echo "" && echo "🌵️️ Current branch is ${SWOOLE_BRANCH}" && echo ""
 if [ "${SWOOLE_BRANCH}" = "valgrind" ]; then
     dir="base"
-    options="-m"
+    options="${options} -m"
 else
     dir="swoole_*"
-    options=""
 fi
 echo "${dir}" > tests.list
 for i in 1 2 3 4 5

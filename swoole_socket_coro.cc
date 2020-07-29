@@ -199,7 +199,7 @@ static void php_swoole_socket_coro_free_object(zend_object *object)
 
 static zend_object* php_swoole_socket_coro_create_object(zend_class_entry *ce)
 {
-    socket_coro *sock = (socket_coro *) ecalloc(1, sizeof(socket_coro) + zend_object_properties_size(ce));
+    socket_coro *sock = (socket_coro *) zend_object_alloc(sizeof(socket_coro), ce);
     zend_object_std_init(&sock->std, ce);
     /* Even if you don't use properties yourself you should still call object_properties_init(),
      * because extending classes may use properties. (Generally a lot of the stuff you will do is
@@ -904,10 +904,10 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset)
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp))
     {
         sock->open_length_check = zval_is_true(ztmp);
-        sock->protocol.package_length_size = SW_MQTT_MIN_LENGTH;
-        sock->protocol.package_length_offset = 0;
-        sock->protocol.package_body_offset = 0;
-        sock->protocol.get_package_length = swMqtt_get_package_length;
+        if (zval_is_true(ztmp))
+        {
+            swMqtt_set_protocol(&sock->protocol);
+        }
     }
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp))

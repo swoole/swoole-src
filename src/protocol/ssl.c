@@ -625,7 +625,7 @@ int swSSL_check_host(swSocket *conn, char *tls_host_name)
      * As per RFC6125 and RFC2818, we check subjectAltName extension,
      * and if it's not present - commonName in Subject is checked.
      */
-    altnames = X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
+    altnames = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(cert, NID_subject_alt_name, NULL, NULL);
 
     if (altnames)
     {

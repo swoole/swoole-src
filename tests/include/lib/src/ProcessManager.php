@@ -45,6 +45,7 @@ class ProcessManager
 
     protected $childPid;
     protected $childStatus = 255;
+    protected $expectExitSignal = [0, SIGTERM];
     protected $parentFirst = false;
     /**
      * @var Swoole\Process
@@ -247,6 +248,10 @@ class ProcessManager
         Swoole\Event::wait();
         $waitInfo = Swoole\Process::wait(true);
         $this->childStatus = $waitInfo['code'];
+        if (!in_array($waitInfo['signal'], $this->expectExitSignal)) {
+            throw new RuntimeException("Unexpected exit code {$waitInfo['signal']}");
+        }
+
         return true;
     }
 
@@ -271,5 +276,13 @@ class ProcessManager
             $code = [$code];
         }
         assert(in_array($this->childStatus, $code), "unexpected exit code {$this->childStatus}");
+    }
+
+    public function setExpectExitSignal($signal = 0)
+    {
+        if (!is_array($signal)) {
+            $signal = [$signal];
+        }
+        $this->expectExitSignal = $signal;
     }
 }

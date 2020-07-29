@@ -125,7 +125,7 @@ static void php_swoole_process_pool_free_object(zend_object *object)
 
 static zend_object *php_swoole_process_pool_create_object(zend_class_entry *ce)
 {
-    process_pool_t *process_pool = (process_pool_t *) ecalloc(1, sizeof(process_pool_t) + zend_object_properties_size(ce));
+    process_pool_t *process_pool = (process_pool_t *) zend_object_alloc(sizeof(process_pool_t), ce);
     zend_object_std_init(&process_pool->std, ce);
     object_properties_init(&process_pool->std, ce);
     process_pool->std.handlers = &swoole_process_pool_handlers;

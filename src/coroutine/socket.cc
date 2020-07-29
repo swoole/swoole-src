@@ -410,6 +410,15 @@ bool Socket::http_proxy_handshake()
 
     //CONNECT
     int n;
+    const char *host = http_proxy->target_host;
+    int host_len = http_proxy->l_target_host;
+#ifdef SW_USE_OPENSSL
+    if (open_ssl && ssl_option.tls_host_name)
+    {
+        host = ssl_option.tls_host_name;
+        host_len = strlen(ssl_option.tls_host_name);
+    }
+#endif
     if (http_proxy->password)
     {
         char auth_buf[256];
@@ -422,9 +431,9 @@ bool Socket::http_proxy_handshake()
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(
             buffer->str, buffer->size,
-            HTTP_PROXY_FMT "Proxy-Authorization:Basic %s\r\n\r\n",
+            HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
-            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
+            host_len, host, http_proxy->target_port,
             encode_buf
         );
     }
@@ -434,7 +443,7 @@ bool Socket::http_proxy_handshake()
             buffer->str, buffer->size,
             HTTP_PROXY_FMT "\r\n",
             http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port,
-            http_proxy->l_target_host, http_proxy->target_host, http_proxy->target_port
+            host_len, host, http_proxy->target_port
         );
     }
 
@@ -789,7 +798,6 @@ bool Socket::connect(string _host, int _port, int flags)
 #endif
     if (socks5_proxy)
     {
-        //enable socks5 proxy
         socks5_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
         socks5_proxy->l_target_host = _host.size();
         socks5_proxy->target_port = _port;
@@ -799,7 +807,6 @@ bool Socket::connect(string _host, int _port, int flags)
     }
     else if (http_proxy)
     {
-        //enable http proxy
         http_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
         http_proxy->l_target_host = _host.size();
         http_proxy->target_port = _port;
@@ -817,7 +824,7 @@ bool Socket::connect(string _host, int _port, int flags)
         }
         else if (_port == 0 || _port >= 65536)
         {
-            set_err(EINVAL, cpp_string::format("Invalid port [%d]", _port).c_str());
+            set_err(EINVAL, cpp_string::format("Invalid port [%d]", _port));
             return false;
         }
     }
@@ -837,7 +844,7 @@ bool Socket::connect(string _host, int _port, int flags)
             if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr))
             {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl)
+                if (open_ssl && !(socks5_proxy || http_proxy))
                 {
                     ssl_host_name = connect_host;
                 }
@@ -868,7 +875,7 @@ bool Socket::connect(string _host, int _port, int flags)
             if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr))
             {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl)
+                if (open_ssl && !(socks5_proxy || http_proxy))
                 {
                     ssl_host_name = connect_host;
                 }
@@ -1142,7 +1149,7 @@ bool Socket::bind(std::string address, int port)
     }
     if ((sock_domain == AF_INET || sock_domain == AF_INET6) && (port < 0 || port > 65535))
     {
-        set_err(EINVAL, cpp_string::format("Invalid port [%d]", port).c_str());
+        set_err(EINVAL, cpp_string::format("Invalid port [%d]", port));
         return false;
     }
 
@@ -1183,7 +1190,7 @@ bool Socket::bind(std::string address, int port)
                 cpp_string::format(
                     "UNIXSocket bind path(%s) is too long, the maxium limit of bytes number is %zu",
                     bind_address.c_str(), sizeof(sa->sun_path)
-                ).c_str()
+                )
             );
             return false;
         }
@@ -1456,7 +1463,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
     int file_fd = ::open(filename, O_RDONLY);
     if (file_fd < 0)
     {
-        set_err(errno, cpp_string::format("open(%s) failed, %s", filename, strerror(errno)).c_str());
+        set_err(errno, cpp_string::format("open(%s) failed, %s", filename, strerror(errno)));
         return false;
     }
 
@@ -1465,7 +1472,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
         struct stat file_stat;
         if (::fstat(file_fd, &file_stat) < 0)
         {
-            set_err(errno, cpp_string::format("fstat(%s) failed, %s", filename, strerror(errno)).c_str());
+            set_err(errno, cpp_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
             ::close(file_fd);
             return false;
         }
@@ -1504,7 +1511,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length)
         }
         else if (errno != EAGAIN)
         {
-            set_err(errno, cpp_string::format("sendfile(%d, %s) failed, %s", sock_fd, filename, strerror(errno)).c_str());
+            set_err(errno, cpp_string::format("sendfile(%d, %s) failed, %s", sock_fd, filename, strerror(errno)));
             ::close(file_fd);
             return false;
         }
@@ -1534,45 +1541,64 @@ ssize_t Socket::sendto(const char *address, int port, const void *__buf, size_t 
     } addr = {};
     size_t addr_size = 0;
 
-    switch (type)
+    std::string host(address);
+
+    for (size_t i = 0; i < 2; i++)
     {
-    case SW_SOCK_UDP:
-    {
-        if (::inet_aton(address, &addr.in.sin_addr) == 0)
+        if (type == SW_SOCK_UDP)
         {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address).c_str());
+            if (::inet_aton(host.c_str(), &addr.in.sin_addr) == 0)
+            {
+                read_co = write_co = Coroutine::get_current_safe();
+                host = System::gethostbyname(std::string(address), sock_domain, connect_timeout);
+                read_co = write_co = nullptr;
+                if (host.empty())
+                {
+                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+                    return -1;
+                }
+                continue;
+            }
+            else
+            {
+                addr.in.sin_family = AF_INET;
+                addr.in.sin_port = htons(port);
+                addr_size = sizeof(addr.in);
+                break;
+            }
+        }
+        else if (type == SW_SOCK_UDP6)
+        {
+            if (::inet_pton(AF_INET6, host.c_str(), &addr.in6.sin6_addr) == 0)
+            {
+                read_co = write_co = Coroutine::get_current_safe();
+                std::string host = System::gethostbyname(std::string(address), sock_domain, connect_timeout);
+                read_co = write_co = nullptr;
+                if (host.empty())
+                {
+                    set_err(SwooleG.error, swoole_strerror(SwooleG.error));
+                    return -1;
+                }
+                continue;
+            }
+            addr.in6.sin6_port = (uint16_t) htons(port);
+            addr.in6.sin6_family = AF_INET6;
+            addr_size = sizeof(addr.in6);
+            break;
+        }
+        else if (type == SW_SOCK_UNIX_DGRAM)
+        {
+            addr.un.sun_family = AF_UNIX;
+            strncpy(addr.un.sun_path, address, sizeof(addr.un.sun_path) - 1);
+            addr_size = sizeof(addr.un);
+            break;
+        }
+        else
+        {
+            set_err(EPROTONOSUPPORT);
             retval = -1;
             break;
         }
-        addr.in.sin_family = AF_INET;
-        addr.in.sin_port = htons(port);
-        addr_size = sizeof(addr.in);
-        break;
-    }
-    case SW_SOCK_UDP6:
-    {
-        if (::inet_pton(AF_INET6, address, &addr.in6.sin6_addr) < 0)
-        {
-            set_err(EINVAL, cpp_string::format("ip[%s] is invalid", address).c_str());
-            retval = -1;
-            break;
-        }
-        addr.in6.sin6_port = (uint16_t) htons(port);
-        addr.in6.sin6_family = AF_INET6;
-        addr_size = sizeof(addr.in6);
-        break;
-    }
-    case SW_SOCK_UNIX_DGRAM:
-    {
-        addr.un.sun_family = AF_UNIX;
-        strncpy(addr.un.sun_path, address, sizeof(addr.un.sun_path) - 1);
-        addr_size = sizeof(addr.un);
-        break;
-    }
-    default:
-        set_err(EPROTONOSUPPORT);
-        retval = -1;
-        break;
     }
 
     if (addr_size > 0)

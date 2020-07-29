@@ -775,6 +775,12 @@ static sw_inline swConnection* swServer_connection_get(swServer *serv, int fd)
     }
 }
 
+static sw_inline int swServer_connection_valid(swServer *serv, swConnection *conn)
+{
+    return (conn && conn->socket && conn->active == 1 && conn->closed == 0 
+        && conn->socket->fdtype == SW_FD_SESSION);
+}
+
 static sw_inline swSession* swServer_get_session(swServer *serv, uint32_t session_id)
 {
     return &serv->session_list[session_id % SW_SESSION_LIST_SIZE];

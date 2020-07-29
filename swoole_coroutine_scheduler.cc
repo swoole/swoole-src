@@ -73,7 +73,7 @@ static sw_inline scheduler_t* scheduler_get_object(zend_object *obj)
 
 static zend_object *scheduler_create_object(zend_class_entry *ce)
 {
-    scheduler_t *s = (scheduler_t *) ecalloc(1, sizeof(scheduler_t) + zend_object_properties_size(ce));
+    scheduler_t *s = (scheduler_t *) zend_object_alloc(sizeof(scheduler_t), ce);
     zend_object_std_init(&s->std, ce);
     object_properties_init(&s->std, ce);
     s->std.handlers = &swoole_coroutine_scheduler_handlers;
@@ -138,6 +138,10 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp))
     {
         PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", ztmp))
+    {
+        PHPCoroutine::config.enable_preemptive_scheduler = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp))
     {

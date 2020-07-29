@@ -350,7 +350,6 @@ void php_swoole_event_wait();
 void php_swoole_event_exit();
 
 void php_swoole_server_register_callbacks(swServer *serv);
-void php_swoole_client_free(zval *zobject, swClient *cli);
 swClient* php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
 void php_swoole_client_check_setting(swClient *cli, zval *zset);
 #ifdef SW_USE_OPENSSL
@@ -392,6 +391,7 @@ void swoole_php_socket_free(zval *zsocket);
 #endif
 
 zend_fcall_info_cache* php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
+int php_swoole_create_dir(const char* path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_init_global_variant();
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);
@@ -777,6 +777,9 @@ static sw_inline int add_assoc_ulong_safe(zval *arg, const char *key, zend_ulong
 #define SW_SET_CLASS_CREATE(module, _create_object) \
     module##_ce->create_object = _create_object
 
+#define SW_SET_CLASS_DTOR(module, _dtor_obj) \
+    module##_handlers.dtor_obj = _dtor_obj
+
 #define SW_SET_CLASS_FREE(module, _free_obj) \
     module##_handlers.free_obj = _free_obj
 
@@ -843,9 +846,22 @@ static sw_inline int sw_zend_register_class_alias(const char *name, size_t name_
 #endif
 }
 
+#if PHP_VERSION_ID < 70300
+/* Allocates object type and zeros it, but not the properties.
+ * Properties MUST be initialized using object_properties_init(). */
+static zend_always_inline void *zend_object_alloc(size_t obj_size, zend_class_entry *ce)
+{
+    void *obj = emalloc(obj_size + zend_object_properties_size(ce));
+    /* Subtraction of sizeof(zval) is necessary, because zend_object_properties_size() may be
+     * -sizeof(zval), if the object has no properties. */
+    memset(obj, 0, obj_size - sizeof(zval));
+    return obj;
+}
+#endif
+
 static sw_inline zend_object *sw_zend_create_object(zend_class_entry *ce, zend_object_handlers *handlers)
 {
-    zend_object* object = (zend_object *) ecalloc(1, sizeof(zend_object) + zend_object_properties_size(ce));
+    zend_object* object = (zend_object *) zend_object_alloc(sizeof(zend_object), ce);
     zend_object_std_init(object, ce);
     object_properties_init(object, ce);
     object->handlers = handlers;
@@ -957,9 +973,13 @@ static sw_inline zval* sw_zend_read_and_convert_property_array(zend_class_entry 
 //----------------------------------Function API------------------------------------
 
 #if PHP_VERSION_ID < 80000
-#define SW_Z8_OBJ_P(zobj) zobj
+#define sw_zend7_object      zval
+#define SW_Z7_OBJ_P(object)  Z_OBJ_P(object)
+#define SW_Z8_OBJ_P(zobj)    zobj
 #else
-#define SW_Z8_OBJ_P(zobj) Z_OBJ_P(zobj)
+#define sw_zend7_object      zend_object
+#define SW_Z7_OBJ_P(object)  object
+#define SW_Z8_OBJ_P(zobj)    Z_OBJ_P(zobj)
 #endif
 
 /**

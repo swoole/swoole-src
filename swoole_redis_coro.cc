@@ -991,7 +991,7 @@ static void php_swoole_redis_coro_free_object(zend_object *object)
 
 static zend_object *php_swoole_redis_coro_create_object(zend_class_entry *ce)
 {
-    swRedisClient *redis = (swRedisClient *) ecalloc(1, sizeof(swRedisClient) + zend_object_properties_size(ce));
+    swRedisClient *redis = (swRedisClient *) zend_object_alloc(sizeof(swRedisClient), ce);
     zend_object_std_init(&redis->std, ce);
     object_properties_init(&redis->std, ce);
     redis->std.handlers = &swoole_redis_coro_handlers;
