@@ -23,8 +23,8 @@
 
 SW_EXTERN_C_BEGIN
 
-#define SW_MQTT_MIN_LENGTH                   2
-#define SW_MQTT_MAX_PAYLOAD_SIZE             268435455
+#define SW_MQTT_PAYLOAD_LENGTH_SIZE 4
+#define SW_MQTT_MAX_PAYLOAD_SIZE    268435455
 
 enum swMqtt_opcode
 {
