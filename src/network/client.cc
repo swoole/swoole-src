@@ -309,7 +309,7 @@ void swClient_free(swClient *cli) {
     if (cli->async) {
         cli->socket->free();
     } else {
-        sw_free(cli->socket);
+        delete cli->socket;
     }
 }
 

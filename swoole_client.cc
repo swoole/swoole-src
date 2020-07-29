@@ -603,7 +603,7 @@ static void php_swoole_client_free(zval *zobject, swClient *cli) {
     } else {
         sw_free((void *) cli->server_str);
         swClient_free(cli);
-        pefree(cli, 1);
+        efree(cli);
     }
 #ifdef SWOOLE_SOCKETS_SUPPORT
     zval *zsocket = php_swoole_client_get_zsocket(zobject);
