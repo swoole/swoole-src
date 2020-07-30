@@ -30,11 +30,11 @@ static void Stream_free(Stream *stream);
 static void Stream_onConnect(Client *cli) {
     Stream *stream = (Stream *) cli->object;
     if (stream->cancel) {
-        cli->close(cli);
+        cli->close();
     }
     *((uint32_t *) stream->buffer->str) = ntohl(stream->buffer->length - 4);
     if (cli->send(cli, stream->buffer->str, stream->buffer->length, 0) < 0) {
-        cli->close(cli);
+        cli->close();
     } else {
         swString_free(stream->buffer);
         stream->buffer = nullptr;

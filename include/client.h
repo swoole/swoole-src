@@ -24,9 +24,6 @@
 #include "proxy.h"
 #include "ssl.h"
 
-#define SW_SOCK_ASYNC 1
-#define SW_SOCK_SYNC 0
-
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established"
 
 namespace swoole { namespace network {
@@ -121,7 +118,6 @@ class Client {
     int (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
     int (*sendfile)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
     int (*recv)(Client *cli, char *data, uint32_t len, int flags) = nullptr;
-    int (*close)(Client *cli) = nullptr;
 
     static void init_reactor(Reactor *reactor);
     Client(enum swSocket_type type, bool async);
@@ -130,6 +126,7 @@ class Client {
     int sleep();
     int wakeup();
     int shutdown(int __how);
+    int close();
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
     int ssl_handshake();

@@ -268,7 +268,7 @@ int ProcessPool::dispatch_blocking(swEventData *data, int *dst_worker_id) {
     int sendn = sizeof(data->info) + data->info.len;
 
     if (use_socket) {
-        swoole::network::Client _socket(SW_SOCK_UNIX_STREAM, SW_SOCK_SYNC);
+        swoole::network::Client _socket(SW_SOCK_UNIX_STREAM, false);
         if (!_socket.socket) {
             return SW_ERR;
         }
@@ -278,7 +278,7 @@ int ProcessPool::dispatch_blocking(swEventData *data, int *dst_worker_id) {
         if (_socket.send(&_socket, (char *) data, sendn, 0) < 0) {
             return SW_ERR;
         }
-        _socket.close(&_socket);
+        _socket.close();
         return SW_OK;
     }
 

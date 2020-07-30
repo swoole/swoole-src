@@ -43,7 +43,6 @@ static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t of
 static int Client_tcp_recv_no_buffer(Client *cli, char *data, uint32_t len, int flags);
 static int Client_udp_connect(Client *cli, const char *host, int port, double _timeout, int udp_connect);
 static int Client_udp_recv(Client *cli, char *data, uint32_t len, int waitall);
-static int Client_close(Client *cli);
 
 static int Client_onDgramRead(Reactor *reactor, swEvent *event);
 static int Client_onStreamRead(Reactor *reactor, swEvent *event);
@@ -103,8 +102,6 @@ Client::Client(enum swSocket_type _type, bool _async) {
 
     Socket::get_domain_and_type(_type, &_sock_domain, &_sock_type);
 
-    close = Client_close;
-
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;
     protocol.package_body_offset = 0;
@@ -120,7 +117,7 @@ int Client::sleep() {
         ret = swoole_event_del(socket);
     }
     if (ret == SW_OK) {
-        sleep_ = 1;
+        sleep_ = true;
     }
     return ret;
 }
@@ -133,7 +130,7 @@ int Client::wakeup() {
         ret = swoole_event_add(socket, SW_EVENT_READ);
     }
     if (ret == SW_OK) {
-        sleep_ = 0;
+        sleep_ = false;
     }
     return ret;
 }
@@ -297,7 +294,7 @@ Client::~Client() {
     assert(socket->fd != 0);
     // remove from reactor
     if (!closed) {
-        close(this);
+        close();
     }
     if (server_str) {
         sw_free((void *) server_str);
@@ -317,75 +314,75 @@ Client::~Client() {
     }
 }
 
-static int Client_close(Client *cli) {
-    if (cli->socket == nullptr || cli->closed) {
+int Client::close() {
+    if (socket == nullptr || closed) {
         return SW_ERR;
     }
-    cli->closed = 1;
+    closed = 1;
 
-    int fd = cli->socket->fd;
+    int fd = socket->fd;
     assert(fd != 0);
 
 #ifdef SW_USE_OPENSSL
-    if (cli->open_ssl && cli->ssl_context) {
-        if (cli->socket->ssl) {
-            swSSL_close(cli->socket);
+    if (open_ssl && ssl_context) {
+        if (socket->ssl) {
+            swSSL_close(socket);
         }
-        swSSL_free_context(cli->ssl_context);
-        if (cli->ssl_option.cert_file) {
-            sw_free(cli->ssl_option.cert_file);
+        swSSL_free_context(ssl_context);
+        if (ssl_option.cert_file) {
+            sw_free(ssl_option.cert_file);
         }
-        if (cli->ssl_option.key_file) {
-            sw_free(cli->ssl_option.key_file);
+        if (ssl_option.key_file) {
+            sw_free(ssl_option.key_file);
         }
-        if (cli->ssl_option.passphrase) {
-            sw_free(cli->ssl_option.passphrase);
+        if (ssl_option.passphrase) {
+            sw_free(ssl_option.passphrase);
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (cli->ssl_option.tls_host_name) {
-            sw_free(cli->ssl_option.tls_host_name);
+        if (ssl_option.tls_host_name) {
+            sw_free(ssl_option.tls_host_name);
         }
 #endif
-        if (cli->ssl_option.cafile) {
-            sw_free(cli->ssl_option.cafile);
+        if (ssl_option.cafile) {
+            sw_free(ssl_option.cafile);
         }
-        if (cli->ssl_option.capath) {
-            sw_free(cli->ssl_option.capath);
+        if (ssl_option.capath) {
+            sw_free(ssl_option.capath);
         }
     }
 #endif
     // clear buffer
-    if (cli->buffer) {
-        swString_free(cli->buffer);
-        cli->buffer = nullptr;
+    if (buffer) {
+        swString_free(buffer);
+        buffer = nullptr;
     }
-    if (cli->type == SW_SOCK_UNIX_DGRAM) {
-        unlink(cli->socket->info.addr.un.sun_path);
+    if (type == SW_SOCK_UNIX_DGRAM) {
+        unlink(socket->info.addr.un.sun_path);
     }
-    if (cli->async) {
+    if (async) {
         // remove from reactor
-        if (!cli->socket->removed) {
-            swoole_event_del(cli->socket);
+        if (!socket->removed) {
+            swoole_event_del(socket);
         }
-        if (cli->timer) {
-            swoole_timer_del(cli->timer);
-            cli->timer = nullptr;
+        if (timer) {
+            swoole_timer_del(timer);
+            timer = nullptr;
         }
         // onClose callback
-        if (cli->active && cli->onClose) {
-            cli->active = 0;
-            cli->onClose(cli);
+        if (active && onClose) {
+            active = 0;
+            onClose(this);
         }
     } else {
-        cli->active = 0;
+        active = 0;
     }
 
     /**
      * fd marked -1, prevent double close
      */
-    cli->socket->fd = -1;
+    socket->fd = -1;
 
-    return close(fd);
+    return ::close(fd);
 }
 
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double timeout, int nonblock) {
@@ -577,7 +574,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     } else {
         cli->active = 0;
         cli->socket->removed = 1;
-        cli->close(cli);
+        cli->close();
         if (cli->onError) {
             cli->onError(cli);
         }
@@ -773,7 +770,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     } else {
         cli->active = 0;
         cli->socket->removed = 1;
-        cli->close(cli);
+        cli->close();
         if (cli->async && cli->onError) {
             cli->onError(cli);
         }
@@ -916,7 +913,7 @@ static int Client_onStreamRead(Reactor *reactor, swEvent *event) {
             if (cli->enable_ssl_encrypt() < 0) {
             _connect_fail:
                 cli->active = 0;
-                cli->close(cli);
+                cli->close();
                 if (cli->onError) {
                     cli->onError(cli);
                 }
@@ -964,7 +961,7 @@ static int Client_onStreamRead(Reactor *reactor, swEvent *event) {
         }
 
         if (n < 0) {
-            return cli->close(cli);
+            return cli->close();
         } else {
             if (conn->removed == 0 && cli->remove_delay) {
                 cli->sleep();
@@ -992,7 +989,7 @@ _recv_again:
         }
     } else if (n == 0) {
     __close:
-        return cli->close(cli);
+        return cli->close();
     } else {
         cli->onReceive(cli, buf, n);
 #ifdef SW_CLIENT_RECV_AGAIN
@@ -1021,7 +1018,7 @@ static int Client_onDgramRead(Reactor *reactor, swEvent *event) {
 static int Client_onError(Reactor *reactor, swEvent *event) {
     Client *cli = (Client *) event->socket->object;
     if (cli->active) {
-        return cli->close(cli);
+        return cli->close();
     } else {
         Client_onWrite(reactor, event);
     }
@@ -1043,7 +1040,7 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
         cli->active = 0;
     }
 
-    cli->close(cli);
+    cli->close();
     if (cli->onError) {
         cli->onError(cli);
     }
@@ -1063,7 +1060,7 @@ static void Client_onResolveCompleted(swAio_event *event) {
     } else {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         cli->socket->removed = 1;
-        cli->close(cli);
+        cli->close();
         if (cli->onError) {
             cli->onError(cli);
         }
@@ -1159,7 +1156,7 @@ static int Client_onWrite(Reactor *reactor, swEvent *event) {
     _connect_fail:
 #endif
         cli->active = 0;
-        cli->close(cli);
+        cli->close();
         if (cli->onError) {
             cli->onError(cli);
         }

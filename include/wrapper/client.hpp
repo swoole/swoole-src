@@ -62,7 +62,7 @@ class Client {
         if (!created || client.closed) {
             return false;
         }
-        client.close(&client);
+        client.close();
         created = false;
         return true;
     }

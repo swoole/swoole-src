@@ -675,7 +675,7 @@ Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port)
             // try recv, check connection status
             ret = recv(cli->socket->fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
             if (ret == 0 || (ret < 0 && cli->socket->catch_error(errno) == SW_CLOSE)) {
-                cli->close(cli);
+                cli->close();
                 php_swoole_client_free(zobject, cli);
                 goto _create_socket;
             }
@@ -1296,7 +1296,7 @@ static PHP_METHOD(swoole_client, close) {
     // Connection error, or short tcp connection.
     // No keep connection
     if (force || !cli->keep || cli->socket->catch_error(swoole_get_last_error()) == SW_CLOSE) {
-        ret = cli->close(cli);
+        ret = cli->close();
         php_swoole_client_free(ZEND_THIS, cli);
     } else {
         if (cli->keep) {
