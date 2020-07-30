@@ -227,9 +227,8 @@ int ProcessPool::dispatch(swEventData *data, int *dst_worker_id) {
     swWorker *worker;
 
     if (use_socket) {
-        Stream *stream = new Stream(stream_info_->socket_file, 0, SW_SOCK_UNIX_STREAM);
-        if (!stream->connected) {
-            delete stream;
+        Stream *stream = Stream::create(stream_info_->socket_file, 0, SW_SOCK_UNIX_STREAM);
+        if (!stream) {
             return SW_ERR;
         }
         stream->response = nullptr;

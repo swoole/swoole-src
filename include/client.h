@@ -31,7 +31,7 @@ namespace swoole { namespace network {
 class Client {
  public:
     int id = 0;
-    int type = 0;
+    enum swSocket_type type;
     long timeout_id = 0;  // timeout node id
     int _sock_type = 0;
     int _sock_domain = 0;
@@ -135,22 +135,34 @@ class Client {
 };
 
 //----------------------------------------Stream---------------------------------------
-struct Stream {
-    String *buffer;
+class Stream {
+ public:
+    String *buffer = nullptr;
     Client client;
-    bool connected;
-    bool cancel;
-    int errCode;
-    void *private_data;
-    void (*response)(Stream *stream, const char *data, uint32_t length);
+    bool connected = false;
+    bool cancel = false;
+    int errCode = 0;
+    void *private_data = nullptr;
+    std::function<void(Stream *stream, const char *data, uint32_t length)> response = nullptr;
 
-    Stream(const char *dst_host, int dst_port, enum swSocket_type type);
-    ~Stream();
     int send(const char *data, size_t length);
     void set_max_length(uint32_t max_length);
 
+    inline static Stream *create(const char *dst_host, int dst_port, enum swSocket_type type) {
+        Stream *stream = new Stream(dst_host, dst_port, type);
+        if (!stream->connected) {
+            delete stream;
+            return nullptr;
+        } else {
+            return stream;
+        }
+    }
+    ~Stream();
     static int recv_blocking(Socket *sock, void *__buf, size_t __len);
     static void set_protocol(swProtocol *protocol);
+
+ private:
+    Stream(const char *dst_host, int dst_port, enum swSocket_type type);
 };
 //----------------------------------------Stream End------------------------------------
 

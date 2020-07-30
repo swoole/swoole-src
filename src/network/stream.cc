@@ -23,9 +23,8 @@
 #include "swoole_protocol.h"
 #include "client.h"
 
-namespace swoole { namespace network {
-
-static void Stream_free(Stream *stream);
+namespace swoole {
+namespace network {
 
 static void Stream_onConnect(Client *cli) {
     Stream *stream = (Stream *) cli->object;
@@ -51,9 +50,12 @@ static void Stream_onError(Client *cli) {
                      stream->errCode,
                      swoole_strerror(stream->errCode));
 
+    if (!stream->response) {
+        return;
+    }
+
     stream->response(stream, nullptr, 0);
-    delete cli;
-    Stream_free(stream);
+    delete stream;
 }
 
 static void Stream_onReceive(Client *cli, const char *data, uint32_t length) {
@@ -69,20 +71,12 @@ static void Stream_onClose(Client *cli) {
     swoole_event_defer(
         [](void *data) {
             Client *cli = (Client *) data;
-            Stream_free((Stream *) cli->object);
-            delete cli;
+            delete (Stream *) cli->object;
         },
         cli);
 }
 
-static void Stream_free(Stream *stream) {
-    delete stream;
-}
-
-Stream::Stream(const char *dst_host, int dst_port, enum swSocket_type type)
-        : client(SW_SOCK_TCP, true)
-
-{
+Stream::Stream(const char *dst_host, int dst_port, enum swSocket_type type) : client(SW_SOCK_TCP, true) {
     if (client.socket == nullptr) {
         return;
     }
@@ -160,4 +154,5 @@ int Stream::recv_blocking(swSocket *sock, void *__buf, size_t __len) {
     }
 }
 
-}}
+}  // namespace network
+}  // namespace swoole

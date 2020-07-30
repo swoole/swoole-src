@@ -67,16 +67,13 @@ void Client::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, Client_onError);
 }
 
-Client::Client(enum swSocket_type _type, bool _async) {
-    reactor_fdtype = Socket::is_stream(_type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
-    socket = swoole::make_socket(_type, reactor_fdtype, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
+Client::Client(enum swSocket_type _type, bool _async): type(_type), async(_async) {
+    reactor_fdtype = Socket::is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
+    socket = swoole::make_socket(type, reactor_fdtype, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {
         swSysWarn("socket() failed");
         return;
     }
-
-    type = _type;
-    async = _async;
 
     socket->object = this;
     input_buffer_size = SW_CLIENT_BUFFER_SIZE;
@@ -100,7 +97,7 @@ Client::Client(enum swSocket_type _type, bool _async) {
         send = Client_udp_send;
     }
 
-    Socket::get_domain_and_type(_type, &_sock_domain, &_sock_type);
+    Socket::get_domain_and_type(type, &_sock_domain, &_sock_type);
 
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;

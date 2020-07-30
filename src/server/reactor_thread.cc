@@ -1010,9 +1010,8 @@ int Server::dispatch_task(swProtocol *proto, swSocket *_socket, const char *data
     swTrace("send string package, size=%ld bytes", (long) length);
 
     if (serv->stream_socket_file) {
-        Stream *stream = new Stream(serv->stream_socket_file, 0, SW_SOCK_UNIX_STREAM);
-        if (!stream->connected) {
-            delete stream;
+        Stream *stream = Stream::create(serv->stream_socket_file, 0, SW_SOCK_UNIX_STREAM);
+        if (!stream) {
             return SW_ERR;
         }
         stream->response = ReactorThread_onStreamResponse;
