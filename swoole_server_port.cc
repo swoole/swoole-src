@@ -425,8 +425,7 @@ static PHP_METHOD(swoole_server_port, set) {
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
         while (1) {
             if (Z_TYPE_P(ztmp) == IS_STRING) {
-                swProtocol_length_function func =
-                    (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp));
+                Protocol::LengthFunc func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)));
                 if (func != nullptr) {
                     port->protocol.get_package_length = func;
                     break;

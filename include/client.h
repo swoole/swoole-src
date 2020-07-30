@@ -58,7 +58,7 @@ class Client {
     bool open_length_check = false;
     bool open_eof_check = false;
 
-    Protocol protocol;
+    Protocol protocol = {};
     swSocks5_proxy *socks5_proxy = nullptr;
     swHttp_proxy *http_proxy = nullptr;
 
@@ -82,12 +82,12 @@ class Client {
     /**
      * sendto, read only.
      */
-    Address server_addr;
+    Address server_addr = {};
 
     /**
      * recvfrom
      */
-    Address remote_addr;
+    Address remote_addr = {};
 
     Socket *socket;
 

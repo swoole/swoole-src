@@ -27,6 +27,7 @@ using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::Server;
 using swoole::String;
+using swoole::Protocol;
 
 TEST(coroutine_socket, connect_refused) {
     coroutine::run([](void *arg) {
@@ -394,7 +395,7 @@ static void socket_set_length_protocol_1(Socket &sock) {
     sock.protocol.package_length_type = 'n';
     sock.protocol.package_length_size = swoole_type_size(sock.protocol.package_length_type);
     sock.protocol.package_body_offset = 2;
-    sock.protocol.get_package_length = swProtocol_get_package_length;
+    sock.protocol.get_package_length = Protocol::default_length_func;
     sock.protocol.package_max_length = 65535;
 
     sock.open_length_check = true;
@@ -406,7 +407,7 @@ static void socket_set_length_protocol_2(Socket &sock) {
     sock.protocol.package_length_type = 'N';
     sock.protocol.package_length_size = swoole_type_size(sock.protocol.package_length_type);
     sock.protocol.package_body_offset = 4;
-    sock.protocol.get_package_length = swProtocol_get_package_length;
+    sock.protocol.get_package_length = Protocol::default_length_func;
     sock.protocol.package_max_length = 2 * 1024 * 1024;
 
     sock.open_length_check = true;

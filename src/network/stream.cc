@@ -106,8 +106,8 @@ Stream::~Stream() {
 /**
  * Stream Protocol: Length(32bit/Network Byte Order) + Body
  */
-void Stream::set_protocol(swProtocol *protocol) {
-    protocol->get_package_length = swProtocol_get_package_length;
+void Stream::set_protocol(Protocol *protocol) {
+    protocol->get_package_length = Protocol::default_length_func;
     protocol->package_length_size = 4;
     protocol->package_length_type = 'N';
     protocol->package_body_offset = 4;
@@ -132,7 +132,7 @@ int Stream::send(const char *data, size_t length) {
     return SW_OK;
 }
 
-int Stream::recv_blocking(swSocket *sock, void *__buf, size_t __len) {
+int Stream::recv_blocking(Socket *sock, void *__buf, size_t __len) {
     int tmp = 0;
     ssize_t ret = sock->recv_blocking(&tmp, sizeof(tmp), MSG_WAITALL);
 

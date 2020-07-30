@@ -26,6 +26,7 @@
 using namespace std;
 using swoole::network::Socket;
 using swoole::network::Client;
+using swoole::Protocol;
 
 #include "ext/standard/basic_functions.h"
 
@@ -380,7 +381,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp)) {
         cli->open_length_check = zval_is_true(ztmp);
-        cli->protocol.get_package_length = swProtocol_get_package_length;
+        cli->protocol.get_package_length = Protocol::default_length_func;
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
@@ -409,8 +410,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
         while (1) {
             if (Z_TYPE_P(ztmp) == IS_STRING) {
-                swProtocol_length_function func =
-                    (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp));
+                Protocol::LengthFunc func = Protocol::get_function(string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)));
                 if (func != nullptr) {
                     cli->protocol.get_package_length = func;
                     break;

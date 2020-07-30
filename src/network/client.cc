@@ -948,13 +948,13 @@ static int Client_onStreamRead(Reactor *reactor, swEvent *event) {
 #endif
 
     if (cli->open_eof_check || cli->open_length_check) {
-        swSocket *conn = cli->socket;
-        swProtocol *protocol = &cli->protocol;
+        Socket *conn = cli->socket;
+        Protocol *protocol = &cli->protocol;
 
         if (cli->open_eof_check) {
-            n = swProtocol_recv_check_eof(protocol, conn, cli->buffer);
+            n = protocol->recv_with_eof_protocol(conn, cli->buffer);
         } else {
-            n = swProtocol_recv_check_length(protocol, conn, cli->buffer);
+            n = protocol->recv_with_length_protocol(conn, cli->buffer);
         }
 
         if (n < 0) {

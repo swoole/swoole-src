@@ -143,7 +143,7 @@ void Server::init_port_protocol(ListenPort *ls) {
         ls->onRead = swPort_onRead_check_eof;
     } else if (ls->open_length_check) {
         if (ls->protocol.package_length_type != '\0') {
-            ls->protocol.get_package_length = swProtocol_get_package_length;
+            ls->protocol.get_package_length = Protocol::default_length_func;
         }
         ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_length;
@@ -303,7 +303,7 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
         return SW_ERR;
     }
 
-    if (swProtocol_recv_check_length(protocol, _socket, buffer) < 0) {
+    if (protocol->recv_with_length_protocol(_socket, buffer) < 0) {
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
         conn->close_errno = errno;
         reactor->trigger_close_event(event);
@@ -620,7 +620,7 @@ static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent
         return SW_ERR;
     }
 
-    if (swProtocol_recv_check_eof(protocol, _socket, buffer) < 0) {
+    if (protocol->recv_with_eof_protocol(_socket, buffer) < 0) {
         conn->close_errno = errno;
         reactor->trigger_close_event(event);
     }

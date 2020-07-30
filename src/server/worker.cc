@@ -159,7 +159,7 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event) {
         buffer = event->socket->recv_buffer;
     }
 
-    if (swProtocol_recv_check_length(protocol, conn, buffer) < 0) {
+    if (protocol->recv_with_length_protocol(conn, buffer) < 0) {
         swWorker_onStreamClose(reactor, event);
     }
 

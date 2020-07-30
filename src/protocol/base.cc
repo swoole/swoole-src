@@ -22,12 +22,11 @@
 #include "swoole_protocol.h"
 #include "swoole_log.h"
 
-using namespace swoole;
-
+namespace swoole {
 /**
  * return the package total length
  */
-ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t size) {
+ssize_t Protocol::default_length_func(Protocol *protocol, network::Socket *socket, const char *data, uint32_t size) {
     uint16_t length_offset = protocol->package_length_offset;
     uint8_t package_length_size =
         protocol->get_package_length_size ? protocol->get_package_length_size(socket) : protocol->package_length_size;
@@ -61,15 +60,15 @@ ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, co
     return protocol->package_body_offset + body_length;
 }
 
-static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSocket *socket, swString *buffer) {
-    if (buffer->length < protocol->package_eof_len) {
+int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
+    if (buffer->length < package_eof_len) {
         return SW_CONTINUE;
     }
 
     int retval;
 
-    size_t n = buffer->split(protocol->package_eof, protocol->package_eof_len, [&](const char *data, size_t length) -> int {
-        if (protocol->onPackage(protocol, socket, data, length) < 0) {
+    size_t n = buffer->split(package_eof, package_eof_len, [&](const char *data, size_t length) -> int {
+        if (onPackage(this, socket, data, length) < 0) {
             retval = SW_CLOSE;
             return false;
         }
@@ -90,7 +89,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
     } else if (n < buffer->length) {
         off_t offset;
         buffer->reduce(n);
-        offset = buffer->length - protocol->package_eof_len;
+        offset = buffer->length - package_eof_len;
         buffer->offset = offset > 0 ? offset : 0;
     } else {
         swString_clear(buffer);
@@ -109,14 +108,13 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
  * @return SW_ERR: close the connection
  * @return SW_OK: continue
  */
-int swProtocol_recv_check_length(swProtocol *protocol, swSocket *socket, swString *buffer) {
+int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer) {
     ssize_t package_length;
-    uint8_t package_length_size =
-        protocol->get_package_length_size ? protocol->get_package_length_size(socket) : protocol->package_length_size;
+    uint8_t _package_length_size = get_package_length_size ? get_package_length_size(socket) : package_length_size;
     uint32_t recv_size;
     ssize_t recv_n = 0;
 
-    if (package_length_size == 0) {
+    if (_package_length_size == 0) {
         // protocol error
         return SW_ERR;
     }
@@ -133,7 +131,7 @@ _do_recv:
     if (buffer->offset > 0) {
         recv_size = buffer->offset - buffer->length;
     } else {
-        recv_size = protocol->package_length_offset + package_length_size;
+        recv_size = package_length_offset + _package_length_size;
     }
 
     recv_n = socket->recv(buffer->str + buffer->length, recv_size, 0);
@@ -155,7 +153,7 @@ _do_recv:
         if (socket->recv_wait) {
             if (buffer->length >= (size_t) buffer->offset) {
             _do_dispatch:
-                if (protocol->onPackage(protocol, socket, buffer->str, buffer->offset) < 0) {
+                if (onPackage(this, socket, buffer->str, buffer->offset) < 0) {
                     return SW_ERR;
                 }
                 if (socket->removed) {
@@ -178,14 +176,14 @@ _do_recv:
             return SW_OK;
         } else {
         _do_get_length:
-            package_length = protocol->get_package_length(protocol, socket, buffer->str, buffer->length);
+            package_length = get_package_length(this, socket, buffer->str, buffer->length);
             // invalid package, close connection.
             if (package_length < 0) {
                 return SW_ERR;
             }
             // no length
             else if (package_length == 0) {
-                if (buffer->length == protocol->package_length_offset + package_length_size) {
+                if (buffer->length == package_length_offset + package_length_size) {
                     swoole_error_log(SW_LOG_WARNING,
                                      SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
                                      "bad request, No length found in %ld bytes",
@@ -194,7 +192,7 @@ _do_recv:
                 } else {
                     return SW_OK;
                 }
-            } else if (package_length > protocol->package_max_length) {
+            } else if (package_length > package_max_length) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                                  "package is too big, remote_addr=%s:%d, length=%zu",
@@ -228,7 +226,7 @@ _do_recv:
  * @return SW_ERR: close the connection
  * @return SW_OK: continue
  */
-int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *buffer) {
+int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) {
     bool recv_again = false;
     int buf_size;
 
@@ -256,12 +254,12 @@ _recv_data:
     } else {
         buffer->length += n;
 
-        if (buffer->length < protocol->package_eof_len) {
+        if (buffer->length < package_eof_len) {
             return SW_OK;
         }
 
-        if (protocol->split_by_eof) {
-            int retval = swProtocol_split_package_by_eof(protocol, socket, buffer);
+        if (split_by_eof) {
+            int retval = recv_split_by_eof(socket, buffer);
             if (retval == SW_CONTINUE) {
                 recv_again = true;
             } else if (retval == SW_CLOSE) {
@@ -269,11 +267,11 @@ _recv_data:
             } else {
                 return SW_OK;
             }
-        } else if (memcmp(buffer->str + buffer->length - protocol->package_eof_len,
-                          protocol->package_eof,
-                          protocol->package_eof_len) == 0) {
+        } else if (memcmp(buffer->str + buffer->length - package_eof_len,
+                          package_eof,
+                          package_eof_len) == 0) {
             buffer->offset = buffer->length;
-            if (protocol->onPackage(protocol, socket, buffer->str, buffer->length) < 0) {
+            if (onPackage(this, socket, buffer->str, buffer->length) < 0) {
                 return SW_ERR;
             }
             if (socket->removed) {
@@ -289,7 +287,7 @@ _recv_data:
         }
 
         // over max length, will discard
-        if (buffer->length == protocol->package_max_length) {
+        if (buffer->length == package_max_length) {
             swWarn("Package is too big. package_length=%d", (int) buffer->length);
             return SW_ERR;
         }
@@ -297,10 +295,10 @@ _recv_data:
         // buffer is full, may have not read data
         if (buffer->length == buffer->size) {
             recv_again = true;
-            if (buffer->size < protocol->package_max_length) {
+            if (buffer->size < package_max_length) {
                 uint32_t extend_size = swoole_size_align(buffer->size * 2, SwooleG.pagesize);
-                if (extend_size > protocol->package_max_length) {
-                    extend_size = protocol->package_max_length;
+                if (extend_size > package_max_length) {
+                    extend_size = package_max_length;
                 }
                 if (swString_extend(buffer, extend_size) < 0) {
                     return SW_ERR;
@@ -313,4 +311,6 @@ _recv_data:
         }
     }
     return SW_OK;
+}
+
 }
