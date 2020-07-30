@@ -83,5 +83,5 @@ void handler_fgets(Event *event);
 void handler_read_file(Event *event);
 void handler_write_file(Event *event);
 
-}};
-
+}  // namespace async
+};  // namespace swoole

@@ -102,7 +102,7 @@ void handler_read(Event *event) {
     event->ret = ret;
 }
 
-void swAio_handler_fread(Event *event) {
+void handler_fread(Event *event) {
     int ret = -1;
     if (event->lock && flock(event->fd, LOCK_SH) < 0) {
         swSysWarn("flock(%d, LOCK_SH) failed", event->fd);
@@ -126,7 +126,7 @@ void swAio_handler_fread(Event *event) {
     event->ret = ret;
 }
 
-void swAio_handler_fwrite(Event *event) {
+void handler_fwrite(Event *event) {
     int ret = -1;
     if (event->lock && flock(event->fd, LOCK_EX) < 0) {
         swSysWarn("flock(%d, LOCK_EX) failed", event->fd);
