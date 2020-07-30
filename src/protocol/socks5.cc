@@ -43,7 +43,7 @@ const char *swSocks5_strerror(int code) {
     }
 }
 
-int swSocks5_connect(swClient *cli, char *recv_data, int length) {
+int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length) {
     swSocks5_proxy *ctx = cli->socks5_proxy;
     char *buf = ctx->buf;
     uchar version, status, result, method;

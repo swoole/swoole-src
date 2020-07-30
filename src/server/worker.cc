@@ -565,7 +565,7 @@ int Server::start_event_worker(swWorker *worker) {
         reactor->add(reactor, stream_socket, SW_EVENT_READ);
         reactor->set_handler(SW_FD_STREAM_SERVER, swWorker_onStreamAccept);
         reactor->set_handler(SW_FD_STREAM, swWorker_onStreamRead);
-        swStream_set_protocol(&stream_protocol);
+        network::Stream::set_protocol(&stream_protocol);
         stream_protocol.private_data_2 = this;
         stream_protocol.package_max_length = UINT_MAX;
         stream_protocol.onPackage = swWorker_onStreamPackage;

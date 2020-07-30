@@ -202,6 +202,7 @@ namespace network {
 struct Socket;
 struct Address;
 struct GetaddrinfoRequest;
+class Client;
 }
 namespace async {
 struct Event;
@@ -216,6 +217,7 @@ typedef swoole::TimerNode swTimer_node;
 typedef swoole::network::Socket swSocket;
 typedef swoole::network::Address swSocketAddress;
 typedef swoole::network::GetaddrinfoRequest swRequest_getaddrinfo;
+typedef swoole::network::Client swClient;
 typedef swoole::Protocol swProtocol;
 typedef swoole::async::Event swAio_event;
 
