@@ -35,3 +35,7 @@ static void init_root_path(const char *_exec_file) {
 const string &swoole::test::get_root_path() {
     return root_path;
 }
+
+string swoole::test::get_jpg_file() {
+    return root_path + TEST_JPG_FILE;
+}

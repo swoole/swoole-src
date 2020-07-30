@@ -14,16 +14,15 @@
  +----------------------------------------------------------------------+
  */
 
+#include "swoole.h"
+
 #include <stdarg.h>
 #include <assert.h>
 
-#include <arpa/inet.h>
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
 #include <sys/time.h>
-
-#include "swoole.h"
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>
@@ -33,7 +32,11 @@
 #include <sys/syslimits.h>
 #endif
 
+#include <regex>
 #include <algorithm>
+#include <list>
+#include <set>
+#include <unordered_map>
 
 #include "swoole_api.h"
 #include "swoole_string.h"
@@ -69,10 +72,6 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
     return read_bytes;
 }
 #endif
-
-#include <list>
-#include <set>
-#include <unordered_map>
 
 swGlobal_t SwooleG;
 __thread swThreadGlobal_t SwooleTG;
@@ -579,7 +578,7 @@ int swoole_tmpfile(char *filename) {
     }
 }
 
-long swoole_file_get_size(FILE *fp) {
+ssize_t swoole_file_get_size(FILE *fp) {
     long pos = ftell(fp);
     if (fseek(fp, 0L, SEEK_END) < 0) {
         return SW_ERR;
@@ -591,7 +590,7 @@ long swoole_file_get_size(FILE *fp) {
     return size;
 }
 
-long swoole_file_size(const char *filename) {
+ssize_t swoole_file_size(const char *filename) {
     struct stat file_stat;
     if (lstat(filename, &file_stat) < 0) {
         swSysWarn("lstat(%s) failed", filename);
@@ -653,20 +652,20 @@ swString *swoole_file_get_contents(const char *filename) {
     return content;
 }
 
-int swoole_file_put_contents(const char *filename, const char *content, size_t length) {
+bool swoole_file_put_contents(const char *filename, const char *content, size_t length) {
     if (length <= 0) {
         swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty");
-        return SW_ERR;
+        return false;
     }
     if (length > SW_MAX_FILE_CONTENT) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_FILE_TOO_LARGE, "content is too large");
-        return SW_ERR;
+        return false;
     }
 
     int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (fd < 0) {
         swSysWarn("open(%s) failed", filename);
-        return SW_ERR;
+        return false;
     }
 
     size_t n, chunk_size, written = 0;
@@ -689,7 +688,7 @@ int swoole_file_put_contents(const char *filename, const char *content, size_t l
         written += n;
     }
     close(fd);
-    return SW_OK;
+    return true;
 }
 
 size_t swoole_sync_readfile(int fd, void *buf, size_t len) {
@@ -973,141 +972,6 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length) {
     return match;
 }
 
-/**
- * DNS lookup
- */
-#ifdef HAVE_GETHOSTBYNAME2_R
-int swoole_gethostbyname(int flags, const char *name, char *addr) {
-    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
-    int index = 0;
-    int rc, err;
-    int buf_len = 256;
-    struct hostent hbuf;
-    struct hostent *result;
-
-    char *buf = (char *) sw_malloc(buf_len);
-    if (!buf) {
-        return SW_ERR;
-    }
-    memset(buf, 0, buf_len);
-    while ((rc = gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
-        buf_len *= 2;
-        char *tmp = (char *) sw_realloc(buf, buf_len);
-        if (nullptr == tmp) {
-            sw_free(buf);
-            return SW_ERR;
-        } else {
-            buf = tmp;
-        }
-    }
-
-    if (0 != rc || nullptr == result) {
-        sw_free(buf);
-        return SW_ERR;
-    }
-
-    union {
-        char v4[INET_ADDRSTRLEN];
-        char v6[INET6_ADDRSTRLEN];
-    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
-
-    int i = 0;
-    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++) {
-        if (hbuf.h_addr_list[i] == nullptr) {
-            break;
-        }
-        if (__af == AF_INET) {
-            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
-        } else {
-            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
-        }
-    }
-    if (__af == AF_INET) {
-        memcpy(addr, addr_list[index].v4, hbuf.h_length);
-    } else {
-        memcpy(addr, addr_list[index].v6, hbuf.h_length);
-    }
-
-    sw_free(buf);
-
-    return SW_OK;
-}
-#else
-int swoole_gethostbyname(int flags, const char *name, char *addr) {
-    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
-    int index = 0;
-
-    struct hostent *host_entry;
-    if (!(host_entry = gethostbyname2(name, __af))) {
-        return SW_ERR;
-    }
-
-    union {
-        char v4[INET_ADDRSTRLEN];
-        char v6[INET6_ADDRSTRLEN];
-    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
-
-    int i = 0;
-    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++) {
-        if (host_entry->h_addr_list[i] == nullptr) {
-            break;
-        }
-        if (__af == AF_INET) {
-            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
-        } else {
-            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
-        }
-    }
-    if (__af == AF_INET) {
-        memcpy(addr, addr_list[index].v4, host_entry->h_length);
-    } else {
-        memcpy(addr, addr_list[index].v6, host_entry->h_length);
-    }
-    return SW_OK;
-}
-#endif
-
-int swoole_getaddrinfo(swRequest_getaddrinfo *req) {
-    struct addrinfo *result = nullptr;
-    struct addrinfo *ptr = nullptr;
-    struct addrinfo hints;
-
-    sw_memset_zero(&hints, sizeof(hints));
-    hints.ai_family = req->family;
-    hints.ai_socktype = req->socktype;
-    hints.ai_protocol = req->protocol;
-
-    int ret = getaddrinfo(req->hostname, req->service, &hints, &result);
-    if (ret != 0) {
-        req->error = ret;
-        return SW_ERR;
-    }
-
-    void *buffer = req->result;
-    int i = 0;
-    for (ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
-        switch (ptr->ai_family) {
-        case AF_INET:
-            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
-            break;
-        case AF_INET6:
-            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
-            break;
-        default:
-            swWarn("unknown socket family[%d]", ptr->ai_family);
-            break;
-        }
-        i++;
-        if (i == SW_DNS_HOST_BUFFER_SIZE) {
-            break;
-        }
-    }
-    freeaddrinfo(result);
-    req->error = 0;
-    req->count = i;
-    return SW_OK;
-}
-
 SW_API int swoole_add_function(const char *name, void *func) {
     std::string _name(name);
     auto iter = functions.find(_name);
@@ -1137,7 +1001,7 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
     swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
-int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream) {
+int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream) {
     pid_t child_pid;
     int fds[2];
     if (pipe(fds) < 0) {
@@ -1196,71 +1060,6 @@ char *swoole_string_format(size_t n, const char *format, ...) {
     }
     sw_free(buf);
     return nullptr;
-}
-
-uint32_t swoole_utf8_decode(uchar **p, size_t n) {
-    size_t len;
-    uint32_t u, i, valid;
-
-    u = **p;
-
-    if (u >= 0xf0) {
-        u &= 0x07;
-        valid = 0xffff;
-        len = 3;
-    } else if (u >= 0xe0) {
-        u &= 0x0f;
-        valid = 0x7ff;
-        len = 2;
-    } else if (u >= 0xc2) {
-        u &= 0x1f;
-        valid = 0x7f;
-        len = 1;
-    } else {
-        (*p)++;
-        return 0xffffffff;
-    }
-
-    if (n - 1 < len) {
-        return 0xfffffffe;
-    }
-
-    (*p)++;
-
-    while (len) {
-        i = *(*p)++;
-        if (i < 0x80) {
-            return 0xffffffff;
-        }
-        u = (u << 6) | (i & 0x3f);
-        len--;
-    }
-
-    if (u > valid) {
-        return u;
-    }
-
-    return 0xffffffff;
-}
-
-size_t swoole_utf8_length(uchar *p, size_t n) {
-    uchar c, *last;
-    size_t len;
-
-    last = p + n;
-
-    for (len = 0; p < last; len++) {
-        c = *p;
-        if (c < 0x80) {
-            p++;
-            continue;
-        }
-        if (swoole_utf8_decode(&p, n) > 0x10ffff) {
-            /* invalid UTF-8 */
-            return n;
-        }
-    }
-    return len;
 }
 
 void swoole_random_string(char *buf, size_t size) {
@@ -1363,24 +1162,6 @@ size_t swDataHead::dump(char *_buf, size_t _len) {
                        server_fd);
 }
 
-/**
- * return the first file of the intersection, in order of vec1
- */
-std::string swoole::intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2) {
-    std::string result = "";
-
-    std::find_if(vec1.begin(), vec1.end(), [&](std::string &str) -> bool {
-        auto iter = std::find(vec2.begin(), vec2.end(), str);
-        if (iter != vec2.end()) {
-            result = *iter;
-            return true;
-        }
-        return false;
-    });
-
-    return result;
-}
-
 namespace swoole {
 //-------------------------------------------------------------------------------
 int hook_add(void **hooks, int type, const swCallback &func, int push_back) {
@@ -1403,6 +1184,24 @@ void hook_call(void **hooks, int type, void *arg) {
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);
     }
+}
+
+/**
+ * return the first file of the intersection, in order of vec1
+ */
+std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2) {
+    std::string result = "";
+
+    std::find_if(vec1.begin(), vec1.end(), [&](std::string &str) -> bool {
+        auto iter = std::find(vec2.begin(), vec2.end(), str);
+        if (iter != vec2.end()) {
+            result = *iter;
+            return true;
+        }
+        return false;
+    });
+
+    return result;
 }
 //-------------------------------------------------------------------------------
 };  // namespace swoole

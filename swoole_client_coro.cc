@@ -792,8 +792,6 @@ static PHP_METHOD(swoole_client_coro, recv) {
             } else {
                 result = sw_get_zend_string(strval);
             }
-        } else if (retval == 0) {
-            swString_clear(cli->get_read_buffer());
         }
     } else {
         result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);

@@ -1506,17 +1506,22 @@ ssize_t Socket::recv_packet(double timeout) {
         read_buffer->reduce(read_buffer->offset);
     }
 
+    ssize_t recv_bytes;
+
     if (open_length_check) {
-        return recv_packet_with_length_protocol();
+        recv_bytes = recv_packet_with_length_protocol();
     } else if (open_eof_check) {
-        return recv_packet_with_eof_protocol();
+        recv_bytes = recv_packet_with_eof_protocol();
     } else {
-        auto retval = recv(read_buffer->str, read_buffer->size);
-        if (retval > 0) {
-            read_buffer->length = read_buffer->offset = retval;
+        recv_bytes = recv(read_buffer->str, read_buffer->size);
+        if (recv_bytes > 0) {
+            read_buffer->length = read_buffer->offset = recv_bytes;
         }
-        return retval;
     }
+    if (recv_bytes <= 0) {
+        swString_clear(read_buffer);
+    }
+    return recv_bytes;
 }
 
 bool Socket::shutdown(int __how) {

@@ -201,6 +201,10 @@ struct TimerNode;
 namespace network {
 struct Socket;
 struct Address;
+struct GetaddrinfoRequest;
+}
+namespace async {
+struct Event;
 }
 struct Protocol;
 }
@@ -211,7 +215,9 @@ typedef swoole::Timer swTimer;
 typedef swoole::TimerNode swTimer_node;
 typedef swoole::network::Socket swSocket;
 typedef swoole::network::Address swSocketAddress;
+typedef swoole::network::GetaddrinfoRequest swRequest_getaddrinfo;
 typedef swoole::Protocol swProtocol;
+typedef swoole::async::Event swAio_event;
 
 struct swMsgQueue;
 struct swPipe;
@@ -396,8 +402,6 @@ struct swAllocator {
 #define swoole_tolower(c) (uchar)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
-uint32_t swoole_utf8_decode(uchar **p, size_t n);
-size_t swoole_utf8_length(uchar *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
 size_t swoole_random_bytes(char *buf, size_t size);
 
@@ -471,17 +475,6 @@ typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 
 enum swDNSLookup_cache_type {
     SW_DNS_LOOKUP_RANDOM = (1u << 11),
-};
-
-struct swRequest_getaddrinfo {
-    const char *hostname;
-    const char *service;
-    int family;
-    int socktype;
-    int protocol;
-    int error;
-    void *result;
-    int count;
 };
 
 #ifdef __MACH__
@@ -583,19 +576,17 @@ size_t swoole_sync_readfile(int fd, void *buf, size_t len);
 swString *swoole_sync_readfile_eof(int fd);
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
-long swoole_file_get_size(FILE *fp);
+ssize_t swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
 swString *swoole_file_get_contents(const char *filename);
-int swoole_file_put_contents(const char *filename, const char *content, size_t length);
-long swoole_file_size(const char *filename);
+bool swoole_file_put_contents(const char *filename, const char *content, size_t length);
+ssize_t swoole_file_size(const char *filename);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
 int swoole_ioctl_set_block(int sock, int nonblock);
 int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
-int swoole_gethostbyname(int type, const char *name, char *addr);
-int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char *swoole_string_format(size_t n, const char *format, ...);
 int swoole_get_systemd_listen_fds();
 
@@ -605,7 +596,7 @@ pid_t swoole_fork(int flags);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
-int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
+int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 
 struct swThreadGlobal_t {

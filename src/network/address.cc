@@ -16,6 +16,7 @@
 
 #include "swoole_socket.h"
 
+#include <netdb.h>
 #include <assert.h>
 #include <memory>
 
