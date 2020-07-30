@@ -867,7 +867,7 @@ PHP_METHOD(swoole_coroutine, stats) {
     add_assoc_long_ex(
         return_value, ZEND_STRL("signal_listener_num"), SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
     add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.aio_task_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swAio_thread_count());
+    add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swoole::async::thread_count());
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());

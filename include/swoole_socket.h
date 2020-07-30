@@ -24,6 +24,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include <string>
 #include <vector>
 
 #include "buffer.h"
@@ -49,6 +50,27 @@ struct swSendFile_request {
 namespace swoole {
 namespace network {
 
+struct GetaddrinfoRequest {
+    const char *hostname;
+    const char *service;
+    int family;
+    int socktype;
+    int protocol;
+    int error;
+    void *result;
+    int count;
+
+    void parse_result(std::vector<std::string> &retval);
+};
+
+struct SendfileRequest {
+    char *filename;
+    uint16_t name_len;
+    int fd;
+    size_t length;
+    off_t offset;
+};
+
 struct Address {
     union {
         struct sockaddr ss;
@@ -62,14 +84,11 @@ struct Address {
     bool assign(enum swSocket_type _type, const char *_host, int _port);
     const char *get_ip();
     int get_port();
-};
 
-struct SendFileTask {
-    char *filename;
-    uint16_t name_len;
-    int fd;
-    size_t length;
-    off_t offset;
+    static bool verify_ip(int __af, const std::string &str) {
+        char tmp_address[INET6_ADDRSTRLEN];
+        return inet_pton(__af, str.c_str(), tmp_address) != -1;
+    }
 };
 
 struct Socket {
@@ -208,19 +227,19 @@ struct Socket {
         return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
     }
 
-    ssize_t sendto_blocking(const void *buf, size_t n, int flag, struct sockaddr *addr, socklen_t addr_len);
+    ssize_t sendto_blocking(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
     ssize_t recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa);
 
-    inline ssize_t sendto(const char *dst_host, int dst_port, const char *data, uint32_t len) {
+    inline ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) {
         Address addr = {};
         if (!addr.assign(socket_type, dst_host, dst_port)) {
             return SW_ERR;
         }
-        return sendto(&addr, data, len);
+        return sendto(addr, data, len, flags);
     }
 
-    inline ssize_t sendto(Address *dst_addr, const char *data, uint32_t len) {
-        return ::sendto(fd, data, len, 0, &dst_addr->addr.ss, dst_addr->len);
+    inline ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) {
+        return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
     inline int catch_error(int err) {
@@ -288,6 +307,10 @@ struct Socket {
         return SW_OK;
     }
 };
+
+int gethostbyname(int type, const char *name, char *addr);
+int getaddrinfo(GetaddrinfoRequest *req);
+
 }  // namespace network
 network::Socket *make_socket(int fd, enum swFd_type type);
 network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type fdtype, int flags);
@@ -295,4 +318,5 @@ network::Socket *make_server_socket(enum swSocket_type type,
                                     const char *address,
                                     int port = 0,
                                     int backlog = SW_BACKLOG);
+bool verify_ip(int __af, const std::string &str);
 }  // namespace swoole

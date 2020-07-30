@@ -18,16 +18,22 @@
 
 #pragma once
 
+#include <vector>
+#include <string>
+
 #ifndef O_DIRECT
 #define O_DIRECT 040000
 #endif
 
-enum swAio_flag {
+enum flag {
     SW_AIO_WRITE_FSYNC = 1u << 1,
     SW_AIO_EOF = 1u << 2,
 };
 
-struct swAio_event {
+namespace swoole {
+namespace async {
+
+struct Event {
     int fd;
     size_t task_id;
     uint8_t lock;
@@ -51,28 +57,31 @@ struct swAio_event {
     swSocket *pipe_socket;
     double timestamp;
     void *object;
-    void (*handler)(swAio_event *event);
-    void (*callback)(swAio_event *event);
+    void (*handler)(Event *event);
+    void (*callback)(Event *event);
 };
 
-typedef void (*swAio_handler)(swAio_event *event);
+typedef void (*Handler)(Event *event);
 
-ssize_t swAio_dispatch(const swAio_event *request);
-swAio_event *swAio_dispatch2(const swAio_event *request);
-int swAio_cancel(int task_id);
-int swAio_callback(swReactor *reactor, swEvent *_event);
-size_t swAio_thread_count();
+ssize_t dispatch(const Event *request);
+Event *dispatch2(const Event *request);
+int cancel(int task_id);
+int callback(Reactor *reactor, swEvent *_event);
+size_t thread_count();
 
 #ifdef SW_DEBUG
-void swAio_notify_one();
+void notify_one();
 #endif
 
-void swAio_handler_fread(swAio_event *event);
-void swAio_handler_fwrite(swAio_event *event);
-void swAio_handler_read(swAio_event *event);
-void swAio_handler_write(swAio_event *event);
-void swAio_handler_gethostbyname(swAio_event *event);
-void swAio_handler_getaddrinfo(swAio_event *event);
-void swAio_handler_fgets(swAio_event *event);
-void swAio_handler_read_file(swAio_event *event);
-void swAio_handler_write_file(swAio_event *event);
+void handler_fread(Event *event);
+void handler_fwrite(Event *event);
+void handler_read(Event *event);
+void handler_write(Event *event);
+void handler_gethostbyname(Event *event);
+void handler_getaddrinfo(Event *event);
+void handler_fgets(Event *event);
+void handler_read_file(Event *event);
+void handler_write_file(Event *event);
+
+}};
+

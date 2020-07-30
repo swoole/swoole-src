@@ -19,6 +19,9 @@
 
 #include "test_core.h"
 
+using namespace swoole;
+using namespace std;
+
 TEST(base, DataHead_dump) {
     swDataHead data = {};
     data.fd = 123;
@@ -43,4 +46,61 @@ TEST(base, swoole_hex2dec) {
     ASSERT_EQ(n_parsed, 10);
     ASSERT_EQ(swoole_hex2dec("f", &n_parsed), 15);
     ASSERT_EQ(n_parsed, 1);
+}
+
+TEST(base, random_string) {
+    char buf[1024] = { };
+    swoole_random_string(buf, sizeof(buf) - 1);
+    ASSERT_EQ(strlen(buf), sizeof(buf) - 1);
+}
+
+TEST(base, file_put_contents) {
+    char buf[65536];
+    swoole_random_string(buf, sizeof(buf) - 1);
+    ASSERT_TRUE(swoole_file_put_contents(TEST_TMP_FILE, buf, sizeof(buf)));
+    String *result = swoole_file_get_contents(TEST_TMP_FILE);
+    ASSERT_STREQ(buf, result->value());
+    delete result;
+}
+
+TEST(base, version_compare) {
+    ASSERT_EQ(swoole_version_compare("1.2.1", "1.2.0"), 1);
+    ASSERT_EQ(swoole_version_compare("1.2.3", "1.3.0"), -1);
+    ASSERT_EQ(swoole_version_compare("1.2.3", "1.2.9"), -1);
+    ASSERT_EQ(swoole_version_compare("1.2.0", "1.2.0"), 0);
+}
+
+TEST(base, common_divisor) {
+    ASSERT_EQ(swoole_common_divisor(16, 12), 4);
+    ASSERT_EQ(swoole_common_divisor(6, 15), 3);
+    ASSERT_EQ(swoole_common_divisor(32, 16), 16);
+}
+
+TEST(base, common_multiple) {
+    ASSERT_EQ(swoole_common_multiple(16, 12), 48);
+    ASSERT_EQ(swoole_common_multiple(6, 15), 30);
+    ASSERT_EQ(swoole_common_multiple(32, 16), 32);
+}
+
+TEST(base, shell_exec) {
+    pid_t pid;
+    string str = "md5sum " + test::get_jpg_file();
+    int _pipe = swoole_shell_exec(str.c_str(), &pid, 0);
+    ASSERT_GT(_pipe, 0);
+    ASSERT_GT(pid, 0);
+    char buf[1024] = { };
+    ssize_t n = read(_pipe, buf, sizeof(buf) - 1);
+    ASSERT_GT(n, 0);
+    ASSERT_STREQ(string(buf).substr(0, sizeof(TEST_JPG_MD5SUM) -1).c_str(), TEST_JPG_MD5SUM);
+    close(_pipe);
+}
+
+TEST(base, file_size) {
+    auto file = test::get_jpg_file();
+    ssize_t file_size = swoole_file_size(file.c_str());
+    ASSERT_GT(file_size, 0);
+    auto fp = fopen(file.c_str(), "r+");
+    ASSERT_TRUE(fp);
+    ASSERT_EQ(swoole_file_get_size(fp), file_size);
+    fclose(fp);
 }

@@ -193,7 +193,7 @@ class Coroutine {
 };
 //-------------------------------------------------------------------------------
 namespace coroutine {
-bool async(swAio_handler handler, swAio_event &event, double timeout = -1);
+bool async(async::Handler handler, async::Event &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
 bool run(const coroutine_func_t &fn, void *arg = nullptr);
 }  // namespace coroutine

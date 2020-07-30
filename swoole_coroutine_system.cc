@@ -320,14 +320,14 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     ((char *) ev.buf)[length] = 0;
     ev.flags = 0;
     ev.object = context;
-    ev.handler = swAio_handler_fread;
+    ev.handler = swoole::async::handler_fread;
     ev.callback = aio_onReadCompleted;
     ev.fd = fd;
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     php_swoole_check_reactor();
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = swoole::async::dispatch(&ev);
     if (ret < 0) {
         efree(context);
         RETURN_FALSE;
@@ -386,14 +386,14 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
     ev.flags = 0;
     ev.object = context;
     ev.callback = aio_onFgetsCompleted;
-    ev.handler = swAio_handler_fgets;
+    ev.handler = swoole::async::handler_fgets;
     ev.fd = fd;
     ev.req = (void *) file;
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     php_swoole_check_reactor();
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = swoole::async::dispatch(&ev);
     if (ret < 0) {
         efree(context);
         RETURN_FALSE;
@@ -449,14 +449,14 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
 
     ev.flags = 0;
     ev.object = context;
-    ev.handler = swAio_handler_fwrite;
+    ev.handler = swoole::async::handler_fwrite;
     ev.callback = aio_onWriteCompleted;
     ev.fd = fd;
 
     swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
 
     php_swoole_check_reactor();
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = swoole::async::dispatch(&ev);
     if (ret < 0) {
         efree(context);
         RETURN_FALSE;

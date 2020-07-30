@@ -22,7 +22,7 @@
 using namespace std;
 using namespace swoole;
 
-char test_data[] = "hello swoole, hello world, php is best";
+const char test_data[] = "hello swoole, hello world, php is best";
 
 TEST(socket, sendto) {
     char sock1_path[] = "/tmp/udp_unix1.sock";
@@ -154,3 +154,109 @@ TEST(socket, sendfile_blocking) {
     t2.join();
     delete str;
 }
+
+TEST(socket, peek) {
+    char sock1_path[] = "/tmp/udp_unix1.sock";
+    char sock2_path[] = "/tmp/udp_unix2.sock";
+
+    unlink(sock1_path);
+    unlink(sock2_path);
+
+    auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock1->bind(sock1_path, nullptr);
+
+    auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock2->bind(sock2_path, nullptr);
+
+    ASSERT_GT(sock1->sendto(sock2_path, 0, test_data, strlen(test_data)), 0);
+
+    char buf[1024] = {};
+    ASSERT_GT(sock2->peek(buf, sizeof(buf), 0), 0);
+    ASSERT_STREQ(test_data, buf);
+
+    sw_memset_zero(buf, sizeof(buf));
+    ASSERT_GT(sock2->recv(buf, sizeof(buf), 0), 0);
+    ASSERT_STREQ(test_data, buf);
+
+    sock1->free();
+    sock2->free();
+    unlink(sock1_path);
+    unlink(sock2_path);
+}
+
+TEST(socket, sendto_blocking) {
+    char sock1_path[] = "/tmp/udp_unix1.sock";
+    unlink(sock1_path);
+    auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock1->bind(sock1_path, nullptr);
+    sock1->info.assign(SW_SOCK_UNIX_DGRAM, sock1_path, 0);
+
+    char sock2_path[] = "/tmp/udp_unix2.sock";
+    unlink(sock2_path);
+    auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock2->bind(sock2_path, nullptr);
+    sock2->info.assign(SW_SOCK_UNIX_DGRAM, sock2_path, 0);
+
+    char sendbuf[65536] = { };
+    swoole_random_string(sendbuf, sizeof(sendbuf) - 1);
+
+    thread t1([sock2, sendbuf]() {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        char recvbuf[65536] = {};
+        while(1) {
+            auto retval = sock2->recv(recvbuf, sizeof(recvbuf) - 1, 0);
+            recvbuf[retval] = 0;
+            if (retval == 3) {
+                ASSERT_STREQ(recvbuf, "end");
+                break;
+            } else {
+                ASSERT_STREQ(sendbuf, recvbuf);
+            }
+        }
+    });
+
+    for (int i = 0; i < 10; i++) {
+        ASSERT_GT(sock1->sendto_blocking(sock2->info, sendbuf, strlen(sendbuf)), 0);
+    }
+    ASSERT_GT(sock1->sendto_blocking(sock2->info, "end", 3), 0);
+
+    t1.join();
+
+    sock1->free();
+    sock2->free();
+    unlink(sock1_path);
+    unlink(sock2_path);
+}
+
+TEST(socket, clean) {
+    char sock1_path[] = "/tmp/udp_unix1.sock";
+    unlink(sock1_path);
+    auto sock1 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock1->bind(sock1_path, nullptr);
+    sock1->info.assign(SW_SOCK_UNIX_DGRAM, sock1_path, 0);
+
+    char sock2_path[] = "/tmp/udp_unix2.sock";
+    unlink(sock2_path);
+    auto sock2 = make_socket(SW_SOCK_UNIX_DGRAM, SW_FD_DGRAM_SERVER, 0);
+    sock2->bind(sock2_path, nullptr);
+    sock2->info.assign(SW_SOCK_UNIX_DGRAM, sock2_path, 0);
+
+    char sendbuf[65536] = { };
+    swoole_random_string(sendbuf, sizeof(sendbuf) - 1);
+
+    for (int i = 0; i < 3; i++) {
+        ASSERT_GT(sock1->sendto_blocking(sock2->info, sendbuf, strlen(sendbuf)), 0);
+    }
+
+    sock2->clean();
+    char recvbuf[1024];
+    auto retval = sock2->peek(recvbuf, sizeof(recvbuf), MSG_DONTWAIT);
+    ASSERT_EQ(retval, -1);
+
+    sock1->free();
+    sock2->free();
+    unlink(sock1_path);
+    unlink(sock2_path);
+}
+
+
