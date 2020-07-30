@@ -505,7 +505,7 @@ int ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
 }
 
 static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
-    uint32_t n;
+    ssize_t n;
     char *data;
 
     swQueue_data *outbuf = (swQueue_data *) pool->packet_buffer;

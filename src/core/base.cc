@@ -669,7 +669,8 @@ int swoole_file_put_contents(const char *filename, const char *content, size_t l
         return SW_ERR;
     }
 
-    size_t n, chunk_size, written = 0;
+    size_t chunk_size, written = 0;
+    ssize_t n = 0;
 
     while (written < length) {
         chunk_size = length - written;
