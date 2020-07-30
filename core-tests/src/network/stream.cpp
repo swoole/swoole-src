@@ -55,6 +55,10 @@ TEST(stream, send) {
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
         // bad request
+        auto stream0 = Stream::create(TEST_TMP_FILE, 0, SW_SOCK_UNIX_STREAM);
+        ASSERT_EQ(stream0, nullptr);
+
+        // bad request
         auto stream1 = Stream::create(TEST_HOST, 39999, SW_SOCK_TCP);
         ASSERT_TRUE(stream1);
         stream1->response = [](Stream *stream, const char *data, uint32_t length) {
