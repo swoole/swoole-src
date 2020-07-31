@@ -176,7 +176,7 @@ _do_recv:
             return SW_OK;
         } else {
         _do_get_length:
-            package_length = get_package_length(this, socket, buffer->str, buffer->length);
+            package_length = protocol->get_package_length(protocol, socket, buffer->str, buffer->length);
             // invalid package, close connection.
             if (package_length < 0) {
                 return SW_ERR;
