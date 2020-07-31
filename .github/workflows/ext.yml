@@ -28,6 +28,6 @@ jobs:
       run: brew install openssl && brew link openssl
     - uses: actions/checkout@v1
     - name: configure
-      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log
     - name: make
       run: make
