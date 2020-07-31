@@ -294,14 +294,16 @@ void handler_gethostbyname(Event *event) {
     int ret;
 
 #ifndef HAVE_GETHOSTBYNAME2_R
-    g_gethostbyname2_lock.lock();
+    static std::mutex lock;
+    lock.lock();
 #endif
 
     ret = swoole::network::gethostbyname(event->flags, (char *) event->buf, addr);
 
     sw_memset_zero(event->buf, event->nbytes);
+
 #ifndef HAVE_GETHOSTBYNAME2_R
-    g_gethostbyname2_lock.unlock();
+    lock.unlock();
 #endif
 
     if (ret < 0) {
