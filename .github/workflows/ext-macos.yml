@@ -1,4 +1,4 @@
-name: ext-swoole
+name: ext-swoole-macos
 
 on: [push, pull_request]
 
@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
         matrix:
-          os: [ubuntu-latest, macos-latest]
+          os: [macos-latest]
 
     steps:
     - uses: actions/checkout@v1
