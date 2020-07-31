@@ -323,10 +323,6 @@ static void domain_decode(char *str) {
 namespace swoole {
 namespace network {
 
-#ifndef HAVE_GETHOSTBYNAME2_R
-static std::mutex g_gethostbyname2_lock;
-#endif
-
 /**
  * DNS lookup
  */
