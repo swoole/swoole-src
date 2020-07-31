@@ -66,9 +66,9 @@ int swMqtt_unpack(swMqtt_packet *pkg, char *data, uint32_t size)
 #endif
 
 ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size) {
-    if ((size - 1) < SW_MQTT_PAYLOAD_LENGTH_SIZE) {
-        return 0;
-    }
+   // if ((size - 1) < SW_MQTT_PAYLOAD_LENGTH_SIZE) {
+   //     return 0;
+   // }
     ssize_t count = 0;
     ssize_t length = swMqtt_get_length(data, &count);
     return length + count + 1;
