@@ -221,7 +221,7 @@ bool Server::sendto(const string &ip, int port, const DataBuffer &data, int serv
     } else {
         server_socket = serv.get_server_socket(server_socket_fd);
     }
-    return server_socket->sendto((char *) ip.c_str(), port, (char *) data.buffer, data.length) > 0;
+    return server_socket->sendto(ip.c_str(), port, data.buffer, data.length) > 0;
 }
 
 bool Server::sendfile(int fd, string &file, off_t offset, size_t length) {

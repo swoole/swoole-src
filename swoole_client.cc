@@ -922,7 +922,7 @@ static PHP_METHOD(swoole_client, sendto) {
      * udg doesn't need to use ip and port, so we don't need to deal with SW_SOCK_UNIX_DGRAM
      */
     if (cli->type != SW_SOCK_UNIX_DGRAM) {
-        if (swoole_gethostbyname(cli->_sock_domain, host, addr) < 0) {
+        if (swoole::network::gethostbyname(cli->_sock_domain, host, addr) < 0) {
             swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             php_swoole_error(E_WARNING,
                              "sendto to server[%s:%d] failed. Error: %s[%d]",

@@ -57,7 +57,7 @@ TEST(client, udp) {
     Process proc([](Process *proc) {
         on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS) {
             swDgramPacket *packet = (swDgramPacket *) req->data;
-            SERVER_THIS->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
+            SERVER_THIS->sendto(packet->socket_addr, packet->data, packet->length, req->info.server_fd);
         };
 
         Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_UDP);

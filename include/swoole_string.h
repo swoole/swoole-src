@@ -169,7 +169,7 @@ class String {
 
     int append(int value);
 
-    size_t split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
+    ssize_t split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
     int append_random_bytes(size_t length, bool base64 = false);
     void print();
 

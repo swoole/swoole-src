@@ -163,7 +163,7 @@ int String::repeat(const char *data, size_t len, size_t n) {
  * 2. equal to zero, eof was not found in the target string
  * 3. greater than zero, 0 to retval has eof in the target string, and the position of retval is eof
  */
-size_t String::split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler) {
+ssize_t String::split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler) {
 #ifdef SW_LOG_TRACE_OPEN
     static int count;
     count++;

@@ -68,7 +68,7 @@ static sw_inline int swProtocol_split_package_by_eof(swProtocol *protocol, swSoc
 
     int retval;
 
-    size_t n = buffer->split(protocol->package_eof, protocol->package_eof_len, [&](const char *data, size_t length) -> int {
+    ssize_t n = buffer->split(protocol->package_eof, protocol->package_eof_len, [&](const char *data, size_t length) -> int {
         if (protocol->onPackage(protocol, socket, data, length) < 0) {
             retval = SW_CLOSE;
             return false;

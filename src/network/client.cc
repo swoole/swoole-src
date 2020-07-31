@@ -282,7 +282,7 @@ static int swClient_inet_addr(swClient *cli, const char *host, int port) {
         return SW_ERR;
     }
     if (!cli->async) {
-        if (swoole_gethostbyname(cli->_sock_domain, host, (char *) addr) < 0) {
+        if (swoole::network::gethostbyname(cli->_sock_domain, host, (char *) addr) < 0) {
             swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             return SW_ERR;
         }
@@ -309,7 +309,7 @@ void swClient_free(swClient *cli) {
     if (cli->async) {
         cli->socket->free();
     } else {
-        sw_free(cli->socket);
+        delete cli->socket;
     }
 }
 
@@ -540,10 +540,10 @@ static int swClient_tcp_connect_async(swClient *cli, const char *host, int port,
         ev.flags = cli->_sock_domain;
         ev.object = cli;
         ev.fd = cli->socket->fd;
-        ev.handler = swAio_handler_gethostbyname;
+        ev.handler = swoole::async::handler_gethostbyname;
         ev.callback = swClient_onResolveCompleted;
 
-        if (swAio_dispatch(&ev) < 0) {
+        if (swoole::async::dispatch(&ev) < 0) {
             sw_free(ev.buf);
             return SW_ERR;
         } else {
@@ -682,8 +682,7 @@ static int swClient_tcp_recv_no_buffer(swClient *cli, char *data, uint32_t len, 
             int timeout_ms = (int) (cli->timeout * 1000);
             if (cli->socket->ssl_want_read && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) == SW_OK) {
                 continue;
-            } else if (cli->socket->ssl_want_write &&
-                       cli->socket->wait_event(timeout_ms, SW_EVENT_WRITE) == SW_OK) {
+            } else if (cli->socket->ssl_want_write && cli->socket->wait_event(timeout_ms, SW_EVENT_WRITE) == SW_OK) {
                 continue;
             }
         }

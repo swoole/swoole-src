@@ -17,37 +17,40 @@
   +----------------------------------------------------------------------+
 */
 
-#include "test_coroutine.h"
+#include "test_core.h"
 
 #include "swoole_socket.h"
+#include "swoole_async.h"
 
-using namespace swoole;
-using namespace swoole::test;
+#include <atomic>
+
 using namespace std;
 
-TEST(dns, lookup) {
-    test::coroutine::run([](void *arg) {
-        auto list = swoole::coroutine::dns_lookup("www.baidu.com", 10);
-        ASSERT_GE(list.size(), 1);
-    });
+static int callback_count;
+
+static void aio_callback(swAio_event *event) {
+    callback_count++;
 }
 
-TEST(dns, getaddrinfo) {
-    char buf[1024] = { };
-    swRequest_getaddrinfo req = { };
-    req.hostname = "www.baidu.com";
-    req.family = AF_INET;
-    req.socktype = SOCK_STREAM;
-    req.protocol = 0;
-    req.service = nullptr;
-    req.result = buf;
-    ASSERT_EQ(network::getaddrinfo(&req), 0);
-    ASSERT_GT(req.count, 0);
+TEST(async, dispatch) {
+    atomic<int> handle_count(0);
+    swAio_event event = { };
+    event.object = &handle_count;
+    event.callback = aio_callback;
 
-    vector<string> ip_list;
-    req.parse_result(ip_list);
+    callback_count = 0;
 
-    for (auto &ip : ip_list) {
-        ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+    event.handler = [](swAio_event *event) { (*(atomic<int> *) event->object)++; };
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    for (int i = 0; i < 1000; ++i) {
+        auto ret = swoole::async::dispatch2(&event);
+        EXPECT_EQ(ret->object, event.object);
     }
+
+    swoole_event_wait();
+
+    ASSERT_EQ(handle_count, 1000);
+    ASSERT_EQ(callback_count, 1000);
 }
