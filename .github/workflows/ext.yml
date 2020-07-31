@@ -24,6 +24,8 @@ jobs:
   build-macos-latest:
     runs-on: macos-latest
     steps:
+    - name: install dependencies
+      run: brew install openssl
     - uses: actions/checkout@v1
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
