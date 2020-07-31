@@ -28,7 +28,7 @@ namespace swoole {
 namespace wrapper {
 //-----------------------------------namespace begin------------------------------------------------
 class ClientInfo {
-   public:
+  public:
     char address[256];
     int port;
     int server_socket;
@@ -94,7 +94,7 @@ enum {
 };
 
 class Server {
-   public:
+  public:
     Server(string _host, int _port, enum swServer_mode _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP);
 
     virtual ~Server(){};
@@ -114,7 +114,9 @@ class Server {
     DataBuffer taskwait(const DataBuffer &data, double timeout = SW_TASKWAIT_TIMEOUT, int dst_worker_id = -1);
     map<int, DataBuffer> taskWaitMulti(const vector<DataBuffer> &data, double timeout = SW_TASKWAIT_TIMEOUT);
 
-    int getLastError() { return swoole_get_last_error(); }
+    int getLastError() {
+        return swoole_get_last_error();
+    }
 
     virtual void onStart() = 0;
     virtual void onShutdown() = 0;
@@ -128,7 +130,7 @@ class Server {
     virtual void onTask(int, int, const DataBuffer &) = 0;
     virtual void onFinish(int, const DataBuffer &) = 0;
 
-   public:
+  public:
     static int _onReceive(swServer *serv, swRecvData *req);
     static int _onPacket(swServer *serv, swRecvData *req);
     static void _onConnect(swServer *serv, swDataHead *info);
@@ -141,10 +143,10 @@ class Server {
     static int _onTask(swServer *serv, swEventData *task);
     static int _onFinish(swServer *serv, swEventData *task);
 
-   private:
+  private:
     int check_task_param(int dst_worker_id);
 
-   protected:
+  protected:
     swServer serv;
     string host;
     int port;

@@ -291,20 +291,8 @@ void handler_write(Event *event) {
 
 void handler_gethostbyname(Event *event) {
     char addr[SW_IP_MAX_LENGTH];
-    int ret;
-
-#ifndef HAVE_GETHOSTBYNAME2_R
-    static std::mutex lock;
-    lock.lock();
-#endif
-
-    ret = swoole::network::gethostbyname(event->flags, (char *) event->buf, addr);
-
+    int ret = swoole::network::gethostbyname(event->flags, (char *) event->buf, addr);
     sw_memset_zero(event->buf, event->nbytes);
-
-#ifndef HAVE_GETHOSTBYNAME2_R
-    lock.unlock();
-#endif
 
     if (ret < 0) {
         event->error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;

@@ -937,7 +937,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp)) {
         sock->open_length_check = zval_is_true(ztmp);
-        sock->protocol.get_package_length = swProtocol_get_package_length;
+        sock->protocol.get_package_length = Protocol::default_length_func;
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
@@ -964,9 +964,9 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
         do {
-            swProtocol_length_function func;
+            Protocol::LengthFunc func;
             if (Z_TYPE_P(ztmp) == IS_STRING &&
-                (func = (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)))) {
+                (func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp))))) {
                 sock->protocol.get_package_length = func;
             } else {
                 char *func_name;

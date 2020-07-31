@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 #include "coroutine_socket.h"
+
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -323,6 +325,10 @@ static void domain_decode(char *str) {
 namespace swoole {
 namespace network {
 
+#ifndef HAVE_GETHOSTBYNAME2_R
+static mutex g_gethostbyname2_lock;
+#endif
+
 /**
  * DNS lookup
  */
@@ -386,6 +392,8 @@ int gethostbyname(int flags, const char *name, char *addr) {
 int gethostbyname(int flags, const char *name, char *addr) {
     int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
     int index = 0;
+
+    lock_guard<mutex> _lock(g_gethostbyname2_lock);
 
     struct hostent *host_entry;
     if (!(host_entry = ::gethostbyname2(name, __af))) {

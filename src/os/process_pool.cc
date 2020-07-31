@@ -27,6 +27,7 @@
 #include "client.h"
 
 using swoole::ProcessPool;
+using swoole::network::Stream;
 
 /**
  * call onTask
@@ -226,13 +227,14 @@ int ProcessPool::dispatch(swEventData *data, int *dst_worker_id) {
     swWorker *worker;
 
     if (use_socket) {
-        swStream *stream = swStream_new(stream_info_->socket_file, 0, SW_SOCK_UNIX_STREAM);
-        if (stream == nullptr) {
+        Stream *stream = Stream::create(stream_info_->socket_file, 0, SW_SOCK_UNIX_STREAM);
+        if (!stream) {
             return SW_ERR;
         }
         stream->response = nullptr;
-        if (swStream_send(stream, (char *) data, sizeof(data->info) + data->info.len) < 0) {
+        if (stream->send((char *) data, sizeof(data->info) + data->info.len) < 0) {
             stream->cancel = 1;
+            delete stream;
             return SW_ERR;
         }
         return SW_OK;
@@ -265,8 +267,8 @@ int ProcessPool::dispatch_blocking(swEventData *data, int *dst_worker_id) {
     int sendn = sizeof(data->info) + data->info.len;
 
     if (use_socket) {
-        swClient _socket;
-        if (swClient_create(&_socket, SW_SOCK_UNIX_STREAM, SW_SOCK_SYNC) < 0) {
+        swoole::network::Client _socket(SW_SOCK_UNIX_STREAM, false);
+        if (!_socket.socket) {
             return SW_ERR;
         }
         if (_socket.connect(&_socket, stream_info_->socket_file, 0, -1, 0) < 0) {
@@ -275,7 +277,7 @@ int ProcessPool::dispatch_blocking(swEventData *data, int *dst_worker_id) {
         if (_socket.send(&_socket, (char *) data, sendn, 0) < 0) {
             return SW_ERR;
         }
-        _socket.close(&_socket);
+        _socket.close();
         return SW_OK;
     }
 
@@ -428,7 +430,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
                 }
             }
 
-            n = swStream_recv_blocking(conn, (void *) &out.buf, sizeof(out.buf));
+            n = Stream::recv_blocking(conn, (void *) &out.buf, sizeof(out.buf));
             if (n == SW_CLOSE) {
                 conn->free();
                 continue;

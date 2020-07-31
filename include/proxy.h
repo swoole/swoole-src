@@ -16,8 +16,6 @@
 
 #pragma once
 
-struct swClient;
-
 #define SW_SOCKS5_VERSION_CODE 0x05
 
 enum swHttp_proxy_state {
@@ -81,4 +79,4 @@ static sw_inline void swSocks5_pack(char *buf, int method) {
 }
 
 const char *swSocks5_strerror(int code);
-int swSocks5_connect(swClient *cli, char *recv_data, int length);
+int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length);

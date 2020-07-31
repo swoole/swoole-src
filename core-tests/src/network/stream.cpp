@@ -21,7 +21,7 @@
 #include "swoole_log.h"
 
 using namespace std;
-using namespace swoole;
+using namespace swoole::network;
 
 TEST(stream, send) {
     swServer serv;
@@ -37,7 +37,7 @@ TEST(stream, send) {
     }
 
     port->open_length_check = true;
-    swStream_set_protocol(&port->protocol);
+    Stream::set_protocol(&port->protocol);
 
     mutex lock;
     lock.lock();
@@ -55,23 +55,29 @@ TEST(stream, send) {
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
         // bad request
-        auto stream1 = swStream_new(TEST_HOST, 39999, SW_SOCK_TCP);
-        stream1->response = [](swStream *stream, const char *data, uint32_t length) {
+        auto stream0 = Stream::create(TEST_TMP_FILE, 0, SW_SOCK_UNIX_STREAM);
+        ASSERT_EQ(stream0, nullptr);
+
+        // bad request
+        auto stream1 = Stream::create(TEST_HOST, 39999, SW_SOCK_TCP);
+        ASSERT_TRUE(stream1);
+        stream1->response = [](Stream *stream, const char *data, uint32_t length) {
             EXPECT_EQ(data, nullptr);
             EXPECT_EQ(stream->errCode, ECONNREFUSED);
         };
-        ASSERT_EQ(swStream_send(stream1, buf, sizeof(buf)), SW_OK);
+        ASSERT_EQ(stream1->send(buf, sizeof(buf)), SW_OK);
 
         // success requset
-        auto stream2 = swStream_new(TEST_HOST, TEST_PORT, SW_SOCK_TCP);
+        auto stream2 = Stream::create(TEST_HOST, TEST_PORT, SW_SOCK_TCP);
+        ASSERT_TRUE(stream2);
         stream2->private_data = new string(buf, sizeof(buf));
-        stream2->response = [](swStream *stream, const char *data, uint32_t length) {
+        stream2->response = [](Stream *stream, const char *data, uint32_t length) {
             string *buf = (string *) stream->private_data;
             string pkt = string("Server: ") + *buf;
             EXPECT_EQ(string(data, length), pkt);
             delete buf;
         };
-        ASSERT_EQ(swStream_send(stream2, buf, sizeof(buf)), SW_OK);
+        ASSERT_EQ(stream2->send(buf, sizeof(buf)), SW_OK);
 
         swoole_event_wait();
 

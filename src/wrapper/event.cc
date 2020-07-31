@@ -29,6 +29,7 @@
 using namespace std;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::network::Client;
 
 static mutex init_lock;
 
@@ -51,7 +52,7 @@ int swoole_event_init(int flags) {
 
     Socket::init_reactor(reactor);
     System::init_reactor(reactor);
-    swClient_init_reactor(reactor);
+    Client::init_reactor(reactor);
 
     SwooleTG.reactor = reactor;
 
