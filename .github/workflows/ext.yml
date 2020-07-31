@@ -3,29 +3,29 @@ name: ext-swoole
 on: [push, pull_request]
 
 jobs:
-	build-ubuntu-latest:
-		runs-on: ubuntu-latest
-		steps:
-		- uses: actions/checkout@v1
-		- name: configure
-		  run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
-		- name: make
-		  run: make
+  build-ubuntu-latest:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
+    - name: make
+      run: make
 
-	build-ubuntu-old:
-		runs-on: ubuntu-16.04
-		steps:
-        - uses: actions/checkout@v1
-        - name: configure
-          run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
-        - name: make
-          run: make
+  build-ubuntu-old:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
+    - name: make
+      run: make
 
-    build-macos-latest:
-        runs-on: macos-latest
-        steps:
-        - uses: actions/checkout@v1
-        - name: configure
-          run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
-        - name: make
-          run: make
+  build-macos-latest:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
+    - name: make
+      run: make
