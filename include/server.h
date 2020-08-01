@@ -1080,7 +1080,7 @@ class Server {
     int send_to_connection(swSendData *);
     ssize_t send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
     ssize_t send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
-    int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
+    ssize_t send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, swEventData *current_task);
 
     bool send(int session_id, const void *data, uint32_t length);

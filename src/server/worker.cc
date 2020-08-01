@@ -594,7 +594,7 @@ int Server::start_event_worker(swWorker *worker) {
 /**
  * Send data to ReactorThread
  */
-int Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id) {
+ssize_t Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id) {
     swSocket *pipe_sock = get_reactor_thread_pipe(session_id, ev_data->info.reactor_id);
     if (SwooleTG.reactor) {
         return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, ev_data, sendn);

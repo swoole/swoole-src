@@ -1103,7 +1103,7 @@ bool Server::notify(Connection *conn, int event) {
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
     notify_event.server_fd = conn->server_fd;
-    return factory.notify(&factory, &notify_event) == SW_OK;
+    return factory.notify(&factory, &notify_event);
 }
 
 /**
@@ -1159,7 +1159,7 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
     send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
     send_data.data = _buffer;
 
-    return factory.finish(&factory, &send_data) == SW_OK;
+    return factory.finish(&factory, &send_data);
 }
 
 /**
