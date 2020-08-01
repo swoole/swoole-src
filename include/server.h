@@ -536,9 +536,7 @@ class Server {
     uint32_t max_request = 0;
     uint32_t max_request_grace = 0;
 
-    network::Socket *udp_socket_ipv4 = nullptr;
-    network::Socket *udp_socket_ipv6 = nullptr;
-    network::Socket *dgram_socket = nullptr;
+    network::Socket *server_socket = nullptr;
     int null_fd = -1;
 
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;

@@ -92,7 +92,7 @@ int Server::send(int session_id, const void *data, uint32_t length) {
 ssize_t Server::sendto(const Address &address, const char *__buf, size_t __n, int server_socket_fd) {
     network::Socket *server_socket;
     if (server_socket_fd < 0) {
-        server_socket = serv.udp_socket_ipv6 ? serv.udp_socket_ipv6 : serv.udp_socket_ipv4;
+        server_socket = serv.server_socket;
     } else {
         server_socket = serv.get_server_socket(server_socket_fd);
     }

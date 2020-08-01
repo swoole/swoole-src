@@ -2762,7 +2762,7 @@ static PHP_METHOD(swoole_server, send) {
 
     // UNIX DGRAM SOCKET
     if (serv->have_dgram_sock && Z_TYPE_P(zfd) == IS_STRING && Z_STRVAL_P(zfd)[0] == '/') {
-        network::Socket *sock = server_socket == -1 ? serv->dgram_socket : serv->get_server_socket(server_socket);
+        network::Socket *sock = server_socket == -1 ? serv->server_socket : serv->get_server_socket(server_socket);
         if (sock == nullptr) {
             RETURN_FALSE;
         }
@@ -2817,17 +2817,17 @@ static PHP_METHOD(swoole_server, sendto) {
         ipv6 = 1;
     }
 
-    if (ipv6 == 0 && !serv->udp_socket_ipv4) {
+    if (ipv6 == 0 && !serv->server_socket) {
         php_swoole_fatal_error(E_WARNING, "UDP listener has to be added before executing sendto");
         RETURN_FALSE;
-    } else if (ipv6 == 1 && !serv->udp_socket_ipv6) {
+    } else if (ipv6 == 1 && !serv->server_socket) {
         php_swoole_fatal_error(E_WARNING, "UDP6 listener has to be added before executing sendto");
         RETURN_FALSE;
     }
 
     network::Socket *server_socket = nullptr;
     if (server_socket_fd < 0) {
-        server_socket = ipv6 ? serv->udp_socket_ipv6 : serv->udp_socket_ipv4;
+        server_socket = serv->server_socket;
     } else {
         server_socket = serv->get_server_socket(server_socket_fd);
     }

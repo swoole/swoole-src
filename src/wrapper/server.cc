@@ -208,16 +208,16 @@ bool Server::sendto(const string &ip, int port, const DataBuffer &data, int serv
         ipv6 = true;
     }
 
-    if (ipv6 && serv.udp_socket_ipv6 == nullptr) {
+    if (ipv6 && serv.server_socket == nullptr) {
         return false;
-    } else if (serv.udp_socket_ipv4  == nullptr) {
+    } else if (serv.server_socket  == nullptr) {
         swWarn("You must add an UDP listener to server before using sendto");
         return false;
     }
 
     network::Socket *server_socket;
     if (server_socket_fd < 0) {
-        server_socket = ipv6 ? serv.udp_socket_ipv6 : serv.udp_socket_ipv4;
+        server_socket = serv.server_socket;
     } else {
         server_socket = serv.get_server_socket(server_socket_fd);
     }

@@ -1361,13 +1361,7 @@ void Server::check_port_type(swListenPort *ls) {
         ls->socket->set_buffer_size(ls->socket_buffer_size);
         have_dgram_sock = 1;
         dgram_port_num++;
-        if (ls->type == SW_SOCK_UDP) {
-            udp_socket_ipv4 = ls->socket;
-        } else if (ls->type == SW_SOCK_UDP6) {
-            udp_socket_ipv6 = ls->socket;
-        } else if (ls->type == SW_SOCK_UNIX_DGRAM) {
-            dgram_socket = ls->socket;
-        }
+        server_socket = ls->socket;
     } else {
         have_stream_sock = 1;
     }
