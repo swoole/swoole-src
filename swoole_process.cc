@@ -461,8 +461,8 @@ static PHP_METHOD(swoole_process, statQueue) {
         RETURN_FALSE;
     }
 
-    int queue_num = -1;
-    int queue_bytes = -1;
+    size_t queue_num = -1;
+    size_t queue_bytes = -1;
     if (swMsgQueue_stat(process->queue, &queue_num, &queue_bytes) == 0) {
         array_init(return_value);
         add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), queue_num);

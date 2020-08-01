@@ -73,8 +73,8 @@ TEST(server, send_buffer) {
 
         swString resp(1024 * 1024 * 16);
         resp.repeat("A", 1, resp.capacity());
-        serv->send(serv, req->info.fd, resp.value(), resp.get_length());
-        serv->close(serv, req->info.fd, 0);
+        EXPECT_TRUE(serv->send(req->info.fd, resp.value(), resp.get_length()));
+        EXPECT_TRUE(serv->close(req->info.fd, 0));
 
         return SW_OK;
     };

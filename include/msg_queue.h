@@ -33,8 +33,8 @@ struct swMsgQueue {
 
 int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, int perms);
 void swMsgQueue_set_blocking(swMsgQueue *q, uint8_t blocking);
-int swMsgQueue_set_capacity(swMsgQueue *q, int queue_bytes);
+int swMsgQueue_set_capacity(swMsgQueue *q, size_t queue_bytes);
 ssize_t swMsgQueue_push(swMsgQueue *q, swQueue_data *in, size_t data_length);
 ssize_t swMsgQueue_pop(swMsgQueue *q, swQueue_data *out, size_t buffer_length);
-int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes);
+int swMsgQueue_stat(swMsgQueue *q, size_t *queue_num, size_t *queue_bytes);
 int swMsgQueue_free(swMsgQueue *q);
