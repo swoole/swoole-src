@@ -20,9 +20,9 @@
 #include "pipe.h"
 #include "swoole_log.h"
 
-static int swPipeUnsock_read(swPipe *p, void *data, int length);
-static int swPipeUnsock_write(swPipe *p, const void *data, int length);
-static int swPipeUnsock_close(swPipe *p);
+static ssize_t swPipeUnsock_read(swPipe *p, void *data, size_t length);
+static ssize_t swPipeUnsock_write(swPipe *p, const void *data, size_t length);
+static void swPipeUnsock_close(swPipe *p);
 
 struct swPipeUnsock {
     /**
@@ -40,11 +40,10 @@ struct swPipeUnsock {
     bool pipe_worker_closed;
 };
 
-static int swPipeUnsock_close(swPipe *p) {
+static void swPipeUnsock_close(swPipe *p) {
     swPipeUnsock *object = (swPipeUnsock *) p->object;
-    int ret = swPipeUnsock_close_ext(p, 0);
+    swPipeUnsock_close_ext(p, 0);
     delete object;
-    return ret;
 }
 
 int swPipeUnsock_close_ext(swPipe *p, int which) {
@@ -66,8 +65,6 @@ int swPipeUnsock_close_ext(swPipe *p, int which) {
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_MASTER);
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_WORKER);
     }
-
-    return SW_OK;
 }
 
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
@@ -97,10 +94,10 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
     return 0;
 }
 
-static int swPipeUnsock_read(swPipe *p, void *data, int length) {
+static ssize_t swPipeUnsock_read(swPipe *p, void *data, size_t length) {
     return read(((swPipeUnsock *) p->object)->socks[0], data, length);
 }
 
-static int swPipeUnsock_write(swPipe *p, const void *data, int length) {
+static ssize_t swPipeUnsock_write(swPipe *p, const void *data, size_t length) {
     return write(((swPipeUnsock *) p->object)->socks[1], data, length);
 }
