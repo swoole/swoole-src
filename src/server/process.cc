@@ -26,15 +26,16 @@ struct swFactoryProcess {
 typedef int (*send_func_t)(swServer *, swPipeBuffer *, size_t, void *);
 
 static int swFactoryProcess_start(swFactory *factory);
-static int swFactoryProcess_notify(swFactory *factory, swDataHead *event);
-static int swFactoryProcess_dispatch(swFactory *factory, swSendData *data);
-static int swFactoryProcess_finish(swFactory *factory, swSendData *data);
 static int swFactoryProcess_shutdown(swFactory *factory);
-static int swFactoryProcess_end(swFactory *factory, int fd);
 static void swFactoryProcess_free(swFactory *factory);
 static int swFactoryProcess_create_pipes(swFactory *factory);
 
-static int process_send_packet(
+static bool swFactoryProcess_notify(swFactory *factory, swDataHead *event);
+static bool swFactoryProcess_dispatch(swFactory *factory, swSendData *data);
+static bool swFactoryProcess_finish(swFactory *factory, swSendData *data);
+static bool swFactoryProcess_end(swFactory *factory, int fd);
+
+static bool process_send_packet(
     swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void *private_data);
 static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
 static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
@@ -190,7 +191,7 @@ static int swFactoryProcess_start(swFactory *factory) {
 /**
  * [ReactorThread] notify info to worker process
  */
-static int swFactoryProcess_notify(swFactory *factory, swDataHead *ev) {
+static bool swFactoryProcess_notify(swFactory *factory, swDataHead *ev) {
     swSendData task;
     task.info = *ev;
     task.data = nullptr;
@@ -208,7 +209,7 @@ static inline int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size
 /**
  * [ReactorThread] dispatch request to worker
  */
-static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
+static bool swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
     swServer *serv = (swServer *) factory->ptr;
     int fd = task->info.fd;
 
@@ -216,13 +217,13 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
     if (target_worker_id < 0) {
         switch (target_worker_id) {
         case SW_DISPATCH_RESULT_DISCARD_PACKET:
-            return SW_ERR;
+            return false;
         case SW_DISPATCH_RESULT_CLOSE_CONNECTION:
             // TODO: close connection
-            return SW_ERR;
+            return false;
         default:
             swWarn("invalid target worker id[%d]", target_worker_id);
-            return SW_ERR;
+            return false;
         }
     }
 
@@ -230,13 +231,13 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
         swConnection *conn = serv->get_connection(fd);
         if (conn == nullptr || conn->active == 0) {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
-            return SW_ERR;
+            return false;
         }
         // server active close, discard data.
         if (conn->closed) {
             // Connection has been clsoed by server
             if (!(task->info.type == SW_SERVER_EVENT_CLOSE && conn->close_force)) {
-                return SW_OK;
+                return true;
             }
         }
         // converted fd to session_id
@@ -270,7 +271,7 @@ static int swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
  *  If the data sent is larger than swServer::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
  * @return: send success returns SW_OK, send failure returns SW_ERR.
  */
-static int process_send_packet(
+static bool process_send_packet(
     swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void *private_data) {
     const char *data = resp->data;
     uint32_t send_n = resp->info.len;
@@ -291,7 +292,7 @@ static int process_send_packet(
             goto _ipc_use_chunk;
         }
 #endif
-        return retval < 0 ? SW_ERR : SW_OK;
+        return retval >= 0;
     }
 
 #ifdef __linux__
@@ -319,14 +320,14 @@ _ipc_use_chunk:
                 continue;
             }
 #endif
-            return SW_ERR;
+            return false;
         }
 
         send_n -= copy_n;
         offset += copy_n;
     }
 
-    return SW_OK;
+    return true;
 }
 
 static bool inline process_is_supported_send_yield(swServer *serv, swConnection *conn) {
@@ -340,7 +341,7 @@ static bool inline process_is_supported_send_yield(swServer *serv, swConnection 
 /**
  * [Worker] send to client, proxy by reactor
  */
-static int swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
+static bool swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
     swServer *serv = (swServer *) factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
@@ -354,7 +355,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
                          "please use the sendfile, chunked transfer mode or adjust the output_buffer_size",
                          resp->info.len,
                          serv->output_buffer_size);
-        return SW_ERR;
+        return false;
     }
 
     int session_id = resp->info.fd;
@@ -366,14 +367,14 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
     }
     if (!conn) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", session_id);
-        return SW_ERR;
+        return false;
     } else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_CLOSED,
                          "send %d byte failed, because connection[fd=%d] is closed",
                          resp->info.len,
                          session_id);
-        return SW_ERR;
+        return false;
     } else if (conn->overflow) {
         if (serv->send_yield && process_is_supported_send_yield(serv, conn)) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
@@ -383,7 +384,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
                              "send failed, connection[fd=%d] output buffer has been overflowed",
                              session_id);
         }
-        return SW_ERR;
+        return false;
     }
 
     /**
@@ -394,15 +395,15 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
         int _header = htonl(_len + sizeof(resp->info));
         if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, (char *) &_header, sizeof(_header)) <
             0) {
-            return SW_ERR;
+            return false;
         }
         if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, &resp->info, sizeof(resp->info)) < 0) {
-            return SW_ERR;
+            return false;
         }
         if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, resp->data, _len) < 0) {
-            return SW_ERR;
+            return false;
         }
-        return SW_OK;
+        return true;
     }
 
     swPipeBuffer *buf = object->send_buffer;
@@ -417,7 +418,7 @@ static int swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
     return process_send_packet(serv, buf, resp, process_sendto_reactor, conn);
 }
 
-static int swFactoryProcess_end(swFactory *factory, int fd) {
+static bool swFactoryProcess_end(swFactory *factory, int fd) {
     swServer *serv = (swServer *) factory->ptr;
     swSendData _send = {};
     swDataHead info = {};
@@ -429,14 +430,14 @@ static int swFactoryProcess_end(swFactory *factory, int fd) {
     swConnection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
-        return SW_ERR;
+        return false;
     } else if (conn->close_force) {
         goto _do_close;
     } else if (conn->closing) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The connection[%d] is closing", fd);
-        return SW_ERR;
+        return false;
     } else if (conn->closed) {
-        return SW_ERR;
+        return false;
     } else {
     _do_close:
         conn->closing = 1;

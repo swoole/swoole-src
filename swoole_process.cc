@@ -804,7 +804,7 @@ static PHP_METHOD(swoole_process, write) {
         RETURN_FALSE;
     }
 
-    int ret;
+    ssize_t ret;
 
     // async write
     if (SwooleTG.reactor) {

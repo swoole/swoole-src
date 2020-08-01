@@ -34,9 +34,9 @@ static int Client_inet_addr(Client *cli, const char *host, int port);
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double _timeout, int udp_connect);
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock);
 
-static int Client_tcp_send_sync(Client *cli, const char *data, size_t length, int flags);
-static int Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags);
-static int Client_udp_send(Client *cli, const char *data, size_t length, int flags);
+static ssize_t Client_tcp_send_sync(Client *cli, const char *data, size_t length, int flags);
+static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags);
+static ssize_t Client_udp_send(Client *cli, const char *data, size_t length, int flags);
 
 static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t offset, size_t length);
 static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t offset, size_t length);
@@ -580,7 +580,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     return ret;
 }
 
-static int Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags) {
+static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags) {
     int n = length;
     if (swoole_event_write(cli->socket, data, length) < 0) {
         if (swoole_get_last_error() == SW_ERROR_OUTPUT_BUFFER_OVERFLOW) {
@@ -598,7 +598,7 @@ static int Client_tcp_send_async(Client *cli, const char *data, size_t length, i
     return n;
 }
 
-static int Client_tcp_send_sync(Client *cli, const char *data, size_t length, int flags) {
+static ssize_t Client_tcp_send_sync(Client *cli, const char *data, size_t length, int flags) {
     size_t written = 0;
     ssize_t n;
 
@@ -775,7 +775,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     }
 }
 
-static int Client_udp_send(Client *cli, const char *data, size_t len, int flags) {
+static ssize_t Client_udp_send(Client *cli, const char *data, size_t len, int flags) {
     ssize_t n = sendto(cli->socket->fd, data, len, 0, (struct sockaddr *) &cli->server_addr.addr, cli->server_addr.len);
     if (n < 0 || n < (ssize_t) len) {
         return SW_ERR;

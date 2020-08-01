@@ -606,7 +606,7 @@ int Server::send_to_reactor_thread(swEventData *ev_data, size_t sendn, int sessi
 /**
  * send message from worker to another worker
  */
-int Server::send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags) {
+ssize_t Server::send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags) {
     return swWorker_send_pipe_message(dst_worker, buf, len, flags);
 }
 
@@ -686,7 +686,7 @@ _read_from_pipe:
     return SW_ERR;
 }
 
-int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags) {
+ssize_t swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags) {
     swSocket *pipe_sock;
 
     if (flags & SW_PIPE_MASTER) {

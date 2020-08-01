@@ -1325,7 +1325,7 @@ int php_swoole_onReceive(swServer *serv, swRecvData *req) {
 
         if (UNEXPECTED(!zend::function::call(fci_cache, 4, args, nullptr, SwooleG.enable_coroutine))) {
             php_swoole_error(E_WARNING, "%s->onReceive handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
-            serv->close(serv, req->info.fd, false);
+            serv->close(req->info.fd, false);
         }
         zval_ptr_dtor(&args[3]);
     }
@@ -1822,11 +1822,11 @@ static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro
         if (length == 0) {
             goto _fail;
         }
-        int ret = serv->send(serv, fd, data, length);
-        if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield) {
+        bool ret = serv->send(fd, data, length);
+        if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD && serv->send_yield) {
             return SW_CONTINUE;
         }
-        ZVAL_BOOL(&result, ret == SW_OK);
+        ZVAL_BOOL(&result, ret);
     }
 
     if (context->timer) {
@@ -2734,7 +2734,6 @@ static PHP_METHOD(swoole_server, send) {
         RETURN_FALSE;
     }
 
-    int ret;
     zend_long fd;
     zval *zfd;
     zval *zdata;
@@ -2766,8 +2765,7 @@ static PHP_METHOD(swoole_server, send) {
         if (sock == nullptr) {
             RETURN_FALSE;
         }
-        ret = sock->sendto(Z_STRVAL_P(zfd), 0, data, length);
-        SW_CHECK_RETURN(ret);
+        RETURN_BOOL(sock->sendto(Z_STRVAL_P(zfd), 0, data, length) > 0);
     }
 
     fd = zval_get_long(zfd);
@@ -2775,12 +2773,12 @@ static PHP_METHOD(swoole_server, send) {
         php_swoole_fatal_error(E_WARNING, "invalid fd[" ZEND_LONG_FMT "]", fd);
         RETURN_FALSE;
     }
-    ret = serv->send(serv, fd, data, length);
-    if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
+    bool ret = serv->send(fd, data, length);
+    if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         zval_add_ref(zdata);
         php_swoole_server_send_yield(serv, fd, zdata, return_value);
     } else {
-        SW_CHECK_RETURN(ret);
+        RETURN_BOOL(ret);
     }
 }
 
@@ -2861,7 +2859,7 @@ static PHP_METHOD(swoole_server, sendfile) {
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(serv->sendfile(serv, (int) fd, filename, len, offset, length));
+    RETURN_BOOL(serv->sendfile((int) fd, filename, len, offset, length));
 }
 
 static PHP_METHOD(swoole_server, close) {
@@ -2885,7 +2883,7 @@ static PHP_METHOD(swoole_server, close) {
     Z_PARAM_BOOL(reset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    SW_CHECK_RETURN(serv->close(serv, (int) fd, reset));
+    RETURN_BOOL(serv->close((int) fd, reset));
 }
 
 static PHP_METHOD(swoole_server, pause) {
@@ -2901,7 +2899,7 @@ static PHP_METHOD(swoole_server, pause) {
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(serv->feedback(serv, fd, SW_SERVER_EVENT_PAUSE_RECV));
+    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_PAUSE_RECV));
 }
 
 static PHP_METHOD(swoole_server, resume) {
@@ -2917,7 +2915,7 @@ static PHP_METHOD(swoole_server, resume) {
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(serv->feedback(serv, fd, SW_SERVER_EVENT_RESUME_RECV));
+    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_RESUME_RECV));
 }
 
 static PHP_METHOD(swoole_server, stats) {
@@ -3697,7 +3695,7 @@ static PHP_METHOD(swoole_server, sendwait) {
         RETURN_FALSE;
     }
 
-    SW_CHECK_RETURN(serv->sendwait(serv, fd, data, length));
+    RETURN_BOOL(serv->sendwait(fd, data, length));
 }
 
 static PHP_METHOD(swoole_server, exists) {

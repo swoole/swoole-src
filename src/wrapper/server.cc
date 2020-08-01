@@ -52,7 +52,7 @@ bool Server::send(int fd, const DataBuffer &data) {
     if (data.length <= 0) {
         return false;
     }
-    return serv.send(&serv, fd, (char *) data.buffer, data.length) == 0;
+    return serv.send(fd, (char *) data.buffer, data.length) == 0;
 }
 
 bool Server::send(int fd, const char *data, int length) {
@@ -62,7 +62,7 @@ bool Server::send(int fd, const char *data, int length) {
     if (length <= 0) {
         return false;
     }
-    return serv.send(&serv, fd, (char *) data, length) == SW_OK;
+    return serv.send(fd, (char *) data, length) == SW_OK;
 }
 
 bool Server::close(int fd, bool reset) {
@@ -73,7 +73,7 @@ bool Server::close(int fd, bool reset) {
         return false;
     }
 
-    swConnection *conn = serv.get_connection_verify_no_ssl(fd);
+    Connection *conn = serv.get_connection_verify_no_ssl(fd);
     if (!conn) {
         return false;
     }
@@ -83,18 +83,16 @@ bool Server::close(int fd, bool reset) {
         conn->close_reset = 1;
     }
 
-    int ret;
     if (!swIsWorker()) {
         swWorker *worker = serv.get_worker(conn->fd % serv.worker_num);
-        swDataHead ev;
+        swDataHead ev = {};
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = fd;
         ev.reactor_id = conn->reactor_id;
-        ret = swWorker_send_pipe_message(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        return swWorker_send_pipe_message(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
     } else {
-        ret = serv.factory.end(&serv.factory, fd);
+        return serv.factory.end(&serv.factory, fd);
     }
-    return ret == SW_OK;
 }
 
 static int task_id = 0;
@@ -239,7 +237,7 @@ bool Server::sendfile(int fd, string &file, off_t offset, size_t length) {
         swWarn("file[offset=%jd] is empty", (intmax_t) offset);
         return false;
     }
-    return serv.sendfile(&serv, fd, (char *) file.c_str(), file.length(), offset, length) == SW_OK;
+    return serv.sendfile(fd, (char *) file.c_str(), file.length(), offset, length) == SW_OK;
 }
 
 bool Server::sendMessage(int worker_id, DataBuffer &data) {
@@ -289,7 +287,7 @@ bool Server::sendwait(int fd, const DataBuffer &data) {
         swWarn("cannot sendwait");
         return false;
     }
-    return serv.sendwait(&serv, fd, data.buffer, data.length) == 0;
+    return serv.sendwait(fd, data.buffer, data.length) == 0;
 }
 
 bool Server::start(void) {

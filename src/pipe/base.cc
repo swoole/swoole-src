@@ -40,6 +40,7 @@ int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking) {
     p->worker_socket = swoole::make_socket(worker_fd, SW_FD_PIPE);
     if (p->worker_socket == nullptr) {
         p->master_socket->free();
+        close(worker_fd);
         goto _error;
     }
 

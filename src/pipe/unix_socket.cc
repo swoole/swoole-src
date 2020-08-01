@@ -65,6 +65,8 @@ int swPipeUnsock_close_ext(swPipe *p, int which) {
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_MASTER);
         swPipeUnsock_close_ext(p, SW_PIPE_CLOSE_WORKER);
     }
+
+    return SW_OK;
 }
 
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {

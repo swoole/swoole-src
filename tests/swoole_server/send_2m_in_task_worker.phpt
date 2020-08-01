@@ -64,7 +64,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $serv->on('task', function (Server $serv, Server\Task $task) {
         $send_data = str_repeat('A', SIZE - 12) . substr($task->data['data'], -8, 8);
-        $serv->send($task->data['fd'], pack('N', strlen($send_data)) . $send_data);
+        Assert::true($serv->send($task->data['fd'], pack('N', strlen($send_data)) . $send_data));
     });
     $serv->start();
 };

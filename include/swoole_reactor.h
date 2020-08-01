@@ -152,10 +152,10 @@ class Reactor {
         return exit_conditions.find(id) != exit_conditions.end();
     }
     inline bool isset_handler(int fdtype) { return read_handler[fdtype] != nullptr; }
-    int set_handler(int _fdtype, swReactor_handler handler);
+    bool set_handler(int _fdtype, swReactor_handler handler);
     void add_destroy_callback(swCallback cb, void *data = nullptr);
     void execute_end_callbacks(bool timedout = false);
-    int drain_write_buffer(swSocket *socket);
+    void drain_write_buffer(swSocket *socket);
 
     inline int add_event(swSocket *_socket, enum swEvent_type event_type) {
         if (!(_socket->events & event_type)) {
