@@ -33,6 +33,7 @@ namespace swoole { namespace network {
 static int Client_inet_addr(Client *cli, const char *host, int port);
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double _timeout, int udp_connect);
 static int Client_tcp_connect_async(Client *cli, const char *host, int port, double timeout, int nonblock);
+static int Client_udp_connect(Client *cli, const char *host, int port, double _timeout, int udp_connect);
 
 static ssize_t Client_tcp_send_sync(Client *cli, const char *data, size_t length, int flags);
 static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags);
@@ -40,9 +41,9 @@ static ssize_t Client_udp_send(Client *cli, const char *data, size_t length, int
 
 static int Client_tcp_sendfile_sync(Client *cli, const char *filename, off_t offset, size_t length);
 static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t offset, size_t length);
-static int Client_tcp_recv_no_buffer(Client *cli, char *data, uint32_t len, int flags);
-static int Client_udp_connect(Client *cli, const char *host, int port, double _timeout, int udp_connect);
-static int Client_udp_recv(Client *cli, char *data, uint32_t len, int waitall);
+
+static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, int flags);
+static ssize_t Client_udp_recv(Client *cli, char *data, size_t len, int waitall);
 
 static int Client_onDgramRead(Reactor *reactor, swEvent *event);
 static int Client_onStreamRead(Reactor *reactor, swEvent *event);
@@ -651,8 +652,8 @@ static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t of
 /**
  * Only for synchronous client
  */
-static int Client_tcp_recv_no_buffer(Client *cli, char *data, uint32_t len, int flag) {
-    int ret;
+static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, int flag) {
+    ssize_t ret;
 
     while (1) {
 #ifdef HAVE_KQUEUE
@@ -784,7 +785,7 @@ static ssize_t Client_udp_send(Client *cli, const char *data, size_t len, int fl
     }
 }
 
-static int Client_udp_recv(Client *cli, char *data, uint32_t length, int flags) {
+static ssize_t Client_udp_recv(Client *cli, char *data, size_t length, int flags) {
 #ifdef HAVE_KQUEUE
     if (!cli->async) {
         int timeout_ms = (int) (cli->timeout * 1000);
@@ -793,7 +794,7 @@ static int Client_udp_recv(Client *cli, char *data, uint32_t length, int flags) 
         }
     }
 #endif
-    int ret = cli->socket->recvfrom(data, length, flags, &cli->remote_addr);
+    ssize_t ret = cli->socket->recvfrom(data, length, flags, &cli->remote_addr);
     if (ret < 0) {
         if (errno == EINTR) {
             ret = cli->socket->recvfrom(data, length, flags, &cli->remote_addr);

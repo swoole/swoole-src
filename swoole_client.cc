@@ -873,7 +873,7 @@ static PHP_METHOD(swoole_client, send) {
 
     // clear errno
     swoole_set_last_error(0);
-    int ret = cli->send(cli, data, data_len, flags);
+    ssize_t ret = cli->send(cli, data, data_len, flags);
     if (ret < 0) {
         php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
         zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), swoole_get_last_error());
@@ -938,7 +938,7 @@ static PHP_METHOD(swoole_client, sendto) {
     double ori_timeout = Socket::default_write_timeout;
     Socket::default_write_timeout = cli->timeout;
 
-    int ret = -1;
+    ssize_t ret = -1;
     if (Socket::is_dgram(cli->type)) {
         ret = cli->socket->sendto(ip, port, data, len);
     } else {
