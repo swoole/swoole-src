@@ -59,19 +59,19 @@ class Logger {
     int log_rotation = SW_LOG_ROTATION_SINGLE;
 
   public:
-    int open(const char *logfile);
+    bool open(const char *logfile);
     void put(int level, const char *content, size_t length);
     void reopen();
     void close(void);
     void reset();
     void set_level(int lv);
     int get_level();
-    int set_date_format(const char *format);
+    bool set_date_format(const char *format);
     void set_rotation(int rotation);
     const char *get_real_file();
     const char *get_file();
-    int is_opened();
-    int redirect_stdout_and_stderr(int enable);
+    bool is_opened();
+    bool redirect_stdout_and_stderr(int enable);
     void set_date_with_microseconds(bool enable);
     static std::string gen_real_file(const std::string &file);
 };
