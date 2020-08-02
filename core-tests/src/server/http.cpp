@@ -43,7 +43,7 @@ struct http_context {
     void response(enum swHttp_status_code code, string body) {
         response_headers["Content-Length"] = to_string(body.length());
         response(code);
-        server->send(server, fd, body.c_str(), body.length());
+        server->send(fd, body.c_str(), body.length());
     }
 
     void response(int code) {
@@ -56,7 +56,7 @@ struct http_context {
             swString_append_ptr(buf, SW_STRL("\r\n"));
         }
         swString_append_ptr(buf, SW_STRL("\r\n"));
-        server->send(server, fd, buf->str, buf->length);
+        server->send(fd, buf->str, buf->length);
         swString_free(buf);
     }
 };
@@ -121,7 +121,7 @@ static void test_run_server(function<void(swServer *)> fn) {
             swString_clear(SwooleTG.buffer_stack);
             std::string resp = "Swoole: " + string(req->data, req->info.len);
             swWebSocket_encode(SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN );
-            serv->send(serv, session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
+            serv->send(session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
             return SW_OK;
         }
 

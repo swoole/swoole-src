@@ -80,7 +80,7 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
     }
 
     if (serv->onConnect) {
-        serv->notify(serv, (swConnection *) _socket->object, SW_SERVER_EVENT_CONNECT);
+        serv->notify((Connection *) _socket->object, SW_SERVER_EVENT_CONNECT);
     }
 _delay_receive:
     if (serv->enable_delay_receive) {
@@ -203,7 +203,7 @@ _do_recvfrom:
     task.info.len = sizeof(*pkt) + ret;
     task.data = (char *) pkt;
 
-    if (factory->dispatch(factory, &task) < 0) {
+    if (!factory->dispatch(factory, &task)) {
         return SW_ERR;
     } else {
         goto _do_recvfrom;
@@ -464,7 +464,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, swEvent *ev) {
     return SW_OK;
 }
 
-int Server::send_to_worker_from_master(swWorker *worker, const void *data, size_t len) {
+ssize_t Server::send_to_worker_from_master(swWorker *worker, const void *data, size_t len) {
     if (SwooleTG.reactor) {
         ReactorThread *thread = get_thread(SwooleTG.id);
         swSocket *socket = &thread->pipe_sockets[worker->pipe_master->fd];
@@ -651,7 +651,7 @@ static int ReactorThread_onWrite(Reactor *reactor, swEvent *ev) {
             return Server::close_connection(reactor, socket);
         }
 #endif
-        serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
+        serv->notify(conn, SW_SERVER_EVENT_CLOSE);
         conn->close_notify = 0;
         return SW_OK;
     } else if (serv->disable_notify && conn->close_force) {
@@ -688,7 +688,7 @@ static int ReactorThread_onWrite(Reactor *reactor, swEvent *ev) {
         swListenPort *port = serv->get_port_by_fd(fd);
         if (socket->out_buffer->length <= port->buffer_low_watermark) {
             conn->high_watermark = 0;
-            serv->notify(serv, conn, SW_SERVER_EVENT_BUFFER_EMPTY);
+            serv->notify(conn, SW_SERVER_EVENT_BUFFER_EMPTY);
         }
     }
 
@@ -1035,7 +1035,7 @@ int Server::dispatch_task(swProtocol *proto, swSocket *_socket, const char *data
         task.info.fd = conn->fd;
         task.info.len = length;
         task.data = data;
-        if (serv->factory.dispatch(&serv->factory, &task) < 0) {
+        if (!serv->factory.dispatch(&serv->factory, &task)) {
             return SW_ERR;
         }
         if (serv->max_queued_bytes && length > 0) {

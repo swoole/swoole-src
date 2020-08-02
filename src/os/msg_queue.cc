@@ -56,8 +56,8 @@ int swMsgQueue_create(swMsgQueue *q, int blocking, key_t msg_key, int perms) {
     return 0;
 }
 
-int swMsgQueue_pop(swMsgQueue *q, swQueue_data *data, int length) {
-    int ret = msgrcv(q->msg_id, data, length, data->mtype, q->flags);
+ssize_t swMsgQueue_pop(swMsgQueue *q, swQueue_data *data, size_t length) {
+    ssize_t ret = msgrcv(q->msg_id, data, length, data->mtype, q->flags);
     if (ret < 0) {
         swoole_set_last_error(errno);
         if (errno != ENOMSG && errno != EINTR) {
@@ -67,7 +67,7 @@ int swMsgQueue_pop(swMsgQueue *q, swQueue_data *data, int length) {
     return ret;
 }
 
-int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length) {
+ssize_t swMsgQueue_push(swMsgQueue *q, swQueue_data *in, size_t length) {
     int ret;
 
     while (1) {
@@ -89,7 +89,7 @@ int swMsgQueue_push(swMsgQueue *q, swQueue_data *in, int length) {
     return 0;
 }
 
-int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes) {
+int swMsgQueue_stat(swMsgQueue *q, size_t *queue_num, size_t *queue_bytes) {
     struct msqid_ds __stat;
     if (msgctl(q->msg_id, IPC_STAT, &__stat) == 0) {
         *queue_num = __stat.msg_qnum;
@@ -100,7 +100,7 @@ int swMsgQueue_stat(swMsgQueue *q, int *queue_num, int *queue_bytes) {
     }
 }
 
-int swMsgQueue_set_capacity(swMsgQueue *q, int queue_bytes) {
+int swMsgQueue_set_capacity(swMsgQueue *q, size_t queue_bytes) {
     struct msqid_ds __stat;
     if (msgctl(q->msg_id, IPC_STAT, &__stat) != 0) {
         return -1;

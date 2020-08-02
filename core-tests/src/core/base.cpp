@@ -58,9 +58,8 @@ TEST(base, file_put_contents) {
     char buf[65536];
     swoole_random_string(buf, sizeof(buf) - 1);
     ASSERT_TRUE(swoole_file_put_contents(TEST_TMP_FILE, buf, sizeof(buf)));
-    String *result = swoole_file_get_contents(TEST_TMP_FILE);
+    auto result = swoole_file_get_contents(TEST_TMP_FILE);
     ASSERT_STREQ(buf, result->value());
-    delete result;
 }
 
 TEST(base, version_compare) {

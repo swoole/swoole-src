@@ -93,7 +93,6 @@ void my_onWorkerStop(swServer *serv, int worker_id) {
 }
 
 int my_onReceive(swServer *serv, swRecvData *req) {
-    int ret;
     char req_data[SW_IPC_BUFFER_SIZE];
     char resp_data[SW_IPC_BUFFER_SIZE];
 
@@ -112,8 +111,7 @@ int my_onReceive(swServer *serv, swRecvData *req) {
 
     int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req_data);
 
-    ret = serv->send(serv, req->info.fd, resp_data, n);
-    if (ret < 0) {
+    if (!serv->send(req->info.fd, resp_data, n)) {
         swNotice("send to client fail. errno=%d", errno);
     } else {
         swNotice("send %d bytes to client success. data=%s", n, resp_data);

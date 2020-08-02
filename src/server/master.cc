@@ -32,14 +32,6 @@ Server *g_server_instance = nullptr;
 
 static void Server_signal_handler(int sig);
 
-static int Server_tcp_send(Server *serv, int session_id, const void *data, uint32_t length);
-static int Server_tcp_sendwait(Server *serv, int session_id, const void *data, uint32_t length);
-static int Server_tcp_close(Server *serv, int session_id, bool reset);
-static int Server_tcp_sendfile(
-    Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
-static int Server_tcp_notify(Server *serv, swConnection *conn, int event);
-static int Server_tcp_feedback(Server *serv, int session_id, int event);
-
 static void **Server_worker_create_buffers(Server *serv, uint32_t buffer_num);
 static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void **buffers);
 static void *Server_worker_get_buffer(Server *serv, swDataHead *info);
@@ -567,16 +559,6 @@ int Server::start() {
     gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
-    /**
-     * init method
-     */
-    send = Server_tcp_send;
-    sendwait = Server_tcp_sendwait;
-    sendfile = Server_tcp_sendfile;
-    close = Server_tcp_close;
-    notify = Server_tcp_notify;
-    feedback = Server_tcp_feedback;
-
     workers = (swWorker *) sw_shm_calloc(worker_num, sizeof(swWorker));
     if (workers == nullptr) {
         swSysWarn("gmalloc[server->workers] failed");
@@ -871,10 +853,10 @@ void Server::destroy() {
 /**
  * worker to master process
  */
-static int Server_tcp_feedback(Server *serv, int session_id, int event) {
-    swConnection *conn = serv->get_connection_verify(session_id);
+bool Server::feedback(int session_id, int event) {
+    Connection *conn = get_connection_verify(session_id);
     if (!conn) {
-        return SW_ERR;
+        return false;
     }
 
     swSendData _send;
@@ -883,10 +865,10 @@ static int Server_tcp_feedback(Server *serv, int session_id, int event) {
     _send.info.fd = session_id;
     _send.info.reactor_id = conn->reactor_id;
 
-    if (serv->factory_mode == SW_MODE_PROCESS) {
-        return serv->send_to_reactor_thread((swEventData *) &_send.info, sizeof(_send.info), session_id);
+    if (factory_mode == SW_MODE_PROCESS) {
+        return send_to_reactor_thread((swEventData *) &_send.info, sizeof(_send.info), session_id) > 0;
     } else {
-        return serv->send_to_connection(&_send);
+        return send_to_connection(&_send) == SW_OK;
     }
 }
 
@@ -909,26 +891,26 @@ void Server::store_pipe_fd(swPipe *p) {
  * @process Worker
  * @return SW_OK or SW_ERR
  */
-static int Server_tcp_send(Server *serv, int session_id, const void *data, uint32_t length) {
+bool Server::send(int session_id, const void *data, uint32_t length) {
     swSendData _send;
     sw_memset_zero(&_send.info, sizeof(_send.info));
-    swFactory *factory = &(serv->factory);
 
     if (sw_unlikely(swIsMaster())) {
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
-        return SW_ERR;
+        return false;
     }
 
     _send.info.fd = session_id;
     _send.info.type = SW_SERVER_EVENT_RECV_DATA;
     _send.data = (char *) data;
     _send.info.len = length;
-    return factory->finish(factory, &_send);
+    return factory.finish(&factory, &_send);
 }
 
 /**
  * [Master] send to client or append to out_buffer
+ * @return SW_OK or SW_ERR
  */
 int Server::send_to_connection(swSendData *_send) {
     uint32_t session_id = _send->info.fd;
@@ -1048,7 +1030,7 @@ int Server::send_to_connection(swSendData *_send) {
             if (!_socket->out_buffer) {
                 _socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
                 if (_socket->out_buffer == nullptr) {
-                    return SW_ERR;
+                    return false;
                 }
             }
         }
@@ -1059,7 +1041,7 @@ int Server::send_to_connection(swSendData *_send) {
     if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
         chunk = swBuffer_new_chunk(_socket->out_buffer, SW_CHUNK_CLOSE, 0);
         if (chunk == nullptr) {
-            return SW_ERR;
+            return false;
         }
         chunk->store.data.val1 = _send->info.type;
         conn->close_queued = 1;
@@ -1068,7 +1050,7 @@ int Server::send_to_connection(swSendData *_send) {
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
         swSendFile_request *req = (swSendFile_request *) _send_data;
         if (conn->socket->sendfile(req->filename, req->offset, req->length) < 0) {
-            return SW_ERR;
+            return false;
         }
     }
     // send data
@@ -1076,7 +1058,7 @@ int Server::send_to_connection(swSendData *_send) {
         // connection is closed
         if (conn->peer_closed) {
             swWarn("connection#%d is closed by client", fd);
-            return SW_ERR;
+            return false;
         }
         // connection output buffer overflow
         if (_socket->out_buffer->length >= _socket->buffer_size) {
@@ -1094,12 +1076,12 @@ int Server::send_to_connection(swSendData *_send) {
 
         if (swBuffer_append(_socket->out_buffer, _send_data, _send_length) < 0) {
             swWarn("append to pipe_buffer failed");
-            return SW_ERR;
+            return false;
         }
 
         swListenPort *port = get_port_by_fd(fd);
         if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length >= port->buffer_high_watermark) {
-            notify(this, conn, SW_SERVER_EVENT_BUFFER_FULL);
+            notify(conn, SW_SERVER_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
         }
     }
@@ -1115,30 +1097,29 @@ int Server::send_to_connection(swSendData *_send) {
 /**
  * use in master process
  */
-static int Server_tcp_notify(Server *serv, swConnection *conn, int event) {
+bool Server::notify(Connection *conn, int event) {
     swDataHead notify_event = {};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
     notify_event.server_fd = conn->server_fd;
-    return serv->factory.notify(&serv->factory, &notify_event);
+    return factory.notify(&factory, &notify_event);
 }
 
 /**
  * @process Worker
  * @return SW_OK or SW_ERR
  */
-static int Server_tcp_sendfile(
-    Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
+bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
     if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d]", session_id);
-        return SW_ERR;
+        return false;
     }
 
     if (sw_unlikely(swIsMaster())) {
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
-        return SW_ERR;
+        return false;
     }
 
     char _buffer[SW_IPC_BUFFER_SIZE];
@@ -1152,7 +1133,7 @@ static int Server_tcp_sendfile(
                          file,
                          l_file,
                          (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
-        return SW_ERR;
+        return false;
     }
     // string must be zero termination (for `state` system call)
     char *_file = strncpy((char *) req->filename, file, l_file);
@@ -1162,11 +1143,11 @@ static int Server_tcp_sendfile(
     struct stat file_stat;
     if (stat(_file, &file_stat) < 0) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed", _file);
-        return SW_ERR;
+        return false;
     }
     if (file_stat.st_size <= offset) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty", (long) offset);
-        return SW_ERR;
+        return false;
     }
     req->offset = offset;
     req->length = length;
@@ -1178,23 +1159,23 @@ static int Server_tcp_sendfile(
     send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
     send_data.data = _buffer;
 
-    return serv->factory.finish(&serv->factory, &send_data) < 0 ? SW_ERR : SW_OK;
+    return factory.finish(&factory, &send_data);
 }
 
 /**
  * [Worker] Returns the number of bytes sent
  */
-static int Server_tcp_sendwait(Server *serv, int session_id, const void *data, uint32_t length) {
-    swConnection *conn = serv->get_connection_verify(session_id);
+bool Server::sendwait(int session_id, const void *data, uint32_t length) {
+    Connection *conn = get_connection_verify(session_id);
     if (!conn) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_CLOSED,
                          "send %d byte failed, because session#%d is closed",
                          length,
                          session_id);
-        return SW_ERR;
+        return false;
     }
-    return conn->socket->send_blocking(data, length);
+    return conn->socket->send_blocking(data, length) == length;
 }
 
 static sw_inline void Server_worker_set_buffer(Server *serv, swDataHead *info, swString *addr) {
@@ -1256,14 +1237,14 @@ void Server::call_hook(enum swServer_hook_type type, void *arg) {
 /**
  * [Worker]
  */
-static int Server_tcp_close(Server *serv, int session_id, bool reset) {
+bool Server::close(int session_id, bool reset) {
     if (sw_unlikely(swIsMaster())) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
-        return SW_ERR;
+        return false;
     }
-    swConnection *conn = serv->get_connection_verify_no_ssl(session_id);
+    swConnection *conn = get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        return SW_ERR;
+        return false;
     }
     // Reset send buffer, Immediately close the connection.
     if (reset) {
@@ -1273,30 +1254,28 @@ static int Server_tcp_close(Server *serv, int session_id, bool reset) {
     conn->close_actively = 1;
     swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
 
-    int retval;
     swWorker *worker;
     swDataHead ev = {};
 
-    if (serv->is_mode_dispatch_mode()) {
-        int worker_id = serv->schedule_worker(conn->fd, nullptr);
+    if (is_mode_dispatch_mode()) {
+        int worker_id = schedule_worker(conn->fd, nullptr);
         if (worker_id != (int) SwooleG.process_id) {
-            worker = serv->get_worker(worker_id);
+            worker = get_worker(worker_id);
             goto _notify;
         } else {
             goto _close;
         }
     } else if (!swIsWorker()) {
-        worker = serv->get_worker(conn->fd % serv->worker_num);
+        worker = get_worker(conn->fd % worker_num);
     _notify:
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = session_id;
         ev.reactor_id = conn->reactor_id;
-        retval = serv->send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        return send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
     } else {
     _close:
-        retval = serv->factory.end(&serv->factory, session_id);
+        return factory.end(&factory, session_id);
     }
-    return retval;
 }
 
 void Server::init_signal_handler() {

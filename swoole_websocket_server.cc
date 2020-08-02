@@ -283,7 +283,7 @@ void swoole_websocket_onOpen(swServer *serv, http_context *ctx) {
         args[1] = *ctx->request.zobject;
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine))) {
             php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
-            serv->close(serv, ctx->fd, 0);
+            serv->close(ctx->fd, 0);
         }
     }
 }
@@ -585,7 +585,7 @@ int swoole_websocket_onMessage(swServer *serv, swRecvData *req) {
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
-        serv->close(serv, fd, 0);
+        serv->close(fd, false);
     }
 
     zval_ptr_dtor(&zdata);
@@ -600,7 +600,7 @@ int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, http_contex
     if (success) {
         swoole_websocket_onOpen(serv, ctx);
     } else {
-        serv->close(serv, fd, 1);
+        serv->close(fd, true);
     }
     return SW_OK;
 }
@@ -703,10 +703,10 @@ void php_swoole_websocket_server_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("WEBSOCKET_CLOSE_TLS", WEBSOCKET_CLOSE_TLS);
 }
 
-static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swString *buffer) {
+static sw_inline bool swoole_websocket_server_push(swServer *serv, int fd, swString *buffer) {
     if (sw_unlikely(fd <= 0)) {
         php_swoole_fatal_error(E_WARNING, "fd[%d] is invalid", fd);
-        return SW_ERR;
+        return false;
     }
 
     swConnection *conn = serv->get_connection_by_session_id(fd);
@@ -714,25 +714,25 @@ static sw_inline int swoole_websocket_server_push(swServer *serv, int fd, swStri
         swoole_set_last_error(SW_ERROR_WEBSOCKET_UNCONNECTED);
         php_swoole_fatal_error(
             E_WARNING, "the connected client of connection[%d] is not a websocket client or closed", (int) fd);
-        return SW_ERR;
+        return false;
     }
 
-    int ret = serv->send(serv, fd, buffer->str, buffer->length);
-    if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
+    bool ret = serv->send(fd, buffer->str, buffer->length);
+    if (!ret && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         zval _return_value;
         zval *return_value = &_return_value;
         zval _yield_data;
         ZVAL_STRINGL(&_yield_data, buffer->str, buffer->length);
         ZVAL_FALSE(return_value);
         php_swoole_server_send_yield(serv, fd, &_yield_data, return_value);
-        ret = Z_BVAL_P(return_value) ? SW_OK : SW_ERR;
+        ret = Z_BVAL_P(return_value);
     }
     return ret;
 }
 
-static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swString *buffer, uint8_t real_close) {
-    int ret = swoole_websocket_server_push(serv, fd, buffer);
-    if (ret < 0 || !real_close) {
+static sw_inline bool swoole_websocket_server_close(swServer *serv, int fd, swString *buffer, bool real_close) {
+    bool ret = swoole_websocket_server_push(serv, fd, buffer);
+    if (!ret || !real_close) {
         return ret;
     }
     swConnection *conn = serv->get_connection_by_session_id(fd);
@@ -740,9 +740,9 @@ static sw_inline int swoole_websocket_server_close(swServer *serv, int fd, swStr
         // Change status immediately to avoid double close
         conn->websocket_status = WEBSOCKET_STATUS_CLOSING;
         // Server close connection immediately
-        return serv->close(serv, fd, false);
+        return serv->close(fd, false);
     } else {
-        return SW_ERR;
+        return false;
     }
 }
 
@@ -765,7 +765,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect) {
     if (swWebSocket_pack_close_frame(swoole_http_buffer, code, data, length, 0) < 0) {
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(swoole_websocket_server_close(serv, fd, swoole_http_buffer, 1));
+    RETURN_BOOL(swoole_websocket_server_close(serv, fd, swoole_http_buffer, 1));
 }
 
 static PHP_METHOD(swoole_websocket_server, push) {
@@ -818,10 +818,10 @@ static PHP_METHOD(swoole_websocket_server, push) {
 
     switch (opcode) {
     case WEBSOCKET_OPCODE_CLOSE:
-        SW_CHECK_RETURN(swoole_websocket_server_close(serv, fd, swoole_http_buffer, flags & SW_WEBSOCKET_FLAG_FIN));
+        RETURN_BOOL(swoole_websocket_server_close(serv, fd, swoole_http_buffer, flags & SW_WEBSOCKET_FLAG_FIN));
         break;
     default:
-        SW_CHECK_RETURN(swoole_websocket_server_push(serv, fd, swoole_http_buffer));
+        RETURN_BOOL(swoole_websocket_server_push(serv, fd, swoole_http_buffer));
     }
 }
 

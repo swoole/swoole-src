@@ -107,12 +107,12 @@ Reactor::Reactor(int max_event) {
                        [](swReactor *reactor, int &event_num) -> bool { return event_num == 0; });
 }
 
-int Reactor::set_handler(int _fdtype, swReactor_handler handler) {
+bool Reactor::set_handler(int _fdtype, swReactor_handler handler) {
     int fdtype = swReactor_fdtype(_fdtype);
 
     if (fdtype >= SW_MAX_FDTYPE) {
         swWarn("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
-        return SW_ERR;
+        return false;
     }
 
     if (swReactor_event_read(_fdtype)) {
@@ -123,10 +123,10 @@ int Reactor::set_handler(int _fdtype, swReactor_handler handler) {
         error_handler[fdtype] = handler;
     } else {
         swWarn("unknow fdtype");
-        return SW_ERR;
+        return false;
     }
 
-    return SW_OK;
+    return true;
 }
 
 bool Reactor::if_exit() {
@@ -281,7 +281,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
     return SW_OK;
 }
 
-int Reactor::drain_write_buffer(swSocket *socket) {
+void Reactor::drain_write_buffer(swSocket *socket) {
     swEvent event = { };
     event.socket = socket;
     event.fd = socket->fd;
@@ -295,8 +295,6 @@ int Reactor::drain_write_buffer(swSocket *socket) {
             break;
         }
     }
-
-    return SW_OK;
 }
 
 void Reactor::add_destroy_callback(swCallback cb, void *data) {

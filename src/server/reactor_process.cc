@@ -22,7 +22,7 @@ using namespace swoole;
 static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker);
 static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event);
 static int swReactorProcess_onClose(swReactor *reactor, swEvent *event);
-static int swReactorProcess_send2client(swFactory *, swSendData *data);
+static bool swReactorProcess_send2client(swFactory *, swSendData *data);
 static int swReactorProcess_send2worker(swSocket *socket, const void *data, size_t length);
 static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
 
@@ -395,9 +395,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     int serv_min_fd = serv->get_minfd();
 
     for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-        swConnection *conn = serv->get_connection(fd);
+        Connection *conn = serv->get_connection(fd);
         if (conn != nullptr && conn->active && conn->socket->fdtype == SW_FD_SESSION) {
-            serv->close(serv, conn->session_id, 1);
+            serv->close(conn->session_id, true);
         }
     }
 
@@ -427,10 +427,9 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event) {
     }
     if (reactor->del(reactor, event->socket) == 0) {
         if (conn->close_queued) {
-            Server::close_connection(reactor, event->socket);
-            return SW_OK;
+            return Server::close_connection(reactor, event->socket);
         } else {
-            return serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
+            return serv->notify(conn, SW_SERVER_EVENT_CLOSE) ? SW_OK : SW_ERR;
         }
     } else {
         return SW_ERR;
@@ -445,7 +444,7 @@ static int swReactorProcess_send2worker(swSocket *socket, const void *data, size
     }
 }
 
-static int swReactorProcess_send2client(swFactory *factory, swSendData *data) {
+static bool swReactorProcess_send2client(swFactory *factory, swSendData *data) {
     swServer *serv = (swServer *) factory->ptr;
     int session_id = data->info.fd;
 
@@ -456,7 +455,7 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data) {
                          "send %d byte failed, session#%d does not exist",
                          data->info.len,
                          session_id);
-        return SW_ERR;
+        return false;
     }
     // proxy
     if (session->reactor_id != SwooleG.process_id) {
@@ -495,9 +494,9 @@ static int swReactorProcess_send2client(swFactory *factory, swSendData *data) {
                 worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
         } else {
             swWarn("unkown event type[%d]", data->info.type);
-            return SW_ERR;
+            return false;
         }
-        return SW_OK;
+        return true;
     } else {
         return swFactory_finish(factory, data);
     }

@@ -23,9 +23,9 @@
 #ifdef HAVE_EVENTFD
 #include <sys/eventfd.h>
 
-static int swPipeEventfd_read(swPipe *p, void *data, int length);
-static int swPipeEventfd_write(swPipe *p, const void *data, int length);
-static int swPipeEventfd_close(swPipe *p);
+static ssize_t swPipeEventfd_read(swPipe *p, void *data, size_t length);
+static ssize_t swPipeEventfd_write(swPipe *p, const void *data, size_t length);
+static void swPipeEventfd_close(swPipe *p);
 
 struct swPipeEventfd {
     int event_fd;
@@ -75,8 +75,8 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
     return 0;
 }
 
-static int swPipeEventfd_read(swPipe *p, void *data, int length) {
-    int ret = -1;
+static ssize_t swPipeEventfd_read(swPipe *p, void *data, size_t length) {
+    ssize_t ret = -1;
     swPipeEventfd *object = (swPipeEventfd *) p->object;
 
     // eventfd not support socket timeout
@@ -96,8 +96,8 @@ static int swPipeEventfd_read(swPipe *p, void *data, int length) {
     return ret;
 }
 
-static int swPipeEventfd_write(swPipe *p, const void *data, int length) {
-    int ret;
+static ssize_t swPipeEventfd_write(swPipe *p, const void *data, size_t length) {
+    ssize_t ret;
     swPipeEventfd *object = (swPipeEventfd *) p->object;
     while (1) {
         ret = write(object->event_fd, data, sizeof(uint64_t));
@@ -111,11 +111,10 @@ static int swPipeEventfd_write(swPipe *p, const void *data, int length) {
     return ret;
 }
 
-static int swPipeEventfd_close(swPipe *p) {
+static void swPipeEventfd_close(swPipe *p) {
     swPipeEventfd *object = (swPipeEventfd *) p->object;
     p->master_socket->free();
     delete object;
-    return SW_OK;
 }
 
 #endif

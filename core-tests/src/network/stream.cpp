@@ -95,12 +95,12 @@ TEST(stream, send) {
         string pkt = string("Server: ") + req_body;
         int packed_len = htonl(pkt.length());
 
-        serv->send(serv, req->info.fd, &packed_len, sizeof(packed_len));
-        serv->send(serv, req->info.fd, pkt.c_str(), pkt.length());
+        EXPECT_TRUE(serv->send(req->info.fd, &packed_len, sizeof(packed_len)));
+        EXPECT_TRUE(serv->send(req->info.fd, pkt.c_str(), pkt.length()));
 
         // end stream
         packed_len = htonl(0);
-        serv->send(serv, req->info.fd, &packed_len, sizeof(packed_len));
+        EXPECT_TRUE(serv->send(req->info.fd, &packed_len, sizeof(packed_len)));
 
         return SW_OK;
     };

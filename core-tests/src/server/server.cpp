@@ -86,7 +86,7 @@ TEST(server, base) {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
-        serv->send(serv, req->info.fd, resp.c_str(), resp.length());
+        serv->send(req->info.fd, resp.c_str(), resp.length());
 
         return SW_OK;
     };
@@ -142,7 +142,7 @@ TEST(server, process) {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
-        serv->send(serv, req->info.fd, resp.c_str(), resp.length());
+        serv->send(req->info.fd, resp.c_str(), resp.length());
 
         return SW_OK;
     };

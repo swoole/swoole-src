@@ -49,6 +49,8 @@
 #include "swoole_async.h"
 #include "coroutine_c_api.h"
 
+using swoole::String;
+
 #ifdef HAVE_GETRANDOM
 #include <sys/random.h>
 #else
@@ -604,7 +606,7 @@ ssize_t swoole_file_size(const char *filename) {
     return file_stat.st_size;
 }
 
-swString *swoole_file_get_contents(const char *filename) {
+std::shared_ptr<String> swoole_file_get_contents(const char *filename) {
     long filesize = swoole_file_size(filename);
     if (filesize < 0) {
         return nullptr;
@@ -621,34 +623,26 @@ swString *swoole_file_get_contents(const char *filename) {
         swSysWarn("open(%s) failed", filename);
         return nullptr;
     }
-    swString *content = swString_new(filesize);
-    if (!content) {
-        close(fd);
-        return nullptr;
-    }
 
-    int readn = 0;
-    int n;
+    std::shared_ptr<String> content(swString_new(filesize + 1));
+    ssize_t read_bytes = 0;
 
-    while (readn < filesize) {
-        n = pread(fd, content->str + readn, filesize - readn, readn);
+    while (read_bytes < filesize) {
+        ssize_t n = pread(fd, content->str + read_bytes, filesize - read_bytes, read_bytes);
         if (n < 0) {
             if (errno == EINTR) {
                 continue;
             } else {
-                swSysWarn("pread(%d, %ld, %d) failed", fd, filesize - readn, readn);
-                swString_free(content);
+                swSysWarn("pread(%d, %ld, %d) failed", fd, filesize - read_bytes, read_bytes);
                 close(fd);
-                return nullptr;
+                return content;
             }
         }
-        readn += n;
+        read_bytes += n;
     }
     close(fd);
-    content->length = readn;
-    swString_append_ptr(content, "\0", 1);
-    content->length--;
-
+    content->length = read_bytes;
+    content->str[read_bytes] = '\0';
     return content;
 }
 

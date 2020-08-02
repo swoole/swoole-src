@@ -149,18 +149,15 @@ struct swFactory {
 
     int (*start)(swFactory *);
     int (*shutdown)(swFactory *);
-    int (*dispatch)(swFactory *, swSendData *);
-    /**
-     * success returns SW_OK, failure returns SW_ERR.
-     */
-    int (*finish)(swFactory *, swSendData *);
-    int (*notify)(swFactory *, swDataHead *);  // send a event notify
-    int (*end)(swFactory *, int fd);
+    bool (*dispatch)(swFactory *, swSendData *);
+    bool (*finish)(swFactory *, swSendData *);
+    bool (*notify)(swFactory *, swDataHead *);  // send a event notify
+    bool (*end)(swFactory *, int fd);
     void (*free)(swFactory *);
 };
 
 int swFactory_create(swFactory *factory);
-int swFactory_finish(swFactory *factory, swSendData *_send);
+bool swFactory_finish(swFactory *factory, swSendData *_send);
 
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
 
@@ -822,16 +819,6 @@ class Server {
     std::function<int(Server *, swEventData *)> onTask;
     std::function<int(Server *, swEventData *)> onFinish;
     /**
-     * Server method
-     */
-    int (*send)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
-    int (*sendfile)(Server *serv, int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) =
-        nullptr;
-    int (*sendwait)(Server *serv, int session_id, const void *data, uint32_t length) = nullptr;
-    int (*close)(Server *serv, int session_id, bool reset) = nullptr;
-    int (*notify)(Server *serv, Connection *conn, int event) = nullptr;
-    int (*feedback)(Server *serv, int session_id, int event) = nullptr;
-    /**
      * Chunk control
      */
     void **(*create_buffers)(Server *serv, uint32_t buffer_num) = nullptr;
@@ -1091,10 +1078,17 @@ class Server {
     static int dispatch_task(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
 
     int send_to_connection(swSendData *);
-    int send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
-    int send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
-    int send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
+    ssize_t send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
+    ssize_t send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
+    ssize_t send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, swEventData *current_task);
+
+    bool send(int session_id, const void *data, uint32_t length);
+    bool sendfile(int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
+    bool sendwait(int session_id, const void *data, uint32_t length);
+    bool close(int session_id, bool reset);
+    bool notify(Connection *conn, int event);
+    bool feedback(int session_id, int event);
 
     void init_reactor(swReactor *reactor);
     void init_worker(swWorker *worker);
@@ -1123,7 +1117,7 @@ class Server {
         }
         // notify worker process
         if (onConnect) {
-            if (notify(this, conn, SW_SERVER_EVENT_CONNECT) < 0) {
+            if (!notify(conn, SW_SERVER_EVENT_CONNECT)) {
                 return SW_ERR;
             }
         }
@@ -1285,7 +1279,7 @@ static inline swServer *sw_server() {
 //------------------------------------Worker Process-------------------------------------------
 void swWorker_signal_handler(int signo);
 void swWorker_signal_init(void);
-int swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
+ssize_t swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
 int swServer_recv_redis_packet(swProtocol *protocol, swConnection *conn, swString *buffer);

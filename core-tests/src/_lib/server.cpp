@@ -86,7 +86,7 @@ bool Server::listen(std::string host, int port, enum swSocket_type type) {
 }
 
 int Server::send(int session_id, const void *data, uint32_t length) {
-    return serv.send(&serv, session_id, data, length);
+    return serv.send(session_id, data, length);
 }
 
 ssize_t Server::sendto(const Address &address, const char *__buf, size_t __n, int server_socket_fd) {
@@ -100,5 +100,5 @@ ssize_t Server::sendto(const Address &address, const char *__buf, size_t __n, in
 }
 
 int Server::close(int session_id, int reset) {
-    return serv.close(&serv, session_id, reset);
+    return serv.close(session_id, reset);
 }

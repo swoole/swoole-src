@@ -97,11 +97,11 @@ void swoole_event_defer(swCallback cb, void *private_data) {
 /**
  * @return SW_OK or SW_ERR
  */
-int swoole_event_write(swSocket *socket, const void *data, size_t len) {
+ssize_t swoole_event_write(swSocket *socket, const void *data, size_t len) {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
 
-int swoole_event_set_handler(int fdtype, swReactor_handler handler) {
+bool swoole_event_set_handler(int fdtype, swReactor_handler handler) {
     return SwooleTG.reactor->set_handler(fdtype, handler);
 }
 

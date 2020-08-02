@@ -115,9 +115,9 @@ class Client {
     void (*onBufferEmpty)(Client *cli) = nullptr;
 
     int (*connect)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
-    int (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
+    ssize_t (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
     int (*sendfile)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
-    int (*recv)(Client *cli, char *data, uint32_t len, int flags) = nullptr;
+    ssize_t (*recv)(Client *cli, char *data, size_t length, int flags) = nullptr;
 
     static void init_reactor(Reactor *reactor);
     Client(enum swSocket_type type, bool async);

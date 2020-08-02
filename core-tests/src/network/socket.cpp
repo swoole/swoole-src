@@ -120,9 +120,9 @@ TEST(socket, sendfile_blocking) {
     mutex m;
     m.lock();
 
-    String *str = swoole_file_get_contents(file.c_str());
+    auto str = swoole_file_get_contents(file.c_str());
 
-    thread t1 ([&m, str](){
+    thread t1 ([&m, &str](){
         auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
         m.unlock();
         auto cli = svr->accept();
@@ -138,7 +138,7 @@ TEST(socket, sendfile_blocking) {
         svr->free();
     });
 
-    thread t2([&m, &file, str](){
+    thread t2([&m, &file, &str](){
         m.lock();
         auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
         network::Address addr;
@@ -152,7 +152,6 @@ TEST(socket, sendfile_blocking) {
 
     t1.join();
     t2.join();
-    delete str;
 }
 
 TEST(socket, peek) {
