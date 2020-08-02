@@ -63,9 +63,9 @@ TEST(log, date_format_long_string) {
     str->repeat("x", 1, 120);
     swString_append_ptr(str, SW_STRL("day %d of %B in the year %Y. Time: %I:%S %p"));
 
-    int retval = sw_logger()->set_date_format(str->str);
+    bool retval = sw_logger()->set_date_format(str->str);
 
-    ASSERT_EQ(retval, SW_ERR);
+    ASSERT_FALSE(retval);
     ASSERT_EQ(swoole_get_last_error(), SW_ERROR_INVALID_PARAMS);
 }
 
