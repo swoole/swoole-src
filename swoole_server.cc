@@ -3217,10 +3217,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     }
 
     worker->lock.lock(&worker->lock);
-    swString *content = swoole_file_get_contents(_tmpfile);
+    auto content = swoole_file_get_contents(_tmpfile);
     worker->lock.unlock(&worker->lock);
 
-    if (content == nullptr) {
+    if (content.get() == nullptr) {
         RETURN_FALSE;
     }
 
@@ -3245,8 +3245,6 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     _next:
         content->offset += sizeof(swDataHead) + result->info.len;
     } while (content->offset < 0 || (size_t) content->offset < content->length);
-    // free memory
-    swString_free(content);
     // delete tmp file
     unlink(_tmpfile);
 }

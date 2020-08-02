@@ -60,6 +60,7 @@ typedef cpuset_t cpu_set_t;
 #endif
 #endif
 
+#include <memory>
 #include <functional>
 
 typedef unsigned long ulong_t;
@@ -580,7 +581,7 @@ int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 ssize_t swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
-swString *swoole_file_get_contents(const char *filename);
+std::shared_ptr<swString> swoole_file_get_contents(const char *filename);
 bool swoole_file_put_contents(const char *filename, const char *content, size_t length);
 ssize_t swoole_file_size(const char *filename);
 int swoole_version_compare(const char *version1, const char *version2);

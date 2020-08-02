@@ -71,7 +71,7 @@ int String::append(int value) {
 
     size_t new_size = length + s_len;
     if (new_size > size) {
-        if (reserve(new_size) < 0) {
+        if (!reserve(new_size)) {
             return SW_ERR;
         }
     }
@@ -83,7 +83,7 @@ int String::append(int value) {
 
 int String::append(const char *append_str, size_t _length) {
     size_t new_size = length + _length;
-    if (new_size > size and reserve(new_size) < 0) {
+    if (new_size > size and !reserve(new_size)) {
         return SW_ERR;
     }
 
@@ -102,7 +102,7 @@ int String::append_random_bytes(size_t _length, bool base64) {
     }
 
     if (new_size > size) {
-        if (reserve(swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0) {
+        if (!reserve(swoole_size_align(new_size * 2, SwooleG.pagesize))) {
             return SW_ERR;
         }
     }
@@ -123,37 +123,42 @@ int String::append_random_bytes(size_t _length, bool base64) {
     return SW_OK;
 }
 
-int String::reserve(size_t new_size) {
+bool String::reserve(size_t new_size) {
+    if (size == 0) {
+        alloc(new_size, nullptr);
+        return true;
+    }
+
     new_size = SW_MEM_ALIGNED_SIZE(new_size);
     char *new_str = (char *) allocator->realloc(str, new_size);
     if (new_str == nullptr) {
         throw std::bad_alloc();
-        return SW_ERR;
+        return false;
     }
 
     str = new_str;
     size = new_size;
 
-    return SW_OK;
+    return true;
 }
 
-int String::repeat(const char *data, size_t len, size_t n) {
+bool String::repeat(const char *data, size_t len, size_t n) {
     if (n <= 0) {
-        return SW_ERR;
+        return false;
     }
     if (len == 1) {
-        if ((size < length + n) && reserve(length + n) < 0) {
-            return SW_ERR;
+        if ((size < length + n) && !reserve(length + n)) {
+            return false;
         }
         memset(str + length, data[0], n);
         length += n;
 
-        return SW_OK;
+        return true;
     }
     for (size_t i = 0; i < n; i++) {
         swString_append_ptr(this, data, len);
     }
-    return SW_OK;
+    return true;
 }
 
 

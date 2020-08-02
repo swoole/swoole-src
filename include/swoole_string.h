@@ -146,8 +146,8 @@ class String {
         return swoole_strnstr(str, length, needle, l_needle) != nullptr;
     }
 
-    int reserve(size_t new_size);
-    int repeat(const char *data, size_t len, size_t n);
+    bool reserve(size_t new_size);
+    bool repeat(const char *data, size_t len, size_t n);
     int append(const char *append_str, size_t length);
 
     inline int append(const std::string &append_str) {
@@ -157,7 +157,7 @@ class String {
     inline int append(String &append_str) {
         size_t new_size = length + append_str.length;
         if (new_size > size) {
-            if (reserve(new_size) < 0) {
+            if (!reserve(new_size)) {
                 return SW_ERR;
             }
         }
@@ -181,7 +181,7 @@ class String {
         }
         // store \0 terminator
         _size++;
-        if (_size > size && reserve(_size) < 0) {
+        if (_size > size && !reserve(_size)) {
             return 0;
         }
         return (length = sw_snprintf(str, size, format, args...));
@@ -214,12 +214,12 @@ static inline int swString_extend_align(swString *str, size_t _new_size) {
     while (align_size < _new_size) {
         align_size *= 2;
     }
-    return str->reserve(align_size);
+    return str->reserve(align_size) ? SW_OK : SW_ERR;
 }
 
 static inline int swString_grow(swString *str, size_t incr_value) {
     str->length += incr_value;
-    if (str->length == str->size && str->reserve(str->size * 2) < 0) {
+    if (str->length == str->size && !str->reserve(str->size * 2)) {
         return SW_ERR;
     } else {
         return SW_OK;
@@ -232,5 +232,5 @@ inline swoole::String *swString_new(size_t size) {
 
 inline int swString_extend(swString *str, size_t new_size) {
     assert(new_size > str->size);
-    return str->reserve(new_size);
+    return str->reserve(new_size) ? SW_OK : SW_ERR;
 }

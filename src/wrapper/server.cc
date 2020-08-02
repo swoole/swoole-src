@@ -539,8 +539,8 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
     }
 
-    swString *content = swoole_file_get_contents(_tmpfile);
-    if (content == nullptr) {
+    auto content = swoole_file_get_contents(_tmpfile);
+    if (content.get() == nullptr) {
         return retval;
     }
 
@@ -561,7 +561,6 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         content->offset += sizeof(swDataHead) + result->info.len;
     }
     unlink(_tmpfile);
-    swString_free(content);
     return retval;
 }
 //-----------------------------------namespace end------------------------------------------------
