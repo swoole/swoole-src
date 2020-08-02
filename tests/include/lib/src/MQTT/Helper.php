@@ -22,6 +22,12 @@ class Helper
         $body = pack('n', strlen($data['topic'])) . $data['topic'] . $data['content'];
 
         $length = strlen($body);
+        $head = chr($cmd) . self::writeBodyLength($length);
+        return $head . $body;
+    }
+
+    protected static function writeBodyLength($length)
+    {
         $string = '';
         do {
             $digit = $length % 128;
@@ -31,8 +37,12 @@ class Helper
             }
             $string .= chr($digit);
         } while ($length > 0);
+        return $string;
+    }
 
-        $head = chr($cmd) . $string;
-        return $head . $body;
+    public static function encodePing(int $cmd)
+    {
+        $cmd = $cmd << 4;
+        return chr($cmd) . self::writeBodyLength(0);
     }
 }
