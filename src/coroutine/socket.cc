@@ -1184,6 +1184,7 @@ bool Socket::ssl_verify(bool allow_self_signed) {
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0) {
+        set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
 #endif
