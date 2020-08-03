@@ -525,7 +525,6 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 ## 🍭 Benchmark
 
 + On the open source [Techempower Web Framework benchmarks](https://www.techempower.com/benchmarks/#section=data-r17) Swoole used MySQL database benchmark to rank first, and all performance tests ranked in the first echelon.
-+ You can just run [Benchmark Script](./benchmark/benchmark.php) to quickly test the maximum QPS of Swoole-HTTP-Server on your machine.
 
 ## 🔰️ Security issues
 

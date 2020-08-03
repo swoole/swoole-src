@@ -509,7 +509,6 @@ make && sudo make install
 ## 🍭 性能测试
 
 + 在开源的 [Techempower Web Framework benchmarks](https://www.techempower.com/benchmarks/#section=data-r17) 压测平台上，Swoole使用MySQL数据库压测的成绩一度位居首位， 所有IO性能测试都位列第一梯队。
-+ 你可以直接运行[Benchmark Script](./benchmark/benchmark.php)来快速地测试出Swoole提供的Http服务在你的机器上所能达到的最大QPS
 
 ## 🔰️ 安全问题
 
