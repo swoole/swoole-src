@@ -298,6 +298,24 @@ class Socket {
         return write_buffer;
     }
 
+    inline swString *pop_read_buffer() {
+        if (sw_unlikely(!read_buffer)) {
+            return nullptr;
+        }
+        auto tmp = read_buffer;
+        read_buffer = nullptr;
+        return tmp;
+    }
+
+    inline swString *pop_write_buffer() {
+        if (sw_unlikely(!write_buffer)) {
+            return nullptr;
+        }
+        auto tmp = write_buffer;
+        write_buffer = nullptr;
+        return tmp;
+    }
+
     inline void set_zero_copy(bool enable) { zero_copy = enable; }
 
     inline void set_buffer_allocator(swAllocator *allocator) { buffer_allocator = allocator; }
