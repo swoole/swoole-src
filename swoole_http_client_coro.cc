@@ -134,6 +134,9 @@ class http_client {
     bool close(const bool should_be_reset = true);
 
     void get_header_out(zval *return_value) {
+        if (socket == nullptr) {
+            RETURN_FALSE;
+        }
         swString *buffer = socket->get_write_buffer();
         if (buffer == nullptr) {
             RETURN_FALSE;
