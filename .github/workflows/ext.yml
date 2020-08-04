@@ -31,3 +31,10 @@ jobs:
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log
     - name: make
       run: make
+
+  build-alpine-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: build
+        run: cp .github/workflows/alpine.Dockerfile alpine.Dockerfile && docker build -t swoole . -f alpine.Dockerfile
