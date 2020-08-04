@@ -139,8 +139,8 @@ bool Reactor::if_exit() {
     return true;
 }
 
-void swReactor_activate_future_task(swReactor *reactor) {
-    reactor->onBegin = reactor_begin;
+void Reactor::activate_future_task() {
+    onBegin = reactor_begin;
 }
 
 static void reactor_begin(swReactor *reactor) {
