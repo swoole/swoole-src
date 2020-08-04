@@ -306,7 +306,7 @@ Co\run(function() {
             }
         });
     }
-    
+
     // 10K file read and write
     for ($c = 100; $c--;) {
         go(function () use ($c) {
@@ -319,7 +319,7 @@ Co\run(function() {
             unlink($tmp_filename);
         });
     }
-    
+
     // 10K pdo and mysqli read
     for ($c = 50; $c--;) {
         go(function () {
@@ -343,18 +343,18 @@ Co\run(function() {
             }
         });
     }
-    
+
     // php_stream tcp server & client with 12.8K requests in single process
     function tcp_pack(string $data): string
     {
         return pack('n', strlen($data)) . $data;
     }
-    
+
     function tcp_length(string $head): int
     {
         return unpack('n', $head)[1];
     }
-    
+
     go(function () {
         $ctx = stream_context_create(['socket' => ['so_reuseaddr' => true, 'backlog' => 128]]);
         $socket = stream_socket_server(
@@ -395,7 +395,7 @@ Co\run(function() {
             }
         });
     }
-    
+
     // udp server & client with 12.8K requests in single process
     go(function () {
         $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
@@ -488,7 +488,6 @@ After compiling and installing to the system successfully, you have to add a new
 2. `git pull && cd swoole-src && make clean && make && sudo make install`
 3. if you change your PHP version, please re-run `phpize clean && phpize` then try to compile
 
-
 ### Major change since version 4.3.0
 
 Async clients and API are moved to a separate PHP extension `swoole_async` since version 4.3.0, install `swoole_async`:
@@ -525,6 +524,7 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 ## 🍭 Benchmark
 
 + On the open source [Techempower Web Framework benchmarks](https://www.techempower.com/benchmarks/#section=data-r17) Swoole used MySQL database benchmark to rank first, and all performance tests ranked in the first echelon.
++ You can just run [Benchmark Script](https://github.com/swoole/benchmark/blob/master/benchmark.php) to quickly test the maximum QPS of Swoole-HTTP-Server on your machine.
 
 ## 🔰️ Security issues
 
