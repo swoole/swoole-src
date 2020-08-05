@@ -19,6 +19,8 @@
 
 #include "swoole.h"
 
+#include <sys/types.h>
+
 struct swQueue_data {
     long mtype;                      /* type of received/sent message */
     char mdata[sizeof(swEventData)]; /* text of the message */
