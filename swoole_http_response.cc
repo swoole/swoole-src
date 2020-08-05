@@ -814,9 +814,9 @@ bool swoole_http_response_set_header(
         php_swoole_error(E_WARNING, "header key is too long");
         return false;
     }
+
     /* new line/NUL character safety check */
-    uint32_t i;
-    for (i = 0; i < vlen; i++) {
+    for (uint32_t i = 0; i < vlen; i++) {
         /* RFC 7230 ch. 3.2.4 deprecates folding support */
         if (v[i] == '\n' || v[i] == '\r') {
             php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
@@ -827,6 +827,7 @@ bool swoole_http_response_set_header(
             return false;
         }
     }
+
     zval *zheader = swoole_http_init_and_read_property(
         swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
     if (ucwords) {
