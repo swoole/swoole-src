@@ -127,6 +127,7 @@ class Client {
     int wakeup();
     int shutdown(int __how);
     int close();
+    void destroy();
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
     int ssl_handshake();

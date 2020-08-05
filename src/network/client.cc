@@ -285,6 +285,17 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
     return SW_OK;
 }
 
+void Client::destroy() {
+    if (destroyed) {
+        return;
+    }
+    destroyed = true;
+    swoole_event_defer([](void *data){
+        Client *object = (Client *) data;
+        delete object;
+    }, this);
+}
+
 Client::~Client() {
     if (!socket) {
         return;
@@ -294,8 +305,39 @@ Client::~Client() {
     if (!closed) {
         close();
     }
+
+#ifdef SW_USE_OPENSSL
+    if (open_ssl && ssl_context) {
+        swSSL_free_context(ssl_context);
+        if (ssl_option.cert_file) {
+            sw_free(ssl_option.cert_file);
+        }
+        if (ssl_option.key_file) {
+            sw_free(ssl_option.key_file);
+        }
+        if (ssl_option.passphrase) {
+            sw_free(ssl_option.passphrase);
+        }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+        if (ssl_option.tls_host_name) {
+            sw_free(ssl_option.tls_host_name);
+        }
+#endif
+        if (ssl_option.cafile) {
+            sw_free(ssl_option.cafile);
+        }
+        if (ssl_option.capath) {
+            sw_free(ssl_option.capath);
+        }
+    }
+#endif
+    // clear buffer
+    if (buffer) {
+        swString_free(buffer);
+        buffer = nullptr;
+    }
     if (server_str) {
-        sw_free((void *) server_str);
+        ::sw_free((void *) server_str);
     }
     if (socket->out_buffer) {
         swBuffer_free(socket->out_buffer);
@@ -326,34 +368,9 @@ int Client::close() {
         if (socket->ssl) {
             swSSL_close(socket);
         }
-        swSSL_free_context(ssl_context);
-        if (ssl_option.cert_file) {
-            sw_free(ssl_option.cert_file);
-        }
-        if (ssl_option.key_file) {
-            sw_free(ssl_option.key_file);
-        }
-        if (ssl_option.passphrase) {
-            sw_free(ssl_option.passphrase);
-        }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name) {
-            sw_free(ssl_option.tls_host_name);
-        }
-#endif
-        if (ssl_option.cafile) {
-            sw_free(ssl_option.cafile);
-        }
-        if (ssl_option.capath) {
-            sw_free(ssl_option.capath);
-        }
     }
 #endif
-    // clear buffer
-    if (buffer) {
-        swString_free(buffer);
-        buffer = nullptr;
-    }
+
     if (type == SW_SOCK_UNIX_DGRAM) {
         unlink(socket->info.addr.un.sun_path);
     }
@@ -959,7 +976,10 @@ static int Client_onStreamRead(Reactor *reactor, swEvent *event) {
         }
 
         if (n < 0) {
-            return cli->close();
+            if (!cli->closed) {
+                cli->close();
+            }
+            return SW_OK;
         } else {
             if (conn->removed == 0 && cli->remove_delay) {
                 cli->sleep();

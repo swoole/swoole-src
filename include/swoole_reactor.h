@@ -207,7 +207,7 @@ class Reactor {
         }
     }
 
-    inline bool is_exists(swSocket *_socket) {
+    inline bool exists(swSocket *_socket) {
         return !_socket->removed && _socket->events;
     }
 
