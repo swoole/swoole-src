@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server_coro: check if the HTTP header contains CRLF
+swoole_http_server_coro: check if the HTTP cookie contains CRLF
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -16,7 +16,7 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
         $client = new Client('127.0.0.1', $pm->getFreePort());
-        $client->get('/?r=AAA%0d%0amalicious-header:injected');
+        $client->get('/');
         $headers = $client->getHeaders();
         Assert::false(isset($headers['malicious-header']));
         $client->close();
@@ -29,9 +29,9 @@ $pm->childFunc = function () use ($pm) {
         $server = new Server('127.0.0.1', $pm->getFreePort());
 
         $server->handle('/', function (Request $request, Response $response) {
-            $response->header('Location', $request->get['r']);
-            $response->status(302);
-            $response->end('Redirecting...');
+            $value = "cn\r\nmalicious-header:injected\r\nContent-Length:27\r\n\r\n<h3>malicious response body";
+            $response->rawcookie('lang', $value);
+            $response->end('hello world');
         });
 
         $server->start();
@@ -41,5 +41,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Http\Response::header(): Header may not contain more than a single header, new line detected in %s
+Warning: Swoole\Http\Response::rawcookie(): Header may not contain more than a single header, new line detected in %s
 DONE
