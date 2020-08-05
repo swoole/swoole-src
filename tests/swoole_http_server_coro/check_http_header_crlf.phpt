@@ -18,7 +18,7 @@ $pm->parentFunc = function () use ($pm) {
         $client = new Client('127.0.0.1', $pm->getFreePort());
         $client->get('/?r=AAA%0d%0amalicious-header:injected');
         $headers = $client->getHeaders();
-        Assert::false(isset($headers['amalicious-header']));
+        Assert::false(isset($headers['malicious-header']));
         $client->close();
         $pm->kill();
         echo "DONE\n";
