@@ -10,7 +10,7 @@ jobs:
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
     - name: make
-      run: make
+      run: make -j$(sysctl -n hw.ncpu)
 
   build-ubuntu-old:
     runs-on: ubuntu-16.04
@@ -19,7 +19,7 @@ jobs:
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
     - name: make
-      run: make
+      run: make -j$(sysctl -n hw.ncpu)
 
   build-macos-latest:
     runs-on: macos-latest
@@ -29,7 +29,7 @@ jobs:
     - uses: actions/checkout@v1
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log
-    - name: make
+    - name: make -j$(sysctl -n hw.ncpu)
       run: make
 
   build-alpine-latest:
