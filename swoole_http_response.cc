@@ -814,6 +814,19 @@ bool swoole_http_response_set_header(
         php_swoole_error(E_WARNING, "header key is too long");
         return false;
     }
+    /* new line/NUL character safety check */
+    uint32_t i;
+    for (i = 0; i < vlen; i++) {
+        /* RFC 7230 ch. 3.2.4 deprecates folding support */
+        if (v[i] == '\n' || v[i] == '\r') {
+            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
+            return false;
+        }
+        if (v[i] == '\0') {
+            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
+            return false;
+        }
+    }
     zval *zheader = swoole_http_init_and_read_property(
         swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
     if (ucwords) {
@@ -830,20 +843,6 @@ bool swoole_http_response_set_header(
         if (UNEXPECTED(!v)) {
             add_assoc_null_ex(zheader, key_buf, klen);
         } else {
-            /* new line/NUL character safety check */
-            uint32_t i;
-            for (i = 0; i < vlen; i++) {
-                /* RFC 7230 ch. 3.2.4 deprecates folding support */
-                if (v[i] == '\n' || v[i] == '\r') {
-                    php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
-                    return false;
-                }
-                if (v[i] == '\0') {
-                    php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
-                    return false;
-                }
-            }
-
             add_assoc_stringl_ex(zheader, key_buf, klen, (char *) v, vlen);
         }
     } else {
