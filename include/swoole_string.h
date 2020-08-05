@@ -154,7 +154,7 @@ class String {
         return append(append_str.c_str(), append_str.length());
     }
 
-    inline int append(String &append_str) {
+    inline int append(const String &append_str) {
         size_t new_size = length + append_str.length;
         if (new_size > size) {
             if (!reserve(new_size)) {
@@ -165,6 +165,30 @@ class String {
         memcpy(str + length, append_str.str, append_str.length);
         length += append_str.length;
         return SW_OK;
+    }
+
+    inline void write(off_t _offset, swString *write_str) {
+        size_t new_length = _offset + write_str->length;
+        if (new_length > size) {
+            reserve(swoole_size_align(new_length * 2, SwooleG.pagesize));
+        }
+
+        memcpy(str + _offset, write_str->str, write_str->length);
+        if (new_length > length) {
+            length = new_length;
+        }
+    }
+
+    inline void write(off_t _offset, const char *write_str, size_t _length) {
+        size_t new_length = _offset + _length;
+        if (new_length > size) {
+            reserve(swoole_size_align(new_length * 2, SwooleG.pagesize));
+        }
+
+        memcpy(str + _offset, write_str, _length);
+        if (new_length > length) {
+            length = new_length;
+        }
     }
 
     int append(int value);
