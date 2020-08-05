@@ -479,7 +479,7 @@ ZEND_END_ARG_INFO()
 
 #ifdef SW_USE_MYSQLND
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mysql_coro_escape, 0, 0, 1)
-    ZEND_ARG_INFO(0, String)
+    ZEND_ARG_INFO(0, string)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 #endif
