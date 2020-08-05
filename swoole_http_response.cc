@@ -978,7 +978,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         RETURN_FALSE;
     }
 
-    if (http_has_crlf(value, value_len)) {
+    if (!url_encode && http_has_crlf(value, value_len)) {
         RETURN_FALSE;
     }
 
