@@ -37,6 +37,7 @@ $pm->childFunc = function () use ($pm) {
             $ws->upgrade();
             while (true) {
                 $frame = $ws->recv();
+                Assert::greaterThan($frame->fd, 0);
                 if ($frame === false) {
                     echo "error : " . swoole_last_error() . "\n";
                     break;
