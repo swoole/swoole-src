@@ -68,3 +68,39 @@ TEST(coroutine_hook, getaddrinfo) {
         freeaddrinfo(result);
     });
 }
+
+TEST(coroutine_hook, fstat) {
+    coroutine::run([](void *arg) {
+        int fd = swoole_coroutine_open(TEST_TMP_FILE, O_RDONLY, 0);
+        struct stat statbuf_1;
+        swoole_coroutine_fstat(fd, &statbuf_1);
+
+        struct stat statbuf_2;
+        fstat(fd, &statbuf_2);
+
+        ASSERT_EQ(memcmp(&statbuf_1, &statbuf_2, sizeof(statbuf_2)), 0);
+
+        swoole_coroutine_close(fd);
+    });
+}
+
+TEST(coroutine_hook, statvfs) {
+    coroutine::run([](void *arg) {
+        struct statvfs statbuf_1;
+        swoole_coroutine_statvfs("/tmp", &statbuf_1);
+
+        struct statvfs statbuf_2;
+        statvfs("/tmp", &statbuf_2);
+
+        ASSERT_EQ(memcmp(&statbuf_1, &statbuf_2, sizeof(statbuf_2)), 0);
+    });
+}
+
+TEST(coroutine_hook, dir) {
+    coroutine::run([](void *arg) {
+        ASSERT_EQ(swoole_coroutine_mkdir(TEST_TMP_DIR, 0666), 0);
+        ASSERT_EQ(swoole_coroutine_access(TEST_TMP_DIR, R_OK), 0);
+        ASSERT_EQ(swoole_coroutine_rmdir(TEST_TMP_DIR), 0);
+        ASSERT_EQ(access(TEST_TMP_DIR, R_OK), -1);
+    });
+}

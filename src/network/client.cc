@@ -145,7 +145,7 @@ int Client::shutdown(int __how) {
             return SW_OK;
         }
     } else if (__how == SHUT_WR) {
-        if (shutdown_write || shutdow_rw || ::shutdown(socket->fd, SHUT_RD) < 0) {
+        if (shutdown_write || shutdow_rw || ::shutdown(socket->fd, SHUT_WR) < 0) {
             return SW_ERR;
         } else {
             shutdown_write = 1;
