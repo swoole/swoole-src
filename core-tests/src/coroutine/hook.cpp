@@ -104,3 +104,35 @@ TEST(coroutine_hook, dir) {
         ASSERT_EQ(access(TEST_TMP_DIR, R_OK), -1);
     });
 }
+
+TEST(coroutine_hook, socket) {
+    coroutine::run([](void *arg) {
+        int sock = swoole_coroutine_socket(AF_INET, SOCK_STREAM, 0);
+        ASSERT_GT(sock, 0);
+        swoole::network::Address sa;
+        std::string ip = System::gethostbyname( "www.baidu.com", AF_INET, 10);
+        sa.assign(SW_SOCK_TCP, ip.c_str(), 80);
+        ASSERT_EQ(swoole_coroutine_connect(sock, &sa.addr.ss, sa.len), 0);
+        ASSERT_EQ(swoole_coroutine_socket_wait_event(sock, SW_EVENT_WRITE, 5), SW_OK);
+
+        const char req[] = "GET / HTTP/1.1\r\nHost: www.baidu.com\r\nConnection: close\r\nKeepAlive: off\r\n\r\n";
+        ASSERT_EQ(swoole_coroutine_send(sock, req, strlen(req), 0), strlen(req));
+
+        swoole::String resp(1024);
+
+        while(1) {
+            ssize_t n = swoole_coroutine_recv(sock, resp.value() + resp.length, resp.size - resp.length, 0);
+            if (n <= 0) {
+                break;
+            }
+            resp.length += n;
+            if (resp.length == resp.size) {
+                resp.reserve(resp.size * 2);
+            }
+        }
+
+        ASSERT_GT(resp.length, 100);
+        ASSERT_TRUE(resp.contains("baidu.com"));
+        swoole_coroutine_close(sock);
+    });
+}

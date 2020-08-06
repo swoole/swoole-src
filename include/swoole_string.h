@@ -146,6 +146,10 @@ class String {
         return swoole_strnstr(str, length, needle, l_needle) != nullptr;
     }
 
+    inline bool contains(const std::string &needle) {
+        return contains(needle.c_str(), needle.size());
+    }
+
     bool reserve(size_t new_size);
     bool repeat(const char *data, size_t len, size_t n);
     int append(const char *append_str, size_t length);
