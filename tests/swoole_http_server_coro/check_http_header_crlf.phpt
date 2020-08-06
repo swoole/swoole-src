@@ -23,7 +23,6 @@ $pm->parentFunc = function () use ($pm) {
         $pm->kill();
         echo "DONE\n";
     });
-
 };
 $pm->childFunc = function () use ($pm) {
     run(function () use ($pm) {

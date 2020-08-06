@@ -69,6 +69,23 @@ static inline void http_header_key_format(char *key, int length) {
     }
 }
 
+static inline bool http_has_crlf(const char *value, int length) {
+    /* new line/NUL character safety check */
+    for (uint32_t i = 0; i < length; i++) {
+        /* RFC 7230 ch. 3.2.4 deprecates folding support */
+        if (value[i] == '\n' || value[i] == '\r') {
+            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
+            return true;
+        }
+        if (value[i] == '\0') {
+            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static inline swString *http_get_write_buffer(http_context *ctx) {
     if (ctx->co_socket) {
         swString *buffer = ((Socket *) ctx->private_data)->get_write_buffer();
@@ -815,17 +832,8 @@ bool swoole_http_response_set_header(
         return false;
     }
 
-    /* new line/NUL character safety check */
-    for (uint32_t i = 0; i < vlen; i++) {
-        /* RFC 7230 ch. 3.2.4 deprecates folding support */
-        if (v[i] == '\n' || v[i] == '\r') {
-            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
-            return false;
-        }
-        if (v[i] == '\0') {
-            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
-            return false;
-        }
+    if (http_has_crlf(v, vlen)) {
+        return false;
     }
 
     zval *zheader = swoole_http_init_and_read_property(
@@ -969,6 +977,11 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         php_swoole_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
+
+    if (!url_encode && http_has_crlf(value, value_len)) {
+        RETURN_FALSE;
+    }
+
     if (value_len == 0) {
         cookie = (char *) emalloc(cookie_size);
         date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
