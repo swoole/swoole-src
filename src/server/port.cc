@@ -309,6 +309,14 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
         reactor->trigger_close_event(event);
     }
 
+    /**
+     * if the length is 0, which means the onPackage has been called, we can free the buffer.
+     */
+    if (_socket->recv_buffer && _socket->recv_buffer->length == 0) {
+        swString_free(_socket->recv_buffer);
+        _socket->recv_buffer = nullptr;
+    }
+
     return SW_OK;
 }
 
@@ -623,6 +631,14 @@ static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent
     if (protocol->recv_with_eof_protocol(_socket, buffer) < 0) {
         conn->close_errno = errno;
         reactor->trigger_close_event(event);
+    }
+
+    /**
+     * if the length is 0, which means the onPackage has been called, we can free the buffer.
+     */
+    if (_socket->recv_buffer && _socket->recv_buffer->length == 0) {
+        swString_free(_socket->recv_buffer);
+        _socket->recv_buffer = nullptr;
     }
 
     return SW_OK;
