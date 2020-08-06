@@ -1361,6 +1361,7 @@ static PHP_METHOD(swoole_http_response, recv)
 #else
         php_swoole_websocket_frame_unpack(&_tmp, return_value);
 #endif
+        zend_update_property_long(swoole_websocket_frame_ce, return_value, ZEND_STRL("fd"), sock->get_fd());
     }
 }
 
