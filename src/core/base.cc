@@ -22,7 +22,6 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/ioctl.h>
-#include <sys/time.h>
 
 #ifdef HAVE_EXECINFO
 #include <execinfo.h>

@@ -20,7 +20,6 @@
 #include "swoole_log.h"
 
 #include <signal.h>
-#include <sys/time.h>
 
 namespace swoole {
 

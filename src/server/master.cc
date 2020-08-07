@@ -20,8 +20,6 @@
 #include "http.h"
 #include "lock.h"
 
-#include <sys/time.h>
-
 #include <assert.h>
 
 using namespace swoole;
