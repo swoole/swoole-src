@@ -48,6 +48,7 @@
 #include <unistd.h>
 
 #include <sys/utsname.h>
+#include <sys/time.h>
 
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
