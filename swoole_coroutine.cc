@@ -481,14 +481,24 @@ inline void PHPCoroutine::restore_og(php_coro_task *task) {
     }
 }
 
+inline void PHPCoroutine::save_sg(php_coro_task *task) {
+    task->headers_sent = SG(headers_sent);
+}
+
+inline void PHPCoroutine::restore_sg(php_coro_task *task) {
+    SG(headers_sent) = task->headers_sent;
+}
+
 void PHPCoroutine::save_task(php_coro_task *task) {
     save_vm_stack(task);
     save_og(task);
+    save_sg(task);
 }
 
 void PHPCoroutine::restore_task(php_coro_task *task) {
     restore_vm_stack(task);
     restore_og(task);
+    restore_sg(task);
 }
 
 void PHPCoroutine::on_yield(void *arg) {
@@ -525,9 +535,7 @@ void PHPCoroutine::on_close(void *arg) {
     }
 
     if (OG(handlers).elements) {
-        if (OG(active)) {
-            php_output_end_all();
-        }
+        php_output_end_all();
         php_output_deactivate();
         php_output_activate();
     }
@@ -614,6 +622,8 @@ void PHPCoroutine::main_func(void *arg) {
         EG(error_handling) = EH_NORMAL;
         EG(exception_class) = nullptr;
         EG(exception) = nullptr;
+        
+        SG(headers_sent) = 0;
 
         task->output_ptr = nullptr;
         task->array_walk_fci = nullptr;

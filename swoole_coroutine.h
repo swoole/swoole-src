@@ -59,6 +59,7 @@ struct php_coro_task
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;
+    unsigned char headers_sent;
     zend_output_globals *output_ptr;
     /* for array_walk non-reentrancy */
     php_swoole_fci *array_walk_fci;
@@ -211,6 +212,8 @@ protected:
     static inline void restore_vm_stack(php_coro_task *task);
     static inline void save_og(php_coro_task *task);
     static inline void restore_og(php_coro_task *task);
+    static inline void save_sg(php_coro_task *task);
+    static inline void restore_sg(php_coro_task *task);
     static inline void save_task(php_coro_task *task);
     static inline void restore_task(php_coro_task *task);
     static void on_yield(void *arg);
