@@ -160,3 +160,49 @@ TEST(client, connect_timeout) {
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
 }
+
+TEST(client, shutdown_write) {
+    signal(SIGPIPE, SIG_IGN);
+    int ret;
+    Client cli(SW_SOCK_TCP, false);
+    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ASSERT_EQ(ret, 0);
+    cli.shutdown(SHUT_WR);
+    ssize_t retval = cli.send(&cli, SW_STRL("hello world"), 0);
+    ASSERT_EQ(retval, -1);
+    ASSERT_EQ(swoole_get_last_error(), EPIPE);
+}
+
+TEST(client, shutdown_read) {
+    signal(SIGPIPE, SIG_IGN);
+    int ret;
+    Client cli(SW_SOCK_TCP, false);
+    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ASSERT_EQ(ret, 0);
+
+    cli.shutdown(SHUT_RD);
+    ssize_t retval = cli.send(&cli, SW_STRL("hello world\r\n\r\n"), 0);
+    ASSERT_GT(retval, 0);
+
+    char buf[1024];
+    retval = cli.recv(&cli, buf, sizeof(buf), 0);
+    ASSERT_EQ(retval, 0);
+}
+
+TEST(client, shutdown_all) {
+    signal(SIGPIPE, SIG_IGN);
+    int ret;
+    Client cli(SW_SOCK_TCP, false);
+    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ASSERT_EQ(ret, 0);
+
+    cli.shutdown(SHUT_RDWR);
+
+    ssize_t retval = cli.send(&cli, SW_STRL("hello world\r\n\r\n"), 0);
+    ASSERT_EQ(retval, -1);
+    ASSERT_EQ(swoole_get_last_error(), EPIPE);
+
+    char buf[1024];
+    retval = cli.recv(&cli, buf, sizeof(buf), 0);
+    ASSERT_EQ(retval, 0);
+}

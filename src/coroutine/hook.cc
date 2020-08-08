@@ -620,7 +620,7 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     socket->set_timeout(timeout);
     bool retval = socket->poll((enum swEvent_type) event);
     socket->set_timeout(ori_timeout);
-    return retval ? 0 : -1;
+    return retval ? SW_OK : SW_ERR;
 }
 
 int swoole_coroutine_getaddrinfo(const char *name,
