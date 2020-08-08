@@ -18,6 +18,8 @@
 #include "swoole_signal.h"
 #include "swoole_log.h"
 
+using swoole::RingQueue;
+
 #define swThreadPool_thread(p, id) (&p->threads[id])
 static void *swThreadPool_loop(void *arg);
 
@@ -49,11 +51,9 @@ int swThreadPool_create(swThreadPool *pool, int thread_num) {
     }
 #else
     int size = SW_MAX(SwooleG.max_sockets + 1, SW_THREADPOOL_QUEUE_LEN);
-    if (swRingQueue_init(&pool->queue, size) < 0) {
-        sw_free(pool->threads);
-        sw_free(pool->params);
-        return SW_ERR;
-    }
+
+    pool->queue = new RingQueue<void *>(size);
+
 #endif
     if (swCond_create(&pool->cond) < 0) {
         sw_free(pool->threads);
@@ -71,11 +71,11 @@ int swThreadPool_dispatch(swThreadPool *pool, const void *task, int task_len) {
 #ifdef SW_THREADPOOL_USE_CHANNEL
     ret = swChannel_in(pool->chan, task, task_len);
 #else
-    ret = swRingQueue_push(&pool->queue, (char *) task);
+    ret = pool->queue->push(const_cast<void *>(task));
 #endif
     pool->cond.unlock(&pool->cond);
 
-    if (ret < 0) {
+    if (!ret) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_QUEUE_FULL, "the queue of thread pool is full");
         return SW_ERR;
     }
@@ -117,7 +117,7 @@ int swThreadPool_free(swThreadPool *pool) {
 #ifdef SW_THREADPOOL_USE_CHANNEL
     swChannel_free(pool->chan);
 #else
-    swRingQueue_free(&pool->queue);
+    delete pool->queue;
 #endif
 
     pool->cond.free(&pool->cond);
@@ -130,7 +130,6 @@ static void *swThreadPool_loop(void *arg) {
     swThreadPool *pool = (swThreadPool *) param->object;
 
     int id = param->pti;
-    int ret;
     void *task;
 
     SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
@@ -159,14 +158,16 @@ static void *swThreadPool_loop(void *arg) {
 
         swTrace("thread [%d] is starting to work", id);
 
-        ret = swRingQueue_pop(&pool->queue, &task);
-        pool->cond.unlock(&pool->cond);
+        if (!pool->queue->empty()) {
+            task = pool->queue->pop();
+            pool->cond.unlock(&pool->cond);
 
-        if (ret >= 0) {
-            sw_atomic_t *task_num = &pool->task_num;
-            sw_atomic_fetch_sub(task_num, 1);
+            if (task) {
+                sw_atomic_t *task_num = &pool->task_num;
+                sw_atomic_fetch_sub(task_num, 1);
 
-            pool->onTask(pool, (void *) task, ret);
+                pool->onTask(pool, task, 0);
+            }
         }
     }
 

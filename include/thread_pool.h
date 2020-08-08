@@ -56,7 +56,7 @@ struct swThreadPool {
 #ifdef SW_THREADPOOL_USE_CHANNEL
     swChannel *chan;
 #else
-    swRingQueue queue;
+    swoole::RingQueue<void *> *queue;
 #endif
 
     int thread_num;

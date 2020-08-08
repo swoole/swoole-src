@@ -14,10 +14,21 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef _SW_RINGQUEUE_H_
-#define _SW_RINGQUEUE_H_
+#pragma once
 
-struct swRingQueue {
+#include <stdio.h>
+
+#include "swoole.h"
+#include "swoole_log.h"
+
+#define swRingQueue_empty() ((head == tail) && (tag == 0))
+#define swRingQueue_full() ((head == tail) && (tag == 1))
+
+namespace swoole {
+
+template <typename T>
+class RingQueue {
+  private:
     int head;
     int tail;
     /**
@@ -25,24 +36,74 @@ struct swRingQueue {
      */
     int tag;
     int size;
-    void **data;
+    T* data;
+    /* data */
+  public:
+    RingQueue(int buffer_size);
+    ~RingQueue();
+    bool push(T push_data);
+    T pop();
+    int count();
+    bool empty();
 };
 
-int swRingQueue_init(swRingQueue *queue, int buffer_size);
-int swRingQueue_push(swRingQueue *queue, void *);
-int swRingQueue_pop(swRingQueue *queue, void **);
-void swRingQueue_free(swRingQueue *queue);
+template <typename T>
+RingQueue<T>::RingQueue(int buffer_size) {
+    data = reinterpret_cast<T*>(sw_calloc(buffer_size, sizeof(T)));
+    if (data == nullptr) {
+        throw std::bad_alloc();
+    }
+    size = buffer_size;
+    head = 0;
+    tail = 0;
+    tag = 0;
+}
 
-static inline int swRingQueue_count(swRingQueue *queue) {
-    if (queue->tail > queue->head) {
-        return queue->tail - queue->head;
-    } else if (queue->head == queue->tail) {
-        return queue->tag == 1 ? queue->size : 0;
+template <typename T>
+RingQueue<T>::~RingQueue() {
+    sw_free(data);
+}
+
+template <typename T>
+bool RingQueue<T>::push(T push_data) {
+    if (swRingQueue_full()) {
+        return false;
+    }
+
+    data[tail] = push_data;
+    tail = (tail + 1) % size;
+
+    if (tail == head) {
+        tag = 1;
+    }
+    return true;
+}
+
+template <typename T>
+T RingQueue<T>::pop() {
+    T pop_data = data[head];
+    head = (head + 1) % size;
+
+    if (tail == head) {
+        tag = 0;
+    }
+    return pop_data;
+}
+
+template <typename T>
+int RingQueue<T>::count() {
+    if (tail > head) {
+        return tail - head;
+    } else if (head == tail) {
+        return tag == 1 ? size : 0;
     } else {
-        return queue->tail + queue->size - queue->head;
+        return tail + size - head;
     }
 }
 
-#define swRingQueue_empty(q) ((q->head == q->tail) && (q->tag == 0))
-#define swRingQueue_full(q) ((q->head == q->tail) && (q->tag == 1))
-#endif
+template <typename T>
+bool RingQueue<T>::empty() {
+    return swRingQueue_empty();
+}
+
+}  // namespace swoole
