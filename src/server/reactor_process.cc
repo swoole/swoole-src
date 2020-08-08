@@ -30,8 +30,6 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int swReactorProcess_reuse_port(swListenPort *ls);
 #endif
 
-static uint32_t heartbeat_check_lasttime = 0;
-
 static bool swServer_is_single(swServer *serv) {
     return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
            serv->user_worker_list == nullptr;
@@ -425,6 +423,9 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event) {
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
     }
+    if (event->socket->removed) {
+        return Server::close_connection(reactor, event->socket);
+    }
     if (reactor->del(reactor, event->socket) == 0) {
         if (conn->close_queued) {
             return Server::close_connection(reactor, event->socket);
@@ -509,7 +510,7 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
     swConnection *conn;
     time_t now = time(nullptr);
 
-    if (now < heartbeat_check_lasttime + 10) {
+    if (now < serv->heartbeat_check_lasttime + 10) {
         return;
     }
 

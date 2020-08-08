@@ -652,6 +652,7 @@ class Server {
      */
     uint16_t heartbeat_idle_time = 0;
     uint16_t heartbeat_check_interval = 0;
+    uint32_t heartbeat_check_lasttime = 0;
 
     int *cpu_affinity_available = 0;
     int cpu_affinity_available_num = 0;
