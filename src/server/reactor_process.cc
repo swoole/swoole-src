@@ -537,6 +537,11 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
                 continue;
             }
 #endif
+            if (serv->disable_notify || conn->close_force) {
+                Server::close_connection(reactor, conn->socket);
+                continue;
+            }
+            conn->close_force = 1;
             notify_ev.fd = fd;
             notify_ev.socket = conn->socket;
             notify_ev.reactor_id = conn->reactor_id;

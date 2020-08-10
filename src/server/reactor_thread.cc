@@ -432,7 +432,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, swEvent *ev) {
                     ReactorThread_shutdown(reactor);
                 } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
                     uint32_t session_id = resp->info.fd;
-                    swConnection *conn = serv->get_connection_verify(session_id);
+                    Connection *conn = serv->get_connection_verify(session_id);
 
                     if (!conn) {
                         swoole_error_log(SW_LOG_NOTICE,
@@ -440,6 +440,10 @@ static int ReactorThread_onPipeRead(Reactor *reactor, swEvent *ev) {
                                          "force close connection failed, session#%d does not exist",
                                          session_id);
                         return SW_ERR;
+                    }
+
+                    if (serv->disable_notify || conn->close_force) {
+                        return Server::close_connection(reactor, conn->socket);
                     }
 
                     conn->close_force = 1;
@@ -1115,10 +1119,10 @@ void Server::start_heartbeat_thread() {
                 swTrace("check fd=%d", fd);
                 swConnection *conn = get_connection(fd);
                 if (is_valid_connection(conn)) {
-                    if (conn->protect || conn->last_time > checktime) {
+                    if (conn->protect || conn->last_time == 0 || conn->last_time > checktime) {
                         continue;
                     }
-                    swDataHead ev = {};
+                    swDataHead ev {};
                     ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                     // convert fd to session_id, in order to verify the connection before the force close connection
                     ev.fd = conn->session_id;
