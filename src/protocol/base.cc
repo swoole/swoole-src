@@ -86,7 +86,7 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
         return retval;
     } else if (n == 0) {
         return SW_CONTINUE;
-    } else if (n < buffer->length) {
+    } else if (n < (ssize_t) buffer->length) {
         off_t offset;
         buffer->reduce(n);
         offset = buffer->length - package_eof_len;

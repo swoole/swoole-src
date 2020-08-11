@@ -1003,7 +1003,7 @@ class Server {
     }
 
     bool is_valid_connection(Connection *conn) {
-        return (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION);
+        return (conn && conn->socket && conn->active == 1 && conn->socket->fdtype == SW_FD_SESSION);
     }
 
     inline int get_connection_fd(uint32_t session_id) {
