@@ -10,13 +10,14 @@ use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Http\Server;
 
+$link = "";
+symlink(TEST_IMAGE, TEST_LINK_IMAGE);
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    foreach ([false, true] as $http2) {
-        Swoole\Coroutine\run(function () use ($pm, $http2) {
-            $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/examples/test.jpg", ['http2' => $http2]);
-        });
-    }
+    Swoole\Coroutine\run(function () use ($pm) {
+            $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/examples/test_link.jpg");
+            var_dump($data);
+    });
     $pm->kill();
     echo "DONE\n";
 };
@@ -33,7 +34,6 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (Request $request, Response $response) {
-        $response->end(TEST_IMAGE);
     });
     $http->start();
 };
