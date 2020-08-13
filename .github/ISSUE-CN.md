@@ -21,7 +21,7 @@ Swoole的内核开发者们或许还不知道问题的存在,
 
 Please answer these questions before submitting your issue. Thanks!
 > 在提交Issue前请回答以下问题：
-	
+
 1. What did you do? If possible, provide a simple script for reproducing the error.
 > 请详细描述问题的产生过程，贴出相关的代码，最好能提供一份可稳定重现的简单脚本代码。
 
@@ -32,10 +32,10 @@ Please answer these questions before submitting your issue. Thanks!
 > 实际运行的结果是什么？
 
 4. What version of Swoole are you using (`php --ri swoole`)?
-> 你的版本? 贴出 `php --ri swoole` 所打印的内容	
+> 你的版本? 贴出 `php --ri swoole` 所打印的内容
 
 5. What is your machine environment used (including the version of kernel & php & gcc)?
-> 你使用的机器系统环境是什么（包括内核、PHP、gcc编译器版本信息）？	
+> 你使用的机器系统环境是什么（包括内核、PHP、gcc编译器版本信息）？
 > 可以使用`uname -a`, `php -v`, `gcc -v` 命令打印
 
 ```
@@ -59,8 +59,7 @@ WARNING	swManager_check_exit_status: worker#1 abnormal exit, status=0, signal=11
 ulimit -c unlimited
 ```
 
-触发BUG, 核心转储文件会生成在 程序目录 或 系统根目录 或 /cores目录下 (取决于你的系统配置)
-键入以下命令进入gdb调试程序
+触发BUG, 核心转储文件会生成在 程序目录 或 系统根目录 或 `/cores` 目录下 (取决于你的系统配置), 键入以下命令进入gdb调试程序
 ```
 gdb php core
 gdb php /tmp/core.4596
@@ -84,7 +83,7 @@ gdb php /tmp/core.4596
 更多时候, Valgrind比gdb更能发现内存问题, 通过以下指令运行你的程序, 直到触发BUG
 
 ```shell
-USE_ZEND_ALLOC=0 valgrind --log-file= php xxx.php
+USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php xxx.php
 ```
 
 * 当程序发生错误时, 可以通过键入 `ctrl+c` 退出, 然后上传 `/tmp/valgrind.log` 文件以便于开发组定位BUG.

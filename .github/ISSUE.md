@@ -4,7 +4,7 @@ English | [中文](./ISSUE-CN.md)
 
 ## Instruction
 
-If you think you have found a bug in Swoole, please report it. 
+If you think you have found a bug in Swoole, please report it.
 The Swoole developers probably don't know about it,
 and unless you report it, chances are it won't be fixed.
 You can report bugs at https://github.com/swoole/swoole-src/issues.
@@ -16,7 +16,6 @@ Please read the **How to report a bug document** before submitting any bug repor
 ## New issue
 
 First, while creating an issue, the system will give the following template:
-> 首先在创建issue的同时, 系统将会给出如下模板, 请你认真填写它, 否则issue由于缺乏信息可能会被忽略:
 
 ```markdown
 Please answer these questions before submitting your issue. Thanks!
@@ -36,7 +35,7 @@ Besides, In a special case, you can use debugging tools to help developers locat
 WARNING	swManager_check_exit_status: worker#1 abnormal exit, status=0, signal=11
 ```
 
-When a segmentation error occurs with Swoole, You can use the `gdb` tool and use `bt` command. 
+When a segmentation error occurs with Swoole, You can use the `gdb` tool and use `bt` command.
 > Using `gdb` to track the core file need to add the `--enable-debug` parameter when compiling `swoole`.
 
 Enable core dump
@@ -70,7 +69,7 @@ CFLAGS = -Wall -pthread -g -O0
 In addition to using `gdb` analysis, you can use the `valgrind` tool to check if the program is working properly.
 
 ```shell
-USE_ZEND_ALLOC=0 valgrind --log-file= php xxx.php
+USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php xxx.php
 ```
 
 * After the program is executed to the wrong location, `ctrl+c` is interrupted, and upload the `/tmp/valgrind.log` file.
