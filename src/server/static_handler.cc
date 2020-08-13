@@ -148,7 +148,7 @@ _detect_mime_type:
         }
     }
 
-    if ((file_stat.st_mode & S_IFMT) == S_IFLNK) {
+    if (S_ISLNK(file_stat.st_mode)) {
         char buf[PATH_MAX];
         size_t byte = ::readlink(task.filename, buf, PATH_MAX);
         if (byte <= 0) {
@@ -173,7 +173,7 @@ _detect_mime_type:
         return false;
     }
 
-    if ((file_stat.st_mode & S_IFMT) != S_IFREG) {
+    if (!S_ISREG(file_stat.st_mode)) {
         return false;
     }
     task.length = get_filesize();
