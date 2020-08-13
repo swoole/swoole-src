@@ -15,7 +15,7 @@ const FILE = __DIR__.'/tmp_result.txt';
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
-    Assert::contains(file_get_contents(FILE), 'HTTP/1.1 302 Moved Temporarily');
+    Assert::contains(file_get_contents(FILE), 'HTTP/1.1 301 Moved Permanently');
 };
 
 $pm->childFunc = function () use ($pm) {
