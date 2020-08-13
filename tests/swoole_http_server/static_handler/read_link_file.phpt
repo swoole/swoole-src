@@ -15,10 +15,10 @@ $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     Swoole\Coroutine\run(function () use ($pm) {
             $data = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/examples/test_link.jpg");
-            Assert::assert(md5($data) === md5_file(TEST_IMAGE));
             if (is_file(TEST_LINK_IMAGE)) {
                 unlink(TEST_LINK_IMAGE);
             }
+            Assert::assert(md5($data) === md5_file(TEST_IMAGE));
     });
     $pm->kill();
     echo "DONE\n";
