@@ -1622,6 +1622,9 @@ bool Socket::close() {
         }
         return false;
     } else {
+        if (activated) {
+            shutdown();
+        }
         sock_fd = -1;
         closed = true;
         return true;
