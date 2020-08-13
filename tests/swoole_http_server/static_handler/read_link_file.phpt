@@ -10,7 +10,6 @@ use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Http\Server;
 
-$link = "";
 symlink(TEST_IMAGE, TEST_LINK_IMAGE);
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
