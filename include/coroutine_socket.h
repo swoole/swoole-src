@@ -377,7 +377,7 @@ class Socket {
     bool ssl_create(SSL_CTX *ssl_context);
 #endif
 
-    bool activated = true;
+    bool activated = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool closed = false;

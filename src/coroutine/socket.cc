@@ -575,6 +575,7 @@ Socket::Socket(swSocket *sock, Socket *server_sock) {
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
+    activated = true;
 #ifdef SW_USE_OPENSSL
     open_ssl = server_sock->open_ssl;
     ssl_is_server = server_sock->ssl_is_server;
@@ -636,6 +637,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
             }
         }
     }
+    activated = true;
     set_err(0);
     return true;
 }
@@ -1601,15 +1603,14 @@ bool Socket::close() {
         set_err(EBADF);
         return true;
     }
-
+    if (activated) {
+        shutdown();
+    }
     if (sw_unlikely(has_bound())) {
         if (closed) {
             // close operation is in processing
             set_err(EINPROGRESS);
             return false;
-        }
-        if (activated) {
-            shutdown();
         }
         closed = true;
         if (write_co) {
@@ -1622,9 +1623,6 @@ bool Socket::close() {
         }
         return false;
     } else {
-        if (activated) {
-            shutdown();
-        }
         sock_fd = -1;
         closed = true;
         return true;
