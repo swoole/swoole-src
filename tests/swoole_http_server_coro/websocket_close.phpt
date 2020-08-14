@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm) {
             $frame = $ws->recv();
             if ($frame === false) {
                 echo "error : " . swoole_last_error() . "\n";
-            } else if ($frame == '') {
+            } else if ($frame === '' or $frame->data === '') {
                 echo "close\n";
             } else {
                 Assert::greaterThan($frame->fd, 0);

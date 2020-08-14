@@ -83,7 +83,7 @@ class Socket {
     bool cancel(const enum swEvent_type event);
     bool close();
 
-    inline bool is_connect() { return activated && !closed; }
+    inline bool is_connect() { return connected && !closed; }
 
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
@@ -377,7 +377,7 @@ class Socket {
     bool ssl_create(SSL_CTX *ssl_context);
 #endif
 
-    bool activated = false;
+    bool connected = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool closed = false;

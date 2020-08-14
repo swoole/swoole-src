@@ -575,7 +575,7 @@ Socket::Socket(swSocket *sock, Socket *server_sock) {
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
-    activated = true;
+    connected = true;
 #ifdef SW_USE_OPENSSL
     open_ssl = server_sock->open_ssl;
     ssl_is_server = server_sock->ssl_is_server;
@@ -637,7 +637,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
             }
         }
     }
-    activated = true;
+    connected = true;
     set_err(0);
     return true;
 }
@@ -776,7 +776,7 @@ bool Socket::connect(string _host, int _port, int flags) {
 }
 
 bool Socket::check_liveness() {
-    if (!is_connect()) {
+    if (closed) {
         set_err(ECONNRESET);
         return false;
     } else {
@@ -1555,7 +1555,7 @@ bool Socket::shutdown(int __how) {
                 break;
             }
             if (shutdown_read && shutdown_write) {
-                activated = false;
+                connected = false;
             }
             return true;
         }
@@ -1603,7 +1603,7 @@ bool Socket::close() {
         set_err(EBADF);
         return true;
     }
-    if (activated) {
+    if (connected) {
         shutdown();
     }
     if (sw_unlikely(has_bound())) {
