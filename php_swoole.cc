@@ -852,6 +852,9 @@ PHP_RINIT_FUNCTION(swoole) {
     SIGG(check) = 0;
 #endif
 
+    /* Do not send headers by SAPI */
+    SG(request_info).no_headers = 1;
+
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
 
     return SUCCESS;
