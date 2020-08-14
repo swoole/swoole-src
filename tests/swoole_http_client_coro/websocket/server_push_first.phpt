@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: websocket server push first
+swoole_http_client_coro/websocket: websocket server push first
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

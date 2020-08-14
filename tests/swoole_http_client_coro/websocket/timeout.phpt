@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_client_coro: websocket client & server
+swoole_http_client_coro/websocket: websocket client & server
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
