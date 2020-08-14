@@ -75,7 +75,6 @@ class Socket {
     Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
-    Socket(swSocket *sock, Socket *socket);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
@@ -83,7 +82,7 @@ class Socket {
     bool cancel(const enum swEvent_type event);
     bool close();
 
-    inline bool is_connect() { return activated && !closed; }
+    inline bool is_connect() { return connected && !closed; }
 
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
@@ -377,12 +376,14 @@ class Socket {
     bool ssl_create(SSL_CTX *ssl_context);
 #endif
 
-    bool activated = true;
+    bool connected = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool closed = false;
 
     bool zero_copy = false;
+
+    Socket(network::Socket *sock, Socket *socket);
 
     static void timer_callback(swTimer *timer, swTimer_node *tnode);
     static int readable_event_callback(swReactor *reactor, swEvent *event);
