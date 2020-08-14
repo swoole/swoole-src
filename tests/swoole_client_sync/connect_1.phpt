@@ -14,4 +14,3 @@ Assert::false($r);
 Assert::eq($cli->errCode, SOCKET_ETIMEDOUT);
 ?>
 --EXPECT--
-
