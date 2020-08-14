@@ -555,7 +555,10 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol)
     init_options();
 }
 
-Socket::Socket(swSocket *sock, Socket *server_sock) {
+/**
+ * Only used as accept member method
+ */
+Socket::Socket(network::Socket *sock, Socket *server_sock) {
     type = server_sock->type;
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
