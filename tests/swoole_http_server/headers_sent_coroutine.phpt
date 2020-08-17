@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: output buffering
+swoole_http_server: headers sent (coroutine enabled)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -22,6 +22,7 @@ $pm->childFunc = function () use ($pm) {
     $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
     $http->set([
         'worker_num' => 1,
+        'enable_coroutine' => true,
         'log_file' => '/dev/null'
     ]);
     $http->on('workerStart', function () use ($pm) {
