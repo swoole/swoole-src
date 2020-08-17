@@ -525,11 +525,15 @@ void PHPCoroutine::on_close(void *arg) {
     }
 
     if (OG(handlers).elements) {
+        zend_bool no_headers = SG(request_info).no_headers;
+        /* Do not send headers by SAPI */
+        SG(request_info).no_headers = 1;
         if (OG(active)) {
             php_output_end_all();
         }
         php_output_deactivate();
         php_output_activate();
+        SG(request_info).no_headers = no_headers;
     }
     if (task->array_walk_fci) {
         efree(task->array_walk_fci);
