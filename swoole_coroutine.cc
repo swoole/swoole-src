@@ -231,9 +231,9 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
         }
         obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce, &ex, ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
-        zend_update_property(swoole_exit_exception_ce, &ex, ZEND_STRL("status"), exit_status);
+        zend_update_property(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), exit_status);
     }
 
     return ZEND_USER_OPCODE_DISPATCH;

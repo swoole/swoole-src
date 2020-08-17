@@ -1235,7 +1235,7 @@ static PHP_METHOD(swoole_http_response, recv) {
 #else
         php_swoole_websocket_frame_unpack(&_tmp, return_value);
 #endif
-        zend_update_property_long(swoole_websocket_frame_ce, return_value, ZEND_STRL("fd"), sock->get_fd());
+        zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), sock->get_fd());
     }
 }
 
@@ -1292,7 +1292,7 @@ static PHP_METHOD(swoole_http_response, create) {
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
-    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), fd);
 }
 
 static PHP_METHOD(swoole_http_response, redirect) {

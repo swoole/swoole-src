@@ -177,8 +177,8 @@ http_context *swoole_http_context_new(int fd) {
     object_init_ex(zresponse_object, swoole_http_response_ce);
     php_swoole_http_response_set_context(zresponse_object, ctx);
 
-    zend_update_property_long(swoole_http_request_ce, zrequest_object, ZEND_STRL("fd"), fd);
-    zend_update_property_long(swoole_http_response_ce, zresponse_object, ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(zresponse_object), ZEND_STRL("fd"), fd);
 
 #if PHP_MEMORY_DEBUG
     php_vmstat.new_http_request++;

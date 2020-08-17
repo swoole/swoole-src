@@ -385,13 +385,13 @@ static PHP_METHOD(swoole_process, __construct) {
         process->pipe_object = _pipe;
         process->pipe_current = process->pipe_master;
 
-        zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("pipe"), process->pipe_master->fd);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pipe"), process->pipe_master->fd);
     }
 
     zend::Process *proc = new zend::Process((enum zend::process_pipe_type) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
-    zend_update_property(swoole_process_ce, ZEND_THIS, ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
+    zend_update_property(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
     php_swoole_process_set_worker(ZEND_THIS, process);
 }
 
@@ -449,8 +449,8 @@ static PHP_METHOD(swoole_process, useQueue) {
     }
     process->queue = queue;
     process->ipc_mode = mode;
-    zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("msgQueueId"), queue->msg_id);
-    zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("msgQueueKey"), msgkey);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueId"), queue->msg_id);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueKey"), msgkey);
     RETURN_TRUE;
 }
 
@@ -706,9 +706,9 @@ int php_swoole_process_start(swWorker *process, zval *zobject) {
     SwooleG.process_id = process->id;
     SwooleWG.worker = process;
 
-    zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pid"), process->pid);
     if (process->pipe_current) {
-        zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_current->fd);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pipe"), process->pipe_current->fd);
     }
     // eventloop create
     if (proc->enable_coroutine && php_swoole_reactor_init() < 0) {
@@ -743,7 +743,7 @@ static PHP_METHOD(swoole_process, start) {
     } else if (pid > 0) {
         process->pid = pid;
         process->child_process = 0;
-        zend_update_property_long(swoole_server_ce, ZEND_THIS, ZEND_STRL("pid"), process->pid);
+        zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pid"), process->pid);
         RETURN_LONG(pid);
     } else {
         process->child_process = 1;

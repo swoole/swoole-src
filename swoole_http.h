@@ -238,7 +238,7 @@ static sw_inline zval* swoole_http_init_and_read_property(zend_class_entry *ce, 
     if (UNEXPECTED(!*zproperty_store_pp))
     {
         // Notice: swoole http server properties can not be unset anymore, so we can read it without checking
-        zval rv, *property = zend_read_property(ce, zobject, name, name_len, 0, &rv);
+        zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(zobject), name, name_len, 0, &rv);
         array_init(property);
         *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
         **zproperty_store_pp = *property;

@@ -378,8 +378,8 @@ static PHP_METHOD(swoole_table, create) {
         php_swoole_fatal_error(E_ERROR, "unable to allocate memory");
         RETURN_FALSE;
     }
-    zend_update_property_long(swoole_table_ce, ZEND_THIS, ZEND_STRL("size"), table->size);
-    zend_update_property_long(swoole_table_ce, ZEND_THIS, ZEND_STRL("memorySize"), table->memory_size);
+    zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("size"), table->size);
+    zend_update_property_long(swoole_table_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("memorySize"), table->memory_size);
     RETURN_TRUE;
 }
 
@@ -605,8 +605,8 @@ static PHP_METHOD(swoole_table, offsetGet) {
     swTableRow_unlock(_rowlock);
 
     object_init_ex(return_value, swoole_table_row_ce);
-    zend_update_property(swoole_table_row_ce, return_value, ZEND_STRL("value"), &value);
-    zend_update_property_stringl(swoole_table_row_ce, return_value, ZEND_STRL("key"), key, keylen);
+    zend_update_property(swoole_table_row_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("value"), &value);
+    zend_update_property_stringl(swoole_table_row_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("key"), key, keylen);
     zval_ptr_dtor(&value);
     php_swoole_table_row_set_ptr(return_value, table);
 }
