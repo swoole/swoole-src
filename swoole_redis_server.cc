@@ -272,7 +272,7 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
     php_strtolower(_command, _command_len);
 
-    zend_update_property(swoole_redis_server_ce, ZEND_THIS, _command, _command_len, zcallback);
+    zend_update_property(swoole_redis_server_ce, SW_Z8_OBJ_P(ZEND_THIS), _command, _command_len, zcallback);
 
     string key(_command, _command_len);
     auto i = redis_handlers.find(key);
@@ -299,7 +299,7 @@ static PHP_METHOD(swoole_redis_server, getHandler) {
     php_strtolower(_command, _command_len);
 
     zval rv;
-    zval *handler = zend_read_property(swoole_redis_server_ce, ZEND_THIS, _command, _command_len, 1, &rv);
+    zval *handler = zend_read_property(swoole_redis_server_ce, SW_Z8_OBJ_P(ZEND_THIS), _command, _command_len, 1, &rv);
     RETURN_ZVAL(handler, 1, 0);
 }
 

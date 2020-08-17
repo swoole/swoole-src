@@ -513,7 +513,7 @@ static PHP_METHOD(swoole_process_pool, start) {
     pool->onWorkerStart = pool_onWorkerStart;
     pool->onWorkerStop = pool_onWorkerStop;
 
-    zend_update_property_long(swoole_process_pool_ce, ZEND_THIS, ZEND_STRL("master_pid"), getpid());
+    zend_update_property_long(swoole_process_pool_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("master_pid"), getpid());
 
     if (pool->start() < 0) {
         RETURN_FALSE;
@@ -567,8 +567,8 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
         *worker = current_pool->workers[worker_id];
 
         object_init_ex(zprocess, swoole_process_ce);
-        zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("id"), SwooleG.process_id);
-        zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pid"), worker->pid);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("id"), SwooleG.process_id);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pid"), worker->pid);
         if (current_pool->ipc_mode == SW_IPC_UNIXSOCK) {
             // current process
             if (worker->id == SwooleG.process_id) {
@@ -580,7 +580,7 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
              * Forbidden to close pipe in the php layer
              */
             worker->pipe_object = nullptr;
-            zend_update_property_long(swoole_process_ce, zprocess, ZEND_STRL("pipe"), worker->pipe_current->fd);
+            zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
         }
         php_swoole_process_set_worker(zprocess, worker);
         process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
