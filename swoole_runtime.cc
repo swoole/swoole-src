@@ -906,17 +906,6 @@ static php_stream *socket_create(const char *proto,
     abstract->socket = sock;
     abstract->stream.socket = sock->get_fd();
 
-    if (timeout) {
-        sock->set_timeout(timeout);
-        abstract->stream.timeout = *timeout;
-    } else if (FG(default_socket_timeout) > 0) {
-        sock->set_timeout((double) FG(default_socket_timeout));
-        abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
-    } else {
-        sock->set_timeout(-1);
-        abstract->stream.timeout.tv_sec = -1;
-    }
-
     persistent_id = nullptr;  // prevent stream api in user level using pconnect to persist the socket
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
 
