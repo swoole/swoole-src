@@ -58,7 +58,7 @@ char *swSignal_str(int sig) {
 }
 
 /**
- * clear all singal
+ * block all singal
  */
 void swSignal_none(void) {
     sigset_t mask;
