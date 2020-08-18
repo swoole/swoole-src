@@ -304,7 +304,6 @@ void ProcessPool::shutdown() {
     swWorker *worker;
     running = 0;
 
-    swSignal_none();
     // concurrent kill
     for (i = 0; i < worker_num; i++) {
         worker = &workers[i];
