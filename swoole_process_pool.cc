@@ -521,6 +521,9 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     current_pool = pool;
 
+    swSignal_set(SIGCHLD, SIG_IGN);
+    swSignal_set(SIGPIPE, SIG_IGN);
+
     if (pp->onStart) {
         zval args[1];
         args[0] = *ZEND_THIS;
