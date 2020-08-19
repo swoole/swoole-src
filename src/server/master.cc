@@ -774,6 +774,7 @@ void Server::destroy() {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
             gs->task_workers.shutdown();
+            gs->task_workers.destroy();
         }
     } else {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads");

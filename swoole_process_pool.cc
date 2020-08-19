@@ -82,6 +82,7 @@ static void php_swoole_process_pool_free_object(zend_object *object) {
     swProcessPool *pool = process_pool->pool;
     if (pool) {
         efree(pool->ptr);
+        pool->destroy();
         efree(pool);
     }
 
@@ -493,9 +494,11 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     SwooleG.use_signalfd = 0;
 
-    swSignal_set(SIGTERM, pool_signal_handler);
-    swSignal_set(SIGUSR1, pool_signal_handler);
-    swSignal_set(SIGUSR2, pool_signal_handler);
+    std::unordered_map<int, swSignalHandler> ori_handlers;
+
+    ori_handlers[SIGTERM] = swSignal_set(SIGTERM, pool_signal_handler);
+    ori_handlers[SIGUSR1] = swSignal_set(SIGUSR1, pool_signal_handler);
+    ori_handlers[SIGUSR2] = swSignal_set(SIGUSR2, pool_signal_handler);
 
     if (pool->ipc_mode == SW_IPC_NONE || pp->enable_coroutine) {
         if (pp->onWorkerStart == nullptr) {
@@ -521,9 +524,6 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     current_pool = pool;
 
-    swSignal_set(SIGCHLD, SIG_IGN);
-    swSignal_set(SIGPIPE, SIG_IGN);
-
     if (pp->onStart) {
         zval args[1];
         args[0] = *ZEND_THIS;
@@ -534,6 +534,12 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     pool->wait();
     pool->shutdown();
+
+    current_pool = nullptr;
+
+    for (auto iter = ori_handlers.begin(); iter != ori_handlers.end(); iter++) {
+        swSignal_set(iter->first, iter->second);
+    }
 }
 
 extern void php_swoole_process_set_worker(zval *zobject, swWorker *worker);

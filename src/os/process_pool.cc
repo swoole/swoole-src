@@ -318,7 +318,6 @@ void ProcessPool::shutdown() {
             swSysWarn("waitpid(%d) failed", worker->pid);
         }
     }
-    destroy();
     started = false;
 }
 
