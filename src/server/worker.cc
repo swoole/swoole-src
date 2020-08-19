@@ -435,39 +435,34 @@ void Server::stop_async_worker(swWorker *worker) {
         reactor->remove_read_event(worker->pipe_worker);
     }
 
-    if (serv->factory_mode == SW_MODE_BASE && swIsWorker()) {
-        for (auto ls : serv->ports) {
-            reactor->del(reactor, ls->socket);
-        }
-        if (worker->pipe_master) {
-            reactor->remove_read_event(worker->pipe_master);
-        }
-        int fd;
-        int serv_max_fd = serv->get_maxfd();
-        int serv_min_fd = serv->get_minfd();
-
-        for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-            swConnection *conn = serv->get_connection(fd);
-            if (conn && conn->socket && conn->active && !conn->peer_closed && conn->socket->fdtype == SW_FD_SESSION) {
-                reactor->remove_read_event(conn->socket);
+    if (serv->factory_mode == SW_MODE_BASE) {
+        if (swIsWorker()) {
+            for (auto ls : serv->ports) {
+                reactor->del(reactor, ls->socket);
             }
+            if (worker->pipe_master) {
+                reactor->remove_read_event(worker->pipe_master);
+            }
+            serv->foreach_connection([serv, reactor]( Connection *conn) {
+                if (!conn->peer_closed && !conn->socket->removed) {
+                    reactor->remove_read_event(conn->socket);
+                }
+            });
+            serv->clear_timer();
         }
-        serv->clear_timer();
-        goto _try_to_exit;
-    }
-
-    WorkerStopMessage msg;
-    msg.pid = SwooleG.pid;
-    msg.worker_id = SwooleG.process_id;
-
-    // send message to manager
-    if (serv->message_box && serv->message_box->push(&msg, sizeof(msg)) < 0) {
-        serv->running = 0;
     } else {
-        swoole_kill(serv->gs->manager_pid, SIGIO);
+        WorkerStopMessage msg;
+        msg.pid = SwooleG.pid;
+        msg.worker_id = SwooleG.process_id;
+
+        // send message to manager
+        if (serv->message_box && serv->message_box->push(&msg, sizeof(msg)) < 0) {
+            serv->running = 0;
+        } else {
+            swoole_kill(serv->gs->manager_pid, SIGIO);
+        }
     }
 
-_try_to_exit:
     reactor->set_wait_exit(true);
     reactor->set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, swWorker_reactor_try_to_exit);
     SwooleWG.exit_time = time(nullptr);
