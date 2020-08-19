@@ -118,7 +118,7 @@ swSignalHandler swSignal_set(int signo, swSignalHandler handler) {
             signals[signo].handler = handler;
             signals[signo].activated = true;
             signals[signo].signo = signo;
-            return swSignal_set(signo, swSignal_async_handler, 1, 1);
+            return swSignal_set(signo, swSignal_async_handler, 1, 0);
         }
     }
 }
