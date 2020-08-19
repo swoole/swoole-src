@@ -3007,28 +3007,20 @@ static PHP_METHOD(swoole_server, heartbeat) {
         RETURN_FALSE;
     }
 
-    int serv_max_fd = serv->get_maxfd();
-    int serv_min_fd = serv->get_minfd();
-
     array_init(return_value);
-
-    int fd;
     int checktime = (int) time(nullptr) - serv->heartbeat_idle_time;
 
-    for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-        swTrace("heartbeat check fd=%d", fd);
-        swConnection *conn = serv->get_connection(fd);
-        if (serv->is_valid_connection(conn)) {
-            if (conn->protect || conn->last_time > checktime) {
-                continue;
-            }
-            if (close_connection) {
-                conn->close_force = 1;
-                serv->factory.end(&serv->factory, fd);
-            }
-            add_next_index_long(return_value, conn->session_id);
+    serv->foreach_connection([serv, checktime, close_connection, return_value](Connection *conn) {
+        swTrace("heartbeat check fd=%d", conn->fd);
+        if (conn->protect || conn->last_time == 0 || conn->last_time > checktime) {
+            return;
         }
-    }
+        if (close_connection) {
+            conn->close_force = 1;
+            serv->factory.end(&serv->factory, conn->fd);
+        }
+        add_next_index_long(return_value, conn->session_id);
+    });
 }
 
 static PHP_METHOD(swoole_server, taskwait) {
