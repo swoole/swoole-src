@@ -58,7 +58,7 @@ char *swSignal_str(int sig) {
 }
 
 /**
- * clear all singal
+ * block all singal
  */
 void swSignal_none(void) {
     sigset_t mask;
@@ -82,7 +82,7 @@ swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int m
         func = SIG_DFL;
     }
 
-    struct sigaction act, oact;
+    struct sigaction act{}, oact{};
     act.sa_handler = func;
     if (mask) {
         sigfillset(&act.sa_mask);

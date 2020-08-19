@@ -774,6 +774,7 @@ void Server::destroy() {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
             gs->task_workers.shutdown();
+            gs->task_workers.destroy();
         }
     } else {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads");
@@ -1281,6 +1282,8 @@ void Server::init_signal_handler() {
     swSignal_set(SIGHUP, nullptr);
     if (factory_mode == SW_MODE_PROCESS) {
         swSignal_set(SIGCHLD, Server_signal_handler);
+    } else {
+        swSignal_set(SIGIO, Server_signal_handler);
     }
     swSignal_set(SIGUSR1, Server_signal_handler);
     swSignal_set(SIGUSR2, Server_signal_handler);
