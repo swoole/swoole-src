@@ -322,8 +322,8 @@ static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
     /**
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
      */
-    stream->eof =
-        (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT && sock->socket->catch_error(sock->errCode) == SW_CLOSE));
+    stream->eof = (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT &&
+                                     sock->socket->catch_error(sock->errCode) == SW_CLOSE));
     if (nr_bytes > 0) {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
@@ -757,8 +757,8 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     Socket *sock = (Socket *) abstract->socket;
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
-        // The coroutine socket always consistent with the sync blocking socket
-        return value ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+        sock->blocking = value;
+        return PHP_STREAM_OPTION_RETURN_OK;
     case PHP_STREAM_OPTION_XPORT_API: {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
     }

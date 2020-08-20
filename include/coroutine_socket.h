@@ -61,6 +61,7 @@ class Socket {
     bool open_length_check = false;
     bool open_eof_check = false;
     bool http2 = false;
+    bool blocking = true;
 
     Protocol protocol = {};
     swSocks5_proxy *socks5_proxy = nullptr;
@@ -82,14 +83,18 @@ class Socket {
     bool cancel(const enum swEvent_type event);
     bool close();
 
-    inline bool is_connect() { return connected && !closed; }
+    inline bool is_connect() {
+        return connected && !closed;
+    }
 
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
     ssize_t send(const void *__buf, size_t __n);
 
-    inline ssize_t send(const std::string &buf) { return send(buf.c_str(), buf.length()); }
+    inline ssize_t send(const std::string &buf) {
+        return send(buf.c_str(), buf.length());
+    }
 
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
@@ -155,30 +160,44 @@ class Socket {
         reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_ERROR, error_event_callback);
     }
 
-    inline enum swSocket_type get_type() { return type; }
+    inline enum swSocket_type get_type() {
+        return type;
+    }
 
-    inline int get_sock_domain() { return sock_domain; }
+    inline int get_sock_domain() {
+        return sock_domain;
+    }
 
-    inline int get_sock_type() { return sock_type; }
+    inline int get_sock_type() {
+        return sock_type;
+    }
 
-    inline int get_sock_protocol() { return sock_protocol; }
+    inline int get_sock_protocol() {
+        return sock_protocol;
+    }
 
-    inline int get_fd() { return sock_fd; }
+    inline int get_fd() {
+        return sock_fd;
+    }
 
-    inline int get_bind_port() { return bind_port; }
+    inline int get_bind_port() {
+        return bind_port;
+    }
 
     bool getsockname(swSocketAddress *sa);
     bool getpeername(swSocketAddress *sa);
-    
+
     inline const char *get_ip() {
         return socket->info.get_ip();
     }
-    
+
     inline int get_port() {
         return socket->info.get_port();
     }
 
-    inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) { return get_bound_co(event) != nullptr; }
+    inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) {
+        return get_bound_co(event) != nullptr;
+    }
 
     inline Coroutine *get_bound_co(const enum swEvent_type event) {
         if (event & SW_EVENT_READ) {
@@ -315,9 +334,13 @@ class Socket {
         return tmp;
     }
 
-    inline void set_zero_copy(bool enable) { zero_copy = enable; }
+    inline void set_zero_copy(bool enable) {
+        zero_copy = enable;
+    }
 
-    inline void set_buffer_allocator(swAllocator *allocator) { buffer_allocator = allocator; }
+    inline void set_buffer_allocator(swAllocator *allocator) {
+        buffer_allocator = allocator;
+    }
 
     inline void set_buffer_init_size(size_t size) {
         if (size == 0) {
@@ -327,7 +350,9 @@ class Socket {
     }
 
 #ifdef SW_USE_OPENSSL
-    inline bool is_ssl_enable() { return socket && ssl_handshaked; }
+    inline bool is_ssl_enable() {
+        return socket && ssl_handshaked;
+    }
 
     bool ssl_shutdown();
 #endif
