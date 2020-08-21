@@ -458,7 +458,6 @@ bool Http2Stream::send_trailer() {
 static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
     Http2Session *client = http2_sessions[ctx->fd];
     Http2Stream *stream = ctx->stream;
-    swServer *serv = (swServer *) ctx->private_data;
 
 #ifdef SW_HAVE_COMPRESSION
     if (ctx->accept_compression) {
@@ -488,20 +487,23 @@ static bool swoole_http2_server_respond(http_context *ctx, swString *body) {
 
     bool error = false;
 
+    /**
+     * If send_yield is not supported, ignore flow control
+     */
+    if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield) {
+        if (body->length > client->send_window) {
+            swWarn("The data sent exceeded send_window");
+        }
+        if (!stream->send_body(body, end_stream, client->max_frame_size)) {
+            error = true;
+        }
+    }
+
     while (true) {
+        Server *serv = (Server *) ctx->private_data;
         size_t send_len = body->length - body->offset;
 
         if (send_len == 0) {
-            break;
-        }
-
-        /**
-         * If send_yield is not supported, ignore flow control
-         */
-        if (!serv->send_yield) {
-            if (!stream->send_body(body, end_stream, client->max_frame_size)) {
-                error = true;
-            }
             break;
         }
 
