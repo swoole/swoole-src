@@ -818,7 +818,7 @@ ssize_t Socket::recv(void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval;
-    timer_controller timer(&read_timer, blocking ? read_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = socket->recv(__buf, __n, 0);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
@@ -831,7 +831,7 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval;
-    timer_controller timer(&write_timer, blocking ? write_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = socket->send(__buf, __n, 0);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
@@ -845,7 +845,7 @@ ssize_t Socket::read(void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval;
-    timer_controller timer(&read_timer, blocking ? read_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = ::read(sock_fd, __buf, __n);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
@@ -894,7 +894,7 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval;
-    timer_controller timer(&write_timer, blocking ? write_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = ::write(sock_fd, (void *) __buf, __n);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
@@ -908,7 +908,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval, total_bytes = 0;
-    timer_controller timer(&read_timer, blocking ? read_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
 
     retval = socket->recv(__buf, __n, 0);
     if (retval == 0 || retval == (ssize_t) __n) {
@@ -942,7 +942,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
         return -1;
     }
     ssize_t retval, total_bytes = 0;
-    timer_controller timer(&write_timer, blocking ? write_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&write_timer, write_timeout, this, timer_callback);
 
     retval = socket->send(__buf, __n, 0);
     if (retval == 0 || retval == (ssize_t) __n) {
@@ -976,7 +976,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags) {
         return -1;
     }
     ssize_t retval;
-    timer_controller timer(&read_timer, blocking ? read_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = ::recvmsg(sock_fd, msg, flags);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
@@ -992,7 +992,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
         return -1;
     }
     ssize_t retval;
-    timer_controller timer(&write_timer, blocking ? write_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = ::sendmsg(sock_fd, msg, flags);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
@@ -1232,7 +1232,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         length = offset + length;
     }
 
-    timer_controller timer(&write_timer, blocking ? write_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&write_timer, write_timeout, this, timer_callback);
     int n, sendn;
     while ((size_t) offset < length) {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
@@ -1325,7 +1325,7 @@ ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t _
     }
 
     if (addr_size > 0) {
-        timer_controller timer(&write_timer, blocking ? write_timeout : 0.001, this, timer_callback);
+        timer_controller timer(&write_timer, write_timeout, this, timer_callback);
         do {
             retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
             swTraceLog(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
@@ -1350,7 +1350,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, sockle
         return -1;
     }
     ssize_t retval;
-    timer_controller timer(&read_timer, blocking ? read_timeout : 0.001, this, timer_callback);
+    timer_controller timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = ::recvfrom(sock_fd, __buf, __n, 0, _addr, _socklen);
         swTraceLog(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);

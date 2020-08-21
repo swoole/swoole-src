@@ -61,7 +61,6 @@ class Socket {
     bool open_length_check = false;
     bool open_eof_check = false;
     bool http2 = false;
-    bool blocking = true;
 
     Protocol protocol = {};
     swSocks5_proxy *socks5_proxy = nullptr;
