@@ -57,7 +57,6 @@ TEST(string, explode) {
     string needle = " ";
 
     swString str;
-    swString_clear(&str);
     str.str = (char *) haystack.c_str();
     str.length = haystack.length();
 
@@ -66,7 +65,7 @@ TEST(string, explode) {
     const char *explode_str = nullptr;
     size_t explode_length = 0;
 
-    swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int {
+    str.split(needle.c_str(), needle.length(), [&](const char *data, size_t length) -> int {
         explode_str = data;
         explode_length = length;
         value_1 = 5;
@@ -83,14 +82,13 @@ TEST(string, explode_2) {
     string needle = ",";
 
     swString str;
-    swString_clear(&str);
     str.str = (char *) haystack.c_str();
     str.length = haystack.length();
 
     int count = 0;
     vector<string> list;
 
-    size_t n = swoole::string_split(&str, needle.c_str(), needle.length(), [&](char *data, size_t length) -> int {
+    size_t n = str.split(needle.c_str(), needle.length(), [&](const char *data, size_t length) -> int {
         list.push_back(string(data, length - 1));
         count++;
         return true;
@@ -110,14 +108,14 @@ static string test_data = "hello,world,swoole,php,last";
 
 TEST(string, pop_1) {
     auto str = swoole::make_string(init_size);
-    swoole::String s(str);
+    std::unique_ptr<swString> s(str);
 
     char *str_1 = str->str;
 
     const int len_1 = 11;
     swString_append_ptr(str, test_data.c_str(), test_data.length());
     str->offset = len_1;
-    char *str_2 = swString_pop(str, init_size);
+    char *str_2 = str->pop(init_size);
 
     EXPECT_EQ(str_1, str_2);
     EXPECT_EQ(string("hello,world"), string(str_2, len_1));
@@ -129,14 +127,14 @@ TEST(string, pop_1) {
 
 TEST(string, pop_2) {
     auto str = swoole::make_string(init_size);
-    swoole::String s(str);
+    std::unique_ptr<swString> s(str);
 
     char *str_1 = str->str;
 
     const int len_1 = test_data.length();
     swString_append_ptr(str, test_data.c_str(), test_data.length());
     str->offset = len_1;
-    char *str_2 = swString_pop(str, init_size);
+    char *str_2 = str->pop(init_size);
 
     EXPECT_EQ(str_1, str_2);
     EXPECT_EQ(test_data, string(str_2, len_1));
@@ -148,53 +146,51 @@ TEST(string, pop_2) {
 
 TEST(string, reduce_1) {
     auto str = swoole::make_string(init_size);
-    swoole::String s(str);
+    std::unique_ptr<swString> s(str);
 
     const int len_1 = 11;
     swString_append_ptr(str, test_data.c_str(), test_data.length());
     str->offset = len_1;
 
-    swString_reduce(str, str->offset);
+    str->reduce(str->offset);
 
     EXPECT_EQ(string(",swoole,php,last"), string(str->str, str->length));
 }
 
 TEST(string, reduce_2) {
     auto str = swoole::make_string(init_size);
-    swoole::String s(str);
+    std::unique_ptr<swString> s(str);
 
     swString_append_ptr(str, test_data.c_str(), test_data.length());
     str->offset = str->length;
 
-    swString_reduce(str, str->offset);
+    str->reduce(str->offset);
 
     EXPECT_EQ(str->length, 0);
 }
 
 TEST(string, reduce_3) {
     auto str = swoole::make_string(init_size);
-    swoole::String s(str);
+    std::unique_ptr<swString> s(str);
 
     swString_append_ptr(str, test_data.c_str(), test_data.length());
     str->offset = 0;
 
-    swString_reduce(str, str->offset);
+    str->reduce(str->offset);
 
     EXPECT_EQ(str->length, test_data.length());
 }
 
 TEST(string, format) {
-    auto str = swoole::make_string(128);
-    swoole::String s(str);
+    swString str(128);
 
     int a = swoole_rand(1000000, 9000000);
 
-    auto str2 = swoole::make_string(1024);
-    swoole::String s2(str2);
-    swString_append_random_bytes(str2, 1024, true);
+    swString str2(1024);
+    str2.append_random_bytes(1024, true);
 
-    swString_format(str, "a=%d, b=%.*s\r\n", a, str2->length, str2->str);
+    str.format("a=%d, b=%.*s\r\n", a, str2.length, str2.str);
 
-    EXPECT_GT(str->size, 1024);
-    EXPECT_STREQ(str->str + str->length - 2, "\r\n");
+    EXPECT_GT(str.size, 1024);
+    EXPECT_STREQ(str.str + str.length - 2, "\r\n");
 }

@@ -13,6 +13,7 @@
  | license@swoole.com so we can mail you a copy immediately.            |
  +----------------------------------------------------------------------+
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
+ | Author: Xinhua Guo  <guoxinhua@swoole.com>                           |
  +----------------------------------------------------------------------+
  */
 
@@ -23,53 +24,46 @@ void swMqtt_print_package(swMqtt_packet *pkg) {
 }
 
 void swMqtt_set_protocol(swProtocol *protocol) {
-    protocol->package_length_size = SW_MQTT_MIN_LENGTH;
+    protocol->package_length_size = SW_MQTT_MAX_LENGTH_SIZE;
     protocol->package_length_offset = 1;
     protocol->package_body_offset = 0;
     protocol->get_package_length = swMqtt_get_package_length;
 }
 
-static sw_inline ssize_t swMqtt_get_length(const char *data, uint32_t size, ssize_t *count) {
+// recv variable_header packet twice may cause that the '*data' contain the payload data,
+// but there's no chance to read the next mqtt request ,because MQTT client will recv ACK blocking
+#define MQTT_RECV_LEN_AGAIN 0
+
+ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size) {
+    //-1 cause the arg 'size' contain length_offset(1 byte len)
+    uint32_t recv_variable_header_size = (size - 1);
+    if (recv_variable_header_size < SW_MQTT_MIN_LENGTH_SIZE) {  // recv continue
+        return MQTT_RECV_LEN_AGAIN;
+    }
+
     uint8_t byte;
     int mul = 1;
     ssize_t length = 0;
-
-    *count = 0;
-    do {
-        byte = data[*count + 1];
+    ssize_t variable_header_byte_count = 0;
+    while (1) {
+        variable_header_byte_count++;
+        byte = data[variable_header_byte_count];
         length += (byte & 127) * mul;
         mul *= 128;
-        (*count)++;
-    } while ((byte & 128) != 0);
-
-    return length;
-}
-
-#if 0
-int swMqtt_unpack(swMqtt_packet *pkg, char *data, uint32_t size)
-{
-    uint8_t byte = data[0];
-    off_t offset;
-
-    pkg->type = (byte & 0xF0) >> 4;
-    pkg->dup = (byte & 0x08) >> 3;
-    pkg->qos = (byte & 0x06) >> 1;
-    pkg->retain = byte & 0x01;
-
-    offset += 1;
-
-    int count = 0;
-    pkg->length = swMqtt_get_length(data, size, &count);
-    offset += count + 1;
-    return 0;
-}
-#endif
-
-ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size) {
-    if (size < SW_MQTT_MIN_LENGTH) {
-        return 0;
+        if ((byte & 128) == 0) {  // done! there is no surplus length byte
+            break;
+        }
+        if (variable_header_byte_count >= SW_MQTT_MAX_LENGTH_SIZE) {
+            swoole_error_log(SW_LOG_WARNING,
+                             SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                             "bad request, The variable header size uper than %d",
+                             SW_MQTT_MAX_LENGTH_SIZE);
+            return SW_ERR;
+        }
+        if (variable_header_byte_count >= recv_variable_header_size) {  // length not enough
+            return MQTT_RECV_LEN_AGAIN;
+        }
     }
-    ssize_t count = 0;
-    ssize_t length = swMqtt_get_length(data, size, &count);
-    return length + count + 1;
+    // payload_length + variable_header_byte_count + length_offset(1)
+    return length + variable_header_byte_count + 1;
 }

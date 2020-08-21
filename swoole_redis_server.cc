@@ -168,7 +168,7 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
 
     if (command_len >= SW_REDIS_MAX_COMMAND_SIZE) {
         php_swoole_error(E_WARNING, "command [%.8s...](length=%d) is too long", command, command_len);
-        serv->close(serv, fd, 0);
+        serv->close(fd, false);
         return SW_OK;
     }
 
@@ -180,8 +180,7 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
     if (i == redis_handlers.end()) {
         char err_msg[256];
         length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%.*s'\r\n", command_len, command);
-        serv->send(serv, fd, err_msg, length);
-        return SW_OK;  // TODO: return SW_ERR?
+        return serv->send(fd, err_msg, length) ? SW_OK : SW_ERR;
     }
 
     zend_fcall_info_cache *fci_cache = &i->second;
@@ -200,7 +199,7 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
     }
 
     if (Z_TYPE_P(&retval) == IS_STRING) {
-        serv->send(serv, fd, Z_STRVAL_P(&retval), Z_STRLEN_P(&retval));
+        serv->send(fd, Z_STRVAL_P(&retval), Z_STRLEN_P(&retval));
     }
     zval_ptr_dtor(&retval);
     zval_ptr_dtor(&zdata);
@@ -273,7 +272,7 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%s", command);
     php_strtolower(_command, _command_len);
 
-    zend_update_property(swoole_redis_server_ce, ZEND_THIS, _command, _command_len, zcallback);
+    zend_update_property(swoole_redis_server_ce, SW_Z8_OBJ_P(ZEND_THIS), _command, _command_len, zcallback);
 
     string key(_command, _command_len);
     auto i = redis_handlers.find(key);
@@ -300,7 +299,7 @@ static PHP_METHOD(swoole_redis_server, getHandler) {
     php_strtolower(_command, _command_len);
 
     zval rv;
-    zval *handler = zend_read_property(swoole_redis_server_ce, ZEND_THIS, _command, _command_len, 1, &rv);
+    zval *handler = zend_read_property(swoole_redis_server_ce, SW_Z8_OBJ_P(ZEND_THIS), _command, _command_len, 1, &rv);
     RETURN_ZVAL(handler, 1, 0);
 }
 

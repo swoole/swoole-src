@@ -99,10 +99,10 @@ int php_swoole_http_onReceive(swServer *serv, swRecvData *req) {
         zval *zserver = ctx->request.zserver;
         swConnection *serv_sock = serv->get_connection(conn->server_fd);
         if (serv_sock) {
-            add_assoc_long(zserver, "server_port", swSocket_get_port(serv_sock->socket_type, &serv_sock->info));
+            add_assoc_long(zserver, "server_port", serv_sock->info.get_port());
         }
-        add_assoc_long(zserver, "remote_port", swSocket_get_port(conn->socket_type, &conn->info));
-        add_assoc_string(zserver, "remote_addr", (char *) swSocket_get_ip(conn->socket_type, &conn->info));
+        add_assoc_long(zserver, "remote_port", conn->info.get_port());
+        add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_ip());
         add_assoc_long(zserver, "master_time", conn->last_time);
     } while (0);
 
@@ -162,8 +162,6 @@ void php_swoole_http_server_minit(int module_number) {
     SW_SET_CLASS_SERIALIZABLE(swoole_http_server, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_http_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
-
-    zend_declare_property_null(swoole_http_server_ce, ZEND_STRL("onRequest"), ZEND_ACC_PRIVATE);
 }
 
 http_context *swoole_http_context_new(int fd) {
@@ -179,8 +177,8 @@ http_context *swoole_http_context_new(int fd) {
     object_init_ex(zresponse_object, swoole_http_response_ce);
     php_swoole_http_response_set_context(zresponse_object, ctx);
 
-    zend_update_property_long(swoole_http_request_ce, zrequest_object, ZEND_STRL("fd"), fd);
-    zend_update_property_long(swoole_http_response_ce, zresponse_object, ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(zresponse_object), ZEND_STRL("fd"), fd);
 
 #if PHP_MEMORY_DEBUG
     php_vmstat.new_http_request++;
@@ -298,22 +296,24 @@ http_context *php_swoole_http_response_get_and_check_context(zval *zobject) {
 
 bool http_context_send_data(http_context *ctx, const char *data, size_t length) {
     swServer *serv = (swServer *) ctx->private_data;
-    ssize_t ret = serv->send(serv, ctx->fd, (void *) data, length);
-    if (ret < 0 && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
+    bool retval = serv->send(ctx->fd, (void *) data, length);
+    if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         zval yield_data, return_value;
         ZVAL_STRINGL(&yield_data, data, length);
         php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value);
-        ret = Z_BVAL_P(&return_value) ? SW_OK : SW_ERR;
+        return Z_BVAL_P(&return_value);
     }
-    return ret == SW_OK;
+    else {
+        return true;
+    }
 }
 
 static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
     swServer *serv = (swServer *) ctx->private_data;
-    return serv->sendfile(serv, ctx->fd, file, l_file, offset, length) == SW_OK;
+    return serv->sendfile(ctx->fd, file, l_file, offset, length) == SW_OK;
 }
 
 static bool http_context_disconnect(http_context *ctx) {
     swServer *serv = (swServer *) ctx->private_data;
-    return serv->close(serv, ctx->fd, 0) == SW_OK;
+    return serv->close(ctx->fd, 0) == SW_OK;
 }

@@ -9,10 +9,10 @@
 using swoole::AsyncClient;
 using swoole::test::Process;
 using swoole::test::Server;
+using swoole::network::Client;
 
 TEST(client, tcp) {
     int ret;
-    swClient cli;
     char buf[128];
 
     pid_t pid;
@@ -31,8 +31,8 @@ TEST(client, tcp) {
 
     sleep(1);  // wait for the test server to start
 
-    ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
-    ASSERT_EQ(ret, 0);
+    Client cli(SW_SOCK_TCP, false);
+    ASSERT_NE(cli.socket, nullptr);
     ret = cli.connect(&cli, TEST_HOST, TEST_PORT, -1, 0);
     ASSERT_EQ(ret, 0);
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
@@ -40,7 +40,6 @@ TEST(client, tcp) {
     ret = cli.recv(&cli, buf, 128, 0);
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
-    cli.close(&cli);
 
     kill(pid, SIGTERM);
     int status;
@@ -49,7 +48,6 @@ TEST(client, tcp) {
 
 TEST(client, udp) {
     int ret;
-    swClient cli;
     char buf[128];
 
     pid_t pid;
@@ -57,7 +55,7 @@ TEST(client, udp) {
     Process proc([](Process *proc) {
         on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS) {
             swDgramPacket *packet = (swDgramPacket *) req->data;
-            SERVER_THIS->sendto(&packet->socket_addr, packet->data, packet->length, req->info.server_fd);
+            SERVER_THIS->sendto(packet->socket_addr, packet->data, packet->length, req->info.server_fd);
         };
 
         Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_UDP);
@@ -69,8 +67,8 @@ TEST(client, udp) {
 
     sleep(1);  // wait for the test server to start
 
-    ret = swClient_create(&cli, SW_SOCK_UDP, SW_SOCK_SYNC);
-    ASSERT_EQ(ret, 0);
+    Client cli(SW_SOCK_UDP, false);
+    ASSERT_NE(cli.socket, nullptr);
     ret = cli.connect(&cli, TEST_HOST, TEST_PORT, -1, 0);
     ASSERT_EQ(ret, 0);
     ret = cli.send(&cli, SW_STRS(GREETER), 0);
@@ -78,7 +76,6 @@ TEST(client, udp) {
     ret = cli.recv(&cli, buf, 128, 0);
     ASSERT_EQ(ret, GREETER_SIZE);
     ASSERT_STREQ(GREETER, buf);
-    cli.close(&cli);
 
     kill(pid, SIGTERM);
     int status;
@@ -150,23 +147,62 @@ TEST(client, async_tcp) {
 
 TEST(client, connect_refuse) {
     int ret;
-    swClient cli;
-
-    ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
+    Client cli(SW_SOCK_TCP, false);
     ret = cli.connect(&cli, TEST_HOST, TEST_PORT + 10001, -1, 0);
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ECONNREFUSED);
-    cli.close(&cli);
 }
 
 TEST(client, connect_timeout) {
     int ret;
-    swClient cli;
-
-    ret = swClient_create(&cli, SW_SOCK_TCP, SW_SOCK_SYNC);
+    Client cli(SW_SOCK_TCP, false);
     ret = cli.connect(&cli, "19.168.0.99", TEST_PORT + 10001, 0.2, 0);
     ASSERT_EQ(ret, -1);
     ASSERT_EQ(swoole_get_last_error(), ETIMEDOUT);
-    cli.close(&cli);
 }
 
+TEST(client, shutdown_write) {
+    signal(SIGPIPE, SIG_IGN);
+    int ret;
+    Client cli(SW_SOCK_TCP, false);
+    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ASSERT_EQ(ret, 0);
+    cli.shutdown(SHUT_WR);
+    ssize_t retval = cli.send(&cli, SW_STRL("hello world"), 0);
+    ASSERT_EQ(retval, -1);
+    ASSERT_EQ(swoole_get_last_error(), EPIPE);
+}
+
+TEST(client, shutdown_read) {
+    signal(SIGPIPE, SIG_IGN);
+    int ret;
+    Client cli(SW_SOCK_TCP, false);
+    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ASSERT_EQ(ret, 0);
+
+    cli.shutdown(SHUT_RD);
+    ssize_t retval = cli.send(&cli, SW_STRL("hello world\r\n\r\n"), 0);
+    ASSERT_GT(retval, 0);
+
+    char buf[1024];
+    retval = cli.recv(&cli, buf, sizeof(buf), 0);
+    ASSERT_EQ(retval, 0);
+}
+
+TEST(client, shutdown_all) {
+    signal(SIGPIPE, SIG_IGN);
+    int ret;
+    Client cli(SW_SOCK_TCP, false);
+    ret = cli.connect(&cli, "www.baidu.com", 80, -1, 0);
+    ASSERT_EQ(ret, 0);
+
+    cli.shutdown(SHUT_RDWR);
+
+    ssize_t retval = cli.send(&cli, SW_STRL("hello world\r\n\r\n"), 0);
+    ASSERT_EQ(retval, -1);
+    ASSERT_EQ(swoole_get_last_error(), EPIPE);
+
+    char buf[1024];
+    retval = cli.recv(&cli, buf, sizeof(buf), 0);
+    ASSERT_EQ(retval, 0);
+}

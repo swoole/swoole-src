@@ -127,15 +127,16 @@ class OpcodeServer
                     "fd" => $fd,
                     "msg" => $msg,
                 ]), $toWorkerId);
-                assert($r);
+                Assert::true($r);
                 return;
 
             case "sendfile":
                 $len = filesize(__FILE__);
                 $r = $swooleServer->send($fd, pack("N", $len + 4));
+                Assert::true($r);
                 assert($r !== false);
-                $r =$swooleServer->sendfile($fd, __FILE__);
-                assert($r !== false);
+                $r = $swooleServer->sendfile($fd, __FILE__);
+                Assert::true($r);
                 return;
 
             default:
@@ -145,7 +146,6 @@ class OpcodeServer
                         $r = true;
                     }
                     $r = $swooleServer->send($fd, opcode_encode("return", $r));
-                    assert($r !== false);
                     return;
                 } else {
 

@@ -71,11 +71,10 @@ TEST(server, send_buffer) {
     serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
-        swoole::String resp(swoole::make_string(1024 * 1024 * 16));
-        auto str = resp.get();
-        swString_repeat(str, "A", 1, resp.size());
-        serv->send(serv, req->info.fd, str->str, str->length);
-        serv->close(serv, req->info.fd, 0);
+        swString resp(1024 * 1024 * 16);
+        resp.repeat("A", 1, resp.capacity());
+        EXPECT_TRUE(serv->send(req->info.fd, resp.value(), resp.get_length()));
+        EXPECT_TRUE(serv->close(req->info.fd, 0));
 
         return SW_OK;
     };

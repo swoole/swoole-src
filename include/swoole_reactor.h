@@ -145,16 +145,120 @@ class Reactor {
     ~Reactor();
     bool if_exit();
     void defer(swCallback cb, void *data = nullptr);
-    void set_end_callback(enum swReactor_end_callback id, std::function<void(Reactor *)> fn);
-    void set_exit_condition(enum swReactor_exit_condition id, std::function<bool(Reactor *, int &)> fn);
+    void set_end_callback(enum swReactor_end_callback id, const std::function<void(Reactor *)> &fn);
+    void set_exit_condition(enum swReactor_exit_condition id, const std::function<bool(Reactor *, int &)> &fn);
     inline size_t remove_exit_condition(enum swReactor_exit_condition id) { return exit_conditions.erase(id); }
     inline bool isset_exit_condition(enum swReactor_exit_condition id) {
         return exit_conditions.find(id) != exit_conditions.end();
     }
     inline bool isset_handler(int fdtype) { return read_handler[fdtype] != nullptr; }
-    int set_handler(int _fdtype, swReactor_handler handler);
+    bool set_handler(int _fdtype, swReactor_handler handler);
     void add_destroy_callback(swCallback cb, void *data = nullptr);
     void execute_end_callbacks(bool timedout = false);
+    void drain_write_buffer(swSocket *socket);
+
+    inline int add_event(swSocket *_socket, enum swEvent_type event_type) {
+        if (!(_socket->events & event_type)) {
+            return set(this, _socket, _socket->events | event_type);
+        }
+        return SW_OK;
+    }
+
+    inline int del_event(swSocket *_socket, enum swEvent_type event_type) {
+        if (_socket->events & event_type) {
+            return set(this, _socket, _socket->events & (~event_type));
+        }
+        return SW_OK;
+    }
+
+    inline int remove_read_event(swSocket *_socket) {
+        if (_socket->events & SW_EVENT_WRITE) {
+            _socket->events &= (~SW_EVENT_READ);
+            return set(this, _socket, _socket->events);
+        } else {
+            return del(this, _socket);
+        }
+    }
+
+    inline int remove_write_event(swSocket *_socket) {
+        if (_socket->events & SW_EVENT_READ) {
+            _socket->events &= (~SW_EVENT_WRITE);
+            return set(this, _socket, _socket->events);
+        } else {
+            return del(this, _socket);
+        }
+    }
+
+    inline int add_read_event(swSocket *_socket) {
+        if (_socket->events & SW_EVENT_WRITE) {
+            _socket->events |= SW_EVENT_READ;
+            return set(this, _socket, _socket->events);
+        } else {
+            return add(this, _socket, SW_EVENT_READ);
+        }
+    }
+
+    inline int add_write_event(swSocket *_socket) {
+        if (_socket->events & SW_EVENT_READ) {
+            _socket->events |= SW_EVENT_WRITE;
+            return set(this, _socket, _socket->events);
+        } else {
+            return add(this, _socket, SW_EVENT_WRITE);
+        }
+    }
+
+    inline bool exists(swSocket *_socket) {
+        return !_socket->removed && _socket->events;
+    }
+
+    inline int get_timeout_msec() {
+        return defer_tasks == nullptr ? timeout_msec : 0;
+    }
+
+    inline swReactor_handler get_handler(enum swEvent_type event_type, enum swFd_type fdtype) {
+        switch (event_type) {
+        case SW_EVENT_READ:
+            return read_handler[fdtype];
+        case SW_EVENT_WRITE:
+            return write_handler[fdtype] ? write_handler[fdtype] : default_write_handler;
+        case SW_EVENT_ERROR:
+            return error_handler[fdtype] ? error_handler[fdtype] : default_error_handler;
+        default:
+            abort();
+            break;
+        }
+        return nullptr;
+    }
+
+    inline void before_wait() {
+        start = running = true;
+    }
+
+    inline int trigger_close_event(swEvent *event) {
+        return default_error_handler(this, event);
+    }
+
+    inline void set_wait_exit(bool enable) {
+        wait_exit = enable;
+    }
+
+    inline void _add(swSocket *_socket, int events) {
+        _socket->events = events;
+        _socket->removed = 0;
+        event_num++;
+    }
+
+    inline void _set(swSocket *_socket, int events) {
+        _socket->events = events;
+    }
+
+    inline void _del(swSocket *_socket) {
+        _socket->events = 0;
+        _socket->removed = 1;
+        event_num--;
+    }
+
+    void activate_future_task();
 };
 }  // namespace swoole
 
@@ -199,14 +303,6 @@ static sw_inline int swReactor_events(int flags) {
     return events;
 }
 
-static inline void swReactor_before_wait(swReactor *reactor) {
-    reactor->start = reactor->running = true;
-}
-
-static inline void swReactor_wait_exit(swReactor *reactor, bool enable) {
-    reactor->wait_exit = enable;
-}
-
 #define SW_REACTOR_CONTINUE                                                                                            \
     if (reactor->once) {                                                                                               \
         break;                                                                                                         \
@@ -214,109 +310,9 @@ static inline void swReactor_wait_exit(swReactor *reactor, bool enable) {
         continue;                                                                                                      \
     }
 
-static sw_inline void swReactor_add(swReactor *reactor, swSocket *_socket, int events) {
-    _socket->events = events;
-    _socket->removed = 0;
-    reactor->event_num++;
-}
-
-static sw_inline void swReactor_set(swReactor *reactor, swSocket *_socket, int events) {
-    _socket->events = events;
-}
-
-static sw_inline void swReactor_del(swReactor *reactor, swSocket *_socket) {
-    _socket->events = 0;
-    _socket->removed = 1;
-    reactor->event_num--;
-}
-
-static sw_inline int swReactor_exists(swReactor *reactor, swSocket *_socket) {
-    return !_socket->removed && _socket->events;
-}
-
-static sw_inline int swReactor_get_timeout_msec(swReactor *reactor) {
-    return reactor->defer_tasks == nullptr ? reactor->timeout_msec : 0;
-}
-
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, swSocket *socket);
 int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n);
-int swReactor_drain_write_buffer(swReactor *reactor, swSocket *socket);
-void swReactor_activate_future_task(swReactor *reactor);
-
-static sw_inline int swReactor_add_event(swReactor *reactor, swSocket *_socket, enum swEvent_type event_type) {
-    if (!(_socket->events & event_type)) {
-        return reactor->set(reactor, _socket, _socket->events | event_type);
-    }
-    return SW_OK;
-}
-
-static sw_inline int swReactor_del_event(swReactor *reactor, swSocket *_socket, enum swEvent_type event_type) {
-    if (_socket->events & event_type) {
-        return reactor->set(reactor, _socket, _socket->events & (~event_type));
-    }
-    return SW_OK;
-}
-
-static sw_inline int swReactor_remove_read_event(swReactor *reactor, swSocket *_socket) {
-    if (_socket->events & SW_EVENT_WRITE) {
-        _socket->events &= (~SW_EVENT_READ);
-        return reactor->set(reactor, _socket, _socket->events);
-    } else {
-        return reactor->del(reactor, _socket);
-    }
-}
-
-static sw_inline int swReactor_remove_write_event(swReactor *reactor, swSocket *_socket) {
-    if (_socket->events & SW_EVENT_READ) {
-        _socket->events &= (~SW_EVENT_WRITE);
-        return reactor->set(reactor, _socket, _socket->events);
-    } else {
-        return reactor->del(reactor, _socket);
-    }
-}
-
-static sw_inline int swReactor_add_read_event(swReactor *reactor, swSocket *_socket) {
-    if (_socket->events & SW_EVENT_WRITE) {
-        _socket->events |= SW_EVENT_READ;
-        return reactor->set(reactor, _socket, _socket->events);
-    } else {
-        return reactor->add(reactor, _socket, SW_EVENT_READ);
-    }
-}
-
-static sw_inline int swReactor_add_write_event(swReactor *reactor, swSocket *_socket) {
-    if (_socket->events & SW_EVENT_READ) {
-        _socket->events |= SW_EVENT_WRITE;
-        return reactor->set(reactor, _socket, _socket->events);
-    } else {
-        return reactor->add(reactor, _socket, SW_EVENT_WRITE);
-        ;
-    }
-}
-
-static sw_inline swReactor_handler swReactor_get_handler(swReactor *reactor,
-                                                         enum swEvent_type event_type,
-                                                         enum swFd_type fdtype) {
-    switch (event_type) {
-    case SW_EVENT_READ:
-        return reactor->read_handler[fdtype];
-    case SW_EVENT_WRITE:
-        return (reactor->write_handler[fdtype] != NULL) ? reactor->write_handler[fdtype]
-                                                        : reactor->default_write_handler;
-    case SW_EVENT_ERROR:
-        return (reactor->error_handler[fdtype] != NULL) ? reactor->error_handler[fdtype]
-                                                        : reactor->default_error_handler;
-    default:
-        abort();
-        break;
-    }
-    return NULL;
-}
-
-static sw_inline int swReactor_trigger_close_event(swReactor *reactor, swEvent *event) {
-    return reactor->default_error_handler(reactor, event);
-}
 
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);

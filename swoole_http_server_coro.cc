@@ -26,9 +26,9 @@
 #include <algorithm>
 
 using namespace std;
-using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::PHPCoroutine;
 
 #ifdef SW_USE_HTTP2
 using Http2Stream = swoole::http2::Stream;
@@ -135,7 +135,7 @@ class http_server {
         parser->data = ctx;
         swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-        zend_update_property(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("socket"), zconn);
+        zend_update_property(swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), ZEND_STRL("socket"), zconn);
 
         return ctx;
     }
@@ -242,8 +242,8 @@ static sw_inline http_server *http_server_get_object(zend_object *obj) {
 }
 
 static inline void http_server_set_error(zval *zobject, Socket *sock) {
-    zend_update_property_long(swoole_http_server_coro_ce, zobject, ZEND_STRL("errCode"), sock->errCode);
-    zend_update_property_string(swoole_http_server_coro_ce, zobject, ZEND_STRL("errMsg"), sock->errMsg);
+    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->errCode);
+    zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
 
 static bool http_context_send_data(http_context *ctx, const char *data, size_t length) {
@@ -318,8 +318,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     Z_PARAM_BOOL(reuse_port)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    zend_update_property_stringl(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("host"), host, l_host);
-    zend_update_property_bool(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("ssl"), ssl);
+    zend_update_property_stringl(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, l_host);
+    zend_update_property_bool(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
 
     // check host
     if (l_host == 0) {
@@ -363,8 +363,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         RETURN_FALSE;
     }
 
-    zend_update_property_long(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("fd"), sock->get_fd());
-    zend_update_property_long(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("port"), sock->get_bind_port());
+    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->get_fd());
+    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_bind_port());
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle) {

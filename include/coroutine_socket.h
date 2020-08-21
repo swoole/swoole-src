@@ -26,11 +26,6 @@
 
 #include <vector>
 
-#define SW_DEFAULT_SOCKET_DNS_TIMEOUT -1
-#define SW_DEFAULT_SOCKET_CONNECT_TIMEOUT 1
-#define SW_DEFAULT_SOCKET_READ_TIMEOUT -1
-#define SW_DEFAULT_SOCKET_WRITE_TIMEOUT -1
-
 namespace swoole {
 enum swTimeout_type {
     SW_TIMEOUT_DNS = 1 << 0,
@@ -58,12 +53,7 @@ struct EventBarrier {
 
 class Socket {
   public:
-    static double default_dns_timeout;
-    static double default_connect_timeout;
-    static double default_read_timeout;
-    static double default_write_timeout;
-
-    swSocket *socket = nullptr;
+    network::Socket *socket = nullptr;
     int errCode = 0;
     const char *errMsg = "";
     std::string errString;
@@ -72,7 +62,7 @@ class Socket {
     bool open_eof_check = false;
     bool http2 = false;
 
-    swProtocol protocol = {};
+    Protocol protocol = {};
     swSocks5_proxy *socks5_proxy = nullptr;
     swHttp_proxy *http_proxy = nullptr;
 
@@ -85,7 +75,6 @@ class Socket {
     Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
-    Socket(swSocket *sock, Socket *socket);
     ~Socket();
     bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
@@ -93,7 +82,7 @@ class Socket {
     bool cancel(const enum swEvent_type event);
     bool close();
 
-    inline bool is_connect() { return activated && !closed; }
+    inline bool is_connect() { return connected && !closed; }
 
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
@@ -115,7 +104,7 @@ class Socket {
         if (read_buffer->offset == 0) {
             return nullptr;
         } else {
-            return swString_pop(read_buffer, buffer_init_size);
+            return read_buffer->pop(buffer_init_size);
         }
     }
 
@@ -180,8 +169,14 @@ class Socket {
 
     bool getsockname(swSocketAddress *sa);
     bool getpeername(swSocketAddress *sa);
-    const char *get_ip();
-    int get_port();
+    
+    inline const char *get_ip() {
+        return socket->info.get_ip();
+    }
+    
+    inline int get_port() {
+        return socket->info.get_port();
+    }
 
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) { return get_bound_co(event) != nullptr; }
 
@@ -302,6 +297,24 @@ class Socket {
         return write_buffer;
     }
 
+    inline swString *pop_read_buffer() {
+        if (sw_unlikely(!read_buffer)) {
+            return nullptr;
+        }
+        auto tmp = read_buffer;
+        read_buffer = nullptr;
+        return tmp;
+    }
+
+    inline swString *pop_write_buffer() {
+        if (sw_unlikely(!write_buffer)) {
+            return nullptr;
+        }
+        auto tmp = write_buffer;
+        write_buffer = nullptr;
+        return tmp;
+    }
+
     inline void set_zero_copy(bool enable) { zero_copy = enable; }
 
     inline void set_buffer_allocator(swAllocator *allocator) { buffer_allocator = allocator; }
@@ -339,10 +352,10 @@ class Socket {
     int bind_port = 0;
     int backlog = 0;
 
-    double dns_timeout = default_dns_timeout;
-    double connect_timeout = default_connect_timeout;
-    double read_timeout = default_read_timeout;
-    double write_timeout = default_write_timeout;
+    double dns_timeout = network::Socket::default_dns_timeout;
+    double connect_timeout = network::Socket::default_connect_timeout;
+    double read_timeout = network::Socket::default_read_timeout;
+    double write_timeout = network::Socket::default_write_timeout;
     swTimer_node *read_timer = nullptr;
     swTimer_node *write_timer = nullptr;
 
@@ -363,12 +376,14 @@ class Socket {
     bool ssl_create(SSL_CTX *ssl_context);
 #endif
 
-    bool activated = true;
+    bool connected = false;
     bool shutdown_read = false;
     bool shutdown_write = false;
     bool closed = false;
 
     bool zero_copy = false;
+
+    Socket(network::Socket *sock, Socket *socket);
 
     static void timer_callback(swTimer *timer, swTimer_node *tnode);
     static int readable_event_callback(swReactor *reactor, swEvent *event);
@@ -419,7 +434,7 @@ class Socket {
             if (timeout != 0 && !*timer_pp) {
                 enabled = true;
                 if (timeout > 0) {
-                    *timer_pp = swoole_timer_add((long) (timeout * 1000), SW_FALSE, callback, socket_);
+                    *timer_pp = swoole_timer_add((long) (timeout * 1000), false, callback, socket_);
                     return *timer_pp != nullptr;
                 } else  // if (timeout < 0)
                 {

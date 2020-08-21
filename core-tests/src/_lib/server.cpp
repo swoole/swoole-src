@@ -22,6 +22,7 @@
 #include "swoole_memory.h"
 
 using namespace swoole::test;
+using swoole::network::Address;
 
 Server::Server(std::string _host, int _port, enum swServer_mode _mode, int _type)
     : serv(_mode), host(_host), port(_port), mode(_mode), type(_type) {
@@ -85,19 +86,19 @@ bool Server::listen(std::string host, int port, enum swSocket_type type) {
 }
 
 int Server::send(int session_id, const void *data, uint32_t length) {
-    return serv.send(&serv, session_id, data, length);
+    return serv.send(session_id, data, length);
 }
 
-ssize_t Server::sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket) {
-    char ip[256];
-    uint16_t port;
-
-    inet_ntop(AF_INET, (void *) &address->addr.inet_v4.sin_addr, ip, sizeof(ip));
-    port = ntohs(address->addr.inet_v4.sin_port);
-
-    return swSocket_udp_sendto(server_socket, ip, port, __buf, __n);
+ssize_t Server::sendto(const Address &address, const char *__buf, size_t __n, int server_socket_fd) {
+    network::Socket *server_socket;
+    if (server_socket_fd < 0) {
+        server_socket = serv.udp_socket_ipv6 ? serv.udp_socket_ipv6 : serv.udp_socket_ipv4;
+    } else {
+        server_socket = serv.get_server_socket(server_socket_fd);
+    }
+    return server_socket->sendto(address, __buf, __n, 0);
 }
 
 int Server::close(int session_id, int reset) {
-    return serv.close(&serv, session_id, reset);
+    return serv.close(session_id, reset);
 }

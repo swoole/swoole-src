@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole_cxx.h"
+#include "helper/scope_guard.h"
 
 #include "thirdparty/php/standard/proc_open.h"
 #include <unordered_map>
@@ -45,8 +46,8 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
-using namespace swoole;
 using namespace std;
+using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
@@ -109,6 +110,9 @@ struct php_swoole_netstream_data_t
 {
     php_netstream_data_t stream;
     Socket *socket;
+    bool blocking = true;
+    double read_timeout = 0;
+    double write_timeout = 0;
 };
 
 static bool hook_init = false;
@@ -322,7 +326,7 @@ static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
      */
     stream->eof =
-        (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT && swSocket_error(sock->errCode) == SW_CLOSE));
+        (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT && sock->socket->catch_error(sock->errCode) == SW_CLOSE));
     if (nr_bytes > 0) {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
@@ -445,24 +449,30 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     if (host == nullptr) {
         return FAILURE;
     }
+    ON_SCOPE_EXIT {
+        if (ip_address) {
+            efree(ip_address);
+        }
+    };
     if (PHP_STREAM_CONTEXT(stream) &&
         (tmpzval = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "socket", "bindto")) != nullptr) {
         if (Z_TYPE_P(tmpzval) != IS_STRING) {
             if (xparam->want_errortext) {
                 xparam->outputs.error_text = strpprintf(0, "local_addr context option is not a string.");
             }
-            efree(ip_address);
             return FAILURE;
         }
         bindto = parse_ip_address_ex(
             Z_STRVAL_P(tmpzval), Z_STRLEN_P(tmpzval), &bindport, xparam->want_errortext, &xparam->outputs.error_text);
         if (bindto == nullptr) {
-            efree(ip_address);
             return FAILURE;
         }
+        ON_SCOPE_EXIT {
+            if (bindto) {
+                efree(bindto);
+            }
+        };
         if (!sock->bind(bindto, bindport)) {
-            efree(ip_address);
-            efree(bindto);
             return FAILURE;
         }
     }
@@ -476,12 +486,6 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
             xparam->outputs.error_text = zend_string_init(sock->errMsg, strlen(sock->errMsg), 0);
         }
         ret = -1;
-    }
-    if (ip_address) {
-        efree(ip_address);
-    }
-    if (bindto) {
-        efree(bindto);
     }
     return ret;
 }
@@ -566,6 +570,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         memset(abstract, 0, sizeof(*abstract));
 
         abstract->socket = clisock;
+        abstract->blocking = true;
 
         xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void *) abstract, nullptr, "r+");
         if (xparam->outputs.client) {
@@ -756,8 +761,19 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     Socket *sock = (Socket *) abstract->socket;
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
-        // The coroutine socket always consistent with the sync blocking socket
-        return value ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+        if (abstract->blocking == (bool) value) {
+            break;
+        }
+        abstract->blocking = (bool) value;
+        if (abstract->blocking) {
+            sock->set_timeout(abstract->read_timeout, SW_TIMEOUT_READ);
+            sock->set_timeout(abstract->write_timeout, SW_TIMEOUT_WRITE);
+        } else {
+            abstract->read_timeout = sock->get_timeout(SW_TIMEOUT_READ);
+            abstract->write_timeout = sock->get_timeout(SW_TIMEOUT_WRITE);
+            sock->set_timeout(0.001, SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
+        }
+        break;
     case PHP_STREAM_OPTION_XPORT_API: {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
     }
@@ -904,17 +920,7 @@ static php_stream *socket_create(const char *proto,
     abstract = (php_swoole_netstream_data_t *) ecalloc(1, sizeof(*abstract));
     abstract->socket = sock;
     abstract->stream.socket = sock->get_fd();
-
-    if (timeout) {
-        sock->set_timeout(timeout);
-        abstract->stream.timeout = *timeout;
-    } else if (FG(default_socket_timeout) > 0) {
-        sock->set_timeout((double) FG(default_socket_timeout));
-        abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
-    } else {
-        sock->set_timeout(-1);
-        abstract->stream.timeout.tv_sec = -1;
-    }
+    abstract->blocking = true;
 
     persistent_id = nullptr;  // prevent stream api in user level using pconnect to persist the socket
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
@@ -1213,7 +1219,7 @@ static PHP_FUNCTION(swoole_sleep) {
         RETURN_FALSE;
     }
 
-    if (num >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
+    if (Coroutine::get_current()) {
         RETURN_LONG(System::sleep((double) num) < 0 ? num : 0);
     } else {
         RETURN_LONG(php_sleep(num));
@@ -1230,7 +1236,7 @@ static PHP_FUNCTION(swoole_usleep) {
         RETURN_FALSE;
     }
     double sec = (double) num / 1000000;
-    if (sec >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
+    if (Coroutine::get_current()) {
         System::sleep(sec);
     } else {
         usleep((unsigned int) num);
@@ -1252,7 +1258,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
         RETURN_FALSE;
     }
     double _time = (double) tv_sec + (double) tv_nsec / 1000000000.00;
-    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
+    if (Coroutine::get_current()) {
         System::sleep(_time);
     } else {
         struct timespec php_req, php_rem;
@@ -1269,6 +1275,7 @@ static PHP_FUNCTION(swoole_time_nanosleep) {
             php_swoole_error(E_WARNING, "nanoseconds was not in the range 0 to 999 999 999 or seconds was negative");
         }
     }
+    RETURN_TRUE;
 }
 
 static PHP_FUNCTION(swoole_time_sleep_until) {
@@ -1297,7 +1304,7 @@ static PHP_FUNCTION(swoole_time_sleep_until) {
     php_req.tv_nsec = (long) ((c_ts - php_req.tv_sec) * 1000000000.00);
 
     double _time = (double) php_req.tv_sec + (double) php_req.tv_nsec / 1000000000.00;
-    if (_time >= SW_TIMER_MIN_SEC && Coroutine::get_current()) {
+    if (Coroutine::get_current()) {
         System::sleep(_time);
     } else {
         while (nanosleep(&php_req, &php_rem)) {
@@ -1555,6 +1562,7 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
     abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = sock->get_fd();
+    abstract->blocking = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
 

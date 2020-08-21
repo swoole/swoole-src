@@ -22,13 +22,11 @@
 
 #include "server.h"
 
-using namespace std;
-
 namespace swoole {
 namespace wrapper {
 //-----------------------------------namespace begin------------------------------------------------
 class ClientInfo {
-   public:
+  public:
     char address[256];
     int port;
     int server_socket;
@@ -49,7 +47,7 @@ struct DataBuffer {
         copy(str, strlen(str));
     }
 
-    DataBuffer(string &str) {
+    DataBuffer(const std::string &str) {
         copy(str.c_str(), str.length());
     }
 
@@ -94,27 +92,29 @@ enum {
 };
 
 class Server {
-   public:
-    Server(string _host, int _port, enum swServer_mode _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP);
+  public:
+    Server(const std::string &_host, int _port, enum swServer_mode _mode = SW_MODE_PROCESS, enum swSocket_type _type = SW_SOCK_TCP);
 
     virtual ~Server(){};
 
     bool start(void);
     void setEvents(int _events);
-    bool listen(string host, int port, enum swSocket_type type);
+    bool listen(const std::string &host, int port, enum swSocket_type type);
     bool send(int fd, const char *data, int length);
     bool send(int fd, const DataBuffer &data);
-    bool sendfile(int fd, string &file, off_t offset = 0, size_t length = 0);
+    bool sendfile(int fd, const std::string &file, off_t offset = 0, size_t length = 0);
     bool sendMessage(int worker_id, DataBuffer &data);
     bool sendwait(int fd, const DataBuffer &data);
     bool close(int fd, bool reset = false);
-    bool sendto(const string &ip, int port, const DataBuffer &data, int server_socket = -1);
+    bool sendto(const std::string &ip, int port, const DataBuffer &data, int server_socket = -1);
     int task(DataBuffer &data, int dst_worker_id = -1);
     bool finish(DataBuffer &data);
     DataBuffer taskwait(const DataBuffer &data, double timeout = SW_TASKWAIT_TIMEOUT, int dst_worker_id = -1);
-    map<int, DataBuffer> taskWaitMulti(const vector<DataBuffer> &data, double timeout = SW_TASKWAIT_TIMEOUT);
+    std::map<int, DataBuffer> taskWaitMulti(const std::vector<DataBuffer> &data, double timeout = SW_TASKWAIT_TIMEOUT);
 
-    int getLastError() { return swoole_get_last_error(); }
+    int getLastError() {
+        return swoole_get_last_error();
+    }
 
     virtual void onStart() = 0;
     virtual void onShutdown() = 0;
@@ -128,7 +128,7 @@ class Server {
     virtual void onTask(int, int, const DataBuffer &) = 0;
     virtual void onFinish(int, const DataBuffer &) = 0;
 
-   public:
+  public:
     static int _onReceive(swServer *serv, swRecvData *req);
     static int _onPacket(swServer *serv, swRecvData *req);
     static void _onConnect(swServer *serv, swDataHead *info);
@@ -141,12 +141,12 @@ class Server {
     static int _onTask(swServer *serv, swEventData *task);
     static int _onFinish(swServer *serv, swEventData *task);
 
-   private:
+  private:
     int check_task_param(int dst_worker_id);
 
-   protected:
+  protected:
     swServer serv;
-    string host;
+    std::string host;
     int port;
     enum swServer_mode mode;
     int events;

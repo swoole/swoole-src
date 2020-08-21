@@ -177,9 +177,9 @@ static int php_swoole_event_onWrite(swReactor *reactor, swEvent *event) {
 static int php_swoole_event_onError(swReactor *reactor, swEvent *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
-            return swReactor_get_handler(reactor, SW_EVENT_READ, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_READ, event->socket->fdtype)(reactor, event);
         } else {
-            return swReactor_get_handler(reactor, SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
         }
     }
 
@@ -298,6 +298,7 @@ void php_swoole_event_wait() {
 
 void php_swoole_event_exit() {
     if (sw_reactor()) {
+        php_swoole_timer_clear_all();
         sw_reactor()->running = false;
     }
 }
@@ -494,12 +495,12 @@ static PHP_FUNCTION(swoole_event_add) {
 
     check_reactor();
 
-    swSocket *socket = swSocket_new(socket_fd, SW_FD_USER);
+    swSocket *socket = swoole::make_socket(socket_fd, SW_FD_USER);
     if (!socket) {
         RETURN_FALSE;
     }
 
-    swSocket_set_nonblock(socket);
+    socket->set_nonblock();
     socket->object = peo;
 
     if (swoole_event_add(socket, events) < 0) {
@@ -639,7 +640,7 @@ static PHP_FUNCTION(swoole_event_del) {
     int retval = swoole_event_del(socket);
     event_socket_map.erase(socket_fd);
     socket->fd = -1;
-    swSocket_free(socket);
+    socket->free();
     RETURN_BOOL(retval == SW_OK);
 }
 
@@ -706,7 +707,7 @@ static PHP_FUNCTION(swoole_event_cycle) {
         sw_reactor()->future_task.callback = php_swoole_event_onEndCallback;
         sw_reactor()->future_task.data = fci_cache;
         // Registration onBegin callback function
-        swReactor_activate_future_task(sw_reactor());
+        sw_reactor()->activate_future_task();
     }
 
     RETURN_TRUE;

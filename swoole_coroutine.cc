@@ -231,9 +231,9 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
         }
         obj = zend_throw_exception(swoole_exit_exception_ce, "swoole exit", 0);
         ZVAL_OBJ(&ex, obj);
-        zend_update_property_long(swoole_exit_exception_ce, &ex, ZEND_STRL("flags"), flags);
+        zend_update_property_long(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("flags"), flags);
         Z_TRY_ADDREF_P(exit_status);
-        zend_update_property(swoole_exit_exception_ce, &ex, ZEND_STRL("status"), exit_status);
+        zend_update_property(swoole_exit_exception_ce, SW_Z8_OBJ_P(&ex), ZEND_STRL("status"), exit_status);
     }
 
     return ZEND_USER_OPCODE_DISPATCH;
@@ -525,11 +525,15 @@ void PHPCoroutine::on_close(void *arg) {
     }
 
     if (OG(handlers).elements) {
+        zend_bool no_headers = SG(request_info).no_headers;
+        /* Do not send headers by SAPI */
+        SG(request_info).no_headers = 1;
         if (OG(active)) {
             php_output_end_all();
         }
         php_output_deactivate();
         php_output_activate();
+        SG(request_info).no_headers = no_headers;
     }
     if (task->array_walk_fci) {
         efree(task->array_walk_fci);
@@ -867,7 +871,7 @@ PHP_METHOD(swoole_coroutine, stats) {
     add_assoc_long_ex(
         return_value, ZEND_STRL("signal_listener_num"), SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
     add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.aio_task_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swAio_thread_count());
+    add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swoole::async::thread_count());
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());

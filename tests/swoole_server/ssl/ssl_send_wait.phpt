@@ -1,5 +1,5 @@
 --TEST--
-ssl: send_wait support ssl
+swoole_server/ssl: send_wait support ssl
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

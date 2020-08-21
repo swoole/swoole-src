@@ -15,14 +15,17 @@
  */
 
 #include "wrapper/server.hpp"
+
 #include "lock.h"
 #include <sys/stat.h>
+
+using namespace std;
 
 namespace swoole {
 namespace wrapper {
 //-----------------------------------namespace begin------------------------------------------------
 swString *_callback_buffer;
-Server::Server(string _host, int _port, enum swServer_mode _mode, enum swSocket_type _type)
+Server::Server(const string &_host, int _port, enum swServer_mode _mode, enum swSocket_type _type)
     : serv(_mode), host(_host), port(_port), mode(_mode) {
     if (_mode == SW_MODE_BASE) {
         serv.reactor_num = 1;
@@ -41,8 +44,8 @@ void Server::setEvents(int _events) {
     events = _events;
 }
 
-bool Server::listen(string host, int port, enum swSocket_type type) {
-    return serv.add_port(type, (char *) host.c_str(), port) != nullptr;
+bool Server::listen(const string &host, int port, enum swSocket_type type) {
+    return serv.add_port(type, host.c_str(), port) != nullptr;
 }
 
 bool Server::send(int fd, const DataBuffer &data) {
@@ -52,7 +55,7 @@ bool Server::send(int fd, const DataBuffer &data) {
     if (data.length <= 0) {
         return false;
     }
-    return serv.send(&serv, fd, (char *) data.buffer, data.length) == 0;
+    return serv.send(fd, data.buffer, data.length) == 0;
 }
 
 bool Server::send(int fd, const char *data, int length) {
@@ -62,7 +65,7 @@ bool Server::send(int fd, const char *data, int length) {
     if (length <= 0) {
         return false;
     }
-    return serv.send(&serv, fd, (char *) data, length) == SW_OK;
+    return serv.send(fd, data, length) == SW_OK;
 }
 
 bool Server::close(int fd, bool reset) {
@@ -73,7 +76,7 @@ bool Server::close(int fd, bool reset) {
         return false;
     }
 
-    swConnection *conn = serv.get_connection_verify_no_ssl(fd);
+    Connection *conn = serv.get_connection_verify_no_ssl(fd);
     if (!conn) {
         return false;
     }
@@ -83,18 +86,16 @@ bool Server::close(int fd, bool reset) {
         conn->close_reset = 1;
     }
 
-    int ret;
     if (!swIsWorker()) {
         swWorker *worker = serv.get_worker(conn->fd % serv.worker_num);
-        swDataHead ev;
+        swDataHead ev = {};
         ev.type = SW_SERVER_EVENT_CLOSE;
         ev.fd = fd;
         ev.reactor_id = conn->reactor_id;
-        ret = swWorker_send_pipe_message(worker, &ev, sizeof(ev), SW_PIPE_MASTER);
+        return swWorker_send_pipe_message(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
     } else {
-        ret = serv.factory.end(&serv.factory, fd);
+        return serv.factory.end(&serv.factory, fd);
     }
-    return ret == SW_OK;
 }
 
 static int task_id = 0;
@@ -108,12 +109,12 @@ static int task_pack(swEventData *task, const DataBuffer &data) {
     swTask_type(task) = 0;
 
     if (data.length >= SW_IPC_MAX_SIZE - sizeof(task->info)) {
-        if (swEventData_large_pack(task, (char *) data.buffer, (int) data.length) < 0) {
+        if (swEventData_large_pack(task, data.buffer, (int) data.length) < 0) {
             swWarn("large task pack failed()");
             return SW_ERR;
         }
     } else {
-        memcpy(task->data, (char *) data.buffer, data.length);
+        memcpy(task->data, data.buffer, data.length);
         task->info.len = (uint16_t) data.length;
     }
     return task->info.fd;
@@ -180,7 +181,7 @@ int Server::task(DataBuffer &data, int dst_worker_id) {
     }
 
     swTask_type(&buf) |= SW_TASK_NONBLOCK;
-    if (swProcessPool_dispatch(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0) {
+    if (serv.gs->task_workers.dispatch(&buf, &dst_worker_id) >= 0) {
         sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
         return buf.info.fd;
     } else {
@@ -196,7 +197,7 @@ bool Server::finish(DataBuffer &data) {
     return serv.reply_task_result(data.buffer, data.length, 0, nullptr) == 0;
 }
 
-bool Server::sendto(const string &ip, int port, const DataBuffer &data, int server_socket) {
+bool Server::sendto(const string &ip, int port, const DataBuffer &data, int server_socket_fd) {
     if (serv.gs->start == 0) {
         return false;
     }
@@ -208,27 +209,23 @@ bool Server::sendto(const string &ip, int port, const DataBuffer &data, int serv
         ipv6 = true;
     }
 
-    if (ipv6 && serv.udp_socket_ipv6 <= 0) {
+    if (ipv6 && serv.udp_socket_ipv6 == nullptr) {
         return false;
-    } else if (serv.udp_socket_ipv4 <= 0) {
+    } else if (serv.udp_socket_ipv4  == nullptr) {
         swWarn("You must add an UDP listener to server before using sendto");
         return false;
     }
 
-    if (server_socket < 0) {
+    network::Socket *server_socket;
+    if (server_socket_fd < 0) {
         server_socket = ipv6 ? serv.udp_socket_ipv6 : serv.udp_socket_ipv4;
-    }
-
-    int ret;
-    if (ipv6) {
-        ret = swSocket_udp_sendto6(server_socket, (char *) ip.c_str(), port, (char *) data.buffer, data.length);
     } else {
-        ret = swSocket_udp_sendto(server_socket, (char *) ip.c_str(), port, (char *) data.buffer, data.length);
+        server_socket = serv.get_server_socket(server_socket_fd);
     }
-    return ret > 0;
+    return server_socket->sendto(ip.c_str(), port, data.buffer, data.length) > 0;
 }
 
-bool Server::sendfile(int fd, string &file, off_t offset, size_t length) {
+bool Server::sendfile(int fd, const string &file, off_t offset, size_t length) {
     if (serv.gs->start == 0) {
         swWarn("Server is not running");
         return false;
@@ -243,7 +240,7 @@ bool Server::sendfile(int fd, string &file, off_t offset, size_t length) {
         swWarn("file[offset=%jd] is empty", (intmax_t) offset);
         return false;
     }
-    return serv.sendfile(&serv, fd, (char *) file.c_str(), file.length(), offset, length) == SW_OK;
+    return serv.sendfile(fd, file.c_str(), file.length(), offset, length) == SW_OK;
 }
 
 bool Server::sendMessage(int worker_id, DataBuffer &data) {
@@ -293,7 +290,7 @@ bool Server::sendwait(int fd, const DataBuffer &data) {
         swWarn("cannot sendwait");
         return false;
     }
-    return serv.sendwait(&serv, fd, data.buffer, data.length) == 0;
+    return serv.sendwait(fd, data.buffer, data.length) == 0;
 }
 
 bool Server::start(void) {
@@ -456,7 +453,7 @@ DataBuffer Server::taskwait(const DataBuffer &data, double timeout, int dst_work
     while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0) {
     }
 
-    if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0) {
+    if (serv.gs->task_workers.dispatch_blocking(&buf, &dst_worker_id) >= 0) {
         sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
         task_notify_pipe->timeout = timeout;
         int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
@@ -519,7 +516,7 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
         swTask_type(&buf) |= SW_TASK_WAITALL;
         dst_worker_id = -1;
-        if (swProcessPool_dispatch_blocking(&serv.gs->task_workers, &buf, &dst_worker_id) >= 0) {
+        if (serv.gs->task_workers.dispatch_blocking(&buf, &dst_worker_id) >= 0) {
             sw_atomic_fetch_add(&serv.gs->tasking_num, 1);
             list_of_id[i] = task_id;
         } else {
@@ -545,8 +542,8 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         }
     }
 
-    swString *content = swoole_file_get_contents(_tmpfile);
-    if (content == nullptr) {
+    auto content = swoole_file_get_contents(_tmpfile);
+    if (content.get() == nullptr) {
         return retval;
     }
 
@@ -567,7 +564,6 @@ map<int, DataBuffer> Server::taskWaitMulti(const vector<DataBuffer> &tasks, doub
         content->offset += sizeof(swDataHead) + result->info.len;
     }
     unlink(_tmpfile);
-    swString_free(content);
     return retval;
 }
 //-----------------------------------namespace end------------------------------------------------

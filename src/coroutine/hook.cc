@@ -32,6 +32,8 @@ using std::unordered_map;
 using swoole::Coroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::async::dispatch;
+using swoole::async::Event;
 
 static unordered_map<int, Socket *> socket_map;
 
@@ -174,68 +176,68 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 }
 #endif
 
-static void handler_access(swAio_event *event) {
+static void handler_access(Event *event) {
     event->ret = access((const char *) event->buf, event->offset);
     event->error = errno;
 }
 
-static void handler_flock(swAio_event *event) {
+static void handler_flock(Event *event) {
     event->ret = ::flock(event->fd, (int) event->flags);
     event->error = errno;
 }
 
-static void handler_open(swAio_event *event) {
+static void handler_open(Event *event) {
     event->ret = open((const char *) event->buf, event->flags, event->offset);
     event->error = errno;
 }
 
-static void handler_read(swAio_event *event) {
+static void handler_read(Event *event) {
     event->ret = read(event->fd, event->buf, event->nbytes);
     event->error = errno;
 }
 
-static void handler_write(swAio_event *event) {
+static void handler_write(Event *event) {
     event->ret = write(event->fd, event->buf, event->nbytes);
     event->error = errno;
 }
 
-static void handler_lseek(swAio_event *event) {
+static void handler_lseek(Event *event) {
     event->ret = lseek(event->fd, event->offset, event->flags);
     event->error = errno;
 }
 
-static void handler_fstat(swAio_event *event) {
+static void handler_fstat(Event *event) {
     event->ret = fstat(event->fd, (struct stat *) event->buf);
     event->error = errno;
 }
 
-static void handler_unlink(swAio_event *event) {
+static void handler_unlink(Event *event) {
     event->ret = unlink((const char *) event->buf);
     event->error = errno;
 }
 
-static void handler_mkdir(swAio_event *event) {
+static void handler_mkdir(Event *event) {
     event->ret = mkdir((const char *) event->buf, event->offset);
     event->error = errno;
 }
 
-static void handler_rmdir(swAio_event *event) {
+static void handler_rmdir(Event *event) {
     event->ret = rmdir((const char *) event->buf);
     event->error = errno;
 }
 
-static void handler_statvfs(swAio_event *event) {
+static void handler_statvfs(Event *event) {
     event->ret = statvfs((const char *) event->buf, (struct statvfs *) event->offset);
     event->error = errno;
 }
 
-static void handler_rename(swAio_event *event) {
+static void handler_rename(Event *event) {
     event->ret = rename((const char *) event->buf, (const char *) event->offset);
     event->error = errno;
 }
 
-static void aio_onCompleted(swAio_event *event) {
-    swAio_event *ev = (swAio_event *) event->req;
+static void aio_onCompleted(Event *event) {
+    Event *ev = (Event *) event->req;
     ev->ret = event->ret;
     errno = event->error;
     ((Coroutine *) event->object)->resume();
@@ -246,7 +248,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
         return open(pathname, flags, mode);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void *) pathname;
     ev.offset = mode;
@@ -256,7 +258,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -274,7 +276,7 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
         return socket->read(buf, count);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.fd = sockfd;
     ev.buf = buf;
@@ -284,7 +286,7 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -302,7 +304,7 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
         return socket->write(buf, count);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.fd = sockfd;
     ev.buf = (void *) buf;
@@ -312,7 +314,7 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -325,7 +327,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
         return lseek(fd, offset, whence);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.offset = offset;
@@ -335,7 +337,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -348,7 +350,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
         return fstat(fd, statbuf);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.buf = (void *) statbuf;
@@ -357,7 +359,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -370,7 +372,7 @@ int swoole_coroutine_unlink(const char *pathname) {
         return unlink(pathname);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void *) pathname;
     ev.handler = handler_unlink;
@@ -378,7 +380,7 @@ int swoole_coroutine_unlink(const char *pathname) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -391,7 +393,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
         return statvfs(path, buf);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void *) path;
     ev.offset = (off_t) buf;
@@ -400,7 +402,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -413,7 +415,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
         return mkdir(pathname, mode);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void *) pathname;
     ev.offset = mode;
@@ -422,7 +424,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -435,7 +437,7 @@ int swoole_coroutine_rmdir(const char *pathname) {
         return rmdir(pathname);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void *) pathname;
     ev.handler = handler_rmdir;
@@ -443,7 +445,7 @@ int swoole_coroutine_rmdir(const char *pathname) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -456,7 +458,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
         return rename(oldpath, newpath);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void *) oldpath;
     ev.offset = (off_t) newpath;
@@ -465,7 +467,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -478,7 +480,7 @@ int swoole_coroutine_access(const char *pathname, int mode) {
         return access(pathname, mode);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void *) pathname;
     ev.offset = mode;
@@ -487,7 +489,7 @@ int swoole_coroutine_access(const char *pathname, int mode) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -500,7 +502,7 @@ int swoole_coroutine_flock(int fd, int operation) {
         return flock(fd, operation);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.fd = fd;
     ev.flags = operation;
@@ -509,7 +511,7 @@ int swoole_coroutine_flock(int fd, int operation) {
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0) {
         return -1;
     }
@@ -518,16 +520,16 @@ int swoole_coroutine_flock(int fd, int operation) {
 }
 
 #if 0
-static void handler_opendir(swAio_event *event)
+static void handler_opendir(Event *event)
 {
-    swAio_event *req = (swAio_event *) event->object;
+    Event *req = (Event *) event->object;
     req->buf = opendir((const char*) event->buf);
     event->error = errno;
 }
 
-static void handler_readdir(swAio_event *event)
+static void handler_readdir(Event *event)
 {
-    swAio_event *req = (swAio_event *) event->object;
+    Event *req = (Event *) event->object;
     req->buf = (void*) opendir((const char*) event->buf);
     event->error = errno;
 }
@@ -539,7 +541,7 @@ DIR *swoole_coroutine_opendir(const char *name)
         return opendir(name);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) name;
     ev.handler = handler_opendir;
@@ -547,7 +549,7 @@ DIR *swoole_coroutine_opendir(const char *name)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0)
     {
         return NULL;
@@ -563,7 +565,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
         return readdir(dirp);
     }
 
-    swAio_event ev;
+    Event ev;
     sw_memset_zero(&ev, sizeof(ev));
     ev.buf = (void*) dirp;
     ev.handler = handler_readdir;
@@ -571,7 +573,7 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp)
     ev.object = Coroutine::get_current();
     ev.req = &ev;
 
-    ssize_t ret = swAio_dispatch(&ev);
+    ssize_t ret = dispatch(&ev);
     if (ret < 0)
     {
         return NULL;
@@ -618,7 +620,7 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     socket->set_timeout(timeout);
     bool retval = socket->poll((enum swEvent_type) event);
     socket->set_timeout(ori_timeout);
-    return retval ? 0 : -1;
+    return retval ? SW_OK : SW_ERR;
 }
 
 int swoole_coroutine_getaddrinfo(const char *name,

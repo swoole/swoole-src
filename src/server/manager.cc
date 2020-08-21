@@ -154,7 +154,7 @@ int Server::start_manager_process() {
         pid_t pid;
 
         if (task_worker_num > 0) {
-            if (swProcessPool_start(&gs->task_workers) == SW_ERR) {
+            if (gs->task_workers.start() == SW_ERR) {
                 swError("failed to start task workers");
                 return SW_ERR;
             }
@@ -257,7 +257,7 @@ static int swManager_loop(swServer *serv) {
     }
 
     if (serv->manager_alarm > 0) {
-        swoole_timer_add((long) (serv->manager_alarm * 1000), SW_TRUE, swManager_onTimer, serv);
+        swoole_timer_add((long) (serv->manager_alarm * 1000), true, swManager_onTimer, serv);
     }
 
     while (serv->running) {
@@ -284,7 +284,7 @@ static int swManager_loop(swServer *serv) {
 
         if (SwooleG.signal_alarm && SwooleTG.timer) {
             SwooleG.signal_alarm = 0;
-            swTimer_select(SwooleTG.timer);
+            SwooleTG.timer->select();
         }
 
         if (pid < 0) {
@@ -607,7 +607,7 @@ void Server::kill_task_workers() {
     if (task_worker_num == 0) {
         return;
     }
-    swProcessPool_shutdown(&gs->task_workers);
+    gs->task_workers.shutdown();
 }
 
 pid_t Server::spawn_event_worker(swWorker *worker) {
@@ -666,7 +666,5 @@ pid_t Server::spawn_user_worker(swWorker *worker) {
 }
 
 pid_t Server::spawn_task_worker(swWorker *worker) {
-    return swProcessPool_spawn(&gs->task_workers, worker);
+    return gs->task_workers.spawn(worker);
 }
-
-

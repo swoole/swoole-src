@@ -3,13 +3,38 @@ name: ext-swoole
 on: [push, pull_request]
 
 jobs:
-  build:
-
+  build-ubuntu-latest:
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v1
     - name: configure
-      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
     - name: make
+      run: make -j$(sysctl -n hw.ncpu)
+
+  build-ubuntu-old:
+    runs-on: ubuntu-16.04
+    steps:
+    - uses: actions/checkout@v1
+    - name: configure
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log
+    - name: make
+      run: make -j$(sysctl -n hw.ncpu)
+
+  build-macos-latest:
+    runs-on: macos-latest
+    steps:
+    - name: install dependencies
+      run: brew install openssl && brew link openssl
+    - uses: actions/checkout@v1
+    - name: configure
+      run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log
+    - name: make -j$(sysctl -n hw.ncpu)
       run: make
+
+  build-alpine-latest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: build
+        run: cp .github/workflows/alpine.Dockerfile alpine.Dockerfile && docker build -t swoole . -f alpine.Dockerfile

@@ -58,7 +58,7 @@ char *swSignal_str(int sig) {
 }
 
 /**
- * clear all singal
+ * block all singal
  */
 void swSignal_none(void) {
     sigset_t mask;
@@ -82,7 +82,7 @@ swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int m
         func = SIG_DFL;
     }
 
-    struct sigaction act, oact;
+    struct sigaction act{}, oact{};
     act.sa_handler = func;
     if (mask) {
         sigfillset(&act.sa_mask);
@@ -225,10 +225,7 @@ int swSignalfd_setup(swReactor *reactor) {
         swSysWarn("signalfd() failed");
         return SW_ERR;
     }
-    signal_socket = swSocket_new(signal_fd, SW_FD_SIGNAL);
-    if (signal_socket == nullptr) {
-        goto _error;
-    }
+    signal_socket = swoole::make_socket(signal_fd, SW_FD_SIGNAL);
     if (sigprocmask(SIG_BLOCK, &signalfd_mask, nullptr) == -1) {
         swSysWarn("sigprocmask() failed");
         goto _error;
@@ -248,7 +245,7 @@ int swSignalfd_setup(swReactor *reactor) {
 
 _error:
     signal_socket->fd = -1;
-    swSocket_free(signal_socket);
+    signal_socket->free();
     close(signal_fd);
     signal_fd = 0;
 
@@ -261,7 +258,7 @@ static void swSignalfd_clear() {
             swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
         }
         if (signal_socket) {
-            swSocket_free(signal_socket);
+            signal_socket->free();
             signal_socket = nullptr;
         }
         sw_memset_zero(&signalfd_mask, sizeof(signalfd_mask));

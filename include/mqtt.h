@@ -20,8 +20,9 @@
 #include "swoole.h"
 #include "swoole_protocol.h"
 
-#define SW_MQTT_MIN_LENGTH 2
-#define SW_MQTT_MAX_PAYLOAD_SIZE 268435455
+#define SW_MQTT_MIN_LENGTH_SIZE     1
+#define SW_MQTT_MAX_LENGTH_SIZE     4
+#define SW_MQTT_MAX_PAYLOAD_SIZE    268435455
 
 enum swMqtt_opcode {
     SW_MQTT_CONNECT = 0x10,

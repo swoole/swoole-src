@@ -7,8 +7,8 @@
 [![License](https://img.shields.io/badge/license-apache2-blue.svg)](LICENSE)
 [![Join the chat at https://gitter.im/swoole/swoole-src](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/swoole/swoole-src?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
-[![Backers on Open Collective](https://opencollective.com/swoole-src/backers/badge.svg)](#backers) 
-[![Sponsors on Open Collective](https://opencollective.com/swoole-src/sponsors/badge.svg)](#sponsors) 
+[![Backers on Open Collective](https://opencollective.com/swoole-src/backers/badge.svg)](#backers)
+[![Sponsors on Open Collective](https://opencollective.com/swoole-src/sponsors/badge.svg)](#sponsors)
 [![codecov](https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg)](https://codecov.io/gh/swoole/swoole-src)
 
 ![](./mascot.png)
@@ -312,7 +312,7 @@ Co\run(function() {
             }
         });
     }
-    
+
     // 10k file read and write
     for ($c = 100; $c--;) {
         go(function () use ($c) {
@@ -325,7 +325,7 @@ Co\run(function() {
             unlink($tmp_filename);
         });
     }
-    
+
     // 10k pdo and mysqli read
     for ($c = 50; $c--;) {
         go(function () {
@@ -349,18 +349,18 @@ Co\run(function() {
             }
         });
     }
-    
+
     // php_stream tcp server & client with 12.8k requests in single process
     function tcp_pack(string $data): string
     {
         return pack('n', strlen($data)) . $data;
     }
-    
+
     function tcp_length(string $head): int
     {
         return unpack('n', $head)[1];
     }
-    
+
     go(function () {
         $ctx = stream_context_create(['socket' => ['so_reuseaddr' => true, 'backlog' => 128]]);
         $socket = stream_socket_server(
@@ -401,7 +401,7 @@ Co\run(function() {
             }
         });
     }
-    
+
     // udp server & client with 12.8k requests in single process
     go(function () {
         $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
@@ -481,7 +481,7 @@ make && sudo make install
 
 ### 升级
 
->  ⚠️ 如果你要从源码升级, 别忘记在源码目录执行 `make clean` 
+>  ⚠️ 如果你要从源码升级, 别忘记在源码目录执行 `make clean`
 
 1. `pecl upgrade swoole`
 2. `git pull && cd swoole-src && make clean && make && sudo make install`
@@ -509,7 +509,7 @@ make && sudo make install
 ## 🍭 性能测试
 
 + 在开源的 [Techempower Web Framework benchmarks](https://www.techempower.com/benchmarks/#section=data-r17) 压测平台上，Swoole使用MySQL数据库压测的成绩一度位居首位， 所有IO性能测试都位列第一梯队。
-+ 你可以直接运行[Benchmark Script](./benchmark/benchmark.php)来快速地测试出Swoole提供的Http服务在你的机器上所能达到的最大QPS
++ 你可以直接运行 [Benchmark Script](https://github.com/swoole/benchmark/blob/master/benchmark.php) 来快速地测试出Swoole提供的Http服务在你的机器上所能达到的最大QPS
 
 ## 🔰️ 安全问题
 

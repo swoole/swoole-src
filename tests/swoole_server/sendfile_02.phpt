@@ -9,11 +9,9 @@ skip_if_extension_not_exist('sockets');
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm){
     $client = new swoole_client(SWOOLE_SOCK_TCP , SWOOLE_SOCK_SYNC); //同步阻塞
-    if (!$client->connect('127.0.0.1', $pm->getFreePort()))
-    {
+    if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
 
@@ -23,12 +21,10 @@ $pm->parentFunc = function ($pid) use ($pm)
 
     $N = filesize(TEST_IMAGE);
     $bytes = 0;
-    while($bytes < $N)
-    {
+    while($bytes < $N) {
         $n = rand(8192, 65536);
         $r = $client->recv($n);
-        if (!$r)
-        {
+        if (!$r) {
             break;
         }
         usleep(10000);
@@ -38,23 +34,19 @@ $pm->parentFunc = function ($pid) use ($pm)
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm)
-{
+$pm->childFunc = function () use ($pm) {
     $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->set([
         'log_file' => '/dev/null',
         'kernel_socket_send_buffer_size' => 65536,
     ]);
-    $serv->on("workerStart", function ($serv) use ($pm)
-    {
+    $serv->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('connect', function (swoole_server $serv, $fd)
-    {
-        $serv->sendfile($fd, TEST_IMAGE);
+    $serv->on('connect', function (swoole_server $serv, $fd) {
+        Assert::true($serv->sendfile($fd, TEST_IMAGE));
     });
-    $serv->on('receive', function ($serv, $fd, $reactor_id, $data)
-    {
+    $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
 
     });
     $serv->start();

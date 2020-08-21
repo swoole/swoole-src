@@ -33,7 +33,7 @@ TEST(coroutine_async, gethostbyname) {
 
         bool retval = async([&]() {
             char buf[128];
-            if (swoole_gethostbyname(AF_INET, domain.c_str(), buf) == SW_OK) {
+            if (swoole::network::gethostbyname(AF_INET, domain.c_str(), buf) == SW_OK) {
                 char addr[128];
                 inet_ntop(AF_INET, buf, addr, sizeof(addr));
                 ip = addr;

@@ -24,127 +24,147 @@
 #include "proxy.h"
 #include "ssl.h"
 
-#define SW_SOCK_ASYNC 1
-#define SW_SOCK_SYNC 0
-
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established"
 
-struct swClient {
-    int id;
-    int type;
-    long timeout_id;  // timeout node id
-    int _sock_type;
-    int _sock_domain;
-    int _protocol;
+namespace swoole { namespace network {
+
+class Client {
+ public:
+    int id = 0;
+    enum swSocket_type type;
+    long timeout_id = 0;  // timeout node id
+    int _sock_type = 0;
+    int _sock_domain = 0;
+    int _protocol = 0;
     enum swFd_type reactor_fdtype;
 
-    uchar active : 1;
-    uchar async : 1;
-    uchar keep : 1;
-    uchar destroyed : 1;
-    uchar http2 : 1;
-    uchar sleep : 1;
-    uchar wait_dns : 1;
-    uchar shutdow_rw : 1;
-    uchar shutdown_read : 1;
-    uchar shutdown_write : 1;
-    uchar remove_delay : 1;
-    uchar closed : 1;
-    uchar high_watermark : 1;
+    bool active = false;
+    bool async = false;
+    bool keep = false;
+    bool destroyed = false;
+    bool http2 = false;
+    bool sleep_ = false;
+    bool wait_dns = false;
+    bool shutdow_rw = false;
+    bool shutdown_read = false;
+    bool shutdown_write = false;
+    bool remove_delay = false;
+    bool closed = false;
+    bool high_watermark = false;
 
     /**
      * one package: length check
      */
-    uchar open_length_check : 1;
-    uchar open_eof_check : 1;
+    bool open_length_check = false;
+    bool open_eof_check = false;
 
-    swProtocol protocol;
-    swSocks5_proxy *socks5_proxy;
-    swHttp_proxy *http_proxy;
+    Protocol protocol = {};
+    swSocks5_proxy *socks5_proxy = nullptr;
+    swHttp_proxy *http_proxy = nullptr;
 
-    uint32_t reuse_count;
+    uint32_t reuse_count = 0;
 
-    const char *server_str;
-    const char *server_host;
-    int server_port;
-    void *ptr;
-    void *params;
+    const char *server_str = nullptr;
+    const char *server_host = nullptr;
+    int server_port = 0;
+    void *ptr = nullptr;
+    void *params = nullptr;
 
-    uint8_t server_strlen;
-    double timeout;
-    swTimer_node *timer;
+    uint8_t server_strlen = 0;
+    double timeout = 0;
+    TimerNode *timer = nullptr;
 
     /**
      * signal interruption
      */
-    double interrupt_time;
+    double interrupt_time = 0;
 
     /**
      * sendto, read only.
      */
-    swSocketAddress server_addr;
+    Address server_addr = {};
 
     /**
      * recvfrom
      */
-    swSocketAddress remote_addr;
+    Address remote_addr = {};
 
-    swSocket *socket;
+    Socket *socket;
 
-    void *object;
+    void *object = nullptr;
 
-    swString *buffer;
-    uint32_t wait_length;
-    uint32_t input_buffer_size;
+    swString *buffer = nullptr;
+    uint32_t wait_length = 0;
+    uint32_t input_buffer_size = 0;
 
-    uint32_t buffer_high_watermark;
-    uint32_t buffer_low_watermark;
+    uint32_t buffer_high_watermark = 0;
+    uint32_t buffer_low_watermark = 0;
 
 #ifdef SW_USE_OPENSSL
-    uchar open_ssl : 1;
-    uchar ssl_wait_handshake : 1;
-    SSL_CTX *ssl_context;
-    swSSL_option ssl_option;
+    bool open_ssl = false;
+    bool ssl_wait_handshake = false;
+    SSL_CTX *ssl_context = nullptr;
+    swSSL_option ssl_option = {};
 #endif
 
-    void (*onConnect)(swClient *cli);
-    void (*onError)(swClient *cli);
-    void (*onReceive)(swClient *cli, const char *data, uint32_t length);
-    void (*onClose)(swClient *cli);
-    void (*onBufferFull)(swClient *cli);
-    void (*onBufferEmpty)(swClient *cli);
+    void (*onConnect)(Client *cli) = nullptr;
+    void (*onError)(Client *cli) = nullptr;
+    void (*onReceive)(Client *cli, const char *data, uint32_t length) = nullptr;
+    void (*onClose)(Client *cli) = nullptr;
+    void (*onBufferFull)(Client *cli) = nullptr;
+    void (*onBufferEmpty)(Client *cli) = nullptr;
 
-    int (*connect)(swClient *cli, const char *host, int port, double _timeout, int sock_flag);
-    int (*send)(swClient *cli, const char *data, size_t length, int flags);
-    int (*sendfile)(swClient *cli, const char *filename, off_t offset, size_t length);
-    int (*recv)(swClient *cli, char *data, uint32_t len, int flags);
-    int (*close)(swClient *cli);
+    int (*connect)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
+    ssize_t (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
+    int (*sendfile)(Client *cli, const char *filename, off_t offset, size_t length) = nullptr;
+    ssize_t (*recv)(Client *cli, char *data, size_t length, int flags) = nullptr;
+
+    static void init_reactor(Reactor *reactor);
+    Client(enum swSocket_type type, bool async);
+    ~Client();
+
+    int sleep();
+    int wakeup();
+    int shutdown(int __how);
+    int close();
+    void destroy();
+#ifdef SW_USE_OPENSSL
+    int enable_ssl_encrypt();
+    int ssl_handshake();
+    int ssl_verify(int allow_self_signed);
+#endif
 };
 
-void swClient_init_reactor(swReactor *reactor);
-int swClient_create(swClient *cli, enum swSocket_type type, int async);
-int swClient_sleep(swClient *cli);
-int swClient_wakeup(swClient *cli);
-int swClient_shutdown(swClient *cli, int __how);
-#ifdef SW_USE_OPENSSL
-int swClient_enable_ssl_encrypt(swClient *cli);
-int swClient_ssl_handshake(swClient *cli);
-int swClient_ssl_verify(swClient *cli, int allow_self_signed);
-#endif
-void swClient_free(swClient *cli);
 //----------------------------------------Stream---------------------------------------
-struct swStream {
-    swString *buffer;
-    uint8_t cancel;
-    int errCode;
-    void *private_data;
-    void (*response)(swStream *stream, const char *data, uint32_t length);
-    swClient client;
-};
+class Stream {
+ public:
+    String *buffer = nullptr;
+    Client client;
+    bool connected = false;
+    bool cancel = false;
+    int errCode = 0;
+    void *private_data = nullptr;
+    std::function<void(Stream *stream, const char *data, uint32_t length)> response = nullptr;
 
-swStream *swStream_new(const char *dst_host, int dst_port, enum swSocket_type type);
-int swStream_send(swStream *stream, const char *data, size_t length);
-void swStream_set_protocol(swProtocol *protocol);
-void swStream_set_max_length(swStream *stream, uint32_t max_length);
-int swStream_recv_blocking(swSocket *sock, void *__buf, size_t __len);
+    int send(const char *data, size_t length);
+    void set_max_length(uint32_t max_length);
+
+    inline static Stream *create(const char *dst_host, int dst_port, enum swSocket_type type) {
+        Stream *stream = new Stream(dst_host, dst_port, type);
+        if (!stream->connected) {
+            delete stream;
+            return nullptr;
+        } else {
+            return stream;
+        }
+    }
+    ~Stream();
+    static int recv_blocking(Socket *sock, void *__buf, size_t __len);
+    static void set_protocol(swProtocol *protocol);
+
+ private:
+    Stream(const char *dst_host, int dst_port, enum swSocket_type type);
+};
 //----------------------------------------Stream End------------------------------------
+
+}}

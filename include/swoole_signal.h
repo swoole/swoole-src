@@ -33,6 +33,7 @@ int swSignalfd_setup(swReactor *reactor);
 #endif
 
 swSignalHandler swSignal_set(int signo, swSignalHandler func);
+swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask);
 swSignalHandler swSignal_get_handler(int signo);
 void swSignal_clear(void);
 void swSignal_none(void);

@@ -22,6 +22,7 @@ define('HAS_HTTP2', class_exists("swoole_http2_request", false));
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
 define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
+define('TEST_LINK_IMAGE', __DIR__ . '/../../examples/test_link.jpg');
 define('TEST_IMAGE2', __DIR__ . '/../../examples/logo.svg');
 define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('TEST_PID_FILE', '/tmp/swoole.pid');

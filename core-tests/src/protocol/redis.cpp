@@ -75,10 +75,10 @@ TEST(redis, server) {
 
         if (strcasecmp(list[0].c_str(), "GET") == 0) {
             swRedis_format(buffer, SW_REDIS_REPLY_STRING, REDIS_TEST_VALUE);
-            serv->send(serv, session_id, buffer->str, buffer->length);
+            serv->send(session_id, buffer->str, buffer->length);
         } else if (strcasecmp(list[0].c_str(), "SET") == 0) {
             swRedis_format(buffer, SW_REDIS_REPLY_STATUS, "OK");
-            serv->send(serv, session_id, buffer->str, buffer->length);
+            serv->send(session_id, buffer->str, buffer->length);
         }
 
         return SW_OK;

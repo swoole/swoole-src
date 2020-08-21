@@ -16,6 +16,8 @@
 
 #include "swoole.h"
 #include "coroutine_socket.h"
+
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -319,3 +321,171 @@ static void domain_decode(char *str) {
     }
     str[i - 1] = '\0';
 }
+
+namespace swoole {
+namespace network {
+
+#ifndef HAVE_GETHOSTBYNAME2_R
+static mutex g_gethostbyname2_lock;
+#endif
+
+/**
+ * DNS lookup
+ */
+#ifdef HAVE_GETHOSTBYNAME2_R
+int gethostbyname(int flags, const char *name, char *addr) {
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int index = 0;
+    int rc, err;
+    int buf_len = 256;
+    struct hostent hbuf;
+    struct hostent *result;
+
+    char *buf = (char *) sw_malloc(buf_len);
+    if (!buf) {
+        return SW_ERR;
+    }
+    memset(buf, 0, buf_len);
+    while ((rc = ::gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
+        buf_len *= 2;
+        char *tmp = (char *) sw_realloc(buf, buf_len);
+        if (nullptr == tmp) {
+            sw_free(buf);
+            return SW_ERR;
+        } else {
+            buf = tmp;
+        }
+    }
+
+    if (0 != rc || nullptr == result) {
+        sw_free(buf);
+        return SW_ERR;
+    }
+
+    union {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++) {
+        if (hbuf.h_addr_list[i] == nullptr) {
+            break;
+        }
+        if (__af == AF_INET) {
+            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
+        } else {
+            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
+        }
+    }
+    if (__af == AF_INET) {
+        memcpy(addr, addr_list[index].v4, hbuf.h_length);
+    } else {
+        memcpy(addr, addr_list[index].v6, hbuf.h_length);
+    }
+
+    sw_free(buf);
+
+    return SW_OK;
+}
+#else
+int gethostbyname(int flags, const char *name, char *addr) {
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int index = 0;
+
+    lock_guard<mutex> _lock(g_gethostbyname2_lock);
+
+    struct hostent *host_entry;
+    if (!(host_entry = ::gethostbyname2(name, __af))) {
+        return SW_ERR;
+    }
+
+    union {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++) {
+        if (host_entry->h_addr_list[i] == nullptr) {
+            break;
+        }
+        if (__af == AF_INET) {
+            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+        } else {
+            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+        }
+    }
+    if (__af == AF_INET) {
+        memcpy(addr, addr_list[index].v4, host_entry->h_length);
+    } else {
+        memcpy(addr, addr_list[index].v6, host_entry->h_length);
+    }
+    return SW_OK;
+}
+#endif
+
+int getaddrinfo(GetaddrinfoRequest *req) {
+    struct addrinfo *result = nullptr;
+    struct addrinfo *ptr = nullptr;
+    struct addrinfo hints;
+
+    sw_memset_zero(&hints, sizeof(hints));
+    hints.ai_family = req->family;
+    hints.ai_socktype = req->socktype;
+    hints.ai_protocol = req->protocol;
+
+    int ret = ::getaddrinfo(req->hostname, req->service, &hints, &result);
+    if (ret != 0) {
+        req->error = ret;
+        return SW_ERR;
+    }
+
+    void *buffer = req->result;
+    int i = 0;
+    for (ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
+        switch (ptr->ai_family) {
+        case AF_INET:
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
+            break;
+        case AF_INET6:
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
+            break;
+        default:
+            swWarn("unknown socket family[%d]", ptr->ai_family);
+            break;
+        }
+        i++;
+        if (i == SW_DNS_HOST_BUFFER_SIZE) {
+            break;
+        }
+    }
+    ::freeaddrinfo(result);
+    req->error = 0;
+    req->count = i;
+    return SW_OK;
+}
+
+void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) {
+    struct sockaddr_in *addr_v4;
+    struct sockaddr_in6 *addr_v6;
+
+    char tmp[INET6_ADDRSTRLEN];
+    const char *r;
+
+    for (int i = 0; i < count; i++) {
+        if (family == AF_INET) {
+            addr_v4 = (struct sockaddr_in *) ((char *) result + (i * sizeof(struct sockaddr_in)));
+            r = inet_ntop(AF_INET, (const void *) &addr_v4->sin_addr, tmp, sizeof(tmp));
+        } else {
+            addr_v6 = (struct sockaddr_in6 *) ((char *) result + (i * sizeof(struct sockaddr_in6)));
+            r = inet_ntop(AF_INET6, (const void *) &addr_v6->sin6_addr, tmp, sizeof(tmp));
+        }
+        if (r) {
+            retval.push_back(tmp);
+        }
+    }
+}
+
+}  // namespace network
+}  // namespace swoole

@@ -19,12 +19,35 @@
 
 #include "test_coroutine.h"
 
+#include "swoole_socket.h"
+
 using namespace swoole;
 using namespace swoole::test;
+using namespace std;
 
 TEST(dns, lookup) {
     test::coroutine::run([](void *arg) {
         auto list = swoole::coroutine::dns_lookup("www.baidu.com", 10);
         ASSERT_GE(list.size(), 1);
     });
+}
+
+TEST(dns, getaddrinfo) {
+    char buf[1024] = { };
+    swRequest_getaddrinfo req = { };
+    req.hostname = "www.baidu.com";
+    req.family = AF_INET;
+    req.socktype = SOCK_STREAM;
+    req.protocol = 0;
+    req.service = nullptr;
+    req.result = buf;
+    ASSERT_EQ(network::getaddrinfo(&req), 0);
+    ASSERT_GT(req.count, 0);
+
+    vector<string> ip_list;
+    req.parse_result(ip_list);
+
+    for (auto &ip : ip_list) {
+        ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+    }
 }

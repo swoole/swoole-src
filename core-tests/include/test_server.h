@@ -44,7 +44,7 @@ public:
     bool start();
     bool listen(std::string host, int port, enum swSocket_type type);
     int send(int session_id, const void *data, uint32_t length);
-    ssize_t sendto(swSocketAddress *address, const char *__buf, size_t __n, int server_socket = -1);
+    ssize_t sendto(const swSocketAddress &address, const char *__buf, size_t __n, int server_socket = -1);
     int close(int session_id, int reset);
 
     inline void* get_private_data(const std::string &key)

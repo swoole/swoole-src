@@ -43,7 +43,7 @@ struct http_context {
     void response(enum swHttp_status_code code, string body) {
         response_headers["Content-Length"] = to_string(body.length());
         response(code);
-        server->send(server, fd, body.c_str(), body.length());
+        server->send(fd, body.c_str(), body.length());
     }
 
     void response(int code) {
@@ -56,7 +56,7 @@ struct http_context {
             swString_append_ptr(buf, SW_STRL("\r\n"));
         }
         swString_append_ptr(buf, SW_STRL("\r\n"));
-        server->send(server, fd, buf->str, buf->length);
+        server->send(fd, buf->str, buf->length);
         swString_free(buf);
     }
 };
@@ -121,7 +121,7 @@ static void test_run_server(function<void(swServer *)> fn) {
             swString_clear(SwooleTG.buffer_stack);
             std::string resp = "Swoole: " + string(req->data, req->info.len);
             swWebSocket_encode(SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN );
-            serv->send(serv, session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
+            serv->send(session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
             return SW_OK;
         }
 
@@ -221,9 +221,9 @@ TEST(http_server, static_get) {
         int fd = open(file.c_str(), O_RDONLY);
         EXPECT_GT(fd, 0);
 
-        String str(swoole_sync_readfile_eof(fd));
+         std::unique_ptr<swString>  str(swoole_sync_readfile_eof(fd));
 
-        EXPECT_EQ(resp->body, str.to_std_string());
+        EXPECT_EQ(resp->body, str->to_std_string());
 
         kill(getpid(), SIGTERM);
     });
@@ -253,11 +253,9 @@ TEST(http_server, websocket_medium) {
     test_run_server([](swServer *serv) {
         swSignal_none();
 
-        swString *str = make_string(8192);
-        swString_repeat(str, "A", 1, 8192);
-        websocket_test(serv->get_primary_port()->port, str->str, str->length);
-
-        swString_free(str);
+        swString str(8192);
+        str.repeat("A", 1, 8192);
+        websocket_test(serv->get_primary_port()->port, str.value(), str.get_length());
 
         kill(getpid(), SIGTERM);
     });
@@ -267,11 +265,9 @@ TEST(http_server, websocket_big) {
     test_run_server([](swServer *serv) {
         swSignal_none();
 
-        swString *str = make_string(128*1024);
-        swString_repeat(str, "A", 1, str->size - 1);
-        websocket_test(serv->get_primary_port()->port, str->str, str->length);
-
-        swString_free(str);
+        swString str(128*1024);
+        str.repeat("A", 1, str.capacity() - 1);
+        websocket_test(serv->get_primary_port()->port, str.value(), str.get_length());
 
         kill(getpid(), SIGTERM);
     });

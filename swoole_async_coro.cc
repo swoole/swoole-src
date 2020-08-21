@@ -30,6 +30,7 @@ using std::vector;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
+using swoole::Timer;
 
 struct dns_cache {
     char address[16];
@@ -52,7 +53,7 @@ void php_swoole_async_coro_rshutdown() {
 }
 
 PHP_FUNCTION(swoole_async_set) {
-    if (SwooleTG.reactor) {
+    if (sw_reactor()) {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
         RETURN_FALSE;
     }
@@ -77,12 +78,6 @@ PHP_FUNCTION(swoole_async_set) {
     }
     if (php_swoole_array_get_value(vht, "dns_cache_refresh_time", ztmp)) {
         SwooleG.dns_cache_refresh_time = zval_get_double(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
-        SwooleG.socket_buffer_size = zval_get_long(ztmp);
-        if (SwooleG.socket_buffer_size <= 0 || SwooleG.socket_buffer_size > INT_MAX) {
-            SwooleG.socket_buffer_size = INT_MAX;
-        }
     }
     if (php_swoole_array_get_value(vht, "thread_num", ztmp) ||
         php_swoole_array_get_value(vht, "min_thread_num", ztmp)) {
@@ -113,7 +108,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     Coroutine::get_current_safe();
 
     zval *domain;
-    double timeout = Socket::default_dns_timeout;
+    double timeout = swoole::network::Socket::default_dns_timeout;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE) {
         RETURN_FALSE;
     }
@@ -134,7 +129,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
 
     if (request_cache_map.find(key) != request_cache_map.end()) {
         cache = request_cache_map[key];
-        if (cache->update_time > swTimer_get_absolute_msec()) {
+        if (cache->update_time > Timer::get_absolute_msec()) {
             RETURN_STRING(cache->address);
         }
     }
@@ -163,5 +158,5 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     }
     memcpy(cache->address, Z_STRVAL_P(return_value), Z_STRLEN_P(return_value));
     cache->address[Z_STRLEN_P(return_value)] = '\0';
-    cache->update_time = swTimer_get_absolute_msec() + (int64_t)(SwooleG.dns_cache_refresh_time * 1000);
+    cache->update_time = Timer::get_absolute_msec() + (int64_t)(SwooleG.dns_cache_refresh_time * 1000);
 }

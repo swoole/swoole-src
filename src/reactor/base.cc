@@ -107,12 +107,12 @@ Reactor::Reactor(int max_event) {
                        [](swReactor *reactor, int &event_num) -> bool { return event_num == 0; });
 }
 
-int Reactor::set_handler(int _fdtype, swReactor_handler handler) {
+bool Reactor::set_handler(int _fdtype, swReactor_handler handler) {
     int fdtype = swReactor_fdtype(_fdtype);
 
     if (fdtype >= SW_MAX_FDTYPE) {
         swWarn("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
-        return SW_ERR;
+        return false;
     }
 
     if (swReactor_event_read(_fdtype)) {
@@ -123,10 +123,10 @@ int Reactor::set_handler(int _fdtype, swReactor_handler handler) {
         error_handler[fdtype] = handler;
     } else {
         swWarn("unknow fdtype");
-        return SW_ERR;
+        return false;
     }
 
-    return SW_OK;
+    return true;
 }
 
 bool Reactor::if_exit() {
@@ -139,8 +139,8 @@ bool Reactor::if_exit() {
     return true;
 }
 
-void swReactor_activate_future_task(swReactor *reactor) {
-    reactor->onBegin = reactor_begin;
+void Reactor::activate_future_task() {
+    onBegin = reactor_begin;
 }
 
 static void reactor_begin(swReactor *reactor) {
@@ -161,7 +161,7 @@ int swReactor_close(swReactor *reactor, swSocket *socket) {
 
     swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
 
-    swSocket_free(socket);
+    socket->free();
 
     return SW_OK;
 }
@@ -173,7 +173,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
     int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
-        socket->buffer_size = SwooleG.socket_buffer_size;
+        socket->buffer_size = swoole::network::Socket::default_buffer_size;;
     }
 
     if (socket->nonblock == 0) {
@@ -194,7 +194,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
         }
 #endif
     _do_send:
-        ret = swSocket_send(socket, ptr, n, 0);
+        ret = socket->send(ptr, n, 0);
 
         if (ret > 0) {
             if (n == ret) {
@@ -204,7 +204,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 n -= ret;
                 goto _do_buffer;
             }
-        } else if (swSocket_error(errno) == SW_WAIT) {
+        } else if (socket->catch_error(errno) == SW_WAIT) {
         _do_buffer:
             if (!socket->out_buffer) {
                 buffer = swBuffer_new(socket->chunk_size);
@@ -215,7 +215,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 socket->out_buffer = buffer;
             }
 
-            swReactor_add_write_event(reactor, socket);
+            reactor->add_write_event(socket);
             goto _append_buffer;
         } else if (errno == EINTR) {
             goto _do_send;
@@ -233,7 +233,7 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
                 swYield();
-                swSocket_wait(socket->fd, SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
+                socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
         }
 
@@ -259,9 +259,9 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
             reactor->close(reactor, ev->socket);
             return SW_OK;
         } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = swSocket_onSendfile(socket, chunk);
+            ret = socket->handle_sendfile(chunk);
         } else {
-            ret = swSocket_buffer_send(socket);
+            ret = socket->handle_send();
         }
 
         if (ret < 0) {
@@ -275,39 +275,37 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
 
     // remove EPOLLOUT event
     if (swBuffer_empty(buffer)) {
-        swReactor_remove_write_event(reactor, ev->socket);
+        reactor->remove_write_event(ev->socket);
     }
 
     return SW_OK;
 }
 
-int swReactor_drain_write_buffer(swReactor *reactor, swSocket *socket) {
+void Reactor::drain_write_buffer(swSocket *socket) {
     swEvent event = { };
     event.socket = socket;
     event.fd = socket->fd;
 
     while (!swBuffer_empty(socket->out_buffer)) {
-        if (swSocket_wait(socket->fd, SwooleG.socket_send_timeout, SW_EVENT_WRITE) == SW_ERR) {
+        if (socket->wait_event(network::Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
-        swReactor_onWrite(reactor, &event);
+        swReactor_onWrite(this, &event);
         if (socket->close_wait || socket->removed) {
             break;
         }
     }
-
-    return SW_OK;
 }
 
 void Reactor::add_destroy_callback(swCallback cb, void *data) {
     destroy_callbacks.append(cb, data);
 }
 
-void Reactor::set_end_callback(enum swReactor_end_callback id, std::function<void(Reactor *)> fn) {
+void Reactor::set_end_callback(enum swReactor_end_callback id, const std::function<void(Reactor *)> &fn) {
     end_callbacks[id] = fn;
 }
 
-void Reactor::set_exit_condition(enum swReactor_exit_condition id, std::function<bool(Reactor *, int &)> fn) {
+void Reactor::set_exit_condition(enum swReactor_exit_condition id, const std::function<bool(Reactor *, int &)> &fn) {
     exit_conditions[id] = fn;
 }
 

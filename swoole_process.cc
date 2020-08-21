@@ -338,7 +338,7 @@ static PHP_METHOD(swoole_process, __construct) {
     php_swoole_fci func;
     zend_bool redirect_stdin_and_stdout = 0;
     zend_long pipe_type = 2;
-    zend_bool enable_coroutine = SW_FALSE;
+    zend_bool enable_coroutine = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
     Z_PARAM_FUNC(func.fci, func.fci_cache);
@@ -360,9 +360,9 @@ static PHP_METHOD(swoole_process, __construct) {
     process->id = php_swoole_worker_round_id++;
 
     if (redirect_stdin_and_stdout) {
-        process->redirect_stdin = 1;
-        process->redirect_stdout = 1;
-        process->redirect_stderr = 1;
+        process->redirect_stdin = true;
+        process->redirect_stdout = true;
+        process->redirect_stderr = true;
         /**
          * Forced to use stream pipe
          */
@@ -385,13 +385,13 @@ static PHP_METHOD(swoole_process, __construct) {
         process->pipe_object = _pipe;
         process->pipe_current = process->pipe_master;
 
-        zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("pipe"), process->pipe_master->fd);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pipe"), process->pipe_master->fd);
     }
 
     zend::Process *proc = new zend::Process((enum zend::process_pipe_type) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
-    zend_update_property(swoole_process_ce, ZEND_THIS, ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
+    zend_update_property(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
     php_swoole_process_set_worker(ZEND_THIS, process);
 }
 
@@ -449,8 +449,8 @@ static PHP_METHOD(swoole_process, useQueue) {
     }
     process->queue = queue;
     process->ipc_mode = mode;
-    zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("msgQueueId"), queue->msg_id);
-    zend_update_property_long(swoole_process_ce, ZEND_THIS, ZEND_STRL("msgQueueKey"), msgkey);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueId"), queue->msg_id);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueKey"), msgkey);
     RETURN_TRUE;
 }
 
@@ -461,8 +461,8 @@ static PHP_METHOD(swoole_process, statQueue) {
         RETURN_FALSE;
     }
 
-    int queue_num = -1;
-    int queue_bytes = -1;
+    size_t queue_num = -1;
+    size_t queue_bytes = -1;
     if (swMsgQueue_stat(process->queue, &queue_num, &queue_bytes) == 0) {
         array_init(return_value);
         add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), queue_num);
@@ -706,9 +706,9 @@ int php_swoole_process_start(swWorker *process, zval *zobject) {
     SwooleG.process_id = process->id;
     SwooleWG.worker = process;
 
-    zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pid"), process->pid);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pid"), process->pid);
     if (process->pipe_current) {
-        zend_update_property_long(swoole_process_ce, zobject, ZEND_STRL("pipe"), process->pipe_current->fd);
+        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pipe"), process->pipe_current->fd);
     }
     // eventloop create
     if (proc->enable_coroutine && php_swoole_reactor_init() < 0) {
@@ -743,7 +743,7 @@ static PHP_METHOD(swoole_process, start) {
     } else if (pid > 0) {
         process->pid = pid;
         process->child_process = 0;
-        zend_update_property_long(swoole_server_ce, ZEND_THIS, ZEND_STRL("pid"), process->pid);
+        zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pid"), process->pid);
         RETURN_LONG(pid);
     } else {
         process->child_process = 1;
@@ -804,7 +804,7 @@ static PHP_METHOD(swoole_process, write) {
         RETURN_FALSE;
     }
 
-    int ret;
+    ssize_t ret;
 
     // async write
     if (SwooleTG.reactor) {
@@ -815,7 +815,7 @@ static PHP_METHOD(swoole_process, write) {
         }
     } else {
     _blocking_read:
-        ret = swSocket_write_blocking(process->pipe_current, data, data_len);
+        ret = process->pipe_current->send_blocking(data, data_len);
     }
 
     if (ret < 0) {
@@ -1119,7 +1119,7 @@ static PHP_METHOD(swoole_process, setTimeout) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot setTimeout the pipe");
         RETURN_FALSE;
     }
-    SW_CHECK_RETURN(swSocket_set_timeout(process->pipe_current, seconds));
+    RETURN_BOOL(process->pipe_current->set_timeout(seconds));
 }
 
 static PHP_METHOD(swoole_process, setBlocking) {
@@ -1134,8 +1134,8 @@ static PHP_METHOD(swoole_process, setBlocking) {
         RETURN_FALSE;
     }
     if (blocking) {
-        swSocket_set_block(process->pipe_current);
+        process->pipe_current->set_block();
     } else {
-        swSocket_set_nonblock(process->pipe_current);
+        process->pipe_current->set_nonblock();
     }
 }

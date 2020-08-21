@@ -86,7 +86,7 @@ TEST(server, base) {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
-        serv->send(serv, req->info.fd, resp.c_str(), resp.length());
+        serv->send(req->info.fd, resp.c_str(), resp.length());
 
         return SW_OK;
     };
@@ -142,7 +142,7 @@ TEST(server, process) {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
 
         string resp = string("Server: ") + string(packet);
-        serv->send(serv, req->info.fd, resp.c_str(), resp.length());
+        serv->send(req->info.fd, resp.c_str(), resp.length());
 
         return SW_OK;
     };
@@ -188,8 +188,8 @@ TEST(server, task_worker) {
 
     int _dst_worker_id = 0;
 
-    ASSERT_GE(swProcessPool_dispatch(&serv.gs->task_workers, &buf, &_dst_worker_id), 0);
+    ASSERT_GE(serv.gs->task_workers.dispatch(&buf, &_dst_worker_id), 0);
 
     t1.join();
-    swProcessPool_free(&serv.gs->task_workers);
+    serv.gs->task_workers.destroy();
 }

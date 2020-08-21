@@ -14,18 +14,18 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_log.h"
-
-#include <string.h>
 #include <sys/file.h>
+#include <string.h>
+
 #include <string>
-#include <chrono>
+#include <chrono>  // NOLINT [build/c++11]
 
 #include "swoole.h"
+#include "swoole_log.h"
 
 namespace swoole {
 
-int Logger::open(const char *_log_file) {
+bool Logger::open(const char *_log_file) {
     if (opened) {
         close();
     }
@@ -46,11 +46,11 @@ int Logger::open(const char *_log_file) {
         log_file = "";
         log_real_file = "";
 
-        return SW_ERR;
+        return false;
     } else {
         opened = true;
 
-        return SW_OK;
+        return true;
     }
 }
 
@@ -81,30 +81,30 @@ void Logger::set_rotation(int _rotation) {
     log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
 }
 
-int Logger::redirect_stdout_and_stderr(int enable) {
+bool Logger::redirect_stdout_and_stderr(int enable) {
     if (enable) {
         if (!opened) {
             swWarn("no log file opened");
-            return SW_ERR;
+            return false;
         }
         if (redirected) {
             swWarn("has been redirected");
-            return SW_ERR;
+            return false;
         }
         if ((stdout_fd = dup(STDOUT_FILENO)) < 0) {
             swSysWarn("dup(STDOUT_FILENO) failed");
-            return SW_ERR;
+            return false;
         }
         if ((stderr_fd = dup(STDERR_FILENO)) < 0) {
             swSysWarn("dup(STDERR_FILENO) failed");
-            return SW_ERR;
+            return false;
         }
         swoole_redirect_stdout(log_fd);
         redirected = true;
     } else {
         if (!redirected) {
             swWarn("no redirected");
-            return SW_ERR;
+            return false;
         }
         if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
             swSysWarn("dup2(STDOUT_FILENO) failed");
@@ -119,7 +119,7 @@ int Logger::redirect_stdout_and_stderr(int enable) {
         redirected = false;
     }
 
-    return SW_OK;
+    return true;
 }
 
 void Logger::reset() {
@@ -129,7 +129,7 @@ void Logger::reset() {
     log_level = SW_LOG_INFO;
 }
 
-int Logger::set_date_format(const char *format) {
+bool Logger::set_date_format(const char *format) {
     char date_str[SW_LOG_DATE_STRLEN];
     time_t now_sec;
 
@@ -141,11 +141,11 @@ int Logger::set_date_format(const char *format) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "The date format string[length=%ld] is too long", strlen(format));
 
-        return SW_ERR;
+        return false;
     } else {
         date_format = format;
 
-        return SW_OK;
+        return true;
     }
 }
 
@@ -189,7 +189,7 @@ std::string Logger::gen_real_file(const std::string &file) {
     return real_file;
 }
 
-int Logger::is_opened() {
+bool Logger::is_opened() {
     return opened;
 }
 
@@ -268,13 +268,13 @@ void Logger::put(int level, const char *content, size_t length) {
     n = sw_snprintf(log_str,
                     SW_LOG_BUFFER_SIZE,
                     "[%.*s %c%d.%d]\t%s\t%.*s\n",
-                    (int) l_data_str,
+                    static_cast<int>(l_data_str),
                     date_str,
                     process_flag,
                     SwooleG.pid,
                     process_id,
                     level_str,
-                    (int) length,
+                    static_cast<int>(length),
                     content);
 
     if (opened && flock(log_fd, LOCK_EX) == -1) {

@@ -14,47 +14,31 @@
   +----------------------------------------------------------------------+
 */
 
+#include <poll.h>
+
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "swoole_log.h"
-
-#include <poll.h>
 
 static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events);
 static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events);
 static int swReactorPoll_del(swReactor *reactor, swSocket *socket);
 static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo);
 static void swReactorPoll_free(swReactor *reactor);
-static int swReactorPoll_exist(swReactor *reactor, int fd);
+static bool swReactorPoll_exist(swReactor *reactor, int fd);
 
-typedef struct _swReactorPoll {
+struct swReactorPoll {
     uint32_t max_fd_num;
     swSocket **fds;
     struct pollfd *events;
-} swReactorPoll;
+};
 
 int swReactorPoll_create(swReactor *reactor, int max_fd_num) {
-    // create reactor object
-    swReactorPoll *object = (swReactorPoll *) sw_malloc(sizeof(swReactorPoll));
-    if (object == nullptr) {
-        swWarn("malloc[0] failed");
-        return SW_ERR;
-    }
-    sw_memset_zero(object, sizeof(swReactorPoll));
+    swReactorPoll* object = new swReactorPoll();
+    object->fds = new swSocket *[max_fd_num];
+    object->events = new struct pollfd [max_fd_num];
 
-    object->fds = (swSocket **) sw_calloc(max_fd_num, sizeof(swSocket *));
-    if (object->fds == nullptr) {
-        swWarn("malloc[1] failed");
-        sw_free(object);
-        return SW_ERR;
-    }
-    object->events = (struct pollfd *) sw_calloc(max_fd_num, sizeof(struct pollfd));
-    if (object->events == nullptr) {
-        swWarn("malloc[2] failed");
-        sw_free(object);
-        return SW_ERR;
-    }
     object->max_fd_num = max_fd_num;
     reactor->max_event_num = max_fd_num;
     reactor->object = object;
@@ -69,8 +53,9 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num) {
 
 static void swReactorPoll_free(swReactor *reactor) {
     swReactorPoll *object = (swReactorPoll *) reactor->object;
-    sw_free(object->fds);
-    sw_free(reactor->object);
+    delete[] object->fds;
+    delete[] object->events;
+    delete object;
 }
 
 static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events) {
@@ -87,7 +72,7 @@ static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events) {
         return SW_ERR;
     }
 
-    swReactor_add(reactor, socket, events);
+    reactor->_add(socket, events);
 
     swTrace("fd=%d, events=%d", fd, events);
 
@@ -125,7 +110,7 @@ static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events) {
                 object->events[i].events |= POLLOUT;
             }
             // execute parent method
-            swReactor_set(reactor, socket, events);
+            reactor->_set(socket, events);
             return SW_OK;
         }
     }
@@ -149,7 +134,7 @@ static int swReactorPoll_del(swReactor *reactor, swSocket *socket) {
                     object->events[i] = object->events[i + 1];
                 }
             }
-            swReactor_del(reactor, socket);
+            reactor->_del(socket);
             return SW_OK;
         }
     }
@@ -171,13 +156,13 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
         }
     }
 
-    swReactor_before_wait(reactor);
+    reactor->before_wait();
 
     while (reactor->running) {
         if (reactor->onBegin != nullptr) {
             reactor->onBegin(reactor);
         }
-        ret = poll(object->events, reactor->event_num, swReactor_get_timeout_msec(reactor));
+        ret = poll(object->events, reactor->event_num, reactor->get_timeout_msec());
         if (ret < 0) {
             if (swReactor_error(reactor) < 0) {
                 swSysWarn("poll error");
@@ -201,7 +186,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
                     if (object->events[i].revents & (POLLHUP | POLLERR)) {
                         event.socket->event_hup = 1;
                     }
-                    handler = swReactor_get_handler(reactor, SW_EVENT_READ, event.type);
+                    handler = reactor->get_handler(SW_EVENT_READ, event.type);
                     ret = handler(reactor, &event);
                     if (ret < 0) {
                         swSysWarn("poll[POLLIN] handler failed. fd=%d", event.fd);
@@ -209,7 +194,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
                 }
                 // out
                 if ((object->events[i].revents & POLLOUT) && !event.socket->removed) {
-                    handler = swReactor_get_handler(reactor, SW_EVENT_WRITE, event.type);
+                    handler = reactor->get_handler(SW_EVENT_WRITE, event.type);
                     ret = handler(reactor, &event);
                     if (ret < 0) {
                         swSysWarn("poll[POLLOUT] handler failed. fd=%d", event.fd);
@@ -221,7 +206,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
                     if ((object->events[i].revents & POLLIN) || (object->events[i].revents & POLLOUT)) {
                         continue;
                     }
-                    handler = swReactor_get_handler(reactor, SW_EVENT_ERROR, event.type);
+                    handler = reactor->get_handler(SW_EVENT_ERROR, event.type);
                     ret = handler(reactor, &event);
                     if (ret < 0) {
                         swSysWarn("poll[POLLERR] handler failed. fd=%d", event.fd);
@@ -239,12 +224,12 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
     return SW_OK;
 }
 
-static int swReactorPoll_exist(swReactor *reactor, int fd) {
+static bool swReactorPoll_exist(swReactor *reactor, int fd) {
     swReactorPoll *object = (swReactorPoll *) reactor->object;
     for (uint32_t i = 0; i < reactor->event_num; i++) {
         if (object->events[i].fd == fd) {
-            return SW_TRUE;
+            return true;
         }
     }
-    return SW_FALSE;
+    return false;
 }

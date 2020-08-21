@@ -37,9 +37,8 @@ ListenPort::ListenPort() {
     protocol.package_body_offset = 4;
     protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
 
-    char eof[] = SW_DATA_EOF;
     protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
-    memcpy(protocol.package_eof, eof, protocol.package_eof_len);
+    memcpy(protocol.package_eof, SW_DATA_EOF, protocol.package_eof_len);
 }
 
 #ifdef SW_USE_OPENSSL
@@ -143,7 +142,7 @@ void Server::init_port_protocol(ListenPort *ls) {
         ls->onRead = swPort_onRead_check_eof;
     } else if (ls->open_length_check) {
         if (ls->protocol.package_length_type != '\0') {
-            ls->protocol.get_package_length = swProtocol_get_package_length;
+            ls->protocol.get_package_length = Protocol::default_length_func;
         }
         ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = swPort_onRead_check_length;
@@ -269,9 +268,9 @@ static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *even
         return SW_ERR;
     }
 
-    n = swSocket_recv(_socket, buffer->str, buffer->size, 0);
+    n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (_socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -283,7 +282,7 @@ static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *even
         }
     } else if (n == 0) {
     _close_fd:
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_OK;
     } else {
         buffer->offset = buffer->length = n;
@@ -299,14 +298,14 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
 
     swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_ERR;
     }
 
-    if (swProtocol_recv_check_length(protocol, _socket, buffer) < 0) {
+    if (protocol->recv_with_length_protocol(_socket, buffer) < 0) {
         swTrace("Close Event.FD=%d|From=%d", event->fd, event->reactor_id);
         conn->close_errno = errno;
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
     }
 
     return SW_OK;
@@ -351,7 +350,7 @@ static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *eve
     if (!request->buffer_) {
         request->buffer_ = serv->get_recv_buffer(_socket);
         if (!request->buffer_) {
-            swReactor_trigger_close_event(reactor, event);
+            reactor->trigger_close_event(event);
             return SW_ERR;
         }
     }
@@ -359,9 +358,9 @@ static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *eve
     swString *buffer = request->buffer_;
 
 _recv_data:
-    ssize_t n = swSocket_recv(_socket, buffer->str + buffer->length, buffer->size - buffer->length, 0);
+    ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (_socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -377,24 +376,24 @@ _recv_data:
         if (0) {
         _bad_request:
 #ifdef SW_HTTP_BAD_REQUEST_PACKET
-            swSocket_send(_socket, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
+            _socket->send(SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
 #endif
         }
         if (0) {
         _too_large:
 #ifdef SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET
-            swSocket_send(_socket, SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
+            _socket->send(SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
 #endif
         }
         if (0) {
         _unavailable:
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
-            swSocket_send(_socket, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
+            _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
 #endif
         }
     _close_fd:
         serv->destroy_http_request(conn);
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_OK;
     }
 
@@ -436,7 +435,7 @@ _parse:
             swString_clear(buffer);
             return SW_OK;
         }
-        swString_reduce(buffer, buffer->offset);
+        buffer->reduce(buffer->offset);
         serv->destroy_http_request(conn);
         conn->socket->skip_recv = 1;
         return swPort_onRead_check_length(reactor, port, event);
@@ -490,7 +489,7 @@ _parse:
             }
             if (buffer->length > request->header_length_) {
                 // http pipeline, multi requests, parse the next one
-                swString_reduce(buffer, request->header_length_);
+                buffer->reduce(request->header_length_);
                 request->clean();
                 goto _parse;
             } else {
@@ -555,7 +554,7 @@ _parse:
 #ifdef SW_HTTP_100_CONTINUE
             // Expect: 100-continue
             if (request->has_expect_header()) {
-                swSocket_send(_socket, SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
+                _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
             } else {
                 swTraceLog(SW_TRACE_SERVER,
                            "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
@@ -596,13 +595,13 @@ static int swPort_onRead_redis(swReactor *reactor, ListenPort *port, swEvent *ev
 
     swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_ERR;
     }
 
     if (swServer_recv_redis_packet(protocol, conn, buffer) < 0) {
         conn->close_errno = errno;
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
     }
 
     return SW_OK;
@@ -616,13 +615,13 @@ static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent
 
     swString *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
         return SW_ERR;
     }
 
-    if (swProtocol_recv_check_eof(protocol, _socket, buffer) < 0) {
+    if (protocol->recv_with_eof_protocol(_socket, buffer) < 0) {
         conn->close_errno = errno;
-        swReactor_trigger_close_event(reactor, event);
+        reactor->trigger_close_event(event);
     }
 
     return SW_OK;
@@ -648,7 +647,7 @@ void ListenPort::close() {
 #endif
 
     if (socket) {
-        swSocket_free(socket);
+        socket->free();
         socket = nullptr;
     }
 

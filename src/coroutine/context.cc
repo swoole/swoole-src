@@ -24,8 +24,6 @@
 
 #ifndef SW_USE_THREAD_CONTEXT
 
-using namespace swoole;
-
 #define MAGIC_STRING "swoole_coroutine#5652a7fb2b38be"
 #define START_OFFSET (64 * 1024)
 
@@ -33,7 +31,10 @@ using namespace swoole;
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-Context::Context(size_t stack_size, coroutine_func_t fn, void *private_data)
+
+namespace swoole {
+
+Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
     : fn_(fn), stack_size_(stack_size), private_data_(private_data) {
     end_ = false;
 
@@ -140,4 +141,5 @@ void Context::context_func(void *arg) {
     _this->swap_out();
 }
 
+};
 #endif

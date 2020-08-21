@@ -48,6 +48,7 @@
 #include <unistd.h>
 
 #include <sys/utsname.h>
+#include <sys/time.h>
 
 #if defined(HAVE_CPU_AFFINITY)
 #ifdef __FreeBSD__
@@ -60,6 +61,7 @@ typedef cpuset_t cpu_set_t;
 #endif
 #endif
 
+#include <memory>
 #include <functional>
 
 typedef unsigned long ulong_t;
@@ -195,18 +197,37 @@ static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, siz
 /*-------------------------------Declare Struct--------------------------------*/
 namespace swoole {
 class Reactor;
+class String;
+class Timer;
+struct TimerNode;
+namespace network {
+struct Socket;
+struct Address;
+struct GetaddrinfoRequest;
+class Client;
 }
+namespace async {
+struct Event;
+}
+struct Protocol;
+}
+
 typedef swoole::Reactor swReactor;
-struct swTimer_node;
-struct swTimer;
+typedef swoole::String swString;
+typedef swoole::Timer swTimer;
+typedef swoole::TimerNode swTimer_node;
+typedef swoole::network::Socket swSocket;
+typedef swoole::network::Address swSocketAddress;
+typedef swoole::network::GetaddrinfoRequest swRequest_getaddrinfo;
+typedef swoole::network::Client swClient;
+typedef swoole::Protocol swProtocol;
+typedef swoole::async::Event swAio_event;
+
 struct swMsgQueue;
 struct swPipe;
-struct swString;
 struct swHeap_node;
 struct swBuffer;
 struct swMemoryPool;
-struct swSocket;
-struct swProtocol;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s) s, sizeof(s)
@@ -313,9 +334,19 @@ enum swFd_type {
     SW_FD_DGRAM_CLIENT,
 };
 
-enum swBool_type {
-    SW_TRUE = 1,
-    SW_FALSE = 0,
+enum swSocket_flag {
+    SW_SOCK_NONBLOCK = 1 << 2,
+    SW_SOCK_CLOEXEC = 1 << 3,
+    SW_SOCK_SSL = (1u << 9),
+};
+
+enum swSocket_type {
+    SW_SOCK_TCP = 1,
+    SW_SOCK_UDP = 2,
+    SW_SOCK_TCP6 = 3,
+    SW_SOCK_UDP6 = 4,
+    SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
+    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
 };
 
 enum swEvent_type {
@@ -344,16 +375,6 @@ enum swFork_type {
     SW_FORK_PRECHECK = 1 << 3,
 };
 
-//-------------------------------------------------------------------------------
-enum swSocket_type {
-    SW_SOCK_TCP = 1,
-    SW_SOCK_UDP = 2,
-    SW_SOCK_TCP6 = 3,
-    SW_SOCK_UDP6 = 4,
-    SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
-    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
-};
-#define SW_SOCK_SSL (1u << 9)
 //-------------------------------------------------------------------------------
 
 #define swYield() sched_yield()  // or usleep(1)
@@ -385,8 +406,6 @@ struct swAllocator {
 #define swoole_tolower(c) (uchar)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
-uint32_t swoole_utf8_decode(uchar **p, size_t n);
-size_t swoole_utf8_length(uchar *p, size_t n);
 void swoole_random_string(char *buf, size_t size);
 size_t swoole_random_bytes(char *buf, size_t size);
 
@@ -460,17 +479,6 @@ typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 
 enum swDNSLookup_cache_type {
     SW_DNS_LOOKUP_RANDOM = (1u << 11),
-};
-
-struct swRequest_getaddrinfo {
-    const char *hostname;
-    const char *service;
-    int family;
-    int socktype;
-    int protocol;
-    int error;
-    void *result;
-    int count;
 };
 
 #ifdef __MACH__
@@ -572,19 +580,17 @@ size_t swoole_sync_readfile(int fd, void *buf, size_t len);
 swString *swoole_sync_readfile_eof(int fd);
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
-long swoole_file_get_size(FILE *fp);
+ssize_t swoole_file_get_size(FILE *fp);
 int swoole_tmpfile(char *filename);
-swString *swoole_file_get_contents(const char *filename);
-int swoole_file_put_contents(const char *filename, const char *content, size_t length);
-long swoole_file_size(const char *filename);
+std::shared_ptr<swString> swoole_file_get_contents(const char *filename);
+bool swoole_file_put_contents(const char *filename, const char *content, size_t length);
+ssize_t swoole_file_size(const char *filename);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
 int swoole_ioctl_set_block(int sock, int nonblock);
 int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
-int swoole_gethostbyname(int type, const char *name, char *addr);
-int swoole_getaddrinfo(swRequest_getaddrinfo *req);
 char *swoole_string_format(size_t n, const char *format, ...);
 int swoole_get_systemd_listen_fds();
 
@@ -594,7 +600,7 @@ pid_t swoole_fork(int flags);
 double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
-int swoole_shell_exec(const char *command, pid_t *pid, uint8_t get_error_stream);
+int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 
 struct swThreadGlobal_t {
@@ -645,34 +651,23 @@ struct swGlobal_t {
     uint16_t cpu_num;
     uint32_t pagesize;
     struct utsname uname;
-
-    //-----------------------[Socket]--------------------------
     uint32_t max_sockets;
-    /**
-     * tcp socket default buffer size
-     */
-    uint32_t socket_buffer_size;
-    double socket_send_timeout;
-
+    //-----------------------[Memory]--------------------------
     swMemoryPool *memory_pool;
     swAllocator std_allocator;
-
     char *task_tmpdir;
     uint16_t task_tmpdir_len;
-
+    //-----------------------[DNS]--------------------------
     char *dns_server_v4;
     char *dns_server_v6;
     double dns_cache_refresh_time;
-
-    /**
-     * aio-threads
-     */
+    //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
     double aio_max_wait_time;
     double aio_max_idle_time;
     swSocket *aio_default_socket;
-
+    //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
 };
@@ -731,10 +726,10 @@ SW_API const char *swoole_version(void);
 SW_API int swoole_version_id(void);
 SW_API int swoole_add_function(const char *name, void *func);
 SW_API void *swoole_get_function(const char *name, uint32_t length);
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back);
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, const swCallback &func, int push_back);
 SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
 namespace swoole {
-int hook_add(void **hooks, int type, swCallback func, int push_back);
+int hook_add(void **hooks, int type, const swCallback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 }  // namespace swoole

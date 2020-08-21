@@ -43,7 +43,6 @@ extern "C" {
 #include "http2.h"
 #endif
 
-using namespace swoole;
 using swoole::coroutine::Socket;
 
 zend_class_entry *swoole_http_response_ce;
@@ -68,6 +67,23 @@ static inline void http_header_key_format(char *key, int length) {
             }
         }
     }
+}
+
+static inline bool http_has_crlf(const char *value, size_t length) {
+    /* new line/NUL character safety check */
+    for (size_t i = 0; i < length; i++) {
+        /* RFC 7230 ch. 3.2.4 deprecates folding support */
+        if (value[i] == '\n' || value[i] == '\r') {
+            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
+            return true;
+        }
+        if (value[i] == '\0') {
+            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static inline swString *http_get_write_buffer(http_context *ctx) {
@@ -816,6 +832,11 @@ bool swoole_http_response_set_header(
         php_swoole_error(E_WARNING, "header key is too long");
         return false;
     }
+
+    if (http_has_crlf(v, vlen)) {
+        return false;
+    }
+
     zval *zheader = swoole_http_init_and_read_property(
         swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
     if (ucwords) {
@@ -957,6 +978,11 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         php_swoole_error(E_WARNING, "Cookie names can't contain any of the following '=,; \\t\\r\\n\\013\\014'");
         RETURN_FALSE;
     }
+
+    if (!url_encode && http_has_crlf(value, value_len)) {
+        RETURN_FALSE;
+    }
+
     if (value_len == 0) {
         cookie = (char *) emalloc(cookie_size);
         date = php_swoole_format_date((char *) ZEND_STRL("D, d-M-Y H:i:s T"), 1, 0);
@@ -1210,6 +1236,7 @@ static PHP_METHOD(swoole_http_response, recv) {
 #else
         php_swoole_websocket_frame_unpack(&_tmp, return_value);
 #endif
+        zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), sock->get_fd());
     }
 }
 
@@ -1266,7 +1293,7 @@ static PHP_METHOD(swoole_http_response, create) {
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
-    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), fd);
 }
 
 static PHP_METHOD(swoole_http_response, redirect) {

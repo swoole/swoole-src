@@ -2,26 +2,18 @@
 
 #include "test_core.h"
 
-#ifdef HAVE_SWOOLE_DIR
 #include "coroutine.h"
 #include "coroutine_channel.h"
 #include "coroutine_system.h"
 #include "coroutine_socket.h"
 #include "coroutine_c_api.h"
-#else
-#include "swoole/coroutine.h"
-#include "swoole/coroutine_channel.h"
-#include "swoole/coroutine_system.h"
-#include "swoole/coroutine_socket.h"
-#include "swoole/coroutine_c_api.h"
-#endif
 
 namespace swoole { namespace test {
 
 class coroutine
 {
 public:
-    coroutine(coroutine_func_t _fn, void *_arg, int *_complete_num) :
+    coroutine(const coroutine_func_t &_fn, void *_arg, int *_complete_num) :
             fn(_fn), arg(_arg), complete_num(_complete_num) { }
 
     void start()
@@ -30,7 +22,7 @@ public:
         (*complete_num)++;
     }
 
-    inline static void create(coroutine_func_t fn, void *arg, int *complete_num)
+    inline static void create(const coroutine_func_t &fn, void *arg, int *complete_num)
     {
         auto test = new coroutine(fn, arg, complete_num);
 
@@ -64,7 +56,7 @@ public:
         swoole_event_wait();
     }
 
-    inline static void run(coroutine_func_t fn, void *arg = nullptr)
+    inline static void run(const coroutine_func_t &fn, void *arg = nullptr)
     {
         int complete_num = 0;
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);

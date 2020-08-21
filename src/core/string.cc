@@ -20,58 +20,27 @@
 
 #include <memory>
 
-using swoole::StringExplodeHandler;
+namespace swoole {
 
-swString *swoole::make_string(size_t size, const swAllocator *allocator) {
-    if (allocator == nullptr) {
-        allocator = &SwooleG.std_allocator;
-    }
+char *String::pop(size_t init_size) {
+    assert(length >= (size_t) offset);
 
-    size = SW_MEM_ALIGNED_SIZE(size);
-    swString *str = (swString *) allocator->malloc(sizeof(*str));
-    if (str == nullptr) {
-        swWarn("malloc[1] failed");
-        return nullptr;
-    }
+    char *val = str;
+    size_t _length = length - offset;
+    size_t alloc_size = SW_MEM_ALIGNED_SIZE(_length == 0 ? init_size : SW_MAX(_length, init_size));
 
-    str->length = 0;
-    str->size = size;
-    str->offset = 0;
-    str->str = (char *) allocator->malloc(size);
-    str->allocator = allocator;
-
-    if (str->str == nullptr) {
-        swSysWarn("malloc[2](%ld) failed", size);
-        allocator->free(str);
-        return nullptr;
-    }
-
-    return str;
-}
-
-swString *swString_new(size_t size) {
-    return swoole::make_string(size);
-}
-
-char *swString_pop(swString *str, size_t init_size) {
-    assert(str->length >= (size_t) str->offset);
-
-    char *val = str->str;
-    size_t length = str->length - str->offset;
-    size_t alloc_size = SW_MEM_ALIGNED_SIZE(length == 0 ? init_size : SW_MAX(length, init_size));
-
-    char *new_val = (char *) str->allocator->malloc(alloc_size);
+    char *new_val = (char *) allocator->malloc(alloc_size);
     if (new_val == nullptr) {
         return nullptr;
     }
 
-    str->str = new_val;
-    str->size = alloc_size;
-    str->length = length;
+    str = new_val;
+    size = alloc_size;
+    length = _length;
     if (length > 0) {
-        memcpy(new_val, val + str->offset, length);
+        memcpy(new_val, val + offset, length);
     }
-    str->offset = 0;
+    offset = 0;
 
     return val;
 }
@@ -79,196 +48,175 @@ char *swString_pop(swString *str, size_t init_size) {
 /**
  * migrate data to head, [offset, length - offset] -> [0, length - offset]
  */
-void swString_reduce(swString *str, off_t offset) {
-    assert(offset >= 0 && (size_t) offset <= str->length);
-    if (sw_unlikely(offset == 0)) {
+void String::reduce(off_t _offset) {
+    assert(_offset >= 0 && (size_t) _offset <= length);
+    if (sw_unlikely(_offset == 0)) {
         return;
     }
-    str->length -= offset;
-    str->offset = 0;
-    if (str->length == 0) {
+    length -= _offset;
+    offset = 0;
+    if (length == 0) {
         return;
     }
-    memmove(str->str, str->str + offset, str->length);
+    memmove(str, str + _offset, length);
 }
 
-void swString_print(swString *str) {
-    printf("String[length=%zu,size=%zu,offset=%jd]=%.*s\n",
-           str->length,
-           str->size,
-           (intmax_t) str->offset,
-           (int) str->length,
-           str->str);
+void String::print() {
+    printf("String[length=%zu,size=%zu,offset=%jd]=%.*s\n", length, size, (intmax_t) offset, (int) length, str);
 }
 
-swString *swString_dup2(swString *src) {
-    swString *dst = swString_new(src->size);
-    if (dst) {
-        swTrace("string dup2.  new=%p, old=%p\n", dst, src);
-        dst->length = src->length;
-        dst->offset = src->offset;
-        memcpy(dst->str, src->str, src->length);
-    }
-
-    return dst;
-}
-
-swString *swString_dup(const char *src_str, size_t length) {
-    swString *str = swString_new(length);
-    if (str) {
-        str->length = length;
-        memcpy(str->str, src_str, length);
-    }
-
-    return str;
-}
-
-int swString_append(swString *str, const swString *append_str) {
-    size_t new_size = str->length + append_str->length;
-    if (new_size > str->size) {
-        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0) {
-            return SW_ERR;
-        }
-    }
-
-    memcpy(str->str + str->length, append_str->str, append_str->length);
-    str->length += append_str->length;
-    return SW_OK;
-}
-
-int swString_append_int(swString *str, int value) {
+int String::append(int value) {
     char buf[16];
     int s_len = swoole_itoa(buf, value);
 
-    size_t new_size = str->length + s_len;
-    if (new_size > str->size) {
-        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0) {
+    size_t new_size = length + s_len;
+    if (new_size > size) {
+        if (!reserve(new_size)) {
             return SW_ERR;
         }
     }
 
-    memcpy(str->str + str->length, buf, s_len);
-    str->length += s_len;
+    memcpy(str + length, buf, s_len);
+    length += s_len;
     return SW_OK;
 }
 
-int swString_append_ptr(swString *str, const char *append_str, size_t length) {
-    size_t new_size = str->length + length;
-    if (new_size > str->size) {
-        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0) {
-            return SW_ERR;
-        }
+int String::append(const char *append_str, size_t _length) {
+    size_t new_size = length + _length;
+    if (new_size > size and !reserve(new_size)) {
+        return SW_ERR;
     }
 
-    memcpy(str->str + str->length, append_str, length);
-    str->length += length;
+    memcpy(str + length, append_str, _length);
+    length += _length;
     return SW_OK;
 }
 
-int swString_append_random_bytes(swString *str, size_t length, bool base64) {
-    size_t new_size = str->length + length;
+int String::append_random_bytes(size_t _length, bool base64) {
+    size_t new_size = length + _length;
     size_t base_encode_size;
 
     if (base64) {
-        base_encode_size = BASE64_ENCODE_OUT_SIZE(length) + 1;
+        base_encode_size = BASE64_ENCODE_OUT_SIZE(_length) + 1;
         new_size += base_encode_size;
     }
 
-    if (new_size > str->size) {
-        if (swString_extend(str, swoole_size_align(new_size * 2, SwooleG.pagesize)) < 0) {
+    if (new_size > size) {
+        if (!reserve(swoole_size_align(new_size * 2, SwooleG.pagesize))) {
             return SW_ERR;
         }
     }
 
-    size_t n = swoole_random_bytes(str->str + str->length, length);
-    if (n != length) {
+    size_t n = swoole_random_bytes(str + length, _length);
+    if (n != _length) {
         return SW_ERR;
     }
 
     if (base64) {
         std::unique_ptr <char []> out (new char [base_encode_size]);
-        n = swBase64_encode((uchar *) str->str + str->length, length, out.get());
-        memcpy(str->str + str->length, out.get(), n);
+        n = swBase64_encode((uchar *) str + length, _length, out.get());
+        memcpy(str + length, out.get(), n);
     }
 
-    str->length += n;
+    length += n;
 
     return SW_OK;
 }
 
-int swString_write(swString *str, off_t offset, swString *write_str) {
-    size_t new_length = offset + write_str->length;
-    if (new_length > str->size) {
-        if (swString_extend(str, swoole_size_align(new_length * 2, SwooleG.pagesize)) < 0) {
-            return SW_ERR;
-        }
+bool String::reserve(size_t new_size) {
+    if (size == 0) {
+        alloc(new_size, nullptr);
+        return true;
     }
 
-    memcpy(str->str + offset, write_str->str, write_str->length);
-    if (new_length > str->length) {
-        str->length = new_length;
-    }
-
-    return SW_OK;
-}
-
-int swString_write_ptr(swString *str, off_t offset, const char *write_str, size_t length) {
-    size_t new_length = offset + length;
-    if (new_length > str->size) {
-        if (swString_extend(str, swoole_size_align(new_length * 2, SwooleG.pagesize)) < 0) {
-            return SW_ERR;
-        }
-    }
-
-    memcpy(str->str + offset, write_str, length);
-    if (new_length > str->length) {
-        str->length = new_length;
-    }
-
-    return SW_OK;
-}
-
-int swString_extend(swString *str, size_t new_size) {
-    assert(new_size > str->size);
     new_size = SW_MEM_ALIGNED_SIZE(new_size);
-    char *new_str = (char *) str->allocator->realloc(str->str, new_size);
+    char *new_str = (char *) allocator->realloc(str, new_size);
     if (new_str == nullptr) {
-        swSysWarn("realloc(%ld) failed", new_size);
-        return SW_ERR;
+        throw std::bad_alloc();
+        return false;
     }
 
-    str->str = new_str;
-    str->size = new_size;
-    return SW_OK;
+    str = new_str;
+    size = new_size;
+
+    return true;
 }
 
-char *swString_alloc(swString *str, size_t __size) {
-    if (str->length + __size > str->size) {
-        if (swString_extend_align(str, str->length + __size) < 0) {
-            return nullptr;
-        }
-    }
-
-    char *tmp = str->str + str->length;
-    str->length += __size;
-    return tmp;
-}
-
-int swString_repeat(swString *src, const char *data, size_t len, size_t n) {
+bool String::repeat(const char *data, size_t len, size_t n) {
     if (n <= 0) {
-        return SW_ERR;
+        return false;
     }
     if (len == 1) {
-        if ((src->size < src->length + n) && swString_extend(src, src->length + n) < 0) {
-            return SW_ERR;
+        if ((size < length + n) && !reserve(length + n)) {
+            return false;
         }
-        memset(src->str + src->length, data[0], n);
-        src->length += n;
+        memset(str + length, data[0], n);
+        length += n;
 
-        return SW_OK;
+        return true;
     }
     for (size_t i = 0; i < n; i++) {
-        swString_append_ptr(src, data, len);
+        swString_append_ptr(this, data, len);
     }
-    return SW_OK;
+    return true;
+}
+
+
+/**
+ * @return retval
+ * 1. less than zero, the execution of the string_split function was terminated prematurely
+ * 2. equal to zero, eof was not found in the target string
+ * 3. greater than zero, 0 to retval has eof in the target string, and the position of retval is eof
+ */
+ssize_t String::split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler) {
+#ifdef SW_LOG_TRACE_OPEN
+    static int count;
+    count++;
+#endif
+    const char *start_addr = str + offset;
+    const char *delimiter_addr = swoole_strnstr(start_addr, length - offset, delimiter, delimiter_length);
+    off_t _offset = offset;
+    size_t ret;
+
+    swTraceLog(SW_TRACE_EOF_PROTOCOL,
+               "#[0] count=%d, length=%ld, size=%ld, offset=%ld",
+               count,
+               length,
+               size,
+               offset);
+
+    while (delimiter_addr) {
+        size_t _length = delimiter_addr - start_addr + delimiter_length;
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, _length + offset);
+        if (handler((char *) start_addr - _offset, _length + _offset) == false) {
+            return -1;
+        }
+        offset += _length;
+        start_addr = str + offset;
+        delimiter_addr = swoole_strnstr(start_addr, length - offset, delimiter, delimiter_length);
+        _offset = 0;
+    }
+
+    /**
+     * not found eof in str
+     */
+    if (_offset == offset) {
+        /**
+         * why is offset not equal to length,
+         * because the length may contain part of eof and the other part in the next recv
+         */
+        offset = length - delimiter_length;
+    }
+
+    ret = start_addr - str - _offset;
+    if (ret > 0 && ret < length) {
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, length - offset);
+    } else if (ret >= length) {
+        swTraceLog(
+            SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", length, size, offset);
+    }
+
+    return ret;
+}
+
 }

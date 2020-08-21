@@ -54,7 +54,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('connect', function (swoole_server $serv, $fd) {
-        $serv->sendfile($fd, TEST_IMAGE);
+        Assert::true($serv->sendfile($fd, TEST_IMAGE));
     });
     $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
 

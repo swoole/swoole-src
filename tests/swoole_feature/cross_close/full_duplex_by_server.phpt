@@ -21,8 +21,8 @@ $pm->parentFunc = function () use ($pm) {
         });
         go(function () use ($cli) {
             echo "RECV\n";
-            Assert::assert(!$cli->recv(-1));
-            Assert::same($cli->errCode, SOCKET_ECONNRESET);
+            Assert::eq($cli->recv(-1), "");
+            // Assert::same($cli->errCode, SOCKET_ECONNRESET);
             echo "RECV CLOSED\n";
         });
         $pm->wakeup();

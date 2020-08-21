@@ -60,9 +60,9 @@ _recv_data:
     buf_ptr = buffer->str + buffer->length;
     buf_size = buffer->size - buffer->length;
 
-    int n = swSocket_recv(socket, buf_ptr, buf_size, 0);
+    int n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
-        switch (swSocket_error(errno)) {
+        switch (socket->catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("recv from socket#%d failed", conn->fd);
             return SW_OK;
@@ -159,7 +159,7 @@ _failed:
     return SW_ERR;
 }
 
-bool swRedis_format(swString *buf, nullptr_t null) {
+bool swRedis_format(swString *buf) {
     return swString_append_ptr(buf, SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
 }
 
@@ -168,22 +168,22 @@ bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::stri
         if (value.empty()) {
             return swString_append_ptr(buf, SW_STRL("+OK\r\n")) == SW_OK;
         } else {
-            return swString_format(buf, "+%.*s\r\n", value.length(), value.c_str()) > 0;
+            return buf->format("+%.*s\r\n", value.length(), value.c_str()) > 0;
         }
     } else if (type == SW_REDIS_REPLY_ERROR) {
         if (value.empty()) {
-            return swString_append_ptr(buf, SW_STRL("-ERR\r\n")) == SW_OK;
+            return buf->append(SW_STRL("-ERR\r\n")) == SW_OK;
         } else {
-            return swString_format(buf, "-%.*s\r\n", value.length(), value.c_str()) > 0;
+            return buf->format("-%.*s\r\n", value.length(), value.c_str()) > 0;
         }
     } else if (type == SW_REDIS_REPLY_STRING) {
         if (value.empty() or value.length() > SW_REDIS_MAX_STRING_SIZE) {
             return false;
         } else {
-            if (swString_format(buf, "$%zu\r\n", value.length()) == 0) {
+            if (buf->format("$%zu\r\n", value.length()) == 0) {
                 return false;
             }
-            swString_append(buf, value);
+            buf->append(value);
             swString_append_ptr(buf, SW_CRLF, SW_CRLF_LEN);
             return true;
         }
@@ -192,7 +192,7 @@ bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::stri
 }
 
 bool swRedis_format(swString *buf, enum swRedis_reply_type type, long value) {
-    return swString_format(buf, ":%" PRId64 "\r\n", value) > 0;
+    return buf->format(":%" PRId64 "\r\n", value) > 0;
 }
 
 std::vector<std::string> swRedis_parse(const char *data, size_t len) {

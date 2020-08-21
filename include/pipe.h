@@ -28,10 +28,10 @@ struct swPipe {
     swSocket *master_socket;
     swSocket *worker_socket;
 
-    int (*read)(swPipe *, void *recv, int length);
-    int (*write)(swPipe *, const void *send, int length);
+    ssize_t (*read)(swPipe *, void *_buf, size_t length);
+    ssize_t (*write)(swPipe *, const void *_buf, size_t length);
     swSocket *(*getSocket)(swPipe *, int master);
-    int (*close)(swPipe *);
+    void (*close)(swPipe *);
 };
 
 enum swPipe_close_which {

@@ -23,11 +23,14 @@
 #include <netinet/tcp.h>
 #include <netdb.h>
 
-struct swProtocol {
+namespace swoole {
+struct Protocol {
+    typedef ssize_t (*LengthFunc)(Protocol *, network::Socket *, const char *, uint32_t);
     /* one package: eof check */
-    uint8_t split_by_eof;
-    uint8_t package_eof_len;
+    bool split_by_eof;
+
     char package_eof[SW_DATA_EOF_MAXLEN];
+    uint8_t package_eof_len;
 
     char package_length_type;
     uint8_t package_length_size;
@@ -40,12 +43,20 @@ struct swProtocol {
     uint16_t real_header_length;
     uint16_t ext_flags;
 
-    int (*onPackage)(swProtocol *, swSocket *, const char *, uint32_t);
-    ssize_t (*get_package_length)(swProtocol *, swSocket *, const char *, uint32_t);
-    uint8_t (*get_package_length_size)(swSocket *);
-};
+    int (*onPackage)(Protocol *, network::Socket *, const char *, uint32_t);
+    LengthFunc get_package_length;
+    uint8_t (*get_package_length_size)(network::Socket *);
 
-typedef ssize_t (*swProtocol_length_function)(swProtocol *, swSocket *, const char *, uint32_t);
+    int recv_with_eof_protocol(network::Socket *socket, String *buffer);
+    int recv_with_length_protocol(network::Socket *socket, String *buffer);
+    int recv_split_by_eof(network::Socket *socket, String *buffer);
+    static ssize_t default_length_func(Protocol *protocol, network::Socket *socket, const char *data, uint32_t size);
+
+    inline static LengthFunc get_function(const std::string &name) {
+        return (LengthFunc) swoole_get_function(name.c_str(), name.length());
+    }
+};
+}
 
 static sw_inline uint16_t swoole_swap_endian16(uint16_t x) {
     return (((x & 0xff) << 8) | ((x & 0xff00) >> 8));
@@ -147,7 +158,3 @@ void swoole_dump_hex(const char *data, size_t outlen);
 char *swoole_dec2hex(ulong_t value, int base);
 ulong_t swoole_hex2dec(const char *hex, size_t *parsed_bytes);
 int swoole_type_size(char type);
-
-ssize_t swProtocol_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t size);
-int swProtocol_recv_check_length(swProtocol *protocol, swSocket *socket, swString *buffer);
-int swProtocol_recv_check_eof(swProtocol *protocol, swSocket *socket, swString *buffer);

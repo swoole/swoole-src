@@ -23,6 +23,7 @@
 #include <string>
 
 using namespace swoole;
+using swoole::coroutine::Socket;
 
 zend_class_entry *swoole_socket_coro_ce;
 static zend_object_handlers swoole_socket_coro_handlers;
@@ -195,8 +196,8 @@ static const zend_function_entry swoole_socket_coro_methods[] =
         php_swoole_fatal_error(E_ERROR, "you must call Socket constructor first");                                     \
     }                                                                                                                  \
     if (UNEXPECTED(_sock->socket == SW_BAD_SOCKET)) {                                                                  \
-        zend_update_property_long(swoole_socket_coro_ce, _zobject, ZEND_STRL("errCode"), EBADF);                       \
-        zend_update_property_string(swoole_socket_coro_ce, _zobject, ZEND_STRL("errMsg"), strerror(EBADF));            \
+        zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errCode"), EBADF);                       \
+        zend_update_property_string(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));            \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -792,14 +793,14 @@ void php_swoole_socket_coro_minit(int module_number) {
 }
 
 static sw_inline void swoole_socket_coro_sync_properties(zval *zobject, SocketObject *sock) {
-    zend_update_property_long(swoole_socket_coro_ce, zobject, ZEND_STRL("errCode"), sock->socket->errCode);
-    zend_update_property_string(swoole_socket_coro_ce, zobject, ZEND_STRL("errMsg"), sock->socket->errMsg);
+    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), sock->socket->errCode);
+    zend_update_property_string(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->socket->errMsg);
 }
 
 static void sw_inline php_swoole_init_socket(zval *zobject, SocketObject *sock) {
     sock->socket->set_zero_copy(true);
     sock->socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
-    zend_update_property_long(swoole_socket_coro_ce, zobject, ZEND_STRL("fd"), sock->socket->get_fd());
+    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("fd"), sock->socket->get_fd());
 }
 
 SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
@@ -838,7 +839,7 @@ SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type) {
     }
 
     ZVAL_OBJ(&zobject, object);
-    zend_update_property_long(swoole_socket_coro_ce, &zobject, ZEND_STRL("fd"), sock->socket->get_fd());
+    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("fd"), sock->socket->get_fd());
     return object;
 }
 
@@ -936,7 +937,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     // open length check
     if (php_swoole_array_get_value(vht, "open_length_check", ztmp)) {
         sock->open_length_check = zval_is_true(ztmp);
-        sock->protocol.get_package_length = swProtocol_get_package_length;
+        sock->protocol.get_package_length = Protocol::default_length_func;
     }
     // package length size
     if (php_swoole_array_get_value(vht, "package_length_type", ztmp)) {
@@ -963,9 +964,9 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     // length function
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
         do {
-            swProtocol_length_function func;
+            Protocol::LengthFunc func;
             if (Z_TYPE_P(ztmp) == IS_STRING &&
-                (func = (swProtocol_length_function) swoole_get_function(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)))) {
+                (func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp))))) {
                 sock->protocol.get_package_length = func;
             } else {
                 char *func_name;
@@ -1267,8 +1268,8 @@ static PHP_METHOD(swoole_socket_coro, sendFile) {
 
     swoole_get_socket_coro(sock, ZEND_THIS);
     if (!sock->socket->sendfile(file, offset, length)) {
-        zend_update_property_long(swoole_socket_coro_ce, ZEND_THIS, ZEND_STRL("errCode"), sock->socket->errCode);
-        zend_update_property_string(swoole_socket_coro_ce, ZEND_THIS, ZEND_STRL("errMsg"), sock->socket->errMsg);
+        zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), sock->socket->errCode);
+        zend_update_property_string(swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), sock->socket->errMsg);
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;
@@ -1374,29 +1375,29 @@ static PHP_METHOD(swoole_socket_coro, close) {
 static PHP_METHOD(swoole_socket_coro, getsockname) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    swSocketAddress sa;
+    network::Address sa;
     if (!sock->socket->getsockname(&sa)) {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
-    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
+    add_assoc_string(return_value, "address", (char *) sa.get_ip());
+    add_assoc_long(return_value, "port", sa.get_port());
 }
 
 static PHP_METHOD(swoole_socket_coro, getpeername) {
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-    swSocketAddress sa;
+    network::Address sa;
     if (!sock->socket->getpeername(&sa)) {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    add_assoc_string(return_value, "address", (char *) swSocket_get_ip(sock->socket->get_type(), &sa));
-    add_assoc_long(return_value, "port", swSocket_get_port(sock->socket->get_type(), &sa));
+    add_assoc_string(return_value, "address", (char *) sa.get_ip());
+    add_assoc_long(return_value, "port", sa.get_port());
 }
 
 static PHP_METHOD(swoole_socket_coro, getOption) {

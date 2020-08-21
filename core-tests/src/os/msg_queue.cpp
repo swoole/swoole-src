@@ -29,7 +29,7 @@ TEST(msg_queue, rbac) {
 
     ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
 
-    int queue_num, queue_bytes;
+    size_t queue_num, queue_bytes;
     ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
     ASSERT_EQ(queue_num, 1);
     ASSERT_GT(queue_bytes, 10);
