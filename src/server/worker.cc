@@ -443,7 +443,7 @@ void Server::stop_async_worker(swWorker *worker) {
             if (worker->pipe_master) {
                 reactor->remove_read_event(worker->pipe_master);
             }
-            serv->foreach_connection([serv, reactor]( Connection *conn) {
+            serv->foreach_connection([reactor]( Connection *conn) {
                 if (!conn->peer_closed && !conn->socket->removed) {
                     reactor->remove_read_event(conn->socket);
                 }
