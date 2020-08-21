@@ -761,18 +761,14 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     Socket *sock = (Socket *) abstract->socket;
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
-        if(abstract->blocking == (bool)value)
-        {
+        if (abstract->blocking == (bool) value) {
             break;
         }
-        abstract->blocking = (bool)value;
-        if(abstract->blocking)
-        {
+        abstract->blocking = (bool) value;
+        if (abstract->blocking) {
             sock->set_timeout(abstract->read_timeout, SW_TIMEOUT_READ);
             sock->set_timeout(abstract->write_timeout, SW_TIMEOUT_WRITE);
-        }
-        else
-        {
+        } else {
             abstract->read_timeout = sock->get_timeout(SW_TIMEOUT_READ);
             abstract->write_timeout = sock->get_timeout(SW_TIMEOUT_WRITE);
             sock->set_timeout(0.001, SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
