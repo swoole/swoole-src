@@ -69,9 +69,9 @@ static inline void http_header_key_format(char *key, int length) {
     }
 }
 
-static inline bool http_has_crlf(const char *value, int length) {
+static inline bool http_has_crlf(const char *value, size_t length) {
     /* new line/NUL character safety check */
-    for (uint32_t i = 0; i < length; i++) {
+    for (size_t i = 0; i < length; i++) {
         /* RFC 7230 ch. 3.2.4 deprecates folding support */
         if (value[i] == '\n' || value[i] == '\r') {
             php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
@@ -653,6 +653,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
     }
 
     swoole_zlib_buffer->length = zstream.total_out;
+    swoole_zlib_buffer->offset = 0;
     return SW_OK;
 #endif
 }
@@ -1235,6 +1236,7 @@ static PHP_METHOD(swoole_http_response, recv) {
 #else
         php_swoole_websocket_frame_unpack(&_tmp, return_value);
 #endif
+        zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), sock->get_fd());
     }
 }
 
@@ -1291,7 +1293,7 @@ static PHP_METHOD(swoole_http_response, create) {
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
 
-    zend_update_property_long(swoole_http_response_ce, return_value, ZEND_STRL("fd"), fd);
+    zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), fd);
 }
 
 static PHP_METHOD(swoole_http_response, redirect) {

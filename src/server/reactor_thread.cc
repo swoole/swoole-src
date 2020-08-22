@@ -352,19 +352,14 @@ static void ReactorThread_shutdown(Reactor *reactor) {
         }
     }
 
-    int fd;
-    int serv_max_fd = serv->get_maxfd();
-    int serv_min_fd = serv->get_minfd();
-
-    for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-        if (fd % serv->reactor_num != reactor->id) {
-            continue;
+    serv->foreach_connection([serv, reactor]( Connection *conn) {
+        if (conn->fd % serv->reactor_num != reactor->id) {
+            return;
         }
-        swConnection *conn = serv->get_connection(fd);
-        if (serv->is_valid_connection(conn) && !conn->peer_closed && !conn->socket->removed) {
+        if (!conn->peer_closed && !conn->socket->removed) {
             reactor->remove_read_event(conn->socket);
         }
-    }
+    });
 
     reactor->set_wait_exit(true);
 }
@@ -432,7 +427,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, swEvent *ev) {
                     ReactorThread_shutdown(reactor);
                 } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
                     uint32_t session_id = resp->info.fd;
-                    swConnection *conn = serv->get_connection_verify(session_id);
+                    Connection *conn = serv->get_connection_verify(session_id);
 
                     if (!conn) {
                         swoole_error_log(SW_LOG_NOTICE,
@@ -440,6 +435,10 @@ static int ReactorThread_onPipeRead(Reactor *reactor, swEvent *ev) {
                                          "force close connection failed, session#%d does not exist",
                                          session_id);
                         return SW_ERR;
+                    }
+
+                    if (serv->disable_notify || conn->close_force) {
+                        return Server::close_connection(reactor, conn->socket);
                     }
 
                     conn->close_force = 1;
@@ -1097,35 +1096,24 @@ void Server::start_heartbeat_thread() {
     heartbeat_thread = std::thread([this]() {
         swSignal_none();
 
-        int fd;
-        int serv_max_fd;
-        int serv_min_fd;
         int checktime;
 
         SwooleTG.type = SW_THREAD_HEARTBEAT;
         SwooleTG.id = reactor_num;
 
         while (running) {
-            serv_max_fd = get_maxfd();
-            serv_min_fd = get_minfd();
-
             checktime = (int) ::time(nullptr) - heartbeat_idle_time;
-
-            for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-                swTrace("check fd=%d", fd);
-                swConnection *conn = get_connection(fd);
-                if (is_valid_connection(conn)) {
-                    if (conn->protect || conn->last_time > checktime) {
-                        continue;
-                    }
-                    swDataHead ev = {};
-                    ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
-                    // convert fd to session_id, in order to verify the connection before the force close connection
-                    ev.fd = conn->session_id;
-                    swSocket *_pipe_sock = get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
-                    _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
+            foreach_connection([this, checktime](Connection *conn) {
+                if (conn->protect || conn->last_time == 0 || conn->last_time > checktime) {
+                    return;
                 }
-            }
+                swDataHead ev {};
+                ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
+                // convert fd to session_id, in order to verify the connection before the force close connection
+                ev.fd = conn->session_id;
+                swSocket *_pipe_sock = get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
+                _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
+            });
             sleep(heartbeat_check_interval);
         }
     });

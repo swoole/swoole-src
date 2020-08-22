@@ -19,6 +19,7 @@
 #define TEST_HOST "127.0.0.1"
 #define TEST_PORT 9501
 #define TEST_TMP_FILE "/tmp/swoole_core_test_file"
+#define TEST_TMP_DIR  "/tmp/swoole_core_test_dir"
 #define TEST_JPG_FILE "/examples/test.jpg"
 #define TEST_JPG_MD5SUM  "64a42b4c0f3c65a14c23b60d3880a917"
 

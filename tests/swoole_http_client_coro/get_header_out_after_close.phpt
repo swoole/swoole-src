@@ -21,4 +21,3 @@ swoole_event::wait();
 
 ?>
 --EXPECT--
-

@@ -138,6 +138,7 @@ _detect_mime_type:
     /**
      * file does not exist
      */
+    check_stat:
     if (lstat(task.filename, &file_stat) < 0) {
         if (last) {
             status_code = SW_HTTP_NOT_FOUND;
@@ -145,6 +146,19 @@ _detect_mime_type:
         } else {
             return false;
         }
+    }
+
+    if (S_ISLNK(file_stat.st_mode)) {
+        char buf[PATH_MAX];
+        size_t byte = ::readlink(task.filename, buf, PATH_MAX);
+        if (byte <= 0) {
+            return false;
+        }
+
+        strcpy(task.filename, buf);
+        task.filename[byte] = '\0';
+
+        goto check_stat;
     }
 
     if (serv->http_index_files && !serv->http_index_files->empty() && is_dir()) {
@@ -159,7 +173,7 @@ _detect_mime_type:
         return false;
     }
 
-    if ((file_stat.st_mode & S_IFMT) != S_IFREG) {
+    if (!S_ISREG(file_stat.st_mode)) {
         return false;
     }
     task.length = get_filesize();

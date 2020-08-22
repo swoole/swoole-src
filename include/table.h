@@ -25,7 +25,6 @@
 #include "hash.h"
 
 #include <signal.h>
-#include <sys/time.h>
 
 #include <vector>
 #include <unordered_map>

@@ -101,8 +101,8 @@ class http2_client {
     }
 
     inline void update_error_properties(int code, const char *msg) {
-        zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), code);
-        zend_update_property_string(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), msg);
+        zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), code);
+        zend_update_property_string(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
     }
 
     inline void io_error() { update_error_properties(client->errCode, client->errMsg); }
@@ -114,9 +114,9 @@ class http2_client {
     inline bool is_available() {
         if (sw_unlikely(!client)) {
             swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
-            zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), ECONNRESET);
+            zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), ECONNRESET);
             zend_update_property_string(
-                swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), "client is not connected to server");
+                swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), "client is not connected to server");
             return false;
         }
         return true;
@@ -381,8 +381,8 @@ bool http2_client::connect() {
     client = new Socket(SW_SOCK_TCP);
     if (UNEXPECTED(client->get_fd() < 0)) {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
-        zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), errno);
-        zend_update_property_string(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), swoole_strerror(errno));
+        zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), errno);
+        zend_update_property_string(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), swoole_strerror(errno));
         delete client;
         client = nullptr;
         return false;
@@ -434,7 +434,7 @@ bool http2_client::connect() {
         return false;
     }
 
-    zend_update_property_bool(swoole_http2_client_coro_ce, zobject, ZEND_STRL("connected"), 1);
+    zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 1);
 
     return true;
 }
@@ -444,7 +444,7 @@ bool http2_client::close() {
     if (!_client) {
         return false;
     }
-    zend_update_property_bool(swoole_http2_client_coro_ce, zobject, ZEND_STRL("connected"), 0);
+    zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), 0);
     if (!_client->has_bound()) {
         auto i = streams.begin();
         while (i != streams.end()) {
@@ -587,11 +587,11 @@ enum swReturn_code http2_client::parse_frame(zval *return_value, bool pipeline_r
                              buf);
 
         // update goaway error code and error msg
-        zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), value);
+        zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), value);
         zend_update_property_stringl(
-            swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE);
+            swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), buf, length - SW_HTTP2_GOAWAY_SIZE);
         zend_update_property_long(
-            swoole_http2_client_coro_ce, zobject, ZEND_STRL("serverLastStreamId"), server_last_stream_id);
+            swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("serverLastStreamId"), server_last_stream_id);
         close();
         return SW_CLOSE;
     }
@@ -677,24 +677,24 @@ enum swReturn_code http2_client::parse_frame(zval *return_value, bool pipeline_r
         zval *zresponse = &stream->zresponse;
         if (type == SW_HTTP2_TYPE_RST_STREAM) {
             zend_update_property_long(swoole_http2_response_ce,
-                                      zresponse,
+                                      SW_Z8_OBJ_P(zresponse),
                                       ZEND_STRL("statusCode"),
                                       -3 /* HTTP_CLIENT_ESTATUS_SERVER_RESET */);
-            zend_update_property_long(swoole_http2_response_ce, zresponse, ZEND_STRL("errCode"), value);
+            zend_update_property_long(swoole_http2_response_ce, SW_Z8_OBJ_P(zresponse), ZEND_STRL("errCode"), value);
         }
         if (stream->buffer && stream->buffer->length > 0) {
             zend_update_property_stringl(
-                swoole_http2_response_ce, zresponse, ZEND_STRL("data"), stream->buffer->str, stream->buffer->length);
+                swoole_http2_response_ce, SW_Z8_OBJ_P(zresponse), ZEND_STRL("data"), stream->buffer->str, stream->buffer->length);
             swString_clear(stream->buffer);
         }
         if (!end) {
-            zend_update_property_bool(swoole_http2_response_ce, &stream->zresponse, ZEND_STRL("pipeline"), 1);
+            zend_update_property_bool(swoole_http2_response_ce, SW_Z8_OBJ_P(&stream->zresponse), ZEND_STRL("pipeline"), 1);
         }
         RETVAL_ZVAL(zresponse, end, 0);
         if (!end) {
             // reinit response object for the following frames
             object_init_ex(zresponse, swoole_http2_response_ce);
-            zend_update_property_long(swoole_http2_response_ce, &stream->zresponse, ZEND_STRL("streamId"), stream_id);
+            zend_update_property_long(swoole_http2_response_ce, SW_Z8_OBJ_P(&stream->zresponse), ZEND_STRL("streamId"), stream_id);
         } else {
             delete_stream(stream_id);
         }
@@ -785,9 +785,9 @@ static PHP_METHOD(swoole_http2_client_coro, __construct) {
 
     php_swoole_set_h2c(ZEND_THIS, h2c);
 
-    zend_update_property_stringl(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("port"), port);
-    zend_update_property_bool(swoole_http2_client_coro_ce, ZEND_THIS, ZEND_STRL("ssl"), ssl);
+    zend_update_property_stringl(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("host"), host, host_len);
+    zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), port);
+    zend_update_property_bool(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("ssl"), ssl);
 }
 
 static PHP_METHOD(swoole_http2_client_coro, set) {
@@ -905,7 +905,7 @@ int http2_client::parse_header(http2_client_stream *stream, int flags, char *in,
             if (nv.name[0] == ':') {
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "status")) {
                     zend_update_property_long(
-                        swoole_http2_response_ce, zresponse, ZEND_STRL("statusCode"), atoi((char *) nv.value));
+                        swoole_http2_response_ce, SW_Z8_OBJ_P(zresponse), ZEND_STRL("statusCode"), atoi((char *) nv.value));
                 }
             } else {
 #ifdef SW_HAVE_ZLIB
@@ -1073,7 +1073,7 @@ http2_client_stream *http2_client::create_stream(uint32_t stream_id, uint8_t fla
     streams.emplace(stream_id, stream);
     // create response object
     object_init_ex(&stream->zresponse, swoole_http2_response_ce);
-    zend_update_property_long(swoole_http2_response_ce, &stream->zresponse, ZEND_STRL("streamId"), stream_id);
+    zend_update_property_long(swoole_http2_response_ce, SW_Z8_OBJ_P(&stream->zresponse), ZEND_STRL("streamId"), stream_id);
 
     return stream;
 }
@@ -1116,7 +1116,7 @@ uint32_t http2_client::send_request(zval *zrequest) {
     zval *zpipeline =
         sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_PIPELINE), 0);
     zval ztmp, *zuse_pipeline_read = zend_read_property_ex(
-                   Z_OBJCE_P(zrequest), zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_USE_PIPELINE_READ), 1, &ztmp);
+                   Z_OBJCE_P(zrequest), SW_Z8_OBJ_P(zrequest), SW_ZSTR_KNOWN(SW_ZEND_STR_USE_PIPELINE_READ), 1, &ztmp);
     bool is_data_empty = Z_TYPE_P(zdata) == IS_STRING ? Z_STRLEN_P(zdata) == 0 : !zval_is_true(zdata);
 
     if (ZVAL_IS_ARRAY(zdata)) {

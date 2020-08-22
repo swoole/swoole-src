@@ -20,8 +20,6 @@
 #include "http.h"
 #include "lock.h"
 
-#include <sys/time.h>
-
 #include <assert.h>
 
 using namespace swoole;
@@ -776,6 +774,7 @@ void Server::destroy() {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
             gs->task_workers.shutdown();
+            gs->task_workers.destroy();
         }
     } else {
         swTraceLog(SW_TRACE_SERVER, "terminate reactor threads");
@@ -1283,6 +1282,8 @@ void Server::init_signal_handler() {
     swSignal_set(SIGHUP, nullptr);
     if (factory_mode == SW_MODE_PROCESS) {
         swSignal_set(SIGCHLD, Server_signal_handler);
+    } else {
+        swSignal_set(SIGIO, Server_signal_handler);
     }
     swSignal_set(SIGUSR1, Server_signal_handler);
     swSignal_set(SIGUSR2, Server_signal_handler);
@@ -1553,15 +1554,9 @@ static void Server_signal_handler(int sig) {
 }
 
 void Server::foreach_connection(const std::function<void(Connection *)> &callback) {
-    swConnection *conn;
-
-    int fd;
-    int serv_max_fd = get_maxfd();
-    int serv_min_fd = get_minfd();
-
-    for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-        conn = get_connection(fd);
-        if (conn && conn->socket && conn->active == 1 && conn->closed == 0 && conn->socket->fdtype == SW_FD_SESSION) {
+    for (int fd = get_minfd(); fd <= get_maxfd(); fd++) {
+        Connection *conn = get_connection(fd);
+        if (is_valid_connection(conn)) {
             callback(conn);
         }
     }

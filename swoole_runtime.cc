@@ -110,6 +110,9 @@ struct php_swoole_netstream_data_t
 {
     php_netstream_data_t stream;
     Socket *socket;
+    bool blocking = true;
+    double read_timeout = 0;
+    double write_timeout = 0;
 };
 
 static bool hook_init = false;
@@ -567,6 +570,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         memset(abstract, 0, sizeof(*abstract));
 
         abstract->socket = clisock;
+        abstract->blocking = true;
 
         xparam->outputs.client = php_stream_alloc_rel(stream->ops, (void *) abstract, nullptr, "r+");
         if (xparam->outputs.client) {
@@ -757,8 +761,19 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     Socket *sock = (Socket *) abstract->socket;
     switch (option) {
     case PHP_STREAM_OPTION_BLOCKING:
-        // The coroutine socket always consistent with the sync blocking socket
-        return value ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+        if (abstract->blocking == (bool) value) {
+            break;
+        }
+        abstract->blocking = (bool) value;
+        if (abstract->blocking) {
+            sock->set_timeout(abstract->read_timeout, SW_TIMEOUT_READ);
+            sock->set_timeout(abstract->write_timeout, SW_TIMEOUT_WRITE);
+        } else {
+            abstract->read_timeout = sock->get_timeout(SW_TIMEOUT_READ);
+            abstract->write_timeout = sock->get_timeout(SW_TIMEOUT_WRITE);
+            sock->set_timeout(0.001, SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
+        }
+        break;
     case PHP_STREAM_OPTION_XPORT_API: {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
     }
@@ -905,17 +920,7 @@ static php_stream *socket_create(const char *proto,
     abstract = (php_swoole_netstream_data_t *) ecalloc(1, sizeof(*abstract));
     abstract->socket = sock;
     abstract->stream.socket = sock->get_fd();
-
-    if (timeout) {
-        sock->set_timeout(timeout);
-        abstract->stream.timeout = *timeout;
-    } else if (FG(default_socket_timeout) > 0) {
-        sock->set_timeout((double) FG(default_socket_timeout));
-        abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
-    } else {
-        sock->set_timeout(-1);
-        abstract->stream.timeout.tv_sec = -1;
-    }
+    abstract->blocking = true;
 
     persistent_id = nullptr;  // prevent stream api in user level using pconnect to persist the socket
     stream = php_stream_alloc_rel(&socket_ops, abstract, persistent_id, "r+");
@@ -1557,6 +1562,7 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
     abstract->socket = sock;
     abstract->stream.timeout.tv_sec = FG(default_socket_timeout);
     abstract->stream.socket = sock->get_fd();
+    abstract->blocking = true;
 
     php_stream *stream = php_stream_alloc_rel(&socket_ops, abstract, nullptr, "r+");
 

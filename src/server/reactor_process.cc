@@ -30,8 +30,6 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
 static int swReactorProcess_reuse_port(swListenPort *ls);
 #endif
 
-static uint32_t heartbeat_check_lasttime = 0;
-
 static bool swServer_is_single(swServer *serv) {
     return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
            serv->user_worker_list == nullptr;
@@ -390,16 +388,9 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     /**
      * Close all connections
      */
-    int fd;
-    int serv_max_fd = serv->get_maxfd();
-    int serv_min_fd = serv->get_minfd();
-
-    for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-        Connection *conn = serv->get_connection(fd);
-        if (conn != nullptr && conn->active && conn->socket->fdtype == SW_FD_SESSION) {
-            serv->close(conn->session_id, true);
-        }
-    }
+    serv->foreach_connection([serv](Connection *conn) {
+        serv->close(conn->session_id, true);
+    });
 
     /**
      * call internal serv hooks
@@ -424,6 +415,9 @@ static int swReactorProcess_onClose(swReactor *reactor, swEvent *event) {
     swConnection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
+    }
+    if (event->socket->removed) {
+        return Server::close_connection(reactor, event->socket);
     }
     if (reactor->del(reactor, event->socket) == 0) {
         if (conn->close_queued) {
@@ -506,42 +500,37 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
     swReactor *reactor = (swReactor *) tnode->data;
     swServer *serv = (swServer *) reactor->ptr;
     swEvent notify_ev;
-    swConnection *conn;
     time_t now = time(nullptr);
 
-    if (now < heartbeat_check_lasttime + 10) {
+    if (now < serv->heartbeat_check_lasttime + 10) {
         return;
     }
-
-    int fd;
-    int checktime;
 
     sw_memset_zero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_FD_SESSION;
 
-    int serv_max_fd = serv->get_maxfd();
-    int serv_min_fd = serv->get_minfd();
+    int checktime = now - serv->heartbeat_idle_time;
 
-    checktime = now - serv->heartbeat_idle_time;
-
-    for (fd = serv_min_fd; fd <= serv_max_fd; fd++) {
-        conn = serv->get_connection(fd);
-        if (serv->is_valid_connection(conn)) {
-            if (conn->protect || conn->last_time > checktime) {
-                continue;
-            }
-#ifdef SW_USE_OPENSSL
-            if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY) {
-                Server::close_connection(reactor, conn->socket);
-                continue;
-            }
-#endif
-            notify_ev.fd = fd;
-            notify_ev.socket = conn->socket;
-            notify_ev.reactor_id = conn->reactor_id;
-            swReactorProcess_onClose(reactor, &notify_ev);
+    serv->foreach_connection([serv, checktime, reactor, &notify_ev](Connection *conn) {
+        if (conn->protect || conn->last_time > checktime) {
+            return;
         }
-    }
+#ifdef SW_USE_OPENSSL
+        if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY) {
+            Server::close_connection(reactor, conn->socket);
+            return;
+        }
+#endif
+        if (serv->disable_notify || conn->close_force) {
+            Server::close_connection(reactor, conn->socket);
+            return;
+        }
+        conn->close_force = 1;
+        notify_ev.fd = conn->fd;
+        notify_ev.socket = conn->socket;
+        notify_ev.reactor_id = conn->reactor_id;
+        swReactorProcess_onClose(reactor, &notify_ev);
+    });
 }
 
 #ifdef HAVE_REUSEPORT

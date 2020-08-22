@@ -37,9 +37,8 @@ ListenPort::ListenPort() {
     protocol.package_body_offset = 4;
     protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
 
-    char eof[] = SW_DATA_EOF;
     protocol.package_eof_len = sizeof(SW_DATA_EOF) - 1;
-    memcpy(protocol.package_eof, eof, protocol.package_eof_len);
+    memcpy(protocol.package_eof, SW_DATA_EOF, protocol.package_eof_len);
 }
 
 #ifdef SW_USE_OPENSSL

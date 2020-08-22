@@ -1554,7 +1554,7 @@ static sw_inline zend_object *php_swoole_mysql_coro_statement_create_object(zend
     object_properties_init(&zms->std, ce);
     zms->std.handlers = &swoole_mysql_coro_statement_handlers;
     ZVAL_OBJ(&zobject, &zms->std);
-    zend_update_property_long(ce, &zobject, ZEND_STRL("id"), statement->info.id);
+    zend_update_property_long(ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("id"), statement->info.id);
     zms->statement = statement;
     zms->zclient = client;
     GC_ADDREF(client);
@@ -1577,10 +1577,10 @@ static sw_inline void swoole_mysql_coro_sync_error_properties(zval *zobject,
                                                               const bool connected = true) {
     SW_ASSERT(instanceof_function(Z_OBJCE_P(zobject), swoole_mysql_coro_ce) ||
               instanceof_function(Z_OBJCE_P(zobject), swoole_mysql_coro_statement_ce));
-    zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("errno"), error_code);
-    zend_update_property_string(Z_OBJCE_P(zobject), zobject, ZEND_STRL("error"), error_msg);
+    zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("errno"), error_code);
+    zend_update_property_string(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("error"), error_msg);
     if (!connected) {
-        zend_update_property_bool(Z_OBJCE_P(zobject), zobject, ZEND_STRL("connected"), connected);
+        zend_update_property_bool(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("connected"), connected);
     }
 }
 
@@ -1590,8 +1590,8 @@ static sw_inline void swoole_mysql_coro_sync_query_result_properties(zval *zobje
     switch (Z_TYPE_P(return_value)) {
     case IS_TRUE: {
         mysql::ok_packet *ok_packet = &mc->result.ok;
-        zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("affected_rows"), ok_packet->affected_rows);
-        zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
+        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
         break;
     }
     case IS_FALSE: {
@@ -1622,14 +1622,14 @@ static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zob
     switch (Z_TYPE_P(return_value)) {
     case IS_TRUE: {
         mysql::ok_packet *ok_packet = &ms->result.ok;
-        zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("affected_rows"), ok_packet->affected_rows);
-        zend_update_property_long(Z_OBJCE_P(zobject), zobject, ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
+        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
 
         /* backward compatibility (sync result info to client) */
         zval zclient;
         ZVAL_OBJ(&zclient, zms->zclient);
-        zend_update_property_long(Z_OBJCE_P(&zclient), &zclient, ZEND_STRL("affected_rows"), ok_packet->affected_rows);
-        zend_update_property_long(Z_OBJCE_P(&zclient), &zclient, ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+        zend_update_property_long(Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
+        zend_update_property_long(Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
         break;
     }
     case IS_FALSE: {
@@ -1785,8 +1785,8 @@ static PHP_METHOD(swoole_mysql_coro, connect) {
         }
     }
     if (!mc->connect()) {
-        zend_update_property_long(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connect_errno"), mc->get_error_code());
-        zend_update_property_string(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connect_error"), mc->get_error_msg());
+        zend_update_property_long(swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connect_errno"), mc->get_error_code());
+        zend_update_property_string(swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connect_error"), mc->get_error_msg());
         RETURN_FALSE;
     }
     if (zserver_info && php_swoole_array_length(zserver_info) > 0) {
@@ -1794,8 +1794,8 @@ static PHP_METHOD(swoole_mysql_coro, connect) {
                             swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("serverInfo"), 0)),
                         Z_ARRVAL_P(zserver_info));
     }
-    zend_update_property_long(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("sock"), mc->get_fd());
-    zend_update_property_bool(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connected"), 1);
+    zend_update_property_long(swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("sock"), mc->get_fd());
+    zend_update_property_bool(swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 1);
     RETURN_TRUE;
 }
 
@@ -2036,7 +2036,7 @@ static PHP_METHOD(swoole_mysql_coro, escape) {
 static PHP_METHOD(swoole_mysql_coro, close) {
     mysql_client *mc = php_swoole_get_mysql_client(ZEND_THIS);
     mc->close();
-    zend_update_property_bool(swoole_mysql_coro_ce, ZEND_THIS, ZEND_STRL("connected"), 0);
+    zend_update_property_bool(swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connected"), 0);
     RETURN_TRUE;
 }
 

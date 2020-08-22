@@ -555,7 +555,10 @@ Socket::Socket(int _fd, int _domain, int _type, int _protocol)
     init_options();
 }
 
-Socket::Socket(swSocket *sock, Socket *server_sock) {
+/**
+ * Only used as accept member method
+ */
+Socket::Socket(network::Socket *sock, Socket *server_sock) {
     type = server_sock->type;
     sock_domain = server_sock->sock_domain;
     sock_type = server_sock->sock_type;
@@ -575,6 +578,7 @@ Socket::Socket(swSocket *sock, Socket *server_sock) {
     open_eof_check = server_sock->open_eof_check;
     http2 = server_sock->http2;
     protocol = server_sock->protocol;
+    connected = true;
 #ifdef SW_USE_OPENSSL
     open_ssl = server_sock->open_ssl;
     ssl_is_server = server_sock->ssl_is_server;
@@ -636,6 +640,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
             }
         }
     }
+    connected = true;
     set_err(0);
     return true;
 }
@@ -774,7 +779,7 @@ bool Socket::connect(string _host, int _port, int flags) {
 }
 
 bool Socket::check_liveness() {
-    if (!is_connect()) {
+    if (closed) {
         set_err(ECONNRESET);
         return false;
     } else {
@@ -1553,7 +1558,7 @@ bool Socket::shutdown(int __how) {
                 break;
             }
             if (shutdown_read && shutdown_write) {
-                activated = false;
+                connected = false;
             }
             return true;
         }
@@ -1601,15 +1606,14 @@ bool Socket::close() {
         set_err(EBADF);
         return true;
     }
-
+    if (connected) {
+        shutdown();
+    }
     if (sw_unlikely(has_bound())) {
         if (closed) {
             // close operation is in processing
             set_err(EINPROGRESS);
             return false;
-        }
-        if (activated) {
-            shutdown();
         }
         closed = true;
         if (write_co) {
