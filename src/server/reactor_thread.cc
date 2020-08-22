@@ -42,8 +42,8 @@ static void ReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tn
 
 #ifdef SW_USE_OPENSSL
 static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor,
-                                                                  swListenPort *port,
-                                                                  swSocket *_socket) {
+                                                                swListenPort *port,
+                                                                swSocket *_socket) {
     Server *serv = (Server *) reactor->ptr;
     if (!_socket->ssl || _socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_CONTINUE;
@@ -352,7 +352,7 @@ static void ReactorThread_shutdown(Reactor *reactor) {
         }
     }
 
-    serv->foreach_connection([serv, reactor]( Connection *conn) {
+    serv->foreach_connection([serv, reactor](Connection *conn) {
         if (conn->fd % serv->reactor_num != reactor->id) {
             return;
         }
@@ -842,9 +842,9 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
     reactor->max_socket = serv->max_connection;
     reactor->close = Server::close_connection;
 
-    reactor->set_exit_condition(
-        SW_REACTOR_EXIT_CONDITION_DEFAULT,
-        [thread](Reactor *reactor, int &event_num) -> bool { return reactor->event_num == thread->pipe_num; });
+    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFAULT, [thread](Reactor *reactor, int &event_num) -> bool {
+        return reactor->event_num == thread->pipe_num;
+    });
 
     reactor->default_error_handler = ReactorThread_onClose;
 
@@ -1107,7 +1107,7 @@ void Server::start_heartbeat_thread() {
                 if (conn->protect || conn->last_time == 0 || conn->last_time > checktime) {
                     return;
                 }
-                swDataHead ev {};
+                swDataHead ev{};
                 ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                 // convert fd to session_id, in order to verify the connection before the force close connection
                 ev.fd = conn->session_id;

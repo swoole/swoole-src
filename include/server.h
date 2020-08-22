@@ -342,7 +342,7 @@ struct ListenPort {
 
     int tcp_user_timeout = 0;
 
-    int socket_buffer_size  = network::Socket::default_buffer_size;
+    int socket_buffer_size = network::Socket::default_buffer_size;
     uint32_t buffer_high_watermark = 0;
     uint32_t buffer_low_watermark = 0;
 
@@ -440,7 +440,7 @@ struct ListenPort {
         open_eof_check = true;
         protocol.split_by_eof = !find_from_right;
         protocol.package_eof_len = std::min(eof.length(), sizeof(protocol.package_eof));
-        memcpy(protocol.package_eof, eof.c_str(),  protocol.package_eof_len);
+        memcpy(protocol.package_eof, eof.c_str(), protocol.package_eof_len);
     }
 
     inline void set_length_protocol(uint32_t length_offset, char length_type, uint32_t body_offset) {
@@ -685,7 +685,9 @@ class Server {
     swFactory factory;
     std::vector<ListenPort *> ports;
 
-    inline ListenPort *get_primary_port() { return ports.front(); }
+    inline ListenPort *get_primary_port() {
+        return ports.front();
+    }
 
     ListenPort *get_port(int _port) {
         for (auto port : ports) {
@@ -988,7 +990,9 @@ class Server {
 
     void stop_async_worker(swWorker *worker);
 
-    inline swPipe *get_pipe_object(int pipe_fd) { return (swPipe *) connection_list[pipe_fd].object; }
+    inline swPipe *get_pipe_object(int pipe_fd) {
+        return (swPipe *) connection_list[pipe_fd].object;
+    }
 
     inline swString *get_worker_input_buffer(int reactor_id) {
         if (factory_mode == SW_MODE_BASE) {
@@ -1186,7 +1190,8 @@ class Server {
             }
             if (sw_unlikely(!found)) {
                 scheduler_warning = true;
-            } swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
+            }
+            swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
             return key;
         }
         return key % worker_num;

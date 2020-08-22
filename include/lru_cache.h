@@ -36,7 +36,9 @@ class LRUCache {
     size_t cache_capacity;
 
   public:
-    explicit LRUCache(size_t capacity) { cache_capacity = capacity; }
+    explicit LRUCache(size_t capacity) {
+        cache_capacity = capacity;
+    }
 
     inline std::shared_ptr<void> get(const std::string &key) {
         auto iter = cache_map.find(key);

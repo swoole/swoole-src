@@ -105,127 +105,110 @@ static const zend_function_entry swoole_coroutine_scheduler_methods[] = {
 
 // clang-format on
 
-void php_swoole_coroutine_scheduler_minit(int module_number)
-{
-    SW_INIT_CLASS_ENTRY(swoole_coroutine_scheduler, "Swoole\\Coroutine\\Scheduler", nullptr, "Co\\Scheduler", swoole_coroutine_scheduler_methods);
+void php_swoole_coroutine_scheduler_minit(int module_number) {
+    SW_INIT_CLASS_ENTRY(swoole_coroutine_scheduler,
+                        "Swoole\\Coroutine\\Scheduler",
+                        nullptr,
+                        "Co\\Scheduler",
+                        swoole_coroutine_scheduler_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_scheduler, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CLONEABLE(swoole_coroutine_scheduler, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_scheduler, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_coroutine_scheduler);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_coroutine_scheduler, scheduler_create_object, scheduler_free_object, scheduler_t, std);
+    SW_SET_CLASS_CUSTOM_OBJECT(
+        swoole_coroutine_scheduler, scheduler_create_object, scheduler_free_object, scheduler_t, std);
     swoole_coroutine_scheduler_ce->ce_flags |= ZEND_ACC_FINAL;
 }
 
 static zend_fcall_info_cache exit_condition_fci_cache;
 static bool exit_condition_cleaner;
 
-static bool php_swoole_coroutine_reactor_can_exit(swReactor *reactor, int &event_num)
-{
+static bool php_swoole_coroutine_reactor_can_exit(swReactor *reactor, int &event_num) {
     zval retval;
     int success;
 
     SW_ASSERT(exit_condition_fci_cache.function_handler);
     ZVAL_NULL(&retval);
     success = sw_zend_call_function_ex(nullptr, &exit_condition_fci_cache, 0, nullptr, &retval);
-    if (UNEXPECTED(success != SUCCESS))
-    {
+    if (UNEXPECTED(success != SUCCESS)) {
         php_swoole_fatal_error(E_ERROR, "Coroutine can_exit callback handler error");
     }
-    if (UNEXPECTED(EG(exception)))
-    {
+    if (UNEXPECTED(EG(exception))) {
         zend_exception_error(EG(exception), E_ERROR);
     }
     return !(Z_TYPE_P(&retval) == IS_FALSE);
 }
 
-PHP_METHOD(swoole_coroutine_scheduler, set)
-{
+PHP_METHOD(swoole_coroutine_scheduler, set) {
     zval *zset = nullptr;
     HashTable *vht = nullptr;
     zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_ARRAY(zset)
+    Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
     php_swoole_set_global_option(vht);
 
-    if (php_swoole_array_get_value(vht, "max_coroutine", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "max_coroutine", ztmp)) {
         zend_long max_num = zval_get_long(ztmp);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
-    if (php_swoole_array_get_value(vht, "hook_flags", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
         PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", ztmp)) {
         PHPCoroutine::config.enable_preemptive_scheduler = zval_is_true(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
         Coroutine::set_stack_size(zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "dns_cache_expire", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "dns_cache_expire", ztmp)) {
         System::set_dns_cache_expire((time_t) zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "dns_cache_capacity", ztmp)) {
         System::set_dns_cache_capacity((size_t) zval_get_long(ztmp));
     }
     /* AIO */
-    if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
         SwooleG.aio_core_worker_num = v;
     }
-    if (php_swoole_array_get_value(vht, "aio_worker_num", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "aio_worker_num", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
-        SwooleG.aio_worker_num= v;
+        SwooleG.aio_worker_num = v;
     }
-    if (php_swoole_array_get_value(vht, "aio_max_wait_time", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "aio_max_wait_time", ztmp)) {
         SwooleG.aio_max_wait_time = zval_get_double(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "aio_max_idle_time", ztmp))
-    {
+    if (php_swoole_array_get_value(vht, "aio_max_idle_time", ztmp)) {
         SwooleG.aio_max_idle_time = zval_get_double(ztmp);
     }
     /* Reactor can exit */
-    if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition"))))
-    {
+    if ((ztmp = zend_hash_str_find(vht, ZEND_STRL("exit_condition")))) {
         char *func_name;
-        if (exit_condition_fci_cache.function_handler)
-        {
+        if (exit_condition_fci_cache.function_handler) {
             sw_zend_fci_cache_discard(&exit_condition_fci_cache);
             exit_condition_fci_cache.function_handler = nullptr;
         }
-        if (!ZVAL_IS_NULL(ztmp))
-        {
-            if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, &exit_condition_fci_cache, nullptr))
-            {
+        if (!ZVAL_IS_NULL(ztmp)) {
+            if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, &exit_condition_fci_cache, nullptr)) {
                 php_swoole_fatal_error(E_ERROR, "exit_condition '%s' is not callable", func_name);
-            }
-            else
-            {
+            } else {
                 efree(func_name);
                 sw_zend_fci_cache_persist(&exit_condition_fci_cache);
-                if (!exit_condition_cleaner)
-                {
-                    php_swoole_register_rshutdown_callback([](void *data)
-                    {
-                        if (exit_condition_fci_cache.function_handler)
-                        {
-                            sw_zend_fci_cache_discard(&exit_condition_fci_cache);
-                            exit_condition_fci_cache.function_handler = nullptr;
-                        }
-                    }, nullptr);
+                if (!exit_condition_cleaner) {
+                    php_swoole_register_rshutdown_callback(
+                        [](void *data) {
+                            if (exit_condition_fci_cache.function_handler) {
+                                sw_zend_fci_cache_discard(&exit_condition_fci_cache);
+                                exit_condition_fci_cache.function_handler = nullptr;
+                            }
+                        },
+                        nullptr);
                     exit_condition_cleaner = true;
                 }
                 SwooleG.user_exit_condition = php_swoole_coroutine_reactor_can_exit;
@@ -234,11 +217,8 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
                                                      SwooleG.user_exit_condition);
                 }
             }
-        }
-        else
-        {
-            if (sw_reactor())
-            {
+        } else {
+            if (sw_reactor()) {
                 sw_reactor()->remove_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT);
                 SwooleG.user_exit_condition = nullptr;
             }
@@ -246,43 +226,39 @@ PHP_METHOD(swoole_coroutine_scheduler, set)
     }
 }
 
-static void scheduler_add_task(scheduler_t *s, scheduler_task_t *task)
-{
-    if (!s->list)
-    {
-        s->list = new queue<scheduler_task_t*>;
+static void scheduler_add_task(scheduler_t *s, scheduler_task_t *task) {
+    if (!s->list) {
+        s->list = new queue<scheduler_task_t *>;
     }
     sw_zend_fci_cache_persist(&task->fci_cache);
     sw_zend_fci_params_persist(&task->fci);
     s->list->push(task);
 }
 
-static PHP_METHOD(swoole_coroutine_scheduler, add)
-{
+static PHP_METHOD(swoole_coroutine_scheduler, add) {
     scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
-    if (s->started)
-    {
-        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->add", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+    if (s->started) {
+        php_swoole_fatal_error(
+            E_WARNING, "scheduler is running, unable to execute %s->add", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
     scheduler_task_t *task = (scheduler_task_t *) ecalloc(1, sizeof(scheduler_task_t));
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
-        Z_PARAM_FUNC(task->fci, task->fci_cache)
-        Z_PARAM_VARIADIC('*', task->fci.params, task->fci.param_count)
+    Z_PARAM_FUNC(task->fci, task->fci_cache)
+    Z_PARAM_VARIADIC('*', task->fci.params, task->fci.param_count)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     task->count = 1;
     scheduler_add_task(s, task);
 }
 
-static PHP_METHOD(swoole_coroutine_scheduler, parallel)
-{
+static PHP_METHOD(swoole_coroutine_scheduler, parallel) {
     scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
-    if (s->started)
-    {
-        php_swoole_fatal_error(E_WARNING, "scheduler is running, unable to execute %s->parallel", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+    if (s->started) {
+        php_swoole_fatal_error(
+            E_WARNING, "scheduler is running, unable to execute %s->parallel", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
@@ -290,48 +266,43 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel)
     zend_long count;
 
     ZEND_PARSE_PARAMETERS_START(2, -1)
-        Z_PARAM_LONG(count)
-        Z_PARAM_FUNC(task->fci, task->fci_cache)
-        Z_PARAM_VARIADIC('*', task->fci.params, task->fci.param_count)
+    Z_PARAM_LONG(count)
+    Z_PARAM_FUNC(task->fci, task->fci_cache)
+    Z_PARAM_VARIADIC('*', task->fci.params, task->fci.param_count)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     task->count = count;
     scheduler_add_task(s, task);
 }
 
-static PHP_METHOD(swoole_coroutine_scheduler, start)
-{
+static PHP_METHOD(swoole_coroutine_scheduler, start) {
     scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
 
-    if (SwooleTG.reactor)
-    {
-        php_swoole_fatal_error(E_WARNING, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+    if (SwooleTG.reactor) {
+        php_swoole_fatal_error(
+            E_WARNING, "eventLoop has already been created. unable to start %s", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
-    if (s->started)
-    {
-        php_swoole_fatal_error(E_WARNING, "scheduler is started, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+    if (s->started) {
+        php_swoole_fatal_error(
+            E_WARNING, "scheduler is started, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
-    if (php_swoole_reactor_init() < 0)
-    {
+    if (php_swoole_reactor_init() < 0) {
         RETURN_FALSE;
     }
 
     s->started = true;
 
-    if (!s->list)
-    {
+    if (!s->list) {
         php_swoole_fatal_error(E_WARNING, "no coroutine task");
         RETURN_FALSE;
     }
 
-    while (!s->list->empty())
-    {
+    while (!s->list->empty()) {
         scheduler_task_t *task = s->list->front();
         s->list->pop();
-        for (zend_long i = 0; i < task->count; i++)
-        {
+        for (zend_long i = 0; i < task->count; i++) {
             PHPCoroutine::create(&task->fci_cache, task->fci.param_count, task->fci.params);
         }
         sw_zend_fci_cache_discard(&task->fci_cache);

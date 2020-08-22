@@ -29,7 +29,9 @@ struct exception_t : public std::exception {
         msg = _msg;
         code = _code;
     }
-    const char *what() const throw() { return msg.c_str(); }
+    const char *what() const throw() {
+        return msg.c_str();
+    }
 };
 
 struct row_t {
@@ -99,7 +101,9 @@ class table_t {
         return result;
     }
 
-    bool del(const std::string &key) { return swTableRow_del(table, key.c_str(), key.length()) == SW_OK; }
+    bool del(const std::string &key) {
+        return swTableRow_del(table, key.c_str(), key.length()) == SW_OK;
+    }
 
     bool exists(const std::string &key) {
         swTableRow *_rowlock = nullptr;
@@ -109,7 +113,9 @@ class table_t {
         return row != nullptr;
     }
 
-    size_t count() { return table->row_num; }
+    size_t count() {
+        return table->row_num;
+    }
 
     ~table_t() {
         if (table) {

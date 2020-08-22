@@ -50,7 +50,7 @@ TEST(protocol, eof) {
     lock.lock();
     serv.create();
 
-    thread t1([&](){
+    thread t1([&]() {
         lock.lock();
 
         network::Client cli(SW_SOCK_TCP, false);
@@ -59,19 +59,16 @@ TEST(protocol, eof) {
         for (int i = 0; i < PKG_N; i++) {
             EXPECT_EQ(cli.send(&cli, pkgs[i].str, pkgs[i].length, 0), pkgs[i].length);
         }
-
     });
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) {
-        lock.unlock();
-    };
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock.unlock(); };
 
     int recv_count = 0;
 
     serv.onReceive = [&](swServer *serv, swRecvData *req) -> int {
-
-//        printf("[1]LEN=%d, count=%d\n%s\n---------------------------------\n", req->info.len,  recv_count, req->data);
-//        printf("[2]LEN=%d\n%s\n---------------------------------\n", pkgs[recv_count].length, pkgs[recv_count].str);
+        //        printf("[1]LEN=%d, count=%d\n%s\n---------------------------------\n", req->info.len,  recv_count,
+        //        req->data); printf("[2]LEN=%d\n%s\n---------------------------------\n", pkgs[recv_count].length,
+        //        pkgs[recv_count].str);
 
         EXPECT_EQ(memcmp(req->data, pkgs[recv_count].str, req->info.len), 0);
 

@@ -76,21 +76,37 @@ class Coroutine {
     void resume_naked();
     void yield_naked();
 
-    inline sw_coro_state get_state() { return state; }
+    inline sw_coro_state get_state() {
+        return state;
+    }
 
-    inline long get_init_msec() { return init_msec; }
+    inline long get_init_msec() {
+        return init_msec;
+    }
 
-    inline long get_cid() { return cid; }
+    inline long get_cid() {
+        return cid;
+    }
 
-    inline Coroutine *get_origin() { return origin; }
+    inline Coroutine *get_origin() {
+        return origin;
+    }
 
-    inline long get_origin_cid() { return sw_likely(origin) ? origin->get_cid() : -1; }
+    inline long get_origin_cid() {
+        return sw_likely(origin) ? origin->get_cid() : -1;
+    }
 
-    inline void *get_task() { return task; }
+    inline void *get_task() {
+        return task;
+    }
 
-    inline bool is_end() { return ctx.is_end(); }
+    inline bool is_end() {
+        return ctx.is_end();
+    }
 
-    inline void set_task(void *_task) { task = _task; }
+    inline void set_task(void *_task) {
+        task = _task;
+    }
 
     static std::unordered_map<long, Coroutine *> coroutines;
 
@@ -99,9 +115,13 @@ class Coroutine {
     static void set_on_close(sw_coro_on_swap_t func);
     static void bailout(sw_coro_bailout_t func);
 
-    static inline long create(const coroutine_func_t &fn, void *args = nullptr) { return (new Coroutine(fn, args))->run(); }
+    static inline long create(const coroutine_func_t &fn, void *args = nullptr) {
+        return (new Coroutine(fn, args))->run();
+    }
 
-    static inline Coroutine *get_current() { return current; }
+    static inline Coroutine *get_current() {
+        return current;
+    }
 
     static inline Coroutine *get_current_safe() {
         if (sw_unlikely(!current)) {
@@ -110,9 +130,13 @@ class Coroutine {
         return current;
     }
 
-    static inline void *get_current_task() { return sw_likely(current) ? current->get_task() : nullptr; }
+    static inline void *get_current_task() {
+        return sw_likely(current) ? current->get_task() : nullptr;
+    }
 
-    static inline long get_current_cid() { return sw_likely(current) ? current->get_cid() : -1; }
+    static inline long get_current_cid() {
+        return sw_likely(current) ? current->get_cid() : -1;
+    }
 
     static inline Coroutine *get_by_cid(long cid) {
         auto i = coroutines.find(cid);
@@ -124,18 +148,26 @@ class Coroutine {
         return sw_likely(co) ? co->get_task() : nullptr;
     }
 
-    static inline size_t get_stack_size() { return stack_size; }
+    static inline size_t get_stack_size() {
+        return stack_size;
+    }
 
     static inline void set_stack_size(size_t size) {
         stack_size = SW_MEM_ALIGNED_SIZE_EX(SW_MAX(SW_CORO_MIN_STACK_SIZE, SW_MIN(size, SW_CORO_MAX_STACK_SIZE)),
                                             SW_CORO_STACK_ALIGNED_SIZE);
     }
 
-    static inline long get_last_cid() { return last_cid; }
+    static inline long get_last_cid() {
+        return last_cid;
+    }
 
-    static inline size_t count() { return coroutines.size(); }
+    static inline size_t count() {
+        return coroutines.size();
+    }
 
-    static inline uint64_t get_peak_num() { return peak_num; }
+    static inline uint64_t get_peak_num() {
+        return peak_num;
+    }
 
     static inline long get_elapsed(long cid) {
         Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);

@@ -92,7 +92,7 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
     p->write = swPipeUnsock_write;
     p->getSocket = swPipe_getSocket;
     p->close = swPipeUnsock_close;
-    
+
     return 0;
 }
 

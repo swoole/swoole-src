@@ -29,8 +29,8 @@ using std::string;
 using std::vector;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
-using swoole::coroutine::Socket;
 using swoole::Timer;
+using swoole::coroutine::Socket;
 
 struct dns_cache {
     char address[16];

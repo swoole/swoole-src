@@ -71,7 +71,7 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
     p->write = swPipeEventfd_write;
     p->getSocket = swPipe_getSocket;
     p->close = swPipeEventfd_close;
-    
+
     return 0;
 }
 

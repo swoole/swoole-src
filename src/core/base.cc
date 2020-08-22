@@ -777,8 +777,7 @@ size_t sw_snprintf(char *buf, size_t size, const char *format, ...) {
 
     if (size == 0) {
         return retval;
-    }
-    else if (sw_unlikely(retval < 0)) {
+    } else if (sw_unlikely(retval < 0)) {
         retval = 0;
         buf[0] = '\0';
     } else if (sw_unlikely(retval >= (int) size)) {

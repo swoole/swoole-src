@@ -23,8 +23,8 @@
 #include <assert.h>
 
 using namespace swoole;
-using swoole::network::Socket;
 using swoole::network::Address;
+using swoole::network::Socket;
 
 Server *g_server_instance = nullptr;
 
@@ -1458,9 +1458,8 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
     }
 #endif
 
-    ls->socket = swoole::make_socket(ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER,
-        SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK
-    );
+    ls->socket = swoole::make_socket(
+        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (ls->socket == nullptr) {
         return nullptr;
     }

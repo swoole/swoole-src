@@ -31,7 +31,6 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-
 namespace swoole {
 
 Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
@@ -141,5 +140,5 @@ void Context::context_func(void *arg) {
     _this->swap_out();
 }
 
-};
+};  // namespace swoole
 #endif

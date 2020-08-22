@@ -26,9 +26,9 @@
 #include <algorithm>
 
 using namespace std;
+using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::PHPCoroutine;
 
 #ifdef SW_USE_HTTP2
 using Http2Stream = swoole::http2::Stream;
@@ -89,7 +89,9 @@ class http_server {
         upload_tmp_dir = sw_strdup("/tmp");
     }
 
-    ~http_server() { sw_free(upload_tmp_dir); }
+    ~http_server() {
+        sw_free(upload_tmp_dir);
+    }
 
     void set_handler(string pattern, zval *zcallback, const zend_fcall_info_cache *fci_cache) {
         handlers[pattern] = *fci_cache;
@@ -364,7 +366,8 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     }
 
     zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("fd"), sock->get_fd());
-    zend_update_property_long(swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_bind_port());
+    zend_update_property_long(
+        swoole_http_server_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("port"), sock->get_bind_port());
 }
 
 static PHP_METHOD(swoole_http_server_coro, handle) {

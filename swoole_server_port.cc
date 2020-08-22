@@ -668,8 +668,9 @@ static PHP_METHOD(swoole_server_port, getCallback) {
     auto i = server_port_event_map.find(_event_name_tolower.to_std_string());
     if (i != server_port_event_map.end()) {
         string property_name = "on" + i->second.name;
-        zval rv, *property = zend_read_property(
-                     swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), 1, &rv);
+        zval rv,
+            *property = zend_read_property(
+                swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), 1, &rv);
         if (!ZVAL_IS_NULL(property)) {
             RETURN_ZVAL(property, 1, 0);
         }

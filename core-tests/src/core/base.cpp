@@ -49,7 +49,7 @@ TEST(base, swoole_hex2dec) {
 }
 
 TEST(base, random_string) {
-    char buf[1024] = { };
+    char buf[1024] = {};
     swoole_random_string(buf, sizeof(buf) - 1);
     ASSERT_EQ(strlen(buf), sizeof(buf) - 1);
 }
@@ -87,10 +87,10 @@ TEST(base, shell_exec) {
     int _pipe = swoole_shell_exec(str.c_str(), &pid, 0);
     ASSERT_GT(_pipe, 0);
     ASSERT_GT(pid, 0);
-    char buf[1024] = { };
+    char buf[1024] = {};
     ssize_t n = read(_pipe, buf, sizeof(buf) - 1);
     ASSERT_GT(n, 0);
-    ASSERT_STREQ(string(buf).substr(0, sizeof(TEST_JPG_MD5SUM) -1).c_str(), TEST_JPG_MD5SUM);
+    ASSERT_STREQ(string(buf).substr(0, sizeof(TEST_JPG_MD5SUM) - 1).c_str(), TEST_JPG_MD5SUM);
     close(_pipe);
 }
 

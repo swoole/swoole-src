@@ -589,7 +589,8 @@ static PHP_METHOD(swoole_process_pool, getProcess) {
              * Forbidden to close pipe in the php layer
              */
             worker->pipe_object = nullptr;
-            zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
+            zend_update_property_long(
+                swoole_process_ce, SW_Z8_OBJ_P(zprocess), ZEND_STRL("pipe"), worker->pipe_current->fd);
         }
         php_swoole_process_set_worker(zprocess, worker);
         process_pool_property *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);

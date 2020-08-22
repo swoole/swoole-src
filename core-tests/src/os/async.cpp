@@ -34,7 +34,7 @@ static void aio_callback(swAio_event *event) {
 
 TEST(async, dispatch) {
     atomic<int> handle_count(0);
-    swAio_event event = { };
+    swAio_event event = {};
     event.object = &handle_count;
     event.callback = aio_callback;
 

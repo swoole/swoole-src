@@ -1178,8 +1178,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject) {
                 return;
             }
         } else if (!port->open_redis_protocol) {
-            if (port->is_stream() &&
-                !php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onReceive)) {
+            if (port->is_stream() && !php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onReceive)) {
                 php_swoole_fatal_error(E_ERROR, "require onReceive callback");
                 return;
             }
@@ -1383,10 +1382,12 @@ static sw_inline void php_swoole_create_task_object(zval *ztask, swServer *serv,
     php_swoole_server_task_set_server(ztask, serv);
     php_swoole_server_task_set_info(ztask, &req->info);
 
-    zend_update_property_long(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("worker_id"), (zend_long) req->info.reactor_id);
+    zend_update_property_long(
+        swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("worker_id"), (zend_long) req->info.reactor_id);
     zend_update_property_long(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("id"), (zend_long) req->info.fd);
     zend_update_property(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("data"), zdata);
-    zend_update_property_long(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("flags"), (zend_long) swTask_type(req));
+    zend_update_property_long(
+        swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("flags"), (zend_long) swTask_type(req));
 }
 
 static int php_swoole_onTask(swServer *serv, swEventData *req) {
@@ -1859,8 +1860,7 @@ void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *ret
     coros_list->push_back(context);
     context->private_data = (void *) (long) fd;
     if (serv->send_timeout > 0) {
-        context->timer =
-            swoole_timer_add((long) (serv->send_timeout * 1000), false, php_swoole_onSendTimeout, context);
+        context->timer = swoole_timer_add((long) (serv->send_timeout * 1000), false, php_swoole_onSendTimeout, context);
     } else {
         context->timer = nullptr;
     }
@@ -2110,7 +2110,8 @@ static PHP_METHOD(swoole_server, __construct) {
 
     /* info */
     zend_update_property_stringl(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("host"), host, host_len);
-    zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("port"), (zend_long) serv->get_primary_port()->port);
+    zend_update_property_long(
+        swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("port"), (zend_long) serv->get_primary_port()->port);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("mode"), serv->factory_mode);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("type"), sock_type);
 }
@@ -2549,7 +2550,8 @@ static PHP_METHOD(swoole_server, on) {
         int event_type = i->second.type;
         string property_name = "on" + i->second.name;
 
-        zend_update_property(swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
+        zend_update_property(
+            swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
 
         if (server_object->property->callbacks[event_type]) {
             efree(server_object->property->callbacks[event_type]);
@@ -2573,8 +2575,9 @@ static PHP_METHOD(swoole_server, getCallback) {
     if (i != server_event_map.end()) {
         string property_name = "on" + i->second.name;
         // Notice: we should use Z_OBJCE_P instead of swoole_server_ce, because we need to consider the subclasses.
-        zval rv, *property = zend_read_property(
-                     Z_OBJCE_P(ZEND_THIS), SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), 1, &rv);
+        zval rv,
+            *property = zend_read_property(
+                Z_OBJCE_P(ZEND_THIS), SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), 1, &rv);
         if (!ZVAL_IS_NULL(property)) {
             RETURN_ZVAL(property, 1, 0);
         }

@@ -130,7 +130,6 @@ static DataBuffer task_unpack(swEventData *task_result) {
 }
 
 static DataBuffer get_recv_data(swServer *serv, swRecvData *req, char *header, uint32_t header_length) {
-
     DataBuffer retval;
     const char *data_ptr = req->data;
     size_t data_len = req->info.len;
@@ -211,7 +210,7 @@ bool Server::sendto(const string &ip, int port, const DataBuffer &data, int serv
 
     if (ipv6 && serv.udp_socket_ipv6 == nullptr) {
         return false;
-    } else if (serv.udp_socket_ipv4  == nullptr) {
+    } else if (serv.udp_socket_ipv4 == nullptr) {
         swWarn("You must add an UDP listener to server before using sendto");
         return false;
     }

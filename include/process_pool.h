@@ -33,7 +33,6 @@ enum swIPC_type {
     SW_IPC_SOCKET = 3,
 };
 
-
 struct swStreamInfo {
     swSocket *socket;
     swSocket *last_connection;
@@ -63,7 +62,7 @@ struct WorkerGlobal {
     Worker *worker;
     time_t exit_time;
 };
-    
+
 struct Worker {
     /**
      * worker process
@@ -80,7 +79,7 @@ struct Worker {
     swMemoryPool *pool_output;
 
     swMsgQueue *queue;
-    
+
     bool redirect_stdout;
     bool redirect_stdin;
     bool redirect_stderr;
@@ -207,7 +206,7 @@ struct ProcessPool {
             workers[i].id = start_id + i;
         }
     }
-    
+
     inline Worker *get_worker(int worker_id) {
         return &(workers[worker_id - start_id]);
     }
@@ -231,7 +230,7 @@ struct ProcessPool {
 
     static int create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
 };
-};
+};  // namespace swoole
 
 typedef swoole::ProcessPool swProcessPool;
 typedef swoole::Worker swWorker;

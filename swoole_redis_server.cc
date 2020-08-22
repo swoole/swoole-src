@@ -370,11 +370,11 @@ static PHP_METHOD(swoole_redis_server, format) {
 
         zval *item;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
-            zend::String str_value(item);
-            length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
-            swString_append_ptr(format_buffer, message, length);
-            swString_append_ptr(format_buffer, str_value.val(), str_value.len());
-            swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
+        zend::String str_value(item);
+        length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
+        swString_append_ptr(format_buffer, message, length);
+        swString_append_ptr(format_buffer, str_value.val(), str_value.len());
+        swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
         SW_HASHTABLE_FOREACH_END();
 
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
@@ -395,15 +395,15 @@ static PHP_METHOD(swoole_redis_server, format) {
         zval *item;
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(value), key, keylen, keytype, item)
-            if (key == nullptr || keylen == 0) {
-                continue;
-            }
-            zend::String str_value(item);
-            length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, str_value.len());
-            swString_append_ptr(format_buffer, message, length);
-            swString_append_ptr(format_buffer, str_value.val(), str_value.len());
-            swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
-            (void) keytype;
+        if (key == nullptr || keylen == 0) {
+            continue;
+        }
+        zend::String str_value(item);
+        length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, str_value.len());
+        swString_append_ptr(format_buffer, message, length);
+        swString_append_ptr(format_buffer, str_value.val(), str_value.len());
+        swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
+        (void) keytype;
         SW_HASHTABLE_FOREACH_END();
 
         RETURN_STRINGL(format_buffer->str, format_buffer->length);

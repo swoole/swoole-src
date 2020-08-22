@@ -77,9 +77,7 @@ bool Timer::init_reactor(swReactor *reactor) {
         timer->reactor_->timeout_msec = exec_msec;
         return SW_OK;
     };
-    close = [](swTimer *timer) {
-        timer->set(timer, -1);
-    };
+    close = [](swTimer *timer) { timer->set(timer, -1); };
 
     reactor->set_end_callback(SW_REACTOR_PRIORITY_TIMER, [this](swReactor *) { select(); });
 
@@ -211,11 +209,11 @@ int Timer::select() {
         _current_id = tnode->id;
         if (!tnode->removed) {
             swTraceLog(SW_TRACE_TIMER,
-                    "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
-                    tnode->id,
-                    tnode->exec_msec,
-                    tnode->round,
-                    count() - 1);
+                       "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
+                       tnode->id,
+                       tnode->exec_msec,
+                       tnode->round,
+                       count() - 1);
             tnode->callback(this, tnode);
         }
         _current_id = -1;
@@ -259,12 +257,12 @@ int Timer::now(struct timeval *time) {
     time->tv_sec = _now.tv_sec;
     time->tv_usec = _now.tv_nsec / 1000;
 #else
-    if (gettimeofday(time, nullptr) < 0) {
-        swSysWarn("gettimeofday() failed");
-        return SW_ERR;
-    }
+if (gettimeofday(time, nullptr) < 0) {
+    swSysWarn("gettimeofday() failed");
+    return SW_ERR;
+}
 #endif
     return SW_OK;
-}
+}  // namespace swoole
 
-};
+};  // namespace swoole

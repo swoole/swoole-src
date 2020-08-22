@@ -60,13 +60,13 @@ struct swWebSocket_frame_header {
     /**
      * fin:1 rsv1:1 rsv2:1 rsv3:1 opcode:4
      */
-    uchar OPCODE :4;
-    uchar RSV3 :1;
-    uchar RSV2 :1;
-    uchar RSV1 :1;
-    uchar FIN :1;
-    uchar LENGTH :7;
-    uchar MASK :1;
+    uchar OPCODE : 4;
+    uchar RSV3 : 1;
+    uchar RSV2 : 1;
+    uchar RSV1 : 1;
+    uchar FIN : 1;
+    uchar LENGTH : 7;
+    uchar MASK : 1;
 };
 
 struct swWebSocket_frame {

@@ -16,7 +16,9 @@ class lru_cache_test_class {
   public:
     lru_cache_test_class() {}
 
-    ~lru_cache_test_class() { ++dtor_num; }
+    ~lru_cache_test_class() {
+        ++dtor_num;
+    }
 };
 
 TEST(lru_cache, basic) {

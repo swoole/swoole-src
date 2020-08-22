@@ -173,7 +173,8 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
     int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
-        socket->buffer_size = swoole::network::Socket::default_buffer_size;;
+        socket->buffer_size = swoole::network::Socket::default_buffer_size;
+        ;
     }
 
     if (socket->nonblock == 0) {
@@ -282,7 +283,7 @@ int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
 }
 
 void Reactor::drain_write_buffer(swSocket *socket) {
-    swEvent event = { };
+    swEvent event = {};
     event.socket = socket;
     event.fd = socket->fd;
 

@@ -15,11 +15,12 @@ clang-format -i include/*.h
 
 # ext source file
 clang-format -i *.cc
-
+clang-format -i *.h
 
 clang-format -i examples/cpp/*.cc
 
 # core-tests source file
+clang-format -i core-tests/src/_lib/*.cpp
 clang-format -i core-tests/src/client/*.cpp
 clang-format -i core-tests/src/core/*.cpp
 clang-format -i core-tests/src/coroutine/*.cpp

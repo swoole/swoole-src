@@ -84,9 +84,13 @@ class mysql_client {
     double connect_timeout = network::Socket::default_connect_timeout;
     bool strict_type = false;
 
-    inline int get_error_code() { return error_code; }
+    inline int get_error_code() {
+        return error_code;
+    }
 
-    inline const char *get_error_msg() { return error_msg.c_str(); }
+    inline const char *get_error_msg() {
+        return error_msg.c_str();
+    }
 
     inline void non_sql_error(int code, const char *msg) {
         error_code = code;
@@ -133,7 +137,9 @@ class mysql_client {
         state = SW_MYSQL_STATE_IDLE;
     }
 
-    inline bool get_fetch_mode() { return fetch_mode; }
+    inline bool get_fetch_mode() {
+        return fetch_mode;
+    }
 
     inline bool set_fetch_mode(bool v) {
         if (sw_unlikely(socket && v)) {
@@ -144,7 +150,9 @@ class mysql_client {
         return true;
     }
 
-    inline bool get_defer() { return defer; }
+    inline bool get_defer() {
+        return defer;
+    }
 
     inline bool set_defer(bool v) {
         // if (sw_unlikely(fetch_mode && v))
@@ -167,7 +175,9 @@ class mysql_client {
         }
     }
 
-    inline bool has_timedout(enum swTimeout_type type) { return tc && tc->has_timedout(type); }
+    inline bool has_timedout(enum swTimeout_type type) {
+        return tc && tc->has_timedout(type);
+    }
 
     void del_timeout_controller() {
         if (tc) {
@@ -178,11 +188,17 @@ class mysql_client {
 
     bool connect(std::string host, uint16_t port, bool ssl);
 
-    inline bool connect() { return connect(host, port, ssl); }
+    inline bool connect() {
+        return connect(host, port, ssl);
+    }
 
-    inline bool is_connect() { return socket && socket->is_connect(); }
+    inline bool is_connect() {
+        return socket && socket->is_connect();
+    }
 
-    inline int get_fd() { return socket ? socket->get_fd() : -1; }
+    inline int get_fd() {
+        return socket ? socket->get_fd() : -1;
+    }
 
     inline bool check_connection() {
         if (sw_unlikely(!is_connect())) {
@@ -204,7 +220,9 @@ class mysql_client {
         return true;
     }
 
-    inline bool is_writable() { return is_connect() && !socket->has_bound(SW_EVENT_WRITE); }
+    inline bool is_writable() {
+        return is_connect() && !socket->has_bound(SW_EVENT_WRITE);
+    }
 
     bool is_available_for_new_request() {
         if (sw_unlikely(state != SW_MYSQL_STATE_IDLE && state != SW_MYSQL_STATE_CLOSED)) {
@@ -320,11 +338,17 @@ class mysql_statement {
         this->statement = std::string(statement, statement_length);
     }
 
-    inline mysql_client *get_client() { return client; }
+    inline mysql_client *get_client() {
+        return client;
+    }
 
-    inline int get_error_code() { return sw_likely(client) ? client->get_error_code() : error_code; }
+    inline int get_error_code() {
+        return sw_likely(client) ? client->get_error_code() : error_code;
+    }
 
-    inline const char *get_error_msg() { return sw_likely(client) ? client->get_error_msg() : error_msg.c_str(); }
+    inline const char *get_error_msg() {
+        return sw_likely(client) ? client->get_error_msg() : error_msg.c_str();
+    }
 
     inline bool is_available() {
         if (sw_unlikely(!client)) {
@@ -376,7 +400,9 @@ class mysql_statement {
         }
     }
 
-    ~mysql_statement() { close(); }
+    ~mysql_statement() {
+        close();
+    }
 
     bool send_prepare_request();
     bool recv_prepare_response();
@@ -394,14 +420,14 @@ class mysql_statement {
     int error_code = 0;
     std::string error_msg;
 };
-}
+}  // namespace swoole
 
-using swoole::mysql_statement;
 using swoole::mysql_client;
+using swoole::mysql_statement;
 using swoole::SW_TIMEOUT_CONNECT;
+using swoole::SW_TIMEOUT_RDWR;
 using swoole::SW_TIMEOUT_READ;
 using swoole::SW_TIMEOUT_WRITE;
-using swoole::SW_TIMEOUT_RDWR;
 
 static zend_class_entry *swoole_mysql_coro_ce;
 static zend_object_handlers swoole_mysql_coro_handlers;
@@ -1590,8 +1616,10 @@ static sw_inline void swoole_mysql_coro_sync_query_result_properties(zval *zobje
     switch (Z_TYPE_P(return_value)) {
     case IS_TRUE: {
         mysql::ok_packet *ok_packet = &mc->result.ok;
-        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
-        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+        zend_update_property_long(
+            Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
+        zend_update_property_long(
+            Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
         break;
     }
     case IS_FALSE: {
@@ -1622,14 +1650,18 @@ static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zob
     switch (Z_TYPE_P(return_value)) {
     case IS_TRUE: {
         mysql::ok_packet *ok_packet = &ms->result.ok;
-        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
-        zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+        zend_update_property_long(
+            Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
+        zend_update_property_long(
+            Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
 
         /* backward compatibility (sync result info to client) */
         zval zclient;
         ZVAL_OBJ(&zclient, zms->zclient);
-        zend_update_property_long(Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
-        zend_update_property_long(Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
+        zend_update_property_long(
+            Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("affected_rows"), ok_packet->affected_rows);
+        zend_update_property_long(
+            Z_OBJCE_P(&zclient), SW_Z8_OBJ_P(&zclient), ZEND_STRL("insert_id"), ok_packet->last_insert_id);
         break;
     }
     case IS_FALSE: {
@@ -1785,8 +1817,10 @@ static PHP_METHOD(swoole_mysql_coro, connect) {
         }
     }
     if (!mc->connect()) {
-        zend_update_property_long(swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connect_errno"), mc->get_error_code());
-        zend_update_property_string(swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connect_error"), mc->get_error_msg());
+        zend_update_property_long(
+            swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connect_errno"), mc->get_error_code());
+        zend_update_property_string(
+            swoole_mysql_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("connect_error"), mc->get_error_msg());
         RETURN_FALSE;
     }
     if (zserver_info && php_swoole_array_length(zserver_info) > 0) {

@@ -376,8 +376,8 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
      * for heartbeat check
      */
     if (serv->heartbeat_check_interval > 0) {
-        serv->heartbeat_timer = swoole_timer_add(
-            (long) (serv->heartbeat_check_interval * 1000), true, swReactorProcess_onTimeout, reactor);
+        serv->heartbeat_timer =
+            swoole_timer_add((long) (serv->heartbeat_check_interval * 1000), true, swReactorProcess_onTimeout, reactor);
         if (serv->heartbeat_timer == nullptr) {
             goto _fail;
         }
@@ -388,9 +388,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     /**
      * Close all connections
      */
-    serv->foreach_connection([serv](Connection *conn) {
-        serv->close(conn->session_id, true);
-    });
+    serv->foreach_connection([serv](Connection *conn) { serv->close(conn->session_id, true); });
 
     /**
      * call internal serv hooks
@@ -535,9 +533,8 @@ static void swReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
 
 #ifdef HAVE_REUSEPORT
 static int swReactorProcess_reuse_port(swListenPort *ls) {
-    ls->socket = swoole::make_socket(ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER,
-        SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK
-    );
+    ls->socket = swoole::make_socket(
+        ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     int option = 1;
     if (setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0) {
         ls->socket->free();

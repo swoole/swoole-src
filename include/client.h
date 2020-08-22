@@ -26,10 +26,11 @@
 
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established"
 
-namespace swoole { namespace network {
+namespace swoole {
+namespace network {
 
 class Client {
- public:
+  public:
     int id = 0;
     enum swSocket_type type;
     long timeout_id = 0;  // timeout node id
@@ -137,7 +138,7 @@ class Client {
 
 //----------------------------------------Stream---------------------------------------
 class Stream {
- public:
+  public:
     String *buffer = nullptr;
     Client client;
     bool connected = false;
@@ -162,9 +163,10 @@ class Stream {
     static int recv_blocking(Socket *sock, void *__buf, size_t __len);
     static void set_protocol(swProtocol *protocol);
 
- private:
+  private:
     Stream(const char *dst_host, int dst_port, enum swSocket_type type);
 };
 //----------------------------------------Stream End------------------------------------
 
-}}
+}  // namespace network
+}  // namespace swoole

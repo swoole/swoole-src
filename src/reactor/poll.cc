@@ -35,9 +35,9 @@ struct swReactorPoll {
 };
 
 int swReactorPoll_create(swReactor *reactor, int max_fd_num) {
-    swReactorPoll* object = new swReactorPoll();
+    swReactorPoll *object = new swReactorPoll();
     object->fds = new swSocket *[max_fd_num];
-    object->events = new struct pollfd [max_fd_num];
+    object->events = new struct pollfd[max_fd_num];
 
     object->max_fd_num = max_fd_num;
     reactor->max_event_num = max_fd_num;

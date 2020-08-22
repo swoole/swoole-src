@@ -7,9 +7,9 @@
 #define GREETER_SIZE sizeof(GREETER)
 
 using swoole::AsyncClient;
+using swoole::network::Client;
 using swoole::test::Process;
 using swoole::test::Server;
-using swoole::network::Client;
 
 TEST(client, tcp) {
     int ret;

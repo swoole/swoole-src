@@ -56,7 +56,7 @@ struct Protocol {
         return (LengthFunc) swoole_get_function(name.c_str(), name.length());
     }
 };
-}
+}  // namespace swoole
 
 static sw_inline uint16_t swoole_swap_endian16(uint16_t x) {
     return (((x & 0xff) << 8) | ((x & 0xff00) >> 8));

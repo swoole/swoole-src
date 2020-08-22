@@ -61,7 +61,7 @@ struct http_context {
     }
 };
 
-static int handle_on_message_complete(llhttp_t* parser) {
+static int handle_on_message_complete(llhttp_t *parser) {
     http_context *ctx = reinterpret_cast<http_context *>(parser->data);
     ctx->completed = true;
     return 0;
@@ -113,14 +113,14 @@ static void test_run_server(function<void(swServer *)> fn) {
     };
 
     serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
-
         int session_id = req->info.fd;
         auto conn = serv->get_connection_by_session_id(session_id);
 
         if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
             swString_clear(SwooleTG.buffer_stack);
             std::string resp = "Swoole: " + string(req->data, req->info.len);
-            swWebSocket_encode(SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN );
+            swWebSocket_encode(
+                SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN);
             serv->send(session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
             return SW_OK;
         }
@@ -142,7 +142,6 @@ static void test_run_server(function<void(swServer *)> fn) {
         enum llhttp_errno err = llhttp_execute(&parser, req->data, req->info.len);
 
         if (err == HPE_PAUSED_UPGRADE) {
-
             ctx.setHeader("Connection", "Upgrade");
             ctx.setHeader("Sec-WebSocket-Accept", "IIRiohCjop4iJrmvySrFcwcXpHo=");
             ctx.setHeader("Sec-WebSocket-Version", "13");
@@ -157,8 +156,7 @@ static void test_run_server(function<void(swServer *)> fn) {
         }
 
         if (err != HPE_OK) {
-            fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err),
-                    parser.reason);
+            fprintf(stderr, "Parse error: %s %s\n", llhttp_errno_name(err), parser.reason);
             return SW_ERR;
         }
         EXPECT_EQ(err, HPE_OK);
@@ -221,7 +219,7 @@ TEST(http_server, static_get) {
         int fd = open(file.c_str(), O_RDONLY);
         EXPECT_GT(fd, 0);
 
-         std::unique_ptr<swString>  str(swoole_sync_readfile_eof(fd));
+        std::unique_ptr<swString> str(swoole_sync_readfile_eof(fd));
 
         EXPECT_EQ(resp->body, str->to_std_string());
 
@@ -230,7 +228,6 @@ TEST(http_server, static_get) {
 }
 
 static void websocket_test(int server_port, const char *data, size_t length) {
-
     httplib::Client cli(TEST_HOST, server_port);
 
     httplib::Headers headers;
@@ -265,7 +262,7 @@ TEST(http_server, websocket_big) {
     test_run_server([](swServer *serv) {
         swSignal_none();
 
-        swString str(128*1024);
+        swString str(128 * 1024);
         str.repeat("A", 1, str.capacity() - 1);
         websocket_test(serv->get_primary_port()->port, str.value(), str.get_length());
 

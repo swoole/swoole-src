@@ -196,8 +196,9 @@ static const zend_function_entry swoole_socket_coro_methods[] =
         php_swoole_fatal_error(E_ERROR, "you must call Socket constructor first");                                     \
     }                                                                                                                  \
     if (UNEXPECTED(_sock->socket == SW_BAD_SOCKET)) {                                                                  \
-        zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errCode"), EBADF);                       \
-        zend_update_property_string(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));            \
+        zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errCode"), EBADF);          \
+        zend_update_property_string(                                                                                   \
+            swoole_socket_coro_ce, SW_Z8_OBJ_P(_zobject), ZEND_STRL("errMsg"), strerror(EBADF));                       \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -1268,8 +1269,10 @@ static PHP_METHOD(swoole_socket_coro, sendFile) {
 
     swoole_get_socket_coro(sock, ZEND_THIS);
     if (!sock->socket->sendfile(file, offset, length)) {
-        zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), sock->socket->errCode);
-        zend_update_property_string(swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), sock->socket->errMsg);
+        zend_update_property_long(
+            swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), sock->socket->errCode);
+        zend_update_property_string(
+            swoole_socket_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), sock->socket->errMsg);
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;

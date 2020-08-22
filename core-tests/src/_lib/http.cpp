@@ -95,9 +95,9 @@ Client::Client(const std::string &host) : Client(host, 80, std::string(), std::s
 Client::Client(const std::string &host, int port) : Client(host, port, std::string(), std::string()) {}
 
 Client::Client(const std::string &host,
-                      int port,
-                      const std::string &client_cert_path,
-                      const std::string &client_key_path)
+               int port,
+               const std::string &client_cert_path,
+               const std::string &client_key_path)
     : host_(host),
       port_(port),
       host_and_port_(host_ + ":" + std::to_string(port_)),
@@ -439,12 +439,12 @@ bool Client::write_request(Stream &strm, const Request &req, bool close_connecti
 }
 
 std::shared_ptr<Response> Client::send_with_content_provider(const char *method,
-                                                                    const char *path,
-                                                                    const Headers &headers,
-                                                                    const std::string &body,
-                                                                    size_t content_length,
-                                                                    ContentProvider content_provider,
-                                                                    const char *content_type) {
+                                                             const char *path,
+                                                             const Headers &headers,
+                                                             const std::string &body,
+                                                             size_t content_length,
+                                                             ContentProvider content_provider,
+                                                             const char *content_type) {
     Request req;
     req.method = method;
     req.headers = headers;
@@ -584,31 +584,29 @@ std::shared_ptr<Response> Client::Get(const char *path, ContentReceiver content_
     return Get(path, Headers(), nullptr, std::move(content_receiver), std::move(progress));
 }
 
-std::shared_ptr<Response> Client::Get(const char *path,
-                                             const Headers &headers,
-                                             ContentReceiver content_receiver) {
+std::shared_ptr<Response> Client::Get(const char *path, const Headers &headers, ContentReceiver content_receiver) {
     return Get(path, headers, nullptr, std::move(content_receiver), Progress());
 }
 
 std::shared_ptr<Response> Client::Get(const char *path,
-                                             const Headers &headers,
-                                             ContentReceiver content_receiver,
-                                             Progress progress) {
+                                      const Headers &headers,
+                                      ContentReceiver content_receiver,
+                                      Progress progress) {
     return Get(path, headers, nullptr, std::move(content_receiver), std::move(progress));
 }
 
 std::shared_ptr<Response> Client::Get(const char *path,
-                                             const Headers &headers,
-                                             ResponseHandler response_handler,
-                                             ContentReceiver content_receiver) {
+                                      const Headers &headers,
+                                      ResponseHandler response_handler,
+                                      ContentReceiver content_receiver) {
     return Get(path, headers, std::move(response_handler), content_receiver, Progress());
 }
 
 std::shared_ptr<Response> Client::Get(const char *path,
-                                             const Headers &headers,
-                                             ResponseHandler response_handler,
-                                             ContentReceiver content_receiver,
-                                             Progress progress) {
+                                      const Headers &headers,
+                                      ResponseHandler response_handler,
+                                      ContentReceiver content_receiver,
+                                      Progress progress) {
     Request req;
     req.method = "GET";
     req.path = path;
@@ -645,9 +643,9 @@ std::shared_ptr<Response> Client::Post(const char *path, const std::string &body
 }
 
 std::shared_ptr<Response> Client::Post(const char *path,
-                                              const Headers &headers,
-                                              const std::string &body,
-                                              const char *content_type) {
+                                       const Headers &headers,
+                                       const std::string &body,
+                                       const char *content_type) {
     return send_with_content_provider("POST", path, headers, body, 0, nullptr, content_type);
 }
 
@@ -656,17 +654,17 @@ std::shared_ptr<Response> Client::Post(const char *path, const Params &params) {
 }
 
 std::shared_ptr<Response> Client::Post(const char *path,
-                                              size_t content_length,
-                                              ContentProvider content_provider,
-                                              const char *content_type) {
+                                       size_t content_length,
+                                       ContentProvider content_provider,
+                                       const char *content_type) {
     return Post(path, Headers(), content_length, content_provider, content_type);
 }
 
 std::shared_ptr<Response> Client::Post(const char *path,
-                                              const Headers &headers,
-                                              size_t content_length,
-                                              ContentProvider content_provider,
-                                              const char *content_type) {
+                                       const Headers &headers,
+                                       size_t content_length,
+                                       ContentProvider content_provider,
+                                       const char *content_type) {
     return send_with_content_provider(
         "POST", path, headers, std::string(), content_length, content_provider, content_type);
 }
@@ -680,9 +678,7 @@ std::shared_ptr<Response> Client::Post(const char *path, const MultipartFormData
     return Post(path, Headers(), items);
 }
 
-std::shared_ptr<Response> Client::Post(const char *path,
-                                              const Headers &headers,
-                                              const MultipartFormDataItems &items) {
+std::shared_ptr<Response> Client::Post(const char *path, const Headers &headers, const MultipartFormDataItems &items) {
     auto boundary = detail::make_multipart_data_boundary();
 
     std::string body;
@@ -716,24 +712,24 @@ std::shared_ptr<Response> Client::Put(const char *path, const std::string &body,
 }
 
 std::shared_ptr<Response> Client::Put(const char *path,
-                                             const Headers &headers,
-                                             const std::string &body,
-                                             const char *content_type) {
+                                      const Headers &headers,
+                                      const std::string &body,
+                                      const char *content_type) {
     return send_with_content_provider("PUT", path, headers, body, 0, nullptr, content_type);
 }
 
 std::shared_ptr<Response> Client::Put(const char *path,
-                                             size_t content_length,
-                                             ContentProvider content_provider,
-                                             const char *content_type) {
+                                      size_t content_length,
+                                      ContentProvider content_provider,
+                                      const char *content_type) {
     return Put(path, Headers(), content_length, content_provider, content_type);
 }
 
 std::shared_ptr<Response> Client::Put(const char *path,
-                                             const Headers &headers,
-                                             size_t content_length,
-                                             ContentProvider content_provider,
-                                             const char *content_type) {
+                                      const Headers &headers,
+                                      size_t content_length,
+                                      ContentProvider content_provider,
+                                      const char *content_type) {
     return send_with_content_provider(
         "PUT", path, headers, std::string(), content_length, content_provider, content_type);
 }
@@ -752,24 +748,24 @@ std::shared_ptr<Response> Client::Patch(const char *path, const std::string &bod
 }
 
 std::shared_ptr<Response> Client::Patch(const char *path,
-                                               const Headers &headers,
-                                               const std::string &body,
-                                               const char *content_type) {
+                                        const Headers &headers,
+                                        const std::string &body,
+                                        const char *content_type) {
     return send_with_content_provider("PATCH", path, headers, body, 0, nullptr, content_type);
 }
 
 std::shared_ptr<Response> Client::Patch(const char *path,
-                                               size_t content_length,
-                                               ContentProvider content_provider,
-                                               const char *content_type) {
+                                        size_t content_length,
+                                        ContentProvider content_provider,
+                                        const char *content_type) {
     return Patch(path, Headers(), content_length, content_provider, content_type);
 }
 
 std::shared_ptr<Response> Client::Patch(const char *path,
-                                               const Headers &headers,
-                                               size_t content_length,
-                                               ContentProvider content_provider,
-                                               const char *content_type) {
+                                        const Headers &headers,
+                                        size_t content_length,
+                                        ContentProvider content_provider,
+                                        const char *content_type) {
     return send_with_content_provider(
         "PATCH", path, headers, std::string(), content_length, content_provider, content_type);
 }
@@ -787,9 +783,9 @@ std::shared_ptr<Response> Client::Delete(const char *path, const Headers &header
 }
 
 std::shared_ptr<Response> Client::Delete(const char *path,
-                                                const Headers &headers,
-                                                const std::string &body,
-                                                const char *content_type) {
+                                         const Headers &headers,
+                                         const std::string &body,
+                                         const char *content_type) {
     Request req;
     req.method = "DELETE";
     req.headers = headers;

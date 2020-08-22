@@ -267,9 +267,7 @@ _recv_data:
             } else {
                 return SW_OK;
             }
-        } else if (memcmp(buffer->str + buffer->length - package_eof_len,
-                          package_eof,
-                          package_eof_len) == 0) {
+        } else if (memcmp(buffer->str + buffer->length - package_eof_len, package_eof, package_eof_len) == 0) {
             buffer->offset = buffer->length;
             if (onPackage(this, socket, buffer->str, buffer->length) < 0) {
                 return SW_ERR;
@@ -313,4 +311,4 @@ _recv_data:
     return SW_OK;
 }
 
-}
+}  // namespace swoole

@@ -21,26 +21,23 @@ int main(int argc, char **argv) {
 
         serv.factory_mode = factory_mode;
 
-        serv.onReceive = [](swServer *serv, swEventData *req) {
+        serv.onReceive = [](swServer *serv, swEventData *req) { return SW_OK; };
 
-            return SW_OK;
-        };
+        serv.onPacket = [](swServer *serv, swEventData *req) { return SW_OK; };
 
-        serv.onPacket = [](swServer *serv, swEventData *req) {
-
-            return SW_OK;
-        };
-
-        serv.onWorkerStart = [] (swServer *serv, int worker_id) {
+        serv.onWorkerStart = [](swServer *serv, int worker_id) {
             swNotice("WorkerStart[%d]PID=%d, serv=%p,", worker_id, getpid(), serv);
-            swoole_timer_after(1000, [serv](swTimer *, swTimer_node *tnode) {
-                printf("timer=%p\n", tnode);
-                if (serv->factory_mode == SW_MODE_BASE) {
-                    kill(getpid(), SIGTERM);
-                } else {
-                    kill(serv->gs->master_pid, SIGTERM);
-                }
-            }, nullptr);
+            swoole_timer_after(
+                1000,
+                [serv](swTimer *, swTimer_node *tnode) {
+                    printf("timer=%p\n", tnode);
+                    if (serv->factory_mode == SW_MODE_BASE) {
+                        kill(getpid(), SIGTERM);
+                    } else {
+                        kill(serv->gs->master_pid, SIGTERM);
+                    }
+                },
+                nullptr);
         };
 
         serv.add_port(SW_SOCK_UDP, "0.0.0.0", 9502);

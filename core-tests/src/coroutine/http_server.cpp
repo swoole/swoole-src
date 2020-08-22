@@ -51,9 +51,7 @@ TEST(coroutine_http_server, get) {
 
         svr.Post("/post", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
-        svr.BeforeListen([&lock]() {
-            lock.unlock();
-        });
+        svr.BeforeListen([&lock]() { lock.unlock(); });
 
         svr.listen(TEST_HOST, 8080);
     });
@@ -62,7 +60,6 @@ TEST(coroutine_http_server, get) {
 }
 
 TEST(coroutine_http_server, post) {
-
     Server svr;
     mutex lock;
     lock.lock();
@@ -86,7 +83,6 @@ TEST(coroutine_http_server, post) {
     });
 
     coroutine::run([&lock, &svr](void *arg) {
-
         svr.Get("/stop", [&svr](const Request &req, Response &res) {
             res.set_content("Stop Server!", "text/plain");
             svr.stop();
@@ -94,9 +90,7 @@ TEST(coroutine_http_server, post) {
 
         svr.Post("/post", [](const Request &req, Response &res) { res.set_content("Hello World!", "text/plain"); });
 
-        svr.BeforeListen([&lock]() {
-            lock.unlock();
-        });
+        svr.BeforeListen([&lock]() { lock.unlock(); });
 
         svr.listen(TEST_HOST, 8080);
     });

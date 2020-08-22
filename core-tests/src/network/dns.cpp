@@ -33,8 +33,8 @@ TEST(dns, lookup) {
 }
 
 TEST(dns, getaddrinfo) {
-    char buf[1024] = { };
-    swRequest_getaddrinfo req = { };
+    char buf[1024] = {};
+    swRequest_getaddrinfo req = {};
     req.hostname = "www.baidu.com";
     req.family = AF_INET;
     req.socktype = SOCK_STREAM;

@@ -28,7 +28,8 @@
 
 #include <assert.h>
 
-namespace swoole { namespace network {
+namespace swoole {
+namespace network {
 
 static int Client_inet_addr(Client *cli, const char *host, int port);
 static int Client_tcp_connect_sync(Client *cli, const char *host, int port, double _timeout, int udp_connect);
@@ -68,7 +69,7 @@ void Client::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, Client_onError);
 }
 
-Client::Client(enum swSocket_type _type, bool _async): type(_type), async(_async) {
+Client::Client(enum swSocket_type _type, bool _async) : type(_type), async(_async) {
     reactor_fdtype = Socket::is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
     socket = swoole::make_socket(type, reactor_fdtype, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {
@@ -290,10 +291,12 @@ void Client::destroy() {
         return;
     }
     destroyed = true;
-    swoole_event_defer([](void *data){
-        Client *object = (Client *) data;
-        delete object;
-    }, this);
+    swoole_event_defer(
+        [](void *data) {
+            Client *object = (Client *) data;
+            delete object;
+        },
+        this);
 }
 
 Client::~Client() {
@@ -1183,4 +1186,5 @@ static int Client_onWrite(Reactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-}}
+}  // namespace network
+}  // namespace swoole

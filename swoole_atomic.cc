@@ -53,7 +53,7 @@ static sw_inline int swoole_futex_wakeup(sw_atomic_t *atomic, int n) {
 #endif
 
 static sw_inline int swoole_atomic_wait(sw_atomic_t *atomic, double timeout) {
-    if(sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
+    if (sw_atomic_cmp_set(atomic, (sw_atomic_t) 1, (sw_atomic_t) 0)) {
         return SW_OK;
     }
     timeout = timeout <= 0 ? INT_MAX : timeout;
@@ -71,7 +71,7 @@ static sw_inline int swoole_atomic_wait(sw_atomic_t *atomic, double timeout) {
 }
 
 static sw_inline int swoole_atomic_wakeup(sw_atomic_t *atomic, int n) {
-    if(1 == (int32_t) *atomic) {
+    if (1 == (int32_t) *atomic) {
         return SW_OK;
     }
     sw_atomic_fetch_add(atomic, n);

@@ -63,8 +63,12 @@ struct Callback {
 
 class CallbackManager {
   public:
-    inline void append(swCallback fn, void *private_data) { list_.emplace_back(fn, private_data); }
-    inline void prepend(swCallback fn, void *private_data) { list_.emplace_front(fn, private_data); }
+    inline void append(swCallback fn, void *private_data) {
+        list_.emplace_back(fn, private_data);
+    }
+    inline void prepend(swCallback fn, void *private_data) {
+        list_.emplace_front(fn, private_data);
+    }
     inline void execute() {
         while (!list_.empty()) {
             std::pair<swCallback, void *> task = list_.front();
@@ -147,11 +151,15 @@ class Reactor {
     void defer(swCallback cb, void *data = nullptr);
     void set_end_callback(enum swReactor_end_callback id, const std::function<void(Reactor *)> &fn);
     void set_exit_condition(enum swReactor_exit_condition id, const std::function<bool(Reactor *, int &)> &fn);
-    inline size_t remove_exit_condition(enum swReactor_exit_condition id) { return exit_conditions.erase(id); }
+    inline size_t remove_exit_condition(enum swReactor_exit_condition id) {
+        return exit_conditions.erase(id);
+    }
     inline bool isset_exit_condition(enum swReactor_exit_condition id) {
         return exit_conditions.find(id) != exit_conditions.end();
     }
-    inline bool isset_handler(int fdtype) { return read_handler[fdtype] != nullptr; }
+    inline bool isset_handler(int fdtype) {
+        return read_handler[fdtype] != nullptr;
+    }
     bool set_handler(int _fdtype, swReactor_handler handler);
     void add_destroy_callback(swCallback cb, void *data = nullptr);
     void execute_end_callbacks(bool timedout = false);

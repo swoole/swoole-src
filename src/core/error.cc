@@ -25,7 +25,9 @@ class Exception {
     int code;
     const char *msg;
 
-    Exception(int code) : code(code) { msg = swoole_strerror(code); }
+    Exception(int code) : code(code) {
+        msg = swoole_strerror(code);
+    }
 };
 }  // namespace swoole
 
@@ -34,8 +36,7 @@ const char *swoole_strerror(int code) {
         return strerror(code);
     }
     /* swstrerror {{{*/
-    switch(code)
-    {
+    switch (code) {
     case SW_ERROR_MALLOC_FAIL:
         return "Malloc fail";
     case SW_ERROR_SYSTEM_CALL_FAIL:
@@ -213,7 +214,7 @@ const char *swoole_strerror(int code) {
 #endif
         return buffer;
     }
-/*}}}*/
+    /*}}}*/
 }
 
 void swoole_throw_error(int code) {

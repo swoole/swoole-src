@@ -82,7 +82,8 @@ swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int m
         func = SIG_DFL;
     }
 
-    struct sigaction act{}, oact{};
+    struct sigaction act {
+    }, oact{};
     act.sa_handler = func;
     if (mask) {
         sigfillset(&act.sa_mask);

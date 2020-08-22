@@ -730,8 +730,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
             }
             swoole_http_response_send_trailer(ctx, return_value);
             ctx->send_trailer = 0;
-        }
-        else {
+        } else {
             if (!ctx->send(ctx, ZEND_STRL("0\r\n\r\n"))) {
                 RETURN_FALSE;
             }
@@ -1236,7 +1235,8 @@ static PHP_METHOD(swoole_http_response, recv) {
 #else
         php_swoole_websocket_frame_unpack(&_tmp, return_value);
 #endif
-        zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), sock->get_fd());
+        zend_update_property_long(
+            swoole_websocket_frame_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), sock->get_fd());
     }
 }
 

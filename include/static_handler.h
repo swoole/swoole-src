@@ -70,17 +70,29 @@ class StaticHandler {
 
     std::string get_date_last_modified();
 
-    inline const char *get_filename() { return task.filename; }
+    inline const char *get_filename() {
+        return task.filename;
+    }
 
-    inline const char *get_mimetype() { return swoole::mime_type::get(get_filename()).c_str(); }
+    inline const char *get_mimetype() {
+        return swoole::mime_type::get(get_filename()).c_str();
+    }
 
-    inline std::string get_filename_std_string() { return std::string(task.filename, l_filename); }
+    inline std::string get_filename_std_string() {
+        return std::string(task.filename, l_filename);
+    }
 
-    inline size_t get_filesize() { return file_stat.st_size; }
+    inline size_t get_filesize() {
+        return file_stat.st_size;
+    }
 
-    inline const swSendFile_request *get_task() { return (const swSendFile_request *) &task; }
+    inline const swSendFile_request *get_task() {
+        return (const swSendFile_request *) &task;
+    }
 
-    inline bool is_dir() { return S_ISDIR(file_stat.st_mode); }
+    inline bool is_dir() {
+        return S_ISDIR(file_stat.st_mode);
+    }
 };
 
 };  // namespace http

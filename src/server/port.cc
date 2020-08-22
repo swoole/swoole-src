@@ -21,8 +21,8 @@
 #include "mqtt.h"
 #include "swoole_redis.h"
 
-using swoole::Server;
 using swoole::ListenPort;
+using swoole::Server;
 using swoole::http::Request;
 
 static int swPort_onRead_raw(swReactor *reactor, ListenPort *lp, swEvent *event);
@@ -53,8 +53,7 @@ int ListenPort::enable_ssl_encrypt() {
         return SW_ERR;
     }
     if (ssl_option.client_cert_file &&
-        swSSL_set_client_certificate(ssl_context, ssl_option.client_cert_file, ssl_option.verify_depth) ==
-            SW_ERR) {
+        swSSL_set_client_certificate(ssl_context, ssl_option.client_cert_file, ssl_option.verify_depth) == SW_ERR) {
         swWarn("swSSL_set_client_certificate() error");
         return SW_ERR;
     }
@@ -311,8 +310,8 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
     /**
      * if the length is 0, which means the onPackage has been called, we can free the buffer.
      */
-    if (_socket->recv_buffer && _socket->recv_buffer->length == 0
-            && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
+    if (_socket->recv_buffer && _socket->recv_buffer->length == 0 &&
+        _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
         delete _socket->recv_buffer;
         _socket->recv_buffer = nullptr;
     }
@@ -640,8 +639,8 @@ static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent
     }
 
     // If the length is 0, which means the onPackage has been called, we can free the buffer.
-    if (_socket->recv_buffer && _socket->recv_buffer->length == 0
-            && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
+    if (_socket->recv_buffer && _socket->recv_buffer->length == 0 &&
+        _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
         delete _socket->recv_buffer;
         _socket->recv_buffer = nullptr;
     }

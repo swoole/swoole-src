@@ -385,13 +385,15 @@ static PHP_METHOD(swoole_process, __construct) {
         process->pipe_object = _pipe;
         process->pipe_current = process->pipe_master;
 
-        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pipe"), process->pipe_master->fd);
+        zend_update_property_long(
+            swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pipe"), process->pipe_master->fd);
     }
 
     zend::Process *proc = new zend::Process((enum zend::process_pipe_type) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
-    zend_update_property(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
+    zend_update_property(
+        swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("callback"), ZEND_CALL_ARG(execute_data, 1));
     php_swoole_process_set_worker(ZEND_THIS, process);
 }
 
@@ -708,7 +710,8 @@ int php_swoole_process_start(swWorker *process, zval *zobject) {
 
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pid"), process->pid);
     if (process->pipe_current) {
-        zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pipe"), process->pipe_current->fd);
+        zend_update_property_long(
+            swoole_process_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("pipe"), process->pipe_current->fd);
     }
     // eventloop create
     if (proc->enable_coroutine && php_swoole_reactor_init() < 0) {

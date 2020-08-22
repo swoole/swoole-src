@@ -1,9 +1,9 @@
 #include "test_coroutine.h"
 
 using swoole::Coroutine;
+using swoole::Timer;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
-using swoole::Timer;
 
 TEST(coroutine_gethostbyname, resolve_cache) {
     coroutine::run([](void *arg) {

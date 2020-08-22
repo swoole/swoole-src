@@ -51,8 +51,12 @@ struct Channel {
     swLock lock;
     swPipe *notify_pipe;
 
-    inline bool empty() { return num == 0; }
-    inline bool full() { return ((head == tail && tail_tag != head_tag) || (bytes + sizeof(int) * num == size)); }
+    inline bool empty() {
+        return num == 0;
+    }
+    inline bool full() {
+        return ((head == tail && tail_tag != head_tag) || (bytes + sizeof(int) * num == size));
+    }
     int pop(void *out_buf, int buffer_length);
     int push(const void *in_data, int data_length);
     int out(void *out_buf, int buffer_length);

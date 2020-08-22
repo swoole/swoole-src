@@ -29,12 +29,11 @@ const std::string REDIS_TEST_KEY = "key-swoole";
 const std::string REDIS_TEST_VALUE = "value-swoole";
 
 TEST(redis, get) {
-
-   test::coroutine::run([](void *arg) {
+    test::coroutine::run([](void *arg) {
         RedisClient redis;
         ASSERT_TRUE(redis.Connect("127.0.0.1", 6379));
         ASSERT_TRUE(redis.Set(REDIS_TEST_KEY, REDIS_TEST_VALUE));
-        ASSERT_EQ(redis.Get(REDIS_TEST_KEY), REDIS_TEST_VALUE );
+        ASSERT_EQ(redis.Get(REDIS_TEST_KEY), REDIS_TEST_VALUE);
     });
 }
 
@@ -55,18 +54,19 @@ TEST(redis, server) {
         if (worker_id != 0) {
             return;
         }
-        swoole::Coroutine::create([](void *arg) {
-            Server *serv = reinterpret_cast<Server *>(arg);
-            RedisClient redis;
-            ASSERT_TRUE(redis.Connect("127.0.0.1", serv->get_primary_port()->port));
-            ASSERT_TRUE(redis.Set(REDIS_TEST_KEY, REDIS_TEST_VALUE));
-            ASSERT_EQ(redis.Get(REDIS_TEST_KEY), REDIS_TEST_VALUE );
-            kill(serv->gs->master_pid, SIGTERM);
-        }, serv);
+        swoole::Coroutine::create(
+            [](void *arg) {
+                Server *serv = reinterpret_cast<Server *>(arg);
+                RedisClient redis;
+                ASSERT_TRUE(redis.Connect("127.0.0.1", serv->get_primary_port()->port));
+                ASSERT_TRUE(redis.Set(REDIS_TEST_KEY, REDIS_TEST_VALUE));
+                ASSERT_EQ(redis.Get(REDIS_TEST_KEY), REDIS_TEST_VALUE);
+                kill(serv->gs->master_pid, SIGTERM);
+            },
+            serv);
     };
 
     serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
-
         int session_id = req->info.fd;
         auto list = swRedis_parse(req->data, req->info.len);
 

@@ -135,10 +135,10 @@ bool StaticHandler::hit() {
  * non-static file
  */
 _detect_mime_type:
-    /**
-     * file does not exist
-     */
-    check_stat:
+/**
+ * file does not exist
+ */
+check_stat:
     if (lstat(task.filename, &file_stat) < 0) {
         if (last) {
             status_code = SW_HTTP_NOT_FOUND;

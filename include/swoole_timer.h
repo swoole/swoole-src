@@ -49,7 +49,7 @@ struct TimerNode {
 };
 
 class Timer {
- private:
+  private:
     /*--------------signal timer--------------*/
     Reactor *reactor_ = nullptr;
     swHeap *heap;
@@ -66,7 +66,7 @@ class Timer {
     bool init_reactor(swReactor *reactor);
     bool init_system_timer();
 
- public:
+  public:
     long next_msec_;
 
     Timer();
@@ -133,4 +133,4 @@ class Timer {
         return map;
     }
 };
-}
+}  // namespace swoole

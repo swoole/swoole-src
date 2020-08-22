@@ -726,7 +726,9 @@ static PHP_FUNCTION(swoole_event_wait) {
 
 static PHP_FUNCTION(swoole_event_rshutdown) {
     /* prevent the program from jumping out of the rshutdown */
-    zend_try { PHP_FN(swoole_event_wait)(INTERNAL_FUNCTION_PARAM_PASSTHRU); }
+    zend_try {
+        PHP_FN(swoole_event_wait)(INTERNAL_FUNCTION_PARAM_PASSTHRU);
+    }
     zend_end_try();
 }
 

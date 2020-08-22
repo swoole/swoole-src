@@ -78,7 +78,7 @@ int swPipeBase_create(swPipe *p, int blocking) {
     p->write = swPipeBase_write;
     p->getSocket = swPipe_getSocket;
     p->close = swPipeBase_close;
-    
+
     return 0;
 }
 

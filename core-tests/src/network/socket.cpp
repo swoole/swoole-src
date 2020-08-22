@@ -89,7 +89,7 @@ TEST(socket, recvfrom_blocking) {
     mutex m;
     m.lock();
 
-    thread t1 ([&m](){
+    thread t1([&m]() {
         auto svr = make_server_socket(SW_SOCK_UDP, TEST_HOST, TEST_PORT);
         network::Address addr;
         char buf[1024] = {};
@@ -100,7 +100,7 @@ TEST(socket, recvfrom_blocking) {
         svr->free();
     });
 
-    thread t2([&m](){
+    thread t2([&m]() {
         m.lock();
         auto cli = make_socket(SW_SOCK_UDP, SW_FD_STREAM_CLIENT, 0);
         network::Address addr;
@@ -122,7 +122,7 @@ TEST(socket, sendfile_blocking) {
 
     auto str = swoole_file_get_contents(file.c_str());
 
-    thread t1 ([&m, &str](){
+    thread t1([&m, &str]() {
         auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
         m.unlock();
         auto cli = svr->accept();
@@ -138,7 +138,7 @@ TEST(socket, sendfile_blocking) {
         svr->free();
     });
 
-    thread t2([&m, &file, &str](){
+    thread t2([&m, &file, &str]() {
         m.lock();
         auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
         network::Address addr;
@@ -196,13 +196,13 @@ TEST(socket, sendto_blocking) {
     sock2->bind(sock2_path, nullptr);
     sock2->info.assign(SW_SOCK_UNIX_DGRAM, sock2_path, 0);
 
-    char sendbuf[65536] = { };
+    char sendbuf[65536] = {};
     swoole_random_string(sendbuf, sizeof(sendbuf) - 1);
 
     thread t1([sock2, sendbuf]() {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         char recvbuf[65536] = {};
-        while(1) {
+        while (1) {
             auto retval = sock2->recv(recvbuf, sizeof(recvbuf) - 1, 0);
             recvbuf[retval] = 0;
             if (retval == 3) {
@@ -240,7 +240,7 @@ TEST(socket, clean) {
     sock2->bind(sock2_path, nullptr);
     sock2->info.assign(SW_SOCK_UNIX_DGRAM, sock2_path, 0);
 
-    char sendbuf[65536] = { };
+    char sendbuf[65536] = {};
     swoole_random_string(sendbuf, sizeof(sendbuf) - 1);
 
     for (int i = 0; i < 3; i++) {
@@ -257,5 +257,3 @@ TEST(socket, clean) {
     unlink(sock1_path);
     unlink(sock2_path);
 }
-
-

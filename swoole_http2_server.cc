@@ -813,7 +813,8 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
             }
             ctx = stream->ctx;
             client->streams[stream_id] = stream;
-            zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("streamId"), stream_id);
+            zend_update_property_long(
+                swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("streamId"), stream_id);
         } else {
             ctx = stream->ctx;
         }
@@ -838,7 +839,8 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         stream = stream_iterator->second;
         http_context *ctx = stream->ctx;
 
-        zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("streamId"), stream_id);
+        zend_update_property_long(
+            swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("streamId"), stream_id);
 
         swString *buffer = ctx->request.h2_data_buffer;
         if (!buffer) {

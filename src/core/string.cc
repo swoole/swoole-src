@@ -113,7 +113,7 @@ int String::append_random_bytes(size_t _length, bool base64) {
     }
 
     if (base64) {
-        std::unique_ptr <char []> out (new char [base_encode_size]);
+        std::unique_ptr<char[]> out(new char[base_encode_size]);
         n = swBase64_encode((uchar *) str + length, _length, out.get());
         memcpy(str + length, out.get(), n);
     }
@@ -161,7 +161,6 @@ bool String::repeat(const char *data, size_t len, size_t n) {
     return true;
 }
 
-
 /**
  * @return retval
  * 1. less than zero, the execution of the string_split function was terminated prematurely
@@ -178,12 +177,7 @@ ssize_t String::split(const char *delimiter, size_t delimiter_length, const Stri
     off_t _offset = offset;
     size_t ret;
 
-    swTraceLog(SW_TRACE_EOF_PROTOCOL,
-               "#[0] count=%d, length=%ld, size=%ld, offset=%ld",
-               count,
-               length,
-               size,
-               offset);
+    swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[0] count=%d, length=%ld, size=%ld, offset=%ld", count, length, size, offset);
 
     while (delimiter_addr) {
         size_t _length = delimiter_addr - start_addr + delimiter_length;
@@ -212,11 +206,10 @@ ssize_t String::split(const char *delimiter, size_t delimiter_length, const Stri
     if (ret > 0 && ret < length) {
         swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[5] count=%d, remaining_length=%zu", count, length - offset);
     } else if (ret >= length) {
-        swTraceLog(
-            SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", length, size, offset);
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[3] length=%ld, size=%ld, offset=%ld", length, size, offset);
     }
 
     return ret;
 }
 
-}
+}  // namespace swoole

@@ -132,7 +132,9 @@ struct Request {
         clean();
         buffer_ = nullptr;
     }
-    inline void clean() { memset(this, 0, offsetof(Request, buffer_)); }
+    inline void clean() {
+        memset(this, 0, offsetof(Request, buffer_));
+    }
     int get_protocol();
     int get_header_length();
     int get_chunked_body_length();

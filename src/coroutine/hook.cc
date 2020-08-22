@@ -30,10 +30,10 @@
 
 using std::unordered_map;
 using swoole::Coroutine;
-using swoole::coroutine::Socket;
-using swoole::coroutine::System;
 using swoole::async::dispatch;
 using swoole::async::Event;
+using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 
 static unordered_map<int, Socket *> socket_map;
 

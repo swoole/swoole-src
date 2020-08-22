@@ -22,39 +22,37 @@
 #include "server.h"
 
 //--------------------------------------------------------
-enum php_swoole_server_callback_type
-{
-    SW_SERVER_CB_onStart,          //master
-    SW_SERVER_CB_onShutdown,       //master
-    SW_SERVER_CB_onWorkerStart,    //worker(event & task)
-    SW_SERVER_CB_onWorkerStop,     //worker(event & task)
-    SW_SERVER_CB_onBeforeReload,     //manager
-    SW_SERVER_CB_onAfterReload,     //manager
-    SW_SERVER_CB_onTask,           //worker(task)
-    SW_SERVER_CB_onFinish,         //worker(event & task)
-    SW_SERVER_CB_onWorkerExit,     //worker(event)
-    SW_SERVER_CB_onWorkerError,    //manager
-    SW_SERVER_CB_onManagerStart,   //manager
-    SW_SERVER_CB_onManagerStop,    //manager
-    SW_SERVER_CB_onPipeMessage,    //worker(event & task)
+enum php_swoole_server_callback_type {
+    SW_SERVER_CB_onStart,         // master
+    SW_SERVER_CB_onShutdown,      // master
+    SW_SERVER_CB_onWorkerStart,   // worker(event & task)
+    SW_SERVER_CB_onWorkerStop,    // worker(event & task)
+    SW_SERVER_CB_onBeforeReload,  // manager
+    SW_SERVER_CB_onAfterReload,   // manager
+    SW_SERVER_CB_onTask,          // worker(task)
+    SW_SERVER_CB_onFinish,        // worker(event & task)
+    SW_SERVER_CB_onWorkerExit,    // worker(event)
+    SW_SERVER_CB_onWorkerError,   // manager
+    SW_SERVER_CB_onManagerStart,  // manager
+    SW_SERVER_CB_onManagerStop,   // manager
+    SW_SERVER_CB_onPipeMessage,   // worker(event & task)
 };
 //--------------------------------------------------------
-enum php_swoole_server_port_callback_type
-{
-    SW_SERVER_CB_onConnect,        //worker(event)
-    SW_SERVER_CB_onReceive,        //worker(event)
-    SW_SERVER_CB_onClose,          //worker(event)
-    SW_SERVER_CB_onPacket,         //worker(event)
-    SW_SERVER_CB_onRequest,        //http server
-    SW_SERVER_CB_onHandShake,      //worker(event)
-    SW_SERVER_CB_onOpen,           //worker(event)
-    SW_SERVER_CB_onMessage,        //worker(event)
-    SW_SERVER_CB_onBufferFull,     //worker(event)
-    SW_SERVER_CB_onBufferEmpty,    //worker(event)
+enum php_swoole_server_port_callback_type {
+    SW_SERVER_CB_onConnect,      // worker(event)
+    SW_SERVER_CB_onReceive,      // worker(event)
+    SW_SERVER_CB_onClose,        // worker(event)
+    SW_SERVER_CB_onPacket,       // worker(event)
+    SW_SERVER_CB_onRequest,      // http server
+    SW_SERVER_CB_onHandShake,    // worker(event)
+    SW_SERVER_CB_onOpen,         // worker(event)
+    SW_SERVER_CB_onMessage,      // worker(event)
+    SW_SERVER_CB_onBufferFull,   // worker(event)
+    SW_SERVER_CB_onBufferEmpty,  // worker(event)
 };
 
-#define PHP_SWOOLE_SERVER_CALLBACK_NUM         (SW_SERVER_CB_onPipeMessage + 1)
-#define PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM    (SW_SERVER_CB_onBufferEmpty + 1)
+#define PHP_SWOOLE_SERVER_CALLBACK_NUM (SW_SERVER_CB_onPipeMessage + 1)
+#define PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM (SW_SERVER_CB_onBufferEmpty + 1)
 
 struct php_swoole_server_port_property {
     zval *callbacks[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM];
@@ -67,7 +65,7 @@ struct php_swoole_server_port_property {
 
 void php_swoole_server_register_callbacks(swServer *serv);
 zend_fcall_info_cache *php_swoole_server_get_fci_cache(swServer *serv, int server_fd, int event_type);
-int php_swoole_create_dir(const char* path, size_t length);
+int php_swoole_create_dir(const char *path, size_t length);
 void php_swoole_server_before_start(swServer *serv, zval *zobject);
 void php_swoole_http_server_init_global_variant();
 void php_swoole_server_send_yield(swServer *serv, int fd, zval *zdata, zval *return_value);

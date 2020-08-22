@@ -66,17 +66,29 @@ class Channel {
         }
     }
 
-    inline bool is_closed() { return closed; }
+    inline bool is_closed() {
+        return closed;
+    }
 
-    inline bool is_empty() { return data_queue.size() == 0; }
+    inline bool is_empty() {
+        return data_queue.size() == 0;
+    }
 
-    inline bool is_full() { return data_queue.size() == capacity; }
+    inline bool is_full() {
+        return data_queue.size() == capacity;
+    }
 
-    inline size_t length() { return data_queue.size(); }
+    inline size_t length() {
+        return data_queue.size();
+    }
 
-    inline size_t consumer_num() { return consumer_queue.size(); }
+    inline size_t consumer_num() {
+        return consumer_queue.size();
+    }
 
-    inline size_t producer_num() { return producer_queue.size(); }
+    inline size_t producer_num() {
+        return producer_queue.size();
+    }
 
     inline void *pop_data() {
         if (data_queue.size() == 0) {
@@ -98,9 +110,13 @@ class Channel {
 
     void yield(enum opcode type);
 
-    inline void consumer_remove(Coroutine *co) { consumer_queue.remove(co); }
+    inline void consumer_remove(Coroutine *co) {
+        consumer_queue.remove(co);
+    }
 
-    inline void producer_remove(Coroutine *co) { producer_queue.remove(co); }
+    inline void producer_remove(Coroutine *co) {
+        producer_queue.remove(co);
+    }
 
     inline Coroutine *pop_coroutine(enum opcode type) {
         Coroutine *co;

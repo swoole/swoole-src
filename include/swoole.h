@@ -205,12 +205,12 @@ struct Socket;
 struct Address;
 struct GetaddrinfoRequest;
 class Client;
-}
+}  // namespace network
 namespace async {
 struct Event;
 }
 struct Protocol;
-}
+}  // namespace swoole
 
 typedef swoole::Reactor swReactor;
 typedef swoole::String swString;
@@ -672,7 +672,7 @@ struct swGlobal_t {
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
 };
 
-extern swGlobal_t SwooleG;                      // Local Global Variable
+extern swGlobal_t SwooleG;                  // Local Global Variable
 extern __thread swThreadGlobal_t SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)

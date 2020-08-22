@@ -30,7 +30,9 @@ struct swReactorSelect {
     std::unordered_map<int, swSocket *> fds;
     int maxfd;
 
-    swReactorSelect() { maxfd = 0; }
+    swReactorSelect() {
+        maxfd = 0;
+    }
 };
 
 #define SW_FD_SET(fd, set)                                                                                             \

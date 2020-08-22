@@ -30,7 +30,7 @@ namespace swoole {
 typedef std::function<bool(const char *, size_t)> StringExplodeHandler;
 
 class String {
- private:
+  private:
     void alloc(size_t _size, const swAllocator *_allocator) {
         if (_allocator == nullptr) {
             _allocator = &SwooleG.std_allocator;
@@ -61,7 +61,7 @@ class String {
         src.offset = 0;
     }
 
- public:
+  public:
     size_t length;
     size_t size;
     off_t offset;
@@ -201,8 +201,8 @@ class String {
     int append_random_bytes(size_t length, bool base64 = false);
     void print();
 
-    template<typename ... Args>
-    inline size_t format(const char *format, Args ... args) {
+    template <typename... Args>
+    inline size_t format(const char *format, Args... args) {
         size_t _size = sw_snprintf(nullptr, 0, format, args...);
         if (_size == 0) {
             return 0;
@@ -222,7 +222,7 @@ class String {
 inline String *make_string(size_t size, const swAllocator *allocator = nullptr) {
     return new String(size, allocator);
 }
-}
+}  // namespace swoole
 
 static inline void swString_clear(swString *str) {
     str->length = 0;

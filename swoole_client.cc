@@ -24,9 +24,9 @@
 #include <unordered_map>
 
 using namespace std;
-using swoole::network::Socket;
-using swoole::network::Client;
 using swoole::Protocol;
+using swoole::network::Client;
+using swoole::network::Socket;
 
 #include "ext/standard/basic_functions.h"
 
@@ -136,7 +136,8 @@ static sw_inline Client *client_get_ptr(zval *zobject) {
         return cli;
     } else {
         swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
-        zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
+        zend_update_property_long(
+            swoole_client_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
         php_swoole_error(E_WARNING, "client is not connected to server");
         return nullptr;
     }
@@ -680,7 +681,8 @@ Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port)
                 goto _create_socket;
             }
             cli->reuse_count++;
-            zend_update_property_long(Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("reuseCount"), cli->reuse_count);
+            zend_update_property_long(
+                Z_OBJCE_P(zobject), SW_Z8_OBJ_P(zobject), ZEND_STRL("reuseCount"), cli->reuse_count);
         }
     } else {
     _create_socket:
@@ -839,7 +841,8 @@ static PHP_METHOD(swoole_client, connect) {
                                  swoole_strerror(swoole_get_last_error()),
                                  swoole_get_last_error());
             }
-            zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+            zend_update_property_long(
+                swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         } else {
             php_swoole_sys_error(E_WARNING, "connect to server[%s:%d] failed", host, (int) port);
             zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), errno);
@@ -876,7 +879,8 @@ static PHP_METHOD(swoole_client, send) {
     ssize_t ret = cli->send(cli, data, data_len, flags);
     if (ret < 0) {
         php_swoole_sys_error(E_WARNING, "failed to send(%d) %zu bytes", cli->socket->fd, data_len);
-        zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+        zend_update_property_long(
+            swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         RETVAL_FALSE;
     } else {
         RETURN_LONG(ret);
@@ -924,7 +928,8 @@ static PHP_METHOD(swoole_client, sendto) {
                              (int) port,
                              swoole_strerror(swoole_get_last_error()),
                              swoole_get_last_error());
-            zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+            zend_update_property_long(
+                swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
             RETURN_FALSE;
         }
 
@@ -980,7 +985,8 @@ static PHP_METHOD(swoole_client, sendfile) {
                                "sendfile() failed. Error: %s [%d]",
                                swoole_strerror(swoole_get_last_error()),
                                swoole_get_last_error());
-        zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+        zend_update_property_long(
+            swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         RETVAL_FALSE;
     } else {
         RETVAL_TRUE;
@@ -1036,7 +1042,8 @@ static PHP_METHOD(swoole_client, recv) {
             if (ret < 0) {
                 swoole_set_last_error(errno);
                 php_swoole_sys_error(E_WARNING, "recv() failed");
-                zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+                zend_update_property_long(
+                    swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
                 buffer->length = 0;
                 RETURN_FALSE;
             } else if (ret == 0) {
@@ -1160,7 +1167,8 @@ static PHP_METHOD(swoole_client, recv) {
     if (ret < 0) {
         swoole_set_last_error(errno);
         php_swoole_sys_error(E_WARNING, "recv() failed");
-        zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+        zend_update_property_long(
+            swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         if (strbuf) {
             zend_string_free(strbuf);
         }

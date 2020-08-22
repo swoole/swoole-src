@@ -39,4 +39,3 @@ void swoole_http2_server_session_free(swConnection *conn);
 int swoole_http2_server_ping(http_context *ctx);
 
 #endif
-
