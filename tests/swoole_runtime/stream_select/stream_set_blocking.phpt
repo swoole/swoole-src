@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/stream_set_blocking
+swoole_runtime/stream_select: swoole_runtime/stream_set_blocking
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
