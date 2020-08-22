@@ -314,7 +314,7 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
      */
     if (_socket->recv_buffer && _socket->recv_buffer->length == 0
             && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
-        swString_free(_socket->recv_buffer);
+        delete _socket->recv_buffer;
         _socket->recv_buffer = nullptr;
     }
 
@@ -593,7 +593,7 @@ _parse:
     if (conn->active && !_socket->removed) {
         serv->destroy_http_request(conn);
         if (_socket->recv_buffer && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
-            swString_free(_socket->recv_buffer);
+            delete _socket->recv_buffer;
             _socket->recv_buffer = nullptr;
         } else {
             swString_clear(buffer);
@@ -643,7 +643,7 @@ static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent
     // If the length is 0, which means the onPackage has been called, we can free the buffer.
     if (_socket->recv_buffer && _socket->recv_buffer->length == 0
             && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
-        swString_free(_socket->recv_buffer);
+        delete _socket->recv_buffer;
         _socket->recv_buffer = nullptr;
     }
 
