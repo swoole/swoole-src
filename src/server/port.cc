@@ -308,6 +308,15 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
         reactor->trigger_close_event(event);
     }
 
+    /**
+     * if the length is 0, which means the onPackage has been called, we can free the buffer.
+     */
+    if (_socket->recv_buffer && _socket->recv_buffer->length == 0
+            && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
+        delete _socket->recv_buffer;
+        _socket->recv_buffer = nullptr;
+    }
+
     return SW_OK;
 }
 
@@ -579,9 +588,15 @@ _parse:
 
     buffer->offset = request_length;
     Server::dispatch_task(protocol, _socket, buffer->str, buffer->length);
+
     if (conn->active && !_socket->removed) {
         serv->destroy_http_request(conn);
-        swString_clear(buffer);
+        if (_socket->recv_buffer && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
+            delete _socket->recv_buffer;
+            _socket->recv_buffer = nullptr;
+        } else {
+            swString_clear(buffer);
+        }
     }
 
     return SW_OK;
@@ -622,6 +637,13 @@ static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent
     if (protocol->recv_with_eof_protocol(_socket, buffer) < 0) {
         conn->close_errno = errno;
         reactor->trigger_close_event(event);
+    }
+
+    // If the length is 0, which means the onPackage has been called, we can free the buffer.
+    if (_socket->recv_buffer && _socket->recv_buffer->length == 0
+            && _socket->recv_buffer->size > SW_BUFFER_SIZE_BIG * 2) {
+        delete _socket->recv_buffer;
+        _socket->recv_buffer = nullptr;
     }
 
     return SW_OK;
