@@ -481,14 +481,12 @@ static bool swoole_http2_server_respond(http_context *ctx, String *body) {
         return false;
     }
 
-    /* headers has already been sent, retries are no longer allowed (even if send body failed) */
+    // The headers has already been sent, retries are no longer allowed (even if send body failed)
     ctx->end = 1;
 
     bool error = false;
 
-    /**
-     * If send_yield is not supported, ignore flow control
-     */
+    // If send_yield is not supported, ignore flow control
     if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield) {
         if (body->length > client->send_window) {
             swWarn("The data sent exceeded send_window");
@@ -496,43 +494,41 @@ static bool swoole_http2_server_respond(http_context *ctx, String *body) {
         if (!stream->send_body(body, end_stream, client->max_frame_size)) {
             error = true;
         }
-    }
+    } else {
+        while (true) {
+            size_t send_len = body->length - body->offset;
 
-    while (true) {
-        size_t send_len = body->length - body->offset;
+            if (send_len == 0) {
+                break;
+            }
 
-        if (send_len == 0) {
-            break;
-        }
-
-        if (stream->send_window == 0) {
-            stream->waiting_coroutine = Coroutine::get_current();
-            stream->waiting_coroutine->yield();
-            stream->waiting_coroutine = nullptr;
-            continue;
-        } else if (send_len <= stream->send_window) {
-            error = !stream->send_body(body, true && end_stream, client->max_frame_size, body->offset, send_len);
-            break;
-        } else {
-            send_len = client->max_frame_size;
-            error = !stream->send_body(body, false, client->max_frame_size, body->offset, send_len);
-        }
-        if (!error) {
-            swTraceLog(SW_TRACE_HTTP2, "body: send length=%zu", send_len);
-
-            body->offset += send_len;
-            if (send_len > stream->send_window) {
-                stream->send_window = 0;
+            if (stream->send_window == 0) {
+                stream->waiting_coroutine = Coroutine::get_current();
+                stream->waiting_coroutine->yield();
+                stream->waiting_coroutine = nullptr;
+                continue;
+            } else if (send_len <= stream->send_window) {
+                error = !stream->send_body(body, true && end_stream, client->max_frame_size, body->offset, send_len);
+                break;
             } else {
-                stream->send_window -= send_len;
+                send_len = client->max_frame_size;
+                error = !stream->send_body(body, false, client->max_frame_size, body->offset, send_len);
+            }
+            if (!error) {
+                swTraceLog(SW_TRACE_HTTP2, "body: send length=%zu", send_len);
+
+                body->offset += send_len;
+                if (send_len > stream->send_window) {
+                    stream->send_window = 0;
+                } else {
+                    stream->send_window -= send_len;
+                }
             }
         }
     }
 
-    if (!error && ztrailer) {
-        if (!stream->send_trailer()) {
-            error = true;
-        }
+    if (!error && ztrailer && !stream->send_trailer()) {
+        error = true;
     }
 
     if (error) {
