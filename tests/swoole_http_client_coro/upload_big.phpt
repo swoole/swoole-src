@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $cli = new Swoole\Coroutine\Http\Client(IS_IN_TRAVIS ? 'news.mit.edu' : 'www.cust.edu.cn');
+    $cli = new Swoole\Coroutine\Http\Client(IS_IN_TRAVIS ? 'news.mit.edu' : 'www.cust.edu.cn', true);
     $cli->set(['timeout' => 30]);
     $content = str_repeat(get_safe_random(1024), 5 * 1024);
     file_put_contents('/tmp/test.jpg', $content);
