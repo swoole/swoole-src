@@ -441,15 +441,6 @@ static bool swReactorProcess_send2client(swFactory *factory, swSendData *data) {
     int session_id = data->info.fd;
 
     Session *session = serv->get_session(session_id);
-    if (session->fd == 0) {
-        swoole_error_log(SW_LOG_NOTICE,
-                         SW_ERROR_SESSION_NOT_EXIST,
-                         "send %d byte failed, session#%d does not exist",
-                         data->info.len,
-                         session_id);
-        return false;
-    }
-    // proxy
     if (session->reactor_id != SwooleG.process_id) {
         swTrace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, SwooleG.process_id);
         swWorker *worker = serv->gs->event_workers.get_worker(session->reactor_id);
