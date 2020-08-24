@@ -279,19 +279,19 @@ int Server::close_connection(Reactor *reactor, swSocket *socket) {
      */
     int fd = socket->fd;
 
+    serv->lock();
     if (fd == serv->get_maxfd()) {
-        serv->lock();
         int find_max_fd = fd - 1;
         swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
-        /**
-         * Find the new max_fd
-         */
-        for (; serv->connection_list[find_max_fd].active == 0 && find_max_fd > serv->get_minfd(); find_max_fd--) {
+        // find the new max_fd
+        for (; serv->is_valid_connection(serv->get_connection(find_max_fd)) && find_max_fd > serv->get_minfd();
+                find_max_fd--) {
             // pass
         }
         serv->set_maxfd(find_max_fd);
-        serv->unlock();
     }
+    serv->unlock();
+
     sw_memset_zero(conn, sizeof(swConnection));
     return swReactor_close(reactor, socket);
 }
