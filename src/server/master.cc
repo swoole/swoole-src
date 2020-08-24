@@ -1571,11 +1571,14 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     time_t now;
 
     int fd = _socket->fd;
+
+    lock();
     if (fd > get_maxfd()) {
         set_maxfd(fd);
     } else if (fd < get_minfd()) {
         set_minfd(fd);
     }
+    unlock();
 
     Connection *connection = &(connection_list[fd]);
     sw_memset_zero(connection, sizeof(*connection));
