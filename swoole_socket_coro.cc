@@ -1086,7 +1086,7 @@ static PHP_METHOD(swoole_socket_coro, accept) {
         client_sock->socket = conn;
         ZVAL_OBJ(return_value, &client_sock->std);
         if (conn->protocol.private_data) {
-            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
+            zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) emalloc(sizeof(*fci_cache));
             *fci_cache = *(zend_fcall_info_cache *) conn->protocol.private_data;
             sw_zend_fci_cache_persist(fci_cache);
             conn->protocol.private_data = fci_cache;
