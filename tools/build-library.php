@@ -76,6 +76,8 @@ $files = [
     'core/Coroutine/FastCGI/Client.php',
     'core/Coroutine/FastCGI/Client/Exception.php',
     'core/Coroutine/FastCGI/Proxy.php',
+    # <core for Process> #
+    'core/Process/ProcessManager.php',
     # <core for functions> #
     'core/Coroutine/functions.php',
     # <ext> #
