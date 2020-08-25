@@ -317,7 +317,7 @@ static int swReactorProcess_loop(swProcessPool *pool, swWorker *worker) {
     }
 #endif
 
-    reactor->max_socket = serv->max_connection;
+    reactor->max_socket = serv->get_max_connection();
 
     reactor->close = Server::close_connection;
 
