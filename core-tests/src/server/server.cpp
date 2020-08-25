@@ -193,3 +193,36 @@ TEST(server, task_worker) {
     t1.join();
     serv.gs->task_workers.destroy();
 }
+
+TEST(server, max_connection) {
+    Server serv;
+
+    serv.set_max_connection(0);
+    ASSERT_EQ(serv.get_max_connection(), SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets));
+
+    serv.set_max_connection(SwooleG.max_sockets + 13);
+    ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets);
+
+    serv.set_max_connection(SwooleG.max_sockets - 13);
+    ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets - 13);
+
+    uint32_t last_value = serv.get_max_connection();
+
+    serv.create();
+
+    serv.set_max_connection(100);
+    ASSERT_EQ(serv.get_max_connection(), last_value);
+}
+
+TEST(server, min_connection) {
+    Server serv;
+
+    serv.task_worker_num = 14;
+    serv.worker_num = 5;
+
+    serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+
+    serv.set_max_connection(15);
+    serv.create();
+    ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets);
+}

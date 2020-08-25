@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     serv.worker_num = 1;
 
     serv.factory_mode = SW_MODE_BASE;
-    serv.max_connection = 10000;
+    serv.set_max_connection(10000);
     // serv.open_cpu_affinity = 1;
     // serv.open_tcp_nodelay = 1;
     // serv.daemonize = 1;

@@ -523,11 +523,6 @@ class Server {
     void **worker_input_buffers = nullptr;
 
     /**
-     * max connection num
-     */
-    uint32_t max_connection = 0;
-
-    /**
      * worker process max request
      */
     uint32_t max_request = 0;
@@ -1102,6 +1097,12 @@ class Server {
     void init_signal_handler();
 
     void set_ipc_max_size();
+    void set_max_connection(uint32_t _max_connection);
+
+    inline uint32_t get_max_connection() {
+        return max_connection;
+    }
+    
     int create_pipe_buffers();
     int create_worker(swWorker *worker);
     void disable_accept();
@@ -1226,6 +1227,7 @@ class Server {
      */
     std::string document_root;
     std::mutex lock_;
+    uint32_t max_connection = 0;
 
     int start_check();
     void check_port_type(ListenPort *ls);

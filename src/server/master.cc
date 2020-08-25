@@ -243,6 +243,24 @@ _cleanup:
 }
 #endif
 
+void Server::set_max_connection(uint32_t _max_connection) {
+    if (connection_list != nullptr) {
+        swWarn("max_connection must be set before server create");
+        return;
+    }
+    max_connection = _max_connection;
+    if (max_connection == 0) {
+        max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
+    } else if (max_connection > SW_SESSION_LIST_SIZE) {
+        max_connection = SW_SESSION_LIST_SIZE;
+        swWarn("max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
+    }
+    if (SwooleG.max_sockets > 0 && max_connection > SwooleG.max_sockets) {
+        max_connection = SwooleG.max_sockets;
+        swWarn("max_connection is exceed the maximum value, it's reset to %u", SwooleG.max_sockets);
+    }
+}
+
 int Server::start_check() {
     // disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (factory_mode == SW_MODE_PROCESS) {
@@ -304,18 +322,6 @@ int Server::start_check() {
     }
     if (worker_num < reactor_num) {
         reactor_num = worker_num;
-    }
-    // max connections
-    uint32_t minimum_connection = (worker_num + task_worker_num) * 2 + 32;
-    if (max_connection < minimum_connection) {
-        max_connection = SwooleG.max_sockets;
-        swWarn("max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
-    } else if (SwooleG.max_sockets > 0 && max_connection > SwooleG.max_sockets) {
-        max_connection = SwooleG.max_sockets;
-        swWarn("max_connection is exceed the maximum value, it's reset to %u", SwooleG.max_sockets);
-    } else if (max_connection > SW_SESSION_LIST_SIZE) {
-        max_connection = SW_SESSION_LIST_SIZE;
-        swWarn("max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
     }
     // package max length
     for (auto ls : ports) {
@@ -712,6 +718,15 @@ int Server::create() {
 
     if (enable_static_handler and locations == nullptr) {
         locations = new std::unordered_set<std::string>;
+    }
+
+    uint32_t minimum_connection = (worker_num + task_worker_num) * 2 + 32;
+    if (ports.size() > 0) {
+        minimum_connection += ports.back()->socket_fd;
+    }
+    if (max_connection < minimum_connection) {
+        max_connection = SwooleG.max_sockets;
+        swWarn("max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
     }
 
     if (factory_mode == SW_MODE_BASE) {

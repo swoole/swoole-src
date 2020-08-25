@@ -839,7 +839,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
     reactor->ptr = serv;
     reactor->id = reactor_id;
     reactor->wait_exit = 0;
-    reactor->max_socket = serv->max_connection;
+    reactor->max_socket = serv->get_max_connection();
     reactor->close = Server::close_connection;
 
     reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFAULT, [thread](Reactor *reactor, int &event_num) -> bool {

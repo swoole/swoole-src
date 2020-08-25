@@ -1117,7 +1117,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject) {
         add_assoc_long(zsetting, "output_buffer_size", serv->output_buffer_size);
     }
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection"))) {
-        add_assoc_long(zsetting, "max_connection", serv->max_connection);
+        add_assoc_long(zsetting, "max_connection", serv->get_max_connection());
     }
 
     uint32_t i;
@@ -2308,7 +2308,7 @@ static PHP_METHOD(swoole_server, set) {
     // max_connection
     if (php_swoole_array_get_value(vht, "max_connection", ztmp) || php_swoole_array_get_value(vht, "max_conn", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        serv->max_connection = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+        serv->set_max_connection(SW_MAX(0, SW_MIN(v, UINT32_MAX)));
     }
     // heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp)) {
