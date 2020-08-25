@@ -720,6 +720,12 @@ int Server::create() {
         locations = new std::unordered_set<std::string>;
     }
 
+    uint32_t minimum_connection = (worker_num + task_worker_num) * 2 + ports.back()->socket_fd + 32;
+    if (max_connection < minimum_connection) {
+        max_connection = SwooleG.max_sockets;
+        swWarn("max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
+    }
+
     if (factory_mode == SW_MODE_BASE) {
         return create_reactor_processes();
     } else {
