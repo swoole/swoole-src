@@ -250,16 +250,14 @@ void Server::set_max_connection(uint32_t _max_connection) {
     }
     max_connection = _max_connection;
     // max connections
-    uint32_t minimum_connection = (worker_num + task_worker_num) * 2 + 32;
-    if (max_connection < minimum_connection) {
-        max_connection = SwooleG.max_sockets;
-        swWarn("max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
-    } else if (SwooleG.max_sockets > 0 && max_connection > SwooleG.max_sockets) {
+    if (SwooleG.max_sockets > 0 && max_connection > SwooleG.max_sockets) {
         max_connection = SwooleG.max_sockets;
         swWarn("max_connection is exceed the maximum value, it's reset to %u", SwooleG.max_sockets);
     } else if (max_connection > SW_SESSION_LIST_SIZE) {
         max_connection = SW_SESSION_LIST_SIZE;
         swWarn("max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
+    } else if (max_connection == 0) {
+        max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
     }
 }
 
