@@ -2307,7 +2307,8 @@ static PHP_METHOD(swoole_server, set) {
     }
     // max_connection
     if (php_swoole_array_get_value(vht, "max_connection", ztmp) || php_swoole_array_get_value(vht, "max_conn", ztmp)) {
-        serv->set_max_connection(SW_MAX(0, SW_MIN(zval_get_long(ztmp), UINT32_MAX)));
+        zend_long v = zval_get_long(ztmp);
+        serv->set_max_connection(SW_MAX(0, SW_MIN(v, UINT32_MAX)));
     }
     // heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp)) {
