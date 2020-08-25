@@ -21,7 +21,6 @@
 #include <time.h>
 
 static int swServer_destory(swServer *serv);
-static int swServer_start_check(swServer *serv);
 static void swServer_signal_handler(int sig);
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode);
 static void swServer_disable_accept(swServer *serv);
@@ -180,7 +179,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-static int swServer_start_check(swServer *serv)
+int swServer_start_check(swServer *serv)
 {
     //stream
     if (serv->have_stream_sock && serv->onReceive == NULL)
@@ -536,11 +535,6 @@ int swServer_start(swServer *serv)
     swFactory *factory = &serv->factory;
     int ret;
 
-    ret = swServer_start_check(serv);
-    if (ret < 0)
-    {
-        return SW_ERR;
-    }
     if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_START])
     {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, serv);

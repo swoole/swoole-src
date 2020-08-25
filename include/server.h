@@ -624,6 +624,7 @@ struct _swServer
     int (*dispatch_func)(swServer *, swConnection *, swSendData *);
 };
 
+int swServer_start_check(swServer *serv);
 int swServer_master_onAccept(swReactor *reactor, swEvent *event);
 void swServer_master_onTimer(swTimer *timer, swTimer_node *tnode);
 int swServer_master_send(swServer *serv, swSendData *_send);
