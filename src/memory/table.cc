@@ -248,7 +248,7 @@ swTableRow *swTableRow_get(swTable *table, const char *key, uint16_t keylen, swT
 }
 
 static inline void swTableRow_init(swTable *table, swTableRow *new_row, const char *key, int keylen) {
-    sw_memset_zero(new_row, sizeof(swTableRow));
+    sw_memset_zero(new_row, sizeof(swTableRow) + table->item_size);
     memcpy(new_row->key, key, keylen);
     new_row->key[keylen] = '\0';
     new_row->key_len = keylen;
@@ -356,7 +356,7 @@ int swTableRow_del(swTable *table, const char *key, uint16_t keylen) {
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
-        sw_memset_zero(tmp, sizeof(swTableRow) + table->item_size);
+        sw_memset_zero(tmp, sizeof(swTableRow));
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }
