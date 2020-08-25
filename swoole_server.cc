@@ -2168,10 +2168,6 @@ static PHP_METHOD(swoole_server, set) {
             serv->worker_num = SW_CPU_NUM;
         }
     }
-    if (php_swoole_array_get_value(vht, "task_worker_num", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
-        serv->task_worker_num = SW_MAX(0, SW_MIN(v, UINT32_MAX));
-    }
     if (php_swoole_array_get_value(vht, "max_wait_time", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         serv->max_wait_time = SW_MAX(0, SW_MIN(v, UINT32_MAX));
@@ -2266,6 +2262,11 @@ static PHP_METHOD(swoole_server, set) {
     // task coroutine
     if (php_swoole_array_get_value(vht, "task_enable_coroutine", ztmp)) {
         serv->task_enable_coroutine = zval_is_true(ztmp);
+    }
+    // task_worker_num
+    if (php_swoole_array_get_value(vht, "task_worker_num", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        serv->task_worker_num = SW_MAX(0, SW_MIN(v, UINT32_MAX));
     }
     // task ipc mode, 1,2,3
     if (php_swoole_array_get_value(vht, "task_ipc_mode", ztmp)) {

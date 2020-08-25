@@ -203,9 +203,6 @@ TEST(server, max_connection) {
     serv.set_max_connection(SwooleG.max_sockets + 13);
     ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets);
 
-    serv.set_max_connection(10 * 1024 * 1024);
-    ASSERT_EQ(serv.get_max_connection(), SW_SESSION_LIST_SIZE);
-
     serv.set_max_connection(SwooleG.max_sockets - 13);
     ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets - 13);
 
