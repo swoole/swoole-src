@@ -51,7 +51,7 @@
 #include <sys/utsname.h>
 #include <sys/time.h>
 
-#if defined(HAVE_CPU_AFFINITY)
+#if defined(HAVE_CPU_AFFINITY) && defined(__FreeBSD__)
 #include <sys/types.h>
 #include <sys/cpuset.h>
 #include <pthread_np.h>
