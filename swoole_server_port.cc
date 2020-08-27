@@ -349,6 +349,12 @@ static PHP_METHOD(swoole_server_port, set) {
     if (php_swoole_array_get_value(vht, "open_websocket_close_frame", ztmp)) {
         port->open_websocket_close_frame = zval_is_true(ztmp);
     }
+    if (php_swoole_array_get_value(vht, "open_websocket_ping_frame", ztmp)) {
+        port->open_websocket_ping_frame = zval_is_true(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "open_websocket_pong_frame", ztmp)) {
+        port->open_websocket_pong_frame = zval_is_true(ztmp);
+    }
 #ifdef SW_USE_HTTP2
     // http2 protocol
     if (php_swoole_array_get_value(vht, "open_http2_protocol", ztmp)) {

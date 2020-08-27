@@ -375,6 +375,14 @@ struct ListenPort {
      */
     bool open_websocket_close_frame = false;
     /**
+     * open websocket ping frame
+     */
+    bool open_websocket_ping_frame = false;
+    /**
+     * open websocket pong frame
+     */
+    bool open_websocket_pong_frame = false;
+    /**
      *  one package: length check
      */
     bool open_length_check = false;

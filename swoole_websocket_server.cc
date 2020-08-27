@@ -557,7 +557,15 @@ int swoole_websocket_onMessage(swServer *serv, swRecvData *req) {
     flags = frame_header[0];
     opcode = frame_header[1];
 
-    if (opcode == WEBSOCKET_OPCODE_CLOSE && !primary_port->open_websocket_close_frame) {
+    if ((opcode == WEBSOCKET_OPCODE_CLOSE && !primary_port->open_websocket_close_frame) || (opcode == WEBSOCKET_OPCODE_PING && !primary_port->open_websocket_ping_frame) || (opcode == WEBSOCKET_OPCODE_PONG && !primary_port->open_websocket_pong_frame)) {
+        if(opcode == WEBSOCKET_OPCODE_PING) {
+            swString send_frame = {};
+            char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
+            send_frame.str = buf;
+            send_frame.size = sizeof(buf);
+            swWebSocket_encode(&send_frame, req->data, req->info.len, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
+            serv->send(req->info.fd, send_frame.str, send_frame.length);
+        }
         zval_ptr_dtor(&zdata);
         return SW_OK;
     }

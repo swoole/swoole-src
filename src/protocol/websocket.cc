@@ -291,22 +291,23 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
         break;
     }
     case WEBSOCKET_OPCODE_PING:
+    case WEBSOCKET_OPCODE_PONG:
         if (length >= (sizeof(buf) - SW_WEBSOCKET_HEADER_LEN)) {
-            swWarn("ping frame application data is too big. remote_addr=%s:%d",
+            swWarn("%s frame application data is too big. remote_addr=%s:%d",
+                   ws.header.OPCODE == WEBSOCKET_OPCODE_PING ? "ping" : "pong",
                    conn->info.get_ip(),
                    conn->info.get_port());
             return SW_ERR;
         } else if (length == SW_WEBSOCKET_HEADER_LEN) {
-            swWebSocket_encode(&send_frame, nullptr, 0, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
+            data = nullptr;
+            length = 0;
         } else {
             offset = ws.header.MASK ? SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN : SW_WEBSOCKET_HEADER_LEN;
-            swWebSocket_encode(
-                &send_frame, data += offset, length - offset, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
+            data += offset;
+            length -= offset;
         }
-        _socket->send(send_frame.str, send_frame.length, 0);
-        break;
-
-    case WEBSOCKET_OPCODE_PONG:
+        proto->ext_flags = swWebSocket_get_ext_flags(ws.header.OPCODE, swWebSocket_get_flags(&ws));
+        Server::dispatch_task(proto, _socket, data, length);
         break;
 
     case WEBSOCKET_OPCODE_CLOSE:
