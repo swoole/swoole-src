@@ -1611,11 +1611,13 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     zend_fcall_info fci;
     fci.size = sizeof(fci);
     fci.object = nullptr;
-    fci.function_name = {};
+    ZVAL_UNDEF(&fci.function_name);
     fci.retval = return_value;
     fci.param_count = ZEND_NUM_ARGS();
     fci.params = ZEND_CALL_ARG(execute_data, 1);
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID >= 80000
+    fci.named_params = NULL;
+#else
     fci.no_separation = 1;
 #endif
 

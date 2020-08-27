@@ -1002,7 +1002,9 @@ static sw_inline int sw_zend_call_function_ex(zval *function_name, zend_fcall_in
     fci.retval = retval ? retval : &_retval;
     fci.param_count = param_count;
     fci.params = params;
-#if PHP_VERSION_ID < 80000
+#if PHP_VERSION_ID >= 80000
+    fci.named_params = NULL;
+#else
     fci.no_separation = 0;
 #endif
 
