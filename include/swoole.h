@@ -47,6 +47,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sched.h>  /* sched_yield() */
+#include <pthread.h>
 
 #include <sys/utsname.h>
 #include <sys/time.h>
