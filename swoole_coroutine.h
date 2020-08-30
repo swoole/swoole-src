@@ -43,8 +43,7 @@ enum sw_coro_hook_type {
     SW_HOOK_PROC              = 1u << 10,
     SW_HOOK_CURL              = 1u << 28,
     SW_HOOK_BLOCKING_FUNCTION = 1u << 30,
-
-    SW_HOOK_ALL = 0x7fffffff ^ SW_HOOK_CURL /* TODO: remove it [v4.6] */
+    SW_HOOK_ALL               = 0x7fffffff,
 };
 
 struct php_coro_task {
