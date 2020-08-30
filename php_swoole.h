@@ -281,6 +281,7 @@ void php_swoole_server_rshutdown();
 
 int php_swoole_reactor_init();
 void php_swoole_set_global_option(HashTable *vht);
+int php_swoole_runtime_get_hook_flags();
 
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);

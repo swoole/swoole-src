@@ -328,6 +328,10 @@ inline void PHPCoroutine::activate() {
         /* create a thread to interrupt the coroutine that takes up too much time */
         interrupt_thread_start();
     }
+
+    if (config.hook_flags == 0 && php_swoole_runtime_get_hook_flags() == 0) {
+        config.hook_flags = SW_HOOK_ALL;
+    }
     if (config.hook_flags) {
         enable_hook(config.hook_flags);
     }
