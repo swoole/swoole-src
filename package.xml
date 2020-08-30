@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-08-22</date>
+    <date>2020-08-29</date>
     <time>19:00:00</time>
     <version>
-        <release>4.5.3RC1</release>
+        <release>4.5.3</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -63,8 +63,8 @@
 
         Enhancement
         ---
-        + Added usePipelineRead to support streaming call in http2 client (#3354) (@twose)
-        + Do not create file before recv body when download (#3381) (@twose)
+        + Added usePipelineRead to support streaming call-in http2 client (#3354) (@twose)
+        + Do not create the file before receive body when a download (#3381) (@twose)
         + Added `bind_address` and `bind_port` setting for coroutine http client (#3390) (@huanghantao)
         + Added `lowercase_header` option for HttpClient (#3399) (@matyhtf)
         + Added `tcp_user_timeout` option for `Swoole\Server` (#3404) (@huanghantao)
@@ -74,54 +74,55 @@
         + Added `lowercase_header` to fix cURL header name (swoole/library#e7c2a82) (@twose)
         + Set wait count directly in WaitGroup constructor (swoole/library#2fb228b8) (@matyhtf)
         + Added `CURLOPT_REDIR_PROTOCOLS` (swoole/library#46) (@sy-records)
-        + Added HTTP 1.1 support trailer (#3485) (@huanghantao)
-        + Support yield when sleep time less 1ms (#3487) (@Yurunsoft)
-        + Support get soft link file in static handler (#3569) (@LeiZhang-Hunter)
-        + Close websocket connection immediately after server call close method (#3570) (@matyhtf)
+        + Support trailer for HTTP 1.1 (#3485) (@huanghantao)
+        + Support yield when sleeping less 1ms (#3487) (@Yurunsoft)
+        + Support get soft link file in the static handler (#3569) (@LeiZhang-Hunter)
+        + Close WebSocket connection immediately after the server call close method (#3570) (@matyhtf)
         + Support hook stream_set_blocking (#3585) (@Yurunsoft)
         + Support HTTP2 flow control in async HTTP2 Server (#3486) (@huanghantao) (@matyhtf)
         + Support free socket buffer after onPackage is called (#3551) (@huanghantao) (@matyhtf)
 
         Fixed
         ---
-        * Fixed Websocket coredump (#3359) (@twose)
+        * Fixed WebSocket coredump, handle protocol status error (#3359) (@twose)
         * Fixed swSignalfd_setup and fix possible nullptr error in wait_signal (#3360) (@twose)
         * Fixed `Swoole\Server::close` throw a error when set dispatch_func (#3365) (@twose)
         * Fixed format_buffer init problem when use `Swoole\Redis\Server::format` (#3369) (@matyhtf) (@twose)
-        * Fixed get mac address in OSX (#3372) (@twose)
-        * Fixed mysql test case (#3374) (@qiqizjl)
-        * Fixed PHP8 compatibility (#3384) (#3458) (#3578) (@twose)
+        * Fixed get mac address in MacOS (#3372) (@twose)
+        * Fixed MySQL test case (#3374) (@qiqizjl)
+        * Fixed PHP8 compatibility (#3384) (#3458) (#3578) (#3598) (@twose)
         * Fixed missing php_error_docref, timeout_event and return value in hook socket write and read (#3383) (@twose)
         * Fixed the server could not be stopped during the `WorkerStart` phase (#3382) (@huanghantao)
         * Fixed coredump because of heart thread operate conn->socket (#3396) (@huanghantao)
         * Fixed send yield logic bug (#3397) (@twose) (@matyhtf)
         * Fixed compile problem in Cygwin64 (#3400) (@twose)
-        * Fixed websocket finish property invalid (#3410) (@matyhtf)
-        * Fixed build error when lose sys/random.h (#3427) (@huanghantao)
+        * Fixed WebSocket finish property invalid (#3410) (@matyhtf)
+        * Fixed build error when losing sys/random.h (#3427) (@huanghantao)
         * Fixed missing MySQL transaction error, update the test (#3429) (@twose)
         * Fixed the result of `stream_select` (#3440) (@Yurunsoft)
-        * Fixed lose `SIGCHLD` when use `Coroutine\System` to create child process (#3446) (@huanghantao)
-        * Fixed sendwait not support ssl mode (#3459) (@huanghantao)
+        * Fixed lose `SIGCHLD` when use `Coroutine\System` to create the child process (#3446) (@huanghantao)
+        * Fixed sendwait not support SSL mode (#3459) (@huanghantao)
         * Fixed `ArrayObject` and `StringObject` bug (swoole/library#44) (@matyhtf)
-        * Fixed mysqli error (swoole/library#45) (@sy-records)
+        * Fixed mysqli error, typo (swoole/library#45) (@sy-records)
         * Fixed can not get correct Swoole\Client::errCode if `open_eof_check` is set (#3478) (@huanghantao)
         * Fixed fix atomic->wait()/wakeup() in MacOS (#3476) (@Yurunsoft)
-        * Fixed fix Client::connect return 0 when serve refused (#3484) (@matyhtf)
+        * Fixed Client::connect return 0 when serve refused (#3484) (@matyhtf)
         * Fixed nullptr_t is not declared in alpine (#3488) (@limingxinleo)
-        * Fixed fix HTTP Client download filename bug, double free memory (#3489) (@Yurunsoft)
+        * Fixed fix HTTP Client download filename bug, double-free memory (#3489) (@Yurunsoft)
         * Fixed fix memory leak of Server\Port (#3507) (@twose)
         * Fixed fix mqtt parse protocal error (318e33a) (84d8214) (80327b3) (efe6c63) (@GXhua) (@sy-records)
         * Fixed Coroutine\Http\Client->getHeaderOut coredump (#3534) (@matyhtf)
         * Fixed missing error info of SSL verify (#3535) (@twose)
         * Fixed update Swoole benchmark link in README (#3536) (@sy-records) (@santalex)
-        * Fixed fix HTTP header/cookie injection when use CRLF (#3539) (#3541) (#3545) (chromium1337) (@huanghantao)
+        * Fixed fix HTTP header/cookie injection when using CRLF (#3539) (#3541) (#3545) (chromium1337) (@huanghantao)
         * Fixed fix the typo variable in #3463 (#3547) (chromium1337) (@huanghantao)
         * Fixed the typo introduced in pull request #3463 (#3547) (@deminy)
-        * Fixed set coroutine websocket server frame->fd (#3549) (@huanghantao)
-        * Fixed connection leak when heart thread check connection status (#3534) (@matyhtf)
-        * Fixed don't need block signals (#3582) (@huanghantao) (@matyhtf)
+        * Fixed set coroutine WebSocket server frame->fd (#3549) (@huanghantao)
+        * Fixed connection leak when heart thread check the connection status (#3534) (@matyhtf)
+        * Fixed don't need block signals in the process pool (#3582) (@huanghantao) (@matyhtf)
         * Fixed don't send headers by SAPI (#3571) (@twose) (@sshymko)
         * Fixed set error code and error message when curl execution fails (swoole/library#1b6c65e) (@sy-records)
+        * Fixed swoole_socket_coro accept bug when call setProtocol function will cause coredump (#3591) (@matyhtf)
 
         Kernel
         ---
@@ -135,7 +136,7 @@
         * Refactor libswoole (#3448) (#3473) (#3475) (#3492) (#3494) (#3497) (#3498) (#3526) (@matyhtf)
         * Refactor header deps (#3457) (@matyhtf) (@huanghantao)
         * Added `Channel::count()` and `Channel::get_bytes()` (f001581) (@matyhtf)
-        * Added add scope guard (#3504) (@huanghantao)
+        * Added scope guard (#3504) (@huanghantao)
         * Added libswoole coverage test (#3431) (@huanghantao)
         * Added lib-swoole/ext-swoole MacOS test (#3521) (@huanghantao)
         * Added lib-swoole/ext-swoole Alpine test (#3537) (@limingxinleo)
@@ -1176,7 +1177,9 @@
             <file role="test" name="tests/swoole_http_client_coro/host.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy_443.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/http_upload_big.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/https.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/https_upload_big.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/issue_2664.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/keep_alive.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/long_domain.phpt" />
@@ -1198,7 +1201,6 @@
             <file role="test" name="tests/swoole_http_client_coro/timeout_when_recv.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/unixsocket.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/upload.phpt" />
-            <file role="test" name="tests/swoole_http_client_coro/upload_big.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/upload_huge.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/upload_with_null_args.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/1.phpt" />
@@ -1557,6 +1559,7 @@
             <file role="test" name="tests/swoole_runtime/udp-c10k.phpt" />
             <file role="test" name="tests/swoole_runtime/udp.phpt" />
             <file role="test" name="tests/swoole_runtime/unix.phpt" />
+            <file role="test" name="tests/swoole_server/accept_zero.phpt" />
             <file role="test" name="tests/swoole_server/addListener.phpt" />
             <file role="test" name="tests/swoole_server/addProcess.phpt" />
             <file role="test" name="tests/swoole_server/addProcess_base.phpt" />
@@ -1738,6 +1741,7 @@
             <file role="test" name="tests/swoole_socket_coro/getpeername.phpt" />
             <file role="test" name="tests/swoole_socket_coro/getsockname.phpt" />
             <file role="test" name="tests/swoole_socket_coro/peek_and_checkLiveness.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/protocol/bug_3586.phpt" />
             <file role="test" name="tests/swoole_socket_coro/protocol/package_length_func.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll_timeout.phpt" />
@@ -1763,11 +1767,13 @@
             <file role="test" name="tests/swoole_table/bug_2263.phpt" />
             <file role="test" name="tests/swoole_table/bug_2290.phpt" />
             <file role="test" name="tests/swoole_table/foreach.phpt" />
+            <file role="test" name="tests/swoole_table/incr_after_del.phpt" />
             <file role="test" name="tests/swoole_table/int.phpt" />
             <file role="test" name="tests/swoole_table/key_value.phpt" />
             <file role="test" name="tests/swoole_table/negative.phpt" />
             <file role="test" name="tests/swoole_table/random_bytes.phpt" />
             <file role="test" name="tests/swoole_table/row.phpt" />
+            <file role="test" name="tests/swoole_table/set_after_del.phpt" />
             <file role="test" name="tests/swoole_timer/after_fork.phpt" />
             <file role="test" name="tests/swoole_timer/bug_2342.phpt" />
             <file role="test" name="tests/swoole_timer/call_private.phpt" />
