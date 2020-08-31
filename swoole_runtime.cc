@@ -964,7 +964,7 @@ static php_stream *socket_create(const char *proto,
     return stream;
 }
 
-bool PHPCoroutine::enable_hook(int flags) {
+bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (!hook_init) {
         HashTable *xport_hash = php_stream_xport_get_hash();
         // php_stream
@@ -1191,7 +1191,8 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
         }
     }
 
-    RETURN_BOOL(PHPCoroutine::enable_hook(flags));
+    PHPCoroutine::set_hook_flags(flags);
+    RETURN_TRUE;
 }
 
 bool php_swoole_runtime_has_init_hook() {
@@ -1199,7 +1200,7 @@ bool php_swoole_runtime_has_init_hook() {
 }
 
 static PHP_METHOD(swoole_runtime, getHookFlags) {
-    RETURN_LONG(hook_flags);
+    RETURN_LONG(PHPCoroutine::get_hook_flags());
 }
 
 static PHP_METHOD(swoole_runtime, setHookFlags) {
@@ -1210,7 +1211,6 @@ static PHP_METHOD(swoole_runtime, setHookFlags) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     PHPCoroutine::set_hook_flags(flags);
-
     RETURN_TRUE;
 }
 

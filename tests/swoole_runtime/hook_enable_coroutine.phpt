@@ -15,7 +15,7 @@ Co\run(function () {
 });
 
 Co\run(function () {
-    Assert::eq(Swoole\Runtime::getHookFlags(), 0);
+    Assert::eq(Swoole\Runtime::getHookFlags(), SWOOLE_HOOK_TCP);
 });
 
 ?>

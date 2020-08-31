@@ -96,7 +96,7 @@ namespace coroutine {
 //------------------------------------------------------------------------------
 struct Config {
     uint64_t max_num;
-    long hook_flags;
+    uint32_t hook_flags;
     bool enable_preemptive_scheduler;
 };
 }  // namespace coroutine
@@ -110,7 +110,7 @@ class PHPCoroutine {
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(php_swoole_fci *fci);
 
-    static bool enable_hook(int flags);
+    static bool enable_hook(uint32_t flags);
     static bool disable_hook();
 
     static void interrupt_thread_stop();
@@ -176,11 +176,12 @@ class PHPCoroutine {
         return false;
     }
 
-    static inline void set_hook_flags(long flags) {
-        if (flags < 0) {
-            flags = 0;
-        }
+    static inline void set_hook_flags(uint32_t flags) {
         config.hook_flags = flags;
+    }
+
+    static inline uint32_t get_hook_flags() {
+        return config.hook_flags;
     }
 
     static inline void enable_preemptive_scheduler(bool value) {

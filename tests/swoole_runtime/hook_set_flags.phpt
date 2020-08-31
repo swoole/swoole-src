@@ -14,7 +14,6 @@ Co\run(function () {
     Assert::eq(Swoole\Runtime::getHookFlags(), 0);
 });
 
-
 Co::set(['hook_flags' => SWOOLE_HOOK_CURL]);
 
 Co\run(function () {

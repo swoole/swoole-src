@@ -44,7 +44,7 @@ bool PHPCoroutine::active = false;
 
 swoole::coroutine::Config PHPCoroutine::config = {
     SW_DEFAULT_MAX_CORO_NUM,
-    -1,
+    SW_HOOK_ALL,
     false,
 };
 
@@ -281,7 +281,6 @@ void PHPCoroutine::deactivate(void *ptr) {
      * reset runtime hook
      */
     PHPCoroutine::disable_hook();
-    config.hook_flags = -1;
 
     zend_interrupt_function = orig_interrupt_function;
     zend_error_cb = orig_error_function;
@@ -327,13 +326,6 @@ inline void PHPCoroutine::activate() {
         interrupt_thread_start();
     }
 
-    if (config.hook_flags == -1) {
-        if (php_swoole_runtime_has_init_hook()) {
-            config.hook_flags = 0;
-        } else {
-            config.hook_flags = SW_HOOK_ALL;
-        }
-    }
     if (config.hook_flags) {
         enable_hook(config.hook_flags);
     }
