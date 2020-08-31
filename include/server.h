@@ -375,6 +375,14 @@ struct ListenPort {
      */
     bool open_websocket_close_frame = false;
     /**
+     * open websocket ping frame
+     */
+    bool open_websocket_ping_frame = false;
+    /**
+     * open websocket pong frame
+     */
+    bool open_websocket_pong_frame = false;
+    /**
      *  one package: length check
      */
     bool open_length_check = false;
@@ -696,6 +704,14 @@ class Server {
     ListenPort *get_port_by_fd(int fd) {
         sw_atomic_t server_fd = connection_list[fd].server_fd;
         return (ListenPort *) connection_list[server_fd].object;
+    }
+
+    inline ListenPort *get_port_by_session_id(int session_id) {
+        Connection *conn = get_connection_by_session_id(session_id);
+        if (!conn) {
+            return nullptr;
+        }
+        return get_port_by_fd(conn->fd);
     }
 
     inline network::Socket *get_server_socket(int fd) {
