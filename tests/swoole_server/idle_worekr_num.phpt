@@ -32,6 +32,7 @@ $pm->childFunc = function () use ($pm, $counter) {
     $serv->set([
         'worker_num' => 3,
         'log_level' => SWOOLE_LOG_ERROR,
+        'enable_coroutine' => false,
     ]);
     $serv->on("workerStart", function (Server $serv, $wid) use ($pm, $counter) {
         if ($counter->add(1) == $serv->setting['worker_num']) {

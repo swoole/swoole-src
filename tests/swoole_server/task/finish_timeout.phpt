@@ -32,6 +32,7 @@ $pm->childFunc = function () use ($pm) {
             'task_worker_num' => 1,
             'socket_send_timeout' => 1.0,
             'worker_num' => 1,
+            'enable_coroutine' => false,
         ]
     );
     $server->on('workerStart', function () use ($pm) {

@@ -1192,11 +1192,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
     }
 
     PHPCoroutine::set_hook_flags(flags);
-    RETURN_TRUE;
-}
-
-bool php_swoole_runtime_has_init_hook() {
-    return hook_init;
+    RETURN_BOOL(PHPCoroutine::enable_hook(flags));
 }
 
 static PHP_METHOD(swoole_runtime, getHookFlags) {
@@ -1211,7 +1207,7 @@ static PHP_METHOD(swoole_runtime, setHookFlags) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     PHPCoroutine::set_hook_flags(flags);
-    RETURN_TRUE;
+    RETURN_BOOL(PHPCoroutine::enable_hook(flags));
 }
 
 static PHP_FUNCTION(swoole_sleep) {

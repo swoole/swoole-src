@@ -68,6 +68,7 @@ $pm->childFunc = function () use ($pm, $port) {
         "worker_num" => WORKER_N,
         'dispatch_mode' => 3,
         'package_eof' => "\r\n\r\n",
+        'enable_coroutine' => false,
         'open_eof_split' => true,
         'log_file' => '/dev/null',
     ));
