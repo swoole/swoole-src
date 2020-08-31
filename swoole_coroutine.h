@@ -104,8 +104,6 @@ struct Config {
 class PHPCoroutine {
   public:
     static const uint8_t MAX_EXEC_MSEC = 10;
-    static coroutine::Config config;
-
     static void init();
     static void deactivate(void *ptr);
     static void shutdown();
@@ -178,9 +176,21 @@ class PHPCoroutine {
         return false;
     }
 
+    static inline void set_hook_flags(long flags) {
+        if (flags < 0) {
+            flags = 0;
+        }
+        config.hook_flags = flags;
+    }
+
+    static inline void enable_preemptive_scheduler(bool value) {
+        config.enable_preemptive_scheduler = value;
+    }
+
   protected:
     static bool active;
     static php_coro_task main_task;
+    static coroutine::Config config;
 
     static bool interrupt_thread_running;
     static pthread_t interrupt_thread_id;
