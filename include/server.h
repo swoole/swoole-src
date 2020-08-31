@@ -707,7 +707,7 @@ class Server {
     }
 
     inline ListenPort *get_port_by_session_id(int session_id) {
-        swoole::Connection *conn = get_connection_by_session_id(session_id);
+        Connection *conn = get_connection_by_session_id(session_id);
         if (!conn) {
             return nullptr;
         }
