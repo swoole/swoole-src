@@ -110,9 +110,9 @@ struct php_swoole_netstream_data_t
 {
     php_netstream_data_t stream;
     Socket *socket;
-    bool blocking = true;
-    double read_timeout = 0;
-    double write_timeout = 0;
+    bool blocking;
+    double read_timeout;
+    double write_timeout;
 };
 
 static bool hook_init = false;
