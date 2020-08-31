@@ -180,10 +180,6 @@ class PHPCoroutine {
         config.hook_flags = flags;
     }
 
-    static inline uint32_t get_hook_flags() {
-        return config.hook_flags;
-    }
-
     static inline void enable_preemptive_scheduler(bool value) {
         config.enable_preemptive_scheduler = value;
     }

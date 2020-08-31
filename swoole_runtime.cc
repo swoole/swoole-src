@@ -1196,7 +1196,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
 }
 
 static PHP_METHOD(swoole_runtime, getHookFlags) {
-    RETURN_LONG(PHPCoroutine::get_hook_flags());
+    RETURN_LONG(hook_flags);
 }
 
 static PHP_METHOD(swoole_runtime, setHookFlags) {
