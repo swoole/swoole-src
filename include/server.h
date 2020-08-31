@@ -706,6 +706,14 @@ class Server {
         return (ListenPort *) connection_list[server_fd].object;
     }
 
+    inline ListenPort *get_port_by_session_id(int session_id) {
+        swoole::Connection *conn = get_connection_by_session_id(session_id);
+        if (!conn) {
+            return nullptr;
+        }
+        return get_port_by_fd(conn->fd);
+    }
+
     inline network::Socket *get_server_socket(int fd) {
         return connection_list[fd].socket;
     }

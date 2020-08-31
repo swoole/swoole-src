@@ -545,11 +545,10 @@ int swoole_websocket_onMessage(swServer *serv, swRecvData *req) {
     int fd = req->info.fd;
     uchar flags = 0;
     zend_long opcode = 0;
-    swConnection *conn = serv->get_connection_by_session_id(fd);
-    if (!conn) {
+    auto port        = serv->get_port_by_session_id(fd);
+    if (!port) {
         return SW_ERR;
     }
-    auto port = serv->get_port_by_fd(conn->fd);
 
     zval zdata;
     char frame_header[2];
@@ -561,11 +560,13 @@ int swoole_websocket_onMessage(swServer *serv, swRecvData *req) {
     flags = frame_header[0];
     opcode = frame_header[1];
 
-    if ((opcode == WEBSOCKET_OPCODE_CLOSE && !port->open_websocket_close_frame) || (opcode == WEBSOCKET_OPCODE_PING && !port->open_websocket_ping_frame) || (opcode == WEBSOCKET_OPCODE_PONG && !port->open_websocket_pong_frame)) {
-        if(opcode == WEBSOCKET_OPCODE_PING) {
+    if ((opcode == WEBSOCKET_OPCODE_CLOSE && !port->open_websocket_close_frame) ||
+        (opcode == WEBSOCKET_OPCODE_PING && !port->open_websocket_ping_frame) ||
+        (opcode == WEBSOCKET_OPCODE_PONG && !port->open_websocket_pong_frame)) {
+        if (opcode == WEBSOCKET_OPCODE_PING) {
             swString send_frame = {};
             char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
-            send_frame.str = buf;
+            send_frame.str  = buf;
             send_frame.size = sizeof(buf);
             swWebSocket_encode(&send_frame, req->data, req->info.len, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
             serv->send(fd, send_frame.str, send_frame.length);
