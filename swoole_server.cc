@@ -1098,14 +1098,6 @@ static zval* php_swoole_server_add_port(swServer *serv, swListenPort *port)
 
 void php_swoole_server_before_start(swServer *serv, zval *zobject)
 {
-    /*
-     * check setting
-     */
-    if(swServer_start_check(serv) < 0)
-    {
-        php_swoole_fatal_error(E_ERROR, "failed to check the server setting. Error: %s", sw_error);
-        return;
-    }
     /**
      * create swoole server
      */

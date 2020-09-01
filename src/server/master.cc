@@ -20,6 +20,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+static int swServer_start_check(swServer *serv);
 static int swServer_destory(swServer *serv);
 static void swServer_signal_handler(int sig);
 static void swServer_enable_accept(swTimer *timer, swTimer_node *tnode);
@@ -179,7 +180,7 @@ int swServer_master_onAccept(swReactor *reactor, swEvent *event)
     return SW_OK;
 }
 
-int swServer_start_check(swServer *serv)
+static int swServer_start_check(swServer *serv)
 {
     //stream
     if (serv->have_stream_sock && serv->onReceive == NULL)
@@ -261,23 +262,6 @@ int swServer_start_check(swServer *serv)
     if (serv->worker_num < serv->reactor_num)
     {
         serv->reactor_num = serv->worker_num;
-    }
-    // max connections
-    uint32_t minimum_connection = (serv->worker_num + serv->task_worker_num) * 2 + 32;
-    if (serv->max_connection < minimum_connection)
-    {
-        serv->max_connection = SwooleG.max_sockets;
-        swWarn("serv->max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
-    }
-    else if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
-    {
-        serv->max_connection = SwooleG.max_sockets;
-        swWarn("serv->max_connection is exceed the maximum value, it's reset to %u", SwooleG.max_sockets);
-    }
-    else if (serv->max_connection > SW_SESSION_LIST_SIZE)
-    {
-        serv->max_connection = SW_SESSION_LIST_SIZE;
-        swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
     }
     // package max length
     swListenPort *ls;
@@ -535,6 +519,11 @@ int swServer_start(swServer *serv)
     swFactory *factory = &serv->factory;
     int ret;
 
+    if (swServer_start_check(serv) < 0)
+    {
+        swError("failed to check the server setting. Error: %s", sw_error);
+        return SW_ERR;
+    }
     if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_START])
     {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, serv);
@@ -784,6 +773,23 @@ int swServer_create(swServer *serv)
     if (SwooleG.socket_array->item_num < serv->max_connection)
     {
         swArray_alloc(SwooleG.socket_array, serv->max_connection);
+    }
+
+    uint32_t minimum_connection = (serv->worker_num + serv->task_worker_num) * 2 + 32;
+    if (serv->max_connection < minimum_connection)
+    {
+        serv->max_connection = SwooleG.max_sockets;
+        swWarn("serv->max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
+    }
+    else if (SwooleG.max_sockets > 0 && serv->max_connection > SwooleG.max_sockets)
+    {
+        serv->max_connection = SwooleG.max_sockets;
+        swWarn("serv->max_connection is exceed the maximum value, it's reset to %u", SwooleG.max_sockets);
+    }
+    else if (serv->max_connection > SW_SESSION_LIST_SIZE)
+    {
+        serv->max_connection = SW_SESSION_LIST_SIZE;
+        swWarn("serv->max_connection is exceed the SW_SESSION_LIST_SIZE, it's reset to %u", SW_SESSION_LIST_SIZE);
     }
 
     if (serv->factory_mode == SW_MODE_BASE)
