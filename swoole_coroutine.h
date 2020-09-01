@@ -31,6 +31,7 @@
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
 enum sw_coro_hook_type {
+    SW_HOOK_NONE              = 0,
     SW_HOOK_TCP               = 1u << 1,
     SW_HOOK_UDP               = 1u << 2,
     SW_HOOK_UNIX              = 1u << 3,
