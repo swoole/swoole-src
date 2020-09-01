@@ -417,7 +417,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     {
         if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
-            bzero(row, sizeof(swTableRow));
+            bzero(row, sizeof(swTableRow) + table->item_size);
             goto _delete_element;
         }
         else
@@ -462,7 +462,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
-        bzero(tmp, sizeof(swTableRow));
+        bzero(tmp, sizeof(swTableRow) + table->item_size);
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }
