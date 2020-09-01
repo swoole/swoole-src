@@ -326,6 +326,24 @@ public:
         return write_buffer;
     }
 
+    inline swString *pop_read_buffer() {
+        if (sw_unlikely(!read_buffer)) {
+            return nullptr;
+        }
+        auto tmp = read_buffer;
+        read_buffer = nullptr;
+        return tmp;
+    }
+
+    inline swString *pop_write_buffer() {
+        if (sw_unlikely(!write_buffer)) {
+            return nullptr;
+        }
+        auto tmp = write_buffer;
+        write_buffer = nullptr;
+        return tmp;
+    }
+
 #ifdef SW_USE_OPENSSL
     inline bool is_ssl_enable()
     {

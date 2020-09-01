@@ -94,6 +94,7 @@ public:
     /* safety zval */
     zval _zobject;
     zval *zobject = &_zobject;
+    swString *tmp_write_buffer = nullptr;
 
     http_client(zval* zobject, std::string host, zend_long port = 80, zend_bool ssl = false);
 
@@ -126,7 +127,15 @@ public:
 
     void get_header_out(zval *return_value)
     {
-        swString *buffer = socket->get_write_buffer();
+        swString *buffer = nullptr;
+        if (socket == nullptr) {
+            if (tmp_write_buffer) {
+                buffer = tmp_write_buffer;
+            }
+        }
+        else {
+            buffer = socket->get_write_buffer();
+        }
         if (buffer == nullptr)
         {
             RETURN_FALSE;
@@ -1656,6 +1665,10 @@ bool http_client::close(const bool should_be_reset)
 #ifdef SW_HAVE_ZLIB
             websocket_compression = false;
 #endif
+            if (tmp_write_buffer) {
+                swString_free(tmp_write_buffer);
+            }
+            tmp_write_buffer = socket->pop_write_buffer();
             socket = nullptr;
         }
         php_swoole_client_coro_socket_free(_socket);
@@ -1670,6 +1683,9 @@ http_client::~http_client()
     if (body)
     {
         swString_free(body);
+    }
+    if (tmp_write_buffer) {
+        swString_free(tmp_write_buffer);
     }
 }
 

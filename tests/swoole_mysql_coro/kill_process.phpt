@@ -5,7 +5,7 @@ swoole_mysql_coro: kill process and check liveness
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-go(function () {
+Co\run(function () {
     $config = [
         'host' => MYSQL_SERVER_HOST,
         'port' => MYSQL_SERVER_PORT,
@@ -20,20 +20,35 @@ go(function () {
 
     $killer = new Swoole\Coroutine\MySQL;
     Assert::true($killer->connect($config));
-    $processList = $killer->query('show processlist');
-    $processList = array_filter($processList, function (array $value) {
-        return $value['db'] == MYSQL_SERVER_DB && $value['Info'] != 'show processlist';
-    });
-    foreach ($processList as $process) {
-        $killer->query("KILL {$process['Id']}");
+
+    foreach (
+        [
+            function () use ($mysql) {
+                return $mysql->query('SELECT 1');
+            },
+            function () use ($mysql) {
+                return $mysql->begin();
+            },
+            function () use ($mysql) {
+                return $mysql->prepare('SELECT 1');
+            },
+        ] as $command
+    ) {
+        $processList = $killer->query('show processlist');
+        $processList = array_filter($processList, function (array $value) {
+            return $value['db'] == MYSQL_SERVER_DB && $value['Info'] != 'show processlist';
+        });
+        foreach ($processList as $process) {
+            $killer->query("KILL {$process['Id']}");
+        }
+        switch_process();
+        Assert::false($command());
+        Assert::same($mysql->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
+        Assert::true($mysql->connect($config));
     }
 
-    switch_process();
-    Assert::false($mysql->query('SELECT 1'));
-    Assert::same($mysql->errno, SWOOLE_MYSQLND_CR_SERVER_GONE_ERROR);
     echo $mysql->error . PHP_EOL;
 });
-Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

@@ -1968,8 +1968,8 @@ static int php_swoole_server_dispatch_func(swServer *serv, swConnection *conn, s
 
     *zserv = *((zval *) serv->ptr2);
     ZVAL_LONG(zfd, (zend_long) (conn ? conn->session_id : data->info.fd));
-    ZVAL_LONG(ztype, (zend_long) data->info.type);
-    if (sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
+    ZVAL_LONG(ztype, (zend_long) (data ? data->info.type : SW_SERVER_EVENT_CLOSE));
+    if (data && sw_zend_function_max_num_args(fci_cache->function_handler) > 3)
     {
         // TODO: reduce memory copy
         zdata = &args[3];
@@ -4228,8 +4228,12 @@ static PHP_METHOD(swoole_server, stop)
     {
         if (SwooleTG.reactor != NULL)
         {
-            SwooleTG.reactor->running = 0;
+            SwooleTG.reactor->defer(SwooleTG.reactor, [](void *data) {
+                swReactor *reactor = (swReactor *) data;
+                reactor->running = 0;
+            }, SwooleTG.reactor);
         }
+
         SwooleG.running = 0;
     }
     else
