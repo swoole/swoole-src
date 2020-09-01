@@ -33,4 +33,3 @@ go(function () {
 });
 ?>
 --EXPECT--
-
