@@ -36,20 +36,20 @@ struct swManagerProcess {
     bool force_kill;
     uint32_t reload_worker_i;
     uint32_t reload_worker_num;
-    swWorker *reload_workers;
+    Worker *reload_workers;
 
     std::vector<pid_t> kill_workers;
 };
 
 typedef std::unordered_map<uint32_t, pid_t> reload_list_t;
 
-static int swManager_loop(swServer *serv);
+static int swManager_loop(Server *serv);
 static void swManager_signal_handler(int sig);
 
 static swManagerProcess ManagerProcess;
 
 static void swManager_onTimer(swTimer *timer, swTimer_node *tnode) {
-    swServer *serv = (swServer *) tnode->data;
+    Server *serv = (Server *) tnode->data;
     if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER]) {
         serv->call_hook(SW_SERVER_HOOK_MANAGER_TIMER, serv);
     }
@@ -79,7 +79,7 @@ static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode) 
     delete (_list);
 }
 
-static void swManager_add_timeout_killer(swServer *serv, swWorker *workers, int n) {
+static void swManager_add_timeout_killer(Server *serv, Worker *workers, int n) {
     if (!serv->max_wait_time) {
         return;
     }
@@ -106,7 +106,7 @@ int Server::start_manager_process() {
             return SW_ERR;
         }
 
-        swWorker *worker;
+        Worker *worker;
         for (i = 0; i < task_worker_num; i++) {
             worker = &gs->task_workers.workers[i];
             if (create_worker(worker) < 0) {
@@ -126,7 +126,7 @@ int Server::start_manager_process() {
 
         i = 0;
         for (auto worker : *user_worker_list) {
-            memcpy(&user_workers[i], worker, sizeof(swWorker));
+            memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
             if (create_worker(&user_workers[i]) < 0) {
                 return SW_ERR;
             }
@@ -161,7 +161,7 @@ int Server::start_manager_process() {
         }
 
         for (uint32_t i = 0; i < worker_num; i++) {
-            swWorker *worker = get_worker(i);
+            Worker *worker = get_worker(i);
             pid = spawn_event_worker(worker);
             if (pid < 0) {
                 swError("fork() failed");
@@ -215,7 +215,7 @@ void Server::check_worker_exit_status(int worker_id, pid_t pid, int status) {
     }
 }
 
-static int swManager_loop(swServer *serv) {
+static int swManager_loop(Server *serv) {
     uint32_t i;
     pid_t pid, new_pid;
     pid_t reload_worker_pid = 0;
@@ -226,7 +226,7 @@ static int swManager_loop(swServer *serv) {
     SwooleTG.reactor = nullptr;
     SwooleG.enable_coroutine = 0;
 
-    ManagerProcess.reload_workers = (swWorker *) sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(swWorker));
+    ManagerProcess.reload_workers = (Worker *) sw_calloc(serv->worker_num + serv->task_worker_num, sizeof(Worker));
     if (ManagerProcess.reload_workers == nullptr) {
         swError("malloc[reload_workers] failed");
         return SW_ERR;
@@ -272,7 +272,7 @@ static int swManager_loop(swServer *serv) {
                 if (msg.worker_id >= serv->worker_num) {
                     serv->spawn_task_worker(serv->get_worker(msg.worker_id));
                 } else {
-                    swWorker *worker = serv->get_worker(msg.worker_id);
+                    Worker *worker = serv->get_worker(msg.worker_id);
                     pid_t new_pid = serv->spawn_event_worker(worker);
                     if (new_pid > 0) {
                         worker->pid = new_pid;
@@ -303,7 +303,7 @@ static int swManager_loop(swServer *serv) {
                 }
                 if (!ManagerProcess.reload_init) {
                     ManagerProcess.reload_init = true;
-                    memcpy(ManagerProcess.reload_workers, serv->workers, sizeof(swWorker) * serv->worker_num);
+                    memcpy(ManagerProcess.reload_workers, serv->workers, sizeof(Worker) * serv->worker_num);
 
                     swManager_add_timeout_killer(serv, serv->workers, serv->worker_num);
 
@@ -311,7 +311,7 @@ static int swManager_loop(swServer *serv) {
                     if (serv->task_worker_num > 0) {
                         memcpy(ManagerProcess.reload_workers + serv->worker_num,
                                serv->gs->task_workers.workers,
-                               sizeof(swWorker) * serv->task_worker_num);
+                               sizeof(Worker) * serv->task_worker_num);
                         ManagerProcess.reload_worker_num += serv->task_worker_num;
 
                         swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
@@ -345,7 +345,7 @@ static int swManager_loop(swServer *serv) {
                 if (!ManagerProcess.reload_init) {
                     memcpy(ManagerProcess.reload_workers,
                            serv->gs->task_workers.workers,
-                           sizeof(swWorker) * serv->task_worker_num);
+                           sizeof(Worker) * serv->task_worker_num);
                     swManager_add_timeout_killer(serv, serv->gs->task_workers.workers, serv->task_worker_num);
                     ManagerProcess.reload_worker_num = serv->task_worker_num;
                     ManagerProcess.reload_worker_i = 0;
@@ -369,7 +369,7 @@ static int swManager_loop(swServer *serv) {
                 serv->check_worker_exit_status(i, pid, status);
 
                 while (1) {
-                    swWorker *worker = serv->get_worker(i);
+                    Worker *worker = serv->get_worker(i);
                     new_pid = serv->spawn_event_worker(worker);
                     if (new_pid < 0) {
                         SW_START_SLEEP;
@@ -513,8 +513,8 @@ static void swManager_signal_handler(int sig) {
  * @return: success returns pid, failure returns SW_ERR.
  */
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status) {
-    swServer *serv = (swServer *) pool->ptr;
-    swWorker *exit_worker = nullptr;
+    Server *serv = (Server *) pool->ptr;
+    Worker *exit_worker = nullptr;
     int worker_type;
 
     do {
@@ -610,7 +610,7 @@ void Server::kill_task_workers() {
     gs->task_workers.shutdown();
 }
 
-pid_t Server::spawn_event_worker(swWorker *worker) {
+pid_t Server::spawn_event_worker(Worker *worker) {
     pid_t pid;
 
     pid = swoole_fork(0);
@@ -630,7 +630,7 @@ pid_t Server::spawn_event_worker(swWorker *worker) {
     }
 }
 
-pid_t Server::spawn_user_worker(swWorker *worker) {
+pid_t Server::spawn_user_worker(Worker *worker) {
     pid_t pid = swoole_fork(0);
 
     if (pid < 0) {
@@ -665,6 +665,6 @@ pid_t Server::spawn_user_worker(swWorker *worker) {
     }
 }
 
-pid_t Server::spawn_task_worker(swWorker *worker) {
+pid_t Server::spawn_task_worker(Worker *worker) {
     return gs->task_workers.spawn(worker);
 }
