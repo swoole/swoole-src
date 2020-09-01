@@ -44,7 +44,7 @@ bool PHPCoroutine::active = false;
 
 swoole::coroutine::Config PHPCoroutine::config = {
     SW_DEFAULT_MAX_CORO_NUM,
-    SW_HOOK_ALL,
+    SW_HOOK_NONE,
     false,
 };
 

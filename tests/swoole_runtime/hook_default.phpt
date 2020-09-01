@@ -9,7 +9,7 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 
 Co\run(function () {
-    Assert::eq(Swoole\Runtime::getHookFlags(), SWOOLE_HOOK_ALL);
+    Assert::eq(Swoole\Runtime::getHookFlags(), 0);
 });
 
 ?>
