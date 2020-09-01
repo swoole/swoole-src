@@ -6,7 +6,9 @@ swoole_coroutine_util: fgets
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-go(function () {
+Co::set(['hook_flags' => 0]);
+
+Co\run(function () {
     $file = __DIR__ . '/../../examples/server.php';
 
     $coroutine = '';

@@ -22,7 +22,8 @@ $pm->childFunc = function () use ($pm,$atomic) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         "worker_num" => 2,
-        "max_wait_time" => 1
+        "max_wait_time" => 1,
+        'enable_coroutine' => false,
     ]);
     $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
         $pm->wakeup();        

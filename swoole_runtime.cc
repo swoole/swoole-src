@@ -964,7 +964,7 @@ static php_stream *socket_create(const char *proto,
     return stream;
 }
 
-bool PHPCoroutine::enable_hook(int flags) {
+bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (!hook_init) {
         HashTable *xport_hash = php_stream_xport_get_hash();
         // php_stream
@@ -1164,7 +1164,6 @@ bool PHPCoroutine::disable_hook() {
 
 static PHP_METHOD(swoole_runtime, enableCoroutine) {
     zval *zflags = nullptr;
-    /*TODO:[v4.6] enable SW_HOOK_CURL by default after curl handler completed */
     zend_long flags = SW_HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(0, 2)
@@ -1192,6 +1191,7 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
         }
     }
 
+    PHPCoroutine::set_hook_flags(flags);
     RETURN_BOOL(PHPCoroutine::enable_hook(flags));
 }
 
@@ -1206,6 +1206,7 @@ static PHP_METHOD(swoole_runtime, setHookFlags) {
     Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    PHPCoroutine::set_hook_flags(flags);
     RETURN_BOOL(PHPCoroutine::enable_hook(flags));
 }
 

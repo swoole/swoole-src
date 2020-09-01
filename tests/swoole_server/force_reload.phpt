@@ -41,6 +41,7 @@ $pm->childFunc = function () use ($pm, $atomic) {
     $server->set([
         'worker_num' => WORKER_NUM,
         'max_wait_time' => 1,
+        'enable_coroutine' => false,
     ]);
     $server->on('workerStart', function (Swoole\Server $server, $worker_id) use ($pm, $atomic) {
         echo "$worker_id [" . $server->worker_pid . "] start\n";

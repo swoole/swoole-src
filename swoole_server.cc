@@ -2187,7 +2187,7 @@ static PHP_METHOD(swoole_server, set) {
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
-        PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
+        PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp)) {
         serv->send_timeout = zval_get_double(ztmp);

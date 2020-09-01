@@ -156,10 +156,10 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
-        PHPCoroutine::config.hook_flags = zval_get_long(ztmp);
+        PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "enable_preemptive_scheduler", ztmp)) {
-        PHPCoroutine::config.enable_preemptive_scheduler = zval_is_true(ztmp);
+        PHPCoroutine::enable_preemptive_scheduler(zval_is_true(ztmp));
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
         Coroutine::set_stack_size(zval_get_long(ztmp));
