@@ -1666,7 +1666,7 @@ bool http_client::close(const bool should_be_reset)
             websocket_compression = false;
 #endif
             if (tmp_write_buffer) {
-                delete tmp_write_buffer;
+                sw_free(tmp_write_buffer);
             }
             tmp_write_buffer = socket->pop_write_buffer();
             socket = nullptr;
@@ -1685,7 +1685,7 @@ http_client::~http_client()
         delete body;
     }
     if (tmp_write_buffer) {
-        delete tmp_write_buffer;
+        sw_free(tmp_write_buffer);
     }
 }
 
