@@ -41,7 +41,7 @@ static size_t Server_worker_get_packet(Server *serv, swEventData *req, char **da
 void Server::disable_accept() {
     enable_accept_timer = swoole_timer_add(
         SW_ACCEPT_RETRY_TIME * 1000,
-        0,
+        false,
         [](swTimer *timer, swTimer_node *tnode) {
             Server *serv = (Server *) tnode->data;
             for (auto port : serv->ports) {
