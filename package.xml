@@ -43,7 +43,7 @@
         <active>yes</active>
     </developer>
     <date>2020-09-01</date>
-    <time>14:00:00</time>
+    <time>20:00:00</time>
     <version>
         <release>4.4.20</release>
         <api>4.0</api>
@@ -54,11 +54,19 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Notice: v4.4.x is no longer the main maintenance branch, bug fixes only when necessary
-
         Fixed
         ---
-        * Merged all the bugfix patches from v4.5.x
+        * Fixed Swoole\Server::close throw a error when set dispatch_func (#3365) (@twose)
+        * Fixed format_buffer init problem when use Swoole\Redis\Server::format (#3369) (@matyhtf) (@twose)
+        * Fixed get mac address in OSX (#3372) (@twose)
+        * Fixed mysql test case (#3374) (@qiqizjl)
+        * Fixed the server could not be stopped during the WorkerStart phase (#3382) (@huanghantao)
+        * Fixed missing MySQL transaction error, update the test (#3429) (@twose)
+        * Fixed fix HTTP Client download filename bug, double free memory (#3489) (@Yurunsoft)
+        * Fixed Coroutine\Http\Client->getHeaderOut coredump (#3534) (@matyhtf)
+        * Fixed fix HTTP header/cookie injection when use CRLF (#3539) (#3541) (#3545) (chromium1337) (@huanghantao)
+        * Fixed set coroutine websocket server frame->fd (#3549) (@huanghantao)
+        * Fixed hook phpredis read error on connection (#3579) (@twose)
     </notes>
     <contents>
         <dir name="/">
