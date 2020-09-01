@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-05-28</date>
-    <time>15:00:00</time>
+    <date>2020-09-01</date>
+    <time>20:00:00</time>
     <version>
-        <release>4.4.19</release>
+        <release>4.4.20</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,11 +54,19 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Notice: v4.4.x is no longer the main maintenance branch, bug fixes only when necessary
-
         Fixed
         ---
-        * Merged all the bugfix patches from v4.5.x
+        * Fixed Swoole\Server::close throw a error when set dispatch_func (#3365) (@twose)
+        * Fixed format_buffer init problem when use Swoole\Redis\Server::format (#3369) (@matyhtf) (@twose)
+        * Fixed get mac address in OSX (#3372) (@twose)
+        * Fixed mysql test case (#3374) (@qiqizjl)
+        * Fixed the server could not be stopped during the WorkerStart phase (#3382) (@huanghantao)
+        * Fixed missing MySQL transaction error, update the test (#3429) (@twose)
+        * Fixed fix HTTP Client download filename bug, double free memory (#3489) (@Yurunsoft)
+        * Fixed Coroutine\Http\Client->getHeaderOut coredump (#3534) (@matyhtf)
+        * Fixed fix HTTP header/cookie injection when use CRLF (#3539) (#3541) (#3545) (chromium1337) (@huanghantao)
+        * Fixed set coroutine websocket server frame->fd (#3549) (@huanghantao)
+        * Fixed hook phpredis read error on connection (#3579) (@twose)
     </notes>
     <contents>
         <dir name="/">
@@ -1039,8 +1047,10 @@
             <file role="test" name="tests/swoole_http_client_coro/disable_keep_alive.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/download.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/download_302.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/download_filename_bug.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/error_handler.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/get.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/get_header_out_after_close.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/get_twice.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/get_twice_keepalive.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/get_without_content_length.phpt" />
@@ -1049,7 +1059,9 @@
             <file role="test" name="tests/swoole_http_client_coro/host.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy_443.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/http_upload_big.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/https.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/https_upload_big.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/issue_2664.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/keep_alive.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/long_domain.phpt" />
@@ -1068,7 +1080,6 @@
             <file role="test" name="tests/swoole_http_client_coro/timeout_when_recv.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/unixsocket.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/upload.phpt" />
-            <file role="test" name="tests/swoole_http_client_coro/upload_big.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/upload_huge.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/upload_with_null_args.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket.phpt" />
@@ -1141,6 +1152,8 @@
             <file role="test" name="tests/swoole_http_server_coro/bug_2682.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_3025.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/check_cookie_crlf.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/check_http_header_crlf.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/http2.phpt" />
@@ -1496,12 +1509,12 @@
             <file role="test" name="tests/swoole_server/slow_client.phpt" />
             <file role="test" name="tests/swoole_server/ssl/00.phpt" />
             <file role="test" name="tests/swoole_server/ssl/bad_client.phpt" />
-            <file role="test" name="tests/swoole_server/ssl/golang.phpt" />
             <file role="test" name="tests/swoole_server/ssl/verify_01.phpt" />
             <file role="test" name="tests/swoole_server/ssl/verify_02.phpt" />
             <file role="test" name="tests/swoole_server/ssl/verify_03.phpt" />
             <file role="test" name="tests/swoole_server/stats.phpt" />
             <file role="test" name="tests/swoole_server/stop.phpt" />
+            <file role="test" name="tests/swoole_server/stop_in_workerStart.phpt" />
             <file role="test" name="tests/swoole_server/task/base.phpt" />
             <file role="test" name="tests/swoole_server/task/bug_2585.phpt" />
             <file role="test" name="tests/swoole_server/task/callback_is_null.phpt" />
