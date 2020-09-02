@@ -718,7 +718,6 @@
             <file role="src" name="swoole_http.h" />
             <file role="src" name="swoole_http2_client_coro.cc" />
             <file role="src" name="swoole_http2_server.cc" />
-            <file role="src" name="swoole_http_client.h" />
             <file role="src" name="swoole_http_client_coro.cc" />
             <file role="src" name="swoole_http_request.cc" />
             <file role="src" name="swoole_http_response.cc" />
