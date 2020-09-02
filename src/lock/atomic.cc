@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "lock.h"
+#include "swoole_lock.h"
 
 static int swAtomicLock_lock(swLock *lock);
 static int swAtomicLock_unlock(swLock *lock);

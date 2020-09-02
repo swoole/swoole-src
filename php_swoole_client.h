@@ -18,24 +18,10 @@
 
 #pragma once
 
-#include "swoole_server.h"
-#include "swoole_http.h"
-#include "http.h"
-#include "websocket.h"
+#include "php_swoole_cxx.h"
+#include "swoole_client.h"
 
-int swoole_websocket_onMessage(swServer *serv, swRecvData *req);
-int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, swoole::http::Context *ctx);
-void swoole_websocket_onOpen(swoole::http::Context *ctx);
-void swoole_websocket_onRequest(swoole::http::Context *ctx);
-bool swoole_websocket_handshake(swoole::http::Context *ctx);
-
-void swoole_http_server_init_context(swServer *serv, swoole::http::Context *ctx);
-
-#ifdef SW_USE_HTTP2
-
-int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swRecvData *req);
-int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
-void swoole_http2_server_session_free(swConnection *conn);
-int swoole_http2_server_ping(swoole::http::Context *ctx);
-
+void php_swoole_client_check_setting(swClient *cli, zval *zset);
+#ifdef SW_USE_OPENSSL
+void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
 #endif

@@ -18,7 +18,7 @@
 
 #include "swoole.h"
 #include "swoole_socket.h"
-#include "http2.h"
+#include "swoole_http2.h"
 
 int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *_socket) {
     char setting_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE * 3];

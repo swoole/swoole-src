@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-#include "buffer.h"
+#include "swoole_buffer.h"
 
 #ifndef SOCK_NONBLOCK
 #define SOCK_NONBLOCK O_NONBLOCK

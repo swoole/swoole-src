@@ -19,7 +19,7 @@
 
 #include "php_swoole_cxx.h"
 
-#include "coroutine_channel.h"
+#include "swoole_coroutine_channel.h"
 
 using swoole::coroutine::Channel;
 

@@ -21,7 +21,7 @@
 #include "swoole_reactor.h"
 #include "swoole_log.h"
 #include "swoole_protocol.h"
-#include "client.h"
+#include "swoole_client.h"
 
 namespace swoole {
 namespace network {

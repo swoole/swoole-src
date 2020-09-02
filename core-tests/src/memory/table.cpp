@@ -18,7 +18,7 @@
 */
 
 #include "test_core.h"
-#include "table.h"
+#include "swoole_table.h"
 
 #include <exception>
 

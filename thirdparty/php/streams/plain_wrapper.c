@@ -46,7 +46,7 @@
 # include "win32/readdir.h"
 #endif
 
-#include "file_hook.h"
+#include "swoole_file_hook.h"
 
 #if !defined(WINDOWS) && !defined(NETWARE)
 extern int php_get_uid_by_name(const char *name, uid_t *uid);

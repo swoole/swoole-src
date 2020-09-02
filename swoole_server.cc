@@ -14,9 +14,9 @@
   +----------------------------------------------------------------------+
  */
 
-#include "swoole_server.h"
-#include "swoole_process.h"
-#include "msg_queue.h"
+#include "php_swoole_server.h"
+#include "php_swoole_process.h"
+#include "swoole_msg_queue.h"
 
 #include "ext/standard/php_var.h"
 #include "zend_smart_str.h"

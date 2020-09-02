@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "server.h"
+#include "swoole_server.h"
 #include "swoole_memory.h"
 
 using namespace swoole;

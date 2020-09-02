@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "swoole.h"
-#include "pipe.h"
+#include "swoole_pipe.h"
 #include "swoole_log.h"
 
 static ssize_t swPipeUnsock_read(swPipe *p, void *data, size_t length);

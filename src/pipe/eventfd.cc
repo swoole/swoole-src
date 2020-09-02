@@ -17,7 +17,7 @@
 #include <memory>
 
 #include "swoole.h"
-#include "pipe.h"
+#include "swoole_pipe.h"
 #include "swoole_log.h"
 
 #ifdef HAVE_EVENTFD

@@ -14,13 +14,13 @@
  +----------------------------------------------------------------------+
  */
 
-#include "server.h"
+#include "swoole_server.h"
 #include "swoole_memory.h"
-#include "thread_pool.h"
-#include "hash.h"
-#include "http.h"
-#include "client.h"
-#include "websocket.h"
+#include "swoole_thread_pool.h"
+#include "swoole_hash.h"
+#include "swoole_http.h"
+#include "swoole_client.h"
+#include "swoole_websocket.h"
 
 #include <assert.h>
 

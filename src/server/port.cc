@@ -14,11 +14,11 @@
   +----------------------------------------------------------------------+
 */
 
-#include "server.h"
-#include "http.h"
-#include "http2.h"
-#include "websocket.h"
-#include "mqtt.h"
+#include "swoole_server.h"
+#include "swoole_http.h"
+#include "swoole_http2.h"
+#include "swoole_websocket.h"
+#include "swoole_mqtt.h"
 #include "swoole_redis.h"
 
 using swoole::http_server::Request;

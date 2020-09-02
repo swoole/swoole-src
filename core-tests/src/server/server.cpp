@@ -19,8 +19,8 @@
 
 #include "test_core.h"
 #include "swoole_memory.h"
-#include "lock.h"
-#include "wrapper/client.hpp"
+#include "swoole_lock.h"
+#include "wrapper/swoole_client.hpp"
 #include "swoole_log.h"
 
 using namespace std;

@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "base64.h"
+#include "swoole_base64.h"
 
 // clang-format off
 

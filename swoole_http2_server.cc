@@ -14,12 +14,11 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_http_server.h"
+#include "php_swoole_http_server.h"
 
 #ifdef SW_USE_HTTP2
 
-#include "static_handler.h"
-#include "http2.h"
+#include "swoole_static_handler.h"
 
 #include "main/php_variables.h"
 

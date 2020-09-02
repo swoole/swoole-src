@@ -20,8 +20,8 @@
 #include "test_core.h"
 #include "httplib_client.h"
 #include "llhttp.h"
-#include "http.h"
-#include "wrapper/client.hpp"
+#include "swoole_http.h"
+#include "wrapper/swoole_client.hpp"
 #include "swoole_log.h"
 
 using namespace swoole;

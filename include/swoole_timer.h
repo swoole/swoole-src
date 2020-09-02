@@ -18,7 +18,7 @@
 #pragma once
 
 #include "swoole.h"
-#include "heap.h"
+#include "swoole_heap.h"
 #include "swoole_reactor.h"
 
 #include <unordered_map>

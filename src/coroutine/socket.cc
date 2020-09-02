@@ -17,16 +17,16 @@
   +----------------------------------------------------------------------+
 */
 
-#include "coroutine_socket.h"
+#include "swoole_coroutine_socket.h"
 
 #include <string>
 #include <iostream>
 
 #include "swoole_util.h"
 #include "swoole_socket.h"
-#include "coroutine_system.h"
-#include "buffer.h"
-#include "base64.h"
+#include "swoole_coroutine_system.h"
+#include "swoole_buffer.h"
+#include "swoole_base64.h"
 
 using namespace std;
 

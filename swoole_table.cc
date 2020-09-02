@@ -16,7 +16,7 @@
 
 #include "php_swoole_cxx.h"
 
-#include "table.h"
+#include "swoole_table.h"
 
 static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, zval *return_value) {
     array_init(return_value);

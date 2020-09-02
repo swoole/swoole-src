@@ -18,11 +18,11 @@
 #pragma once
 
 #include "swoole_api.h"
-#include "coroutine.h"
+#include "swoole_coroutine.h"
 #include "swoole_protocol.h"
 #include "swoole_log.h"
-#include "ssl.h"
-#include "proxy.h"
+#include "swoole_ssl.h"
+#include "swoole_proxy.h"
 
 #include <vector>
 
@@ -550,3 +550,5 @@ std::vector<std::string> dns_lookup(const char *domain, double timeout = 2.0);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole
+
+swoole::coroutine::Socket *swoole_coroutine_get_socket_object(int sockfd);

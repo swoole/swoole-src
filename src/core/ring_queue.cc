@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "ring_queue.h"
+#include "swoole_ring_queue.h"
 
 #include <stdio.h>
 

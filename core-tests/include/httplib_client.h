@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "websocket.h"
+#include "swoole_websocket.h"
 
 /*
  * Configuration

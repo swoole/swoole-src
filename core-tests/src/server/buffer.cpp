@@ -18,7 +18,7 @@
 */
 
 #include "test_core.h"
-#include "wrapper/client.hpp"
+#include "wrapper/swoole_client.hpp"
 #include "swoole_log.h"
 
 using namespace std;

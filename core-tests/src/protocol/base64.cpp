@@ -18,7 +18,7 @@
 */
 
 #include "test_core.h"
-#include "base64.h"
+#include "swoole_base64.h"
 
 TEST(base64, encode) {
     char inbuf[1024];

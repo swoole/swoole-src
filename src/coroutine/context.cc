@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "coroutine_context.h"
+#include "swoole_coroutine_context.h"
 #include "swoole_log.h"
 
 #if __linux__

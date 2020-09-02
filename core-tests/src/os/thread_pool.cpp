@@ -1,6 +1,6 @@
 #ifndef __MACH__
 #include "test_core.h"
-#include "thread_pool.h"
+#include "swoole_thread_pool.h"
 
 #include <sys/eventfd.h>
 

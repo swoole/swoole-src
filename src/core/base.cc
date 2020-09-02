@@ -44,9 +44,9 @@
 #include "swoole_protocol.h"
 #include "swoole_util.h"
 #include "swoole_log.h"
-#include "atomic.h"
+#include "swoole_atomic.h"
 #include "swoole_async.h"
-#include "coroutine_c_api.h"
+#include "swoole_coroutine_c_api.h"
 
 using swoole::String;
 

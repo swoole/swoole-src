@@ -17,7 +17,7 @@
  */
 
 #include "thirdparty/php/standard/proc_open.h"
-#include "coroutine_c_api.h"
+#include "swoole_coroutine_c_api.h"
 
 using namespace std;
 using swoole::coroutine::Socket;

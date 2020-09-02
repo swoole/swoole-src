@@ -15,9 +15,8 @@
 */
 
 #include "php_swoole_cxx.h"
-
-#include "client.h"
-#include "mqtt.h"
+#include "php_swoole_client.h"
+#include "swoole_mqtt.h"
 
 #include <string>
 #include <queue>
@@ -54,6 +53,9 @@ struct ClientObject {
     ClientCallback *cb;
     zend_object std;
 };
+
+static void php_swoole_client_free(zval *zobject, Client *cli);
+static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
 
 static sw_inline ClientObject *php_swoole_client_fetch_object(zend_object *obj) {
     return (ClientObject *) ((char *) obj - swoole_client_handlers.offset);
@@ -632,7 +634,7 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const ch
     return ret;
 }
 
-Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port) {
+static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port) {
     zval *ztype;
     uint64_t tmp_buf;
     int ret;

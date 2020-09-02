@@ -15,13 +15,14 @@
 */
 
 #include "php_swoole_cxx.h"
-#include "swoole_http.h"
+#include "php_swoole_http.h"
+
 #include "swoole_util.h"
 
 #ifdef SW_USE_HTTP2
 
-#include "http.h"
-#include "http2.h"
+#include "swoole_http.h"
+#include "swoole_http2.h"
 
 #define HTTP2_CLIENT_HOST_HEADER_INDEX 3
 

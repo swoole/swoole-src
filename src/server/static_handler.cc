@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "static_handler.h"
+#include "swoole_static_handler.h"
 
 #include <string>
 #include <dirent.h>

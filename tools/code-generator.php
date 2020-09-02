@@ -4,7 +4,7 @@ require __DIR__ . '/bootstrap.php';
 
 $swoole_c = ROOT_DIR . '/php_swoole.cc';
 $swoole_c_content = file_get_contents($swoole_c);
-$error_h = ROOT_DIR . '/include/error.h';
+$error_h = ROOT_DIR . '/include/swoole_error.h';
 $error_h_content = file_get_contents($error_h);
 
 if (!preg_match_all('/SW_ERROR_[0-9A-Z_]+/', $error_h_content, $matches, PREG_PATTERN_ORDER) || empty($matches[0])) {

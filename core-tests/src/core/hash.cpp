@@ -18,7 +18,7 @@
 */
 
 #include "test_core.h"
-#include "hash.h"
+#include "swoole_hash.h"
 
 static const char *data = "hello world, PHP  the best.";
 

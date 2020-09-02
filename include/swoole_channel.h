@@ -19,8 +19,59 @@
 
 #pragma once
 
-#include "coroutine.h"
-#include "coroutine_system.h"
-#include "coroutine_socket.h"
+#include "swoole.h"
+#include "swoole_lock.h"
 
-swoole::coroutine::Socket *swoole_coroutine_get_socket_object(int sockfd);
+namespace swoole {
+
+enum Channel_flag {
+    SW_CHAN_LOCK = 1u << 1,
+    SW_CHAN_NOTIFY = 1u << 2,
+    SW_CHAN_SHM = 1u << 3,
+};
+
+struct Channel {
+    off_t head;
+    off_t tail;
+    size_t size;
+    char head_tag;
+    char tail_tag;
+    int num;
+    int max_num;
+    /**
+     * Data length, excluding structure
+     */
+    size_t bytes;
+    int flags;
+    int maxlen;
+    /**
+     * memory point
+     */
+    void *mem;
+    swLock lock;
+    swPipe *notify_pipe;
+
+    inline bool empty() {
+        return num == 0;
+    }
+    inline bool full() {
+        return ((head == tail && tail_tag != head_tag) || (bytes + sizeof(int) * num == size));
+    }
+    int pop(void *out_buf, int buffer_length);
+    int push(const void *in_data, int data_length);
+    int out(void *out_buf, int buffer_length);
+    int in(const void *in_data, int data_length);
+    int peek(void *out, int buffer_length);
+    int wait();
+    int notify();
+    void destroy();
+    void print();
+    inline int count() {
+        return num;
+    }
+    inline int get_bytes() {
+        return bytes;
+    }
+    static Channel *make(size_t size, size_t maxlen, int flags);
+};
+}  // namespace swoole

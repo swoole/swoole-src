@@ -18,7 +18,7 @@
 #pragma once
 
 #include "swoole.h"
-#include "error.h"
+#include "swoole_error.h"
 
 #ifdef SW_USE_THREAD_CONTEXT
 #include <thread>
@@ -28,7 +28,7 @@
 #include <ucontext.h>
 #else
 #define USE_ASM_CONTEXT 1
-#include "asm_context.h"
+#include "swoole_asm_context.h"
 #endif
 
 #if defined(HAVE_VALGRIND) && !defined(HAVE_KQUEUE)

@@ -21,8 +21,8 @@
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "swoole_protocol.h"
-#include "proxy.h"
-#include "ssl.h"
+#include "swoole_proxy.h"
+#include "swoole_ssl.h"
 
 #define SW_HTTPS_PROXY_HANDSHAKE_RESPONSE "HTTP/1.1 200 Connection established"
 

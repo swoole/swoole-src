@@ -20,7 +20,7 @@
 #include <string>
 #include <map>
 
-#include "server.h"
+#include "swoole_server.h"
 
 namespace swoole {
 namespace wrapper {

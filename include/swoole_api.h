@@ -19,7 +19,7 @@
 #pragma once
 
 #include "swoole.h"
-#include "coroutine_c_api.h"
+#include "swoole_coroutine_c_api.h"
 
 enum swEvent_init_flags {
     SW_EVENTLOOP_WAIT_EXIT = 1,

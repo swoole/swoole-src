@@ -43,7 +43,7 @@
 #include "net.h"
 #include "sds.h"
 
-#include "socket_hook.h"
+#include "swoole_socket_hook.h"
 
 static redisReply *createReplyObject(int type);
 static void *createStringObject(const redisReadTask *task, char *str, size_t len);

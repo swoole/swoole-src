@@ -18,7 +18,7 @@
 */
 
 #include "test_core.h"
-#include "msg_queue.h"
+#include "swoole_msg_queue.h"
 
 TEST(msg_queue, rbac) {
     swMsgQueue q;
