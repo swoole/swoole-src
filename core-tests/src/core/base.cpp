@@ -118,6 +118,5 @@ TEST(base, eventdata_pack) {
 
     String _buffer(SW_BUFFER_SIZE_BIG);
     ASSERT_TRUE(ed2.unpack(&_buffer));
-    ASSERT_EQ(memcmp(SwooleTG.buffer_stack->str, _buffer.str, _buffer.length), 0);
-    ASSERT_EQ(_buffer.to_std_string(), SwooleTG.buffer_stack->to_std_string());
+    ASSERT_EQ(memcmp(SwooleTG.buffer_stack->str, _buffer.str, SW_BUFFER_SIZE_BIG), 0);
 }
