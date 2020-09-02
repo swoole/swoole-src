@@ -15,6 +15,7 @@
 */
 #include "php_swoole_cxx.h"
 #include "php_swoole_library.h"
+#include "php_swoole_process.h"
 
 #if (HAVE_PCRE || HAVE_BUNDLED_PCRE) && !defined(COMPILE_DL_PCRE)
 #include "ext/pcre/php_pcre.h"
@@ -22,9 +23,8 @@
 #include "zend_exceptions.h"
 
 #include "mime_type.h"
-#include "server.h"
-#include "client.h"
-#include "swoole_process.h"
+#include "swoole_server.h"
+#include "swoole_client.h"
 #include "swoole_util.h"
 #include "swoole_log.h"
 

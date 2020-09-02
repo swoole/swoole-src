@@ -18,8 +18,8 @@
 #include "php_streams.h"
 #include "php_network.h"
 
-#include "swoole_process.h"
-#include "server.h"
+#include "php_swoole_process.h"
+#include "swoole_server.h"
 #include "msg_queue.h"
 #include "swoole_signal.h"
 

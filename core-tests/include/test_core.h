@@ -1,8 +1,8 @@
 #pragma once
 
 #include "swoole_api.h"
-#include "client.h"
-#include "server.h"
+#include "swoole_client.h"
+#include "swoole_server.h"
 
 #include <gtest/gtest.h>
 

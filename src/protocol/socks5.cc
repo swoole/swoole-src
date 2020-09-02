@@ -17,7 +17,7 @@
  */
 
 #include "swoole.h"
-#include "client.h"
+#include "swoole_client.h"
 #include "swoole_log.h"
 
 const char *swSocks5_strerror(int code) {

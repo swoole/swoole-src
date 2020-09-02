@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "server.h"
+#include "swoole_server.h"
 #include "swoole_util.h"
 
 using swoole::Server;

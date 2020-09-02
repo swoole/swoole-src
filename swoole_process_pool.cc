@@ -15,9 +15,9 @@
 */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_process.h"
 
-#include "server.h"
-#include "swoole_process.h"
+#include "swoole_server.h"
 #include "swoole_signal.h"
 
 using namespace swoole;

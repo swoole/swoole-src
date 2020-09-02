@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "server.h"
+#include "swoole_server.h"
 #include "swoole_log.h"
 
 #include <unordered_map>

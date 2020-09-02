@@ -18,9 +18,9 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "php_swoole_coroutine_system.h"
 
-#include "server.h"
-#include "swoole_coroutine_system.h"
+#include "swoole_server.h"
 #include "swoole_signal.h"
 
 #include "zend_builtin_functions.h"

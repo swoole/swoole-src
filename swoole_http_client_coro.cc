@@ -18,9 +18,9 @@
  */
 
 #include "php_swoole_cxx.h"
-#include "coroutine_c_api.h"
+#include "php_swoole_http.h"
+
 #include "swoole_util.h"
-#include "swoole_http.h"
 #include "websocket.h"
 
 SW_EXTERN_C_BEGIN

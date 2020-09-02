@@ -17,7 +17,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole_mysql_proto.h"
+#include "php_swoole_mysql_proto.h"
 
 using namespace swoole::mysql;
 

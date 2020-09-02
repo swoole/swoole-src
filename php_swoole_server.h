@@ -19,7 +19,7 @@
 #pragma once
 
 #include "php_swoole_cxx.h"
-#include "server.h"
+#include "swoole_server.h"
 
 //--------------------------------------------------------
 enum php_swoole_server_callback_type {

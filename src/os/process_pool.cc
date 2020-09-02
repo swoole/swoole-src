@@ -22,9 +22,9 @@
 #include "swoole_log.h"
 #include "msg_queue.h"
 #include "pipe.h"
-#include "server.h"
+#include "swoole_server.h"
 #include "process_pool.h"
-#include "client.h"
+#include "swoole_client.h"
 
 using swoole::ProcessPool;
 using swoole::network::Stream;

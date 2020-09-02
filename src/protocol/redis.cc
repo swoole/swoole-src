@@ -21,7 +21,7 @@
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
 #include "swoole_redis.h"
-#include "server.h"
+#include "swoole_server.h"
 
 struct swRedis_request {
     uint8_t state;

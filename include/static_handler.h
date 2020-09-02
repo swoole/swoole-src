@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "server.h"
+#include "swoole_server.h"
 #include "http.h"
 #include "mime_type.h"
 

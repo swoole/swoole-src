@@ -22,7 +22,7 @@
 #include "swoole_timer.h"
 #include "swoole_protocol.h"
 #include "swoole_log.h"
-#include "client.h"
+#include "swoole_client.h"
 #include "proxy.h"
 #include "swoole_async.h"
 

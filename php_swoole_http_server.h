@@ -18,12 +18,25 @@
 
 #pragma once
 
-#include "php_swoole_cxx.h"
-#include "client.h"
+#include "php_swoole_server.h"
+#include "php_swoole_http.h"
 
-void php_swoole_client_free(zval *zobject, swClient *cli);
-swClient *php_swoole_client_new(zval *zobject, char *host, int host_len, int port);
-void php_swoole_client_check_setting(swClient *cli, zval *zset);
-#ifdef SW_USE_OPENSSL
-void php_swoole_client_check_ssl_setting(swClient *cli, zval *zset);
+#include "http.h"
+#include "websocket.h"
+
+int swoole_websocket_onMessage(swServer *serv, swRecvData *req);
+int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, swoole::http::Context *ctx);
+void swoole_websocket_onOpen(swoole::http::Context *ctx);
+void swoole_websocket_onRequest(swoole::http::Context *ctx);
+bool swoole_websocket_handshake(swoole::http::Context *ctx);
+
+void swoole_http_server_init_context(swServer *serv, swoole::http::Context *ctx);
+
+#ifdef SW_USE_HTTP2
+
+int swoole_http2_server_onFrame(swServer *serv, swConnection *conn, swRecvData *req);
+int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
+void swoole_http2_server_session_free(swConnection *conn);
+int swoole_http2_server_ping(swoole::http::Context *ctx);
+
 #endif

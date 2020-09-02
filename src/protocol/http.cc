@@ -15,7 +15,7 @@
  */
 
 #include "http.h"
-#include "server.h"
+#include "swoole_server.h"
 
 #include <assert.h>
 #include <stddef.h>

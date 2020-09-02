@@ -16,7 +16,7 @@
 
 #include <signal.h>
 
-#include "server.h"
+#include "swoole_server.h"
 
 struct swFactoryProcess {
     swPipe *pipes;

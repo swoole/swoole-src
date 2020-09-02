@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_http_server.h"
+#include "php_swoole_http_server.h"
 
 #include "main/rfc1867.h"
 

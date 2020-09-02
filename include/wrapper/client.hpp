@@ -16,7 +16,8 @@
 
 #pragma once
 
-#include "client.h"
+#include "swoole_client.h"
+
 #include <string>
 #include <functional>
 

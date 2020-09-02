@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_http_server.h"
+#include "php_swoole_http_server.h"
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/url.h"

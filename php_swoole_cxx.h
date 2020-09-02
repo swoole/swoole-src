@@ -17,8 +17,7 @@
 #pragma once
 
 #include "php_swoole.h"
-#include "swoole_coroutine.h"
-#include "swoole_api.h"
+#include "php_swoole_coroutine.h"
 
 #include <string>
 
