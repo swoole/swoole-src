@@ -15,8 +15,8 @@
 */
 
 #include "php_swoole_cxx.h"
-#include "proxy.h"
-#include "mqtt.h"
+#include "swoole_proxy.h"
+#include "swoole_mqtt.h"
 
 #include "ext/standard/basic_functions.h"
 

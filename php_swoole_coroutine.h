@@ -19,7 +19,9 @@
 
 #pragma once
 
-#include "coroutine_cxx_api.h"
+#include "swoole_coroutine.h"
+#include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 #include "zend_vm.h"
 #include "zend_closures.h"
 

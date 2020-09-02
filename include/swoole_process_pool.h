@@ -19,7 +19,7 @@
 
 #include "swoole.h"
 #include <signal.h>
-#include "lock.h"
+#include "swoole_lock.h"
 
 enum swWorker_status {
     SW_WORKER_BUSY = 1,

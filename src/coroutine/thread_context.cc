@@ -15,7 +15,7 @@
 */
 
 #include "swoole_api.h"
-#include "coroutine_context.h"
+#include "swoole_coroutine_context.h"
 
 #ifdef SW_USE_THREAD_CONTEXT
 

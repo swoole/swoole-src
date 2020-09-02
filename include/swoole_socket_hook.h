@@ -26,7 +26,7 @@
 extern "C" {
 #endif
 
-#include "coroutine_c_api.h"
+#include "swoole_coroutine_c_api.h"
 
 #define socket(domain, type, protocol) swoole_coroutine_socket(domain, type, protocol)
 #define send(sockfd, buf, len, flags) swoole_coroutine_send(sockfd, buf, len, flags)

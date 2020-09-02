@@ -21,7 +21,7 @@
 
 #include "swoole_api.h"
 #include "swoole_log.h"
-#include "ssl.h"
+#include "swoole_ssl.h"
 
 namespace swoole {
 namespace network {

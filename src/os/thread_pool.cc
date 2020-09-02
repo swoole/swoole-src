@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "thread_pool.h"
+#include "swoole_thread_pool.h"
 #include "swoole_signal.h"
 #include "swoole_log.h"
 

@@ -18,7 +18,7 @@
 #pragma once
 
 #include "php_swoole_cxx.h"
-#include "process_pool.h"
+#include "swoole_process_pool.h"
 
 void php_swoole_process_clean();
 int php_swoole_process_start(swWorker *process, zval *zobject);

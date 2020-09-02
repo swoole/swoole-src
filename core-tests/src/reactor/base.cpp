@@ -18,7 +18,7 @@
 */
 
 #include "test_core.h"
-#include "pipe.h"
+#include "swoole_pipe.h"
 
 TEST(reactor, create) {
     swoole_event_init(0);

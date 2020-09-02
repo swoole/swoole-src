@@ -30,7 +30,7 @@ SW_EXTERN_C_END
 #include "main/rfc1867.h"
 #include "main/php_variables.h"
 
-#include "base64.h"
+#include "swoole_base64.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
@@ -38,10 +38,6 @@ SW_EXTERN_C_END
 
 #ifdef SW_HAVE_BROTLI
 #include <brotli/encode.h>
-#endif
-
-#ifdef SW_USE_HTTP2
-#include "http2.h"
 #endif
 
 enum http_upload_errno {

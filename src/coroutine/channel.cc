@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "coroutine_channel.h"
+#include "swoole_coroutine_channel.h"
 
 #include <unordered_map>
 

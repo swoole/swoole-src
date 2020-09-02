@@ -15,7 +15,7 @@
 */
 
 #include "swoole.h"
-#include "buffer.h"
+#include "swoole_buffer.h"
 #include "swoole_log.h"
 
 /**

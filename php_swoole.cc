@@ -22,7 +22,7 @@
 #endif
 #include "zend_exceptions.h"
 
-#include "mime_type.h"
+#include "swoole_mime_type.h"
 #include "swoole_server.h"
 #include "swoole_client.h"
 #include "swoole_util.h"

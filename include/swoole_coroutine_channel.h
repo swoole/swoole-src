@@ -18,7 +18,7 @@
 #pragma once
 
 #include "swoole.h"
-#include "coroutine.h"
+#include "swoole_coroutine.h"
 
 #include <sys/stat.h>
 

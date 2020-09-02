@@ -14,8 +14,8 @@
   +----------------------------------------------------------------------+
 */
 
-#include "coroutine_system.h"
-#include "lru_cache.h"
+#include "swoole_coroutine_system.h"
+#include "swoole_lru_cache.h"
 #include "swoole_signal.h"
 
 #include <fcntl.h>

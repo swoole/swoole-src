@@ -27,7 +27,7 @@ SW_EXTERN_C_BEGIN
 #include "main/php_variables.h"
 SW_EXTERN_C_END
 
-#include "base64.h"
+#include "swoole_base64.h"
 #include "thirdparty/swoole_http_parser.h"
 
 using namespace swoole;

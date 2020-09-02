@@ -14,9 +14,9 @@
  +----------------------------------------------------------------------+
  */
 
-#include "wrapper/server.hpp"
+#include "wrapper/swoole_server.hpp"
 
-#include "lock.h"
+#include "swoole_lock.h"
 #include <sys/stat.h>
 
 using namespace std;

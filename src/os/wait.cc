@@ -16,8 +16,8 @@
 #include "swoole.h"
 #include "swoole_api.h"
 
-#include "coroutine.h"
-#include "coroutine_system.h"
+#include "swoole_coroutine.h"
+#include "swoole_coroutine_system.h"
 #include "swoole_signal.h"
 
 #include <list>

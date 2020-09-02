@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "lock.h"
+#include "swoole_lock.h"
 
 static int swMutex_lock(swLock *lock);
 static int swMutex_unlock(swLock *lock);

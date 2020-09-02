@@ -16,8 +16,6 @@
 
 #include "php_swoole_http_server.h"
 
-#include "mime_type.h"
-
 extern "C" {
 #include "ext/standard/url.h"
 #include "ext/standard/sha1.h"
@@ -29,7 +27,7 @@ extern "C" {
 #include "ext/standard/md5.h"
 }
 
-#include "base64.h"
+#include "swoole_base64.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
@@ -37,10 +35,6 @@ extern "C" {
 
 #ifdef SW_HAVE_BROTLI
 #include <brotli/encode.h>
-#endif
-
-#ifdef SW_USE_HTTP2
-#include "http2.h"
 #endif
 
 using swoole::coroutine::Socket;

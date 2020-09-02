@@ -16,7 +16,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "mime_type.h"
+#include "swoole_mime_type.h"
 
 using namespace std;
 

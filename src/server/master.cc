@@ -17,8 +17,8 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_log.h"
-#include "http.h"
-#include "lock.h"
+#include "swoole_http.h"
+#include "swoole_lock.h"
 
 #include <assert.h>
 

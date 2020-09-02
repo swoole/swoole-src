@@ -17,7 +17,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "mqtt.h"
+#include "swoole_mqtt.h"
 
 void swMqtt_print_package(swMqtt_packet *pkg) {
     printf("type=%d, length=%d\n", pkg->type, pkg->length);

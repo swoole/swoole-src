@@ -25,7 +25,7 @@
 #include "swoole_log.h"
 #include "swoole_async.h"
 
-#include "coroutine_context.h"
+#include "swoole_coroutine_context.h"
 
 #include <limits.h>
 

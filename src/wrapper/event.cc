@@ -19,9 +19,9 @@
 #include "swoole_reactor.h"
 #include "swoole_client.h"
 #include "swoole_async.h"
-#include "coroutine_c_api.h"
-#include "coroutine_socket.h"
-#include "coroutine_system.h"
+#include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 
 #include <mutex>
 #include <thread>

@@ -1,10 +1,5 @@
 #include "test_core.h"
-
-#ifdef HAVE_SWOOLE_DIR
-#include "lru_cache.h"
-#else
-#include "swoole/lru_cache.h"
-#endif
+#include "swoole_lru_cache.h"
 
 using namespace swoole;
 using namespace std;

@@ -16,7 +16,7 @@
 
 #include "php_swoole_cxx.h"
 #include "php_swoole_client.h"
-#include "mqtt.h"
+#include "swoole_mqtt.h"
 
 #include <string>
 #include <queue>

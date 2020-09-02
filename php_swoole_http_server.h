@@ -21,8 +21,13 @@
 #include "php_swoole_server.h"
 #include "php_swoole_http.h"
 
-#include "http.h"
-#include "websocket.h"
+#include "swoole_http.h"
+#include "swoole_websocket.h"
+#include "swoole_mime_type.h"
+
+#ifdef SW_USE_HTTP2
+#include "swoole_http2.h"
+#endif
 
 int swoole_websocket_onMessage(swServer *serv, swRecvData *req);
 int swoole_websocket_onHandshake(swServer *serv, swListenPort *port, swoole::http::Context *ctx);

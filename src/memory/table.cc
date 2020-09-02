@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "table.h"
+#include "swoole_table.h"
 
 //#define SW_TABLE_DEBUG 1
 #define SW_TABLE_USE_PHP_HASH

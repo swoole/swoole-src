@@ -20,7 +20,7 @@
 #include "swoole_string.h"
 #include "swoole_signal.h"
 #include "swoole_log.h"
-#include "pipe.h"
+#include "swoole_pipe.h"
 #include "swoole_async.h"
 
 #include <thread>

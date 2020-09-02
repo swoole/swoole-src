@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "coroutine_socket.h"
+#include "swoole_coroutine_socket.h"
 
 #include <mutex>
 #include <string>

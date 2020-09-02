@@ -14,7 +14,7 @@
  +----------------------------------------------------------------------+
  */
 
-#include "http.h"
+#include "swoole_http.h"
 #include "swoole_server.h"
 
 #include <assert.h>
@@ -23,9 +23,9 @@
 #include <string>
 
 #include "swoole_util.h"
-#include "http2.h"
-#include "websocket.h"
-#include "static_handler.h"
+#include "swoole_http2.h"
+#include "swoole_websocket.h"
+#include "swoole_static_handler.h"
 
 using std::string;
 using swoole::Server;

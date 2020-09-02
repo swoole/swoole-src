@@ -17,8 +17,8 @@
 #pragma once
 
 #include "swoole_server.h"
-#include "http.h"
-#include "mime_type.h"
+#include "swoole_http.h"
+#include "swoole_mime_type.h"
 
 #include <string>
 #include <set>

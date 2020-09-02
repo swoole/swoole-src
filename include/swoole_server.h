@@ -24,13 +24,13 @@
 #include "swoole_signal.h"
 #include "swoole_protocol.h"
 #include "swoole_log.h"
-#include "process_pool.h"
-#include "pipe.h"
-#include "channel.h"
-#include "ssl.h"
+#include "swoole_process_pool.h"
+#include "swoole_pipe.h"
+#include "swoole_channel.h"
+#include "swoole_ssl.h"
 
 #ifdef SW_USE_OPENSSL
-#include "dtls.h"
+#include "swoole_dtls.h"
 #endif
 
 #ifdef __MACH__

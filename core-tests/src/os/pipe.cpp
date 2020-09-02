@@ -1,5 +1,5 @@
 #include "test_core.h"
-#include "pipe.h"
+#include "swoole_pipe.h"
 
 TEST(pipe, unixsock) {
     swPipe p;

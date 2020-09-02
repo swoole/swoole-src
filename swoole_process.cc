@@ -20,7 +20,7 @@
 
 #include "php_swoole_process.h"
 #include "swoole_server.h"
-#include "msg_queue.h"
+#include "swoole_msg_queue.h"
 #include "swoole_signal.h"
 
 #include <sys/ipc.h>

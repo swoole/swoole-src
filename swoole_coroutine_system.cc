@@ -3,9 +3,6 @@
 #include "ext/standard/file.h"
 #include <sys/file.h>
 
-#include "coroutine_c_api.h"
-#include "swoole_async.h"
-
 #include <string>
 
 using namespace std;

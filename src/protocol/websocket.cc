@@ -16,7 +16,7 @@
 
 #include "swoole.h"
 #include "swoole_server.h"
-#include "websocket.h"
+#include "swoole_websocket.h"
 
 using swoole::Server;
 

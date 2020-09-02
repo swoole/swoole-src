@@ -26,7 +26,8 @@
 #include <iostream>
 #include <unordered_map>
 
-#include "coroutine_cxx_api.h"
+#include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 
 using std::unordered_map;
 using swoole::Coroutine;

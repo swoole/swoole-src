@@ -21,7 +21,7 @@
 #include "php_swoole_http.h"
 
 #include "swoole_util.h"
-#include "websocket.h"
+#include "swoole_websocket.h"
 
 SW_EXTERN_C_BEGIN
 
@@ -37,8 +37,8 @@ SW_EXTERN_C_BEGIN
 
 SW_EXTERN_C_END
 
-#include "mime_type.h"
-#include "base64.h"
+#include "swoole_mime_type.h"
+#include "swoole_base64.h"
 
 #ifdef SW_HAVE_BROTLI
 #include <brotli/decode.h>

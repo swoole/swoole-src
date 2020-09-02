@@ -15,7 +15,7 @@
  */
 
 #include "swoole.h"
-#include "heap.h"
+#include "swoole_heap.h"
 
 #define left(i) ((i) << 1)
 #define right(i) (((i) << 1) + 1)

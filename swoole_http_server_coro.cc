@@ -16,11 +16,6 @@
 
 #include "php_swoole_http_server.h"
 
-#include "http.h"
-#ifdef SW_USE_HTTP2
-#include "http2.h"
-#endif
-
 #include <string>
 #include <map>
 #include <algorithm>

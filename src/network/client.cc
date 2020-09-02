@@ -23,7 +23,7 @@
 #include "swoole_protocol.h"
 #include "swoole_log.h"
 #include "swoole_client.h"
-#include "proxy.h"
+#include "swoole_proxy.h"
 #include "swoole_async.h"
 
 #include <assert.h>

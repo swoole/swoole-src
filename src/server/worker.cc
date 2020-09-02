@@ -23,7 +23,7 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_log.h"
-#include "msg_queue.h"
+#include "swoole_msg_queue.h"
 #include "swoole_client.h"
 #include "swoole_async.h"
 

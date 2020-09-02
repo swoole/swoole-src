@@ -18,7 +18,7 @@
 */
 
 #include "swoole.h"
-#include "hash.h"
+#include "swoole_hash.h"
 
 static const int CRC32_TABLE_SIZE = 256;
 

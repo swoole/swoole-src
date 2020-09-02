@@ -18,7 +18,7 @@
 
 #include "swoole.h"
 #include "swoole_socket.h"
-#include "pipe.h"
+#include "swoole_pipe.h"
 #include "swoole_log.h"
 
 static ssize_t swPipeBase_read(swPipe *p, void *data, size_t length);

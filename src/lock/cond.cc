@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "lock.h"
+#include "swoole_lock.h"
 #include "swoole_log.h"
 
 static int swCond_notify(swCond *cond);
