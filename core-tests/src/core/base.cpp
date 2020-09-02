@@ -22,6 +22,8 @@
 using namespace swoole;
 using namespace std;
 
+static const string test_data("hello world\n");
+
 TEST(base, DataHead_dump) {
     swDataHead data = {};
     data.fd = 123;
@@ -102,4 +104,20 @@ TEST(base, file_size) {
     ASSERT_TRUE(fp);
     ASSERT_EQ(swoole_file_get_size(fp), file_size);
     fclose(fp);
+}
+
+TEST(base, eventdata_pack) {
+    swEventData ed1 { };
+
+    ASSERT_TRUE(ed1.pack(test_data.c_str(), test_data.length()));
+    ASSERT_EQ(string(ed1.data, ed1.info.len), test_data);
+
+    swEventData ed2 { };
+    ASSERT_EQ(swoole_random_bytes(SwooleTG.buffer_stack->str, SW_BUFFER_SIZE_BIG), SW_BUFFER_SIZE_BIG);
+    ASSERT_TRUE(ed2.pack(SwooleTG.buffer_stack->str, SW_BUFFER_SIZE_BIG));
+
+    String _buffer(SW_BUFFER_SIZE_BIG);
+    ASSERT_TRUE(ed2.unpack(&_buffer));
+    ASSERT_EQ(memcmp(SwooleTG.buffer_stack->str, _buffer.str, _buffer.length), 0);
+    ASSERT_EQ(_buffer.to_std_string(), SwooleTG.buffer_stack->to_std_string());
 }

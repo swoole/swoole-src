@@ -72,8 +72,7 @@ bool EventData::pack(const void *_data, size_t _length) {
         return true;
     }
 
-    swPacket_task pkg;
-    sw_memset_zero(&pkg, sizeof(pkg));
+    swPacket_task pkg {};
 
     memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
@@ -86,7 +85,7 @@ bool EventData::pack(const void *_data, size_t _length) {
     }
 
     // write to file
-    if (swoole_sync_writefile(tmp_fd, data, _length) != _length) {
+    if (swoole_sync_writefile(tmp_fd, _data, _length) != _length) {
         swWarn("write to tmpfile failed");
         return false;
     }
@@ -112,7 +111,7 @@ bool EventData::unpack(String *buffer) {
         swSysWarn("open(%s) failed", _pkg.tmpfile);
         return false;
     }
-    if (buffer->size < _pkg.length && !buffer->extend_align(_pkg.length)) {
+    if (buffer->size < _pkg.length && !buffer->extend(_pkg.length)) {
         return false;
     }
     if (swoole_sync_readfile(tmp_file_fd, buffer->str, _pkg.length) != _pkg.length) {
