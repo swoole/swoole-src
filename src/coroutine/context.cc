@@ -14,8 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole.h"
-#include "context.h"
+#include "coroutine_context.h"
 #include "swoole_log.h"
 
 #if __linux__
@@ -32,6 +31,7 @@
 #endif
 
 namespace swoole {
+namespace coroutine {
 
 Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
     : fn_(fn), stack_size_(stack_size), private_data_(private_data) {
@@ -139,6 +139,6 @@ void Context::context_func(void *arg) {
     _this->end_ = true;
     _this->swap_out();
 }
-
-};  // namespace swoole
+}  // namespace coroutine
+}  // namespace swoole
 #endif
