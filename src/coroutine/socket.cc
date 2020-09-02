@@ -1408,7 +1408,7 @@ _get_length:
     }
 
     if ((size_t) packet_len > read_buffer->size) {
-        if (swString_extend(read_buffer, packet_len) < 0) {
+        if (!read_buffer->extend(packet_len)) {
             swString_clear(read_buffer);
             set_err(ENOMEM);
             return -1;
@@ -1472,7 +1472,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
             if (new_size > protocol.package_max_length) {
                 new_size = protocol.package_max_length;
             }
-            if (swString_extend(read_buffer, new_size) < 0) {
+            if (!read_buffer->extend(new_size)) {
                 swString_clear(read_buffer);
                 set_err(ENOMEM);
                 return -1;

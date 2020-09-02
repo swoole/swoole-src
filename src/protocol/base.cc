@@ -204,7 +204,7 @@ _do_recv:
             // get length success
             else {
                 if (buffer->size < (size_t) package_length) {
-                    if (swString_extend(buffer, package_length) < 0) {
+                    if (!buffer->extend(package_length)) {
                         return SW_ERR;
                     }
                 }
@@ -298,7 +298,7 @@ _recv_data:
                 if (extend_size > package_max_length) {
                     extend_size = package_max_length;
                 }
-                if (swString_extend(buffer, extend_size) < 0) {
+                if (!buffer->extend(extend_size)) {
                     return SW_ERR;
                 }
             }

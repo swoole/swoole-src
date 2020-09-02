@@ -82,7 +82,7 @@ _recv_data:
                 if (extend_size > protocol->package_max_length) {
                     extend_size = protocol->package_max_length;
                 }
-                if (swString_extend(buffer, extend_size) < 0) {
+                if (!buffer->extend(extend_size)) {
                     return SW_ERR;
                 }
             } else if (buffer->length == buffer->size) {

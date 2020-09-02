@@ -150,6 +150,32 @@ class String {
         return contains(needle.c_str(), needle.size());
     }
 
+    inline bool grow(size_t incr_value) {
+        length += incr_value;
+        if (length == size && !reserve(size * 2)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    inline bool extend() {
+        return extend(size * 2);
+    }
+
+    inline bool extend(size_t new_size) {
+        assert(new_size > size);
+        return reserve(new_size) ? SW_OK : SW_ERR;
+    }
+
+    inline bool extend_align(size_t _new_size) {
+        size_t align_size = SW_MEM_ALIGNED_SIZE(size * 2);
+        while (align_size < _new_size) {
+            align_size *= 2;
+        }
+        return reserve(align_size) ;
+    }
+
     bool reserve(size_t new_size);
     bool repeat(const char *data, size_t len, size_t n);
     int append(const char *append_str, size_t length);
@@ -233,28 +259,7 @@ static inline void swString_free(swString *str) {
     delete str;
 }
 
-static inline int swString_extend_align(swString *str, size_t _new_size) {
-    size_t align_size = SW_MEM_ALIGNED_SIZE(str->size * 2);
-    while (align_size < _new_size) {
-        align_size *= 2;
-    }
-    return str->reserve(align_size) ? SW_OK : SW_ERR;
-}
-
-static inline int swString_grow(swString *str, size_t incr_value) {
-    str->length += incr_value;
-    if (str->length == str->size && !str->reserve(str->size * 2)) {
-        return SW_ERR;
-    } else {
-        return SW_OK;
-    }
-}
-
 inline swoole::String *swString_new(size_t size) {
     return new swoole::String(size);
 }
 
-inline int swString_extend(swString *str, size_t new_size) {
-    assert(new_size > str->size);
-    return str->reserve(new_size) ? SW_OK : SW_ERR;
-}

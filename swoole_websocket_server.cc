@@ -452,7 +452,7 @@ static bool websocket_message_uncompress(swString *buffer, const char *in, size_
             break;
         }
         if (buffer->length + (SW_BUFFER_SIZE_STD / 2) >= buffer->size) {
-            if (swString_extend(buffer, buffer->size * 2) < 0) {
+            if (!buffer->extend()) {
                 status = Z_MEM_ERROR;
                 break;
             }
@@ -493,7 +493,7 @@ static bool websocket_message_compress(swString *buffer, const char *data, size_
 
     size_t max_length = deflateBound(&zstream, length);
     if (max_length > buffer->size) {
-        if (swString_extend(buffer, max_length) < 0) {
+        if (!buffer->extend(max_length)) {
             return false;
         }
     }

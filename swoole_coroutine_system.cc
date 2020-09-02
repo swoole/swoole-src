@@ -654,7 +654,7 @@ PHP_METHOD(swoole_coroutine_system, exec) {
         if (retval > 0) {
             buffer->length += retval;
             if (buffer->length == buffer->size) {
-                if (swString_extend(buffer, buffer->size * 2) < 0) {
+                if (!buffer->extend()) {
                     break;
                 }
             }

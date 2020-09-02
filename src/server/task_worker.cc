@@ -349,7 +349,7 @@ swString *swEventData_large_unpack(swEventData *task_result) {
         swSysWarn("open(%s) failed", _pkg.tmpfile);
         return nullptr;
     }
-    if (SwooleTG.buffer_stack->size < _pkg.length && swString_extend_align(SwooleTG.buffer_stack, _pkg.length) < 0) {
+    if (SwooleTG.buffer_stack->size < _pkg.length && !SwooleTG.buffer_stack->extend_align(_pkg.length)) {
         close(tmp_file_fd);
         return nullptr;
     }

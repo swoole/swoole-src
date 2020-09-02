@@ -37,13 +37,6 @@ SW_EXTERN_C_BEGIN
 
 SW_EXTERN_C_END
 
-enum http_client_error_status_code {
-    HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
-    HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
-    HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
-    HTTP_CLIENT_ESTATUS_SEND_FAILED = -4,
-};
-
 #include "mime_type.h"
 #include "base64.h"
 
@@ -53,6 +46,13 @@ enum http_client_error_status_code {
 
 using namespace swoole;
 using swoole::coroutine::Socket;
+
+enum http_client_error_status_code {
+    HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
+    HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
+    HTTP_CLIENT_ESTATUS_SERVER_RESET = -3,
+    HTTP_CLIENT_ESTATUS_SEND_FAILED = -4,
+};
 
 extern void php_swoole_client_coro_socket_free(Socket *cli);
 
@@ -255,7 +255,7 @@ static zend_object_handlers swoole_http_client_coro_exception_handlers;
 
 using swoole::coroutine::HttpClient;
 
-struct  HttpClientObject {
+struct HttpClientObject {
     HttpClient *phc;
     zend_object std;
 };
@@ -664,7 +664,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             if (status >= 0) {
                 body->length += (gzip_stream.total_out - total_out);
                 if (body->length + (SW_BUFFER_SIZE_STD / 2) >= body->size) {
-                    if (swString_extend(body, body->size * 2) < 0) {
+                    if (!body->extend()) {
                         status = Z_MEM_ERROR;
                         break;
                     }
@@ -719,7 +719,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             if (result == BROTLI_DECODER_RESULT_SUCCESS || result == BROTLI_DECODER_RESULT_NEEDS_MORE_INPUT) {
                 return true;
             } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
-                if (swString_extend_align(body, body->size * 2) < 0) {
+                if (!body->extend()) {
                     swWarn("BrotliDecoderDecompressStream() failed, no memory is available");
                     break;
                 }

@@ -529,10 +529,10 @@ _parse:
                                  CLIENT_INFO_ARGS);
                 goto _too_large;
             }
-            if (buffer->length == buffer->size && swString_extend(buffer, buffer->size * 2) < 0) {
+            if (buffer->length == buffer->size && !buffer->extend()) {
                 goto _unavailable;
             }
-            if (request_length > buffer->size && swString_extend_align(buffer, request_length) < 0) {
+            if (request_length > buffer->size && !buffer->extend_align(request_length)) {
                 goto _unavailable;
             }
             goto _recv_data;
@@ -554,7 +554,7 @@ _parse:
             goto _too_large;
         }
 
-        if (request_length > buffer->size && swString_extend(buffer, request_length) < 0) {
+        if (request_length > buffer->size && !buffer->extend(request_length)) {
             goto _unavailable;
         }
 

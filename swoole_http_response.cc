@@ -583,7 +583,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
 
         size_t memory_size = BrotliEncoderMaxCompressedSize(length);
         if (memory_size > swoole_zlib_buffer->size) {
-            if (swString_extend(swoole_zlib_buffer, memory_size) < 0) {
+            if (!swoole_zlib_buffer->extend(memory_size)) {
                 return SW_ERR;
             }
         }
@@ -623,7 +623,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
 
     size_t memory_size = ((size_t)((double) length * (double) 1.015)) + 10 + 8 + 4 + 1;
     if (memory_size > swoole_zlib_buffer->size) {
-        if (swString_extend(swoole_zlib_buffer, memory_size) < 0) {
+        if (!swoole_zlib_buffer->extend(memory_size)) {
             return SW_ERR;
         }
     }

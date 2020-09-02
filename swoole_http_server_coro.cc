@@ -578,7 +578,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                 break;
             }
             if (total_bytes == buffer->size) {
-                if (swString_extend(buffer, buffer->size * 2) != SW_OK) {
+                if (!buffer->extend()) {
                     ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
                     break;
                 }

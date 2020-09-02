@@ -625,8 +625,7 @@ const char *mysql_client::recv_length(size_t need_length, const bool try_to_recy
             }
             if (sw_unlikely(buffer->length == buffer->size)) {
                 /* offset + need_length = new size (min) */
-                if (sw_unlikely(swString_extend(
-                                    buffer, SW_MEM_ALIGNED_SIZE_EX(offset + need_length, SwooleG.pagesize)) != SW_OK)) {
+                if (!buffer->extend(SW_MEM_ALIGNED_SIZE_EX(offset + need_length, SwooleG.pagesize))) {
                     non_sql_error(MYSQLND_CR_OUT_OF_MEMORY, strerror(ENOMEM));
                     return nullptr;
                 } else {

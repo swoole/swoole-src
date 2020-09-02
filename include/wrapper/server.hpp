@@ -66,7 +66,7 @@ struct DataBuffer {
             while (new_size < _size + 1) {
                 new_size *= 2;
             }
-            if (swString_extend(_callback_buffer, new_size) < 0) {
+            if (!_callback_buffer->extend(new_size)) {
                 abort();
             }
         }

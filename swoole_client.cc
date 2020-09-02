@@ -1087,7 +1087,7 @@ static PHP_METHOD(swoole_client, recv) {
                         if (new_size > protocol->package_max_length) {
                             new_size = protocol->package_max_length;
                         }
-                        if (swString_extend(buffer, new_size) < 0) {
+                        if (!buffer->extend(new_size)) {
                             buffer->length = 0;
                             RETURN_FALSE;
                         }
