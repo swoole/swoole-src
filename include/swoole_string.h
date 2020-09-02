@@ -165,7 +165,7 @@ class String {
 
     inline bool extend(size_t new_size) {
         assert(new_size > size);
-        return reserve(new_size) ? SW_OK : SW_ERR;
+        return reserve(new_size);
     }
 
     inline bool extend_align(size_t _new_size) {
