@@ -222,7 +222,7 @@ int ProcessPool::response(const char *data, int length) {
 /**
  * dispatch data to worker
  */
-int ProcessPool::dispatch(swEventData *data, int *dst_worker_id) {
+int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     int ret = 0;
     swWorker *worker;
 

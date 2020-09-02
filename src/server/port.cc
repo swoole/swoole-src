@@ -21,15 +21,15 @@
 #include "mqtt.h"
 #include "swoole_redis.h"
 
-using swoole::Server;
-using swoole::ListenPort;
 using swoole::http_server::Request;
 
-static int swPort_onRead_raw(swReactor *reactor, ListenPort *lp, swEvent *event);
-static int swPort_onRead_check_length(swReactor *reactor, ListenPort *lp, swEvent *event);
-static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *lp, swEvent *event);
-static int swPort_onRead_http(swReactor *reactor, ListenPort *lp, swEvent *event);
-static int swPort_onRead_redis(swReactor *reactor, ListenPort *lp, swEvent *event);
+namespace swoole {
+
+static int Port_onRead_raw(Reactor *reactor, ListenPort *lp, swEvent *event);
+static int Port_onRead_check_length(Reactor *reactor, ListenPort *lp, swEvent *event);
+static int Port_onRead_check_eof(Reactor *reactor, ListenPort *lp, swEvent *event);
+static int Port_onRead_http(Reactor *reactor, ListenPort *lp, swEvent *event);
+static int Port_onRead_redis(Reactor *reactor, ListenPort *lp, swEvent *event);
 
 ListenPort::ListenPort() {
     protocol.package_length_type = 'N';
@@ -138,13 +138,13 @@ void Server::init_port_protocol(ListenPort *ls) {
             ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = swPort_onRead_check_eof;
+        ls->onRead = Port_onRead_check_eof;
     } else if (ls->open_length_check) {
         if (ls->protocol.package_length_type != '\0') {
             ls->protocol.get_package_length = Protocol::default_length_func;
         }
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = swPort_onRead_check_length;
+        ls->onRead = Port_onRead_check_length;
     } else if (ls->open_http_protocol) {
 #ifdef SW_USE_HTTP2
         if (ls->open_http2_protocol && ls->open_websocket_protocol) {
@@ -164,16 +164,16 @@ void Server::init_port_protocol(ListenPort *ls) {
         }
         ls->protocol.package_length_offset = 0;
         ls->protocol.package_body_offset = 0;
-        ls->onRead = swPort_onRead_http;
+        ls->onRead = Port_onRead_http;
     } else if (ls->open_mqtt_protocol) {
         swMqtt_set_protocol(&ls->protocol);
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = swPort_onRead_check_length;
+        ls->onRead = Port_onRead_check_length;
     } else if (ls->open_redis_protocol) {
         ls->protocol.onPackage = Server::dispatch_task;
-        ls->onRead = swPort_onRead_redis;
+        ls->onRead = Port_onRead_redis;
     } else {
-        ls->onRead = swPort_onRead_raw;
+        ls->onRead = Port_onRead_raw;
     }
 }
 
@@ -256,7 +256,7 @@ void ListenPort::clear_protocol() {
     open_redis_protocol = 0;
 }
 
-static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *event) {
+static int Port_onRead_raw(Reactor *reactor, ListenPort *port, swEvent *event) {
     ssize_t n;
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
@@ -289,7 +289,7 @@ static int swPort_onRead_raw(swReactor *reactor, ListenPort *port, swEvent *even
     }
 }
 
-static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEvent *event) {
+static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swProtocol *protocol = &port->protocol;
@@ -325,7 +325,7 @@ static int swPort_onRead_check_length(swReactor *reactor, ListenPort *port, swEv
 /**
  * For Http Protocol
  */
-static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *event) {
+static int Port_onRead_http(Reactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swServer *serv = (swServer *) reactor->ptr;
@@ -336,12 +336,12 @@ static int swPort_onRead_http(swReactor *reactor, ListenPort *port, swEvent *eve
             conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
             conn->http_upgrade = 1;
         }
-        return swPort_onRead_check_length(reactor, port, event);
+        return Port_onRead_check_length(reactor, port, event);
     }
 
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
-        return swPort_onRead_check_length(reactor, port, event);
+        return Port_onRead_check_length(reactor, port, event);
     }
 #endif
 
@@ -446,7 +446,7 @@ _parse:
         buffer->reduce(buffer->offset);
         serv->destroy_http_request(conn);
         conn->socket->skip_recv = 1;
-        return swPort_onRead_check_length(reactor, port, event);
+        return Port_onRead_check_length(reactor, port, event);
 #endif
     }
 
@@ -601,7 +601,7 @@ _parse:
     return SW_OK;
 }
 
-static int swPort_onRead_redis(swReactor *reactor, ListenPort *port, swEvent *event) {
+static int Port_onRead_redis(Reactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swProtocol *protocol = &port->protocol;
@@ -621,7 +621,7 @@ static int swPort_onRead_redis(swReactor *reactor, ListenPort *port, swEvent *ev
     return SW_OK;
 }
 
-static int swPort_onRead_check_eof(swReactor *reactor, ListenPort *port, swEvent *event) {
+static int Port_onRead_check_eof(Reactor *reactor, ListenPort *port, swEvent *event) {
     swSocket *_socket = event->socket;
     swConnection *conn = (swConnection *) _socket->object;
     swProtocol *protocol = &port->protocol;
@@ -676,4 +676,6 @@ void ListenPort::close() {
     if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
         unlink(host);
     }
+}
+
 }

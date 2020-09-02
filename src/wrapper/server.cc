@@ -108,23 +108,18 @@ static int task_pack(swEventData *task, const DataBuffer &data) {
     task->info.reactor_id = SwooleG.process_id;
     swTask_type(task) = 0;
 
-    if (data.length >= SW_IPC_MAX_SIZE - sizeof(task->info)) {
-        if (swEventData_large_pack(task, data.buffer, (int) data.length) < 0) {
-            swWarn("large task pack failed()");
-            return SW_ERR;
-        }
-    } else {
-        memcpy(task->data, data.buffer, data.length);
-        task->info.len = (uint16_t) data.length;
+    if (!task->pack(data.buffer, data.length)) {
+        swWarn("large task pack failed()");
+        return SW_ERR;
     }
+
     return task->info.fd;
 }
 
 static DataBuffer task_unpack(swEventData *task_result) {
     DataBuffer retval;
-    swString *result = swEventData_large_unpack(task_result);
-    if (result) {
-        retval.copy(task_result->data, (size_t) task_result->info.len);
+    if (task_result->unpack(SwooleTG.buffer_stack)) {
+        retval.copy(SwooleTG.buffer_stack->str, (size_t) SwooleTG.buffer_stack->length);
     }
     return retval;
 }
@@ -169,7 +164,7 @@ int Server::task(DataBuffer &data, int dst_worker_id) {
         return false;
     }
 
-    swEventData buf;
+    EventData buf;
     sw_memset_zero(&buf.info, sizeof(buf.info));
     if (check_task_param(dst_worker_id) < 0) {
         return false;

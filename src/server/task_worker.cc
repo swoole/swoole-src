@@ -15,15 +15,17 @@
 */
 
 #include "server.h"
+#include "swoole_util.h"
 
 using swoole::Server;
+using swoole::EventData;
 
-static void swTaskWorker_signal_init(swProcessPool *pool);
-static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker);
-static void swTaskWorker_onStart(swProcessPool *pool, int worker_id);
-static void swTaskWorker_onStop(swProcessPool *pool, int worker_id);
-static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
+static void TaskWorker_signal_init(swProcessPool *pool);
+static int TaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
+static int TaskWorker_loop_async(swProcessPool *pool, swWorker *worker);
+static void TaskWorker_onStart(swProcessPool *pool, int worker_id);
+static void TaskWorker_onStop(swProcessPool *pool, int worker_id);
+static int TaskWorker_onTask(swProcessPool *pool, swEventData *task);
 
 /**
  * after pool->create, before pool->start
@@ -31,9 +33,9 @@ static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task);
 void Server::init_task_workers() {
     swProcessPool *pool = &gs->task_workers;
     pool->ptr = this;
-    pool->onTask = swTaskWorker_onTask;
-    pool->onWorkerStart = swTaskWorker_onStart;
-    pool->onWorkerStop = swTaskWorker_onStop;
+    pool->onTask = TaskWorker_onTask;
+    pool->onWorkerStart = TaskWorker_onStart;
+    pool->onWorkerStop = TaskWorker_onStop;
     /**
      * Make the task worker support asynchronous
      */
@@ -42,14 +44,14 @@ void Server::init_task_workers() {
             swError("cannot use msgqueue when task_enable_coroutine is enable");
             return;
         }
-        pool->main_loop = swTaskWorker_loop_async;
+        pool->main_loop = TaskWorker_loop_async;
     }
     if (task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
         pool->dispatch_mode = SW_DISPATCH_QUEUE;
     }
 }
 
-static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task) {
+static int TaskWorker_onTask(swProcessPool *pool, swEventData *task) {
     int ret = SW_OK;
     swServer *serv = (swServer *) pool->ptr;
     serv->last_task = task;
@@ -63,35 +65,67 @@ static int swTaskWorker_onTask(swProcessPool *pool, swEventData *task) {
     return ret;
 }
 
-int swEventData_large_pack(swEventData *task, const void *data, size_t data_len) {
+bool EventData::pack(const void *_data, size_t _length) {
+    if (_length < SW_IPC_MAX_SIZE - sizeof(info)) {
+        memcpy(data, _data, _length);
+        info.len = _length;
+        return true;
+    }
+
     swPacket_task pkg;
     sw_memset_zero(&pkg, sizeof(pkg));
 
     memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
     // create temp file
-    int tmp_fd = swoole_tmpfile(pkg.tmpfile);
+    FileDescriptor _handler(swoole_tmpfile(pkg.tmpfile));
+
+    int tmp_fd = _handler.get();
     if (tmp_fd < 0) {
-        return SW_ERR;
+        return false;
     }
 
     // write to file
-    if (swoole_sync_writefile(tmp_fd, data, data_len) != data_len) {
+    if (swoole_sync_writefile(tmp_fd, data, _length) != _length) {
         swWarn("write to tmpfile failed");
-        return SW_ERR;
+        return false;
     }
 
-    task->info.len = sizeof(swPacket_task);
+    info.len = sizeof(swPacket_task);
     // use tmp file
-    swTask_type(task) |= SW_TASK_TMPFILE;
+    swTask_type(this) |= SW_TASK_TMPFILE;
 
-    pkg.length = data_len;
-    memcpy(task->data, &pkg, sizeof(swPacket_task));
-    close(tmp_fd);
-    return SW_OK;
+    pkg.length = _length;
+    memcpy(data, &pkg, sizeof(swPacket_task));
+
+    return true;
 }
 
-static void swTaskWorker_signal_init(swProcessPool *pool) {
+bool EventData::unpack(String *buffer) {
+    swPacket_task _pkg;
+    memcpy(&_pkg, data, sizeof(_pkg));
+
+    FileDescriptor _handler(open(_pkg.tmpfile, O_RDONLY));
+
+    int tmp_file_fd = _handler.get();
+    if (tmp_file_fd < 0) {
+        swSysWarn("open(%s) failed", _pkg.tmpfile);
+        return false;
+    }
+    if (buffer->size < _pkg.length && !buffer->extend_align(_pkg.length)) {
+        return false;
+    }
+    if (swoole_sync_readfile(tmp_file_fd, buffer->str, _pkg.length) != _pkg.length) {
+        return false;
+    }
+    if (!(swTask_type(this) & SW_TASK_PEEK)) {
+        unlink(_pkg.tmpfile);
+    }
+    buffer->length = _pkg.length;
+    return true;
+}
+
+static void TaskWorker_signal_init(swProcessPool *pool) {
     /**
      * use user settings
      */
@@ -107,7 +141,7 @@ static void swTaskWorker_signal_init(swProcessPool *pool) {
 #endif
 }
 
-static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
+static void TaskWorker_onStart(swProcessPool *pool, int worker_id) {
     swServer *serv = (swServer *) pool->ptr;
     SwooleG.process_id = worker_id;
 
@@ -129,7 +163,7 @@ static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
         SwooleTG.reactor = nullptr;
     }
 
-    swTaskWorker_signal_init(pool);
+    TaskWorker_signal_init(pool);
     serv->worker_start_callback();
 
     swWorker *worker = pool->get_worker(worker_id);
@@ -148,7 +182,7 @@ static void swTaskWorker_onStart(swProcessPool *pool, int worker_id) {
     }
 }
 
-static void swTaskWorker_onStop(swProcessPool *pool, int worker_id) {
+static void TaskWorker_onStop(swProcessPool *pool, int worker_id) {
     swoole_event_free();
     swServer *serv = (swServer *) pool->ptr;
     serv->worker_stop_callback();
@@ -157,7 +191,7 @@ static void swTaskWorker_onStop(swProcessPool *pool, int worker_id) {
 /**
  * receive data from worker process
  */
-static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
+static int TaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
     swEventData task;
     swProcessPool *pool = (swProcessPool *) reactor->ptr;
     swWorker *worker = SwooleWG.worker;
@@ -165,7 +199,7 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
 
     if (read(event->fd, &task, sizeof(task)) > 0) {
         worker->status = SW_WORKER_BUSY;
-        int retval = swTaskWorker_onTask(pool, &task);
+        int retval = TaskWorker_onTask(pool, &task);
         worker->status = SW_WORKER_IDLE;
         worker->request_count++;
         // maximum number of requests, process will exit.
@@ -182,7 +216,7 @@ static int swTaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
 /**
  * async task worker
  */
-static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker) {
+static int TaskWorker_loop_async(swProcessPool *pool, swWorker *worker) {
     swServer *serv = (swServer *) pool->ptr;
     swSocket *socket = worker->pipe_worker;
     worker->status = SW_WORKER_IDLE;
@@ -190,7 +224,7 @@ static int swTaskWorker_loop_async(swProcessPool *pool, swWorker *worker) {
     socket->set_nonblock();
     sw_reactor()->ptr = pool;
     swoole_event_add(socket, SW_EVENT_READ);
-    swoole_event_set_handler(SW_FD_PIPE, swTaskWorker_onPipeReceive);
+    swoole_event_set_handler(SW_FD_PIPE, TaskWorker_onPipeReceive);
 
     for (uint i = 0; i < serv->worker_num + serv->task_worker_num; i++) {
         worker = serv->get_worker(i);
@@ -245,14 +279,9 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
         swTask_type(&buf) = flags;
 
         // write to file
-        if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info)) {
-            if (swEventData_large_pack(&buf, data, data_len) < 0) {
-                swWarn("large task pack failed()");
-                return SW_ERR;
-            }
-        } else {
-            memcpy(buf.data, data, data_len);
-            buf.info.len = data_len;
+        if (!buf.pack(data, data_len)) {
+            swWarn("large task pack failed()");
+            return SW_ERR;
         }
 
         if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
@@ -284,17 +313,10 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
                 buf.info.type = SW_SERVER_EVENT_FINISH;
                 buf.info.fd = current_task->info.fd;
                 swTask_type(&buf) = flags;
-                // result pack
-                if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info)) {
-                    if (swEventData_large_pack(&buf, data, data_len) < 0) {
-                        swWarn("large task pack failed()");
-                        buf.info.len = 0;
-                    }
-                } else {
-                    buf.info.len = data_len;
-                    memcpy(buf.data, data, data_len);
+                if (!buf.pack(data, data_len)) {
+                    swWarn("large task pack failed()");
+                    buf.info.len = 0;
                 }
-                // write to tmpfile
                 if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) !=
                     sizeof(buf.info) + buf.info.len) {
                     swSysWarn("write(%s, %ld) failed", _tmpfile, sizeof(buf.info) + buf.info.len);
@@ -306,17 +328,11 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
             result->info.type = SW_SERVER_EVENT_FINISH;
             result->info.fd = current_task->info.fd;
             swTask_type(result) = flags;
-
-            if (data_len >= SW_IPC_MAX_SIZE - sizeof(buf.info)) {
-                if (swEventData_large_pack(result, data, data_len) < 0) {
-                    // unlock worker
-                    worker->lock.unlock(&worker->lock);
-                    swWarn("large task pack failed()");
-                    return SW_ERR;
-                }
-            } else {
-                memcpy(result->data, data, data_len);
-                result->info.len = data_len;
+            if (!result->pack(data, data_len)) {
+                // unlock worker
+                worker->lock.unlock(&worker->lock);
+                swWarn("large task pack failed()");
+                return SW_ERR;
             }
         }
 
@@ -340,27 +356,3 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
     return ret;
 }
 
-swString *swEventData_large_unpack(swEventData *task_result) {
-    swPacket_task _pkg;
-    memcpy(&_pkg, task_result->data, sizeof(_pkg));
-
-    int tmp_file_fd = open(_pkg.tmpfile, O_RDONLY);
-    if (tmp_file_fd < 0) {
-        swSysWarn("open(%s) failed", _pkg.tmpfile);
-        return nullptr;
-    }
-    if (SwooleTG.buffer_stack->size < _pkg.length && !SwooleTG.buffer_stack->extend_align(_pkg.length)) {
-        close(tmp_file_fd);
-        return nullptr;
-    }
-    if (swoole_sync_readfile(tmp_file_fd, SwooleTG.buffer_stack->str, _pkg.length) != _pkg.length) {
-        close(tmp_file_fd);
-        return nullptr;
-    }
-    close(tmp_file_fd);
-    if (!(swTask_type(task_result) & SW_TASK_PEEK)) {
-        unlink(_pkg.tmpfile);
-    }
-    SwooleTG.buffer_stack->length = _pkg.length;
-    return SwooleTG.buffer_stack;
-}

@@ -1291,9 +1291,6 @@ static sw_inline int swEventData_is_stream(uint8_t type) {
     }
 }
 
-int swEventData_large_pack(swEventData *task, const void *data, size_t data_len);
-swString *swEventData_large_unpack(swEventData *task_result);
-
 extern swServer *g_server_instance;
 
 static inline swServer *sw_server() {
