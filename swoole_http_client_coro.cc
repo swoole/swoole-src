@@ -497,7 +497,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
 #ifdef SW_HAVE_COMPRESSION
     _append_raw:
 #endif
-        if (swString_append_ptr(http->body, at, length) < 0) {
+        if (http->body->append(at, length) < 0) {
             return -1;
         }
     }
@@ -940,8 +940,8 @@ bool http_client::send() {
             method_len = strlen(method);
         }
         this->method = swHttp_get_method(method, method_len);
-        swString_append_ptr(buffer, method, method_len);
-        swString_append_ptr(buffer, ZEND_STRL(" "));
+        buffer->append(method, method_len);
+        buffer->append(ZEND_STRL(" "));
     }
 
     // ============ path & proxy ============
@@ -961,14 +961,14 @@ bool http_client::send() {
         size_t proxy_uri_len = path.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char *) emalloc(proxy_uri_len);
         proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, path.c_str());
-        swString_append_ptr(buffer, proxy_uri, proxy_uri_len);
+        buffer->append(proxy_uri, proxy_uri_len);
         efree(proxy_uri);
     } else {
-        swString_append_ptr(buffer, path.c_str(), path.length());
+        buffer->append(path.c_str(), path.length());
     }
 
     // ============ protocol ============
-    swString_append_ptr(buffer, ZEND_STRL(" HTTP/1.1\r\n"));
+    buffer->append(ZEND_STRL(" HTTP/1.1\r\n"));
 
     // ============ headers ============
     char *key;
@@ -1051,7 +1051,7 @@ bool http_client::send() {
 
     // ============ cookies ============
     if (ZVAL_IS_ARRAY(zcookies)) {
-        swString_append_ptr(buffer, ZEND_STRL("Cookie: "));
+        buffer->append(ZEND_STRL("Cookie: "));
         int n_cookie = php_swoole_array_length(zcookies);
         int i = 0;
         char *encoded_value;
@@ -1065,21 +1065,21 @@ bool http_client::send() {
             if (str_value.len() == 0) {
                 continue;
             }
-            swString_append_ptr(buffer, key, keylen);
-            swString_append_ptr(buffer, "=", 1);
+            buffer->append(key, keylen);
+            buffer->append("=", 1);
 
             int encoded_value_len;
             encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value) {
-                swString_append_ptr(buffer, encoded_value, encoded_value_len);
+                buffer->append(encoded_value, encoded_value_len);
                 efree(encoded_value);
             }
             if (i < n_cookie) {
-                swString_append_ptr(buffer, "; ", 2);
+                buffer->append("; ", 2);
             }
         }
         SW_HASHTABLE_FOREACH_END();
-        swString_append_ptr(buffer, ZEND_STRL("\r\n"));
+        buffer->append(ZEND_STRL("\r\n"));
     }
 
     // ============ multipart/form-data ============
@@ -1097,7 +1097,7 @@ bool http_client::send() {
                         "Content-Type: multipart/form-data; boundary=%.*s\r\n",
                         (int) (sizeof(boundary_str) - 1),
                         boundary_str);
-        swString_append_ptr(buffer, header_buf, n);
+        buffer->append(header_buf, n);
 
         // ============ content-length ============
         size_t content_length = 0;
@@ -1166,9 +1166,9 @@ bool http_client::send() {
                                 boundary_str,
                                 keylen,
                                 key);
-                swString_append_ptr(buffer, header_buf, n);
-                swString_append_ptr(buffer, str_value.val(), str_value.len());
-                swString_append_ptr(buffer, ZEND_STRL("\r\n"));
+                buffer->append(header_buf, n);
+                buffer->append(str_value.val(), str_value.len());
+                buffer->append(ZEND_STRL("\r\n"));
             }
             SW_HASHTABLE_FOREACH_END();
         }
@@ -1228,9 +1228,9 @@ bool http_client::send() {
                  */
                 if (zcontent) {
                     swString_clear(buffer);
-                    swString_append_ptr(buffer, header_buf, n);
-                    swString_append_ptr(buffer, Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
-                    swString_append_ptr(buffer, "\r\n", 2);
+                    buffer->append(header_buf, n);
+                    buffer->append(Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
+                    buffer->append("\r\n", 2);
 
                     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
                         goto _send_fail;
@@ -1275,7 +1275,7 @@ bool http_client::send() {
                     return false;
                 }
                 http_client_append_content_length(buffer, len);
-                swString_append_ptr(buffer, formstr, len);
+                buffer->append(formstr, len);
                 smart_str_free(&formstr_s);
             } else {
                 http_client_append_content_length(buffer, 0);
@@ -1284,7 +1284,7 @@ bool http_client::send() {
             char *body;
             size_t body_length = php_swoole_get_send_data(zbody, &body);
             http_client_append_content_length(buffer, body_length);
-            swString_append_ptr(buffer, body, body_length);
+            buffer->append(body, body_length);
         }
     }
     // ============ no body ============
@@ -1292,7 +1292,7 @@ bool http_client::send() {
         if (header_flag & HTTP_HEADER_CONTENT_LENGTH) {
             http_client_append_content_length(buffer, 0);
         } else {
-            swString_append_ptr(buffer, ZEND_STRL("\r\n"));
+            buffer->append(ZEND_STRL("\r\n"));
         }
     }
 

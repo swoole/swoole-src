@@ -353,9 +353,9 @@ static PHP_METHOD(swoole_redis_server, format) {
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
-        swString_append_ptr(format_buffer, message, length);
-        swString_append_ptr(format_buffer, str_value.val(), str_value.len());
-        swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
+        format_buffer->append(message, length);
+        format_buffer->append(str_value.val(), str_value.len());
+        format_buffer->append(SW_CRLF, SW_CRLF_LEN);
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
     } else if (type == SW_REDIS_REPLY_SET) {
         if (!value) {
@@ -366,15 +366,15 @@ static PHP_METHOD(swoole_redis_server, format) {
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
-        swString_append_ptr(format_buffer, message, length);
+        format_buffer->append(message, length);
 
         zval *item;
         SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(value), item)
         zend::String str_value(item);
         length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
-        swString_append_ptr(format_buffer, message, length);
-        swString_append_ptr(format_buffer, str_value.val(), str_value.len());
-        swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
+        format_buffer->append(message, length);
+        format_buffer->append(str_value.val(), str_value.len());
+        format_buffer->append(SW_CRLF, SW_CRLF_LEN);
         SW_HASHTABLE_FOREACH_END();
 
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
@@ -387,7 +387,7 @@ static PHP_METHOD(swoole_redis_server, format) {
         }
         swString_clear(format_buffer);
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
-        swString_append_ptr(format_buffer, message, length);
+        format_buffer->append(message, length);
 
         char *key;
         uint32_t keylen;
@@ -400,9 +400,9 @@ static PHP_METHOD(swoole_redis_server, format) {
         }
         zend::String str_value(item);
         length = sw_snprintf(message, sizeof(message), "$%d\r\n%s\r\n$%zu\r\n", keylen, key, str_value.len());
-        swString_append_ptr(format_buffer, message, length);
-        swString_append_ptr(format_buffer, str_value.val(), str_value.len());
-        swString_append_ptr(format_buffer, SW_CRLF, SW_CRLF_LEN);
+        format_buffer->append(message, length);
+        format_buffer->append(str_value.val(), str_value.len());
+        format_buffer->append(SW_CRLF, SW_CRLF_LEN);
         (void) keytype;
         SW_HASHTABLE_FOREACH_END();
 

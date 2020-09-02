@@ -633,7 +633,7 @@ _end:
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length) {
     http_context *ctx = (http_context *) p->data;
     if (ctx->current_form_data_name) {
-        swString_append_ptr(swoole_http_form_data_buffer, (char *) at, length);
+        swoole_http_form_data_buffer->append(at, length);
         return 0;
     }
     if (p->fp == nullptr) {
@@ -802,7 +802,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
                 return -1;
             }
         }
-        swString_append_ptr(ctx->request.chunked_body, at, length);
+        ctx->request.chunked_body->append(at, length);
     } else {
         ctx->request.body_length += length;
     }

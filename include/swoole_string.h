@@ -233,10 +233,6 @@ static inline void swString_free(swString *str) {
     delete str;
 }
 
-inline int swString_append_ptr(swString *str, const char *append_str, size_t length) {
-    return str->append(append_str, length);
-}
-
 static inline int swString_extend_align(swString *str, size_t _new_size) {
     size_t align_size = SW_MEM_ALIGNED_SIZE(str->size * 2);
     while (align_size < _new_size) {

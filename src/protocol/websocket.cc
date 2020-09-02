@@ -131,24 +131,24 @@ bool swWebSocket_encode(swString *buffer, const char *data, size_t length, char 
         *length_ptr = swoole_hton64(length);
         pos += sizeof(*length_ptr);
     }
-    swString_append_ptr(buffer, frame_header, pos);
+    buffer->append(frame_header, pos);
     /**
      * frame body
      */
     if (header->MASK) {
-        swString_append_ptr(buffer, SW_WEBSOCKET_MASK_DATA, SW_WEBSOCKET_MASK_LEN);
+        buffer->append(SW_WEBSOCKET_MASK_DATA, SW_WEBSOCKET_MASK_LEN);
         if (_flags & SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY) {
             return false;
         }
         if (length > 0) {
             size_t offset = buffer->length;
             // Warn: buffer may be extended, string pointer will change
-            swString_append_ptr(buffer, data, length);
+            buffer->append(data, length);
             swWebSocket_mask(buffer->str + offset, length, SW_WEBSOCKET_MASK_DATA);
         }
     } else {
         if (length > 0 and !(_flags & SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY)) {
-            swString_append_ptr(buffer, data, length);
+            buffer->append(data, length);
         }
     }
 
@@ -260,7 +260,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
             return SW_ERR;
         }
         // merge incomplete data
-        swString_append_ptr(frame_buffer, data + offset, frame_length);
+        frame_buffer->append(data + offset, frame_length);
         // frame is finished, do dispatch
         if (ws.header.FIN) {
             proto->ext_flags = conn->websocket_buffer->offset;

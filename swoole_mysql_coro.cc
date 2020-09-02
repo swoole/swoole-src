@@ -1255,10 +1255,10 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params) {
                 zend::String str_value(value);
                 uint8_t lcb_size = mysql::write_lcb(stack_buffer, str_value.len());
                 sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
-                if (swString_append_ptr(buffer, stack_buffer, lcb_size) < 0) {
+                if (buffer->append(stack_buffer, lcb_size) < 0) {
                     RETURN_FALSE;
                 }
-                if (swString_append_ptr(buffer, str_value.val(), str_value.len()) < 0) {
+                if (buffer->append(str_value.val(), str_value.len()) < 0) {
                     RETURN_FALSE;
                 }
             }

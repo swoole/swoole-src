@@ -216,7 +216,7 @@ int ProcessPool::response(const char *data, int length) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         return SW_ERR;
     }
-    return swString_append_ptr(stream_info_->response_buffer, data, length);
+    return stream_info_->response_buffer->append(data, length);
 }
 
 /**

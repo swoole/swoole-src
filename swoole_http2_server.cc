@@ -847,7 +847,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
             buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
             ctx->request.h2_data_buffer = buffer;
         }
-        swString_append_ptr(buffer, buf, length);
+        buffer->append(buf, length);
 
         // flow control
         client->recv_window -= length;

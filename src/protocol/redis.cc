@@ -160,13 +160,13 @@ _failed:
 }
 
 bool swRedis_format(swString *buf) {
-    return swString_append_ptr(buf, SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
+    return buf->append(SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
 }
 
 bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::string &value) {
     if (type == SW_REDIS_REPLY_STATUS) {
         if (value.empty()) {
-            return swString_append_ptr(buf, SW_STRL("+OK\r\n")) == SW_OK;
+            return buf->append(SW_STRL("+OK\r\n")) == SW_OK;
         } else {
             return buf->format("+%.*s\r\n", value.length(), value.c_str()) > 0;
         }
@@ -184,7 +184,7 @@ bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::stri
                 return false;
             }
             buf->append(value);
-            swString_append_ptr(buf, SW_CRLF, SW_CRLF_LEN);
+            buf->append(SW_CRLF, SW_CRLF_LEN);
             return true;
         }
     }

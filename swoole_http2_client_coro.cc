@@ -652,11 +652,11 @@ enum swReturn_code http2_client::parse_frame(zval *return_value, bool pipeline_r
                     swWarn("decompress failed");
                     return SW_ERROR;
                 }
-                swString_append_ptr(stream->buffer, stream->gzip_buffer->str, stream->gzip_buffer->length);
+                stream->buffer->append(stream->gzip_buffer->str, stream->gzip_buffer->length);
             } else
 #endif
             {
-                swString_append_ptr(stream->buffer, buf, length);
+                stream->buffer->append(buf, length);
             }
 
             // now we control the connection flow only (not stream)
@@ -1036,11 +1036,11 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
             }
             zend::String str_value(zvalue);
             swString_clear(buffer);
-            swString_append_ptr(buffer, ZSTR_VAL(key), ZSTR_LEN(key));
-            swString_append_ptr(buffer, "=", 1);
+            buffer->append(ZSTR_VAL(key), ZSTR_LEN(key));
+            buffer->append("=", 1);
             encoded_value = php_swoole_url_encode(str_value.val(), str_value.len(), &encoded_value_len);
             if (encoded_value) {
-                swString_append_ptr(buffer, encoded_value, encoded_value_len);
+                buffer->append(encoded_value, encoded_value_len);
                 efree(encoded_value);
                 headers.add(ZEND_STRL("cookie"), buffer->str, buffer->length);
             }

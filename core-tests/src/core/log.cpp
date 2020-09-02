@@ -61,7 +61,7 @@ TEST(log, date_format_long_string) {
     auto str = content.get();
 
     str->repeat("x", 1, 120);
-    swString_append_ptr(str, SW_STRL("day %d of %B in the year %Y. Time: %I:%S %p"));
+    str->append(SW_STRL("day %d of %B in the year %Y. Time: %I:%S %p"));
 
     bool retval = sw_logger()->set_date_format(str->str);
 

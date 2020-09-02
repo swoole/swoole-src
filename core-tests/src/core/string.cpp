@@ -113,7 +113,7 @@ TEST(string, pop_1) {
     char *str_1 = str->str;
 
     const int len_1 = 11;
-    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->append(test_data.c_str(), test_data.length());
     str->offset = len_1;
     char *str_2 = str->pop(init_size);
 
@@ -132,7 +132,7 @@ TEST(string, pop_2) {
     char *str_1 = str->str;
 
     const int len_1 = test_data.length();
-    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->append(test_data.c_str(), test_data.length());
     str->offset = len_1;
     char *str_2 = str->pop(init_size);
 
@@ -149,7 +149,7 @@ TEST(string, reduce_1) {
     std::unique_ptr<swString> s(str);
 
     const int len_1 = 11;
-    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->append(test_data.c_str(), test_data.length());
     str->offset = len_1;
 
     str->reduce(str->offset);
@@ -161,7 +161,7 @@ TEST(string, reduce_2) {
     auto str = swoole::make_string(init_size);
     std::unique_ptr<swString> s(str);
 
-    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->append(test_data.c_str(), test_data.length());
     str->offset = str->length;
 
     str->reduce(str->offset);
@@ -173,7 +173,7 @@ TEST(string, reduce_3) {
     auto str = swoole::make_string(init_size);
     std::unique_ptr<swString> s(str);
 
-    swString_append_ptr(str, test_data.c_str(), test_data.length());
+    str->append(test_data.c_str(), test_data.length());
     str->offset = 0;
 
     str->reduce(str->offset);

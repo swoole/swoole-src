@@ -398,7 +398,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, swEvent *ev) {
                     package = it->second;
                 }
                 // merge data to package buffer
-                swString_append_ptr(package, resp->data, n - sizeof(resp->info));
+                package->append(resp->data, n - sizeof(resp->info));
                 // wait more data
                 if (!(resp->info.flags & SW_EVENT_DATA_END)) {
                     return SW_OK;

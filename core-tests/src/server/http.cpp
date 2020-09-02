@@ -50,12 +50,12 @@ struct http_context {
         swString *buf = swoole::make_string(1024);
         buf->length = sw_snprintf(buf->str, buf->size, "HTTP/1.1 %s\r\n", swHttp_get_status_message(code));
         for (auto &kv : response_headers) {
-            swString_append_ptr(buf, kv.first.c_str(), kv.first.length());
-            swString_append_ptr(buf, SW_STRL(": "));
-            swString_append_ptr(buf, kv.second.c_str(), kv.second.length());
-            swString_append_ptr(buf, SW_STRL("\r\n"));
+            buf->append(kv.first.c_str(), kv.first.length());
+            buf->append(SW_STRL(": "));
+            buf->append(kv.second.c_str(), kv.second.length());
+            buf->append(SW_STRL("\r\n"));
         }
-        swString_append_ptr(buf, SW_STRL("\r\n"));
+        buf->append(SW_STRL("\r\n"));
         server->send(fd, buf->str, buf->length);
         swString_free(buf);
     }

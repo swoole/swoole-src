@@ -357,10 +357,10 @@ static PHP_METHOD(swoole_http_response, write) {
     char *hex_string = swoole_dec2hex(http_body.length, 16);
     int hex_len = strlen(hex_string);
     //"%.*s\r\n%.*s\r\n", hex_len, hex_string, body.length, body.str
-    swString_append_ptr(http_buffer, hex_string, hex_len);
-    swString_append_ptr(http_buffer, ZEND_STRL("\r\n"));
-    swString_append_ptr(http_buffer, http_body.str, http_body.length);
-    swString_append_ptr(http_buffer, ZEND_STRL("\r\n"));
+    http_buffer->append(hex_string, hex_len);
+    http_buffer->append(ZEND_STRL("\r\n"));
+    http_buffer->append(http_body.str, http_body.length);
+    http_buffer->append(ZEND_STRL("\r\n"));
     sw_free(hex_string);
 
     RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
@@ -382,7 +382,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     } else {
         n = sw_snprintf(buf, l_buf, "HTTP/1.1 %d %s\r\n", ctx->response.status, ctx->response.reason);
     }
-    swString_append_ptr(response, buf, n);
+    response->append(buf, n);
 
     /**
      * http header
@@ -418,7 +418,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
                 zend::String str_value(zvalue);
                 n = sw_snprintf(
                     buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
-                swString_append_ptr(response, buf, n);
+                response->append(buf, n);
             }
         }
         SW_HASHTABLE_FOREACH_END();
@@ -434,45 +434,45 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
             if (Z_TYPE_P(zvalue) != IS_STRING) {
                 continue;
             }
-            swString_append_ptr(response, ZEND_STRL("Set-Cookie: "));
-            swString_append_ptr(response, Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
-            swString_append_ptr(response, ZEND_STRL("\r\n"));
+            response->append(ZEND_STRL("Set-Cookie: "));
+            response->append(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
+            response->append(ZEND_STRL("\r\n"));
         }
         SW_HASHTABLE_FOREACH_END();
     }
 
     if (!(header_flag & HTTP_HEADER_SERVER)) {
-        swString_append_ptr(response, ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
+        response->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
 
     // websocket protocol (subsequent header info is unnecessary)
     if (ctx->upgrade == 1) {
-        swString_append_ptr(response, ZEND_STRL("\r\n"));
+        response->append(ZEND_STRL("\r\n"));
         ctx->send_header = 1;
         return;
     }
 
     if (!(header_flag & HTTP_HEADER_CONNECTION)) {
         if (ctx->keepalive) {
-            swString_append_ptr(response, ZEND_STRL("Connection: keep-alive\r\n"));
+            response->append(ZEND_STRL("Connection: keep-alive\r\n"));
         } else {
-            swString_append_ptr(response, ZEND_STRL("Connection: close\r\n"));
+            response->append(ZEND_STRL("Connection: close\r\n"));
         }
     }
     if (!(header_flag & HTTP_HEADER_CONTENT_TYPE)) {
-        swString_append_ptr(response, ZEND_STRL("Content-Type: text/html\r\n"));
+        response->append(ZEND_STRL("Content-Type: text/html\r\n"));
     }
     if (!(header_flag & HTTP_HEADER_DATE)) {
         date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
         n = sw_snprintf(buf, l_buf, "Date: %s\r\n", date_str);
-        swString_append_ptr(response, buf, n);
+        response->append(buf, n);
         efree(date_str);
     }
 
     if (ctx->send_chunked) {
         SW_ASSERT(body_length == 0);
         if (!(header_flag & HTTP_HEADER_TRANSFER_ENCODING)) {
-            swString_append_ptr(response, ZEND_STRL("Transfer-Encoding: chunked\r\n"));
+            response->append(ZEND_STRL("Transfer-Encoding: chunked\r\n"));
         }
     }
     // Content-Length
@@ -483,18 +483,18 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
         }
 #endif
         n = sw_snprintf(buf, l_buf, "Content-Length: %zu\r\n", body_length);
-        swString_append_ptr(response, buf, n);
+        response->append(buf, n);
     }
 #ifdef SW_HAVE_COMPRESSION
     // http compress
     if (ctx->accept_compression) {
         const char *content_encoding = swoole_http_get_content_encoding(ctx);
-        swString_append_ptr(response, ZEND_STRL("Content-Encoding: "));
-        swString_append_ptr(response, (char *) content_encoding, strlen(content_encoding));
-        swString_append_ptr(response, ZEND_STRL("\r\n"));
+        response->append(ZEND_STRL("Content-Encoding: "));
+        response->append((char *) content_encoding, strlen(content_encoding));
+        response->append(ZEND_STRL("\r\n"));
     }
 #endif
-    swString_append_ptr(response, ZEND_STRL("\r\n"));
+    response->append(ZEND_STRL("\r\n"));
     ctx->send_header = 1;
 }
 
@@ -523,13 +523,13 @@ static ssize_t http_build_trailer(http_context *ctx, swString *response) {
                 zend::String str_value(zvalue);
                 n = sw_snprintf(
                     buf, l_buf, "%.*s: %.*s\r\n", (int) keylen, key, (int) str_value.len(), str_value.val());
-                swString_append_ptr(response, buf, n);
+                response->append(buf, n);
                 ret += n;
             }
         }
         SW_HASHTABLE_FOREACH_END();
         (void) type;
-        swString_append_ptr(response, ZEND_STRL("\r\n"));
+        response->append(ZEND_STRL("\r\n"));
     }
 
     return ret;
@@ -774,7 +774,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
             if (send_body_len < SwooleG.pagesize)
 #endif
             {
-                if (swString_append_ptr(http_buffer, send_body_str, send_body_len) < 0) {
+                if (http_buffer->append(send_body_str, send_body_len) < 0) {
                     ctx->send_header = 0;
                     RETURN_FALSE;
                 }
