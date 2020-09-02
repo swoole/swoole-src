@@ -335,7 +335,7 @@ TEST(coroutine_socket, eof_5) {
 
                         swString *s = swoole::make_string(128 * 1024);
                         s->repeat("A", 1, 128 * 1024 - 16);
-                        swString_append_ptr(s, SW_STRL(CRLF));
+                        s->append(SW_STRL(CRLF));
 
                         conn->send_all(s->str, s->length);
                     },
@@ -368,7 +368,7 @@ TEST(coroutine_socket, eof_6) {
 
                         swString s(128 * 1024);
                         s.repeat("A", 1, 128 * 1024 - 16);
-                        swString_append_ptr(&s, SW_STRL(CRLF));
+                        s.append(SW_STRL(CRLF));
 
                         conn->send_all(s.value(), s.get_length());
                     },

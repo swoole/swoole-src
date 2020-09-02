@@ -17,6 +17,9 @@
 
 #pragma once
 
+#include "swoole.h"
+#include "error.h"
+
 #ifdef SW_USE_THREAD_CONTEXT
 #include <thread>
 #include <mutex>
@@ -33,9 +36,6 @@
 #include <valgrind/valgrind.h>
 #endif
 
-#include "swoole.h"
-#include "error.h"
-
 #ifdef USE_UCONTEXT
 typedef ucontext_t coroutine_context_t;
 #elif defined(USE_ASM_CONTEXT)
@@ -45,6 +45,8 @@ typedef fcontext_t coroutine_context_t;
 typedef std::function<void(void *)> coroutine_func_t;
 
 namespace swoole {
+namespace coroutine {
+
 class Context {
   public:
     Context(size_t stack_size, const coroutine_func_t &fn, void *private_data);
@@ -77,5 +79,6 @@ class Context {
     void *private_data_;
     bool end_;
 };
-// namespace end
+
+}  // namespace coroutine
 }  // namespace swoole

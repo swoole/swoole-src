@@ -29,7 +29,8 @@
 
 using std::string;
 using swoole::Server;
-using swoole::http::StaticHandler;
+using swoole::http_server::Request;
+using swoole::http_server::StaticHandler;
 
 // clang-format off
 static const char *method_strings[] =
@@ -57,7 +58,7 @@ const char *swHttp_get_method_string(int method) {
     return method_strings[method - 1];
 }
 
-bool Server::select_static_handler(http::Request *request, swConnection *conn) {
+bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
     const char *url = request->buffer_->str + request->url_offset_;
     size_t url_length = request->url_length_;
 
@@ -396,8 +397,9 @@ char *swHttp_url_encode(char const *str, size_t len) {
 
     return ret;
 }
+
 namespace swoole {
-namespace http {
+namespace http_server {
 //-----------------------------------------------------------------
 /**
  * only GET/POST
@@ -695,7 +697,7 @@ string Request::get_date_if_modified_since() {
 }  // namespace swoole
 
 void Server::destroy_http_request(Connection *conn) {
-    auto request = reinterpret_cast<swoole::http::Request *>(conn->object);
+    auto request = reinterpret_cast<swoole::http_server::Request *>(conn->object);
     if (!request) {
         return;
     }

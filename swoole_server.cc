@@ -845,16 +845,12 @@ int php_swoole_task_pack(swEventData *task, zval *zdata) {
         task_data_len = Z_STRLEN_P(zdata);
     }
 
-    if (task_data_len >= (int) (SW_IPC_MAX_SIZE - sizeof(task->info))) {
-        if (swEventData_large_pack(task, task_data_str, task_data_len) < 0) {
-            php_swoole_fatal_error(E_WARNING, "large task pack failed");
-            task->info.fd = SW_ERR;
-            task->info.len = 0;
-        }
-    } else {
-        memcpy(task->data, task_data_str, task_data_len);
-        task->info.len = task_data_len;
+    if (!task->pack(task_data_str, task_data_len)) {
+        php_swoole_fatal_error(E_WARNING, "large task pack failed");
+        task->info.fd = SW_ERR;
+        task->info.len = 0;
     }
+
     smart_str_free(&serialized_data);
     return task->info.fd;
 }
@@ -898,21 +894,16 @@ zval *php_swoole_task_unpack(swEventData *task_result) {
     char *result_data_str;
     int result_data_len = 0;
     php_unserialize_data_t var_hash;
-    swString *large_packet;
 
     /**
      * Large result package
      */
     if (swTask_type(task_result) & SW_TASK_TMPFILE) {
-        large_packet = swEventData_large_unpack(task_result);
-        /**
-         * unpack failed
-         */
-        if (large_packet == nullptr) {
+        if (!task_result->unpack(SwooleTG.buffer_stack)) {
             return nullptr;
         }
-        result_data_str = large_packet->str;
-        result_data_len = large_packet->length;
+        result_data_str = SwooleTG.buffer_stack->str;
+        result_data_len = SwooleTG.buffer_stack->length;
     } else {
         result_data_str = task_result->data;
         result_data_len = task_result->info.len;

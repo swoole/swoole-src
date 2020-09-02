@@ -398,7 +398,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, swEvent *ev) {
                     package = it->second;
                 }
                 // merge data to package buffer
-                swString_append_ptr(package, resp->data, n - sizeof(resp->info));
+                package->append(resp->data, n - sizeof(resp->info));
                 // wait more data
                 if (!(resp->info.flags & SW_EVENT_DATA_END)) {
                     return SW_OK;
@@ -533,7 +533,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, swEvent *ev) {
 void Server::init_reactor(Reactor *reactor) {
     // support 64K packet
     if (have_dgram_sock) {
-        swString_extend_align(SwooleTG.buffer_stack, SwooleTG.buffer_stack->size * 2);
+        SwooleTG.buffer_stack->extend();
     }
     // UDP Packet
     reactor->set_handler(SW_FD_DGRAM_SERVER, ReactorThread_onPacketReceived);

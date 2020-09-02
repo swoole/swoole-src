@@ -213,7 +213,7 @@ static int swReactorProcess_onPipeRead(swReactor *reactor, swEvent *event) {
     case SW_SERVER_EVENT_PROXY_START:
     case SW_SERVER_EVENT_PROXY_END:
         output_buffer = SwooleWG.output_buffer[task.info.reactor_id];
-        swString_append_ptr(output_buffer, task.data, task.info.len);
+        output_buffer->append(task.data, task.info.len);
         if (task.info.type == SW_SERVER_EVENT_PROXY_END) {
             memcpy(&_send.info, &task.info, sizeof(_send.info));
             _send.info.type = SW_SERVER_EVENT_RECV_DATA;

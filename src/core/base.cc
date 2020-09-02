@@ -617,7 +617,8 @@ std::shared_ptr<String> swoole_file_get_contents(const char *filename) {
         return nullptr;
     }
 
-    int fd = open(filename, O_RDONLY);
+    swoole::FileDescriptor _handler(open(filename, O_RDONLY));
+    int fd = _handler.get();
     if (fd < 0) {
         swSysWarn("open(%s) failed", filename);
         return nullptr;
@@ -633,13 +634,12 @@ std::shared_ptr<String> swoole_file_get_contents(const char *filename) {
                 continue;
             } else {
                 swSysWarn("pread(%d, %ld, %d) failed", fd, filesize - read_bytes, read_bytes);
-                close(fd);
                 return content;
             }
         }
         read_bytes += n;
     }
-    close(fd);
+
     content->length = read_bytes;
     content->str[read_bytes] = '\0';
     return content;
@@ -655,7 +655,9 @@ bool swoole_file_put_contents(const char *filename, const char *content, size_t 
         return false;
     }
 
-    int fd = open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
+    swoole::FileDescriptor _handler(open(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666));
+
+    int fd = _handler.get();
     if (fd < 0) {
         swSysWarn("open(%s) failed", filename);
         return false;
@@ -675,13 +677,11 @@ bool swoole_file_put_contents(const char *filename, const char *content, size_t 
                 continue;
             } else {
                 swSysWarn("write(%d, %d) failed", fd, chunk_size);
-                close(fd);
                 return -1;
             }
         }
         written += n;
     }
-    close(fd);
     return true;
 }
 
@@ -714,7 +714,7 @@ size_t swoole_sync_readfile(int fd, void *buf, size_t len) {
 
 swString *swoole_sync_readfile_eof(int fd) {
     ssize_t n = 0;
-    swString *data = swString_new(SW_BUFFER_SIZE_STD);
+    swString *data = new swString(SW_BUFFER_SIZE_STD);
     if (data == nullptr) {
         return data;
     }
@@ -724,11 +724,12 @@ swString *swoole_sync_readfile_eof(int fd) {
         if (n <= 0) {
             return data;
         } else {
-            if (swString_grow(data, (size_t) n)) {
+            if (!data->grow((size_t) n)) {
                 return data;
             }
         }
     }
+
     return data;
 }
 

@@ -37,13 +37,13 @@
 #endif
 
 enum http_header_flag {
-    HTTP_HEADER_SERVER = 1u << 1,
-    HTTP_HEADER_CONNECTION = 1u << 2,
-    HTTP_HEADER_CONTENT_LENGTH = 1u << 3,
-    HTTP_HEADER_DATE = 1u << 4,
-    HTTP_HEADER_CONTENT_TYPE = 1u << 5,
+    HTTP_HEADER_SERVER            = 1u << 1,
+    HTTP_HEADER_CONNECTION        = 1u << 2,
+    HTTP_HEADER_CONTENT_LENGTH    = 1u << 3,
+    HTTP_HEADER_DATE              = 1u << 4,
+    HTTP_HEADER_CONTENT_TYPE      = 1u << 5,
     HTTP_HEADER_TRANSFER_ENCODING = 1u << 6,
-    HTTP_HEADER_ACCEPT_ENCODING = 1u << 7,
+    HTTP_HEADER_ACCEPT_ENCODING   = 1u << 7,
 };
 
 enum http_compress_method {
@@ -53,7 +53,19 @@ enum http_compress_method {
     HTTP_COMPRESS_BR,
 };
 
-struct http_request {
+namespace swoole {
+
+#ifdef SW_USE_HTTP2
+class Coroutine;
+namespace http2 {
+class Stream;
+class Session;
+}  // namespace http2
+#endif
+
+namespace http {
+
+struct Request {
     int version;
     char *path;
     uint32_t path_len;
@@ -87,7 +99,7 @@ struct http_request {
     zval _ztmpfiles;
 };
 
-struct http_response {
+struct Response {
     enum swoole_http_method method;
     int version;
     int status;
@@ -104,17 +116,7 @@ struct http_response {
     zval _ztrailer;
 };
 
-#ifdef SW_USE_HTTP2
-namespace swoole {
-class Coroutine;
-namespace http2 {
-class Stream;
-class Session;
-}  // namespace http2
-}  // namespace swoole
-#endif
-
-struct http_context {
+struct Context {
     int fd;
     uchar completed : 1;
     uchar end : 1;
@@ -140,7 +142,7 @@ struct http_context {
 
 #ifdef SW_USE_HTTP2
     uchar http2 : 1;
-    swoole::http2::Stream *stream;
+    http2::Stream *stream;
 #endif
 
 #ifdef SW_HAVE_COMPRESSION
@@ -148,8 +150,8 @@ struct http_context {
     int8_t compression_method;
 #endif
 
-    http_request request;
-    http_response response;
+    Request request;
+    Response response;
 
     swoole_http_parser parser;
     multipart_parser *mt_parser;
@@ -166,25 +168,24 @@ struct http_context {
     const char *upload_tmp_dir;
 
     void *private_data;
-    bool (*send)(http_context *ctx, const char *data, size_t length);
-    bool (*sendfile)(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
-    bool (*close)(http_context *ctx);
+    bool (*send)(Context *ctx, const char *data, size_t length);
+    bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+    bool (*close)(Context *ctx);
 };
 
+}  // namespace http
+
 #ifdef SW_USE_HTTP2
-
-namespace swoole {
 namespace http2 {
-
 class Stream {
   public:
-    http_context *ctx;
+    http::Context *ctx;
     // uint8_t priority; // useless now
     uint32_t id;
     // flow control
     uint32_t send_window;
     uint32_t recv_window;
-    swoole::Coroutine *waiting_coroutine = nullptr;
+    Coroutine *waiting_coroutine = nullptr;
 
     Stream(Session *client, uint32_t _id);
     ~Stream();
@@ -210,8 +211,8 @@ class Session {
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
 
-    http_context *default_ctx = nullptr;
-    void *private_data = nullptr;
+    http::Context *default_ctx = nullptr;
+    void *private_data   = nullptr;
 
     void (*handle)(Session *, Stream *) = nullptr;
 
@@ -219,8 +220,9 @@ class Session {
     ~Session();
 };
 }  // namespace http2
-}  // namespace swoole
 #endif
+
+}  // namespace swoole
 
 extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
@@ -232,11 +234,11 @@ extern swString *swoole_http_form_data_buffer;
 extern swString *swoole_zlib_buffer;
 #endif
 
-http_context *swoole_http_context_new(int fd);
-http_context *php_swoole_http_request_get_and_check_context(zval *zobject);
-http_context *php_swoole_http_response_get_and_check_context(zval *zobject);
-void swoole_http_context_free(http_context *ctx);
-void swoole_http_context_copy(http_context *src, http_context *dst);
+swoole::http::Context *swoole_http_context_new(int fd);
+swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
+swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
+void swoole_http_context_free(swoole::http::Context *ctx);
+void swoole_http_context_copy(swoole::http::Context *src, swoole::http::Context *dst);
 
 static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {
@@ -244,29 +246,29 @@ static sw_inline zval *swoole_http_init_and_read_property(
         // Notice: swoole http server properties can not be unset anymore, so we can read it without checking
         zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(zobject), name, name_len, 0, &rv);
         array_init(property);
-        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
+        *zproperty_store_pp  = (zval *) (zproperty_store_pp + 1);
         **zproperty_store_pp = *property;
     }
     return *zproperty_store_pp;
 }
-int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len);
+int swoole_http_parse_form_data(swoole::http::Context *ctx, const char *boundary_str, int boundary_len);
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 
-http_context *php_swoole_http_request_get_context(zval *zobject);
-void php_swoole_http_request_set_context(zval *zobject, http_context *context);
-http_context *php_swoole_http_response_get_context(zval *zobject);
-void php_swoole_http_response_set_context(zval *zobject, http_context *context);
-size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length);
+swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
+void php_swoole_http_request_set_context(zval *zobject, swoole::http::Context *context);
+swoole::http::Context *php_swoole_http_response_get_context(zval *zobject);
+void php_swoole_http_response_set_context(zval *zobject, swoole::http::Context *context);
+size_t swoole_http_requset_parse(swoole::http::Context *ctx, const char *data, size_t length);
 
 bool swoole_http_response_set_header(
-    http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
-void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value);
-void swoole_http_response_send_trailer(http_context *ctx, zval *return_value);
+    swoole::http::Context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
+void swoole_http_response_end(swoole::http::Context *ctx, zval *zdata, zval *return_value);
+void swoole_http_response_send_trailer(swoole::http::Context *ctx, zval *return_value);
 
 #ifdef SW_HAVE_COMPRESSION
 int swoole_http_response_compress(const char *data, size_t length, int method, int level);
-void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length);
-const char *swoole_http_get_content_encoding(http_context *ctx);
+void swoole_http_get_compression_method(swoole::http::Context *ctx, const char *accept_encoding, size_t length);
+const char *swoole_http_get_content_encoding(swoole::http::Context *ctx);
 #endif
 
 #ifdef SW_HAVE_ZLIB
@@ -290,14 +292,14 @@ static sw_inline nghttp2_mem *php_nghttp2_mem() {
     return &mem;
 }
 
-void swoole_http2_response_end(http_context *ctx, zval *zdata, zval *return_value);
+void swoole_http2_response_end(swoole::http::Context *ctx, zval *zdata, zval *return_value);
 
 namespace swoole {
 namespace http2 {
 //-----------------------------------namespace begin--------------------------------------------
-class headers {
+class HeaderSet {
   public:
-    headers(size_t size) : size(size), index(0) {
+    HeaderSet(size_t size) : size(size), index(0) {
         nvs = (nghttp2_nv *) ecalloc(size, sizeof(nghttp2_nv));
     }
 
@@ -321,13 +323,13 @@ class headers {
                     const uint8_t flags = NGHTTP2_NV_FLAG_NONE) {
         if (sw_likely(index < size || nvs[index].name == nullptr)) {
             nghttp2_nv *nv = &nvs[index];
-            name = zend_str_tolower_dup(name, name_len);  // auto to lower
-            nv->name = (uchar *) name;
-            nv->namelen = name_len;
-            nv->value = (uchar *) emalloc(value_len);
+            name           = zend_str_tolower_dup(name, name_len);  // auto to lower
+            nv->name       = (uchar *) name;
+            nv->namelen    = name_len;
+            nv->value      = (uchar *) emalloc(value_len);
             memcpy(nv->value, value, value_len);
             nv->valuelen = value_len;
-            nv->flags = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
+            nv->flags    = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
             swTraceLog(SW_TRACE_HTTP2,
                        "name=(%zu)[%.*s], value=(%zu)[%.*s]",
                        name_len,
@@ -350,7 +352,7 @@ class headers {
         add(index++, name, name_len, value, value_len, flags);
     }
 
-    ~headers() {
+    ~HeaderSet() {
         for (size_t i = 0; i < size; ++i) {
             if (sw_likely(nvs[i].name /* && nvs[i].value */)) {
                 efree((void *) nvs[i].name);

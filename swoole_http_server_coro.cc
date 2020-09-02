@@ -30,6 +30,10 @@ using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
+using http_request = swoole::http::Request;
+using http_response = swoole::http::Response;
+using http_context = swoole::http::Context;
+
 #ifdef SW_USE_HTTP2
 using Http2Stream = swoole::http2::Stream;
 using Http2Session = swoole::http2::Session;
@@ -578,7 +582,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
                 break;
             }
             if (total_bytes == buffer->size) {
-                if (swString_extend(buffer, buffer->size * 2) != SW_OK) {
+                if (!buffer->extend()) {
                     ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
                     break;
                 }

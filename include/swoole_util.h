@@ -59,5 +59,25 @@ static inline long time(bool steady = false) {
     }
 }
 
+class FileDescriptor {
+ private:
+    int fd_;
+ public:
+    FileDescriptor(int fd) {
+        fd_ = fd;
+    }
+    ~FileDescriptor() {
+        if (fd_ >= 0) {
+            close(fd_);
+        }
+    }
+    void release() {
+        fd_ = -1;
+    }
+    int get() {
+        return fd_;
+    }
+};
+
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
 }  // namespace swoole

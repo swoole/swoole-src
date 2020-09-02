@@ -15,23 +15,24 @@
 */
 
 #include "swoole_api.h"
-#include "context.h"
+#include "coroutine_context.h"
 
 #ifdef SW_USE_THREAD_CONTEXT
 
-using namespace swoole;
-using namespace std;
+namespace swoole {
+namespace coroutine {
 
-static mutex global_lock;
-static swReactor *g_reactor = nullptr;
-static swTimer *g_timer = nullptr;
-static mutex *current_lock = nullptr;
+static std::mutex global_lock;
+static Reactor *g_reactor = nullptr;
+static Timer *g_timer = nullptr;
+static std::mutex *current_lock = nullptr;
 
-static void empty_timer(swTimer *timer, swTimer_node *tnode) {
+static void empty_timer(Timer *timer, TimerNode *tnode) {
     // do nothing
 }
 
-Context::Context(size_t stack_size, coroutine_func_t fn, void *private_data) : fn_(fn), private_data_(private_data) {
+Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
+    : fn_(fn), private_data_(private_data) {
     if (sw_unlikely(current_lock == nullptr)) {
         current_lock = &global_lock;
         g_reactor = SwooleTG.reactor;
@@ -43,7 +44,8 @@ Context::Context(size_t stack_size, coroutine_func_t fn, void *private_data) : f
     }
     end_ = false;
     lock_.lock();
-    thread_ = thread(Context::context_func, this);
+    swap_lock_ = nullptr;
+    thread_ = std::thread(Context::context_func, this);
 }
 
 Context::~Context() {
@@ -55,12 +57,14 @@ bool Context::swap_in() {
     current_lock = &lock_;
     lock_.unlock();
     swap_lock_->lock();
+    return true;
 }
 
 bool Context::swap_out() {
     current_lock = swap_lock_;
     swap_lock_->unlock();
     lock_.lock();
+    return true;
 }
 
 void Context::context_func(void *arg) {
@@ -73,5 +77,6 @@ void Context::context_func(void *arg) {
     _this->swap_lock_->unlock();
     _this->end_ = true;
 }
-
+}  // namespace coroutine
+}  // namespace swoole
 #endif

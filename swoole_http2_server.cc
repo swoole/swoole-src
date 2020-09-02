@@ -28,7 +28,9 @@
 using namespace swoole;
 using std::string;
 using swoole::coroutine::System;
-using swoole::http::StaticHandler;
+using swoole::http_server::StaticHandler;
+
+using http_context = swoole::http::Context;
 using Http2Stream = swoole::http2::Stream;
 using Http2Session = swoole::http2::Session;
 
@@ -103,7 +105,7 @@ static ssize_t http2_build_trailer(http_context *ctx, uchar *buffer) {
     uint32_t size = php_swoole_array_length_safe(ztrailer);
 
     if (size > 0) {
-        http2::headers trailer(size);
+        http2::HeaderSet trailer(size);
         zend_string *key;
         zval *zvalue;
 
@@ -236,7 +238,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *zcookie =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
-    http2::headers headers(8 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
+    http2::HeaderSet headers(8 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
     char *date_str = nullptr;
     char intbuf[2][16];
     int ret;
@@ -847,7 +849,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
             buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
             ctx->request.h2_data_buffer = buffer;
         }
-        swString_append_ptr(buffer, buf, length);
+        buffer->append(buf, length);
 
         // flow control
         client->recv_window -= length;

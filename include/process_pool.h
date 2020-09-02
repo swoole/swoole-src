@@ -218,7 +218,7 @@ struct ProcessPool {
     int start();
     void shutdown();
     pid_t spawn(Worker *worker);
-    int dispatch(swEventData *data, int *worker_id);
+    int dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
     int dispatch_blocking(swEventData *data, int *dst_worker_id);
     int add_worker(Worker *worker);

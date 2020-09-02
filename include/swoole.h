@@ -46,7 +46,7 @@
 #include <limits.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sched.h>  /* sched_yield() */
+#include <sched.h> /* sched_yield() */
 #include <pthread.h>
 
 #include <sys/utsname.h>
@@ -208,6 +208,8 @@ namespace async {
 struct Event;
 }
 struct Protocol;
+struct EventData;
+struct DataHead;
 }  // namespace swoole
 
 typedef swoole::Reactor swReactor;
@@ -219,6 +221,8 @@ typedef swoole::network::Address swSocketAddress;
 typedef swoole::network::GetaddrinfoRequest swRequest_getaddrinfo;
 typedef swoole::network::Client swClient;
 typedef swoole::Protocol swProtocol;
+typedef swoole::EventData swEventData;
+typedef swoole::DataHead swDataHead;
 typedef swoole::async::Event swAio_event;
 
 struct swMsgQueue;
@@ -247,7 +251,7 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 
 static sw_inline char *swoole_strdup(const char *s) {
     size_t l = strlen(s) + 1;
-    char *p = (char *) sw_malloc(l);
+    char *p  = (char *) sw_malloc(l);
     if (sw_likely(p)) {
         memcpy(p, s, l);
     }
@@ -288,16 +292,16 @@ static sw_inline unsigned int swoole_strcasect(const char *pstr, size_t plen, co
 
 /*--------------------------------Constants------------------------------------*/
 enum swResult_code {
-    SW_OK = 0,
+    SW_OK  = 0,
     SW_ERR = -1,
 };
 
 enum swReturn_code {
     SW_CONTINUE = 1,
-    SW_WAIT = 2,
-    SW_CLOSE = 3,
-    SW_ERROR = 4,
-    SW_READY = 5,
+    SW_WAIT     = 2,
+    SW_CLOSE    = 3,
+    SW_ERROR    = 4,
+    SW_READY    = 5,
 };
 
 enum swFd_type {
@@ -334,27 +338,27 @@ enum swFd_type {
 
 enum swSocket_flag {
     SW_SOCK_NONBLOCK = 1 << 2,
-    SW_SOCK_CLOEXEC = 1 << 3,
-    SW_SOCK_SSL = (1u << 9),
+    SW_SOCK_CLOEXEC  = 1 << 3,
+    SW_SOCK_SSL      = (1u << 9),
 };
 
 enum swSocket_type {
-    SW_SOCK_TCP = 1,
-    SW_SOCK_UDP = 2,
-    SW_SOCK_TCP6 = 3,
-    SW_SOCK_UDP6 = 4,
+    SW_SOCK_TCP         = 1,
+    SW_SOCK_UDP         = 2,
+    SW_SOCK_TCP6        = 3,
+    SW_SOCK_UDP6        = 4,
     SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
-    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
+    SW_SOCK_UNIX_DGRAM  = 6,  // unix sock dgram
 };
 
 enum swEvent_type {
-    SW_EVENT_NULL = 0,
+    SW_EVENT_NULL   = 0,
     SW_EVENT_DEAULT = 1u << 8,
-    SW_EVENT_READ = 1u << 9,
-    SW_EVENT_WRITE = 1u << 10,
-    SW_EVENT_RDWR = SW_EVENT_READ | SW_EVENT_WRITE,
-    SW_EVENT_ERROR = 1u << 11,
-    SW_EVENT_ONCE = 1u << 12,
+    SW_EVENT_READ   = 1u << 9,
+    SW_EVENT_WRITE  = 1u << 10,
+    SW_EVENT_RDWR   = SW_EVENT_READ | SW_EVENT_WRITE,
+    SW_EVENT_ERROR  = 1u << 11,
+    SW_EVENT_ONCE   = 1u << 12,
 };
 
 enum swGlobal_hook_type {
@@ -367,9 +371,9 @@ enum swGlobal_hook_type {
 };
 
 enum swFork_type {
-    SW_FORK_SPAWN = 0,
-    SW_FORK_EXEC = 1 << 1,
-    SW_FORK_DAEMON = 1 << 2,
+    SW_FORK_SPAWN    = 0,
+    SW_FORK_EXEC     = 1 << 1,
+    SW_FORK_DAEMON   = 1 << 2,
     SW_FORK_PRECHECK = 1 << 3,
 };
 
@@ -424,14 +428,16 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
 //------------------------------Base--------------------------------
 enum _swEventData_flag {
     SW_EVENT_DATA_NORMAL,
-    SW_EVENT_DATA_PTR = 1u << 1,
-    SW_EVENT_DATA_CHUNK = 1u << 2,
-    SW_EVENT_DATA_END = 1u << 3,
+    SW_EVENT_DATA_PTR     = 1u << 1,
+    SW_EVENT_DATA_CHUNK   = 1u << 2,
+    SW_EVENT_DATA_END     = 1u << 3,
     SW_EVENT_DATA_OBJ_PTR = 1u << 4,
     SW_EVENT_DATA_POP_PTR = 1u << 5,
 };
 
-struct swDataHead {
+namespace swoole {
+
+struct DataHead {
     int fd;
     uint32_t len;
     int16_t reactor_id;
@@ -445,10 +451,14 @@ struct swDataHead {
     size_t dump(char *buf, size_t len);
 };
 
-struct swEventData {
-    swDataHead info;
+struct EventData {
+    DataHead info;
     char data[SW_IPC_BUFFER_SIZE];
+    bool pack(const void *data, size_t data_len);
+    bool unpack(String *buffer);
 };
+
+}  // namespace swoole
 
 #define swTask_type(task) ((task)->info.server_fd)
 
@@ -456,14 +466,14 @@ struct swEventData {
  * use swDataHead->server_fd, 1 byte 8 bit
  */
 enum swTask_type {
-    SW_TASK_TMPFILE = 1,     // tmp file
-    SW_TASK_SERIALIZE = 2,   // php serialize
-    SW_TASK_NONBLOCK = 4,    // task
-    SW_TASK_CALLBACK = 8,    // callback
-    SW_TASK_WAITALL = 16,    // for taskWaitAll
-    SW_TASK_COROUTINE = 32,  // coroutine
-    SW_TASK_PEEK = 64,       // peek
-    SW_TASK_NOREPLY = 128,   // don't reply
+    SW_TASK_TMPFILE   = 1,    // tmp file
+    SW_TASK_SERIALIZE = 2,    // php serialize
+    SW_TASK_NONBLOCK  = 4,    // task
+    SW_TASK_CALLBACK  = 8,    // callback
+    SW_TASK_WAITALL   = 16,   // for taskWaitAll
+    SW_TASK_COROUTINE = 32,   // coroutine
+    SW_TASK_PEEK      = 64,   // peek
+    SW_TASK_NOREPLY   = 128,  // don't reply
 };
 
 struct swEvent {
@@ -487,18 +497,18 @@ extern __thread char sw_error[SW_ERROR_MSG_SIZE];
 #endif
 
 enum swProcess_type {
-    SW_PROCESS_MASTER = 1,
-    SW_PROCESS_WORKER = 2,
-    SW_PROCESS_MANAGER = 3,
+    SW_PROCESS_MASTER     = 1,
+    SW_PROCESS_WORKER     = 2,
+    SW_PROCESS_MANAGER    = 3,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
 };
 
 enum swPipe_type {
-    SW_PIPE_WORKER = 0,
-    SW_PIPE_MASTER = 1,
-    SW_PIPE_READ = 0,
-    SW_PIPE_WRITE = 1,
+    SW_PIPE_WORKER   = 0,
+    SW_PIPE_MASTER   = 1,
+    SW_PIPE_READ     = 0,
+    SW_PIPE_WRITE    = 1,
     SW_PIPE_NONBLOCK = 2,
 };
 

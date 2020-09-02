@@ -156,7 +156,7 @@ bool String::repeat(const char *data, size_t len, size_t n) {
         return true;
     }
     for (size_t i = 0; i < n; i++) {
-        swString_append_ptr(this, data, len);
+        append(data, len);
     }
     return true;
 }

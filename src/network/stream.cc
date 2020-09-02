@@ -120,13 +120,13 @@ void Stream::set_max_length(uint32_t max_length) {
 
 int Stream::send(const char *data, size_t length) {
     if (buffer == nullptr) {
-        buffer = swString_new(swoole_size_align(length + 4, SwooleG.pagesize));
+        buffer = new String(swoole_size_align(length + 4, SwooleG.pagesize));
         if (buffer == nullptr) {
             return SW_ERR;
         }
         buffer->length = 4;
     }
-    if (swString_append_ptr(buffer, data, length) < 0) {
+    if (buffer->append(data, length) < 0) {
         return SW_ERR;
     }
     return SW_OK;

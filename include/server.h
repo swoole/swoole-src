@@ -182,7 +182,7 @@ enum swServer_hook_type {
 
 namespace swoole {
 
-namespace http {
+namespace http_server {
 struct Request;
 }
 
@@ -877,7 +877,7 @@ class Server {
 
     void add_static_handler_location(const std::string &);
     void add_static_handler_index_files(const std::string &);
-    bool select_static_handler(http::Request *request, Connection *conn);
+    bool select_static_handler(http_server::Request *request, Connection *conn);
 
     int create();
     int start();
@@ -1290,9 +1290,6 @@ static sw_inline int swEventData_is_stream(uint8_t type) {
         return false;
     }
 }
-
-int swEventData_large_pack(swEventData *task, const void *data, size_t data_len);
-swString *swEventData_large_unpack(swEventData *task_result);
 
 extern swServer *g_server_instance;
 

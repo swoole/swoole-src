@@ -23,8 +23,9 @@
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
 #include "swoole_log.h"
-#include "context.h"
 #include "swoole_async.h"
+
+#include "coroutine_context.h"
 
 #include <limits.h>
 
@@ -190,7 +191,7 @@ class Coroutine {
     long cid;
     long init_msec = Timer::get_absolute_msec();
     void *task = nullptr;
-    Context ctx;
+    coroutine::Context ctx;
     Coroutine *origin;
 
     Coroutine(const coroutine_func_t &fn, void *private_data) : ctx(stack_size, fn, private_data) {
