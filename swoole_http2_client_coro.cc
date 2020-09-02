@@ -967,7 +967,7 @@ static ssize_t http2_client_build_header(zval *zobject, zval *zrequest, char *bu
     zval *zpath = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH), 0);
     zval *zheaders = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
     zval *zcookies = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIES), 0);
-    http2::headers headers(8 + php_swoole_array_length_safe(zheaders) + php_swoole_array_length_safe(zcookies));
+    http2::HeaderSet headers(8 + php_swoole_array_length_safe(zheaders) + php_swoole_array_length_safe(zcookies));
     bool find_host = 0;
 
     if (Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0) {

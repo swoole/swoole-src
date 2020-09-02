@@ -22,7 +22,7 @@
 
 using namespace std;
 using namespace swoole;
-using swoole::http::StaticHandler;
+using swoole::http_server::StaticHandler;
 
 bool StaticHandler::is_modified(const string &date_if_modified_since) {
     char date_tmp[64];

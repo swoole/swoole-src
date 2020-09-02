@@ -34,6 +34,10 @@ using namespace swoole;
 using namespace std;
 using swoole::coroutine::Socket;
 
+using http_request = swoole::http::Request;
+using http_response = swoole::http::Response;
+using http_context = swoole::http::Context;
+
 zend_class_entry *swoole_websocket_server_ce;
 static zend_object_handlers swoole_websocket_server_handlers;
 

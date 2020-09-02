@@ -21,9 +21,9 @@
 #include "mqtt.h"
 #include "swoole_redis.h"
 
-using swoole::ListenPort;
 using swoole::Server;
-using swoole::http::Request;
+using swoole::ListenPort;
+using swoole::http_server::Request;
 
 static int swPort_onRead_raw(swReactor *reactor, ListenPort *lp, swEvent *event);
 static int swPort_onRead_check_length(swReactor *reactor, ListenPort *lp, swEvent *event);

@@ -54,6 +54,9 @@ enum http_upload_errno {
     HTTP_UPLOAD_ERR_CANT_WRITE,
 };
 
+using http_request = swoole::http::Request;
+using http_context = swoole::http::Context;
+
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_body(swoole_http_parser *parser, const char *at, size_t length);

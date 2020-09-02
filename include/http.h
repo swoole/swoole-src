@@ -102,7 +102,7 @@ enum swHttp_status_code {
 };
 
 namespace swoole {
-namespace http {
+namespace http_server {
 //-----------------------------------------------------------------
 struct Request {
   public:

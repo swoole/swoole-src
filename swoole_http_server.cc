@@ -24,6 +24,9 @@
 
 using namespace swoole;
 using swoole::coroutine::Socket;
+using http_request = swoole::http::Request;
+using http_response = swoole::http::Response;
+using http_context = swoole::http::Context;
 
 swString *swoole_http_buffer;
 #ifdef SW_HAVE_COMPRESSION

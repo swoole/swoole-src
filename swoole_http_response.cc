@@ -44,6 +44,8 @@ extern "C" {
 #endif
 
 using swoole::coroutine::Socket;
+using http_response = swoole::http::Response;
+using http_context = swoole::http::Context;
 
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;

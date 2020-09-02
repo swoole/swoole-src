@@ -30,6 +30,10 @@ using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
+using http_request = swoole::http::Request;
+using http_response = swoole::http::Response;
+using http_context = swoole::http::Context;
+
 #ifdef SW_USE_HTTP2
 using Http2Stream = swoole::http2::Stream;
 using Http2Session = swoole::http2::Session;

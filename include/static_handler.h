@@ -24,7 +24,7 @@
 #include <set>
 
 namespace swoole {
-namespace http {
+namespace http_server {
 
 class StaticHandler {
   private:
