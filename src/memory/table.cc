@@ -366,3 +366,15 @@ _delete_element:
 
     return SW_OK;
 }
+
+void swTableColumn::clear(swTableRow *row) {
+    if (type == SW_TABLE_STRING) {
+        swTableRow_set_value(row, this, nullptr, 0);
+    } else if (type == SW_TABLE_FLOAT) {
+        double _value = 0;
+        swTableRow_set_value(row, this, &_value, 0);
+    } else {
+        long _value = 0;
+        swTableRow_set_value(row, this, &_value, 0);
+    }
+}

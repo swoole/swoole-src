@@ -94,6 +94,8 @@ struct swTableColumn {
             break;
         }
     }
+
+    void clear(swTableRow *row);
 };
 
 struct swTable {

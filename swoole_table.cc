@@ -427,15 +427,7 @@ static PHP_METHOD(swoole_table, set) {
             swTableColumn *col = *i;
             zval *zv = zend_hash_str_find(ht, col->name.c_str(), col->name.length());
             if (zv == nullptr || ZVAL_IS_NULL(zv)) {
-                if (col->type == SW_TABLE_STRING) {
-                     swTableRow_set_value(row, col, nullptr, 0);
-                 } else if (col->type == SW_TABLE_FLOAT) {
-                     double _value = 0;
-                     swTableRow_set_value(row, col, &_value, 0);
-                 } else {
-                     long _value = zval_get_long(zv);
-                     swTableRow_set_value(row, col, &_value, 0);
-                 }
+                 col->clear(row);
             } else {
                 if (col->type == SW_TABLE_STRING) {
                     zend_string *str = zval_get_string(zv);
@@ -508,7 +500,13 @@ static PHP_METHOD(swoole_table, incr) {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
         RETURN_FALSE;
-    } else if (column->type == SW_TABLE_STRING) {
+    }
+
+    if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
+        column->clear(row);
+    }
+
+    if (column->type == SW_TABLE_STRING) {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "can't execute 'incr' on a string type column");
         RETURN_FALSE;
@@ -562,7 +560,13 @@ static PHP_METHOD(swoole_table, decr) {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", col);
         RETURN_FALSE;
-    } else if (column->type == SW_TABLE_STRING) {
+    }
+
+    if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
+        column->clear(row);
+    }
+
+    if (column->type == SW_TABLE_STRING) {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "can't execute 'decr' on a string type column");
         RETURN_FALSE;
@@ -806,22 +810,29 @@ static PHP_METHOD(swoole_table_row, offsetSet) {
         RETURN_FALSE;
     }
 
-    swTableColumn *col = swTableColumn_get(table, std::string(key, keylen));
-    if (col == nullptr) {
+    if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
+        for (auto i = table->column_list->begin(); i != table->column_list->end(); i++) {
+            (*i)->clear(row);
+        }
+    }
+
+    swTableColumn *column = swTableColumn_get(table, std::string(key, keylen));
+    if (column == nullptr) {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "column[%s] does not exist", key);
         RETURN_FALSE;
     }
-    if (col->type == SW_TABLE_STRING) {
+
+    if (column->type == SW_TABLE_STRING) {
         zend_string *str = zval_get_string(value);
-        swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
+        swTableRow_set_value(row, column, ZSTR_VAL(str), ZSTR_LEN(str));
         zend_string_release(str);
-    } else if (col->type == SW_TABLE_FLOAT) {
+    } else if (column->type == SW_TABLE_FLOAT) {
         double _value = zval_get_double(value);
-        swTableRow_set_value(row, col, &_value, 0);
+        swTableRow_set_value(row, column, &_value, 0);
     } else {
         long _value = zval_get_long(value);
-        swTableRow_set_value(row, col, &_value, 0);
+        swTableRow_set_value(row, column, &_value, 0);
     }
     swTableRow_unlock(_rowlock);
 
