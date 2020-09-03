@@ -69,7 +69,7 @@ class table_t {
 
     bool set(const std::string &key, const row_t &value) {
         swTableRow *_rowlock = nullptr;
-        swTableRow *row = swTableRow_set(table, key.c_str(), key.length(), &_rowlock);
+        swTableRow *row = swTableRow_set(table, key.c_str(), key.length(), &_rowlock, nullptr);
         if (!row) {
             swTableRow_unlock(_rowlock);
             return false;

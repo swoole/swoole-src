@@ -16,14 +16,7 @@
 
 #include "swoole_table.h"
 
-//#define SW_TABLE_DEBUG 1
 #define SW_TABLE_USE_PHP_HASH
-
-#ifdef SW_TABLE_DEBUG
-static int conflict_count = 0;
-static int insert_count = 0;
-static int conflict_max_level = 0;
-#endif
 
 static inline void swTable_check_key_length(uint16_t *keylen) {
     if (*keylen >= SW_TABLE_KEY_SIZE) {
@@ -149,11 +142,11 @@ int swTable_create(swTable *table) {
 
 void swTable_free(swTable *table) {
 #ifdef SW_TABLE_DEBUG
-    printf("swoole_table: size=%d, conflict_count=%d, conflict_max_level=%d, insert_count=%d\n",
+    printf("swoole_table: size=%ld, conflict_count=%d, conflict_max_level=%d, insert_count=%d\n",
            table->size,
-           conflict_count,
-           conflict_max_level,
-           insert_count);
+           table->conflict_count,
+           table->conflict_max_level,
+           table->insert_count);
 #endif
 
     auto i = table->column_map->begin();
@@ -248,20 +241,24 @@ swTableRow *swTableRow_get(swTable *table, const char *key, uint16_t keylen, swT
 }
 
 static inline void swTableRow_init(swTable *table, swTableRow *new_row, const char *key, int keylen) {
-    sw_memset_zero(new_row, sizeof(swTableRow) + table->item_size);
+    sw_memset_zero(new_row, sizeof(swTableRow));
     memcpy(new_row->key, key, keylen);
     new_row->key[keylen] = '\0';
     new_row->key_len = keylen;
     new_row->active = 1;
     sw_atomic_fetch_add(&(table->row_num), 1);
+#ifdef SW_TABLE_DEBUG
+    table->insert_count++;
+#endif
 }
 
-swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock) {
+swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock, int *out_flags) {
     swTable_check_key_length(&keylen);
 
     swTableRow *row = swTable_hash(table, key, keylen);
     *rowlock = row;
     swTableRow_lock(row);
+    int _out_flags = 0;
 
 #ifdef SW_TABLE_DEBUG
     int _conflict_level = 0;
@@ -274,34 +271,36 @@ swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swT
             } else if (row->next == nullptr) {
                 table->lock.lock(&table->lock);
                 swTableRow *new_row = (swTableRow *) table->pool->alloc(table->pool, 0);
-
 #ifdef SW_TABLE_DEBUG
-                conflict_count++;
-                if (_conflict_level > conflict_max_level) {
-                    conflict_max_level = _conflict_level;
+                table->conflict_count++;
+                if (_conflict_level > table->conflict_max_level) {
+                    table->conflict_max_level = _conflict_level;
                 }
-
 #endif
                 table->lock.unlock(&table->lock);
                 if (!new_row) {
                     return nullptr;
                 }
                 swTableRow_init(table, new_row, key, keylen);
+                _out_flags |= SW_TABLE_FLAG_NEW_ROW;
                 row->next = new_row;
                 row = new_row;
                 break;
             } else {
                 row = row->next;
+                _out_flags |= SW_TABLE_FLAG_CONFLICT;
 #ifdef SW_TABLE_DEBUG
                 _conflict_level++;
 #endif
             }
         }
     } else {
-#ifdef SW_TABLE_DEBUG
-        insert_count++;
-#endif
         swTableRow_init(table, row, key, keylen);
+        _out_flags |= SW_TABLE_FLAG_NEW_ROW;
+    }
+
+    if (out_flags) {
+        *out_flags = _out_flags;
     }
 
     return row;
@@ -366,4 +365,16 @@ _delete_element:
     swTableRow_unlock(row);
 
     return SW_OK;
+}
+
+void swTableColumn::clear(swTableRow *row) {
+    if (type == SW_TABLE_STRING) {
+        swTableRow_set_value(row, this, nullptr, 0);
+    } else if (type == SW_TABLE_FLOAT) {
+        double _value = 0;
+        swTableRow_set_value(row, this, &_value, 0);
+    } else {
+        long _value = 0;
+        swTableRow_set_value(row, this, &_value, 0);
+    }
 }
