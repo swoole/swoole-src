@@ -202,11 +202,6 @@ static void handler_write(Event *event) {
     event->error = errno;
 }
 
-static void handler_lseek(Event *event) {
-    event->ret = lseek(event->fd, event->offset, event->flags);
-    event->error = errno;
-}
-
 static void handler_fstat(Event *event) {
     event->ret = fstat(event->fd, (struct stat *) event->buf);
     event->error = errno;
@@ -328,22 +323,14 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
         return lseek(fd, offset, whence);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.fd = fd;
-    ev.offset = offset;
-    ev.flags = whence;
-    ev.handler = handler_lseek;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    off_t retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = lseek(fd, offset, whence);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
