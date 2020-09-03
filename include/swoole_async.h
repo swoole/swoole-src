@@ -49,7 +49,7 @@ struct Event {
     /**
      * output
      */
-    int ret;
+    ssize_t ret;
     int error;
     /**
      * internal use only
