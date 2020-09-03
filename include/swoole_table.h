@@ -29,6 +29,8 @@
 #include <vector>
 #include <unordered_map>
 
+#define SW_TABLE_DEBUG 1
+
 typedef uint32_t swTable_string_length_t;
 
 struct swTableRow {
@@ -60,6 +62,11 @@ enum swTableColumn_type {
     SW_TABLE_INT = 1,
     SW_TABLE_FLOAT,
     SW_TABLE_STRING,
+};
+
+enum swTable_flag {
+    SW_TABLE_FLAG_NEW_ROW = 1,
+    SW_TABLE_FLAG_CONFLICT = 1u << 1,
 };
 
 struct swTableColumn {
@@ -112,6 +119,12 @@ struct swTable {
     pid_t create_pid;
 
     void *memory;
+
+#ifdef SW_TABLE_DEBUG
+    int conflict_count;
+    int insert_count;
+    int conflict_max_level;
+#endif
 };
 
 swTable *swTable_new(uint32_t rows_size, float conflict_proportion);
@@ -119,7 +132,7 @@ size_t swTable_get_memory_size(swTable *table);
 int swTable_create(swTable *table);
 void swTable_free(swTable *table);
 bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size);
-swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock);
+swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock, int *out_flags);
 swTableRow *swTableRow_get(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock);
 
 void swTable_iterator_rewind(swTable *table);
@@ -204,8 +217,13 @@ static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn *col, 
             swWarn("[key=%s,field=%s]string value is too long", row->key, col->name.c_str());
             vlen = col->size - sizeof(swTable_string_length_t);
         }
+        if (value == nullptr) {
+            vlen = 0;
+        }
         memcpy(row->data + col->index, &vlen, sizeof(swTable_string_length_t));
-        memcpy(row->data + col->index + sizeof(swTable_string_length_t), value, vlen);
+        if (vlen > 0) {
+            memcpy(row->data + col->index + sizeof(swTable_string_length_t), value, vlen);
+        }
         break;
     }
 }

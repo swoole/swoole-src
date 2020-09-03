@@ -411,8 +411,9 @@ static PHP_METHOD(swoole_table, set) {
         php_swoole_fatal_error(E_WARNING, "key[%s] is too long", key);
     }
 
+    int out_flags;
     swTableRow *_rowlock = nullptr;
-    swTableRow *row = swTableRow_set(table, key, keylen, &_rowlock);
+    swTableRow *row = swTableRow_set(table, key, keylen, &_rowlock, &out_flags);
     if (!row) {
         swTableRow_unlock(_rowlock);
         php_swoole_error(E_WARNING, "failed to set('%*s'), unable to allocate memory", (int) keylen, key);
@@ -420,30 +421,59 @@ static PHP_METHOD(swoole_table, set) {
     }
 
     HashTable *ht = Z_ARRVAL_P(array);
-    char *k;
-    uint32_t klen;
-    int ktype;
-    zval *zv;
-    swTableColumn *col;
 
-    SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, zv) {
-        col = swTableColumn_get(table, std::string(k, klen));
-        if (k == nullptr || col == nullptr) {
-            continue;
-        } else if (col->type == SW_TABLE_STRING) {
-            zend_string *str = zval_get_string(zv);
-            swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
-            zend_string_release(str);
-        } else if (col->type == SW_TABLE_FLOAT) {
-            double _value = zval_get_double(zv);
-            swTableRow_set_value(row, col, &_value, 0);
-        } else {
-            long _value = zval_get_long(zv);
-            swTableRow_set_value(row, col, &_value, 0);
+    if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
+        for (auto i = table->column_list->begin(); i != table->column_list->end(); i++) {
+            swTableColumn *col = *i;
+            zval *zv = zend_hash_str_find(ht, col->name.c_str(), col->name.length());
+            if (zv == nullptr || ZVAL_IS_NULL(zv)) {
+                if (col->type == SW_TABLE_STRING) {
+                     swTableRow_set_value(row, col, nullptr, 0);
+                 } else if (col->type == SW_TABLE_FLOAT) {
+                     double _value = 0;
+                     swTableRow_set_value(row, col, &_value, 0);
+                 } else {
+                     long _value = zval_get_long(zv);
+                     swTableRow_set_value(row, col, &_value, 0);
+                 }
+            } else {
+                if (col->type == SW_TABLE_STRING) {
+                    zend_string *str = zval_get_string(zv);
+                    swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
+                    zend_string_release(str);
+                } else if (col->type == SW_TABLE_FLOAT) {
+                    double _value = zval_get_double(zv);
+                    swTableRow_set_value(row, col, &_value, 0);
+                } else {
+                    long _value = zval_get_long(zv);
+                    swTableRow_set_value(row, col, &_value, 0);
+                }
+            }
         }
+    } else {
+        const char *k;
+        uint32_t klen;
+        int ktype;
+        zval *zv;
+        SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, zv) {
+            swTableColumn *col = swTableColumn_get(table, std::string(k, klen));
+            if (k == nullptr || col == nullptr) {
+                continue;
+            } else if (col->type == SW_TABLE_STRING) {
+                zend_string *str = zval_get_string(zv);
+                swTableRow_set_value(row, col, ZSTR_VAL(str), ZSTR_LEN(str));
+                zend_string_release(str);
+            } else if (col->type == SW_TABLE_FLOAT) {
+                double _value = zval_get_double(zv);
+                swTableRow_set_value(row, col, &_value, 0);
+            } else {
+                long _value = zval_get_long(zv);
+                swTableRow_set_value(row, col, &_value, 0);
+            }
+        }
+        (void) ktype;
+        SW_HASHTABLE_FOREACH_END();
     }
-    (void) ktype;
-    SW_HASHTABLE_FOREACH_END();
     swTableRow_unlock(_rowlock);
     RETURN_TRUE;
 }
@@ -464,8 +494,9 @@ static PHP_METHOD(swoole_table, incr) {
         RETURN_FALSE;
     }
 
+    int out_flags;
     swTableRow *_rowlock = nullptr;
-    swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock);
+    swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock, &out_flags);
     if (!row) {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
@@ -517,8 +548,9 @@ static PHP_METHOD(swoole_table, decr) {
         RETURN_FALSE;
     }
 
+    int out_flags;
     swTableRow *_rowlock = nullptr;
-    swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock);
+    swTableRow *row = swTableRow_set(table, key, key_len, &_rowlock, &out_flags);
     if (!row) {
         swTableRow_unlock(_rowlock);
         php_swoole_fatal_error(E_WARNING, "unable to allocate memory");
@@ -765,8 +797,9 @@ static PHP_METHOD(swoole_table_row, offsetSet) {
 
     zval *zprop_key = sw_zend_read_property_ex(swoole_table_row_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_KEY), 0);
 
+    int out_flags;
     swTableRow *_rowlock = nullptr;
-    swTableRow *row = swTableRow_set(table, Z_STRVAL_P(zprop_key), Z_STRLEN_P(zprop_key), &_rowlock);
+    swTableRow *row = swTableRow_set(table, Z_STRVAL_P(zprop_key), Z_STRLEN_P(zprop_key), &_rowlock, &out_flags);
     if (!row) {
         swTableRow_unlock(_rowlock);
         php_swoole_error(E_WARNING, "Unable to allocate memory");
