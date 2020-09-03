@@ -122,13 +122,13 @@ static inline zend_object *php_swoole_table_create_object(zend_class_entry *ce) 
     return &table->std;
 }
 
-typedef struct {
+struct TableRowObject {
     swTable *ptr;
     zend_object std;
-} table_row_t;
+};
 
-static inline table_row_t *php_swoole_table_row_fetch_object(zend_object *obj) {
-    return (table_row_t *) ((char *) obj - swoole_table_row_handlers.offset);
+static inline TableRowObject *php_swoole_table_row_fetch_object(zend_object *obj) {
+    return (TableRowObject *) ((char *) obj - swoole_table_row_handlers.offset);
 }
 
 static inline swTable *php_swoole_table_row_get_ptr(zval *zobject) {
@@ -152,7 +152,7 @@ static inline void php_swoole_table_row_free_object(zend_object *object) {
 }
 
 static inline zend_object *php_swoole_table_row_create_object(zend_class_entry *ce) {
-    table_row_t *table_row = (table_row_t *) zend_object_alloc(sizeof(table_row_t), ce);
+    TableRowObject *table_row = (TableRowObject *) zend_object_alloc(sizeof(TableRowObject), ce);
     zend_object_std_init(&table_row->std, ce);
     object_properties_init(&table_row->std, ce);
     table_row->std.handlers = &swoole_table_row_handlers;
@@ -314,7 +314,7 @@ void php_swoole_table_minit(int module_number) {
     SW_SET_CLASS_CLONEABLE(swoole_table_row, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_table_row, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_table_row, php_swoole_table_row_create_object, php_swoole_table_row_free_object, table_row_t, std);
+        swoole_table_row, php_swoole_table_row_create_object, php_swoole_table_row_free_object, TableRowObject, std);
     zend_class_implements(swoole_table_row_ce, 1, zend_ce_arrayaccess);
 
     zend_declare_property_null(swoole_table_row_ce, ZEND_STRL("key"), ZEND_ACC_PUBLIC);
