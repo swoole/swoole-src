@@ -226,3 +226,50 @@ TEST(server, min_connection) {
     serv.create();
     ASSERT_EQ(serv.get_max_connection(), SwooleG.max_sockets);
 }
+
+TEST(server, worker_num) {
+    Server serv;
+
+    serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU + 99;
+    serv.task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU + 99;
+    serv.create();
+
+    ASSERT_EQ(serv.worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+    ASSERT_EQ(serv.task_worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+}
+
+TEST(server, reactor_num_base) {
+    Server serv;
+    serv.factory_mode = SW_MODE_BASE;
+    serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
+    serv.create();
+
+    ASSERT_EQ(serv.reactor_num, serv.worker_num);
+}
+
+TEST(server, reactor_num_large) {
+    Server serv;
+    serv.factory_mode = SW_MODE_PROCESS;
+    serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
+    serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
+    serv.create();
+
+    ASSERT_EQ(serv.reactor_num, SW_CPU_NUM * SW_MAX_THREAD_NCPU);
+}
+
+TEST(server, reactor_num_large2) {
+    Server serv;
+    serv.factory_mode = SW_MODE_PROCESS;
+    serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
+    serv.create();
+
+    ASSERT_EQ(serv.reactor_num, serv.worker_num);
+}
+
+TEST(server, reactor_num_zero) {
+    Server serv;
+    serv.reactor_num = 0;
+    serv.create();
+
+    ASSERT_EQ(serv.reactor_num, SW_CPU_NUM);
+}
