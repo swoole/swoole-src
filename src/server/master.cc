@@ -289,41 +289,12 @@ int Server::start_check() {
     } else {
         max_queued_bytes = 0;
     }
-    // check thread num
-    if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
-        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d",
-               reactor_num,
-               SW_CPU_NUM * SW_MAX_THREAD_NCPU);
-        reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
-    } else if (reactor_num == 0) {
-        reactor_num = SW_CPU_NUM;
-    }
-    if (single_thread) {
-        reactor_num = 1;
-    }
-    // check worker num
-    if (worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-        swWarn(
-            "worker_num == %d, Too many processes, reset to max value %d", worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-        worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
-    }
-    if (worker_num < reactor_num) {
-        reactor_num = worker_num;
-    }
-    // AsyncTask
     if (task_worker_num > 0) {
         if (onTask == nullptr) {
             swWarn("onTask event callback must be set");
             return SW_ERR;
         }
-        if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d",
-                   task_worker_num,
-                   SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-            task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
-        }
     }
-    // package max length
     for (auto ls : ports) {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE) {
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
