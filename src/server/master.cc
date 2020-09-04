@@ -289,41 +289,12 @@ int Server::start_check() {
     } else {
         max_queued_bytes = 0;
     }
-    // AsyncTask
     if (task_worker_num > 0) {
         if (onTask == nullptr) {
             swWarn("onTask event callback must be set");
             return SW_ERR;
         }
-        if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d",
-                   task_worker_num,
-                   SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-            task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
-        }
     }
-    // check thread num
-    if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
-        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d",
-               reactor_num,
-               SW_CPU_NUM * SW_MAX_THREAD_NCPU);
-        reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
-    } else if (reactor_num == 0) {
-        reactor_num = SW_CPU_NUM;
-    }
-    if (single_thread) {
-        reactor_num = 1;
-    }
-    // check worker num
-    if (worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-        swWarn(
-            "worker_num == %d, Too many processes, reset to max value %d", worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
-        worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
-    }
-    if (worker_num < reactor_num) {
-        reactor_num = worker_num;
-    }
-    // package max length
     for (auto ls : ports) {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE) {
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
@@ -720,6 +691,7 @@ int Server::create() {
         locations = new std::unordered_set<std::string>;
     }
 
+    // Max Connections
     uint32_t minimum_connection = (worker_num + task_worker_num) * 2 + 32;
     if (ports.size() > 0) {
         minimum_connection += ports.back()->socket_fd;
@@ -727,6 +699,34 @@ int Server::create() {
     if (max_connection < minimum_connection) {
         max_connection = SwooleG.max_sockets;
         swWarn("max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
+    }
+    // Reactor Thread Num
+    if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
+        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d", reactor_num,
+               SW_CPU_NUM * SW_MAX_THREAD_NCPU);
+        reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
+    } else if (reactor_num == 0) {
+        reactor_num = SW_CPU_NUM;
+    }
+    if (single_thread) {
+        reactor_num = 1;
+    }
+    // Worker Process Num
+    if (worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
+        swWarn("worker_num == %d, Too many processes, reset to max value %d", worker_num,
+               SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+        worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
+    }
+    if (worker_num < reactor_num) {
+        reactor_num = worker_num;
+    }
+    // TaskWorker Process Num
+    if (task_worker_num > 0) {
+        if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
+            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d", task_worker_num,
+                   SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+            task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
+        }
     }
 
     if (factory_mode == SW_MODE_BASE) {
