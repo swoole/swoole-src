@@ -73,15 +73,8 @@ size_t thread_count();
 void notify_one();
 #endif
 
-void handler_fread(Event *event);
-void handler_fwrite(Event *event);
-void handler_read(Event *event);
-void handler_write(Event *event);
 void handler_gethostbyname(Event *event);
 void handler_getaddrinfo(Event *event);
-void handler_fgets(Event *event);
-void handler_read_file(Event *event);
-void handler_write_file(Event *event);
 
 }  // namespace async
 };  // namespace swoole

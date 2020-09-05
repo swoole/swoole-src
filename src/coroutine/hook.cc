@@ -177,61 +177,6 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 }
 #endif
 
-static void handler_access(Event *event) {
-    event->ret = access((const char *) event->buf, event->offset);
-    event->error = errno;
-}
-
-static void handler_flock(Event *event) {
-    event->ret = ::flock(event->fd, (int) event->flags);
-    event->error = errno;
-}
-
-static void handler_open(Event *event) {
-    event->ret = open((const char *) event->buf, event->flags, event->offset);
-    event->error = errno;
-}
-
-static void handler_read(Event *event) {
-    event->ret = read(event->fd, event->buf, event->nbytes);
-    event->error = errno;
-}
-
-static void handler_write(Event *event) {
-    event->ret = write(event->fd, event->buf, event->nbytes);
-    event->error = errno;
-}
-
-static void handler_fstat(Event *event) {
-    event->ret = fstat(event->fd, (struct stat *) event->buf);
-    event->error = errno;
-}
-
-static void handler_unlink(Event *event) {
-    event->ret = unlink((const char *) event->buf);
-    event->error = errno;
-}
-
-static void handler_mkdir(Event *event) {
-    event->ret = mkdir((const char *) event->buf, event->offset);
-    event->error = errno;
-}
-
-static void handler_rmdir(Event *event) {
-    event->ret = rmdir((const char *) event->buf);
-    event->error = errno;
-}
-
-static void handler_statvfs(Event *event) {
-    event->ret = statvfs((const char *) event->buf, (struct statvfs *) event->offset);
-    event->error = errno;
-}
-
-static void handler_rename(Event *event) {
-    event->ret = rename((const char *) event->buf, (const char *) event->offset);
-    event->error = errno;
-}
-
 static void aio_onCompleted(Event *event) {
     Event *ev = (Event *) event->req;
     ev->ret = event->ret;
@@ -244,22 +189,14 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
         return open(pathname, flags, mode);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void *) pathname;
-    ev.offset = mode;
-    ev.flags = flags;
-    ev.handler = handler_open;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int ret = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        ret = open(pathname, flags, mode);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return ret;
 }
 
 ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
@@ -272,22 +209,14 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
         return socket->read(buf, count);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.fd = sockfd;
-    ev.buf = buf;
-    ev.nbytes = count;
-    ev.handler = handler_read;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    ssize_t ret = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        ret = read(sockfd, buf, count);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return ret;
 }
 
 ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
@@ -300,22 +229,14 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
         return socket->write(buf, count);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.fd = sockfd;
-    ev.buf = (void *) buf;
-    ev.nbytes = count;
-    ev.handler = handler_write;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    ssize_t ret = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        ret = write(sockfd, buf, count);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return ret;
 }
 
 off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
@@ -338,21 +259,14 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
         return fstat(fd, statbuf);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.fd = fd;
-    ev.buf = (void *) statbuf;
-    ev.handler = handler_fstat;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = fstat(fd, statbuf);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_unlink(const char *pathname) {
@@ -360,20 +274,14 @@ int swoole_coroutine_unlink(const char *pathname) {
         return unlink(pathname);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void *) pathname;
-    ev.handler = handler_unlink;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = unlink(pathname);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
@@ -381,21 +289,14 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
         return statvfs(path, buf);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void *) path;
-    ev.offset = (off_t) buf;
-    ev.handler = handler_statvfs;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = statvfs(path, buf);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
@@ -403,21 +304,14 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
         return mkdir(pathname, mode);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void *) pathname;
-    ev.offset = mode;
-    ev.handler = handler_mkdir;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = mkdir(pathname, mode);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_rmdir(const char *pathname) {
@@ -425,20 +319,14 @@ int swoole_coroutine_rmdir(const char *pathname) {
         return rmdir(pathname);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void *) pathname;
-    ev.handler = handler_rmdir;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = rmdir(pathname);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
@@ -446,21 +334,14 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
         return rename(oldpath, newpath);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void *) oldpath;
-    ev.offset = (off_t) newpath;
-    ev.handler = handler_rename;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = rename(oldpath, newpath);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_access(const char *pathname, int mode) {
@@ -468,21 +349,14 @@ int swoole_coroutine_access(const char *pathname, int mode) {
         return access(pathname, mode);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void *) pathname;
-    ev.offset = mode;
-    ev.handler = handler_access;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = access(pathname, mode);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 int swoole_coroutine_flock(int fd, int operation) {
@@ -490,21 +364,14 @@ int swoole_coroutine_flock(int fd, int operation) {
         return flock(fd, operation);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.fd = fd;
-    ev.flags = operation;
-    ev.handler = handler_flock;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    ((Coroutine *) ev.object)->yield();
-    return ev.ret;
+    int retval = -1;
+    int _tmp_errno = 0;
+    swoole::coroutine::async([&]() {
+        retval = flock(fd, operation);
+        _tmp_errno = errno;
+    });
+    errno = _tmp_errno;
+    return retval;
 }
 
 #if 0
