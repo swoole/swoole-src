@@ -101,7 +101,7 @@ swString *System::read_file(const char *file, bool lock) {
             swSysWarn("fstat(%s) failed", file);
         _error:
             close(fd);
-            if(_tmp_errno == 0) {
+            if (_tmp_errno == 0) {
                 _tmp_errno = errno;
             }
             return;

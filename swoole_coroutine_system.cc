@@ -234,8 +234,8 @@ PHP_METHOD(swoole_coroutine_system, fread) {
         }
     }
 
-    char* buf = (char*) emalloc(length + 1);
-    if(!buf) {
+    char *buf = (char *) emalloc(length + 1);
+    if (!buf) {
         RETURN_FALSE;
     }
     buf[length] = 0;
@@ -309,7 +309,6 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
         RETURN_FALSE;
     }
 
-
     int ret = 0;
     int _tmp_errno = 0;
     swTrace("fd=%d, length=%ld", fd, stream->readbuflen);
@@ -329,7 +328,6 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
         swoole_set_last_error(_tmp_errno);
         ZVAL_FALSE(return_value);
     }
-
 }
 
 PHP_METHOD(swoole_coroutine_system, fwrite) {
@@ -363,7 +361,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
         length = l_str;
     }
 
-    char* buf = estrndup(str, length);
+    char *buf = estrndup(str, length);
 
     if (!buf) {
         RETURN_FALSE;
