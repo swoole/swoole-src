@@ -153,11 +153,11 @@ swString *System::read_file(const char *file, bool lock) {
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
     ssize_t ret = -1;
     int _tmp_errno = 0;
-    flags = flags | O_CREAT | O_WRONLY;
+    uint16_t file_flags = flags | O_CREAT | O_WRONLY;
     swoole::coroutine::async([&]() {
-        int fd = open(file, flags, 0644);
+        int fd = open(file, file_flags, 0644);
         if (fd < 0) {
-            swSysWarn("open(%s, %d) failed", file, flags);
+            swSysWarn("open(%s, %d) failed", file, file_flags);
             _tmp_errno = errno;
             return;
         }
@@ -168,7 +168,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
             return;
         }
         size_t written = swoole_sync_writefile(fd, buf, length);
-        if (flags & SW_AIO_WRITE_FSYNC) {
+        if (file_flags & SW_AIO_WRITE_FSYNC) {
             if (fsync(fd) < 0) {
                 swSysWarn("fsync(%d) failed", fd);
             }
