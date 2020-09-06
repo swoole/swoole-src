@@ -70,75 +70,6 @@ PHP_METHOD(swoole_coroutine_system, sleep) {
     RETURN_BOOL(System::sleep(seconds) == 0);
 }
 
-static void aio_onReadCompleted(swAio_event *event) {
-    zval *retval = nullptr;
-    zval result;
-
-    if (event->error == 0) {
-        // TODO: Optimization: reduce memory copy
-        ZVAL_STRINGL(&result, (char *) event->buf, event->ret);
-    } else {
-        swoole_set_last_error(event->error);
-        ZVAL_FALSE(&result);
-    }
-
-    php_coro_context *context = (php_coro_context *) event->object;
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == SW_CORO_ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
-    zval_ptr_dtor(&result);
-    efree(event->buf);
-    efree(context);
-}
-
-static void aio_onFgetsCompleted(swAio_event *event) {
-    zval *retval = nullptr;
-    zval result;
-
-    if (event->ret != -1) {
-        ZVAL_STRING(&result, (char *) event->buf);
-    } else {
-        swoole_set_last_error(event->error);
-        ZVAL_FALSE(&result);
-    }
-
-    php_coro_context *context = (php_coro_context *) event->object;
-    php_stream *stream;
-    php_stream_from_zval_no_verify(stream, &context->coro_params);
-
-    if (event->flags & SW_AIO_EOF) {
-        stream->eof = 1;
-    }
-
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == SW_CORO_ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
-    zval_ptr_dtor(&result);
-    efree(context);
-}
-
-static void aio_onWriteCompleted(swAio_event *event) {
-    zval *retval = nullptr;
-    zval result;
-
-    if (event->ret < 0) {
-        swoole_set_last_error(event->error);
-        ZVAL_FALSE(&result);
-    } else {
-        ZVAL_LONG(&result, event->ret);
-    }
-
-    php_coro_context *context = (php_coro_context *) event->object;
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == SW_CORO_ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
-    efree(event->buf);
-    efree(context);
-}
-
 static int co_socket_onReadable(swReactor *reactor, swEvent *event) {
     tmp_socket *sock = (tmp_socket *) event->socket->object;
     php_coro_context *context = &sock->context;
@@ -303,33 +234,32 @@ PHP_METHOD(swoole_coroutine_system, fread) {
         }
     }
 
-    swAio_event ev;
-    sw_memset_zero(&ev, sizeof(swAio_event));
-
-    ev.nbytes = length;
-    ev.buf = emalloc(ev.nbytes + 1);
-    if (!ev.buf) {
+    char *buf = (char *) emalloc(length + 1);
+    if (!buf) {
         RETURN_FALSE;
     }
-
-    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
-
-    ((char *) ev.buf)[length] = 0;
-    ev.flags = 0;
-    ev.object = context;
-    ev.handler = swoole::async::handler_fread;
-    ev.callback = aio_onReadCompleted;
-    ev.fd = fd;
-
-    swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
-
+    buf[length] = 0;
+    int ret = -1;
+    swTrace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
-    ssize_t ret = swoole::async::dispatch(&ev);
-    if (ret < 0) {
-        efree(context);
-        RETURN_FALSE;
+    bool async_success = swoole::coroutine::async([&]() {
+        while (1) {
+            ret = read(fd, buf, length);
+            if (ret < 0 && errno == EINTR) {
+                continue;
+            }
+            break;
+        }
+    });
+
+    if (async_success && ret >= 0) {
+        // TODO: Optimization: reduce memory copy
+        ZVAL_STRINGL(return_value, buf, ret);
+    } else {
+        ZVAL_FALSE(return_value);
     }
-    PHPCoroutine::yield_m(return_value, context);
+
+    efree(buf);
 }
 
 PHP_METHOD(swoole_coroutine_system, fgets) {
@@ -353,9 +283,6 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
         RETURN_FALSE;
     }
 
-    swAio_event ev;
-    sw_memset_zero(&ev, sizeof(swAio_event));
-
     php_stream_from_res(stream, Z_RES_P(handle));
 
     FILE *file;
@@ -372,33 +299,26 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
         stream->readbuf = (uchar *) emalloc(stream->chunk_size);
     }
 
-    ev.nbytes = stream->readbuflen;
-    ev.buf = stream->readbuf;
-    if (!ev.buf) {
+    if (!stream->readbuf) {
         RETURN_FALSE;
     }
 
-    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
-
-    ev.flags = 0;
-    ev.object = context;
-    ev.callback = aio_onFgetsCompleted;
-    ev.handler = swoole::async::handler_fgets;
-    ev.fd = fd;
-    ev.req = (void *) file;
-
-    swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
-
+    int ret = 0;
+    swTrace("fd=%d, length=%ld", fd, stream->readbuflen);
     php_swoole_check_reactor();
-    ssize_t ret = swoole::async::dispatch(&ev);
-    if (ret < 0) {
-        efree(context);
-        RETURN_FALSE;
+    bool async_success = swoole::coroutine::async([&]() {
+        char *data = fgets((char *) stream->readbuf, stream->readbuflen, file);
+        if (data == nullptr) {
+            ret = -1;
+            stream->eof = 1;
+        }
+    });
+
+    if (async_success && ret != -1) {
+        ZVAL_STRING(return_value, (char *) stream->readbuf);
+    } else {
+        ZVAL_FALSE(return_value);
     }
-
-    context->coro_params = *handle;
-
-    PHPCoroutine::yield_m(return_value, context);
 }
 
 PHP_METHOD(swoole_coroutine_system, fwrite) {
@@ -432,33 +352,32 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
         length = l_str;
     }
 
-    swAio_event ev;
-    sw_memset_zero(&ev, sizeof(swAio_event));
+    char *buf = estrndup(str, length);
 
-    ev.nbytes = length;
-    ev.buf = estrndup(str, length);
-
-    if (!ev.buf) {
+    if (!buf) {
         RETURN_FALSE;
     }
 
-    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
-
-    ev.flags = 0;
-    ev.object = context;
-    ev.handler = swoole::async::handler_fwrite;
-    ev.callback = aio_onWriteCompleted;
-    ev.fd = fd;
-
-    swTrace("fd=%d, offset=%jd, length=%ld", fd, (intmax_t) ev.offset, ev.nbytes);
-
+    int ret = -1;
+    swTrace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
-    ssize_t ret = swoole::async::dispatch(&ev);
-    if (ret < 0) {
-        efree(context);
-        RETURN_FALSE;
+    bool async_success = swoole::coroutine::async([&]() {
+        while (1) {
+            ret = write(fd, buf, length);
+            if (ret < 0 && errno == EINTR) {
+                continue;
+            }
+            break;
+        }
+    });
+
+    if (async_success && ret >= 0) {
+        ZVAL_LONG(return_value, ret);
+    } else {
+        ZVAL_FALSE(return_value);
     }
-    PHPCoroutine::yield_m(return_value, context);
+
+    efree(buf);
 }
 
 PHP_METHOD(swoole_coroutine_system, readFile) {

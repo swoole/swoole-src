@@ -18,6 +18,7 @@
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
 
+#include <sys/file.h>
 #include <fcntl.h>
 #include <assert.h>
 
@@ -49,21 +50,6 @@ void System::clear_dns_cache() {
     if (dns_cache) {
         dns_cache->clear();
     }
-}
-
-static void aio_onReadFileCompleted(Event *event) {
-    AsyncTask *task = (AsyncTask *) event->object;
-    task->original_event->buf = event->buf;
-    task->original_event->nbytes = event->ret;
-    task->original_event->error = event->error;
-    ((Coroutine *) task->co)->resume();
-}
-
-static void aio_onWriteFileCompleted(Event *event) {
-    AsyncTask *task = (AsyncTask *) event->object;
-    task->original_event->ret = event->ret;
-    task->original_event->error = event->error;
-    ((Coroutine *) task->co)->resume();
 }
 
 static void aio_onDNSCompleted(Event *event) {
@@ -101,60 +87,89 @@ int System::sleep(double sec) {
 }
 
 swString *System::read_file(const char *file, bool lock) {
-    AsyncTask task;
+    swString *buf = nullptr;
+    bool async_success = swoole::coroutine::async([&]() {
+        int fd = open(file, O_RDONLY);
+        if (fd < 0) {
+            swSysWarn("open(%s, O_RDONLY) failed", file);
+            return;
+        }
+        struct stat file_stat;
+        if (fstat(fd, &file_stat) < 0) {
+            swSysWarn("fstat(%s) failed", file);
+        _error:
+            close(fd);
+            return;
+        }
+        if ((file_stat.st_mode & S_IFMT) != S_IFREG) {
+            errno = EISDIR;
+            goto _error;
+        }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(Event));
-
-    task.co = Coroutine::get_current_safe();
-    task.original_event = &ev;
-
-    ev.lock = lock ? 1 : 0;
-    ev.object = (void *) &task;
-    ev.handler = async::handler_read_file;
-    ev.callback = aio_onReadFileCompleted;
-    ev.req = (void *) file;
-
-    ssize_t ret = async::dispatch(&ev);
-    if (ret < 0) {
-        return nullptr;
-    }
-    task.co->yield();
-    if (ev.error == 0) {
-        return (swString *) ev.buf;
+        /**
+         * lock
+         */
+        if (lock && flock(fd, LOCK_SH) < 0) {
+            swSysWarn("flock(%d, LOCK_SH) failed", fd);
+            goto _error;
+        }
+        /**
+         * regular file
+         */
+        if (file_stat.st_size == 0) {
+            buf = swoole_sync_readfile_eof(fd);
+            if (buf == nullptr) {
+                goto _error;
+            }
+        } else {
+            buf = swoole::make_string(file_stat.st_size);
+            if (buf == nullptr) {
+                goto _error;
+            }
+            buf->length = swoole_sync_readfile(fd, buf->str, file_stat.st_size);
+        }
+        /**
+         * unlock
+         */
+        if (lock && flock(fd, LOCK_UN) < 0) {
+            swSysWarn("flock(%d, LOCK_UN) failed", fd);
+        }
+        close(fd);
+    });
+    if (async_success && errno == 0) {
+        return buf;
     } else {
-        swoole_set_last_error(ev.error);
         return nullptr;
     }
 }
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
-    AsyncTask task;
-
-    Event ev;
-    sw_memset_zero(&ev, sizeof(Event));
-
-    task.co = Coroutine::get_current_safe();
-    task.original_event = &ev;
-
-    ev.lock = lock ? 1 : 0;
-    ev.buf = buf;
-    ev.nbytes = length;
-    ev.object = (void *) &task;
-    ev.handler = async::handler_write_file;
-    ev.callback = aio_onWriteFileCompleted;
-    ev.req = (void *) file;
-    ev.flags = flags | O_CREAT | O_WRONLY;
-
-    ssize_t ret = async::dispatch(&ev);
-    if (ret < 0) {
-        return -1;
-    }
-    task.co->yield();
-    if (ev.error != 0) {
-        swoole_set_last_error(ev.error);
-    }
-    return ev.ret;
+    ssize_t ret = -1;
+    uint16_t file_flags = flags | O_CREAT | O_WRONLY;
+    swoole::coroutine::async([&]() {
+        int fd = open(file, file_flags, 0644);
+        if (fd < 0) {
+            swSysWarn("open(%s, %d) failed", file, file_flags);
+            return;
+        }
+        if (lock && flock(fd, LOCK_EX) < 0) {
+            swSysWarn("flock(%d, LOCK_EX) failed", fd);
+            close(fd);
+            return;
+        }
+        size_t written = swoole_sync_writefile(fd, buf, length);
+        if (file_flags & SW_AIO_WRITE_FSYNC) {
+            if (fsync(fd) < 0) {
+                swSysWarn("fsync(%d) failed", fd);
+            }
+        }
+        if (lock && flock(fd, LOCK_UN) < 0) {
+            swSysWarn("flock(%d, LOCK_UN) failed", fd);
+        }
+        close(fd);
+        ret = written;
+    });
+    return ret;
 }
 
 string System::gethostbyname(const string &hostname, int domain, double timeout) {
@@ -683,7 +698,7 @@ struct AsyncLambdaTask {
 static void async_lambda_handler(Event *event) {
     AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
     task->fn();
-    event->error = 0;
+    event->error = errno;
     event->ret = 0;
 }
 
@@ -715,7 +730,9 @@ bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
     task.co->yield();
-    if (event.error == SW_ERROR_AIO_TIMEOUT) {
+    errno = _ev->error;
+    swoole_set_last_error(_ev->error);
+    if (_ev->error == SW_ERROR_AIO_TIMEOUT) {
         return false;
     } else {
         if (timer) {
