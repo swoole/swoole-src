@@ -730,9 +730,9 @@ bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
     task.co->yield();
-    errno = event.error;
-    swoole_set_last_error(event.error);
-    if (event.error == SW_ERROR_AIO_TIMEOUT) {
+    errno = _ev->error;
+    swoole_set_last_error(_ev->error);
+    if (_ev->error == SW_ERROR_AIO_TIMEOUT) {
         return false;
     } else {
         if (timer) {
