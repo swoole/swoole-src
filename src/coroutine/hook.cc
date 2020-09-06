@@ -175,7 +175,6 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     return retval;
 }
-#endif
 
 static void aio_onCompleted(Event *event) {
     Event *ev = (Event *) event->req;
@@ -183,6 +182,7 @@ static void aio_onCompleted(Event *event) {
     errno = event->error;
     ((Coroutine *) event->object)->resume();
 }
+#endif
 
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     if (sw_unlikely(is_no_coro())) {
@@ -190,12 +190,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     }
 
     int ret = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        ret = open(pathname, flags, mode);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { ret = open(pathname, flags, mode); });
     return ret;
 }
 
@@ -210,12 +205,7 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        ret = read(sockfd, buf, count);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { ret = read(sockfd, buf, count); });
     return ret;
 }
 
@@ -230,12 +220,7 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     }
 
     ssize_t ret = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        ret = write(sockfd, buf, count);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { ret = write(sockfd, buf, count); });
     return ret;
 }
 
@@ -245,12 +230,7 @@ off_t swoole_coroutine_lseek(int fd, off_t offset, int whence) {
     }
 
     off_t retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = lseek(fd, offset, whence);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = lseek(fd, offset, whence); });
     return retval;
 }
 
@@ -260,12 +240,7 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = fstat(fd, statbuf);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = fstat(fd, statbuf); });
     return retval;
 }
 
@@ -275,12 +250,7 @@ int swoole_coroutine_unlink(const char *pathname) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = unlink(pathname);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = unlink(pathname); });
     return retval;
 }
 
@@ -290,12 +260,7 @@ int swoole_coroutine_statvfs(const char *path, struct statvfs *buf) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = statvfs(path, buf);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = statvfs(path, buf); });
     return retval;
 }
 
@@ -305,12 +270,7 @@ int swoole_coroutine_mkdir(const char *pathname, mode_t mode) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = mkdir(pathname, mode);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = mkdir(pathname, mode); });
     return retval;
 }
 
@@ -320,12 +280,7 @@ int swoole_coroutine_rmdir(const char *pathname) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = rmdir(pathname);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = rmdir(pathname); });
     return retval;
 }
 
@@ -335,12 +290,7 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = rename(oldpath, newpath);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = rename(oldpath, newpath); });
     return retval;
 }
 
@@ -350,12 +300,7 @@ int swoole_coroutine_access(const char *pathname, int mode) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = access(pathname, mode);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = access(pathname, mode); });
     return retval;
 }
 
@@ -365,12 +310,7 @@ int swoole_coroutine_flock(int fd, int operation) {
     }
 
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = flock(fd, operation);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = flock(fd, operation); });
     return retval;
 }
 
@@ -483,24 +423,17 @@ int swoole_coroutine_getaddrinfo(const char *name,
                                  const struct addrinfo *req,
                                  struct addrinfo **pai) {
     int retval = -1;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
-        retval = getaddrinfo(name, service, req, pai);
-        _tmp_errno = errno;
-    });
-    errno = _tmp_errno;
+    swoole::coroutine::async([&]() { retval = getaddrinfo(name, service, req, pai); });
     return retval;
 }
 
 struct hostent *swoole_coroutine_gethostbyname(const char *name) {
     struct hostent *retval = nullptr;
-    int _tmp_errno = 0, _tmp_h_errno;
+    int _tmp_h_errno;
     swoole::coroutine::async([&]() {
         retval = gethostbyname(name);
-        _tmp_errno = errno;
         _tmp_h_errno = h_errno;
     });
-    errno = _tmp_errno;
     h_errno = _tmp_h_errno;
     return retval;
 }

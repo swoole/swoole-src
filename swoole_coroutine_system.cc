@@ -240,10 +240,9 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     }
     buf[length] = 0;
     int ret = -1;
-    int _tmp_errno = 0;
     swTrace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
-    swoole::coroutine::async([&]() {
+    bool async_success = swoole::coroutine::async([&]() {
         while (1) {
             ret = read(fd, buf, length);
             if (ret < 0 && errno == EINTR) {
@@ -251,17 +250,12 @@ PHP_METHOD(swoole_coroutine_system, fread) {
             }
             break;
         }
-        if (ret < 0) {
-            _tmp_errno = errno;
-        }
     });
-    errno = _tmp_errno;
 
-    if (_tmp_errno == 0) {
+    if (async_success && ret >= 0) {
         // TODO: Optimization: reduce memory copy
         ZVAL_STRINGL(return_value, buf, ret);
     } else {
-        swoole_set_last_error(_tmp_errno);
         ZVAL_FALSE(return_value);
     }
 
@@ -310,22 +304,19 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
     }
 
     int ret = 0;
-    int _tmp_errno = 0;
     swTrace("fd=%d, length=%ld", fd, stream->readbuflen);
     php_swoole_check_reactor();
-    swoole::coroutine::async([&]() {
+    bool async_success = swoole::coroutine::async([&]() {
         char *data = fgets((char *) stream->readbuf, stream->readbuflen, file);
         if (data == nullptr) {
             ret = -1;
-            _tmp_errno = errno;
             stream->eof = 1;
         }
     });
 
-    if (ret != -1) {
+    if (async_success && ret != -1) {
         ZVAL_STRING(return_value, (char *) stream->readbuf);
     } else {
-        swoole_set_last_error(_tmp_errno);
         ZVAL_FALSE(return_value);
     }
 }
@@ -368,10 +359,9 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     }
 
     int ret = -1;
-    int _tmp_errno = 0;
     swTrace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
-    swoole::coroutine::async([&]() {
+    bool async_success = swoole::coroutine::async([&]() {
         while (1) {
             ret = write(fd, buf, length);
             if (ret < 0 && errno == EINTR) {
@@ -379,16 +369,12 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
             }
             break;
         }
-        if (ret < 0) {
-            _tmp_errno = errno;
-        }
     });
 
-    if (ret < 0) {
-        swoole_set_last_error(_tmp_errno);
-        ZVAL_FALSE(return_value);
-    } else {
+    if (async_success && ret >= 0) {
         ZVAL_LONG(return_value, ret);
+    } else {
+        ZVAL_FALSE(return_value);
     }
 
     efree(buf);

@@ -88,12 +88,10 @@ int System::sleep(double sec) {
 
 swString *System::read_file(const char *file, bool lock) {
     swString *buf = nullptr;
-    int _tmp_errno = 0;
-    swoole::coroutine::async([&]() {
+    bool async_success = swoole::coroutine::async([&]() {
         int fd = open(file, O_RDONLY);
         if (fd < 0) {
             swSysWarn("open(%s, O_RDONLY) failed", file);
-            _tmp_errno = errno;
             return;
         }
         struct stat file_stat;
@@ -101,13 +99,10 @@ swString *System::read_file(const char *file, bool lock) {
             swSysWarn("fstat(%s) failed", file);
         _error:
             close(fd);
-            if (_tmp_errno == 0) {
-                _tmp_errno = errno;
-            }
             return;
         }
         if ((file_stat.st_mode & S_IFMT) != S_IFREG) {
-            _tmp_errno = EISDIR;
+            errno = EISDIR;
             goto _error;
         }
 
@@ -140,30 +135,25 @@ swString *System::read_file(const char *file, bool lock) {
             swSysWarn("flock(%d, LOCK_UN) failed", fd);
         }
         close(fd);
-        _tmp_errno = 0;
     });
-    if (_tmp_errno == 0) {
+    if (async_success && errno == 0) {
         return buf;
     } else {
-        swoole_set_last_error(_tmp_errno);
         return nullptr;
     }
 }
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
     ssize_t ret = -1;
-    int _tmp_errno = 0;
     uint16_t file_flags = flags | O_CREAT | O_WRONLY;
     swoole::coroutine::async([&]() {
         int fd = open(file, file_flags, 0644);
         if (fd < 0) {
             swSysWarn("open(%s, %d) failed", file, file_flags);
-            _tmp_errno = errno;
             return;
         }
         if (lock && flock(fd, LOCK_EX) < 0) {
             swSysWarn("flock(%d, LOCK_EX) failed", fd);
-            _tmp_errno = errno;
             close(fd);
             return;
         }
@@ -178,11 +168,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
         }
         close(fd);
         ret = written;
-        _tmp_errno = 0;
     });
-    if (_tmp_errno != 0) {
-        swoole_set_last_error(_tmp_errno);
-    }
     return ret;
 }
 
@@ -712,7 +698,7 @@ struct AsyncLambdaTask {
 static void async_lambda_handler(Event *event) {
     AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
     task->fn();
-    event->error = 0;
+    event->error = errno;
     event->ret = 0;
 }
 
@@ -744,6 +730,8 @@ bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
     task.co->yield();
+    errno = event.error;
+    swoole_set_last_error(event.error);
     if (event.error == SW_ERROR_AIO_TIMEOUT) {
         return false;
     } else {
