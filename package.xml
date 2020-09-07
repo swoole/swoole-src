@@ -699,9 +699,7 @@
             <file role="src" name="src/server/static_handler.cc" />
             <file role="src" name="src/server/task_worker.cc" />
             <file role="src" name="src/server/worker.cc" />
-            <file role="src" name="src/wrapper/client.cc" />
             <file role="src" name="src/wrapper/event.cc" />
-            <file role="src" name="src/wrapper/server.cc" />
             <file role="src" name="src/wrapper/timer.cc" />
             <file role="src" name="swoole_async_coro.cc" />
             <file role="src" name="swoole_atomic.cc" />
