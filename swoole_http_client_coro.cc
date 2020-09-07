@@ -1508,7 +1508,7 @@ bool HttpClient::recv_http_response(double timeout) {
             if (swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n")) < 0) {
                 if (buffer->length == buffer->size) {
                     swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Http header too large");
-                    socket->set_err(EPROTO);
+                    socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
                     return false;
                 }
                 buffer->offset = (ssize_t) buffer->length - 4 <= 0 ? 0 : buffer->length - 4;
@@ -1538,7 +1538,7 @@ bool HttpClient::recv_http_response(double timeout) {
             return true;
         }
         if (sw_unlikely(parser.state == s_dead)) {
-            socket->set_err(EPROTO);
+            socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
             return false;
         }
     }
