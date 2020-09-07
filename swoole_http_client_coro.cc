@@ -1511,7 +1511,6 @@ bool HttpClient::recv_http_response(double timeout) {
                     socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
                     return false;
                 }
-                buffer->offset = (ssize_t) buffer->length - 4 <= 0 ? 0 : buffer->length - 4;
                 continue;
             } else {
                 header_completed = true;
