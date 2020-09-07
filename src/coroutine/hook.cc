@@ -24,25 +24,28 @@
 
 #include <string>
 #include <iostream>
+#include <mutex>
 #include <unordered_map>
 
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
-using std::unordered_map;
 using swoole::Coroutine;
 using swoole::async::dispatch;
 using swoole::async::Event;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-static unordered_map<int, Socket *> socket_map;
+static std::unordered_map<int, Socket *> socket_map;
+static std::mutex socket_map_lock;
+static thread_local struct dirent _tmp_dirent;
 
 static sw_inline bool is_no_coro() {
     return SwooleTG.reactor == nullptr || !Coroutine::get_current();
 }
 
 static sw_inline Socket *get_socket(int sockfd) {
+    std::unique_lock<std::mutex> _lock(socket_map_lock);
     auto socket_iterator = socket_map.find(sockfd);
     if (socket_iterator == socket_map.end()) {
         return nullptr;
@@ -72,6 +75,7 @@ int swoole_coroutine_socket(int domain, int type, int protocol) {
     if (sw_unlikely(fd < 0)) {
         delete socket;
     } else {
+        std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map[fd] = socket;
     }
     return fd;
@@ -120,6 +124,7 @@ int swoole_coroutine_close(int sockfd) {
     }
     if (socket->close()) {
         delete socket;
+        std::unique_lock<std::mutex> _lock(socket_map_lock);
         socket_map.erase(sockfd);
     }
     return 0;
@@ -244,6 +249,16 @@ int swoole_coroutine_fstat(int fd, struct stat *statbuf) {
     return retval;
 }
 
+int swoole_coroutine_readlink(const char *pathname, char *buf, size_t len) {
+    if (sw_unlikely(is_no_coro())) {
+        return readlink(pathname, buf, len);
+    }
+
+    int retval = -1;
+    swoole::coroutine::async([&]() { retval = readlink(pathname, buf, len); });
+    return retval;
+}
+
 int swoole_coroutine_unlink(const char *pathname) {
     if (sw_unlikely(is_no_coro())) {
         return unlink(pathname);
@@ -314,69 +329,44 @@ int swoole_coroutine_flock(int fd, int operation) {
     return retval;
 }
 
-#if 0
-static void handler_opendir(Event *event)
-{
-    Event *req = (Event *) event->object;
-    req->buf = opendir((const char*) event->buf);
-    event->error = errno;
-}
-
-static void handler_readdir(Event *event)
-{
-    Event *req = (Event *) event->object;
-    req->buf = (void*) opendir((const char*) event->buf);
-    event->error = errno;
-}
-
-DIR *swoole_coroutine_opendir(const char *name)
-{
-    if (sw_unlikely(is_no_coro()))
-    {
+DIR *swoole_coroutine_opendir(const char *name) {
+    if (sw_unlikely(is_no_coro())) {
         return opendir(name);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void*) name;
-    ev.handler = handler_opendir;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
-
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0)
-    {
-        return NULL;
-    }
-    coroutine_yield((coroutine_t *) ev.object);
-    return (DIR*) ev.buf;
+    DIR *retval = nullptr;
+    swoole::coroutine::async([&]() {retval = opendir(name);});
+    return retval;
 }
 
-struct dirent *swoole_coroutine_readdir(DIR *dirp)
-{
-    if (sw_unlikely(is_no_coro()))
-    {
+struct dirent *swoole_coroutine_readdir(DIR *dirp) {
+    if (sw_unlikely(is_no_coro())) {
         return readdir(dirp);
     }
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(ev));
-    ev.buf = (void*) dirp;
-    ev.handler = handler_readdir;
-    ev.callback = aio_onCompleted;
-    ev.object = Coroutine::get_current();
-    ev.req = &ev;
+    struct dirent *retval = &_tmp_dirent;
 
-    ssize_t ret = dispatch(&ev);
-    if (ret < 0)
-    {
-        return NULL;
-    }
-    coroutine_yield((coroutine_t *) ev.object);
-    return (struct dirent *) ev.buf;
+    swoole::coroutine::async([&retval, dirp]() {
+        struct dirent *tmp = readdir(dirp);
+        if (tmp) {
+            memcpy(retval, tmp, sizeof(*tmp));
+        } else {
+            retval = nullptr;
+        }
+    });
+
+    return retval;
 }
-#endif
+
+int swoole_coroutine_closedir(DIR *dirp) {
+    if (sw_unlikely(is_no_coro())) {
+        return closedir(dirp);
+    }
+
+    int retval = -1;
+    swoole::coroutine::async([&]() { retval = closedir(dirp); });
+    return retval;
+}
 
 void swoole_coroutine_sleep(int sec) {
     System::sleep((double) sec);

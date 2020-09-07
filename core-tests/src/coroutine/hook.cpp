@@ -213,3 +213,35 @@ TEST(coroutine_hook, flock) {
         swoole_coroutine_close(fd2);
     });
 }
+
+TEST(coroutine_hook, read_dir) {
+    coroutine::run([](void *arg) {
+        auto fp = swoole_coroutine_opendir("/tmp");
+        ASSERT_NE(fp, nullptr);
+        struct dirent *entry;
+
+        entry = swoole_coroutine_readdir(fp);
+        ASSERT_NE(entry, nullptr);
+        ASSERT_STREQ(entry->d_name, ".");
+
+        entry = swoole_coroutine_readdir(fp);
+        ASSERT_NE(entry, nullptr);
+        ASSERT_STREQ(entry->d_name, "..");
+
+        swoole_coroutine_closedir(fp);
+    });
+}
+
+TEST(coroutine_hook, readlink) {
+    coroutine::run([](void *arg) {
+        char buf1[1024];
+        char buf2[1024];
+
+        auto retval = swoole_coroutine_readlink("/proc/self/cwd", buf1, sizeof(buf1));
+        ASSERT_NE(retval, -1);
+
+        getcwd(buf2, sizeof(buf2));
+        ASSERT_STREQ(buf1, buf2);
+    });
+}
+
