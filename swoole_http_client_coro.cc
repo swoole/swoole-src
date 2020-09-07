@@ -1477,6 +1477,7 @@ bool HttpClient::recv_http_response(double timeout) {
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
     swString *buffer = socket->get_read_buffer();
+    bool header_completed = false;
 
     // re-init http response parser
     swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
@@ -1490,7 +1491,7 @@ bool HttpClient::recv_http_response(double timeout) {
         if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ))) {
             return false;
         }
-        retval = socket->recv(buffer->str, buffer->size);
+        retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0)) {
             if (retval == 0) {
                 socket->set_err(ECONNRESET);
@@ -1501,6 +1502,22 @@ bool HttpClient::recv_http_response(double timeout) {
             }
             return false;
         }
+
+        if (!header_completed) {
+            buffer->length += retval;
+            if (swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n")) < 0) {
+                if (buffer->length == buffer->size) {
+                    return false;
+                }
+                buffer->offset = (ssize_t) buffer->length - 4 <= 0 ? 0 : buffer->length - 4;
+                continue;
+            } else {
+                header_completed = true;
+                retval = buffer->length;
+                swString_clear(buffer);
+            }
+        }
+
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
         swTraceLog(SW_TRACE_HTTP_CLIENT,
