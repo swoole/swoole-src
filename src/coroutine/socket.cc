@@ -469,6 +469,9 @@ bool Socket::http_proxy_handshake() {
                 }
             }
         } else if (state == 2) {
+            ret = true;
+            break;
+#if 0
             if (isspace(*p)) {
                 continue;
             } else {
@@ -477,6 +480,7 @@ bool Socket::http_proxy_handshake() {
                 }
                 break;
             }
+#endif
         }
     }
 
