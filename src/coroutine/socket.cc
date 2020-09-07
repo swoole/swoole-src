@@ -100,15 +100,11 @@ int Socket::readable_event_callback(swReactor *reactor, swEvent *event) {
     } else
 #endif
     {
-        if (socket->recv_barrier.hold) {
-            socket->recv_barrier.retval =
-                socket->socket->recv(socket->recv_barrier.buf + socket->recv_barrier.total_bytes,
-                                     socket->recv_barrier.n - socket->recv_barrier.total_bytes,
-                                     0);
-            if ((socket->recv_barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
-                    || (socket->recv_barrier.retval > 0
-                            && (socket->recv_barrier.total_bytes += socket->recv_barrier.retval)
-                                    < socket->recv_barrier.n)) {
+        EventBarrier &barrier = socket->recv_barrier;
+        if (barrier.hold) {
+            barrier.retval = socket->socket->recv(barrier.buf + barrier.total_bytes, barrier.n - barrier.total_bytes, 0);
+            if ((barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
+                    || (barrier.retval > 0 && (barrier.total_bytes += barrier.retval) < barrier.n)) {
                 return SW_OK;
             }
         }
@@ -129,15 +125,11 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event) {
     } else
 #endif
     {
-        if (socket->send_barrier.hold) {
-            socket->send_barrier.retval =
-                socket->socket->send(socket->send_barrier.buf + socket->send_barrier.total_bytes,
-                                     socket->send_barrier.n - socket->send_barrier.total_bytes,
-                                     0);
-            if ((socket->send_barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
-                    || (socket->send_barrier.retval > 0
-                            && (socket->send_barrier.total_bytes += socket->send_barrier.retval)
-                                    < socket->send_barrier.n)) {
+        EventBarrier &barrier = socket->send_barrier;
+        if (barrier.hold) {
+            barrier.retval = socket->socket->send(barrier.buf + barrier.total_bytes, barrier.n - barrier.total_bytes, 0);
+            if ((barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
+                    || (barrier.retval > 0 && (barrier.total_bytes += barrier.retval) < barrier.n)) {
                 return SW_OK;
             }
         }
