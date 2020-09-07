@@ -712,11 +712,8 @@ static void async_lambda_callback(Event *event) {
 
 bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
     TimerNode *timer = nullptr;
-    Event event = {};
-
-    AsyncLambdaTask task;
-    task.co = Coroutine::get_current_safe();
-    task.fn = fn;
+    Event event{};
+    AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
 
     event.object = &task;
     event.handler = async_lambda_handler;

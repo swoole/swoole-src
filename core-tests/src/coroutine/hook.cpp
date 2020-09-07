@@ -234,8 +234,8 @@ TEST(coroutine_hook, read_dir) {
 
 TEST(coroutine_hook, readlink) {
     coroutine::run([](void *arg) {
-        char buf1[1024];
-        char buf2[1024];
+        char buf1[1024] = {};
+        char buf2[1024] = {};
 
         auto retval = swoole_coroutine_readlink("/proc/self/cwd", buf1, sizeof(buf1));
         ASSERT_NE(retval, -1);

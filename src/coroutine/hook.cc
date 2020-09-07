@@ -335,7 +335,7 @@ DIR *swoole_coroutine_opendir(const char *name) {
     }
 
     DIR *retval = nullptr;
-    swoole::coroutine::async([&]() {retval = opendir(name);});
+    swoole::coroutine::async([&]() { retval = opendir(name); });
     return retval;
 }
 
