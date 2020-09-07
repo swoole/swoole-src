@@ -564,10 +564,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         buffer->offset += parsed_n;
 
         swTraceLog(SW_TRACE_CO_HTTP_SERVER,
-                   "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
+                   "parsed_n=%ld, length=%ld, offset=%ld, completed=%d",
                    parsed_n,
-                   retval,
-                   total_bytes,
+                   buffer->length,
+                   buffer->offset,
                    ctx->completed);
 
         if (!ctx->completed) {
