@@ -846,17 +846,8 @@ bool http_client::send()
 
     // when new request, clear all properties about the last response
     {
-        zval *zattr;
-        zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
-        if (ZVAL_IS_ARRAY(zattr))
-        {
-            zend_hash_clean(Z_ARRVAL_P(zattr));
-        }
-        zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
-        if (ZVAL_IS_ARRAY(zattr))
-        {
-            zend_hash_clean(Z_ARRVAL_P(zattr));
-        }
+        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("headers"));
+        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("set_cookie_headers"));
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("body"), "");
     }
 
