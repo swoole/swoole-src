@@ -8,8 +8,8 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 Co\run(function ()  {
     $cli = new Co\http\Client('www.bitmex.com', 443, true);
-    if (getenv('https_proxy')) {
-        $uri = parse_url(getenv('https_proxy'));
+    if (($http_proxy_conf = getenv('https_proxy'))) {
+        $uri = parse_url($http_proxy_conf);
         $cli->set([
             'socks5_host' => $uri['host'],
             'socks5_port' => $uri['port'],
