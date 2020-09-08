@@ -206,7 +206,7 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int async;
-    int fd = swoole_convert_to_fd_ex(handle, &async);
+    int fd = php_swoole_convert_to_fd_ex(handle, &async);
     if (fd < 0) {
         RETURN_FALSE;
     }
@@ -273,7 +273,7 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int async;
-    int fd = swoole_convert_to_fd_ex(handle, &async);
+    int fd = php_swoole_convert_to_fd_ex(handle, &async);
     if (fd < 0) {
         RETURN_FALSE;
     }
@@ -337,7 +337,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     int async;
-    int fd = swoole_convert_to_fd_ex(handle, &async);
+    int fd = php_swoole_convert_to_fd_ex(handle, &async);
     if (fd < 0) {
         RETURN_FALSE;
     }
@@ -681,7 +681,7 @@ PHP_METHOD(swoole_coroutine_system, waitEvent) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    int fd = swoole_convert_to_fd(zfd);
+    int fd = php_swoole_convert_to_fd(zfd);
     if (fd < 0) {
         php_swoole_fatal_error(E_WARNING, "unknow fd type");
         RETURN_FALSE;

@@ -18,7 +18,6 @@
 */
 
 #include "test_core.h"
-#include "wrapper/swoole_client.hpp"
 #include "swoole_log.h"
 
 using namespace std;
@@ -48,7 +47,7 @@ TEST(server, send_buffer) {
 
         lock.lock();
 
-        swoole::Client c(SW_SOCK_TCP);
+        swoole::network::SyncClient c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
         c.send(packet, strlen(packet));
         char buf[4096];

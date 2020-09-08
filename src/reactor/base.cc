@@ -18,6 +18,7 @@
 #include "swoole_socket.h"
 #include "swoole_signal.h"
 #include "swoole_reactor.h"
+#include "swoole_c_api.h"
 
 #include <system_error>
 
@@ -327,4 +328,7 @@ Reactor::~Reactor() {
     destroyed = true;
     destroy_callbacks.execute();
     free(this);
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]) {
+        swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
+    }
 }

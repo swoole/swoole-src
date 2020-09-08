@@ -20,7 +20,6 @@
 #include "test_core.h"
 #include "swoole_memory.h"
 #include "swoole_lock.h"
-#include "wrapper/swoole_client.hpp"
 #include "swoole_log.h"
 
 using namespace std;
@@ -69,7 +68,7 @@ TEST(server, base) {
 
         lock.lock();
 
-        swoole::Client c(SW_SOCK_TCP);
+        swoole::network::SyncClient c(SW_SOCK_TCP);
         c.connect(TEST_HOST, port->port);
         c.send(packet, strlen(packet));
         char buf[1024];
@@ -122,7 +121,7 @@ TEST(server, process) {
 
             swListenPort *port = serv->get_primary_port();
 
-            swoole::Client c(SW_SOCK_TCP);
+            swoole::network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
             c.send(packet, strlen(packet));
             char buf[1024];

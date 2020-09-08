@@ -3525,7 +3525,7 @@ static PHP_METHOD(swoole_server, getSocket) {
     }
 
     swListenPort *lp = serv->get_port(port);
-    php_socket *socket_object = swoole_convert_to_socket(lp->socket->fd);
+    php_socket *socket_object = php_swoole_convert_to_socket(lp->socket->fd);
 
     if (!socket_object) {
         RETURN_FALSE;

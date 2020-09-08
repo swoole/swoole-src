@@ -162,6 +162,8 @@ struct Socket {
      * socket option
      */
     bool set_buffer_size(uint32_t _buffer_size);
+    bool set_recv_buffer_size(uint32_t _buffer_size);
+    bool set_send_buffer_size(uint32_t _buffer_size);
     bool set_timeout(double timeout);
     bool set_recv_timeout(double timeout);
     bool set_send_timeout(double timeout);

@@ -46,6 +46,7 @@
 #include "swoole_log.h"
 #include "swoole_atomic.h"
 #include "swoole_async.h"
+#include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
 
 using swoole::String;
@@ -175,6 +176,37 @@ void swoole_init(void) {
 #endif
 }
 
+SW_EXTERN_C_BEGIN
+
+SW_API int swoole_add_function(const char *name, void *func) {
+    std::string _name(name);
+    auto iter = functions.find(_name);
+    if (iter != functions.end()) {
+        swWarn("Function '%s' has already been added", name);
+        return SW_ERR;
+    } else {
+        functions.emplace(std::make_pair(_name, func));
+        return SW_OK;
+    }
+}
+
+SW_API void *swoole_get_function(const char *name, uint32_t length) {
+    auto iter = functions.find(std::string(name));
+    if (iter != functions.end()) {
+        return iter->second;
+    } else {
+        return nullptr;
+    }
+}
+
+SW_API int swoole_add_hook(enum swGlobal_hook_type type, swHookFunc func, int push_back) {
+    return swoole::hook_add(SwooleG.hooks, type, func, push_back);
+}
+
+SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
+    swoole::hook_call(SwooleG.hooks, type, arg);
+}
+
 SW_API const char *swoole_version(void) {
     return SWOOLE_VERSION;
 }
@@ -182,6 +214,8 @@ SW_API const char *swoole_version(void) {
 SW_API int swoole_version_id(void) {
     return SWOOLE_VERSION_ID;
 }
+
+SW_EXTERN_C_END
 
 void swoole_clean(void) {
     if (SwooleG.task_tmpdir) {
@@ -342,14 +376,14 @@ int swoole_mkdir_recursive(const char *dir) {
 /**
  * get parent dir name
  */
-char *swoole_dirname(char *file) {
+char *swoole_dirname(const char *file) {
     char *dirname = sw_strdup(file);
     if (dirname == nullptr) {
         swWarn("strdup() failed");
         return nullptr;
     }
 
-    int i = strlen(dirname);
+    size_t i = strlen(dirname);
 
     if (dirname[i - 1] == '/') {
         i -= 2;
@@ -964,35 +998,6 @@ char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length) {
     char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
     sw_free(borders);
     return match;
-}
-
-SW_API int swoole_add_function(const char *name, void *func) {
-    std::string _name(name);
-    auto iter = functions.find(_name);
-    if (iter != functions.end()) {
-        swWarn("Function '%s' has already been added", name);
-        return SW_ERR;
-    } else {
-        functions.emplace(std::make_pair(_name, func));
-        return SW_OK;
-    }
-}
-
-SW_API void *swoole_get_function(const char *name, uint32_t length) {
-    auto iter = functions.find(std::string(name));
-    if (iter != functions.end()) {
-        return iter->second;
-    } else {
-        return nullptr;
-    }
-}
-
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swCallback func, int push_back) {
-    return swoole::hook_add(SwooleG.hooks, type, func, push_back);
-}
-
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
-    swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream) {

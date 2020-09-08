@@ -75,6 +75,16 @@ int swoole_daemon(int nochdir, int noclose) {
 }
 #endif
 
+#ifdef HAVE_CPU_AFFINITY
+int swoole_set_cpu_affinity(cpu_set_t *set) {
+#ifdef __FreeBSD__
+    return cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(*set), set);
+#else
+    return sched_setaffinity(getpid(), sizeof(*set), set);
+#endif
+}
+#endif
+
 namespace swoole {
 namespace async {
 

@@ -52,13 +52,6 @@
 #include <sys/utsname.h>
 #include <sys/time.h>
 
-#if defined(HAVE_CPU_AFFINITY) && defined(__FreeBSD__)
-#include <sys/types.h>
-#include <sys/cpuset.h>
-#include <pthread_np.h>
-typedef cpuset_t cpu_set_t;
-#endif
-
 #include <memory>
 #include <functional>
 
@@ -361,15 +354,6 @@ enum swEvent_type {
     SW_EVENT_ONCE   = 1u << 12,
 };
 
-enum swGlobal_hook_type {
-    SW_GLOBAL_HOOK_BEFORE_SERVER_START,
-    SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
-    SW_GLOBAL_HOOK_BEFORE_WORKER_START,
-    SW_GLOBAL_HOOK_ON_CORO_START,
-    SW_GLOBAL_HOOK_ON_CORO_STOP,
-    SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
-};
-
 enum swFork_type {
     SW_FORK_SPAWN    = 0,
     SW_FORK_EXEC     = 1 << 1,
@@ -582,7 +566,7 @@ static inline void swoole_strtolower(char *str, int length) {
 
 int swoole_itoa(char *buf, long value);
 int swoole_mkdir_recursive(const char *dir);
-char *swoole_dirname(char *file);
+char *swoole_dirname(const char *file);
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
 size_t swoole_sync_readfile(int fd, void *buf, size_t len);
 swString *swoole_sync_readfile_eof(int fd);
@@ -610,6 +594,16 @@ void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
+
+#ifdef HAVE_CPU_AFFINITY
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/cpuset.h>
+#include <pthread_np.h>
+typedef cpuset_t cpu_set_t;
+#endif
+int swoole_set_cpu_affinity(cpu_set_t *set);
+#endif
 
 struct swThreadGlobal_t {
     uint16_t id;
@@ -729,13 +723,6 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
         swYield();
     }
 }
-
-SW_API const char *swoole_version(void);
-SW_API int swoole_version_id(void);
-SW_API int swoole_add_function(const char *name, void *func);
-SW_API void *swoole_get_function(const char *name, uint32_t length);
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, const swCallback &func, int push_back);
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
 namespace swoole {
 int hook_add(void **hooks, int type, const swCallback &func, int push_back);

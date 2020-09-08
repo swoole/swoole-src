@@ -1332,7 +1332,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), index, key, elem) {
         ZVAL_DEREF(elem);
-        sock = swoole_convert_to_fd(elem);
+        sock = php_swoole_convert_to_fd(elem);
         if (sock < 0) {
             continue;
         }

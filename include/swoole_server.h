@@ -345,7 +345,7 @@ struct ListenPort {
     uint8_t ssl = 0;
     int port = 0;
     int socket_fd = 0;
-    swSocket *socket = nullptr;
+    network::Socket *socket = nullptr;
     pthread_t thread_id = 0;
     char host[SW_HOST_MAXSIZE] = {};
 
@@ -420,7 +420,7 @@ struct ListenPort {
     swSSL_config ssl_config = {};
     swSSL_option ssl_option = {};
 #ifdef SW_SUPPORT_DTLS
-    std::unordered_map<int, swoole::dtls::Session *> *dtls_sessions = nullptr;
+    std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
 #endif
 #endif
 
@@ -472,7 +472,7 @@ struct ServerGS {
     pid_t master_pid;
     pid_t manager_pid;
 
-    uint32_t session_round : 24;
+    uint32_t session_round :24;
     sw_atomic_t start;
     sw_atomic_t shutdown;
 
@@ -488,8 +488,8 @@ struct ServerGS {
 
     sw_atomic_t spinlock;
 
-    swProcessPool task_workers;
-    swProcessPool event_workers;
+    ProcessPool task_workers;
+    ProcessPool event_workers;
 };
 
 class Server {
@@ -502,7 +502,6 @@ class Server {
      * worker process num
      */
     uint32_t worker_num = 0;
-
 
     uint8_t dgram_port_num = 0;
 
@@ -723,10 +722,9 @@ class Server {
     std::vector<Worker *> *user_worker_list = nullptr;
     std::unordered_map<pid_t, Worker *> *user_worker_map = nullptr;
     Worker *user_workers = nullptr;
+
     Worker *workers = nullptr;
-
-    swoole::Channel *message_box = nullptr;
-
+    Channel *message_box = nullptr;
     ServerGS *gs = nullptr;
 
     std::unordered_set<std::string> *types = nullptr;
@@ -755,11 +753,11 @@ class Server {
      * stream
      */
     char *stream_socket_file = nullptr;
-    swSocket *stream_socket = nullptr;
-    swProtocol stream_protocol = {};
-    swSocket *last_stream_socket = nullptr;
-    swEventData *last_task = nullptr;
-    std::queue<swString *> *buffer_pool = nullptr;
+    network::Socket *stream_socket = nullptr;
+    Protocol stream_protocol = {};
+    network::Socket *last_stream_socket = nullptr;
+    EventData *last_task = nullptr;
+    std::queue<String *> *buffer_pool = nullptr;
 
     swAllocator *buffer_allocator = &SwooleG.std_allocator;
     size_t recv_buffer_size = SW_BUFFER_SIZE_BIG;

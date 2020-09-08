@@ -977,7 +977,7 @@ static PHP_METHOD(swoole_process, daemon) {
     if (zpipes) {
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zpipes), elem) {
             if (!ZVAL_IS_NULL(elem)) {
-                int new_fd = swoole_convert_to_fd(elem);
+                int new_fd = php_swoole_convert_to_fd(elem);
                 if (new_fd >= 0) {
                     if (dup2(new_fd, fd) < 0) {
                         swSysWarn("dup2(%d, %d) failed", new_fd, fd);
@@ -1020,12 +1020,7 @@ static PHP_METHOD(swoole_process, setaffinity) {
     CPU_SET(Z_LVAL_P(value), &cpu_set);
     SW_HASHTABLE_FOREACH_END();
 
-#ifdef __FreeBSD__
-    if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpu_set), &cpu_set) < 0)
-#else
-    if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
-#endif
-    {
+    if (swoole_set_cpu_affinity(&cpu_set) < 0) {
         php_swoole_sys_error(E_WARNING, "sched_setaffinity() failed");
         RETURN_FALSE;
     }

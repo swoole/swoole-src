@@ -41,13 +41,7 @@ static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, vo
 static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
 
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num) {
-    swFactoryProcess *object = (swFactoryProcess *) sw_malloc(sizeof(swFactoryProcess));
-    if (object == nullptr) {
-        swWarn("[Master] malloc[object] failed");
-        return SW_ERR;
-    }
-
-    factory->object = object;
+    factory->object = new swFactoryProcess;
     factory->dispatch = swFactoryProcess_dispatch;
     factory->finish = swFactoryProcess_finish;
     factory->start = swFactoryProcess_start;
@@ -96,19 +90,15 @@ static void swFactoryProcess_free(swFactory *factory) {
     }
 
     sw_free(object->send_buffer);
-    sw_free(object->pipes);
-    sw_free(object);
+    delete[] object->pipes;
+    delete object;
 }
 
 static int swFactoryProcess_create_pipes(swFactory *factory) {
     swServer *serv = (swServer *) factory->ptr;
     swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
 
-    object->pipes = (swPipe *) sw_calloc(serv->worker_num, sizeof(swPipe));
-    if (object->pipes == nullptr) {
-        swSysError("malloc[pipes] failed");
-        return SW_ERR;
-    }
+    object->pipes = new swPipe[serv->worker_num]();
 
     for (uint32_t i = 0; i < serv->worker_num; i++) {
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
@@ -122,10 +112,8 @@ static int swFactoryProcess_create_pipes(swFactory *factory) {
         serv->workers[i].pipe_master = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_MASTER);
         serv->workers[i].pipe_worker = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_WORKER);
 
-        setsockopt(
-            serv->workers[i].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
-        setsockopt(
-            serv->workers[i].pipe_worker->fd, SOL_SOCKET, SO_SNDBUF, &kernel_buffer_size, sizeof(kernel_buffer_size));
+        serv->workers[i].pipe_master->set_send_buffer_size(kernel_buffer_size);
+        serv->workers[i].pipe_worker->set_send_buffer_size(kernel_buffer_size);
 
         serv->workers[i].pipe_object = &object->pipes[i];
         serv->store_pipe_fd(serv->workers[i].pipe_object);

@@ -325,12 +325,25 @@ int Socket::bind(const char *host, int *port) {
 }
 
 bool Socket::set_buffer_size(uint32_t _buffer_size) {
-    // TODO: buffer_size = _buffer_size;
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+    if (!set_send_buffer_size(_buffer_size)) {
+        return false;
+    }
+    if (!set_recv_buffer_size(_buffer_size)) {
+        return false;
+    }
+    return true;
+}
+
+bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
         return false;
     }
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+    return true;
+}
+
+bool Socket::set_send_buffer_size(uint32_t _buffer_size) {
+    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
         return false;
     }
