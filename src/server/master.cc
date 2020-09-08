@@ -773,6 +773,9 @@ void Server::shutdown() {
 
 void Server::destroy() {
     swTraceLog(SW_TRACE_SERVER, "release service");
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN]) {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+    }
     /**
      * shutdown workers
      */

@@ -87,6 +87,12 @@ typedef unsigned long ulong_t;
 #define SW_API
 #endif
 
+#if defined(__GNUC__) && __GNUC__ >= 4
+#define SW_C_API __attribute__((visibility("default")))
+#else
+#define SW_C_API
+#endif
+
 #if !defined(__GNUC__) || __GNUC__ < 3
 #define __builtin_expect(x, expected_value) (x)
 #endif
@@ -119,7 +125,6 @@ typedef unsigned long ulong_t;
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
-#include "swoole_version.h"
 #include "swoole_log.h"
 #include "swoole_atomic.h"
 #include "swoole_error.h"
@@ -352,15 +357,6 @@ enum swEvent_type {
     SW_EVENT_RDWR   = SW_EVENT_READ | SW_EVENT_WRITE,
     SW_EVENT_ERROR  = 1u << 11,
     SW_EVENT_ONCE   = 1u << 12,
-};
-
-enum swGlobal_hook_type {
-    SW_GLOBAL_HOOK_BEFORE_SERVER_START,
-    SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
-    SW_GLOBAL_HOOK_BEFORE_WORKER_START,
-    SW_GLOBAL_HOOK_ON_CORO_START,
-    SW_GLOBAL_HOOK_ON_CORO_STOP,
-    SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
 };
 
 enum swFork_type {
@@ -732,13 +728,6 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
         swYield();
     }
 }
-
-SW_API const char *swoole_version(void);
-SW_API int swoole_version_id(void);
-SW_API int swoole_add_function(const char *name, void *func);
-SW_API void *swoole_get_function(const char *name, uint32_t length);
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, const swCallback &func, int push_back);
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 
 namespace swoole {
 int hook_add(void **hooks, int type, const swCallback &func, int push_back);
