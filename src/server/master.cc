@@ -362,7 +362,7 @@ static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void *
 }
 
 /**
- * only the memory of the swWorker structure is allocated, no process is fork
+ * only the memory of the Worker structure is allocated, no process is fork
  */
 int Server::create_task_workers() {
     key_t key = 0;
@@ -402,7 +402,7 @@ int Server::create_task_workers() {
 
 /**
  * @description:
- *  only the memory of the swWorker structure is allocated, no process is fork.
+ *  only the memory of the Worker structure is allocated, no process is fork.
  *  called when the manager process start.
  * @param swServer
  * @return: SW_OK|SW_ERR
@@ -413,10 +413,10 @@ int Server::create_user_workers() {
      * swServer::user_worker_list is initialized in the Server_add_worker function
      */
     if (user_worker_list == nullptr) {
-        user_worker_list = new std::vector<swWorker *>;
+        user_worker_list = new std::vector<Worker *>;
     }
 
-    user_workers = (swWorker *) sw_shm_calloc(user_worker_num, sizeof(swWorker));
+    user_workers = (Worker *) sw_shm_calloc(user_worker_num, sizeof(Worker));
     if (user_workers == nullptr) {
         swSysWarn("gmalloc[server->user_workers] failed");
         return SW_ERR;
@@ -428,14 +428,14 @@ int Server::create_user_workers() {
 /**
  * [Master]
  */
-int Server::create_worker(swWorker *worker) {
+int Server::create_worker(Worker *worker) {
     return swMutex_create(&worker->lock, 1);
 }
 
 /**
  * [Worker]
  */
-void Server::init_worker(swWorker *worker) {
+void Server::init_worker(Worker *worker) {
 #ifdef HAVE_CPU_AFFINITY
     if (open_cpu_affinity) {
         cpu_set_t cpu_set;
@@ -471,7 +471,7 @@ void Server::init_worker(swWorker *worker) {
     worker->request_count = 0;
 }
 
-void Server::call_worker_start_callback(swWorker *worker) {
+void Server::call_worker_start_callback(Worker *worker) {
     void *hook_args[2];
     hook_args[0] = this;
     hook_args[1] = (void *) (uintptr_t) worker->id;
@@ -798,7 +798,7 @@ void Server::destroy() {
     }
 
     /**
-     * because the swWorker in user_worker_list is the memory allocated by emalloc,
+     * because the Worker in user_worker_list is the memory allocated by emalloc,
      * the efree function will be called when the user process is destructed,
      * so there's no need to call the efree here.
      */
@@ -925,7 +925,7 @@ int Server::send_to_connection(swSendData *_send) {
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
 
-    swConnection *conn;
+    Connection *conn;
     if (_send->info.type != SW_SERVER_EVENT_CLOSE) {
         conn = get_connection_verify(session_id);
     } else {
@@ -1250,7 +1250,7 @@ bool Server::close(int session_id, bool reset) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return false;
     }
-    swConnection *conn = get_connection_verify_no_ssl(session_id);
+    Connection *conn = get_connection_verify_no_ssl(session_id);
     if (!conn) {
         return false;
     }
@@ -1262,7 +1262,7 @@ bool Server::close(int session_id, bool reset) {
     conn->close_actively = 1;
     swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
 
-    swWorker *worker;
+    Worker *worker;
     swDataHead ev = {};
 
     if (is_mode_dispatch_mode()) {
@@ -1326,15 +1326,15 @@ void Server::timer_callback(Timer *timer, TimerNode *tnode) {
     }
 }
 
-int Server::add_worker(swWorker *worker) {
+int Server::add_worker(Worker *worker) {
     if (user_worker_list == nullptr) {
-        user_worker_list = new std::vector<swWorker *>();
+        user_worker_list = new std::vector<Worker *>();
     }
     user_worker_num++;
     user_worker_list->push_back(worker);
 
     if (!user_worker_map) {
-        user_worker_map = new std::unordered_map<pid_t, swWorker *>();
+        user_worker_map = new std::unordered_map<pid_t, Worker *>();
     }
 
     return worker->id;
@@ -1546,7 +1546,7 @@ static void Server_signal_handler(int sig) {
 #ifdef SIGRTMIN
         if (sig == SIGRTMIN) {
             uint32_t i;
-            swWorker *worker;
+            Worker *worker;
             for (i = 0; i < serv->worker_num + serv->task_worker_num + serv->user_worker_num; i++) {
                 worker = serv->get_worker(i);
                 swoole_kill(worker->pid, SIGRTMIN);
@@ -1706,7 +1706,7 @@ int Server::get_idle_worker_num() {
     uint32_t idle_worker_num = 0;
 
     for (i = 0; i < worker_num; i++) {
-        swWorker *worker = get_worker(i);
+        Worker *worker = get_worker(i);
         if (worker->status == SW_WORKER_IDLE) {
             idle_worker_num++;
         }
@@ -1720,7 +1720,7 @@ int Server::get_idle_task_worker_num() {
     uint32_t idle_worker_num = 0;
 
     for (i = worker_num; i < (worker_num + task_worker_num); i++) {
-        swWorker *worker = get_worker(i);
+        Worker *worker = get_worker(i);
         if (worker->status == SW_WORKER_IDLE) {
             idle_worker_num++;
         }
