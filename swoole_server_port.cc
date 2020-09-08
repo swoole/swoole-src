@@ -439,7 +439,7 @@ static PHP_METHOD(swoole_server_port, set) {
             }
 #ifdef ZTS
             swServer *serv = property->serv;
-            if (serv->factory_mode == SW_MODE_PROCESS && !serv->single_thread) {
+            if (serv->is_process_mode() && !serv->single_thread) {
                 php_swoole_fatal_error(E_ERROR, "option [package_length_func] does not support with ZTS");
             }
 #endif

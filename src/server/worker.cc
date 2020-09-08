@@ -377,7 +377,7 @@ void Server::worker_start_callback() {
     SwooleWG.worker = get_worker(SwooleG.process_id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
-    if (factory_mode == SW_MODE_PROCESS) {
+    if (is_process_mode()) {
         sw_shm_protect(session_list, PROT_READ);
         /**
          * Use only the first block of pipe_buffer memory in worker process
@@ -435,7 +435,7 @@ void Server::stop_async_worker(swWorker *worker) {
         reactor->remove_read_event(worker->pipe_worker);
     }
 
-    if (serv->factory_mode == SW_MODE_BASE) {
+    if (serv->is_base_mode()) {
         if (swIsWorker()) {
             for (auto ls : serv->ports) {
                 reactor->del(reactor, ls->socket);

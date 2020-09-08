@@ -927,7 +927,7 @@ class Server {
     }
 
     inline uint32_t get_worker_buffer_num() {
-        return factory_mode == SW_MODE_BASE ? 1 : reactor_num + dgram_port_num;
+        return is_base_mode() ? 1 : reactor_num + dgram_port_num;
     }
 
     /**

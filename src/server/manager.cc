@@ -644,7 +644,7 @@ pid_t Server::spawn_user_worker(Worker *worker) {
         SwooleWG.worker = worker;
         worker->pid = getpid();
         // close tcp listen socket
-        if (factory_mode == SW_MODE_BASE) {
+        if (is_base_mode()) {
             close_port(true);
         }
         onUserWorkerStart(this, worker);
