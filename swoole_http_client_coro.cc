@@ -1470,6 +1470,7 @@ bool HttpClient::recv_http_response(double timeout) {
     size_t total_bytes = 0, parsed_n = 0;
     swString *buffer = socket->get_read_buffer();
     bool header_completed = false;
+    off_t header_crlf_offset = 0;
 
     // re-init http response parser
     swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
@@ -1497,15 +1498,17 @@ bool HttpClient::recv_http_response(double timeout) {
 
         if (!header_completed) {
             buffer->length += retval;
-            if (swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n")) < 0) {
+            if (swoole_strnpos(buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n")) < 0) {
                 if (buffer->length == buffer->size) {
                     swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Http header too large");
                     socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
                     return false;
                 }
+                header_crlf_offset = buffer->length > 4 ? buffer->length - 4 : 0;
                 continue;
             } else {
                 header_completed = true;
+                header_crlf_offset = 0;
                 retval = buffer->length;
                 swString_clear(buffer);
             }

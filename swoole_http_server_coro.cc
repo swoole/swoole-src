@@ -522,6 +522,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     swString *buffer = sock->get_read_buffer();
     http_context *ctx = nullptr;
     bool header_completed = false;
+    off_t header_crlf_offset = 0;
 
     hs->clients.push_front(sock);
     auto client_iterator = hs->clients.begin();
@@ -549,14 +550,16 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         }
 
         if (!header_completed) {
-            if (swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n")) < 0) {
+            if (swoole_strnpos(buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n")) < 0) {
                 if (buffer->length == buffer->size) {
                     ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
                     break;
                 }
+                header_crlf_offset = buffer->length > 4 ? buffer->length - 4 : 0;
                 continue;
             } else {
                 header_completed = true;
+                header_crlf_offset = 0;
             }
         }
 
