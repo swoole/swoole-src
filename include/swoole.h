@@ -52,13 +52,6 @@
 #include <sys/utsname.h>
 #include <sys/time.h>
 
-#if defined(HAVE_CPU_AFFINITY) && defined(__FreeBSD__)
-#include <sys/types.h>
-#include <sys/cpuset.h>
-#include <pthread_np.h>
-typedef cpuset_t cpu_set_t;
-#endif
-
 #include <memory>
 #include <functional>
 
@@ -610,6 +603,16 @@ void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
+
+#ifdef HAVE_CPU_AFFINITY
+#ifdef __FreeBSD__
+#include <sys/types.h>
+#include <sys/cpuset.h>
+#include <pthread_np.h>
+typedef cpuset_t cpu_set_t;
+#endif
+int swoole_set_cpu_affinity(cpu_set_t *set);
+#endif
 
 struct swThreadGlobal_t {
     uint16_t id;

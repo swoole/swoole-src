@@ -445,17 +445,11 @@ void Server::init_worker(swWorker *worker) {
         } else {
             CPU_SET(SwooleG.process_id % SW_CPU_NUM, &cpu_set);
         }
-#ifdef __FreeBSD__
-        if (cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_PID, -1, sizeof(cpu_set), &cpu_set) < 0)
-#else
-        if (sched_setaffinity(getpid(), sizeof(cpu_set), &cpu_set) < 0)
-#endif
-        {
-            swSysWarn("sched_setaffinity() failed");
+        if (swoole_set_cpu_affinity(&cpu_set) < 0) {
+            swSysWarn("swoole_set_cpu_affinity() failed");
         }
     }
 #endif
-
     // signal init
     swWorker_signal_init();
 
@@ -534,7 +528,7 @@ int Server::start() {
     gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
-    workers = (swWorker *) sw_shm_calloc(worker_num, sizeof(swWorker));
+    workers = (Worker *) sw_shm_calloc(worker_num, sizeof(Worker));
     if (workers == nullptr) {
         swSysWarn("gmalloc[server->workers] failed");
         return SW_ERR;
@@ -559,7 +553,7 @@ int Server::start() {
      * For swoole_server->taskwait, create notify pipe and result shared memory.
      */
     if (task_worker_num > 0 && worker_num > 0) {
-        task_result = (swEventData *) sw_shm_calloc(worker_num, sizeof(swEventData));
+        task_result = (EventData *) sw_shm_calloc(worker_num, sizeof(EventData));
         if (!task_result) {
             swWarn("malloc[task_result] failed");
             return SW_ERR;
