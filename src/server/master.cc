@@ -42,7 +42,7 @@ void Server::disable_accept() {
     enable_accept_timer = swoole_timer_add(
         SW_ACCEPT_RETRY_TIME * 1000,
         false,
-        [](swTimer *timer, swTimer_node *tnode) {
+        [](Timer *timer, TimerNode *tnode) {
             Server *serv = (Server *) tnode->data;
             for (auto port : serv->ports) {
                 if (port->is_dgram()) {
@@ -1312,7 +1312,7 @@ void Server::init_signal_handler() {
     set_minfd(SwooleG.signal_fd);
 }
 
-void Server::timer_callback(swTimer *timer, swTimer_node *tnode) {
+void Server::timer_callback(Timer *timer, TimerNode *tnode) {
     Server *serv = (Server *) tnode->data;
     time_t now = time(nullptr);
     if (serv->scheduler_warning && serv->warning_time < now) {

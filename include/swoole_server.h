@@ -132,11 +132,6 @@ struct swPacket_task {
     char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
 };
 
-struct swPacket_response {
-    int length;
-    int worker_id;
-};
-
 struct swPacket_ptr {
     swDataHead info;
     swString data;
@@ -507,10 +502,7 @@ class Server {
      * worker process num
      */
     uint32_t worker_num = 0;
-    /**
-     * The number of pipe per reactor maintenance
-     */
-    uint16_t reactor_pipe_num = 0;
+
 
     uint8_t dgram_port_num = 0;
 
@@ -542,10 +534,6 @@ class Server {
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     /*----------------------------Reactor schedule--------------------------------*/
-    uint16_t reactor_round_i = 0;
-    uint16_t reactor_next_i = 0;
-    uint16_t reactor_schedule_count = 0;
-
     sw_atomic_t worker_round_id = 0;
 
     /**
@@ -664,9 +652,8 @@ class Server {
     time_t reload_time = 0;
     time_t warning_time = 0;
     long timezone_ = 0;
-    swTimer_node *master_timer = nullptr;
-    swTimer_node *heartbeat_timer = nullptr;
-    swTimer_node *enable_accept_timer = nullptr;
+    TimerNode *master_timer = nullptr;
+    TimerNode *heartbeat_timer = nullptr;
 
     /* buffer output/input setting*/
     uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
@@ -690,7 +677,7 @@ class Server {
         return ports.front();
     }
 
-    ListenPort *get_port(int _port) {
+    inline ListenPort *get_port(int _port) {
         for (auto port : ports) {
             if (port->port == _port || _port == 0) {
                 return port;
@@ -699,9 +686,12 @@ class Server {
         return nullptr;
     }
 
-    ListenPort *get_port_by_fd(int fd) {
-        sw_atomic_t server_fd = connection_list[fd].server_fd;
+    inline ListenPort *get_port_by_server_fd(int server_fd) {
         return (ListenPort *) connection_list[server_fd].object;
+    }
+
+    inline ListenPort *get_port_by_fd(int fd) {
+        return get_port_by_server_fd(connection_list[fd].server_fd);
     }
 
     inline ListenPort *get_port_by_session_id(int session_id) {
@@ -716,8 +706,6 @@ class Server {
         return connection_list[fd].socket;
     }
 
-    std::thread heartbeat_thread;
-
     /**
      *  task process
      */
@@ -726,18 +714,16 @@ class Server {
     uint32_t task_max_request = 0;
     uint32_t task_max_request_grace = 0;
     swPipe *task_notify = nullptr;
-    swEventData *task_result = nullptr;
+    EventData *task_result = nullptr;
 
     /**
      * user process
      */
     uint32_t user_worker_num = 0;
-    std::vector<swWorker *> *user_worker_list = nullptr;
-    std::unordered_map<pid_t, swWorker *> *user_worker_map = nullptr;
-    swWorker *user_workers = nullptr;
-
-    ReactorThread *reactor_threads = nullptr;
-    swWorker *workers = nullptr;
+    std::vector<Worker *> *user_worker_list = nullptr;
+    std::unordered_map<pid_t, Worker *> *user_worker_map = nullptr;
+    Worker *user_workers = nullptr;
+    Worker *workers = nullptr;
 
     swoole::Channel *message_box = nullptr;
 
@@ -750,10 +736,6 @@ class Server {
 #ifdef HAVE_PTHREAD_BARRIER
     pthread_barrier_t barrier = {};
 #endif
-
-    Connection *connection_list = nullptr;
-    Session *session_list = nullptr;
-    uint32_t *port_connnection_num_list = nullptr;
 
     /**
      * temporary directory for HTTP uploaded file.
@@ -1023,7 +1005,11 @@ class Server {
         return &reactor_threads[reactor_id];
     }
 
-    bool is_valid_connection(Connection *conn) {
+    inline bool is_started() {
+        return gs->start;
+    }
+
+    inline bool is_valid_connection(Connection *conn) {
         return (conn && conn->socket && conn->active && conn->socket->fdtype == SW_FD_SESSION);
     }
 
@@ -1080,7 +1066,7 @@ class Server {
 
     void close_port(bool only_stream_port);
     void clear_timer();
-    static void timer_callback(swTimer *timer, swTimer_node *tnode);
+    static void timer_callback(Timer *timer, TimerNode *tnode);
 
     int create_task_workers();
     int create_user_workers();
@@ -1112,8 +1098,8 @@ class Server {
     bool notify(Connection *conn, int event);
     bool feedback(int session_id, int event);
 
-    void init_reactor(swReactor *reactor);
-    void init_worker(swWorker *worker);
+    void init_reactor(Reactor *reactor);
+    void init_worker(Worker *worker);
     void init_task_workers();
     void init_port_protocol(ListenPort *port);
     void init_signal_handler();
@@ -1126,7 +1112,7 @@ class Server {
     }
     
     int create_pipe_buffers();
-    int create_worker(swWorker *worker);
+    int create_worker(Worker *worker);
     void disable_accept();
 
     void destroy_http_request(Connection *conn);
@@ -1223,9 +1209,9 @@ class Server {
     /**
      * [Manager]
      */
-    pid_t spawn_event_worker(swWorker *worker);
-    pid_t spawn_user_worker(swWorker *worker);
-    pid_t spawn_task_worker(swWorker *worker);
+    pid_t spawn_event_worker(Worker *worker);
+    pid_t spawn_user_worker(Worker *worker);
+    pid_t spawn_task_worker(Worker *worker);
 
     void kill_user_workers();
     void kill_event_workers();
@@ -1245,12 +1231,22 @@ class Server {
 
   private:
     enum swServer_mode factory_mode;
+    Connection *connection_list = nullptr;
+    Session *session_list = nullptr;
+    uint32_t *port_connnection_num_list = nullptr;
     /**
      * http static file directory
      */
     std::string document_root;
     std::mutex lock_;
     uint32_t max_connection = 0;
+    TimerNode *enable_accept_timer = nullptr;
+    std::thread heartbeat_thread;
+    /**
+     * The number of pipe per reactor maintenance
+     */
+    uint16_t reactor_pipe_num = 0;
+    ReactorThread *reactor_threads = nullptr;
 
     int start_check();
     void check_port_type(ListenPort *ls);
@@ -1261,7 +1257,7 @@ class Server {
     int create_reactor_threads();
     int start_reactor_threads();
     int start_reactor_processes();
-    int start_event_worker(swWorker *worker);
+    int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
     void join_reactor_thread();
 };

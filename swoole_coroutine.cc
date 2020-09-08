@@ -199,7 +199,7 @@ static int coro_exit_handler(zend_execute_data *execute_data) {
     if (Coroutine::get_current()) {
         flags |= SW_EXIT_IN_COROUTINE;
     }
-    if (sw_server() && sw_server()->gs->start) {
+    if (sw_server() && sw_server()->is_started()) {
         flags |= SW_EXIT_IN_SERVER;
     }
     if (flags) {

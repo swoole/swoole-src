@@ -37,9 +37,9 @@ static bool swServer_is_single(swServer *serv) {
 
 int Server::create_reactor_processes() {
     reactor_num = worker_num;
-    connection_list = (swConnection *) sw_calloc(max_connection, sizeof(swConnection));
+    connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
     if (connection_list == nullptr) {
-        swSysWarn("calloc[2](%d) failed", (int) (max_connection * sizeof(swConnection)));
+        swSysWarn("calloc[2](%d) failed", (int ) (max_connection * sizeof(Connection)));
         return SW_ERR;
     }
     // create factry object

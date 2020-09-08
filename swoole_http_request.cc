@@ -437,7 +437,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             efree(header_name);
             return -1;
         }
-        swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
+        swListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port->open_websocket_protocol) {
             conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
         }

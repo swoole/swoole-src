@@ -159,8 +159,6 @@ static int swFactoryProcess_start(swFactory *factory) {
         }
     }
 
-    serv->reactor_pipe_num = serv->worker_num / serv->reactor_num;
-
     if (swFactoryProcess_create_pipes(factory) < 0) {
         return SW_ERR;
     }

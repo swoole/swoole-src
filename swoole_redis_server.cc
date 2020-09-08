@@ -212,7 +212,7 @@ static PHP_METHOD(swoole_redis_server, start) {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     zval *zserv = ZEND_THIS;
 
-    if (serv->gs->start > 0) {
+    if (serv->is_started()) {
         php_swoole_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
         RETURN_FALSE;
     }

@@ -391,7 +391,7 @@ bool swoole_websocket_handshake(http_context *ctx) {
 
     if (conn) {
         conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
-        swListenPort *port = (swListenPort *) serv->connection_list[conn->server_fd].object;
+        ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port && !port->websocket_subprotocol.empty()) {
             swoole_http_response_set_header(ctx,
                                             ZEND_STRL("Sec-WebSocket-Protocol"),
@@ -768,7 +768,7 @@ static sw_inline bool swoole_websocket_server_close(swServer *serv, int fd, swSt
 
 static PHP_METHOD(swoole_websocket_server, disconnect) {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->gs->start)) {
+    if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
@@ -790,7 +790,7 @@ static PHP_METHOD(swoole_websocket_server, disconnect) {
 
 static PHP_METHOD(swoole_websocket_server, push) {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->gs->start)) {
+    if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
@@ -898,7 +898,7 @@ static PHP_METHOD(swoole_websocket_server, unpack) {
 
 static PHP_METHOD(swoole_websocket_server, isEstablished) {
     swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->gs->start)) {
+    if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }

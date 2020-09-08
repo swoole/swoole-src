@@ -1265,7 +1265,7 @@ static PHP_METHOD(swoole_http_response, create) {
         serv = php_swoole_server_get_and_check_server(zserver);
     }
 
-    if (serv == nullptr || !serv->gs->start) {
+    if (serv == nullptr || !serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }

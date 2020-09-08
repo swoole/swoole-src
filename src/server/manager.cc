@@ -145,7 +145,7 @@ int Server::start_manager_process() {
     case 0: {
         // wait master process
         SW_START_SLEEP;
-        if (!gs->start) {
+        if (!is_started()) {
             swError("master process is not running");
             return SW_ERR;
         }

@@ -38,12 +38,10 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, swEvent *event);
 static int ReactorThread_onClose(Reactor *reactor, swEvent *event);
 static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uint32_t length);
 static void ReactorThread_shutdown(Reactor *reactor);
-static void ReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode);
+static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
 
 #ifdef SW_USE_OPENSSL
-static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor,
-                                                                swListenPort *port,
-                                                                swSocket *_socket) {
+static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
     Server *serv = (Server *) reactor->ptr;
     if (!_socket->ssl || _socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_CONTINUE;
@@ -54,7 +52,7 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
         return code;
     }
 
-    swConnection *conn = (swConnection *) _socket->object;
+    Connection *conn = (Connection *) _socket->object;
     conn->ssl_ready = 1;
     if (port->ssl_option.client_cert_file) {
         int retval = swSSL_get_peer_cert(_socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
@@ -124,7 +122,7 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, swEvent *event) {
     int ret;
 
     Server *serv = (Server *) reactor->ptr;
-    Connection *server_sock = &serv->connection_list[fd];
+    Connection *server_sock = serv->get_connection(fd);
     network::Socket *sock = server_sock->socket;
     swSendData task = {};
     swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
@@ -706,7 +704,7 @@ int Server::create_reactor_threads() {
     /**
      * alloc the memory for connection_list
      */
-    connection_list = (swConnection *) sw_shm_calloc(max_connection, sizeof(swConnection));
+    connection_list = (Connection *) sw_shm_calloc(max_connection, sizeof(Connection));
     if (connection_list == nullptr) {
         swError("calloc[1] failed");
         return SW_ERR;
@@ -720,6 +718,7 @@ int Server::create_reactor_threads() {
         swError("create factory failed");
         return SW_ERR;
     }
+    reactor_pipe_num = worker_num / reactor_num;
     return SW_OK;
 }
 
@@ -860,14 +859,15 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
             if (server_fd % serv->reactor_num != reactor_id) {
                 continue;
             }
+            Connection *serv_sock = serv->get_connection(server_fd);
             if (ls->type == SW_SOCK_UDP) {
-                serv->connection_list[server_fd].info.addr.inet_v4.sin_port = htons(ls->port);
+                serv_sock->info.addr.inet_v4.sin_port = htons(ls->port);
             } else if (ls->type == SW_SOCK_UDP6) {
-                serv->connection_list[server_fd].info.addr.inet_v6.sin6_port = htons(ls->port);
+                serv_sock->info.addr.inet_v6.sin6_port = htons(ls->port);
             }
-            serv->connection_list[server_fd].fd = server_fd;
-            serv->connection_list[server_fd].socket_type = ls->type;
-            serv->connection_list[server_fd].object = ls;
+            serv_sock->fd = server_fd;
+            serv_sock->socket_type = ls->type;
+            serv_sock->object = ls;
             ls->thread_id = pthread_self();
             if (reactor->add(reactor, ls->socket, SW_EVENT_READ) < 0) {
                 return SW_ERR;

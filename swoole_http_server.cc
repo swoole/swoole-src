@@ -42,13 +42,13 @@ int php_swoole_http_onReceive(swServer *serv, swRecvData *req) {
     int fd = req->info.fd;
     int server_fd = req->info.server_fd;
 
-    swConnection *conn = serv->get_connection_verify_no_ssl(fd);
+    Connection *conn = serv->get_connection_verify_no_ssl(fd);
     if (!conn) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed", fd);
         return SW_ERR;
     }
 
-    swListenPort *port = (swListenPort *) serv->connection_list[server_fd].object;
+    ListenPort *port = serv->get_port_by_server_fd(server_fd);
     // other server port
     if (!port->open_http_protocol) {
         return php_swoole_onReceive(serv, req);
