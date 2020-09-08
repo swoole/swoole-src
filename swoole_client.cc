@@ -1246,7 +1246,7 @@ static PHP_METHOD(swoole_client, getSocket) {
         php_swoole_fatal_error(E_WARNING, "the 'getSocket' method can't be used on persistent connection");
         RETURN_FALSE;
     }
-    php_socket *socket_object = swoole_convert_to_socket(cli->socket->fd);
+    php_socket *socket_object = php_swoole_convert_to_socket(cli->socket->fd);
     if (!socket_object) {
         RETURN_FALSE;
     }
@@ -1527,7 +1527,7 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
     int poll_key;
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(sock_array), num_key, key, element) {
-        sock = swoole_convert_to_fd(element);
+        sock = php_swoole_convert_to_fd(element);
         if (sock < 0) {
             continue;
         }
@@ -1566,7 +1566,7 @@ static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int 
     int key = -1;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-    sock = swoole_convert_to_fd(element);
+    sock = php_swoole_convert_to_fd(element);
     if (sock < 0) {
         continue;
     }
@@ -1602,7 +1602,7 @@ static int client_select_wait(zval *sock_array, fd_set *fds) {
     zval *dest_element;
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(sock_array), num_key, key, element) {
-        sock = swoole_convert_to_fd(element);
+        sock = php_swoole_convert_to_fd(element);
         if (sock < 0) {
             continue;
         }
@@ -1635,7 +1635,7 @@ static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd) {
     int num = 0;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(sock_array), element)
-    sock = swoole_convert_to_fd(element);
+    sock = php_swoole_convert_to_fd(element);
     if (sock < 0) {
         continue;
     }

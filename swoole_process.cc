@@ -977,7 +977,7 @@ static PHP_METHOD(swoole_process, daemon) {
     if (zpipes) {
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(zpipes), elem) {
             if (!ZVAL_IS_NULL(elem)) {
-                int new_fd = swoole_convert_to_fd(elem);
+                int new_fd = php_swoole_convert_to_fd(elem);
                 if (new_fd >= 0) {
                     if (dup2(new_fd, fd) < 0) {
                         swSysWarn("dup2(%d, %d) failed", new_fd, fd);

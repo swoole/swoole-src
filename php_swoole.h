@@ -325,12 +325,11 @@ zval* php_swoole_task_unpack(swEventData *task_result);
 int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length);
 #endif
 
-int swoole_convert_to_fd(zval *zsocket);
-int swoole_convert_to_fd_ex(zval *zsocket, int *async);
+int php_swoole_convert_to_fd(zval *zsocket);
+int php_swoole_convert_to_fd_ex(zval *zsocket, int *async);
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
-php_socket *swoole_convert_to_socket(int sock);
-void swoole_php_socket_free(zval *zsocket);
+php_socket *php_swoole_convert_to_socket(int sock);
 #endif
 
 ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length);

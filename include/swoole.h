@@ -128,6 +128,7 @@ typedef unsigned long ulong_t;
 #include "swoole_log.h"
 #include "swoole_atomic.h"
 #include "swoole_error.h"
+#include "swoole_version.h"
 
 #define SW_MAX(A, B) ((A) > (B) ? (A) : (B))
 #define SW_MIN(A, B) ((A) < (B) ? (A) : (B))

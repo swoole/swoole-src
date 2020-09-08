@@ -46,7 +46,6 @@
 #include "swoole_log.h"
 #include "swoole_atomic.h"
 #include "swoole_async.h"
-#include "swoole_version.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
 
