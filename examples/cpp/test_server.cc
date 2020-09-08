@@ -25,12 +25,11 @@ int main(int argc, char **argv) {
     sw_logger()->set_date_format("%F %T");
     sw_logger()->set_date_with_microseconds(true);
 
-    swServer serv;
+    Server serv(SW_MODE_BASE);
 
     serv.reactor_num = 4;
     serv.worker_num = 1;
 
-    serv.factory_mode = SW_MODE_BASE;
     serv.set_max_connection(10000);
     // serv.open_cpu_affinity = 1;
     // serv.open_tcp_nodelay = 1;

@@ -144,7 +144,7 @@ static void TaskWorker_onStart(swProcessPool *pool, int worker_id) {
     swServer *serv = (swServer *) pool->ptr;
     SwooleG.process_id = worker_id;
 
-    if (serv->factory_mode == SW_MODE_BASE) {
+    if (serv->is_base_mode()) {
         serv->close_port(true);
     }
 

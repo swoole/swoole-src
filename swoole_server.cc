@@ -1062,7 +1062,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject) {
                "Create Server: host=%s, port=%d, mode=%d, type=%d",
                primary_port->host,
                (int) primary_port->port,
-               serv->factory_mode,
+               serv->is_base_mode() ? SW_MODE_BASE : SW_MODE_PROCESS,
                (int) primary_port->type);
 #endif
 
@@ -1087,7 +1087,7 @@ void php_swoole_server_before_start(swServer *serv, zval *zobject) {
     serv->move_buffer = php_swoole_server_worker_move_buffer;
     serv->get_packet = php_swoole_server_worker_get_packet;
 
-    if (serv->factory_mode == SW_MODE_BASE) {
+    if (serv->is_base_mode()) {
         serv->buffer_allocator = &SWOOLE_G(zend_string_allocator);
     }
 
@@ -1949,7 +1949,7 @@ static void php_swoole_server_worker_free_buffers(swServer *serv, uint buffer_nu
 
 static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(swServer *serv, int reactor_id) {
     zend_string **buffers = (zend_string **) serv->worker_input_buffers;
-    if (serv->factory_mode == SW_MODE_BASE) {
+    if (serv->is_base_mode()) {
         return buffers[0];
     } else {
         return buffers[reactor_id];
@@ -2103,7 +2103,7 @@ static PHP_METHOD(swoole_server, __construct) {
     zend_update_property_stringl(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("host"), host, host_len);
     zend_update_property_long(
         swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("port"), (zend_long) serv->get_primary_port()->port);
-    zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("mode"), serv->factory_mode);
+    zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("mode"), serv_mode);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("type"), sock_type);
 }
 
@@ -2205,7 +2205,7 @@ static PHP_METHOD(swoole_server, set) {
                 }
             }
 #ifdef ZTS
-            if (serv->factory_mode == SW_MODE_PROCESS && !serv->single_thread) {
+            if (serv->is_process_mode() && !serv->single_thread) {
                 php_swoole_fatal_error(E_ERROR, "option [dispatch_func] does not support with ZTS");
             }
 #endif
@@ -3676,7 +3676,7 @@ static PHP_METHOD(swoole_server, sendwait) {
         RETURN_FALSE;
     }
 
-    if (serv->factory_mode != SW_MODE_BASE || swIsTaskWorker()) {
+    if (serv->is_process_mode() || swIsTaskWorker()) {
         php_swoole_fatal_error(E_WARNING, "can't sendwait");
         RETURN_FALSE;
     }

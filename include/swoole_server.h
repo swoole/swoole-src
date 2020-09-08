@@ -512,8 +512,6 @@ class Server {
      */
     uint16_t reactor_pipe_num = 0;
 
-    enum swServer_mode factory_mode;
-
     uint8_t dgram_port_num = 0;
 
     /**
@@ -954,6 +952,14 @@ class Server {
         }
     }
 
+    inline bool is_process_mode() {
+        return factory_mode == SW_MODE_PROCESS;
+    }
+
+    inline bool is_base_mode() {
+        return factory_mode == SW_MODE_BASE;
+    }
+
     inline bool is_mode_dispatch_mode() {
         return dispatch_mode == SW_DISPATCH_FDMOD || dispatch_mode == SW_DISPATCH_IPMOD;
     }
@@ -1238,6 +1244,7 @@ class Server {
     typedef int (*dispatch_function)(Server *, Connection *, swSendData *);
 
   private:
+    enum swServer_mode factory_mode;
     /**
      * http static file directory
      */

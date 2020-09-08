@@ -609,8 +609,7 @@ static int ReactorThread_onRead(Reactor *reactor, swEvent *event) {
 #endif
 
     int retval = port->onRead(reactor, port, event);
-    if (serv->factory_mode == SW_MODE_PROCESS && serv->max_queued_bytes &&
-        conn->queued_bytes > serv->max_queued_bytes) {
+    if (serv->is_process_mode() && serv->max_queued_bytes && conn->queued_bytes > serv->max_queued_bytes) {
         conn->waiting_time = 1;
         conn->timer = swoole_timer_add(conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
         if (conn->timer) {
@@ -627,12 +626,12 @@ static int ReactorThread_onWrite(Reactor *reactor, swEvent *ev) {
     swBuffer_chunk *chunk;
     int fd = ev->fd;
 
-    if (serv->factory_mode == SW_MODE_PROCESS) {
+    if (serv->is_process_mode()) {
         assert(fd % serv->reactor_num == reactor->id);
         assert(fd % serv->reactor_num == SwooleTG.id);
     }
 
-    swConnection *conn = serv->get_connection(fd);
+    Connection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
     }
@@ -684,7 +683,7 @@ static int ReactorThread_onWrite(Reactor *reactor, swEvent *ev) {
     }
 
     if (serv->onBufferEmpty && conn->high_watermark) {
-        swListenPort *port = serv->get_port_by_fd(fd);
+        ListenPort *port = serv->get_port_by_fd(fd);
         if (socket->out_buffer->length <= port->buffer_low_watermark) {
             conn->high_watermark = 0;
             serv->notify(conn, SW_SERVER_EVENT_BUFFER_EMPTY);

@@ -263,7 +263,7 @@ void Server::set_max_connection(uint32_t _max_connection) {
 
 int Server::start_check() {
     // disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
-    if (factory_mode == SW_MODE_PROCESS) {
+    if (is_process_mode()) {
         if (!is_support_unsafe_events()) {
             if (onConnect) {
                 swWarn("cannot set 'onConnect' event when using dispatch_mode=1/3/7");
@@ -312,7 +312,7 @@ int Server::start_check() {
     /**
      * OpenSSL thread-safe
      */
-    if (factory_mode != SW_MODE_BASE) {
+    if (is_base_mode()) {
         swSSL_init_thread_safety();
     }
 #endif
@@ -602,7 +602,7 @@ int Server::start() {
         swoole_file_put_contents(pid_file.c_str(), SwooleTG.buffer_stack->str, n);
     }
     int ret;
-    if (factory_mode == SW_MODE_BASE) {
+    if (is_base_mode()) {
         ret = start_reactor_processes();
     } else {
         ret = start_reactor_threads();
@@ -729,7 +729,7 @@ int Server::create() {
         }
     }
 
-    if (factory_mode == SW_MODE_BASE) {
+    if (is_base_mode()) {
         return create_reactor_processes();
     } else {
         return create_reactor_threads();
@@ -762,7 +762,7 @@ void Server::shutdown() {
         swReactor *reactor = SwooleTG.reactor;
         reactor->set_wait_exit(true);
         for (auto port : ports) {
-            if (port->is_dgram() and factory_mode == SW_MODE_PROCESS) {
+            if (port->is_dgram() and is_process_mode()) {
                 continue;
             }
             reactor->del(reactor, port->socket);
@@ -770,7 +770,7 @@ void Server::shutdown() {
         clear_timer();
     }
 
-    if (factory_mode == SW_MODE_BASE) {
+    if (is_base_mode()) {
         gs->event_workers.running = 0;
     }
 
@@ -785,7 +785,7 @@ void Server::destroy() {
     if (factory.shutdown) {
         factory.shutdown(&(factory));
     }
-    if (factory_mode == SW_MODE_BASE) {
+    if (is_base_mode()) {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
             gs->task_workers.shutdown();
@@ -832,7 +832,7 @@ void Server::destroy() {
     if (onShutdown) {
         onShutdown(this);
     }
-    if (factory_mode == SW_MODE_BASE) {
+    if (is_base_mode()) {
         destroy_reactor_processes();
     } else {
         destroy_reactor_threads();
@@ -879,7 +879,7 @@ bool Server::feedback(int session_id, int event) {
     _send.info.fd = session_id;
     _send.info.reactor_id = conn->reactor_id;
 
-    if (factory_mode == SW_MODE_PROCESS) {
+    if (is_process_mode()) {
         return send_to_reactor_thread((swEventData *) &_send.info, sizeof(_send.info), session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
@@ -962,7 +962,7 @@ int Server::send_to_connection(swSendData *_send) {
         assert(fd % reactor_num == SwooleTG.id);
     }
 
-    if (factory_mode == SW_MODE_BASE && conn->overflow) {
+    if (is_base_mode() && conn->overflow) {
         if (send_yield) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {
@@ -1295,7 +1295,7 @@ bool Server::close(int session_id, bool reset) {
 void Server::init_signal_handler() {
     swSignal_set(SIGPIPE, nullptr);
     swSignal_set(SIGHUP, nullptr);
-    if (factory_mode == SW_MODE_PROCESS) {
+    if (is_process_mode()) {
         swSignal_set(SIGCHLD, Server_signal_handler);
     } else {
         swSignal_set(SIGIO, Server_signal_handler);
@@ -1515,7 +1515,7 @@ static void Server_signal_handler(int sig) {
         if (!serv->running) {
             break;
         }
-        if (sw_server()->factory_mode == SW_MODE_BASE) {
+        if (sw_server()->is_base_mode()) {
             break;
         }
         pid = waitpid(-1, &status, WNOHANG);
@@ -1536,7 +1536,7 @@ static void Server_signal_handler(int sig) {
          */
     case SIGUSR1:
     case SIGUSR2:
-        if (serv->factory_mode == SW_MODE_BASE) {
+        if (serv->is_base_mode()) {
             if (serv->gs->event_workers.reloading) {
                 break;
             }
@@ -1557,7 +1557,7 @@ static void Server_signal_handler(int sig) {
                 worker = serv->get_worker(i);
                 swoole_kill(worker->pid, SIGRTMIN);
             }
-            if (serv->factory_mode == SW_MODE_PROCESS) {
+            if (serv->is_process_mode()) {
                 swoole_kill(serv->gs->manager_pid, SIGRTMIN);
             }
             sw_logger()->reopen();
@@ -1627,7 +1627,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     now = ::time(nullptr);
 
     connection->fd = fd;
-    connection->reactor_id = factory_mode == SW_MODE_BASE ? SwooleG.process_id : fd % reactor_num;
+    connection->reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
     connection->connect_time = now;
     connection->last_time = now;

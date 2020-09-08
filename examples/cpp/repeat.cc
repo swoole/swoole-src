@@ -14,16 +14,14 @@ int main(int argc, char **argv) {
     }
 
     for (int i = 0; i < 2; i++) {
-        Server serv;
+        Server serv(factory_mode);
 
         serv.reactor_num = 1;
         serv.worker_num = 1;
 
-        serv.factory_mode = factory_mode;
+        serv.onReceive = [](swServer *serv, swRecvData *req) { return SW_OK; };
 
-        serv.onReceive = [](swServer *serv, swEventData *req) { return SW_OK; };
-
-        serv.onPacket = [](swServer *serv, swEventData *req) { return SW_OK; };
+        serv.onPacket = [](swServer *serv, swRecvData *req) { return SW_OK; };
 
         serv.onWorkerStart = [](swServer *serv, int worker_id) {
             swNotice("WorkerStart[%d]PID=%d, serv=%p,", worker_id, getpid(), serv);
@@ -31,7 +29,7 @@ int main(int argc, char **argv) {
                 1000,
                 [serv](swTimer *, swTimer_node *tnode) {
                     printf("timer=%p\n", tnode);
-                    if (serv->factory_mode == SW_MODE_BASE) {
+                    if (serv->is_base_mode()) {
                         kill(getpid(), SIGTERM);
                     } else {
                         kill(serv->gs->master_pid, SIGTERM);
