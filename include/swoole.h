@@ -572,7 +572,7 @@ static inline void swoole_strtolower(char *str, int length) {
 
 int swoole_itoa(char *buf, long value);
 int swoole_mkdir_recursive(const char *dir);
-char *swoole_dirname(char *file);
+char *swoole_dirname(const char *file);
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
 size_t swoole_sync_readfile(int fd, void *buf, size_t len);
 swString *swoole_sync_readfile_eof(int fd);

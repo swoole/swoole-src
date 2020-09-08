@@ -376,14 +376,14 @@ int swoole_mkdir_recursive(const char *dir) {
 /**
  * get parent dir name
  */
-char *swoole_dirname(char *file) {
+char *swoole_dirname(const char *file) {
     char *dirname = sw_strdup(file);
     if (dirname == nullptr) {
         swWarn("strdup() failed");
         return nullptr;
     }
 
-    int i = strlen(dirname);
+    size_t i = strlen(dirname);
 
     if (dirname[i - 1] == '/') {
         i -= 2;
@@ -1163,12 +1163,12 @@ size_t swDataHead::dump(char *_buf, size_t _len) {
 
 namespace swoole {
 //-------------------------------------------------------------------------------
-int hook_add(void **hooks, int type, swHookFunc func, int push_back) {
+int hook_add(void **hooks, int type, const swCallback &func, int push_back) {
     if (hooks[type] == nullptr) {
-        hooks[type] = new std::list<swHookFunc>;
+        hooks[type] = new std::list<swCallback>;
     }
 
-    std::list<swHookFunc> *l = reinterpret_cast<std::list<swHookFunc> *>(hooks[type]);
+    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
     if (push_back) {
         l->push_back(func);
     } else {
@@ -1179,7 +1179,7 @@ int hook_add(void **hooks, int type, swHookFunc func, int push_back) {
 }
 
 void hook_call(void **hooks, int type, void *arg) {
-    std::list<swHookFunc> *l = reinterpret_cast<std::list<swHookFunc> *>(hooks[type]);
+    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);
     }
