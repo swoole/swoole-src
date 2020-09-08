@@ -21,7 +21,6 @@
 #include "httplib_client.h"
 #include "llhttp.h"
 #include "swoole_http.h"
-#include "wrapper/swoole_client.hpp"
 #include "swoole_log.h"
 
 using namespace swoole;

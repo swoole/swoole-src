@@ -1,12 +1,11 @@
 #include "test_core.h"
 #include "test_server.h"
-#include "wrapper/swoole_client.hpp"
 #include "test_process.h"
 
 #define GREETER "Hello Swoole"
 #define GREETER_SIZE sizeof(GREETER)
 
-using swoole::AsyncClient;
+using swoole::network::AsyncClient;
 using swoole::network::Client;
 using swoole::test::Process;
 using swoole::test::Server;

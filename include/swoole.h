@@ -87,12 +87,6 @@ typedef unsigned long ulong_t;
 #define SW_API
 #endif
 
-#if defined(__GNUC__) && __GNUC__ >= 4
-#define SW_C_API __attribute__((visibility("default")))
-#else
-#define SW_C_API
-#endif
-
 #if !defined(__GNUC__) || __GNUC__ < 3
 #define __builtin_expect(x, expected_value) (x)
 #endif
@@ -125,10 +119,10 @@ typedef unsigned long ulong_t;
 /*----------------------------------------------------------------------------*/
 
 #include "swoole_config.h"
+#include "swoole_version.h"
 #include "swoole_log.h"
 #include "swoole_atomic.h"
 #include "swoole_error.h"
-#include "swoole_version.h"
 
 #define SW_MAX(A, B) ((A) > (B) ? (A) : (B))
 #define SW_MIN(A, B) ((A) < (B) ? (A) : (B))
