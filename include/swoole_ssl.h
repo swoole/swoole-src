@@ -133,14 +133,15 @@ int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size);
 
 SW_EXTERN_C_END
 
-#define return_ssl_method(name, create_flag) ({ \
-    switch (create_flag) { \
-    case SW_SSL_SERVER: \
-        return name##_server_method(); \
-    case SW_SSL_CLIENT: \
-        return name##_client_method(); \
-    } \
-    return name##_method(); \
-})
+#define return_ssl_method(name, create_flag)                                                                           \
+    ({                                                                                                                 \
+        switch (create_flag) {                                                                                         \
+        case SW_SSL_SERVER:                                                                                            \
+            return name##_server_method();                                                                             \
+        case SW_SSL_CLIENT:                                                                                            \
+            return name##_client_method();                                                                             \
+        }                                                                                                              \
+        return name##_method();                                                                                        \
+    })
 
 #endif /* SW_CONNECTION_H_ */

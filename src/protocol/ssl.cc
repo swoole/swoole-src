@@ -73,7 +73,7 @@ static const SSL_METHOD *swSSL_get_method(_swSSL_option *option) {
  * DTLS supports
  */
 #ifdef SW_SUPPORT_DTLS
-    if(option->protocols & SW_SSL_DTLS) {
+    if (option->protocols & SW_SSL_DTLS) {
         return_ssl_method(DTLS, option->create_flag);
     }
 #endif
@@ -353,8 +353,7 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
 
 #if OPENSSL_VERSION_NUMBER >= 0x009080dfL
     /* only in 0.9.8m+ */
-    SSL_CTX_clear_options(ssl_context,
-                          SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
+    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
 #endif
 
 #ifdef SSL_OP_NO_SSLv2
