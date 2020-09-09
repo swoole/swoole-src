@@ -31,9 +31,8 @@ enum flag {
 };
 
 namespace swoole {
-namespace async {
 
-struct Event {
+struct AsyncEvent {
     int fd;
     size_t task_id;
     uint8_t lock;
@@ -54,17 +53,19 @@ struct Event {
     /**
      * internal use only
      */
-    swSocket *pipe_socket;
+    network::Socket *pipe_socket;
     double timestamp;
     void *object;
-    void (*handler)(Event *event);
-    void (*callback)(Event *event);
+    void (*handler)(AsyncEvent *event);
+    void (*callback)(AsyncEvent *event);
 };
 
-typedef void (*Handler)(Event *event);
+namespace async {
 
-ssize_t dispatch(const Event *request);
-Event *dispatch2(const Event *request);
+typedef void (*Handler)(AsyncEvent *event);
+
+ssize_t dispatch(const AsyncEvent *request);
+AsyncEvent *dispatch2(const AsyncEvent *request);
 int cancel(int task_id);
 int callback(Reactor *reactor, swEvent *_event);
 size_t thread_count();
@@ -73,8 +74,8 @@ size_t thread_count();
 void notify_one();
 #endif
 
-void handler_gethostbyname(Event *event);
-void handler_getaddrinfo(Event *event);
+void handler_gethostbyname(AsyncEvent *event);
+void handler_getaddrinfo(AsyncEvent *event);
 
 }  // namespace async
 };  // namespace swoole

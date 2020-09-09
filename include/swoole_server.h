@@ -472,7 +472,7 @@ struct ServerGS {
     pid_t master_pid;
     pid_t manager_pid;
 
-    uint32_t session_round :24;
+    uint32_t session_round : 24;
     sw_atomic_t start;
     sw_atomic_t shutdown;
 
@@ -1224,6 +1224,8 @@ class Server {
      */
     void worker_start_callback();
     void worker_stop_callback();
+    static void worker_signal_handler(int signo);
+    static void worker_signal_init(void);
 
     typedef int (*dispatch_function)(Server *, Connection *, swSendData *);
 
@@ -1298,9 +1300,6 @@ static inline swServer *sw_server() {
     return g_server_instance;
 }
 
-//------------------------------------Worker Process-------------------------------------------
-void swWorker_signal_handler(int signo);
-void swWorker_signal_init(void);
 ssize_t swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
 int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
