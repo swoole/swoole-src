@@ -59,9 +59,9 @@ static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uin
 
 static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const uchar *in, uint inlen, void *arg) {
 #ifdef SW_LOG_TRACE_OPEN
-    string info("[NPN] server offers:\n");
+    std::string info("[NPN] server offers:\n");
     for (unsigned int i = 0; i < inlen; i += in[i] + 1) {
-        info += "        * " + string(reinterpret_cast<const char *>(&in[i + 1]), in[i]);
+        info += "        * " + std::string(reinterpret_cast<const char *>(&in[i + 1]), in[i]);
     }
     swTraceLog(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
 #endif
