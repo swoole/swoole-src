@@ -24,6 +24,20 @@
 namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
+struct PollSocket {
+    int16_t events;
+    int16_t revents;
+    void *ptr;
+    network::Socket *socket;
+
+    PollSocket(int16_t _event, void *_ptr) {
+        events = _event;
+        ptr = _ptr;
+        revents = 0;
+        socket = nullptr;
+    }
+};
+
 class System {
   public:
     static void init_reactor(swReactor *reactor);
@@ -44,7 +58,7 @@ class System {
     static void set_dns_cache_capacity(size_t capacity);
     static void clear_dns_cache();
     /* multiplexing */
-    static bool socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout);
+    static bool socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout);
     /* wait */
     static pid_t wait(int *__stat_loc, double timeout = -1);
     static pid_t waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout = -1);

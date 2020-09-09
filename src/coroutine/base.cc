@@ -32,7 +32,7 @@ sw_coro_bailout_t Coroutine::on_bailout = nullptr;
 
 void Coroutine::yield() {
     SW_ASSERT(current == this || on_bailout != nullptr);
-    state = SW_CORO_WAITING;
+    state = STATE_WAITING;
     if (sw_likely(on_yield)) {
         on_yield(task);
     }
@@ -45,7 +45,7 @@ void Coroutine::resume() {
     if (sw_unlikely(on_bailout)) {
         return;
     }
-    state = SW_CORO_RUNNING;
+    state = STATE_RUNNING;
     if (sw_likely(on_resume)) {
         on_resume(task);
     }
@@ -57,7 +57,7 @@ void Coroutine::resume() {
 
 void Coroutine::yield_naked() {
     SW_ASSERT(current == this);
-    state = SW_CORO_WAITING;
+    state = STATE_WAITING;
     current = origin;
     ctx.swap_out();
 }
@@ -67,7 +67,7 @@ void Coroutine::resume_naked() {
     if (sw_unlikely(on_bailout)) {
         return;
     }
-    state = SW_CORO_RUNNING;
+    state = STATE_RUNNING;
     origin = current;
     current = this;
     ctx.swap_in();
@@ -76,7 +76,7 @@ void Coroutine::resume_naked() {
 
 void Coroutine::close() {
     SW_ASSERT(current == this);
-    state = SW_CORO_END;
+    state = STATE_END;
     if (on_close) {
         on_close(task);
     }
@@ -93,16 +93,16 @@ void Coroutine::print_list() {
     for (auto i = coroutines.begin(); i != coroutines.end(); i++) {
         const char *state;
         switch (i->second->state) {
-        case SW_CORO_INIT:
+        case STATE_INIT:
             state = "[INIT]";
             break;
-        case SW_CORO_WAITING:
+        case STATE_WAITING:
             state = "[WAITING]";
             break;
-        case SW_CORO_RUNNING:
+        case STATE_RUNNING:
             state = "[RUNNING]";
             break;
-        case SW_CORO_END:
+        case STATE_END:
             state = "[END]";
             break;
         default:

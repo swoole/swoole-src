@@ -357,15 +357,15 @@ bool System::wait_signal(int signo, double timeout) {
     return true;
 }
 
-struct coro_poll_task {
-    std::unordered_map<int, socket_poll_fd> *fds;
+struct CoroPollTask {
+    std::unordered_map<int, coroutine::PollSocket> *fds;
     Coroutine *co = nullptr;
     TimerNode *timer = nullptr;
     bool success = false;
     bool wait = true;
 };
 
-static inline void socket_poll_clean(coro_poll_task *task) {
+static inline void socket_poll_clean(CoroPollTask *task) {
     for (auto i = task->fds->begin(); i != task->fds->end(); i++) {
         swSocket *socket = i->second.socket;
         if (!socket) {
@@ -385,7 +385,7 @@ static inline void socket_poll_clean(coro_poll_task *task) {
 }
 
 static void socket_poll_timeout(swTimer *timer, TimerNode *tnode) {
-    coro_poll_task *task = (coro_poll_task *) tnode->data;
+    CoroPollTask *task = (CoroPollTask *) tnode->data;
     task->timer = nullptr;
     task->success = false;
     task->wait = false;
@@ -394,13 +394,13 @@ static void socket_poll_timeout(swTimer *timer, TimerNode *tnode) {
 }
 
 static void socket_poll_completed(void *data) {
-    coro_poll_task *task = (coro_poll_task *) data;
+    CoroPollTask *task = (CoroPollTask *) data;
     socket_poll_clean(task);
     task->co->resume();
 }
 
 static inline void socket_poll_trigger_event(swReactor *reactor,
-                                             coro_poll_task *task,
+                                             CoroPollTask *task,
                                              int fd,
                                              enum swEvent_type event) {
     auto i = task->fds->find(fd);
@@ -426,17 +426,17 @@ static inline void socket_poll_trigger_event(swReactor *reactor,
 }
 
 static int socket_poll_read_callback(swReactor *reactor, swEvent *event) {
-    socket_poll_trigger_event(reactor, (coro_poll_task *) event->socket->object, event->fd, SW_EVENT_READ);
+    socket_poll_trigger_event(reactor, (CoroPollTask *) event->socket->object, event->fd, SW_EVENT_READ);
     return SW_OK;
 }
 
 static int socket_poll_write_callback(swReactor *reactor, swEvent *event) {
-    socket_poll_trigger_event(reactor, (coro_poll_task *) event->socket->object, event->fd, SW_EVENT_WRITE);
+    socket_poll_trigger_event(reactor, (CoroPollTask *) event->socket->object, event->fd, SW_EVENT_WRITE);
     return SW_OK;
 }
 
 static int socket_poll_error_callback(swReactor *reactor, swEvent *event) {
-    socket_poll_trigger_event(reactor, (coro_poll_task *) event->socket->object, event->fd, SW_EVENT_ERROR);
+    socket_poll_trigger_event(reactor, (CoroPollTask *) event->socket->object, event->fd, SW_EVENT_ERROR);
     return SW_OK;
 }
 
@@ -470,7 +470,7 @@ static int translate_events_from_poll(int events) {
     return sw_events;
 }
 
-bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double timeout) {
+bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeout) {
     if (timeout == 0) {
         struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
         if (!event_list) {
@@ -495,7 +495,7 @@ bool System::socket_poll(std::unordered_map<int, socket_poll_fd> &fds, double ti
     }
 
     size_t tasked_num = 0;
-    coro_poll_task task;
+    CoroPollTask task;
     task.fds = &fds;
     task.co = Coroutine::get_current_safe();
 

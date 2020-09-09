@@ -46,10 +46,11 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
-using namespace std;
-using namespace swoole;
+using swoole::Coroutine;
+using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::coroutine::PollSocket;
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_runtime, enableCoroutine);
@@ -478,7 +479,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
     }
 
     if (xparam->inputs.timeout) {
-        sock->set_timeout(xparam->inputs.timeout, SW_TIMEOUT_CONNECT);
+        sock->set_timeout(xparam->inputs.timeout, Socket::TIMEOUT_CONNECT);
     }
     if (sock->connect(host, portno) == false) {
         xparam->outputs.error_code = sock->errCode;
@@ -535,7 +536,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     socklen_t sl = sizeof(sa);
 
     if (timeout) {
-        sock->set_timeout(timeout, SW_TIMEOUT_READ);
+        sock->set_timeout(timeout, Socket::TIMEOUT_READ);
     }
 
     Socket *clisock = sock->accept();
@@ -766,12 +767,12 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         }
         abstract->blocking = (bool) value;
         if (abstract->blocking) {
-            sock->set_timeout(abstract->read_timeout, SW_TIMEOUT_READ);
-            sock->set_timeout(abstract->write_timeout, SW_TIMEOUT_WRITE);
+            sock->set_timeout(abstract->read_timeout, Socket::TIMEOUT_READ);
+            sock->set_timeout(abstract->write_timeout, Socket::TIMEOUT_WRITE);
         } else {
-            abstract->read_timeout = sock->get_timeout(SW_TIMEOUT_READ);
-            abstract->write_timeout = sock->get_timeout(SW_TIMEOUT_WRITE);
-            sock->set_timeout(0.001, SW_TIMEOUT_READ | SW_TIMEOUT_WRITE);
+            abstract->read_timeout = sock->get_timeout(Socket::TIMEOUT_READ);
+            abstract->write_timeout = sock->get_timeout(Socket::TIMEOUT_WRITE);
+            sock->set_timeout(0.001, Socket::TIMEOUT_READ | Socket::TIMEOUT_WRITE);
         }
         break;
     case PHP_STREAM_OPTION_XPORT_API: {
@@ -829,7 +830,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
         break;
     }
     case PHP_STREAM_OPTION_READ_TIMEOUT: {
-        abstract->socket->set_timeout((struct timeval *) ptrparam, SW_TIMEOUT_READ);
+        abstract->socket->set_timeout((struct timeval *) ptrparam, Socket::TIMEOUT_READ);
         break;
     }
 #ifdef SW_USE_OPENSSL
@@ -1320,7 +1321,7 @@ static PHP_FUNCTION(swoole_time_sleep_until) {
     RETURN_TRUE;
 }
 
-static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, socket_poll_fd> &fds, int event) {
+static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, PollSocket> &fds, int event) {
     zval *elem;
     zend_ulong index;
     zend_string *key;
@@ -1338,7 +1339,7 @@ static void stream_array_to_fd_set(zval *stream_array, std::unordered_map<int, s
         }
         auto i = fds.find(sock);
         if (i == fds.end()) {
-            fds.emplace(make_pair(sock, socket_poll_fd(event, new zend::KeyValue(index, key, elem))));
+            fds.emplace(std::make_pair(sock, PollSocket(event, new zend::KeyValue(index, key, elem))));
         } else {
             i->second.events |= event;
         }
@@ -1411,7 +1412,7 @@ static PHP_FUNCTION(swoole_stream_select) {
     Z_PARAM_LONG(usec)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    std::unordered_map<int, socket_poll_fd> fds;
+    std::unordered_map<int, PollSocket> fds;
 
     if (r_array != nullptr) {
         stream_array_to_fd_set(r_array, fds, SW_EVENT_READ);

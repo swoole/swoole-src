@@ -98,7 +98,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event) {
     }
     int ret = PHPCoroutine::resume_m(context, &result, retval);
     zval_ptr_dtor(&result);
-    if (ret == SW_CORO_ERR_END && retval) {
+    if (ret == Coroutine::ERR_END && retval) {
         zval_ptr_dtor(retval);
     }
     efree(sock);
@@ -127,7 +127,7 @@ static int co_socket_onWritable(swReactor *reactor, swEvent *event) {
         ZVAL_LONG(&result, n);
     }
     int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == SW_CORO_ERR_END && retval) {
+    if (ret == Coroutine::ERR_END && retval) {
         zval_ptr_dtor(retval);
     }
     efree(sock);

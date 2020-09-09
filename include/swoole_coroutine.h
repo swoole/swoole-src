@@ -38,36 +38,10 @@
 #define SW_CORO_MAX_STACK_SIZE (16 * 1024 * 1024)
 #define SW_CORO_MAX_NUM_LIMIT LONG_MAX
 
-typedef enum {
-    SW_CORO_ERR_END = 0,
-    SW_CORO_ERR_LIMIT = -1,
-    SW_CORO_ERR_INVALID = -2,
-} sw_coro_error;
-
-typedef enum {
-    SW_CORO_INIT = 0,
-    SW_CORO_WAITING,
-    SW_CORO_RUNNING,
-    SW_CORO_END,
-} sw_coro_state;
-
 typedef void (*sw_coro_on_swap_t)(void *);
 typedef void (*sw_coro_bailout_t)();
 
 namespace swoole {
-struct socket_poll_fd {
-    int16_t events;
-    int16_t revents;
-    void *ptr;
-    swSocket *socket;
-
-    socket_poll_fd(int16_t _event, void *_ptr) {
-        events = _event;
-        ptr = _ptr;
-        revents = 0;
-        socket = nullptr;
-    }
-};
 
 class Coroutine {
   public:
@@ -77,7 +51,20 @@ class Coroutine {
     void resume_naked();
     void yield_naked();
 
-    inline sw_coro_state get_state() {
+    enum State {
+        STATE_INIT = 0,
+        STATE_WAITING,
+        STATE_RUNNING,
+        STATE_END,
+    };
+
+    enum Error {
+        ERR_END = 0,
+        ERR_LIMIT = -1,
+        ERR_INVALID = -2,
+    };
+
+    inline enum State get_state() {
         return state;
     }
 
@@ -187,7 +174,7 @@ class Coroutine {
     static sw_coro_on_swap_t on_close;   /* before close */
     static sw_coro_bailout_t on_bailout; /* when bailout */
 
-    sw_coro_state state = SW_CORO_INIT;
+    enum State state = STATE_INIT;
     long cid;
     long init_msec = Timer::get_absolute_msec();
     void *task = nullptr;
