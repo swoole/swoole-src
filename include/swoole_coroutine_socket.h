@@ -61,8 +61,7 @@ class Socket {
         TIMEOUT_ALL = TIMEOUT_DNS | TIMEOUT_CONNECT | TIMEOUT_RDWR,
     };
 
-    static constexpr enum TimeoutType timeout_type_list[] = {
-        TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE};
+    static enum TimeoutType timeout_type_list[4];
 
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;

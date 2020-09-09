@@ -40,6 +40,8 @@ const string HTTP2_H2_ALPN("\x2h2");
 const string HTTP2_H2_16_ALPN("\x5h2-16");
 const string HTTP2_H2_14_ALPN("\x5h2-14");
 
+enum Socket::TimeoutType Socket::timeout_type_list[4] = { TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE };
+
 static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const string &key) {
     for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
         if (std::equal(std::begin(key), std::end(key), p)) {
