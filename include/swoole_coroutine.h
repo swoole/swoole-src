@@ -33,16 +33,7 @@
 #include <string>
 #include <unordered_map>
 
-#define SW_CORO_STACK_ALIGNED_SIZE (4 * 1024)
-#define SW_CORO_MIN_STACK_SIZE (64 * 1024)
-#define SW_CORO_MAX_STACK_SIZE (16 * 1024 * 1024)
-#define SW_CORO_MAX_NUM_LIMIT LONG_MAX
-
-typedef void (*sw_coro_on_swap_t)(void *);
-typedef void (*sw_coro_bailout_t)();
-
 namespace swoole {
-
 class Coroutine {
   public:
     void resume();
@@ -50,6 +41,11 @@ class Coroutine {
 
     void resume_naked();
     void yield_naked();
+
+    constexpr static int STACK_ALIGNED_SIZE = (4 * 1024);
+    constexpr static int MIN_STACK_SIZE = (64 * 1024);
+    constexpr static int MAX_STACK_SIZE = (16 * 1024 * 1024);
+    constexpr static long MAX_NUM_LIMIT = LONG_MAX;
 
     enum State {
         STATE_INIT = 0,
@@ -63,6 +59,9 @@ class Coroutine {
         ERR_LIMIT = -1,
         ERR_INVALID = -2,
     };
+
+    typedef void (*SwapCallback)(void *);
+    typedef void (*BailoutCallback)();
 
     inline enum State get_state() {
         return state;
@@ -98,10 +97,10 @@ class Coroutine {
 
     static std::unordered_map<long, Coroutine *> coroutines;
 
-    static void set_on_yield(sw_coro_on_swap_t func);
-    static void set_on_resume(sw_coro_on_swap_t func);
-    static void set_on_close(sw_coro_on_swap_t func);
-    static void bailout(sw_coro_bailout_t func);
+    static void set_on_yield(SwapCallback func);
+    static void set_on_resume(SwapCallback func);
+    static void set_on_close(SwapCallback func);
+    static void bailout(BailoutCallback func);
 
     static inline long create(const coroutine_func_t &fn, void *args = nullptr) {
         return (new Coroutine(fn, args))->run();
@@ -141,8 +140,7 @@ class Coroutine {
     }
 
     static inline void set_stack_size(size_t size) {
-        stack_size = SW_MEM_ALIGNED_SIZE_EX(SW_MAX(SW_CORO_MIN_STACK_SIZE, SW_MIN(size, SW_CORO_MAX_STACK_SIZE)),
-                                            SW_CORO_STACK_ALIGNED_SIZE);
+        stack_size = SW_MEM_ALIGNED_SIZE_EX(SW_MAX(MIN_STACK_SIZE, SW_MIN(size, MAX_STACK_SIZE)), STACK_ALIGNED_SIZE);
     }
 
     static inline long get_last_cid() {
@@ -169,10 +167,10 @@ class Coroutine {
     static long last_cid;
     static uint64_t peak_num;
     static size_t stack_size;
-    static sw_coro_on_swap_t on_yield;   /* before yield */
-    static sw_coro_on_swap_t on_resume;  /* before resume */
-    static sw_coro_on_swap_t on_close;   /* before close */
-    static sw_coro_bailout_t on_bailout; /* when bailout */
+    static SwapCallback on_yield;   /* before yield */
+    static SwapCallback on_resume;  /* before resume */
+    static SwapCallback on_close;   /* before close */
+    static BailoutCallback on_bailout; /* when bailout */
 
     enum State state = STATE_INIT;
     long cid;

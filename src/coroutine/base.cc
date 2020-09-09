@@ -25,10 +25,10 @@ std::unordered_map<long, Coroutine *> Coroutine::coroutines;
 uint64_t Coroutine::peak_num = 0;
 
 size_t Coroutine::stack_size = SW_DEFAULT_C_STACK_SIZE;
-sw_coro_on_swap_t Coroutine::on_yield = nullptr;
-sw_coro_on_swap_t Coroutine::on_resume = nullptr;
-sw_coro_on_swap_t Coroutine::on_close = nullptr;
-sw_coro_bailout_t Coroutine::on_bailout = nullptr;
+Coroutine::SwapCallback Coroutine::on_yield = nullptr;
+Coroutine::SwapCallback Coroutine::on_resume = nullptr;
+Coroutine::SwapCallback Coroutine::on_close = nullptr;
+Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
 
 void Coroutine::yield() {
     SW_ASSERT(current == this || on_bailout != nullptr);
@@ -113,23 +113,23 @@ void Coroutine::print_list() {
     }
 }
 
-void Coroutine::set_on_yield(sw_coro_on_swap_t func) {
+void Coroutine::set_on_yield(SwapCallback func) {
     on_yield = func;
 }
 
-void Coroutine::set_on_resume(sw_coro_on_swap_t func) {
+void Coroutine::set_on_resume(SwapCallback func) {
     on_resume = func;
 }
 
-void Coroutine::set_on_close(sw_coro_on_swap_t func) {
+void Coroutine::set_on_close(SwapCallback func) {
     on_close = func;
 }
 
-void Coroutine::bailout(sw_coro_bailout_t func) {
+void Coroutine::bailout(BailoutCallback func) {
     Coroutine *co = current;
     if (!co) {
         // marks that it can no longer resume any coroutine
-        on_bailout = (sw_coro_bailout_t) -1;
+        on_bailout = (BailoutCallback) -1;
         return;
     }
     if (!func) {
