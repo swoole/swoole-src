@@ -497,17 +497,12 @@ static PHP_METHOD(swoole_server_port, set) {
             }
             port->ssl_option.key_file = str_v.dup();
         }
-        if (php_swoole_array_get_value(vht, "ssl_method", ztmp)) {
-            zend_long v = zval_get_long(ztmp);
-            port->ssl_option.method = SW_MAX(0, SW_MIN(v, UINT8_MAX));
-        }
         if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
             port->ssl_option.disable_compress = !zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
             zend_long v = zval_get_long(ztmp);
-            port->ssl_option.disable_protocols =
-                (SW_SSL_SSLv2 | SW_SSL_SSLv3 | SW_SSL_TLSv1 | SW_SSL_TLSv1_1 | SW_SSL_TLSv1_2) ^ v;
+            port->ssl_option.protocols = v;
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
             port->ssl_option.verify_peer = zval_is_true(ztmp);

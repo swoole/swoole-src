@@ -35,7 +35,7 @@ static int openssl_init = 0;
 static int ssl_connection_index = 0;
 static pthread_mutex_t *lock_array;
 
-static const SSL_METHOD *swSSL_get_method(int method);
+static const SSL_METHOD *swSSL_get_method(_swSSL_option *option);
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
 #ifndef OPENSSL_NO_RSA
 static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length);
@@ -68,61 +68,39 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
 
-static const SSL_METHOD *swSSL_get_method(int method) {
-    switch (method) {
-#ifndef OPENSSL_NO_SSL3_METHOD
-    case SW_SSLv3_METHOD:
-        return SSLv3_method();
-    case SW_SSLv3_SERVER_METHOD:
-        return SSLv3_server_method();
-    case SW_SSLv3_CLIENT_METHOD:
-        return SSLv3_client_method();
-#endif
-    case SW_SSLv23_SERVER_METHOD:
-        return SSLv23_server_method();
-    case SW_SSLv23_CLIENT_METHOD:
-        return SSLv23_client_method();
-/**
- * openssl 1.1.0
- */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    case SW_TLSv1_METHOD:
-        return TLSv1_method();
-    case SW_TLSv1_SERVER_METHOD:
-        return TLSv1_server_method();
-    case SW_TLSv1_CLIENT_METHOD:
-        return TLSv1_client_method();
-#ifdef TLS1_1_VERSION
-    case SW_TLSv1_1_METHOD:
-        return TLSv1_1_method();
-    case SW_TLSv1_1_SERVER_METHOD:
-        return TLSv1_1_server_method();
-    case SW_TLSv1_1_CLIENT_METHOD:
-        return TLSv1_1_client_method();
-#endif
-#ifdef TLS1_2_VERSION
-    case SW_TLSv1_2_METHOD:
-        return TLSv1_2_method();
-    case SW_TLSv1_2_SERVER_METHOD:
-        return TLSv1_2_server_method();
-    case SW_TLSv1_2_CLIENT_METHOD:
-        return TLSv1_2_client_method();
-#endif
-#endif
+static const SSL_METHOD *swSSL_get_method(_swSSL_option *option) {
 /**
  * DTLS supports
  */
 #ifdef SW_SUPPORT_DTLS
-    case SW_DTLS_CLIENT_METHOD:
-        return DTLS_client_method();
-    case SW_DTLS_SERVER_METHOD:
-        return DTLS_server_method();
-#endif
-    case SW_SSLv23_METHOD:
-    default:
-        return SSLv23_method();
+    if(option->protocols & SW_SSL_DTLS) {
+        return_ssl_method(DTLS, option->create_flag);
     }
-    return SSLv23_method();
+#endif
+/**
+ * openssl 1.1.0
+ */
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+#ifdef TLS1_2_VERSION
+    if (option->protocols & SW_SSL_TLSv1_2) {
+        return_ssl_method(TLSv1_2, option->create_flag);
+    }
+#endif
+#ifdef TLS1_1_VERSION
+    if (option->protocols & SW_SSL_TLSv1_1) {
+        return_ssl_method(TLSv1_1, option->create_flag);
+    }
+#endif
+    if (option->protocols & SW_SSL_TLSv1) {
+        return_ssl_method(TLSv1, option->create_flag);
+    }
+#endif
+#ifndef OPENSSL_NO_SSL3_METHOD
+    if (option->protocols & SW_SSL_SSLv3) {
+        return_ssl_method(SSLv3, option->create_flag);
+    }
+#endif
+    return_ssl_method(SSLv23, option->create_flag);
 }
 
 void swSSL_init(void) {
@@ -327,7 +305,8 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
         swSSL_init();
     }
 
-    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(option->method));
+    uint32_t protocols = (0 == option->protocols ? SW_SSL_ALL : option->protocols);
+    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(option));
     if (ssl_context == nullptr) {
         int error = ERR_get_error();
         swWarn("SSL_CTX_new() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
@@ -372,25 +351,43 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
     SSL_CTX_set_options(ssl_context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
 #endif
 
-    if (option->disable_protocols & SW_SSL_SSLv2) {
+#if OPENSSL_VERSION_NUMBER >= 0x009080dfL
+    /* only in 0.9.8m+ */
+    SSL_CTX_clear_options(ssl_context,
+                          SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
+#endif
+
+#ifdef SSL_OP_NO_SSLv2
+    if (!(protocols & SW_SSL_SSLv2)) {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv2);
     }
-    if (option->disable_protocols & SW_SSL_SSLv3) {
+#endif
+#ifdef SSL_OP_NO_SSLv3
+    if (!(protocols & SW_SSL_SSLv3)) {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv3);
     }
-    if (option->disable_protocols & SW_SSL_TLSv1) {
+#endif
+#ifdef SSL_OP_NO_TLSv1
+    if (!(protocols & SW_SSL_TLSv1)) {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1);
     }
+#endif
 #ifdef SSL_OP_NO_TLSv1_1
     SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_1);
-    if (option->disable_protocols & SW_SSL_TLSv1_1) {
+    if (!(protocols & SW_SSL_TLSv1_1)) {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_1);
     }
 #endif
 #ifdef SSL_OP_NO_TLSv1_2
     SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_2);
-    if (option->disable_protocols & SW_SSL_TLSv1_2) {
+    if (!(protocols & SW_SSL_TLSv1_2) && !(protocols & SW_SSL_DTLS)) {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_2);
+    }
+#endif
+#ifdef SSL_OP_NO_TLSv1_3
+    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_3);
+    if (!(protocols & SW_SSL_TLSv1_3)) {
+        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_3);
     }
 #endif
 
@@ -452,7 +449,7 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
     }
 
 #ifdef SW_SUPPORT_DTLS
-    if (option->dtls) {
+    if (protocols & SW_SSL_DTLS) {
         SSL_CTX_set_cookie_generate_cb(ssl_context, swSSL_generate_cookie);
         SSL_CTX_set_cookie_verify_cb(ssl_context, swSSL_verify_cookie);
     }

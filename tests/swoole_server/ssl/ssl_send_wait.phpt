@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
         'ssl_cert_file' => SSL_FILE_DIR . '/server.crt',
         'ssl_key_file' => SSL_FILE_DIR . '/server.key',
         'ssl_ciphers' => 'ALL:!ADH:!EXPORT56:RC4+RSA:+HIGH:+MEDIUM:+LOW:+SSLv2:+EXP',
-        'ssl_method' => SWOOLE_SSLv3_CLIENT_METHOD,
+        'ssl_protocols' => defined('SWOOLE_SSL_SSLv3') ? SWOOLE_SSL_SSLv3 : 0,
         'ssl_verify_peer' => false,
         'ssl_allow_self_signed' => true,
     ]);

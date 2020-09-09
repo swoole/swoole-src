@@ -154,7 +154,7 @@ _do_recvfrom:
 #ifdef SW_SUPPORT_DTLS
     swListenPort *port = (swListenPort *) server_sock->object;
 
-    if (port->ssl_option.dtls) {
+    if (port->ssl_option.protocols & SW_SSL_DTLS) {
         dtls::Session *session = serv->accept_dtls_connection(port, &pkt->socket_addr);
 
         if (!session) {
@@ -550,7 +550,7 @@ void Server::init_reactor(Reactor *reactor) {
     for (auto port : ports) {
         if (port->is_dgram()
 #ifdef SW_SUPPORT_DTLS
-            && !port->ssl_option.dtls
+            && !(port->ssl_option.protocols & SW_SSL_DTLS)
 #endif
         ) {
             continue;
@@ -572,7 +572,7 @@ static int ReactorThread_onRead(Reactor *reactor, swEvent *event) {
     swListenPort *port = serv->get_port_by_fd(event->fd);
 #ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
-    if (port->ssl_option.dtls) {
+    if (port->ssl_option.protocols & SW_SSL_DTLS) {
         dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
         buffer->length = read(event->fd, buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
