@@ -28,21 +28,19 @@
 #include "swoole_buffer.h"
 #include "swoole_base64.h"
 
-using namespace std;
-
 namespace swoole {
 namespace coroutine {
 
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_NEXTPROTONEG
 
-const string HTTP2_H2_ALPN("\x2h2");
-const string HTTP2_H2_16_ALPN("\x5h2-16");
-const string HTTP2_H2_14_ALPN("\x5h2-14");
+const std::string HTTP2_H2_ALPN("\x2h2");
+const std::string HTTP2_H2_16_ALPN("\x5h2-16");
+const std::string HTTP2_H2_14_ALPN("\x5h2-14");
 
 enum Socket::TimeoutType Socket::timeout_type_list[4] = { TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE };
 
-static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const string &key) {
+static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const std::string &key) {
     for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
         if (std::equal(std::begin(key), std::end(key), p)) {
             *out = p + 1;
@@ -647,7 +645,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
-bool Socket::connect(string _host, int _port, int flags) {
+bool Socket::connect(std::string _host, int _port, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }
@@ -1266,7 +1264,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     return true;
 }
 
-ssize_t Socket::sendto(const string &host, int port, const void *__buf, size_t __n) {
+ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
