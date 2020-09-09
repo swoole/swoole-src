@@ -38,8 +38,6 @@ const std::string HTTP2_H2_ALPN("\x2h2");
 const std::string HTTP2_H2_16_ALPN("\x5h2-16");
 const std::string HTTP2_H2_14_ALPN("\x5h2-14");
 
-enum Socket::TimeoutType Socket::timeout_type_list[4] = { TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE };
-
 static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const std::string &key) {
     for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
         if (std::equal(std::begin(key), std::end(key), p)) {
@@ -74,6 +72,8 @@ static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const 
 }
 #endif
 #endif
+
+enum Socket::TimeoutType Socket::timeout_type_list[4] = { TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE };
 
 void Socket::timer_callback(swTimer *timer, swTimer_node *tnode) {
     Socket *socket = (Socket *) tnode->data;
