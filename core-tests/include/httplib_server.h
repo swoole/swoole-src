@@ -998,9 +998,8 @@ class CoSocketStream : public detail::SocketStream {
         : detail::SocketStream(
               sock->get_fd(), read_timeout_sec, read_timeout_usec, write_timeout_sec, write_timeout_usec) {
         sock_ = sock;
-        sock->set_timeout((double) read_timeout_sec + ((double) read_timeout_usec / 1000000), swoole::SW_TIMEOUT_READ);
-        sock->set_timeout((double) write_timeout_sec + ((double) write_timeout_usec / 1000000),
-                          swoole::SW_TIMEOUT_WRITE);
+        sock->set_timeout((double) read_timeout_sec + ((double) read_timeout_usec / 1000000), Socket::TIMEOUT_READ);
+        sock->set_timeout((double) write_timeout_sec + ((double) write_timeout_usec / 1000000), Socket::TIMEOUT_WRITE);
     }
     ~CoSocketStream() {}
     bool is_readable() const {
