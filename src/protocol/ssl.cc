@@ -69,37 +69,9 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(_swSSL_option *option) {
-/**
- * DTLS supports
- */
-#ifdef SW_SUPPORT_DTLS
     if (option->protocols & SW_SSL_DTLS) {
         return_ssl_method(DTLS, option->create_flag);
     }
-#endif
-/**
- * openssl 1.1.0
- */
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-#ifdef TLS1_2_VERSION
-    if (option->protocols & SW_SSL_TLSv1_2) {
-        return_ssl_method(TLSv1_2, option->create_flag);
-    }
-#endif
-#ifdef TLS1_1_VERSION
-    if (option->protocols & SW_SSL_TLSv1_1) {
-        return_ssl_method(TLSv1_1, option->create_flag);
-    }
-#endif
-    if (option->protocols & SW_SSL_TLSv1) {
-        return_ssl_method(TLSv1, option->create_flag);
-    }
-#endif
-#ifndef OPENSSL_NO_SSL3_METHOD
-    if (option->protocols & SW_SSL_SSLv3) {
-        return_ssl_method(SSLv3, option->create_flag);
-    }
-#endif
     return_ssl_method(SSLv23, option->create_flag);
 }
 
