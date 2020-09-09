@@ -1209,7 +1209,7 @@ static size_t Server_worker_get_buffer_len(Server *serv, swDataHead *info) {
     return worker_buffer == nullptr ? 0 : worker_buffer->length;
 }
 
-static void Server_worker_add_buffer_len(Server *serv, swDataHead *info, size_t len) {
+static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len) {
     swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
     worker_buffer->length += len;
 }
