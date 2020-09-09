@@ -191,15 +191,15 @@ class Reactor;
 class String;
 class Timer;
 struct TimerNode;
+struct Event;
+struct AsyncEvent;
+struct Pipe;
 namespace network {
 struct Socket;
 struct Address;
 struct GetaddrinfoRequest;
 class Client;
 }  // namespace network
-namespace async {
-struct Event;
-}
 struct Protocol;
 struct EventData;
 struct DataHead;
@@ -216,10 +216,11 @@ typedef swoole::network::Client swClient;
 typedef swoole::Protocol swProtocol;
 typedef swoole::EventData swEventData;
 typedef swoole::DataHead swDataHead;
-typedef swoole::async::Event swAio_event;
+typedef swoole::AsyncEvent swAio_event;
+typedef swoole::Event swEvent;
+typedef swoole::Pipe swPipe;
 
 struct swMsgQueue;
-struct swPipe;
 struct swHeap_node;
 struct swBuffer;
 struct swMemoryPool;
@@ -244,7 +245,7 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 
 static sw_inline char *swoole_strdup(const char *s) {
     size_t l = strlen(s) + 1;
-    char *p  = (char *) sw_malloc(l);
+    char *p = (char *) sw_malloc(l);
     if (sw_likely(p)) {
         memcpy(p, s, l);
     }
@@ -420,7 +421,12 @@ enum _swEventData_flag {
 };
 
 namespace swoole {
-
+struct Event {
+    int fd;
+    int16_t reactor_id;
+    enum swFd_type type;
+    network::Socket *socket;
+};
 struct DataHead {
     int fd;
     uint32_t len;
@@ -458,13 +464,6 @@ enum swTask_type {
     SW_TASK_COROUTINE = 32,   // coroutine
     SW_TASK_PEEK      = 64,   // peek
     SW_TASK_NOREPLY   = 128,  // don't reply
-};
-
-struct swEvent {
-    int fd;
-    int16_t reactor_id;
-    enum swFd_type type;
-    swSocket *socket;
 };
 
 typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);

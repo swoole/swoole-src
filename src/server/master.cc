@@ -80,7 +80,7 @@ void Server::close_port(bool only_stream_port) {
 
 int Server::accept_connection(Reactor *reactor, swEvent *event) {
     Server *serv = (Server *) reactor->ptr;
-    ListenPort *listen_host = (ListenPort *) serv->connection_list[event->fd].object;
+    ListenPort *listen_host = serv->get_port_by_server_fd(event->fd);
 
     for (int i = 0; i < SW_ACCEPT_MAX_COUNT; i++) {
         Socket *sock = event->socket->accept();
@@ -321,10 +321,8 @@ int Server::start_check() {
 }
 
 void Server::store_listen_socket() {
-    int sockfd;
-
     for (auto ls : ports) {
-        sockfd = ls->socket->fd;
+        int sockfd = ls->socket->fd;
         // save server socket to connection_list
         connection_list[sockfd].fd = sockfd;
         connection_list[sockfd].socket = ls->socket;
@@ -451,7 +449,7 @@ void Server::init_worker(Worker *worker) {
     }
 #endif
     // signal init
-    swWorker_signal_init();
+    worker_signal_init();
 
     worker_input_buffers = (void **) create_buffers(this, get_worker_buffer_num());
     if (!worker_input_buffers) {
@@ -1211,7 +1209,7 @@ static size_t Server_worker_get_buffer_len(Server *serv, swDataHead *info) {
     return worker_buffer == nullptr ? 0 : worker_buffer->length;
 }
 
-static void Server_worker_add_buffer_len(Server *serv, swDataHead *info, size_t len) {
+static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len) {
     swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
     worker_buffer->length += len;
 }

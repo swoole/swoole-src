@@ -28,17 +28,18 @@
 #include "swoole_async.h"
 
 using namespace swoole;
+using namespace swoole::network;
 
 swWorkerGlobal SwooleWG = {};
 
-static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event);
-static int swWorker_onStreamRead(swReactor *reactor, swEvent *event);
-static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const char *data, uint32_t length);
-static int swWorker_onStreamClose(swReactor *reactor, swEvent *event);
-static void swWorker_reactor_try_to_exit(swReactor *reactor);
+static int swWorker_onPipeReceive(Reactor *reactor, swEvent *event);
+static int swWorker_onStreamAccept(Reactor *reactor, swEvent *event);
+static int swWorker_onStreamRead(Reactor *reactor, swEvent *event);
+static int swWorker_onStreamPackage(Protocol *proto, Socket *sock, const char *data, uint32_t length);
+static int swWorker_onStreamClose(Reactor *reactor, swEvent *event);
+static void swWorker_reactor_try_to_exit(Reactor *reactor);
 
-void swWorker_signal_init(void) {
+void Server::worker_signal_init(void) {
     /**
      * use user settings
      */
@@ -48,16 +49,16 @@ void swWorker_signal_init(void) {
     swSignal_set(SIGPIPE, nullptr);
     swSignal_set(SIGUSR1, nullptr);
     swSignal_set(SIGUSR2, nullptr);
-    // swSignal_set(SIGINT, swWorker_signal_handler);
-    swSignal_set(SIGTERM, swWorker_signal_handler);
+    // swSignal_set(SIGINT, Server::worker_signal_handler);
+    swSignal_set(SIGTERM, Server::worker_signal_handler);
     // for test
-    swSignal_set(SIGVTALRM, swWorker_signal_handler);
+    swSignal_set(SIGVTALRM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, swWorker_signal_handler);
+    swSignal_set(SIGRTMIN, Server::worker_signal_handler);
 #endif
 }
 
-void swWorker_signal_handler(int signo) {
+void Server::worker_signal_handler(int signo) {
     if (!SwooleG.running or !sw_server()) {
         return;
     }
@@ -96,7 +97,7 @@ void swWorker_signal_handler(int signo) {
     }
 }
 
-static sw_inline bool swWorker_discard_data(swServer *serv, swConnection *conn, swEventData *task) {
+static sw_inline bool swWorker_discard_data(Server *serv, swConnection *conn, swEventData *task) {
     if (conn == nullptr) {
         if (serv->disable_notify && !serv->discard_timeout_request) {
             return false;
@@ -119,7 +120,7 @@ _discard_data : {
     return true;
 }
 
-static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event) {
+static int swWorker_onStreamAccept(Reactor *reactor, swEvent *event) {
     swSocket *sock = event->socket->accept();
     if (sock == nullptr) {
         switch (errno) {
@@ -138,9 +139,9 @@ static int swWorker_onStreamAccept(swReactor *reactor, swEvent *event) {
     return reactor->add(reactor, sock, SW_EVENT_READ);
 }
 
-static int swWorker_onStreamRead(swReactor *reactor, swEvent *event) {
+static int swWorker_onStreamRead(Reactor *reactor, swEvent *event) {
     swSocket *conn = event->socket;
-    swServer *serv = (swServer *) reactor->ptr;
+    Server *serv = (Server *) reactor->ptr;
     swProtocol *protocol = &serv->stream_protocol;
     swString *buffer;
 
@@ -166,9 +167,9 @@ static int swWorker_onStreamRead(swReactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-static int swWorker_onStreamClose(swReactor *reactor, swEvent *event) {
+static int swWorker_onStreamClose(Reactor *reactor, swEvent *event) {
     swSocket *sock = event->socket;
-    swServer *serv = (swServer *) reactor->ptr;
+    Server *serv = (Server *) reactor->ptr;
 
     swString_clear(sock->recv_buffer);
     serv->buffer_pool->push(sock->recv_buffer);
@@ -184,8 +185,8 @@ static int swWorker_onStreamClose(swReactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const char *data, uint32_t length) {
-    swServer *serv = (swServer *) proto->private_data_2;
+static int swWorker_onStreamPackage(Protocol *proto, Socket *sock, const char *data, uint32_t length) {
+    Server *serv = (Server *) proto->private_data_2;
 
     /**
      * passing memory pointer
@@ -200,7 +201,7 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
      * do task
      */
     serv->last_stream_socket = sock;
-    serv->accept_task((swEventData *) &task);
+    serv->accept_task((EventData *) &task);
     serv->last_stream_socket = nullptr;
 
     /**
@@ -212,12 +213,9 @@ static int swWorker_onStreamPackage(swProtocol *proto, swSocket *sock, const cha
     return SW_OK;
 }
 
-typedef std::function<int(swServer *, swRecvData *)> task_callback;
+typedef std::function<int(Server *, swRecvData *)> task_callback;
 
-static sw_inline void swWorker_do_task(swServer *serv,
-                                       swWorker *worker,
-                                       swEventData *task,
-                                       const task_callback &callback) {
+static sw_inline void swWorker_do_task(Server *serv, Worker *worker, EventData *task, const task_callback &callback) {
     swRecvData recv_data;
     recv_data.info = task->info;
     recv_data.info.len = serv->get_packet(serv, task, const_cast<char **>(&recv_data.data));
@@ -232,8 +230,8 @@ static sw_inline void swWorker_do_task(swServer *serv,
     sw_atomic_fetch_add(&serv->gs->request_count, 1);
 }
 
-int Server::accept_task(swEventData *task) {
-    swWorker *worker = SwooleWG.worker;
+int Server::accept_task(EventData *task) {
+    Worker *worker = SwooleWG.worker;
     // worker busy
     worker->status = SW_WORKER_BUSY;
 
@@ -412,10 +410,10 @@ void Server::worker_stop_callback() {
 }
 
 void Server::stop_async_worker(swWorker *worker) {
-    swServer *serv = (swServer *) worker->pool->ptr;
+    Server *serv = (Server *) worker->pool->ptr;
     worker->status = SW_WORKER_BUSY;
 
-    swReactor *reactor = SwooleTG.reactor;
+    Reactor *reactor = SwooleTG.reactor;
 
     /**
      * force to end.
@@ -479,13 +477,13 @@ void Server::stop_async_worker(swWorker *worker) {
     }
 }
 
-static void swWorker_reactor_try_to_exit(swReactor *reactor) {
-    swServer *serv;
+static void swWorker_reactor_try_to_exit(Reactor *reactor) {
+    Server *serv;
     if (SwooleG.process_type == SW_PROCESS_TASKWORKER) {
         swProcessPool *pool = (swProcessPool *) reactor->ptr;
-        serv = (swServer *) pool->ptr;
+        serv = (Server *) pool->ptr;
     } else {
-        serv = (swServer *) reactor->ptr;
+        serv = (Server *) reactor->ptr;
     }
     uint8_t call_worker_exit_func = 0;
 
@@ -543,7 +541,7 @@ int Server::start_event_worker(swWorker *worker) {
         return SW_ERR;
     }
 
-    swReactor *reactor = SwooleTG.reactor;
+    Reactor *reactor = SwooleTG.reactor;
     /**
      * set pipe buffer size
      */
@@ -614,9 +612,9 @@ ssize_t Server::send_to_worker_from_worker(swWorker *dst_worker, const void *buf
 /**
  * receive data from reactor
  */
-static int swWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
+static int swWorker_onPipeReceive(Reactor *reactor, swEvent *event) {
     ssize_t recv_n = 0;
-    swServer *serv = (swServer *) reactor->ptr;
+    Server *serv = (Server *) reactor->ptr;
     swPipeBuffer *pipe_buffer = serv->pipe_buffers[0];
     void *buffer;
     struct iovec buffers[2];
@@ -672,7 +670,7 @@ _read_from_pipe:
             /**
              * Because we don't want to split the swEventData parameters into swDataHead and data,
              * we store the value of the worker_buffer pointer in swEventData.data.
-             * The value of this pointer will be fetched in the swServer_worker_get_packet function.
+             * The value of this pointer will be fetched in the Server_worker_get_packet function.
              */
             serv->move_buffer(serv, pipe_buffer);
         }
@@ -687,8 +685,8 @@ _read_from_pipe:
     return SW_ERR;
 }
 
-ssize_t swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags) {
-    swSocket *pipe_sock;
+ssize_t swWorker_send_pipe_message(Worker *dst_worker, const void *buf, size_t n, int flags) {
+    Socket *pipe_sock;
 
     if (flags & SW_PIPE_MASTER) {
         pipe_sock = dst_worker->pipe_master;
@@ -700,7 +698,7 @@ ssize_t swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t
     if (dst_worker->pool->use_msgqueue) {
         struct {
             long mtype;
-            swEventData buf;
+            EventData buf;
         } msg;
 
         msg.mtype = dst_worker->id + 1;

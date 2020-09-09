@@ -20,19 +20,21 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 
-struct swPipe {
+namespace swoole {
+struct Pipe {
     void *object;
     int blocking;
     double timeout;
 
-    swSocket *master_socket;
-    swSocket *worker_socket;
+    network::Socket *master_socket;
+    network::Socket *worker_socket;
 
-    ssize_t (*read)(swPipe *, void *_buf, size_t length);
-    ssize_t (*write)(swPipe *, const void *_buf, size_t length);
-    swSocket *(*getSocket)(swPipe *, int master);
-    void (*close)(swPipe *);
+    ssize_t (*read)(Pipe *, void *_buf, size_t length);
+    ssize_t (*write)(Pipe *, const void *_buf, size_t length);
+    network::Socket *(*getSocket)(Pipe *, int master);
+    void (*close)(Pipe *);
 };
+}  // namespace swoole
 
 enum swPipe_close_which {
     SW_PIPE_CLOSE_MASTER = 1,

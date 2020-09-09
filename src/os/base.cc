@@ -88,7 +88,7 @@ int swoole_set_cpu_affinity(cpu_set_t *set) {
 namespace swoole {
 namespace async {
 
-void handler_gethostbyname(Event *event) {
+void handler_gethostbyname(AsyncEvent *event) {
     char addr[SW_IP_MAX_LENGTH];
     int ret = swoole::network::gethostbyname(event->flags, (char *) event->buf, addr);
     sw_memset_zero(event->buf, event->nbytes);
@@ -107,7 +107,7 @@ void handler_gethostbyname(Event *event) {
     event->ret = ret;
 }
 
-void handler_getaddrinfo(Event *event) {
+void handler_getaddrinfo(AsyncEvent *event) {
     swoole::network::GetaddrinfoRequest *req = (swoole::network::GetaddrinfoRequest *) event->req;
     event->ret = swoole::network::getaddrinfo(req);
     event->error = req->error;

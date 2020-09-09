@@ -17,21 +17,21 @@
 #include "swoole_server.h"
 #include "swoole_util.h"
 
-using swoole::Server;
-using swoole::EventData;
+using namespace swoole;
+using swoole::network::Socket;
 
-static void TaskWorker_signal_init(swProcessPool *pool);
-static int TaskWorker_onPipeReceive(swReactor *reactor, swEvent *event);
-static int TaskWorker_loop_async(swProcessPool *pool, swWorker *worker);
-static void TaskWorker_onStart(swProcessPool *pool, int worker_id);
-static void TaskWorker_onStop(swProcessPool *pool, int worker_id);
-static int TaskWorker_onTask(swProcessPool *pool, swEventData *task);
+static void TaskWorker_signal_init(ProcessPool *pool);
+static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event);
+static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker);
+static void TaskWorker_onStart(ProcessPool *pool, int worker_id);
+static void TaskWorker_onStop(ProcessPool *pool, int worker_id);
+static int TaskWorker_onTask(ProcessPool *pool, EventData *task);
 
 /**
  * after pool->create, before pool->start
  */
 void Server::init_task_workers() {
-    swProcessPool *pool = &gs->task_workers;
+    ProcessPool *pool = &gs->task_workers;
     pool->ptr = this;
     pool->onTask = TaskWorker_onTask;
     pool->onWorkerStart = TaskWorker_onStart;
@@ -51,9 +51,9 @@ void Server::init_task_workers() {
     }
 }
 
-static int TaskWorker_onTask(swProcessPool *pool, swEventData *task) {
+static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
     int ret = SW_OK;
-    swServer *serv = (swServer *) pool->ptr;
+    Server *serv = (Server *) pool->ptr;
     serv->last_task = task;
 
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
@@ -72,7 +72,7 @@ bool EventData::pack(const void *_data, size_t _length) {
         return true;
     }
 
-    swPacket_task pkg {};
+    swPacket_task pkg{};
 
     memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
@@ -124,7 +124,7 @@ bool EventData::unpack(String *buffer) {
     return true;
 }
 
-static void TaskWorker_signal_init(swProcessPool *pool) {
+static void TaskWorker_signal_init(ProcessPool *pool) {
     /**
      * use user settings
      */
@@ -132,16 +132,16 @@ static void TaskWorker_signal_init(swProcessPool *pool) {
 
     swSignal_set(SIGHUP, nullptr);
     swSignal_set(SIGPIPE, nullptr);
-    swSignal_set(SIGUSR1, swWorker_signal_handler);
+    swSignal_set(SIGUSR1, Server::worker_signal_handler);
     swSignal_set(SIGUSR2, nullptr);
-    swSignal_set(SIGTERM, swWorker_signal_handler);
+    swSignal_set(SIGTERM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, swWorker_signal_handler);
+    swSignal_set(SIGRTMIN, Server::worker_signal_handler);
 #endif
 }
 
-static void TaskWorker_onStart(swProcessPool *pool, int worker_id) {
-    swServer *serv = (swServer *) pool->ptr;
+static void TaskWorker_onStart(ProcessPool *pool, int worker_id) {
+    Server *serv = (Server *) pool->ptr;
     SwooleG.process_id = worker_id;
 
     if (serv->is_base_mode()) {
@@ -165,7 +165,7 @@ static void TaskWorker_onStart(swProcessPool *pool, int worker_id) {
     TaskWorker_signal_init(pool);
     serv->worker_start_callback();
 
-    swWorker *worker = pool->get_worker(worker_id);
+    Worker *worker = pool->get_worker(worker_id);
     worker->start_time = time(nullptr);
     worker->request_count = 0;
     SwooleWG.worker = worker;
@@ -181,20 +181,20 @@ static void TaskWorker_onStart(swProcessPool *pool, int worker_id) {
     }
 }
 
-static void TaskWorker_onStop(swProcessPool *pool, int worker_id) {
+static void TaskWorker_onStop(ProcessPool *pool, int worker_id) {
     swoole_event_free();
-    swServer *serv = (swServer *) pool->ptr;
+    Server *serv = (Server *) pool->ptr;
     serv->worker_stop_callback();
 }
 
 /**
  * receive data from worker process
  */
-static int TaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
-    swEventData task;
-    swProcessPool *pool = (swProcessPool *) reactor->ptr;
-    swWorker *worker = SwooleWG.worker;
-    swServer *serv = (swServer *) pool->ptr;
+static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
+    EventData task;
+    ProcessPool *pool = (ProcessPool *) reactor->ptr;
+    Worker *worker = SwooleWG.worker;
+    Server *serv = (Server *) pool->ptr;
 
     if (read(event->fd, &task, sizeof(task)) > 0) {
         worker->status = SW_WORKER_BUSY;
@@ -215,9 +215,9 @@ static int TaskWorker_onPipeReceive(swReactor *reactor, swEvent *event) {
 /**
  * async task worker
  */
-static int TaskWorker_loop_async(swProcessPool *pool, swWorker *worker) {
-    swServer *serv = (swServer *) pool->ptr;
-    swSocket *socket = worker->pipe_worker;
+static int TaskWorker_loop_async(ProcessPool *pool, Worker *worker) {
+    Server *serv = (Server *) pool->ptr;
+    Socket *socket = worker->pipe_worker;
     worker->status = SW_WORKER_IDLE;
 
     socket->set_nonblock();
@@ -237,8 +237,8 @@ static int TaskWorker_loop_async(swProcessPool *pool, swWorker *worker) {
 /**
  * Send the task result to worker
  */
-int Server::reply_task_result(const char *data, size_t data_len, int flags, swEventData *current_task) {
-    swEventData buf;
+int Server::reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task) {
+    EventData buf;
     sw_memset_zero(&buf.info, sizeof(buf.info));
     if (task_worker_num < 1) {
         swWarn("cannot use task/finish, because no set task_worker_num");
@@ -257,7 +257,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
     }
 
     uint16_t source_worker_id = current_task->info.reactor_id;
-    swWorker *worker = get_worker(source_worker_id);
+    Worker *worker = get_worker(source_worker_id);
 
     if (worker == nullptr) {
         swWarn("invalid worker_id[%d]", source_worker_id);
@@ -298,7 +298,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
         /**
          * Use worker shm store the result
          */
-        swEventData *result = &(task_result[source_worker_id]);
+        EventData *result = &(task_result[source_worker_id]);
         swPipe *task_notify_pipe = &(task_notify[source_worker_id]);
 
         // lock worker
@@ -354,4 +354,3 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, swEv
     }
     return ret;
 }
-

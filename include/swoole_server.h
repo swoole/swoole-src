@@ -104,58 +104,6 @@ enum swServer_mode {
     SW_MODE_PROCESS = 2,
 };
 
-struct swSendData {
-    swDataHead info;
-    const char *data;
-};
-
-struct swRecvData {
-    swDataHead info;
-    const char *data;
-};
-
-struct swPipeBuffer {
-    swDataHead info;
-    char data[0];
-};
-
-struct swDgramPacket {
-    int socket_type;
-    swSocketAddress socket_addr;
-    uint32_t length;
-    char data[0];
-};
-
-//------------------------------------Packet-------------------------------------------
-struct swPacket_task {
-    size_t length;
-    char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
-};
-
-struct swPacket_ptr {
-    swDataHead info;
-    swString data;
-};
-
-//-----------------------------------Factory--------------------------------------------
-struct swFactory {
-    void *object;
-    void *ptr;  // server object
-
-    int (*start)(swFactory *);
-    int (*shutdown)(swFactory *);
-    bool (*dispatch)(swFactory *, swSendData *);
-    bool (*finish)(swFactory *, swSendData *);
-    bool (*notify)(swFactory *, swDataHead *);  // send a event notify
-    bool (*end)(swFactory *, int fd);
-    void (*free)(swFactory *);
-};
-
-int swFactory_create(swFactory *factory);
-bool swFactory_finish(swFactory *factory, swSendData *_send);
-
-int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
-
 //------------------------------------Server-------------------------------------------
 enum swServer_hook_type {
     SW_SERVER_HOOK_MASTER_START,
@@ -253,11 +201,11 @@ struct Connection {
     sw_atomic_t server_fd;
     sw_atomic_t queued_bytes;
     uint16_t waiting_time;
-    swTimer_node *timer;
+    TimerNode *timer;
     /**
      * socket address
      */
-    swSocketAddress info;
+    network::Address info;
     /**
      * link any thing, for kernel, do not use with application.
      */
@@ -293,10 +241,10 @@ struct Connection {
     /**
      * unfinished data frame
      */
-    swString *websocket_buffer;
+    String *websocket_buffer;
 
 #ifdef SW_USE_OPENSSL
-    swString *ssl_client_cert;
+    String *ssl_client_cert;
     uint16_t ssl_client_cert_pid;
 #endif
     sw_atomic_t lock;
@@ -304,15 +252,48 @@ struct Connection {
 
 struct ReactorThread {
     std::thread thread;
-    swSocket *notify_pipe = nullptr;
+    network::Socket *notify_pipe = nullptr;
     uint32_t pipe_num = 0;
-    swSocket *pipe_sockets = nullptr;
-    std::unordered_map<int, swString *> send_buffers;
+    network::Socket *pipe_sockets = nullptr;
+    std::unordered_map<int, String *> send_buffers;
 };
 
 struct WorkerStopMessage {
     pid_t pid;
     uint16_t worker_id;
+};
+
+struct SendData {
+    DataHead info;
+    const char *data;
+};
+
+struct RecvData {
+    DataHead info;
+    const char *data;
+};
+
+struct PipeBuffer {
+    DataHead info;
+    char data[0];
+};
+
+struct DgramPacket {
+    int socket_type;
+    network::Address socket_addr;
+    uint32_t length;
+    char data[0];
+};
+
+//------------------------------------Packet-------------------------------------------
+struct PacketTask {
+    size_t length;
+    char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
+};
+
+struct PacketPtr {
+    DataHead info;
+    String data;
 };
 
 struct ListenPort {
@@ -472,7 +453,7 @@ struct ServerGS {
     pid_t master_pid;
     pid_t manager_pid;
 
-    uint32_t session_round :24;
+    uint32_t session_round : 24;
     sw_atomic_t start;
     sw_atomic_t shutdown;
 
@@ -490,6 +471,19 @@ struct ServerGS {
 
     ProcessPool task_workers;
     ProcessPool event_workers;
+};
+
+struct Factory {
+    void *object;
+    void *ptr;  // server object
+
+    int (*start)(Factory *);
+    int (*shutdown)(Factory *);
+    bool (*dispatch)(Factory *, SendData *);
+    bool (*finish)(Factory *, SendData *);
+    bool (*notify)(Factory *, DataHead *);  // send a event notify
+    bool (*end)(Factory *, int fd);
+    void (*free)(Factory *);
 };
 
 class Server {
@@ -645,7 +639,7 @@ class Server {
     int *cpu_affinity_available = 0;
     int cpu_affinity_available_num = 0;
 
-    swPipeBuffer **pipe_buffers = nullptr;
+    PipeBuffer **pipe_buffers = nullptr;
     double send_timeout = 0;
 
     time_t reload_time = 0;
@@ -669,7 +663,7 @@ class Server {
     void *ptr2 = nullptr;
     void *private_data_3 = nullptr;
 
-    swFactory factory;
+    Factory factory;
     std::vector<ListenPort *> ports;
 
     inline ListenPort *get_primary_port() {
@@ -791,7 +785,7 @@ class Server {
     /**
      * Worker Process
      */
-    std::function<void(Server *, swEventData *)> onPipeMessage;
+    std::function<void(Server *, EventData *)> onPipeMessage;
     std::function<void(Server *, uint32_t)> onWorkerStart;
     std::function<void(Server *, uint32_t)> onWorkerStop;
     std::function<void(Server *, uint32_t)> onWorkerExit;
@@ -799,31 +793,31 @@ class Server {
     /**
      * Connection
      */
-    std::function<int(Server *, swRecvData *)> onReceive;
-    std::function<int(Server *, swRecvData *)> onPacket;
-    std::function<void(Server *, swDataHead *)> onClose;
-    std::function<void(Server *, swDataHead *)> onConnect;
-    std::function<void(Server *, swDataHead *)> onBufferFull;
-    std::function<void(Server *, swDataHead *)> onBufferEmpty;
+    std::function<int(Server *, RecvData *)> onReceive;
+    std::function<int(Server *, RecvData *)> onPacket;
+    std::function<void(Server *, DataHead *)> onClose;
+    std::function<void(Server *, DataHead *)> onConnect;
+    std::function<void(Server *, DataHead *)> onBufferFull;
+    std::function<void(Server *, DataHead *)> onBufferEmpty;
     /**
      * Task Worker
      */
-    std::function<int(Server *, swEventData *)> onTask;
-    std::function<int(Server *, swEventData *)> onFinish;
+    std::function<int(Server *, EventData *)> onTask;
+    std::function<int(Server *, EventData *)> onFinish;
     /**
      * Chunk control
      */
     void **(*create_buffers)(Server *serv, uint32_t buffer_num) = nullptr;
     void (*free_buffers)(Server *serv, uint32_t buffer_num, void **buffers) = nullptr;
-    void *(*get_buffer)(Server *serv, swDataHead *info) = nullptr;
-    size_t (*get_buffer_len)(Server *serv, swDataHead *info) = nullptr;
-    void (*add_buffer_len)(Server *serv, swDataHead *info, size_t len) = nullptr;
-    void (*move_buffer)(Server *serv, swPipeBuffer *buffer) = nullptr;
-    size_t (*get_packet)(Server *serv, swEventData *req, char **data_ptr) = nullptr;
+    void *(*get_buffer)(Server *serv, DataHead *info) = nullptr;
+    size_t (*get_buffer_len)(Server *serv, DataHead *info) = nullptr;
+    void (*add_buffer_len)(Server *serv, DataHead *info, size_t len) = nullptr;
+    void (*move_buffer)(Server *serv, PipeBuffer *buffer) = nullptr;
+    size_t (*get_packet)(Server *serv, EventData *req, char **data_ptr) = nullptr;
     /**
      * Hook
      */
-    int (*dispatch_func)(Server *, Connection *, swSendData *) = nullptr;
+    int (*dispatch_func)(Server *, Connection *, SendData *) = nullptr;
 
   public:
     Server(enum swServer_mode mode = SW_MODE_BASE);
@@ -1083,7 +1077,7 @@ class Server {
     static int close_connection(swReactor *reactor, swSocket *_socket);
     static int dispatch_task(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
 
-    int send_to_connection(swSendData *);
+    int send_to_connection(SendData *);
     ssize_t send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
     ssize_t send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
     ssize_t send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
@@ -1137,7 +1131,7 @@ class Server {
         return SW_OK;
     }
 
-    inline int schedule_worker(int fd, swSendData *data) {
+    inline int schedule_worker(int fd, SendData *data) {
         uint32_t key = 0;
 
         if (dispatch_func) {
@@ -1215,6 +1209,8 @@ class Server {
     void kill_event_workers();
     void kill_task_workers();
 
+    static int wait_other_worker(ProcessPool *pool, pid_t pid, int status);
+
     void drain_worker_pipe();
 
     void check_worker_exit_status(int worker_id, pid_t pid, int status);
@@ -1224,8 +1220,10 @@ class Server {
      */
     void worker_start_callback();
     void worker_stop_callback();
+    static void worker_signal_handler(int signo);
+    static void worker_signal_init(void);
 
-    typedef int (*dispatch_function)(Server *, Connection *, swSendData *);
+    typedef int (*dispatch_function)(Server *, Connection *, SendData *);
 
   private:
     enum swServer_mode factory_mode;
@@ -1265,6 +1263,13 @@ class Server {
 typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::Connection swConnection;
+typedef swoole::Factory swFactory;
+typedef swoole::SendData swSendData;
+typedef swoole::RecvData swRecvData;
+typedef swoole::PipeBuffer swPipeBuffer;
+typedef swoole::PacketPtr swPacket_ptr;
+typedef swoole::PacketTask swPacket_task;
+typedef swoole::DgramPacket swDgramPacket;
 
 #define SW_MAX_SESSION_ID 0x1000000
 
@@ -1298,10 +1303,9 @@ static inline swServer *sw_server() {
     return g_server_instance;
 }
 
-//------------------------------------Worker Process-------------------------------------------
-void swWorker_signal_handler(int signo);
-void swWorker_signal_init(void);
 ssize_t swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
 
-int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status);
+int swFactory_create(swFactory *factory);
+bool swFactory_finish(swFactory *factory, swSendData *_send);
+int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
 int swServer_recv_redis_packet(swProtocol *protocol, swConnection *conn, swString *buffer);

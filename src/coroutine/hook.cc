@@ -30,9 +30,9 @@
 #include "swoole_coroutine_socket.h"
 #include "swoole_coroutine_system.h"
 
+using swoole::AsyncEvent;
 using swoole::Coroutine;
 using swoole::async::dispatch;
-using swoole::async::Event;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 

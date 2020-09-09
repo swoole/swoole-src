@@ -391,7 +391,7 @@ static int swManager_loop(Server *serv) {
             }
             // user process
             if (serv->user_worker_map != nullptr) {
-                swManager_wait_other_worker(&serv->gs->event_workers, pid, status);
+                Server::wait_other_worker(&serv->gs->event_workers, pid, status);
             }
             if (pid == reload_worker_pid && ManagerProcess.reloading) {
                 ManagerProcess.reload_worker_i++;
@@ -512,7 +512,7 @@ static void swManager_signal_handler(int sig) {
 /**
  * @return: success returns pid, failure returns SW_ERR.
  */
-int swManager_wait_other_worker(swProcessPool *pool, pid_t pid, int status) {
+int Server::wait_other_worker(ProcessPool *pool, pid_t pid, int status) {
     Server *serv = (Server *) pool->ptr;
     Worker *exit_worker = nullptr;
     int worker_type;

@@ -24,12 +24,11 @@
 
 using namespace std;
 using namespace swoole;
-using swoole::async::Event;
 using swoole::coroutine::System;
 
 struct AsyncTask {
     Coroutine *co;
-    Event *original_event;
+    AsyncEvent *original_event;
 };
 
 static size_t dns_cache_capacity = 1000;
@@ -52,7 +51,7 @@ void System::clear_dns_cache() {
     }
 }
 
-static void aio_onDNSCompleted(Event *event) {
+static void aio_onDNSCompleted(AsyncEvent *event) {
     if (event->canceled) {
         return;
     }
@@ -63,7 +62,7 @@ static void aio_onDNSCompleted(Event *event) {
 }
 
 static void aio_onDNSTimeout(swTimer *timer, TimerNode *tnode) {
-    Event *event = (Event *) tnode->data;
+    AsyncEvent *event = (AsyncEvent *) tnode->data;
     event->canceled = 1;
     AsyncTask *task = (AsyncTask *) event->object;
     task->original_event->ret = -1;
@@ -188,10 +187,10 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
         }
     }
 
-    Event ev;
+    AsyncEvent ev;
     AsyncTask task;
 
-    sw_memset_zero(&ev, sizeof(Event));
+    sw_memset_zero(&ev, sizeof(AsyncEvent));
     if (hostname.size() < SW_IP_MAX_LENGTH) {
         ev.nbytes = SW_IP_MAX_LENGTH + 1;
     } else {
@@ -215,7 +214,7 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
     /* TODO: find a better way */
     ev.ret = 1;
 
-    Event *event = async::dispatch2(&ev);
+    AsyncEvent *event = async::dispatch2(&ev);
     TimerNode *timer = nullptr;
     if (timeout > 0) {
         timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
@@ -254,16 +253,10 @@ vector<string> System::getaddrinfo(
     assert(!hostname.empty());
     assert(family == AF_INET || family == AF_INET6);
 
-    Event ev;
-    sw_memset_zero(&ev, sizeof(Event));
+    AsyncEvent ev{};
+    swRequest_getaddrinfo req{};
 
-    swRequest_getaddrinfo req;
-    sw_memset_zero(&req, sizeof(swRequest_getaddrinfo));
-
-    AsyncTask task;
-
-    task.co = Coroutine::get_current_safe();
-    task.original_event = &ev;
+    AsyncTask task{Coroutine::get_current_safe(), &ev};
 
     ev.object = &task;
     ev.handler = async::handler_getaddrinfo;
@@ -279,7 +272,7 @@ vector<string> System::getaddrinfo(
     req.service = service.empty() ? nullptr : service.c_str();
     req.result = result_buffer;
 
-    Event *event = async::dispatch2(&ev);
+    AsyncEvent *event = async::dispatch2(&ev);
     TimerNode *timer = nullptr;
     if (timeout > 0) {
         timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
@@ -643,7 +636,7 @@ void System::init_reactor(swReactor *reactor) {
     reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, async::callback);
 }
 
-static void async_task_completed(Event *event) {
+static void async_task_completed(AsyncEvent *event) {
     if (event->canceled) {
         return;
     }
@@ -654,14 +647,14 @@ static void async_task_completed(Event *event) {
 }
 
 static void async_task_timeout(swTimer *timer, TimerNode *tnode) {
-    Event *event = (Event *) tnode->data;
+    AsyncEvent *event = (AsyncEvent *) tnode->data;
     event->canceled = 1;
     AsyncTask *task = (AsyncTask *) event->object;
     task->original_event->error = SW_ERROR_AIO_TIMEOUT;
     task->co->resume();
 }
 
-bool coroutine::async(async::Handler handler, Event &event, double timeout) {
+bool coroutine::async(async::Handler handler, AsyncEvent &event, double timeout) {
     AsyncTask task;
     TimerNode *timer = nullptr;
 
@@ -672,7 +665,7 @@ bool coroutine::async(async::Handler handler, Event &event, double timeout) {
     event.handler = handler;
     event.callback = async_task_completed;
 
-    Event *_ev = async::dispatch2(&event);
+    AsyncEvent *_ev = async::dispatch2(&event);
     if (_ev == nullptr) {
         return false;
     }
@@ -695,14 +688,14 @@ struct AsyncLambdaTask {
     std::function<void(void)> fn;
 };
 
-static void async_lambda_handler(Event *event) {
+static void async_lambda_handler(AsyncEvent *event) {
     AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
     task->fn();
     event->error = errno;
     event->ret = 0;
 }
 
-static void async_lambda_callback(Event *event) {
+static void async_lambda_callback(AsyncEvent *event) {
     if (event->canceled) {
         return;
     }
@@ -712,14 +705,14 @@ static void async_lambda_callback(Event *event) {
 
 bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
     TimerNode *timer = nullptr;
-    Event event{};
+    AsyncEvent event{};
     AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
 
     event.object = &task;
     event.handler = async_lambda_handler;
     event.callback = async_lambda_callback;
 
-    Event *_ev = async::dispatch2(&event);
+    AsyncEvent *_ev = async::dispatch2(&event);
     if (_ev == nullptr) {
         return false;
     }
