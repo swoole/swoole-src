@@ -82,17 +82,17 @@ static inline int lock_release(const char *filename, int fd) {
     std::string key(filename);
     auto i = lock_pool.find(key);
     if (i == lock_pool.end()) {
-        return ::flock(fd, LOCK_UN);
+        return swoole_coroutine_flock(fd, LOCK_UN);
     }
     LockManager *lm = i->second;
     if (lm->queue_.empty()) {
         delete lm;
         lock_pool.erase(i);
-        return ::flock(fd, LOCK_UN);
+        return swoole_coroutine_flock(fd, LOCK_UN);
     } else {
         Coroutine *co = lm->queue_.front();
         lm->queue_.pop();
-        int retval = ::flock(fd, LOCK_UN);
+        int retval = swoole_coroutine_flock(fd, LOCK_UN);
         co->resume();
         return retval;
     }
