@@ -70,9 +70,9 @@ static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *fil
 
 static const SSL_METHOD *swSSL_get_method(_swSSL_option *option) {
     if (option->protocols & SW_SSL_DTLS) {
-        return_ssl_method(DTLS, option->create_flag);
+        return DTLS_method();
     }
-    return_ssl_method(SSLv23, option->create_flag);
+    return SSLv23_method();
 }
 
 void swSSL_init(void) {

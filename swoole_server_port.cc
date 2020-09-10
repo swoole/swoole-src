@@ -503,6 +503,9 @@ static PHP_METHOD(swoole_server_port, set) {
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
             zend_long v = zval_get_long(ztmp);
             port->ssl_option.protocols = v;
+            if(port->ssl_option.protocols & SW_SSL_DTLS && !port->is_dgram()) {
+                port->ssl_option.protocols ^= SW_SSL_DTLS;
+            }
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
             port->ssl_option.verify_peer = zval_is_true(ztmp);
