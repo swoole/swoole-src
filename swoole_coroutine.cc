@@ -709,16 +709,16 @@ void PHPCoroutine::main_func(void *arg) {
 long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv) {
     if (sw_unlikely(Coroutine::count() >= config.max_num)) {
         php_swoole_fatal_error(E_WARNING, "exceed max number of coroutine %zu", (uintmax_t) Coroutine::count());
-        return SW_CORO_ERR_LIMIT;
+        return Coroutine::ERR_LIMIT;
     }
     if (sw_unlikely(!fci_cache || !fci_cache->function_handler)) {
         php_swoole_fatal_error(E_ERROR, "invalid function call info cache");
-        return SW_CORO_ERR_INVALID;
+        return Coroutine::ERR_INVALID;
     }
     zend_uchar type = fci_cache->function_handler->type;
     if (sw_unlikely(type != ZEND_USER_FUNCTION && type != ZEND_INTERNAL_FUNCTION)) {
         php_swoole_fatal_error(E_ERROR, "invalid function type %u", fci_cache->function_handler->type);
-        return SW_CORO_ERR_INVALID;
+        return Coroutine::ERR_INVALID;
     }
 
     if (sw_unlikely(!active)) {
@@ -757,7 +757,7 @@ int PHPCoroutine::resume_m(php_coro_context *sw_current_context, zval *retval, z
         ZVAL_COPY(sw_current_context->current_coro_return_value_ptr, retval);
     }
     task->co->resume_naked();
-    return SW_CORO_ERR_END;
+    return Coroutine::ERR_END;
 }
 
 void php_swoole_coroutine_minit(int module_number) {
@@ -777,11 +777,11 @@ void php_swoole_coroutine_minit(int module_number) {
         swoole_coroutine_context, "Swoole\\Coroutine\\Context", nullptr, "Co\\Context", nullptr, spl_ce_ArrayObject);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DEFAULT_MAX_CORO_NUM", SW_DEFAULT_MAX_CORO_NUM);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_MAX_NUM_LIMIT", SW_CORO_MAX_NUM_LIMIT);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_INIT", SW_CORO_INIT);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_WAITING", SW_CORO_WAITING);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_RUNNING", SW_CORO_RUNNING);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_END", SW_CORO_END);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_MAX_NUM_LIMIT", Coroutine::MAX_NUM_LIMIT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_INIT", Coroutine::STATE_INIT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_WAITING", Coroutine::STATE_WAITING);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_RUNNING", Coroutine::STATE_RUNNING);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_END", Coroutine::STATE_END);
 
     // prohibit exit in coroutine
     SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception,

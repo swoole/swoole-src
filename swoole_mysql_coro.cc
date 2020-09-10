@@ -163,7 +163,7 @@ class mysql_client {
         return true;
     }
 
-    void add_timeout_controller(double timeout, const enum swTimeout_type type) {
+    void add_timeout_controller(double timeout, const enum Socket::TimeoutType type) {
         if (sw_unlikely(!socket)) {
             return;
         }
@@ -174,7 +174,7 @@ class mysql_client {
         }
     }
 
-    inline bool has_timedout(enum swTimeout_type type) {
+    inline bool has_timedout(enum Socket::TimeoutType type) {
         return tc && tc->has_timedout(type);
     }
 
@@ -273,7 +273,7 @@ class mysql_client {
         if (sw_unlikely(!check_connection())) {
             return false;
         } else {
-            if (sw_unlikely(has_timedout(SW_TIMEOUT_WRITE))) {
+            if (sw_unlikely(has_timedout(Socket::TIMEOUT_WRITE))) {
                 io_error();
                 return false;
             }
@@ -368,7 +368,7 @@ class mysql_statement {
         return true;
     }
 
-    inline void add_timeout_controller(double timeout, const enum swTimeout_type type) {
+    inline void add_timeout_controller(double timeout, const enum Socket::TimeoutType type) {
         if (sw_likely(client)) {
             client->add_timeout_controller(timeout, type);
         }
@@ -423,10 +423,6 @@ class mysql_statement {
 
 using swoole::mysql_client;
 using swoole::mysql_statement;
-using swoole::SW_TIMEOUT_CONNECT;
-using swoole::SW_TIMEOUT_RDWR;
-using swoole::SW_TIMEOUT_READ;
-using swoole::SW_TIMEOUT_WRITE;
 
 static zend_class_entry *swoole_mysql_coro_ce;
 static zend_object_handlers swoole_mysql_coro_handlers;
@@ -581,8 +577,8 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl) {
 #ifdef SW_USE_OPENSSL
         socket->open_ssl = ssl;
 #endif
-        socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
-        add_timeout_controller(connect_timeout, SW_TIMEOUT_ALL);
+        socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
+        add_timeout_controller(connect_timeout, Socket::TIMEOUT_ALL);
         if (!socket->connect(host, port)) {
             io_error();
             return false;
@@ -618,7 +614,7 @@ const char *mysql_client::recv_length(size_t need_length, const bool try_to_recy
             offset = 0;
         }
         while (read_n < need_length) {
-            if (sw_unlikely(has_timedout(SW_TIMEOUT_READ))) {
+            if (sw_unlikely(has_timedout(Socket::TIMEOUT_READ))) {
                 io_error();
                 return nullptr;
             }
@@ -1864,7 +1860,7 @@ static PHP_METHOD(swoole_mysql_coro, query) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    mc->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     mc->query(return_value, sql, sql_length);
     mc->del_timeout_controller();
     swoole_mysql_coro_sync_query_result_properties(ZEND_THIS, mc, return_value);
@@ -1879,7 +1875,7 @@ static PHP_METHOD(swoole_mysql_coro, fetch) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    mc->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     mc->fetch(return_value);
     mc->del_timeout_controller();
     if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE)) {
@@ -1896,7 +1892,7 @@ static PHP_METHOD(swoole_mysql_coro, fetchAll) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    mc->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     mc->fetch_all(return_value);
     mc->del_timeout_controller();
     if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE)) {
@@ -1913,7 +1909,7 @@ static PHP_METHOD(swoole_mysql_coro, nextResult) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    mc->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     mc->next_result(return_value);
     mc->del_timeout_controller();
     swoole_mysql_coro_sync_query_result_properties(ZEND_THIS, mc, return_value);
@@ -1937,7 +1933,7 @@ static PHP_METHOD(swoole_mysql_coro, prepare) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    mc->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     if (UNEXPECTED(!mc->send_prepare_request(statement, statement_length))) {
     _failed:
         swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connect());
@@ -1967,7 +1963,7 @@ static PHP_METHOD(swoole_mysql_coro, recv) {
         swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), false);
         RETURN_FALSE;
     }
-    mc->add_timeout_controller(timeout, SW_TIMEOUT_READ);
+    mc->add_timeout_controller(timeout, Socket::TIMEOUT_READ);
     switch (mc->state) {
     case SW_MYSQL_STATE_IDLE:
         swoole_mysql_coro_sync_error_properties(ZEND_THIS, ENOMSG, "no message to receive");
@@ -2017,7 +2013,7 @@ static void swoole_mysql_coro_query_transcation(INTERNAL_FUNCTION_PARAMETERS,
         RETURN_FALSE;
     }
 
-    mc->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    mc->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     mc->query(return_value, command, command_length);
     mc->del_timeout_controller();
     swoole_mysql_coro_sync_query_result_properties(ZEND_THIS, mc, return_value);
@@ -2083,7 +2079,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, execute) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    ms->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     ms->execute(return_value, params);
     ms->del_timeout_controller();
     swoole_mysql_coro_sync_execute_result_properties(ZEND_THIS, return_value);
@@ -2098,7 +2094,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetch) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    ms->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     ms->fetch(return_value);
     ms->del_timeout_controller();
     if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE)) {
@@ -2115,7 +2111,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, fetchAll) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    ms->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     ms->fetch_all(return_value);
     ms->del_timeout_controller();
     if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE)) {
@@ -2132,7 +2128,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, nextResult) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    ms->add_timeout_controller(timeout, SW_TIMEOUT_RDWR);
+    ms->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     ms->next_result(return_value);
     ms->del_timeout_controller();
     swoole_mysql_coro_sync_execute_result_properties(ZEND_THIS, return_value);
@@ -2159,7 +2155,7 @@ static PHP_METHOD(swoole_mysql_coro_statement, recv) {
         swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ms->get_error_code(), ms->get_error_msg(), false);
         RETURN_FALSE;
     }
-    ms->add_timeout_controller(timeout, SW_TIMEOUT_READ);
+    ms->add_timeout_controller(timeout, Socket::TIMEOUT_READ);
     switch ((state = ms->get_client()->state)) {
     case SW_MYSQL_STATE_IDLE:
         swoole_mysql_coro_sync_execute_error_properties(ZEND_THIS, ENOMSG, "no message to receive");

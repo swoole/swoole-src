@@ -27,20 +27,6 @@
 #include <vector>
 
 namespace swoole {
-enum swTimeout_type {
-    SW_TIMEOUT_DNS = 1 << 0,
-    SW_TIMEOUT_CONNECT = 1 << 1,
-    SW_TIMEOUT_READ = 1 << 2,
-    SW_TIMEOUT_WRITE = 1 << 3,
-    SW_TIMEOUT_RDWR = SW_TIMEOUT_READ | SW_TIMEOUT_WRITE,
-    SW_TIMEOUT_ALL = SW_TIMEOUT_DNS | SW_TIMEOUT_CONNECT | SW_TIMEOUT_RDWR,
-};
-
-static constexpr enum swTimeout_type swTimeout_type_list[] = {
-    SW_TIMEOUT_DNS, SW_TIMEOUT_CONNECT, SW_TIMEOUT_READ, SW_TIMEOUT_WRITE};
-}  // namespace swoole
-
-namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
 struct EventBarrier {
@@ -65,6 +51,17 @@ class Socket {
     Protocol protocol = {};
     swSocks5_proxy *socks5_proxy = nullptr;
     swHttp_proxy *http_proxy = nullptr;
+
+    enum TimeoutType {
+        TIMEOUT_DNS = 1 << 0,
+        TIMEOUT_CONNECT = 1 << 1,
+        TIMEOUT_READ = 1 << 2,
+        TIMEOUT_WRITE = 1 << 3,
+        TIMEOUT_RDWR = TIMEOUT_READ | TIMEOUT_WRITE,
+        TIMEOUT_ALL = TIMEOUT_DNS | TIMEOUT_CONNECT | TIMEOUT_RDWR,
+    };
+
+    static enum TimeoutType timeout_type_list[4];
 
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;
@@ -251,37 +248,37 @@ class Socket {
     }
 
     /* set connect read write timeout */
-    inline void set_timeout(double timeout, int type = SW_TIMEOUT_ALL) {
+    inline void set_timeout(double timeout, int type = TIMEOUT_ALL) {
         if (timeout == 0) {
             return;
         }
-        if (type & SW_TIMEOUT_DNS) {
+        if (type & TIMEOUT_DNS) {
             dns_timeout = timeout;
         }
-        if (type & SW_TIMEOUT_CONNECT) {
+        if (type & TIMEOUT_CONNECT) {
             connect_timeout = timeout;
         }
-        if (type & SW_TIMEOUT_READ) {
+        if (type & TIMEOUT_READ) {
             read_timeout = timeout;
         }
-        if (type & SW_TIMEOUT_WRITE) {
+        if (type & TIMEOUT_WRITE) {
             write_timeout = timeout;
         }
     }
 
-    inline void set_timeout(struct timeval *timeout, int type = SW_TIMEOUT_ALL) {
+    inline void set_timeout(struct timeval *timeout, int type = TIMEOUT_ALL) {
         set_timeout((double) timeout->tv_sec + ((double) timeout->tv_usec / 1000 / 1000), type);
     }
 
-    inline double get_timeout(enum swTimeout_type type = SW_TIMEOUT_ALL) {
+    inline double get_timeout(enum TimeoutType type = TIMEOUT_ALL) {
         SW_ASSERT_1BYTE(type);
-        if (type == SW_TIMEOUT_DNS) {
+        if (type == TIMEOUT_DNS) {
             return dns_timeout;
-        } else if (type == SW_TIMEOUT_CONNECT) {
+        } else if (type == TIMEOUT_CONNECT) {
             return connect_timeout;
-        } else if (type == SW_TIMEOUT_READ) {
+        } else if (type == TIMEOUT_READ) {
             return read_timeout;
-        } else  // if (type == SW_TIMEOUT_WRITE)
+        } else  // if (type == TIMEOUT_WRITE)
         {
             return write_timeout;
         }
@@ -487,16 +484,16 @@ class Socket {
   public:
     class timeout_setter {
       public:
-        timeout_setter(Socket *socket, double timeout, const enum swTimeout_type type)
+        timeout_setter(Socket *socket, double timeout, const enum TimeoutType type)
             : socket_(socket), timeout(timeout), type(type) {
             if (timeout == 0) {
                 return;
             }
-            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++) {
-                if (type & swTimeout_type_list[i]) {
-                    original_timeout[i] = socket->get_timeout(swTimeout_type_list[i]);
+            for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
+                if (type & timeout_type_list[i]) {
+                    original_timeout[i] = socket->get_timeout(timeout_type_list[i]);
                     if (timeout != original_timeout[i]) {
-                        socket->set_timeout(timeout, swTimeout_type_list[i]);
+                        socket->set_timeout(timeout, timeout_type_list[i]);
                     }
                 }
             }
@@ -505,10 +502,10 @@ class Socket {
             if (timeout == 0) {
                 return;
             }
-            for (uint8_t i = 0; i < SW_ARRAY_SIZE(swTimeout_type_list); i++) {
-                if (type & swTimeout_type_list[i]) {
+            for (uint8_t i = 0; i < SW_ARRAY_SIZE(timeout_type_list); i++) {
+                if (type & timeout_type_list[i]) {
                     if (timeout != original_timeout[i]) {
-                        socket_->set_timeout(original_timeout[i], swTimeout_type_list[i]);
+                        socket_->set_timeout(original_timeout[i], timeout_type_list[i]);
                     }
                 }
             }
@@ -517,15 +514,15 @@ class Socket {
       protected:
         Socket *socket_;
         double timeout;
-        enum swTimeout_type type;
-        double original_timeout[sizeof(swTimeout_type_list)] = {};
+        enum TimeoutType type;
+        double original_timeout[sizeof(timeout_type_list)] = {};
     };
 
     class timeout_controller : public timeout_setter {
       public:
-        timeout_controller(Socket *socket, double timeout, const enum swTimeout_type type)
+        timeout_controller(Socket *socket, double timeout, const enum TimeoutType type)
             : timeout_setter(socket, timeout, type) {}
-        inline bool has_timedout(const enum swTimeout_type type) {
+        inline bool has_timedout(const enum TimeoutType type) {
             SW_ASSERT_1BYTE(type);
             if (timeout > 0) {
                 if (sw_unlikely(startup_time == 0)) {

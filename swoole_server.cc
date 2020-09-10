@@ -970,7 +970,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode) {
         zval result;
         ZVAL_FALSE(&result);
         int ret = PHPCoroutine::resume_m(context, &result, retval);
-        if (ret == SW_CORO_ERR_END && retval) {
+        if (ret == Coroutine::ERR_END && retval) {
             zval_ptr_dtor(retval);
         }
         task_co->server_object->property->task_coroutine_map.erase(Z_LVAL(context->coro_params));
@@ -989,7 +989,7 @@ static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode) {
     }
 
     int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == SW_CORO_ERR_END && retval) {
+    if (ret == Coroutine::ERR_END && retval) {
         zval_ptr_dtor(retval);
     }
     sw_zval_free(result);
@@ -1458,7 +1458,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req) {
             }
             php_coro_context *context = &task_co->context;
             int ret = PHPCoroutine::resume_m(context, zdata, retval);
-            if (ret == SW_CORO_ERR_END && retval) {
+            if (ret == Coroutine::ERR_END && retval) {
                 zval_ptr_dtor(retval);
             }
             efree(task_co);
@@ -1492,7 +1492,7 @@ static int php_swoole_onFinish(swServer *serv, swEventData *req) {
             }
             php_coro_context *context = &task_co->context;
             int ret = PHPCoroutine::resume_m(context, result, retval);
-            if (ret == SW_CORO_ERR_END && retval) {
+            if (ret == Coroutine::ERR_END && retval) {
                 zval_ptr_dtor(retval);
             }
             sw_zval_free(result);
@@ -1793,7 +1793,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode) {
     context->private_data = nullptr;
 
     int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == SW_CORO_ERR_END && retval) {
+    if (ret == Coroutine::ERR_END && retval) {
         zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(zdata);
@@ -1827,7 +1827,7 @@ static enum swReturn_code php_swoole_server_send_resume(swServer *serv, php_coro
     }
 
     int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == SW_CORO_ERR_END && retval) {
+    if (ret == Coroutine::ERR_END && retval) {
         zval_ptr_dtor(retval);
     }
     zval_ptr_dtor(zdata);

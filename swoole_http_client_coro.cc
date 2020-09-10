@@ -861,7 +861,7 @@ bool HttpClient::connect() {
 
         // socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
         // connect
-        socket->set_timeout(connect_timeout, SW_TIMEOUT_CONNECT);
+        socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
         if (!socket->connect(host, port)) {
             zend_update_property_long(
                 swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), socket->errCode);
@@ -1477,11 +1477,11 @@ bool HttpClient::recv_http_response(double timeout) {
     parser.data = this;
 
     if (timeout == 0) {
-        timeout = socket->get_timeout(SW_TIMEOUT_READ);
+        timeout = socket->get_timeout(Socket::TIMEOUT_READ);
     }
-    Socket::timeout_controller tc(socket, timeout, SW_TIMEOUT_READ);
+    Socket::timeout_controller tc(socket, timeout, Socket::TIMEOUT_READ);
     while (true) {
-        if (sw_unlikely(tc.has_timedout(SW_TIMEOUT_READ))) {
+        if (sw_unlikely(tc.has_timedout(Socket::TIMEOUT_READ))) {
             return false;
         }
         retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
