@@ -821,15 +821,7 @@ class Server {
 
   public:
     Server(enum swServer_mode mode = SW_MODE_BASE);
-
-    ~Server() {
-        if (gs != nullptr && getpid() == gs->master_pid) {
-            destroy();
-        }
-        for (auto port : ports) {
-            delete port;
-        }
-    }
+    ~Server();
 
     bool set_document_root(const std::string &path) {
         if (path.length() > PATH_MAX) {
@@ -999,6 +991,10 @@ class Server {
 
     inline bool is_started() {
         return gs->start;
+    }
+
+    inline bool is_shutdown() {
+        return gs->shutdown;
     }
 
     inline bool is_valid_connection(Connection *conn) {
