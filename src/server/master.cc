@@ -660,7 +660,7 @@ Server::Server(enum swServer_mode mode) {
 }
 
 Server::~Server() {
-    if (gs != nullptr && getpid() == gs->master_pid) {
+    if (!is_shutdown() && getpid() == gs->master_pid) {
         destroy();
     }
     for (auto port : ports) {
