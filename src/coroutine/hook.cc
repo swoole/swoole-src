@@ -320,7 +320,7 @@ int swoole_coroutine_access(const char *pathname, int mode) {
 }
 
 int swoole_coroutine_flock(int fd, int operation) {
-    if (sw_unlikely(is_no_coro()) || (operation & LOCK_NB) || (operation & LOCK_UN)) {
+    if (sw_unlikely(is_no_coro())) {
         return flock(fd, operation);
     }
 
