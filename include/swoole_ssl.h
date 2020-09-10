@@ -14,12 +14,9 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef SW_CONNECTION_H_
-#define SW_CONNECTION_H_
+#pragma once
 
 #include "swoole.h"
-
-SW_EXTERN_C_BEGIN
 
 #ifdef SW_USE_OPENSSL
 
@@ -34,7 +31,7 @@ enum swSSL_create_flag {
     SW_SSL_CLIENT = 2,
 };
 
-typedef struct _swSSL_option {
+struct swSSL_option {
     char *cert_file;
     char *key_file;
     char *passphrase;
@@ -51,7 +48,7 @@ typedef struct _swSSL_option {
     uchar allow_self_signed : 1;
     uint32_t protocols;
     uint8_t create_flag;
-} swSSL_option;
+};
 
 enum swSSL_state {
     SW_SSL_STATE_HANDSHAKE = 0,
@@ -97,7 +94,7 @@ enum swSSL_method {
 #endif
 };
 
-typedef struct {
+struct swSSL_config {
     uchar http : 1;
     uchar http_v2 : 1;
     uchar prefer_server_ciphers : 1;
@@ -108,7 +105,7 @@ typedef struct {
     char *ecdh_curve;
     char *session_cache;
     char *dhparam;
-} swSSL_config;
+};
 
 void swSSL_init(void);
 void swSSL_init_thread_safety();
@@ -117,9 +114,9 @@ void swSSL_server_http_advise(SSL_CTX *ssl_context, swSSL_config *cfg);
 SSL_CTX *swSSL_get_context(swSSL_option *option);
 void swSSL_free_context(SSL_CTX *ssl_context);
 int swSSL_create(swSocket *conn, SSL_CTX *ssl_context, int flags);
-int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth);
+int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth);
 int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
-int swSSL_check_host(swSocket *conn, char *tls_host_name);
+int swSSL_check_host(swSocket *conn, const char *tls_host_name);
 int swSSL_get_peer_cert(SSL *ssl, char *buffer, size_t length);
 const char *swSSL_get_error();
 int swSSL_verify(swSocket *conn, int allow_self_signed);
@@ -130,7 +127,3 @@ ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n);
 ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n);
 int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size);
 #endif
-
-SW_EXTERN_C_END
-
-#endif /* SW_CONNECTION_H_ */

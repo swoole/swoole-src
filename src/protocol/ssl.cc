@@ -35,7 +35,7 @@ static int openssl_init = 0;
 static int ssl_connection_index = 0;
 static pthread_mutex_t *lock_array;
 
-static const SSL_METHOD *swSSL_get_method(_swSSL_option *option);
+static const SSL_METHOD *swSSL_get_method(swSSL_option *option);
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
 #ifndef OPENSSL_NO_RSA
 static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length);
@@ -68,7 +68,7 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
 
-static const SSL_METHOD *swSSL_get_method(_swSSL_option *option) {
+static const SSL_METHOD *swSSL_get_method(swSSL_option *option) {
     if (option->protocols & SW_SSL_DTLS) {
         return DTLS_method();
     }
@@ -460,7 +460,7 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store) {
     return 1;
 }
 
-int swSSL_set_client_certificate(SSL_CTX *ctx, char *cert_file, int depth) {
+int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth) {
     STACK_OF(X509_NAME) * list;
 
     SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, swSSL_verify_callback);
@@ -504,7 +504,7 @@ int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx) {
 }
 
 #ifndef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
-static int swSSL_check_name(char *name, ASN1_STRING *pattern) {
+static int swSSL_check_name(const char *name, ASN1_STRING *pattern) {
     char *s, *end;
     size_t slen, plen;
 
@@ -618,7 +618,7 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len) {
 }
 #endif
 
-int swSSL_check_host(swSocket *conn, char *tls_host_name) {
+int swSSL_check_host(swSocket *conn, const char *tls_host_name) {
     X509 *cert = SSL_get_peer_certificate(conn->ssl);
     if (cert == nullptr) {
         return SW_ERR;
