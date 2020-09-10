@@ -659,6 +659,16 @@ Server::Server(enum swServer_mode mode) {
     g_server_instance = this;
 }
 
+Server::~Server() {
+    if (gs != nullptr && getpid() == gs->master_pid) {
+        destroy();
+    }
+    for (auto port : ports) {
+        delete port;
+    }
+    sw_shm_free(gs);
+}
+
 int Server::create() {
     factory.ptr = this;
 
@@ -848,12 +858,10 @@ void Server::destroy() {
 
     sw_shm_free(session_list);
     sw_shm_free(port_connnection_num_list);
-    sw_shm_free(gs);
     sw_shm_free(workers);
 
     session_list = nullptr;
     port_connnection_num_list = nullptr;
-    gs = nullptr;
     workers = nullptr;
 
     g_server_instance = nullptr;
