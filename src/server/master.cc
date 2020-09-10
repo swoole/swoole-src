@@ -1456,8 +1456,8 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
 
         if (ls->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
-            ls->ssl_option.method = SW_DTLS_SERVER_METHOD;
-            ls->ssl_option.dtls = 1;
+            ls->ssl_option.create_flag = SW_SSL_SERVER;
+            ls->ssl_option.protocols = SW_SSL_DTLS;
             ls->dtls_sessions = new std::unordered_map<int, swoole::dtls::Session *>;
 
 #else
@@ -1474,7 +1474,7 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->ssl_option.dtls) {
+    if (ls->ssl_option.protocols & SW_SSL_DTLS) {
         int on = 1;
         setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
     }

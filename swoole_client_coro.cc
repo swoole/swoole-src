@@ -438,14 +438,9 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
     zval *ztmp;
     bool ret = true;
 
-    if (php_swoole_array_get_value(vht, "ssl_method", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
-        sock->ssl_option.method = SW_MAX(0, SW_MIN(v, UINT8_MAX));
-    }
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        sock->ssl_option.disable_protocols =
-            (SW_SSL_SSLv2 | SW_SSL_SSLv3 | SW_SSL_TLSv1 | SW_SSL_TLSv1_1 | SW_SSL_TLSv1_2) ^ v;
+        sock->ssl_option.protocols = v;
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
         sock->ssl_option.disable_compress = !zval_is_true(ztmp);

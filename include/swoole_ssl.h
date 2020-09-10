@@ -46,14 +46,11 @@ typedef struct _swSSL_option {
     char *cafile;
     char *capath;
     uint8_t verify_depth;
-    uint8_t method;
-#ifdef SW_SUPPORT_DTLS
-    uint8_t dtls;
-#endif
     uchar disable_compress : 1;
     uchar verify_peer : 1;
     uchar allow_self_signed : 1;
-    uint32_t disable_protocols;
+    uint32_t protocols;
+    uint8_t create_flag;
 } swSSL_option;
 
 enum swSSL_state {
@@ -63,12 +60,16 @@ enum swSSL_state {
 };
 
 enum swSSL_version {
-    SW_SSL_SSLv2 = 0x0002,
-    SW_SSL_SSLv3 = 0x0004,
-    SW_SSL_TLSv1 = 0x0008,
-    SW_SSL_TLSv1_1 = 0x0010,
-    SW_SSL_TLSv1_2 = 0x0020,
+    SW_SSL_SSLv2 = 1u << 1,
+    SW_SSL_SSLv3 = 1u << 2,
+    SW_SSL_TLSv1 = 1u << 3,
+    SW_SSL_TLSv1_1 = 1u << 4,
+    SW_SSL_TLSv1_2 = 1u << 5,
+    SW_SSL_TLSv1_3 = 1u << 6,
+    SW_SSL_DTLS = 1u << 7,
 };
+
+#define SW_SSL_ALL (SW_SSL_SSLv2 | SW_SSL_SSLv3 | SW_SSL_TLSv1 | SW_SSL_TLSv1_1 | SW_SSL_TLSv1_2 | SW_SSL_TLSv1_3)
 
 enum swSSL_method {
     SW_SSLv23_METHOD = 0,
