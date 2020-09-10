@@ -320,8 +320,9 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle)
         }
         else if (data->fd != -1)
         {
-            if ((data->lock_flag & LOCK_EX) || (data->lock_flag & LOCK_SH)) {
-                swoole_coroutine_flock(data->fd, LOCK_UN);
+            if ((data->lock_flag & LOCK_EX) || (data->lock_flag & LOCK_SH))
+            {
+                swoole_coroutine_flock_ex(stream->orig_path, data->fd, LOCK_UN);
             }
             ret = close(data->fd);
             data->fd = -1;
@@ -547,7 +548,7 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 				return 0;
 			}
 
-			if (swoole_coroutine_flock(fd, value) == 0) {
+			if (!swoole_coroutine_flock_ex(stream->orig_path, fd, value)) {
 				data->lock_flag = value;
 				return 0;
 			} else {
