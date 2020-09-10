@@ -29,7 +29,7 @@
 #include <vector>
 #include <unordered_map>
 
-#define SW_TABLE_DEBUG 1
+//#define SW_TABLE_DEBUG   0
 
 typedef uint32_t swTable_string_length_t;
 
