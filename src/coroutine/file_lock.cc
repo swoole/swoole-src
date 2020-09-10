@@ -22,24 +22,23 @@
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_c_api.h"
 
-using namespace std;
-using namespace swoole;
+using swoole::Coroutine;
 
-class file_lock_manager {
+class LockManager {
   public:
     bool lock_ex = false;
     bool lock_sh = false;
-    queue<Coroutine *> _queue;
+    std::queue<Coroutine *> queue_;
 };
 
-static unordered_map<string, file_lock_manager *> lock_pool;
+static std::unordered_map<std::string, LockManager *> lock_pool;
 
-static inline file_lock_manager *get_manager(char *filename) {
-    string key(filename);
+static inline LockManager *get_manager(const char *filename) {
+    std::string key(filename);
     auto i = lock_pool.find(key);
-    file_lock_manager *lm;
+    LockManager *lm;
     if (i == lock_pool.end()) {
-        lm = new file_lock_manager;
+        lm = new LockManager;
         lock_pool[key] = lm;
     } else {
         lm = i->second;
@@ -47,53 +46,63 @@ static inline file_lock_manager *get_manager(char *filename) {
     return lm;
 }
 
-static inline int lock_ex(char *filename, int fd) {
-    file_lock_manager *lm = get_manager(filename);
+static inline int lock_ex(const char *filename, int fd) {
+    LockManager *lm = get_manager(filename);
     if (lm->lock_ex || lm->lock_sh) {
         Coroutine *co = Coroutine::get_current();
-        lm->_queue.push(co);
+        lm->queue_.push(co);
         co->yield();
     }
     lm->lock_ex = true;
-    return ::flock(fd, LOCK_EX);
+    if (swoole_coroutine_flock(fd, LOCK_EX) < 0) {
+        lm->lock_ex = false;
+        return -1;
+    } else {
+        return 0;
+    }
 }
 
-static inline int lock_sh(char *filename, int fd) {
-    file_lock_manager *lm = get_manager(filename);
+static inline int lock_sh(const char *filename, int fd) {
+    LockManager *lm = get_manager(filename);
     if (lm->lock_ex) {
         Coroutine *co = Coroutine::get_current();
-        lm->_queue.push(co);
+        lm->queue_.push(co);
         co->yield();
     }
     lm->lock_sh = true;
-    return ::flock(fd, LOCK_SH);
+    if (swoole_coroutine_flock(fd, LOCK_SH) < 0) {
+        lm->lock_sh = false;
+        return -1;
+    } else {
+        return 0;
+    }
 }
 
-static inline int lock_release(char *filename, int fd) {
-    string key(filename);
+static inline int lock_release(const char *filename, int fd) {
+    std::string key(filename);
     auto i = lock_pool.find(key);
     if (i == lock_pool.end()) {
-        return ::flock(fd, LOCK_UN);
+        return swoole_coroutine_flock(fd, LOCK_UN);
     }
-    file_lock_manager *lm = i->second;
-    if (lm->_queue.empty()) {
+    LockManager *lm = i->second;
+    if (lm->queue_.empty()) {
         delete lm;
         lock_pool.erase(i);
-        return ::flock(fd, LOCK_UN);
+        return swoole_coroutine_flock(fd, LOCK_UN);
     } else {
-        Coroutine *co = lm->_queue.front();
-        lm->_queue.pop();
-        int retval = ::flock(fd, LOCK_UN);
+        Coroutine *co = lm->queue_.front();
+        lm->queue_.pop();
+        int retval = swoole_coroutine_flock(fd, LOCK_UN);
         co->resume();
         return retval;
     }
 }
 
 #ifdef LOCK_NB
-static inline int lock_nb(char *filename, int fd, int operation) {
+static inline int lock_nb(const char *filename, int fd, int operation) {
     int retval = ::flock(fd, operation | LOCK_NB);
     if (retval == 0) {
-        file_lock_manager *lm = get_manager(filename);
+        LockManager *lm = get_manager(filename);
         if (operation == LOCK_EX) {
             lm->lock_ex = true;
         } else {
@@ -104,13 +113,13 @@ static inline int lock_nb(char *filename, int fd, int operation) {
 }
 #endif
 
-int swoole_coroutine_flock_ex(char *filename, int fd, int operation) {
+int swoole_coroutine_flock_ex(const char *filename, int fd, int operation) {
     Coroutine *co = Coroutine::get_current();
     if (sw_unlikely(SwooleTG.reactor == nullptr || !co)) {
         return ::flock(fd, operation);
     }
 
-    char *real = realpath(filename, SwooleTG.buffer_stack->str);
+    const char *real = realpath(filename, SwooleTG.buffer_stack->str);
     if (real == nullptr) {
         errno = ENOENT;
         swoole_set_last_error(ENOENT);
