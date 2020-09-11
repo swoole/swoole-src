@@ -99,11 +99,6 @@ enum swFactory_dispatch_result {
     SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
 };
 
-enum swServer_mode {
-    SW_MODE_BASE = 1,
-    SW_MODE_PROCESS = 2,
-};
-
 //------------------------------------Server-------------------------------------------
 enum swServer_hook_type {
     SW_SERVER_HOOK_MASTER_START,
@@ -488,6 +483,13 @@ struct Factory {
 
 class Server {
   public:
+    typedef int (*DispatchFunction)(Server *, Connection *, SendData *);
+
+    enum Mode {
+        MODE_BASE = 1,
+        MODE_PROCESS = 2,
+    };
+
     /**
      * reactor thread/process num
      */
@@ -820,7 +822,7 @@ class Server {
     int (*dispatch_func)(Server *, Connection *, SendData *) = nullptr;
 
   public:
-    Server(enum swServer_mode mode = SW_MODE_BASE);
+    Server(enum Mode _mode = MODE_BASE);
     ~Server();
 
     bool set_document_root(const std::string &path) {
@@ -919,19 +921,19 @@ class Server {
     }
 
     inline bool is_process_mode() {
-        return factory_mode == SW_MODE_PROCESS;
+        return mode_ == MODE_PROCESS;
     }
 
     inline bool is_base_mode() {
-        return factory_mode == SW_MODE_BASE;
+        return mode_ == MODE_BASE;
     }
 
-    inline bool is_mode_dispatch_mode() {
+    inline bool is_hash_dispatch_mode() {
         return dispatch_mode == SW_DISPATCH_FDMOD || dispatch_mode == SW_DISPATCH_IPMOD;
     }
 
     inline bool is_support_send_yield() {
-        return is_mode_dispatch_mode();
+        return is_hash_dispatch_mode();
     }
 
     inline bool if_require_packet_callback(ListenPort *port, bool isset) {
@@ -978,7 +980,7 @@ class Server {
     }
 
     inline swString *get_worker_input_buffer(int reactor_id) {
-        if (factory_mode == SW_MODE_BASE) {
+        if (is_base_mode()) {
             return (swString *) worker_input_buffers[0];
         } else {
             return (swString *) worker_input_buffers[reactor_id];
@@ -1219,10 +1221,8 @@ class Server {
     static void worker_signal_handler(int signo);
     static void worker_signal_init(void);
 
-    typedef int (*dispatch_function)(Server *, Connection *, SendData *);
-
   private:
-    enum swServer_mode factory_mode;
+    enum Mode mode_;
     Connection *connection_list = nullptr;
     Session *session_list = nullptr;
     uint32_t *port_connnection_num_list = nullptr;

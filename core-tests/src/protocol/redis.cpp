@@ -38,7 +38,7 @@ TEST(redis, get) {
 }
 
 TEST(redis, server) {
-    Server serv(SW_MODE_BASE);
+    Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
     serv.enable_static_handler = true;
 

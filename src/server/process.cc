@@ -317,7 +317,7 @@ _ipc_use_chunk:
 }
 
 static bool inline process_is_supported_send_yield(swServer *serv, swConnection *conn) {
-    if (!serv->is_mode_dispatch_mode()) {
+    if (!serv->is_hash_dispatch_mode()) {
         return false;
     } else {
         return serv->schedule_worker(conn->fd, nullptr) == (int) SwooleG.process_id;

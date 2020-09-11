@@ -38,7 +38,7 @@ private:
 public:
     swDgramPacket *packet = nullptr;
 
-    Server(std::string _host, int _port, enum swServer_mode _mode, int _type);
+    Server(std::string _host, int _port, swoole::Server::Mode _mode, int _type);
     ~Server();
     void on(std::string event, void *fn);
     bool start();

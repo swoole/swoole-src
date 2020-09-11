@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     sw_logger()->set_date_format("%F %T");
     sw_logger()->set_date_with_microseconds(true);
 
-    Server serv(SW_MODE_BASE);
+    Server serv(Server::MODE_BASE);
 
     serv.reactor_num = 4;
     serv.worker_num = 1;

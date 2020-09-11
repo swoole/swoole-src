@@ -86,7 +86,7 @@ static int handle_on_url(llhttp_t *parser, const char *at, size_t length) {
 
 static void test_run_server(function<void(swServer *)> fn) {
     thread child_thread;
-    swServer serv(SW_MODE_BASE);
+    swServer serv(swoole::Server::MODE_BASE);
     serv.worker_num = 1;
     serv.ptr2 = (void *) &fn;
 

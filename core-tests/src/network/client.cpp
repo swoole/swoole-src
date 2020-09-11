@@ -21,7 +21,7 @@ TEST(client, tcp) {
             SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
-        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_TCP);
         serv.on("onReceive", (void *) receive_fn);
         serv.start();
     });
@@ -57,7 +57,7 @@ TEST(client, udp) {
             SERVER_THIS->sendto(packet->socket_addr, packet->data, packet->length, req->info.server_fd);
         };
 
-        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_UDP);
+        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_UDP);
         serv.on("onPacket", (void *) packet_fn);
         serv.start();
     });
@@ -92,7 +92,7 @@ TEST(client, async_tcp) {
             SERVER_THIS->send(req->info.fd, req->data, req->info.len);
         };
 
-        Server serv(TEST_HOST, TEST_PORT, SW_MODE_BASE, SW_SOCK_TCP);
+        Server serv(TEST_HOST, TEST_PORT, swoole::Server::MODE_BASE, SW_SOCK_TCP);
 
         serv.set_private_data("pipe", &p);
 

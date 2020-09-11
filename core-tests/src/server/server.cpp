@@ -50,7 +50,7 @@ TEST(server, create_pipe_buffers) {
 static const char *packet = "hello world\n";
 
 TEST(server, base) {
-    swServer serv(SW_MODE_BASE);
+    swServer serv(swoole::Server::MODE_BASE);
     serv.worker_num = 1;
 
     sw_logger()->set_level(SW_LOG_WARNING);
@@ -94,7 +94,7 @@ TEST(server, base) {
 }
 
 TEST(server, process) {
-    swServer serv(SW_MODE_PROCESS);
+    swServer serv(swoole::Server::MODE_PROCESS);
     serv.worker_num = 1;
 
     SwooleG.running = 1;
@@ -236,7 +236,7 @@ TEST(server, worker_num) {
 }
 
 TEST(server, reactor_num_base) {
-    Server serv(SW_MODE_BASE);
+    Server serv(swoole::Server::MODE_BASE);
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
     serv.create();
 
@@ -244,7 +244,7 @@ TEST(server, reactor_num_base) {
 }
 
 TEST(server, reactor_num_large) {
-    Server serv(SW_MODE_PROCESS);
+    Server serv(swoole::Server::MODE_PROCESS);
     serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
     serv.create();
@@ -253,7 +253,7 @@ TEST(server, reactor_num_large) {
 }
 
 TEST(server, reactor_num_large2) {
-    Server serv(SW_MODE_PROCESS);
+    Server serv(swoole::Server::MODE_PROCESS);
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
     serv.create();
 
