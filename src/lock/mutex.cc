@@ -28,7 +28,9 @@ int swMutex_create(swLock *lock, int use_in_process) {
     pthread_mutexattr_init(&lock->object.mutex.attr);
     if (use_in_process == 1) {
         pthread_mutexattr_setpshared(&lock->object.mutex.attr, PTHREAD_PROCESS_SHARED);
+#ifdef __linux__
         pthread_mutexattr_setrobust_np(&lock->object.mutex.attr, PTHREAD_MUTEX_ROBUST_NP);
+#endif
     }
     if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0) {
         return SW_ERR;
@@ -42,9 +44,11 @@ int swMutex_create(swLock *lock, int use_in_process) {
 
 static int swMutex_lock(swLock *lock) {
     int retval = pthread_mutex_lock(&lock->object.mutex._lock);
+#ifdef __linux__
     if (retval == EOWNERDEAD) {
         retval = pthread_mutex_consistent(&lock->object.mutex._lock);
     }
+#endif
     return retval;
 }
 
