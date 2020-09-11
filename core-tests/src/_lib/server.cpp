@@ -24,11 +24,11 @@
 using namespace swoole::test;
 using swoole::network::Address;
 
-Server::Server(std::string _host, int _port, enum swServer_mode _mode, int _type)
+Server::Server(std::string _host, int _port, swoole::Server::Mode _mode, int _type)
     : serv(_mode), host(_host), port(_port), mode(_mode), type(_type) {
     serv.worker_num = 1;
 
-    if (mode == SW_MODE_BASE) {
+    if (mode == swoole::Server::MODE_BASE) {
         serv.reactor_num = 1;
         serv.worker_num = 1;
     }

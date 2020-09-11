@@ -24,7 +24,7 @@ using namespace std;
 using namespace swoole::network;
 
 TEST(stream, send) {
-    swServer serv(SW_MODE_BASE);
+    swServer serv(swoole::Server::MODE_BASE);
     serv.worker_num = 1;
     int ori_log_level = sw_logger()->get_level();
     sw_logger()->set_level(SW_LOG_ERROR);

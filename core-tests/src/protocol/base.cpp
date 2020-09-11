@@ -30,7 +30,7 @@ constexpr int MAX_SIZE = 128000;
 constexpr int MIN_SIZE = 512;
 
 TEST(protocol, eof) {
-    Server serv(SW_MODE_BASE);
+    Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
 
     String pkgs[PKG_N];

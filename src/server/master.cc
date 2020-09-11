@@ -614,14 +614,14 @@ int Server::start() {
 /**
  * initializing server config, set default
  */
-Server::Server(enum swServer_mode mode) {
+Server::Server(enum Mode _mode) {
     swoole_init();
 
     reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
 
     worker_num = SW_CPU_NUM;
     max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
-    factory_mode = mode;
+    mode_ = _mode;
 
     // http server
 #ifdef SW_HAVE_COMPRESSION
@@ -1274,7 +1274,7 @@ bool Server::close(int session_id, bool reset) {
     Worker *worker;
     swDataHead ev = {};
 
-    if (is_mode_dispatch_mode()) {
+    if (is_hash_dispatch_mode()) {
         int worker_id = schedule_worker(conn->fd, nullptr);
         if (worker_id != (int) SwooleG.process_id) {
             worker = get_worker(worker_id);
