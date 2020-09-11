@@ -1062,7 +1062,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
                "Create Server: host=%s, port=%d, mode=%d, type=%d",
                primary_port->host,
                (int) primary_port->port,
-               serv->is_base_mode() ? SW_MODE_BASE : SW_MODE_PROCESS,
+               serv->is_base_mode() ? Server::MODE_BASE : Server::MODE_PROCESS,
                (int) primary_port->type);
 #endif
 
