@@ -33,6 +33,11 @@ struct swMutex {
     pthread_mutexattr_t attr;
 };
 
+enum swMutex_flag {
+    SW_MUTEX_PROCESS_SHARED = 1,
+    SW_MUTEX_ROBUST = 2,
+};
+
 #ifdef HAVE_RWLOCK
 struct swRWLock {
     pthread_rwlock_t _lock;
@@ -76,7 +81,7 @@ struct swCond {
 };
 
 int swAtomicLock_create(swLock *object);
-int swMutex_create(swLock *lock, int use_in_process);
+int swMutex_create(swLock *lock, int flags);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swCond_create(swCond *cond);
 

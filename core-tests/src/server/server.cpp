@@ -102,7 +102,7 @@ TEST(server, process) {
     sw_logger()->set_level(SW_LOG_WARNING);
 
     swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
-    swMutex_create(lock, 1);
+    swMutex_create(lock, SW_MUTEX_PROCESS_SHARED);
     lock->lock(lock);
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);

@@ -45,7 +45,7 @@ swTable *swTable_new(uint32_t rows_size, float conflict_proportion) {
     if (table == nullptr) {
         return nullptr;
     }
-    if (swMutex_create(&table->lock, 1) < 0) {
+    if (swMutex_create(&table->lock, SW_MUTEX_PROCESS_SHARED) < 0) {
         swWarn("mutex create failed");
         return nullptr;
     }

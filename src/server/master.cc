@@ -427,7 +427,7 @@ int Server::create_user_workers() {
  * [Master]
  */
 int Server::create_worker(Worker *worker) {
-    return swMutex_create(&worker->lock, 1);
+    return swMutex_create(&worker->lock, SW_MUTEX_PROCESS_SHARED);
 }
 
 /**
