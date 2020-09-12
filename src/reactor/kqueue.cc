@@ -186,12 +186,17 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
     int ret;
     int fd = socket->fd;
 
+    if (_socket->removed) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, 
+            "failed to delete event[%d], has been removed", _socket->fd);
+        return SW_ERR;
+    }
+
     if (socket->events & SW_EVENT_READ) {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
-            return SW_ERR;
         }
     }
 
@@ -200,7 +205,6 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
-            return SW_ERR;
         }
     }
 

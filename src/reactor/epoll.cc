@@ -123,9 +123,13 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events) 
 
 static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket) {
     swReactorEpoll *object = (swReactorEpoll *) reactor->object;
+    if (_socket->removed) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, 
+            "failed to delete event[%d], has been removed", _socket->fd);
+        return SW_ERR;
+    }
     if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
         swSysWarn("epoll remove fd[%d#%d] failed", _socket->fd, reactor->id);
-        return SW_ERR;
     }
 
 #if EVENT_DEBUG

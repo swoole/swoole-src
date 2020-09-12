@@ -122,6 +122,12 @@ static int swReactorPoll_del(swReactor *reactor, swSocket *socket) {
     uint32_t i;
     swReactorPoll *object = (swReactorPoll *) reactor->object;
 
+    if (socket->removed) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, 
+            "failed to delete event[%d], has been removed", socket->fd);
+        return SW_ERR;
+    }
+
     for (i = 0; i < reactor->event_num; i++) {
         if (object->events[i].fd == socket->fd) {
             for (; i < reactor->event_num; i++) {
