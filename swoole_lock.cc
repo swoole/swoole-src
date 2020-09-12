@@ -176,7 +176,7 @@ static PHP_METHOD(swoole_lock, __construct) {
 #endif
     case SW_MUTEX:
     default:
-        ret = swMutex_create(lock, SW_MUTEX_PROCESS_SHARED | SW_MUTEX_ROBUST);
+        ret = swMutex_create(lock, SW_MUTEX_PROCESS_SHARED);
         break;
     }
     if (ret < 0) {

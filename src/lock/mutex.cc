@@ -31,7 +31,7 @@ int swMutex_create(swLock *lock, int flags) {
     }
 #ifdef HAVE_PTHREAD_MUTEXATTR_SETROBUST
     if (flags & SW_MUTEX_ROBUST) {
-        pthread_mutexattr_setrobust_np(&lock->object.mutex.attr, PTHREAD_MUTEX_ROBUST_NP);
+        pthread_mutexattr_setrobust(&lock->object.mutex.attr, PTHREAD_MUTEX_ROBUST);
     }
 #endif
     if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0) {

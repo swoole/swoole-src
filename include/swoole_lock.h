@@ -81,7 +81,7 @@ struct swCond {
 };
 
 int swAtomicLock_create(swLock *object);
-int swMutex_create(swLock *lock, int use_in_process);
+int swMutex_create(swLock *lock, int flags);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
 int swCond_create(swCond *cond);
 

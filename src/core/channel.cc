@@ -67,7 +67,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     // use lock
     if (flags & SW_CHAN_LOCK) {
         // init lock
-        if (swMutex_create(&object->lock, 1) < 0) {
+        if (swMutex_create(&object->lock, SW_MUTEX_PROCESS_SHARED) < 0) {
             swWarn("mutex init failed");
             return nullptr;
         }

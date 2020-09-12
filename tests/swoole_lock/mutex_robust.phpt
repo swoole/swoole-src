@@ -3,6 +3,7 @@ swoole_lock: mutex robust
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';
+skip("no supports");
 ?>
 --FILE--
 <?php
