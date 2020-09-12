@@ -186,9 +186,9 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
     int ret;
     int fd = socket->fd;
 
-    if (_socket->removed) {
+    if (socket->removed) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, 
-            "failed to delete event[%d], has been removed", _socket->fd);
+            "failed to delete event[%d], has been removed", socket->fd);
         return SW_ERR;
     }
 
