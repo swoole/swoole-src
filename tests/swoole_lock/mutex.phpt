@@ -10,9 +10,6 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Process;
 
-// $file = __DIR__.'/tmp.log';
-// $fp = fopen($file, 'w+');
-
 $fp = STDOUT;
 
 $lock = new Swoole\Lock(SWOOLE_MUTEX);

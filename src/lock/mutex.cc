@@ -29,11 +29,15 @@ int swMutex_create(swLock *lock, int flags) {
     if (flags & SW_MUTEX_PROCESS_SHARED) {
         pthread_mutexattr_setpshared(&lock->object.mutex.attr, PTHREAD_PROCESS_SHARED);
     }
-#ifdef HAVE_PTHREAD_MUTEXATTR_SETROBUST
+
     if (flags & SW_MUTEX_ROBUST) {
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETROBUST
         pthread_mutexattr_setrobust(&lock->object.mutex.attr, PTHREAD_MUTEX_ROBUST);
-    }
+#else
+        swWarn("PTHREAD_MUTEX_ROBUST is not supported");
 #endif
+    }
+
     if ((ret = pthread_mutex_init(&lock->object.mutex._lock, &lock->object.mutex.attr)) < 0) {
         return SW_ERR;
     }
