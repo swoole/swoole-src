@@ -33,6 +33,11 @@ struct swMutex {
     pthread_mutexattr_t attr;
 };
 
+enum swMutex_flag {
+    SW_MUTEX_PROCESS_SHARED = 1,
+    SW_MUTEX_ROBUST = 2,
+};
+
 #ifdef HAVE_RWLOCK
 struct swRWLock {
     pthread_rwlock_t _lock;
