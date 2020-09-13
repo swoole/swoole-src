@@ -12,6 +12,7 @@ const MSGQ_KEY = 0x70001001;
 $file = __DIR__.'/tmp.log';
 use Swoole\Server;
 
+$result = new Swoole\Atomic(0);
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
@@ -20,17 +21,18 @@ $pm->parentFunc = function ($pid) use ($pm) {
     if ($queueId === false) {
         throw new \Swoole\Exception("msg_get_queue() failed.");
     }
-    Assert::true(msg_send($queueId, 1, Swoole\Server\Task::pack($data)));
-    usleep(300000);
+    Assert::true(msg_send($queueId, 1, $data));
+    Assert::true(msg_send($queueId, 1, Swoole\Server\Task::pack($data), false));
+    $pm->wait();
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $file) {
+$pm->childFunc = function () use ($pm, $file, $result) {
     ini_set('swoole.display_errors', 'Off');
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
         "worker_num" => 2,
-        'task_worker_num' => 4,
+        'task_worker_num' => 1,
         'task_ipc_mode' => 3,
         'message_queue_key' => MSGQ_KEY,
         'log_file' => $file,
@@ -41,8 +43,9 @@ $pm->childFunc = function () use ($pm, $file) {
     $serv->on('receive', function (Server $serv, $fd, $rid, $data) {
 
     });
-    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data) {
-        var_dump($data);
+    $serv->on('task', function (Server $serv, $task_id, $worker_id, $data) use ($pm, $result) {
+        $pm->wakeup();
+        $result->add(1);
     });
 
     $serv->start();
@@ -50,7 +53,10 @@ $pm->childFunc = function () use ($pm, $file) {
 
 $pm->childFirst();
 $pm->run();
+
+// echo file_get_contents($file);
 Assert::true(swoole_string(file_get_contents($file))->contains('ProcessPool_worker_loop: bad task packet'));
 unlink($file);
+Assert::eq($result->get(), 1);
 ?>
 --EXPECT--

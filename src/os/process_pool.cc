@@ -387,7 +387,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
     struct {
         long mtype;
         swEventData buf;
-    } out;
+    } out{};
 
     ssize_t n = 0, ret, worker_task_always = 0;
     int task_n = pool->get_max_request();
