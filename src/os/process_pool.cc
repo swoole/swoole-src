@@ -389,7 +389,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
         swEventData buf;
     } out;
 
-    int n = 0, ret, worker_task_always = 0;
+    ssize_t n = 0, ret, worker_task_always = 0;
     int task_n = pool->get_max_request();
     if (task_n <= 0) {
         worker_task_always = 1;
@@ -450,6 +450,13 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
                 SwooleG.signal_alarm = false;
                 SwooleTG.timer->select();
             }
+            continue;
+        }
+
+        if (n != (ssize_t) (out.buf.info.len + sizeof(out.buf.info))) {
+            swWarn("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
+                   n,
+                   out.buf.info.len + sizeof(out.buf.info));
             continue;
         }
 
