@@ -44,6 +44,9 @@ enum swErrorCode {
     SW_ERROR_BAD_IPV6_ADDRESS,
     SW_ERROR_UNREGISTERED_SIGNAL,
 
+    // EventLoop
+    SW_ERROR_EVENT_SOCKET_REMOVED = 800,
+
     /**
      * connection error
      */

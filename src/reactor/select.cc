@@ -89,6 +89,11 @@ int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events) {
 
 int swReactorSelect_del(swReactor *reactor, swSocket *socket) {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
+    if (socket->removed) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, 
+            "failed to delete event[%d], has been removed", socket->fd);
+        return SW_ERR;
+    }
     int fd = socket->fd;
     if (object->fds.erase(fd) == 0) {
         swWarn("swReactorSelect: fd[%d] not found", fd);

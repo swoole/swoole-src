@@ -106,7 +106,8 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events) 
     e.data.ptr = socket;
 
     if (epoll_ctl(object->epfd, EPOLL_CTL_ADD, socket->fd, &e) < 0) {
-        swSysWarn("add events[fd=%d#%d, type=%d, events=%d] failed", socket->fd, reactor->id, socket->fdtype, events);
+        swSysWarn(
+            "failed to add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fdtype, events);
         return SW_ERR;
     }
 
@@ -123,9 +124,22 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events) 
 
 static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket) {
     swReactorEpoll *object = (swReactorEpoll *) reactor->object;
-    if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
-        swSysWarn("epoll remove fd[%d#%d] failed", _socket->fd, reactor->id);
+    if (_socket->removed) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_EVENT_SOCKET_REMOVED,
+                         "failed to delete events[%d], has been removed",
+                         _socket->fd);
         return SW_ERR;
+    }
+    if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
+        swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]",
+                  _socket->fd,
+                  reactor->id,
+                  _socket->fdtype,
+                  _socket->events);
+        if (errno != EBADF && errno != ENOENT) {
+            return SW_ERR;
+        }
     }
 
 #if EVENT_DEBUG
@@ -148,7 +162,8 @@ static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events) 
 
     int ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, socket->fd, &e);
     if (ret < 0) {
-        swSysWarn("reactor#%d->set(fd=%d|type=%d|events=%d) failed", reactor->id, fd, socket->fdtype, e.events);
+        swSysWarn(
+            "failed to set events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fdtype, events);
         return SW_ERR;
     }
 
