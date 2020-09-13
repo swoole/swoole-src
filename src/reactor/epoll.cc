@@ -156,7 +156,6 @@ static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events) 
     swReactorEpoll *object = (swReactorEpoll *) reactor->object;
     struct epoll_event e;
 
-    int fd = socket->fd;
     e.events = swReactorEpoll_event_set(events);
     e.data.ptr = socket;
 
@@ -167,7 +166,7 @@ static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events) 
         return SW_ERR;
     }
 
-    swTraceLog(SW_TRACE_EVENT, "set event[reactor_id=%d, fd=%d, events=%d]", reactor->id, fd, events);
+    swTraceLog(SW_TRACE_EVENT, "set event[reactor_id=%d, fd=%d, events=%d]", reactor->id, socket->fd, events);
     reactor->_set(socket, events);
 
     return SW_OK;

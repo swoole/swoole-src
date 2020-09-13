@@ -9,6 +9,7 @@ skip_if_function_not_exist('msg_get_queue');
 require __DIR__ . '/../../include/bootstrap.php';
 const MSGQ_KEY = 0x70001001;
 
+$file = __DIR__.'/tmp.log';
 use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
@@ -20,11 +21,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
         throw new \Swoole\Exception("msg_get_queue() failed.");
     }
     Assert::true(msg_send($queueId, 1, Swoole\Server\Task::pack($data)));
-    usleep(0.1);
+    usleep(300000);
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm) {
+$pm->childFunc = function () use ($pm, $file) {
     ini_set('swoole.display_errors', 'Off');
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set(array(
@@ -32,7 +33,7 @@ $pm->childFunc = function () use ($pm) {
         'task_worker_num' => 4,
         'task_ipc_mode' => 3,
         'message_queue_key' => MSGQ_KEY,
-        'log_file' => '/dev/null',
+        'log_file' => $file,
     ));
     $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
@@ -49,7 +50,7 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
-
+Assert::true(swoole_string(file_get_contents($file))->contains('ProcessPool_worker_loop: bad task packet'));
+unlink($file);
 ?>
---EXPECTF--
-[%s]\tWARNING ProcessPool_worker_loop: bad task packet, The received data-length[%d] is inconsistent with the packet-length[%d]
+--EXPECT--
