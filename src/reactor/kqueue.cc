@@ -197,6 +197,9 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            if (errno != EBADF || errno != ENOENT) {
+                return SW_ERR;
+            }
         }
     }
 
@@ -205,6 +208,9 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
+            if (errno != EBADF || errno != ENOENT) {
+                return SW_ERR;
+            }
         }
     }
 

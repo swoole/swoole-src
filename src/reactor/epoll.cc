@@ -130,6 +130,9 @@ static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket) {
     }
     if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
         swSysWarn("epoll remove fd[%d#%d] failed", _socket->fd, reactor->id);
+        if (errno != EBADF || errno != ENOENT) {
+            return SW_ERR;
+        }
     }
 
 #if EVENT_DEBUG
