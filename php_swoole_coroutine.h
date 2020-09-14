@@ -67,6 +67,7 @@ struct PHPContext {
     zend::Function *array_walk_fci;
     /* for error control `@` */
     bool in_silence;
+    bool enable_scheduler;
     int ori_error_reporting;
     int tmp_error_reporting;
     swoole::Coroutine *co;
@@ -74,7 +75,6 @@ struct PHPContext {
     long pcid;
     zend_object *context;
     int64_t last_msec;
-    zend_bool enable_scheduler;
 };
 
 class PHPCoroutine {
@@ -165,8 +165,8 @@ class PHPCoroutine {
 
     static inline bool enable_scheduler() {
         PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        if (task && task->enable_scheduler == 0) {
-            task->enable_scheduler = 1;
+        if (task && !task->enable_scheduler) {
+            task->enable_scheduler = true;
             return true;
         }
         return false;
@@ -174,8 +174,8 @@ class PHPCoroutine {
 
     static inline bool disable_scheduler() {
         PHPContext *task = (PHPContext *) Coroutine::get_current_task();
-        if (task && task->enable_scheduler == 1) {
-            task->enable_scheduler = 0;
+        if (task && task->enable_scheduler) {
+            task->enable_scheduler = false;
             return true;
         }
         return false;

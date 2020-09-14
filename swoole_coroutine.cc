@@ -627,7 +627,7 @@ void PHPCoroutine::main_func(void *arg) {
         task->defer_tasks = nullptr;
         task->pcid = task->co->get_origin_cid();
         task->context = nullptr;
-        task->enable_scheduler = 1;
+        task->enable_scheduler = true;
 
         save_vm_stack(task);
         record_last_msec(task);
