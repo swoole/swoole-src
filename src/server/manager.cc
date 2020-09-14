@@ -48,14 +48,14 @@ static void swManager_signal_handler(int sig);
 
 static swManagerProcess ManagerProcess;
 
-static void swManager_onTimer(swTimer *timer, swTimer_node *tnode) {
+static void swManager_onTimer(Timer *timer, TimerNode *tnode) {
     Server *serv = (Server *) tnode->data;
-    if (serv->hooks[SW_SERVER_HOOK_MANAGER_TIMER]) {
-        serv->call_hook(SW_SERVER_HOOK_MANAGER_TIMER, serv);
+    if (serv->hooks[Server::HOOK_MANAGER_TIMER]) {
+        serv->call_hook(Server::HOOK_MANAGER_TIMER, serv);
     }
 }
 
-static void swManager_kill_timeout_process(swTimer *timer, swTimer_node *tnode) {
+static void swManager_kill_timeout_process(Timer *timer, TimerNode *tnode) {
     reload_list_t *_list = (reload_list_t *) tnode->data;
 
     for (auto i = _list->begin(); i != _list->end(); i++) {
@@ -248,8 +248,8 @@ static int swManager_loop(Server *serv) {
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 #endif
 
-    if (serv->hooks[SW_SERVER_HOOK_MANAGER_START]) {
-        serv->call_hook(SW_SERVER_HOOK_MANAGER_START, serv);
+    if (serv->hooks[Server::HOOK_MANAGER_START]) {
+        serv->call_hook(Server::HOOK_MANAGER_START, serv);
     }
 
     if (serv->onManagerStart) {
@@ -382,9 +382,9 @@ static int swManager_loop(Server *serv) {
             }
 
             // task worker
-            if (serv->gs->task_workers.map) {
-                auto iter = serv->gs->task_workers.map->find(pid);
-                if (iter != serv->gs->task_workers.map->end()) {
+            if (serv->gs->task_workers.map_) {
+                auto iter = serv->gs->task_workers.map_->find(pid);
+                if (iter != serv->gs->task_workers.map_->end()) {
                     serv->check_worker_exit_status(iter->second->id, pid, status);
                     serv->spawn_task_worker(iter->second);
                 }
@@ -518,9 +518,9 @@ int Server::wait_other_worker(ProcessPool *pool, pid_t pid, int status) {
     int worker_type;
 
     do {
-        if (serv->gs->task_workers.map) {
-            auto iter = serv->gs->task_workers.map->find(pid);
-            if (iter != serv->gs->task_workers.map->end()) {
+        if (serv->gs->task_workers.map_) {
+            auto iter = serv->gs->task_workers.map_->find(pid);
+            if (iter != serv->gs->task_workers.map_->end()) {
                 worker_type = SW_PROCESS_TASKWORKER;
                 exit_worker = iter->second;
                 break;

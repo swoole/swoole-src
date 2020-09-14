@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include "swoole_server.h"
+
 #include <vector>
 #include <string>
 
@@ -54,6 +56,7 @@ static sw_inline const char *swRedis_get_number(const char *p, int *_ret) {
     }
 }
 
+int swRedis_recv_packet(swProtocol *protocol, swConnection *conn, swString *buffer);
 std::vector<std::string> swRedis_parse(const char *data, size_t len);
 bool swRedis_format(swString *buf);
 bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::string &value);

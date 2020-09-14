@@ -22,14 +22,16 @@
 #include "swoole_redis.h"
 
 using swoole::http_server::Request;
+using swoole::network::Socket;
+using swoole::network::Address;
 
 namespace swoole {
 
-static int Port_onRead_raw(Reactor *reactor, ListenPort *lp, swEvent *event);
-static int Port_onRead_check_length(Reactor *reactor, ListenPort *lp, swEvent *event);
-static int Port_onRead_check_eof(Reactor *reactor, ListenPort *lp, swEvent *event);
-static int Port_onRead_http(Reactor *reactor, ListenPort *lp, swEvent *event);
-static int Port_onRead_redis(Reactor *reactor, ListenPort *lp, swEvent *event);
+static int Port_onRead_raw(Reactor *reactor, ListenPort *lp, Event *event);
+static int Port_onRead_check_length(Reactor *reactor, ListenPort *lp, Event *event);
+static int Port_onRead_check_eof(Reactor *reactor, ListenPort *lp, Event *event);
+static int Port_onRead_http(Reactor *reactor, ListenPort *lp, Event *event);
+static int Port_onRead_redis(Reactor *reactor, ListenPort *lp, Event *event);
 
 ListenPort::ListenPort() {
     protocol.package_length_type = 'N';
@@ -182,7 +184,7 @@ void Server::init_port_protocol(ListenPort *ls) {
  */
 int ListenPort::set_address(int sock) {
     socklen_t optlen;
-    swSocketAddress address;
+    Address address;
     int sock_type, sock_family;
     char tmp[INET6_ADDRSTRLEN];
 
@@ -256,13 +258,13 @@ void ListenPort::clear_protocol() {
     open_redis_protocol = 0;
 }
 
-static int Port_onRead_raw(Reactor *reactor, ListenPort *port, swEvent *event) {
+static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
     ssize_t n;
-    swSocket *_socket = event->socket;
-    swConnection *conn = (swConnection *) _socket->object;
-    swServer *serv = (swServer *) reactor->ptr;
+    Socket *_socket = event->socket;
+    Connection *conn = (Connection *) _socket->object;
+    Server *serv = (Server *) reactor->ptr;
 
-    swString *buffer = serv->get_recv_buffer(_socket);
+    String *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
         return SW_ERR;
     }
@@ -289,13 +291,13 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, swEvent *event) {
     }
 }
 
-static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, swEvent *event) {
-    swSocket *_socket = event->socket;
-    swConnection *conn = (swConnection *) _socket->object;
-    swProtocol *protocol = &port->protocol;
-    swServer *serv = (swServer *) reactor->ptr;
+static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, Event *event) {
+    Socket *_socket = event->socket;
+    Connection *conn = (Connection *) _socket->object;
+    Protocol *protocol = &port->protocol;
+    Server *serv = (Server *) reactor->ptr;
 
-    swString *buffer = serv->get_recv_buffer(_socket);
+    String *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
         reactor->trigger_close_event(event);
         return SW_ERR;
@@ -325,10 +327,10 @@ static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, swEvent 
 /**
  * For Http Protocol
  */
-static int Port_onRead_http(Reactor *reactor, ListenPort *port, swEvent *event) {
-    swSocket *_socket = event->socket;
-    swConnection *conn = (swConnection *) _socket->object;
-    swServer *serv = (swServer *) reactor->ptr;
+static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
+    Socket *_socket = event->socket;
+    Connection *conn = (Connection *) _socket->object;
+    Server *serv = (Server *) reactor->ptr;
 
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
         if (conn->http_upgrade == 0) {
@@ -346,7 +348,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, swEvent *event) 
 #endif
 
     Request *request = nullptr;
-    swProtocol *protocol = &port->protocol;
+    Protocol *protocol = &port->protocol;
 
     if (conn->object == nullptr) {
         request = new Request();
@@ -363,7 +365,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, swEvent *event) 
         }
     }
 
-    swString *buffer = request->buffer_;
+    String *buffer = request->buffer_;
 
 _recv_data:
     ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
@@ -440,7 +442,7 @@ _parse:
         swHttp2_send_setting_frame(protocol, _socket);
         if (buffer->length == sizeof(SW_HTTP2_PRI_STRING) - 1) {
             serv->destroy_http_request(conn);
-            swString_clear(buffer);
+            buffer->clear();
             return SW_OK;
         }
         buffer->reduce(buffer->offset);
@@ -502,7 +504,7 @@ _parse:
                 goto _parse;
             } else {
                 serv->destroy_http_request(conn);
-                swString_clear(buffer);
+                buffer->clear();
                 return SW_OK;
             }
         }
@@ -594,26 +596,26 @@ _parse:
             delete _socket->recv_buffer;
             _socket->recv_buffer = nullptr;
         } else {
-            swString_clear(buffer);
+            buffer->clear();
         }
     }
 
     return SW_OK;
 }
 
-static int Port_onRead_redis(Reactor *reactor, ListenPort *port, swEvent *event) {
-    swSocket *_socket = event->socket;
-    swConnection *conn = (swConnection *) _socket->object;
-    swProtocol *protocol = &port->protocol;
-    swServer *serv = (swServer *) reactor->ptr;
+static int Port_onRead_redis(Reactor *reactor, ListenPort *port, Event *event) {
+    Socket *_socket = event->socket;
+    Connection *conn = (Connection *) _socket->object;
+    Protocol *protocol = &port->protocol;
+    Server *serv = (Server *) reactor->ptr;
 
-    swString *buffer = serv->get_recv_buffer(_socket);
+    String *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
         reactor->trigger_close_event(event);
         return SW_ERR;
     }
 
-    if (swServer_recv_redis_packet(protocol, conn, buffer) < 0) {
+    if (swRedis_recv_packet(protocol, conn, buffer) < 0) {
         conn->close_errno = errno;
         reactor->trigger_close_event(event);
     }
@@ -621,13 +623,13 @@ static int Port_onRead_redis(Reactor *reactor, ListenPort *port, swEvent *event)
     return SW_OK;
 }
 
-static int Port_onRead_check_eof(Reactor *reactor, ListenPort *port, swEvent *event) {
-    swSocket *_socket = event->socket;
-    swConnection *conn = (swConnection *) _socket->object;
-    swProtocol *protocol = &port->protocol;
-    swServer *serv = (swServer *) reactor->ptr;
+static int Port_onRead_check_eof(Reactor *reactor, ListenPort *port, Event *event) {
+    Socket *_socket = event->socket;
+    Connection *conn = (Connection *) _socket->object;
+    Protocol *protocol = &port->protocol;
+    Server *serv = (Server *) reactor->ptr;
 
-    swString *buffer = serv->get_recv_buffer(_socket);
+    String *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
         reactor->trigger_close_event(event);
         return SW_ERR;

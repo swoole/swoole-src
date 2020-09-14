@@ -79,9 +79,9 @@ bool Timer::init_reactor(swReactor *reactor) {
     };
     close = [](swTimer *timer) { timer->set(timer, -1); };
 
-    reactor->set_end_callback(SW_REACTOR_PRIORITY_TIMER, [this](swReactor *) { select(); });
+    reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](swReactor *) { select(); });
 
-    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_TIMER,
+    reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
                                 [this](swReactor *reactor, int &event_num) -> bool { return count() == 0; });
 
     reactor->add_destroy_callback([](void *) { swoole_timer_free(); });

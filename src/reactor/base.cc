@@ -24,6 +24,9 @@
 
 using swoole::CallbackManager;
 using swoole::Reactor;
+using swoole::ReactorHandler;
+using swoole::Event;
+using swoole::network::Socket;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -33,7 +36,7 @@ using swoole::Reactor;
 #endif
 #endif
 
-static void reactor_begin(swReactor *reactor);
+static void reactor_begin(Reactor *reactor);
 
 Reactor::Reactor(int max_event) {
     int ret;
@@ -63,7 +66,7 @@ Reactor::Reactor(int max_event) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, this);
     }
 
-    set_end_callback(SW_REACTOR_PRIORITY_DEFER_TASK, [](swReactor *reactor) {
+    set_end_callback(Reactor::PRIORITY_DEFER_TASK, [](Reactor *reactor) {
         CallbackManager *cm = reactor->defer_tasks;
         if (cm) {
             reactor->defer_tasks = nullptr;
@@ -72,30 +75,30 @@ Reactor::Reactor(int max_event) {
         }
     });
 
-    set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFER_TASK,
-                       [](swReactor *reactor, int &event_num) -> bool { return reactor->defer_tasks == nullptr; });
+    set_exit_condition(Reactor::EXIT_CONDITION_DEFER_TASK,
+                       [](Reactor *reactor, int &event_num) -> bool { return reactor->defer_tasks == nullptr; });
 
-    set_end_callback(SW_REACTOR_PRIORITY_IDLE_TASK, [](swReactor *reactor) {
+    set_end_callback(Reactor::PRIORITY_IDLE_TASK, [](Reactor *reactor) {
         if (reactor->idle_task.callback) {
             reactor->idle_task.callback(reactor->idle_task.data);
         }
     });
 
-    set_end_callback(SW_REACTOR_PRIORITY_SIGNAL_CALLBACK, [](swReactor *reactor) {
+    set_end_callback(Reactor::PRIORITY_SIGNAL_CALLBACK, [](Reactor *reactor) {
         if (sw_unlikely(reactor->singal_no)) {
             swSignal_callback(reactor->singal_no);
             reactor->singal_no = 0;
         }
     });
 
-    set_end_callback(SW_REACTOR_PRIORITY_TRY_EXIT, [](swReactor *reactor) {
+    set_end_callback(Reactor::PRIORITY_TRY_EXIT, [](Reactor *reactor) {
         if (reactor->wait_exit && reactor->if_exit()) {
             reactor->running = false;
         }
     });
 
 #ifdef SW_USE_MALLOC_TRIM
-    set_end_callback(SW_REACTOR_PRIORITY_MALLOC_TRIM, [](swReactor *reactor) {
+    set_end_callback(Reactor::PRIORITY_MALLOC_TRIM, [](Reactor *reactor) {
         time_t now = ::time(nullptr);
         if (reactor->last_malloc_trim_time < now - SW_MALLOC_TRIM_INTERVAL) {
             malloc_trim(SW_MALLOC_TRIM_PAD);
@@ -104,11 +107,11 @@ Reactor::Reactor(int max_event) {
     });
 #endif
 
-    set_exit_condition(SW_REACTOR_EXIT_CONDITION_DEFAULT,
-                       [](swReactor *reactor, int &event_num) -> bool { return event_num == 0; });
+    set_exit_condition(Reactor::EXIT_CONDITION_DEFAULT,
+                       [](Reactor *reactor, int &event_num) -> bool { return event_num == 0; });
 }
 
-bool Reactor::set_handler(int _fdtype, swReactor_handler handler) {
+bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     int fdtype = swReactor_fdtype(_fdtype);
 
     if (fdtype >= SW_MAX_FDTYPE) {
@@ -144,13 +147,13 @@ void Reactor::activate_future_task() {
     onBegin = reactor_begin;
 }
 
-static void reactor_begin(swReactor *reactor) {
+static void reactor_begin(Reactor *reactor) {
     if (reactor->future_task.callback) {
         reactor->future_task.callback(reactor->future_task.data);
     }
 }
 
-int swReactor_close(swReactor *reactor, swSocket *socket) {
+int swReactor_close(Reactor *reactor, Socket *socket) {
     if (socket->out_buffer) {
         swBuffer_free(socket->out_buffer);
         socket->out_buffer = nullptr;
@@ -167,15 +170,14 @@ int swReactor_close(swReactor *reactor, swSocket *socket) {
     return SW_OK;
 }
 
-int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n) {
+int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
     int ret;
     swBuffer *buffer = socket->out_buffer;
     const char *ptr = (const char *) buf;
     int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
-        socket->buffer_size = swoole::network::Socket::default_buffer_size;
-        ;
+        socket->buffer_size = Socket::default_buffer_size;
     }
 
     if (socket->nonblock == 0) {
@@ -246,10 +248,10 @@ int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n
     return SW_OK;
 }
 
-int swReactor_onWrite(swReactor *reactor, swEvent *ev) {
+int swReactor_onWrite(Reactor *reactor, Event *ev) {
     int ret;
 
-    swSocket *socket = ev->socket;
+    Socket *socket = ev->socket;
     swBuffer_chunk *chunk = nullptr;
     swBuffer *buffer = socket->out_buffer;
 
@@ -303,11 +305,11 @@ void Reactor::add_destroy_callback(swCallback cb, void *data) {
     destroy_callbacks.append(cb, data);
 }
 
-void Reactor::set_end_callback(enum swReactor_end_callback id, const std::function<void(Reactor *)> &fn) {
+void Reactor::set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn) {
     end_callbacks[id] = fn;
 }
 
-void Reactor::set_exit_condition(enum swReactor_exit_condition id, const std::function<bool(Reactor *, int &)> &fn) {
+void Reactor::set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, int &)> &fn) {
     exit_conditions[id] = fn;
 }
 

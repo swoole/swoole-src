@@ -22,6 +22,7 @@
 #include "swoole_timer.h"
 #include "swoole_protocol.h"
 #include "swoole_log.h"
+#include "swoole_ssl.h"
 #include "swoole_client.h"
 #include "swoole_proxy.h"
 #include "swoole_async.h"
@@ -46,13 +47,13 @@ static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t of
 static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, int flags);
 static ssize_t Client_udp_recv(Client *cli, char *data, size_t len, int waitall);
 
-static int Client_onDgramRead(Reactor *reactor, swEvent *event);
-static int Client_onStreamRead(Reactor *reactor, swEvent *event);
-static int Client_onWrite(Reactor *reactor, swEvent *event);
-static int Client_onError(Reactor *reactor, swEvent *event);
+static int Client_onDgramRead(Reactor *reactor, Event *event);
+static int Client_onStreamRead(Reactor *reactor, Event *event);
+static int Client_onWrite(Reactor *reactor, Event *event);
+static int Client_onError(Reactor *reactor, Event *event);
 static void Client_onTimeout(Timer *timer, TimerNode *tnode);
-static void Client_onResolveCompleted(swAio_event *event);
-static int Client_onPackage(swProtocol *proto, swSocket *conn, const char *data, uint32_t length);
+static void Client_onResolveCompleted(AsyncEvent *event);
+static int Client_onPackage(Protocol *proto, Socket *conn, const char *data, uint32_t length);
 
 static sw_inline void execute_onConnect(Client *cli) {
     if (cli->timer) {
@@ -538,8 +539,8 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     }
 
     if (cli->wait_dns) {
-        swAio_event ev;
-        sw_memset_zero(&ev, sizeof(swAio_event));
+        AsyncEvent ev;
+        sw_memset_zero(&ev, sizeof(AsyncEvent));
 
         int len = strlen(cli->server_host);
         if (strlen(cli->server_host) < SW_IP_MAX_LENGTH) {
@@ -867,13 +868,13 @@ static int Client_https_proxy_handshake(Client *cli) {
 }
 #endif
 
-static int Client_onPackage(swProtocol *proto, swSocket *conn, const char *data, uint32_t length) {
+static int Client_onPackage(Protocol *proto, Socket *conn, const char *data, uint32_t length) {
     Client *cli = (Client *) conn->object;
     cli->onReceive(cli, data, length);
     return conn->close_wait ? SW_ERR : SW_OK;
 }
 
-static int Client_onStreamRead(Reactor *reactor, swEvent *event) {
+static int Client_onStreamRead(Reactor *reactor, Event *event) {
     ssize_t n = -1;
     Client *cli = (Client *) event->socket->object;
     char *buf = cli->buffer->str + cli->buffer->length;
@@ -1023,7 +1024,7 @@ _recv_again:
     return SW_OK;
 }
 
-static int Client_onDgramRead(Reactor *reactor, swEvent *event) {
+static int Client_onDgramRead(Reactor *reactor, Event *event) {
     Client *cli = (Client *) event->socket->object;
     char buffer[SW_BUFFER_SIZE_UDP];
 
@@ -1036,7 +1037,7 @@ static int Client_onDgramRead(Reactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-static int Client_onError(Reactor *reactor, swEvent *event) {
+static int Client_onError(Reactor *reactor, Event *event) {
     Client *cli = (Client *) event->socket->object;
     if (cli->active) {
         return cli->close();
@@ -1067,7 +1068,7 @@ static void Client_onTimeout(Timer *timer, TimerNode *tnode) {
     }
 }
 
-static void Client_onResolveCompleted(swAio_event *event) {
+static void Client_onResolveCompleted(AsyncEvent *event) {
     if (event->canceled) {
         sw_free(event->buf);
         return;
@@ -1089,9 +1090,9 @@ static void Client_onResolveCompleted(swAio_event *event) {
     sw_free(event->buf);
 }
 
-static int Client_onWrite(Reactor *reactor, swEvent *event) {
+static int Client_onWrite(Reactor *reactor, Event *event) {
     Client *cli = (Client *) event->socket->object;
-    swSocket *_socket = cli->socket;
+    Socket *_socket = cli->socket;
     int ret;
     int err;
     socklen_t len = sizeof(err);

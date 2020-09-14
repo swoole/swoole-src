@@ -642,7 +642,7 @@ static PHP_METHOD(swoole_client_coro, send) {
         RETURN_FALSE;
     }
 
-    Socket::timeout_setter ts(cli, timeout, Socket::TIMEOUT_WRITE);
+    Socket::TimeoutSetter ts(cli, timeout, Socket::TIMEOUT_WRITE);
     ssize_t ret = cli->send_all(data, data_len);
     if (ret < 0) {
         zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), cli->errCode);
@@ -796,7 +796,7 @@ static PHP_METHOD(swoole_client_coro, recv) {
         }
     } else {
         result = zend_string_alloc(SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string), 0);
-        Socket::timeout_setter ts(cli, timeout, Socket::TIMEOUT_READ);
+        Socket::TimeoutSetter ts(cli, timeout, Socket::TIMEOUT_READ);
         retval = cli->recv(ZSTR_VAL(result), SW_PHP_CLIENT_BUFFER_SIZE - sizeof(zend_string));
         if (retval <= 0) {
             zend_string_free(result);

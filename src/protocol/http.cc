@@ -27,8 +27,9 @@
 #include "swoole_websocket.h"
 #include "swoole_static_handler.h"
 
+using namespace swoole;
 using std::string;
-using swoole::Server;
+using swoole::network::Socket;
 using swoole::http_server::Request;
 using swoole::http_server::StaticHandler;
 
@@ -706,7 +707,7 @@ void Server::destroy_http_request(Connection *conn) {
 }
 
 #ifdef SW_USE_HTTP2
-static void protocol_status_error(swSocket *socket, swConnection *conn) {
+static void protocol_status_error(Socket *socket, Connection *conn) {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_PROTOCOL_ERROR,
                      "unexpected protocol status of session#%u<%s:%d>",
@@ -715,8 +716,8 @@ static void protocol_status_error(swSocket *socket, swConnection *conn) {
                      conn->info.get_port());
 }
 
-ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, const char *data, uint32_t length) {
-    swConnection *conn = (swConnection *) socket->object;
+ssize_t swHttpMix_get_package_length(Protocol *protocol, Socket *socket, const char *data, uint32_t length) {
+    Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
         return swWebSocket_get_package_length(protocol, socket, data, length);
     } else if (conn->http2_stream) {
@@ -727,8 +728,8 @@ ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *socket, con
     }
 }
 
-uint8_t swHttpMix_get_package_length_size(swSocket *socket) {
-    swConnection *conn = (swConnection *) socket->object;
+uint8_t swHttpMix_get_package_length_size(Socket *socket) {
+    Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
         return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
     } else if (conn->http2_stream) {
@@ -739,8 +740,8 @@ uint8_t swHttpMix_get_package_length_size(swSocket *socket) {
     }
 }
 
-int swHttpMix_dispatch_frame(swProtocol *proto, swSocket *socket, const char *data, uint32_t length) {
-    swConnection *conn = (swConnection *) socket->object;
+int swHttpMix_dispatch_frame(Protocol *proto, Socket *socket, const char *data, uint32_t length) {
+    Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
         return swWebSocket_dispatch_frame(proto, socket, data, length);
     } else if (conn->http2_stream) {

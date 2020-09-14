@@ -16,14 +16,14 @@
 
 #include "swoole_server.h"
 
+using namespace swoole;
+
 static int swFactory_start(swFactory *factory);
 static int swFactory_shutdown(swFactory *factory);
 static bool swFactory_dispatch(swFactory *factory, swSendData *req);
 static bool swFactory_notify(swFactory *factory, swDataHead *event);
 static bool swFactory_end(swFactory *factory, int fd);
 static void swFactory_free(swFactory *factory);
-
-using swoole::Server;
 
 int swFactory_create(swFactory *factory) {
     factory->dispatch = swFactory_dispatch;
@@ -49,7 +49,7 @@ static int swFactory_shutdown(swFactory *factory) {
 static bool swFactory_dispatch(swFactory *factory, swSendData *task) {
     Server *serv = (Server *) factory->ptr;
     swPacket_ptr pkg;
-    swConnection *conn = nullptr;
+    Connection *conn = nullptr;
 
     if (swEventData_is_stream(task->info.type)) {
         conn = serv->get_connection(task->info.fd);
@@ -93,7 +93,7 @@ static bool swFactory_dispatch(swFactory *factory, swSendData *task) {
  */
 static bool swFactory_notify(swFactory *factory, swDataHead *info) {
     Server *serv = (Server *) factory->ptr;
-    swConnection *conn = serv->get_connection(info->fd);
+    Connection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
         swWarn("dispatch[type=%d] failed, connection#%d is not active", info->type, info->fd);
         return false;
@@ -121,7 +121,7 @@ static bool swFactory_end(swFactory *factory, int fd) {
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    swConnection *conn = serv->get_connection_by_session_id(fd);
+    Connection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0) {
         // swWarn("can not close. Connection[%d] not found", _send.info.fd);
         return false;

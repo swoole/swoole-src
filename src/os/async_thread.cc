@@ -321,7 +321,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
     }
 }
 
-static void aio_thread_release(swAio_event *event) {
+static void aio_thread_release(AsyncEvent *event) {
     thread::id *tid = reinterpret_cast<thread::id *>(event->object);
     pool->release_thread(*tid);
     delete tid;
@@ -374,8 +374,8 @@ static int init() {
     swoole_event_add(SwooleTG.aio_read_socket, SW_EVENT_READ);
 
     sw_reactor()->add_destroy_callback(destroy);
-    sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_AIO_TASK,
-                                     [](swReactor *reactor, int &event_num) -> bool {
+    sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_AIO_TASK,
+                                     [](Reactor *reactor, int &event_num) -> bool {
                                          if (SwooleTG.aio_init && SwooleTG.aio_task_num == 0) {
                                              event_num--;
                                          }
@@ -400,7 +400,7 @@ size_t thread_count() {
     return pool ? pool->worker_count() : 0;
 }
 
-ssize_t dispatch(const swAio_event *request) {
+ssize_t dispatch(const AsyncEvent *request) {
     AsyncEvent *event = dispatch2(request);
     if (event == nullptr) {
         return -1;
@@ -408,7 +408,7 @@ ssize_t dispatch(const swAio_event *request) {
     return event->task_id;
 }
 
-swAio_event *dispatch2(const swAio_event *request) {
+AsyncEvent *dispatch2(const AsyncEvent *request) {
     if (sw_unlikely(!SwooleTG.aio_init)) {
         init();
     }
@@ -419,7 +419,7 @@ swAio_event *dispatch2(const swAio_event *request) {
     return event;
 }
 
-int callback(swReactor *reactor, swEvent *event) {
+int callback(Reactor *reactor, Event *event) {
     if (SwooleTG.aio_schedule) {
         pool->schedule();
     }

@@ -23,11 +23,15 @@
 
 #include <sys/select.h>
 
+using swoole::Reactor;
+using swoole::ReactorHandler;
+using swoole::network::Socket;
+
 struct swReactorSelect {
     fd_set rfds;
     fd_set wfds;
     fd_set efds;
-    std::unordered_map<int, swSocket *> fds;
+    std::unordered_map<int, Socket *> fds;
     int maxfd;
 
     swReactorSelect() {
@@ -45,13 +49,13 @@ struct swReactorSelect {
     } while (0)
 #define SW_FD_ISSET(fd, set) ((fd < FD_SETSIZE) && FD_ISSET(fd, set))
 
-static int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events);
-static int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events);
-static int swReactorSelect_del(swReactor *reactor, swSocket *socket);
-static int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo);
-static void swReactorSelect_free(swReactor *reactor);
+static int swReactorSelect_add(Reactor *reactor, Socket *socket, int events);
+static int swReactorSelect_set(Reactor *reactor, Socket *socket, int events);
+static int swReactorSelect_del(Reactor *reactor, Socket *socket);
+static int swReactorSelect_wait(Reactor *reactor, struct timeval *timeo);
+static void swReactorSelect_free(Reactor *reactor);
 
-int swReactorSelect_create(swReactor *reactor) {
+int swReactorSelect_create(Reactor *reactor) {
     // create reactor object
     swReactorSelect *object = new swReactorSelect();
     reactor->object = object;
@@ -65,12 +69,12 @@ int swReactorSelect_create(swReactor *reactor) {
     return SW_OK;
 }
 
-void swReactorSelect_free(swReactor *reactor) {
+void swReactorSelect_free(Reactor *reactor) {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
     delete object;
 }
 
-int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events) {
+int swReactorSelect_add(Reactor *reactor, Socket *socket, int events) {
     int fd = socket->fd;
     if (fd > FD_SETSIZE) {
         swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
@@ -87,7 +91,7 @@ int swReactorSelect_add(swReactor *reactor, swSocket *socket, int events) {
     return SW_OK;
 }
 
-int swReactorSelect_del(swReactor *reactor, swSocket *socket) {
+int swReactorSelect_del(Reactor *reactor, Socket *socket) {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
     if (socket->removed) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, 
@@ -106,7 +110,7 @@ int swReactorSelect_del(swReactor *reactor, swSocket *socket) {
     return SW_OK;
 }
 
-int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events) {
+int swReactorSelect_set(Reactor *reactor, Socket *socket, int events) {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
     auto i = object->fds.find(socket->fd);
     if (i == object->fds.end()) {
@@ -117,10 +121,10 @@ int swReactorSelect_set(swReactor *reactor, swSocket *socket, int events) {
     return SW_OK;
 }
 
-int swReactorSelect_wait(swReactor *reactor, struct timeval *timeo) {
+int swReactorSelect_wait(Reactor *reactor, struct timeval *timeo) {
     swReactorSelect *object = (swReactorSelect *) reactor->object;
     swEvent event;
-    swReactor_handler handler;
+    ReactorHandler handler;
     struct timeval timeout;
     int ret;
 

@@ -18,30 +18,32 @@
 
 #include "swoole_server.h"
 
-struct swFactoryProcess {
-    swPipe *pipes;
-    swPipeBuffer *send_buffer;
+using namespace swoole;
+using swoole::network::Socket;
+
+struct FactoryProcess {
+    Pipe *pipes;
+    PipeBuffer *send_buffer;
 };
 
-typedef int (*send_func_t)(swServer *, swPipeBuffer *, size_t, void *);
+typedef int (*send_func_t)(Server *, PipeBuffer *, size_t, void *);
 
-static int swFactoryProcess_start(swFactory *factory);
-static int swFactoryProcess_shutdown(swFactory *factory);
-static void swFactoryProcess_free(swFactory *factory);
-static int swFactoryProcess_create_pipes(swFactory *factory);
+static int swFactoryProcess_start(Factory *factory);
+static int swFactoryProcess_shutdown(Factory *factory);
+static void swFactoryProcess_free(Factory *factory);
+static int swFactoryProcess_create_pipes(Factory *factory);
 
-static bool swFactoryProcess_notify(swFactory *factory, swDataHead *event);
-static bool swFactoryProcess_dispatch(swFactory *factory, swSendData *data);
-static bool swFactoryProcess_finish(swFactory *factory, swSendData *data);
-static bool swFactoryProcess_end(swFactory *factory, int fd);
+static bool swFactoryProcess_notify(Factory *factory, DataHead *event);
+static bool swFactoryProcess_dispatch(Factory *factory, SendData *data);
+static bool swFactoryProcess_finish(Factory *factory, SendData *data);
+static bool swFactoryProcess_end(Factory *factory, int fd);
 
-static bool process_send_packet(
-    swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void *private_data);
-static int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
-static int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data);
+static bool process_send_packet(Server *serv, PipeBuffer *buf, SendData *resp, send_func_t _send, void *private_data);
+static int process_sendto_worker(Server *serv, PipeBuffer *buf, size_t n, void *private_data);
+static int process_sendto_reactor(Server *serv, PipeBuffer *buf, size_t n, void *private_data);
 
-int swFactoryProcess_create(swFactory *factory, uint32_t worker_num) {
-    factory->object = new swFactoryProcess;
+int swFactoryProcess_create(Factory *factory, uint32_t worker_num) {
+    factory->object = new FactoryProcess;
     factory->dispatch = swFactoryProcess_dispatch;
     factory->finish = swFactoryProcess_finish;
     factory->start = swFactoryProcess_start;
@@ -53,9 +55,9 @@ int swFactoryProcess_create(swFactory *factory, uint32_t worker_num) {
     return SW_OK;
 }
 
-static int swFactoryProcess_shutdown(swFactory *factory) {
+static int swFactoryProcess_shutdown(Factory *factory) {
     int status;
-    swServer *serv = (swServer *) factory->ptr;
+    Server *serv = (Server *) factory->ptr;
 
     if (swoole_kill(serv->gs->manager_pid, SIGTERM) < 0) {
         swSysWarn("swKill(%d) failed", serv->gs->manager_pid);
@@ -68,9 +70,9 @@ static int swFactoryProcess_shutdown(swFactory *factory) {
     return SW_OK;
 }
 
-static void swFactoryProcess_free(swFactory *factory) {
-    swServer *serv = (swServer *) factory->ptr;
-    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
+static void swFactoryProcess_free(Factory *factory) {
+    Server *serv = (Server *) factory->ptr;
+    FactoryProcess *object = (FactoryProcess *) serv->factory.object;
 
     uint32_t i;
 
@@ -94,11 +96,11 @@ static void swFactoryProcess_free(swFactory *factory) {
     delete object;
 }
 
-static int swFactoryProcess_create_pipes(swFactory *factory) {
-    swServer *serv = (swServer *) factory->ptr;
-    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
+static int swFactoryProcess_create_pipes(Factory *factory) {
+    Server *serv = (Server *) factory->ptr;
+    FactoryProcess *object = (FactoryProcess *) serv->factory.object;
 
-    object->pipes = new swPipe[serv->worker_num]();
+    object->pipes = new Pipe[serv->worker_num]();
 
     for (uint32_t i = 0; i < serv->worker_num; i++) {
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
@@ -122,16 +124,16 @@ static int swFactoryProcess_create_pipes(swFactory *factory) {
     return SW_OK;
 }
 
-static int swFactoryProcess_start(swFactory *factory) {
-    swServer *serv = (swServer *) factory->ptr;
-    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
+static int swFactoryProcess_start(Factory *factory) {
+    Server *serv = (Server *) factory->ptr;
+    FactoryProcess *object = (FactoryProcess *) serv->factory.object;
 
     if (serv->dispatch_mode == SW_DISPATCH_STREAM) {
         serv->stream_socket_file = swoole_string_format(64, "/tmp/swoole.%d.sock", serv->gs->master_pid);
         if (serv->stream_socket_file == nullptr) {
             return SW_ERR;
         }
-        swSocket *sock = swoole::make_server_socket(SW_SOCK_UNIX_STREAM, serv->stream_socket_file);
+        Socket *sock = swoole::make_server_socket(SW_SOCK_UNIX_STREAM, serv->stream_socket_file);
         if (sock == nullptr) {
             return SW_ERR;
         }
@@ -156,18 +158,18 @@ static int swFactoryProcess_start(swFactory *factory) {
         return SW_ERR;
     }
 
-    object->send_buffer = (swPipeBuffer *) sw_malloc(serv->ipc_max_size);
+    object->send_buffer = (PipeBuffer *) sw_malloc(serv->ipc_max_size);
     if (object->send_buffer == nullptr) {
         swSysError("malloc[send_buffer] failed");
         return SW_ERR;
     }
-    sw_memset_zero(object->send_buffer, sizeof(swDataHead));
+    sw_memset_zero(object->send_buffer, sizeof(DataHead));
 
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
     if (serv->start_manager_process() < 0) {
-        swWarn("swFactoryProcess_manager_start failed");
+        swWarn("FactoryProcess_manager_start failed");
         return SW_ERR;
     }
     factory->finish = swFactory_finish;
@@ -177,26 +179,26 @@ static int swFactoryProcess_start(swFactory *factory) {
 /**
  * [ReactorThread] notify info to worker process
  */
-static bool swFactoryProcess_notify(swFactory *factory, swDataHead *ev) {
-    swSendData task;
+static bool swFactoryProcess_notify(Factory *factory, DataHead *ev) {
+    SendData task;
     task.info = *ev;
     task.data = nullptr;
     return swFactoryProcess_dispatch(factory, &task);
 }
 
-static inline int process_sendto_worker(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data) {
+static inline int process_sendto_worker(Server *serv, PipeBuffer *buf, size_t n, void *private_data) {
     return serv->send_to_worker_from_master((swWorker *) private_data, buf, n);
 }
 
-static inline int process_sendto_reactor(swServer *serv, swPipeBuffer *buf, size_t n, void *private_data) {
-    return serv->send_to_reactor_thread((swEventData *) buf, n, ((swConnection *) private_data)->session_id);
+static inline int process_sendto_reactor(Server *serv, PipeBuffer *buf, size_t n, void *private_data) {
+    return serv->send_to_reactor_thread((swEventData *) buf, n, ((Connection *) private_data)->session_id);
 }
 
 /**
  * [ReactorThread] dispatch request to worker
  */
-static bool swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
-    swServer *serv = (swServer *) factory->ptr;
+static bool swFactoryProcess_dispatch(Factory *factory, SendData *task) {
+    Server *serv = (Server *) factory->ptr;
     int fd = task->info.fd;
 
     int target_worker_id = serv->schedule_worker(fd, task);
@@ -214,7 +216,7 @@ static bool swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
     }
 
     if (swEventData_is_stream(task->info.type)) {
-        swConnection *conn = serv->get_connection(fd);
+        Connection *conn = serv->get_connection(fd);
         if (conn == nullptr || conn->active == 0) {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
             return false;
@@ -246,7 +248,7 @@ static bool swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
     /**
      * Multi-Threads
      */
-    swPipeBuffer *buf = serv->pipe_buffers[SwooleTG.id];
+    PipeBuffer *buf = serv->pipe_buffers[SwooleTG.id];
     buf->info = task->info;
 
     return process_send_packet(serv, buf, task, process_sendto_worker, worker);
@@ -254,11 +256,11 @@ static bool swFactoryProcess_dispatch(swFactory *factory, swSendData *task) {
 
 /**
  * @description: master process send data to worker process.
- *  If the data sent is larger than swServer::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
+ *  If the data sent is larger than Server::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
  * @return: send success returns SW_OK, send failure returns SW_ERR.
  */
 static bool process_send_packet(
-    swServer *serv, swPipeBuffer *buf, swSendData *resp, send_func_t _send, void *private_data) {
+    Server *serv, PipeBuffer *buf, SendData *resp, send_func_t _send, void *private_data) {
     const char *data = resp->data;
     uint32_t send_n = resp->info.len;
     off_t offset = 0;
@@ -316,7 +318,7 @@ _ipc_use_chunk:
     return true;
 }
 
-static bool inline process_is_supported_send_yield(swServer *serv, swConnection *conn) {
+static bool inline process_is_supported_send_yield(Server *serv, Connection *conn) {
     if (!serv->is_hash_dispatch_mode()) {
         return false;
     } else {
@@ -327,9 +329,9 @@ static bool inline process_is_supported_send_yield(swServer *serv, swConnection 
 /**
  * [Worker] send to client, proxy by reactor
  */
-static bool swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
-    swServer *serv = (swServer *) factory->ptr;
-    swFactoryProcess *object = (swFactoryProcess *) serv->factory.object;
+static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
+    Server *serv = (Server *) factory->ptr;
+    FactoryProcess *object = (FactoryProcess *) serv->factory.object;
 
     /**
      * More than the output buffer
@@ -345,7 +347,7 @@ static bool swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
     }
 
     int session_id = resp->info.fd;
-    swConnection *conn;
+    Connection *conn;
     if (resp->info.type != SW_SERVER_EVENT_CLOSE) {
         conn = serv->get_connection_verify(session_id);
     } else {
@@ -392,7 +394,7 @@ static bool swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
         return true;
     }
 
-    swPipeBuffer *buf = object->send_buffer;
+    PipeBuffer *buf = object->send_buffer;
 
     buf->info.fd = session_id;
     buf->info.type = resp->info.type;
@@ -404,16 +406,16 @@ static bool swFactoryProcess_finish(swFactory *factory, swSendData *resp) {
     return process_send_packet(serv, buf, resp, process_sendto_reactor, conn);
 }
 
-static bool swFactoryProcess_end(swFactory *factory, int fd) {
-    swServer *serv = (swServer *) factory->ptr;
-    swSendData _send = {};
-    swDataHead info = {};
+static bool swFactoryProcess_end(Factory *factory, int fd) {
+    Server *serv = (Server *) factory->ptr;
+    SendData _send = {};
+    DataHead info = {};
 
     _send.info.fd = fd;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    swConnection *conn = serv->get_connection_by_session_id(fd);
+    Connection *conn = serv->get_connection_by_session_id(fd);
     if (conn == nullptr || conn->active == 0) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;

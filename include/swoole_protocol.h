@@ -51,6 +51,7 @@ struct Protocol {
     int recv_with_eof_protocol(network::Socket *socket, String *buffer);
     int recv_with_length_protocol(network::Socket *socket, String *buffer);
     int recv_split_by_eof(network::Socket *socket, String *buffer);
+
     static ssize_t default_length_func(Protocol *protocol, network::Socket *socket, const char *data, uint32_t size);
 
     inline static LengthFunc get_function(const std::string &name) {

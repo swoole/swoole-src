@@ -117,6 +117,8 @@ struct Worker {
 
     void *ptr;
     void *ptr2;
+
+    ssize_t send_pipe_message(const void *buf, size_t n, int flags);
 };
 
 struct ProcessPool {
@@ -183,7 +185,7 @@ struct ProcessPool {
 
     Worker *workers;
     swPipe *pipes;
-    std::unordered_map<pid_t, Worker *> *map;
+    std::unordered_map<pid_t, Worker *> *map_;
     swReactor *reactor;
     swMsgQueue *queue;
     swStreamInfo *stream_info_;

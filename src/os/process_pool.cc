@@ -27,18 +27,22 @@
 #include "swoole_client.h"
 
 using swoole::ProcessPool;
+using swoole::Worker;
 using swoole::network::Stream;
+using swoole::network::Socket;
+using swoole::Timer;
+using swoole::TimerNode;
 
 /**
  * call onTask
  */
-static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker);
+static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker);
 /**
  * call onMessage
  */
-static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker);
+static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker);
 
-static void ProcessPool_kill_timeout_worker(swTimer *timer, swTimer_node *tnode) {
+static void ProcessPool_kill_timeout_worker(Timer *timer, TimerNode *tnode) {
     uint32_t i;
     pid_t reload_worker_pid = 0;
     ProcessPool *pool = (ProcessPool *) tnode->data;
@@ -73,7 +77,7 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
     /**
      * Shared memory is used here
      */
-    pool->workers = (swWorker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(swWorker));
+    pool->workers = (Worker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(Worker));
     if (pool->workers == nullptr) {
         swSysWarn("malloc[1] failed");
         return SW_ERR;
@@ -116,7 +120,7 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
         ipc_mode = SW_IPC_NONE;
     }
 
-    pool->map = new std::unordered_map<pid_t, swWorker *>;
+    pool->map_ = new std::unordered_map<pid_t, Worker *>;
 
     pool->ipc_mode = ipc_mode;
     if (ipc_mode > SW_IPC_NONE) {
@@ -224,7 +228,7 @@ int ProcessPool::response(const char *data, int length) {
  */
 int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     int ret = 0;
-    swWorker *worker;
+    Worker *worker;
 
     if (use_socket) {
         Stream *stream = Stream::create(stream_info_->socket_file, 0, SW_SOCK_UNIX_STREAM);
@@ -248,7 +252,7 @@ int ProcessPool::dispatch(EventData *data, int *dst_worker_id) {
     worker = get_worker(*dst_worker_id);
 
     int sendn = sizeof(data->info) + data->info.len;
-    ret = swWorker_send_pipe_message(worker, data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
+    ret = worker->send_pipe_message(data, sendn, SW_PIPE_MASTER | SW_PIPE_NONBLOCK);
 
     if (ret >= 0) {
         sw_atomic_fetch_add(&worker->tasking_num, 1);
@@ -286,9 +290,9 @@ int ProcessPool::dispatch_blocking(swEventData *data, int *dst_worker_id) {
     }
 
     *dst_worker_id += start_id;
-    swWorker *worker = get_worker(*dst_worker_id);
+    Worker *worker = get_worker(*dst_worker_id);
 
-    ret = swWorker_send_pipe_message(worker, data, sendn, SW_PIPE_MASTER);
+    ret = worker->send_pipe_message(data, sendn, SW_PIPE_MASTER);
     if (ret < 0) {
         swWarn("send %d bytes to worker#%d failed", sendn, *dst_worker_id);
     } else {
@@ -301,7 +305,7 @@ int ProcessPool::dispatch_blocking(swEventData *data, int *dst_worker_id) {
 void ProcessPool::shutdown() {
     uint32_t i;
     int status;
-    swWorker *worker;
+    Worker *worker;
     running = 0;
 
     // concurrent kill
@@ -321,7 +325,7 @@ void ProcessPool::shutdown() {
     started = false;
 }
 
-pid_t ProcessPool::spawn(swWorker *worker) {
+pid_t ProcessPool::spawn(Worker *worker) {
     pid_t pid = swoole_fork(0);
     int ret_code = 0;
 
@@ -355,11 +359,11 @@ pid_t ProcessPool::spawn(swWorker *worker) {
     default:
         // remove old process
         if (worker->pid) {
-            map->erase(worker->pid);
+            map_->erase(worker->pid);
         }
         worker->pid = pid;
         // insert new process
-        map->emplace(std::make_pair(pid, worker));
+        map_->emplace(std::make_pair(pid, worker));
         break;
     }
     return pid;
@@ -383,7 +387,7 @@ void ProcessPool::set_max_request(uint32_t _max_request, uint32_t _max_request_g
     max_request_grace = _max_request_grace;
 }
 
-static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
+static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
     struct {
         long mtype;
         swEventData buf;
@@ -418,7 +422,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, swWorker *worker) {
                 break;
             }
         } else if (pool->use_socket) {
-            swSocket *conn = pool->stream_info_->socket->accept();
+            Socket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;
@@ -511,7 +515,7 @@ int ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
     return SW_OK;
 }
 
-static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
+static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
     ssize_t n;
     char *data;
 
@@ -531,7 +535,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
             data = outbuf->mdata;
             outbuf->mtype = 0;
         } else if (pool->use_socket) {
-            swSocket *conn = pool->stream_info_->socket->accept();
+            Socket *conn = pool->stream_info_->socket->accept();
             if (conn == nullptr) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;
@@ -604,8 +608,8 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, swWorker *worker) {
 /**
  * add a worker to pool
  */
-int ProcessPool_add_worker(ProcessPool *pool, swWorker *worker) {
-    pool->map->emplace(std::make_pair(worker->pid, worker));
+int ProcessPool_add_worker(ProcessPool *pool, Worker *worker) {
+    pool->map_->emplace(std::make_pair(worker->pid, worker));
     return SW_OK;
 }
 
@@ -615,7 +619,7 @@ int ProcessPool::wait() {
     int ret;
     int status;
 
-    reload_workers = (swWorker *) sw_calloc(worker_num, sizeof(swWorker));
+    reload_workers = (Worker *) sw_calloc(worker_num, sizeof(Worker));
     if (reload_workers == nullptr) {
         swError("malloc[reload_workers] failed");
         return SW_ERR;
@@ -640,7 +644,7 @@ int ProcessPool::wait() {
                 if (!reload_init) {
                     swInfo("reload workers");
                     reload_init = true;
-                    memcpy(reload_workers, workers, sizeof(swWorker) * worker_num);
+                    memcpy(reload_workers, workers, sizeof(Worker) * worker_num);
                     if (max_wait_time) {
                         swoole_timer_add((long) (max_wait_time * 1000), false, ProcessPool_kill_timeout_worker, this);
                     }
@@ -650,8 +654,8 @@ int ProcessPool::wait() {
         }
 
         if (running) {
-            auto iter = map->find(pid);
-            if (iter == map->end()) {
+            auto iter = map_->find(pid);
+            if (iter == map_->end()) {
                 if (onWorkerNotFound) {
                     onWorkerNotFound(this, pid, status);
                 } else {
@@ -660,7 +664,7 @@ int ProcessPool::wait() {
                 continue;
             }
 
-            swWorker *exit_worker = iter->second;
+            Worker *exit_worker = iter->second;
             if (!WIFEXITED(status)) {
                 swWarn("worker#%d abnormal exit, status=%d, signal=%d"
                        "%s",
@@ -675,7 +679,7 @@ int ProcessPool::wait() {
                 sw_free(reload_workers);
                 return SW_ERR;
             }
-            map->erase(pid);
+            map_->erase(pid);
             if (pid == reload_worker_pid) {
                 reload_worker_i++;
             }
@@ -741,8 +745,8 @@ void ProcessPool::destroy() {
         sw_free(packet_buffer);
     }
 
-    if (map) {
-        delete map;
+    if (map_) {
+        delete map_;
     }
 
     SwooleG.memory_pool->free(SwooleG.memory_pool, workers);

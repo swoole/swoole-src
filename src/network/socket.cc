@@ -237,7 +237,7 @@ ssize_t Socket::recvfrom_blocking(char *__buf, size_t __len, int flags, Address 
 }
 
 static void socket_free_defer(void *ptr) {
-    swSocket *sock = (swSocket *) ptr;
+    Socket *sock = (Socket *) ptr;
     if (sock->fd != -1 && close(sock->fd) != 0) {
         swSysWarn("close(%d) failed", sock->fd);
     }

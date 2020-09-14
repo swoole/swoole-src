@@ -246,8 +246,8 @@ int php_swoole_reactor_init() {
     }
 
     if (sw_reactor() && SwooleG.user_exit_condition &&
-        !sw_reactor()->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT)) {
-        sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT, SwooleG.user_exit_condition);
+        !sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT)) {
+        sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT, SwooleG.user_exit_condition);
     }
 
     return SW_OK;

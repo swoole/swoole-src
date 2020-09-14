@@ -22,14 +22,14 @@ using namespace std;
 using namespace swoole;
 
 #ifdef __MACH__
-swTimer *sw_timer() {
+Timer *sw_timer() {
     return SwooleTG.timer;
 }
 #endif
 
 TimerNode *swoole_timer_add(long ms, bool persistent, const swTimerCallback &callback, void *private_data) {
     if (sw_unlikely(SwooleTG.timer == nullptr)) {
-        SwooleTG.timer = new swTimer();
+        SwooleTG.timer = new Timer();
         if (sw_unlikely(!SwooleTG.timer->init())) {
             delete SwooleTG.timer;
             SwooleTG.timer = nullptr;
@@ -39,7 +39,7 @@ TimerNode *swoole_timer_add(long ms, bool persistent, const swTimerCallback &cal
     return SwooleTG.timer->add(ms, persistent, private_data, callback);
 }
 
-bool swoole_timer_del(swTimer_node *tnode) {
+bool swoole_timer_del(TimerNode *tnode) {
     return SwooleTG.timer->remove(tnode);
 }
 
@@ -48,7 +48,7 @@ long swoole_timer_after(long ms, const swTimerCallback &callback, void *private_
         swWarn("Timer must be greater than 0");
         return SW_ERR;
     }
-    swTimer_node *tnode = swoole_timer_add(ms, false, callback, private_data);
+    TimerNode *tnode = swoole_timer_add(ms, false, callback, private_data);
     if (tnode == nullptr) {
         return SW_ERR;
     } else {
@@ -61,7 +61,7 @@ long swoole_timer_tick(long ms, const swTimerCallback &callback, void *private_d
         swWarn("Timer must be greater than 0");
         return SW_ERR;
     }
-    swTimer_node *tnode = swoole_timer_add(ms, true, callback, private_data);
+    TimerNode *tnode = swoole_timer_add(ms, true, callback, private_data);
     if (tnode == nullptr) {
         return SW_ERR;
     } else {
@@ -74,7 +74,7 @@ bool swoole_timer_exists(long timer_id) {
         swWarn("no timer");
         return false;
     }
-    swTimer_node *tnode = SwooleTG.timer->get(timer_id);
+    TimerNode *tnode = SwooleTG.timer->get(timer_id);
     return (tnode && !tnode->removed);
 }
 
@@ -82,7 +82,7 @@ bool swoole_timer_clear(long timer_id) {
     return SwooleTG.timer->remove(SwooleTG.timer->get(timer_id));
 }
 
-swTimer_node *swoole_timer_get(long timer_id) {
+TimerNode *swoole_timer_get(long timer_id) {
     if (!SwooleTG.timer) {
         swWarn("no timer");
         return nullptr;

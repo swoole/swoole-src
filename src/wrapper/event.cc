@@ -26,53 +26,52 @@
 #include <mutex>
 #include <thread>
 
-using namespace std;
-using swoole::coroutine::Socket;
-using swoole::coroutine::System;
-using swoole::network::Client;
+using namespace swoole;
 
-static mutex init_lock;
+using swoole::network::Socket;
+
+static std::mutex init_lock;
 
 #ifdef __MACH__
-swReactor *sw_reactor() {
+Reactor *sw_reactor() {
     return SwooleTG.reactor;
 }
 #endif
 
 int swoole_event_init(int flags) {
     if (!SwooleG.init) {
-        unique_lock<mutex> lock(init_lock);
+        std::unique_lock<std::mutex> lock(init_lock);
         swoole_init();
     }
 
-    swReactor *reactor = new swoole::Reactor(SW_REACTOR_MAXEVENTS);
+    Reactor *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
     if (flags & SW_EVENTLOOP_WAIT_EXIT) {
         reactor->wait_exit = 1;
     }
 
-    Socket::init_reactor(reactor);
-    System::init_reactor(reactor);
-    Client::init_reactor(reactor);
+    coroutine::Socket::init_reactor(reactor);
+    coroutine::System::init_reactor(reactor);
+    network::Client::init_reactor(reactor);
 
     SwooleTG.reactor = reactor;
 
     return SW_OK;
 }
 
-int swoole_event_add(swSocket *socket, int events) {
+int swoole_event_add(Socket *socket, int events) {
     return SwooleTG.reactor->add(SwooleTG.reactor, socket, events);
 }
 
-int swoole_event_set(swSocket *socket, int events) {
+int swoole_event_set(Socket *socket, int events) {
     return SwooleTG.reactor->set(SwooleTG.reactor, socket, events);
 }
 
-int swoole_event_del(swSocket *socket) {
+int swoole_event_del(Socket *socket) {
     return SwooleTG.reactor->del(SwooleTG.reactor, socket);
 }
 
 int swoole_event_wait() {
-    swReactor *reactor = SwooleTG.reactor;
+    Reactor *reactor = SwooleTG.reactor;
     int retval = 0;
     if (!reactor->wait_exit or !reactor->if_exit()) {
         retval = SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
@@ -97,7 +96,7 @@ void swoole_event_defer(swCallback cb, void *private_data) {
 /**
  * @return SW_OK or SW_ERR
  */
-ssize_t swoole_event_write(swSocket *socket, const void *data, size_t len) {
+ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
 

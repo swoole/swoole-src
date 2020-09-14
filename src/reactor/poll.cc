@@ -21,22 +21,26 @@
 #include "swoole_reactor.h"
 #include "swoole_log.h"
 
-static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events);
-static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events);
-static int swReactorPoll_del(swReactor *reactor, swSocket *socket);
-static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo);
-static void swReactorPoll_free(swReactor *reactor);
-static bool swReactorPoll_exist(swReactor *reactor, int fd);
+using swoole::Reactor;
+using swoole::ReactorHandler;
+using swoole::network::Socket;
+
+static int swReactorPoll_add(Reactor *reactor, Socket *socket, int events);
+static int swReactorPoll_set(Reactor *reactor, Socket *socket, int events);
+static int swReactorPoll_del(Reactor *reactor, Socket *socket);
+static int swReactorPoll_wait(Reactor *reactor, struct timeval *timeo);
+static void swReactorPoll_free(Reactor *reactor);
+static bool swReactorPoll_exist(Reactor *reactor, int fd);
 
 struct swReactorPoll {
     uint32_t max_fd_num;
-    swSocket **fds;
+    Socket **fds;
     struct pollfd *events;
 };
 
-int swReactorPoll_create(swReactor *reactor, int max_fd_num) {
+int swReactorPoll_create(Reactor *reactor, int max_fd_num) {
     swReactorPoll *object = new swReactorPoll();
-    object->fds = new swSocket *[max_fd_num];
+    object->fds = new Socket *[max_fd_num];
     object->events = new struct pollfd[max_fd_num];
 
     object->max_fd_num = max_fd_num;
@@ -51,14 +55,14 @@ int swReactorPoll_create(swReactor *reactor, int max_fd_num) {
     return SW_OK;
 }
 
-static void swReactorPoll_free(swReactor *reactor) {
+static void swReactorPoll_free(Reactor *reactor) {
     swReactorPoll *object = (swReactorPoll *) reactor->object;
     delete[] object->fds;
     delete[] object->events;
     delete object;
 }
 
-static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events) {
+static int swReactorPoll_add(Reactor *reactor, Socket *socket, int events) {
     int fd = socket->fd;
     if (swReactorPoll_exist(reactor, fd)) {
         swWarn("fd#%d is already exists", fd);
@@ -93,7 +97,7 @@ static int swReactorPoll_add(swReactor *reactor, swSocket *socket, int events) {
     return SW_OK;
 }
 
-static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events) {
+static int swReactorPoll_set(Reactor *reactor, Socket *socket, int events) {
     uint32_t i;
     swReactorPoll *object = (swReactorPoll *) reactor->object;
 
@@ -118,7 +122,7 @@ static int swReactorPoll_set(swReactor *reactor, swSocket *socket, int events) {
     return SW_ERR;
 }
 
-static int swReactorPoll_del(swReactor *reactor, swSocket *socket) {
+static int swReactorPoll_del(Reactor *reactor, Socket *socket) {
     uint32_t i;
     swReactorPoll *object = (swReactorPoll *) reactor->object;
 
@@ -147,10 +151,10 @@ static int swReactorPoll_del(swReactor *reactor, swSocket *socket) {
     return SW_ERR;
 }
 
-static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
+static int swReactorPoll_wait(Reactor *reactor, struct timeval *timeo) {
     swReactorPoll *object = (swReactorPoll *) reactor->object;
     swEvent event;
-    swReactor_handler handler;
+    ReactorHandler handler;
 
     int ret;
 
@@ -230,7 +234,7 @@ static int swReactorPoll_wait(swReactor *reactor, struct timeval *timeo) {
     return SW_OK;
 }
 
-static bool swReactorPoll_exist(swReactor *reactor, int fd) {
+static bool swReactorPoll_exist(Reactor *reactor, int fd) {
     swReactorPoll *object = (swReactorPoll *) reactor->object;
     for (uint32_t i = 0; i < reactor->event_num; i++) {
         if (object->events[i].fd == fd) {

@@ -311,9 +311,9 @@ bool System::wait_signal(int signo, double timeout) {
     // for swSignalfd_setup
     sw_reactor()->check_signalfd = true;
     // exit condition
-    if (!sw_reactor()->isset_exit_condition(SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
+    if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
         sw_reactor()->set_exit_condition(
-            SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
+            Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER,
             [](swReactor *reactor, int &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
     }
     /* always enable signalfd */
@@ -367,7 +367,7 @@ struct CoroPollTask {
 
 static inline void socket_poll_clean(CoroPollTask *task) {
     for (auto i = task->fds->begin(); i != task->fds->end(); i++) {
-        swSocket *socket = i->second.socket;
+        network::Socket *socket = i->second.socket;
         if (!socket) {
             continue;
         }
@@ -523,7 +523,7 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
 }
 
 struct EventWaiter {
-    swSocket *socket;
+    network::Socket *socket;
     TimerNode *timer;
     Coroutine *co;
     int revents;

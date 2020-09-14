@@ -20,10 +20,12 @@
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
-#include "swoole_redis.h"
 #include "swoole_server.h"
+#include "swoole_redis.h"
 
-struct swRedis_request {
+using namespace swoole;
+
+struct RedisRequest {
     uint8_t state;
 
     int n_lines_total;
@@ -35,25 +37,25 @@ struct swRedis_request {
     int offset;
 };
 
-int swServer_recv_redis_packet(swProtocol *protocol, swConnection *conn, swString *buffer) {
+int swRedis_recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
     const char *p, *pe;
     int ret;
     char *buf_ptr;
     size_t buf_size;
 
-    swRedis_request *request;
-    swSocket *socket = conn->socket;
+    RedisRequest *request;
+    network::Socket *socket = conn->socket;
 
     if (conn->object == nullptr) {
-        request = (swRedis_request *) sw_malloc(sizeof(swRedis_request));
+        request = (RedisRequest *) sw_malloc(sizeof(RedisRequest));
         if (!request) {
-            swWarn("malloc(%ld) failed", sizeof(swRedis_request));
+            swWarn("malloc(%ld) failed", sizeof(RedisRequest));
             return SW_ERR;
         }
-        sw_memset_zero(request, sizeof(swRedis_request));
+        sw_memset_zero(request, sizeof(RedisRequest));
         conn->object = request;
     } else {
-        request = (swRedis_request *) conn->object;
+        request = (RedisRequest *) conn->object;
     }
 
 _recv_data:
@@ -142,8 +144,8 @@ _recv_data:
                         if (socket->removed) {
                             return SW_OK;
                         }
-                        swString_clear(buffer);
-                        sw_memset_zero(request, sizeof(swRedis_request));
+                        buffer->clear();
+                        sw_memset_zero(request, sizeof(RedisRequest));
                         return SW_OK;
                     }
                 }
@@ -159,11 +161,11 @@ _failed:
     return SW_ERR;
 }
 
-bool swRedis_format(swString *buf) {
+bool swRedis_format(String *buf) {
     return buf->append(SW_STRL(SW_REDIS_RETURN_NIL)) == SW_OK;
 }
 
-bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::string &value) {
+bool swRedis_format(String *buf, enum swRedis_reply_type type, const std::string &value) {
     if (type == SW_REDIS_REPLY_STATUS) {
         if (value.empty()) {
             return buf->append(SW_STRL("+OK\r\n")) == SW_OK;
@@ -191,7 +193,7 @@ bool swRedis_format(swString *buf, enum swRedis_reply_type type, const std::stri
     return false;
 }
 
-bool swRedis_format(swString *buf, enum swRedis_reply_type type, long value) {
+bool swRedis_format(String *buf, enum swRedis_reply_type type, long value) {
     return buf->format(":%" PRId64 "\r\n", value) > 0;
 }
 

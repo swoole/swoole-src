@@ -377,8 +377,8 @@ class Socket {
     double connect_timeout = network::Socket::default_connect_timeout;
     double read_timeout = network::Socket::default_read_timeout;
     double write_timeout = network::Socket::default_write_timeout;
-    swTimer_node *read_timer = nullptr;
-    swTimer_node *write_timer = nullptr;
+    TimerNode *read_timer = nullptr;
+    TimerNode *write_timer = nullptr;
 
     const swAllocator *buffer_allocator = nullptr;
     size_t buffer_init_size = SW_BUFFER_SIZE_BIG;
@@ -406,7 +406,7 @@ class Socket {
 
     Socket(network::Socket *sock, Socket *socket);
 
-    static void timer_callback(swTimer *timer, swTimer_node *tnode);
+    static void timer_callback(swTimer *timer, TimerNode *tnode);
     static int readable_event_callback(swReactor *reactor, swEvent *event);
     static int writable_event_callback(swReactor *reactor, swEvent *event);
     static int error_event_callback(swReactor *reactor, swEvent *event);
@@ -443,13 +443,12 @@ class Socket {
         return true;
     }
 
-    // TODO: move to client.cc
     bool socks5_handshake();
     bool http_proxy_handshake();
 
-    class timer_controller {
+    class TimerController {
       public:
-        timer_controller(swTimer_node **timer_pp, double timeout, Socket *sock, swTimerCallback callback)
+        TimerController(TimerNode **timer_pp, double timeout, Socket *sock, swTimerCallback callback)
             : timer_pp(timer_pp), timeout(timeout), socket_(sock), callback(callback) {}
         bool start() {
             if (timeout != 0 && !*timer_pp) {
@@ -459,14 +458,14 @@ class Socket {
                     return *timer_pp != nullptr;
                 } else  // if (timeout < 0)
                 {
-                    *timer_pp = (swTimer_node *) -1;
+                    *timer_pp = (TimerNode *) -1;
                 }
             }
             return true;
         }
-        ~timer_controller() {
+        ~TimerController() {
             if (enabled && *timer_pp) {
-                if (*timer_pp != (swTimer_node *) -1) {
+                if (*timer_pp != (TimerNode *) -1) {
                     swoole_timer_del(*timer_pp);
                 }
                 *timer_pp = nullptr;
@@ -475,16 +474,16 @@ class Socket {
 
       private:
         bool enabled = false;
-        swTimer_node **timer_pp;
+        TimerNode **timer_pp;
         double timeout;
         Socket *socket_;
         swTimerCallback callback;
     };
 
   public:
-    class timeout_setter {
+    class TimeoutSetter {
       public:
-        timeout_setter(Socket *socket, double timeout, const enum TimeoutType type)
+        TimeoutSetter(Socket *socket, double timeout, const enum TimeoutType type)
             : socket_(socket), timeout(timeout), type(type) {
             if (timeout == 0) {
                 return;
@@ -498,7 +497,7 @@ class Socket {
                 }
             }
         }
-        ~timeout_setter() {
+        ~TimeoutSetter() {
             if (timeout == 0) {
                 return;
             }
@@ -518,10 +517,10 @@ class Socket {
         double original_timeout[sizeof(timeout_type_list)] = {};
     };
 
-    class timeout_controller : public timeout_setter {
+    class timeout_controller : public TimeoutSetter {
       public:
         timeout_controller(Socket *socket, double timeout, const enum TimeoutType type)
-            : timeout_setter(socket, timeout, type) {}
+            : TimeoutSetter(socket, timeout, type) {}
         inline bool has_timedout(const enum TimeoutType type) {
             SW_ASSERT_1BYTE(type);
             if (timeout > 0) {

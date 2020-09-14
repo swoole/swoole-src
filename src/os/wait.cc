@@ -77,7 +77,7 @@ static void signal_init() {
         }
 #endif
 
-        reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_WAIT_PID, [](swReactor *reactor, int &event_num) -> bool {
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](swReactor *reactor, int &event_num) -> bool {
             return swoole_coroutine_wait_count() == 0;
         });
 

@@ -159,6 +159,11 @@ class String {
         }
     }
 
+    inline void clear() {
+        length = 0;
+        offset = 0;
+    }
+
     inline bool extend() {
         return extend(size * 2);
     }

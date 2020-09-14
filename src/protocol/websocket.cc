@@ -19,6 +19,10 @@
 #include "swoole_websocket.h"
 
 using swoole::Server;
+using swoole::Connection;
+using swoole::String;
+using swoole::Protocol;
+using swoole::network::Socket;
 
 static inline uint16_t swWebSocket_get_ext_flags(uchar opcode, uchar flags) {
     uint16_t ext_flags = opcode;
@@ -49,7 +53,7 @@ static inline uint16_t swWebSocket_get_ext_flags(uchar opcode, uchar flags) {
  +---------------------------------------------------------------+
  */
 
-ssize_t swWebSocket_get_package_length(swProtocol *protocol, swSocket *conn, const char *buf, uint32_t length) {
+ssize_t swWebSocket_get_package_length(Protocol *protocol, Socket *conn, const char *buf, uint32_t length) {
     // need more data
     if (length < SW_WEBSOCKET_HEADER_LEN) {
         return 0;
@@ -106,7 +110,7 @@ static sw_inline void swWebSocket_mask(char *data, size_t len, const char *mask_
     }
 }
 
-bool swWebSocket_encode(swString *buffer, const char *data, size_t length, char opcode, uint8_t _flags) {
+bool swWebSocket_encode(String *buffer, const char *data, size_t length, char opcode, uint8_t _flags) {
     int pos = 0;
     char frame_header[16];
     swWebSocket_frame_header *header = (swWebSocket_frame_header *) frame_header;
@@ -195,7 +199,7 @@ bool swWebSocket_decode(swWebSocket_frame *frame, char *data, size_t length) {
     return true;
 }
 
-int swWebSocket_pack_close_frame(swString *buffer, int code, char *reason, size_t length, uint8_t flags) {
+int swWebSocket_pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags) {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
         swWarn("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
@@ -227,11 +231,11 @@ void swWebSocket_print_frame(swWebSocket_frame *frame) {
     }
 }
 
-int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length) {
-    swServer *serv = (swServer *) proto->private_data_2;
-    swConnection *conn = (swConnection *) _socket->object;
+int swWebSocket_dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t length) {
+    Server *serv = (Server *) proto->private_data_2;
+    Connection *conn = (Connection *) _socket->object;
 
-    swString send_frame = {};
+    String send_frame = {};
     char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
     send_frame.str = buf;
     send_frame.size = sizeof(buf);
@@ -239,7 +243,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
     swWebSocket_frame ws;
     swWebSocket_decode(&ws, const_cast<char *>(data), length);
 
-    swString *frame_buffer;
+    String *frame_buffer;
     int frame_length;
     swListenPort *port;
 
@@ -266,7 +270,7 @@ int swWebSocket_dispatch_frame(swProtocol *proto, swSocket *_socket, const char 
             proto->ext_flags = conn->websocket_buffer->offset;
             proto->ext_flags |= SW_WEBSOCKET_FLAG_FIN;
             Server::dispatch_task(proto, _socket, frame_buffer->str, frame_buffer->length);
-            swString_free(frame_buffer);
+            delete frame_buffer;
             conn->websocket_buffer = nullptr;
         }
         break;
