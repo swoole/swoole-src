@@ -160,7 +160,7 @@ static void php_swoole_onTimeout(Timer *timer, TimerNode *tnode) {
     Function *fci = (Function *) tnode->data;
     bool enable_coroutine = settings.enable_coroutine_isset ? settings.enable_coroutine : SwooleG.enable_coroutine;
 
-    if (UNEXPECTED(fci->call(nullptr, enable_coroutine))) {
+    if (UNEXPECTED(!fci->call(nullptr, enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
     if (!tnode->interval || tnode->removed) {
