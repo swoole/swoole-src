@@ -74,12 +74,11 @@ void Buffer::append(const void *data, uint32_t size) {
         memcpy(chunk->value.ptr, _pos, _n);
         chunk->length = _n;
 
-        swTraceLog(
-            SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", buffer->chunk_num, _n, chunk->length, chunk);
+        swTraceLog(SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", count(), _n, chunk->length, chunk);
 
         _pos += _n;
         _length -= _n;
     }
 }
 
-}
+}  // namespace swoole

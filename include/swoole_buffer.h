@@ -66,6 +66,10 @@ class Buffer {
         return total_length;
     }
 
+    size_t count() {
+        return queue_.size();
+    }
+
     bool empty() {
         return queue_.empty();
     }
