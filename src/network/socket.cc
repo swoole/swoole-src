@@ -441,7 +441,7 @@ int Socket::handle_sendfile() {
 
     // sendfile finish
     if ((size_t) task->offset >= task->length) {
-
+        buffer->pop();
 #ifdef HAVE_TCP_NOPUSH
         // disable tcp_nopush
         if (set_tcp_nopush(0) == -1) {
