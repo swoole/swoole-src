@@ -43,14 +43,14 @@ enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 }
 
 bool PHPCoroutine::active = false;
 
-PHPCoroutine::Config PHPCoroutine::config = {
+PHPCoroutine::Config PHPCoroutine::config {
     SW_DEFAULT_MAX_CORO_NUM,
     PHPCoroutine::HOOK_NONE,
     false,
 };
 
-PHPContext PHPCoroutine::main_task = {};
-pthread_t PHPCoroutine::interrupt_thread_id;
+PHPContext PHPCoroutine::main_task {};
+std::thread PHPCoroutine::interrupt_thread;
 bool PHPCoroutine::interrupt_thread_running = false;
 
 static zend_bool *zend_vm_interrupt = nullptr;
@@ -348,10 +348,7 @@ void PHPCoroutine::interrupt_thread_stop() {
         return;
     }
     interrupt_thread_running = false;
-    if (pthread_join(interrupt_thread_id, nullptr) < 0) {
-        swSysWarn("pthread_join(%ld) failed", (ulong_t) interrupt_thread_id);
-        interrupt_thread_running = true;
-    }
+    interrupt_thread.join();
 }
 
 void PHPCoroutine::interrupt_thread_start() {
@@ -360,20 +357,14 @@ void PHPCoroutine::interrupt_thread_start() {
     }
     zend_vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running = true;
-    if (pthread_create(&interrupt_thread_id, nullptr, (void *(*) (void *) ) interrupt_thread_loop, nullptr) < 0) {
-        swSysError("pthread_create[PHPCoroutine Scheduler] failed");
-        interrupt_thread_running = false;
-    }
-}
-
-void PHPCoroutine::interrupt_thread_loop() {
-    static const useconds_t interval = (MAX_EXEC_MSEC / 2) * 1000;
-    swSignal_none();
-    while (interrupt_thread_running) {
-        *zend_vm_interrupt = 1;
-        usleep(interval);
-    }
-    pthread_exit(0);
+    interrupt_thread = std::thread([]() {
+        static const useconds_t interval = (MAX_EXEC_MSEC / 2) * 1000;
+        swSignal_none();
+        while (interrupt_thread_running) {
+            *zend_vm_interrupt = 1;
+            usleep(interval);
+        }
+    });
 }
 
 inline void PHPCoroutine::vm_stack_init(void) {

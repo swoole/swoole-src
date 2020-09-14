@@ -26,6 +26,7 @@
 #include "zend_closures.h"
 
 #include <stack>
+#include <thread>
 
 #define SW_DEFAULT_MAX_CORO_NUM 100000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE 8192
@@ -195,7 +196,7 @@ class PHPCoroutine {
     static Config config;
 
     static bool interrupt_thread_running;
-    static pthread_t interrupt_thread_id;
+    static std::thread interrupt_thread;
 
     static void activate();
 
@@ -213,7 +214,6 @@ class PHPCoroutine {
     static void main_func(void *arg);
 
     static void interrupt_thread_start();
-    static void interrupt_thread_loop();
     static inline void record_last_msec(PHPContext *task) {
         if (interrupt_thread_running) {
             task->last_msec = Timer::get_absolute_msec();
