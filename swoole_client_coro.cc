@@ -26,7 +26,7 @@ using swoole::coroutine::Socket;
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
 
-struct client_coro {
+struct ClientCoroObject {
     Socket *sock;
     zend_object std;
 };
@@ -132,11 +132,11 @@ static const zend_function_entry swoole_client_coro_methods[] =
 };
 // clang-format on
 
-static sw_inline client_coro *php_swoole_client_coro_fetch_object(zend_object *obj) {
-    return (client_coro *) ((char *) obj - swoole_client_coro_handlers.offset);
+static sw_inline ClientCoroObject *php_swoole_client_coro_fetch_object(zend_object *obj) {
+    return (ClientCoroObject *) ((char *) obj - swoole_client_coro_handlers.offset);
 }
 
-static sw_inline client_coro *php_swoole_get_client(zval *zobject) {
+static sw_inline ClientCoroObject *php_swoole_get_client(zval *zobject) {
     return php_swoole_client_coro_fetch_object(Z_OBJ_P(zobject));
 }
 
@@ -145,7 +145,7 @@ static sw_inline Socket *php_swoole_get_sock(zval *zobject) {
 }
 
 static void php_swoole_client_coro_free_object(zend_object *object) {
-    client_coro *client = php_swoole_client_coro_fetch_object(object);
+    ClientCoroObject *client = php_swoole_client_coro_fetch_object(object);
     if (client->sock) {
         php_swoole_client_coro_socket_free(client->sock);
     }
@@ -153,7 +153,7 @@ static void php_swoole_client_coro_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_client_coro_create_object(zend_class_entry *ce) {
-    client_coro *sock_t = (client_coro *) zend_object_alloc(sizeof(client_coro), ce);
+    ClientCoroObject *sock_t = (ClientCoroObject *) zend_object_alloc(sizeof(ClientCoroObject), ce);
     zend_object_std_init(&sock_t->std, ce);
     object_properties_init(&sock_t->std, ce);
     sock_t->std.handlers = &swoole_client_coro_handlers;
@@ -167,7 +167,7 @@ void php_swoole_client_coro_minit(int module_number) {
     SW_SET_CLASS_CLONEABLE(swoole_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_client_coro, php_swoole_client_coro_create_object, php_swoole_client_coro_free_object, client_coro, std);
+        swoole_client_coro, php_swoole_client_coro_create_object, php_swoole_client_coro_free_object, ClientCoroObject, std);
 
     zend_declare_property_long(swoole_client_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_client_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
