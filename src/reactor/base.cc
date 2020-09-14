@@ -193,7 +193,7 @@ int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
         return SW_ERR;
     }
 
-    if (Buffer::isEmpty(buffer)) {
+    if (Buffer::empty(buffer)) {
 #ifdef SW_USE_OPENSSL
         if (socket->ssl_send) {
             goto _do_buffer;
