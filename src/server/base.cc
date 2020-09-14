@@ -149,11 +149,11 @@ static bool swFactory_end(swFactory *factory, int fd) {
         conn->closed = 1;
         conn->close_errno = 0;
 
-        if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed) {
+        if (empty_buffer(conn->socket->out_buffer) || conn->peer_closed) {
             swReactor *reactor = SwooleTG.reactor;
             return Server::close_connection(reactor, conn->socket) == SW_OK;
         } else {
-            swBuffer_chunk *chunk = swBuffer_new_chunk(conn->socket->out_buffer, SW_CHUNK_CLOSE, 0);
+            BufferChunk *chunk = conn->socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
             chunk->store.data.val1 = _send.info.type;
             conn->close_queued = 1;
             return true;

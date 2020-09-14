@@ -144,9 +144,9 @@ struct Socket {
     double recv_timeout_ = default_read_timeout;
     double send_timeout_ = default_write_timeout;
 
-    swBuffer *out_buffer;
-    swBuffer *in_buffer;
-    swString *recv_buffer;
+    Buffer *out_buffer;
+    Buffer *in_buffer;
+    String *recv_buffer;
 
 #ifdef SW_DEBUG
     size_t total_recv_bytes;
@@ -157,7 +157,7 @@ struct Socket {
      * for reactor
      */
     int handle_send();
-    int handle_sendfile(swBuffer_chunk *chunk);
+    int handle_sendfile();
     /**
      * socket option
      */

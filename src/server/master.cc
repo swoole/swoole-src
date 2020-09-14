@@ -1010,7 +1010,7 @@ int Server::send_to_connection(swSendData *_send) {
         }
     }
 
-    if (swBuffer_empty(_socket->out_buffer)) {
+    if (empty_buffer(_socket->out_buffer)) {
         /**
          * close connection.
          */
@@ -1045,21 +1045,15 @@ int Server::send_to_connection(swSendData *_send) {
         else {
         _buffer_send:
             if (!_socket->out_buffer) {
-                _socket->out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
-                if (_socket->out_buffer == nullptr) {
-                    return false;
-                }
+                _socket->out_buffer = new Buffer(SW_SEND_BUFFER_SIZE);
             }
         }
     }
 
-    swBuffer_chunk *chunk;
+    BufferChunk *chunk;
     // close connection
     if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
-        chunk = swBuffer_new_chunk(_socket->out_buffer, SW_CHUNK_CLOSE, 0);
-        if (chunk == nullptr) {
-            return false;
-        }
+        chunk = _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
         chunk->store.data.val1 = _send->info.type;
         conn->close_queued = 1;
     }
@@ -1078,7 +1072,7 @@ int Server::send_to_connection(swSendData *_send) {
             return false;
         }
         // connection output buffer overflow
-        if (_socket->out_buffer->length >= _socket->buffer_size) {
+        if (_socket->out_buffer->length() >= _socket->buffer_size) {
             if (send_yield) {
                 swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
             } else {
@@ -1091,13 +1085,10 @@ int Server::send_to_connection(swSendData *_send) {
             }
         }
 
-        if (swBuffer_append(_socket->out_buffer, _send_data, _send_length) < 0) {
-            swWarn("append to pipe_buffer failed");
-            return false;
-        }
+        _socket->out_buffer->append(_send_data, _send_length);
 
-        swListenPort *port = get_port_by_fd(fd);
-        if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length >= port->buffer_high_watermark) {
+        ListenPort *port = get_port_by_fd(fd);
+        if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length() >= port->buffer_high_watermark) {
             notify(conn, SW_SERVER_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
         }

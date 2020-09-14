@@ -477,15 +477,13 @@ ssize_t Server::send_to_worker_from_master(swWorker *worker, const void *data, s
 static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
     int ret;
 
-    swBuffer_chunk *chunk = nullptr;
-    EventData *send_data;
     Connection *conn;
     Server *serv = (Server *) reactor->ptr;
-    swBuffer *buffer = ev->socket->out_buffer;
+    Buffer *buffer = ev->socket->out_buffer;
 
-    while (!swBuffer_empty(buffer)) {
-        chunk = swBuffer_get_chunk(buffer);
-        send_data = (EventData *) chunk->store.ptr;
+    while (!empty_buffer(buffer)) {
+        BufferChunk *chunk = buffer->front();
+        EventData *send_data = (EventData *) chunk->store.ptr;
 
         // server active close, discard data.
         if (swEventData_is_stream(send_data->info.type)) {
@@ -498,7 +496,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
                                      "Session#%d is closed by server",
                                      send_data->info.fd);
                 _discard:
-                    swBuffer_pop_chunk(buffer, chunk);
+                    buffer->pop();
                     continue;
                 }
             } else if (serv->discard_timeout_request) {
@@ -515,11 +513,11 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         if (ret < 0) {
             return (ev->socket->catch_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {
-            swBuffer_pop_chunk(buffer, chunk);
+            buffer->pop();
         }
     }
 
-    if (swBuffer_empty(buffer)) {
+    if (empty_buffer(buffer)) {
         if (reactor->remove_write_event(ev->socket) < 0) {
             swSysWarn("reactor->set(%d) failed", ev->fd);
         }
@@ -621,7 +619,6 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     int ret;
     Server *serv = (Server *) reactor->ptr;
     Socket *socket = ev->socket;
-    swBuffer_chunk *chunk;
     int fd = ev->fd;
 
     if (serv->is_process_mode()) {
@@ -654,14 +651,14 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         return Server::close_connection(reactor, socket);
     }
 
-    while (!swBuffer_empty(socket->out_buffer)) {
-        chunk = swBuffer_get_chunk(socket->out_buffer);
-        if (chunk->type == SW_CHUNK_CLOSE) {
+    while (!empty_buffer(socket->out_buffer)) {
+        BufferChunk *chunk = socket->out_buffer->front();
+        if (chunk->type == BufferChunk::TYPE_CLOSE) {
         _close_fd:
             reactor->close(reactor, socket);
             return SW_OK;
-        } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = socket->handle_sendfile(chunk);
+        } else if (chunk->type == BufferChunk::TYPE_SENDFILE) {
+            ret = socket->handle_sendfile();
         } else {
             ret = socket->handle_send();
         }
@@ -676,20 +673,20 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         }
     }
 
-    if (conn->overflow && socket->out_buffer->length < socket->buffer_size) {
+    if (conn->overflow && socket->out_buffer->length() < socket->buffer_size) {
         conn->overflow = 0;
     }
 
     if (serv->onBufferEmpty && conn->high_watermark) {
         ListenPort *port = serv->get_port_by_fd(fd);
-        if (socket->out_buffer->length <= port->buffer_low_watermark) {
+        if (socket->out_buffer->length() <= port->buffer_low_watermark) {
             conn->high_watermark = 0;
             serv->notify(conn, SW_SERVER_EVENT_BUFFER_EMPTY);
         }
     }
 
     // remove EPOLLOUT event
-    if (!conn->peer_closed && !socket->removed && swBuffer_empty(socket->out_buffer)) {
+    if (!conn->peer_closed && !socket->removed && empty_buffer(socket->out_buffer)) {
         reactor->set(reactor, socket, SW_EVENT_READ);
     }
     return SW_OK;

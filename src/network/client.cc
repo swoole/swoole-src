@@ -344,11 +344,11 @@ Client::~Client() {
         ::sw_free((void *) server_str);
     }
     if (socket->out_buffer) {
-        swBuffer_free(socket->out_buffer);
+        delete socket->out_buffer;
         socket->out_buffer = nullptr;
     }
     if (socket->in_buffer) {
-        swBuffer_free(socket->in_buffer);
+        delete socket->in_buffer;
         socket->in_buffer = nullptr;
     }
     if (async) {
@@ -613,7 +613,7 @@ static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t lengt
         }
     }
     if (cli->onBufferFull && cli->socket->out_buffer && cli->high_watermark == 0 &&
-        cli->socket->out_buffer->length >= cli->buffer_high_watermark) {
+        cli->socket->out_buffer->length() >= cli->buffer_high_watermark) {
         cli->high_watermark = 1;
         cli->onBufferFull(cli);
     }
@@ -1115,7 +1115,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         if (swReactor_onWrite(reactor, event) < 0) {
             return SW_ERR;
         }
-        if (cli->onBufferEmpty && cli->high_watermark && _socket->out_buffer->length <= cli->buffer_low_watermark) {
+        if (cli->onBufferEmpty && cli->high_watermark && _socket->out_buffer->length() <= cli->buffer_low_watermark) {
             cli->high_watermark = 0;
             cli->onBufferEmpty(cli);
         }

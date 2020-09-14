@@ -16,6 +16,8 @@
 
 #include "swoole_thread_pool.h"
 #include "swoole_signal.h"
+#include "swoole_string.h"
+#include "swoole_lock.h"
 #include "swoole_log.h"
 
 #define swThreadPool_thread(p, id) (&p->threads[id])
