@@ -27,6 +27,7 @@
 #include "ext/spl/spl_array.h"
 
 #include <unordered_map>
+#include <chrono>
 
 using std::unordered_map;
 using swoole::Coroutine;
@@ -358,11 +359,10 @@ void PHPCoroutine::interrupt_thread_start() {
     zend_vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running = true;
     interrupt_thread = std::thread([]() {
-        static const useconds_t interval = (MAX_EXEC_MSEC / 2) * 1000;
         swSignal_none();
         while (interrupt_thread_running) {
             *zend_vm_interrupt = 1;
-            usleep(interval);
+            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
         }
     });
 }
