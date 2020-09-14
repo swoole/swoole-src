@@ -12,7 +12,13 @@ SW_API zend_string **sw_zend_known_strings = nullptr;
 
 //----------------------------------Swoole known string------------------------------------
 
-static zend_op_array *swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename);
+#if PHP_VERSION_ID < 80000
+typedef zval zend_source_string_t;
+#else
+typedef zend_string zend_source_string_t;
+#endif
+
+static zend_op_array *swoole_compile_string(zend_source_string_t *source_string, ZEND_STR_CONST char *filename);
 
 bool zend::include(std::string file) {
     zend_file_handle file_handle;
@@ -51,9 +57,10 @@ bool zend::include(std::string file) {
 }
 
 // for compatibly with dis_eval
-static zend_op_array *(*old_compile_string)(zval *source_string, ZEND_STR_CONST char *filename);
 
-static zend_op_array *swoole_compile_string(zval *source_string, ZEND_STR_CONST char *filename) {
+static zend_op_array *(*old_compile_string)(zend_source_string_t *source_string, ZEND_STR_CONST char *filename);
+
+static zend_op_array *swoole_compile_string(zend_source_string_t *source_string, ZEND_STR_CONST char *filename) {
     zend_op_array *opa = old_compile_string(source_string, filename);
     opa->type = ZEND_USER_FUNCTION;
     return opa;
