@@ -21,7 +21,7 @@
 using swoole::coroutine::Channel;
 using namespace swoole;
 
-void Channel::timer_callback(swTimer *timer, swTimer_node *tnode) {
+void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
     timer_msg_t *msg = (timer_msg_t *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;

@@ -20,6 +20,8 @@
 #include "test_core.h"
 #include "swoole_pipe.h"
 
+using swoole::ReactorHandler;
+
 TEST(reactor, create) {
     swoole_event_init(0);
 
@@ -66,14 +68,14 @@ TEST(reactor, create) {
 TEST(reactor, set_handler) {
     swReactor reactor;
 
-    reactor.set_handler(SW_EVENT_READ, (swReactor_handler) 0x1);
-    ASSERT_EQ(reactor.read_handler[swReactor_fdtype(SW_EVENT_READ)], (swReactor_handler) 0x1);
+    reactor.set_handler(SW_EVENT_READ, (ReactorHandler) 0x1);
+    ASSERT_EQ(reactor.read_handler[swReactor_fdtype(SW_EVENT_READ)], (ReactorHandler) 0x1);
 
-    reactor.set_handler(SW_EVENT_WRITE, (swReactor_handler) 0x2);
-    ASSERT_EQ(reactor.write_handler[swReactor_fdtype(SW_EVENT_WRITE)], (swReactor_handler) 0x2);
+    reactor.set_handler(SW_EVENT_WRITE, (ReactorHandler) 0x2);
+    ASSERT_EQ(reactor.write_handler[swReactor_fdtype(SW_EVENT_WRITE)], (ReactorHandler) 0x2);
 
-    reactor.set_handler(SW_EVENT_ERROR, (swReactor_handler) 0x3);
-    ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (swReactor_handler) 0x3);
+    reactor.set_handler(SW_EVENT_ERROR, (ReactorHandler) 0x3);
+    ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (ReactorHandler) 0x3);
 }
 
 TEST(reactor, wait) {

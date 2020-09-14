@@ -6,6 +6,7 @@
 #include <string>
 
 using namespace std;
+using swoole::TimerNode;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
@@ -16,7 +17,7 @@ struct tmp_socket {
     swSocket socket;
     zend_string *buf;
     uint32_t nbytes;
-    swTimer_node *timer;
+    TimerNode *timer;
 };
 
 static zend_class_entry *swoole_coroutine_system_ce;

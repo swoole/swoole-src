@@ -968,7 +968,7 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
     swString_free(SwooleTG.buffer_stack);
 }
 
-static void ReactorThread_resume_data_receiving(swTimer *timer, swTimer_node *tnode) {
+static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {
     Socket *_socket = (Socket *) tnode->data;
     Connection *conn = (Connection *) _socket->object;
 

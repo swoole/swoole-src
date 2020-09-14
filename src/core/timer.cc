@@ -120,7 +120,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const swTimerCall
 
     TimerNode *tnode = new TimerNode();
     tnode->data = data;
-    tnode->type = SW_TIMER_TYPE_KERNEL;
+    tnode->type = TimerNode::TYPE_KERNEL;
     tnode->exec_msec = now_msec + _msec;
     tnode->interval = persistent ? _msec : 0;
     tnode->removed = false;

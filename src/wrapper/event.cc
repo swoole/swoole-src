@@ -100,7 +100,7 @@ ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
 
-bool swoole_event_set_handler(int fdtype, swReactor_handler handler) {
+bool swoole_event_set_handler(int fdtype, ReactorHandler handler) {
     return SwooleTG.reactor->set_handler(fdtype, handler);
 }
 
