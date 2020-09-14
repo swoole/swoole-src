@@ -203,9 +203,11 @@ class Client;
 struct Protocol;
 struct EventData;
 struct DataHead;
+typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
 }  // namespace swoole
 
 typedef swoole::Reactor swReactor;
+typedef swoole::ReactorHandler swReactor_handler;
 typedef swoole::String swString;
 typedef swoole::Timer swTimer;
 typedef swoole::TimerNode swTimer_node;
@@ -380,8 +382,8 @@ typedef unsigned char uchar;
 #endif
 
 typedef std::function<void(void *)> swCallback;
-typedef std::function<void(swTimer *, swTimer_node *)> swTimerCallback;
-typedef std::function<void(swTimer_node *)> swTimerDestructor;
+typedef std::function<void(swoole::Timer *, swoole::TimerNode *)> swTimerCallback;
+typedef std::function<void(swoole::TimerNode *)> swTimerDestructor;
 
 struct swAllocator {
     void *(*malloc)(size_t size);
@@ -465,8 +467,6 @@ enum swTask_type {
     SW_TASK_PEEK      = 64,   // peek
     SW_TASK_NOREPLY   = 128,  // don't reply
 };
-
-typedef int (*swReactor_handler)(swReactor *reactor, swEvent *event);
 
 enum swDNSLookup_cache_type {
     SW_DNS_LOOKUP_RANDOM = (1u << 11),

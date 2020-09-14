@@ -21,11 +21,11 @@ using namespace swoole;
 using network::Socket;
 
 static int ReactorProcess_loop(ProcessPool *pool, Worker *worker);
-static int ReactorProcess_onPipeRead(Reactor *reactor, swEvent *event);
-static int ReactorProcess_onClose(Reactor *reactor, swEvent *event);
-static bool ReactorProcess_send2client(swFactory *, swSendData *data);
-static int ReactorProcess_send2worker(swSocket *socket, const void *data, size_t length);
-static void ReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode);
+static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event);
+static int ReactorProcess_onClose(Reactor *reactor, Event *event);
+static bool ReactorProcess_send2client(Factory *, SendData *data);
+static int ReactorProcess_send2worker(Socket *socket, const void *data, size_t length);
+static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode);
 
 #ifdef HAVE_REUSEPORT
 static int ReactorProcess_reuse_port(ListenPort *ls);
@@ -188,12 +188,12 @@ int Server::start_reactor_processes() {
     return SW_OK;
 }
 
-static int ReactorProcess_onPipeRead(Reactor *reactor, swEvent *event) {
+static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     EventData task;
-    swSendData _send;
+    SendData _send;
     Server *serv = (Server *) reactor->ptr;
-    swFactory *factory = &serv->factory;
-    swString *output_buffer;
+    Factory *factory = &serv->factory;
+    String *output_buffer;
 
     if (read(event->fd, &task, sizeof(task)) <= 0) {
         return SW_ERR;
@@ -231,7 +231,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, swEvent *event) {
 }
 
 static int ReactorProcess_alloc_output_buffer(int n_buffer) {
-    SwooleWG.output_buffer = (swString **) sw_malloc(sizeof(swString *) * n_buffer);
+    SwooleWG.output_buffer = (String **) sw_malloc(sizeof(String *) * n_buffer);
     if (SwooleWG.output_buffer == nullptr) {
         swError("malloc for SwooleWG.output_buffer failed");
         return SW_ERR;
@@ -394,11 +394,11 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     /**
      * call internal serv hooks
      */
-    if (serv->hooks[SW_SERVER_HOOK_WORKER_CLOSE]) {
+    if (serv->hooks[Server::HOOK_WORKER_CLOSE]) {
         void *hook_args[2];
         hook_args[0] = serv;
         hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
-        serv->call_hook(SW_SERVER_HOOK_WORKER_CLOSE, hook_args);
+        serv->call_hook(Server::HOOK_WORKER_CLOSE, hook_args);
     }
 
     swoole_event_free();
@@ -408,10 +408,10 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     return retval;
 }
 
-static int ReactorProcess_onClose(Reactor *reactor, swEvent *event) {
+static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
     int fd = event->fd;
     Server *serv = (Server *) reactor->ptr;
-    swConnection *conn = serv->get_connection(fd);
+    Connection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0) {
         return SW_ERR;
     }
@@ -429,7 +429,7 @@ static int ReactorProcess_onClose(Reactor *reactor, swEvent *event) {
     }
 }
 
-static int ReactorProcess_send2worker(swSocket *socket, const void *data, size_t length) {
+static int ReactorProcess_send2worker(Socket *socket, const void *data, size_t length) {
     if (!SwooleTG.reactor) {
         return socket->send_blocking(data, length);
     } else {
@@ -437,7 +437,7 @@ static int ReactorProcess_send2worker(swSocket *socket, const void *data, size_t
     }
 }
 
-static bool ReactorProcess_send2client(swFactory *factory, swSendData *data) {
+static bool ReactorProcess_send2client(Factory *factory, SendData *data) {
     Server *serv = (Server *) factory->ptr;
     int session_id = data->info.fd;
 
@@ -485,10 +485,10 @@ static bool ReactorProcess_send2client(swFactory *factory, swSendData *data) {
     }
 }
 
-static void ReactorProcess_onTimeout(swTimer *timer, swTimer_node *tnode) {
+static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     Reactor *reactor = (Reactor *) tnode->data;
     Server *serv = (Server *) reactor->ptr;
-    swEvent notify_ev;
+    Event notify_ev;
     time_t now = time(nullptr);
 
     if (now < serv->heartbeat_check_lasttime + 10) {

@@ -25,22 +25,23 @@
 #include <atomic>
 
 using namespace std;
+using swoole::AsyncEvent;
 
 static int callback_count;
 
-static void aio_callback(swAio_event *event) {
+static void aio_callback(AsyncEvent *event) {
     callback_count++;
 }
 
 TEST(async, dispatch) {
     atomic<int> handle_count(0);
-    swAio_event event = {};
+    AsyncEvent event = {};
     event.object = &handle_count;
     event.callback = aio_callback;
 
     callback_count = 0;
 
-    event.handler = [](swAio_event *event) { (*(atomic<int> *) event->object)++; };
+    event.handler = [](AsyncEvent *event) { (*(atomic<int> *) event->object)++; };
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 

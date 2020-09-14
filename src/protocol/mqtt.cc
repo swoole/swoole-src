@@ -18,12 +18,16 @@
  */
 
 #include "swoole_mqtt.h"
+#include "swoole_protocol.h"
+
+using swoole::Protocol;
+using swoole::network::Socket;
 
 void swMqtt_print_package(swMqtt_packet *pkg) {
     printf("type=%d, length=%d\n", pkg->type, pkg->length);
 }
 
-void swMqtt_set_protocol(swProtocol *protocol) {
+void swMqtt_set_protocol(Protocol *protocol) {
     protocol->package_length_size = SW_MQTT_MAX_LENGTH_SIZE;
     protocol->package_length_offset = 1;
     protocol->package_body_offset = 0;
@@ -34,7 +38,7 @@ void swMqtt_set_protocol(swProtocol *protocol) {
 // but there's no chance to read the next mqtt request ,because MQTT client will recv ACK blocking
 #define MQTT_RECV_LEN_AGAIN 0
 
-ssize_t swMqtt_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size) {
+ssize_t swMqtt_get_package_length(Protocol *protocol, Socket *conn, const char *data, uint32_t size) {
     //-1 cause the arg 'size' contain length_offset(1 byte len)
     uint32_t recv_variable_header_size = (size - 1);
     if (recv_variable_header_size < SW_MQTT_MIN_LENGTH_SIZE) {  // recv continue

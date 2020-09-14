@@ -32,19 +32,12 @@ using swoole::PHPCoroutine;
 using swoole::Timer;
 using swoole::coroutine::Socket;
 
-struct dns_cache {
+struct DNSCacheEntity {
     char address[16];
     time_t update_time;
 };
 
-struct process_stream {
-    zval *callback;
-    pid_t pid;
-    int fd;
-    swString *buffer;
-};
-
-static std::unordered_map<std::string, dns_cache *> request_cache_map;
+static std::unordered_map<std::string, DNSCacheEntity *> request_cache_map;
 
 void php_swoole_async_coro_rshutdown() {
     for (auto i = request_cache_map.begin(); i != request_cache_map.end(); i++) {
@@ -125,7 +118,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
 
     // find cache
     std::string key(Z_STRVAL_P(domain), Z_STRLEN_P(domain));
-    dns_cache *cache;
+    DNSCacheEntity *cache;
 
     if (request_cache_map.find(key) != request_cache_map.end()) {
         cache = request_cache_map[key];
@@ -150,8 +143,8 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
 
     auto cache_iterator = request_cache_map.find(key);
     if (cache_iterator == request_cache_map.end()) {
-        cache = (dns_cache *) emalloc(sizeof(dns_cache));
-        sw_memset_zero(cache, sizeof(dns_cache));
+        cache = (DNSCacheEntity *) emalloc(sizeof(DNSCacheEntity));
+        sw_memset_zero(cache, sizeof(DNSCacheEntity));
         request_cache_map[key] = cache;
     } else {
         cache = cache_iterator->second;

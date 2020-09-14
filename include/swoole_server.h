@@ -100,24 +100,6 @@ enum swFactory_dispatch_result {
 };
 
 //------------------------------------Server-------------------------------------------
-enum swServer_hook_type {
-    SW_SERVER_HOOK_MASTER_START,
-    SW_SERVER_HOOK_MASTER_TIMER,
-    SW_SERVER_HOOK_REACTOR_START,
-    SW_SERVER_HOOK_WORKER_START,
-    SW_SERVER_HOOK_TASK_WORKER_START,
-    SW_SERVER_HOOK_MASTER_CONNECT,
-    SW_SERVER_HOOK_REACTOR_CONNECT,
-    SW_SERVER_HOOK_WORKER_CONNECT,
-    SW_SERVER_HOOK_REACTOR_RECEIVE,
-    SW_SERVER_HOOK_WORKER_RECEIVE,
-    SW_SERVER_HOOK_REACTOR_CLOSE,
-    SW_SERVER_HOOK_WORKER_CLOSE,
-    SW_SERVER_HOOK_MANAGER_START,
-    SW_SERVER_HOOK_MANAGER_TIMER,
-    SW_SERVER_HOOK_PROCESS_TIMER,
-};
-
 namespace swoole {
 
 namespace http_server {
@@ -490,6 +472,24 @@ class Server {
         MODE_PROCESS = 2,
     };
 
+    enum HookType {
+        HOOK_MASTER_START,
+        HOOK_MASTER_TIMER,
+        HOOK_REACTOR_START,
+        HOOK_WORKER_START,
+        HOOK_TASK_WORKER_START,
+        HOOK_MASTER_CONNECT,
+        HOOK_REACTOR_CONNECT,
+        HOOK_WORKER_CONNECT,
+        HOOK_REACTOR_RECEIVE,
+        HOOK_WORKER_RECEIVE,
+        HOOK_REACTOR_CLOSE,
+        HOOK_WORKER_CLOSE,
+        HOOK_MANAGER_START,
+        HOOK_MANAGER_TIMER,
+        HOOK_PROCESS_TIMER,
+    };
+
     /**
      * reactor thread/process num
      */
@@ -852,7 +852,7 @@ class Server {
     int add_worker(swWorker *worker);
     ListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
-    int add_hook(enum swServer_hook_type type, const swCallback &func, int push_back);
+    int add_hook(enum HookType type, const swCallback &func, int push_back);
     Connection *add_connection(ListenPort *ls, swSocket *_socket, int server_fd);
 
     int get_idle_worker_num();
@@ -1062,7 +1062,7 @@ class Server {
     int create_user_workers();
     int start_manager_process();
 
-    void call_hook(enum swServer_hook_type type, void *arg);
+    void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(swWorker *worker);
 
     void foreach_connection(const std::function<void(Connection *)> &callback);
@@ -1299,9 +1299,6 @@ static inline swServer *sw_server() {
     return g_server_instance;
 }
 
-ssize_t swWorker_send_pipe_message(swWorker *dst_worker, const void *buf, size_t n, int flags);
-
 int swFactory_create(swFactory *factory);
 bool swFactory_finish(swFactory *factory, swSendData *_send);
 int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
-int swServer_recv_redis_packet(swProtocol *protocol, swConnection *conn, swString *buffer);

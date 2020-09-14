@@ -21,15 +21,19 @@
 #include "swoole_pipe.h"
 #include "swoole_log.h"
 
-static ssize_t swPipeBase_read(swPipe *p, void *data, size_t length);
-static ssize_t swPipeBase_write(swPipe *p, const void *data, size_t length);
-static void swPipeBase_close(swPipe *p);
 
-struct swPipeBase {
+using swoole::Pipe;
+using swoole::network::Socket;
+
+static ssize_t PipeBase_read(Pipe *p, void *data, size_t length);
+static ssize_t PipeBase_write(Pipe *p, const void *data, size_t length);
+static void PipeBase_close(Pipe *p);
+
+struct PipeBase {
     int pipes[2];
 };
 
-int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking) {
+int swPipe_init_socket(Pipe *p, int master_fd, int worker_fd, int blocking) {
     p->master_socket = swoole::make_socket(master_fd, SW_FD_PIPE);
     if (p->master_socket == nullptr) {
     _error:
@@ -55,13 +59,13 @@ int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking) {
     return SW_OK;
 }
 
-swSocket *swPipe_getSocket(swPipe *p, int master) {
+Socket *swPipe_getSocket(Pipe *p, int master) {
     return master ? p->master_socket : p->worker_socket;
 }
 
-int swPipeBase_create(swPipe *p, int blocking) {
+int swPipeBase_create(Pipe *p, int blocking) {
     int ret;
-    std::unique_ptr<swPipeBase> object(new swPipeBase());
+    std::unique_ptr<PipeBase> object(new PipeBase());
     p->blocking = blocking;
     ret = pipe(object->pipes);
     if (ret < 0) {
@@ -74,15 +78,15 @@ int swPipeBase_create(swPipe *p, int blocking) {
 
     p->timeout = -1;
     p->object = object.release();
-    p->read = swPipeBase_read;
-    p->write = swPipeBase_write;
+    p->read = PipeBase_read;
+    p->write = PipeBase_write;
     p->getSocket = swPipe_getSocket;
-    p->close = swPipeBase_close;
+    p->close = PipeBase_close;
 
     return 0;
 }
 
-static ssize_t swPipeBase_read(swPipe *p, void *data, size_t length) {
+static ssize_t PipeBase_read(Pipe *p, void *data, size_t length) {
     if (p->blocking == 1 && p->timeout > 0) {
         if (p->worker_socket->wait_event(p->timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
@@ -91,12 +95,12 @@ static ssize_t swPipeBase_read(swPipe *p, void *data, size_t length) {
     return read(p->worker_socket->fd, data, length);
 }
 
-static ssize_t swPipeBase_write(swPipe *p, const void *data, size_t length) {
+static ssize_t PipeBase_write(Pipe *p, const void *data, size_t length) {
     return write(p->master_socket->fd, data, length);
 }
 
-static void swPipeBase_close(swPipe *p) {
-    swPipeBase *object = (swPipeBase *) p->object;
+static void PipeBase_close(Pipe *p) {
+    PipeBase *object = (PipeBase *) p->object;
     p->master_socket->free();
     p->worker_socket->free();
     delete object;

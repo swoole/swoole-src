@@ -26,30 +26,34 @@
 #include "zend_closures.h"
 
 #include <stack>
+#include <thread>
 
 #define SW_DEFAULT_MAX_CORO_NUM 100000
 #define SW_DEFAULT_PHP_STACK_PAGE_SIZE 8192
 
 #define SWOG ((zend_output_globals *) &OG(handlers))
 
-enum sw_coro_hook_type {
-    SW_HOOK_NONE              = 0,
-    SW_HOOK_TCP               = 1u << 1,
-    SW_HOOK_UDP               = 1u << 2,
-    SW_HOOK_UNIX              = 1u << 3,
-    SW_HOOK_UDG               = 1u << 4,
-    SW_HOOK_SSL               = 1u << 5,
-    SW_HOOK_TLS               = 1u << 6,
-    SW_HOOK_STREAM_FUNCTION   = 1u << 7,
-    SW_HOOK_FILE              = 1u << 8,
-    SW_HOOK_SLEEP             = 1u << 9,
-    SW_HOOK_PROC              = 1u << 10,
-    SW_HOOK_CURL              = 1u << 28,
-    SW_HOOK_BLOCKING_FUNCTION = 1u << 30,
-    SW_HOOK_ALL               = 0x7fffffff,
+SW_EXTERN_C_BEGIN
+PHP_METHOD(swoole_coroutine_scheduler, set);
+SW_EXTERN_C_END
+
+namespace zend {
+struct Function;
+}
+
+namespace swoole {
+
+struct PHPContext;
+
+struct FutureTask {
+    zval coro_params;
+    zval *current_coro_return_value_ptr;
+    void *private_data;
+    TimerNode *timer;
+    PHPContext *current_task;
 };
 
-struct php_coro_task {
+struct PHPContext {
     JMP_BUF *bailout;
     zval *vm_stack_top;
     zval *vm_stack_end;
@@ -61,56 +65,56 @@ struct php_coro_task {
     zend_object *exception;
     zend_output_globals *output_ptr;
     /* for array_walk non-reentrancy */
-    php_swoole_fci *array_walk_fci;
+    zend::Function *array_walk_fci;
     /* for error control `@` */
     bool in_silence;
+    bool enable_scheduler;
     int ori_error_reporting;
     int tmp_error_reporting;
     swoole::Coroutine *co;
-    std::stack<php_swoole_fci *> *defer_tasks;
+    std::stack<zend::Function *> *defer_tasks;
     long pcid;
     zend_object *context;
     int64_t last_msec;
-    zend_bool enable_scheduler;
 };
-
-struct php_coro_args {
-    zend_fcall_info_cache *fci_cache;
-    zval *argv;
-    uint32_t argc;
-};
-
-// TODO: remove php coro context
-struct php_coro_context {
-    zval coro_params;
-    zval *current_coro_return_value_ptr;
-    void *private_data;
-    swTimer_node *timer;
-    php_coro_task *current_task;
-};
-
-SW_EXTERN_C_BEGIN
-PHP_METHOD(swoole_coroutine_scheduler, set);
-SW_EXTERN_C_END
-
-namespace swoole {
-namespace coroutine {
-//------------------------------------------------------------------------------
-struct Config {
-    uint64_t max_num;
-    uint32_t hook_flags;
-    bool enable_preemptive_scheduler;
-};
-}  // namespace coroutine
 
 class PHPCoroutine {
   public:
+    struct Args {
+        zend_fcall_info_cache *fci_cache;
+        zval *argv;
+        uint32_t argc;
+    };
+
+    struct Config {
+        uint64_t max_num;
+        uint32_t hook_flags;
+        bool enable_preemptive_scheduler;
+    };
+
+    enum HookType {
+        HOOK_NONE              = 0,
+        HOOK_TCP               = 1u << 1,
+        HOOK_UDP               = 1u << 2,
+        HOOK_UNIX              = 1u << 3,
+        HOOK_UDG               = 1u << 4,
+        HOOK_SSL               = 1u << 5,
+        HOOK_TLS               = 1u << 6,
+        HOOK_STREAM_FUNCTION   = 1u << 7,
+        HOOK_FILE              = 1u << 8,
+        HOOK_SLEEP             = 1u << 9,
+        HOOK_PROC              = 1u << 10,
+        HOOK_CURL              = 1u << 28,
+        HOOK_BLOCKING_FUNCTION = 1u << 30,
+        HOOK_ALL               = 0x7fffffff,
+    };
+
     static const uint8_t MAX_EXEC_MSEC = 10;
     static void init();
     static void deactivate(void *ptr);
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
-    static void defer(php_swoole_fci *fci);
+    static void defer(zend::Function *fci);
 
     static bool enable_hook(uint32_t flags);
     static bool disable_hook();
@@ -118,15 +122,15 @@ class PHPCoroutine {
     static void interrupt_thread_stop();
 
     // TODO: remove old coro APIs (Manual)
-    static void yield_m(zval *return_value, php_coro_context *sw_php_context);
-    static int resume_m(php_coro_context *sw_current_context, zval *retval, zval *coro_retval);
+    static void yield_m(zval *return_value, FutureTask *task);
+    static int resume_m(FutureTask *task, zval *retval, zval *coro_retval);
 
     static inline long get_cid() {
         return sw_likely(active) ? Coroutine::get_current_cid() : -1;
     }
 
     static inline long get_pcid(long cid = 0) {
-        php_coro_task *task = cid == 0 ? get_task() : get_task_by_cid(cid);
+        PHPContext *task = cid == 0 ? get_context() : get_context_by_cid(cid);
         return sw_likely(task) ? task->pcid : 0;
     }
 
@@ -134,18 +138,18 @@ class PHPCoroutine {
         return sw_likely(active) ? Coroutine::get_elapsed(cid) : -1;
     }
 
-    static inline php_coro_task *get_task() {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
+    static inline PHPContext *get_context() {
+        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
         return task ? task : &main_task;
     }
 
-    static inline php_coro_task *get_origin_task(php_coro_task *task) {
+    static inline PHPContext *get_origin_context(PHPContext *task) {
         Coroutine *co = task->co->get_origin();
-        return co ? (php_coro_task *) co->get_task() : &main_task;
+        return co ? (PHPContext *) co->get_task() : &main_task;
     }
 
-    static inline php_coro_task *get_task_by_cid(long cid) {
-        return cid == -1 ? &main_task : (php_coro_task *) Coroutine::get_task_by_cid(cid);
+    static inline PHPContext *get_context_by_cid(long cid) {
+        return cid == -1 ? &main_task : (PHPContext *) Coroutine::get_task_by_cid(cid);
     }
 
     static inline uint64_t get_max_num() {
@@ -156,23 +160,23 @@ class PHPCoroutine {
         config.max_num = n;
     }
 
-    static inline bool is_schedulable(php_coro_task *task) {
+    static inline bool is_schedulable(PHPContext *task) {
         return task->enable_scheduler && (Timer::get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
     }
 
     static inline bool enable_scheduler() {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-        if (task && task->enable_scheduler == 0) {
-            task->enable_scheduler = 1;
+        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
+        if (task && !task->enable_scheduler) {
+            task->enable_scheduler = true;
             return true;
         }
         return false;
     }
 
     static inline bool disable_scheduler() {
-        php_coro_task *task = (php_coro_task *) Coroutine::get_current_task();
-        if (task && task->enable_scheduler == 1) {
-            task->enable_scheduler = 0;
+        PHPContext *task = (PHPContext *) Coroutine::get_current_task();
+        if (task && task->enable_scheduler) {
+            task->enable_scheduler = false;
             return true;
         }
         return false;
@@ -188,30 +192,29 @@ class PHPCoroutine {
 
   protected:
     static bool active;
-    static php_coro_task main_task;
-    static coroutine::Config config;
+    static PHPContext main_task;
+    static Config config;
 
     static bool interrupt_thread_running;
-    static pthread_t interrupt_thread_id;
+    static std::thread interrupt_thread;
 
     static void activate();
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);
-    static inline void save_vm_stack(php_coro_task *task);
-    static inline void restore_vm_stack(php_coro_task *task);
-    static inline void save_og(php_coro_task *task);
-    static inline void restore_og(php_coro_task *task);
-    static inline void save_task(php_coro_task *task);
-    static inline void restore_task(php_coro_task *task);
+    static inline void save_vm_stack(PHPContext *task);
+    static inline void restore_vm_stack(PHPContext *task);
+    static inline void save_og(PHPContext *task);
+    static inline void restore_og(PHPContext *task);
+    static inline void save_task(PHPContext *task);
+    static inline void restore_task(PHPContext *task);
     static void on_yield(void *arg);
     static void on_resume(void *arg);
     static void on_close(void *arg);
     static void main_func(void *arg);
 
     static void interrupt_thread_start();
-    static void interrupt_thread_loop();
-    static inline void record_last_msec(php_coro_task *task) {
+    static inline void record_last_msec(PHPContext *task) {
         if (interrupt_thread_running) {
             task->last_msec = Timer::get_absolute_msec();
         }

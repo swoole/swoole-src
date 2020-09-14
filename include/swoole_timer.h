@@ -28,16 +28,15 @@
 #define SW_TIMER_MAX_MS LONG_MAX
 #define SW_TIMER_MAX_SEC ((double) (LONG_MAX / 1000))
 
-enum swTimer_type {
-    SW_TIMER_TYPE_KERNEL,
-    SW_TIMER_TYPE_PHP,
-};
-
 namespace swoole {
 
 struct TimerNode {
+    enum Type {
+        TYPE_KERNEL,
+        TYPE_PHP,
+    };
     long id;
-    enum swTimer_type type;
+    enum Type type;
     int64_t exec_msec;
     int64_t interval;
     uint64_t round;
@@ -63,7 +62,7 @@ class Timer {
     int (*set)(Timer *timer, long exec_msec) = nullptr;
     void (*close)(Timer *timer) = nullptr;
 
-    bool init_reactor(swReactor *reactor);
+    bool init_reactor(Reactor *reactor);
     bool init_system_timer();
 
   public:
@@ -100,7 +99,7 @@ class Timer {
     bool init();
     TimerNode *add(long _msec, bool persistent, void *data, const swTimerCallback &callback);
     bool remove(TimerNode *tnode);
-    void reinit(swReactor *reactor);
+    void reinit(Reactor *reactor);
     int select();
 
     inline TimerNode *get(long id) {
@@ -112,8 +111,8 @@ class Timer {
         }
     }
 
-    inline TimerNode *get(long id, const enum swTimer_type type) {
-        swTimer_node *tnode = get(id);
+    inline TimerNode *get(long id, const enum TimerNode::Type type) {
+        TimerNode *tnode = get(id);
         return (tnode && tnode->type == type) ? tnode : nullptr;
     }
 

@@ -20,20 +20,20 @@
 
 #include <queue>
 
-using namespace std;
+using swoole::Reactor;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-struct scheduler_task_t {
+struct SchedulerTask {
     zend_long count;
     zend_fcall_info fci;
     zend_fcall_info_cache fci_cache;
 };
 
-struct scheduler_t {
-    queue<scheduler_task_t *> *list;
+struct SchedulerObject {
+    std::queue<SchedulerTask *> *list;
     bool started;
     zend_object std;
 };
@@ -47,12 +47,12 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel);
 static PHP_METHOD(swoole_coroutine_scheduler, start);
 SW_EXTERN_C_END
 
-static sw_inline scheduler_t *scheduler_get_object(zend_object *obj) {
-    return (scheduler_t *) ((char *) obj - swoole_coroutine_scheduler_handlers.offset);
+static sw_inline SchedulerObject *scheduler_get_object(zend_object *obj) {
+    return (SchedulerObject *) ((char *) obj - swoole_coroutine_scheduler_handlers.offset);
 }
 
 static zend_object *scheduler_create_object(zend_class_entry *ce) {
-    scheduler_t *s = (scheduler_t *) zend_object_alloc(sizeof(scheduler_t), ce);
+    SchedulerObject *s = (SchedulerObject *) zend_object_alloc(sizeof(SchedulerObject), ce);
     zend_object_std_init(&s->std, ce);
     object_properties_init(&s->std, ce);
     s->std.handlers = &swoole_coroutine_scheduler_handlers;
@@ -60,10 +60,10 @@ static zend_object *scheduler_create_object(zend_class_entry *ce) {
 }
 
 static void scheduler_free_object(zend_object *object) {
-    scheduler_t *s = scheduler_get_object(object);
+    SchedulerObject *s = scheduler_get_object(object);
     if (s->list) {
         while (!s->list->empty()) {
-            scheduler_task_t *task = s->list->front();
+            SchedulerTask *task = s->list->front();
             s->list->pop();
             sw_zend_fci_cache_discard(&task->fci_cache);
             sw_zend_fci_params_discard(&task->fci);
@@ -115,7 +115,7 @@ void php_swoole_coroutine_scheduler_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_scheduler, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_coroutine_scheduler);
     SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_coroutine_scheduler, scheduler_create_object, scheduler_free_object, scheduler_t, std);
+        swoole_coroutine_scheduler, scheduler_create_object, scheduler_free_object, SchedulerObject, std);
     swoole_coroutine_scheduler_ce->ce_flags |= ZEND_ACC_FINAL;
 }
 
@@ -212,22 +212,22 @@ PHP_METHOD(swoole_coroutine_scheduler, set) {
                 }
                 SwooleG.user_exit_condition = php_swoole_coroutine_reactor_can_exit;
                 if (sw_reactor()) {
-                    sw_reactor()->set_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT,
+                    sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT,
                                                      SwooleG.user_exit_condition);
                 }
             }
         } else {
             if (sw_reactor()) {
-                sw_reactor()->remove_exit_condition(SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT);
+                sw_reactor()->remove_exit_condition(Reactor::EXIT_CONDITION_USER_AFTER_DEFAULT);
                 SwooleG.user_exit_condition = nullptr;
             }
         }
     }
 }
 
-static void scheduler_add_task(scheduler_t *s, scheduler_task_t *task) {
+static void scheduler_add_task(SchedulerObject *s, SchedulerTask *task) {
     if (!s->list) {
-        s->list = new queue<scheduler_task_t *>;
+        s->list = new std::queue<SchedulerTask *>;
     }
     sw_zend_fci_cache_persist(&task->fci_cache);
     sw_zend_fci_params_persist(&task->fci);
@@ -235,14 +235,14 @@ static void scheduler_add_task(scheduler_t *s, scheduler_task_t *task) {
 }
 
 static PHP_METHOD(swoole_coroutine_scheduler, add) {
-    scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
+    SchedulerObject *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
     if (s->started) {
         php_swoole_fatal_error(
             E_WARNING, "scheduler is running, unable to execute %s->add", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
-    scheduler_task_t *task = (scheduler_task_t *) ecalloc(1, sizeof(scheduler_task_t));
+    SchedulerTask *task = (SchedulerTask *) ecalloc(1, sizeof(SchedulerTask));
 
     ZEND_PARSE_PARAMETERS_START(1, -1)
     Z_PARAM_FUNC(task->fci, task->fci_cache)
@@ -254,14 +254,14 @@ static PHP_METHOD(swoole_coroutine_scheduler, add) {
 }
 
 static PHP_METHOD(swoole_coroutine_scheduler, parallel) {
-    scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
+    SchedulerObject *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
     if (s->started) {
         php_swoole_fatal_error(
             E_WARNING, "scheduler is running, unable to execute %s->parallel", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
-    scheduler_task_t *task = (scheduler_task_t *) ecalloc(1, sizeof(scheduler_task_t));
+    SchedulerTask *task = (SchedulerTask *) ecalloc(1, sizeof(SchedulerTask));
     zend_long count;
 
     ZEND_PARSE_PARAMETERS_START(2, -1)
@@ -275,7 +275,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, parallel) {
 }
 
 static PHP_METHOD(swoole_coroutine_scheduler, start) {
-    scheduler_t *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
+    SchedulerObject *s = scheduler_get_object(Z_OBJ_P(ZEND_THIS));
 
     if (SwooleTG.reactor) {
         php_swoole_fatal_error(
@@ -299,7 +299,7 @@ static PHP_METHOD(swoole_coroutine_scheduler, start) {
     }
 
     while (!s->list->empty()) {
-        scheduler_task_t *task = s->list->front();
+        SchedulerTask *task = s->list->front();
         s->list->pop();
         for (zend_long i = 0; i < task->count; i++) {
             PHPCoroutine::create(&task->fci_cache, task->fci.param_count, task->fci.params);

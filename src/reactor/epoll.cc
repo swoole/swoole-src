@@ -15,10 +15,15 @@
  */
 
 #include "swoole.h"
+#include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "swoole_log.h"
 
 #include <unordered_map>
+
+using swoole::Reactor;
+using swoole::ReactorHandler;
+using swoole::network::Socket;
 
 #define EVENT_DEBUG 0
 
@@ -32,24 +37,24 @@
 #error "require linux kernel version 2.6.32 or later"
 #endif
 
-struct swReactorEpoll {
+struct ReactorEpoll {
     int epfd;
     struct epoll_event *events;
 };
 
 #if EVENT_DEBUG
-static thread_local std::unordered_map<int, swSocket *> event_map;
+static thread_local std::unordered_map<int, Socket *> event_map;
 
-swSocket *swoole_event_map_get(int sockfd) {
+Socket *swoole_event_map_get(int sockfd) {
     return event_map[sockfd];
 }
 #endif
 
-static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events);
-static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events);
-static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket);
-static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo);
-static void swReactorEpoll_free(swReactor *reactor);
+static int swReactorEpoll_add(Reactor *reactor, Socket *socket, int events);
+static int swReactorEpoll_set(Reactor *reactor, Socket *socket, int events);
+static int swReactorEpoll_del(Reactor *reactor, Socket *_socket);
+static int swReactorEpoll_wait(Reactor *reactor, struct timeval *timeo);
+static void swReactorEpoll_free(Reactor *reactor);
 
 static sw_inline int swReactorEpoll_event_set(int fdtype) {
     uint32_t flag = 0;
@@ -69,7 +74,7 @@ static sw_inline int swReactorEpoll_event_set(int fdtype) {
     return flag;
 }
 
-int swReactorEpoll_create(swReactor *reactor, int max_event_num) {
+int swReactorEpoll_create(Reactor *reactor, int max_event_num) {
     int epfd = epoll_create(512);
     if (epfd < 0) {
         swSysWarn("epoll_create failed");
@@ -82,7 +87,7 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num) {
     reactor->wait = swReactorEpoll_wait;
     reactor->free = swReactorEpoll_free;
 
-    swReactorEpoll *object = new swReactorEpoll();
+    ReactorEpoll *object = new ReactorEpoll();
     object->events = new struct epoll_event[max_event_num];
     object->epfd = epfd;
     reactor->max_event_num = max_event_num;
@@ -91,15 +96,15 @@ int swReactorEpoll_create(swReactor *reactor, int max_event_num) {
     return SW_OK;
 }
 
-static void swReactorEpoll_free(swReactor *reactor) {
-    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
+static void swReactorEpoll_free(Reactor *reactor) {
+    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
     close(object->epfd);
     delete[] object->events;
     delete object;
 }
 
-static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events) {
-    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
+static int swReactorEpoll_add(Reactor *reactor, Socket *socket, int events) {
+    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
     struct epoll_event e;
 
     e.events = swReactorEpoll_event_set(events);
@@ -122,8 +127,8 @@ static int swReactorEpoll_add(swReactor *reactor, swSocket *socket, int events) 
     return SW_OK;
 }
 
-static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket) {
-    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
+static int swReactorEpoll_del(Reactor *reactor, Socket *_socket) {
+    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
     if (_socket->removed) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_EVENT_SOCKET_REMOVED,
@@ -152,8 +157,8 @@ static int swReactorEpoll_del(swReactor *reactor, swSocket *_socket) {
     return SW_OK;
 }
 
-static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events) {
-    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
+static int swReactorEpoll_set(Reactor *reactor, Socket *socket, int events) {
+    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
     struct epoll_event e;
 
     e.events = swReactorEpoll_event_set(events);
@@ -172,10 +177,10 @@ static int swReactorEpoll_set(swReactor *reactor, swSocket *socket, int events) 
     return SW_OK;
 }
 
-static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo) {
+static int swReactorEpoll_wait(Reactor *reactor, struct timeval *timeo) {
     swEvent event;
-    swReactorEpoll *object = (swReactorEpoll *) reactor->object;
-    swReactor_handler handler;
+    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
+    ReactorHandler handler;
     int i, n, ret;
 
     int reactor_id = reactor->id;
@@ -211,7 +216,7 @@ static int swReactorEpoll_wait(swReactor *reactor, struct timeval *timeo) {
         }
         for (i = 0; i < n; i++) {
             event.reactor_id = reactor_id;
-            event.socket = (swSocket *) events[i].data.ptr;
+            event.socket = (Socket *) events[i].data.ptr;
             event.type = event.socket->fdtype;
             event.fd = event.socket->fd;
 

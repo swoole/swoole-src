@@ -28,14 +28,16 @@
 #include <sys/event.h>
 #endif
 
+using swoole::Reactor;
+
 #ifdef HAVE_SIGNALFD
 static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler);
 static void swSignalfd_clear();
-static int swSignalfd_onSignal(swReactor *reactor, swEvent *event);
+static int swSignalfd_onSignal(Reactor *reactor, swEvent *event);
 
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
-static swSocket *signal_socket = nullptr;
+static swoole::network::Socket *signal_socket = nullptr;
 #elif HAVE_KQUEUE
 static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
 #else
@@ -216,7 +218,7 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
     return origin_handler;
 }
 
-int swSignalfd_setup(swReactor *reactor) {
+int swSignalfd_setup(Reactor *reactor) {
     if (signal_fd != 0) {
         return SW_OK;
     }
@@ -235,7 +237,7 @@ int swSignalfd_setup(swReactor *reactor) {
     if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0) {
         goto _error;
     }
-    reactor->set_exit_condition(SW_REACTOR_EXIT_CONDITION_SIGNALFD, [](swReactor *reactor, int &event_num) -> bool {
+    reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, int &event_num) -> bool {
         event_num--;
         return true;
     });
@@ -267,7 +269,7 @@ static void swSignalfd_clear() {
     signal_fd = 0;
 }
 
-static int swSignalfd_onSignal(swReactor *reactor, swEvent *event) {
+static int swSignalfd_onSignal(Reactor *reactor, swEvent *event) {
     int n;
     struct signalfd_siginfo siginfo;
     n = read(event->fd, &siginfo, sizeof(siginfo));
@@ -301,7 +303,7 @@ static int swSignalfd_onSignal(swReactor *reactor, swEvent *event) {
 static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
     struct kevent ev;
     swSignalHandler origin_handler = nullptr;
-    swReactor *reactor = sw_reactor();
+    Reactor *reactor = sw_reactor();
     struct reactor_object {
         int fd;
     };

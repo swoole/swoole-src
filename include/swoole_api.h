@@ -27,23 +27,23 @@ enum swEvent_init_flags {
 
 SW_API long swoole_timer_after(long ms, const swTimerCallback &callback, void *private_data);
 SW_API long swoole_timer_tick(long ms, const swTimerCallback &callback, void *private_data);
-SW_API swTimer_node *swoole_timer_add(long ms, bool persistent, const swTimerCallback &callback, void *private_data);
-SW_API bool swoole_timer_del(swTimer_node *tnode);
+SW_API swoole::TimerNode *swoole_timer_add(long ms, bool persistent, const swTimerCallback &callback, void *private_data);
+SW_API bool swoole_timer_del(swoole::TimerNode *tnode);
 SW_API bool swoole_timer_exists(long timer_id);
-SW_API swTimer_node *swoole_timer_get(long timer_id);
+SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
 SW_API bool swoole_timer_clear(long timer_id);
 SW_API void swoole_timer_free();
 SW_API int swoole_timer_select();
 
 SW_API int swoole_event_init(int flags);
-SW_API int swoole_event_add(swSocket *socket, int events);
-SW_API int swoole_event_set(swSocket *socket, int events);
-SW_API int swoole_event_del(swSocket *socket);
+SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
+SW_API int swoole_event_set(swoole::network::Socket *socket, int events);
+SW_API int swoole_event_del(swoole::network::Socket *socket);
 SW_API void swoole_event_defer(swCallback cb, void *private_data);
-SW_API ssize_t swoole_event_write(swSocket *socket, const void *data, size_t len);
+SW_API ssize_t swoole_event_write(swoole::network::Socket *socket, const void *data, size_t len);
 SW_API int swoole_event_wait();
 SW_API int swoole_event_free();
-SW_API bool swoole_event_set_handler(int fdtype, swReactor_handler handler);
+SW_API bool swoole_event_set_handler(int fdtype, swoole::ReactorHandler handler);
 SW_API bool swoole_event_isset_handler(int fdtype);
 SW_API bool swoole_event_is_available();
 

@@ -23,29 +23,6 @@
 #include <list>
 #include <map>
 
-enum swReactor_end_callback {
-    SW_REACTOR_PRIORITY_TIMER = 0,
-    SW_REACTOR_PRIORITY_DEFER_TASK,
-    SW_REACTOR_PRIORITY_IDLE_TASK,
-    SW_REACTOR_PRIORITY_SIGNAL_CALLBACK,
-    SW_REACTOR_PRIORITY_TRY_EXIT,
-    SW_REACTOR_PRIORITY_MALLOC_TRIM,
-};
-
-enum swReactor_exit_condition {
-    SW_REACTOR_EXIT_CONDITION_TIMER = 0,
-    SW_REACTOR_EXIT_CONDITION_DEFER_TASK,
-    SW_REACTOR_EXIT_CONDITION_WAIT_PID,
-    SW_REACTOR_EXIT_CONDITION_CO_SIGNAL_LISTENER,
-    SW_REACTOR_EXIT_CONDITION_SIGNAL_LISTENER,
-    SW_REACTOR_EXIT_CONDITION_AIO_TASK,
-    SW_REACTOR_EXIT_CONDITION_SIGNALFD,
-    SW_REACTOR_EXIT_CONDITION_USER_BEFORE_DEFAULT,
-    SW_REACTOR_EXIT_CONDITION_DEFAULT = 999,
-    SW_REACTOR_EXIT_CONDITION_USER_AFTER_DEFAULT,
-
-};
-
 namespace swoole {
 
 struct swDefer_callback {
@@ -83,6 +60,29 @@ class CallbackManager {
 
 class Reactor {
   public:
+
+    enum EndCallback {
+        PRIORITY_TIMER = 0,
+        PRIORITY_DEFER_TASK,
+        PRIORITY_IDLE_TASK,
+        PRIORITY_SIGNAL_CALLBACK,
+        PRIORITY_TRY_EXIT,
+        PRIORITY_MALLOC_TRIM,
+    };
+
+    enum ExitCondition {
+        EXIT_CONDITION_TIMER = 0,
+        EXIT_CONDITION_DEFER_TASK,
+        EXIT_CONDITION_WAIT_PID,
+        EXIT_CONDITION_CO_SIGNAL_LISTENER,
+        EXIT_CONDITION_SIGNAL_LISTENER,
+        EXIT_CONDITION_AIO_TASK,
+        EXIT_CONDITION_SIGNALFD,
+        EXIT_CONDITION_USER_BEFORE_DEFAULT,
+        EXIT_CONDITION_DEFAULT = 999,
+        EXIT_CONDITION_USER_AFTER_DEFAULT,
+    };
+
     void *object = nullptr;
     void *ptr = nullptr;
 
@@ -116,12 +116,12 @@ class Reactor {
     time_t last_malloc_trim_time = 0;
 #endif
 
-    swReactor_handler read_handler[SW_MAX_FDTYPE] = {};
-    swReactor_handler write_handler[SW_MAX_FDTYPE] = {};
-    swReactor_handler error_handler[SW_MAX_FDTYPE] = {};
+    ReactorHandler read_handler[SW_MAX_FDTYPE] = {};
+    ReactorHandler write_handler[SW_MAX_FDTYPE] = {};
+    ReactorHandler error_handler[SW_MAX_FDTYPE] = {};
 
-    swReactor_handler default_write_handler = nullptr;
-    swReactor_handler default_error_handler = nullptr;
+    ReactorHandler default_write_handler = nullptr;
+    ReactorHandler default_error_handler = nullptr;
 
     int (*add)(Reactor *reactor, swSocket *socket, int events) = nullptr;
     int (*set)(Reactor *reactor, swSocket *socket, int events) = nullptr;
@@ -149,18 +149,18 @@ class Reactor {
     ~Reactor();
     bool if_exit();
     void defer(swCallback cb, void *data = nullptr);
-    void set_end_callback(enum swReactor_end_callback id, const std::function<void(Reactor *)> &fn);
-    void set_exit_condition(enum swReactor_exit_condition id, const std::function<bool(Reactor *, int &)> &fn);
-    inline size_t remove_exit_condition(enum swReactor_exit_condition id) {
+    void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
+    void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, int &)> &fn);
+    inline size_t remove_exit_condition(enum ExitCondition id) {
         return exit_conditions.erase(id);
     }
-    inline bool isset_exit_condition(enum swReactor_exit_condition id) {
+    inline bool isset_exit_condition(enum ExitCondition id) {
         return exit_conditions.find(id) != exit_conditions.end();
     }
     inline bool isset_handler(int fdtype) {
         return read_handler[fdtype] != nullptr;
     }
-    bool set_handler(int _fdtype, swReactor_handler handler);
+    bool set_handler(int _fdtype, ReactorHandler handler);
     void add_destroy_callback(swCallback cb, void *data = nullptr);
     void execute_end_callbacks(bool timedout = false);
     void drain_write_buffer(swSocket *socket);
@@ -223,7 +223,7 @@ class Reactor {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
 
-    inline swReactor_handler get_handler(enum swEvent_type event_type, enum swFd_type fdtype) {
+    inline ReactorHandler get_handler(enum swEvent_type event_type, enum swFd_type fdtype) {
         switch (event_type) {
         case SW_EVENT_READ:
             return read_handler[fdtype];

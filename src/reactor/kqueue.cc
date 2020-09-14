@@ -20,6 +20,10 @@
 #include "swoole_signal.h"
 #include "swoole_log.h"
 
+using swoole::Reactor;
+using swoole::ReactorHandler;
+using swoole::network::Socket;
+
 #ifdef IDE_HELPER
 #ifdef HAVE_KQUEUE
 #include <sys/event.h>
@@ -42,14 +46,14 @@ struct swReactorKqueue {
     struct kevent *events;
 };
 
-static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events);
-static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events);
-static int swReactorKqueue_del(swReactor *reactor, swSocket *socket);
-static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo);
-static void swReactorKqueue_free(swReactor *reactor);
+static int swReactorKqueue_add(Reactor *reactor, Socket *socket, int events);
+static int swReactorKqueue_set(Reactor *reactor, Socket *socket, int events);
+static int swReactorKqueue_del(Reactor *reactor, Socket *socket);
+static int swReactorKqueue_wait(Reactor *reactor, struct timeval *timeo);
+static void swReactorKqueue_free(Reactor *reactor);
 
-static sw_inline bool swReactorKqueue_fetch_event(swReactor *reactor, swEvent *event, void *udata) {
-    event->socket = (swSocket *) udata;
+static sw_inline bool swReactorKqueue_fetch_event(Reactor *reactor, swEvent *event, void *udata) {
+    event->socket = (Socket *) udata;
     event->fd = event->socket->fd;
     event->type = event->socket->fdtype;
     event->reactor_id = reactor->id;
@@ -60,13 +64,13 @@ static sw_inline bool swReactorKqueue_fetch_event(swReactor *reactor, swEvent *e
     return true;
 }
 
-static sw_inline void swReactorKqueue_del_once_socket(swReactor *reactor, swSocket *socket) {
+static sw_inline void swReactorKqueue_del_once_socket(Reactor *reactor, Socket *socket) {
     if ((socket->events & SW_EVENT_ONCE) && !socket->removed) {
         swReactorKqueue_del(reactor, socket);
     }
 }
 
-int swReactorKqueue_create(swReactor *reactor, int max_event_num) {
+int swReactorKqueue_create(Reactor *reactor, int max_event_num) {
     int epfd = kqueue();
     if (epfd < 0) {
         swWarn("[swReactorKqueueCreate] kqueue_create[0] fail");
@@ -89,14 +93,14 @@ int swReactorKqueue_create(swReactor *reactor, int max_event_num) {
     return SW_OK;
 }
 
-static void swReactorKqueue_free(swReactor *reactor) {
+static void swReactorKqueue_free(Reactor *reactor) {
     swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     close(object->epfd);
     delete[] object->events;
     delete object;
 }
 
-static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events) {
+static int swReactorKqueue_add(Reactor *reactor, Socket *socket, int events) {
     swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     struct kevent e;
     int ret;
@@ -131,7 +135,7 @@ static int swReactorKqueue_add(swReactor *reactor, swSocket *socket, int events)
     return SW_OK;
 }
 
-static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events) {
+static int swReactorKqueue_set(Reactor *reactor, Socket *socket, int events) {
     swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     struct kevent e;
     int ret;
@@ -180,7 +184,7 @@ static int swReactorKqueue_set(swReactor *reactor, swSocket *socket, int events)
     return SW_OK;
 }
 
-static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
+static int swReactorKqueue_del(Reactor *reactor, Socket *socket) {
     swReactorKqueue *object = (swReactorKqueue *) reactor->object;
     struct kevent e;
     int ret;
@@ -220,10 +224,10 @@ static int swReactorKqueue_del(swReactor *reactor, swSocket *socket) {
     return SW_OK;
 }
 
-static int swReactorKqueue_wait(swReactor *reactor, struct timeval *timeo) {
+static int swReactorKqueue_wait(Reactor *reactor, struct timeval *timeo) {
     swEvent event;
     swReactorKqueue *object = (swReactorKqueue *) reactor->object;
-    swReactor_handler handler;
+    ReactorHandler handler;
 
     int i, n;
     struct timespec t = {};

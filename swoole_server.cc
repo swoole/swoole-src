@@ -29,19 +29,18 @@
 #include <list>
 #include <vector>
 
-using namespace std;
 using namespace swoole;
 
 struct TaskCo;
 
 struct ServerProperty {
-    vector<zval *> ports;
-    vector<zval *> user_processes;
+    std::vector<zval *> ports;
+    std::vector<zval *> user_processes;
     php_swoole_server_port_property *primary_port;
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-    unordered_map<int, zend_fcall_info_cache> task_callbacks;
-    unordered_map<int, TaskCo *> task_coroutine_map;
-    unordered_map<int, list<php_coro_context *> *> send_coroutine_map;
+    std::unordered_map<int, zend_fcall_info_cache> task_callbacks;
+    std::unordered_map<int, TaskCo *> task_coroutine_map;
+    std::unordered_map<int, std::list<FutureTask *> *> send_coroutine_map;
 };
 
 struct ServerObject {
@@ -59,11 +58,11 @@ struct ConnectionIterator {
 };
 
 struct TaskCo {
-    php_coro_context context;
+    FutureTask context;
     int *list;
     uint32_t count;
     zval *result;
-    swTimer_node *timer;
+    TimerNode *timer;
     ServerObject *server_object;
 };
 
@@ -74,12 +73,12 @@ struct ServerEvent {
 };
 
 // clang-format off
-static unordered_map<string, ServerEvent> server_event_map({
+static std::unordered_map<std::string, ServerEvent> server_event_map({
     { "start",        ServerEvent(SW_SERVER_CB_onStart,        "Start") },
     { "shutdown",     ServerEvent(SW_SERVER_CB_onShutdown,     "Shutdown") },
     { "workerstart",  ServerEvent(SW_SERVER_CB_onWorkerStart,  "WorkerStart") },
     { "workerstop",   ServerEvent(SW_SERVER_CB_onWorkerStop,   "WorkerStop") },
-    { "beforereload",  ServerEvent(SW_SERVER_CB_onBeforeReload,  "BeforeReload") },
+    { "beforereload", ServerEvent(SW_SERVER_CB_onBeforeReload, "BeforeReload") },
     { "afterreload",  ServerEvent(SW_SERVER_CB_onAfterReload,  "AfterReload") },
     { "task",         ServerEvent(SW_SERVER_CB_onTask,         "Task") },
     { "finish",       ServerEvent(SW_SERVER_CB_onFinish,       "Finish") },
@@ -107,9 +106,9 @@ static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_p
 static void php_swoole_onManagerStart(Server *serv);
 static void php_swoole_onManagerStop(Server *serv);
 
-static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode);
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, php_coro_context *context, int fd);
-static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode);
+static void php_swoole_onSendTimeout(swTimer *timer, TimerNode *tnode);
+static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, int fd);
+static void php_swoole_task_onTimeout(swTimer *timer, TimerNode *tnode);
 static int php_swoole_server_dispatch_func(Server *serv, swConnection *conn, swSendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, swListenPort *port);
 
@@ -952,7 +951,7 @@ static void php_swoole_task_wait_co(
     }
 
     long ms = (long) (timeout * 1000);
-    swTimer_node *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
+    TimerNode *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
     if (timer) {
         task_co->timer = timer;
     }
@@ -960,9 +959,9 @@ static void php_swoole_task_wait_co(
     PHPCoroutine::yield_m(return_value, &task_co->context);
 }
 
-static void php_swoole_task_onTimeout(swTimer *timer, swTimer_node *tnode) {
+static void php_swoole_task_onTimeout(swTimer *timer, TimerNode *tnode) {
     TaskCo *task_co = (TaskCo *) tnode->data;
-    php_coro_context *context = &task_co->context;
+    FutureTask *context = &task_co->context;
     zval *retval = nullptr;
 
     // Server->taskwait, single task
@@ -1456,7 +1455,7 @@ static int php_swoole_onFinish(Server *serv, swEventData *req) {
             if (task_co->timer) {
                 swoole_timer_del(task_co->timer);
             }
-            php_coro_context *context = &task_co->context;
+            FutureTask *context = &task_co->context;
             int ret = PHPCoroutine::resume_m(context, zdata, retval);
             if (ret == Coroutine::ERR_END && retval) {
                 zval_ptr_dtor(retval);
@@ -1490,7 +1489,7 @@ static int php_swoole_onFinish(Server *serv, swEventData *req) {
                 swoole_timer_del(task_co->timer);
                 task_co->timer = nullptr;
             }
-            php_coro_context *context = &task_co->context;
+            FutureTask *context = &task_co->context;
             int ret = PHPCoroutine::resume_m(context, result, retval);
             if (ret == Coroutine::ERR_END && retval) {
                 zval_ptr_dtor(retval);
@@ -1722,7 +1721,7 @@ void php_swoole_onClose(Server *serv, swDataHead *info) {
             auto coros_list = _i_coros_list->second;
             server_object->property->send_coroutine_map.erase(info->fd);
             while (!coros_list->empty()) {
-                php_coro_context *context = coros_list->front();
+                FutureTask *context = coros_list->front();
                 coros_list->pop_front();
                 swoole_set_last_error(ECONNRESET);
                 zval_ptr_dtor(&context->coro_params);
@@ -1762,8 +1761,8 @@ void php_swoole_onBufferFull(Server *serv, swDataHead *info) {
     }
 }
 
-static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode) {
-    php_coro_context *context = (php_coro_context *) tnode->data;
+static void php_swoole_onSendTimeout(swTimer *timer, TimerNode *tnode) {
+    FutureTask *context = (FutureTask *) tnode->data;
     zval *zdata = &context->coro_params;
     zval result;
     zval *retval = nullptr;
@@ -1800,7 +1799,7 @@ static void php_swoole_onSendTimeout(swTimer *timer, swTimer_node *tnode) {
     efree(context);
 }
 
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, php_coro_context *context, int fd) {
+static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, int fd) {
     char *data;
     zval *zdata = &context->coro_params;
     zval result;
@@ -1822,7 +1821,7 @@ static enum swReturn_code php_swoole_server_send_resume(Server *serv, php_coro_c
     }
 
     if (context->timer) {
-        swoole_timer_del((swTimer_node *) context->timer);
+        swoole_timer_del((TimerNode *) context->timer);
         context->timer = nullptr;
     }
 
@@ -1837,17 +1836,17 @@ static enum swReturn_code php_swoole_server_send_resume(Server *serv, php_coro_c
 
 void php_swoole_server_send_yield(Server *serv, int fd, zval *zdata, zval *return_value) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->ptr2));
-    list<php_coro_context *> *coros_list;
+    std::list<FutureTask *> *coros_list;
     auto coroutine_iterator = server_object->property->send_coroutine_map.find(fd);
 
     if (coroutine_iterator == server_object->property->send_coroutine_map.end()) {
-        coros_list = new list<php_coro_context *>;
+        coros_list = new std::list<FutureTask *>;
         server_object->property->send_coroutine_map[fd] = coros_list;
     } else {
         coros_list = coroutine_iterator->second;
     }
 
-    php_coro_context *context = (php_coro_context *) emalloc(sizeof(php_coro_context));
+    FutureTask *context = (FutureTask *) emalloc(sizeof(FutureTask));
     coros_list->push_back(context);
     context->private_data = (void *) (long) fd;
     if (serv->send_timeout > 0) {
@@ -1911,7 +1910,7 @@ void php_swoole_onBufferEmpty(Server *serv, swDataHead *info) {
             auto coros_list = _i_coros_list->second;
             server_object->property->send_coroutine_map.erase(info->fd);
             while (!coros_list->empty()) {
-                php_coro_context *context = coros_list->front();
+                FutureTask *context = coros_list->front();
                 coros_list->pop_front();
                 if (php_swoole_server_send_resume(serv, context, info->fd) == SW_CONTINUE) {
                     coros_list->push_back(context);
@@ -2539,7 +2538,7 @@ static PHP_METHOD(swoole_server, on) {
         RETURN_BOOL(Z_BVAL_P(&retval));
     } else {
         int event_type = i->second.type;
-        string property_name = "on" + i->second.name;
+        std::string property_name = "on" + i->second.name;
 
         zend_update_property(
             swoole_server_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
@@ -2564,7 +2563,7 @@ static PHP_METHOD(swoole_server, getCallback) {
     zend::String _event_name_tolower(zend_string_tolower(_event_name_ori.get()), false);
     auto i = server_event_map.find(_event_name_tolower.to_std_string());
     if (i != server_event_map.end()) {
-        string property_name = "on" + i->second.name;
+        std::string property_name = "on" + i->second.name;
         // Notice: we should use Z_OBJCE_P instead of swoole_server_ce, because we need to consider the subclasses.
         zval rv,
             *property = zend_read_property(
@@ -3322,7 +3321,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     task_co->list = list;
     task_co->count = n_task;
 
-    swTimer_node *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
+    TimerNode *timer = swoole_timer_add(ms, false, php_swoole_task_onTimeout, task_co);
     if (timer) {
         task_co->timer = timer;
     }

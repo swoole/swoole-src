@@ -170,12 +170,6 @@ typedef enum
     PHP_SWOOLE_RSHUTDOWN_END,
 } php_swoole_req_status;
 //---------------------------------------------------------
-typedef struct
-{
-    zend_fcall_info fci;
-    zend_fcall_info_cache fci_cache;
-} php_swoole_fci;
-//---------------------------------------------------------
 
 static sw_inline enum swSocket_type php_swoole_socktype(long type)
 {

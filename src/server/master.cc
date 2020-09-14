@@ -32,11 +32,11 @@ static void Server_signal_handler(int sig);
 
 static void **Server_worker_create_buffers(Server *serv, uint32_t buffer_num);
 static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void **buffers);
-static void *Server_worker_get_buffer(Server *serv, swDataHead *info);
-static size_t Server_worker_get_buffer_len(Server *serv, swDataHead *info);
-static void Server_worker_add_buffer_len(Server *serv, swDataHead *info, size_t len);
-static void Server_worker_move_buffer(Server *serv, swPipeBuffer *buffer);
-static size_t Server_worker_get_packet(Server *serv, swEventData *req, char **data_ptr);
+static void *Server_worker_get_buffer(Server *serv, DataHead *info);
+static size_t Server_worker_get_buffer_len(Server *serv, DataHead *info);
+static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len);
+static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
+static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
 
 void Server::disable_accept() {
     enable_accept_timer = swoole_timer_add(
@@ -78,7 +78,7 @@ void Server::close_port(bool only_stream_port) {
     }
 }
 
-int Server::accept_connection(Reactor *reactor, swEvent *event) {
+int Server::accept_connection(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
     ListenPort *listen_host = serv->get_port_by_server_fd(event->fd);
 
@@ -140,7 +140,7 @@ int Server::accept_connection(Reactor *reactor, swEvent *event) {
                 return SW_OK;
             }
         } else {
-            swDataHead ev = {};
+            DataHead ev = {};
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = sock->fd;
             Socket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
@@ -155,11 +155,11 @@ int Server::accept_connection(Reactor *reactor, swEvent *event) {
 }
 
 #ifdef SW_SUPPORT_DTLS
-dtls::Session *Server::accept_dtls_connection(swListenPort *port, swSocketAddress *sa) {
+dtls::Session *Server::accept_dtls_connection(swListenPort *port, Address *sa) {
     dtls::Session *session = nullptr;
-    swConnection *conn = nullptr;
+    Connection *conn = nullptr;
 
-    network::Socket *sock = swoole::make_socket(port->type, SW_FD_SESSION, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    Socket *sock = swoole::make_socket(port->type, SW_FD_SESSION, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (!sock) {
         return nullptr;
     }
@@ -402,13 +402,13 @@ int Server::create_task_workers() {
  * @description:
  *  only the memory of the Worker structure is allocated, no process is fork.
  *  called when the manager process start.
- * @param swServer
+ * @param Server
  * @return: SW_OK|SW_ERR
  */
 int Server::create_user_workers() {
     /**
      * if Swoole\Server::addProcess is called first,
-     * swServer::user_worker_list is initialized in the Server_add_worker function
+     * Server::user_worker_list is initialized in the Server_add_worker function
      */
     if (user_worker_list == nullptr) {
         user_worker_list = new std::vector<Worker *>;
@@ -477,8 +477,8 @@ void Server::call_worker_start_callback(Worker *worker) {
     if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_WORKER_START]) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
     }
-    if (hooks[SW_SERVER_HOOK_WORKER_START]) {
-        call_hook(SW_SERVER_HOOK_WORKER_START, hook_args);
+    if (hooks[Server::HOOK_WORKER_START]) {
+        call_hook(Server::HOOK_WORKER_START, hook_args);
     }
     if (onWorkerStart) {
         onWorkerStart(this, worker->id);
@@ -883,15 +883,15 @@ bool Server::feedback(int session_id, int event) {
     _send.info.reactor_id = conn->reactor_id;
 
     if (is_process_mode()) {
-        return send_to_reactor_thread((swEventData *) &_send.info, sizeof(_send.info), session_id) > 0;
+        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
 }
 
 void Server::store_pipe_fd(swPipe *p) {
-    swSocket *master_socket = p->getSocket(p, SW_PIPE_MASTER);
-    swSocket *worker_socket = p->getSocket(p, SW_PIPE_WORKER);
+    Socket *master_socket = p->getSocket(p, SW_PIPE_MASTER);
+    Socket *worker_socket = p->getSocket(p, SW_PIPE_WORKER);
 
     connection_list[master_socket->fd].object = p;
     connection_list[worker_socket->fd].object = p;
@@ -975,7 +975,7 @@ int Server::send_to_connection(swSendData *_send) {
         return SW_ERR;
     }
 
-    swSocket *_socket = conn->socket;
+    Socket *_socket = conn->socket;
 
     /**
      * Reset send buffer, Immediately close the connection.
@@ -1115,7 +1115,7 @@ int Server::send_to_connection(swSendData *_send) {
  * use in master process
  */
 bool Server::notify(Connection *conn, int event) {
-    swDataHead notify_event = {};
+    DataHead notify_event = {};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
@@ -1195,12 +1195,12 @@ bool Server::sendwait(int session_id, const void *data, uint32_t length) {
     return conn->socket->send_blocking(data, length) == length;
 }
 
-static sw_inline void Server_worker_set_buffer(Server *serv, swDataHead *info, swString *addr) {
+static sw_inline void Server_worker_set_buffer(Server *serv, DataHead *info, swString *addr) {
     swString **buffers = (swString **) serv->worker_input_buffers;
     buffers[info->reactor_id] = addr;
 }
 
-static void *Server_worker_get_buffer(Server *serv, swDataHead *info) {
+static void *Server_worker_get_buffer(Server *serv, DataHead *info) {
     swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
 
     if (worker_buffer == nullptr) {
@@ -1211,7 +1211,7 @@ static void *Server_worker_get_buffer(Server *serv, swDataHead *info) {
     return worker_buffer->str + worker_buffer->length;
 }
 
-static size_t Server_worker_get_buffer_len(Server *serv, swDataHead *info) {
+static size_t Server_worker_get_buffer_len(Server *serv, DataHead *info) {
     swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
 
     return worker_buffer == nullptr ? 0 : worker_buffer->length;
@@ -1222,13 +1222,13 @@ static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t le
     worker_buffer->length += len;
 }
 
-static void Server_worker_move_buffer(Server *serv, swPipeBuffer *buffer) {
+static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer) {
     swString *worker_buffer = serv->get_worker_input_buffer(buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
     Server_worker_set_buffer(serv, &buffer->info, nullptr);
 }
 
-static size_t Server_worker_get_packet(Server *serv, swEventData *req, char **data_ptr) {
+static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr) {
     size_t length;
     if (req->info.flags & SW_EVENT_DATA_PTR) {
         swPacket_ptr *task = (swPacket_ptr *) req;
@@ -1247,7 +1247,7 @@ static size_t Server_worker_get_packet(Server *serv, swEventData *req, char **da
     return length;
 }
 
-void Server::call_hook(enum swServer_hook_type type, void *arg) {
+void Server::call_hook(HookType type, void *arg) {
     swoole::hook_call(hooks, type, arg);
 }
 
@@ -1272,7 +1272,7 @@ bool Server::close(int session_id, bool reset) {
     swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
 
     Worker *worker;
-    swDataHead ev = {};
+    DataHead ev = {};
 
     if (is_hash_dispatch_mode()) {
         int worker_id = schedule_worker(conn->fd, nullptr);
@@ -1330,8 +1330,8 @@ void Server::timer_callback(Timer *timer, TimerNode *tnode) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_NO_IDLE_WORKER, "No idle task worker is available");
     }
 
-    if (serv->hooks[SW_SERVER_HOOK_MASTER_TIMER]) {
-        serv->call_hook(SW_SERVER_HOOK_MASTER_TIMER, serv);
+    if (serv->hooks[Server::HOOK_MASTER_TIMER]) {
+        serv->call_hook(Server::HOOK_MASTER_TIMER, serv);
     }
 }
 
@@ -1349,7 +1349,7 @@ int Server::add_worker(Worker *worker) {
     return worker->id;
 }
 
-int Server::add_hook(enum swServer_hook_type type, const swCallback &func, int push_back) {
+int Server::add_hook(Server::HookType type, const swCallback &func, int push_back) {
     return swoole::hook_add(hooks, (int) type, func, push_back);
 }
 
@@ -1693,18 +1693,18 @@ void Server::set_ipc_max_size() {
  * allocate memory for Server::pipe_buffers
  */
 int Server::create_pipe_buffers() {
-    pipe_buffers = (swPipeBuffer **) sw_calloc(reactor_num, sizeof(swPipeBuffer *));
+    pipe_buffers = (PipeBuffer **) sw_calloc(reactor_num, sizeof(PipeBuffer *));
     if (pipe_buffers == nullptr) {
         swSysError("malloc[buffers] failed");
         return SW_ERR;
     }
     for (uint32_t i = 0; i < reactor_num; i++) {
-        pipe_buffers[i] = (swPipeBuffer *) sw_malloc(ipc_max_size);
+        pipe_buffers[i] = (PipeBuffer *) sw_malloc(ipc_max_size);
         if (pipe_buffers[i] == nullptr) {
             swSysError("malloc[sndbuf][%d] failed", i);
             return SW_ERR;
         }
-        sw_memset_zero(pipe_buffers[i], sizeof(swDataHead));
+        sw_memset_zero(pipe_buffers[i], sizeof(DataHead));
     }
 
     return SW_OK;
