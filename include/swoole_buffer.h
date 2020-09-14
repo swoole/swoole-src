@@ -70,12 +70,9 @@ class Buffer {
         return queue_.size();
     }
 
-    bool empty() {
-        return queue_.empty();
+    static bool empty(Buffer *buffer) {
+        return buffer == nullptr || buffer->queue_.empty();
     }
 };
 
-static inline bool empty_buffer(Buffer *buffer) {
-    return buffer == nullptr || buffer->empty();
-}
 }  // namespace swoole

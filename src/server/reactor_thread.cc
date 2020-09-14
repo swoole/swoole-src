@@ -481,7 +481,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
     Server *serv = (Server *) reactor->ptr;
     Buffer *buffer = ev->socket->out_buffer;
 
-    while (!empty_buffer(buffer)) {
+    while (!Buffer::empty(buffer)) {
         BufferChunk *chunk = buffer->front();
         EventData *send_data = (EventData *) chunk->value.ptr;
 
@@ -517,7 +517,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         }
     }
 
-    if (empty_buffer(buffer)) {
+    if (Buffer::empty(buffer)) {
         if (reactor->remove_write_event(ev->socket) < 0) {
             swSysWarn("reactor->set(%d) failed", ev->fd);
         }
@@ -651,7 +651,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         return Server::close_connection(reactor, socket);
     }
 
-    while (!empty_buffer(socket->out_buffer)) {
+    while (!Buffer::empty(socket->out_buffer)) {
         BufferChunk *chunk = socket->out_buffer->front();
         if (chunk->type == BufferChunk::TYPE_CLOSE) {
         _close_fd:
@@ -686,7 +686,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     }
 
     // remove EPOLLOUT event
-    if (!conn->peer_closed && !socket->removed && empty_buffer(socket->out_buffer)) {
+    if (!conn->peer_closed && !socket->removed && Buffer::empty(socket->out_buffer)) {
         reactor->set(reactor, socket, SW_EVENT_READ);
     }
     return SW_OK;

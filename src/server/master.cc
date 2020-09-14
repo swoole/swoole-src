@@ -1010,7 +1010,7 @@ int Server::send_to_connection(swSendData *_send) {
         }
     }
 
-    if (empty_buffer(_socket->out_buffer)) {
+    if (Buffer::empty(_socket->out_buffer)) {
         /**
          * close connection.
          */

@@ -43,7 +43,7 @@ void Buffer::pop() {
 
     total_length -= chunk->size;
     if (chunk->type == BufferChunk::TYPE_DATA) {
-        sw_free(chunk->value.ptr);
+        delete[] chunk->value.ptr;
     }
     if (chunk->destroy) {
         chunk->destroy(chunk);

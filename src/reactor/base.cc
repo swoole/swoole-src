@@ -193,7 +193,7 @@ int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
         return SW_ERR;
     }
 
-    if (swoole::empty_buffer(buffer)) {
+    if (Buffer::isEmpty(buffer)) {
 #ifdef SW_USE_OPENSSL
         if (socket->ssl_send) {
             goto _do_buffer;
@@ -253,7 +253,7 @@ int swReactor_onWrite(Reactor *reactor, Event *ev) {
     Socket *socket = ev->socket;
     Buffer *buffer = socket->out_buffer;
 
-    while (!swoole::empty_buffer(buffer)) {
+    while (!Buffer::empty(buffer)) {
         BufferChunk *chunk = buffer->front();
         if (chunk->type == BufferChunk::TYPE_CLOSE) {
         _close_fd:
@@ -275,7 +275,7 @@ int swReactor_onWrite(Reactor *reactor, Event *ev) {
     }
 
     // remove EPOLLOUT event
-    if (swoole::empty_buffer(buffer)) {
+    if (Buffer::empty(buffer)) {
         reactor->remove_write_event(ev->socket);
     }
 
@@ -287,7 +287,7 @@ void Reactor::drain_write_buffer(swSocket *socket) {
     event.socket = socket;
     event.fd = socket->fd;
 
-    while (!swoole::empty_buffer(socket->out_buffer)) {
+    while (!Buffer::empty(socket->out_buffer)) {
         if (socket->wait_event(network::Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
