@@ -483,7 +483,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 
     while (!empty_buffer(buffer)) {
         BufferChunk *chunk = buffer->front();
-        EventData *send_data = (EventData *) chunk->store.ptr;
+        EventData *send_data = (EventData *) chunk->value.ptr;
 
         // server active close, discard data.
         if (swEventData_is_stream(send_data->info.type)) {
@@ -509,7 +509,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             }
         }
 
-        ret = ev->socket->send(chunk->store.ptr, chunk->length, 0);
+        ret = ev->socket->send(chunk->value.ptr, chunk->length, 0);
         if (ret < 0) {
             return (ev->socket->catch_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {

@@ -1054,7 +1054,7 @@ int Server::send_to_connection(swSendData *_send) {
     // close connection
     if (_send->info.type == SW_SERVER_EVENT_CLOSE) {
         chunk = _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
-        chunk->store.data.val1 = _send->info.type;
+        chunk->value.data.val1 = _send->info.type;
         conn->close_queued = 1;
     }
     // sendfile to client

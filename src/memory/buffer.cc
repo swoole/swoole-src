@@ -29,7 +29,7 @@ BufferChunk *Buffer::alloc(BufferChunk::Type type, uint32_t size) {
 
     if (type == BufferChunk::TYPE_DATA && size > 0) {
         chunk->size = size;
-        chunk->store.ptr = new char[size];
+        chunk->value.ptr = new char[size];
     }
 
     chunk->type = type;
@@ -43,16 +43,14 @@ void Buffer::pop() {
 
     total_length -= chunk->size;
     if (chunk->type == BufferChunk::TYPE_DATA) {
-        sw_free(chunk->store.ptr);
+        sw_free(chunk->value.ptr);
     }
     if (chunk->destroy) {
         chunk->destroy(chunk);
     }
-    sw_free(chunk);
-
+    delete chunk;
     queue_.pop();
 }
-
 
 Buffer::~Buffer() {
     while (!queue_.empty()) {
@@ -73,7 +71,7 @@ void Buffer::append(const void *data, uint32_t size) {
 
         total_length += _n;
 
-        memcpy(chunk->store.ptr, _pos, _n);
+        memcpy(chunk->value.ptr, _pos, _n);
         chunk->length = _n;
 
         swTraceLog(

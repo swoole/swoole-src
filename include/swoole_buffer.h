@@ -27,7 +27,7 @@ struct BufferChunk {
         TYPE_CLOSE,
     };
 
-    uint32_t type;
+    Type type;
     uint32_t length;
     uint32_t offset;
     union {
@@ -37,7 +37,7 @@ struct BufferChunk {
             uint32_t val1;
             uint32_t val2;
         } data;
-    } store;
+    } value;
     uint32_t size;
     void (*destroy)(BufferChunk *chunk);
 };

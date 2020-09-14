@@ -154,7 +154,7 @@ static bool swFactory_end(swFactory *factory, int fd) {
             return Server::close_connection(reactor, conn->socket) == SW_OK;
         } else {
             BufferChunk *chunk = conn->socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
-            chunk->store.data.val1 = _send.info.type;
+            chunk->value.data.val1 = _send.info.type;
             conn->close_queued = 1;
             return true;
         }
