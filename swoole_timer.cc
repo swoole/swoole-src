@@ -24,6 +24,7 @@
 
 using swoole::Timer;
 using swoole::TimerNode;
+using zend::Function;
 
 zend_class_entry *swoole_timer_ce;
 static zend_object_handlers swoole_timer_handlers;
@@ -122,7 +123,7 @@ void php_swoole_timer_minit(int module_number) {
 }
 
 static void php_swoole_timer_dtor(TimerNode *tnode) {
-    php_swoole_fci *fci = (php_swoole_fci *) tnode->data;
+    Function *fci = (Function *) tnode->data;
     sw_zend_fci_params_discard(&fci->fci);
     sw_zend_fci_cache_discard(&fci->fci_cache);
     efree(fci);
@@ -156,11 +157,10 @@ bool php_swoole_timer_clear_all() {
 }
 
 static void php_swoole_onTimeout(Timer *timer, TimerNode *tnode) {
-    php_swoole_fci *fci = (php_swoole_fci *) tnode->data;
+    Function *fci = (Function *) tnode->data;
     bool enable_coroutine = settings.enable_coroutine_isset ? settings.enable_coroutine : SwooleG.enable_coroutine;
 
-    if (UNEXPECTED(
-            !zend::function::call(&fci->fci_cache, fci->fci.param_count, fci->fci.params, nullptr, enable_coroutine))) {
+    if (UNEXPECTED(fci->call(nullptr, enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
     if (!tnode->interval || tnode->removed) {
@@ -170,7 +170,7 @@ static void php_swoole_onTimeout(Timer *timer, TimerNode *tnode) {
 
 static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     zend_long ms;
-    php_swoole_fci *fci = (php_swoole_fci *) ecalloc(1, sizeof(php_swoole_fci));
+    Function *fci = (Function *) ecalloc(1, sizeof(Function));
     TimerNode *tnode;
 
     ZEND_PARSE_PARAMETERS_START(2, -1)

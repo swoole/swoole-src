@@ -9,11 +9,12 @@ using namespace std;
 using swoole::TimerNode;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
+using swoole::FutureTask;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-struct tmp_socket {
-    php_coro_context context;
+struct TmpSocket {
+    FutureTask context;
     swSocket socket;
     zend_string *buf;
     uint32_t nbytes;
@@ -72,8 +73,8 @@ PHP_METHOD(swoole_coroutine_system, sleep) {
 }
 
 static int co_socket_onReadable(swReactor *reactor, swEvent *event) {
-    tmp_socket *sock = (tmp_socket *) event->socket->object;
-    php_coro_context *context = &sock->context;
+    TmpSocket *sock = (TmpSocket *) event->socket->object;
+    FutureTask *context = &sock->context;
 
     zval *retval = nullptr;
     zval result;
@@ -107,8 +108,8 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event) {
 }
 
 static int co_socket_onWritable(swReactor *reactor, swEvent *event) {
-    tmp_socket *sock = (tmp_socket *) event->socket->object;
-    php_coro_context *context = &sock->context;
+    TmpSocket *sock = (TmpSocket *) event->socket->object;
+    FutureTask *context = &sock->context;
 
     zval *retval = nullptr;
     zval result;
@@ -142,7 +143,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
         swoole_event_set_handler(PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
     }
 
-    tmp_socket *sock = (tmp_socket *) ecalloc(1, sizeof(tmp_socket));
+    TmpSocket *sock = (TmpSocket *) ecalloc(1, sizeof(TmpSocket));
 
     sock->socket.fd = fd;
     sock->socket.fdtype = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
@@ -172,10 +173,10 @@ static void co_socket_write(int fd, char *str, size_t l_str, INTERNAL_FUNCTION_P
         RETURN_LONG(ret);
     }
 
-    tmp_socket *sock;
+    TmpSocket *sock;
 
 _yield:
-    sock = (tmp_socket *) ecalloc(1, sizeof(tmp_socket));
+    sock = (TmpSocket *) ecalloc(1, sizeof(TmpSocket));
 
     sock->socket.fd = fd;
     sock->socket.fdtype = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
@@ -186,12 +187,10 @@ _yield:
         RETURN_FALSE;
     }
 
-    php_coro_context *context = &sock->context;
-    context->private_data = str;
-
+    FutureTask *task = &sock->context;
+    task->private_data = str;
     sock->nbytes = l_str;
-
-    PHPCoroutine::yield_m(return_value, context);
+    PHPCoroutine::yield_m(return_value, task);
 }
 
 PHP_METHOD(swoole_coroutine_system, fread) {

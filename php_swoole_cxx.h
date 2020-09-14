@@ -317,7 +317,7 @@ class Array {
     }
 };
 
-enum process_pipe_type {
+enum PipeType {
     PIPE_TYPE_NONE = 0,
     PIPE_TYPE_STREAM = 1,
     PIPE_TYPE_DGRAM = 2,
@@ -326,10 +326,10 @@ enum process_pipe_type {
 class Process {
   public:
     zend_object *zsocket = nullptr;
-    enum process_pipe_type pipe_type;
+    enum PipeType pipe_type;
     bool enable_coroutine;
 
-    Process(enum process_pipe_type pipe_type, bool enable_coroutine)
+    Process(enum PipeType pipe_type, bool enable_coroutine)
         : pipe_type(pipe_type), enable_coroutine(enable_coroutine) {}
 
     ~Process() {
@@ -360,6 +360,15 @@ inline bool call(
     return success;
 }
 }  // namespace function
+
+struct Function {
+    zend_fcall_info fci;
+    zend_fcall_info_cache fci_cache;
+
+    inline bool call(zval *retval, const bool enable_coroutine) {
+        return function::call(&fci_cache, fci.param_count, fci.params, retval, enable_coroutine);
+    }
+};
 
 bool include(std::string file);
 bool eval(std::string code, std::string filename = "");

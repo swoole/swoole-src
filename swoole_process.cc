@@ -33,34 +33,34 @@ static zend_object_handlers swoole_process_handlers;
 static uint32_t php_swoole_worker_round_id = 0;
 static zend_fcall_info_cache *signal_fci_caches[SW_SIGNO_MAX] = {};
 
-struct process_t {
-    swWorker *worker;
+struct ProcessObject {
+    Worker *worker;
     zend_object std;
 };
 
-static sw_inline process_t *php_swoole_process_fetch_object(zend_object *obj) {
-    return (process_t *) ((char *) obj - swoole_process_handlers.offset);
+static sw_inline ProcessObject *php_swoole_process_fetch_object(zend_object *obj) {
+    return (ProcessObject *) ((char *) obj - swoole_process_handlers.offset);
 }
 
-static sw_inline swWorker *php_swoole_process_get_worker(zval *zobject) {
+static sw_inline Worker *php_swoole_process_get_worker(zval *zobject) {
     return php_swoole_process_fetch_object(Z_OBJ_P(zobject))->worker;
 }
 
-swWorker *php_swoole_process_get_and_check_worker(zval *zobject) {
-    swWorker *worker = php_swoole_process_get_worker(zobject);
+Worker *php_swoole_process_get_and_check_worker(zval *zobject) {
+    Worker *worker = php_swoole_process_get_worker(zobject);
     if (!worker) {
         php_swoole_fatal_error(E_ERROR, "you must call Process constructor first");
     }
     return worker;
 }
 
-void php_swoole_process_set_worker(zval *zobject, swWorker *worker) {
+void php_swoole_process_set_worker(zval *zobject, Worker *worker) {
     php_swoole_process_fetch_object(Z_OBJ_P(zobject))->worker = worker;
 }
 
 static void php_swoole_process_free_object(zend_object *object) {
-    process_t *process = php_swoole_process_fetch_object(object);
-    swWorker *worker = process->worker;
+    ProcessObject *process = php_swoole_process_fetch_object(object);
+    Worker *worker = process->worker;
 
     if (worker) {
         swPipe *_pipe = worker->pipe_object;
@@ -84,7 +84,7 @@ static void php_swoole_process_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_process_create_object(zend_class_entry *ce) {
-    process_t *process = (process_t *) zend_object_alloc(sizeof(process_t), ce);
+    ProcessObject *process = (ProcessObject *) zend_object_alloc(sizeof(ProcessObject), ce);
     zend_object_std_init(&process->std, ce);
     object_properties_init(&process->std, ce);
     process->std.handlers = &swoole_process_handlers;
@@ -251,7 +251,7 @@ void php_swoole_process_minit(int module_number) {
     SW_SET_CLASS_CLONEABLE(swoole_process, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
-        swoole_process, php_swoole_process_create_object, php_swoole_process_free_object, process_t, std);
+        swoole_process, php_swoole_process_create_object, php_swoole_process_free_object, ProcessObject, std);
 
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("IPC_NOWAIT"), MSGQUEUE_NOWAIT);
     zend_declare_class_constant_long(swoole_process_ce, ZEND_STRL("PIPE_MASTER"), SW_PIPE_CLOSE_MASTER);
@@ -313,7 +313,7 @@ void php_swoole_process_minit(int module_number) {
 }
 
 static PHP_METHOD(swoole_process, __construct) {
-    swWorker *process = php_swoole_process_get_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_worker(ZEND_THIS);
 
     if (process) {
         php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
@@ -335,7 +335,7 @@ static PHP_METHOD(swoole_process, __construct) {
         RETURN_FALSE;
     }
 
-    php_swoole_fci func;
+    zend::Function func;
     zend_bool redirect_stdin_and_stdout = 0;
     zend_long pipe_type = 2;
     zend_bool enable_coroutine = false;
@@ -348,7 +348,7 @@ static PHP_METHOD(swoole_process, __construct) {
     Z_PARAM_BOOL(enable_coroutine)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    process = (swWorker *) ecalloc(1, sizeof(swWorker));
+    process = (Worker *) ecalloc(1, sizeof(Worker));
 
     uint32_t base = 1;
     if (sw_server() && sw_server()->is_started()) {
@@ -389,7 +389,7 @@ static PHP_METHOD(swoole_process, __construct) {
             swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("pipe"), process->pipe_master->fd);
     }
 
-    zend::Process *proc = new zend::Process((enum zend::process_pipe_type) pipe_type, enable_coroutine);
+    zend::Process *proc = new zend::Process((enum zend::PipeType) pipe_type, enable_coroutine);
     process->ptr2 = proc;
 
     zend_update_property(
@@ -432,7 +432,7 @@ static PHP_METHOD(swoole_process, useQueue) {
         RETURN_FALSE;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
 
     if (msgkey <= 0) {
         msgkey = ftok(zend_get_executed_filename(), 1);
@@ -457,7 +457,7 @@ static PHP_METHOD(swoole_process, useQueue) {
 }
 
 static PHP_METHOD(swoole_process, statQueue) {
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (!process->queue) {
         php_swoole_fatal_error(E_WARNING, "no queue, can't get stats of the queue");
         RETURN_FALSE;
@@ -475,7 +475,7 @@ static PHP_METHOD(swoole_process, statQueue) {
 }
 
 static PHP_METHOD(swoole_process, freeQueue) {
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->queue && swMsgQueue_free(process->queue) == SW_OK) {
         efree(process->queue);
         process->queue = nullptr;
@@ -672,7 +672,7 @@ void php_swoole_process_clean() {
     }
 }
 
-int php_swoole_process_start(swWorker *process, zval *zobject) {
+int php_swoole_process_start(Worker *process, zval *zobject) {
     zval *zcallback = sw_zend_read_property_ex(swoole_process_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_CALLBACK), 0);
     zend_fcall_info_cache fci_cache;
 
@@ -732,7 +732,7 @@ int php_swoole_process_start(swWorker *process, zval *zobject) {
 }
 
 static PHP_METHOD(swoole_process, start) {
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
 
     if (process->pid && swoole_kill(process->pid, 0) == 0) {
         php_swoole_fatal_error(E_WARNING, "process has already been started");
@@ -766,7 +766,7 @@ static PHP_METHOD(swoole_process, read) {
         buf_size = 65536;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
 
     if (process->pipe_current == nullptr) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot read from pipe");
@@ -801,7 +801,7 @@ static PHP_METHOD(swoole_process, write) {
         RETURN_FALSE;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->pipe_current == nullptr) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot write into pipe");
         RETURN_FALSE;
@@ -832,7 +832,7 @@ static PHP_METHOD(swoole_process, write) {
  * export Swoole\Coroutine\Socket object
  */
 static PHP_METHOD(swoole_process, exportSocket) {
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->pipe_current == nullptr) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot export stream");
         RETURN_FALSE;
@@ -871,7 +871,7 @@ static PHP_METHOD(swoole_process, push) {
         RETURN_FALSE;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
 
     if (!process->queue) {
         php_swoole_fatal_error(E_WARNING, "no msgqueue, cannot use push()");
@@ -898,7 +898,7 @@ static PHP_METHOD(swoole_process, pop) {
         maxsize = SW_MSGMAX;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (!process->queue) {
         php_swoole_fatal_error(E_WARNING, "no msgqueue, cannot use pop()");
         RETURN_FALSE;
@@ -1035,7 +1035,7 @@ static PHP_METHOD(swoole_process, exit) {
         RETURN_FALSE;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
 
     if (getpid() != process->pid) {
         php_swoole_fatal_error(E_WARNING, "not current process");
@@ -1056,7 +1056,7 @@ static PHP_METHOD(swoole_process, close) {
         RETURN_FALSE;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->pipe_current == nullptr) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot close the pipe");
         RETURN_FALSE;
@@ -1098,7 +1098,7 @@ static PHP_METHOD(swoole_process, set) {
 
     vht = Z_ARRVAL_P(zset);
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     zend::Process *proc = (zend::Process *) process->ptr2;
 
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
@@ -1112,7 +1112,7 @@ static PHP_METHOD(swoole_process, setTimeout) {
         RETURN_FALSE;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->pipe_current == nullptr) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot setTimeout the pipe");
         RETURN_FALSE;
@@ -1126,7 +1126,7 @@ static PHP_METHOD(swoole_process, setBlocking) {
         RETURN_FALSE;
     }
 
-    swWorker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
     if (process->pipe_current == nullptr) {
         php_swoole_fatal_error(E_WARNING, "no pipe, cannot setBlocking the pipe");
         RETURN_FALSE;
