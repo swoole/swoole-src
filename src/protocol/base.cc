@@ -114,8 +114,8 @@ int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer)
     uint32_t recv_size;
     ssize_t recv_n = 0;
 
-    if (_package_length_size == 0) {
-        // protocol error
+    // protocol error
+    if (get_package_length_size && _package_length_size == 0) {
         return SW_ERR;
     }
 
