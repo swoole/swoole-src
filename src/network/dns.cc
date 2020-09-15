@@ -24,9 +24,6 @@
 #define SW_DNS_SERVER_CONF "/etc/resolv.conf"
 #define SW_DNS_SERVER_NUM 2
 
-using namespace swoole::coroutine;
-using namespace std;
-
 enum swDNS_type {
     SW_DNS_A_RECORD = 0x01,     // Lookup IPv4 address
     SW_DNS_AAAA_RECORD = 0x1c,  // Lookup IPv6 address
@@ -104,14 +101,14 @@ static int get_dns_server() {
     return SW_OK;
 }
 
-vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout) {
+std::vector<std::string> swoole::coroutine::dns_lookup(const char *domain, double timeout) {
     char *_domain_name;
     Q_FLAGS *qflags = nullptr;
     char packet[SW_BUFFER_SIZE_STD];
     swDNSResolver_header *header = nullptr;
     int steps = 0;
 
-    vector<string> result;
+    std::vector<std::string> result;
     if (SwooleG.dns_server_v4 == nullptr) {
         if (get_dns_server() < 0) {
             return result;
@@ -271,7 +268,7 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
         char address[16];
         size_t n =
             sw_snprintf(address, sizeof(address), "%d.%d.%d.%d", rdata[i][0], rdata[i][1], rdata[i][2], rdata[i][3]);
-        result.push_back(string(address, n));
+        result.push_back(std::string(address, n));
     }
     return result;
 }

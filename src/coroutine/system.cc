@@ -22,7 +22,6 @@
 #include <fcntl.h>
 #include <assert.h>
 
-using namespace std;
 using namespace swoole;
 using swoole::coroutine::System;
 
@@ -171,19 +170,19 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
     return ret;
 }
 
-string System::gethostbyname(const string &hostname, int domain, double timeout) {
+std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
     if (dns_cache == nullptr && dns_cache_capacity != 0) {
         dns_cache = new LRUCache(dns_cache_capacity);
     }
 
-    string cache_key;
+    std::string cache_key;
     if (dns_cache) {
         cache_key.append(domain == AF_INET ? "4_" : "6_");
         cache_key.append(hostname);
         auto cache = dns_cache->get(cache_key);
 
         if (cache) {
-            return *(string *) cache.get();
+            return *(std::string *) cache.get();
         }
     }
 
@@ -236,20 +235,20 @@ string System::gethostbyname(const string &hostname, int domain, double timeout)
         return "";
     } else {
         if (dns_cache) {
-            string *addr = new string((char *) ev.buf);
-            dns_cache->set(cache_key, shared_ptr<string>(addr), dns_cache_expire);
+            std::string *addr = new std::string((char *) ev.buf);
+            dns_cache->set(cache_key, std::shared_ptr<std::string>(addr), dns_cache_expire);
             sw_free(ev.buf);
             return *addr;
         }
 
-        string addr((char *) ev.buf);
+        std::string addr((char *) ev.buf);
         sw_free(ev.buf);
         return addr;
     }
 }
 
-vector<string> System::getaddrinfo(
-    const string &hostname, int family, int socktype, int protocol, const string &service, double timeout) {
+std::vector<std::string> System::getaddrinfo(
+    const std::string &hostname, int family, int socktype, int protocol, const std::string &service, double timeout) {
     assert(!hostname.empty());
     assert(family == AF_INET || family == AF_INET6);
 
@@ -282,7 +281,7 @@ vector<string> System::getaddrinfo(
         swoole_timer_del(timer);
     }
 
-    vector<string> retval;
+    std::vector<std::string> retval;
 
     if (ev.ret == -1 || req.error != 0) {
         swoole_set_last_error(ev.error);

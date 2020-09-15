@@ -16,17 +16,16 @@
 
 #include "php_swoole_server.h"
 
-using namespace std;
 using namespace swoole;
 
 struct server_port_event {
     enum php_swoole_server_port_callback_type type;
-    string name;
-    server_port_event(enum php_swoole_server_port_callback_type type, string &&name) : type(type), name(name) {}
+    std::string name;
+    server_port_event(enum php_swoole_server_port_callback_type type, std::string &&name) : type(type), name(name) {}
 };
 
 // clang-format off
-static unordered_map<string, server_port_event> server_port_event_map({
+static std::unordered_map<std::string, server_port_event> server_port_event_map({
     { "connect",     server_port_event(SW_SERVER_CB_onConnect,     "Connect") },
     { "receive",     server_port_event(SW_SERVER_CB_onReceive,     "Receive") },
     { "close",       server_port_event(SW_SERVER_CB_onClose,       "Close") },
@@ -199,7 +198,7 @@ void php_swoole_server_port_minit(int module_number) {
  * [Master-Process]
  */
 static ssize_t php_swoole_server_length_func(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length) {
-    swServer *serv = (swServer *) protocol->private_data_2;
+    Server *serv = (Server *) protocol->private_data_2;
     serv->lock();
 
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
@@ -438,7 +437,7 @@ static PHP_METHOD(swoole_server_port, set) {
                 }
             }
 #ifdef ZTS
-            swServer *serv = property->serv;
+            Server *serv = property->serv;
             if (serv->is_process_mode() && !serv->single_thread) {
                 php_swoole_fatal_error(E_ERROR, "option [package_length_func] does not support with ZTS");
             }
@@ -503,7 +502,7 @@ static PHP_METHOD(swoole_server_port, set) {
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
             zend_long v = zval_get_long(ztmp);
             port->ssl_option.protocols = v;
-            if (port->ssl_option.protocols & SW_SSL_DTLS && !port->is_dgram()) {
+            if ((port->ssl_option.protocols & SW_SSL_DTLS) && !port->is_dgram()) {
                 port->ssl_option.protocols ^= SW_SSL_DTLS;
             }
         }
@@ -584,7 +583,7 @@ static PHP_METHOD(swoole_server_port, on) {
     zval *cb;
 
     php_swoole_server_port_property *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
-    swServer *serv = property->serv;
+    Server *serv = property->serv;
     if (serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "can't register event callback function after server started");
         RETURN_FALSE;
@@ -671,7 +670,7 @@ static PHP_METHOD(swoole_server_port, getCallback) {
     zend::String _event_name_tolower(zend_string_tolower(_event_name_ori.get()), false);
     auto i = server_port_event_map.find(_event_name_tolower.to_std_string());
     if (i != server_port_event_map.end()) {
-        string property_name = "on" + i->second.name;
+        std::string property_name = "on" + i->second.name;
         zval rv,
             *property = zend_read_property(
                 swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), 1, &rv);

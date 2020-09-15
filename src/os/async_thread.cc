@@ -31,13 +31,11 @@
 #include <mutex>
 #include <queue>
 
-using namespace std;
-
 namespace swoole {
 namespace async {
 //-------------------------------------------------------------------------------
-static mutex init_lock;
-static atomic<int> refcount(0);
+static std::mutex init_lock;
+static std::atomic<int> refcount(0);
 static void aio_thread_release(AsyncEvent *event);
 
 class EventQueue {
@@ -69,7 +67,7 @@ class EventQueue {
     }
 
   private:
-    queue<AsyncEvent *> _queue;
+    std::queue<AsyncEvent *> _queue;
 };
 
 class ThreadPool {
@@ -111,7 +109,7 @@ class ThreadPool {
         event_mutex.unlock();
 
         for (auto &i : threads) {
-            thread *_thread = i.second;
+            std::thread *_thread = i.second;
             if (_thread->joinable()) {
                 _thread->join();
             }
@@ -168,19 +166,19 @@ class ThreadPool {
     }
 
     inline size_t queue_count() {
-        unique_lock<mutex> lock(event_mutex);
+        std::unique_lock<std::mutex> lock(event_mutex);
         return _queue.count();
     }
 
     pid_t current_pid;
 
-    void release_thread(thread::id tid) {
+    void release_thread(std::thread::id tid) {
         auto i = threads.find(tid);
         if (i == threads.end()) {
             swWarn("AIO thread#%zu is missing", tid);
             return;
         } else {
-            thread *_thread = i->second;
+            std::thread *_thread = i->second;
             swTraceLog(SW_TRACE_AIO, "release idle thread#%zu, we have %zu now", tid, threads.size() - 1);
             if (_thread->joinable()) {
                 _thread->join();
@@ -206,21 +204,21 @@ class ThreadPool {
 
     bool running;
 
-    atomic<size_t> n_waiting;
-    atomic<size_t> n_closing;
+    std::atomic<size_t> n_waiting;
+    std::atomic<size_t> n_closing;
     size_t current_task_id = 0;
 
-    unordered_map<thread::id, thread *> threads;
+    std::unordered_map<std::thread::id, std::thread *> threads;
     EventQueue _queue;
-    mutex event_mutex;
-    condition_variable _cv;
+    std::mutex event_mutex;
+    std::condition_variable _cv;
 };
 
 static ThreadPool *pool = nullptr;
 
 void ThreadPool::create_thread(const bool is_core_worker) {
     try {
-        thread *_thread = new thread([this, is_core_worker]() {
+        std::thread *_thread = new std::thread([this, is_core_worker]() {
             bool exit_flag = false;
 
             SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
@@ -276,7 +274,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                         break;
                     }
                 } else {
-                    unique_lock<mutex> lock(event_mutex);
+                    std::unique_lock<std::mutex> lock(event_mutex);
                     if (_queue.count() > 0) {
                         continue;
                     }
@@ -288,15 +286,15 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                         _cv.wait(lock);
                     } else {
                         while (true) {
-                            if (_cv.wait_for(lock, chrono::microseconds((size_t)(max_idle_time * 1000 * 1000))) ==
-                                cv_status::timeout) {
+                            if (_cv.wait_for(lock, std::chrono::microseconds((size_t)(max_idle_time * 1000 * 1000))) ==
+                                    std::cv_status::timeout) {
                                 if (running && n_closing != 0) {
                                     // wait for the next round
                                     continue;
                                 }
                                 /* notifies the main thread to release this thread */
                                 event = new AsyncEvent;
-                                event->object = new thread::id(this_thread::get_id());
+                                event->object = new std::thread::id(std::this_thread::get_id());
                                 event->callback = aio_thread_release;
                                 event->pipe_socket = SwooleG.aio_default_socket;
                                 event->canceled = false;
@@ -322,7 +320,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
 }
 
 static void aio_thread_release(AsyncEvent *event) {
-    thread::id *tid = reinterpret_cast<thread::id *>(event->object);
+    std::thread::id *tid = reinterpret_cast<std::thread::id *>(event->object);
     pool->release_thread(*tid);
     delete tid;
     // balance

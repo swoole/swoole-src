@@ -22,8 +22,6 @@
 #include <list>
 #include <mutex>
 
-using namespace std;
-
 #define SW_MIN_PAGE_SIZE 4096
 #define SW_MIN_EXPONENT 5   // 32
 #define SW_MAX_EXPONENT 21  // 2M
@@ -34,9 +32,9 @@ struct MemoryPool {
     pid_t create_pid;
     bool shared;
     uint32_t pagesize;
-    mutex lock;
-    vector<char *> pages;
-    vector<list<MemoryBlock *>> pool;
+    std::mutex lock;
+    std::vector<char *> pages;
+    std::vector<std::list<MemoryBlock *>> pool;
     uint32_t alloc_offset;
     swMemoryPool allocator;
 };
@@ -95,7 +93,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size) {
     MemoryPool *gm = (MemoryPool *) pool->object;
     MemoryBlock *block;
     uint32_t alloc_size = sizeof(MemoryBlock) + size;
-    unique_lock<mutex> lock(gm->lock);
+    std::unique_lock<std::mutex> lock(gm->lock);
 
     if (alloc_size > gm->pagesize) {
         swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, gm->pagesize);
@@ -115,7 +113,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size) {
     swTrace("alloc_size = %d, size=%d, index=%d\n", alloc_size, size, index);
     index -= SW_MIN_EXPONENT;
 
-    list<MemoryBlock *> &free_blocks = gm->pool.at(index);
+    std::list<MemoryBlock *> &free_blocks = gm->pool.at(index);
     if (!free_blocks.empty()) {
         block = free_blocks.back();
         free_blocks.pop_back();
@@ -144,7 +142,7 @@ static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size) {
 static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr) {
     MemoryPool *gm = (MemoryPool *) pool->object;
     MemoryBlock *block = (MemoryBlock *) ((char *) ptr - sizeof(*block));
-    unique_lock<mutex> lock(gm->lock);
+    std::unique_lock<std::mutex> lock(gm->lock);
 
     swTrace("[PID=%d] gm->create_pid=%d, block->create_pid=%d, SwooleG.pid=%d\n",
             getpid(),
@@ -158,7 +156,7 @@ static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr) {
 
     swTrace("[PID=%d] free block\n", getpid());
 
-    list<MemoryBlock *> &free_blocks = gm->pool.at(block->index);
+    std::list<MemoryBlock *> &free_blocks = gm->pool.at(block->index);
     free_blocks.push_back(block);
 }
 
