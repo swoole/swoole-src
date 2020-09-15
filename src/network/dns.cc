@@ -323,7 +323,7 @@ namespace swoole {
 namespace network {
 
 #ifndef HAVE_GETHOSTBYNAME2_R
-static mutex g_gethostbyname2_lock;
+static std::mutex g_gethostbyname2_lock;
 #endif
 
 /**
