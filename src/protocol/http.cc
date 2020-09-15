@@ -30,6 +30,7 @@
 using namespace swoole;
 using std::string;
 using swoole::network::Socket;
+using swoole::network::SendfileTask;
 using swoole::http_server::Request;
 using swoole::http_server::StaticHandler;
 
@@ -111,7 +112,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         return true;
     }
 
-    const swSendFile_request *task = handler.get_task();
+    auto task = handler.get_task();
 
     std::set<std::string> dir_files;
     std::string index_file = "";
@@ -191,9 +192,8 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     if (task->length != 0) {
         response.info.type = SW_SERVER_EVENT_SEND_FILE;
-        response.info.len = sizeof(swSendFile_request) + task->length + 1;
+        response.info.len = sizeof(*task) + task->length + 1;
         response.data = (char *) task;
-
         send_to_connection(&response);
     }
 

@@ -41,12 +41,6 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
 #define swoole_sendfile(out_fd, in_fd, offset, limit) sendfile(out_fd, in_fd, offset, limit)
 #endif
 
-struct swSendFile_request {
-    off_t offset;
-    size_t length;
-    char filename[0];
-};
-
 namespace swoole {
 namespace network {
 
@@ -61,6 +55,12 @@ struct GetaddrinfoRequest {
     int count;
 
     void parse_result(std::vector<std::string> &retval);
+};
+
+struct SendfileTask {
+    off_t offset;
+    size_t length;
+    char filename[0];
 };
 
 struct SendfileRequest {
@@ -144,9 +144,9 @@ struct Socket {
     double recv_timeout_ = default_read_timeout;
     double send_timeout_ = default_write_timeout;
 
-    swBuffer *out_buffer;
-    swBuffer *in_buffer;
-    swString *recv_buffer;
+    Buffer *out_buffer;
+    Buffer *in_buffer;
+    String *recv_buffer;
 
 #ifdef SW_DEBUG
     size_t total_recv_bytes;
@@ -157,7 +157,7 @@ struct Socket {
      * for reactor
      */
     int handle_send();
-    int handle_sendfile(swBuffer_chunk *chunk);
+    int handle_sendfile();
     /**
      * socket option
      */

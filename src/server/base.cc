@@ -18,14 +18,14 @@
 
 using namespace swoole;
 
-static int swFactory_start(swFactory *factory);
-static int swFactory_shutdown(swFactory *factory);
-static bool swFactory_dispatch(swFactory *factory, swSendData *req);
-static bool swFactory_notify(swFactory *factory, swDataHead *event);
-static bool swFactory_end(swFactory *factory, int fd);
-static void swFactory_free(swFactory *factory);
+static int swFactory_start(Factory *factory);
+static int swFactory_shutdown(Factory *factory);
+static bool swFactory_dispatch(Factory *factory, SendData *req);
+static bool swFactory_notify(Factory *factory, DataHead *event);
+static bool swFactory_end(Factory *factory, int fd);
+static void swFactory_free(Factory *factory);
 
-int swFactory_create(swFactory *factory) {
+int swFactory_create(Factory *factory) {
     factory->dispatch = swFactory_dispatch;
     factory->finish = swFactory_finish;
     factory->start = swFactory_start;
@@ -37,18 +37,18 @@ int swFactory_create(swFactory *factory) {
     return SW_OK;
 }
 
-static int swFactory_start(swFactory *factory) {
+static int swFactory_start(Factory *factory) {
     SwooleWG.run_always = true;
     return SW_OK;
 }
 
-static int swFactory_shutdown(swFactory *factory) {
+static int swFactory_shutdown(Factory *factory) {
     return SW_OK;
 }
 
-static bool swFactory_dispatch(swFactory *factory, swSendData *task) {
+static bool swFactory_dispatch(Factory *factory, SendData *task) {
     Server *serv = (Server *) factory->ptr;
-    swPacket_ptr pkg;
+    PacketPtr pkg;
     Connection *conn = nullptr;
 
     if (swEventData_is_stream(task->info.type)) {
@@ -80,18 +80,18 @@ static bool swFactory_dispatch(swFactory *factory, swSendData *task) {
             pkg.info.flags |= SW_EVENT_DATA_POP_PTR;
         }
 
-        return serv->accept_task((swEventData *) &pkg) == SW_OK;
+        return serv->accept_task((EventData *) &pkg) == SW_OK;
     }
     // no data
     else {
-        return serv->accept_task((swEventData *) &task->info) == SW_OK;
+        return serv->accept_task((EventData *) &task->info) == SW_OK;
     }
 }
 
 /**
  * only stream fd
  */
-static bool swFactory_notify(swFactory *factory, swDataHead *info) {
+static bool swFactory_notify(Factory *factory, DataHead *info) {
     Server *serv = (Server *) factory->ptr;
     Connection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
@@ -108,13 +108,13 @@ static bool swFactory_notify(swFactory *factory, swDataHead *info) {
     info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
 
-    return serv->accept_task((swEventData *) info) == SW_OK;
+    return serv->accept_task((EventData *) info) == SW_OK;
 }
 
-static bool swFactory_end(swFactory *factory, int fd) {
+static bool swFactory_end(Factory *factory, int fd) {
     Server *serv = (Server *) factory->ptr;
-    swSendData _send;
-    swDataHead info;
+    SendData _send;
+    DataHead info;
 
     sw_memset_zero(&_send, sizeof(_send));
     _send.info.fd = fd;
@@ -149,12 +149,12 @@ static bool swFactory_end(swFactory *factory, int fd) {
         conn->closed = 1;
         conn->close_errno = 0;
 
-        if (swBuffer_empty(conn->socket->out_buffer) || conn->peer_closed) {
-            swReactor *reactor = SwooleTG.reactor;
+        if (Buffer::empty(conn->socket->out_buffer) || conn->peer_closed) {
+            Reactor *reactor = SwooleTG.reactor;
             return Server::close_connection(reactor, conn->socket) == SW_OK;
         } else {
-            swBuffer_chunk *chunk = swBuffer_new_chunk(conn->socket->out_buffer, SW_CHUNK_CLOSE, 0);
-            chunk->store.data.val1 = _send.info.type;
+            BufferChunk *chunk = conn->socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
+            chunk->value.data.val1 = _send.info.type;
             conn->close_queued = 1;
             return true;
         }
@@ -164,8 +164,8 @@ static bool swFactory_end(swFactory *factory, int fd) {
 /**
  * @return: success returns SW_OK, failure returns SW_ERR.
  */
-bool swFactory_finish(swFactory *factory, swSendData *resp) {
+bool swFactory_finish(Factory *factory, SendData *resp) {
     return ((Server *) factory->ptr)->send_to_connection(resp) == SW_OK;
 }
 
-static void swFactory_free(swFactory *factory) {}
+static void swFactory_free(Factory *factory) {}

@@ -224,7 +224,6 @@ typedef swoole::Pipe swPipe;
 
 struct swMsgQueue;
 struct swHeap_node;
-struct swBuffer;
 struct swMemoryPool;
 /*----------------------------------String-------------------------------------*/
 

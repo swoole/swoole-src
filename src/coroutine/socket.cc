@@ -1680,10 +1680,10 @@ Socket::~Socket() {
     ssl_option = {};
 #endif
     if (socket->in_buffer) {
-        swBuffer_free(socket->in_buffer);
+        delete socket->in_buffer;
     }
     if (socket->out_buffer) {
-        swBuffer_free(socket->out_buffer);
+        delete socket->out_buffer;
     }
     if (sock_domain == AF_UNIX && !bind_address.empty()) {
         ::unlink(bind_address_info.addr.un.sun_path);

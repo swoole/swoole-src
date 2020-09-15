@@ -16,52 +16,63 @@
 
 #pragma once
 
-enum swBuffer_chunk_type {
-    SW_CHUNK_DATA,
-    SW_CHUNK_SENDFILE,
-    SW_CHUNK_CLOSE,
-};
+#include <queue>
 
-struct swBuffer_chunk {
-    uint32_t type;
+namespace swoole {
+
+struct BufferChunk {
+    enum Type {
+        TYPE_DATA,
+        TYPE_SENDFILE,
+        TYPE_CLOSE,
+    };
+
+    Type type;
     uint32_t length;
     uint32_t offset;
     union {
-        void *ptr;
+        char *ptr;
+        void *object;
         struct {
             uint32_t val1;
             uint32_t val2;
         } data;
-    } store;
+    } value;
     uint32_t size;
-    void (*destroy)(swBuffer_chunk *chunk);
-    swBuffer_chunk *next;
+    void (*destroy)(BufferChunk *chunk);
 };
 
-struct swBuffer {
-    int fd;
-    uint32_t chunk_num;
-    /**
-     * 0: donot use chunk
-     */
+class Buffer {
+  private:
+    // 0: donot use chunk
     uint32_t chunk_size;
-    uint32_t length;
-    swBuffer_chunk *head;
-    swBuffer_chunk *tail;
+    uint32_t total_length = 0;
+    std::queue<BufferChunk *> queue_;
+
+  public:
+    Buffer(uint32_t chunk_size);
+    ~Buffer();
+
+    BufferChunk *alloc(BufferChunk::Type type, uint32_t size);
+
+    BufferChunk *front() {
+        return queue_.front();
+    }
+
+    void pop();
+    void append(const void *data, uint32_t size);
+
+    uint32_t length() {
+        return total_length;
+    }
+
+    size_t count() {
+        return queue_.size();
+    }
+
+    static bool empty(Buffer *buffer) {
+        return buffer == nullptr || buffer->queue_.empty();
+    }
 };
 
-static inline swBuffer_chunk *swBuffer_get_chunk(swBuffer *buffer) {
-    return buffer->head;
-}
-
-static inline bool swBuffer_empty(swBuffer *buffer) {
-    return buffer == nullptr || buffer->head == nullptr;
-}
-
-swBuffer *swBuffer_new(uint32_t chunk_size);
-swBuffer_chunk *swBuffer_new_chunk(swBuffer *buffer, uint32_t type, uint32_t size);
-void swBuffer_pop_chunk(swBuffer *buffer, swBuffer_chunk *chunk);
-int swBuffer_append(swBuffer *buffer, const void *data, uint32_t size);
-
-void swBuffer_debug(swBuffer *buffer, int print_data);
-int swBuffer_free(swBuffer *buffer);
+}  // namespace swoole

@@ -27,6 +27,8 @@ using swoole::Reactor;
 using swoole::ReactorHandler;
 using swoole::Event;
 using swoole::network::Socket;
+using swoole::Buffer;
+using swoole::BufferChunk;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -155,11 +157,11 @@ static void reactor_begin(Reactor *reactor) {
 
 int swReactor_close(Reactor *reactor, Socket *socket) {
     if (socket->out_buffer) {
-        swBuffer_free(socket->out_buffer);
+        delete socket->out_buffer;
         socket->out_buffer = nullptr;
     }
     if (socket->in_buffer) {
-        swBuffer_free(socket->in_buffer);
+        delete socket->in_buffer;
         socket->in_buffer = nullptr;
     }
 
@@ -172,7 +174,7 @@ int swReactor_close(Reactor *reactor, Socket *socket) {
 
 int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
     int ret;
-    swBuffer *buffer = socket->out_buffer;
+    Buffer *buffer = socket->out_buffer;
     const char *ptr = (const char *) buf;
     int fd = socket->fd;
 
@@ -191,7 +193,7 @@ int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
         return SW_ERR;
     }
 
-    if (swBuffer_empty(buffer)) {
+    if (Buffer::empty(buffer)) {
 #ifdef SW_USE_OPENSSL
         if (socket->ssl_send) {
             goto _do_buffer;
@@ -211,7 +213,7 @@ int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
         } else if (socket->catch_error(errno) == SW_WAIT) {
         _do_buffer:
             if (!socket->out_buffer) {
-                buffer = swBuffer_new(socket->chunk_size);
+                buffer = new Buffer(socket->chunk_size);
                 if (!buffer) {
                     swWarn("create worker buffer failed");
                     return SW_ERR;
@@ -229,7 +231,7 @@ int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
         }
     } else {
     _append_buffer:
-        if (buffer->length > socket->buffer_size) {
+        if (buffer->length() > socket->buffer_size) {
             if (socket->dontwait) {
                 swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
                 return SW_ERR;
@@ -240,10 +242,7 @@ int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
                 socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
         }
-
-        if (swBuffer_append(buffer, ptr, n) < 0) {
-            return SW_ERR;
-        }
+        buffer->append(ptr, n);
     }
     return SW_OK;
 }
@@ -252,18 +251,16 @@ int swReactor_onWrite(Reactor *reactor, Event *ev) {
     int ret;
 
     Socket *socket = ev->socket;
-    swBuffer_chunk *chunk = nullptr;
-    swBuffer *buffer = socket->out_buffer;
+    Buffer *buffer = socket->out_buffer;
 
-    // send to socket
-    while (!swBuffer_empty(buffer)) {
-        chunk = swBuffer_get_chunk(buffer);
-        if (chunk->type == SW_CHUNK_CLOSE) {
+    while (!Buffer::empty(buffer)) {
+        BufferChunk *chunk = buffer->front();
+        if (chunk->type == BufferChunk::TYPE_CLOSE) {
         _close_fd:
             reactor->close(reactor, ev->socket);
             return SW_OK;
-        } else if (chunk->type == SW_CHUNK_SENDFILE) {
-            ret = socket->handle_sendfile(chunk);
+        } else if (chunk->type == BufferChunk::TYPE_SENDFILE) {
+            ret = socket->handle_sendfile();
         } else {
             ret = socket->handle_send();
         }
@@ -278,7 +275,7 @@ int swReactor_onWrite(Reactor *reactor, Event *ev) {
     }
 
     // remove EPOLLOUT event
-    if (swBuffer_empty(buffer)) {
+    if (Buffer::empty(buffer)) {
         reactor->remove_write_event(ev->socket);
     }
 
@@ -290,7 +287,7 @@ void Reactor::drain_write_buffer(swSocket *socket) {
     event.socket = socket;
     event.fd = socket->fd;
 
-    while (!swBuffer_empty(socket->out_buffer)) {
+    while (!Buffer::empty(socket->out_buffer)) {
         if (socket->wait_event(network::Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }

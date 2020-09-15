@@ -386,9 +386,11 @@ bool Socket::set_send_timeout(double timeout) {
     }
 }
 
-int Socket::handle_sendfile(swBuffer_chunk *chunk) {
+int Socket::handle_sendfile() {
     int ret;
-    SendfileRequest *task = (SendfileRequest *) chunk->store.ptr;
+    Buffer *buffer = out_buffer;
+    BufferChunk *chunk = buffer->front();
+    SendfileRequest *task = (SendfileRequest *) chunk->value.object;
 
 #ifdef HAVE_TCP_NOPUSH
     if (task->offset == 0 && tcp_nopush == 0) {
@@ -424,7 +426,7 @@ int Socket::handle_sendfile(swBuffer_chunk *chunk) {
         switch (catch_error(errno)) {
         case SW_ERROR:
             swSysWarn("sendfile(%s, %ld, %d) failed", task->filename, (long) task->offset, sendn);
-            swBuffer_pop_chunk(out_buffer, chunk);
+            buffer->pop();
             return SW_OK;
         case SW_CLOSE:
             close_wait = 1;
@@ -439,8 +441,7 @@ int Socket::handle_sendfile(swBuffer_chunk *chunk) {
 
     // sendfile finish
     if ((size_t) task->offset >= task->length) {
-        swBuffer_pop_chunk(out_buffer, chunk);
-
+        buffer->pop();
 #ifdef HAVE_TCP_NOPUSH
         // disable tcp_nopush
         if (set_tcp_nopush(0) == -1) {
@@ -462,16 +463,16 @@ int Socket::handle_sendfile(swBuffer_chunk *chunk) {
  * send buffer to client
  */
 int Socket::handle_send() {
-    swBuffer *buffer = out_buffer;
-    swBuffer_chunk *chunk = swBuffer_get_chunk(buffer);
+    Buffer *buffer = out_buffer;
+    BufferChunk *chunk = buffer->front();
     uint32_t sendn = chunk->length - chunk->offset;
 
     if (sendn == 0) {
-        swBuffer_pop_chunk(buffer, chunk);
+        buffer->pop();
         return SW_OK;
     }
 
-    ssize_t ret = send((char *) chunk->store.ptr + chunk->offset, sendn, 0);
+    ssize_t ret = send(chunk->value.ptr + chunk->offset, sendn, 0);
     if (ret < 0) {
         switch (catch_error(errno)) {
         case SW_ERROR:
@@ -490,7 +491,7 @@ int Socket::handle_send() {
     }
     // chunk full send
     else if (ret == sendn || sendn == 0) {
-        swBuffer_pop_chunk(buffer, chunk);
+        buffer->pop();
     } else {
         chunk->offset += ret;
         // kernel is not fully processing and socket buffer is full
@@ -502,11 +503,11 @@ int Socket::handle_send() {
     return SW_OK;
 }
 
-static void Socket_sendfile_destructor(swBuffer_chunk *chunk) {
-    SendfileRequest *task = (SendfileRequest *) chunk->store.ptr;
+static void Socket_sendfile_destructor(BufferChunk *chunk) {
+    SendfileRequest *task = (SendfileRequest *) chunk->value.object;
     close(task->fd);
     sw_free(task->filename);
-    sw_free(task);
+    delete task;
 }
 
 int Socket::sendfile(const char *filename, off_t offset, size_t length) {
@@ -530,19 +531,14 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     }
 
     if (out_buffer == nullptr) {
-        out_buffer = swBuffer_new(SW_SEND_BUFFER_SIZE);
+        out_buffer = new Buffer(SW_SEND_BUFFER_SIZE);
         if (out_buffer == nullptr) {
             return SW_ERR;
         }
     }
 
-    swBuffer_chunk error_chunk;
-    SendfileRequest *task = (SendfileRequest *) sw_malloc(sizeof(SendfileRequest));
-    if (task == nullptr) {
-        swWarn("malloc for SendFileTask failed");
-        return SW_ERR;
-    }
-    sw_memset_zero(task, sizeof(SendfileRequest));
+    BufferChunk error_chunk;
+    SendfileRequest *task = new SendfileRequest();
 
     task->filename = sw_strdup(filename);
     task->fd = file_fd;
@@ -550,7 +546,7 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
 
     if (offset < 0 || (length + offset > (size_t) file_stat.st_size)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
-        error_chunk.store.ptr = task;
+        error_chunk.value.object = task;
         Socket_sendfile_destructor(&error_chunk);
         return SW_OK;
     }
@@ -560,15 +556,8 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
         task->length = length + offset;
     }
 
-    swBuffer_chunk *chunk = swBuffer_new_chunk(out_buffer, SW_CHUNK_SENDFILE, 0);
-    if (chunk == nullptr) {
-        swWarn("get out_buffer chunk failed");
-        error_chunk.store.ptr = task;
-        Socket_sendfile_destructor(&error_chunk);
-        return SW_ERR;
-    }
-
-    chunk->store.ptr = (void *) task;
+    BufferChunk *chunk = out_buffer->alloc(BufferChunk::TYPE_SENDFILE, 0);
+    chunk->value.object = task;
     chunk->destroy = Socket_sendfile_destructor;
 
     return SW_OK;
