@@ -28,7 +28,7 @@ namespace http_server {
 
 class StaticHandler {
   private:
-    swServer *serv;
+    Server *serv;
     std::string request_url;
     std::string dir_path;
     struct {
@@ -43,7 +43,7 @@ class StaticHandler {
 
   public:
     int status_code;
-    StaticHandler(swServer *_server, const char *url, size_t url_length) : request_url(url, url_length) {
+    StaticHandler(Server *_server, const char *url, size_t url_length) : request_url(url, url_length) {
         serv = _server;
         task.length = 0;
         task.offset = 0;
@@ -86,8 +86,8 @@ class StaticHandler {
         return file_stat.st_size;
     }
 
-    inline const swSendFile_request *get_task() {
-        return (const swSendFile_request *) &task;
+    inline const network::SendfileTask *get_task() {
+        return (const network::SendfileTask *) &task;
     }
 
     inline bool is_dir() {

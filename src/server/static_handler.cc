@@ -20,11 +20,10 @@
 #include <dirent.h>
 #include <algorithm>
 
-using namespace std;
 using namespace swoole;
 using swoole::http_server::StaticHandler;
 
-bool StaticHandler::is_modified(const string &date_if_modified_since) {
+bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     char date_tmp[64];
     if (date_if_modified_since.empty() || date_if_modified_since.length() > sizeof(date_tmp) - 1) {
         return false;

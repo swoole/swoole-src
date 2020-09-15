@@ -25,6 +25,7 @@
 using namespace swoole;
 using swoole::network::Address;
 using swoole::network::Socket;
+using swoole::network::SendfileTask;
 
 Server *g_server_instance = nullptr;
 
@@ -1059,8 +1060,8 @@ int Server::send_to_connection(swSendData *_send) {
     }
     // sendfile to client
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
-        swSendFile_request *req = (swSendFile_request *) _send_data;
-        if (conn->socket->sendfile(req->filename, req->offset, req->length) < 0) {
+        SendfileTask *task = (SendfileTask *) _send_data;
+        if (conn->socket->sendfile(task->filename, task->offset, task->length) < 0) {
             return false;
         }
     }
@@ -1131,16 +1132,16 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
     }
 
     char _buffer[SW_IPC_BUFFER_SIZE];
-    swSendFile_request *req = (swSendFile_request *) _buffer;
+    SendfileTask *req = reinterpret_cast<SendfileTask *>(_buffer);
 
     // file name size
-    if (sw_unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1)) {
+    if (sw_unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1)) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_NAME_TOO_LONG,
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
                          file,
                          l_file,
-                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(swSendFile_request) - 1));
+                         (uint32_t)(SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1));
         return false;
     }
     // string must be zero termination (for `state` system call)
@@ -1164,7 +1165,7 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
     swSendData send_data = {};
     send_data.info.fd = session_id;
     send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
-    send_data.info.len = sizeof(swSendFile_request) + l_file + 1;
+    send_data.info.len = sizeof(SendfileTask) + l_file + 1;
     send_data.data = _buffer;
 
     return factory.finish(&factory, &send_data);
