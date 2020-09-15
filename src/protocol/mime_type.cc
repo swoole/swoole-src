@@ -18,12 +18,10 @@
 
 #include "swoole_mime_type.h"
 
-using namespace std;
-
 namespace swoole {
 namespace mime_type {
 
-static unordered_map<string, string> map(
+static std::unordered_map<std::string, std::string> map_(
     {{"ez", "application/andrew-inset"},
      {"aw", "application/applixware"},
      {"atom", "application/atom+xml"},
@@ -388,50 +386,50 @@ static unordered_map<string, string> map(
      {"xul", "application/vnd.mozilla.xul+xml"},
      {"7z", "application/x-7z-compressed"}});
 
-static const string octet_stream("application/octet-stream");
+static const std::string octet_stream("application/octet-stream");
 
-static string get_suffix(const string &filename) {
-    return string(filename).substr(filename.find_last_of('.') + 1);
+static std::string get_suffix(const std::string &filename) {
+    return std::string(filename).substr(filename.find_last_of('.') + 1);
 }
 
-const unordered_map<string, string> &list() {
-    return map;
+const std::unordered_map<std::string, std::string> &list() {
+    return map_;
 }
 
-const string &get(const string &filename) {
-    string suffix = get_suffix(filename);
-    auto i = map.find(suffix);
-    if (i != map.end()) {
+const std::string &get(const std::string &filename) {
+    std::string suffix = get_suffix(filename);
+    auto i = map_.find(suffix);
+    if (i != map_.end()) {
         return i->second;
     }
     return octet_stream;
 }
 
-bool add(const string &suffix, const string &mime_type) {
-    if (map.find(suffix) == map.end()) {
-        map[suffix] = mime_type;
+bool add(const std::string &suffix, const std::string &mime_type) {
+    if (map_.find(suffix) == map_.end()) {
+        map_[suffix] = mime_type;
         return true;
     } else {
         return false;
     }
 }
 
-void set(const string &suffix, const string &mime_type) {
-    map[suffix] = mime_type;
+void set(const std::string &suffix, const std::string &mime_type) {
+    map_[suffix] = mime_type;
 }
 
-bool del(const string &suffix) {
-    if (map.find(suffix) == map.end()) {
+bool del(const std::string &suffix) {
+    if (map_.find(suffix) == map_.end()) {
         return false;
     } else {
-        map.erase(suffix);
+        map_.erase(suffix);
         return true;
     }
 }
 
-bool exists(const string &filename) {
-    string suffix = get_suffix(filename);
-    return map.find(suffix) != map.end();
+bool exists(const std::string &filename) {
+    std::string suffix = get_suffix(filename);
+    return map_.find(suffix) != map_.end();
 }
 
 }  // namespace mime_type

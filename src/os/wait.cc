@@ -23,19 +23,18 @@
 #include <list>
 #include <unordered_map>
 
-using namespace std;
 using namespace swoole;
 using swoole::coroutine::System;
 
-struct wait_task {
+struct WaitTask {
     Coroutine *co;
     pid_t pid;
     int status;
 };
 
-static list<wait_task *> wait_list;
-static unordered_map<int, wait_task *> waitpid_map;
-static unordered_map<int, int> child_processes;
+static std::list<WaitTask *> wait_list;
+static std::unordered_map<int, WaitTask *> waitpid_map;
+static std::unordered_map<int, int> child_processes;
 
 bool signal_ready = false;
 
@@ -49,7 +48,7 @@ static void signal_handler(int signo) {
                 break;
             }
 
-            wait_task *task = nullptr;
+            WaitTask *task = nullptr;
             if (waitpid_map.find(__pid) != waitpid_map.end()) {
                 task = waitpid_map[__pid];
             } else if (!wait_list.empty()) {
@@ -118,7 +117,7 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
 
     /* try once if failed we init the task, and we must register SIGCHLD before try waitpid, or we may lose the SIGCHLD
      */
-    wait_task task;
+    WaitTask task;
     signal_init();
     task.pid = ::waitpid(__pid, __stat_loc, __options | WNOHANG);
     if (task.pid > 0) {

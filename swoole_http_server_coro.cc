@@ -20,7 +20,6 @@
 #include <map>
 #include <algorithm>
 
-using namespace std;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
@@ -49,7 +48,7 @@ class http_server {
   public:
     Socket *socket;
     zend_fcall_info_cache *default_handler;
-    map<string, zend_fcall_info_cache> handlers;
+    std::map<std::string, zend_fcall_info_cache> handlers;
     zval zcallbacks;
     bool running;
     std::list<Socket *> clients;
@@ -92,7 +91,7 @@ class http_server {
         sw_free(upload_tmp_dir);
     }
 
-    void set_handler(string pattern, zval *zcallback, const zend_fcall_info_cache *fci_cache) {
+    void set_handler(std::string pattern, zval *zcallback, const zend_fcall_info_cache *fci_cache) {
         handlers[pattern] = *fci_cache;
         if (pattern == "/") {
             default_handler = &handlers[pattern];
@@ -329,7 +328,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     }
 
     http_server_coro_t *hsc = php_swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
-    string host_str(host, l_host);
+    std::string host_str(host, l_host);
     hsc->server = new http_server(Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
 
@@ -382,7 +381,7 @@ static PHP_METHOD(swoole_http_server_coro, handle) {
     Z_PARAM_FUNC(fci, fci_cache)
     ZEND_PARSE_PARAMETERS_END();
 
-    string key(pattern, pattern_len);
+    std::string key(pattern, pattern_len);
     hs->set_handler(key, ZEND_CALL_ARG(execute_data, 2), &fci_cache);
 }
 

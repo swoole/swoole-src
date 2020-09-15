@@ -5,7 +5,6 @@
 
 #include <string>
 
-using namespace std;
 using swoole::TimerNode;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
@@ -451,7 +450,7 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname) {
         RETURN_FALSE;
     }
 
-    string address = System::gethostbyname(string(domain_name, l_domain_name), family, timeout);
+    std::string address = System::gethostbyname(std::string(domain_name, l_domain_name), family, timeout);
     if (address.empty()) {
         RETURN_FALSE;
     } else {
@@ -496,8 +495,8 @@ PHP_METHOD(swoole_coroutine_system, getaddrinfo) {
         RETURN_FALSE;
     }
 
-    string str_service(service ? service : "");
-    vector<string> result = System::getaddrinfo(hostname, family, socktype, protocol, str_service, timeout);
+    std::string str_service(service ? service : "");
+    std::vector<std::string> result = System::getaddrinfo(hostname, family, socktype, protocol, str_service, timeout);
 
     if (result.empty()) {
         RETURN_FALSE;

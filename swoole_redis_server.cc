@@ -24,13 +24,11 @@ BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
 END_EXTERN_C()
 
-using namespace swoole;
-using namespace std;
 
 static zend_class_entry *swoole_redis_server_ce;
 static zend_object_handlers swoole_redis_server_handlers;
 
-static unordered_map<string, zend_fcall_info_cache> redis_handlers;
+static std::unordered_map<std::string, zend_fcall_info_cache> redis_handlers;
 
 SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_redis_server, start);
@@ -176,7 +174,7 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
     size_t _command_len = sw_snprintf(_command, sizeof(_command), "_handler_%.*s", command_len, command);
     php_strtolower(_command, _command_len);
 
-    auto i = redis_handlers.find(string(_command, _command_len));
+    auto i = redis_handlers.find(std::string(_command, _command_len));
     if (i == redis_handlers.end()) {
         char err_msg[256];
         length = sw_snprintf(err_msg, sizeof(err_msg), "-ERR unknown command '%.*s'\r\n", command_len, command);
@@ -274,7 +272,7 @@ static PHP_METHOD(swoole_redis_server, setHandler) {
 
     zend_update_property(swoole_redis_server_ce, SW_Z8_OBJ_P(ZEND_THIS), _command, _command_len, zcallback);
 
-    string key(_command, _command_len);
+    std::string key(_command, _command_len);
     auto i = redis_handlers.find(key);
     if (i != redis_handlers.end()) {
         sw_zend_fci_cache_discard(&i->second);

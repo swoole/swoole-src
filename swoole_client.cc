@@ -22,7 +22,6 @@
 #include <queue>
 #include <unordered_map>
 
-using namespace std;
 using swoole::Protocol;
 using swoole::network::Client;
 using swoole::network::Socket;
@@ -42,7 +41,7 @@ struct ClientCallback {
     zval _object;
 };
 
-static unordered_map<string, queue<Client *> *> long_connections;
+static std::unordered_map<std::string, std::queue<Client *> *> long_connections;
 
 zend_class_entry *swoole_client_ce;
 static zend_object_handlers swoole_client_handlers;
@@ -408,7 +407,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "package_length_func", ztmp)) {
         while (1) {
             if (Z_TYPE_P(ztmp) == IS_STRING) {
-                Protocol::LengthFunc func = Protocol::get_function(string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)));
+                Protocol::LengthFunc func = Protocol::get_function(std::string(Z_STRVAL_P(ztmp), Z_STRLEN_P(ztmp)));
                 if (func != nullptr) {
                     cli->protocol.get_package_length = func;
                     break;
@@ -586,13 +585,13 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
     }
     // long tcp connection, delete from php_sw_long_connections
     if (cli->keep) {
-        string conn_key = string(cli->server_str, cli->server_strlen);
+        std::string conn_key = std::string(cli->server_str, cli->server_strlen);
         auto i = long_connections.find(conn_key);
         if (i != long_connections.end()) {
-            queue<Client *> *q = i->second;
+            std::queue<Client *> *q = i->second;
             if (q->empty()) {
                 delete q;
-                long_connections.erase(string(cli->server_str, cli->server_strlen));
+                long_connections.erase(std::string(cli->server_str, cli->server_strlen));
             }
         }
     }
@@ -650,15 +649,15 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
     }
 
     Client *cli;
-    string conn_key;
+    std::string conn_key;
     zval *zconnection_id =
         sw_zend_read_property_not_null_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_ID), 1);
 
     if (zconnection_id && Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0) {
-        conn_key = string(Z_STRVAL_P(zconnection_id), Z_STRLEN_P(zconnection_id));
+        conn_key = std::string(Z_STRVAL_P(zconnection_id), Z_STRLEN_P(zconnection_id));
     } else {
         size_t size = sw_snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size, "%s:%d", host, port);
-        conn_key = string(SwooleTG.buffer_stack->str, size);
+        conn_key = std::string(SwooleTG.buffer_stack->str, size);
     }
 
     // keep the tcp connection
@@ -667,7 +666,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
         if (i == long_connections.end() || i->second->empty()) {
             goto _create_socket;
         } else {
-            queue<Client *> *q = i->second;
+            std::queue<Client *> *q = i->second;
             cli = q->front();
             q->pop();
             // try recv, check connection status
@@ -1305,11 +1304,11 @@ static PHP_METHOD(swoole_client, close) {
         php_swoole_client_free(ZEND_THIS, cli);
     } else {
         if (cli->keep) {
-            string conn_key(cli->server_str, cli->server_strlen);
-            queue<Client *> *q;
+            std::string conn_key(cli->server_str, cli->server_strlen);
+            std::queue<Client *> *q;
             auto i = long_connections.find(conn_key);
             if (i == long_connections.end()) {
-                q = new queue<Client *>;
+                q = new std::queue<Client *>;
                 long_connections[conn_key] = q;
             } else {
                 q = i->second;
