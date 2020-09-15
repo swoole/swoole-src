@@ -72,6 +72,8 @@ const char *swoole_strerror(int code) {
         return "Bad ipv6 address";
     case SW_ERROR_UNREGISTERED_SIGNAL:
         return "Unregistered signal";
+    case SW_ERROR_EVENT_SOCKET_REMOVED:
+        return "Event socket removed";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
         return "Session closed by server";
     case SW_ERROR_SESSION_CLOSED_BY_CLIENT:
