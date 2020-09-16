@@ -42,6 +42,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::eq($result->data, "OK");
     });
     Swoole\Event::wait();
+    @unlink(UNIXSOCK_PATH);
     $pm->kill();
     echo "DONE\n";
 };
