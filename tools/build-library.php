@@ -27,13 +27,16 @@ $files = [
     'std/exec.php',
     # <core> #
     'core/Constant.php',
+    'core/Exception/ArrayKeyNotExists.php',
     'core/StringObject.php',
     'core/MultibyteStringObject.php',
     'core/ArrayObject.php',
     'core/ObjectProxy.php',
+    'core/Coroutine/Barrier.php',
     'core/Coroutine/WaitGroup.php',
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
+    'core/Process/ProcessManager.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
     'core/Database/ObjectProxy.php',
