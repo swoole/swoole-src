@@ -83,7 +83,7 @@ static inline void http_header_key_format(char *key, int length)
 
 static inline bool http_has_crlf(const char *value, int length) {
     /* new line/NUL character safety check */
-    for (uint32_t i = 0; i < length; i++) {
+    for (auto i = 0; i < length; i++) {
         /* RFC 7230 ch. 3.2.4 deprecates folding support */
         if (value[i] == '\n' || value[i] == '\r') {
             php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
