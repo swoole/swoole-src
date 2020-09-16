@@ -4501,9 +4501,6 @@ static const char* swoole_library_source_alias =
     "    class_alias(Swoole\\Coroutine\\WaitGroup::class, Co\\WaitGroup::class, true);\n"
     "    class_alias(Swoole\\Coroutine\\Server::class, Co\\Server::class, true);\n"
     "    class_alias(Swoole\\Coroutine\\Server\\Connection::class, Co\\Server\\Connection::class, true);\n"
-    "    class_alias(Swoole\\Coroutine\\FastCGI\\Client::class, Co\\FastCGI\\Client::class, true);\n"
-    "    class_alias(Swoole\\Coroutine\\FastCGI\\Client\\Exception::class, Co\\FastCGI\\Client\\Exception::class, true);\n"
-    "    class_alias(Swoole\\Coroutine\\FastCGI\\Proxy::class, Co\\FastCGI\\Proxy::class, true);\n"
     "}\n";
 
 static const char* swoole_library_source_alias_ns =
