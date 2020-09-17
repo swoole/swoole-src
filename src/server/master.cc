@@ -1735,6 +1735,10 @@ static void swServer_signal_handler(int sig)
     swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
 
     swServer *serv = SwooleG.serv;
+    if (!SwooleG.running or !serv) {
+        return;
+    }
+
     int status;
     pid_t pid;
     switch (sig)
