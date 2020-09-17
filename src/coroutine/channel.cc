@@ -22,7 +22,7 @@ using swoole::coroutine::Channel;
 using namespace swoole;
 
 void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
-    timer_msg_t *msg = (timer_msg_t *) tnode->data;
+    TimeoutMessage *msg = (TimeoutMessage *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
     if (msg->type == CONSUMER) {
@@ -51,7 +51,7 @@ void *Channel::pop(double timeout) {
         return nullptr;
     }
     if (is_empty() || !consumer_queue.empty()) {
-        timer_msg_t msg;
+        TimeoutMessage msg;
         msg.error = false;
         msg.timer = nullptr;
         if (timeout > 0) {
@@ -92,7 +92,7 @@ bool Channel::push(void *data, double timeout) {
         return false;
     }
     if (is_full() || !producer_queue.empty()) {
-        timer_msg_t msg;
+        TimeoutMessage msg;
         msg.error = false;
         msg.timer = nullptr;
         if (timeout > 0) {

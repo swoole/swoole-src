@@ -22,6 +22,8 @@
 
 #ifdef SW_USE_OPENSSL
 
+using swoole::network::Address;
+
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
 #error "require openssl version 1.0 or later"
 #endif
@@ -556,7 +558,7 @@ static void calculate_cookie(SSL *ssl, uchar *cookie_secret, uint cookie_length)
 static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len) {
     uchar *buffer, result[EVP_MAX_MD_SIZE];
     uint length = 0, result_len;
-    swSocketAddress sa = {};
+    Address sa{};
 
     uchar cookie_secret[COOKIE_SECRET_LENGTH];
     calculate_cookie(ssl, cookie_secret, sizeof(cookie_secret));

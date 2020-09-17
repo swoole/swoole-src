@@ -42,9 +42,9 @@ struct TimerNode {
     uint64_t round;
     bool removed;
     swHeap_node *heap_node;
-    swTimerCallback callback;
+    TimerCallback callback;
     void *data;
-    swTimerDestructor destructor;
+    TimerDestructor destructor;
 };
 
 class Timer {
@@ -97,7 +97,7 @@ class Timer {
     }
 
     bool init();
-    TimerNode *add(long _msec, bool persistent, void *data, const swTimerCallback &callback);
+    TimerNode *add(long _msec, bool persistent, void *data, const TimerCallback &callback);
     bool remove(TimerNode *tnode);
     void reinit(Reactor *reactor);
     int select();

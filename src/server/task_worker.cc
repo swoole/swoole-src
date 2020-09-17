@@ -72,7 +72,7 @@ bool EventData::pack(const void *_data, size_t _length) {
         return true;
     }
 
-    swPacket_task pkg{};
+    PacketTask pkg{};
 
     memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
 
@@ -90,18 +90,18 @@ bool EventData::pack(const void *_data, size_t _length) {
         return false;
     }
 
-    info.len = sizeof(swPacket_task);
+    info.len = sizeof(pkg);
     // use tmp file
     swTask_type(this) |= SW_TASK_TMPFILE;
 
     pkg.length = _length;
-    memcpy(data, &pkg, sizeof(swPacket_task));
+    memcpy(data, &pkg, sizeof(pkg));
 
     return true;
 }
 
 bool EventData::unpack(String *buffer) {
-    swPacket_task _pkg;
+    PacketTask _pkg{};
     memcpy(&_pkg, data, sizeof(_pkg));
 
     FileDescriptor _handler(open(_pkg.tmpfile, O_RDONLY));

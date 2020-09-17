@@ -36,7 +36,7 @@ private:
     int type;
 
 public:
-    swDgramPacket *packet = nullptr;
+    DgramPacket *packet = nullptr;
 
     Server(std::string _host, int _port, swoole::Server::Mode _mode, int _type);
     ~Server();
@@ -44,7 +44,7 @@ public:
     bool start();
     bool listen(std::string host, int port, enum swSocket_type type);
     int send(int session_id, const void *data, uint32_t length);
-    ssize_t sendto(const swSocketAddress &address, const char *__buf, size_t __n, int server_socket = -1);
+    ssize_t sendto(const swoole::network::Address &address, const char *__buf, size_t __n, int server_socket = -1);
     int close(int session_id, int reset);
 
     inline void* get_private_data(const std::string &key)

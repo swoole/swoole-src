@@ -25,37 +25,29 @@
 
 namespace swoole {
 
-struct swDefer_callback {
-    struct _swDefer_callback *next, *prev;
-    swCallback callback;
+struct DeferCallback {
+    Callback callback;
     void *data;
-};
-
-struct Callback {
-    swCallback fn_;
-    void *private_data_;
-
-    Callback(swCallback fn, void *private_data) : fn_(fn), private_data_(private_data) {}
 };
 
 class CallbackManager {
   public:
-    inline void append(swCallback fn, void *private_data) {
+    inline void append(Callback fn, void *private_data) {
         list_.emplace_back(fn, private_data);
     }
-    inline void prepend(swCallback fn, void *private_data) {
+    inline void prepend(Callback fn, void *private_data) {
         list_.emplace_front(fn, private_data);
     }
     inline void execute() {
         while (!list_.empty()) {
-            std::pair<swCallback, void *> task = list_.front();
+            std::pair<Callback, void *> task = list_.front();
             list_.pop_front();
             task.first(task.second);
         }
     }
 
   protected:
-    std::list<std::pair<swCallback, void *>> list_;
+    std::list<std::pair<Callback, void *>> list_;
 };
 
 class Reactor {
@@ -123,22 +115,22 @@ class Reactor {
     ReactorHandler default_write_handler = nullptr;
     ReactorHandler default_error_handler = nullptr;
 
-    int (*add)(Reactor *reactor, swSocket *socket, int events) = nullptr;
-    int (*set)(Reactor *reactor, swSocket *socket, int events) = nullptr;
-    int (*del)(Reactor *reactor, swSocket *socket) = nullptr;
+    int (*add)(Reactor *reactor, network::Socket *socket, int events) = nullptr;
+    int (*set)(Reactor *reactor, network::Socket *socket, int events) = nullptr;
+    int (*del)(Reactor *reactor, network::Socket *socket) = nullptr;
     int (*wait)(Reactor *reactor, struct timeval *) = nullptr;
     void (*free)(Reactor *) = nullptr;
 
     CallbackManager *defer_tasks = nullptr;
     CallbackManager destroy_callbacks;
 
-    swDefer_callback idle_task;
-    swDefer_callback future_task;
+    DeferCallback idle_task;
+    DeferCallback future_task;
 
     std::function<void(Reactor *)> onBegin;
 
-    int (*write)(Reactor *reactor, swSocket *socket, const void *buf, int n) = nullptr;
-    int (*close)(Reactor *reactor, swSocket *socket) = nullptr;
+    int (*write)(Reactor *reactor, network::Socket *socket, const void *buf, int n) = nullptr;
+    int (*close)(Reactor *reactor, network::Socket *socket) = nullptr;
 
   private:
     std::map<int, std::function<void(Reactor *)>> end_callbacks;
@@ -148,7 +140,7 @@ class Reactor {
     Reactor(int max_event = SW_REACTOR_MAXEVENTS);
     ~Reactor();
     bool if_exit();
-    void defer(swCallback cb, void *data = nullptr);
+    void defer(Callback cb, void *data = nullptr);
     void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
     void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, int &)> &fn);
     inline size_t remove_exit_condition(enum ExitCondition id) {
@@ -161,25 +153,25 @@ class Reactor {
         return read_handler[fdtype] != nullptr;
     }
     bool set_handler(int _fdtype, ReactorHandler handler);
-    void add_destroy_callback(swCallback cb, void *data = nullptr);
+    void add_destroy_callback(Callback cb, void *data = nullptr);
     void execute_end_callbacks(bool timedout = false);
-    void drain_write_buffer(swSocket *socket);
+    void drain_write_buffer(network::Socket *socket);
 
-    inline int add_event(swSocket *_socket, enum swEvent_type event_type) {
+    inline int add_event(network::Socket *_socket, enum swEvent_type event_type) {
         if (!(_socket->events & event_type)) {
             return set(this, _socket, _socket->events | event_type);
         }
         return SW_OK;
     }
 
-    inline int del_event(swSocket *_socket, enum swEvent_type event_type) {
+    inline int del_event(network::Socket *_socket, enum swEvent_type event_type) {
         if (_socket->events & event_type) {
             return set(this, _socket, _socket->events & (~event_type));
         }
         return SW_OK;
     }
 
-    inline int remove_read_event(swSocket *_socket) {
+    inline int remove_read_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_WRITE) {
             _socket->events &= (~SW_EVENT_READ);
             return set(this, _socket, _socket->events);
@@ -188,7 +180,7 @@ class Reactor {
         }
     }
 
-    inline int remove_write_event(swSocket *_socket) {
+    inline int remove_write_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_READ) {
             _socket->events &= (~SW_EVENT_WRITE);
             return set(this, _socket, _socket->events);
@@ -197,7 +189,7 @@ class Reactor {
         }
     }
 
-    inline int add_read_event(swSocket *_socket) {
+    inline int add_read_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_WRITE) {
             _socket->events |= SW_EVENT_READ;
             return set(this, _socket, _socket->events);
@@ -206,7 +198,7 @@ class Reactor {
         }
     }
 
-    inline int add_write_event(swSocket *_socket) {
+    inline int add_write_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_READ) {
             _socket->events |= SW_EVENT_WRITE;
             return set(this, _socket, _socket->events);
@@ -215,7 +207,7 @@ class Reactor {
         }
     }
 
-    inline bool exists(swSocket *_socket) {
+    inline bool exists(network::Socket *_socket) {
         return !_socket->removed && _socket->events;
     }
 
@@ -250,17 +242,17 @@ class Reactor {
         wait_exit = enable;
     }
 
-    inline void _add(swSocket *_socket, int events) {
+    inline void _add(network::Socket *_socket, int events) {
         _socket->events = events;
         _socket->removed = 0;
         event_num++;
     }
 
-    inline void _set(swSocket *_socket, int events) {
+    inline void _set(network::Socket *_socket, int events) {
         _socket->events = events;
     }
 
-    inline void _del(swSocket *_socket) {
+    inline void _del(network::Socket *_socket) {
         _socket->events = 0;
         _socket->removed = 1;
         event_num--;

@@ -527,12 +527,6 @@ int Server::start() {
     gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
-    workers = (Worker *) sw_shm_calloc(worker_num, sizeof(Worker));
-    if (workers == nullptr) {
-        swSysWarn("gmalloc[server->workers] failed");
-        return SW_ERR;
-    }
-
     /**
      * store to swProcessPool object
      */
@@ -731,6 +725,11 @@ int Server::create() {
             task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
         }
     }
+    workers = (Worker *) sw_shm_calloc(worker_num, sizeof(Worker));
+    if (workers == nullptr) {
+        swSysWarn("gmalloc[server->workers] failed");
+        return SW_ERR;
+    }
 
     if (is_base_mode()) {
         return create_reactor_processes();
@@ -877,7 +876,7 @@ bool Server::feedback(int session_id, int event) {
         return false;
     }
 
-    swSendData _send;
+    SendData _send;
     sw_memset_zero(&_send, sizeof(_send));
     _send.info.type = event;
     _send.info.fd = session_id;
@@ -910,7 +909,7 @@ void Server::store_pipe_fd(swPipe *p) {
  * @return SW_OK or SW_ERR
  */
 bool Server::send(int session_id, const void *data, uint32_t length) {
-    swSendData _send;
+    SendData _send;
     sw_memset_zero(&_send.info, sizeof(_send.info));
 
     if (sw_unlikely(swIsMaster())) {
@@ -930,7 +929,7 @@ bool Server::send(int session_id, const void *data, uint32_t length) {
  * [Master] send to client or append to out_buffer
  * @return SW_OK or SW_ERR
  */
-int Server::send_to_connection(swSendData *_send) {
+int Server::send_to_connection(SendData *_send) {
     uint32_t session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
@@ -1162,7 +1161,7 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
     req->length = length;
 
     // construct send data
-    swSendData send_data = {};
+    SendData send_data{};
     send_data.info.fd = session_id;
     send_data.info.type = SW_SERVER_EVENT_SEND_FILE;
     send_data.info.len = sizeof(SendfileTask) + l_file + 1;
@@ -1223,11 +1222,11 @@ static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer) {
 static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr) {
     size_t length;
     if (req->info.flags & SW_EVENT_DATA_PTR) {
-        swPacket_ptr *task = (swPacket_ptr *) req;
+        PacketPtr *task = (PacketPtr *) req;
         *data_ptr = task->data.str;
         length = task->data.length;
     } else if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
-        swString *worker_buffer;
+        String *worker_buffer;
         memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
         *data_ptr = worker_buffer->str;
         length = worker_buffer->length;

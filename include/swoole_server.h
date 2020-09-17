@@ -47,35 +47,6 @@
 #define SW_REACTOR_NUM SW_CPU_NUM
 #define SW_WORKER_NUM (SW_CPU_NUM * 2)
 
-enum swServer_event_type {
-    // recv data payload
-    SW_SERVER_EVENT_RECV_DATA,
-    SW_SERVER_EVENT_RECV_DGRAM,
-    // send data
-    SW_SERVER_EVENT_SEND_FILE,
-    // connection event
-    SW_SERVER_EVENT_CLOSE,
-    SW_SERVER_EVENT_CONNECT,
-    SW_SERVER_EVENT_CLOSE_FORCE,
-    // task
-    SW_SERVER_EVENT_TASK,
-    SW_SERVER_EVENT_FINISH,
-    // pipe
-    SW_SERVER_EVENT_PIPE_MESSAGE,
-    // proxy
-    SW_SERVER_EVENT_PROXY_START,
-    SW_SERVER_EVENT_PROXY_END,
-    // event operate
-    SW_SERVER_EVENT_PAUSE_RECV,
-    SW_SERVER_EVENT_RESUME_RECV,
-    // buffer event
-    SW_SERVER_EVENT_BUFFER_FULL,
-    SW_SERVER_EVENT_BUFFER_EMPTY,
-    // process message
-    SW_SERVER_EVENT_INCOMING,
-    SW_SERVER_EVENT_SHUTDOWN,
-};
-
 enum swTask_ipc_mode {
     SW_TASK_IPC_UNIXSOCK = 1,
     SW_TASK_IPC_MSGQUEUE = 2,
@@ -387,7 +358,7 @@ struct ListenPort {
     Protocol protocol = {};
     void *ptr = nullptr;
 
-    int (*onRead)(swReactor *reactor, ListenPort *port, swEvent *event) = nullptr;
+    int (*onRead)(Reactor *reactor, ListenPort *port, swEvent *event) = nullptr;
 
     inline bool is_dgram() {
         return network::Socket::is_dgram(type);
@@ -461,6 +432,35 @@ struct Factory {
     bool (*notify)(Factory *, DataHead *);  // send a event notify
     bool (*end)(Factory *, int fd);
     void (*free)(Factory *);
+};
+
+enum ServerEventType {
+    // recv data payload
+    SW_SERVER_EVENT_RECV_DATA,
+    SW_SERVER_EVENT_RECV_DGRAM,
+    // send data
+    SW_SERVER_EVENT_SEND_FILE,
+    // connection event
+    SW_SERVER_EVENT_CLOSE,
+    SW_SERVER_EVENT_CONNECT,
+    SW_SERVER_EVENT_CLOSE_FORCE,
+    // task
+    SW_SERVER_EVENT_TASK,
+    SW_SERVER_EVENT_FINISH,
+    // pipe
+    SW_SERVER_EVENT_PIPE_MESSAGE,
+    // proxy
+    SW_SERVER_EVENT_PROXY_START,
+    SW_SERVER_EVENT_PROXY_END,
+    // event operate
+    SW_SERVER_EVENT_PAUSE_RECV,
+    SW_SERVER_EVENT_RESUME_RECV,
+    // buffer event
+    SW_SERVER_EVENT_BUFFER_FULL,
+    SW_SERVER_EVENT_BUFFER_EMPTY,
+    // process message
+    SW_SERVER_EVENT_INCOMING,
+    SW_SERVER_EVENT_SHUTDOWN,
 };
 
 class Server {
@@ -708,7 +708,7 @@ class Server {
     uint8_t task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
     uint32_t task_max_request = 0;
     uint32_t task_max_request_grace = 0;
-    swPipe *task_notify = nullptr;
+    Pipe *task_notify = nullptr;
     EventData *task_result = nullptr;
 
     /**
@@ -791,7 +791,7 @@ class Server {
     std::function<void(Server *, uint32_t)> onWorkerStart;
     std::function<void(Server *, uint32_t)> onWorkerStop;
     std::function<void(Server *, uint32_t)> onWorkerExit;
-    std::function<void(Server *, swWorker *)> onUserWorkerStart;
+    std::function<void(Server *, Worker *)> onUserWorkerStart;
     /**
      * Connection
      */
@@ -849,11 +849,11 @@ class Server {
     int start();
     void shutdown();
 
-    int add_worker(swWorker *worker);
+    int add_worker(Worker *worker);
     ListenPort *add_port(enum swSocket_type type, const char *host, int port);
     int add_systemd_socket();
-    int add_hook(enum HookType type, const swCallback &func, int push_back);
-    Connection *add_connection(ListenPort *ls, swSocket *_socket, int server_fd);
+    int add_hook(enum HookType type, const Callback &func, int push_back);
+    Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
@@ -875,14 +875,14 @@ class Server {
     }
 
     void store_listen_socket();
-    void store_pipe_fd(swPipe *p);
+    void store_pipe_fd(Pipe *p);
 
     inline const std::string &get_document_root() {
         return document_root;
     }
 
-    inline swString *get_recv_buffer(swSocket *_socket) {
-        swString *buffer = _socket->recv_buffer;
+    inline String *get_recv_buffer(swSocket *_socket) {
+        String *buffer = _socket->recv_buffer;
         if (buffer == nullptr) {
             buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
             if (!buffer) {
@@ -907,7 +907,7 @@ class Server {
          * pipe_worker_id: The pipe in which worker.
          */
         int pipe_worker_id = reactor_id + (pipe_index * reactor_num);
-        swWorker *worker = get_worker(pipe_worker_id);
+        Worker *worker = get_worker(pipe_worker_id);
         return worker->pipe_worker;
     }
 
@@ -952,7 +952,7 @@ class Server {
 #endif
     }
 
-    inline swWorker *get_worker(uint16_t worker_id) {
+    inline Worker *get_worker(uint16_t worker_id) {
         // Event Worker
         if (worker_id < worker_num) {
             return &(gs->event_workers.workers[worker_id]);
@@ -973,17 +973,17 @@ class Server {
         return nullptr;
     }
 
-    void stop_async_worker(swWorker *worker);
+    void stop_async_worker(Worker *worker);
 
-    inline swPipe *get_pipe_object(int pipe_fd) {
-        return (swPipe *) connection_list[pipe_fd].object;
+    inline Pipe *get_pipe_object(int pipe_fd) {
+        return (Pipe *) connection_list[pipe_fd].object;
     }
 
-    inline swString *get_worker_input_buffer(int reactor_id) {
+    inline String *get_worker_input_buffer(int reactor_id) {
         if (is_base_mode()) {
-            return (swString *) worker_input_buffers[0];
+            return (String *) worker_input_buffers[0];
         } else {
-            return (swString *) worker_input_buffers[reactor_id];
+            return (String *) worker_input_buffers[reactor_id];
         }
     }
 
@@ -1001,6 +1001,30 @@ class Server {
 
     inline bool is_valid_connection(Connection *conn) {
         return (conn && conn->socket && conn->active && conn->socket->fdtype == SW_FD_SESSION);
+    }
+
+    static int is_dgram_event(uint8_t type) {
+        switch (type) {
+        case SW_SERVER_EVENT_RECV_DGRAM:
+            return true;
+        default:
+            return false;
+        }
+    }
+
+    static int is_stream_event(uint8_t type) {
+        switch (type) {
+        case SW_SERVER_EVENT_RECV_DATA:
+        case SW_SERVER_EVENT_CONNECT:
+        case SW_SERVER_EVENT_CLOSE:
+        case SW_SERVER_EVENT_PAUSE_RECV:
+        case SW_SERVER_EVENT_RESUME_RECV:
+        case SW_SERVER_EVENT_BUFFER_FULL:
+        case SW_SERVER_EVENT_BUFFER_EMPTY:
+            return true;
+        default:
+            return false;
+        }
     }
 
     inline int get_connection_fd(uint32_t session_id) {
@@ -1063,23 +1087,23 @@ class Server {
     int start_manager_process();
 
     void call_hook(enum HookType type, void *arg);
-    void call_worker_start_callback(swWorker *worker);
+    void call_worker_start_callback(Worker *worker);
 
     void foreach_connection(const std::function<void(Connection *)> &callback);
 
-    int accept_task(swEventData *task);
-    static int accept_connection(swReactor *reactor, swEvent *event);
+    int accept_task(EventData *task);
+    static int accept_connection(Reactor *reactor, Event *event);
 #ifdef SW_SUPPORT_DTLS
-    dtls::Session *accept_dtls_connection(ListenPort *ls, swSocketAddress *sa);
+    dtls::Session *accept_dtls_connection(ListenPort *ls, network::Address *sa);
 #endif
-    static int close_connection(swReactor *reactor, swSocket *_socket);
-    static int dispatch_task(swProtocol *proto, swSocket *_socket, const char *data, uint32_t length);
+    static int close_connection(Reactor *reactor, network::Socket *_socket);
+    static int dispatch_task(Protocol *proto, network::Socket *_socket, const char *data, uint32_t length);
 
     int send_to_connection(SendData *);
-    ssize_t send_to_worker_from_master(swWorker *worker, const void *data, size_t len);
-    ssize_t send_to_worker_from_worker(swWorker *dst_worker, const void *buf, size_t len, int flags);
-    ssize_t send_to_reactor_thread(swEventData *ev_data, size_t sendn, int session_id);
-    int reply_task_result(const char *data, size_t data_len, int flags, swEventData *current_task);
+    ssize_t send_to_worker_from_master(Worker *worker, const void *data, size_t len);
+    ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
+    ssize_t send_to_reactor_thread(EventData *ev_data, size_t sendn, int session_id);
+    int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
     bool send(int session_id, const void *data, uint32_t length);
     bool sendfile(int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -1100,7 +1124,7 @@ class Server {
     inline uint32_t get_max_connection() {
         return max_connection;
     }
-    
+
     int create_pipe_buffers();
     int create_worker(Worker *worker);
     void disable_accept();
@@ -1260,45 +1284,15 @@ typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::Connection swConnection;
 typedef swoole::Factory swFactory;
-typedef swoole::SendData swSendData;
 typedef swoole::RecvData swRecvData;
-typedef swoole::PipeBuffer swPipeBuffer;
-typedef swoole::PacketPtr swPacket_ptr;
-typedef swoole::PacketTask swPacket_task;
 typedef swoole::DgramPacket swDgramPacket;
 
 #define SW_MAX_SESSION_ID 0x1000000
 
-static sw_inline int swEventData_is_dgram(uint8_t type) {
-    switch (type) {
-    case SW_SERVER_EVENT_RECV_DGRAM:
-        return true;
-    default:
-        return false;
-    }
-}
+extern swoole::Server *g_server_instance;
 
-static sw_inline int swEventData_is_stream(uint8_t type) {
-    switch (type) {
-    case SW_SERVER_EVENT_RECV_DATA:
-    case SW_SERVER_EVENT_CONNECT:
-    case SW_SERVER_EVENT_CLOSE:
-    case SW_SERVER_EVENT_PAUSE_RECV:
-    case SW_SERVER_EVENT_RESUME_RECV:
-    case SW_SERVER_EVENT_BUFFER_FULL:
-    case SW_SERVER_EVENT_BUFFER_EMPTY:
-        return true;
-    default:
-        return false;
-    }
-}
-
-extern swServer *g_server_instance;
-
-static inline swServer *sw_server() {
+static inline swoole::Server *sw_server() {
     return g_server_instance;
 }
 
-int swFactory_create(swFactory *factory);
-bool swFactory_finish(swFactory *factory, swSendData *_send);
-int swFactoryProcess_create(swFactory *factory, uint32_t worker_num);
+bool swFactory_finish(swoole::Factory *factory, swoole::SendData *_send);

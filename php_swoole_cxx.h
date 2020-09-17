@@ -87,11 +87,35 @@ SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zse
 #endif
 SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
 SW_API bool php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
-php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
+SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
+SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
 
 // timer
-SW_API bool php_swoole_timer_clear(swTimer_node *tnode);
+SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);
 SW_API bool php_swoole_timer_clear_all();
+
+ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length);
+
+#ifdef SW_HAVE_ZLIB
+#define php_swoole_websocket_frame_pack        php_swoole_websocket_frame_pack_ex
+#define php_swoole_websocket_frame_object_pack php_swoole_websocket_frame_object_pack_ex
+#else
+#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress) \
+        php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
+#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress) \
+        php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
+#endif
+int php_swoole_websocket_frame_pack_ex(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
+int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
+void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
+void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar allow_uncompress);
+
+int php_swoole_task_pack(swEventData *task, zval *data);
+zval* php_swoole_task_unpack(swEventData *task_result);
+
+#ifdef SW_HAVE_ZLIB
+int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length);
+#endif
 
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------

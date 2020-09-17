@@ -305,7 +305,7 @@ void php_swoole_set_global_option(HashTable *vht) {
     }
 }
 
-void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data) {
+void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data) {
     rshutdown_callbacks.append(cb, private_data);
 }
 

@@ -204,23 +204,22 @@ struct Protocol;
 struct EventData;
 struct DataHead;
 typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
+typedef std::function<void(void *)> Callback;
+typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
+typedef std::function<void(TimerNode *)> TimerDestructor;
 }  // namespace swoole
 
 typedef swoole::Reactor swReactor;
-typedef swoole::ReactorHandler swReactor_handler;
 typedef swoole::String swString;
 typedef swoole::Timer swTimer;
-typedef swoole::TimerNode swTimer_node;
 typedef swoole::network::Socket swSocket;
-typedef swoole::network::Address swSocketAddress;
-typedef swoole::network::GetaddrinfoRequest swRequest_getaddrinfo;
 typedef swoole::network::Client swClient;
 typedef swoole::Protocol swProtocol;
 typedef swoole::EventData swEventData;
 typedef swoole::DataHead swDataHead;
-typedef swoole::AsyncEvent swAio_event;
 typedef swoole::Event swEvent;
 typedef swoole::Pipe swPipe;
+typedef swoole::Callback swCallback;
 
 struct swMsgQueue;
 struct swHeap_node;
@@ -379,10 +378,6 @@ typedef unsigned char uchar;
 #define SW_SUPPORT_DTLS
 #endif
 #endif
-
-typedef std::function<void(void *)> swCallback;
-typedef std::function<void(swoole::Timer *, swoole::TimerNode *)> swTimerCallback;
-typedef std::function<void(swoole::TimerNode *)> swTimerDestructor;
 
 struct swAllocator {
     void *(*malloc)(size_t size);
@@ -603,7 +598,7 @@ typedef cpuset_t cpu_set_t;
 int swoole_set_cpu_affinity(cpu_set_t *set);
 #endif
 
-struct swThreadGlobal_t {
+struct swThreadGlobal {
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
@@ -624,7 +619,7 @@ struct swThreadGlobal_t {
 #endif
 };
 
-struct swGlobal_t {
+struct swGlobal {
     uchar init : 1;
     uchar running : 1;
     uchar enable_coroutine : 1;
@@ -672,8 +667,8 @@ struct swGlobal_t {
     std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
 };
 
-extern swGlobal_t SwooleG;                  // Local Global Variable
-extern __thread swThreadGlobal_t SwooleTG;  // Thread Global Variable
+extern swGlobal SwooleG;                  // Local Global Variable
+extern __thread swThreadGlobal SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
 

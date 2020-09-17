@@ -53,7 +53,7 @@ TEST(client, udp) {
 
     Process proc([](Process *proc) {
         on_packet_lambda_type packet_fn = [](ON_PACKET_PARAMS) {
-            swDgramPacket *packet = (swDgramPacket *) req->data;
+            swoole::DgramPacket *packet = (swoole::DgramPacket *) req->data;
             SERVER_THIS->sendto(packet->socket_addr, packet->data, packet->length, req->info.server_fd);
         };
 

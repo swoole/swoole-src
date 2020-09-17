@@ -187,11 +187,11 @@ static bool swFactoryProcess_notify(Factory *factory, DataHead *ev) {
 }
 
 static inline int process_sendto_worker(Server *serv, PipeBuffer *buf, size_t n, void *private_data) {
-    return serv->send_to_worker_from_master((swWorker *) private_data, buf, n);
+    return serv->send_to_worker_from_master((Worker *) private_data, buf, n);
 }
 
 static inline int process_sendto_reactor(Server *serv, PipeBuffer *buf, size_t n, void *private_data) {
-    return serv->send_to_reactor_thread((swEventData *) buf, n, ((Connection *) private_data)->session_id);
+    return serv->send_to_reactor_thread((EventData *) buf, n, ((Connection *) private_data)->session_id);
 }
 
 /**
@@ -215,7 +215,7 @@ static bool swFactoryProcess_dispatch(Factory *factory, SendData *task) {
         }
     }
 
-    if (swEventData_is_stream(task->info.type)) {
+    if (Server::is_stream_event(task->info.type)) {
         Connection *conn = serv->get_connection(fd);
         if (conn == nullptr || conn->active == 0) {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
@@ -233,7 +233,7 @@ static bool swFactoryProcess_dispatch(Factory *factory, SendData *task) {
         task->info.server_fd = conn->server_fd;
     }
 
-    swWorker *worker = serv->get_worker(target_worker_id);
+    Worker *worker = serv->get_worker(target_worker_id);
 
     // without data
     if (task->data == nullptr) {

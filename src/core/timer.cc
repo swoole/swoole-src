@@ -107,7 +107,7 @@ Timer::~Timer() {
     }
 }
 
-TimerNode *Timer::add(long _msec, bool persistent, void *data, const swTimerCallback &callback) {
+TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallback &callback) {
     if (sw_unlikely(_msec <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "msec value[%ld] is invalid", _msec);
         return nullptr;
