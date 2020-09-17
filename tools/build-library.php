@@ -29,11 +29,13 @@ $files = [
     'core/Constant.php',
     'core/StringObject.php',
     'core/MultibyteStringObject.php',
+    'core/Exception/ArrayKeyNotExists.php',
     'core/ArrayObject.php',
     'core/ObjectProxy.php',
     'core/Coroutine/WaitGroup.php',
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
+    'core/Coroutine/Barrier.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
     'core/Database/ObjectProxy.php',
