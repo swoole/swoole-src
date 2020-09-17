@@ -27,6 +27,7 @@ $files = [
     'std/exec.php',
     # <core> #
     'core/Constant.php',
+    'core/Exception/ArrayKeyNotExists.php',
     'core/StringObject.php',
     'core/MultibyteStringObject.php',
     'core/ArrayObject.php',
@@ -48,8 +49,9 @@ $files = [
     'core/Database/PDOStatementProxy.php',
     'core/Database/RedisConfig.php',
     'core/Database/RedisPool.php',
-    # <core for ext-curl> #
+    # <core for HTTP> #
     'core/Http/Status.php',
+    # <core for cURL> #
     'core/Curl/Exception.php',
     'core/Curl/Handler.php',
     # <core for functions> #

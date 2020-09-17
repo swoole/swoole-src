@@ -16,7 +16,7 @@ Assert::isIterable($array);
 Assert::eq($array, _array()->unserialize($array->serialize()));
 $array->push('OK');
 $array->pushBack($array->pop());
-echo $array->popFront() . PHP_EOL;
+echo $array->popBack() . PHP_EOL;
 Assert::same($array->count(), count($data));
 Assert::true($array->clear()->isEmpty());
 Assert::isEmpty($array->__toArray());

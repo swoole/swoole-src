@@ -48,7 +48,7 @@ typedef struct _swAio_event
     /**
      * output
      */
-    int ret;
+    ssize_t ret;
     int error;
     /**
      * reserved by system

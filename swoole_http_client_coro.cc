@@ -846,17 +846,8 @@ bool http_client::send()
 
     // when new request, clear all properties about the last response
     {
-        zval *zattr;
-        zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("headers"), 0);
-        if (ZVAL_IS_ARRAY(zattr))
-        {
-            zend_hash_clean(Z_ARRVAL_P(zattr));
-        }
-        zattr = sw_zend_read_property(swoole_http_client_coro_ce, zobject, ZEND_STRL("set_cookie_headers"), 0);
-        if (ZVAL_IS_ARRAY(zattr))
-        {
-            zend_hash_clean(Z_ARRVAL_P(zattr));
-        }
+        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("headers"));
+        zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("set_cookie_headers"));
         zend_update_property_string(swoole_http_client_coro_ce, zobject, ZEND_STRL("body"), "");
     }
 
@@ -1491,6 +1482,7 @@ bool http_client::recv_http_response(double timeout)
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
     swString *buffer = socket->get_read_buffer();
+    bool header_completed = false;
 
     // re-init http response parser
     swoole_http_parser_init(&parser, PHP_HTTP_RESPONSE);
@@ -1507,7 +1499,7 @@ bool http_client::recv_http_response(double timeout)
         {
             return false;
         }
-        retval = socket->recv(buffer->str, buffer->size);
+        retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
         if (sw_unlikely(retval <= 0))
         {
             if (retval == 0)
@@ -1521,6 +1513,24 @@ bool http_client::recv_http_response(double timeout)
             }
             return false;
         }
+
+        if (!header_completed) {
+            buffer->length += retval;
+            if (swoole_strnpos(buffer->str, buffer->length, ZEND_STRL("\r\n\r\n")) < 0) {
+                if (buffer->length == buffer->size) {
+                    swoole_error_log(SW_LOG_TRACE, SW_ERROR_HTTP_INVALID_PROTOCOL, "Http header too large");
+                    socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
+                    return false;
+                }
+                buffer->offset = (ssize_t) buffer->length - 4 <= 0 ? 0 : buffer->length - 4;
+                continue;
+            } else {
+                header_completed = true;
+                retval = buffer->length;
+                swString_clear(buffer);
+            }
+        }
+
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
         swTraceLog(SW_TRACE_HTTP_CLIENT, "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d", parsed_n, retval, total_bytes, parser.state == s_start_res);
@@ -1535,7 +1545,7 @@ bool http_client::recv_http_response(double timeout)
         }
         if (sw_unlikely(parser.state == s_dead))
         {
-            socket->set_err(EPROTO);
+            socket->set_err(SW_ERROR_HTTP_INVALID_PROTOCOL);
             return false;
         }
     }
