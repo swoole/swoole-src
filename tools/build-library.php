@@ -90,6 +90,11 @@ $files = [
     'alias_ns.php',
 ];
 
+$diff_files = array_diff(swoole_library_files(), $files);
+if (!empty($diff_files)) {
+    swoole_error('Some files are not loaded: ', ...$diff_files);
+}
+
 foreach ($files as $file) {
     if (!file_exists(LIBRARY_SRC_DIR . '/' . $file)) {
         swoole_error("Unable to find source file [{$file}]");
