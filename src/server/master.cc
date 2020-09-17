@@ -527,12 +527,6 @@ int Server::start() {
     gs->master_pid = getpid();
     gs->start_time = ::time(nullptr);
 
-    workers = (Worker *) sw_shm_calloc(worker_num, sizeof(Worker));
-    if (workers == nullptr) {
-        swSysWarn("gmalloc[server->workers] failed");
-        return SW_ERR;
-    }
-
     /**
      * store to swProcessPool object
      */
@@ -730,6 +724,11 @@ int Server::create() {
                    SW_CPU_NUM * SW_MAX_WORKER_NCPU);
             task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
         }
+    }
+    workers = (Worker *) sw_shm_calloc(worker_num, sizeof(Worker));
+    if (workers == nullptr) {
+        swSysWarn("gmalloc[server->workers] failed");
+        return SW_ERR;
     }
 
     if (is_base_mode()) {
