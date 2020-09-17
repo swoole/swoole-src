@@ -51,7 +51,7 @@ static bool swFactory_dispatch(Factory *factory, SendData *task) {
     PacketPtr pkg;
     Connection *conn = nullptr;
 
-    if (swEventData_is_stream(task->info.type)) {
+    if (Server::is_stream_event(task->info.type)) {
         conn = serv->get_connection(task->info.fd);
         if (conn == nullptr || conn->active == 0) {
             swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);

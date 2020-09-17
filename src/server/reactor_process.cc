@@ -20,6 +20,8 @@
 using namespace swoole;
 using network::Socket;
 
+int swFactory_create(Factory *factory);
+
 static int ReactorProcess_loop(ProcessPool *pool, Worker *worker);
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event);
 static int ReactorProcess_onClose(Reactor *reactor, Event *event);

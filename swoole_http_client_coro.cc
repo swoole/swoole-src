@@ -44,7 +44,7 @@ SW_EXTERN_C_END
 #include <brotli/decode.h>
 #endif
 
-using namespace swoole;
+using swoole::network::Address;
 using swoole::coroutine::Socket;
 
 enum http_client_error_status_code {
@@ -201,7 +201,7 @@ class HttpClient {
     }
 
     void getsockname(zval *return_value) {
-        swSocketAddress sa;
+        Address sa;
         if (!socket || !socket->getsockname(&sa)) {
             ZVAL_FALSE(return_value);
             return;
@@ -213,7 +213,7 @@ class HttpClient {
     }
 
     void getpeername(zval *return_value) {
-        swSocketAddress sa;
+        Address sa;
         if (!socket || !socket->getpeername(&sa)) {
             ZVAL_FALSE(return_value);
             return;

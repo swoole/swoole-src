@@ -37,12 +37,12 @@ class Channel {
         CONSUMER = 2,
     };
 
-    struct timer_msg_t {
+    struct TimeoutMessage {
         Channel *chan;
         enum opcode type;
         Coroutine *co;
         bool error;
-        swTimer_node *timer;
+        TimerNode *timer;
     };
 
     void *pop(double timeout = -1);
@@ -106,7 +106,7 @@ class Channel {
     std::list<Coroutine *> consumer_queue;
     std::queue<void *> data_queue;
 
-    static void timer_callback(swTimer *timer, swTimer_node *tnode);
+    static void timer_callback(swTimer *timer, TimerNode *tnode);
 
     void yield(enum opcode type);
 

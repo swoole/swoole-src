@@ -253,7 +253,7 @@ std::vector<std::string> System::getaddrinfo(
     assert(family == AF_INET || family == AF_INET6);
 
     AsyncEvent ev{};
-    swRequest_getaddrinfo req{};
+    network::GetaddrinfoRequest req{};
 
     AsyncTask task{Coroutine::get_current_safe(), &ev};
 

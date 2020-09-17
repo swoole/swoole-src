@@ -26,7 +26,7 @@ Timer *sw_timer() {
 }
 #endif
 
-TimerNode *swoole_timer_add(long ms, bool persistent, const swTimerCallback &callback, void *private_data) {
+TimerNode *swoole_timer_add(long ms, bool persistent, const TimerCallback &callback, void *private_data) {
     if (sw_unlikely(SwooleTG.timer == nullptr)) {
         SwooleTG.timer = new Timer();
         if (sw_unlikely(!SwooleTG.timer->init())) {
@@ -42,7 +42,7 @@ bool swoole_timer_del(TimerNode *tnode) {
     return SwooleTG.timer->remove(tnode);
 }
 
-long swoole_timer_after(long ms, const swTimerCallback &callback, void *private_data) {
+long swoole_timer_after(long ms, const TimerCallback &callback, void *private_data) {
     if (ms <= 0) {
         swWarn("Timer must be greater than 0");
         return SW_ERR;
@@ -55,7 +55,7 @@ long swoole_timer_after(long ms, const swTimerCallback &callback, void *private_
     }
 }
 
-long swoole_timer_tick(long ms, const swTimerCallback &callback, void *private_data) {
+long swoole_timer_tick(long ms, const TimerCallback &callback, void *private_data) {
     if (ms <= 0) {
         swWarn("Timer must be greater than 0");
         return SW_ERR;

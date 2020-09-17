@@ -279,7 +279,6 @@ void php_swoole_set_global_option(HashTable *vht);
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);
 void php_swoole_register_shutdown_function_prepend(const char *function);
-void php_swoole_register_rshutdown_callback(swCallback cb, void *private_data);
 
 // event
 void php_swoole_event_init();
@@ -298,27 +297,6 @@ static sw_inline size_t php_swoole_get_send_data(zval *zdata, char **str)
     return Z_STRLEN_P(zdata);
 }
 
-#ifdef SW_HAVE_ZLIB
-#define php_swoole_websocket_frame_pack        php_swoole_websocket_frame_pack_ex
-#define php_swoole_websocket_frame_object_pack php_swoole_websocket_frame_object_pack_ex
-#else
-#define php_swoole_websocket_frame_pack(buffer, zdata, opcode, flags, mask, allow_compress) \
-        php_swoole_websocket_frame_pack_ex(buffer, zdata, opcode, flags, mask, 0)
-#define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress) \
-        php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
-#endif
-int php_swoole_websocket_frame_pack_ex(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
-int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
-void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
-void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar allow_uncompress);
-
-int php_swoole_task_pack(swEventData *task, zval *data);
-zval* php_swoole_task_unpack(swEventData *task_result);
-
-#ifdef SW_HAVE_ZLIB
-int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length);
-#endif
-
 int php_swoole_convert_to_fd(zval *zsocket);
 int php_swoole_convert_to_fd_ex(zval *zsocket, int *async);
 
@@ -326,7 +304,6 @@ int php_swoole_convert_to_fd_ex(zval *zsocket, int *async);
 php_socket *php_swoole_convert_to_socket(int sock);
 #endif
 
-ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length);
 zend_bool php_swoole_signal_isset_handler(int signo);
 
 ZEND_BEGIN_MODULE_GLOBALS(swoole)
@@ -1129,7 +1106,7 @@ static sw_inline char* php_swoole_format_date(char *format, size_t format_len, t
     return return_str;
 }
 
-static sw_inline char* php_swoole_url_encode(char *value, size_t value_len, int* exten)
+static sw_inline char* php_swoole_url_encode(const char *value, size_t value_len, int* exten)
 {
     zend_string *str = php_url_encode(value, value_len);
     *exten = ZSTR_LEN(str);

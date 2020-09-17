@@ -20,8 +20,8 @@
 
 #include "ext/standard/basic_functions.h"
 
-using namespace swoole;
 using swoole::coroutine::Socket;
+using swoole::network::Address;
 
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
@@ -859,7 +859,7 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
         RETURN_FALSE;
     }
 
-    swSocketAddress sa;
+    Address sa;
     if (!cli->getsockname(&sa)) {
         zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), cli->errCode);
         zend_update_property_string(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), cli->errMsg);
@@ -901,7 +901,7 @@ static PHP_METHOD(swoole_client_coro, getpeername) {
         RETURN_FALSE;
     }
 
-    swSocketAddress sa;
+    Address sa;
     if (!cli->getpeername(&sa)) {
         zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), cli->errCode);
         zend_update_property_string(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), cli->errMsg);

@@ -34,14 +34,14 @@ TEST(dns, lookup) {
 
 TEST(dns, getaddrinfo) {
     char buf[1024] = {};
-    swRequest_getaddrinfo req = {};
+    swoole::network::GetaddrinfoRequest req = {};
     req.hostname = "www.baidu.com";
     req.family = AF_INET;
     req.socktype = SOCK_STREAM;
     req.protocol = 0;
     req.service = nullptr;
     req.result = buf;
-    ASSERT_EQ(network::getaddrinfo(&req), 0);
+    ASSERT_EQ(swoole::network::getaddrinfo(&req), 0);
     ASSERT_GT(req.count, 0);
 
     vector<string> ip_list;

@@ -180,8 +180,8 @@ class Socket {
         return bind_port;
     }
 
-    bool getsockname(swSocketAddress *sa);
-    bool getpeername(swSocketAddress *sa);
+    bool getsockname(swoole::network::Address *sa);
+    bool getpeername(swoole::network::Address *sa);
 
     inline const char *get_ip() {
         return socket->info.get_ip();
@@ -292,7 +292,7 @@ class Socket {
         return true;
     }
 
-    inline swString *get_read_buffer() {
+    inline String *get_read_buffer() {
         if (sw_unlikely(!read_buffer)) {
             read_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
             if (!read_buffer) {
@@ -302,7 +302,7 @@ class Socket {
         return read_buffer;
     }
 
-    inline swString *get_write_buffer() {
+    inline String *get_write_buffer() {
         if (sw_unlikely(!write_buffer)) {
             write_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
             if (!write_buffer) {
@@ -312,7 +312,7 @@ class Socket {
         return write_buffer;
     }
 
-    inline swString *pop_read_buffer() {
+    inline String *pop_read_buffer() {
         if (sw_unlikely(!read_buffer)) {
             return nullptr;
         }
@@ -321,7 +321,7 @@ class Socket {
         return tmp;
     }
 
-    inline swString *pop_write_buffer() {
+    inline String *pop_write_buffer() {
         if (sw_unlikely(!write_buffer)) {
             return nullptr;
         }
@@ -382,9 +382,9 @@ class Socket {
 
     const swAllocator *buffer_allocator = nullptr;
     size_t buffer_init_size = SW_BUFFER_SIZE_BIG;
-    swString *read_buffer = nullptr;
-    swString *write_buffer = nullptr;
-    swSocketAddress bind_address_info = {};
+    String *read_buffer = nullptr;
+    String *write_buffer = nullptr;
+    network::Address bind_address_info = {};
 
     EventBarrier recv_barrier = {};
     EventBarrier send_barrier = {};
@@ -448,7 +448,7 @@ class Socket {
 
     class TimerController {
       public:
-        TimerController(TimerNode **timer_pp, double timeout, Socket *sock, swTimerCallback callback)
+        TimerController(TimerNode **timer_pp, double timeout, Socket *sock, TimerCallback callback)
             : timer_pp(timer_pp), timeout(timeout), socket_(sock), callback(callback) {}
         bool start() {
             if (timeout != 0 && !*timer_pp) {
@@ -477,7 +477,7 @@ class Socket {
         TimerNode **timer_pp;
         double timeout;
         Socket *socket_;
-        swTimerCallback callback;
+        TimerCallback callback;
     };
 
   public:

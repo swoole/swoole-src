@@ -24,7 +24,7 @@
 
 namespace swoole {
 
-enum Channel_flag {
+enum ChannelFlag {
     SW_CHAN_LOCK = 1u << 1,
     SW_CHAN_NOTIFY = 1u << 2,
     SW_CHAN_SHM = 1u << 3,
@@ -49,7 +49,7 @@ struct Channel {
      */
     void *mem;
     swLock lock;
-    swPipe *notify_pipe;
+    Pipe *notify_pipe;
 
     inline bool empty() {
         return num == 0;

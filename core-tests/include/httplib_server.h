@@ -15,6 +15,7 @@
 using swoole::Coroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::network::Address;
 
 namespace httplib {
 
@@ -1015,7 +1016,7 @@ class CoSocketStream : public detail::SocketStream {
         return sock_->write(ptr, size);
     }
     void get_remote_ip_and_port(std::string &ip, int &port) const {
-        swSocketAddress sa;
+        Address sa;
         sock_->getpeername(&sa);
         ip = std::string(sa.get_ip());
         port = sa.get_port();

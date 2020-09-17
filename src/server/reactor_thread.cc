@@ -28,6 +28,8 @@ using std::unordered_map;
 using namespace swoole;
 using namespace swoole::network;
 
+int swFactoryProcess_create(Factory *factory, uint32_t worker_num);
+
 static void ReactorThread_loop(Server *serv, int reactor_id);
 static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_id);
 static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev);
@@ -370,8 +372,8 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
 
     Server *serv = (Server *) reactor->ptr;
     ReactorThread *thread = serv->get_thread(reactor->id);
-    swString *package = nullptr;
-    swPipeBuffer *resp = serv->pipe_buffers[reactor->id];
+    String *package = nullptr;
+    PipeBuffer *resp = serv->pipe_buffers[reactor->id];
 
 #ifdef SW_REACTOR_RECV_AGAIN
     while (1)
@@ -486,7 +488,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         EventData *send_data = (EventData *) chunk->value.ptr;
 
         // server active close, discard data.
-        if (swEventData_is_stream(send_data->info.type)) {
+        if (Server::is_stream_event(send_data->info.type)) {
             // send_data->info.fd is session_id
             conn = serv->get_connection_verify(send_data->info.fd);
             if (conn) {

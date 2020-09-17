@@ -6,11 +6,11 @@ using namespace swoole;
 int main(int argc, char **argv) {
     swoole_init();
 
-    enum swServer_mode factory_mode;
+    enum Server::Mode factory_mode;
     if (argc > 1) {
-        factory_mode = SW_MODE_PROCESS;
+        factory_mode = Server::MODE_PROCESS;
     } else {
-        factory_mode = SW_MODE_BASE;
+        factory_mode = Server::MODE_BASE;
     }
 
     for (int i = 0; i < 2; i++) {
@@ -19,15 +19,15 @@ int main(int argc, char **argv) {
         serv.reactor_num = 1;
         serv.worker_num = 1;
 
-        serv.onReceive = [](swServer *serv, swRecvData *req) { return SW_OK; };
+        serv.onReceive = [](Server *serv, RecvData *req) { return SW_OK; };
 
-        serv.onPacket = [](swServer *serv, swRecvData *req) { return SW_OK; };
+        serv.onPacket = [](Server *serv, RecvData *req) { return SW_OK; };
 
-        serv.onWorkerStart = [](swServer *serv, int worker_id) {
+        serv.onWorkerStart = [](Server *serv, int worker_id) {
             swNotice("WorkerStart[%d]PID=%d, serv=%p,", worker_id, getpid(), serv);
             swoole_timer_after(
                 1000,
-                [serv](swTimer *, swTimer_node *tnode) {
+                [serv](Timer *, TimerNode *tnode) {
                     printf("timer=%p\n", tnode);
                     if (serv->is_base_mode()) {
                         kill(getpid(), SIGTERM);
@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
         serv.add_port(SW_SOCK_TCP6, "::", 9503);
         serv.add_port(SW_SOCK_UDP6, "::", 9504);
 
-        swListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
+        ListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
         if (!port) {
             swWarn("listen failed, [error=%d]", swoole_get_last_error());
             exit(2);
