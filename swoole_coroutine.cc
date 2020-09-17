@@ -261,10 +261,12 @@ static void coro_interrupt_resume(void *data) {
 }
 
 static void coro_interrupt_function(zend_execute_data *execute_data) {
-    PHPContext *task = PHPCoroutine::get_context();
-    if (task && task->co && PHPCoroutine::is_schedulable(task)) {
-        swoole_event_defer(coro_interrupt_resume, (void *) task->co);
-        task->co->yield();
+    if (Coroutine::count() > 1) {
+        PHPContext *task = PHPCoroutine::get_context();
+        if (task && task->co && PHPCoroutine::is_schedulable(task)) {
+            swoole_event_defer(coro_interrupt_resume, (void *) task->co);
+            task->co->yield();
+        }
     }
     if (orig_interrupt_function) {
         orig_interrupt_function(execute_data);
