@@ -4,7 +4,7 @@
  *
  * @link     https://www.swoole.com
  * @contact  team@swoole.com
- * @license  https://github.com/swoole/library/blob/master/LICENSE
+ * @license  https://github.com/swoole/swoole-src/blob/master/LICENSE
  */
 
 define('ROOT_DIR', dirname(__DIR__));
@@ -162,4 +162,20 @@ function swoole_source_list(array $ext_list = [], array $excepts = []): array
     sort($source_list);
 
     return $source_list;
+}
+
+function swoole_library_files()
+{
+    $files = [];
+
+    $file_spl_objects = new \RecursiveIteratorIterator(
+        new \RecursiveDirectoryIterator(LIBRARY_SRC_DIR, \RecursiveDirectoryIterator::SKIP_DOTS),
+        \RecursiveIteratorIterator::LEAVES_ONLY
+    );
+
+    foreach ($file_spl_objects as $full_file_name => $file_spl_object) {
+        $files[] = str_replace(LIBRARY_SRC_DIR . '/', '', $full_file_name);
+    }
+
+    return $files;
 }

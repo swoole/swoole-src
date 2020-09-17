@@ -29,13 +29,11 @@ $files = [
     'core/Constant.php',
     'core/StringObject.php',
     'core/MultibyteStringObject.php',
-    'core/Exception/ArrayKeyNotExists.php',
     'core/ArrayObject.php',
     'core/ObjectProxy.php',
     'core/Coroutine/WaitGroup.php',
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
-    'core/Coroutine/Barrier.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
     'core/Database/ObjectProxy.php',
@@ -89,6 +87,11 @@ $files = [
     'alias.php',
     'alias_ns.php',
 ];
+
+$diff_files = array_diff(swoole_library_files(), $files);
+if (!empty($diff_files)) {
+    swoole_error('Some files are not loaded: ', ...$diff_files);
+}
 
 foreach ($files as $file) {
     if (!file_exists(LIBRARY_SRC_DIR . '/' . $file)) {
