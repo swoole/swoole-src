@@ -32,11 +32,9 @@ $files = [
     'core/MultibyteStringObject.php',
     'core/ArrayObject.php',
     'core/ObjectProxy.php',
-    'core/Coroutine/Barrier.php',
     'core/Coroutine/WaitGroup.php',
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
-    'core/Process/ProcessManager.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
     'core/Database/ObjectProxy.php',
@@ -51,8 +49,9 @@ $files = [
     'core/Database/PDOStatementProxy.php',
     'core/Database/RedisConfig.php',
     'core/Database/RedisPool.php',
-    # <core for ext-curl> #
+    # <core for HTTP> #
     'core/Http/Status.php',
+    # <core for cURL> #
     'core/Curl/Exception.php',
     'core/Curl/Handler.php',
     # <core for functions> #
