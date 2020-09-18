@@ -2,6 +2,7 @@
 
 namespace SwooleTest;
 
+use RuntimeException;
 use Swoole\Coroutine\MySQL;
 
 class DbWrapper

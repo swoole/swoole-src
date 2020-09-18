@@ -249,7 +249,7 @@ class ProcessManager
         $waitInfo = Swoole\Process::wait(true);
         $this->childStatus = $waitInfo['code'];
         if (!in_array($waitInfo['signal'], $this->expectExitSignal)) {
-            throw new RuntimeException("Unexpected exit code {$waitInfo['signal']}");
+            throw new \RuntimeException("Unexpected exit code {$waitInfo['signal']}");
         }
 
         return true;
