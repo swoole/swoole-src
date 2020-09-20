@@ -71,9 +71,11 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
 
 static const SSL_METHOD *swSSL_get_method(swSSL_option *option) {
+#ifdef SW_SUPPORT_DTLS
     if (option->protocols & SW_SSL_DTLS) {
         return DTLS_method();
     }
+#endif
     return SSLv23_method();
 }
 
