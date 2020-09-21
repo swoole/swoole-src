@@ -487,7 +487,19 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
     (ptr) = &(val); \
 } while (0)
 
-#define SW_ZEND_REGISTER_RESOURCE(return_value, result, le_result)  ZVAL_RES(return_value,zend_register_resource(result, le_result))
+#if PHP_VERSION_ID < 80000
+#define SW_ZVAL_SOCKET(return_value, result)  \
+        ZVAL_RES(return_value,zend_register_resource((void *) (result), php_sockets_le_socket()))
+#else
+#define SW_ZVAL_SOCKET(return_value, result) \
+        ZVAL_OBJ(return_value, &result->std)
+#endif
+
+#if PHP_VERSION_ID < 80000
+#define SW_Z_SOCKET_P(zsocket) (php_socket *) zend_fetch_resource_ex(zsocket, nullptr, php_sockets_le_socket())
+#else
+#define SW_Z_SOCKET_P(zsocket) Z_SOCKET_P(zsocket)
+#endif
 
 #ifndef ZVAL_IS_BOOL
 static sw_inline zend_bool ZVAL_IS_BOOL(zval *v)
