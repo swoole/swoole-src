@@ -635,8 +635,6 @@ class Server {
      *  heartbeat check time
      */
     uint16_t heartbeat_idle_time = 0;
-    uint16_t heartbeat_check_interval = 0;
-    uint32_t heartbeat_check_lasttime = 0;
 
     int *cpu_affinity_available = 0;
     int cpu_affinity_available_num = 0;
@@ -854,6 +852,8 @@ class Server {
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
+    void add_heartbeat_check_timer(Reactor *reactor, Connection *conn);
+    int connection_incoming(Reactor *reactor, Connection *conn);
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
@@ -1131,27 +1131,7 @@ class Server {
 
     void destroy_http_request(Connection *conn);
 
-    inline int connection_incoming(Reactor *reactor, Connection *conn) {
-#ifdef SW_USE_OPENSSL
-        if (conn->socket->ssl) {
-            return reactor->add(reactor, conn->socket, SW_EVENT_READ);
-        }
-#endif
-        // delay receive, wait resume command
-        if (!enable_delay_receive) {
-            if (reactor->add(reactor, conn->socket, SW_EVENT_READ) < 0) {
-                return SW_ERR;
-            }
-        }
-        // notify worker process
-        if (onConnect) {
-            if (!notify(conn, SW_SERVER_EVENT_CONNECT)) {
-                return SW_ERR;
-            }
-        }
 
-        return SW_OK;
-    }
 
     inline int schedule_worker(int fd, SendData *data) {
         uint32_t key = 0;
@@ -1274,7 +1254,6 @@ class Server {
     int start_reactor_threads();
     int start_reactor_processes();
     int start_event_worker(Worker *worker);
-    void start_heartbeat_thread();
     void join_reactor_thread();
 };
 

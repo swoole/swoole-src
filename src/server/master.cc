@@ -155,6 +155,51 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
+int Server::connection_incoming(Reactor *reactor, Connection *conn) {
+    if (heartbeat_idle_time > 0) {
+        add_heartbeat_check_timer(reactor, conn);
+    }
+#ifdef SW_USE_OPENSSL
+    if (conn->socket->ssl) {
+        return reactor->add(reactor, conn->socket, SW_EVENT_READ);
+    }
+#endif
+    // delay receive, wait resume command
+    if (!enable_delay_receive) {
+        if (reactor->add(reactor, conn->socket, SW_EVENT_READ) < 0) {
+            return SW_ERR;
+        }
+    }
+    // notify worker process
+    if (onConnect) {
+        if (!notify(conn, SW_SERVER_EVENT_CONNECT)) {
+            return SW_ERR;
+        }
+    }
+    return SW_OK;
+}
+
+void Server::add_heartbeat_check_timer(Reactor *reactor, Connection *conn) {
+    if (conn->protect) {
+        return;
+    }
+    if (conn->socket->recv_timer) {
+        swoole_timer_del(conn->socket->recv_timer);
+    }
+    conn->socket->recv_timer = swoole_timer_add(heartbeat_idle_time * 1000, false, [this, conn, reactor](Timer *, TimerNode *) {
+        if (disable_notify || conn->close_force) {
+            Server::close_connection(reactor, conn->socket);
+            return;
+        }
+
+        conn->close_force = 1;
+        Event _ev = {};
+        _ev.fd = conn->fd;
+        _ev.socket = conn->socket;
+        reactor->trigger_close_event(&_ev);
+    });
+}
+
 #ifdef SW_SUPPORT_DTLS
 dtls::Session *Server::accept_dtls_connection(swListenPort *port, Address *sa) {
     dtls::Session *session = nullptr;

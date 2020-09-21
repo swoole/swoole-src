@@ -148,6 +148,9 @@ struct Socket {
     Buffer *in_buffer;
     String *recv_buffer;
 
+    TimerNode *recv_timer;
+    TimerNode *send_timer;
+
 #ifdef SW_DEBUG
     size_t total_recv_bytes;
     size_t total_send_bytes;

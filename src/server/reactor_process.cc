@@ -27,7 +27,6 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event);
 static int ReactorProcess_onClose(Reactor *reactor, Event *event);
 static bool ReactorProcess_send2client(Factory *, SendData *data);
 static int ReactorProcess_send2worker(Socket *socket, const void *data, size_t length);
-static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode);
 
 #ifdef HAVE_REUSEPORT
 static int ReactorProcess_reuse_port(ListenPort *ls);
@@ -367,24 +366,12 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
      * 1 second timer
      */
     if ((serv->master_timer = swoole_timer_add(1000, true, Server::timer_callback, serv)) == nullptr) {
-    _fail:
         ReactorProcess_free_output_buffer(n_buffer);
         swoole_event_free();
         return SW_ERR;
     }
 
     serv->worker_start_callback();
-
-    /**
-     * for heartbeat check
-     */
-    if (serv->heartbeat_check_interval > 0) {
-        serv->heartbeat_timer =
-            swoole_timer_add((long) (serv->heartbeat_check_interval * 1000), true, ReactorProcess_onTimeout, reactor);
-        if (serv->heartbeat_timer == nullptr) {
-            goto _fail;
-        }
-    }
 
     int retval = reactor->wait(reactor, nullptr);
 
@@ -485,43 +472,6 @@ static bool ReactorProcess_send2client(Factory *factory, SendData *data) {
     } else {
         return swFactory_finish(factory, data);
     }
-}
-
-static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
-    Reactor *reactor = (Reactor *) tnode->data;
-    Server *serv = (Server *) reactor->ptr;
-    Event notify_ev;
-    time_t now = time(nullptr);
-
-    if (now < serv->heartbeat_check_lasttime + 10) {
-        return;
-    }
-
-    sw_memset_zero(&notify_ev, sizeof(notify_ev));
-    notify_ev.type = SW_FD_SESSION;
-
-    int checktime = now - serv->heartbeat_idle_time;
-
-    serv->foreach_connection([serv, checktime, reactor, &notify_ev](Connection *conn) {
-        if (conn->protect || conn->last_time > checktime) {
-            return;
-        }
-#ifdef SW_USE_OPENSSL
-        if (conn->socket->ssl && conn->socket->ssl_state != SW_SSL_STATE_READY) {
-            Server::close_connection(reactor, conn->socket);
-            return;
-        }
-#endif
-        if (serv->disable_notify || conn->close_force) {
-            Server::close_connection(reactor, conn->socket);
-            return;
-        }
-        conn->close_force = 1;
-        notify_ev.fd = conn->fd;
-        notify_ev.socket = conn->socket;
-        notify_ev.reactor_id = conn->reactor_id;
-        ReactorProcess_onClose(reactor, &notify_ev);
-    });
 }
 
 #ifdef HAVE_REUSEPORT

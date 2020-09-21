@@ -2303,19 +2303,12 @@ static PHP_METHOD(swoole_server, set) {
     // heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        serv->heartbeat_check_interval = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // heartbeat idle time
     if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
-
-        if (serv->heartbeat_check_interval > serv->heartbeat_idle_time) {
-            php_swoole_fatal_error(E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval");
-            serv->heartbeat_check_interval = serv->heartbeat_idle_time / 2;
-        }
-    } else if (serv->heartbeat_check_interval > 0) {
-        serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
     }
     // max_request
     if (php_swoole_array_get_value(vht, "max_request", ztmp)) {
