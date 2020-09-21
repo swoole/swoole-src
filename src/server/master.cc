@@ -24,8 +24,8 @@
 
 using namespace swoole;
 using swoole::network::Address;
-using swoole::network::Socket;
 using swoole::network::SendfileTask;
+using swoole::network::Socket;
 
 Server *g_server_instance = nullptr;
 
@@ -187,18 +187,18 @@ void Server::add_heartbeat_check_timer(Reactor *reactor, Connection *conn) {
         swoole_timer_delay(conn->socket->recv_timer, heartbeat_idle_time * 1000);
         return;
     }
-    conn->socket->recv_timer = swoole_timer_add(heartbeat_idle_time * 1000, false, [this, conn, reactor](Timer *, TimerNode *) {
+    auto timeout_callback = [this, conn, reactor](Timer *, TimerNode *) {
         if (disable_notify || conn->close_force) {
             Server::close_connection(reactor, conn->socket);
             return;
         }
-
         conn->close_force = 1;
-        Event _ev = {};
+        Event _ev{};
         _ev.fd = conn->fd;
         _ev.socket = conn->socket;
         reactor->trigger_close_event(&_ev);
-    });
+    };
+    conn->socket->recv_timer = swoole_timer_add(heartbeat_idle_time * 1000, false, timeout_callback);
 }
 
 #ifdef SW_SUPPORT_DTLS

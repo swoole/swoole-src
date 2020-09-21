@@ -103,7 +103,8 @@ class Timer {
         swHeap_change_priority(heap, tnode->exec_msec, tnode->heap_node);
     }
     void delay(TimerNode *tnode, long delay_ms) {
-        tnode->exec_msec = get_relative_msec() + delay_ms;
+        long now_ms = get_relative_msec();
+        tnode->exec_msec = (now_ms < 0 ? tnode->exec_msec : now_ms) + delay_ms;
         update(tnode);
     }
     void reinit(Reactor *reactor);
