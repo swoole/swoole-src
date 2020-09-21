@@ -2303,7 +2303,7 @@ static PHP_METHOD(swoole_server, set) {
     // heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX)) * 2;
     }
     // heartbeat idle time
     if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
@@ -3003,7 +3003,7 @@ static PHP_METHOD(swoole_server, heartbeat) {
         }
         if (close_connection) {
             conn->close_force = 1;
-            serv->factory.end(&serv->factory, conn->fd);
+            serv->close(conn->fd, true);
         }
         add_next_index_long(return_value, conn->session_id);
     });
