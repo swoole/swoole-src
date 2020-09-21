@@ -25,12 +25,11 @@ class OpcodeServer
             'dispatch_mode' => 3,
             'worker_num' => 2,
             'task_worker_num' => 2,
-
             'open_length_check' => 1,
             'package_length_type' => 'N',
             'package_length_offset' => 0,
             'package_body_offset' => 0,
-        	"heartbeat_idle_time"=> 20
+            'heartbeat_idle_time' => 20,
         ]);
 
         if ($port1) {

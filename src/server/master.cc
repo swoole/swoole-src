@@ -789,10 +789,6 @@ void Server::clear_timer() {
         swoole_timer_del(master_timer);
         master_timer = nullptr;
     }
-    if (heartbeat_timer) {
-        swoole_timer_del(heartbeat_timer);
-        heartbeat_timer = nullptr;
-    }
     if (enable_accept_timer) {
         swoole_timer_del(enable_accept_timer);
         enable_accept_timer = nullptr;

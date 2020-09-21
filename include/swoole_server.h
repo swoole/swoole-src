@@ -646,7 +646,6 @@ class Server {
     time_t warning_time = 0;
     long timezone_ = 0;
     TimerNode *master_timer = nullptr;
-    TimerNode *heartbeat_timer = nullptr;
 
     /* buffer output/input setting*/
     uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
@@ -1237,7 +1236,6 @@ class Server {
     std::mutex lock_;
     uint32_t max_connection = 0;
     TimerNode *enable_accept_timer = nullptr;
-    std::thread heartbeat_thread;
     /**
      * The number of pipe per reactor maintenance
      */

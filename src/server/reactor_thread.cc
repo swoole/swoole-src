@@ -224,6 +224,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 
     if (socket->recv_timer) {
         swoole_timer_del(socket->recv_timer);
+        socket->recv_timer = nullptr;
     }
 
     if (!socket->removed && reactor->del(reactor, socket) < 0) {
@@ -611,6 +612,9 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 #endif
 
     int retval = port->onRead(reactor, port, event);
+    if (!conn->active) {
+        return retval;
+    }
     if (serv->is_process_mode() && serv->max_queued_bytes && conn->queued_bytes > serv->max_queued_bytes) {
         conn->waiting_time = 1;
         conn->timer = swoole_timer_add(conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
@@ -1046,23 +1050,11 @@ void Server::join_reactor_thread() {
     if (single_thread) {
         return;
     }
-    ReactorThread *thread;
-    /**
-     * Shutdown heartbeat thread
-     */
-    if (heartbeat_thread.joinable()) {
-        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(heartbeat_thread.native_handle()) < 0) {
-            swSysWarn("pthread_cancel(%ld) failed", (ulong_t) heartbeat_thread.native_handle());
-        }
-        // wait thread
-        heartbeat_thread.join();
-    }
     /**
      * kill threads
      */
     for (int i = 0; i < reactor_num; i++) {
-        thread = &(reactor_threads[i]);
+        ReactorThread *thread = get_thread(i);
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
