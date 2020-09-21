@@ -512,7 +512,7 @@ static int swSSL_check_name(const char *name, ASN1_STRING *pattern) {
     char *s, *end;
     size_t slen, plen;
 
-    s = name;
+    s = (char *)name;
     slen = strlen(name);
 
     uchar *p = ASN1_STRING_data(pattern);
