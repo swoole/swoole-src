@@ -318,7 +318,7 @@ int php_swoole_convert_to_fd(zval *zsocket) {
 #ifdef SWOOLE_SOCKETS_SUPPORT
         else {
             php_socket *php_sock;
-            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, nullptr, php_sockets_le_socket()))) {
+            if ((php_sock = SW_Z_SOCKET_P(zsocket))) {
                 fd = php_sock->bsd_socket;
                 return fd;
             }
@@ -372,7 +372,7 @@ int php_swoole_convert_to_fd_ex(zval *zsocket, int *async) {
 #ifdef SWOOLE_SOCKETS_SUPPORT
         else {
             php_socket *php_sock;
-            if ((php_sock = (php_socket *) zend_fetch_resource_ex(zsocket, nullptr, php_sockets_le_socket()))) {
+            if ((php_sock = SW_Z_SOCKET_P(zsocket))) {
                 fd = php_sock->bsd_socket;
                 *async = 1;
                 return fd;
@@ -386,7 +386,9 @@ int php_swoole_convert_to_fd_ex(zval *zsocket, int *async) {
 
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *php_swoole_convert_to_socket(int sock) {
-    php_socket *socket_object = (php_socket *) emalloc(sizeof *socket_object);
+    php_socket *socket_object;
+#if PHP_VERSION_ID < 80000
+    socket_object = (php_socket *) emalloc(sizeof *socket_object);
     sw_memset_zero(socket_object, sizeof(php_socket));
     socket_object->bsd_socket = sock;
     socket_object->blocking = 1;
@@ -410,6 +412,12 @@ php_socket *php_swoole_convert_to_socket(int sock) {
     } else {
         socket_object->blocking = !(t & O_NONBLOCK);
     }
+#else
+    zval zsocket;
+    object_init_ex(&zsocket, socket_ce);
+    socket_object = Z_SOCKET_P(&zsocket);
+    socket_import_file_descriptor(sock, socket_object);
+#endif
     return socket_object;
 }
 #endif
