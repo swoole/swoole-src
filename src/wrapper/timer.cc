@@ -42,6 +42,10 @@ bool swoole_timer_del(TimerNode *tnode) {
     return SwooleTG.timer->remove(tnode);
 }
 
+void swoole_timer_delay(TimerNode *tnode, long delay_ms) {
+    return SwooleTG.timer->delay(tnode, delay_ms);
+}
+
 long swoole_timer_after(long ms, const TimerCallback &callback, void *private_data) {
     if (ms <= 0) {
         swWarn("Timer must be greater than 0");

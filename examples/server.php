@@ -25,7 +25,7 @@ class G
         //'open_cpu_affinity'        => 1,
         'socket_buffer_size'         => 1024 * 1024 * 128,
         'output_buffer_size'         => 1024 * 1024 * 2,
-        'enable_delay_receive'       => true,
+        //'enable_delay_receive'       => true,
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
 }

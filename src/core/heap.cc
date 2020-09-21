@@ -126,8 +126,7 @@ swHeap_node *swHeap_push(swHeap *heap, uint64_t priority, void *data) {
     return node;
 }
 
-void swHeap_change_priority(swHeap *heap, uint64_t new_priority, void *ptr) {
-    swHeap_node *node = (swHeap_node *) ptr;
+void swHeap_change_priority(swHeap *heap, uint64_t new_priority, swHeap_node *node) {
     uint32_t pos = node->position;
     uint64_t old_pri = node->priority;
 

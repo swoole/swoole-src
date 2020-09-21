@@ -184,7 +184,8 @@ void Server::add_heartbeat_check_timer(Reactor *reactor, Connection *conn) {
         return;
     }
     if (conn->socket->recv_timer) {
-        swoole_timer_del(conn->socket->recv_timer);
+        swoole_timer_delay(conn->socket->recv_timer, heartbeat_idle_time * 1000);
+        return;
     }
     conn->socket->recv_timer = swoole_timer_add(heartbeat_idle_time * 1000, false, [this, conn, reactor](Timer *, TimerNode *) {
         if (disable_notify || conn->close_force) {
@@ -1353,7 +1354,7 @@ void Server::init_signal_handler() {
 
 void Server::timer_callback(Timer *timer, TimerNode *tnode) {
     Server *serv = (Server *) tnode->data;
-    time_t now = time(nullptr);
+    time_t now = ::time(nullptr);
     if (serv->scheduler_warning && serv->warning_time < now) {
         serv->scheduler_warning = false;
         serv->warning_time = now;

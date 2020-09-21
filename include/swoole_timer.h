@@ -99,6 +99,13 @@ class Timer {
     bool init();
     TimerNode *add(long _msec, bool persistent, void *data, const TimerCallback &callback);
     bool remove(TimerNode *tnode);
+    void update(TimerNode *tnode) {
+        swHeap_change_priority(heap, tnode->exec_msec, tnode->heap_node);
+    }
+    void delay(TimerNode *tnode, long delay_ms) {
+        tnode->exec_msec = get_relative_msec() + delay_ms;
+        update(tnode);
+    }
     void reinit(Reactor *reactor);
     int select();
 
