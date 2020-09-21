@@ -27,10 +27,6 @@ struct swThreadPool;
 enum swThread_type {
     SW_THREAD_MASTER = 1,
     SW_THREAD_REACTOR = 2,
-    SW_THREAD_WORKER = 3,
-    SW_THREAD_UDP = 4,
-    SW_THREAD_UNIX_DGRAM = 5,
-    SW_THREAD_HEARTBEAT = 6,
 };
 
 struct swThread {

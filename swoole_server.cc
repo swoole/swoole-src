@@ -3003,7 +3003,7 @@ static PHP_METHOD(swoole_server, heartbeat) {
         }
         if (close_connection) {
             conn->close_force = 1;
-            serv->close(conn->fd, true);
+            serv->close(conn->fd, false);
         }
         add_next_index_long(return_value, conn->session_id);
     });
