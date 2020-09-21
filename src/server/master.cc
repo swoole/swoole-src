@@ -24,8 +24,8 @@
 
 using namespace swoole;
 using swoole::network::Address;
-using swoole::network::Socket;
 using swoole::network::SendfileTask;
+using swoole::network::Socket;
 
 Server *g_server_instance = nullptr;
 
@@ -153,6 +153,52 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
     }
 
     return SW_OK;
+}
+
+int Server::connection_incoming(Reactor *reactor, Connection *conn) {
+    if (heartbeat_idle_time > 0) {
+        add_heartbeat_check_timer(reactor, conn);
+    }
+#ifdef SW_USE_OPENSSL
+    if (conn->socket->ssl) {
+        return reactor->add(reactor, conn->socket, SW_EVENT_READ);
+    }
+#endif
+    // delay receive, wait resume command
+    if (!enable_delay_receive) {
+        if (reactor->add(reactor, conn->socket, SW_EVENT_READ) < 0) {
+            return SW_ERR;
+        }
+    }
+    // notify worker process
+    if (onConnect) {
+        if (!notify(conn, SW_SERVER_EVENT_CONNECT)) {
+            return SW_ERR;
+        }
+    }
+    return SW_OK;
+}
+
+void Server::add_heartbeat_check_timer(Reactor *reactor, Connection *conn) {
+    if (conn->protect) {
+        return;
+    }
+    if (conn->socket->recv_timer) {
+        swoole_timer_delay(conn->socket->recv_timer, heartbeat_idle_time * 1000);
+        return;
+    }
+    auto timeout_callback = [this, conn, reactor](Timer *, TimerNode *) {
+        if (disable_notify || conn->close_force) {
+            Server::close_connection(reactor, conn->socket);
+            return;
+        }
+        conn->close_force = 1;
+        Event _ev{};
+        _ev.fd = conn->fd;
+        _ev.socket = conn->socket;
+        reactor->trigger_close_event(&_ev);
+    };
+    conn->socket->recv_timer = swoole_timer_add(heartbeat_idle_time * 1000, false, timeout_callback);
 }
 
 #ifdef SW_SUPPORT_DTLS
@@ -743,10 +789,6 @@ void Server::clear_timer() {
         swoole_timer_del(master_timer);
         master_timer = nullptr;
     }
-    if (heartbeat_timer) {
-        swoole_timer_del(heartbeat_timer);
-        heartbeat_timer = nullptr;
-    }
     if (enable_accept_timer) {
         swoole_timer_del(enable_accept_timer);
         enable_accept_timer = nullptr;
@@ -1308,7 +1350,7 @@ void Server::init_signal_handler() {
 
 void Server::timer_callback(Timer *timer, TimerNode *tnode) {
     Server *serv = (Server *) tnode->data;
-    time_t now = time(nullptr);
+    time_t now = ::time(nullptr);
     if (serv->scheduler_warning && serv->warning_time < now) {
         serv->scheduler_warning = false;
         serv->warning_time = now;

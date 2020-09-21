@@ -25,12 +25,13 @@ enum swEvent_init_flags {
     SW_EVENTLOOP_WAIT_EXIT = 1,
 };
 
-SW_API long swoole_timer_after(long ms, const swoole::TimerCallback &callback, void *private_data);
-SW_API long swoole_timer_tick(long ms, const swoole::TimerCallback &callback, void *private_data);
+SW_API long swoole_timer_after(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
+SW_API long swoole_timer_tick(long ms, const swoole::TimerCallback &callback, void *private_data = nullptr);
 SW_API swoole::TimerNode *swoole_timer_add(long ms, bool persistent, const swoole::TimerCallback &callback,
-                                           void *private_data);
+                                           void *private_data = nullptr);
 SW_API bool swoole_timer_del(swoole::TimerNode *tnode);
 SW_API bool swoole_timer_exists(long timer_id);
+SW_API void swoole_timer_delay(swoole::TimerNode *tnode, long delay_ms);
 SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
 SW_API bool swoole_timer_clear(long timer_id);
 SW_API void swoole_timer_free();

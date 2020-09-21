@@ -152,7 +152,7 @@ _do_recvfrom:
     }
 
 #ifdef SW_SUPPORT_DTLS
-    swListenPort *port = (swListenPort *) server_sock->object;
+    ListenPort *port = (ListenPort *) server_sock->object;
 
     if (port->ssl_option.protocols & SW_SSL_DTLS) {
         dtls::Session *session = serv->accept_dtls_connection(port, &pkt->socket_addr);
@@ -216,10 +216,15 @@ _do_recvfrom:
 int Server::close_connection(Reactor *reactor, Socket *socket) {
     Server *serv = (Server *) reactor->ptr;
     Connection *conn = (Connection *) socket->object;
-    swListenPort *port = serv->get_port_by_fd(socket->fd);
+    ListenPort *port = serv->get_port_by_fd(socket->fd);
 
     if (conn->timer) {
         swoole_timer_del(conn->timer);
+    }
+
+    if (socket->recv_timer) {
+        swoole_timer_del(socket->recv_timer);
+        socket->recv_timer = nullptr;
     }
 
     if (!socket->removed && reactor->del(reactor, socket) < 0) {
@@ -567,7 +572,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     if (!conn || conn->server_fd == 0) {
         return SW_OK;
     }
-    swListenPort *port = serv->get_port_by_fd(event->fd);
+    ListenPort *port = serv->get_port_by_fd(event->fd);
 #ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
     if (port->ssl_option.protocols & SW_SSL_DTLS) {
@@ -607,12 +612,18 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 #endif
 
     int retval = port->onRead(reactor, port, event);
+    if (!conn->active) {
+        return retval;
+    }
     if (serv->is_process_mode() && serv->max_queued_bytes && conn->queued_bytes > serv->max_queued_bytes) {
         conn->waiting_time = 1;
         conn->timer = swoole_timer_add(conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
         if (conn->timer) {
             reactor->remove_read_event(event->socket);
         }
+    }
+    if (serv->heartbeat_idle_time > 0) {
+        serv->add_heartbeat_check_timer(reactor, conn);
     }
     return retval;
 }
@@ -788,14 +799,6 @@ int Server::start_reactor_threads() {
 #endif
 
 _init_master_thread:
-
-    /**
-     * heartbeat thread
-     */
-    if (heartbeat_check_interval >= 1 && heartbeat_check_interval <= heartbeat_idle_time) {
-        swTrace("hb timer start, time: %d live time:%d", heartbeat_check_interval, heartbeat_idle_time);
-        start_heartbeat_thread();
-    }
 
     SwooleTG.type = SW_THREAD_MASTER;
     SwooleTG.update_time = 1;
@@ -1013,7 +1016,7 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
         }
         stream->response = ReactorThread_onStreamResponse;
         stream->private_data = serv;
-        swListenPort *port = serv->get_port_by_fd(conn->fd);
+        ListenPort *port = serv->get_port_by_fd(conn->fd);
         stream->set_max_length(port->protocol.package_max_length);
 
         task.info.fd = conn->session_id;
@@ -1047,23 +1050,11 @@ void Server::join_reactor_thread() {
     if (single_thread) {
         return;
     }
-    ReactorThread *thread;
-    /**
-     * Shutdown heartbeat thread
-     */
-    if (heartbeat_thread.joinable()) {
-        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
-        if (pthread_cancel(heartbeat_thread.native_handle()) < 0) {
-            swSysWarn("pthread_cancel(%ld) failed", (ulong_t) heartbeat_thread.native_handle());
-        }
-        // wait thread
-        heartbeat_thread.join();
-    }
     /**
      * kill threads
      */
     for (int i = 0; i < reactor_num; i++) {
-        thread = &(reactor_threads[i]);
+        ReactorThread *thread = get_thread(i);
         if (thread->notify_pipe) {
             DataHead ev = {};
             ev.type = SW_SERVER_EVENT_SHUTDOWN;
@@ -1090,29 +1081,3 @@ void Server::destroy_reactor_threads() {
     }
 }
 
-void Server::start_heartbeat_thread() {
-    heartbeat_thread = std::thread([this]() {
-        swSignal_none();
-
-        int checktime;
-
-        SwooleTG.type = SW_THREAD_HEARTBEAT;
-        SwooleTG.id = reactor_num;
-
-        while (running) {
-            checktime = (int) ::time(nullptr) - heartbeat_idle_time;
-            foreach_connection([this, checktime](Connection *conn) {
-                if (conn->protect || conn->last_time == 0 || conn->last_time > checktime) {
-                    return;
-                }
-                DataHead ev{};
-                ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
-                // convert fd to session_id, in order to verify the connection before the force close connection
-                ev.fd = conn->session_id;
-                Socket *_pipe_sock = get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
-                _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
-            });
-            sleep(heartbeat_check_interval);
-        }
-    });
-}
