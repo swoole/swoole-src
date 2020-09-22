@@ -43,10 +43,6 @@ services:
   goproxy:
     container_name: "goproxy"
     image: "goproxy/goproxy"
-    ports:
-      - 8888:8081
   socks5:
     container_name: "socks5"
     image: "xkuma/socks5"
-    ports:
-      - 1080:1080
