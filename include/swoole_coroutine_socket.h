@@ -49,8 +49,8 @@ class Socket {
     bool http2 = false;
 
     Protocol protocol = {};
-    swSocks5_proxy *socks5_proxy = nullptr;
-    swHttp_proxy *http_proxy = nullptr;
+    Socks5Proxy *socks5_proxy = nullptr;
+    HttpProxy *http_proxy = nullptr;
 
     enum TimeoutType {
         TIMEOUT_DNS = 1 << 0,
@@ -542,6 +542,29 @@ class Socket {
         double startup_time = 0;
     };
 };
+
+class ProtocolSwitch {
+  private:
+    bool ori_open_eof_check;
+    bool ori_open_length_check;
+    Protocol ori_protocol;
+    Socket *socket_;
+  public:
+    ProtocolSwitch(Socket *socket) {
+        ori_open_eof_check = socket->open_eof_check;
+        ori_open_length_check = socket->open_length_check;
+        ori_protocol = socket->protocol;
+        socket_ = socket;
+    }
+
+    ~ProtocolSwitch() {
+        /* revert protocol settings */
+        socket_->open_eof_check = ori_open_eof_check;
+        socket_->open_length_check = ori_open_length_check;
+        socket_->protocol = ori_protocol;
+    }
+};
+
 std::vector<std::string> dns_lookup(const char *domain, double timeout = 2.0);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine

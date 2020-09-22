@@ -232,7 +232,7 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
         cli->socks5_proxy->l_target_host = strlen(host);
         cli->socks5_proxy->target_port = port;
 
-        host = cli->socks5_proxy->host;
+        host = cli->socks5_proxy->host.c_str();
         port = cli->socks5_proxy->port;
     }
 
@@ -241,7 +241,7 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
         cli->http_proxy->target_host = host;
         cli->http_proxy->target_port = port;
 
-        host = cli->http_proxy->proxy_host;
+        host = cli->http_proxy->proxy_host.c_str();
         port = cli->http_proxy->proxy_port;
     }
 
@@ -350,6 +350,12 @@ Client::~Client() {
     if (socket->in_buffer) {
         delete socket->in_buffer;
         socket->in_buffer = nullptr;
+    }
+    if (socks5_proxy) {
+        delete socks5_proxy;
+    }
+    if (http_proxy) {
+        delete http_proxy;
     }
     if (async) {
         socket->free();
@@ -475,7 +481,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
         // socks5 proxy
         if (cli->socks5_proxy) {
             char buf[1024];
-            swSocks5_pack(buf, cli->socks5_proxy->username == nullptr ? 0x00 : 0x02);
+            swSocks5_pack(buf, cli->socks5_proxy->username.empty() ? 0x00 : 0x02);
             if (cli->send(cli, buf, 3, 0) < 0) {
                 return SW_ERR;
             }
@@ -1138,7 +1144,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         // socks5 proxy
         if (cli->socks5_proxy && cli->socks5_proxy->state == SW_SOCKS5_STATE_WAIT) {
             char buf[3];
-            swSocks5_pack(buf, cli->socks5_proxy->username == nullptr ? 0x00 : 0x02);
+            swSocks5_pack(buf, cli->socks5_proxy->username.empty() ? 0x00 : 0x02);
             cli->socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
             return cli->send(cli, buf, sizeof(buf), 0);
         }

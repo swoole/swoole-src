@@ -242,12 +242,12 @@ _failed:
 }
 
 bool Socket::socks5_handshake() {
-    swSocks5_proxy *ctx = socks5_proxy;
+    Socks5Proxy *ctx = socks5_proxy;
     char *p;
     ssize_t n;
     uchar version, method, result;
 
-    swSocks5_pack(ctx->buf, socks5_proxy->l_username > 0 ? 0x02 : 0x00);
+    swSocks5_pack(ctx->buf, !socks5_proxy->username.empty() ? 0x02 : 0x00);
     socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
     if (send(ctx->buf, 3) != 3) {
         return false;
@@ -271,18 +271,18 @@ bool Socket::socks5_handshake() {
         p = ctx->buf;
         // username
         p[0] = 0x01;
-        p[1] = ctx->l_username;
+        p[1] = ctx->username.length();
         p += 2;
-        if (ctx->l_username > 0) {
-            memcpy(p, ctx->username, ctx->l_username);
-            p += ctx->l_username;
+        if (!ctx->username.empty()) {
+            memcpy(p, ctx->username.c_str(), ctx->username.length());
+            p += ctx->username.length();
         }
         // password
-        p[0] = ctx->l_password;
+        p[0] = ctx->password.length();
         p += 1;
-        if (ctx->l_password > 0) {
-            memcpy(p, ctx->password, ctx->l_password);
-            p += ctx->l_password;
+        if (!ctx->password.empty()) {
+            memcpy(p, ctx->password.c_str(), ctx->password.length());
+            p += ctx->password.length();
         }
         // auth request
         ctx->state = SW_SOCKS5_STATE_AUTH;
@@ -372,7 +372,7 @@ bool Socket::http_proxy_handshake() {
     "User-Agent: Swoole/" SWOOLE_VERSION "\r\n"                                                                        \
     "Proxy-Connection: Keep-Alive\r\n"
 
-    swString *buffer = get_read_buffer();
+    String *buffer = get_read_buffer();
 
     if (!buffer) {
         return false;
@@ -388,16 +388,16 @@ bool Socket::http_proxy_handshake() {
         host_len = strlen(ssl_option.tls_host_name);
     }
 #endif
-    if (http_proxy->password) {
+    if (!http_proxy->password.empty()) {
         char auth_buf[256];
         char encode_buf[512];
         n = sw_snprintf(auth_buf,
                         sizeof(auth_buf),
                         "%.*s:%.*s",
-                        http_proxy->l_user,
-                        http_proxy->user,
-                        http_proxy->l_password,
-                        http_proxy->password);
+                        http_proxy->user.length(),
+                        http_proxy->user.c_str(),
+                        http_proxy->password.length(),
+                        http_proxy->password.c_str());
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(buffer->str,
                         buffer->size,
@@ -427,12 +427,9 @@ bool Socket::http_proxy_handshake() {
         return false;
     }
 
-    /* use eof protocol (provisional) */
-    bool ori_open_eof_check = open_eof_check;
-    uint8_t ori_package_eof_len = protocol.package_eof_len;
-    char ori_package_eof[SW_DATA_EOF_MAXLEN];
-    memcpy(ori_package_eof, SW_STRS(protocol.package_eof));
+    ProtocolSwitch ps(this);
     open_eof_check = true;
+    open_length_check = false;
     protocol.package_eof_len = sizeof("\r\n\r\n") - 1;
     memcpy(protocol.package_eof, SW_STRS("\r\n\r\n"));
 
@@ -483,11 +480,6 @@ bool Socket::http_proxy_handshake() {
 #endif
         }
     }
-
-    /* revert protocol settings */
-    open_eof_check = ori_open_eof_check;
-    protocol.package_eof_len = ori_package_eof_len;
-    memcpy(protocol.package_eof, SW_STRS(ori_package_eof));
 
     return ret;
 }
@@ -858,7 +850,7 @@ ssize_t Socket::recv_with_buffer(void *__buf, size_t __n) {
         return -1;
     }
 
-    swString *buffer = get_read_buffer();
+    String *buffer = get_read_buffer();
     size_t buffer_bytes = buffer->length - buffer->offset;
 
     if (__n <= buffer_bytes) {
@@ -1488,7 +1480,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
  * Returns the length of the packet, [return value == read_buffer->offset]
  * ---------------------------------------Usage---------------------------------------------
  * ssize_t l = sock.recv_packet();
- * swString *pkt = sock.get_read_buffer();
+ * String *pkt = sock.get_read_buffer();
  * a) memcpy(result_buf, pkt->str, l); //copy data to new buffer
  * b) result_buf = sock.pop_packet();  //pop packet data, create a new buffer memory
  * ---------------------------------------read_buffer---------------------------------------
@@ -1691,6 +1683,12 @@ Socket::~Socket() {
     }
     if (sock_type == SW_SOCK_UNIX_DGRAM) {
         ::unlink(socket->info.addr.un.sun_path);
+    }
+    if (socks5_proxy) {
+        delete socks5_proxy;
+    }
+    if (http_proxy) {
+        delete http_proxy;
     }
     socket->free();
 }
