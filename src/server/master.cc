@@ -341,6 +341,12 @@ int Server::start_check() {
             return SW_ERR;
         }
     }
+    if (recv_timeout > 0 && recv_timeout < SW_TIMER_MIN_SEC) {
+        recv_timeout = SW_TIMER_MIN_SEC;
+    }
+    if (send_timeout > 0 && send_timeout < SW_TIMER_MIN_SEC) {
+        send_timeout = SW_TIMER_MIN_SEC;
+    }
     for (auto ls : ports) {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE) {
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
