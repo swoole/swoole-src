@@ -70,6 +70,11 @@ enum swFactory_dispatch_result {
     SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
 };
 
+enum swThread_type {
+    SW_THREAD_MASTER = 1,
+    SW_THREAD_REACTOR = 2,
+};
+
 //------------------------------------Server-------------------------------------------
 namespace swoole {
 
