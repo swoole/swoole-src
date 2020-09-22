@@ -428,10 +428,12 @@ bool Socket::http_proxy_handshake() {
     }
 
     /* use eof protocol (provisional) */
+    bool ori_open_length_check = open_length_check;
     bool ori_open_eof_check = open_eof_check;
     uint8_t ori_package_eof_len = protocol.package_eof_len;
     char ori_package_eof[SW_DATA_EOF_MAXLEN];
     memcpy(ori_package_eof, SW_STRS(protocol.package_eof));
+    open_length_check = false;
     open_eof_check = true;
     protocol.package_eof_len = sizeof("\r\n\r\n") - 1;
     memcpy(protocol.package_eof, SW_STRS("\r\n\r\n"));
@@ -485,6 +487,7 @@ bool Socket::http_proxy_handshake() {
     }
 
     /* revert protocol settings */
+    open_length_check = ori_open_length_check;
     open_eof_check = ori_open_eof_check;
     protocol.package_eof_len = ori_package_eof_len;
     memcpy(protocol.package_eof, SW_STRS(ori_package_eof));
