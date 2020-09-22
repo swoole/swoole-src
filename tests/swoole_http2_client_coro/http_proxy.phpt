@@ -16,11 +16,11 @@ Co\run(function () {
     $c = new Client($domain, 443, true);
     $c->set([
         'timeout' => 10,
-        'ssl_host_name' => 'cloudflare.com',
+        'ssl_host_name' => $domain,
         'http_proxy_host' => HTTP_PROXY_HOST,
         'http_proxy_port' => HTTP_PROXY_PORT,
     ]);
-    Assert::true($c->connect());
+    Assert::true($c->connect(), var_export($c, true));
     $r = new Request();
     $r->method = 'GET';
     $r->path = '/';
