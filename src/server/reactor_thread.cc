@@ -222,11 +222,6 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         swoole_timer_del(conn->timer);
     }
 
-    if (socket->recv_timer) {
-        swoole_timer_del(socket->recv_timer);
-        socket->recv_timer = nullptr;
-    }
-
     if (!socket->removed && reactor->del(reactor, socket) < 0) {
         return SW_ERR;
     }
@@ -622,9 +617,6 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
             reactor->remove_read_event(event->socket);
         }
     }
-    if (serv->heartbeat_idle_time > 0) {
-        serv->add_heartbeat_check_timer(reactor, conn);
-    }
     return retval;
 }
 
@@ -696,6 +688,11 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
             conn->high_watermark = 0;
             serv->notify(conn, SW_SERVER_EVENT_BUFFER_EMPTY);
         }
+    }
+
+    if (socket->send_timer) {
+        swoole_timer_del(socket->send_timer);
+        socket->send_timer = nullptr;
     }
 
     // remove EPOLLOUT event

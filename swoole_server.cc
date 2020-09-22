@@ -2179,6 +2179,9 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
         PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "recv_timeout", ztmp)) {
+        serv->recv_timeout = zval_get_double(ztmp);
+    }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp)) {
         serv->send_timeout = zval_get_double(ztmp);
     }
@@ -2303,12 +2306,12 @@ static PHP_METHOD(swoole_server, set) {
     // heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX)) * 2;
+        serv->recv_timeout = SW_MAX(0, SW_MIN(v, UINT16_MAX)) * 2;
     }
     // heartbeat idle time
     if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+        serv->recv_timeout = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // max_request
     if (php_swoole_array_get_value(vht, "max_request", ztmp)) {
@@ -2989,12 +2992,12 @@ static PHP_METHOD(swoole_server, heartbeat) {
         RETURN_FALSE;
     }
 
-    if (serv->heartbeat_idle_time < 1) {
+    if (serv->recv_timeout < 1) {
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    int checktime = (int) time(nullptr) - serv->heartbeat_idle_time;
+    int checktime = (int) time(nullptr) - serv->recv_timeout;
 
     serv->foreach_connection([serv, checktime, close_connection, return_value](Connection *conn) {
         swTrace("heartbeat check fd=%d", conn->fd);

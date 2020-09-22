@@ -151,10 +151,8 @@ struct Socket {
     TimerNode *recv_timer;
     TimerNode *send_timer;
 
-#ifdef SW_DEBUG
     size_t total_recv_bytes;
     size_t total_send_bytes;
-#endif
 
     /**
      * for reactor
