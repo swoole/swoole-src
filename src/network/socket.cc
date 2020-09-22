@@ -245,6 +245,12 @@ static void socket_free_defer(void *ptr) {
 }
 
 void Socket::free() {
+    if (recv_timer) {
+        swoole_timer_del(recv_timer);
+    }
+    if (send_timer) {
+        swoole_timer_del(send_timer);
+    }
     if (swoole_event_is_available()) {
         removed = 1;
         swoole_event_defer(socket_free_defer, this);

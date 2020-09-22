@@ -222,11 +222,6 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         swoole_timer_del(conn->timer);
     }
 
-    if (socket->recv_timer) {
-        swoole_timer_del(socket->recv_timer);
-        socket->recv_timer = nullptr;
-    }
-
     if (!socket->removed && reactor->del(reactor, socket) < 0) {
         return SW_ERR;
     }
