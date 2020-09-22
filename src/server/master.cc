@@ -40,22 +40,20 @@ static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
 static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
 
 static TimerCallback Server_get_timeout_callback(Server *serv, Reactor *reactor, Connection *conn) {
-    auto callback = [serv, conn, reactor](Timer *, TimerNode *) {
-        conn->socket->recv_timer = nullptr;
+    return [serv, conn, reactor](Timer *, TimerNode *) {
         if (conn->protect) {
             return;
         }
-        if (serv->disable_notify || conn->close_force) {
+        if (serv->disable_notify || conn->closed || conn->close_force) {
             Server::close_connection(reactor, conn->socket);
             return;
         }
         conn->close_force = 1;
-        Event _ev {};
+        Event _ev{};
         _ev.fd = conn->fd;
         _ev.socket = conn->socket;
         reactor->trigger_close_event(&_ev);
     };
-    return callback;
 }
 
 void Server::disable_accept() {
@@ -178,7 +176,7 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
     if (recv_timeout > 0) {
         auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
         conn->socket->recv_timeout_ = recv_timeout;
-        conn->socket->recv_timer = swoole_timer_add(recv_timeout * 1000, false, timeout_callback);
+        conn->socket->recv_timer = swoole_timer_add(recv_timeout * 1000, true, timeout_callback);
     }
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
@@ -1027,7 +1025,7 @@ int Server::send_to_connection(SendData *_send) {
     /**
      * Reset send buffer, Immediately close the connection.
      */
-    if (_send->info.type == SW_SERVER_EVENT_CLOSE && (conn->close_reset || conn->peer_closed)) {
+    if (_send->info.type == SW_SERVER_EVENT_CLOSE && (conn->close_reset || conn->close_force || conn->peer_closed)) {
         goto _close_fd;
     }
     /**
@@ -1144,7 +1142,7 @@ int Server::send_to_connection(SendData *_send) {
     if (send_timeout > 0 && _socket->send_timer == nullptr) {
         auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
         _socket->send_timeout_ = send_timeout;
-        _socket->send_timer = swoole_timer_add(send_timeout * 1000, false, timeout_callback);
+        _socket->send_timer = swoole_timer_add(send_timeout * 1000, true, timeout_callback);
     }
 
     // listen EPOLLOUT event
