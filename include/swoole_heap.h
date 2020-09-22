@@ -16,37 +16,52 @@
 
 #pragma once
 
-enum swHeap_type {
-    SW_MIN_HEAP,
-    SW_MAX_HEAP,
-};
+namespace swoole {
 
-struct swHeap_node {
+struct HeapNode {
     uint64_t priority;
     uint32_t position;
     void *data;
 };
 
-struct swHeap {
+class Heap {
+ private:
     uint32_t num;
     uint32_t size;
     uint8_t type;
-    swHeap_node **nodes;
-};
+    HeapNode **nodes;
 
-swHeap *swHeap_new(size_t n, uint8_t type);
-void swHeap_free(swHeap *heap);
-uint32_t swHeap_size(swHeap *heap);
-swHeap_node *swHeap_push(swHeap *heap, uint64_t priority, void *data);
-void *swHeap_pop(swHeap *heap);
-void swHeap_change_priority(swHeap *heap, uint64_t new_priority, swHeap_node *ptr);
-void swHeap_remove(swHeap *heap, swHeap_node *node);
-void *swHeap_peek(swHeap *heap);
-void swHeap_print(swHeap *heap);
+    void bubble_up(uint32_t i);
+    uint32_t maxchild(uint32_t i);
+    void percolate_down(uint32_t i);
 
-static inline swHeap_node *swHeap_top(swHeap *heap) {
-    if (heap->num == 1) {
-        return NULL;
+ public:
+    enum Type {
+        MIN_HEAP,
+        MAX_HEAP,
+    };
+
+    Heap(size_t n, uint8_t type);
+    ~Heap();
+
+    size_t count() {
+        return num - 1;
     }
-    return heap->nodes[1];
+
+    HeapNode *push(uint64_t priority, void *data);
+    void *pop();
+    void change_priority(uint64_t new_priority, HeapNode *ptr);
+    void remove(HeapNode *node);
+    void *peek();
+    void print();
+    int compare(uint64_t a, uint64_t b);
+
+    HeapNode *top() {
+        if (num == 1) {
+            return nullptr;
+        }
+        return nodes[1];
+    }
+};
 }
+

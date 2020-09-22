@@ -41,7 +41,7 @@ struct TimerNode {
     int64_t interval;
     uint64_t round;
     bool removed;
-    swHeap_node *heap_node;
+    HeapNode *heap_node;
     TimerCallback callback;
     void *data;
     TimerDestructor destructor;
@@ -51,7 +51,7 @@ class Timer {
   private:
     /*--------------signal timer--------------*/
     Reactor *reactor_ = nullptr;
-    swHeap *heap;
+    Heap heap;
     std::unordered_map<long, TimerNode *> map;
     uint64_t round;
     long _next_id;
@@ -100,7 +100,7 @@ class Timer {
     TimerNode *add(long _msec, bool persistent, void *data, const TimerCallback &callback);
     bool remove(TimerNode *tnode);
     void update(TimerNode *tnode) {
-        swHeap_change_priority(heap, tnode->exec_msec, tnode->heap_node);
+        heap.change_priority(tnode->exec_msec, tnode->heap_node);
     }
     void delay(TimerNode *tnode, long delay_ms) {
         long now_ms = get_relative_msec();
