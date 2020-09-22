@@ -622,9 +622,6 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
             reactor->remove_read_event(event->socket);
         }
     }
-    if (serv->heartbeat_idle_time > 0) {
-        serv->add_heartbeat_check_timer(reactor, conn);
-    }
     return retval;
 }
 

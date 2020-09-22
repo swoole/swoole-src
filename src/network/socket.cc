@@ -591,11 +591,12 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
         }
     } while (total_bytes < 0 && errno == EINTR);
 
-#ifdef SW_DEBUG
     if (total_bytes > 0) {
         total_recv_bytes += total_bytes;
+        if (recv_timer) {
+            swoole_timer_delay(recv_timer, recv_timeout_ * 1000);
+        }
     }
-#endif
 
     if (total_bytes < 0 && catch_error(errno) == SW_WAIT && event_hup) {
         total_bytes = 0;
@@ -620,11 +621,12 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
         }
     } while (retval < 0 && errno == EINTR);
 
-#ifdef SW_DEBUG
     if (retval > 0) {
         total_send_bytes += retval;
+        if (send_timer) {
+            swoole_timer_delay(send_timer, send_timeout_ * 1000);
+        }
     }
-#endif
 
     swTraceLog(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, __n, errno);
 

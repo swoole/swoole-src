@@ -128,7 +128,7 @@ struct Connection {
     uint8_t close_reset;
     uint8_t peer_closed;
     /**
-     * protected connection, cannot be closed by heartbeat thread.
+     * protected connection, do not close connection when receiving timeout
      */
     uint8_t protect;
     //--------------------------------------------------------------
@@ -631,16 +631,12 @@ class Server {
      */
     bool running = true;
 
-    /**
-     *  heartbeat check time
-     */
-    uint16_t heartbeat_idle_time = 0;
-
     int *cpu_affinity_available = 0;
     int cpu_affinity_available_num = 0;
 
     PipeBuffer **pipe_buffers = nullptr;
     double send_timeout = 0;
+    double recv_timeout = 0;
 
     time_t reload_time = 0;
     time_t warning_time = 0;
@@ -851,7 +847,6 @@ class Server {
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
-    void add_heartbeat_check_timer(Reactor *reactor, Connection *conn);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
     int get_idle_worker_num();

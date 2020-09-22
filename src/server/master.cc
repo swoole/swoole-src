@@ -39,6 +39,25 @@ static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t le
 static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
 static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
 
+static TimerCallback Server_get_timeout_callback(Server *serv, Reactor *reactor, Connection *conn) {
+    auto callback = [serv, conn, reactor](Timer *, TimerNode *) {
+            conn->socket->recv_timer = nullptr;
+            if (conn->protect) {
+                return;
+            }
+            if (serv->disable_notify || conn->close_force) {
+                Server::close_connection(reactor, conn->socket);
+                return;
+            }
+            conn->close_force = 1;
+            Event _ev{};
+            _ev.fd = conn->fd;
+            _ev.socket = conn->socket;
+            reactor->trigger_close_event(&_ev);
+    };
+    return callback;
+}
+
 void Server::disable_accept() {
     enable_accept_timer = swoole_timer_add(
         SW_ACCEPT_RETRY_TIME * 1000,
@@ -156,8 +175,10 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 }
 
 int Server::connection_incoming(Reactor *reactor, Connection *conn) {
-    if (heartbeat_idle_time > 0) {
-        add_heartbeat_check_timer(reactor, conn);
+    if (recv_timeout > 0) {
+        auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
+        conn->socket->recv_timeout_ = recv_timeout;
+        conn->socket->recv_timer = swoole_timer_add(recv_timeout * 1000, false, timeout_callback);
     }
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
@@ -177,28 +198,6 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
         }
     }
     return SW_OK;
-}
-
-void Server::add_heartbeat_check_timer(Reactor *reactor, Connection *conn) {
-    if (conn->protect) {
-        return;
-    }
-    if (conn->socket->recv_timer) {
-        swoole_timer_delay(conn->socket->recv_timer, heartbeat_idle_time * 1000);
-        return;
-    }
-    auto timeout_callback = [this, conn, reactor](Timer *, TimerNode *) {
-        if (disable_notify || conn->close_force) {
-            Server::close_connection(reactor, conn->socket);
-            return;
-        }
-        conn->close_force = 1;
-        Event _ev{};
-        _ev.fd = conn->fd;
-        _ev.socket = conn->socket;
-        reactor->trigger_close_event(&_ev);
-    };
-    conn->socket->recv_timer = swoole_timer_add(heartbeat_idle_time * 1000, false, timeout_callback);
 }
 
 #ifdef SW_SUPPORT_DTLS
@@ -1000,7 +999,7 @@ int Server::send_to_connection(SendData *_send) {
     }
 
     int fd = conn->fd;
-    swReactor *reactor = SwooleTG.reactor;
+    Reactor *reactor = SwooleTG.reactor;
 
     if (!single_thread) {
         assert(fd % reactor_num == reactor->id);
@@ -1134,6 +1133,12 @@ int Server::send_to_connection(SendData *_send) {
             notify(conn, SW_SERVER_EVENT_BUFFER_FULL);
             conn->high_watermark = 1;
         }
+    }
+
+    if (send_timeout > 0) {
+        auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
+        conn->socket->send_timeout_ = send_timeout;
+        conn->socket->send_timer = swoole_timer_add(send_timeout * 1000, false, timeout_callback);
     }
 
     // listen EPOLLOUT event
@@ -1636,6 +1641,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     _socket->object = connection;
     _socket->removed = 1;
     _socket->buffer_size = ls->socket_buffer_size;
+    _socket->send_timeout_ = _socket->recv_timeout_ = 0;
 
     // TCP Nodelay
     if (ls->open_tcp_nodelay && (ls->type == SW_SOCK_TCP || ls->type == SW_SOCK_TCP6)) {
