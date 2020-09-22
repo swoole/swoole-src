@@ -115,7 +115,7 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
         }
     } else if (ipc_mode == SW_IPC_SOCKET) {
         pool->use_socket = 1;
-        pool->stream_info_ = new swStreamInfo();
+        pool->stream_info_ = new StreamInfo();
     } else {
         ipc_mode = SW_IPC_NONE;
     }

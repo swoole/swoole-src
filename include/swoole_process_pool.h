@@ -33,13 +33,6 @@ enum swIPC_type {
     SW_IPC_SOCKET = 3,
 };
 
-struct swStreamInfo {
-    swSocket *socket;
-    swSocket *last_connection;
-    char *socket_file;
-    swString *response_buffer;
-};
-
 namespace swoole {
 
 struct ProcessPool;
@@ -58,7 +51,7 @@ struct WorkerGlobal {
 
     uint32_t max_request;
 
-    swString **output_buffer;
+    String **output_buffer;
     Worker *worker;
     time_t exit_time;
 };
@@ -74,7 +67,7 @@ struct Worker {
      */
     pthread_t tid;
 
-    swoole::ProcessPool *pool;
+    ProcessPool *pool;
 
     swMemoryPool *pool_output;
 
@@ -109,16 +102,23 @@ struct Worker {
 
     swLock lock;
 
-    swPipe *pipe_object;
+    Pipe *pipe_object;
 
-    swSocket *pipe_master;
-    swSocket *pipe_worker;
-    swSocket *pipe_current;
+    network::Socket *pipe_master;
+    network::Socket *pipe_worker;
+    network::Socket *pipe_current;
 
     void *ptr;
     void *ptr2;
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
+};
+
+struct StreamInfo {
+    network::Socket *socket;
+    network::Socket *last_connection;
+    char *socket_file;
+    String *response_buffer;
 };
 
 struct ProcessPool {
@@ -184,11 +184,11 @@ struct ProcessPool {
     sw_atomic_t round_id;
 
     Worker *workers;
-    swPipe *pipes;
+    Pipe *pipes;
     std::unordered_map<pid_t, Worker *> *map_;
     swReactor *reactor;
     swMsgQueue *queue;
-    swStreamInfo *stream_info_;
+    StreamInfo *stream_info_;
 
     void *ptr;
     void *ptr2;
@@ -236,7 +236,6 @@ struct ProcessPool {
 
 typedef swoole::ProcessPool swProcessPool;
 typedef swoole::Worker swWorker;
-typedef swoole::WorkerGlobal swWorkerGlobal;
 
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
     int ret;
@@ -253,4 +252,4 @@ static sw_inline int swoole_kill(pid_t __pid, int __sig) {
     return kill(__pid, __sig);
 }
 
-extern swWorkerGlobal SwooleWG;  // Worker Global Variable
+extern swoole::WorkerGlobal SwooleWG;  // Worker Global Variable

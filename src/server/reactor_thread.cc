@@ -462,7 +462,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-ssize_t Server::send_to_worker_from_master(swWorker *worker, const void *data, size_t len) {
+ssize_t Server::send_to_worker_from_master(Worker *worker, const void *data, size_t len) {
     if (SwooleTG.reactor) {
         ReactorThread *thread = get_thread(SwooleTG.id);
         Socket *socket = &thread->pipe_sockets[worker->pipe_master->fd];

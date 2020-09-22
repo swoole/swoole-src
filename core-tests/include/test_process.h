@@ -15,7 +15,7 @@ private:
     std::function<void (Process*)> handler;
 
 public:
-    swWorker worker = {};
+    Worker worker = {};
 
     Process(std::function<void (Process*)> fn, int pipe_type = SOCK_DGRAM);
     ~Process();
