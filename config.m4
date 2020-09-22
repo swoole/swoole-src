@@ -484,7 +484,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/process_pool.cc \
         src/os/sendfile.cc \
         src/os/signal.cc \
-        src/os/thread_pool.cc \
         src/os/timer.cc \
         src/os/wait.cc \
         src/pipe/base.cc \
