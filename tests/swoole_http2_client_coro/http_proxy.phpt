@@ -9,6 +9,7 @@ skip_if_offline();
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Http2\Client;
+use Swoole\Http2\Request;
 
 Co\run(function () {
     $domain = 'cloudflare.com';
@@ -20,7 +21,7 @@ Co\run(function () {
         'http_proxy_port' => HTTP_PROXY_PORT,
     ]);
     Assert::true($c->connect());
-    $r = new \Swoole\Http2\Request();
+    $r = new Request();
     $r->method = 'GET';
     $r->path = '/';
     $r->headers = [

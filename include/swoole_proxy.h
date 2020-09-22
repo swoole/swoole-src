@@ -30,7 +30,7 @@ struct HttpProxy {
     uint8_t dont_handshake;
     int proxy_port;
     std::string proxy_host;
-    std::string user;
+    std::string username;
     std::string password;
     const char *target_host;
     int l_target_host;

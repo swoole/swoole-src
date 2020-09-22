@@ -522,7 +522,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
                 if (username.len() > 0 && php_swoole_array_get_value(vht, "http_proxy_password", ztmp)) {
                     zend::String password(ztmp);
                     if (password.len() > 0) {
-                        cli->http_proxy->user = username.to_std_string();
+                        cli->http_proxy->username = username.to_std_string();
                         cli->http_proxy->password = password.to_std_string();
                     }
                 } else {

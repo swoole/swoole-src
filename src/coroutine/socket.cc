@@ -394,8 +394,8 @@ bool Socket::http_proxy_handshake() {
         n = sw_snprintf(auth_buf,
                         sizeof(auth_buf),
                         "%.*s:%.*s",
-                        http_proxy->user.length(),
-                        http_proxy->user.c_str(),
+                        http_proxy->username.length(),
+                        http_proxy->username.c_str(),
                         http_proxy->password.length(),
                         http_proxy->password.c_str());
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
