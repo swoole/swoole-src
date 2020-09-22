@@ -149,7 +149,7 @@ static bool swFactory_end(Factory *factory, int fd) {
         conn->closed = 1;
         conn->close_errno = 0;
 
-        if (Buffer::empty(conn->socket->out_buffer) || conn->peer_closed) {
+        if (Buffer::empty(conn->socket->out_buffer) || conn->peer_closed || conn->close_force) {
             Reactor *reactor = SwooleTG.reactor;
             return Server::close_connection(reactor, conn->socket) == SW_OK;
         } else {

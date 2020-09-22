@@ -23,7 +23,7 @@
 
 namespace swoole {
 
-Heap::Heap(size_t _n, uint8_t _type) {
+Heap::Heap(size_t _n, Heap::Type _type) {
     if (!(nodes = (HeapNode **) sw_malloc((_n + 1) * sizeof(void *)))) {
         throw std::bad_alloc();
     }
@@ -50,8 +50,7 @@ uint32_t Heap::maxchild(uint32_t i) {
         return 0;
     }
     HeapNode *child_node = nodes[child_i];
-    if ((child_i + 1) < num &&
-        compare(child_node->priority, nodes[child_i + 1]->priority)) {
+    if ((child_i + 1) < num && compare(child_node->priority, nodes[child_i + 1]->priority)) {
         child_i++;
     }
     return child_i;
@@ -61,8 +60,7 @@ void Heap::bubble_up(uint32_t i) {
     HeapNode *moving_node = nodes[i];
     uint32_t parent_i;
 
-    for (parent_i = parent(i);
-         (i > 1) && compare(nodes[parent_i]->priority, moving_node->priority);
+    for (parent_i = parent(i); (i > 1) && compare(nodes[parent_i]->priority, moving_node->priority);
          i = parent_i, parent_i = parent(i)) {
         nodes[i] = nodes[parent_i];
         nodes[i]->position = i;
@@ -76,8 +74,7 @@ void Heap::percolate_down(uint32_t i) {
     uint32_t child_i;
     HeapNode *moving_node = nodes[i];
 
-    while ((child_i = maxchild(i)) &&
-           compare(moving_node->priority, nodes[child_i]->priority)) {
+    while ((child_i = maxchild(i)) && compare(moving_node->priority, nodes[child_i]->priority)) {
         nodes[i] = nodes[child_i];
         nodes[i]->position = i;
         i = child_i;
@@ -101,10 +98,7 @@ HeapNode *Heap::push(uint64_t priority, void *data) {
         size = newsize;
     }
 
-    HeapNode *node = (HeapNode *) sw_malloc(sizeof(HeapNode));
-    if (!node) {
-        return nullptr;
-    }
+    HeapNode *node = new HeapNode;
     node->priority = priority;
     node->data = data;
     i = num++;
@@ -147,7 +141,7 @@ void *Heap::pop() {
     percolate_down(1);
 
     void *data = head->data;
-    sw_free(head);
+    delete head;
     return data;
 }
 
@@ -167,4 +161,4 @@ void Heap::print() {
         printf("#%d\tpriority=%ld, data=%p\n", i, (long) nodes[i]->priority, nodes[i]->data);
     }
 }
-}
+}  // namespace swoole

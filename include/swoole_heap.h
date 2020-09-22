@@ -25,23 +25,13 @@ struct HeapNode {
 };
 
 class Heap {
- private:
-    uint32_t num;
-    uint32_t size;
-    uint8_t type;
-    HeapNode **nodes;
-
-    void bubble_up(uint32_t i);
-    uint32_t maxchild(uint32_t i);
-    void percolate_down(uint32_t i);
-
  public:
     enum Type {
         MIN_HEAP,
         MAX_HEAP,
     };
 
-    Heap(size_t n, uint8_t type);
+    Heap(size_t _n, Type _type);
     ~Heap();
 
     size_t count() {
@@ -62,6 +52,16 @@ class Heap {
         }
         return nodes[1];
     }
+
+ private:
+    uint32_t num;
+    uint32_t size;
+    enum Type type;
+    HeapNode **nodes;
+
+    void bubble_up(uint32_t i);
+    uint32_t maxchild(uint32_t i);
+    void percolate_down(uint32_t i);
 };
 }
 

@@ -419,10 +419,10 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
 }
 
 static int ReactorProcess_send2worker(Socket *socket, const void *data, size_t length) {
-    if (!SwooleTG.reactor) {
+    if (!swoole_event_is_available()) {
         return socket->send_blocking(data, length);
     } else {
-        return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, length);
+        return swoole_event_write(socket, data, length);
     }
 }
 
