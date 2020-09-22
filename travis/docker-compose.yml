@@ -40,3 +40,8 @@ services:
   httpbin:
     container_name: "httpbin"
     image: "kennethreitz/httpbin"
+  goproxy:
+    container_name: "goproxy"
+    image: "goproxy/goproxy"
+    ports:
+      - 8888:8081
