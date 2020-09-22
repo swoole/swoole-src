@@ -128,7 +128,7 @@ struct Connection {
     uint8_t close_reset;
     uint8_t peer_closed;
     /**
-     * protected connection, do not close connection when receiving timeout
+     * protected connection, do not close connection when receiving/sending timeout
      */
     uint8_t protect;
     //--------------------------------------------------------------

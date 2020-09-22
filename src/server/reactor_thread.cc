@@ -690,6 +690,11 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         }
     }
 
+    if (socket->send_timer) {
+        swoole_timer_del(socket->send_timer);
+        socket->send_timer = nullptr;
+    }
+
     // remove EPOLLOUT event
     if (!conn->peer_closed && !socket->removed && Buffer::empty(socket->out_buffer)) {
         reactor->set(reactor, socket, SW_EVENT_READ);

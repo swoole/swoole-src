@@ -1135,10 +1135,10 @@ int Server::send_to_connection(SendData *_send) {
         }
     }
 
-    if (send_timeout > 0) {
+    if (send_timeout > 0 && _socket->send_timer == nullptr) {
         auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
-        conn->socket->send_timeout_ = send_timeout;
-        conn->socket->send_timer = swoole_timer_add(send_timeout * 1000, false, timeout_callback);
+        _socket->send_timeout_ = send_timeout;
+        _socket->send_timer = swoole_timer_add(send_timeout * 1000, false, timeout_callback);
     }
 
     // listen EPOLLOUT event
