@@ -9,12 +9,10 @@ typedef struct node_t {
 #define SIZE 100
 
 TEST(heap, random) {
-    swHeap *pq;
     node_t *ns;
     node_t *n;
 
-    pq = swHeap_new(SIZE, SW_MAX_HEAP);
-    ASSERT_NE(pq, nullptr);
+    swoole::Heap pq(SIZE, swoole::Heap::MAX_HEAP);
 
     std::map<int, int> _map;
 
@@ -24,14 +22,12 @@ TEST(heap, random) {
         ns = (node_t *) malloc(sizeof(node_t));
         ns->val = i;
         ns->pri = pri;
-        swHeap_push(pq, pri, ns);
+        pq.push(pri, ns);
         _map[i] = pri;
     }
 
-    while ((n = (node_t *) swHeap_pop(pq))) {
+    while ((n = (node_t *) pq.pop())) {
         ASSERT_EQ(_map[n->val], n->pri);
         free(n);
     }
-
-    swHeap_free(pq);
 }

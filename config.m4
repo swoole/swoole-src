@@ -451,7 +451,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/core/error.cc \
         src/core/heap.cc \
         src/core/log.cc \
-        src/core/ring_queue.cc \
         src/core/string.cc \
         src/core/timer.cc \
         src/coroutine/base.cc \
@@ -484,7 +483,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/process_pool.cc \
         src/os/sendfile.cc \
         src/os/signal.cc \
-        src/os/thread_pool.cc \
         src/os/timer.cc \
         src/os/wait.cc \
         src/pipe/base.cc \

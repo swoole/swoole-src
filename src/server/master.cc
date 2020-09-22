@@ -41,19 +41,19 @@ static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data
 
 static TimerCallback Server_get_timeout_callback(Server *serv, Reactor *reactor, Connection *conn) {
     auto callback = [serv, conn, reactor](Timer *, TimerNode *) {
-            conn->socket->recv_timer = nullptr;
-            if (conn->protect) {
-                return;
-            }
-            if (serv->disable_notify || conn->close_force) {
-                Server::close_connection(reactor, conn->socket);
-                return;
-            }
-            conn->close_force = 1;
-            Event _ev{};
-            _ev.fd = conn->fd;
-            _ev.socket = conn->socket;
-            reactor->trigger_close_event(&_ev);
+        conn->socket->recv_timer = nullptr;
+        if (conn->protect) {
+            return;
+        }
+        if (serv->disable_notify || conn->close_force) {
+            Server::close_connection(reactor, conn->socket);
+            return;
+        }
+        conn->close_force = 1;
+        Event _ev {};
+        _ev.fd = conn->fd;
+        _ev.socket = conn->socket;
+        reactor->trigger_close_event(&_ev);
     };
     return callback;
 }
@@ -201,11 +201,11 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
 }
 
 #ifdef SW_SUPPORT_DTLS
-dtls::Session *Server::accept_dtls_connection(swListenPort *port, Address *sa) {
+dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     dtls::Session *session = nullptr;
     Connection *conn = nullptr;
 
-    Socket *sock = swoole::make_socket(port->type, SW_FD_SESSION, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    Socket *sock = make_socket(port->type, SW_FD_SESSION, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (!sock) {
         return nullptr;
     }
@@ -1397,7 +1397,7 @@ int Server::add_hook(Server::HookType type, const swCallback &func, int push_bac
     return swoole::hook_add(hooks, (int) type, func, push_back);
 }
 
-void Server::check_port_type(swListenPort *ls) {
+void Server::check_port_type(ListenPort *ls) {
     if (ls->is_dgram()) {
         // dgram socket, setting socket buffer size
         ls->socket->set_buffer_size(ls->socket_buffer_size);
@@ -1463,7 +1463,7 @@ int Server::add_systemd_socket() {
     return count;
 }
 
-swListenPort *Server::add_port(enum swSocket_type type, const char *host, int port) {
+ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port) {
     if (session_list) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "must add port before server is created");
         return nullptr;
@@ -1486,8 +1486,8 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
         return nullptr;
     }
 
-    std::unique_ptr<swListenPort> ptr(new swListenPort);
-    swListenPort *ls = ptr.get();
+    std::unique_ptr<ListenPort> ptr(new ListenPort);
+    ListenPort *ls = ptr.get();
 
     ls->type = type;
     ls->port = port;
@@ -1510,7 +1510,7 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
 #ifdef SW_SUPPORT_DTLS
             ls->ssl_option.create_flag = SW_SSL_SERVER;
             ls->ssl_option.protocols = SW_SSL_DTLS;
-            ls->dtls_sessions = new std::unordered_map<int, swoole::dtls::Session *>;
+            ls->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
 
 #else
             swWarn("DTLS support require openssl-1.1 or later");
@@ -1520,7 +1520,7 @@ swListenPort *Server::add_port(enum swSocket_type type, const char *host, int po
     }
 #endif
 
-    ls->socket = swoole::make_socket(
+    ls->socket = make_socket(
         ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (ls->socket == nullptr) {
         return nullptr;

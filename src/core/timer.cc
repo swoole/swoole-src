@@ -49,11 +49,8 @@ static int clock_gettime(clock_id_t which_clock, struct timespec *t) {
 
 namespace swoole {
 
-Timer::Timer() {
-    heap = swHeap_new(1024, SW_MIN_HEAP);
-    if (!heap) {
-        throw std::bad_alloc();
-    }
+Timer::Timer()
+        : heap(1024, Heap::MIN_HEAP) {
     _current_id = -1;
     next_msec_ = -1;
     _next_id = 1;
@@ -98,9 +95,6 @@ Timer::~Timer() {
     if (close) {
         close(this);
     }
-    if (heap) {
-        swHeap_free(heap);
-    }
     for (auto iter = map.begin(); iter != map.end(); iter++) {
         auto tnode = iter->second;
         delete tnode;
@@ -139,7 +133,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         _next_id = 2;
     }
 
-    tnode->heap_node = swHeap_push(heap, tnode->exec_msec, tnode);
+    tnode->heap_node = heap.push(tnode->exec_msec, tnode);
     if (sw_unlikely(tnode->heap_node == nullptr)) {
         delete tnode;
         return nullptr;
@@ -173,7 +167,7 @@ bool Timer::remove(TimerNode *tnode) {
         return false;
     }
     if (tnode->heap_node) {
-        swHeap_remove(heap, tnode->heap_node);
+        heap.remove(tnode->heap_node);
         sw_free(tnode->heap_node);
     }
     if (tnode->destructor) {
@@ -196,11 +190,11 @@ int Timer::select() {
     }
 
     TimerNode *tnode = nullptr;
-    swHeap_node *tmp;
+    HeapNode *tmp;
 
     swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, round);
 
-    while ((tmp = swHeap_top(heap))) {
+    while ((tmp = heap.top())) {
         tnode = (TimerNode *) tmp->data;
         if (tnode->exec_msec > now_msec || tnode->round == round) {
             break;
@@ -223,11 +217,11 @@ int Timer::select() {
             while (tnode->exec_msec <= now_msec) {
                 tnode->exec_msec += tnode->interval;
             }
-            swHeap_change_priority(heap, tnode->exec_msec, tmp);
+            heap.change_priority(tnode->exec_msec, tmp);
             continue;
         }
 
-        swHeap_pop(heap);
+        heap.pop();
         map.erase(tnode->id);
         delete tnode;
     }

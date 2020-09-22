@@ -151,7 +151,6 @@
             <file role="src" name="core-tests/src/os/msg_queue.cpp" />
             <file role="src" name="core-tests/src/os/pipe.cpp" />
             <file role="src" name="core-tests/src/os/signal.cpp" />
-            <file role="src" name="core-tests/src/os/thread_pool.cpp" />
             <file role="src" name="core-tests/src/os/timer.cpp" />
             <file role="src" name="core-tests/src/os/wait.cpp" />
             <file role="src" name="core-tests/src/process/process.cpp" />
@@ -559,7 +558,6 @@
             <file role="src" name="include/swoole_static_handler.h" />
             <file role="src" name="include/swoole_string.h" />
             <file role="src" name="include/swoole_table.h" />
-            <file role="src" name="include/swoole_thread_pool.h" />
             <file role="src" name="include/swoole_timer.h" />
             <file role="src" name="include/swoole_util.h" />
             <file role="src" name="include/swoole_version.h" />
@@ -619,7 +617,6 @@
             <file role="src" name="src/os/process_pool.cc" />
             <file role="src" name="src/os/sendfile.cc" />
             <file role="src" name="src/os/signal.cc" />
-            <file role="src" name="src/os/thread_pool.cc" />
             <file role="src" name="src/os/timer.cc" />
             <file role="src" name="src/os/wait.cc" />
             <file role="src" name="src/pipe/base.cc" />
