@@ -108,6 +108,8 @@ const char *swoole_strerror(int code) {
         return "SSL bad protocol";
     case SW_ERROR_SSL_RESET:
         return "SSL reset";
+    case SW_ERROR_SSL_HANDSHAKE_FAILED:
+        return "SSL handshake failed";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:
@@ -144,10 +146,16 @@ const char *swoole_strerror(int code) {
         return "Socks5 auth failed";
     case SW_ERROR_SOCKS5_SERVER_ERROR:
         return "Socks5 server error";
+    case SW_ERROR_SOCKS5_HANDSHAKE_FAILED:
+        return "Socks5 handshake failed";
     case SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR:
         return "Http proxy handshake error";
     case SW_ERROR_HTTP_INVALID_PROTOCOL:
         return "Http invalid protocol";
+    case SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED:
+        return "Http proxy handshake failed";
+    case SW_ERROR_HTTP_PROXY_BAD_RESPONSE:
+        return "Http proxy bad response";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:

@@ -89,9 +89,9 @@ if (IS_IN_TRAVIS) {
 define('IP_REGEX', '/^(?:[\d]{1,3}\.){3}[\d]{1,3}$/');
 
 /** ============= Proxy ============== */
-define('HTTP_PROXY_HOST', '127.0.0.1');
-define('HTTP_PROXY_PORT', IS_MAC_OS ? 1087 : 8888);
-define('SOCKS5_PROXY_HOST', '127.0.0.1');
+define('HTTP_PROXY_HOST', IS_IN_TRAVIS ? 'tinyproxy' : '127.0.0.1');
+define('HTTP_PROXY_PORT', IS_IN_TRAVIS ? 8888 : (IS_MAC_OS ? 1087 : 8888));
+define('SOCKS5_PROXY_HOST', IS_IN_TRAVIS ? 'socks5' : '127.0.0.1');
 define('SOCKS5_PROXY_PORT', IS_MAC_OS ? 1086 : 1080);
 
 /** ============== Pressure ============== */

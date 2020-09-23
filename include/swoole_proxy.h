@@ -24,20 +24,33 @@ enum swHttp_proxy_state {
     SW_HTTP_PROXY_STATE_READY,
 };
 
-struct swHttp_proxy {
+namespace swoole {
+struct HttpProxy {
     uint8_t state;
     uint8_t dont_handshake;
     int proxy_port;
-    const char *proxy_host;
-    const char *user;
-    const char *password;
-    int l_user;
-    int l_password;
-    const char *target_host;
-    int l_target_host;
+    std::string proxy_host;
+    std::string username;
+    std::string password;
+    std::string target_host;
     int target_port;
     char buf[512];
 };
+
+struct Socks5Proxy {
+    std::string host;
+    int port;
+    uint8_t state;
+    uint8_t version;
+    uint8_t method;
+    uint8_t dns_tunnel;
+    std::string username;
+    std::string password;
+    std::string target_host;
+    int target_port;
+    char buf[600];
+};
+}
 
 enum swSocks5_state {
     SW_SOCKS5_STATE_WAIT = 0,
@@ -49,27 +62,6 @@ enum swSocks5_state {
 
 enum swSocks5_method {
     SW_SOCKS5_METHOD_AUTH = 0x02,
-};
-
-struct swSocks5_proxy {
-    const char *host;
-    int port;
-
-    uint8_t state;
-    uint8_t version;
-    uint8_t method;
-    uint8_t dns_tunnel;
-
-    const char *username;
-    const char *password;
-    uint16_t l_username;
-    uint16_t l_password;
-
-    const char *target_host;
-    int target_port;
-    uint16_t l_target_host;
-
-    char buf[600];
 };
 
 static sw_inline void swSocks5_pack(char *buf, int method) {

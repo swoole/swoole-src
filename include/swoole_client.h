@@ -60,8 +60,8 @@ class Client {
     bool open_eof_check = false;
 
     Protocol protocol = {};
-    swSocks5_proxy *socks5_proxy = nullptr;
-    swHttp_proxy *http_proxy = nullptr;
+    Socks5Proxy *socks5_proxy = nullptr;
+    HttpProxy *http_proxy = nullptr;
 
     uint32_t reuse_count = 0;
 

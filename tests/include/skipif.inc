@@ -181,7 +181,7 @@ function skip_if_offline()
 
 function skip_if_no_proxy(string $host, string $port)
 {
-    skip('no available proxy', IS_IN_TRAVIS || check_tcp_port($host, $port) <= 0);
+    skip('no available proxy', !check_tcp_port($host, $port));
 }
 
 function skip_if_no_http_proxy()

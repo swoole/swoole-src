@@ -79,5 +79,18 @@ class FileDescriptor {
     }
 };
 
+class DeferFn {
+  private:
+    using Fn = std::function<void(void)>;
+    Fn fn_;
+  public:
+    DeferFn(const Fn &fn) : 
+        fn_(fn) {
+    }
+    ~DeferFn() {
+        fn_();
+    }
+};
+
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
 }  // namespace swoole

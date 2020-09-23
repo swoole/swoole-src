@@ -17,8 +17,11 @@
  */
 
 #include "swoole.h"
+#include "swoole_proxy.h"
 #include "swoole_client.h"
 #include "swoole_log.h"
+
+using swoole::Socks5Proxy;
 
 const char *swSocks5_strerror(int code) {
     switch (code) {
@@ -44,7 +47,7 @@ const char *swSocks5_strerror(int code) {
 }
 
 int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length) {
-    swSocks5_proxy *ctx = cli->socks5_proxy;
+    Socks5Proxy *ctx = cli->socks5_proxy;
     char *buf = ctx->buf;
     uchar version, status, result, method;
 
@@ -63,17 +66,17 @@ int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length) 
         // authenticate request
         if (method == SW_SOCKS5_METHOD_AUTH) {
             buf[0] = 0x01;
-            buf[1] = ctx->l_username;
+            buf[1] = ctx->username.length();
 
             buf += 2;
-            memcpy(buf, ctx->username, ctx->l_username);
-            buf += ctx->l_username;
-            buf[0] = ctx->l_password;
-            memcpy(buf + 1, ctx->password, ctx->l_password);
+            memcpy(buf, ctx->username.c_str(), ctx->username.length());
+            buf += ctx->username.length();
+            buf[0] = ctx->password.length();
+            memcpy(buf + 1, ctx->password.c_str(), ctx->password.length());
 
             ctx->state = SW_SOCKS5_STATE_AUTH;
 
-            return cli->send(cli, ctx->buf, ctx->l_username + ctx->l_password + 3, 0);
+            return cli->send(cli, ctx->buf, ctx->username.length() + ctx->password.length() + 3, 0);
         }
         // send connect request
         else {
@@ -86,19 +89,19 @@ int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length) 
 
             if (ctx->dns_tunnel) {
                 buf[3] = 0x03;
-                buf[4] = ctx->l_target_host;
+                buf[4] = ctx->target_host.length();
                 buf += 5;
-                memcpy(buf, ctx->target_host, ctx->l_target_host);
-                buf += ctx->l_target_host;
+                memcpy(buf, ctx->target_host.c_str(), ctx->target_host.length());
+                buf += ctx->target_host.length();
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return cli->send(cli, ctx->buf, ctx->l_target_host + 7, 0);
+                return cli->send(cli, ctx->buf, ctx->target_host.length() + 7, 0);
             } else {
                 buf[3] = 0x01;
                 buf += 4;
-                *(uint32_t *) buf = htons(ctx->l_target_host);
+                *(uint32_t *) buf = htons(ctx->target_host.length());
                 buf += 4;
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return cli->send(cli, ctx->buf, ctx->l_target_host + 7, 0);
+                return cli->send(cli, ctx->buf, ctx->target_host.length() + 7, 0);
             }
         }
     } else if (ctx->state == SW_SOCKS5_STATE_AUTH) {

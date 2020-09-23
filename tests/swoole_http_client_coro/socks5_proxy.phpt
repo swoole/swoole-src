@@ -19,7 +19,7 @@ go(function ()
     $cli->set([
         'timeout'     => 5,
         'socks5_host' => SOCKS5_PROXY_HOST,
-        'socks5_port' => SOCKS5_PROXY_PORT
+        'socks5_port' => SOCKS5_PROXY_PORT,
     ]);
 
     $ret = $cli->get('/');
