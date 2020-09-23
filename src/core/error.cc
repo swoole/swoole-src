@@ -156,6 +156,8 @@ const char *swoole_strerror(int code) {
         return "Http proxy connection close";
     case SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED:
         return "Http proxy handshake failed";
+    case SW_ERROR_HTTP_PROXY_BAD_RESPONSE:
+        return "Http proxy bad response";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:

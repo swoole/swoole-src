@@ -480,6 +480,10 @@ bool Socket::http_proxy_handshake() {
         }
     }
 
+    if (!ret) {
+        set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, std::string("bad http_proxy response:\"") + p + "\"" );
+    }
+
     return ret;
 }
 
