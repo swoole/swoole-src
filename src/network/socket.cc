@@ -22,6 +22,7 @@
 #include "swoole_api.h"
 #include "swoole_log.h"
 #include "swoole_ssl.h"
+#include "swoole_util.h"
 
 namespace swoole {
 namespace network {
@@ -443,6 +444,10 @@ int Socket::handle_sendfile() {
         default:
             break;
         }
+    } else {
+        if (send_timer) {
+            last_sent_time = time<std::chrono::milliseconds>(true);
+        }
     }
 
     // sendfile finish
@@ -600,7 +605,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
     if (total_bytes > 0) {
         total_recv_bytes += total_bytes;
         if (recv_timer) {
-            swoole_timer_delay(recv_timer, recv_timeout_ * 1000);
+            last_received_time = time<std::chrono::milliseconds>(true);
         }
     }
 
@@ -630,7 +635,7 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
     if (retval > 0) {
         total_send_bytes += retval;
         if (send_timer) {
-            swoole_timer_delay(send_timer, send_timeout_ * 1000);
+            last_sent_time = time<std::chrono::milliseconds>(true);
         }
     }
 

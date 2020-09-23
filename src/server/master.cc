@@ -19,6 +19,7 @@
 #include "swoole_log.h"
 #include "swoole_http.h"
 #include "swoole_lock.h"
+#include "swoole_util.h"
 
 #include <assert.h>
 
@@ -42,6 +43,11 @@ static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data
 static TimerCallback Server_get_timeout_callback(Server *serv, Reactor *reactor, Connection *conn) {
     return [serv, conn, reactor](Timer *, TimerNode *) {
         if (conn->protect) {
+            return;
+        }
+        long ms = time<std::chrono::milliseconds>(true);
+        if (ms - conn->socket->last_received_time < serv->max_idle_time &&
+                ms - conn->socket->last_sent_time < serv->max_idle_time) {
             return;
         }
         if (serv->disable_notify || conn->closed || conn->close_force) {
@@ -173,10 +179,10 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 }
 
 int Server::connection_incoming(Reactor *reactor, Connection *conn) {
-    if (recv_timeout > 0) {
+    if (max_idle_time > 0) {
         auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
-        conn->socket->recv_timeout_ = recv_timeout;
-        conn->socket->recv_timer = swoole_timer_add(recv_timeout * 1000, true, timeout_callback);
+        conn->socket->recv_timeout_ = max_idle_time;
+        conn->socket->recv_timer = swoole_timer_add(max_idle_time * 1000, true, timeout_callback);
     }
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
@@ -338,9 +344,6 @@ int Server::start_check() {
             swWarn("onTask event callback must be set");
             return SW_ERR;
         }
-    }
-    if (recv_timeout > 0 && recv_timeout < SW_TIMER_MIN_SEC) {
-        recv_timeout = SW_TIMER_MIN_SEC;
     }
     if (send_timeout > 0 && send_timeout < SW_TIMER_MIN_SEC) {
         send_timeout = SW_TIMER_MIN_SEC;
@@ -792,6 +795,10 @@ void Server::clear_timer() {
         swoole_timer_del(master_timer);
         master_timer = nullptr;
     }
+    if (heartbeat_timer) {
+        swoole_timer_del(heartbeat_timer);
+        heartbeat_timer = nullptr;
+    }
     if (enable_accept_timer) {
         swoole_timer_del(enable_accept_timer);
         enable_accept_timer = nullptr;
@@ -1139,10 +1146,11 @@ int Server::send_to_connection(SendData *_send) {
         }
     }
 
-    if (send_timeout > 0 && _socket->send_timer == nullptr) {
+    if (max_idle_time > 0 && _socket->send_timer == nullptr) {
         auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
-        _socket->send_timeout_ = send_timeout;
-        _socket->send_timer = swoole_timer_add(send_timeout * 1000, true, timeout_callback);
+        _socket->send_timeout_ = max_idle_time;
+        _socket->last_sent_time = time<std::chrono::milliseconds>(true);
+        _socket->send_timer = swoole_timer_add(max_idle_time * 1000, true, timeout_callback);
     }
 
     // listen EPOLLOUT event

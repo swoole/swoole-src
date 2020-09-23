@@ -2179,8 +2179,8 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
         PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "recv_timeout", ztmp)) {
-        serv->recv_timeout = zval_get_double(ztmp);
+    if (php_swoole_array_get_value(vht, "max_idle_time", ztmp)) {
+        serv->max_idle_time = zval_get_double(ztmp);
     }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp)) {
         serv->send_timeout = zval_get_double(ztmp);
@@ -2306,12 +2306,19 @@ static PHP_METHOD(swoole_server, set) {
     // heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        serv->recv_timeout = SW_MAX(0, SW_MIN(v, UINT16_MAX)) * 2;
+        serv->heartbeat_check_interval = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     // heartbeat idle time
     if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        serv->recv_timeout = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+
+        if (serv->heartbeat_check_interval > serv->heartbeat_idle_time) {
+            php_swoole_fatal_error(E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval");
+            serv->heartbeat_check_interval = serv->heartbeat_idle_time / 2;
+        }
+    } else if (serv->heartbeat_check_interval > 0) {
+        serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
     }
     // max_request
     if (php_swoole_array_get_value(vht, "max_request", ztmp)) {
@@ -2992,12 +2999,12 @@ static PHP_METHOD(swoole_server, heartbeat) {
         RETURN_FALSE;
     }
 
-    if (serv->recv_timeout < 1) {
+    if (serv->heartbeat_idle_time < 1) {
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    int checktime = (int) time(nullptr) - serv->recv_timeout;
+    int checktime = (int) time(nullptr) - serv->heartbeat_idle_time;
 
     serv->foreach_connection([serv, checktime, close_connection, return_value](Connection *conn) {
         swTrace("heartbeat check fd=%d", conn->fd);

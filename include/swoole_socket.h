@@ -144,6 +144,9 @@ struct Socket {
     double recv_timeout_ = default_read_timeout;
     double send_timeout_ = default_write_timeout;
 
+    double last_received_time;
+    double last_sent_time;
+
     Buffer *out_buffer;
     Buffer *in_buffer;
     String *recv_buffer;
