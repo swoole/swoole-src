@@ -73,6 +73,7 @@ enum swFactory_dispatch_result {
 enum swThread_type {
     SW_THREAD_MASTER = 1,
     SW_THREAD_REACTOR = 2,
+    SW_THREAD_HEARTBEAT = 3,
 };
 
 //------------------------------------Server-------------------------------------------
@@ -641,12 +642,17 @@ class Server {
 
     PipeBuffer **pipe_buffers = nullptr;
     double send_timeout = 0;
-    double recv_timeout = 0;
+
+    uint16_t max_idle_time = 0;
+    uint16_t heartbeat_idle_time = 0;
+    uint16_t heartbeat_check_interval = 0;
+    uint32_t heartbeat_check_lasttime = 0;
 
     time_t reload_time = 0;
     time_t warning_time = 0;
     long timezone_ = 0;
     TimerNode *master_timer = nullptr;
+    TimerNode *heartbeat_timer = nullptr;
 
     /* buffer output/input setting*/
     uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
@@ -1236,6 +1242,7 @@ class Server {
     std::mutex lock_;
     uint32_t max_connection = 0;
     TimerNode *enable_accept_timer = nullptr;
+    std::thread heartbeat_thread;
     /**
      * The number of pipe per reactor maintenance
      */
@@ -1252,6 +1259,7 @@ class Server {
     int start_reactor_threads();
     int start_reactor_processes();
     int start_event_worker(Worker *worker);
+    void start_heartbeat_thread();
     void join_reactor_thread();
 };
 

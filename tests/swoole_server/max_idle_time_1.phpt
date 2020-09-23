@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: send timeout
+swoole_server: max_idle_time
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 skip_if_extension_not_exist('sockets');
@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm, $time1, $time2) {
         'worker_num' => 1,
         'kernel_socket_send_buffer_size' => 65536,
         'log_file' => '/dev/null',
-        'send_timeout' => 1,
+        'max_idle_time' => 1,
     ]);
     $serv->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();
