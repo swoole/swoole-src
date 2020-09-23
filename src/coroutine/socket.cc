@@ -737,6 +737,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
             }
         } else if (sock_domain == AF_UNIX) {
             if (connect_host.size() >= sizeof(socket->info.addr.un.sun_path)) {
+                set_err(EINVAL, "unix socket file is too large");
                 return false;
             }
             socket->info.addr.un.sun_family = AF_UNIX;
@@ -745,6 +746,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
             _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         } else {
+            set_err(EINVAL, "unknow protocol[%d]");
             return false;
         }
     }
@@ -1518,6 +1520,9 @@ ssize_t Socket::recv_packet(double timeout) {
     }
     if (recv_bytes <= 0) {
         swString_clear(read_buffer);
+    }
+    if (recv_bytes == 0) {
+        set_err(SW_ERROR_HTTP_PROXY_CONNECTION_RESET);
     }
     return recv_bytes;
 }
