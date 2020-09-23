@@ -229,7 +229,6 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
     // enable socks5 proxy
     if (cli->socks5_proxy) {
         cli->socks5_proxy->target_host = host;
-        cli->socks5_proxy->l_target_host = strlen(host);
         cli->socks5_proxy->target_port = port;
 
         host = cli->socks5_proxy->host.c_str();
