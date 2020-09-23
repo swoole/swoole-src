@@ -319,7 +319,6 @@ bool Socket::socks5_handshake() {
         p[1] = ctx->target_host.length();
         p += 2;
         memcpy(p, ctx->target_host.c_str(), ctx->target_host.length());
-        ctx->target_host = nullptr;
         p += ctx->target_host.length();
         *(uint16_t *) p = htons(ctx->target_port);
         p += 2;
