@@ -89,19 +89,19 @@ int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length) 
 
             if (ctx->dns_tunnel) {
                 buf[3] = 0x03;
-                buf[4] = ctx->l_target_host;
+                buf[4] = ctx->target_host.length();
                 buf += 5;
-                memcpy(buf, ctx->target_host, ctx->l_target_host);
-                buf += ctx->l_target_host;
+                memcpy(buf, ctx->target_host.c_str(), ctx->target_host.length());
+                buf += ctx->target_host.length();
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return cli->send(cli, ctx->buf, ctx->l_target_host + 7, 0);
+                return cli->send(cli, ctx->buf, ctx->target_host.length() + 7, 0);
             } else {
                 buf[3] = 0x01;
                 buf += 4;
-                *(uint32_t *) buf = htons(ctx->l_target_host);
+                *(uint32_t *) buf = htons(ctx->target_host.length());
                 buf += 4;
                 *(uint16_t *) buf = htons(ctx->target_port);
-                return cli->send(cli, ctx->buf, ctx->l_target_host + 7, 0);
+                return cli->send(cli, ctx->buf, ctx->target_host.length() + 7, 0);
             }
         }
     } else if (ctx->state == SW_SOCKS5_STATE_AUTH) {
