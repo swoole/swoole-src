@@ -316,12 +316,11 @@ bool Socket::socks5_handshake() {
     p += 3;
     if (ctx->dns_tunnel) {
         p[0] = 0x03;
-        p[1] = ctx->l_target_host;
+        p[1] = ctx->target_host.length();
         p += 2;
-        memcpy(p, ctx->target_host, ctx->l_target_host);
-        sw_free((void *) ctx->target_host);
+        memcpy(p, ctx->target_host.c_str(), ctx->target_host.length());
         ctx->target_host = nullptr;
-        p += ctx->l_target_host;
+        p += ctx->target_host.length();
         *(uint16_t *) p = htons(ctx->target_port);
         p += 2;
         if (send(ctx->buf, p - ctx->buf) != p - ctx->buf) {
@@ -330,7 +329,7 @@ bool Socket::socks5_handshake() {
     } else {
         p[0] = 0x01;
         p += 1;
-        *(uint32_t *) p = htons(ctx->l_target_host);
+        *(uint32_t *) p = htons(ctx->target_host.length());
         p += 4;
         *(uint16_t *) p = htons(ctx->target_port);
         p += 2;
@@ -380,8 +379,8 @@ bool Socket::http_proxy_handshake() {
 
     // CONNECT
     int n;
-    const char *host = http_proxy->target_host;
-    int host_len = http_proxy->l_target_host;
+    const char *host = http_proxy->target_host.c_str();
+    int host_len = http_proxy->target_host.length();
 #ifdef SW_USE_OPENSSL
     if (open_ssl && ssl_option.tls_host_name) {
         host = ssl_option.tls_host_name;
@@ -402,8 +401,8 @@ bool Socket::http_proxy_handshake() {
         n = sw_snprintf(buffer->str,
                         buffer->size,
                         HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
-                        http_proxy->l_target_host,
-                        http_proxy->target_host,
+                        http_proxy->target_host.length(),
+                        http_proxy->target_host.c_str(),
                         http_proxy->target_port,
                         host_len,
                         host,
@@ -413,8 +412,8 @@ bool Socket::http_proxy_handshake() {
         n = sw_snprintf(buffer->str,
                         buffer->size,
                         HTTP_PROXY_FMT "\r\n",
-                        http_proxy->l_target_host,
-                        http_proxy->target_host,
+                        http_proxy->target_host.length(),
+                        http_proxy->target_host.c_str(),
                         http_proxy->target_port,
                         host_len,
                         host,
@@ -659,15 +658,13 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     }
 #endif
     if (socks5_proxy) {
-        socks5_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
-        socks5_proxy->l_target_host = _host.size();
+        socks5_proxy->target_host = _host;
         socks5_proxy->target_port = _port;
 
         _host = socks5_proxy->host;
         _port = socks5_proxy->port;
     } else if (http_proxy) {
-        http_proxy->target_host = sw_strndup((char *) _host.c_str(), _host.size());
-        http_proxy->l_target_host = _host.size();
+        http_proxy->target_host = _host;
         http_proxy->target_port = _port;
 
         _host = http_proxy->proxy_host;
@@ -755,10 +752,16 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     }
     // socks5 proxy
     if (socks5_proxy && socks5_handshake() == false) {
+        if (errCode == 0) {
+            set_err(SW_ERROR_SOCKS5_HANDSHAKE_FAILED);
+        }
         return false;
     }
     // http proxy
     if (http_proxy && !http_proxy->dont_handshake && http_proxy_handshake() == false) {
+        if (errCode == 0) {
+            set_err(SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED);
+        }
         return false;
     }
 #ifdef SW_USE_OPENSSL

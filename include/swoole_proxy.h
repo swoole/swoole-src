@@ -32,8 +32,7 @@ struct HttpProxy {
     std::string proxy_host;
     std::string username;
     std::string password;
-    const char *target_host;
-    int l_target_host;
+    std::string target_host;
     int target_port;
     char buf[512];
 };
@@ -47,9 +46,8 @@ struct Socks5Proxy {
     uint8_t dns_tunnel;
     std::string username;
     std::string password;
-    const char *target_host;
+    std::string target_host;
     int target_port;
-    uint16_t l_target_host;
     char buf[600];
 };
 }

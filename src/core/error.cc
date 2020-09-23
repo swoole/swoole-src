@@ -144,12 +144,16 @@ const char *swoole_strerror(int code) {
         return "Socks5 auth failed";
     case SW_ERROR_SOCKS5_SERVER_ERROR:
         return "Socks5 server error";
+    case SW_ERROR_SOCKS5_HANDSHAKE_FAILED:
+        return "Socks5 handshake failed";
     case SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR:
         return "Http proxy handshake error";
     case SW_ERROR_HTTP_INVALID_PROTOCOL:
         return "Http invalid protocol";
     case SW_ERROR_HTTP_PROXY_CONNECTION_CLOSE:
         return "Http proxy connection close";
+    case SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED:
+        return "Http proxy handshake failed";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:
