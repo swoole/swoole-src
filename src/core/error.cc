@@ -152,8 +152,6 @@ const char *swoole_strerror(int code) {
         return "Http proxy handshake error";
     case SW_ERROR_HTTP_INVALID_PROTOCOL:
         return "Http invalid protocol";
-    case SW_ERROR_HTTP_PROXY_CONNECTION_CLOSE:
-        return "Http proxy connection close";
     case SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED:
         return "Http proxy handshake failed";
     case SW_ERROR_HTTP_PROXY_BAD_RESPONSE:

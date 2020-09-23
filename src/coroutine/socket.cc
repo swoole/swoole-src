@@ -1538,9 +1538,6 @@ ssize_t Socket::recv_packet(double timeout) {
     if (recv_bytes <= 0) {
         swString_clear(read_buffer);
     }
-    if (recv_bytes == 0) {
-        set_err(SW_ERROR_HTTP_PROXY_CONNECTION_CLOSE);
-    }
     return recv_bytes;
 }
 
