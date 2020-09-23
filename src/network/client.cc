@@ -1155,7 +1155,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
                 int n = sw_snprintf(cli->http_proxy->buf,
                                     sizeof(cli->http_proxy->buf),
                                     "CONNECT %s:%d HTTP/1.1\r\n\r\n",
-                                    cli->http_proxy->target_host,
+                                    cli->http_proxy->target_host.c_str(),
                                     cli->http_proxy->target_port);
                 return cli->send(cli, cli->http_proxy->buf, n, 0);
             }
