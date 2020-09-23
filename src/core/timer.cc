@@ -168,7 +168,6 @@ bool Timer::remove(TimerNode *tnode) {
     }
     if (tnode->heap_node) {
         heap.remove(tnode->heap_node);
-        sw_free(tnode->heap_node);
     }
     if (tnode->destructor) {
         tnode->destructor(tnode);

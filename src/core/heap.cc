@@ -128,6 +128,7 @@ void Heap::remove(HeapNode *node) {
     } else {
         percolate_down(pos);
     }
+    delete node;
 }
 
 void *Heap::pop() {
