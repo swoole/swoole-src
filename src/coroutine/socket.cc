@@ -371,12 +371,6 @@ bool Socket::http_proxy_handshake() {
     "User-Agent: Swoole/" SWOOLE_VERSION "\r\n"                                                                        \
     "Proxy-Connection: Keep-Alive\r\n"
 
-    String *buffer = get_read_buffer();
-
-    if (!buffer) {
-        return false;
-    }
-
     // CONNECT
     int n;
     const char *host = http_proxy->target_host.c_str();
@@ -387,6 +381,8 @@ bool Socket::http_proxy_handshake() {
         host_len = strlen(ssl_option.tls_host_name);
     }
 #endif
+
+    String *send_buffer = get_write_buffer();
     if (!http_proxy->password.empty()) {
         char auth_buf[256];
         char encode_buf[512];
@@ -398,8 +394,8 @@ bool Socket::http_proxy_handshake() {
                         http_proxy->password.length(),
                         http_proxy->password.c_str());
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
-        n = sw_snprintf(buffer->str,
-                        buffer->size,
+        n = sw_snprintf(send_buffer->str,
+                        send_buffer->size,
                         HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
                         http_proxy->target_host.length(),
                         http_proxy->target_host.c_str(),
@@ -409,8 +405,8 @@ bool Socket::http_proxy_handshake() {
                         http_proxy->target_port,
                         encode_buf);
     } else {
-        n = sw_snprintf(buffer->str,
-                        buffer->size,
+        n = sw_snprintf(send_buffer->str,
+                        send_buffer->size,
                         HTTP_PROXY_FMT "\r\n",
                         http_proxy->target_host.length(),
                         http_proxy->target_host.c_str(),
@@ -420,11 +416,14 @@ bool Socket::http_proxy_handshake() {
                         http_proxy->target_port);
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, buffer->str);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, recv_buffer->str);
 
-    if (send(buffer->str, n) != n) {
+    send_buffer->length = n;
+    if (send(send_buffer->str, n) != n) {
         return false;
     }
+
+    String *recv_buffer = get_read_buffer();
 
     ProtocolSwitch ps(this);
     open_eof_check = true;
@@ -437,10 +436,10 @@ bool Socket::http_proxy_handshake() {
         return false;
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, buffer->str);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, recv_buffer->str);
 
     bool ret = false;
-    char *buf = buffer->str;
+    char *buf = recv_buffer->str;
     int len = n;
     int state = 0;
     char *p = buf;
@@ -481,7 +480,9 @@ bool Socket::http_proxy_handshake() {
     }
 
     if (!ret) {
-        set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE, std::string("bad http_proxy response:\"") + p + "\"" );
+        set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,
+                std::string("bad http proxy response, Request:") + send_buffer->to_std_string() + "\nResponse:\""
+                        + std::string(buf, len) + "\"");
     }
 
     return ret;
