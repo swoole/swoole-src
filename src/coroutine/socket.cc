@@ -481,8 +481,8 @@ bool Socket::http_proxy_handshake() {
 
     if (!ret) {
         set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,
-                std::string("bad http proxy response, Request:") + send_buffer->to_std_string() + "\nResponse:\""
-                        + std::string(buf, len) + "\"");
+                std::string("wrong http_proxy response received, \n[Request]: ") + send_buffer->to_std_string() + "\n[Response]: "
+                        + std::string(buf, len));
     }
 
     return ret;
