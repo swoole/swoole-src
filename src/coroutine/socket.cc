@@ -415,7 +415,7 @@ bool Socket::http_proxy_handshake() {
                         http_proxy->target_port);
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, recv_buffer->str);
+    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, send_buffer->str);
 
     send_buffer->length = n;
     if (send(send_buffer->str, n) != n) {
