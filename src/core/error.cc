@@ -108,6 +108,8 @@ const char *swoole_strerror(int code) {
         return "SSL bad protocol";
     case SW_ERROR_SSL_RESET:
         return "SSL reset";
+    case SW_ERROR_SSL_HANDSHAKE_FAILED:
+        return "SSL handshake failed";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:

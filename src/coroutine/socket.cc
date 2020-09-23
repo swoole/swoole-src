@@ -768,6 +768,9 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     ssl_is_server = false;
     if (open_ssl) {
         if (!ssl_handshake()) {
+            if (errCode == 0) {
+                set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
+            }
             return false;
         }
     }
