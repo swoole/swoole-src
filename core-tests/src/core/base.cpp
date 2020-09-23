@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_util.h"
 
 using namespace swoole;
 using namespace std;
@@ -119,4 +120,17 @@ TEST(base, eventdata_pack) {
     String _buffer(SW_BUFFER_SIZE_BIG);
     ASSERT_TRUE(ed2.unpack(&_buffer));
     ASSERT_EQ(memcmp(SwooleTG.buffer_stack->str, _buffer.str, SW_BUFFER_SIZE_BIG), 0);
+}
+
+TEST(base, stack_defer_fn) {
+    StackDeferFn s;
+    int count = 0;
+    s.add([&count](){
+        count++;
+        ASSERT_EQ(count, 2);
+    });
+    s.add([&count](){
+        count++;
+        ASSERT_EQ(count, 1);
+    });
 }

@@ -25,6 +25,7 @@
 #include <chrono>
 #include <set>
 #include <vector>
+#include <stack>
 
 namespace swoole {
 
@@ -83,12 +84,36 @@ class DeferFn {
   private:
     using Fn = std::function<void(void)>;
     Fn fn_;
+    bool cancelled_ = false;
   public:
     DeferFn(const Fn &fn) : 
         fn_(fn) {
     }
+    void cancel() {
+        cancelled_ = true;
+    }
     ~DeferFn() {
-        fn_();
+        if (!cancelled_) {
+            fn_();
+        }
+    }
+};
+
+class StackDeferFn {
+  private:
+    using Fn = std::function<void(void)>;
+    std::stack<Fn> stack_;
+  public:
+    StackDeferFn() = default;
+    ~StackDeferFn() {
+        while(!stack_.empty()) {
+            auto fn = stack_.top();
+            stack_.pop();
+            fn();
+        }
+    }
+    void add(const Fn &fn) {
+        stack_.emplace(fn);
     }
 };
 
