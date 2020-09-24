@@ -2,10 +2,6 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-if (!function_exists('swoole_array')) {
-    require __DIR__.'/vendor/autoload.php';
-}
-
 $swoole_c = ROOT_DIR . '/php_swoole.cc';
 $swoole_c_content = file_get_contents($swoole_c);
 
@@ -18,18 +14,18 @@ $log_h_content = file_get_contents($log_h);
 //---------------------------------------------------------------------------
 //                     generate ERROR constants
 //---------------------------------------------------------------------------
-if (!preg_match_all('/SW_ERROR_[0-9A-Z_]+/', $error_h_content, $matches_error, PREG_PATTERN_ORDER) || empty($matches_error[0])) {
+if (!preg_match_all('/SW_ERROR_[0-9A-Z_]+/', $error_h_content, $matches_error,
+        PREG_PATTERN_ORDER) || empty($matches_error[0])) {
     swoole_error('Match ERROR enums error!');
 }
 
-$_matches = swoole_array($matches_error[0]);
-$_matches->remove('SW_ERROR_BEGIN')->remove('SW_ERROR_END');
-
-$matches[0] = $_matches->toArray();
+// trim start and end
+array_shift($matches_error[0]);
+array_pop($matches_error[0]);
 
 // generate ERROR constants
 $define_output = '';
-foreach ($matches[0] as $match) {
+foreach ($matches_error[0] as $match) {
     // convert error code to define
     $constant_name = str_replace('SW_', 'SWOOLE_', $match);
     $constant_value = $match;
@@ -44,7 +40,8 @@ swoole_check($is_ok, 'Generate ERROR constants');
 //---------------------------------------------------------------------------
 //                     generate TRACE constants
 //---------------------------------------------------------------------------
-if (!preg_match_all('/SW_TRACE_[0-9A-Z_]+/', $log_h_content, $matches_trace, PREG_PATTERN_ORDER) || empty($matches_trace[0])) {
+if (!preg_match_all('/SW_TRACE_[0-9A-Z_]+/', $log_h_content, $matches_trace,
+        PREG_PATTERN_ORDER) || empty($matches_trace[0])) {
     swoole_error('Match TRACE enums error!');
 }
 $define_output = '';
@@ -66,7 +63,7 @@ file_put_contents($swoole_c, $swoole_c_content);
 $swoole_error_cc = ROOT_DIR . '/src/core/error.cc';
 $swoole_error_cc_content = file_get_contents($swoole_error_cc);
 $swstrerror_output = space(4) . "switch(code)\n" . space(4) . "{\n";
-foreach ($matches[0] as $match) {
+foreach ($matches_error[0] as $match) {
     // convert error code to swstrerror
     $sw_error_str = implode(' ', explode('_', strtolower(str_replace('SW_ERROR_', '', $match))));
     $replaces = [
