@@ -1,0 +1,5 @@
+{
+    "require": {
+        "swoole/library": "dev-master"
+    }
+}
