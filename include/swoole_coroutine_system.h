@@ -40,7 +40,7 @@ struct PollSocket {
 
 class System {
   public:
-    static void init_reactor(swReactor *reactor);
+    static void init_reactor(Reactor *reactor);
     /* sleep */
     static int sleep(double sec);
     /* file */

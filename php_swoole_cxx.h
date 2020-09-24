@@ -94,7 +94,7 @@ SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *pr
 SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);
 SW_API bool php_swoole_timer_clear_all();
 
-ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length);
+ssize_t php_swoole_length_func(swoole::Protocol *protocol, swoole::network::Socket *_socket, const char *data, uint32_t length);
 
 #ifdef SW_HAVE_ZLIB
 #define php_swoole_websocket_frame_pack        php_swoole_websocket_frame_pack_ex
@@ -105,16 +105,16 @@ ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const ch
 #define php_swoole_websocket_frame_object_pack(buffer, zdata, mask, allow_compress) \
         php_swoole_websocket_frame_object_pack_ex(buffer, zdata, mask, 0)
 #endif
-int php_swoole_websocket_frame_pack_ex(swString *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
-int php_swoole_websocket_frame_object_pack_ex(swString *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
-void php_swoole_websocket_frame_unpack(swString *data, zval *zframe);
-void php_swoole_websocket_frame_unpack_ex(swString *data, zval *zframe, uchar allow_uncompress);
+int php_swoole_websocket_frame_pack_ex(swoole::String *buffer, zval *zdata, zend_long opcode, uint8_t flags, zend_bool mask, zend_bool allow_compress);
+int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer, zval *zdata, zend_bool mask, zend_bool allow_compress);
+void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
+void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
 
-int php_swoole_task_pack(swEventData *task, zval *data);
-zval* php_swoole_task_unpack(swEventData *task_result);
+int php_swoole_task_pack(swoole::EventData *task, zval *data);
+zval* php_swoole_task_unpack(swoole::EventData *task_result);
 
 #ifdef SW_HAVE_ZLIB
-int php_swoole_zlib_decompress(z_stream *stream, swString *buffer, char *body, int length);
+int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
 #endif
 
 namespace zend {

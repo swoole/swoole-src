@@ -623,7 +623,7 @@ int System::wait_event(int fd, int events, double timeout) {
     return revents;
 }
 
-void System::init_reactor(swReactor *reactor) {
+void System::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
     reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
     reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
@@ -645,7 +645,7 @@ static void async_task_completed(AsyncEvent *event) {
     task->co->resume();
 }
 
-static void async_task_timeout(swTimer *timer, TimerNode *tnode) {
+static void async_task_timeout(Timer *timer, TimerNode *tnode) {
     AsyncEvent *event = (AsyncEvent *) tnode->data;
     event->canceled = 1;
     AsyncTask *task = (AsyncTask *) event->object;
