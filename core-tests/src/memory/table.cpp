@@ -53,7 +53,7 @@ class table_t {
   public:
     table_t(uint32_t rows_size, float conflict_proportion = 0.2) {
         table = Table::make(rows_size, conflict_proportion);
-        if (!table->create()) {
+        if (!table) {
             throw exception_t("alloc failed", swoole_get_last_error());
         }
 
@@ -64,9 +64,9 @@ class table_t {
         if (!table->create()) {
             throw exception_t("create failed", swoole_get_last_error());
         }
-        column_id = table->get_column(std::string("id"));
-        column_name = table->get_column(std::string("name"));
-        column_score = table->get_column(std::string("score"));
+        column_id = table->get_column("id");
+        column_name = table->get_column("name");
+        column_score = table->get_column("score");
     }
 
     bool set(const std::string &key, const row_t &value) {
