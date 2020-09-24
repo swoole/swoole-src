@@ -240,7 +240,7 @@ int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
             } else {
                 swoole_error_log(
                     SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
-                swYield();
+                sw_yield();
                 socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
         }

@@ -365,7 +365,7 @@ enum swFork_type {
 
 //-------------------------------------------------------------------------------
 
-#define swYield() sched_yield()  // or usleep(1)
+#define sw_yield() sched_yield() // or usleep(1)
 #define SW_MAX_FDTYPE 32         // 32 kinds of event
 
 //------------------------------Base--------------------------------
@@ -714,7 +714,7 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
                 }
             }
         }
-        swYield();
+        sw_yield();
     }
 }
 
