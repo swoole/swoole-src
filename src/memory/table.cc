@@ -93,7 +93,7 @@ size_t Table::get_memory_size() {
     /**
      * row data & header
      */
-    size_t _memory_size = row_num * _row_memory_size;
+    size_t _memory_size = _row_num * _row_memory_size;
 
     /**
      * memory pool for conflict rows

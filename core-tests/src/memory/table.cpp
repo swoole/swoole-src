@@ -104,7 +104,7 @@ class table_t {
     }
 
     bool del(const std::string &key) {
-        return table->del(key.c_str(), key.length()) == SW_OK;
+        return table->del(key.c_str(), key.length());
     }
 
     bool exists(const std::string &key) {
