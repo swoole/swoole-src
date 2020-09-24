@@ -320,7 +320,7 @@ int swTableRow_del(swTable *table, const char *key, uint16_t keylen) {
     swTableRow_lock(row);
     if (row->next == nullptr) {
         if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
-            sw_memset_zero(row, sizeof(swTableRow));
+            swTableRow_clear(row);
             goto _delete_element;
         } else {
             goto _not_exists;
@@ -342,7 +342,7 @@ int swTableRow_del(swTable *table, const char *key, uint16_t keylen) {
             return SW_ERR;
         }
 
-        // when the deleting element is root, we should move the first element's data to root,
+        // when the deleting element is root, should move the first element's data to root,
         // and remove the element from the collision list.
         if (tmp == row) {
             tmp = tmp->next;
@@ -355,7 +355,7 @@ int swTableRow_del(swTable *table, const char *key, uint16_t keylen) {
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
-        sw_memset_zero(tmp, sizeof(swTableRow));
+        swTableRow_clear(tmp);
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }

@@ -142,7 +142,7 @@ swTableRow *swTable_iterator_current(swTable *table);
 void swTable_iterator_forward(swTable *table);
 int swTableRow_del(swTable *table, const char *key, uint16_t keylen);
 
-static sw_inline swTableColumn *swTableColumn_get(swTable *table, const std::string &key) {
+static inline swTableColumn *swTableColumn_get(swTable *table, const std::string &key) {
     auto i = table->column_map->find(key);
     if (i == table->column_map->end()) {
         return nullptr;
@@ -153,7 +153,7 @@ static sw_inline swTableColumn *swTableColumn_get(swTable *table, const std::str
 
 #define SW_TABLE_FORCE_UNLOCK_TIME 2000  // milliseconds
 
-static sw_inline void swTableRow_lock(swTableRow *row) {
+static inline void swTableRow_lock(swTableRow *row) {
     sw_atomic_t *lock = &row->lock;
     uint32_t i, n;
     long t = 0;
@@ -181,6 +181,7 @@ static sw_inline void swTableRow_lock(swTableRow *row) {
          */
         if (kill(row->lock_pid, 0) < 0 && errno == ESRCH) {
             *lock = 1;
+            swWarn("lock process[%d] not exists, force unlock", row->lock_pid);
             goto _success;
         }
         /**
@@ -196,17 +197,22 @@ static sw_inline void swTableRow_lock(swTableRow *row) {
          */
         else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
             *lock = 1;
+            swWarn("timeout, force unlock");
             goto _success;
         }
-        swYield();
+        sw_yield();
     }
 }
 
-static sw_inline void swTableRow_unlock(swTableRow *row) {
+static inline void swTableRow_unlock(swTableRow *row) {
     sw_spinlock_release(&row->lock);
 }
 
-static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn *col, void *value, size_t vlen) {
+static inline void swTableRow_clear(swTableRow *row) {
+    sw_memset_zero((char *)row + offsetof(swTableRow, lock_pid), sizeof(swTableRow) - offsetof(swTableRow, lock_pid));
+}
+
+static inline void swTableRow_set_value(swTableRow *row, swTableColumn *col, void *value, size_t vlen) {
     switch (col->type) {
     case SW_TABLE_INT:
         memcpy(row->data + col->index, value, sizeof(long));
