@@ -603,7 +603,7 @@ int Server::start() {
             swWarn("malloc[task_result] failed");
             return SW_ERR;
         }
-        task_notify = (swPipe *) sw_calloc(worker_num, sizeof(swPipe));
+        task_notify = (Pipe *) sw_calloc(worker_num, sizeof(Pipe));
         if (!task_notify) {
             swWarn("malloc[task_notify] failed");
             sw_shm_free(task_result);
@@ -941,7 +941,7 @@ bool Server::feedback(int session_id, int event) {
     }
 }
 
-void Server::store_pipe_fd(swPipe *p) {
+void Server::store_pipe_fd(Pipe *p) {
     Socket *master_socket = p->getSocket(p, SW_PIPE_MASTER);
     Socket *worker_socket = p->getSocket(p, SW_PIPE_WORKER);
 

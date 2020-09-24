@@ -3064,8 +3064,8 @@ static PHP_METHOD(swoole_server, taskwait) {
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(EventData));
-    swPipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
-    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
+    Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
+    network::Socket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     // clear history task
     while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
@@ -3144,7 +3144,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(EventData));
-    swPipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
+    Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
     Worker *worker = serv->get_worker(SwooleG.process_id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;

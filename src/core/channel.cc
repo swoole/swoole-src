@@ -74,7 +74,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     }
     // use notify
     if (flags & SW_CHAN_NOTIFY) {
-        object->notify_pipe = new swPipe();
+        object->notify_pipe = new Pipe();
         ret = swPipeNotify_auto(object->notify_pipe, 1, 1);
         if (ret < 0) {
             swWarn("notify_fd init failed");

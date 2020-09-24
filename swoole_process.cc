@@ -63,7 +63,7 @@ static void php_swoole_process_free_object(zend_object *object) {
     Worker *worker = process->worker;
 
     if (worker) {
-        swPipe *_pipe = worker->pipe_object;
+        Pipe *_pipe = worker->pipe_object;
         if (_pipe) {
             _pipe->close(_pipe);
             efree(_pipe);
@@ -370,7 +370,7 @@ static PHP_METHOD(swoole_process, __construct) {
     }
 
     if (pipe_type > 0) {
-        swPipe *_pipe = (swPipe *) emalloc(sizeof(swPipe));
+        Pipe *_pipe = (Pipe *) emalloc(sizeof(*_pipe));
         int socket_type = pipe_type == zend::PIPE_TYPE_STREAM ? SOCK_STREAM : SOCK_DGRAM;
         if (swPipeUnsock_create(_pipe, 1, socket_type) < 0) {
             zend_throw_exception(swoole_exception_ce, "swPipeUnsock_create failed", errno);

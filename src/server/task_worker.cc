@@ -299,7 +299,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
          * Use worker shm store the result
          */
         EventData *result = &(task_result[source_worker_id]);
-        swPipe *task_notify_pipe = &(task_notify[source_worker_id]);
+        Pipe *task_notify_pipe = &(task_notify[source_worker_id]);
 
         // lock worker
         worker->lock.lock(&worker->lock);
