@@ -97,13 +97,13 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
             return SW_ERR;
         }
     } else if (ipc_mode == SW_IPC_UNIXSOCK) {
-        pool->pipes = (swPipe *) sw_calloc(worker_num, sizeof(swPipe));
+        pool->pipes = (Pipe *) sw_calloc(worker_num, sizeof(Pipe));
         if (pool->pipes == nullptr) {
             swWarn("malloc[2] failed");
             return SW_ERR;
         }
 
-        swPipe *pipe;
+        Pipe *pipe;
         for (i = 0; i < worker_num; i++) {
             pipe = &pool->pipes[i];
             if (swPipeUnsock_create(pipe, 1, SOCK_DGRAM) < 0) {

@@ -408,7 +408,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
 }
 
 //------------------------------Base--------------------------------
-enum _swEventData_flag {
+enum swEventData_flag {
     SW_EVENT_DATA_NORMAL,
     SW_EVENT_DATA_PTR     = 1u << 1,
     SW_EVENT_DATA_CHUNK   = 1u << 2,
@@ -489,12 +489,6 @@ enum swPipe_type {
     SW_PIPE_WRITE    = 1,
     SW_PIPE_NONBLOCK = 2,
 };
-
-#define swIsMaster() (SwooleG.process_type == SW_PROCESS_MASTER)
-#define swIsWorker() (SwooleG.process_type == SW_PROCESS_WORKER)
-#define swIsTaskWorker() (SwooleG.process_type == SW_PROCESS_TASKWORKER)
-#define swIsManager() (SwooleG.process_type == SW_PROCESS_MANAGER)
-#define swIsUserWorker() (SwooleG.process_type == SW_PROCESS_USERWORKER)
 
 //----------------------Tool Function---------------------
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);

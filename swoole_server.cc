@@ -136,7 +136,7 @@ static inline zend_bool php_swoole_server_isset_callback(ServerObject *server_ob
 }
 
 static sw_inline zend_bool is_enable_coroutine(Server *serv) {
-    if (swIsTaskWorker()) {
+    if (serv->is_task_worker()) {
         return serv->task_enable_coroutine;
     } else {
         return serv->enable_coroutine;
@@ -151,7 +151,7 @@ void php_swoole_server_rshutdown() {
     Server *serv = sw_server();
     serv->drain_worker_pipe();
 
-    if (serv->is_started() && !swIsUserWorker()) {
+    if (serv->is_started() && !serv->is_user_worker()) {
         if (PG(last_error_message)) {
             switch (PG(last_error_type)) {
             case E_ERROR:
@@ -237,7 +237,7 @@ static void server_free_object(zend_object *object) {
     delete property;
 
     zend_object_std_dtor(object);
-    if (serv && swIsMaster()) {
+    if (serv && serv->is_master()) {
         delete serv;
     }
 }
@@ -881,7 +881,7 @@ static sw_inline int php_swoole_check_task_param(Server *serv, zend_long dst_wor
         php_swoole_fatal_error(E_WARNING, "worker_id must be less than task_worker_num[%u]", serv->task_worker_num);
         return SW_ERR;
     }
-    if (UNEXPECTED(swIsTaskWorker())) {
+    if (UNEXPECTED(serv->is_task_worker())) {
         php_swoole_fatal_error(E_WARNING, "Server->task() cannot use in the task-worker");
         return SW_ERR;
     }
@@ -1591,7 +1591,7 @@ static void php_swoole_onWorkerStart(Server *serv, int worker_id) {
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("worker_id"), worker_id);
-    zend_update_property_bool(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("taskworker"), swIsTaskWorker());
+    zend_update_property_bool(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("taskworker"), serv->is_task_worker());
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("worker_pid"), getpid());
 
     if (!is_enable_coroutine(serv)) {
@@ -2850,7 +2850,7 @@ static PHP_METHOD(swoole_server, sendfile) {
         RETURN_FALSE;
     }
 
-    if (swIsMaster()) {
+    if (serv->is_master()) {
         php_swoole_fatal_error(E_WARNING, "can't sendfile[%s] to the connections in master process", filename);
         RETURN_FALSE;
     }
@@ -2859,14 +2859,15 @@ static PHP_METHOD(swoole_server, sendfile) {
 }
 
 static PHP_METHOD(swoole_server, close) {
-    if (swIsMaster()) {
-        php_swoole_fatal_error(E_WARNING, "can't close the connections in master process");
-        RETURN_FALSE;
-    }
 
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+
+    if (serv->is_master()) {
+        php_swoole_fatal_error(E_WARNING, "can't close the connections in master process");
         RETURN_FALSE;
     }
 
@@ -3020,14 +3021,14 @@ static PHP_METHOD(swoole_server, heartbeat) {
 }
 
 static PHP_METHOD(swoole_server, taskwait) {
-    if (!swIsWorker()) {
-        php_swoole_fatal_error(E_WARNING, "taskwait method can only be used in the worker process");
-        RETURN_FALSE;
-    }
-
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+
+    if (!serv->is_worker()) {
+        php_swoole_fatal_error(E_WARNING, "taskwait method can only be used in the worker process");
         RETURN_FALSE;
     }
 
@@ -3063,8 +3064,8 @@ static PHP_METHOD(swoole_server, taskwait) {
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(EventData));
-    swPipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
-    swSocket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
+    Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
+    network::Socket *task_notify_socket = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_READ);
 
     // clear history task
     while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
@@ -3105,14 +3106,13 @@ static PHP_METHOD(swoole_server, taskwait) {
 }
 
 static PHP_METHOD(swoole_server, taskWaitMulti) {
-    if (!swIsWorker()) {
-        php_swoole_fatal_error(E_WARNING, "taskWaitMulti method can only be used in the worker process");
-        RETURN_FALSE;
-    }
-
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
+        RETURN_FALSE;
+    }
+    if (!serv->is_worker()) {
+        php_swoole_fatal_error(E_WARNING, "taskWaitMulti method can only be used in the worker process");
         RETURN_FALSE;
     }
 
@@ -3144,7 +3144,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(EventData));
-    swPipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
+    Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
     Worker *worker = serv->get_worker(SwooleG.process_id);
 
     char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
@@ -3238,16 +3238,18 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 }
 
 static PHP_METHOD(swoole_server, taskCo) {
-    if (!swIsWorker()) {
-        php_swoole_fatal_error(E_WARNING, "taskCo method can only be used in the worker process");
-        RETURN_FALSE;
-    }
+
 
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
+    if (!serv->is_worker()) {
+        php_swoole_fatal_error(E_WARNING, "taskCo method can only be used in the worker process");
+        RETURN_FALSE;
+    }
+
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
 
     zval *ztasks;
@@ -3362,7 +3364,7 @@ static PHP_METHOD(swoole_server, task) {
         RETURN_FALSE;
     }
 
-    if (!swIsWorker()) {
+    if (!serv->is_worker()) {
         swTask_type(&buf) |= SW_TASK_NOREPLY;
     } else if (fci.size) {
         swTask_type(&buf) |= SW_TASK_CALLBACK;
@@ -3678,7 +3680,7 @@ static PHP_METHOD(swoole_server, sendwait) {
         RETURN_FALSE;
     }
 
-    if (serv->is_process_mode() || swIsTaskWorker()) {
+    if (serv->is_process_mode() || serv->is_task_worker()) {
         php_swoole_fatal_error(E_WARNING, "can't sendwait");
         RETURN_FALSE;
     }
@@ -3755,7 +3757,8 @@ static PHP_METHOD(swoole_server, getReceivedTime) {
 #endif
 
 static PHP_METHOD(swoole_server, getWorkerId) {
-    if (!swIsWorker()) {
+    Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (!serv->is_worker()) {
         RETURN_FALSE;
     } else {
         RETURN_LONG(SwooleG.process_id);
@@ -3782,8 +3785,9 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
     }
 }
 
-static PHP_METHOD(swoole_server, getWorkerPid) {
-    if (!swIsWorker()) {
+static PHP_METHOD(swoole_server, getWorkerPid) {\
+    Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
+    if (!serv->is_worker()) {
         RETURN_FALSE;
     } else {
         RETURN_LONG(SwooleG.pid);

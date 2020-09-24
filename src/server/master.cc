@@ -603,7 +603,7 @@ int Server::start() {
             swWarn("malloc[task_result] failed");
             return SW_ERR;
         }
-        task_notify = (swPipe *) sw_calloc(worker_num, sizeof(swPipe));
+        task_notify = (Pipe *) sw_calloc(worker_num, sizeof(Pipe));
         if (!task_notify) {
             swWarn("malloc[task_notify] failed");
             sw_shm_free(task_result);
@@ -941,7 +941,7 @@ bool Server::feedback(int session_id, int event) {
     }
 }
 
-void Server::store_pipe_fd(swPipe *p) {
+void Server::store_pipe_fd(Pipe *p) {
     Socket *master_socket = p->getSocket(p, SW_PIPE_MASTER);
     Socket *worker_socket = p->getSocket(p, SW_PIPE_WORKER);
 
@@ -964,7 +964,7 @@ bool Server::send(int session_id, const void *data, uint32_t length) {
     SendData _send;
     sw_memset_zero(&_send.info, sizeof(_send.info));
 
-    if (sw_unlikely(swIsMaster())) {
+    if (sw_unlikely(is_master())) {
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return false;
@@ -1183,7 +1183,7 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
         return false;
     }
 
-    if (sw_unlikely(swIsMaster())) {
+    if (sw_unlikely(is_master())) {
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
         return false;
@@ -1305,7 +1305,7 @@ void Server::call_hook(HookType type, void *arg) {
  * [Worker]
  */
 bool Server::close(int session_id, bool reset) {
-    if (sw_unlikely(swIsMaster())) {
+    if (sw_unlikely(is_master())) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return false;
     }
@@ -1332,7 +1332,7 @@ bool Server::close(int session_id, bool reset) {
         } else {
             goto _close;
         }
-    } else if (!swIsWorker()) {
+    } else if (!is_worker()) {
         worker = get_worker(conn->fd % worker_num);
     _notify:
         ev.type = SW_SERVER_EVENT_CLOSE;

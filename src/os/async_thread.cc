@@ -358,7 +358,7 @@ static int init() {
         return SW_ERR;
     }
 
-    SwooleTG.aio_pipe = new swPipe();
+    SwooleTG.aio_pipe = new Pipe();
 
     if (swPipeBase_create(SwooleTG.aio_pipe, 0) < 0) {
         swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
