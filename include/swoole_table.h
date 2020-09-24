@@ -156,21 +156,24 @@ class Table {
     static Table *make(uint32_t rows_size, float conflict_proportion);
     size_t get_memory_size();
     bool create();
-    bool is_created() {
-        return memory != nullptr;
-    }
-    void set_hash_func(HashFunc _fn) {
-        hash_func = _fn;
-    }
-    size_t get_size() {
-        return size;
-    }
     bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
     TableRow *set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags);
     TableRow *get(const char *key, uint16_t keylen, TableRow **rowlock);
     bool del(const char *key, uint16_t keylen);
     void forward();
     void destroy();
+
+    bool is_created() {
+        return memory != nullptr;
+    }
+
+    void set_hash_func(HashFunc _fn) {
+        hash_func = _fn;
+    }
+
+    size_t get_size() {
+        return size;
+    }
 
     TableRow *get_by_index(uint32_t index) {
         TableRow *row = rows[index];
