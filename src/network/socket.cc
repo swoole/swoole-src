@@ -41,11 +41,11 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
         return SW_ERR;
     }
 
+    FileDescriptor _(file_fd);
     if (length == 0) {
         struct stat file_stat;
         if (fstat(file_fd, &file_stat) < 0) {
             swSysWarn("fstat() failed");
-            ::close(file_fd);
             return SW_ERR;
         }
         length = file_stat.st_size;
@@ -56,13 +56,11 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
     int n, sendn;
     while (offset < (off_t) length) {
         if (wait_event(timeout_ms, SW_EVENT_WRITE) < 0) {
-            ::close(file_fd);
             return SW_ERR;
         } else {
             sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
             n = ::swoole_sendfile(fd, file_fd, &offset, sendn);
             if (n <= 0) {
-                ::close(file_fd);
                 swSysWarn("sendfile(%d, %s) failed", fd, filename);
                 return SW_ERR;
             } else {
@@ -70,7 +68,6 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
             }
         }
     }
-    ::close(file_fd);
     return SW_OK;
 }
 

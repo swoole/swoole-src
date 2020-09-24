@@ -20,6 +20,8 @@
 #include "test_core.h"
 #include "swoole_table.h"
 
+using namespace swoole;
+
 #include <exception>
 
 struct exception_t : public std::exception {
@@ -42,84 +44,84 @@ struct row_t {
 
 class table_t {
   private:
-    swTableColumn *column_id;
-    swTableColumn *column_name;
-    swTableColumn *column_score;
+    TableColumn *column_id;
+    TableColumn *column_name;
+    TableColumn *column_score;
 
-    swTable *table;
+    Table *table;
 
   public:
     table_t(uint32_t rows_size, float conflict_proportion = 0.2) {
-        table = swTable_new(rows_size, conflict_proportion);
-        if (swTable_create(table), 0) {
+        table = Table::make(rows_size, conflict_proportion);
+        if (!table) {
             throw exception_t("alloc failed", swoole_get_last_error());
         }
 
-        swTableColumn_add(table, "id", SW_TABLE_INT, 0);
-        swTableColumn_add(table, "name", SW_TABLE_STRING, 32);
-        swTableColumn_add(table, "score", SW_TABLE_FLOAT, 0);
+        table->add_column("id", TableColumn::TYPE_INT, 0);
+        table->add_column("name", TableColumn::TYPE_STRING, 32);
+        table->add_column("score", TableColumn::TYPE_FLOAT, 0);
 
-        if (swTable_create(table) < 0) {
+        if (!table->create()) {
             throw exception_t("create failed", swoole_get_last_error());
         }
-        column_id = swTableColumn_get(table, std::string("id"));
-        column_name = swTableColumn_get(table, std::string("name"));
-        column_score = swTableColumn_get(table, std::string("score"));
+        column_id = table->get_column("id");
+        column_name = table->get_column("name");
+        column_score = table->get_column("score");
     }
 
     bool set(const std::string &key, const row_t &value) {
-        swTableRow *_rowlock = nullptr;
-        swTableRow *row = swTableRow_set(table, key.c_str(), key.length(), &_rowlock, nullptr);
+        TableRow *_rowlock = nullptr;
+        TableRow *row = table->set(key.c_str(), key.length(), &_rowlock, nullptr);
         if (!row) {
-            swTableRow_unlock(_rowlock);
+            _rowlock->unlock();
             return false;
         }
 
-        swTableRow_set_value(row, column_id, (void *) &value.id, sizeof(value.id));
-        swTableRow_set_value(row, column_name, (void *) value.name.c_str(), value.name.length());
-        swTableRow_set_value(row, column_score, (void *) &value.score, sizeof(value.score));
+        row->set_value(column_id, (void *) &value.id, sizeof(value.id));
+        row->set_value(column_name, (void *) value.name.c_str(), value.name.length());
+        row->set_value(column_score, (void *) &value.score, sizeof(value.score));
 
-        swTableRow_unlock(_rowlock);
+        _rowlock->unlock();
 
         return true;
     }
 
     row_t get(const std::string &key) {
         row_t result;
-        swTableRow *_rowlock = nullptr;
-        swTableRow *row = swTableRow_get(table, key.c_str(), key.length(), &_rowlock);
+        TableRow *_rowlock = nullptr;
+        TableRow *row = table->get(key.c_str(), key.length(), &_rowlock);
         if (row) {
             memcpy(&result.id, row->data + column_id->index, sizeof(result.id));
             memcpy(&result.score, row->data + column_score->index, sizeof(result.score));
 
-            swTable_string_length_t l;
+            TableStringLength l;
             memcpy(&l, row->data + column_name->index, sizeof(l));
             result.name = std::string(row->data + column_name->index + sizeof(l), l);
         }
-        swTableRow_unlock(_rowlock);
+        _rowlock->unlock();
 
         return result;
     }
 
     bool del(const std::string &key) {
-        return swTableRow_del(table, key.c_str(), key.length()) == SW_OK;
+        return table->del(key.c_str(), key.length());
     }
 
     bool exists(const std::string &key) {
-        swTableRow *_rowlock = nullptr;
-        swTableRow *row = swTableRow_get(table, key.c_str(), key.length(), &_rowlock);
-        swTableRow_unlock(_rowlock);
+        TableRow *_rowlock = nullptr;
+        TableRow *row = table->get(key.c_str(), key.length(), &_rowlock);
+        _rowlock->unlock();
 
         return row != nullptr;
     }
 
     size_t count() {
-        return table->row_num;
+        return table->count();
     }
 
     ~table_t() {
         if (table) {
-            swTable_free(table);
+            table->destroy();
         }
     }
 };

@@ -16,6 +16,8 @@
 
 #pragma once
 
+#include <string>
+
 #define SW_SOCKS5_VERSION_CODE 0x05
 
 enum swHttp_proxy_state {
