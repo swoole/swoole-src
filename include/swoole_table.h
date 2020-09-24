@@ -30,11 +30,17 @@
 #include <unordered_map>
 
 //#define SW_TABLE_DEBUG   0
+#define SW_TABLE_FORCE_UNLOCK_TIME 2000  // milliseconds
+#define SW_TABLE_USE_PHP_HASH
 
-typedef uint32_t swTable_string_length_t;
+namespace swoole {
 
-struct swTableRow {
-    sw_atomic_t lock;
+typedef uint32_t Table_string_length_t;
+
+struct TableColumn;
+
+struct TableRow {
+    sw_atomic_t lock_;
     pid_t lock_pid;
     /**
      * 1:used, 0:empty
@@ -44,50 +50,63 @@ struct swTableRow {
     /**
      * next slot
      */
-    swTableRow *next;
+    TableRow *next;
     /**
      * Hash Key
      */
     char key[SW_TABLE_KEY_SIZE];
     char data[0];
+
+    void lock();
+
+    void unlock() {
+        sw_spinlock_release(&lock_);
+    }
+
+    void clear() {
+        sw_memset_zero((char *) &lock_pid, sizeof(TableRow) - offsetof(TableRow, lock_pid));
+    }
+
+    void set_value(TableColumn *col, void *value, size_t vlen);
 };
 
-struct swTable_iterator {
+struct TableIterator {
     uint32_t absolute_index;
     uint32_t collision_index;
-    swTableRow *row;
+    TableRow *row;
 };
 
-enum swTableColumn_type {
-    SW_TABLE_INT = 1,
-    SW_TABLE_FLOAT,
-    SW_TABLE_STRING,
-};
 
-enum swTable_flag {
+enum Table_flag {
     SW_TABLE_FLAG_NEW_ROW = 1,
     SW_TABLE_FLAG_CONFLICT = 1u << 1,
 };
 
-struct swTableColumn {
-    enum swTableColumn_type type;
+struct TableColumn {
+    enum Type {
+        TABLE_INT = 1,
+        TABLE_FLOAT,
+        TABLE_STRING,
+    };
+
+    enum Type type;
     uint32_t size;
     std::string name;
     size_t index;
 
-    swTableColumn(const std::string &_name, enum swTableColumn_type _type, size_t _size) {
+    TableColumn(const std::string &_name, enum Type _type, size_t _size) {
         index = 0;
         name = _name;
         type = _type;
         switch (_type) {
-        case SW_TABLE_INT:
+        case TABLE_INT:
             size = sizeof(long);
             break;
-        case SW_TABLE_FLOAT:
+        case TABLE_FLOAT:
             size = sizeof(double);
             break;
-        case SW_TABLE_STRING:
-            size = _size + sizeof(swTable_string_length_t);
+        case TABLE_STRING:
+            size = _size + sizeof(Table_string_length_t);
             break;
         default:
             abort();
@@ -95,12 +114,15 @@ struct swTableColumn {
         }
     }
 
-    void clear(swTableRow *row);
+    void clear(TableRow *row);
 };
 
-struct swTable {
-    std::unordered_map<std::string, swTableColumn *> *column_map;
-    std::vector<swTableColumn *> *column_list;
+class Table {
+ private:
+    Table() = delete;
+    ~Table() = delete;
+
+    std::unordered_map<std::string, TableColumn *> *column_map;
     swLock lock;
     size_t size;
     size_t mask;
@@ -113,10 +135,10 @@ struct swTable {
      */
     sw_atomic_t row_num;
 
-    swTableRow **rows;
+    TableRow **rows;
     swMemoryPool *pool;
 
-    swTable_iterator *iterator;
+    TableIterator *iterator;
     uint64_t (*hash_func)(const char *key, size_t len);
     pid_t create_pid;
 
@@ -127,111 +149,80 @@ struct swTable {
     int insert_count;
     int conflict_max_level;
 #endif
+
+ public:
+    typedef uint64_t (*HashFunc)(const char *key, size_t len);
+
+    std::vector<TableColumn *> *column_list;
+
+    static Table *make(uint32_t rows_size, float conflict_proportion);
+    size_t get_memory_size();
+    bool create();
+    bool is_created() {
+        return memory != nullptr;
+    }
+    void set_hash_func(HashFunc _fn) {
+        hash_func = _fn;
+    }
+    size_t get_size() {
+        return size;
+    }
+    bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
+    TableRow *set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags);
+    TableRow *get(const char *key, uint16_t keylen, TableRow **rowlock);
+    bool del(const char *key, uint16_t keylen);
+    void forward();
+    void destroy();
+
+    TableRow *get_by_index(uint32_t index) {
+        TableRow *row = rows[index];
+        return row->active ? row : nullptr;
+    }
+
+    TableColumn *get_column(const std::string &key) {
+        auto i = column_map->find(key);
+        if (i == column_map->end()) {
+            return nullptr;
+        } else {
+            return i->second;
+        }
+    }
+
+    size_t count() {
+        return row_num;
+    }
+
+    TableRow *current() {
+        return iterator->row;
+    }
+
+    void rewind() {
+        sw_memset_zero(iterator, sizeof(*iterator));
+    }
+
+    TableRow *hash(const char *key, int keylen) {
+        uint64_t hashv = hash_func(key, keylen);
+        uint64_t index = hashv & mask;
+        assert(index < size);
+        return rows[index];
+    }
+
+    void check_key_length(uint16_t *keylen) {
+        if (*keylen >= SW_TABLE_KEY_SIZE) {
+            *keylen = SW_TABLE_KEY_SIZE - 1;
+        }
+    }
+
+    void init_row(TableRow *new_row, const char *key, int keylen) {
+        sw_memset_zero(new_row, sizeof(TableRow));
+        memcpy(new_row->key, key, keylen);
+        new_row->key[keylen] = '\0';
+        new_row->key_len = keylen;
+        new_row->active = 1;
+        sw_atomic_fetch_add(&(row_num), 1);
+#ifdef SW_TABLE_DEBUG
+        insert_count++;
+#endif
+    }
 };
-
-swTable *swTable_new(uint32_t rows_size, float conflict_proportion);
-size_t swTable_get_memory_size(swTable *table);
-int swTable_create(swTable *table);
-void swTable_free(swTable *table);
-bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColumn_type type, size_t size);
-swTableRow *swTableRow_set(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock, int *out_flags);
-swTableRow *swTableRow_get(swTable *table, const char *key, uint16_t keylen, swTableRow **rowlock);
-
-void swTable_iterator_rewind(swTable *table);
-swTableRow *swTable_iterator_current(swTable *table);
-void swTable_iterator_forward(swTable *table);
-int swTableRow_del(swTable *table, const char *key, uint16_t keylen);
-
-static inline swTableColumn *swTableColumn_get(swTable *table, const std::string &key) {
-    auto i = table->column_map->find(key);
-    if (i == table->column_map->end()) {
-        return nullptr;
-    } else {
-        return i->second;
-    }
-}
-
-#define SW_TABLE_FORCE_UNLOCK_TIME 2000  // milliseconds
-
-static inline void swTableRow_lock(swTableRow *row) {
-    sw_atomic_t *lock = &row->lock;
-    uint32_t i, n;
-    long t = 0;
-
-    while (1) {
-        if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-        _success:
-            row->lock_pid = SwooleG.pid;
-            return;
-        }
-        if (SW_CPU_NUM > 1) {
-            for (n = 1; n < SW_SPINLOCK_LOOP_N; n <<= 1) {
-                for (i = 0; i < n; i++) {
-                    sw_atomic_cpu_pause();
-                }
-                if (*lock == 0 && sw_atomic_cmp_set(lock, 0, 1)) {
-                    goto _success;
-                }
-            }
-        }
-        /**
-         * The process occupied by the resource no longer exists,
-         * indicating that OOM occurred during the locking process,
-         * forced to unlock
-         */
-        if (kill(row->lock_pid, 0) < 0 && errno == ESRCH) {
-            *lock = 1;
-            swWarn("lock process[%d] not exists, force unlock", row->lock_pid);
-            goto _success;
-        }
-        /**
-         * Mark time
-         */
-        if (t == 0) {
-            t = swoole::time<std::chrono::milliseconds>(true);
-        }
-        /**
-         * The deadlock time exceeds 2 seconds (SW_TABLE_FORCE_UNLOCK_TIME),
-         * indicating that the lock process has OOM,
-         * and the PID has been reused, forcing the unlock
-         */
-        else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
-            *lock = 1;
-            swWarn("timeout, force unlock");
-            goto _success;
-        }
-        sw_yield();
-    }
-}
-
-static inline void swTableRow_unlock(swTableRow *row) {
-    sw_spinlock_release(&row->lock);
-}
-
-static inline void swTableRow_clear(swTableRow *row) {
-    sw_memset_zero((char *)row + offsetof(swTableRow, lock_pid), sizeof(swTableRow) - offsetof(swTableRow, lock_pid));
-}
-
-static inline void swTableRow_set_value(swTableRow *row, swTableColumn *col, void *value, size_t vlen) {
-    switch (col->type) {
-    case SW_TABLE_INT:
-        memcpy(row->data + col->index, value, sizeof(long));
-        break;
-    case SW_TABLE_FLOAT:
-        memcpy(row->data + col->index, value, sizeof(double));
-        break;
-    default:
-        if (vlen > (col->size - sizeof(swTable_string_length_t))) {
-            swWarn("[key=%s,field=%s]string value is too long", row->key, col->name.c_str());
-            vlen = col->size - sizeof(swTable_string_length_t);
-        }
-        if (value == nullptr) {
-            vlen = 0;
-        }
-        memcpy(row->data + col->index, &vlen, sizeof(swTable_string_length_t));
-        if (vlen > 0) {
-            memcpy(row->data + col->index + sizeof(swTable_string_length_t), value, vlen);
-        }
-        break;
-    }
 }

@@ -1230,11 +1230,11 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         return false;
     }
 
+    FileDescriptor _(file_fd);
     if (length == 0) {
         struct stat file_stat;
         if (::fstat(file_fd, &file_stat) < 0) {
             set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
-            ::close(file_fd);
             return false;
         }
         length = file_stat.st_size;
@@ -1259,19 +1259,15 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
             continue;
         } else if (n == 0) {
             set_err(SW_ERROR_SYSTEM_CALL_FAIL, "sendfile return zero");
-            ::close(file_fd);
             return false;
         } else if (errno != EAGAIN) {
             set_err(errno, std_string::format("sendfile(%d, %s) failed, %s", sock_fd, filename, strerror(errno)));
-            ::close(file_fd);
             return false;
         }
         if (!timer.start() || !wait_event(SW_EVENT_WRITE)) {
-            ::close(file_fd);
             return false;
         }
     }
-    ::close(file_fd);
     return true;
 }
 
