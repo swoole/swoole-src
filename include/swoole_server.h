@@ -1000,6 +1000,26 @@ class Server {
         return gs->start;
     }
 
+    bool is_master() {
+        return SwooleG.process_type == SW_PROCESS_MASTER;
+    }
+
+    bool is_worker() {
+        return SwooleG.process_type == SW_PROCESS_WORKER;
+    }
+
+    bool is_task_worker() {
+        return SwooleG.process_type == SW_PROCESS_TASKWORKER;
+    }
+
+    bool is_manager() {
+        return SwooleG.process_type == SW_PROCESS_MANAGER;
+    }
+
+    bool is_user_worker() {
+        return SwooleG.process_type == SW_PROCESS_USERWORKER;
+    }
+
     inline bool is_shutdown() {
         return gs->shutdown;
     }

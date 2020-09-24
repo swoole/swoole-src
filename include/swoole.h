@@ -490,10 +490,6 @@ enum swPipe_type {
     SW_PIPE_NONBLOCK = 2,
 };
 
-#define swIsMaster() (SwooleG.process_type == SW_PROCESS_MASTER)
-#define swIsWorker() (SwooleG.process_type == SW_PROCESS_WORKER)
-#define swIsTaskWorker() (SwooleG.process_type == SW_PROCESS_TASKWORKER)
-#define swIsManager() (SwooleG.process_type == SW_PROCESS_MANAGER)
 #define swIsUserWorker() (SwooleG.process_type == SW_PROCESS_USERWORKER)
 
 //----------------------Tool Function---------------------

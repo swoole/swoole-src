@@ -363,7 +363,7 @@ void Server::worker_start_callback() {
         if (SwooleG.process_id == i) {
             continue;
         }
-        if (swIsWorker() && worker->pipe_master) {
+        if (is_worker() && worker->pipe_master) {
             worker->pipe_master->set_nonblock();
         }
     }
@@ -440,7 +440,7 @@ void Server::stop_async_worker(Worker *worker) {
     }
 
     if (serv->is_base_mode()) {
-        if (swIsWorker()) {
+        if (serv->is_worker()) {
             for (auto ls : serv->ports) {
                 reactor->del(reactor, ls->socket);
             }

@@ -227,12 +227,12 @@ int php_swoole_reactor_init() {
     }
 
     if (sw_server()) {
-        if (swIsTaskWorker() && !sw_server()->task_enable_coroutine) {
+        if (sw_server()->is_task_worker() && !sw_server()->task_enable_coroutine) {
             php_swoole_fatal_error(
                 E_ERROR, "Unable to use async-io in task processes, please set `task_enable_coroutine` to true");
             return SW_ERR;
         }
-        if (swIsManager()) {
+        if (sw_server()->is_manager()) {
             php_swoole_fatal_error(E_ERROR, "Unable to use async-io in manager process");
             return SW_ERR;
         }

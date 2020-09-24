@@ -325,7 +325,7 @@ static PHP_METHOD(swoole_process, __construct) {
         RETURN_FALSE;
     }
 
-    if (sw_server() && sw_server()->is_started() && swIsMaster()) {
+    if (sw_server() && sw_server()->is_started() && sw_server()->is_master()) {
         php_swoole_fatal_error(E_ERROR, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
