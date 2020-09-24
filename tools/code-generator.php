@@ -18,7 +18,7 @@ if (!preg_match_all('/SW_ERROR_[0-9A-Z_]+/', $error_h_content, $matches_error,
         PREG_PATTERN_ORDER) || empty($matches_error[0])) {
     swoole_error('Match ERROR enums error!');
 }
-
+$matches_error[0] = array_unique($matches_error[0]);
 // trim start and end
 array_shift($matches_error[0]);
 array_pop($matches_error[0]);
@@ -44,6 +44,7 @@ if (!preg_match_all('/SW_TRACE_[0-9A-Z_]+/', $log_h_content, $matches_trace,
         PREG_PATTERN_ORDER) || empty($matches_trace[0])) {
     swoole_error('Match TRACE enums error!');
 }
+$matches_trace[0] = array_unique($matches_trace[0]);
 $define_output = '';
 foreach ($matches_trace[0] as $match) {
     // convert error code to define
