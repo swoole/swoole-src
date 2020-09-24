@@ -35,7 +35,8 @@
 
 namespace swoole {
 
-typedef uint32_t Table_string_length_t;
+typedef uint32_t TableStringLength;
+typedef uint64_t (*HashFunc)(const char *key, size_t len);
 
 struct TableColumn;
 
@@ -76,17 +77,16 @@ struct TableIterator {
     TableRow *row;
 };
 
-
-enum Table_flag {
+enum TableFlag {
     SW_TABLE_FLAG_NEW_ROW = 1,
     SW_TABLE_FLAG_CONFLICT = 1u << 1,
 };
 
 struct TableColumn {
     enum Type {
-        TABLE_INT = 1,
-        TABLE_FLOAT,
-        TABLE_STRING,
+        TYPE_INT = 1,
+        TYPE_FLOAT,
+        TYPE_STRING,
     };
 
     enum Type type;
@@ -99,14 +99,14 @@ struct TableColumn {
         name = _name;
         type = _type;
         switch (_type) {
-        case TABLE_INT:
+        case TYPE_INT:
             size = sizeof(long);
             break;
-        case TABLE_FLOAT:
+        case TYPE_FLOAT:
             size = sizeof(double);
             break;
-        case TABLE_STRING:
-            size = _size + sizeof(Table_string_length_t);
+        case TYPE_STRING:
+            size = _size + sizeof(TableStringLength);
             break;
         default:
             abort();
@@ -139,7 +139,7 @@ class Table {
     swMemoryPool *pool;
 
     TableIterator *iterator;
-    uint64_t (*hash_func)(const char *key, size_t len);
+    HashFunc hash_func;
     pid_t create_pid;
 
     void *memory;
@@ -151,8 +151,6 @@ class Table {
 #endif
 
  public:
-    typedef uint64_t (*HashFunc)(const char *key, size_t len);
-
     std::vector<TableColumn *> *column_list;
 
     static Table *make(uint32_t rows_size, float conflict_proportion);

@@ -23,23 +23,23 @@ using namespace swoole;
 static inline void php_swoole_table_row2array(Table *table, TableRow *row, zval *return_value) {
     array_init(return_value);
 
-    Table_string_length_t vlen = 0;
+    TableStringLength vlen = 0;
     double dval = 0;
     long lval = 0;
 
     for (auto i = table->column_list->begin(); i != table->column_list->end(); i++) {
         TableColumn *col = *i;
-        if (col->type == TableColumn::TABLE_STRING) {
-            memcpy(&vlen, row->data + col->index, sizeof(Table_string_length_t));
+        if (col->type == TableColumn::TYPE_STRING) {
+            memcpy(&vlen, row->data + col->index, sizeof(TableStringLength));
             add_assoc_stringl_ex(return_value,
                                  col->name.c_str(),
                                  col->name.length(),
-                                 row->data + col->index + sizeof(Table_string_length_t),
+                                 row->data + col->index + sizeof(TableStringLength),
                                  vlen);
-        } else if (col->type == TableColumn::TABLE_FLOAT) {
+        } else if (col->type == TableColumn::TYPE_FLOAT) {
             memcpy(&dval, row->data + col->index, sizeof(dval));
             add_assoc_double_ex(return_value, col->name.c_str(), col->name.length(), dval);
-        } else if (col->type == TableColumn::TABLE_INT) {
+        } else if (col->type == TableColumn::TYPE_INT) {
             memcpy(&lval, row->data + col->index, sizeof(lval));
             add_assoc_long_ex(return_value, col->name.c_str(), col->name.length(), lval);
         } else {
@@ -50,7 +50,7 @@ static inline void php_swoole_table_row2array(Table *table, TableRow *row, zval 
 
 static inline void php_swoole_table_get_field_value(
     Table *table, TableRow *row, zval *return_value, char *field, uint16_t field_len) {
-    Table_string_length_t vlen = 0;
+    TableStringLength vlen = 0;
     double dval = 0;
     long lval = 0;
 
@@ -59,13 +59,13 @@ static inline void php_swoole_table_get_field_value(
         ZVAL_FALSE(return_value);
         return;
     }
-    if (col->type == TableColumn::TABLE_STRING) {
-        memcpy(&vlen, row->data + col->index, sizeof(Table_string_length_t));
-        ZVAL_STRINGL(return_value, row->data + col->index + sizeof(Table_string_length_t), vlen);
-    } else if (col->type == TableColumn::TABLE_FLOAT) {
+    if (col->type == TableColumn::TYPE_STRING) {
+        memcpy(&vlen, row->data + col->index, sizeof(TableStringLength));
+        ZVAL_STRINGL(return_value, row->data + col->index + sizeof(TableStringLength), vlen);
+    } else if (col->type == TableColumn::TYPE_FLOAT) {
         memcpy(&dval, row->data + col->index, sizeof(dval));
         ZVAL_DOUBLE(return_value, dval);
-    } else if (col->type == TableColumn::TABLE_INT) {
+    } else if (col->type == TableColumn::TYPE_INT) {
         memcpy(&lval, row->data + col->index, sizeof(lval));
         ZVAL_LONG(return_value, lval);
     } else {
@@ -307,9 +307,9 @@ void php_swoole_table_minit(int module_number) {
     zend_class_implements(swoole_table_ce, 1, zend_ce_countable);
 #endif
 
-    zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_INT"), TableColumn::TABLE_INT);
-    zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_STRING"), TableColumn::TABLE_STRING);
-    zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_FLOAT"), TableColumn::TABLE_FLOAT);
+    zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_INT"), TableColumn::TYPE_INT);
+    zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_STRING"), TableColumn::TYPE_STRING);
+    zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_FLOAT"), TableColumn::TYPE_FLOAT);
 
     SW_INIT_CLASS_ENTRY(swoole_table_row, "Swoole\\Table\\Row", "swoole_table_row", nullptr, swoole_table_row_methods);
     SW_SET_CLASS_SERIALIZABLE(swoole_table_row, zend_class_serialize_deny, zend_class_unserialize_deny);
@@ -359,7 +359,7 @@ PHP_METHOD(swoole_table, column) {
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "sl|l", &name, &len, &type, &size) == FAILURE) {
         RETURN_FALSE;
     }
-    if (type == TableColumn::TABLE_STRING) {
+    if (type == TableColumn::TYPE_STRING) {
         if (size < 1) {
             php_swoole_fatal_error(E_WARNING, "the length of string type values has to be more than zero");
             RETURN_FALSE;
@@ -431,11 +431,11 @@ static PHP_METHOD(swoole_table, set) {
             if (zv == nullptr || ZVAL_IS_NULL(zv)) {
                  col->clear(row);
             } else {
-                if (col->type == TableColumn::TABLE_STRING) {
+                if (col->type == TableColumn::TYPE_STRING) {
                     zend_string *str = zval_get_string(zv);
                     row->set_value(col, ZSTR_VAL(str), ZSTR_LEN(str));
                     zend_string_release(str);
-                } else if (col->type == TableColumn::TABLE_FLOAT) {
+                } else if (col->type == TableColumn::TYPE_FLOAT) {
                     double _value = zval_get_double(zv);
                     row->set_value(col, &_value, 0);
                 } else {
@@ -453,11 +453,11 @@ static PHP_METHOD(swoole_table, set) {
             TableColumn *col = table->get_column(std::string(k, klen));
             if (k == nullptr || col == nullptr) {
                 continue;
-            } else if (col->type == TableColumn::TABLE_STRING) {
+            } else if (col->type == TableColumn::TYPE_STRING) {
                 zend_string *str = zval_get_string(zv);
                 row->set_value(col, ZSTR_VAL(str), ZSTR_LEN(str));
                 zend_string_release(str);
-            } else if (col->type == TableColumn::TABLE_FLOAT) {
+            } else if (col->type == TableColumn::TYPE_FLOAT) {
                 double _value = zval_get_double(zv);
                 row->set_value(col, &_value, 0);
             } else {
@@ -508,11 +508,11 @@ static PHP_METHOD(swoole_table, incr) {
         column->clear(row);
     }
 
-    if (column->type == TableColumn::TABLE_STRING) {
+    if (column->type == TableColumn::TYPE_STRING) {
         _rowlock->unlock();
         php_swoole_fatal_error(E_WARNING, "can't execute 'incr' on a string type column");
         RETURN_FALSE;
-    } else if (column->type == TableColumn::TABLE_FLOAT) {
+    } else if (column->type == TableColumn::TYPE_FLOAT) {
         double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (incrby) {
@@ -568,11 +568,11 @@ static PHP_METHOD(swoole_table, decr) {
         column->clear(row);
     }
 
-    if (column->type == TableColumn::TABLE_STRING) {
+    if (column->type == TableColumn::TYPE_STRING) {
         _rowlock->unlock();
         php_swoole_fatal_error(E_WARNING, "can't execute 'decr' on a string type column");
         RETURN_FALSE;
-    } else if (column->type == TableColumn::TABLE_FLOAT) {
+    } else if (column->type == TableColumn::TYPE_FLOAT) {
         double set_value = 0;
         memcpy(&set_value, row->data + column->index, sizeof(set_value));
         if (decrby) {
@@ -823,11 +823,11 @@ static PHP_METHOD(swoole_table_row, offsetSet) {
         RETURN_FALSE;
     }
 
-    if (column->type == TableColumn::TABLE_STRING) {
+    if (column->type == TableColumn::TYPE_STRING) {
         zend_string *str = zval_get_string(value);
         row->set_value(column, ZSTR_VAL(str), ZSTR_LEN(str));
         zend_string_release(str);
-    } else if (column->type == TableColumn::TABLE_FLOAT) {
+    } else if (column->type == TableColumn::TYPE_FLOAT) {
         double _value = zval_get_double(value);
         row->set_value(column, &_value, 0);
     } else {

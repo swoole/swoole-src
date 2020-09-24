@@ -62,7 +62,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
 }
 
 bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, size_t _size) {
-    if (_type < TableColumn::TABLE_INT || _type > TableColumn::TABLE_STRING) {
+    if (_type < TableColumn::TYPE_INT || _type > TableColumn::TYPE_STRING) {
         swWarn("unkown column type");
         return false;
     }
@@ -384,9 +384,9 @@ _delete_element:
 }
 
 void TableColumn::clear(TableRow *row) {
-    if (type == TABLE_STRING) {
+    if (type == TYPE_STRING) {
         row->set_value(this, nullptr, 0);
-    } else if (type == TABLE_FLOAT) {
+    } else if (type == TYPE_FLOAT) {
         double _value = 0;
         row->set_value(this, &_value, 0);
     } else {
@@ -397,23 +397,23 @@ void TableColumn::clear(TableRow *row) {
 
 void TableRow::set_value(TableColumn *col, void *value, size_t vlen) {
     switch (col->type) {
-    case TableColumn::TABLE_INT:
+    case TableColumn::TYPE_INT:
         memcpy(data + col->index, value, sizeof(long));
         break;
-    case TableColumn::TABLE_FLOAT:
+    case TableColumn::TYPE_FLOAT:
         memcpy(data + col->index, value, sizeof(double));
         break;
     default:
-        if (vlen > (col->size - sizeof(Table_string_length_t))) {
+        if (vlen > (col->size - sizeof(TableStringLength))) {
             swWarn("[key=%s,field=%s]string value is too long", key, col->name.c_str());
-            vlen = col->size - sizeof(Table_string_length_t);
+            vlen = col->size - sizeof(TableStringLength);
         }
         if (value == nullptr) {
             vlen = 0;
         }
-        memcpy(data + col->index, &vlen, sizeof(Table_string_length_t));
+        memcpy(data + col->index, &vlen, sizeof(TableStringLength));
         if (vlen > 0) {
-            memcpy(data + col->index + sizeof(Table_string_length_t), value, vlen);
+            memcpy(data + col->index + sizeof(TableStringLength), value, vlen);
         }
         break;
     }
