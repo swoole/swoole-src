@@ -505,10 +505,6 @@ void PHPCoroutine::on_resume(void *arg) {
 void PHPCoroutine::on_close(void *arg) {
     PHPContext *task = (PHPContext *) arg;
     PHPContext *origin_task = get_origin_context(task);
-#ifdef SW_LOG_TRACE_OPEN
-    long cid = task->co->get_cid();
-    long origin_cid = task->co->get_origin_cid();
-#endif
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP]) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
@@ -533,8 +529,8 @@ void PHPCoroutine::on_close(void *arg) {
 
     swTraceLog(SW_TRACE_COROUTINE,
                "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
-               cid,
-               origin_cid,
+               task->co->get_cid(),
+               task->co->get_origin_cid(),
                (uintmax_t) Coroutine::count() - 1,
                (uintmax_t) zend_memory_usage(0),
                (uintmax_t) zend_memory_usage(1));
