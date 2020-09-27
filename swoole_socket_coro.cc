@@ -840,6 +840,8 @@ SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type) {
         return nullptr;
     }
 
+    sock->socket->set_zero_copy(true);
+    sock->socket->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
     ZVAL_OBJ(&zobject, object);
     zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("fd"), sock->socket->get_fd());
     return object;

@@ -71,7 +71,7 @@ struct PHPContext {
     bool enable_scheduler;
     int ori_error_reporting;
     int tmp_error_reporting;
-    swoole::Coroutine *co;
+    Coroutine *co;
     std::stack<zend::Function *> *defer_tasks;
     long pcid;
     zend_object *context;
