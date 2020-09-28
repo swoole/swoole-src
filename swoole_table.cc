@@ -103,7 +103,7 @@ static inline Table *php_swoole_table_get_and_check_ptr(zval *zobject) {
 static inline Table *php_swoole_table_get_and_check_ptr2(zval *zobject) {
     Table *table = php_swoole_table_get_and_check_ptr(zobject);
     if (!table->is_created()) {
-        php_swoole_fatal_error(E_ERROR, "the swoole table does not exist");
+        php_swoole_fatal_error(E_ERROR, "table is not created or has been destroyed");
     }
     return table;
 }

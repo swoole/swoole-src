@@ -162,6 +162,7 @@ void Table::destroy() {
     if (memory) {
         sw_shm_free(memory);
     }
+    memory = nullptr;
     SwooleG.memory_pool->free(SwooleG.memory_pool, this);
 }
 
