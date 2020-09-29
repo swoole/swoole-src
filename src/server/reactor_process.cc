@@ -490,14 +490,13 @@ static bool ReactorProcess_send2client(Factory *factory, SendData *data) {
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     Reactor *reactor = (Reactor *) tnode->data;
     Server *serv = (Server *) reactor->ptr;
-    Event notify_ev;
+    Event notify_ev{};
     time_t now = swoole_microtime();
 
     if (now < serv->heartbeat_check_lasttime + 10) {
         return;
     }
 
-    sw_memset_zero(&notify_ev, sizeof(notify_ev));
     notify_ev.type = SW_FD_SESSION;
 
     int checktime = now - serv->heartbeat_idle_time;

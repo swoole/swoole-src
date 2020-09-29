@@ -389,7 +389,7 @@ php_socket *php_swoole_convert_to_socket(int sock) {
     php_socket *socket_object;
 #if PHP_VERSION_ID < 80000
     socket_object = (php_socket *) emalloc(sizeof *socket_object);
-    sw_memset_zero(socket_object, sizeof(php_socket));
+    sw_memset_zero(socket_object, sizeof(*socket_object));
     socket_object->bsd_socket = sock;
     socket_object->blocking = 1;
 

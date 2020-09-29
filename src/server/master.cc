@@ -929,8 +929,7 @@ bool Server::feedback(int session_id, int event) {
         return false;
     }
 
-    SendData _send;
-    sw_memset_zero(&_send, sizeof(_send));
+    SendData _send{};
     _send.info.type = event;
     _send.info.fd = session_id;
     _send.info.reactor_id = conn->reactor_id;

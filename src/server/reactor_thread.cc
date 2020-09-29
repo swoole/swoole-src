@@ -299,8 +299,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
     int fd = event->fd;
-    DataHead notify_ev;
-    sw_memset_zero(&notify_ev, sizeof(notify_ev));
+    DataHead notify_ev{};
     Socket *socket = event->socket;
 
     assert(fd % serv->reactor_num == reactor->id);

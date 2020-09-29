@@ -144,7 +144,6 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     auto cache_iterator = request_cache_map.find(key);
     if (cache_iterator == request_cache_map.end()) {
         cache = (DNSCacheEntity *) emalloc(sizeof(DNSCacheEntity));
-        sw_memset_zero(cache, sizeof(DNSCacheEntity));
         request_cache_map[key] = cache;
     } else {
         cache = cache_iterator->second;

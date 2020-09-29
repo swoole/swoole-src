@@ -544,11 +544,10 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     }
 
     if (cli->wait_dns) {
-        AsyncEvent ev;
-        sw_memset_zero(&ev, sizeof(AsyncEvent));
+        AsyncEvent ev{};
 
-        int len = strlen(cli->server_host);
-        if (strlen(cli->server_host) < SW_IP_MAX_LENGTH) {
+        size_t len = strlen(cli->server_host);
+        if (len < SW_IP_MAX_LENGTH) {
             ev.nbytes = SW_IP_MAX_LENGTH;
         } else {
             ev.nbytes = len + 1;
@@ -565,7 +564,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         ev.flags = cli->_sock_domain;
         ev.object = cli;
         ev.fd = cli->socket->fd;
-        ev.handler = swoole::async::handler_gethostbyname;
+        ev.handler = async::handler_gethostbyname;
         ev.callback = Client_onResolveCompleted;
 
         if (swoole::async::dispatch(&ev) < 0) {

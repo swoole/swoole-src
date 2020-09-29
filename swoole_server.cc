@@ -932,7 +932,7 @@ static void php_swoole_task_wait_co(
     swTask_type(req) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
 
     TaskCo *task_co = (TaskCo *) emalloc(sizeof(TaskCo));
-    sw_memset_zero(task_co, sizeof(TaskCo));
+    sw_memset_zero(task_co, sizeof(*task_co));
     task_co->count = 1;
     Z_LVAL(task_co->context.coro_params) = req->info.fd;
 
@@ -3055,7 +3055,7 @@ static PHP_METHOD(swoole_server, taskwait) {
 
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
-    sw_memset_zero(task_result, sizeof(EventData));
+    sw_memset_zero(task_result, sizeof(*task_result));
     Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
     network::Socket *task_notify_socket = task_notify_pipe->get_socket(false);
 
@@ -3135,7 +3135,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
-    sw_memset_zero(task_result, sizeof(EventData));
+    sw_memset_zero(task_result, sizeof(*task_result));
     Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
     Worker *worker = serv->get_worker(SwooleG.process_id);
 
