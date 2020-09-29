@@ -120,7 +120,7 @@ static int swReactorKqueue_add(Reactor *reactor, Socket *socket, int events) {
         }
     }
 
-    if (Reactor::isset_event_write(events)) {
+    if (Reactor::isset_write_event(events)) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
@@ -162,7 +162,7 @@ static int swReactorKqueue_set(Reactor *reactor, Socket *socket, int events) {
         }
     }
 
-    if (Reactor::isset_event_write(events)) {
+    if (Reactor::isset_write_event(events)) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
