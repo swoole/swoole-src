@@ -43,5 +43,6 @@ int swoole_http2_server_onFrame(swoole::Server *serv, swoole::Connection *conn, 
 int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
 void swoole_http2_server_session_free(swoole::Connection *conn);
 int swoole_http2_server_ping(swoole::http::Context *ctx);
+int swoole_http2_server_goaway(swoole::http::Context *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len);
 
 #endif

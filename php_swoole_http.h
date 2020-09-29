@@ -210,6 +210,7 @@ class Session {
     uint32_t recv_window;
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
+    uint32_t last_stream_id;
 
     http::Context *default_ctx = nullptr;
     void *private_data   = nullptr;

@@ -70,7 +70,7 @@ Http2Session::Session(int _fd) {
     recv_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
     max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
-
+    last_stream_id = 0;
     http2_sessions[_fd] = this;
 }
 
@@ -359,6 +359,23 @@ int swoole_http2_server_ping(http_context *ctx) {
     char frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE];
     swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_PING, SW_HTTP2_FRAME_PING_PAYLOAD_SIZE, SW_HTTP2_FLAG_NONE, 0);
     return ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_FRAME_PING_PAYLOAD_SIZE) ? SW_OK : SW_ERR;
+}
+
+int swoole_http2_server_goaway(http_context *ctx, zend_long error_code, const char *debug_data, size_t debug_data_len) {
+    size_t length = SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE + debug_data_len;
+    char *frame = (char *) ecalloc(1, length);
+    bool ret;
+    Http2Session *client = http2_sessions[ctx->fd];
+    uint32_t last_stream_id = client->last_stream_id;
+    swHttp2_set_frame_header(frame, SW_HTTP2_TYPE_GOAWAY, SW_HTTP2_GOAWAY_SIZE + debug_data_len, error_code, 0);
+    *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE) = htonl(last_stream_id);
+    *(uint32_t *) (frame + SW_HTTP2_FRAME_HEADER_SIZE + 4) = htonl(error_code);
+    if (debug_data_len > 0) {
+        memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
+    }
+    ret = ctx->send(ctx, frame, length);
+    efree(frame);
+    return ret;
 }
 
 bool Http2Stream::send_header(size_t body_length, bool end_stream) {
@@ -742,6 +759,9 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     int type = buf[3];
     int flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
+    
+    client->last_stream_id = stream_id;
+
     ssize_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
 

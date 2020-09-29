@@ -175,6 +175,7 @@ static PHP_METHOD(swoole_http_response, close);
 #ifdef SW_USE_HTTP2
 static PHP_METHOD(swoole_http_response, trailer);
 static PHP_METHOD(swoole_http_response, ping);
+static PHP_METHOD(swoole_http_response, goaway);
 #endif
 static PHP_METHOD(swoole_http_response, status);
 static PHP_METHOD(swoole_http_response, __destruct);
@@ -257,6 +258,7 @@ const zend_function_entry swoole_http_response_methods[] =
 #ifdef SW_USE_HTTP2
     PHP_ME(swoole_http_response, trailer, arginfo_swoole_http_response_trailer, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, ping, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, goaway, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_http_response, write, arginfo_swoole_http_response_write, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, end, arginfo_swoole_http_response_end, ZEND_ACC_PUBLIC)
@@ -1129,6 +1131,27 @@ static PHP_METHOD(swoole_http_response, ping) {
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
+}
+
+
+static PHP_METHOD(swoole_http_response, goaway) {
+    http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
+    if (UNEXPECTED(!ctx)) {
+        RETURN_FALSE;
+    }
+    if (UNEXPECTED(!ctx->http2)) {
+        php_swoole_fatal_error(E_WARNING, "fd[%d] is not a HTTP2 conncetion", ctx->fd);
+        RETURN_FALSE;
+    }
+    zend_long error_code = SW_HTTP2_ERROR_NO_ERROR;
+    char *debug_data = nullptr;
+    size_t debug_data_len = 0;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ls", &error_code, &debug_data, &debug_data_len) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    SW_CHECK_RETURN(swoole_http2_server_goaway(ctx, error_code, debug_data, debug_data_len));
 }
 #endif
 
