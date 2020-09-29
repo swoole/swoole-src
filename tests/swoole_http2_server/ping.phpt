@@ -1,5 +1,5 @@
 --TEST--
-swoole_http2_server: big data
+swoole_http2_server: ping
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
