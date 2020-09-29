@@ -40,18 +40,18 @@ static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t le
 static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
 static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
 
-static TimerCallback Server_get_timeout_callback(Server *serv, Reactor *reactor, Connection *conn) {
-    return [serv, conn, reactor](Timer *, TimerNode *) {
+TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn) {
+    return [this, port, conn, reactor](Timer *, TimerNode *) {
         if (conn->protect) {
             return;
         }
         long ms = time<std::chrono::milliseconds>(true);
-        if (ms - conn->socket->last_received_time < serv->max_idle_time &&
-                ms - conn->socket->last_sent_time < serv->max_idle_time) {
+        if (ms - conn->socket->last_received_time < port->max_idle_time &&
+                ms - conn->socket->last_sent_time < port->max_idle_time) {
             return;
         }
-        if (serv->disable_notify || conn->closed || conn->close_force) {
-            Server::close_connection(reactor, conn->socket);
+        if (disable_notify || conn->closed || conn->close_force) {
+            close_connection(reactor, conn->socket);
             return;
         }
         conn->close_force = 1;
@@ -179,10 +179,11 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 }
 
 int Server::connection_incoming(Reactor *reactor, Connection *conn) {
-    if (max_idle_time > 0) {
-        auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
-        conn->socket->recv_timeout_ = max_idle_time;
-        conn->socket->recv_timer = swoole_timer_add(max_idle_time * 1000, true, timeout_callback);
+    ListenPort *port = get_port_by_server_fd(conn->server_fd);
+    if (port->max_idle_time > 0) {
+        auto timeout_callback = get_timeout_callback(port, reactor, conn);
+        conn->socket->recv_timeout_ = port->max_idle_time;
+        conn->socket->recv_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
     }
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
@@ -1011,6 +1012,7 @@ int Server::send_to_connection(SendData *_send) {
 
     int fd = conn->fd;
     Reactor *reactor = SwooleTG.reactor;
+    ListenPort *port = get_port_by_server_fd(conn->server_fd);
 
     if (!single_thread) {
         assert(fd % reactor_num == reactor->id);
@@ -1146,11 +1148,11 @@ int Server::send_to_connection(SendData *_send) {
         }
     }
 
-    if (max_idle_time > 0 && _socket->send_timer == nullptr) {
-        auto timeout_callback = Server_get_timeout_callback(this, reactor, conn);
-        _socket->send_timeout_ = max_idle_time;
+    if (port->max_idle_time > 0 && _socket->send_timer == nullptr) {
+        auto timeout_callback = get_timeout_callback(port, reactor, conn);
+        _socket->send_timeout_ = port->max_idle_time;
         _socket->last_sent_time = time<std::chrono::milliseconds>(true);
-        _socket->send_timer = swoole_timer_add(max_idle_time * 1000, true, timeout_callback);
+        _socket->send_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
     }
 
     // listen EPOLLOUT event

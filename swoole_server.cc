@@ -2179,9 +2179,6 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
         PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
     }
-    if (php_swoole_array_get_value(vht, "max_idle_time", ztmp)) {
-        serv->max_idle_time = zval_get_double(ztmp);
-    }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp)) {
         serv->send_timeout = zval_get_double(ztmp);
     }

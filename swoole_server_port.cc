@@ -371,6 +371,9 @@ static PHP_METHOD(swoole_server_port, set) {
     if (php_swoole_array_get_value(vht, "open_redis_protocol", ztmp)) {
         port->open_redis_protocol = zval_get_long(ztmp);
     }
+    if (php_swoole_array_get_value(vht, "max_idle_time", ztmp)) {
+        port->max_idle_time = zval_get_double(ztmp);
+    }
     // tcp_keepidle
     if (php_swoole_array_get_value(vht, "tcp_keepidle", ztmp)) {
         zend_long v = zval_get_long(ztmp);

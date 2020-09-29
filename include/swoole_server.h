@@ -272,6 +272,8 @@ struct ListenPort {
 
     int tcp_user_timeout = 0;
 
+    uint16_t max_idle_time = 0;
+
     int socket_buffer_size = network::Socket::default_buffer_size;
     uint32_t buffer_high_watermark = 0;
     uint32_t buffer_low_watermark = 0;
@@ -643,7 +645,6 @@ class Server {
     PipeBuffer **pipe_buffers = nullptr;
     double send_timeout = 0;
 
-    uint16_t max_idle_time = 0;
     uint16_t heartbeat_idle_time = 0;
     uint16_t heartbeat_check_interval = 0;
     uint32_t heartbeat_check_lasttime = 0;
@@ -1156,8 +1157,6 @@ class Server {
 
     void destroy_http_request(Connection *conn);
 
-
-
     inline int schedule_worker(int fd, SendData *data) {
         uint32_t key = 0;
 
@@ -1281,6 +1280,7 @@ class Server {
     int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
     void join_reactor_thread();
+    TimerCallback get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn);
 };
 
 }  // namespace swoole
