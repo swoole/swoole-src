@@ -491,7 +491,7 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     Reactor *reactor = (Reactor *) tnode->data;
     Server *serv = (Server *) reactor->ptr;
     Event notify_ev{};
-    time_t now = swoole_microtime();
+    double now = swoole_microtime();
 
     if (now < serv->heartbeat_check_lasttime + 10) {
         return;

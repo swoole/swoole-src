@@ -338,9 +338,9 @@ int gethostbyname(int type, const char *name, char *addr);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network
-network::Socket *make_socket(int fd, enum swFd_type type);
-network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type type, int flags);
-network::Socket *make_server_socket(enum swSocket_type type,
+network::Socket *make_socket(int fd, enum swFd_type fd_type);
+network::Socket *make_socket(enum swSocket_type socket_type, enum swFd_type fd_type, int flags);
+network::Socket *make_server_socket(enum swSocket_type socket_type,
                                     const char *address,
                                     int port = 0,
                                     int backlog = SW_BACKLOG);

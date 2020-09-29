@@ -36,8 +36,7 @@ class Client {
     int _sock_type = 0;
     int _sock_domain = 0;
     int _protocol = 0;
-    enum swFd_type reactor_fdtype;
-
+    enum swFd_type fd_type;
     bool active = false;
     bool async = false;
     bool keep = false;

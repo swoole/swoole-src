@@ -125,7 +125,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
 
     if (Reactor::isset_read_event(_fdtype)) {
         read_handler[fdtype] = handler;
-    } else if (Reactor::Reactor::isset_write_event(_fdtype)) {
+    } else if (Reactor::isset_write_event(_fdtype)) {
         write_handler[fdtype] = handler;
     } else if (Reactor::isset_error_event(_fdtype)) {
         error_handler[fdtype] = handler;
