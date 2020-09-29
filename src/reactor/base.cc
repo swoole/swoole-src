@@ -41,7 +41,6 @@ using swoole::BufferChunk;
 #endif
 
 static void reactor_begin(Reactor *reactor);
-static int Reactor_write(Reactor *reactor, Socket *socket, const void *buf, int n);
 
 Reactor::Reactor(int max_event) {
     int ret;
@@ -62,10 +61,10 @@ Reactor::Reactor(int max_event) {
 
     running = true;
 
-    write = Reactor_write;
-    close = swReactor_close;
+    write = _write;
+    close = _close;
 
-    default_write_handler = swReactor_onWrite;
+    default_write_handler = _writable_callback;
 
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE]) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, this);
@@ -124,11 +123,11 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
         return false;
     }
 
-    if (swReactor_event_read(_fdtype)) {
+    if (Reactor::isset_read_event(_fdtype)) {
         read_handler[fdtype] = handler;
-    } else if (swReactor_event_write(_fdtype)) {
+    } else if (Reactor::Reactor::isset_write_event(_fdtype)) {
         write_handler[fdtype] = handler;
-    } else if (swReactor_event_error(_fdtype)) {
+    } else if (Reactor::isset_error_event(_fdtype)) {
         error_handler[fdtype] = handler;
     } else {
         swWarn("unknow fdtype");
@@ -158,7 +157,7 @@ static void reactor_begin(Reactor *reactor) {
     }
 }
 
-int swReactor_close(Reactor *reactor, Socket *socket) {
+int Reactor::_close(Reactor *reactor, Socket *socket) {
     if (socket->out_buffer) {
         delete socket->out_buffer;
         socket->out_buffer = nullptr;
@@ -175,8 +174,8 @@ int swReactor_close(Reactor *reactor, Socket *socket) {
     return SW_OK;
 }
 
-int Reactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
-    int ret;
+int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n) {
+    ssize_t retval;
     Buffer *buffer = socket->out_buffer;
     const char *ptr = (const char *) buf;
     int fd = socket->fd;
@@ -199,22 +198,22 @@ int Reactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
     if (Buffer::empty(buffer)) {
 #ifdef SW_USE_OPENSSL
         if (socket->ssl_send) {
-            goto _do_buffer;
+            goto _alloc_buffer;
         }
 #endif
     _do_send:
-        ret = socket->send(ptr, n, 0);
+        retval = socket->send(ptr, n, 0);
 
-        if (ret > 0) {
-            if (n == ret) {
-                return ret;
+        if (retval > 0) {
+            if ((ssize_t) n == retval) {
+                return retval;
             } else {
-                ptr += ret;
-                n -= ret;
-                goto _do_buffer;
+                ptr += retval;
+                n -= retval;
+                goto _alloc_buffer;
             }
         } else if (socket->catch_error(errno) == SW_WAIT) {
-        _do_buffer:
+            _alloc_buffer:
             if (!socket->out_buffer) {
                 buffer = new Buffer(socket->chunk_size);
                 if (!buffer) {
@@ -250,7 +249,7 @@ int Reactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
     return SW_OK;
 }
 
-int swReactor_onWrite(Reactor *reactor, Event *ev) {
+int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
     int ret;
 
     Socket *socket = ev->socket;
@@ -291,7 +290,7 @@ int swReactor_onWrite(Reactor *reactor, Event *ev) {
 }
 
 void Reactor::drain_write_buffer(swSocket *socket) {
-    swEvent event = {};
+    Event event = {};
     event.socket = socket;
     event.fd = socket->fd;
 
@@ -299,14 +298,14 @@ void Reactor::drain_write_buffer(swSocket *socket) {
         if (socket->wait_event(network::Socket::default_write_timeout, SW_EVENT_WRITE) == SW_ERR) {
             break;
         }
-        swReactor_onWrite(this, &event);
+        _writable_callback(this, &event);
         if (socket->close_wait || socket->removed) {
             break;
         }
     }
 }
 
-void Reactor::add_destroy_callback(swCallback cb, void *data) {
+void Reactor::add_destroy_callback(Callback cb, void *data) {
     destroy_callbacks.append(cb, data);
 }
 
@@ -318,7 +317,7 @@ void Reactor::set_exit_condition(enum ExitCondition id, const std::function<bool
     exit_conditions[id] = fn;
 }
 
-void Reactor::defer(swCallback cb, void *data) {
+void Reactor::defer(Callback cb, void *data) {
     if (defer_tasks == nullptr) {
         defer_tasks = new CallbackManager;
     }

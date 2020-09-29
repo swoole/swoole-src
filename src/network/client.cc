@@ -1116,7 +1116,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
             }
         }
 #endif
-        if (swReactor_onWrite(reactor, event) < 0) {
+        if (Reactor::_writable_callback(reactor, event) < 0) {
             return SW_ERR;
         }
         if (cli->onBufferEmpty && cli->high_watermark && _socket->out_buffer->length() <= cli->buffer_low_watermark) {

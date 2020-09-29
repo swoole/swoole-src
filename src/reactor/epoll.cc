@@ -58,16 +58,16 @@ static void swReactorEpoll_free(Reactor *reactor);
 
 static sw_inline int swReactorEpoll_event_set(int fdtype) {
     uint32_t flag = 0;
-    if (swReactor_event_read(fdtype)) {
+    if (Reactor::isset_read_event(fdtype)) {
         flag |= EPOLLIN;
     }
-    if (swReactor_event_write(fdtype)) {
+    if (Reactor::isset_write_event(fdtype)) {
         flag |= EPOLLOUT;
     }
     if (fdtype & SW_EVENT_ONCE) {
         flag |= EPOLLONESHOT;
     }
-    if (swReactor_event_error(fdtype)) {
+    if (Reactor::isset_error_event(fdtype)) {
         // flag |= (EPOLLRDHUP);
         flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
     }
@@ -204,7 +204,7 @@ static int swReactorEpoll_wait(Reactor *reactor, struct timeval *timeo) {
         }
         n = epoll_wait(epoll_fd, events, max_event_num, reactor->get_timeout_msec());
         if (n < 0) {
-            if (swReactor_error(reactor) < 0) {
+            if (!reactor->catch_error()) {
                 swSysWarn("[Reactor#%d] epoll_wait failed", reactor_id);
                 return SW_ERR;
             } else {

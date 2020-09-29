@@ -150,13 +150,13 @@ int swReactorSelect_wait(Reactor *reactor, struct timeval *timeo) {
         for (auto i = object->fds.begin(); i != object->fds.end(); i++) {
             int fd = i->first;
             int events = i->second->events;
-            if (swReactor_event_read(events)) {
+            if (Reactor::isset_read_event(events)) {
                 SW_FD_SET(fd, &(object->rfds));
             }
-            if (swReactor_event_write(events)) {
+            if (Reactor::isset_write_event(events)) {
                 SW_FD_SET(fd, &(object->wfds));
             }
-            if (swReactor_event_error(events)) {
+            if (Reactor::isset_error_event(events)) {
                 SW_FD_SET(fd, &(object->efds));
             }
         }
@@ -174,7 +174,7 @@ int swReactorSelect_wait(Reactor *reactor, struct timeval *timeo) {
 
         ret = select(object->maxfd + 1, &(object->rfds), &(object->wfds), &(object->efds), &timeout);
         if (ret < 0) {
-            if (swReactor_error(reactor) < 0) {
+            if (!reactor->catch_error()) {
                 swSysWarn("select error");
                 break;
             } else {
