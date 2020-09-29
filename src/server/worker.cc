@@ -133,7 +133,7 @@ static int Worker_onStreamAccept(Reactor *reactor, Event *event) {
         }
     }
 
-    sock->fdtype = SW_FD_STREAM;
+    sock->fd_type = SW_FD_STREAM;
     sock->socket_type = SW_SOCK_UNIX_STREAM;
 
     return reactor->add(reactor, sock, SW_EVENT_READ);
@@ -219,13 +219,7 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, EventData *ta
     RecvData recv_data;
     recv_data.info = task->info;
     recv_data.info.len = serv->get_packet(serv, task, const_cast<char **>(&recv_data.data));
-#ifdef SW_BUFFER_RECV_TIME
-    serv->last_receive_usec = task->info.time;
-#endif
     callback(serv, &recv_data);
-#ifdef SW_BUFFER_RECV_TIME
-    serv->last_receive_usec = 0;
-#endif
     worker->request_count++;
     sw_atomic_fetch_add(&serv->gs->request_count, 1);
 }
@@ -242,6 +236,7 @@ int Server::accept_task(EventData *task) {
             sw_atomic_fetch_sub(&conn->queued_bytes, task->info.len);
             swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->queued_bytes);
         }
+        conn->last_dispatch_time = task->info.time;
         if (!Worker_discard_data(this, conn, task)) {
             Worker_do_task(this, worker, task, onReceive);
         }

@@ -41,6 +41,7 @@ using swoole::BufferChunk;
 #endif
 
 static void reactor_begin(Reactor *reactor);
+static int Reactor_write(Reactor *reactor, Socket *socket, const void *buf, int n);
 
 Reactor::Reactor(int max_event) {
     int ret;
@@ -61,7 +62,7 @@ Reactor::Reactor(int max_event) {
 
     running = true;
 
-    write = swReactor_write;
+    write = Reactor_write;
     close = swReactor_close;
 
     default_write_handler = swReactor_onWrite;
@@ -116,7 +117,7 @@ Reactor::Reactor(int max_event) {
 }
 
 bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
-    int fdtype = swReactor_fdtype(_fdtype);
+    int fdtype = get_fd_type(_fdtype);
 
     if (fdtype >= SW_MAX_FDTYPE) {
         swWarn("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
@@ -174,7 +175,7 @@ int swReactor_close(Reactor *reactor, Socket *socket) {
     return SW_OK;
 }
 
-int swReactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
+int Reactor_write(Reactor *reactor, Socket *socket, const void *buf, int n) {
     int ret;
     Buffer *buffer = socket->out_buffer;
     const char *ptr = (const char *) buf;

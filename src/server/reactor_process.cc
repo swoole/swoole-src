@@ -491,7 +491,7 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     Reactor *reactor = (Reactor *) tnode->data;
     Server *serv = (Server *) reactor->ptr;
     Event notify_ev;
-    time_t now = time(nullptr);
+    time_t now = swoole_microtime();
 
     if (now < serv->heartbeat_check_lasttime + 10) {
         return;
@@ -503,7 +503,7 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     int checktime = now - serv->heartbeat_idle_time;
 
     serv->foreach_connection([serv, checktime, reactor, &notify_ev](Connection *conn) {
-        if (conn->protect || conn->last_time > checktime) {
+        if (conn->protect || conn->last_recv_time > checktime) {
             return;
         }
 #ifdef SW_USE_OPENSSL

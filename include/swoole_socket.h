@@ -99,7 +99,7 @@ struct Socket {
     static uint32_t default_buffer_size;
 
     int fd;
-    enum swFd_type fdtype;
+    enum swFd_type fd_type;
     enum swSocket_type socket_type;
     int events;
 
@@ -225,12 +225,32 @@ struct Socket {
     int wait_event(int timeout_ms, int events);
     void free();
 
-    static inline int is_dgram(uint8_t type) {
+    static inline int is_dgram(swSocket_type type) {
         return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
     }
 
-    static inline int is_stream(uint8_t type) {
+    static inline int is_stream(swSocket_type type) {
         return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
+    }
+
+    bool is_stream() {
+        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UNIX_STREAM;
+    }
+
+    bool is_dgram() {
+        return socket_type == SW_SOCK_UDP || socket_type == SW_SOCK_UDP6 || socket_type == SW_SOCK_UNIX_DGRAM;
+    }
+
+    bool is_inet4() {
+        return socket_type == SW_SOCK_TCP || socket_type == SW_SOCK_UDP;
+    }
+
+    bool is_inet6() {
+        return socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6;
+    }
+
+    bool is_local() {
+        return socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM;
     }
 
     ssize_t sendto_blocking(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
@@ -319,7 +339,7 @@ int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network
 network::Socket *make_socket(int fd, enum swFd_type type);
-network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type fdtype, int flags);
+network::Socket *make_socket(enum swSocket_type socktype, enum swFd_type type, int flags);
 network::Socket *make_server_socket(enum swSocket_type type,
                                     const char *address,
                                     int port = 0,

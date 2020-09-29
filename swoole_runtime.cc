@@ -435,8 +435,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         return FAILURE;
     }
 
-    if (sock->get_type() == SW_SOCK_TCP || sock->get_type() == SW_SOCK_TCP6 || sock->get_type() == SW_SOCK_UDP ||
-        sock->get_type() == SW_SOCK_UDP6) {
+    if (sock->is_inet_type()) {
         ip_address = parse_ip_address_ex(
             xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext, &xparam->outputs.error_text);
         host = ip_address;
@@ -496,8 +495,7 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
     int portno = 0;
     char *ip_address = nullptr;
 
-    if (sock->get_type() == SW_SOCK_TCP || sock->get_type() == SW_SOCK_TCP6 || sock->get_type() == SW_SOCK_UDP ||
-        sock->get_type() == SW_SOCK_UDP6) {
+    if (sock->is_inet_type()) {
         ip_address = parse_ip_address_ex(
             xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext, &xparam->outputs.error_text);
         host = ip_address;

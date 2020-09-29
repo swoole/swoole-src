@@ -215,14 +215,14 @@ class Reactor {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
 
-    inline ReactorHandler get_handler(enum swEvent_type event_type, enum swFd_type fdtype) {
+    inline ReactorHandler get_handler(enum swEvent_type event_type, enum swFd_type fd_type) {
         switch (event_type) {
         case SW_EVENT_READ:
-            return read_handler[fdtype];
+            return read_handler[fd_type];
         case SW_EVENT_WRITE:
-            return write_handler[fdtype] ? write_handler[fdtype] : default_write_handler;
+            return write_handler[fd_type] ? write_handler[fd_type] : default_write_handler;
         case SW_EVENT_ERROR:
-            return error_handler[fdtype] ? error_handler[fdtype] : default_error_handler;
+            return error_handler[fd_type] ? error_handler[fd_type] : default_error_handler;
         default:
             abort();
             break;
@@ -259,6 +259,10 @@ class Reactor {
     }
 
     void activate_future_task();
+
+    static enum swFd_type get_fd_type(int flags) {
+        return (enum swFd_type)(flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
+    }
 };
 }  // namespace swoole
 
@@ -280,10 +284,6 @@ static sw_inline int swReactor_event_write(int fdtype) {
 
 static sw_inline int swReactor_event_error(int fdtype) {
     return fdtype & SW_EVENT_ERROR;
-}
-
-static sw_inline enum swFd_type swReactor_fdtype(int flags) {
-    return (enum swFd_type)(flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
 }
 
 static sw_inline int swReactor_events(int flags) {
@@ -312,7 +312,6 @@ static sw_inline int swReactor_events(int flags) {
 
 int swReactor_onWrite(swReactor *reactor, swEvent *ev);
 int swReactor_close(swReactor *reactor, swSocket *socket);
-int swReactor_write(swReactor *reactor, swSocket *socket, const void *buf, int n);
 
 int swReactorEpoll_create(swReactor *reactor, int max_event_num);
 int swReactorPoll_create(swReactor *reactor, int max_event_num);

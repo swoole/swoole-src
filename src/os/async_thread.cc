@@ -366,8 +366,8 @@ static int init() {
 
     SwooleTG.aio_read_socket = SwooleTG.aio_pipe->get_socket(false);
     SwooleTG.aio_write_socket = SwooleTG.aio_pipe->get_socket(true);
-    SwooleTG.aio_read_socket->fdtype = SW_FD_AIO;
-    SwooleTG.aio_write_socket->fdtype = SW_FD_AIO;
+    SwooleTG.aio_read_socket->fd_type = SW_FD_AIO;
+    SwooleTG.aio_write_socket->fd_type = SW_FD_AIO;
 
     swoole_event_add(SwooleTG.aio_read_socket, SW_EVENT_READ);
 

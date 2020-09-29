@@ -112,7 +112,7 @@ static int swReactorEpoll_add(Reactor *reactor, Socket *socket, int events) {
 
     if (epoll_ctl(object->epfd, EPOLL_CTL_ADD, socket->fd, &e) < 0) {
         swSysWarn(
-            "failed to add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fdtype, events);
+            "failed to add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fd_type, events);
         return SW_ERR;
     }
 
@@ -122,7 +122,7 @@ static int swReactorEpoll_add(Reactor *reactor, Socket *socket, int events) {
 
     reactor->_add(socket, events);
     swTraceLog(
-        SW_TRACE_EVENT, "add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fdtype, events);
+        SW_TRACE_EVENT, "add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fd_type, events);
 
     return SW_OK;
 }
@@ -140,7 +140,7 @@ static int swReactorEpoll_del(Reactor *reactor, Socket *_socket) {
         swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]",
                   _socket->fd,
                   reactor->id,
-                  _socket->fdtype,
+                  _socket->fd_type,
                   _socket->events);
         if (errno != EBADF && errno != ENOENT) {
             return SW_ERR;
@@ -167,7 +167,7 @@ static int swReactorEpoll_set(Reactor *reactor, Socket *socket, int events) {
     int ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, socket->fd, &e);
     if (ret < 0) {
         swSysWarn(
-            "failed to set events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fdtype, events);
+            "failed to set events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fd_type, events);
         return SW_ERR;
     }
 
@@ -217,7 +217,7 @@ static int swReactorEpoll_wait(Reactor *reactor, struct timeval *timeo) {
         for (i = 0; i < n; i++) {
             event.reactor_id = reactor_id;
             event.socket = (Socket *) events[i].data.ptr;
-            event.type = event.socket->fdtype;
+            event.type = event.socket->fd_type;
             event.fd = event.socket->fd;
 
             // read

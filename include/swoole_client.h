@@ -32,7 +32,6 @@ namespace network {
 class Client {
   public:
     int id = 0;
-    enum swSocket_type type;
     long timeout_id = 0;  // timeout node id
     int _sock_type = 0;
     int _sock_domain = 0;
@@ -94,7 +93,7 @@ class Client {
 
     void *object = nullptr;
 
-    swString *buffer = nullptr;
+    String *buffer = nullptr;
     uint32_t wait_length = 0;
     uint32_t input_buffer_size = 0;
 

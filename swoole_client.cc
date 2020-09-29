@@ -469,7 +469,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
         }
     } else {
     _open_tcp_nodelay:
-        if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6) {
+        if (cli->socket->socket_type == SW_SOCK_TCP || cli->socket->socket_type == SW_SOCK_TCP6) {
             value = 1;
             if (setsockopt(cli->socket->fd, IPPROTO_TCP, TCP_NODELAY, &value, sizeof(value)) != 0) {
                 swSysWarn("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
@@ -885,7 +885,7 @@ static PHP_METHOD(swoole_client, sendto) {
     /**
      * udg doesn't need to use ip and port, so we don't need to deal with SW_SOCK_UNIX_DGRAM
      */
-    if (cli->type != SW_SOCK_UNIX_DGRAM) {
+    if (cli->socket->socket_type != SW_SOCK_UNIX_DGRAM) {
         if (swoole::network::gethostbyname(cli->_sock_domain, host, addr) < 0) {
             swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             php_swoole_error(E_WARNING,
@@ -910,7 +910,7 @@ static PHP_METHOD(swoole_client, sendto) {
     Socket::default_write_timeout = cli->timeout;
 
     ssize_t ret = -1;
-    if (Socket::is_dgram(cli->type)) {
+    if (cli->socket->is_dgram()) {
         ret = cli->socket->sendto(ip, port, data, len);
     } else {
         php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
@@ -938,7 +938,7 @@ static PHP_METHOD(swoole_client, sendfile) {
         RETURN_FALSE;
     }
     // only stream socket can sendfile
-    if (!(cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UNIX_STREAM)) {
+    if (!(cli->socket->is_stream())) {
         php_swoole_error(E_WARNING, "dgram socket cannot use sendfile");
         RETURN_FALSE;
     }
@@ -1170,7 +1170,7 @@ static PHP_METHOD(swoole_client, getsockname) {
         RETURN_FALSE;
     }
 
-    if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM) {
+    if (cli->socket->is_local()) {
         php_swoole_fatal_error(E_WARNING, "getsockname() only support AF_INET family socket");
         RETURN_FALSE;
     }
@@ -1182,7 +1182,7 @@ static PHP_METHOD(swoole_client, getsockname) {
     }
 
     array_init(return_value);
-    if (cli->type == SW_SOCK_UDP6 || cli->type == SW_SOCK_TCP6) {
+    if (cli->socket->is_inet6()) {
         add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v6.sin6_port));
         char tmp[INET6_ADDRSTRLEN];
         if (inet_ntop(AF_INET6, &cli->socket->info.addr.inet_v6.sin6_addr, tmp, sizeof(tmp))) {
@@ -1227,11 +1227,11 @@ static PHP_METHOD(swoole_client, getpeername) {
         RETURN_FALSE;
     }
 
-    if (cli->type == SW_SOCK_UDP) {
+    if (cli->socket->socket_type == SW_SOCK_UDP) {
         array_init(return_value);
         add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v4.sin_port));
         add_assoc_string(return_value, "host", inet_ntoa(cli->remote_addr.addr.inet_v4.sin_addr));
-    } else if (cli->type == SW_SOCK_UDP6) {
+    } else if (cli->socket->socket_type == SW_SOCK_UDP6) {
         array_init(return_value);
         add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v6.sin6_port));
         char tmp[INET6_ADDRSTRLEN];
@@ -1241,7 +1241,7 @@ static PHP_METHOD(swoole_client, getpeername) {
         } else {
             php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
         }
-    } else if (cli->type == SW_SOCK_UNIX_DGRAM) {
+    } else if (cli->socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         add_assoc_string(return_value, "host", cli->remote_addr.addr.un.sun_path);
     } else {
         php_swoole_fatal_error(E_WARNING, "only supports SWOOLE_SOCK_(UDP/UDP6/UNIX_DGRAM)");
@@ -1297,7 +1297,7 @@ static PHP_METHOD(swoole_client, enableSSL) {
     if (!cli) {
         RETURN_FALSE;
     }
-    if (cli->type != SW_SOCK_TCP && cli->type != SW_SOCK_TCP6) {
+    if (cli->socket->socket_type != SW_SOCK_TCP && cli->socket->socket_type != SW_SOCK_TCP6) {
         php_swoole_fatal_error(E_WARNING, "cannot use enableSSL");
         RETURN_FALSE;
     }

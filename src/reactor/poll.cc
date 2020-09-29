@@ -188,7 +188,7 @@ static int swReactorPoll_wait(Reactor *reactor, struct timeval *timeo) {
                 event.socket = object->fds[i];
                 event.fd = object->events[i].fd;
                 event.reactor_id = reactor->id;
-                event.type = event.socket->fdtype;
+                event.type = event.socket->fd_type;
 
                 swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor->id, event.type);
                 // in

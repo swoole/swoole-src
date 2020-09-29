@@ -729,7 +729,7 @@ Socket *make_server_socket(enum swSocket_type type, const char *address, int por
 Socket *make_socket(int fd, enum swFd_type type) {
     Socket *socket = new Socket();
     socket->fd = fd;
-    socket->fdtype = type;
+    socket->fd_type = type;
     socket->removed = 1;
     return socket;
 }

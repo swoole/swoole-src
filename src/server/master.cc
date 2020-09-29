@@ -1084,6 +1084,7 @@ int Server::send_to_connection(SendData *_send) {
         _direct_send:
             n = _socket->send(_send_data, _send_length, 0);
             if (n == _send_length) {
+                conn->last_send_time = swoole_microtime();
                 return SW_OK;
             } else if (n > 0) {
                 _send_data += n;
@@ -1638,7 +1639,6 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     gs->accept_count++;
     sw_atomic_fetch_add(&gs->connection_num, 1);
     sw_atomic_fetch_add(ls->connection_num, 1);
-    time_t now;
 
     int fd = _socket->fd;
 
@@ -1680,13 +1680,10 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
         }
     }
 
-    now = ::time(nullptr);
-
     connection->fd = fd;
     connection->reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
-    connection->connect_time = now;
-    connection->last_time = now;
+    connection->last_recv_time = connection->connect_time = swoole_microtime();
     connection->active = 1;
     connection->socket_type = ls->type;
     connection->socket = _socket;

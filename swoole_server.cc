@@ -542,9 +542,6 @@ static PHP_METHOD(swoole_server, getWorkerPid);
 static PHP_METHOD(swoole_server, getWorkerStatus);
 static PHP_METHOD(swoole_server, getManagerPid);
 static PHP_METHOD(swoole_server, getMasterPid);
-#ifdef SW_BUFFER_RECV_TIME
-static PHP_METHOD(swoole_server, getReceivedTime);
-#endif
 #ifdef SWOOLE_SOCKETS_SUPPORT
 static PHP_METHOD(swoole_server, getSocket);
 #endif
@@ -620,9 +617,6 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, stats, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
     PHP_ME(swoole_server, getSocket, arginfo_swoole_server_getSocket, ZEND_ACC_PUBLIC)
-#endif
-#ifdef SW_BUFFER_RECV_TIME
-    PHP_ME(swoole_server, getReceivedTime, arginfo_swoole_void, ZEND_ACC_PUBLIC)
 #endif
     PHP_ME(swoole_server, bind, arginfo_swoole_server_bind, ZEND_ACC_PUBLIC)
     {nullptr, nullptr, nullptr}
@@ -1331,9 +1325,10 @@ int php_swoole_onPacket(Server *serv, swRecvData *req) {
     DgramPacket *packet = (DgramPacket *) req->data;
 
     add_assoc_long(&zaddr, "server_socket", req->info.server_fd);
-    Connection *from_sock = serv->get_connection(req->info.server_fd);
-    if (from_sock) {
-        add_assoc_long(&zaddr, "server_port", from_sock->info.get_port());
+    add_assoc_double(&zaddr, "dispatch_time", req->info.time);
+    Connection *server_sock = serv->get_connection(req->info.server_fd);
+    if (server_sock) {
+        add_assoc_long(&zaddr, "server_port", server_sock->info.get_port());
     }
 
     char address[INET6_ADDRSTRLEN];
@@ -3002,11 +2997,11 @@ static PHP_METHOD(swoole_server, heartbeat) {
     }
 
     array_init(return_value);
-    int checktime = (int) time(nullptr) - serv->heartbeat_idle_time;
+    double checktime = swoole_microtime() - serv->heartbeat_idle_time;
 
     serv->foreach_connection([serv, checktime, close_connection, return_value](Connection *conn) {
         swTrace("heartbeat check fd=%d", conn->fd);
-        if (conn->protect || conn->last_time == 0 || conn->last_time > checktime) {
+        if (conn->protect || conn->last_recv_time == 0 || conn->last_recv_time > checktime) {
             return;
         }
         if (close_connection) {
@@ -3586,10 +3581,13 @@ static PHP_METHOD(swoole_server, getClientInfo) {
         add_assoc_long(return_value, "socket_fd", conn->fd);
         add_assoc_long(return_value, "socket_type", conn->socket_type);
         add_assoc_long(return_value, "remote_port", conn->info.get_port());
-        add_assoc_string(return_value, "remote_ip", (char *) conn->info.get_ip());
+        add_assoc_string(return_value, "remote_ip", (char * ) conn->info.get_ip());
         add_assoc_long(return_value, "reactor_id", conn->reactor_id);
-        add_assoc_long(return_value, "connect_time", conn->connect_time);
-        add_assoc_long(return_value, "last_time", conn->last_time);
+        add_assoc_long(return_value, "connect_time", (int ) conn->connect_time);
+        add_assoc_long(return_value, "last_time", (int ) conn->last_recv_time);
+        add_assoc_double(return_value, "last_recv_time", conn->last_recv_time);
+        add_assoc_double(return_value, "last_send_time", conn->last_send_time);
+        add_assoc_double(return_value, "last_dispatch_time", conn->last_dispatch_time);
         add_assoc_long(return_value, "close_errno", conn->close_errno);
     }
 }
@@ -3736,22 +3734,6 @@ static PHP_METHOD(swoole_server, protect) {
         RETURN_TRUE;
     }
 }
-
-#ifdef SW_BUFFER_RECV_TIME
-static PHP_METHOD(swoole_server, getReceivedTime) {
-    Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (sw_unlikely(!serv->is_started())) {
-        php_swoole_fatal_error(E_WARNING, "server is not running");
-        RETURN_FALSE;
-    }
-
-    if (serv->last_receive_usec > 0) {
-        RETURN_DOUBLE(serv->last_receive_usec);
-    } else {
-        RETURN_FALSE;
-    }
-}
-#endif
 
 static PHP_METHOD(swoole_server, getWorkerId) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);

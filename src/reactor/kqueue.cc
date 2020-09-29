@@ -55,7 +55,7 @@ static void swReactorKqueue_free(Reactor *reactor);
 static sw_inline bool swReactorKqueue_fetch_event(Reactor *reactor, swEvent *event, void *udata) {
     event->socket = (Socket *) udata;
     event->fd = event->socket->fd;
-    event->type = event->socket->fdtype;
+    event->type = event->socket->fd_type;
     event->reactor_id = reactor->id;
 
     if (event->socket->removed) {
@@ -115,7 +115,7 @@ static int swReactorKqueue_add(Reactor *reactor, Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("add events[fd=%d#%d, type=%d, events=read] failed", fd, reactor->id, socket->fdtype);
+            swSysWarn("add events[fd=%d#%d, type=%d, events=read] failed", fd, reactor->id, socket->fd_type);
             return SW_ERR;
         }
     }
@@ -124,7 +124,7 @@ static int swReactorKqueue_add(Reactor *reactor, Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("add events[fd=%d#%d, type=%d, events=write] failed", fd, reactor->id, socket->fdtype);
+            swSysWarn("add events[fd=%d#%d, type=%d, events=write] failed", fd, reactor->id, socket->fd_type);
             return SW_ERR;
         }
     }

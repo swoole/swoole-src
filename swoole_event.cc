@@ -176,9 +176,9 @@ static int event_writable_callback(Reactor *reactor, swEvent *event) {
 static int event_error_callback(Reactor *reactor, swEvent *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
-            return reactor->get_handler(SW_EVENT_READ, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_READ, event->socket->fd_type)(reactor, event);
         } else {
-            return reactor->get_handler(SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_WRITE, event->socket->fd_type)(reactor, event);
         }
     }
 

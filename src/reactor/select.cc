@@ -192,7 +192,7 @@ int swReactorSelect_wait(Reactor *reactor, struct timeval *timeo) {
                 event.socket = i->second;
                 event.fd = event.socket->fd;
                 event.reactor_id = reactor->id;
-                event.type = event.socket->fdtype;
+                event.type = event.socket->fd_type;
 
                 // read
                 if (SW_FD_ISSET(event.fd, &(object->rfds)) && !event.socket->removed) {

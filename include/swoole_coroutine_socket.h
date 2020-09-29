@@ -160,6 +160,11 @@ class Socket {
         return type;
     }
 
+    bool is_inet_type() {
+        return get_type() == SW_SOCK_TCP || get_type() == SW_SOCK_TCP6 || get_type() == SW_SOCK_UDP
+                || get_type() == SW_SOCK_UDP6;
+    }
+
     inline int get_sock_domain() {
         return sock_domain;
     }
