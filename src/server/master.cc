@@ -943,8 +943,8 @@ bool Server::feedback(int session_id, int event) {
 }
 
 void Server::store_pipe_fd(Pipe *p) {
-    Socket *master_socket = p->getSocket(p, SW_PIPE_MASTER);
-    Socket *worker_socket = p->getSocket(p, SW_PIPE_WORKER);
+    Socket *master_socket = p->get_socket(true);
+    Socket *worker_socket = p->get_socket(false);
 
     connection_list[master_socket->fd].object = p;
     connection_list[worker_socket->fd].object = p;

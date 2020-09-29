@@ -111,8 +111,8 @@ static int swFactoryProcess_create_pipes(Factory *factory) {
             return SW_ERR;
         }
 
-        serv->workers[i].pipe_master = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_MASTER);
-        serv->workers[i].pipe_worker = object->pipes[i].getSocket(&object->pipes[i], SW_PIPE_WORKER);
+        serv->workers[i].pipe_master = object->pipes[i].get_socket(true);
+        serv->workers[i].pipe_worker = object->pipes[i].get_socket(false);
 
         serv->workers[i].pipe_master->set_send_buffer_size(kernel_buffer_size);
         serv->workers[i].pipe_worker->set_send_buffer_size(kernel_buffer_size);

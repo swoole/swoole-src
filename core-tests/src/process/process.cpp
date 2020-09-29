@@ -7,8 +7,8 @@ Process::Process(std::function<void(Process *)> fn, int pipe_type) : handler(fn)
         swPipe *pipe = (swPipe *) malloc(sizeof(swPipe));
         swPipeUnsock_create(pipe, 1, SOCK_DGRAM);
 
-        worker.pipe_master = pipe->getSocket(pipe, SW_PIPE_MASTER);
-        worker.pipe_worker = pipe->getSocket(pipe, SW_PIPE_WORKER);
+        worker.pipe_master = pipe->get_socket(true);
+        worker.pipe_worker = pipe->get_socket(false);
 
         worker.pipe_object = pipe;
         worker.pipe_current = worker.pipe_master;

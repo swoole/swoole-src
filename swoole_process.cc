@@ -337,7 +337,7 @@ static PHP_METHOD(swoole_process, __construct) {
 
     zend::Function func;
     zend_bool redirect_stdin_and_stdout = 0;
-    zend_long pipe_type = 2;
+    zend_long pipe_type = zend::PIPE_TYPE_DGRAM;
     zend_bool enable_coroutine = false;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 4)
@@ -366,7 +366,7 @@ static PHP_METHOD(swoole_process, __construct) {
         /**
          * Forced to use stream pipe
          */
-        pipe_type = 1;
+        pipe_type = zend::PIPE_TYPE_STREAM;
     }
 
     if (pipe_type > 0) {
@@ -379,8 +379,8 @@ static PHP_METHOD(swoole_process, __construct) {
             RETURN_FALSE;
         }
 
-        process->pipe_master = _pipe->getSocket(_pipe, SW_PIPE_MASTER);
-        process->pipe_worker = _pipe->getSocket(_pipe, SW_PIPE_WORKER);
+        process->pipe_master = _pipe->get_socket(true);
+        process->pipe_worker = _pipe->get_socket(false);
 
         process->pipe_object = _pipe;
         process->pipe_current = process->pipe_master;

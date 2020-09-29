@@ -340,7 +340,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
 
         while (1) {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));
-            auto _sock = task_notify_pipe->getSocket(task_notify_pipe, SW_PIPE_WRITE);
+            auto _sock = task_notify_pipe->get_socket(true);
             if (ret < 0 && _sock->catch_error(errno) == SW_WAIT) {
                 if (_sock->wait_event(-1, SW_EVENT_WRITE) == 0) {
                     continue;

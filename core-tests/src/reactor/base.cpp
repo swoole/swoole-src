@@ -167,8 +167,8 @@ static void reactor_test_func(swReactor *reactor) {
 
         return SW_OK;
     });
-    reactor->add(reactor, p.getSocket(&p, SW_PIPE_READ), SW_EVENT_READ);
-    reactor->add(reactor, p.getSocket(&p, SW_PIPE_WRITE), SW_EVENT_WRITE);
+    reactor->add(reactor, p.get_socket(false), SW_EVENT_READ);
+    reactor->add(reactor, p.get_socket(true), SW_EVENT_WRITE);
     reactor->wait(reactor, nullptr);
 
     p.close(&p);

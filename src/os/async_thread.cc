@@ -364,8 +364,8 @@ static int init() {
         swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
     }
 
-    SwooleTG.aio_read_socket = SwooleTG.aio_pipe->getSocket(SwooleTG.aio_pipe, 0);
-    SwooleTG.aio_write_socket = SwooleTG.aio_pipe->getSocket(SwooleTG.aio_pipe, 1);
+    SwooleTG.aio_read_socket = SwooleTG.aio_pipe->get_socket(false);
+    SwooleTG.aio_write_socket = SwooleTG.aio_pipe->get_socket(true);
     SwooleTG.aio_read_socket->fdtype = SW_FD_AIO;
     SwooleTG.aio_write_socket->fdtype = SW_FD_AIO;
 

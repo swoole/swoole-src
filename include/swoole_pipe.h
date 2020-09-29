@@ -31,8 +31,15 @@ struct Pipe {
 
     ssize_t (*read)(Pipe *, void *_buf, size_t length);
     ssize_t (*write)(Pipe *, const void *_buf, size_t length);
-    network::Socket *(*getSocket)(Pipe *, int master);
     void (*close)(Pipe *);
+
+    network::Socket *get_socket(bool _master) {
+        return _master ? master_socket : worker_socket;
+    }
+    
+    void set_timeout(double _timeout) {
+        timeout = _timeout;
+    }
 };
 }  // namespace swoole
 
@@ -49,11 +56,6 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
 int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
 int swPipeUnsock_close_ext(swPipe *p, int which);
 int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking);
-swSocket *swPipe_getSocket(swPipe *p, int master);
-
-static inline void swPipe_set_timeout(swPipe *p, double timeout) {
-    p->timeout = timeout;
-}
 
 static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore) {
 #ifdef HAVE_EVENTFD

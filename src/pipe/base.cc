@@ -59,10 +59,6 @@ int swPipe_init_socket(Pipe *p, int master_fd, int worker_fd, int blocking) {
     return SW_OK;
 }
 
-Socket *swPipe_getSocket(Pipe *p, int master) {
-    return master ? p->master_socket : p->worker_socket;
-}
-
 int swPipeBase_create(Pipe *p, int blocking) {
     int ret;
     std::unique_ptr<PipeBase> object(new PipeBase());
@@ -80,7 +76,6 @@ int swPipeBase_create(Pipe *p, int blocking) {
     p->object = object.release();
     p->read = PipeBase_read;
     p->write = PipeBase_write;
-    p->getSocket = swPipe_getSocket;
     p->close = PipeBase_close;
 
     return 0;
