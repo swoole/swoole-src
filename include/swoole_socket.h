@@ -249,6 +249,10 @@ struct Socket {
         return socket_type == SW_SOCK_TCP6 || socket_type == SW_SOCK_UDP6;
     }
 
+    bool is_inet() {
+        return is_inet4() || is_inet6();
+    }
+
     bool is_local() {
         return socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM;
     }
