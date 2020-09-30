@@ -425,9 +425,8 @@ int gethostbyname(int flags, const char *name, char *addr) {
 int getaddrinfo(GetaddrinfoRequest *req) {
     struct addrinfo *result = nullptr;
     struct addrinfo *ptr = nullptr;
-    struct addrinfo hints;
+    struct addrinfo hints{};
 
-    sw_memset_zero(&hints, sizeof(hints));
     hints.ai_family = req->family;
     hints.ai_socktype = req->socktype;
     hints.ai_protocol = req->protocol;

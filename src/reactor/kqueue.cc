@@ -55,7 +55,7 @@ static void swReactorKqueue_free(Reactor *reactor);
 static sw_inline bool swReactorKqueue_fetch_event(Reactor *reactor, swEvent *event, void *udata) {
     event->socket = (Socket *) udata;
     event->fd = event->socket->fd;
-    event->type = event->socket->fdtype;
+    event->type = event->socket->fd_type;
     event->reactor_id = reactor->id;
 
     if (event->socket->removed) {
@@ -108,23 +108,23 @@ static int swReactorKqueue_add(Reactor *reactor, Socket *socket, int events) {
     int fd = socket->fd;
     int fflags = 0;
 
-    if (swReactor_event_read(events)) {
+    if (Reactor::isset_read_event(events)) {
 #ifdef NOTE_EOF
         fflags = NOTE_EOF;
 #endif
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("add events[fd=%d#%d, type=%d, events=read] failed", fd, reactor->id, socket->fdtype);
+            swSysWarn("add events[fd=%d#%d, type=%d, events=read] failed", fd, reactor->id, socket->fd_type);
             return SW_ERR;
         }
     }
 
-    if (swReactor_event_write(events)) {
+    if (Reactor::isset_write_event(events)) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("add events[fd=%d#%d, type=%d, events=write] failed", fd, reactor->id, socket->fdtype);
+            swSysWarn("add events[fd=%d#%d, type=%d, events=write] failed", fd, reactor->id, socket->fd_type);
             return SW_ERR;
         }
     }
@@ -143,7 +143,7 @@ static int swReactorKqueue_set(Reactor *reactor, Socket *socket, int events) {
     int fd = socket->fd;
     int fflags = 0;
 
-    if (swReactor_event_read(events)) {
+    if (Reactor::isset_read_event(events)) {
 #ifdef NOTE_EOF
         fflags = NOTE_EOF;
 #endif
@@ -162,7 +162,7 @@ static int swReactorKqueue_set(Reactor *reactor, Socket *socket, int events) {
         }
     }
 
-    if (swReactor_event_write(events)) {
+    if (Reactor::isset_write_event(events)) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
         ret = kevent(object->epfd, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
@@ -261,7 +261,7 @@ static int swReactorKqueue_wait(Reactor *reactor, struct timeval *timeo) {
 
         n = kevent(object->epfd, nullptr, 0, object->events, object->event_max, t_ptr);
         if (n < 0) {
-            if (swReactor_error(reactor) < 0) {
+            if (!reactor->catch_error()) {
                 swWarn("kqueue[#%d], epfd=%d", reactor->id, object->epfd);
                 return SW_ERR;
             } else {

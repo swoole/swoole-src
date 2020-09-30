@@ -218,7 +218,7 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     }
     add_assoc_long(zserver, "remote_port", conn->info.get_port());
     add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_ip());
-    add_assoc_long(zserver, "master_time", conn->last_time);
+    add_assoc_long(zserver, "master_time", (int) conn->last_recv_time);
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);

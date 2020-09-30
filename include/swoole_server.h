@@ -169,21 +169,12 @@ struct Connection {
      */
     network::Socket *socket;
     /**
-     * connect time(seconds)
+     * connect/recv/send/close time
      */
-    time_t connect_time;
-
-    /**
-     * received time with last data
-     */
-    time_t last_time;
-
-#ifdef SW_BUFFER_RECV_TIME
-    /**
-     * received time(microseconds) with last data
-     */
-    double last_time_usec;
-#endif
+    double connect_time;
+    double last_recv_time;
+    double last_send_time;
+    double last_dispatch_time;
     /**
      * bind uid
      */
@@ -763,10 +754,6 @@ class Server {
     swAllocator *buffer_allocator = &SwooleG.std_allocator;
     size_t recv_buffer_size = SW_BUFFER_SIZE_BIG;
 
-#ifdef SW_BUFFER_RECV_TIME
-    double last_receive_usec = 0;
-#endif
-
     int manager_alarm = 0;
 
     /**
@@ -1026,7 +1013,7 @@ class Server {
     }
 
     inline bool is_valid_connection(Connection *conn) {
-        return (conn && conn->socket && conn->active && conn->socket->fdtype == SW_FD_SESSION);
+        return (conn && conn->socket && conn->active && conn->socket->fd_type == SW_FD_SESSION);
     }
 
     static int is_dgram_event(uint8_t type) {

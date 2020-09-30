@@ -44,7 +44,7 @@ TEST(redis, server) {
 
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     ASSERT_TRUE(port);
     port->open_redis_protocol = true;
 

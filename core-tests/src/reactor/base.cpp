@@ -21,6 +21,7 @@
 #include "swoole_pipe.h"
 
 using swoole::ReactorHandler;
+using swoole::Reactor;
 
 TEST(reactor, create) {
     swoole_event_init(0);
@@ -45,22 +46,22 @@ TEST(reactor, create) {
     /**
      * coroutine socket reactor
      */
-    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor->write_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor->error_handler[swReactor_fdtype(SW_FD_CORO_SOCKET | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CORO_SOCKET | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CORO_SOCKET | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CORO_SOCKET | SW_EVENT_ERROR)], nullptr);
 
     /**
      * system reactor
      */
-    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor->write_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor->error_handler[swReactor_fdtype(SW_FD_CORO_POLL | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CORO_POLL | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CORO_POLL | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CORO_POLL | SW_EVENT_ERROR)], nullptr);
 
-    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor->write_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor->error_handler[swReactor_fdtype(SW_FD_CORO_EVENT | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CORO_EVENT | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CORO_EVENT | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CORO_EVENT | SW_EVENT_ERROR)], nullptr);
 
-    ASSERT_NE(reactor->read_handler[swReactor_fdtype(SW_FD_AIO | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_AIO | SW_EVENT_READ)], nullptr);
 
     swoole_event_free();
 }
@@ -69,13 +70,13 @@ TEST(reactor, set_handler) {
     swReactor reactor;
 
     reactor.set_handler(SW_EVENT_READ, (ReactorHandler) 0x1);
-    ASSERT_EQ(reactor.read_handler[swReactor_fdtype(SW_EVENT_READ)], (ReactorHandler) 0x1);
+    ASSERT_EQ(reactor.read_handler[Reactor::get_fd_type(SW_EVENT_READ)], (ReactorHandler) 0x1);
 
     reactor.set_handler(SW_EVENT_WRITE, (ReactorHandler) 0x2);
-    ASSERT_EQ(reactor.write_handler[swReactor_fdtype(SW_EVENT_WRITE)], (ReactorHandler) 0x2);
+    ASSERT_EQ(reactor.write_handler[Reactor::get_fd_type(SW_EVENT_WRITE)], (ReactorHandler) 0x2);
 
     reactor.set_handler(SW_EVENT_ERROR, (ReactorHandler) 0x3);
-    ASSERT_EQ(reactor.error_handler[swReactor_fdtype(SW_EVENT_ERROR)], (ReactorHandler) 0x3);
+    ASSERT_EQ(reactor.error_handler[Reactor::get_fd_type(SW_EVENT_ERROR)], (ReactorHandler) 0x3);
 }
 
 TEST(reactor, wait) {

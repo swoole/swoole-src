@@ -126,15 +126,13 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
     Connection *server_sock = serv->get_connection(fd);
     network::Socket *sock = server_sock->socket;
     SendData task = {};
-    swDgramPacket *pkt = (swDgramPacket *) SwooleTG.buffer_stack->str;
-    swFactory *factory = &serv->factory;
+    DgramPacket *pkt = (DgramPacket *) SwooleTG.buffer_stack->str;
+    Factory *factory = &serv->factory;
 
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
     task.info.type = SW_SERVER_EVENT_RECV_DGRAM;
-#ifdef SW_BUFFER_RECV_TIME
     task.info.time = swoole_microtime();
-#endif
 
     int socket_type = server_sock->socket_type;
 
@@ -292,7 +290,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     serv->unlock();
 
     sw_memset_zero(conn, sizeof(Connection));
-    return swReactor_close(reactor, socket);
+    return Reactor::_close(reactor, socket);
 }
 
 /**
@@ -301,8 +299,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
     int fd = event->fd;
-    DataHead notify_ev;
-    sw_memset_zero(&notify_ev, sizeof(notify_ev));
+    DataHead notify_ev{};
     Socket *socket = event->socket;
 
     assert(fd % serv->reactor_num == reactor->id);
@@ -524,6 +521,8 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         }
     }
 
+    conn->last_send_time = swoole_microtime();
+
     return SW_OK;
 }
 
@@ -600,10 +599,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     }
 #endif
 
-    conn->last_time = time(nullptr);
-#ifdef SW_BUFFER_RECV_TIME
-    conn->last_time_usec = swoole_microtime();
-#endif
+    conn->last_recv_time = swoole_microtime();
 
     int retval = port->onRead(reactor, port, event);
     if (!conn->active) {
@@ -895,7 +891,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
         Socket *socket = &thread->pipe_sockets[pipe_fd];
 
         socket->fd = pipe_fd;
-        socket->fdtype = SW_FD_PIPE;
+        socket->fd_type = SW_FD_PIPE;
         socket->buffer_size = UINT_MAX;
 
         if (i % serv->reactor_num != reactor_id) {
@@ -1007,9 +1003,7 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
     task.info.ext_flags = proto->ext_flags;
     proto->ext_flags = 0;
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
-#ifdef SW_BUFFER_RECV_TIME
-    task.info.info.time = conn->last_time_usec;
-#endif
+    task.info.time = conn->last_recv_time;
 
     swTrace("send string package, size=%ld bytes", (long) length);
 
@@ -1101,15 +1095,13 @@ void Server::start_heartbeat_thread() {
     heartbeat_thread = std::thread([this]() {
         swSignal_none();
 
-        int checktime;
-
         SwooleTG.type = SW_THREAD_HEARTBEAT;
         SwooleTG.id = reactor_num;
 
         while (running) {
-            checktime = (int) ::time(nullptr) - heartbeat_idle_time;
+            double checktime = swoole_microtime() - heartbeat_idle_time;
             foreach_connection([this, checktime](Connection *conn) {
-                if (conn->protect || conn->last_time == 0 || conn->last_time > checktime) {
+                if (conn->protect || conn->last_recv_time == 0 || conn->last_recv_time > checktime) {
                     return;
                 }
                 DataHead ev{};

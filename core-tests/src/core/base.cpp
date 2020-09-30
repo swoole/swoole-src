@@ -25,14 +25,13 @@ using namespace std;
 
 static const string test_data("hello world\n");
 
-TEST(base, DataHead_dump) {
+TEST(base, datahead_dump) {
     swDataHead data = {};
     data.fd = 123;
     char buf[128];
     size_t n = data.dump(buf, sizeof(buf));
 
     ASSERT_GT(std::string(buf, n).find("int fd = 123;"), 1);
-    ASSERT_EQ(sizeof(data), 16);
 }
 
 TEST(base, dec2hex) {

@@ -113,10 +113,9 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
 
 static bool swFactory_end(Factory *factory, int fd) {
     Server *serv = (Server *) factory->ptr;
-    SendData _send;
+    SendData _send{};
     DataHead info;
 
-    sw_memset_zero(&_send, sizeof(_send));
     _send.info.fd = fd;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;

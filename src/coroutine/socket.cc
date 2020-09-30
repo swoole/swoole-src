@@ -569,7 +569,7 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
     socket = sock;
     socket->object = this;
     socket->socket_type = type;
-    socket->fdtype = SW_FD_CORO_SOCKET;
+    socket->fd_type = SW_FD_CORO_SOCKET;
     init_options();
     /* inherits server socket options */
     dns_timeout = server_sock->dns_timeout;
@@ -1087,7 +1087,7 @@ bool Socket::ssl_check_context() {
     if (socket->ssl || ssl_context) {
         return true;
     }
-    if (network::Socket::is_dgram(sock_type)) {
+    if (socket->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
         socket->dtls = 1;
         ssl_option.protocols = SW_SSL_DTLS;
@@ -1696,7 +1696,7 @@ Socket::~Socket() {
         ::unlink(bind_address_info.addr.un.sun_path);
         bind_address_info = {};
     }
-    if (sock_type == SW_SOCK_UNIX_DGRAM) {
+    if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         ::unlink(socket->info.addr.un.sun_path);
     }
     if (socks5_proxy) {

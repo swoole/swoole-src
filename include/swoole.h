@@ -424,6 +424,7 @@ struct Event {
     enum swFd_type type;
     network::Socket *socket;
 };
+
 struct DataHead {
     int fd;
     uint32_t len;
@@ -432,9 +433,7 @@ struct DataHead {
     uint8_t flags;
     uint16_t server_fd;
     uint16_t ext_flags;
-#ifdef SW_BUFFER_RECV_TIME
     double time;
-#endif
     size_t dump(char *buf, size_t len);
 };
 

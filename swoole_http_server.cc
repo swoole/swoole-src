@@ -102,7 +102,7 @@ int php_swoole_http_onReceive(swServer *serv, swRecvData *req) {
         }
         add_assoc_long(zserver, "remote_port", conn->info.get_port());
         add_assoc_string(zserver, "remote_addr", (char *) conn->info.get_ip());
-        add_assoc_long(zserver, "master_time", conn->last_time);
+        add_assoc_long(zserver, "master_time", (int) conn->last_recv_time);
     } while (0);
 
     // begin to check and call registerd callback

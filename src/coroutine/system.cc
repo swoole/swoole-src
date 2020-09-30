@@ -186,10 +186,9 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
         }
     }
 
-    AsyncEvent ev;
+    AsyncEvent ev{};
     AsyncTask task;
 
-    sw_memset_zero(&ev, sizeof(AsyncEvent));
     if (hostname.size() < SW_IP_MAX_LENGTH) {
         ev.nbytes = SW_IP_MAX_LENGTH + 1;
     } else {

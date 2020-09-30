@@ -327,7 +327,7 @@ static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
      * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
      */
     stream->eof = (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT &&
-                                     sock->socket->catch_error(sock->errCode) == SW_CLOSE));
+                                     sock->get_socket()->catch_error(sock->errCode) == SW_CLOSE));
     if (nr_bytes > 0) {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
     }
@@ -435,8 +435,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
         return FAILURE;
     }
 
-    if (sock->get_type() == SW_SOCK_TCP || sock->get_type() == SW_SOCK_TCP6 || sock->get_type() == SW_SOCK_UDP ||
-        sock->get_type() == SW_SOCK_UDP6) {
+    if (sock->get_socket()->is_inet()) {
         ip_address = parse_ip_address_ex(
             xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext, &xparam->outputs.error_text);
         host = ip_address;
@@ -496,8 +495,7 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
     int portno = 0;
     char *ip_address = nullptr;
 
-    if (sock->get_type() == SW_SOCK_TCP || sock->get_type() == SW_SOCK_TCP6 || sock->get_type() == SW_SOCK_UDP ||
-        sock->get_type() == SW_SOCK_UDP6) {
+    if (sock->get_socket()->is_inet()) {
         ip_address = parse_ip_address_ex(
             xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext, &xparam->outputs.error_text);
         host = ip_address;
@@ -780,7 +778,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     }
     case PHP_STREAM_OPTION_META_DATA_API: {
 #ifdef SW_USE_OPENSSL
-        SSL *ssl = sock->socket ? sock->socket->ssl : nullptr;
+        SSL *ssl = sock->get_socket() ? sock->get_socket()->ssl : nullptr;
         if (ssl) {
             zval tmp;
             const char *proto_str;
@@ -1519,7 +1517,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler) {
     }
 
     rf = (real_func *) emalloc(sizeof(real_func));
-    sw_memset_zero(rf, sizeof(real_func));
+    sw_memset_zero(rf, sizeof(*rf));
     rf->function = zf;
     rf->ori_handler = zf->internal_function.handler;
     zf->internal_function.handler = handler;

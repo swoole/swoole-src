@@ -159,7 +159,7 @@ class Socket {
     inline enum swSocket_type get_type() {
         return type;
     }
-
+    
     inline int get_sock_domain() {
         return sock_domain;
     }
@@ -180,8 +180,12 @@ class Socket {
         return bind_port;
     }
 
-    bool getsockname(swoole::network::Address *sa);
-    bool getpeername(swoole::network::Address *sa);
+    inline network::Socket *get_socket() {
+        return socket;
+    }
+
+    bool getsockname(network::Address *sa);
+    bool getpeername(network::Address *sa);
 
     inline const char *get_ip() {
         return socket->info.get_ip();
@@ -294,7 +298,7 @@ class Socket {
 
     inline String *get_read_buffer() {
         if (sw_unlikely(!read_buffer)) {
-            read_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            read_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
             if (!read_buffer) {
                 throw std::bad_alloc();
             }
@@ -304,7 +308,7 @@ class Socket {
 
     inline String *get_write_buffer() {
         if (sw_unlikely(!write_buffer)) {
-            write_buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            write_buffer = make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
             if (!write_buffer) {
                 throw std::bad_alloc();
             }

@@ -84,13 +84,13 @@ static int swReactorPoll_add(Reactor *reactor, Socket *socket, int events) {
     object->events[cur].fd = fd;
     object->events[cur].events = 0;
 
-    if (swReactor_event_read(events)) {
+    if (Reactor::isset_read_event(events)) {
         object->events[cur].events |= POLLIN;
     }
-    if (swReactor_event_write(events)) {
+    if (Reactor::isset_write_event(events)) {
         object->events[cur].events |= POLLOUT;
     }
-    if (swReactor_event_error(events)) {
+    if (Reactor::isset_error_event(events)) {
         object->events[cur].events |= POLLHUP;
     }
 
@@ -107,10 +107,10 @@ static int swReactorPoll_set(Reactor *reactor, Socket *socket, int events) {
         // found
         if (object->events[i].fd == socket->fd) {
             object->events[i].events = 0;
-            if (swReactor_event_read(events)) {
+            if (Reactor::isset_read_event(events)) {
                 object->events[i].events |= POLLIN;
             }
-            if (swReactor_event_write(events)) {
+            if (Reactor::isset_write_event(events)) {
                 object->events[i].events |= POLLOUT;
             }
             // execute parent method
@@ -174,7 +174,7 @@ static int swReactorPoll_wait(Reactor *reactor, struct timeval *timeo) {
         }
         ret = poll(object->events, reactor->event_num, reactor->get_timeout_msec());
         if (ret < 0) {
-            if (swReactor_error(reactor) < 0) {
+            if (!reactor->catch_error()) {
                 swSysWarn("poll error");
                 break;
             } else {
@@ -188,7 +188,7 @@ static int swReactorPoll_wait(Reactor *reactor, struct timeval *timeo) {
                 event.socket = object->fds[i];
                 event.fd = object->events[i].fd;
                 event.reactor_id = reactor->id;
-                event.type = event.socket->fdtype;
+                event.type = event.socket->fd_type;
 
                 swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor->id, event.type);
                 // in

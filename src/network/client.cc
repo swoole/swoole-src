@@ -70,9 +70,9 @@ void Client::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, Client_onError);
 }
 
-Client::Client(enum swSocket_type _type, bool _async) : type(_type), async(_async) {
-    reactor_fdtype = Socket::is_stream(type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
-    socket = swoole::make_socket(type, reactor_fdtype, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
+Client::Client(enum swSocket_type _type, bool _async) : async(_async) {
+    fd_type = Socket::is_stream(_type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
+    socket = swoole::make_socket(_type, fd_type, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {
         swSysWarn("socket() failed");
         return;
@@ -82,7 +82,7 @@ Client::Client(enum swSocket_type _type, bool _async) : type(_type), async(_asyn
     input_buffer_size = SW_CLIENT_BUFFER_SIZE;
     socket->chunk_size = SW_SEND_BUFFER_SIZE;
 
-    if (Socket::is_stream(type)) {
+    if (socket->is_stream()) {
         recv = Client_tcp_recv_no_buffer;
         if (async) {
             connect = Client_tcp_connect_async;
@@ -100,7 +100,7 @@ Client::Client(enum swSocket_type _type, bool _async) : type(_type), async(_asyn
         send = Client_udp_send;
     }
 
-    Socket::get_domain_and_type(type, &_sock_domain, &_sock_type);
+    Socket::get_domain_and_type(_type, &_sock_domain, &_sock_type);
 
     protocol.package_length_type = 'N';
     protocol.package_length_size = 4;
@@ -248,7 +248,7 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
     cli->server_port = port;
 
     void *addr = nullptr;
-    if (cli->type == SW_SOCK_TCP || cli->type == SW_SOCK_UDP) {
+    if (cli->socket->is_inet4()) {
         cli->server_addr.addr.inet_v4.sin_family = AF_INET;
         cli->server_addr.addr.inet_v4.sin_port = htons(port);
         cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v4);
@@ -257,7 +257,7 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
         if (inet_pton(AF_INET, host, addr)) {
             return SW_OK;
         }
-    } else if (cli->type == SW_SOCK_TCP6 || cli->type == SW_SOCK_UDP6) {
+    } else if (cli->socket->is_inet6()) {
         cli->server_addr.addr.inet_v6.sin6_family = AF_INET6;
         cli->server_addr.addr.inet_v6.sin6_port = htons(port);
         cli->server_addr.len = sizeof(cli->server_addr.addr.inet_v6);
@@ -266,7 +266,7 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
         if (inet_pton(AF_INET6, host, addr)) {
             return SW_OK;
         }
-    } else if (cli->type == SW_SOCK_UNIX_STREAM || cli->type == SW_SOCK_UNIX_DGRAM) {
+    } else if (cli->socket->is_local()) {
         cli->server_addr.addr.un.sun_family = AF_UNIX;
         strncpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path) - 1);
         cli->server_addr.addr.un.sun_path[sizeof(cli->server_addr.addr.un.sun_path) - 1] = 0;
@@ -380,7 +380,7 @@ int Client::close() {
     }
 #endif
 
-    if (type == SW_SOCK_UNIX_DGRAM) {
+    if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         unlink(socket->info.addr.un.sun_path);
     }
     if (async) {
@@ -544,11 +544,10 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     }
 
     if (cli->wait_dns) {
-        AsyncEvent ev;
-        sw_memset_zero(&ev, sizeof(AsyncEvent));
+        AsyncEvent ev{};
 
-        int len = strlen(cli->server_host);
-        if (strlen(cli->server_host) < SW_IP_MAX_LENGTH) {
+        size_t len = strlen(cli->server_host);
+        if (len < SW_IP_MAX_LENGTH) {
             ev.nbytes = SW_IP_MAX_LENGTH;
         } else {
             ev.nbytes = len + 1;
@@ -565,7 +564,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         ev.flags = cli->_sock_domain;
         ev.object = cli;
         ev.fd = cli->socket->fd;
-        ev.handler = swoole::async::handler_gethostbyname;
+        ev.handler = async::handler_gethostbyname;
         ev.callback = Client_onResolveCompleted;
 
         if (swoole::async::dispatch(&ev) < 0) {
@@ -731,7 +730,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         cli->socket->set_timeout(timeout);
     }
 
-    if (cli->type == SW_SOCK_UNIX_DGRAM) {
+    if (cli->socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         struct sockaddr_un *client_addr = &cli->socket->info.addr.un;
         sprintf(client_addr->sun_path, "/tmp/swoole-client.%d.%d.sock", getpid(), cli->socket->fd);
         client_addr->sun_family = AF_UNIX;
@@ -1117,7 +1116,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
             }
         }
 #endif
-        if (swReactor_onWrite(reactor, event) < 0) {
+        if (Reactor::_writable_callback(reactor, event) < 0) {
             return SW_ERR;
         }
         if (cli->onBufferEmpty && cli->high_watermark && _socket->out_buffer->length() <= cli->buffer_low_watermark) {

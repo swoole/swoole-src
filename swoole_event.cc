@@ -176,9 +176,9 @@ static int event_writable_callback(Reactor *reactor, swEvent *event) {
 static int event_error_callback(Reactor *reactor, swEvent *event) {
     if (!(event->socket->events & SW_EVENT_ERROR)) {
         if (event->socket->events & SW_EVENT_READ) {
-            return reactor->get_handler(SW_EVENT_READ, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_READ, event->socket->fd_type)(reactor, event);
         } else {
-            return reactor->get_handler(SW_EVENT_WRITE, event->socket->fdtype)(reactor, event);
+            return reactor->get_handler(SW_EVENT_WRITE, event->socket->fd_type)(reactor, event);
         }
     }
 
@@ -389,7 +389,7 @@ php_socket *php_swoole_convert_to_socket(int sock) {
     php_socket *socket_object;
 #if PHP_VERSION_ID < 80000
     socket_object = (php_socket *) emalloc(sizeof *socket_object);
-    sw_memset_zero(socket_object, sizeof(php_socket));
+    sw_memset_zero(socket_object, sizeof(*socket_object));
     socket_object->bsd_socket = sock;
     socket_object->blocking = 1;
 

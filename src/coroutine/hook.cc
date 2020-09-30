@@ -205,7 +205,7 @@ ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {
     }
 
     Socket *socket = get_socket(sockfd);
-    if (socket && socket->socket->fdtype == SW_FD_CORO_SOCKET) {
+    if (socket && socket->socket->fd_type == SW_FD_CORO_SOCKET) {
         return socket->read(buf, count);
     }
 
@@ -220,7 +220,7 @@ ssize_t swoole_coroutine_write(int sockfd, const void *buf, size_t count) {
     }
 
     Socket *socket = get_socket(sockfd);
-    if (socket && socket->socket->fdtype == SW_FD_CORO_SOCKET) {
+    if (socket && socket->socket->fd_type == SW_FD_CORO_SOCKET) {
         return socket->write(buf, count);
     }
 

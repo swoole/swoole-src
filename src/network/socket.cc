@@ -664,7 +664,7 @@ ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
 
 using network::Socket;
 
-Socket *make_socket(enum swSocket_type type, enum swFd_type fdtype, int flags) {
+Socket *make_socket(enum swSocket_type type, enum swFd_type fd_type, int flags) {
     int sock_domain;
     int sock_type;
 
@@ -701,7 +701,7 @@ Socket *make_socket(enum swSocket_type type, enum swFd_type fdtype, int flags) {
         }
     }
 #endif
-    auto _socket = swoole::make_socket(sockfd, fdtype);
+    auto _socket = swoole::make_socket(sockfd, fd_type);
     _socket->nonblock = nonblock;
     _socket->cloexec = cloexec;
     _socket->socket_type = type;
@@ -726,10 +726,10 @@ Socket *make_server_socket(enum swSocket_type type, const char *address, int por
     return sock;
 }
 
-Socket *make_socket(int fd, enum swFd_type type) {
+Socket *make_socket(int fd, enum swFd_type fd_type) {
     Socket *socket = new Socket();
     socket->fd = fd;
-    socket->fdtype = type;
+    socket->fd_type = fd_type;
     socket->removed = 1;
     return socket;
 }
