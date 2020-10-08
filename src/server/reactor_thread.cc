@@ -800,6 +800,11 @@ _init_master_thread:
         start_heartbeat_thread();
     }
 
+    // stats_file
+    if (!start_save_stats()) {
+        return SW_ERR;
+    }
+
     SwooleTG.type = SW_THREAD_MASTER;
     SwooleTG.update_time = 1;
     SwooleTG.reactor = reactor;

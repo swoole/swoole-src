@@ -178,6 +178,11 @@ int Server::start_reactor_processes() {
         onManagerStart(this);
     }
 
+    // stats_file
+    if (!start_save_stats()) {
+        return SW_ERR;
+    }
+
     gs->event_workers.wait();
     gs->event_workers.shutdown();
 
@@ -360,6 +365,10 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     if (Server_is_single(serv)) {
         if (serv->onStart) {
             serv->onStart(serv);
+        }
+        // stats_file
+        if (!serv->start_save_stats()) {
+            return SW_ERR;
         }
     }
 

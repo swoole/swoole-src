@@ -1,0 +1,54 @@
+--TEST--
+swoole_server: stats_file with SWOOLE_BASE and worker_num=1
+--SKIPIF--
+<?php require  __DIR__ . '/../include/skipif.inc'; ?>
+--FILE--
+<?php
+require __DIR__ . '/../include/bootstrap.php';
+
+const STATS_FILE = __DIR__ . '/stats.log';
+if(is_file(STATS_FILE))
+{
+    unlink(STATS_FILE);
+}
+
+$pm = new ProcessManager;
+$pm->initFreePorts(1);
+
+$pm->parentFunc = function ($pid) use ($pm)
+{
+    file_get_contents('http://127.0.0.1:' . $pm->getFreePort(0));
+    sleep(1);
+    swoole_process::kill($pid);
+    echo file_get_contents(STATS_FILE);
+};
+
+$pm->childFunc = function () use ($pm)
+{
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
+    $server->set([
+        'stats_file' => STATS_FILE,
+        'worker_num' => 1,
+    ]);
+    $server->on('request', function ($request, $response) {
+        $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
+    });
+
+    $server->start();
+};
+
+$pm->childFirst();
+$pm->run();
+?>
+--EXPECTF--
+start_time: %d
+connection_num: 0
+accept_count: 1
+close_count: 1
+worker_num: 1
+idle_worker_num: 1
+tasking_num: 0
+request_count: 1
+worker_request_count: 1
+worker_dispatch_count: 0
+coroutine_num: 0

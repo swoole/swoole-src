@@ -2480,6 +2480,10 @@ static PHP_METHOD(swoole_server, set) {
         zend_long v = zval_get_long(ztmp);
         serv->message_queue_key = SW_MAX(0, SW_MIN(v, INT64_MAX));
     }
+    // stats_file
+    if (php_swoole_array_get_value(vht, "stats_file", ztmp)) {
+        serv->stats_file = zend::String(ztmp).to_std_string();
+    }
 
     if (serv->task_enable_coroutine &&
         (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)) {
@@ -3764,7 +3768,7 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
     }
 }
 
-static PHP_METHOD(swoole_server, getWorkerPid) {\
+static PHP_METHOD(swoole_server, getWorkerPid) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (!serv->is_worker()) {
         RETURN_FALSE;

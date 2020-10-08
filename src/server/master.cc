@@ -20,10 +20,13 @@
 #include "swoole_http.h"
 #include "swoole_lock.h"
 #include "swoole_util.h"
+#include "swoole_msg_queue.h"
+#include "swoole_coroutine.h"
 
 #include <assert.h>
 
 using namespace swoole;
+using swoole::Coroutine;
 using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
@@ -799,6 +802,10 @@ void Server::clear_timer() {
     if (heartbeat_timer) {
         swoole_timer_del(heartbeat_timer);
         heartbeat_timer = nullptr;
+    }
+    if (stats_timer) {
+        swoole_timer_del(stats_timer);
+        stats_timer = nullptr;
     }
     if (enable_accept_timer) {
         swoole_timer_del(enable_accept_timer);
@@ -1785,4 +1792,44 @@ int Server::get_idle_task_worker_num() {
     }
 
     return idle_worker_num;
+}
+
+bool Server::start_save_stats() {
+    if (stats_file.empty()) {
+        return true;
+    }
+    stats_timer = swoole_timer_add(1000, true, [&](Timer *timer, TimerNode *tnode) {
+        std::string content;
+        content += "start_time: " + std::to_string(gs->start_time) + "\n";
+        content += "connection_num: " + std::to_string(gs->connection_num) + "\n";
+        content += "accept_count: " + std::to_string(gs->accept_count) + "\n";
+        content += "close_count: " + std::to_string(gs->close_count) + "\n";
+        content += "worker_num: " + std::to_string(worker_num) + "\n";
+        content += "idle_worker_num: " + std::to_string(get_idle_worker_num()) + "\n";
+        content += "tasking_num: " + std::to_string(gs->tasking_num) + "\n";
+        content += "request_count: " + std::to_string(gs->request_count) + "\n";
+
+        if (SwooleWG.worker && SW_PROCESS_WORKER == SwooleWG.worker->type) {
+            content += "worker_request_count: " + std::to_string(SwooleWG.worker->request_count) + "\n";
+            content += "worker_dispatch_count: " + std::to_string(SwooleWG.worker->dispatch_count) + "\n";
+        }
+
+        if (task_ipc_mode > SW_TASK_IPC_UNIXSOCK && gs->task_workers.queue) {
+            size_t queue_num = -1;
+            size_t queue_bytes = -1;
+            if (swMsgQueue_stat(gs->task_workers.queue, &queue_num, &queue_bytes) == 0) {
+                content += "task_queue_num: " + std::to_string(queue_num) + "\n";
+                content += "task_queue_bytes: " + std::to_string(queue_bytes) + "\n";
+            }
+        }
+
+        if (task_worker_num > 0) {
+            content += "task_idle_worker_num: " + std::to_string(get_idle_task_worker_num()) + "\n";
+        }
+
+        content += "coroutine_num: " + std::to_string(Coroutine::count()) + "\n";
+
+        swoole_file_put_contents(stats_file.c_str(), content.c_str(), content.size());
+    });
+    return stats_timer != nullptr;
 }
