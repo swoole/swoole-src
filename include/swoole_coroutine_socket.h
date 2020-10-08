@@ -223,6 +223,16 @@ class Socket {
         return co ? co->get_cid() : 0;
     }
 
+    const char *get_event_str(const enum swEvent_type event) {
+        if (event == SW_EVENT_READ) {
+            return "reading";
+        } else if (event == SW_EVENT_WRITE) {
+            return "writing";
+        } else {
+            return read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing");
+        }
+    }
+
     inline void check_bound_co(const enum swEvent_type event) {
         long cid = get_bound_cid(event);
         if (sw_unlikely(cid)) {
@@ -231,11 +241,7 @@ class Socket {
                          "%s of the same socket in coroutine#%ld at the same time is not allowed",
                          sock_fd,
                          cid,
-                         (event == SW_EVENT_READ
-                              ? "reading"
-                              : (event == SW_EVENT_WRITE ? "writing"
-                                                         : (read_co && write_co ? "reading or writing"
-                                                                                : (read_co ? "reading" : "writing")))),
+                         get_event_str(event),
                          Coroutine::get_current_cid());
         }
     }
