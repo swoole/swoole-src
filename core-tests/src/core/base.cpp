@@ -133,3 +133,9 @@ TEST(base, stack_defer_fn) {
         ASSERT_EQ(count, 1);
     });
 }
+
+TEST(base, string_format) {
+    char *data = swoole_string_format(128, "hello %d world, %s is best.", 2020, "swoole");
+    ASSERT_STREQ(data, "hello 2020 world, swoole is best.");
+    sw_free(data);
+}

@@ -206,7 +206,7 @@ struct Socket {
     ssize_t recv(void *__buf, size_t __n, int __flags);
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
-    swSocket *accept();
+    Socket *accept();
     int bind(const char *host, int *port);
     void clean();
     ssize_t send_blocking(const void *__data, size_t __len);
@@ -215,6 +215,12 @@ struct Socket {
 
     inline int connect(const Address &sa) {
         return ::connect(fd, &sa.addr.ss, sa.len);
+    }
+
+    inline int connect(const std::string &host, int port) {
+        Address addr;
+        addr.assign(socket_type, host.c_str(), port);
+        return connect(addr);
     }
 
     inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
