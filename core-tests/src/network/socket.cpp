@@ -85,6 +85,36 @@ TEST(socket, sendto_ipv6) {
     test_sendto(SW_SOCK_UDP6);
 }
 
+TEST(socket, recv) {
+    mutex m;
+    m.lock();
+
+    thread t1([&m]() {
+        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+        char buf[1024] = {};
+        svr->set_block();
+        m.unlock();
+
+        auto client_sock = svr->accept();
+        client_sock->recv(buf, sizeof(buf), 0);
+
+        ASSERT_STREQ(test_data, buf);
+        svr->free();
+    });
+
+    thread t2([&m]() {
+        m.lock();
+        auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+        ASSERT_EQ(cli->connect(TEST_HOST, TEST_PORT), SW_OK);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        cli->send(test_data, sizeof(test_data), 0);
+        cli->free();
+    });
+
+    t1.join();
+    t2.join();
+}
+
 TEST(socket, recvfrom_blocking) {
     mutex m;
     m.lock();

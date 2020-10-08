@@ -106,9 +106,9 @@ static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_p
 static void php_swoole_onManagerStart(Server *serv);
 static void php_swoole_onManagerStop(Server *serv);
 
-static void php_swoole_onSendTimeout(swTimer *timer, TimerNode *tnode);
+static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode);
 static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, int fd);
-static void php_swoole_task_onTimeout(swTimer *timer, TimerNode *tnode);
+static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
 
@@ -953,7 +953,7 @@ static void php_swoole_task_wait_co(
     PHPCoroutine::yield_m(return_value, &task_co->context);
 }
 
-static void php_swoole_task_onTimeout(swTimer *timer, TimerNode *tnode) {
+static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode) {
     TaskCo *task_co = (TaskCo *) tnode->data;
     FutureTask *context = &task_co->context;
     zval *retval = nullptr;
@@ -1756,7 +1756,7 @@ void php_swoole_onBufferFull(Server *serv, DataHead *info) {
     }
 }
 
-static void php_swoole_onSendTimeout(swTimer *timer, TimerNode *tnode) {
+static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode) {
     FutureTask *context = (FutureTask *) tnode->data;
     zval *zdata = &context->coro_params;
     zval result;
@@ -3815,7 +3815,7 @@ static PHP_METHOD(swoole_server, stop) {
         if (SwooleTG.reactor != nullptr) {
             SwooleTG.reactor->defer(
                 [](void *data) {
-                    swReactor *reactor = (swReactor *) data;
+                    Reactor *reactor = (Reactor *) data;
                     reactor->running = false;
                 },
                 SwooleTG.reactor);

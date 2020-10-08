@@ -596,9 +596,9 @@ struct swThreadGlobal {
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
-    swString *buffer_stack;
-    swReactor *reactor;
-    swTimer *timer;
+    swoole::String *buffer_stack;
+    swoole::Reactor *reactor;
+    swoole::Timer *timer;
     uint8_t aio_init;
     uint8_t aio_schedule;
     uint32_t aio_task_num;

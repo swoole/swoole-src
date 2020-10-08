@@ -39,7 +39,6 @@ struct EventBarrier {
 
 class Socket {
   public:
-    network::Socket *socket = nullptr;
     int errCode = 0;
     const char *errMsg = "";
     std::string errString;
@@ -159,7 +158,11 @@ class Socket {
     inline enum swSocket_type get_type() {
         return type;
     }
-    
+
+    inline enum swFd_type get_fd_type() {
+        return socket->fd_type;
+    }
+
     inline int get_sock_domain() {
         return sock_domain;
     }
@@ -195,6 +198,8 @@ class Socket {
         return socket->info.get_port();
     }
 
+
+
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) {
         return get_bound_co(event) != nullptr;
     }
@@ -218,6 +223,16 @@ class Socket {
         return co ? co->get_cid() : 0;
     }
 
+    const char *get_event_str(const enum swEvent_type event) {
+        if (event == SW_EVENT_READ) {
+            return "reading";
+        } else if (event == SW_EVENT_WRITE) {
+            return "writing";
+        } else {
+            return read_co && write_co ? "reading or writing" : (read_co ? "reading" : "writing");
+        }
+    }
+
     inline void check_bound_co(const enum swEvent_type event) {
         long cid = get_bound_cid(event);
         if (sw_unlikely(cid)) {
@@ -226,11 +241,7 @@ class Socket {
                          "%s of the same socket in coroutine#%ld at the same time is not allowed",
                          sock_fd,
                          cid,
-                         (event == SW_EVENT_READ
-                              ? "reading"
-                              : (event == SW_EVENT_WRITE ? "writing"
-                                                         : (read_co && write_co ? "reading or writing"
-                                                                                : (read_co ? "reading" : "writing")))),
+                         get_event_str(event),
                          Coroutine::get_current_cid());
         }
     }
@@ -354,11 +365,16 @@ class Socket {
         return socket && ssl_handshaked;
     }
 
+    SSL *get_ssl() {
+        return socket->ssl;
+    }
+
     bool ssl_shutdown();
 #endif
 
   private:
     enum swSocket_type type;
+    network::Socket *socket = nullptr;
     int sock_domain = 0;
     int sock_type = 0;
     int sock_protocol = 0;
@@ -410,10 +426,10 @@ class Socket {
 
     Socket(network::Socket *sock, Socket *socket);
 
-    static void timer_callback(swTimer *timer, TimerNode *tnode);
-    static int readable_event_callback(swReactor *reactor, swEvent *event);
-    static int writable_event_callback(swReactor *reactor, swEvent *event);
-    static int error_event_callback(swReactor *reactor, swEvent *event);
+    static void timer_callback(Timer *timer, TimerNode *tnode);
+    static int readable_event_callback(Reactor *reactor, Event *event);
+    static int writable_event_callback(Reactor *reactor, Event *event);
+    static int error_event_callback(Reactor *reactor, Event *event);
 
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();

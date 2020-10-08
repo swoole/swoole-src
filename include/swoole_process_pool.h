@@ -186,7 +186,7 @@ struct ProcessPool {
     Worker *workers;
     Pipe *pipes;
     std::unordered_map<pid_t, Worker *> *map_;
-    swReactor *reactor;
+    Reactor *reactor;
     swMsgQueue *queue;
     StreamInfo *stream_info_;
 
