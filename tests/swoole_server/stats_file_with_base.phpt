@@ -7,8 +7,7 @@ swoole_server: stats_file with SWOOLE_BASE and worker_num=1
 require __DIR__ . '/../include/bootstrap.php';
 
 const STATS_FILE = __DIR__ . '/stats.log';
-if(is_file(STATS_FILE))
-{
+if(is_file(STATS_FILE)) {
     unlink(STATS_FILE);
 }
 
@@ -17,10 +16,12 @@ $pm->initFreePorts(1);
 
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    file_get_contents('http://127.0.0.1:' . $pm->getFreePort(0));
-    sleep(1);
-    swoole_process::kill($pid);
-    echo file_get_contents(STATS_FILE);
+    go(function() use ($pm, $pid) {
+        httpRequest('http://127.0.0.1:' . $pm->getFreePort(0));
+        sleep(1);
+        swoole_process::kill($pid);
+        echo file_get_contents(STATS_FILE);
+    });
 };
 
 $pm->childFunc = function () use ($pm)

@@ -16,10 +16,12 @@ $pm->initFreePorts(1);
 
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    file_get_contents('http://127.0.0.1:' . $pm->getFreePort(0));
-    sleep(1);
-    swoole_process::kill($pid);
-    echo file_get_contents(STATS_FILE);
+    go(function() use ($pm, $pid) {
+        httpRequest('http://127.0.0.1:' . $pm->getFreePort(0));
+        sleep(1);
+        swoole_process::kill($pid);
+        echo file_get_contents(STATS_FILE);
+    });
 };
 
 $pm->childFunc = function () use ($pm)
