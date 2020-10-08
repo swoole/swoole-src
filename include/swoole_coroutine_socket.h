@@ -426,10 +426,10 @@ class Socket {
 
     Socket(network::Socket *sock, Socket *socket);
 
-    static void timer_callback(swTimer *timer, TimerNode *tnode);
-    static int readable_event_callback(swReactor *reactor, swEvent *event);
-    static int writable_event_callback(swReactor *reactor, swEvent *event);
-    static int error_event_callback(swReactor *reactor, swEvent *event);
+    static void timer_callback(Timer *timer, TimerNode *tnode);
+    static int readable_event_callback(Reactor *reactor, Event *event);
+    static int writable_event_callback(Reactor *reactor, Event *event);
+    static int error_event_callback(Reactor *reactor, Event *event);
 
     inline void init_sock_type(enum swSocket_type _type);
     inline bool init_sock();

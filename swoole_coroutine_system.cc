@@ -9,6 +9,8 @@ using swoole::TimerNode;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::FutureTask;
+using swoole::Reactor;
+using swoole::Event;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
@@ -71,7 +73,7 @@ PHP_METHOD(swoole_coroutine_system, sleep) {
     RETURN_BOOL(System::sleep(seconds) == 0);
 }
 
-static int co_socket_onReadable(swReactor *reactor, swEvent *event) {
+static int co_socket_onReadable(Reactor *reactor, Event *event) {
     TmpSocket *sock = (TmpSocket *) event->socket->object;
     FutureTask *context = &sock->context;
 
@@ -106,7 +108,7 @@ static int co_socket_onReadable(swReactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-static int co_socket_onWritable(swReactor *reactor, swEvent *event) {
+static int co_socket_onWritable(Reactor *reactor, Event *event) {
     TmpSocket *sock = (TmpSocket *) event->socket->object;
     FutureTask *context = &sock->context;
 

@@ -60,7 +60,7 @@ static void aio_onDNSCompleted(AsyncEvent *event) {
     ((Coroutine *) task->co)->resume();
 }
 
-static void aio_onDNSTimeout(swTimer *timer, TimerNode *tnode) {
+static void aio_onDNSTimeout(Timer *timer, TimerNode *tnode) {
     AsyncEvent *event = (AsyncEvent *) tnode->data;
     event->canceled = 1;
     AsyncTask *task = (AsyncTask *) event->object;
@@ -69,7 +69,7 @@ static void aio_onDNSTimeout(swTimer *timer, TimerNode *tnode) {
     ((Coroutine *) task->co)->resume();
 }
 
-static void sleep_timeout(swTimer *timer, TimerNode *tnode) {
+static void sleep_timeout(Timer *timer, TimerNode *tnode) {
     ((Coroutine *) tnode->data)->resume();
 }
 
@@ -312,7 +312,7 @@ bool System::wait_signal(int signo, double timeout) {
     if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
         sw_reactor()->set_exit_condition(
             Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER,
-            [](swReactor *reactor, int &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
+            [](Reactor *reactor, int &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
     }
     /* always enable signalfd */
     SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
@@ -330,7 +330,7 @@ bool System::wait_signal(int signo, double timeout) {
         timer = swoole_timer_add(
             timeout * 1000,
             0,
-            [](swTimer *timer, TimerNode *tnode) {
+            [](Timer *timer, TimerNode *tnode) {
                 Coroutine *co = (Coroutine *) tnode->data;
                 co->resume();
             },
@@ -382,7 +382,7 @@ static inline void socket_poll_clean(CoroPollTask *task) {
     }
 }
 
-static void socket_poll_timeout(swTimer *timer, TimerNode *tnode) {
+static void socket_poll_timeout(Timer *timer, TimerNode *tnode) {
     CoroPollTask *task = (CoroPollTask *) tnode->data;
     task->timer = nullptr;
     task->success = false;
@@ -397,7 +397,7 @@ static void socket_poll_completed(void *data) {
     task->co->resume();
 }
 
-static inline void socket_poll_trigger_event(swReactor *reactor,
+static inline void socket_poll_trigger_event(Reactor *reactor,
                                              CoroPollTask *task,
                                              int fd,
                                              enum swEvent_type event) {
@@ -423,17 +423,17 @@ static inline void socket_poll_trigger_event(swReactor *reactor,
     }
 }
 
-static int socket_poll_read_callback(swReactor *reactor, swEvent *event) {
+static int socket_poll_read_callback(Reactor *reactor, Event *event) {
     socket_poll_trigger_event(reactor, (CoroPollTask *) event->socket->object, event->fd, SW_EVENT_READ);
     return SW_OK;
 }
 
-static int socket_poll_write_callback(swReactor *reactor, swEvent *event) {
+static int socket_poll_write_callback(Reactor *reactor, Event *event) {
     socket_poll_trigger_event(reactor, (CoroPollTask *) event->socket->object, event->fd, SW_EVENT_WRITE);
     return SW_OK;
 }
 
-static int socket_poll_error_callback(swReactor *reactor, swEvent *event) {
+static int socket_poll_error_callback(Reactor *reactor, Event *event) {
     socket_poll_trigger_event(reactor, (CoroPollTask *) event->socket->object, event->fd, SW_EVENT_ERROR);
     return SW_OK;
 }
@@ -537,7 +537,7 @@ struct EventWaiter {
         if (timeout > 0) {
             timer = swoole_timer_add((long) (timeout * 1000),
                                      false,
-                                     [](swTimer *timer, TimerNode *tnode) {
+                                     [](Timer *timer, TimerNode *tnode) {
                                          EventWaiter *waiter = (EventWaiter *) tnode->data;
                                          waiter->timer = nullptr;
                                          waiter->co->resume();
@@ -562,24 +562,24 @@ struct EventWaiter {
     }
 };
 
-static inline void event_waiter_callback(swReactor *reactor, EventWaiter *waiter, enum swEvent_type event) {
+static inline void event_waiter_callback(Reactor *reactor, EventWaiter *waiter, enum swEvent_type event) {
     if (waiter->revents == 0) {
         reactor->defer([waiter](void *data) { waiter->co->resume(); });
     }
     waiter->revents |= event;
 }
 
-static int event_waiter_read_callback(swReactor *reactor, swEvent *event) {
+static int event_waiter_read_callback(Reactor *reactor, Event *event) {
     event_waiter_callback(reactor, (EventWaiter *) event->socket->object, SW_EVENT_READ);
     return SW_OK;
 }
 
-static int event_waiter_write_callback(swReactor *reactor, swEvent *event) {
+static int event_waiter_write_callback(Reactor *reactor, Event *event) {
     event_waiter_callback(reactor, (EventWaiter *) event->socket->object, SW_EVENT_WRITE);
     return SW_OK;
 }
 
-static int event_waiter_error_callback(swReactor *reactor, swEvent *event) {
+static int event_waiter_error_callback(Reactor *reactor, Event *event) {
     event_waiter_callback(reactor, (EventWaiter *) event->socket->object, SW_EVENT_ERROR);
     return SW_OK;
 }

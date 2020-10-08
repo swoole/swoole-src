@@ -180,13 +180,6 @@ int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout) {
 
     return retval;
 }
-
-static void aio_onCompleted(Event *event) {
-    Event *ev = (Event *) event->req;
-    ev->ret = event->ret;
-    errno = event->error;
-    ((Coroutine *) event->object)->resume();
-}
 #endif
 
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {

@@ -84,7 +84,7 @@ class Timer {
 
     inline static int64_t get_absolute_msec() {
         struct timeval now;
-        if (swTimer::now(&now) < 0) {
+        if (Timer::now(&now) < 0) {
             return SW_ERR;
         }
         int64_t msec1 = (now.tv_sec) * 1000;

@@ -814,7 +814,7 @@ void Server::shutdown() {
     running = false;
     // stop all thread
     if (SwooleTG.reactor) {
-        swReactor *reactor = SwooleTG.reactor;
+        Reactor *reactor = SwooleTG.reactor;
         reactor->set_wait_exit(true);
         for (auto port : ports) {
             if (port->is_dgram() and is_process_mode()) {
