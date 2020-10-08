@@ -103,6 +103,8 @@ class Client {
         }
     }
 
+    ssize_t build_header(zval *zobject, zval *zrequest, char *buffer);
+
     inline void update_error_properties(int code, const char *msg) {
         zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), code);
         zend_update_property_string(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), msg);
@@ -190,6 +192,7 @@ class Client {
 
 using swoole::coroutine::http2::Client;
 using swoole::coroutine::http2::Stream;
+using swoole::http2::HeaderSet;
 
 struct Http2ClientObject {
     Client *h2c;
@@ -969,13 +972,13 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) {
     return SW_OK;
 }
 
-static ssize_t Client_build_header(zval *zobject, zval *zrequest, char *buffer) {
+ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
     Client *h2c = php_swoole_get_h2c(zobject);
     zval *zmethod = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_METHOD), 0);
     zval *zpath = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_PATH), 0);
     zval *zheaders = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADERS), 0);
     zval *zcookies = sw_zend_read_property_ex(swoole_http2_request_ce, zrequest, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIES), 0);
-    http2::HeaderSet headers(8 + php_swoole_array_length_safe(zheaders) + php_swoole_array_length_safe(zcookies));
+    HeaderSet headers(8 + php_swoole_array_length_safe(zheaders) + php_swoole_array_length_safe(zcookies));
     bool find_host = 0;
 
     if (Z_TYPE_P(zmethod) != IS_STRING || Z_STRLEN_P(zmethod) == 0) {
@@ -1153,7 +1156,7 @@ uint32_t Client::send_request(zval *zrequest) {
      * send headers
      */
     char *buffer = SwooleTG.buffer_stack->str;
-    ssize_t bytes = Client_build_header(zobject, zrequest, buffer + SW_HTTP2_FRAME_HEADER_SIZE);
+    ssize_t bytes = build_header(zobject, zrequest, buffer + SW_HTTP2_FRAME_HEADER_SIZE);
 
     if (bytes <= 0) {
         return 0;
