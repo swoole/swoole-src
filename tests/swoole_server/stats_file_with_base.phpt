@@ -7,7 +7,7 @@ swoole_server: stats_file with SWOOLE_BASE and worker_num=1
 require __DIR__ . '/../include/bootstrap.php';
 
 const STATS_FILE = __DIR__ . '/stats.log';
-if(is_file(STATS_FILE)) {
+if (is_file(STATS_FILE)) {
     unlink(STATS_FILE);
 }
 
