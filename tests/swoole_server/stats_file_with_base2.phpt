@@ -18,10 +18,16 @@ $pm->parentFunc = function ($pid) use ($pm)
 {
     go(function() use ($pm, $pid) {
         httpRequest('http://127.0.0.1:' . $pm->getFreePort(0));
-        switch_process();
-        sleep(1);
+        Co::sleep(1);
+        for ($i = 0; $i < 4; ++$i) {
+            Co::sleep(0.5);
+            $content = file_get_contents(STATS_FILE);
+            if('' != $content) {
+                echo $content;
+                break;
+            }
+        }
         swoole_process::kill($pid);
-        echo file_get_contents(STATS_FILE);
     });
 };
 
