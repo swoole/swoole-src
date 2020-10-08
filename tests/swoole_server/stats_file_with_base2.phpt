@@ -18,6 +18,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 {
     go(function() use ($pm, $pid) {
         httpRequest('http://127.0.0.1:' . $pm->getFreePort(0));
+        switch_process();
         sleep(1);
         swoole_process::kill($pid);
         echo file_get_contents(STATS_FILE);
@@ -31,6 +32,9 @@ $pm->childFunc = function () use ($pm)
         'stats_file' => STATS_FILE,
         'worker_num' => 2,
     ]);
+    $server->on('ManagerStart', function ($serv) use ($pm) {
+        $pm->wakeup();
+    });
     $server->on('request', function ($request, $response) {
         $response->end("<h1>Hello Swoole. #".rand(1000, 9999)."</h1>");
     });
