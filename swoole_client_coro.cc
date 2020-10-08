@@ -890,7 +890,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL) {
         php_swoole_fatal_error(E_WARNING, "cannot use enableSSL");
         RETURN_FALSE;
     }
-    if (cli->socket->ssl) {
+    if (cli->get_ssl()) {
         php_swoole_fatal_error(E_WARNING, "SSL has been enabled");
         RETURN_FALSE;
     }
@@ -906,12 +906,12 @@ static PHP_METHOD(swoole_client_coro, getPeerCert) {
     if (!cli) {
         RETURN_FALSE;
     }
-    if (!cli->socket->ssl) {
+    if (!cli->get_ssl()) {
         php_swoole_fatal_error(E_WARNING, "SSL is not ready");
         RETURN_FALSE;
     }
     char buf[8192];
-    int n = swSSL_get_peer_cert(cli->socket->ssl, buf, sizeof(buf));
+    int n = swSSL_get_peer_cert(cli->get_ssl(), buf, sizeof(buf));
     if (n < 0) {
         RETURN_FALSE;
     }
@@ -923,7 +923,7 @@ static PHP_METHOD(swoole_client_coro, verifyPeerCert) {
     if (!cli) {
         RETURN_FALSE;
     }
-    if (!cli->socket->ssl) {
+    if (!cli->get_ssl()) {
         php_swoole_fatal_error(E_WARNING, "SSL is not ready");
         RETURN_FALSE;
     }

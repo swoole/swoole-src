@@ -39,7 +39,6 @@ struct EventBarrier {
 
 class Socket {
   public:
-    network::Socket *socket = nullptr;
     int errCode = 0;
     const char *errMsg = "";
     std::string errString;
@@ -159,7 +158,11 @@ class Socket {
     inline enum swSocket_type get_type() {
         return type;
     }
-    
+
+    inline enum swFd_type get_fd_type() {
+        return socket->fd_type;
+    }
+
     inline int get_sock_domain() {
         return sock_domain;
     }
@@ -194,6 +197,8 @@ class Socket {
     inline int get_port() {
         return socket->info.get_port();
     }
+
+
 
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) {
         return get_bound_co(event) != nullptr;
@@ -354,11 +359,16 @@ class Socket {
         return socket && ssl_handshaked;
     }
 
+    SSL *get_ssl() {
+        return socket->ssl;
+    }
+
     bool ssl_shutdown();
 #endif
 
   private:
     enum swSocket_type type;
+    network::Socket *socket = nullptr;
     int sock_domain = 0;
     int sock_type = 0;
     int sock_protocol = 0;
