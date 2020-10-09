@@ -1598,12 +1598,7 @@ static void php_swoole_onWorkerStart(Server *serv, int worker_id) {
     ZVAL_LONG(&args[1], worker_id);
 
     if (SWOOLE_G(enable_library)) {
-        zval function_name;
-        ZVAL_STRING(&function_name, "\\Swoole\\Server\\Helper::onWorkerStart");
-        zval _return_value;
-        call_user_function(EG(function_table), NULL, &function_name, &_return_value, 2, args);
-        zval_dtor(&_return_value);
-        zval_dtor(&function_name);
+        zend::function::call("\\Swoole\\Server\\Helper::onWorkerStart", 2, args);
     }
 
     if (fci_cache) {
@@ -1655,12 +1650,7 @@ static void php_swoole_onWorkerStop(Server *serv, int worker_id) {
     ZVAL_LONG(&args[1], worker_id);
 
     if (SWOOLE_G(enable_library)) {
-        zval function_name;
-        ZVAL_STRING(&function_name, "\\Swoole\\Server\\Helper::onWorkerStop");
-        zval _return_value;
-        call_user_function(EG(function_table), NULL, &function_name, &_return_value, 2, args);
-        zval_dtor(&_return_value);
-        zval_dtor(&function_name);
+        zend::function::call("\\Swoole\\Server\\Helper::onWorkerStop", 2, args);
     }
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, false))) {
@@ -1678,12 +1668,7 @@ static void php_swoole_onWorkerExit(Server *serv, int worker_id) {
     ZVAL_LONG(&args[1], worker_id);
 
     if (SWOOLE_G(enable_library)) {
-        zval function_name;
-        ZVAL_STRING(&function_name, "\\Swoole\\Server\\Helper::onWorkerExit");
-        zval _return_value;
-        call_user_function(EG(function_table), NULL, &function_name, &_return_value, 2, args);
-        zval_dtor(&_return_value);
-        zval_dtor(&function_name);
+        zend::function::call("\\Swoole\\Server\\Helper::onWorkerExit", 2, args);
     }
 
     if (fci_cache) {
