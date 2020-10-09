@@ -359,7 +359,7 @@ static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
     } else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_CLOSED,
-                         "send %d byte failed, because connection[fd=%d] is closed",
+                         "send %d bytes failed, because connection[fd=%d] is closed",
                          resp->info.len,
                          session_id);
         return false;
