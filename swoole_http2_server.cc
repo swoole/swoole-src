@@ -72,6 +72,7 @@ Http2Session::Session(int _fd) {
     max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
     last_stream_id = 0;
     shutting_down = false;
+    is_coro = false;
     http2_sessions[_fd] = this;
 }
 
@@ -916,8 +917,10 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
 
             Worker *worker = SwooleWG.worker;
             worker->request_count++;
-            Server *serv = (swServer *) stream->ctx->private_data;
-            sw_atomic_fetch_add(&serv->gs->request_count, 1);
+            if(!client->is_coro) {
+                Server *serv = (swServer *) stream->ctx->private_data;
+                sw_atomic_fetch_add(&serv->gs->request_count, 1);
+            }
 
             client->handle(client, stream);
         }

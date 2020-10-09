@@ -155,6 +155,7 @@ class http_server {
         session.default_ctx = ctx;
         session.handle = http2_server_onRequest;
         session.private_data = this;
+        session.is_coro = true;
 
         while (true) {
             auto buffer = sock->get_read_buffer();

@@ -212,6 +212,7 @@ class Session {
     uint32_t max_frame_size;
     uint32_t last_stream_id;
     bool     shutting_down;
+    bool     is_coro;
 
     http::Context *default_ctx = nullptr;
     void *private_data   = nullptr;
