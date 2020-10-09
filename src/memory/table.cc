@@ -63,7 +63,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
 
 bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, size_t _size) {
     if (_type < TableColumn::TYPE_INT || _type > TableColumn::TYPE_STRING) {
-        swWarn("unkown column type");
+        swWarn("unknown column type");
         return false;
     }
 
