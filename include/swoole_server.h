@@ -154,6 +154,7 @@ struct Connection {
      */
     int server_fd;
     sw_atomic_t queued_bytes;
+    uint32_t send_queued_bytes;
     uint16_t waiting_time;
     TimerNode *timer;
     /**
@@ -650,7 +651,6 @@ class Server {
     uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
     uint32_t input_buffer_size = SW_INPUT_BUFFER_SIZE;
     uint32_t max_queued_bytes = 0;
-    uint32_t send_queued_bytes = 0;
 
     /**
      * the master process and worker process communicate using unix socket dgram.
