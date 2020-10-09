@@ -391,7 +391,7 @@ void Server::store_listen_socket() {
 }
 
 static void **Server_worker_create_buffers(Server *serv, uint32_t buffer_num) {
-    swString **buffers = (swString **) sw_malloc(sizeof(swString *) * buffer_num);
+    String **buffers = (String **) sw_malloc(sizeof(String *) * buffer_num);
     if (buffers == nullptr) {
         swError("malloc for worker input_buffers failed");
     }
@@ -408,7 +408,7 @@ static void **Server_worker_create_buffers(Server *serv, uint32_t buffer_num) {
 
 static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void **buffers) {
     for (uint i = 0; i < buffer_num; i++) {
-        swString_free((swString *) buffers[i]);
+        swString_free((String *) buffers[i]);
     }
     sw_free(buffers);
 }
@@ -814,7 +814,7 @@ void Server::shutdown() {
     running = false;
     // stop all thread
     if (SwooleTG.reactor) {
-        swReactor *reactor = SwooleTG.reactor;
+        Reactor *reactor = SwooleTG.reactor;
         reactor->set_wait_exit(true);
         for (auto port : ports) {
             if (port->is_dgram() and is_process_mode()) {
@@ -903,7 +903,7 @@ void Server::destroy() {
     }
     for (auto i = 0; i < SW_MAX_HOOK_TYPE; i++) {
         if (hooks[i]) {
-            std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[i]);
+            std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[i]);
             hooks[i] = nullptr;
             delete l;
         }
@@ -1140,6 +1140,7 @@ int Server::send_to_connection(SendData *_send) {
         }
 
         _socket->out_buffer->append(_send_data, _send_length);
+        conn->send_queued_bytes = _socket->out_buffer->length();
 
         ListenPort *port = get_port_by_fd(fd);
         if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length() >= port->buffer_high_watermark) {
@@ -1247,13 +1248,13 @@ bool Server::sendwait(int session_id, const void *data, uint32_t length) {
     return conn->socket->send_blocking(data, length) == length;
 }
 
-static sw_inline void Server_worker_set_buffer(Server *serv, DataHead *info, swString *addr) {
-    swString **buffers = (swString **) serv->worker_input_buffers;
+static sw_inline void Server_worker_set_buffer(Server *serv, DataHead *info, String *addr) {
+    String **buffers = (String **) serv->worker_input_buffers;
     buffers[info->reactor_id] = addr;
 }
 
 static void *Server_worker_get_buffer(Server *serv, DataHead *info) {
-    swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
+    String *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
 
     if (worker_buffer == nullptr) {
         worker_buffer = swString_new(info->len);
@@ -1264,18 +1265,18 @@ static void *Server_worker_get_buffer(Server *serv, DataHead *info) {
 }
 
 static size_t Server_worker_get_buffer_len(Server *serv, DataHead *info) {
-    swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
+    String *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
 
     return worker_buffer == nullptr ? 0 : worker_buffer->length;
 }
 
 static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len) {
-    swString *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
+    String *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
     worker_buffer->length += len;
 }
 
 static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer) {
-    swString *worker_buffer = serv->get_worker_input_buffer(buffer->info.reactor_id);
+    String *worker_buffer = serv->get_worker_input_buffer(buffer->info.reactor_id);
     memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
     Server_worker_set_buffer(serv, &buffer->info, nullptr);
 }
@@ -1401,7 +1402,7 @@ int Server::add_worker(Worker *worker) {
     return worker->id;
 }
 
-int Server::add_hook(Server::HookType type, const swCallback &func, int push_back) {
+int Server::add_hook(Server::HookType type, const Callback &func, int push_back) {
     return swoole::hook_add(hooks, (int) type, func, push_back);
 }
 

@@ -68,7 +68,7 @@ static void signal_handler(int signo) {
 
 static void signal_init() {
     if (!signal_ready) {
-        swReactor *reactor = SwooleTG.reactor;
+        Reactor *reactor = SwooleTG.reactor;
         swSignal_set(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
         if (SwooleG.use_signalfd && !reactor->isset_handler(SW_FD_SIGNAL)) {
@@ -76,7 +76,7 @@ static void signal_init() {
         }
 #endif
 
-        reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](swReactor *reactor, int &event_num) -> bool {
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](Reactor *reactor, int &event_num) -> bool {
             return swoole_coroutine_wait_count() == 0;
         });
 
@@ -141,7 +141,7 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
         timer = swoole_timer_add(
             timeout * 1000,
             false,
-            [](swTimer *timer, TimerNode *tnode) {
+            [](Timer *timer, TimerNode *tnode) {
                 Coroutine *co = (Coroutine *) tnode->data;
                 co->resume();
             },

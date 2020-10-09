@@ -596,9 +596,9 @@ struct swThreadGlobal {
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
-    swString *buffer_stack;
-    swReactor *reactor;
-    swTimer *timer;
+    swoole::String *buffer_stack;
+    swoole::Reactor *reactor;
+    swoole::Timer *timer;
     uint8_t aio_init;
     uint8_t aio_schedule;
     uint32_t aio_task_num;
@@ -712,6 +712,6 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
 }
 
 namespace swoole {
-int hook_add(void **hooks, int type, const swCallback &func, int push_back);
+int hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 }  // namespace swoole

@@ -905,57 +905,6 @@ int swoole_fcntl_set_option(int sock, int nonblock, int cloexec) {
     return SW_OK;
 }
 
-static int *swoole_kmp_borders(char *needle, size_t nlen) {
-    if (!needle) {
-        return nullptr;
-    }
-
-    int i, j, *borders = (int *) sw_malloc((nlen + 1) * sizeof(*borders));
-    if (!borders) {
-        return nullptr;
-    }
-
-    i = 0;
-    j = -1;
-    borders[i] = j;
-    while ((uint32_t) i < nlen) {
-        while (j >= 0 && needle[i] != needle[j]) {
-            j = borders[j];
-        }
-        ++i;
-        ++j;
-        borders[i] = j;
-    }
-    return borders;
-}
-
-static char *swoole_kmp_search(char *haystack, size_t haylen, char *needle, uint32_t nlen, int *borders) {
-    uint32_t max_index = haylen - nlen, i = 0, j = 0;
-
-    while (i <= max_index) {
-        while (j < nlen && *haystack && needle[j] == *haystack) {
-            ++j;
-            ++haystack;
-        }
-        if (j == nlen) {
-            return haystack - nlen;
-        }
-        if (!(*haystack)) {
-            return nullptr;
-        }
-        if (j == 0) {
-            ++haystack;
-            ++i;
-        } else {
-            do {
-                i += j - (uint32_t) borders[j];
-                j = borders[j];
-            } while (j > 0 && needle[j] != *haystack);
-        }
-    }
-    return nullptr;
-}
-
 int swoole_itoa(char *buf, long value) {
     long i = 0, j;
     long sign_mask;
@@ -981,23 +930,6 @@ int swoole_itoa(char *buf, long value) {
     }
     buf[s_len] = 0;
     return s_len;
-}
-
-char *swoole_kmp_strnstr(char *haystack, char *needle, uint32_t length) {
-    if (!haystack || !needle) {
-        return nullptr;
-    }
-    size_t nlen = strlen(needle);
-    if (length < nlen) {
-        return nullptr;
-    }
-    int *borders = swoole_kmp_borders(needle, nlen);
-    if (!borders) {
-        return nullptr;
-    }
-    char *match = swoole_kmp_search(haystack, length, needle, nlen, borders);
-    sw_free(borders);
-    return match;
 }
 
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream) {
@@ -1163,12 +1095,12 @@ size_t swDataHead::dump(char *_buf, size_t _len) {
 
 namespace swoole {
 //-------------------------------------------------------------------------------
-int hook_add(void **hooks, int type, const swCallback &func, int push_back) {
+int hook_add(void **hooks, int type, const Callback &func, int push_back) {
     if (hooks[type] == nullptr) {
-        hooks[type] = new std::list<swCallback>;
+        hooks[type] = new std::list<Callback>;
     }
 
-    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
+    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
     if (push_back) {
         l->push_back(func);
     } else {
@@ -1179,7 +1111,7 @@ int hook_add(void **hooks, int type, const swCallback &func, int push_back) {
 }
 
 void hook_call(void **hooks, int type, void *arg) {
-    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
+    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);
     }

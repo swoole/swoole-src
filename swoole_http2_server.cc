@@ -989,7 +989,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
 /**
  * Http2
  */
-int swoole_http2_server_onFrame(Server *serv, Connection *conn, swRecvData *req) {
+int swoole_http2_server_onFrame(Server *serv, Connection *conn, RecvData *req) {
     int session_id = req->info.fd;
     Http2Session *client = http2_sessions[session_id];
     if (client == nullptr) {

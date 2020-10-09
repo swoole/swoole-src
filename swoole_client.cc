@@ -579,7 +579,7 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
     php_swoole_client_set_cli(zobject, nullptr);
 }
 
-ssize_t php_swoole_length_func(swProtocol *protocol, swSocket *_socket, const char *data, uint32_t length) {
+ssize_t php_swoole_length_func(Protocol *protocol, Socket *_socket, const char *data, uint32_t length) {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
     zval retval;
@@ -981,7 +981,7 @@ static PHP_METHOD(swoole_client, recv) {
         RETURN_FALSE;
     }
 
-    swProtocol *protocol = &cli->protocol;
+    Protocol *protocol = &cli->protocol;
 
     if (cli->open_eof_check) {
         if (cli->buffer == nullptr) {

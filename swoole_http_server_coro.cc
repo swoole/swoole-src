@@ -143,7 +143,7 @@ class http_server {
 #ifdef SW_USE_HTTP2
     void recv_http2_frame(http_context *ctx) {
         Socket *sock = (Socket *) ctx->private_data;
-        swHttp2_send_setting_frame(&sock->protocol, sock->socket);
+        swHttp2_send_setting_frame(&sock->protocol, sock->get_socket());
 
         sock->open_length_check = true;
         sock->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;

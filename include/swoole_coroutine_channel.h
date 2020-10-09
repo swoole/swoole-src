@@ -106,7 +106,7 @@ class Channel {
     std::list<Coroutine *> consumer_queue;
     std::queue<void *> data_queue;
 
-    static void timer_callback(swTimer *timer, TimerNode *tnode);
+    static void timer_callback(Timer *timer, TimerNode *tnode);
 
     void yield(enum opcode type);
 

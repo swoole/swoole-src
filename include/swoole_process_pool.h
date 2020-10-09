@@ -24,6 +24,7 @@
 enum swWorker_status {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
+    SW_WORKER_EXIT = 3,
 };
 
 enum swIPC_type {
@@ -186,7 +187,7 @@ struct ProcessPool {
     Worker *workers;
     Pipe *pipes;
     std::unordered_map<pid_t, Worker *> *map_;
-    swReactor *reactor;
+    Reactor *reactor;
     swMsgQueue *queue;
     StreamInfo *stream_info_;
 

@@ -89,7 +89,7 @@ void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
     }
 }
 
-int Socket::readable_event_callback(swReactor *reactor, swEvent *event) {
+int Socket::readable_event_callback(Reactor *reactor, Event *event) {
     Socket *socket = (Socket *) event->socket->object;
     socket->set_err(0);
 #ifdef SW_USE_OPENSSL
@@ -114,7 +114,7 @@ int Socket::readable_event_callback(swReactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-int Socket::writable_event_callback(swReactor *reactor, swEvent *event) {
+int Socket::writable_event_callback(Reactor *reactor, Event *event) {
     Socket *socket = (Socket *) event->socket->object;
     socket->set_err(0);
 #ifdef SW_USE_OPENSSL
@@ -139,7 +139,7 @@ int Socket::writable_event_callback(swReactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-int Socket::error_event_callback(swReactor *reactor, swEvent *event) {
+int Socket::error_event_callback(Reactor *reactor, Event *event) {
     Socket *socket = (Socket *) event->socket->object;
     if (socket->write_co) {
         socket->set_err(0);
@@ -221,7 +221,7 @@ _failed:
     if (sw_likely(want_event == SW_EVENT_NULL || !has_bound()))
 #endif
     {
-        swReactor *reactor = SwooleTG.reactor;
+        Reactor *reactor = SwooleTG.reactor;
         if (sw_likely(added_event == SW_EVENT_READ)) {
             reactor->remove_read_event(socket);
         } else {

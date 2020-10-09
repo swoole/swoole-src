@@ -159,7 +159,7 @@ class Stream {
     }
     ~Stream();
     static int recv_blocking(Socket *sock, void *__buf, size_t __len);
-    static void set_protocol(swProtocol *protocol);
+    static void set_protocol(Protocol *protocol);
 
   private:
     Stream(const char *dst_host, int dst_port, enum swSocket_type type);
@@ -230,19 +230,19 @@ class AsyncClient : public SyncClient {
 
     bool connect(const char *host, int port, double timeout = -1) {
         client.object = this;
-        client.onConnect = [](swClient *cli) {
+        client.onConnect = [](Client *cli) {
             AsyncClient *ac = (AsyncClient *) cli->object;
             ac->_onConnect(ac);
         };
-        client.onError = [](swClient *cli) {
+        client.onError = [](Client *cli) {
             AsyncClient *ac = (AsyncClient *) cli->object;
             ac->_onError(ac);
         };
-        client.onClose = [](swClient *cli) {
+        client.onClose = [](Client *cli) {
             AsyncClient *ac = (AsyncClient *) cli->object;
             ac->_onClose(ac);
         };
-        client.onReceive = [](swClient *cli, const char *data, uint32_t length) {
+        client.onReceive = [](Client *cli, const char *data, uint32_t length) {
             AsyncClient *ac = (AsyncClient *) cli->object;
             ac->_onReceive(ac, data, length);
         };

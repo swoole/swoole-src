@@ -1129,8 +1129,16 @@ static sw_inline char* php_swoole_url_encode(const char *value, size_t value_len
 
 static sw_inline char* php_swoole_http_build_query(zval *zdata, size_t *length, smart_str *formstr)
 {
+#if PHP_VERSION_ID < 80000
     if (php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738) == FAILURE)
     {
+#else
+    if (HASH_OF(zdata)) {
+        php_url_encode_hash_ex(HASH_OF(zdata), formstr, NULL, 0, NULL, 0, NULL, 0, NULL, NULL, (int) PHP_QUERY_RFC1738);
+    }
+    else
+    {
+#endif
         if (formstr->s)
         {
             smart_str_free(formstr);
