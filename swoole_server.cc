@@ -1603,9 +1603,9 @@ static void php_swoole_onWorkerStart(Server *serv, int worker_id) {
         }
     }
 
-    if(0 == worker_id) {
+    if (0 == worker_id) {
         serv->stats_timer = swoole_timer_add(1000, true, php_swoole_server_save_stats_file, zserv);
-        if(nullptr == serv->stats_timer) {
+        if (nullptr == serv->stats_timer) {
             php_swoole_error(E_WARNING, "add stats timer failed");
         }
     }
@@ -1660,7 +1660,7 @@ static void php_swoole_onWorkerExit(Server *serv, int worker_id) {
     zval *zserv = (zval *) serv->ptr2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerExit];
-    if(fci_cache) {
+    if (fci_cache) {
         zval args[2];
         args[0] = *zserv;
         ZVAL_LONG(&args[1], worker_id);
@@ -1668,7 +1668,7 @@ static void php_swoole_onWorkerExit(Server *serv, int worker_id) {
             php_swoole_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
-    if(serv->stats_timer) {
+    if (serv->stats_timer) {
         swoole_timer_del(serv->stats_timer);
         serv->stats_timer = nullptr;
     }
