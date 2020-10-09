@@ -24,7 +24,6 @@
 enum swWorker_status {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
-    SW_WORKER_EXIT = 3,
 };
 
 enum swIPC_type {
