@@ -91,7 +91,7 @@ bool swTableColumn_add(swTable *table, const std::string &name, enum swTableColu
 {
     if (type < SW_TABLE_INT || type > SW_TABLE_STRING)
     {
-        swWarn("unkown column type");
+        swWarn("unknown column type");
         return false;
     }
 
