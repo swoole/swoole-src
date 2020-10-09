@@ -3751,18 +3751,12 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
         RETURN_FALSE;
     }
 
-    zend_long worker_id = -1;
+    zend_long worker_id = SwooleG.process_id;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE) {
         RETURN_FALSE;
     }
 
-    Worker *worker;
-    if (worker_id == -1) {
-        worker = SwooleWG.worker;
-    } else {
-        worker = serv->get_worker(worker_id);
-    }
-
+    Worker *worker = serv->get_worker(worker_id);
     if (!worker) {
         RETURN_FALSE;
     } else {
