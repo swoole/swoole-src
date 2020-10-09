@@ -54,6 +54,7 @@ class ProcessManager
      * @var Process
      */
     protected $childProcess;
+    protected $logFileHandle;
 
     public function __construct()
     {
@@ -115,6 +116,16 @@ class ProcessManager
         } else {
             return call_user_func($this->parentFunc, $pid);
         }
+    }
+
+    public function setLogFile($file)
+    {
+        $this->logFileHandle = fopen($file, "a+");
+    }
+
+    public function writeLog($msg)
+    {
+        fwrite($this->logFileHandle, $msg . PHP_EOL);
     }
 
     /**
