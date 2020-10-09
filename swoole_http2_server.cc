@@ -901,6 +901,12 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                         SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
                 }
             }
+
+            Worker *worker = SwooleWG.worker;
+            worker->request_count++;
+            Server *serv = (swServer *) stream->ctx->private_data;
+            sw_atomic_fetch_add(&serv->gs->request_count, 1);
+
             client->handle(client, stream);
         }
         break;

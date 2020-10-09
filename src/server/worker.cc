@@ -220,8 +220,12 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, EventData *ta
     recv_data.info = task->info;
     recv_data.info.len = serv->get_packet(serv, task, const_cast<char **>(&recv_data.data));
     callback(serv, &recv_data);
-    worker->request_count++;
-    sw_atomic_fetch_add(&serv->gs->request_count, 1);
+
+    ListenPort *port = serv->get_port_by_server_fd(task->info.server_fd);
+    if(!port->open_http2_protocol) {
+        worker->request_count++;
+        sw_atomic_fetch_add(&serv->gs->request_count, 1);
+    }
 }
 
 int Server::accept_task(EventData *task) {
