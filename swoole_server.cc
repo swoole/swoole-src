@@ -3906,7 +3906,7 @@ static PHP_METHOD(swoole_connection_iterator, valid) {
             }
 #endif
             if (iterator->port &&
-                (iterator->port->socket_fd < 0 || conn->server_fd != (uint32_t) iterator->port->socket_fd)) {
+                (iterator->port->socket_fd < 0 || conn->server_fd != iterator->port->socket_fd)) {
                 continue;
             }
             iterator->session_id = conn->session_id;
