@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm) {
         'open_http2_protocol' => true,
         'enable_static_handler' => true,
         'document_root' => __DIR__,
-        'static_file_locations' => ["/examples",]
+        'static_handler_locations' => ["/examples",]
     ]);
     $http->on('workerStart', function ($serv, $wid) use ($pm) {
         if (!file_exists(__DIR__ . '/examples')) {
