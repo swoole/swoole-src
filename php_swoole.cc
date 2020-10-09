@@ -231,11 +231,19 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
 
 void php_swoole_register_shutdown_function(const char *function) {
     php_shutdown_function_entry shutdown_function_entry;
+    zval *function_name;
+#if PHP_VERSION_ID >= 80000
+    shutdown_function_entry.arg_count = 0;
+    shutdown_function_entry.arguments = NULL;
+    function_name = &shutdown_function_entry.function_name;
+#else
     shutdown_function_entry.arg_count = 1;
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
-    ZVAL_STRING(&shutdown_function_entry.arguments[0], function);
+    function_name = &shutdown_function_entry.arguments[0];
+#endif
+    ZVAL_STRING(function_name, function);
     register_user_shutdown_function(
-        (char *) function, ZSTR_LEN(Z_STR(shutdown_function_entry.arguments[0])), &shutdown_function_entry);
+        Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), &shutdown_function_entry);
 }
 
 void php_swoole_set_global_option(HashTable *vht) {
