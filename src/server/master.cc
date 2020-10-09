@@ -1110,6 +1110,7 @@ int Server::send_to_connection(SendData *_send) {
         chunk = _socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
         chunk->value.data.val1 = _send->info.type;
         conn->close_queued = 1;
+        conn->send_queued_bytes = 0;
     }
     // sendfile to client
     else if (_send->info.type == SW_SERVER_EVENT_SEND_FILE) {
@@ -1140,6 +1141,7 @@ int Server::send_to_connection(SendData *_send) {
         }
 
         _socket->out_buffer->append(_send_data, _send_length);
+        conn->send_queued_bytes = _socket->out_buffer->length();
 
         ListenPort *port = get_port_by_fd(fd);
         if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length() >= port->buffer_high_watermark) {

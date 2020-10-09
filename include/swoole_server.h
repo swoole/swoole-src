@@ -168,6 +168,7 @@ struct Connection {
      * socket info
      */
     network::Socket *socket;
+    sw_atomic_t send_queued_bytes;
     /**
      * connect/recv/send/close time
      */

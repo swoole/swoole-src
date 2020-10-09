@@ -653,6 +653,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
 
     while (!Buffer::empty(socket->out_buffer)) {
         BufferChunk *chunk = socket->out_buffer->front();
+        conn->send_queued_bytes = socket->out_buffer->length();
         if (chunk->type == BufferChunk::TYPE_CLOSE) {
         _close_fd:
             reactor->close(reactor, socket);

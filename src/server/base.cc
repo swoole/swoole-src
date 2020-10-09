@@ -155,6 +155,7 @@ static bool swFactory_end(Factory *factory, int fd) {
             BufferChunk *chunk = conn->socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
             chunk->value.data.val1 = _send.info.type;
             conn->close_queued = 1;
+            conn->send_queued_bytes = 0;
             return true;
         }
     }
