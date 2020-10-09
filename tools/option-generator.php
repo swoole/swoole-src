@@ -31,7 +31,6 @@ function _replace_options($file, &$php_content, $name) {
     }
 }
 
-// swoole_server.cc
 _replace_options(ROOT_DIR.'/php_swoole.cc', $php_content, 'GLOBAL_OPTIONS');
 _replace_options(ROOT_DIR.'/swoole_server.cc', $php_content, 'SERVER_OPTIONS');
 _replace_options(ROOT_DIR.'/swoole_server_port.cc', $php_content, 'PORT_OPTIONS');

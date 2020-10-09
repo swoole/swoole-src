@@ -475,7 +475,6 @@ ssize_t Server::send_to_worker_from_master(Worker *worker, const void *data, siz
 static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
     int ret;
 
-    Connection *conn;
     Server *serv = (Server *) reactor->ptr;
     Buffer *buffer = ev->socket->out_buffer;
 
@@ -486,8 +485,9 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         // server active close, discard data.
         if (Server::is_stream_event(send_data->info.type)) {
             // send_data->info.fd is session_id
-            conn = serv->get_connection_verify(send_data->info.fd);
+            Connection *conn = serv->get_connection_verify(send_data->info.fd);
             if (conn) {
+                conn->last_send_time = swoole_microtime();
                 if (conn->closed) {
                     swoole_error_log(SW_LOG_NOTICE,
                                      SW_ERROR_SESSION_CLOSED_BY_SERVER,
@@ -520,8 +520,6 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             swSysWarn("reactor->set(%d) failed", ev->fd);
         }
     }
-
-    conn->last_send_time = swoole_microtime();
 
     return SW_OK;
 }
