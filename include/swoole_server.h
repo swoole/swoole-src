@@ -645,7 +645,6 @@ class Server {
     long timezone_ = 0;
     TimerNode *master_timer = nullptr;
     TimerNode *heartbeat_timer = nullptr;
-    TimerNode *stats_timer = nullptr;
 
     /* buffer output/input setting*/
     uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
@@ -664,8 +663,6 @@ class Server {
 
     Factory factory;
     std::vector<ListenPort *> ports;
-
-    std::string stats_file;
 
     inline ListenPort *get_primary_port() {
         return ports.front();
