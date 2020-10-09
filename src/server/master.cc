@@ -1140,6 +1140,7 @@ int Server::send_to_connection(SendData *_send) {
         }
 
         _socket->out_buffer->append(_send_data, _send_length);
+        conn->send_queued_bytes = _socket->out_buffer->length();
 
         ListenPort *port = get_port_by_fd(fd);
         if (onBufferFull && conn->high_watermark == 0 && _socket->out_buffer->length() >= port->buffer_high_watermark) {

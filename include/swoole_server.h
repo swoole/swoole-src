@@ -152,8 +152,9 @@ struct Connection {
     /**
      * from which socket fd
      */
-    sw_atomic_t server_fd;
+    int server_fd;
     sw_atomic_t queued_bytes;
+    uint32_t send_queued_bytes;
     uint16_t waiting_time;
     TimerNode *timer;
     /**
