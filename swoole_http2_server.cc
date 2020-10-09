@@ -759,8 +759,10 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     int type = buf[3];
     int flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
-    
-    client->last_stream_id = stream_id;
+
+    if(stream_id > client->last_stream_id) {
+        client->last_stream_id = stream_id;
+    }
 
     ssize_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
