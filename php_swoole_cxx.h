@@ -383,6 +383,17 @@ inline bool call(
     }
     return success;
 }
+
+inline bool call(const char *func_name, int argc, zval *argv) {
+    zval function_name;
+    ZVAL_STRING(&function_name, func_name);
+    zval _return_value{};
+    int retval = call_user_function(EG(function_table), NULL, &function_name, &_return_value, argc, argv);
+    zval_dtor(&_return_value);
+    zval_dtor(&function_name);
+    return retval == SUCCESS;
+}
+
 }  // namespace function
 
 struct Function {

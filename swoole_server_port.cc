@@ -576,13 +576,10 @@ static PHP_METHOD(swoole_server_port, set) {
 #endif
 
     if (SWOOLE_G(enable_library)) {
-        zval function_name, params[1];
-        ZVAL_STRING(&function_name, "\\Swoole\\Server\\Helper::checkOptions");
-        zval _return_value;
-        ZVAL_COPY(&params[0], zset);
-        call_user_function(EG(function_table), NULL, &function_name, &_return_value, 1, params);
-        zval_dtor(&_return_value);
-        zval_dtor(&function_name);
+        zval params[1] = {
+            *zset,
+        };
+        zend::function::call("\\Swoole\\Server\\Helper::checkOptions", 1, params);
     }
 
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_port_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
