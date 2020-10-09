@@ -661,7 +661,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
             ret = socket->handle_sendfile();
         } else {
             ret = socket->handle_send();
-            if(SW_OK == ret) {
+            if (SW_OK == ret) {
                 conn->send_queued_bytes = socket->out_buffer->length();
             }
         }
