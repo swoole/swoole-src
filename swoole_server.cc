@@ -124,6 +124,8 @@ static void php_swoole_server_worker_move_buffer(Server *serv, PipeBuffer *buffe
 
 static size_t php_swoole_server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
 
+static void php_swoole_server_save_stats_file(swTimer *timer, TimerNode *tnode);
+
 static inline zend_bool php_swoole_server_isset_callback(ServerObject *server_object,
                                                          ListenPort *port,
                                                          int event_type) {
@@ -1209,9 +1211,7 @@ void php_swoole_server_register_callbacks(Server *serv) {
     if (server_object->property->callbacks[SW_SERVER_CB_onWorkerStop] != nullptr) {
         serv->onWorkerStop = php_swoole_onWorkerStop;
     }
-    if (server_object->property->callbacks[SW_SERVER_CB_onWorkerExit] != nullptr) {
-        serv->onWorkerExit = php_swoole_onWorkerExit;
-    }
+    serv->onWorkerExit = php_swoole_onWorkerExit;
     /**
      * Task Worker
      */
@@ -1602,6 +1602,13 @@ static void php_swoole_onWorkerStart(Server *serv, int worker_id) {
             php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
+
+    if(0 == worker_id) {
+        serv->stats_timer = swoole_timer_add(1000, true, php_swoole_server_save_stats_file, zserv);
+        if(nullptr == serv->stats_timer) {
+            php_swoole_error(E_WARNING, "add stats timer failed");
+        }
+    }
 }
 
 static void php_swoole_onBeforeReload(Server *serv) {
@@ -1653,11 +1660,17 @@ static void php_swoole_onWorkerExit(Server *serv, int worker_id) {
     zval *zserv = (zval *) serv->ptr2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerExit];
-    zval args[2];
-    args[0] = *zserv;
-    ZVAL_LONG(&args[1], worker_id);
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, false))) {
-        php_swoole_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+    if(fci_cache) {
+        zval args[2];
+        args[0] = *zserv;
+        ZVAL_LONG(&args[1], worker_id);
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, false))) {
+            php_swoole_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        }
+    }
+    if(serv->stats_timer) {
+        swoole_timer_del(serv->stats_timer);
+        serv->stats_timer = nullptr;
     }
 }
 
@@ -2002,6 +2015,37 @@ static size_t php_swoole_server_worker_get_packet(Server *serv, EventData *req, 
     }
 
     return length;
+}
+
+static void php_swoole_server_save_stats_file(swTimer *timer, TimerNode *tnode) {
+    zval *zserv = (zval *) tnode->data;
+
+    zval stats;
+    sw_zend_call_method_with_0_params(zserv, swoole_server_ce, nullptr, "stats", &stats);
+
+    std::string content;
+    char *key;
+    uint32_t keylen;
+    int keytype;
+    zval *zvalue;
+    SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(&stats), key, keylen, keytype, zvalue) {
+        if (UNEXPECTED(HASH_KEY_IS_STRING != keytype)) {
+            continue;
+        }
+        if (SW_STRCASEEQ(key, keylen, "worker_request_count") || SW_STRCASEEQ(key, keylen, "worker_dispatch_count")) {
+            continue;
+        }
+        content += std::string(key) + ": " + zend::String(zvalue).to_std_string() + "\n";
+    }
+    SW_HASHTABLE_FOREACH_END();
+    zval_ptr_dtor(&stats);
+
+    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, zserv, ZEND_STRL("setting"), 0);
+    zval *zstats_file;
+    HashTable *vht = Z_ARRVAL_P(zsetting);
+    php_swoole_array_get_value(vht, "stats_file", zstats_file);
+
+    swoole_file_put_contents(zend::String(zstats_file).to_std_string().c_str(), content.c_str(), content.size());
 }
 
 static PHP_METHOD(swoole_server, __construct) {

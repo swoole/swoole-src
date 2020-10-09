@@ -1238,7 +1238,6 @@ class Server {
     void worker_stop_callback();
     static void worker_signal_handler(int signo);
     static void worker_signal_init(void);
-    bool start_save_stats();
 
   private:
     enum Mode mode_;

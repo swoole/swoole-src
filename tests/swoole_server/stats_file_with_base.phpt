@@ -60,6 +60,4 @@ worker_num: 1
 idle_worker_num: 1
 tasking_num: 0
 request_count: 1
-worker_request_count: 1
-worker_dispatch_count: 0
 coroutine_num: 0
