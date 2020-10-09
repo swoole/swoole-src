@@ -10,45 +10,31 @@ if (!file_exists($server_helper_php)) {
 }
 $php_content = file_get_contents($server_helper_php);
 
+function _replace_options($file, &$php_content, $name) {
+    $source_content = file_get_contents($file);
+    preg_match_all('/php_swoole_array_get_value\(.+?, "(.+?)", .+?\)/', $source_content, $matches);
+    $matches = array_unique($matches[1]);
+    $result = '';
+    foreach ($matches as $option) {
+        $result .= space(8) . sprintf("'%s' => true,\n", strtolower($option), $option);
+    }
+
+    $php_content = preg_replace(
+        '/const '.$name.' = '.REGX.';/',
+        'const '.$name.' = ['.PHP_EOL.$result.space(4).'];',
+        $php_content,
+        1,
+        $replaced
+    );
+    if (!$replaced) {
+        swoole_error("error content [$name]");
+    }
+}
+
 // swoole_server.cc
-$source_content = file_get_contents(ROOT_DIR.'/swoole_server.cc');
-preg_match_all('/php_swoole_array_get_value\(.+?, "(.+?)", .+?\)/', $source_content, $matches);
-$matches = array_unique($matches[1]);
-$result = '';
-foreach ($matches as $option) {
-    $result .= space(8) . sprintf("'%s' => true,\n", strtolower($option), $option);
-}
-
-$php_content = preg_replace(
-    '/const SERVER_OPTIONS = '.REGX.';/',
-    'const SERVER_OPTIONS = ['.PHP_EOL.$result.space(4).'];',
-    $php_content,
-    1,
-    $replaced
-);
-if (!$replaced) {
-    swoole_error("error content [1]");
-}
-
-// swoole_server_port.cc
-$source_content = file_get_contents(ROOT_DIR.'/swoole_server_port.cc');
-preg_match_all('/php_swoole_array_get_value\(.+?, "(.+?)", .+?\)/', $source_content, $matches);
-$matches = array_unique($matches[1]);
-$result = '';
-foreach ($matches as $option) {
-    $result .= space(8) . sprintf("'%s' => true,\n", strtolower($option), $option);
-}
-
-$php_content = preg_replace(
-    '/const PORT_OPTIONS = '.REGX.';/',
-    'const PORT_OPTIONS = ['.PHP_EOL.$result.space(4).'];',
-    $php_content,
-    1,
-    $replaced
-);
-if (!$replaced) {
-    swoole_error("error content [2]");
-}
+_replace_options(ROOT_DIR.'/php_swoole.cc', $php_content, 'GLOBAL_OPTIONS');
+_replace_options(ROOT_DIR.'/swoole_server.cc', $php_content, 'SERVER_OPTIONS');
+_replace_options(ROOT_DIR.'/swoole_server_port.cc', $php_content, 'PORT_OPTIONS');
 
 // save
 if (!file_put_contents($server_helper_php, $php_content)) {
