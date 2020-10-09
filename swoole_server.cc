@@ -2491,7 +2491,6 @@ static PHP_METHOD(swoole_server, set) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
     sw_zend_call_method_with_1_params(
         server_object->property->ports.at(0), swoole_server_port_ce, nullptr, "set", nullptr, zset);
-    zval_dtor(zset);
 
     zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
     php_array_merge(Z_ARRVAL_P(zsetting), Z_ARRVAL_P(zset));
