@@ -859,7 +859,7 @@ void php_swoole_get_recv_data(Server *serv, zval *zdata, RecvData *req) {
             zend_string *worker_buffer = (zend_string *) (data - XtOffsetOf(zend_string, val));
             ZVAL_STR(zdata, worker_buffer);
         } else if (req->info.flags & SW_EVENT_DATA_POP_PTR) {
-            swString *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
+            String *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
             sw_set_zend_string(zdata, recv_buffer->pop(serv->recv_buffer_size), length);
         } else {
             ZVAL_STRINGL(zdata, data, length);

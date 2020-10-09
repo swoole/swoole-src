@@ -712,6 +712,6 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
 }
 
 namespace swoole {
-int hook_add(void **hooks, int type, const swCallback &func, int push_back);
+int hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 }  // namespace swoole
