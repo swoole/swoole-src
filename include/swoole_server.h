@@ -168,7 +168,6 @@ struct Connection {
      * socket info
      */
     network::Socket *socket;
-    sw_atomic_t send_queued_bytes;
     /**
      * connect/recv/send/close time
      */
@@ -651,6 +650,7 @@ class Server {
     uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
     uint32_t input_buffer_size = SW_INPUT_BUFFER_SIZE;
     uint32_t max_queued_bytes = 0;
+    uint32_t send_queued_bytes = 0;
 
     /**
      * the master process and worker process communicate using unix socket dgram.
