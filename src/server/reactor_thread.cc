@@ -63,7 +63,7 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
             }
         } else {
             if (!port->ssl_option.verify_peer || swSSL_verify(_socket, port->ssl_option.allow_self_signed) == SW_OK) {
-                swFactory *factory = &serv->factory;
+                Factory *factory = &serv->factory;
                 SendData task;
                 task.info.fd = _socket->fd;
                 task.info.type = SW_SERVER_EVENT_CONNECT;

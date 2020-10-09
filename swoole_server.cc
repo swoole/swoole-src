@@ -737,6 +737,7 @@ void php_swoole_server_minit(int module_number) {
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_WORKER_BUSY", SW_WORKER_BUSY);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_WORKER_IDLE", SW_WORKER_IDLE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_WORKER_EXIT", SW_WORKER_EXIT);
 }
 
 zend_fcall_info_cache *php_swoole_server_get_fci_cache(Server *serv, int server_fd, int event_type) {
@@ -848,7 +849,7 @@ int php_swoole_task_pack(EventData *task, zval *zdata) {
     return task->info.fd;
 }
 
-void php_swoole_get_recv_data(Server *serv, zval *zdata, swRecvData *req) {
+void php_swoole_get_recv_data(Server *serv, zval *zdata, RecvData *req) {
     const char *data = req->data;
     uint32_t length = req->info.len;
     if (length == 0) {
@@ -1293,7 +1294,7 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
     sw_zval_free(zdata);
 }
 
-int php_swoole_onReceive(Server *serv, swRecvData *req) {
+int php_swoole_onReceive(Server *serv, RecvData *req) {
     zend_fcall_info_cache *fci_cache =
         php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onReceive);
 
@@ -1316,7 +1317,7 @@ int php_swoole_onReceive(Server *serv, swRecvData *req) {
     return SW_OK;
 }
 
-int php_swoole_onPacket(Server *serv, swRecvData *req) {
+int php_swoole_onPacket(Server *serv, RecvData *req) {
     zval *zserv = (zval *) serv->ptr2;
     zval zaddr;
 
@@ -3751,12 +3752,18 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
         RETURN_FALSE;
     }
 
-    zend_long worker_id = SwooleG.process_id;
+    zend_long worker_id = -1;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE) {
         RETURN_FALSE;
     }
 
-    Worker *worker = serv->get_worker(worker_id);
+    Worker *worker;
+    if (worker_id == -1) {
+        worker = SwooleWG.worker;
+    } else {
+        worker = serv->get_worker(worker_id);
+    }
+
     if (!worker) {
         RETURN_FALSE;
     } else {
