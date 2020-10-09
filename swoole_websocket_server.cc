@@ -34,6 +34,7 @@ using swoole::Server;
 using swoole::Connection;
 using swoole::ListenPort;
 using swoole::String;
+using swoole::RecvData;
 using swoole::coroutine::Socket;
 
 using http_request = swoole::http::Request;
@@ -547,7 +548,7 @@ static bool websocket_message_compress(String *buffer, const char *data, size_t 
 }
 #endif
 
-int swoole_websocket_onMessage(Server *serv, swRecvData *req) {
+int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     int fd = req->info.fd;
     uchar flags = 0;
     zend_long opcode = 0;
@@ -616,7 +617,7 @@ int swoole_websocket_onMessage(Server *serv, swRecvData *req) {
     return SW_OK;
 }
 
-int swoole_websocket_onHandshake(Server *serv, swListenPort *port, http_context *ctx) {
+int swoole_websocket_onHandshake(Server *serv, ListenPort *port, http_context *ctx) {
     int fd = ctx->fd;
     bool success = swoole_websocket_handshake(ctx);
     if (success) {

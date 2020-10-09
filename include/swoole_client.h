@@ -159,7 +159,7 @@ class Stream {
     }
     ~Stream();
     static int recv_blocking(Socket *sock, void *__buf, size_t __len);
-    static void set_protocol(swProtocol *protocol);
+    static void set_protocol(Protocol *protocol);
 
   private:
     Stream(const char *dst_host, int dst_port, enum swSocket_type type);

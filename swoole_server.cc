@@ -848,7 +848,7 @@ int php_swoole_task_pack(EventData *task, zval *zdata) {
     return task->info.fd;
 }
 
-void php_swoole_get_recv_data(Server *serv, zval *zdata, swRecvData *req) {
+void php_swoole_get_recv_data(Server *serv, zval *zdata, RecvData *req) {
     const char *data = req->data;
     uint32_t length = req->info.len;
     if (length == 0) {
@@ -858,7 +858,7 @@ void php_swoole_get_recv_data(Server *serv, zval *zdata, swRecvData *req) {
             zend_string *worker_buffer = (zend_string *) (data - XtOffsetOf(zend_string, val));
             ZVAL_STR(zdata, worker_buffer);
         } else if (req->info.flags & SW_EVENT_DATA_POP_PTR) {
-            swString *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
+            String *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
             sw_set_zend_string(zdata, recv_buffer->pop(serv->recv_buffer_size), length);
         } else {
             ZVAL_STRINGL(zdata, data, length);
@@ -1293,7 +1293,7 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
     sw_zval_free(zdata);
 }
 
-int php_swoole_onReceive(Server *serv, swRecvData *req) {
+int php_swoole_onReceive(Server *serv, RecvData *req) {
     zend_fcall_info_cache *fci_cache =
         php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onReceive);
 
@@ -1316,7 +1316,7 @@ int php_swoole_onReceive(Server *serv, swRecvData *req) {
     return SW_OK;
 }
 
-int php_swoole_onPacket(Server *serv, swRecvData *req) {
+int php_swoole_onPacket(Server *serv, RecvData *req) {
     zval *zserv = (zval *) serv->ptr2;
     zval zaddr;
 

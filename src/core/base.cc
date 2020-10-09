@@ -1095,12 +1095,12 @@ size_t swDataHead::dump(char *_buf, size_t _len) {
 
 namespace swoole {
 //-------------------------------------------------------------------------------
-int hook_add(void **hooks, int type, const swCallback &func, int push_back) {
+int hook_add(void **hooks, int type, const Callback &func, int push_back) {
     if (hooks[type] == nullptr) {
-        hooks[type] = new std::list<swCallback>;
+        hooks[type] = new std::list<Callback>;
     }
 
-    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
+    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
     if (push_back) {
         l->push_back(func);
     } else {
@@ -1111,7 +1111,7 @@ int hook_add(void **hooks, int type, const swCallback &func, int push_back) {
 }
 
 void hook_call(void **hooks, int type, void *arg) {
-    std::list<swCallback> *l = reinterpret_cast<std::list<swCallback> *>(hooks[type]);
+    std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);
     }

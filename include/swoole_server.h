@@ -1275,9 +1275,7 @@ class Server {
 typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
 typedef swoole::Connection swConnection;
-typedef swoole::Factory swFactory;
 typedef swoole::RecvData swRecvData;
-typedef swoole::DgramPacket swDgramPacket;
 
 #define SW_MAX_SESSION_ID 0x1000000
 

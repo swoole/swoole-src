@@ -123,9 +123,7 @@ int my_onPacket(swServer *serv, swRecvData *req) {
     int port = 0;
     int ret = 0;
 
-    swDgramPacket *packet;
-
-    packet = (swDgramPacket *) req->data;
+    DgramPacket *packet = (DgramPacket *) req->data;
 
     auto serv_socket = serv->get_server_socket(req->info.server_fd);
 

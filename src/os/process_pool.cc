@@ -712,7 +712,7 @@ int ProcessPool::wait() {
 
 void ProcessPool::destroy() {
     uint32_t i;
-    swPipe *_pipe;
+    Pipe *_pipe;
 
     if (pipes) {
         for (i = 0; i < worker_num; i++) {

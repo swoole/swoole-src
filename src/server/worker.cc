@@ -464,7 +464,7 @@ void Server::stop_async_worker(Worker *worker) {
 
     reactor->set_wait_exit(true);
     reactor->set_end_callback(Reactor::PRIORITY_TRY_EXIT, Worker_reactor_try_to_exit);
-    SwooleWG.exit_time = time(nullptr);
+    SwooleWG.exit_time = ::time(nullptr);
 
     Worker_reactor_try_to_exit(reactor);
     if (!reactor->running) {
@@ -475,7 +475,7 @@ void Server::stop_async_worker(Worker *worker) {
 static void Worker_reactor_try_to_exit(Reactor *reactor) {
     Server *serv;
     if (SwooleG.process_type == SW_PROCESS_TASKWORKER) {
-        swProcessPool *pool = (swProcessPool *) reactor->ptr;
+        ProcessPool *pool = (ProcessPool *) reactor->ptr;
         serv = (Server *) pool->ptr;
     } else {
         serv = (Server *) reactor->ptr;
