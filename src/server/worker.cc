@@ -406,7 +406,7 @@ void Server::worker_stop_callback() {
 
 void Server::stop_async_worker(Worker *worker) {
     Server *serv = (Server *) worker->pool->ptr;
-    worker->status = SW_WORKER_BUSY;
+    worker->status = SW_WORKER_EXIT;
 
     Reactor *reactor = SwooleTG.reactor;
 
@@ -423,6 +423,11 @@ void Server::stop_async_worker(Worker *worker) {
     if (reactor->wait_exit) {
         return;
     }
+
+    // Separated from the event worker process pool
+    worker = (Worker *) sw_malloc(sizeof(*worker));
+    *worker = *SwooleWG.worker;
+    SwooleWG.worker = worker;
 
     if (serv->stream_socket) {
         reactor->del(reactor, serv->stream_socket);

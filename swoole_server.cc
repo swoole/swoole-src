@@ -737,6 +737,7 @@ void php_swoole_server_minit(int module_number) {
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_WORKER_BUSY", SW_WORKER_BUSY);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_WORKER_IDLE", SW_WORKER_IDLE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_WORKER_EXIT", SW_WORKER_EXIT);
 }
 
 zend_fcall_info_cache *php_swoole_server_get_fci_cache(Server *serv, int server_fd, int event_type) {
@@ -3751,12 +3752,18 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
         RETURN_FALSE;
     }
 
-    zend_long worker_id = SwooleG.process_id;
+    zend_long worker_id = -1;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE) {
         RETURN_FALSE;
     }
 
-    Worker *worker = serv->get_worker(worker_id);
+    Worker *worker;
+    if (worker_id == -1) {
+        worker = SwooleWG.worker;
+    } else {
+        worker = serv->get_worker(worker_id);
+    }
+
     if (!worker) {
         RETURN_FALSE;
     } else {
