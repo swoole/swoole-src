@@ -66,10 +66,10 @@ $pm->run();
 %d [%d] start
 %s start to reload
 [%s]	INFO	Server is reloading all workers now
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
 [%s]	WARNING	check_worker_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
 [%s]	WARNING	check_worker_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
 [%s]	WARNING	check_worker_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9

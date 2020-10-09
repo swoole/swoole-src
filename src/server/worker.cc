@@ -504,7 +504,7 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
             int remaining_time = serv->max_wait_time - (time(nullptr) - SwooleWG.exit_time);
             if (remaining_time <= 0) {
                 swoole_error_log(
-                    SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
+                    SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced termination");
                 reactor->running = false;
                 break;
             } else {

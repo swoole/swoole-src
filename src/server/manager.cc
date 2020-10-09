@@ -69,7 +69,7 @@ static void swManager_kill_timeout_process(Timer *timer, TimerNode *tnode) {
         } else {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
-                             "[Manager] Worker#%d[pid=%d] exit timeout, forced kill",
+                             "[Manager] Worker#%d[pid=%d] exit timeout, force kill the process",
                              worker_id,
                              pid);
         }

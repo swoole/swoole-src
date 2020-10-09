@@ -191,7 +191,7 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
 
     if ((uint32_t) n > socket->buffer_size) {
         swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data is too large, cannot exceed buffer size");
+            SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data packet is too large, cannot exceed the buffer size");
         return SW_ERR;
     }
 

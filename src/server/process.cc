@@ -369,7 +369,7 @@ static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
         } else {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
-                             "send failed, connection[fd=%d] output buffer has been overflowed",
+                             "send failed, connection[fd=%d] output buffer overflow",
                              session_id);
         }
         return false;

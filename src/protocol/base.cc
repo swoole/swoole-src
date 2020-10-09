@@ -186,7 +186,7 @@ _do_recv:
                 if (buffer->length == package_length_offset + package_length_size) {
                     swoole_error_log(SW_LOG_WARNING,
                                      SW_ERROR_PACKAGE_LENGTH_NOT_FOUND,
-                                     "bad request, No length found in %ld bytes",
+                                     "bad request, no length found in %ld bytes",
                                      buffer->length);
                     return SW_ERR;
                 } else {

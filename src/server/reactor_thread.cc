@@ -500,7 +500,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             } else if (serv->discard_timeout_request) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
-                                 "[1] received the wrong data[%d bytes] from socket#%d",
+                                 "[1] ignore data[%d bytes] received from socket#%d",
                                  send_data->info.len,
                                  send_data->info.fd);
                 goto _discard;

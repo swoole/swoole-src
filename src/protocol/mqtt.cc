@@ -60,7 +60,7 @@ ssize_t swMqtt_get_package_length(Protocol *protocol, Socket *conn, const char *
         if (variable_header_byte_count >= SW_MQTT_MAX_LENGTH_SIZE) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                             "bad request, The variable header size uper than %d",
+                             "bad request, the variable header size is larger than %d",
                              SW_MQTT_MAX_LENGTH_SIZE);
             return SW_ERR;
         }
