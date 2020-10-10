@@ -128,7 +128,7 @@ static int swReactorPoll_del(Reactor *reactor, Socket *socket) {
 
     if (socket->removed) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, 
-            "failed to delete event[%d], has been removed", socket->fd);
+            "failed to delete event[%d], it has already been removed", socket->fd);
         return SW_ERR;
     }
 

@@ -113,7 +113,7 @@ static sw_inline bool Worker_discard_data(Server *serv, Connection *conn, EventD
 _discard_data : {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
-                     "[2] received the wrong data[%d bytes] from socket#%d",
+                     "[2] ignore data[%d bytes] received from socket#%d",
                      task->info.len,
                      task->info.fd);
 }
@@ -219,9 +219,11 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, EventData *ta
     RecvData recv_data;
     recv_data.info = task->info;
     recv_data.info.len = serv->get_packet(serv, task, const_cast<char **>(&recv_data.data));
-    callback(serv, &recv_data);
-    worker->request_count++;
-    sw_atomic_fetch_add(&serv->gs->request_count, 1);
+
+    if (callback(serv, &recv_data) == SW_OK) {
+        worker->request_count++;
+        sw_atomic_fetch_add(&serv->gs->request_count, 1);
+    }
 }
 
 int Server::accept_task(EventData *task) {
@@ -500,7 +502,7 @@ static void Worker_reactor_try_to_exit(Reactor *reactor) {
             int remaining_time = serv->max_wait_time - (time(nullptr) - SwooleWG.exit_time);
             if (remaining_time <= 0) {
                 swoole_error_log(
-                    SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced to terminate");
+                    SW_LOG_WARNING, SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT, "worker exit timeout, forced termination");
                 reactor->running = false;
                 break;
             } else {

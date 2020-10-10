@@ -548,7 +548,7 @@ int Server::start() {
     }
     // cannot start 2 servers at the same time, please use process->exec.
     if (!sw_atomic_cmp_set(&gs->start, 0, 1)) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "must only start one server");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_ONLY_START_ONE, "can only start one server");
         return SW_ERR;
     }
     // run as daemon
@@ -1002,7 +1002,7 @@ int Server::send_to_connection(SendData *_send) {
         } else {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
-                             "send event$[%d] failed, session#%d does not exist",
+                             "send event[%d] failed, session#%d does not exist",
                              _send->info.type,
                              session_id);
         }
@@ -1479,7 +1479,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
     }
     if (ports.size() >= SW_MAX_LISTEN_PORT) {
         swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "allows up to %d ports to listen", SW_MAX_LISTEN_PORT);
+            SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "up to %d listening ports are allowed", SW_MAX_LISTEN_PORT);
         return nullptr;
     }
     if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 0 || port > 65535)) {
@@ -1489,7 +1489,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
     if (strlen(host) + 1 > SW_HOST_MAXSIZE) {
         swoole_error_log(SW_LOG_ERROR,
                          SW_ERROR_NAME_TOO_LONG,
-                         "address '%s' exceeds %ld characters limit",
+                         "address '%s' exceeds the limit of %ld characters",
                          host,
                          SW_HOST_MAXSIZE - 1);
         return nullptr;

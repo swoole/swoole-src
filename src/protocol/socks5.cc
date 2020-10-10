@@ -60,7 +60,7 @@ int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length) 
         }
         if (method != ctx->method) {
             swoole_error_log(
-                SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported");
+                SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
             return SW_ERR;
         }
         // authenticate request

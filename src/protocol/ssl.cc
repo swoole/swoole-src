@@ -735,7 +735,7 @@ int swSSL_verify(swSocket *conn, int allow_self_signed) {
     }
     swoole_error_log(SW_LOG_NOTICE,
                      SW_ERROR_SSL_VERIFY_FAILED,
-                     "could not verify peer from fd#%d with error#%d: %s",
+                     "can not verify peer from fd#%d with error#%d: %s",
                      conn->fd,
                      err,
                      X509_verify_cert_error_string(err));

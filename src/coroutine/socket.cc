@@ -263,7 +263,7 @@ bool Socket::socks5_handshake() {
         return false;
     }
     if (method != ctx->method) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method not supported");
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
         return false;
     }
     // authentication

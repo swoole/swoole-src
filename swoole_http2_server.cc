@@ -71,6 +71,8 @@ Http2Session::Session(int _fd) {
     max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
     max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
     last_stream_id = 0;
+    shutting_down = false;
+    is_coro = false;
     http2_sessions[_fd] = this;
 }
 
@@ -375,6 +377,7 @@ int swoole_http2_server_goaway(http_context *ctx, zend_long error_code, const ch
     }
     ret = ctx->send(ctx, frame, length);
     efree(frame);
+    client->shutting_down = true;
     return ret;
 }
 
@@ -554,6 +557,10 @@ static bool swoole_http2_server_respond(http_context *ctx, String *body) {
     } else {
         client->streams.erase(stream->id);
         delete stream;
+    }
+
+    if (client->shutting_down && client->streams.size() == 0) {
+        ctx->close(ctx);
     }
 
     return !error;
@@ -758,9 +765,17 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     Http2Stream *stream = nullptr;
     int type = buf[3];
     int flags = buf[4];
+    int retval = SW_ERR;
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
-    
-    client->last_stream_id = stream_id;
+
+    if (stream_id > client->last_stream_id) {
+        client->last_stream_id = stream_id;
+    }
+
+    if (client->shutting_down) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_IGNORE, "ignore http2 stream#%d after sending goaway", stream_id);
+        return retval;
+    }
 
     ssize_t length = swHttp2_get_length(buf);
     buf += SW_HTTP2_FRAME_HEADER_SIZE;
@@ -789,7 +804,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                             swWarn("nghttp2_hd_deflate_change_table_size() failed, errno=%s, errmsg=%s",
                                    ret,
                                    nghttp2_strerror(ret));
-                            return SW_ERROR;
+                            return SW_ERR;
                         }
                     }
                 }
@@ -899,6 +914,11 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                         SW_LOG_WARNING, SW_ERROR_SERVER_INVALID_REQUEST, "parse multipart body failed, n=%zu", n);
                 }
             }
+
+            if (!client->is_coro) {
+                retval = SW_OK;
+            }
+
             client->handle(client, stream);
         }
         break;
@@ -963,7 +983,8 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         swHttp2FrameTraceLog(recv, "");
     }
     }
-    return SW_OK;
+
+    return retval;
 }
 
 /**
@@ -989,10 +1010,10 @@ int swoole_http2_server_onFrame(Server *serv, Connection *conn, RecvData *req) {
 
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req);
-    swoole_http2_server_parse(client, Z_STRVAL(zdata));
+    int retval = swoole_http2_server_parse(client, Z_STRVAL(zdata));
     zval_ptr_dtor(&zdata);
 
-    return SW_OK;
+    return retval;
 }
 
 void swoole_http2_server_session_free(Connection *conn) {

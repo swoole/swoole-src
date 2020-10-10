@@ -424,7 +424,7 @@ _parse:
     if (request->method > SW_HTTP_PRI) {
         swoole_error_log(SW_LOG_TRACE,
                          SW_ERROR_HTTP_INVALID_PROTOCOL,
-                         "Bad Request: got unsupported HTTP method" CLIENT_INFO_FMT,
+                         "Bad Request: unknown HTTP method" CLIENT_INFO_FMT,
                          CLIENT_INFO_ARGS);
         goto _bad_request;
     } else if (request->method == SW_HTTP_PRI) {
@@ -458,7 +458,7 @@ _parse:
             if (buffer->size == buffer->length) {
                 swoole_error_log(SW_LOG_TRACE,
                                  SW_ERROR_HTTP_INVALID_PROTOCOL,
-                                 "Bad Request: request header is too long" CLIENT_INFO_FMT,
+                                 "Bad Request: request header size is too large" CLIENT_INFO_FMT,
                                  CLIENT_INFO_ARGS);
                 goto _bad_request;
             }
