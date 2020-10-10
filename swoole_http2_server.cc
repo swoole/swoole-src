@@ -772,8 +772,8 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         client->last_stream_id = stream_id;
     }
 
-    // ignore frames after sending goaway
     if (client->shutting_down) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_HTTP2_STREAM_IGNORE, "ignore http2 stream#%d after sending goaway", stream_id);
         return retval;
     }
 
