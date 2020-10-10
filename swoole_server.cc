@@ -3606,6 +3606,7 @@ static PHP_METHOD(swoole_server, getClientInfo) {
         add_assoc_double(return_value, "last_send_time", conn->last_send_time);
         add_assoc_double(return_value, "last_dispatch_time", conn->last_dispatch_time);
         add_assoc_long(return_value, "close_errno", conn->close_errno);
+        add_assoc_long(return_value, "recv_queued_bytes", conn->recv_queued_bytes);
         add_assoc_long(return_value, "send_queued_bytes", conn->send_queued_bytes);
     }
 }

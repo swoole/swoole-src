@@ -603,7 +603,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     if (!conn->active) {
         return retval;
     }
-    if (serv->is_process_mode() && serv->max_queued_bytes && conn->queued_bytes > serv->max_queued_bytes) {
+    if (serv->is_process_mode() && serv->max_queued_bytes && conn->recv_queued_bytes > serv->max_queued_bytes) {
         conn->waiting_time = 1;
         conn->timer = swoole_timer_add(conn->waiting_time, false, ReactorThread_resume_data_receiving, event->socket);
         if (conn->timer) {
@@ -975,7 +975,7 @@ static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) 
     Socket *_socket = (Socket *) tnode->data;
     Connection *conn = (Connection *) _socket->object;
 
-    if (conn->queued_bytes > sw_server()->max_queued_bytes) {
+    if (conn->recv_queued_bytes > sw_server()->max_queued_bytes) {
         if (conn->waiting_time != 1024) {
             conn->waiting_time *= 2;
         }
@@ -1037,9 +1037,9 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
         if (!serv->factory.dispatch(&serv->factory, &task)) {
             return SW_ERR;
         }
-        if (serv->max_queued_bytes && length > 0) {
-            sw_atomic_fetch_add(&conn->queued_bytes, length);
-            swTraceLog(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->queued_bytes);
+        if (length > 0) {
+            sw_atomic_fetch_add(&conn->recv_queued_bytes, length);
+            swTraceLog(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->recv_queued_bytes);
         }
         return SW_OK;
     }
