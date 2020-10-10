@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: max coro num
+swoole_http_server: max coroutine
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -16,8 +16,9 @@ $pm->parentFunc = function ($pid) use ($pm) {
     });
 };
 $pm->childFunc = function () use ($pm) {
+    Co::set(['max_coroutine' => 1]);
     $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
-    $http->set(['log_file' => '/dev/null', 'max_coro_num' => 1]);
+    $http->set(['log_file' => '/dev/null']);
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
         Co::yield();
