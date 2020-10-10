@@ -20,6 +20,7 @@ modules/*
 /Makefile
 /bin
 /lib
+/library
 /install_manifest.txt
 /config.guess
 /config.h
