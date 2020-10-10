@@ -153,7 +153,7 @@ struct Connection {
      * from which socket fd
      */
     int server_fd;
-    sw_atomic_t queued_bytes;
+    sw_atomic_t recv_queued_bytes;
     uint32_t send_queued_bytes;
     uint16_t waiting_time;
     TimerNode *timer;
