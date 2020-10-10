@@ -765,16 +765,16 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     Http2Stream *stream = nullptr;
     int type = buf[3];
     int flags = buf[4];
+    int retval = SW_ERR;
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
 
     if (stream_id > client->last_stream_id) {
         client->last_stream_id = stream_id;
     }
 
-
     // ignore frames after sending goaway
     if (client->shutting_down) {
-        return SW_OK;
+        return retval;
     }
 
     ssize_t length = swHttp2_get_length(buf);
@@ -804,7 +804,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                             swWarn("nghttp2_hd_deflate_change_table_size() failed, errno=%s, errmsg=%s",
                                    ret,
                                    nghttp2_strerror(ret));
-                            return SW_ERROR;
+                            return SW_ERR;
                         }
                     }
                 }
@@ -915,11 +915,8 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                 }
             }
 
-            Worker *worker = SwooleWG.worker;
-            worker->request_count++;
             if (!client->is_coro) {
-                Server *serv = (swServer *) stream->ctx->private_data;
-                sw_atomic_fetch_add(&serv->gs->request_count, 1);
+                retval = SW_OK;
             }
 
             client->handle(client, stream);
@@ -986,7 +983,8 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         swHttp2FrameTraceLog(recv, "");
     }
     }
-    return SW_OK;
+
+    return retval;
 }
 
 /**
@@ -1012,10 +1010,10 @@ int swoole_http2_server_onFrame(Server *serv, Connection *conn, RecvData *req) {
 
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req);
-    swoole_http2_server_parse(client, Z_STRVAL(zdata));
+    int retval = swoole_http2_server_parse(client, Z_STRVAL(zdata));
     zval_ptr_dtor(&zdata);
 
-    return SW_OK;
+    return retval;
 }
 
 void swoole_http2_server_session_free(Connection *conn) {
