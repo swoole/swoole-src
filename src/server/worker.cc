@@ -222,7 +222,7 @@ static sw_inline void Worker_do_task(Server *serv, Worker *worker, EventData *ta
     callback(serv, &recv_data);
 
     ListenPort *port = serv->get_port_by_server_fd(task->info.server_fd);
-    if(!port->open_http2_protocol) {
+    if (!port->open_http2_protocol) {
         worker->request_count++;
         sw_atomic_fetch_add(&serv->gs->request_count, 1);
     }
