@@ -559,7 +559,7 @@ static bool swoole_http2_server_respond(http_context *ctx, String *body) {
         delete stream;
     }
 
-    if(client->shutting_down && client->streams.size() == 0) {
+    if (client->shutting_down && client->streams.size() == 0) {
         ctx->close(ctx);
     }
 
@@ -767,13 +767,13 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     int flags = buf[4];
     uint32_t stream_id = ntohl((*(int *) (buf + 5))) & 0x7fffffff;
 
-    if(stream_id > client->last_stream_id) {
+    if (stream_id > client->last_stream_id) {
         client->last_stream_id = stream_id;
     }
 
 
     // ignore frames after sending goaway
-    if(client->shutting_down) {
+    if (client->shutting_down) {
         return SW_OK;
     }
 
@@ -917,7 +917,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
 
             Worker *worker = SwooleWG.worker;
             worker->request_count++;
-            if(!client->is_coro) {
+            if (!client->is_coro) {
                 Server *serv = (swServer *) stream->ctx->private_data;
                 sw_atomic_fetch_add(&serv->gs->request_count, 1);
             }
