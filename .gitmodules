@@ -1,0 +1,3 @@
+[submodule "library"]
+	path = library
+	url = git@github.com:swoole/library.git
