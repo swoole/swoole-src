@@ -2497,10 +2497,6 @@ static PHP_METHOD(swoole_server, set) {
         zend_long v = zval_get_long(ztmp);
         serv->message_queue_key = SW_MAX(0, SW_MIN(v, INT64_MAX));
     }
-    // stats_file
-    if (php_swoole_array_get_value(vht, "stats_file", ztmp)) {
-        //for Server\Helper
-    }
 
     if (serv->task_enable_coroutine &&
         (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)) {
