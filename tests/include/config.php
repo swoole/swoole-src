@@ -17,6 +17,7 @@ define('USE_VALGRIND', getenv('USE_ZEND_ALLOC') === '0');
 define('HAS_SSL', defined("SWOOLE_SSL"));
 define('HAS_ASYNC_REDIS', class_exists("swoole_redis", false));
 define('HAS_HTTP2', class_exists("swoole_http2_request", false));
+define('DEV_NULL', '/dev/null');
 
 /** ============== Files ============== */
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');

@@ -365,35 +365,20 @@ class Process {
 
 namespace function {
 /* must use this API to call event callbacks to ensure that exceptions are handled correctly */
-inline bool call(
-    zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {
-    bool success;
-    if (enable_coroutine) {
-        if (retval) {
-            /* the coroutine has no return value */
-            ZVAL_NULL(retval);
-        }
-        success = swoole::PHPCoroutine::create(fci_cache, argc, argv) >= 0;
-    } else {
-        success = sw_zend_call_function_ex(nullptr, fci_cache, argc, argv, retval) == SUCCESS;
-    }
-    /* we have no chance to return to ZendVM to check the exception  */
-    if (UNEXPECTED(EG(exception))) {
-        zend_exception_error(EG(exception), E_ERROR);
-    }
-    return success;
-}
+bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine);
 
-inline bool call(const char *func_name, int argc, zval *argv) {
-    zval function_name;
-    ZVAL_STRING(&function_name, func_name);
-    zval _return_value{};
-    int retval = call_user_function(EG(function_table), NULL, &function_name, &_return_value, argc, argv);
-    zval_dtor(&_return_value);
-    zval_dtor(&function_name);
-    return retval == SUCCESS;
-}
+class ReturnValue {
+  public:
+    zval value;
+    ReturnValue() {
+        value = {};
+    }
+    ~ReturnValue() {
+        zval_dtor(&value);
+    }
+};
 
+ReturnValue call(const std::string &func_name, int argc, zval *argv);
 }  // namespace function
 
 struct Function {
@@ -405,8 +390,8 @@ struct Function {
     }
 };
 
-bool include(std::string file);
-bool eval(std::string code, std::string filename = "");
+bool include(const std::string &file);
+bool eval(const std::string &code, const std::string &filename = "");
 void known_strings_init(void);
 void known_strings_dtor(void);
 

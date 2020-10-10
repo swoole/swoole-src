@@ -121,7 +121,6 @@ static void *php_swoole_server_worker_get_buffer(Server *serv, DataHead *info);
 static size_t php_swoole_server_worker_get_buffer_len(Server *serv, DataHead *info);
 static void php_swoole_server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len);
 static void php_swoole_server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
-
 static size_t php_swoole_server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
 
 static inline zend_bool php_swoole_server_isset_callback(ServerObject *server_object,
@@ -716,6 +715,7 @@ void php_swoole_server_minit(int module_number) {
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("worker_id"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_server_ce, ZEND_STRL("taskworker"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_ce, ZEND_STRL("stats_timer"), ZEND_ACC_PUBLIC);
 
     zend_declare_property_null(swoole_server_task_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_ce, ZEND_STRL("id"), -1, ZEND_ACC_PUBLIC);
@@ -1210,9 +1210,7 @@ void php_swoole_server_register_callbacks(Server *serv) {
     if (server_object->property->callbacks[SW_SERVER_CB_onWorkerStop] != nullptr) {
         serv->onWorkerStop = php_swoole_onWorkerStop;
     }
-    if (server_object->property->callbacks[SW_SERVER_CB_onWorkerExit] != nullptr) {
-        serv->onWorkerExit = php_swoole_onWorkerExit;
-    }
+    serv->onWorkerExit = php_swoole_onWorkerExit;
     /**
      * Task Worker
      */
@@ -1595,10 +1593,15 @@ static void php_swoole_onWorkerStart(Server *serv, int worker_id) {
         PHPCoroutine::disable_hook();
     }
 
+    zval args[2];
+    args[0] = *zserv;
+    ZVAL_LONG(&args[1], worker_id);
+
+    if (SWOOLE_G(enable_library)) {
+        zend::function::call("\\Swoole\\Server\\Helper::onWorkerStart", 2, args);
+    }
+
     if (fci_cache) {
-        zval args[2];
-        args[0] = *zserv;
-        ZVAL_LONG(&args[1], worker_id);
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, is_enable_coroutine(serv)))) {
             php_swoole_error(E_WARNING, "%s->onWorkerStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
@@ -1645,6 +1648,11 @@ static void php_swoole_onWorkerStop(Server *serv, int worker_id) {
     zval args[2];
     args[0] = *zserv;
     ZVAL_LONG(&args[1], worker_id);
+
+    if (SWOOLE_G(enable_library)) {
+        zend::function::call("\\Swoole\\Server\\Helper::onWorkerStop", 2, args);
+    }
+
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, false))) {
         php_swoole_error(E_WARNING, "%s->onWorkerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1654,11 +1662,19 @@ static void php_swoole_onWorkerExit(Server *serv, int worker_id) {
     zval *zserv = (zval *) serv->ptr2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerExit];
+
     zval args[2];
     args[0] = *zserv;
     ZVAL_LONG(&args[1], worker_id);
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, false))) {
-        php_swoole_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+
+    if (SWOOLE_G(enable_library)) {
+        zend::function::call("\\Swoole\\Server\\Helper::onWorkerExit", 2, args);
+    }
+
+    if (fci_cache) {
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, false))) {
+            php_swoole_error(E_WARNING, "%s->onWorkerExit handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+        }
     }
 }
 
@@ -2480,6 +2496,10 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "message_queue_key", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         serv->message_queue_key = SW_MAX(0, SW_MIN(v, INT64_MAX));
+    }
+    // stats_file
+    if (php_swoole_array_get_value(vht, "stats_file", ztmp)) {
+        //for Server\Helper
     }
 
     if (serv->task_enable_coroutine &&
@@ -3772,7 +3792,7 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
     }
 }
 
-static PHP_METHOD(swoole_server, getWorkerPid) {\
+static PHP_METHOD(swoole_server, getWorkerPid) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (!serv->is_worker()) {
         RETURN_FALSE;
@@ -3871,7 +3891,7 @@ static PHP_METHOD(swoole_connection_iterator, valid) {
             }
 #endif
             if (iterator->port &&
-                (iterator->port->socket_fd < 0 || conn->server_fd != (uint32_t) iterator->port->socket_fd)) {
+                (iterator->port->socket_fd < 0 || conn->server_fd != iterator->port->socket_fd)) {
                 continue;
             }
             iterator->session_id = conn->session_id;
