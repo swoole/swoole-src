@@ -76,10 +76,11 @@ int ListenPort::enable_ssl_encrypt() {
 
 int ListenPort::listen() {
     // listen stream socket
-    if (socket->listen(backlog) < 0) {
+    if (!listening && socket->listen(backlog) < 0) {
         swSysWarn("listen(%s:%d, %d) failed", host.c_str(), port, backlog);
         return SW_ERR;
     }
+    listening = true;
 
 #ifdef TCP_DEFER_ACCEPT
     if (tcp_defer_accept) {
@@ -198,6 +199,7 @@ bool ListenPort::import(int sock) {
     socket->socket_type = socket->info.type = type = Socket::convert_to_type(_family, _type);
     host = socket->info.get_addr();
     port = socket->info.get_port();
+    listening = true;
 
     socket->fd_type = socket->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
     socket->removed = 1;
