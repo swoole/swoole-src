@@ -1054,7 +1054,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     auto primary_port = serv->get_primary_port();
     swTraceLog(SW_TRACE_SERVER,
                "Create Server: host=%s, port=%d, mode=%d, type=%d",
-               primary_port->host,
+               primary_port->host.c_str(),
                (int) primary_port->port,
                serv->is_base_mode() ? Server::MODE_BASE : Server::MODE_PROCESS,
                (int) primary_port->type);
