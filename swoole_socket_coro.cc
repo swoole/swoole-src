@@ -1422,6 +1422,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
 
     swoole_get_socket_coro(sock, ZEND_THIS);
+    auto _socket = sock->socket->get_socket();
 
     if (level == IPPROTO_IP) {
         switch (optname) {
@@ -1429,7 +1430,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
             struct in_addr if_addr;
             unsigned int if_index;
             optlen = sizeof(if_addr);
-            if (sock->socket->get_option(level, optname, (char *) &if_addr, &optlen) != 0) {
+            if (_socket->get_option(level, optname, (char *) &if_addr, &optlen) != 0) {
                 php_swoole_sys_error(E_WARNING,
                                      "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                      sock->socket->get_fd(),
@@ -1455,10 +1456,10 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
 
     /* sol_socket options and general case */
     switch (optname) {
-    case SO_LINGER:
+    case SO_LINGER: {
         optlen = sizeof(linger_val);
 
-        if (sock->socket->get_option(level, optname, (char *) &linger_val, &optlen) != 0) {
+        if (_socket->get_option(level, optname, (char *) &linger_val, &optlen) != 0) {
             php_swoole_sys_error(E_WARNING,
                                  "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                  sock->socket->get_fd(),
@@ -1471,12 +1472,12 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         add_assoc_long(return_value, "l_onoff", linger_val.l_onoff);
         add_assoc_long(return_value, "l_linger", linger_val.l_linger);
         break;
-
+    }
     case SO_RCVTIMEO:
-    case SO_SNDTIMEO:
+    case SO_SNDTIMEO: {
         optlen = sizeof(tv);
 
-        if (sock->socket->get_option(level, optname, (char *) &tv, &optlen) != 0) {
+        if (_socket->get_option(level, optname, (char *) &tv, &optlen) != 0) {
             php_swoole_sys_error(E_WARNING,
                                  "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                  sock->socket->get_fd(),
@@ -1490,11 +1491,11 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
         add_assoc_long(return_value, "sec", tv.tv_sec);
         add_assoc_long(return_value, "usec", tv.tv_usec);
         break;
-
-    default:
+    }
+    default: {
         optlen = sizeof(other_val);
 
-        if (sock->socket->get_option(level, optname, (char *) &other_val, &optlen) != 0) {
+        if (_socket->get_option(level, optname, (char *) &other_val, &optlen) != 0) {
             php_swoole_sys_error(E_WARNING,
                                  "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                  sock->socket->get_fd(),
@@ -1508,6 +1509,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
 
         RETURN_LONG(other_val);
         break;
+    }
     }
 }
 
@@ -1627,7 +1629,7 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         break;
     }
 
-    retval = setsockopt(sock->socket->get_fd(), level, optname, opt_ptr, optlen);
+    retval = sock->socket->get_socket()->set_option(level, optname, opt_ptr, optlen);
     if (retval != 0) {
         php_swoole_sys_error(E_WARNING, "setsockopt(%d) failed", sock->socket->get_fd());
         RETURN_FALSE;
