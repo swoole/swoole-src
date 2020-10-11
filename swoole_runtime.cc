@@ -663,27 +663,25 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     case STREAM_XPORT_OP_BIND: {
         if (sock->get_sock_domain() != AF_UNIX) {
             zval *tmpzval = nullptr;
-            int sockoptval = 1;
             php_stream_context *ctx = PHP_STREAM_CONTEXT(stream);
             if (!ctx) {
                 break;
             }
-
 #ifdef SO_REUSEADDR
-            setsockopt(sock->get_fd(), SOL_SOCKET, SO_REUSEADDR, (char *) &sockoptval, sizeof(sockoptval));
+            sock->get_socket()->set_reuse_addr();
 #endif
 
 #ifdef SO_REUSEPORT
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_reuseport")) != nullptr &&
                 zval_is_true(tmpzval)) {
-                setsockopt(sock->get_fd(), SOL_SOCKET, SO_REUSEPORT, (char *) &sockoptval, sizeof(sockoptval));
+                sock->get_socket()->set_reuse_port();
             }
 #endif
 
 #ifdef SO_BROADCAST
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_broadcast")) != nullptr &&
                 zval_is_true(tmpzval)) {
-                setsockopt(sock->get_fd(), SOL_SOCKET, SO_BROADCAST, (char *) &sockoptval, sizeof(sockoptval));
+                sock->set_option(SOL_SOCKET, SO_BROADCAST, 1);
             }
 #endif
         }

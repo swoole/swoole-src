@@ -1041,7 +1041,7 @@ bool Socket::listen(int backlog) {
         return false;
     }
     this->backlog = backlog <= 0 ? SW_BACKLOG : backlog;
-    if (::listen(sock_fd, this->backlog) != 0) {
+    if (socket->listen(this->backlog) != 0) {
         set_err(errno);
         return false;
     }

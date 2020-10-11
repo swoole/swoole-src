@@ -262,8 +262,7 @@ int Socket::bind(const char *host, int *port) {
     Address address = {};
     size_t l_host = strlen(host);
 
-    int option = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {
+    if (set_reuse_addr() < 0) {
         swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", fd);
     }
     // UnixSocket
@@ -400,8 +399,7 @@ int Socket::handle_sendfile() {
     if (task->offset == 0 && tcp_nopush == 0) {
         // disable tcp_nodelay
         if (tcp_nodelay) {
-            int tcp_nodelay = 0;
-            if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0) {
+            if (set_tcp_nodelay(0) != 0) {
                 swSysWarn("setsockopt(TCP_NODELAY) failed");
             }
         }
@@ -457,8 +455,7 @@ int Socket::handle_sendfile() {
         }
         // enable tcp_nodelay
         if (tcp_nodelay) {
-            int value = 1;
-            if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0) {
+            if (set_tcp_nodelay(1) != 0) {
                 swSysWarn("setsockopt(TCP_NODELAY) failed");
             }
         }
@@ -516,6 +513,10 @@ static void Socket_sendfile_destructor(BufferChunk *chunk) {
     close(task->fd);
     sw_free(task->filename);
     delete task;
+}
+
+int Socket::set_tcp_nodelay(int enable = 1) {
+    return set_option(IPPROTO_TCP, TCP_NODELAY, enable);
 }
 
 int Socket::sendfile(const char *filename, off_t offset, size_t length) {
@@ -718,7 +719,7 @@ Socket *make_server_socket(enum swSocket_type type, const char *address, int por
         sock->free();
         return nullptr;
     }
-    if (Socket::is_stream(type) && listen(sock->fd, backlog) < 0) {
+    if (sock->is_stream() && sock->listen(backlog) < 0) {
         swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
         sock->free();
         return nullptr;

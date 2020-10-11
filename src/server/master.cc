@@ -216,53 +216,30 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     }
 
     int fd = sock->fd;
-    int on = 1, off = 0;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void *) &on, (socklen_t) sizeof(on));
+    sock->set_reuse_addr();
 #ifdef HAVE_KQUEUE
-    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (const void *) &on, (socklen_t) sizeof(on));
+    sock->set_reuse_port();
 #endif
 
     switch (port->type) {
-    case SW_SOCK_UDP: {
-        if (inet_pton(AF_INET, port->host, &port->socket->info.addr.inet_v4.sin_addr) < 0) {
-            swSysWarn("inet_pton(AF_INET, %s) failed", port->host);
-            goto _cleanup;
-        }
-        port->socket->info.addr.inet_v4.sin_port = htons(port->port);
-        port->socket->info.addr.inet_v4.sin_family = AF_INET;
-
-        if (bind(fd, (const struct sockaddr *) &port->socket->info.addr, sizeof(struct sockaddr_in))) {
-            swSysWarn("bind() failed");
-            goto _cleanup;
-        }
-        if (connect(fd, (struct sockaddr *) &sa->addr, sizeof(struct sockaddr_in))) {
-            swSysWarn("connect() failed");
-            goto _cleanup;
-        }
-        break;
-    }
-    case SW_SOCK_UDP6: {
-        if (inet_pton(AF_INET6, port->host, &port->socket->info.addr.inet_v6.sin6_addr) < 0) {
-            swSysWarn("inet_pton(AF_INET6, %s) failed", port->host);
-            goto _cleanup;
-        }
-        port->socket->info.addr.inet_v6.sin6_port = htons(port->port);
-        port->socket->info.addr.inet_v6.sin6_family = AF_INET6;
-
-        setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *) &off, sizeof(off));
-        if (bind(fd, (const struct sockaddr *) &port->socket->info.addr, sizeof(struct sockaddr_in6))) {
-            swSysWarn("bind() failed");
-            goto _cleanup;
-        }
-        if (connect(fd, (struct sockaddr *) &sa->addr, sizeof(struct sockaddr_in6))) {
-            swSysWarn("connect() failed");
-            goto _cleanup;
-        }
-        break;
-    }
+    case SW_SOCK_UDP:
+    case SW_SOCK_UDP6:
+        break;    
     default:
         OPENSSL_assert(0);
         break;
+    }
+    
+    if (sock->bind(port->socket->info) < 0) {
+        swSysWarn("bind() failed");
+        goto _cleanup;
+    }
+    if (sock->is_inet6()) {
+        sock->set_option(IPPROTO_IPV6, IPV6_V6ONLY, 0);
+    }
+    if (sock->connect(sa) <0) {
+        swSysWarn("connect() failed");
+        goto _cleanup;
     }
 
     memcpy(&sock->info, sa, sizeof(*sa));
@@ -1536,12 +1513,10 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
     if (ls->ssl_option.protocols & SW_SSL_DTLS) {
-        int on = 1;
-        setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
+        ls->socket->set_reuse_port(true);
     }
 #endif
 
-    ls->socket->socket_type = ls->type;
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
         ls->socket->free();
         return nullptr;

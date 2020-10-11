@@ -333,11 +333,10 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
     hsc->server = new http_server(Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
 
-#ifdef SO_REUSEPORT
     if (reuse_port) {
-        sock->set_option(SOL_SOCKET, SO_REUSEPORT, 1);
+        sock->get_socket()->set_reuse_port();
     }
-#endif
+
     if (!sock->bind(host_str, port)) {
         http_server_set_error(ZEND_THIS, sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "bind(%s:%d) failed", host, (int) port);

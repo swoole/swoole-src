@@ -300,7 +300,7 @@ class Socket {
     }
 
     inline bool set_option(int level, int optname, int optval) {
-        if (setsockopt(sock_fd, level, optname, &optval, sizeof(optval)) != 0) {
+        if (socket->set_option(level, optname, optval) < 0) {
             swSysWarn("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
             return false;
         }

@@ -190,15 +190,38 @@ struct Socket {
         }
     }
 
+    inline int set_option(int level, int optname, int optval) {
+        if (setsockopt(fd, level, optname, &optval, sizeof(optval)) != 0) {
+            return SW_ERR;
+        }
+        return SW_OK;
+    }
+
     inline int set_tcp_nopush(int nopush) {
-        tcp_nopush = nopush;
 #ifdef TCP_CORK
 #define HAVE_TCP_NOPUSH
-        return setsockopt(fd, IPPROTO_TCP, TCP_CORK, (const void *) &nopush, sizeof(int));
+        return set_option(IPPROTO_TCP, TCP_CORK, nopush);
 #else
-        return 0;
+        return -1;
 #endif
     }
+
+    int set_reuse_addr(int enable = 1) {
+#ifdef SO_REUSEADDR
+        return set_option(SOL_SOCKET, SO_REUSEADDR, enable);
+#endif
+        return -1;
+    }
+
+    int set_reuse_port(int enable = 1) {
+#ifdef SO_REUSEPORT
+        return set_option(SOL_SOCKET, SO_REUSEPORT, enable);
+#endif
+        return -1;
+    }
+
+    int set_tcp_nodelay(int enable = 1);
+
     /**
      * socket io operation
      */
@@ -208,6 +231,12 @@ struct Socket {
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
     int bind(const char *host, int *port);
+    int bind(const Address &sa) {
+        return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
+    }
+    int listen(int backlog = 0) {
+        return ::listen(fd, backlog <= 0 ? SW_BACKLOG : backlog);
+    }
     void clean();
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
@@ -215,6 +244,10 @@ struct Socket {
 
     inline int connect(const Address &sa) {
         return ::connect(fd, &sa.addr.ss, sa.len);
+    }
+
+    inline int connect(const Address *sa) {
+        return ::connect(fd, &sa->addr.ss, sa->len);
     }
 
     inline int connect(const std::string &host, int port) {
