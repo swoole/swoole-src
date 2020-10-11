@@ -670,6 +670,13 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
             sock->get_socket()->set_reuse_addr();
 #endif
 
+#ifdef IPV6_V6ONLY
+            if ((tmpzval = php_stream_context_get_option(ctx, "socket", "ipv6_v6only")) != nullptr &&
+                zval_is_true(tmpzval)) {
+                sock->get_socket()->set_option(IPPROTO_IPV6, IPV6_V6ONLY, 1);
+            }
+#endif
+
 #ifdef SO_REUSEPORT
             if ((tmpzval = php_stream_context_get_option(ctx, "socket", "so_reuseport")) != nullptr &&
                 zval_is_true(tmpzval)) {
