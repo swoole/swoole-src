@@ -77,7 +77,7 @@ int ListenPort::enable_ssl_encrypt() {
 int ListenPort::listen() {
     // listen stream socket
     if (socket->listen(backlog) < 0) {
-        swSysWarn("listen(%s:%d, %d) failed", host, port, backlog);
+        swSysWarn("listen(%s:%d, %d) failed", host.c_str(), port, backlog);
         return SW_ERR;
     }
 
