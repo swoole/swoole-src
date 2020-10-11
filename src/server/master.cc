@@ -1512,6 +1512,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
     }
 #endif
 
+    ls->socket->info.assign(ls->type, host, port);
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
         ls->socket->free();
         return nullptr;
