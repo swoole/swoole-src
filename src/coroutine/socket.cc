@@ -634,8 +634,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
                 }
                 return false;
             } else {
-                socklen_t len = sizeof(errCode);
-                if (socket->get_option(SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0) {
+                if (socket->get_option(SOL_SOCKET, SO_ERROR, &errCode) < 0 || errCode != 0) {
                     set_err(errCode);
                     return false;
                 }

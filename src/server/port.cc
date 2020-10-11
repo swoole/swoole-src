@@ -180,7 +180,6 @@ void Server::init_port_protocol(ListenPort *ls) {
  * @description: set the ListenPort.host and ListenPort.port in ListenPort from sock
  */
 bool ListenPort::import(int sock) {
-    socklen_t optlen;
     Address address;
     int sock_type, sock_family;
 
@@ -188,8 +187,7 @@ bool ListenPort::import(int sock) {
     socket->fd = sock;
     
     // get socket type
-    optlen = sizeof(sock_type);
-    if (socket->get_option(SOL_SOCKET, SO_TYPE, &sock_type, &optlen) < 0) {
+    if (socket->get_option(SOL_SOCKET, SO_TYPE, &sock_type) < 0) {
         swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
         return false;
     }
@@ -198,8 +196,7 @@ bool ListenPort::import(int sock) {
     swWarn("no getsockopt(SO_DOMAIN) supports");
     return false;
 #else
-    optlen = sizeof(sock_family);
-    if (socket->get_option(SOL_SOCKET, SO_DOMAIN, &sock_family, &optlen) < 0) {
+    if (socket->get_option(SOL_SOCKET, SO_DOMAIN, &sock_family) < 0) {
         swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
         return false;
     }

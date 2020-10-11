@@ -1099,7 +1099,6 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
     Socket *_socket = cli->socket;
     int ret;
     int err;
-    socklen_t len = sizeof(err);
 
     if (cli->active) {
 #ifdef SW_USE_OPENSSL
@@ -1126,7 +1125,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         return SW_OK;
     }
 
-    ret = _socket->get_option(SOL_SOCKET, SO_ERROR, &err, &len);
+    ret = _socket->get_option(SOL_SOCKET, SO_ERROR, &err);
     swoole_set_last_error(err);
     if (ret < 0) {
         swSysWarn("getsockopt(%d) failed", event->fd);

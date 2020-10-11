@@ -1697,11 +1697,10 @@ void Server::set_ipc_max_size() {
     ipc_max_size = SW_IPC_MAX_SIZE;
 #else
     int bufsize;
-    socklen_t _len = sizeof(bufsize);
     /**
      * Get the maximum ipc[unix socket with dgram] transmission length
      */
-    if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0) {
+    if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize) != 0) {
         bufsize = SW_IPC_MAX_SIZE;
     }
     ipc_max_size = bufsize - SW_DGRAM_HEADER_SIZE;
