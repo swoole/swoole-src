@@ -114,8 +114,7 @@ int ListenPort::listen() {
         }
 #endif
 #ifdef TCP_USER_TIMEOUT
-        if (tcp_user_timeout > 0 &&
-            socket->set_option(IPPROTO_TCP, TCP_USER_TIMEOUT, tcp_user_timeout) != 0) {
+        if (tcp_user_timeout > 0 && socket->set_option(IPPROTO_TCP, TCP_USER_TIMEOUT, tcp_user_timeout) != 0) {
             swSysWarn("setsockopt(TCP_USER_TIMEOUT) failed");
         }
 #endif
@@ -208,6 +207,7 @@ bool ListenPort::import(int sock) {
     }
 
     host = socket->info.get_addr();
+    port = socket->info.get_port();
 
     socket->fd_type = socket->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
     socket->removed = 1;

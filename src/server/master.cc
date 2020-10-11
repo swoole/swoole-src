@@ -1405,7 +1405,7 @@ void Server::check_port_type(ListenPort *ls) {
  * Return the number of ports successfully
  */
 int Server::add_systemd_socket() {
-    char *e = getenv("LISTEN_PID");
+    const char *e = getenv("LISTEN_PID");
     if (!e) {
         return 0;
     }
