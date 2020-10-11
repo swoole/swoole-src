@@ -12,8 +12,11 @@ use Swoole\Client;
 const UNIX_SOCK_1 = '/tmp/swoole.test.uinx_stream.sock';
 const UNIX_SOCK_2 = '/tmp/swoole.test.uinx_dgram.sock';
 
+define('HAVE_IPV6', boolval(@stream_socket_server('tcp://[::1]:0')));
+
 $pm = new SwooleTest\ProcessManager;
-$pm->initFreePorts(4);
+$pm->initFreePorts(2);
+$pm->initFreeIPv6Ports(2);
 
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Client(SWOOLE_SOCK_TCP);
@@ -28,17 +31,19 @@ $pm->parentFunc = function ($pid) use ($pm) {
     Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
     $client->close();
 
-    $client = new Client(SWOOLE_SOCK_TCP6);
-    Assert::notEmpty($client->connect("::1", $pm->getFreePort(2)));
-    $client->send("SUCCESS");
-    Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-    $client->close();
-
-    $client = new Client(SWOOLE_SOCK_UDP6);
-    Assert::notEmpty($client->connect("::1", $pm->getFreePort(3), 0.5, 0));
-    $client->send("SUCCESS");
-    Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-    $client->close();
+    if (HAVE_IPV6) {
+        $client = new Client(SWOOLE_SOCK_TCP6);
+        Assert::notEmpty($client->connect("::1", $pm->getFreePort(2)));
+        $client->send("SUCCESS");
+        Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
+        $client->close();
+    
+        $client = new Client(SWOOLE_SOCK_UDP6);
+        Assert::notEmpty($client->connect("::1", $pm->getFreePort(3), 0.5, 0));
+        $client->send("SUCCESS");
+        Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
+        $client->close();
+    }
 
     $client = new Client(SWOOLE_SOCK_UNIX_STREAM);
     Assert::notEmpty($client->connect(UNIX_SOCK_1));
@@ -59,8 +64,10 @@ $pm->childFunc = function () use ($pm) {
     $sockets = [];
     $sockets[] = stream_socket_server('tcp://127.0.0.1:'.$pm->getFreePort(0), $errno, $errstr);
     $sockets[] = stream_socket_server('udp://0.0.0.0:'.$pm->getFreePort(1), $errno, $errstr, STREAM_SERVER_BIND);
-    $sockets[] = stream_socket_server('tcp://[::1]:'.$pm->getFreePort(2), $errno, $errstr);
-    $sockets[] = stream_socket_server('udp://[::]:'.$pm->getFreePort(3), $errno, $errstr, STREAM_SERVER_BIND);
+    if (HAVE_IPV6) {
+        $sockets[] = stream_socket_server('tcp://[::1]:'.$pm->getFreePort(2), $errno, $errstr);
+        $sockets[] = stream_socket_server('udp://[::]:'.$pm->getFreePort(3), $errno, $errstr, STREAM_SERVER_BIND);
+    }
     $sockets[] = stream_socket_server('unix://'.UNIX_SOCK_1, $errno, $errstr);
     $sockets[] = stream_socket_server('udg://'.UNIX_SOCK_2, $errno, $errstr, STREAM_SERVER_BIND);
 

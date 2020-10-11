@@ -176,7 +176,7 @@ void Server::init_port_protocol(ListenPort *ls) {
 }
 
 /**
- * @description: set the ListenPort.host and ListenPort.port in ListenPort from sock
+ * @description: import listen port from socket-fd
  */
 bool ListenPort::import(int sock) {
     int sock_type, sock_family;
@@ -186,23 +186,17 @@ bool ListenPort::import(int sock) {
     
     // get socket type
     if (socket->get_option(SOL_SOCKET, SO_TYPE, &sock_type) < 0) {
-        swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
+        swSysWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
         return false;
     }
     // get socket family
-#ifndef SO_DOMAIN
-    swWarn("no getsockopt(SO_DOMAIN) supports");
-    return false;
-#else
     if (socket->get_option(SOL_SOCKET, SO_DOMAIN, &sock_family) < 0) {
-        swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
+        swSysWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
         return false;
     }
-#endif
-
     socket->socket_type = socket->info.type = type = Socket::convert_to_type(sock_family, sock_type);
     if (socket->get_name(&socket->info) < 0) {
-        swWarn("getsockname(%d) failed", sock);
+        swSysWarn("getsockname(%d) failed", sock);
         return false;
     }
 

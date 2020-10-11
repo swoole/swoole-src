@@ -70,7 +70,24 @@ function get_one_free_port(): int
     Swoole\Runtime::enableCoroutine(false);
     $server = stream_socket_server('tcp://127.0.0.1:0');
     $name = stream_socket_get_name($server, false);
+    if (empty($name)) {
+        return -1;
+    }
     $port = (parse_url($name)['port'] ?? -1) ?: -1;
+    Swoole\Runtime::enableCoroutine($hookFlags);
+    return $port;
+}
+
+function get_one_free_port_ipv6(): int
+{
+    $hookFlags = Swoole\Runtime::getHookFlags();
+    Swoole\Runtime::enableCoroutine(false);
+    $server = stream_socket_server('tcp://[::1]:0');
+    $name = stream_socket_get_name($server, false);
+    if (empty($name)) {
+        return -1;
+    }
+    $port = explode(']:', $name)[1];
     Swoole\Runtime::enableCoroutine($hookFlags);
     return $port;
 }
