@@ -181,19 +181,9 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     response.data = header_buffer;
 
-#ifdef HAVE_TCP_NOPUSH
-    if (conn->socket->tcp_nopush == 0) {
-        if (conn->socket->tcp_nodelay) {
-            if (conn->socket->set_tcp_nodelay(0) != 0) {
-                swSysWarn("setsockopt(TCP_NODELAY) failed");
-            }
-        }
-        if (conn->socket->set_tcp_nopush(1) == -1) {
-            swSysWarn("set_tcp_nopush() failed");
-        }
-    }
-#endif
-
+    // Use tcp_nopush to improve sending efficiency
+    conn->socket->cork();
+    
     // Send HTTP header
     send_to_connection(&response);
 

@@ -1632,7 +1632,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
         if (ls->socket->set_tcp_nodelay() != 0) {
             swSysWarn("setsockopt(TCP_NODELAY) failed");
         }
-        _socket->tcp_nodelay = 1;
+        _socket->enable_tcp_nodelay = true;
     }
 
     // socket recv buffer size

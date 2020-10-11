@@ -108,6 +108,7 @@ struct Socket {
     enum swFd_type fd_type;
     enum swSocket_type socket_type;
     int events;
+    bool enable_tcp_nodelay;
 
     uchar removed : 1;
     uchar nonblock : 1;
@@ -224,18 +225,19 @@ struct Socket {
 
     inline int set_tcp_nopush(int nopush) {
 #ifdef TCP_CORK
-#define HAVE_TCP_NOPUSH
-        return set_option(IPPROTO_TCP, TCP_CORK, nopush);
+        if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
+            return -1;
+        } else {
+            tcp_nopush = nopush;
+            return 0;
+        }
 #else
         return -1;
 #endif
     }
 
     int set_reuse_addr(int enable = 1) {
-#ifdef SO_REUSEADDR
         return set_option(SOL_SOCKET, SO_REUSEADDR, enable);
-#endif
-        return -1;
     }
 
     int set_reuse_port(int enable = 1) {
@@ -245,8 +247,13 @@ struct Socket {
         return -1;
     }
 
-    int set_tcp_nodelay(int enable = 1)  {
-        return set_option(IPPROTO_TCP, TCP_NODELAY, enable);
+    int set_tcp_nodelay(int nodelay = 1)  {
+        if (set_option(IPPROTO_TCP, TCP_NODELAY, nodelay) == SW_ERR) {
+            return -1;
+        } else {
+            tcp_nodelay = nodelay;
+            return 0;
+        }
     }
 
     /**
@@ -286,6 +293,36 @@ struct Socket {
     inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
         return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
+    }
+
+    inline bool cork() {
+        if (tcp_nopush) {
+            return false;
+        }
+        if (set_tcp_nopush(1) < 0) {
+            swSysWarn("set_tcp_nopush(fd=%d, ON) failed", fd);
+            return false;
+        }
+        // Need to turn off tcp nodelay when using nopush
+        if (tcp_nodelay && set_tcp_nodelay(0) != 0) {
+            swSysWarn("set_tcp_nodelay(fd=%d, OFF) failed", fd);
+        }
+        return true;
+    }
+
+    inline bool uncork() {
+        if (!tcp_nopush) {
+            return false;
+        }
+        if (set_tcp_nopush(0) < 0) {
+            swSysWarn("set_tcp_nopush(fd=%d, OFF) failed", fd);
+            return false;
+        }
+        // Restore tcp_nodelay setting
+        if (enable_tcp_nodelay && tcp_nodelay == 0 && set_tcp_nodelay(1) != 0) {
+            swSysWarn("set_tcp_nodelay(fd=%d, ON) failed", fd);
+            return false;
+        }
     }
 
     int wait_event(int timeout_ms, int events);

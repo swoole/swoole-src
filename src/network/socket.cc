@@ -395,20 +395,9 @@ int Socket::handle_sendfile() {
     BufferChunk *chunk = buffer->front();
     SendfileRequest *task = (SendfileRequest *) chunk->value.object;
 
-#ifdef HAVE_TCP_NOPUSH
-    if (task->offset == 0 && tcp_nopush == 0) {
-        // disable tcp_nodelay
-        if (tcp_nodelay) {
-            if (set_tcp_nodelay(0) != 0) {
-                swSysWarn("setsockopt(TCP_NODELAY) failed");
-            }
-        }
-        // enable tcp_nopush
-        if (set_tcp_nopush(1) == -1) {
-            swSysWarn("set_tcp_nopush() failed");
-        }
+    if (task->offset == 0) {
+        cork();
     }
-#endif
 
     int sendn =
         (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
@@ -445,22 +434,12 @@ int Socket::handle_sendfile() {
         }
     }
 
-    // sendfile finish
+    // sendfile completed
     if ((size_t) task->offset >= task->length) {
         buffer->pop();
-#ifdef HAVE_TCP_NOPUSH
-        // disable tcp_nopush
-        if (set_tcp_nopush(0) == -1) {
-            swSysWarn("set_tcp_nopush() failed");
-        }
-        // enable tcp_nodelay
-        if (tcp_nodelay) {
-            if (set_tcp_nodelay(1) != 0) {
-                swSysWarn("setsockopt(TCP_NODELAY) failed");
-            }
-        }
-#endif
+        uncork();
     }
+
     return SW_OK;
 }
 
