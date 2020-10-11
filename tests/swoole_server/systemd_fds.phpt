@@ -9,9 +9,8 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Server;
 use Swoole\Client;
 
-const UNIX_SOCK_1 = '/tmp/swoole.test.uinx_stream.sock';
-const UNIX_SOCK_2 = '/tmp/swoole.test.uinx_dgram.sock';
-
+define('UNIX_SOCK_1', getenv('HOME').'/swoole.test.uinx_stream.sock');
+define('UNIX_SOCK_2', getenv('HOME').'/swoole.test.uinx_dgram.sock');
 define('HAVE_IPV6', boolval(@stream_socket_server('tcp://[::1]:0')));
 
 $pm = new SwooleTest\ProcessManager;

@@ -179,27 +179,23 @@ void Server::init_port_protocol(ListenPort *ls) {
  * @description: import listen port from socket-fd
  */
 bool ListenPort::import(int sock) {
-    int sock_type, sock_family;
+    int _type, _family;
 
     socket = new Socket();
     socket->fd = sock;
     
     // get socket type
-    if (socket->get_option(SOL_SOCKET, SO_TYPE, &sock_type) < 0) {
+    if (socket->get_option(SOL_SOCKET, SO_TYPE, &_type) < 0) {
         swSysWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
         return false;
     }
-    // get socket family
-    if (socket->get_option(SOL_SOCKET, SO_DOMAIN, &sock_family) < 0) {
-        swSysWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
-        return false;
-    }
-    socket->socket_type = socket->info.type = type = Socket::convert_to_type(sock_family, sock_type);
     if (socket->get_name(&socket->info) < 0) {
         swSysWarn("getsockname(%d) failed", sock);
         return false;
     }
 
+    _family = socket->info.addr.ss.sa_family;
+    socket->socket_type = socket->info.type = type = Socket::convert_to_type(_family, _type);
     host = socket->info.get_addr();
     port = socket->info.get_port();
 
