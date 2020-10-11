@@ -263,7 +263,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         struct linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
-        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0) {
+        if (conn->socket->set_option(SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0) {
             swSysWarn("setsockopt(SO_LINGER) failed");
         }
     }

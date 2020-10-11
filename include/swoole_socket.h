@@ -212,6 +212,11 @@ struct Socket {
         return getsockopt(fd, level, optname, optval, optlen);
     }
 
+    inline int get_option(int level, int optname, int *optval) {
+        socklen_t optlen = sizeof(*optval);
+        return get_option(level, optname, optval, &optlen);
+    }
+
     inline int get_name(Address *sa) {
         sa->len = sizeof(sa->addr);
         return getsockname(fd, &sa->addr.ss, &sa->len);

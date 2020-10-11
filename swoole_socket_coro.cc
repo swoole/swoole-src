@@ -1429,7 +1429,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
             struct in_addr if_addr;
             unsigned int if_index;
             optlen = sizeof(if_addr);
-            if (getsockopt(sock->socket->get_fd(), level, optname, (char *) &if_addr, &optlen) != 0) {
+            if (sock->socket->get_option(level, optname, (char *) &if_addr, &optlen) != 0) {
                 php_swoole_sys_error(E_WARNING,
                                      "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                      sock->socket->get_fd(),
@@ -1458,7 +1458,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     case SO_LINGER:
         optlen = sizeof(linger_val);
 
-        if (getsockopt(sock->socket->get_fd(), level, optname, (char *) &linger_val, &optlen) != 0) {
+        if (sock->socket->get_option(level, optname, (char *) &linger_val, &optlen) != 0) {
             php_swoole_sys_error(E_WARNING,
                                  "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                  sock->socket->get_fd(),
@@ -1476,7 +1476,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     case SO_SNDTIMEO:
         optlen = sizeof(tv);
 
-        if (getsockopt(sock->socket->get_fd(), level, optname, (char *) &tv, &optlen) != 0) {
+        if (sock->socket->get_option(level, optname, (char *) &tv, &optlen) != 0) {
             php_swoole_sys_error(E_WARNING,
                                  "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                  sock->socket->get_fd(),
@@ -1494,7 +1494,7 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     default:
         optlen = sizeof(other_val);
 
-        if (getsockopt(sock->socket->get_fd(), level, optname, (char *) &other_val, &optlen) != 0) {
+        if (sock->socket->get_option(level, optname, (char *) &other_val, &optlen) != 0) {
             php_swoole_sys_error(E_WARNING,
                                  "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
                                  sock->socket->get_fd(),
