@@ -440,8 +440,7 @@ static inline int socket_connect(php_stream *stream, Socket *sock, php_stream_xp
             xparam->inputs.name, xparam->inputs.namelen, &portno, xparam->want_errortext, &xparam->outputs.error_text);
         host = ip_address;
         if (sock->get_sock_type() == SOCK_STREAM) {
-            int sockoptval = 1;
-            setsockopt(sock->get_fd(), IPPROTO_TCP, TCP_NODELAY, (char *) &sockoptval, sizeof(sockoptval));
+            sock->get_socket()->set_tcp_nodelay();
         }
     } else {
         host = xparam->inputs.name;
@@ -562,7 +561,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
         php_network_populate_name_from_sockaddr((struct sockaddr *) &sa, sl, textaddr, addr, addrlen);
 #ifdef TCP_NODELAY
         if (tcp_nodelay) {
-            setsockopt(clisock->get_fd(), IPPROTO_TCP, TCP_NODELAY, (char *) &tcp_nodelay, sizeof(tcp_nodelay));
+            clisock->get_socket()->set_tcp_nodelay(tcp_nodelay);
         }
 #endif
         php_swoole_netstream_data_t *abstract = (php_swoole_netstream_data_t *) emalloc(sizeof(*abstract));

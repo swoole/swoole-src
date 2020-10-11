@@ -183,13 +183,21 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
 #ifdef HAVE_TCP_NOPUSH
     if (conn->socket->tcp_nopush == 0) {
-        if (conn->set_tcp_nopush(1) == -1) {
+        if (conn->socket->tcp_nodelay) {
+            if (conn->socket->set_tcp_nodelay(0) != 0) {
+                swSysWarn("setsockopt(TCP_NODELAY) failed");
+            }
+        }
+        if (conn->socket->set_tcp_nopush(1) == -1) {
             swSysWarn("set_tcp_nopush() failed");
         }
     }
 #endif
+
+    // Send HTTP header
     send_to_connection(&response);
 
+    // Send HTTP body
     if (task->length != 0) {
         response.info.type = SW_SERVER_EVENT_SEND_FILE;
         response.info.len = sizeof(*task) + task->length + 1;
@@ -197,6 +205,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         send_to_connection(&response);
     }
 
+    // Close the connection if keepalive is not used
     if (!request->keep_alive) {
         response.info.type = SW_SERVER_EVENT_CLOSE;
         response.info.len = 0;

@@ -317,7 +317,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
      */
     if (php_swoole_array_get_value(vht, "open_tcp_nodelay", ztmp)) {
         if (cli->get_type() == SW_SOCK_TCP || cli->get_type() != SW_SOCK_TCP6) {
-            cli->set_option(IPPROTO_TCP, TCP_NODELAY, zval_is_true(ztmp));
+            cli->get_socket()->set_tcp_nodelay(zval_is_true(ztmp));
         }
     }
     /**

@@ -1634,8 +1634,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
 
     // TCP Nodelay
     if (ls->open_tcp_nodelay && (ls->type == SW_SOCK_TCP || ls->type == SW_SOCK_TCP6)) {
-        int sockopt = 1;
-        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) != 0) {
+        if (ls->socket->set_tcp_nodelay() != 0) {
             swSysWarn("setsockopt(TCP_NODELAY) failed");
         }
         _socket->tcp_nodelay = 1;
@@ -1643,14 +1642,14 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
 
     // socket recv buffer size
     if (ls->kernel_socket_recv_buffer_size > 0) {
-        if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)) != 0) {
+        if (ls->socket->set_option(SOL_SOCKET, SO_RCVBUF, ls->kernel_socket_recv_buffer_size) != 0) {
             swSysWarn("setsockopt(SO_RCVBUF, %d) failed", ls->kernel_socket_recv_buffer_size);
         }
     }
 
     // socket send buffer size
     if (ls->kernel_socket_send_buffer_size > 0) {
-        if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) != 0) {
+        if (ls->socket->set_option(SOL_SOCKET, SO_SNDBUF, ls->kernel_socket_send_buffer_size) != 0) {
             swSysWarn("setsockopt(SO_SNDBUF, %d) failed", ls->kernel_socket_send_buffer_size);
         }
     }

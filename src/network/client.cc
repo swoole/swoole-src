@@ -770,8 +770,8 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         cli->socket->clean();
     _connect_ok:
 
-        setsockopt(cli->socket->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-        setsockopt(cli->socket->fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
+        cli->socket->set_option(SOL_SOCKET, SO_SNDBUF, bufsize);
+        cli->socket->set_option(SOL_SOCKET, SO_RCVBUF, bufsize);
 
         if (cli->async && cli->onConnect) {
             if (swoole_event_add(cli->socket, SW_EVENT_READ) < 0) {

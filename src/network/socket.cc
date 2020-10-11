@@ -338,7 +338,7 @@ bool Socket::set_buffer_size(uint32_t _buffer_size) {
 }
 
 bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+    if (set_option(SOL_SOCKET, SO_RCVBUF, _buffer_size) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
         return false;
     }
@@ -346,7 +346,7 @@ bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
 }
 
 bool Socket::set_send_buffer_size(uint32_t _buffer_size) {
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+    if (set_option(SOL_SOCKET, SO_SNDBUF, _buffer_size) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
         return false;
     }
@@ -513,10 +513,6 @@ static void Socket_sendfile_destructor(BufferChunk *chunk) {
     close(task->fd);
     sw_free(task->filename);
     delete task;
-}
-
-int Socket::set_tcp_nodelay(int enable = 1) {
-    return set_option(IPPROTO_TCP, TCP_NODELAY, enable);
 }
 
 int Socket::sendfile(const char *filename, off_t offset, size_t length) {
