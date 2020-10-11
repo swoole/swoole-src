@@ -387,7 +387,7 @@ struct ListenPort {
     ~ListenPort() = default;
     int listen();
     void close();
-    int set_address(int sock);
+    bool import(int sock);
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
 #endif

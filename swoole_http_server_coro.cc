@@ -330,7 +330,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
 
     http_server_coro_t *hsc = php_swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     std::string host_str(host, l_host);
-    hsc->server = new http_server(Socket::convert_to_type(host_str));
+    hsc->server = new http_server(swoole::network::Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
 
     if (reuse_port) {

@@ -523,7 +523,7 @@ bool Socket::init_reactor_socket(int _fd) {
 
 Socket::Socket(int _domain, int _type, int _protocol)
     : sock_domain(_domain), sock_type(_type), sock_protocol(_protocol) {
-    type = convert_to_type(_domain, _type, _protocol);
+    type = network::Socket::convert_to_type(_domain, _type, _protocol);
     if (sw_unlikely(!init_sock())) {
         return;
     }
@@ -549,7 +549,7 @@ Socket::Socket(int _fd, enum swSocket_type _type) {
 
 Socket::Socket(int _fd, int _domain, int _type, int _protocol)
     : sock_domain(_domain), sock_type(_type), sock_protocol(_protocol) {
-    type = convert_to_type(_domain, _type, _protocol);
+    type = network::Socket::convert_to_type(_domain, _type, _protocol);
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
     }
@@ -635,7 +635,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
                 return false;
             } else {
                 socklen_t len = sizeof(errCode);
-                if (getsockopt(sock_fd, SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0) {
+                if (socket->get_option(SOL_SOCKET, SO_ERROR, &errCode, &len) < 0 || errCode != 0) {
                     set_err(errCode);
                     return false;
                 }

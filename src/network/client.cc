@@ -446,7 +446,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 }
                 int err;
                 socklen_t len = sizeof(len);
-                ret = getsockopt(cli->socket->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+                ret = cli->socket->get_option(SOL_SOCKET, SO_ERROR, &err, &len);
                 if (ret < 0) {
                     swoole_set_last_error(errno);
                     return SW_ERR;
@@ -1126,7 +1126,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         return SW_OK;
     }
 
-    ret = getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+    ret = _socket->get_option(SOL_SOCKET, SO_ERROR, &err, &len);
     swoole_set_last_error(err);
     if (ret < 0) {
         swSysWarn("getsockopt(%d) failed", event->fd);

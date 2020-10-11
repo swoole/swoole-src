@@ -85,8 +85,11 @@ struct Address {
     enum swSocket_type type;
 
     bool assign(enum swSocket_type _type, const char *_host, int _port);
-    const char *get_ip();
+    const char *get_ip() {
+        return get_addr();
+    }
     int get_port();
+    const char *get_addr();
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
@@ -193,8 +196,25 @@ struct Socket {
         }
     }
 
+    inline int set_fd_option(int blocking, int cloexec) {
+        return swoole_fcntl_set_option(fd, blocking, cloexec);
+    }
+
     inline int set_option(int level, int optname, int optval) {
         return setsockopt(fd, level, optname, &optval, sizeof(optval));
+    }
+
+    inline int set_option(int level, int optname, const void *optval, socklen_t optlen) {
+        return setsockopt(fd, level, optname, optval, optlen);
+    }
+
+    inline int get_option(int level, int optname, void *optval, socklen_t *optlen) {
+        return getsockopt(fd, level, optname, optval, optlen);
+    }
+
+    inline int get_name(Address *sa) {
+        sa->len = sizeof(sa->addr);
+        return getsockname(fd, &sa->addr.ss, &sa->len);
     }
 
     inline int set_tcp_nopush(int nopush) {
@@ -342,6 +362,31 @@ struct Socket {
             return SW_WAIT;
         default:
             return SW_ERROR;
+        }
+    }
+
+    static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0) {
+        switch (domain) {
+        case AF_INET:
+            return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
+        case AF_INET6:
+            return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
+        case AF_UNIX:
+            return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+        default:
+            return SW_SOCK_TCP;
+        }
+    }
+
+    static inline enum swSocket_type convert_to_type(std::string &host) {
+        if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
+            host = host.substr(sizeof("unix:") - 1);
+            host.erase(0, host.find_first_not_of('/') - 1);
+            return SW_SOCK_UNIX_STREAM;
+        } else if (host.find(':') != std::string::npos) {
+            return SW_SOCK_TCP6;
+        } else {
+            return SW_SOCK_TCP;
         }
     }
 

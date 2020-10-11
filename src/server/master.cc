@@ -1428,18 +1428,13 @@ int Server::add_systemd_socket() {
         std::unique_ptr<ListenPort> ptr(new ListenPort());
         ListenPort *ls = ptr.get();
 
-        if (ls->set_address(sock) < 0) {
+        if (!ls->import(sock)) {
             return count;
         }
-        ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
         // O_NONBLOCK & O_CLOEXEC
-        swoole_fcntl_set_option(sock, 1, 1);
-        ls->socket = swoole::make_socket(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
-        if (ls->socket == nullptr) {
-            ::close(sock);
-            return count;
-        }
+        ls->socket->set_fd_option(1, 1);     
+
         ptr.release();
         check_port_type(ls);
         ports.push_back(ls);
@@ -1706,7 +1701,7 @@ void Server::set_ipc_max_size() {
     /**
      * Get the maximum ipc[unix socket with dgram] transmission length
      */
-    if (getsockopt(workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0) {
+    if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0) {
         bufsize = SW_IPC_MAX_SIZE;
     }
     ipc_max_size = bufsize - SW_DGRAM_HEADER_SIZE;

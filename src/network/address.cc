@@ -25,7 +25,7 @@ namespace network {
 
 static thread_local char tmp_address[INET6_ADDRSTRLEN];
 
-const char *Address::get_ip() {
+const char *Address::get_addr() {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
         return inet_ntoa(addr.inet_v4.sin_addr);
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {

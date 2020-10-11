@@ -179,68 +179,45 @@ void Server::init_port_protocol(ListenPort *ls) {
 /**
  * @description: set the ListenPort.host and ListenPort.port in ListenPort from sock
  */
-int ListenPort::set_address(int sock) {
+bool ListenPort::import(int sock) {
     socklen_t optlen;
     Address address;
     int sock_type, sock_family;
-    char tmp[INET6_ADDRSTRLEN];
 
+    socket = new Socket();
+    socket->fd = sock;
+    
     // get socket type
     optlen = sizeof(sock_type);
-    if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &sock_type, &optlen) < 0) {
+    if (socket->get_option(SOL_SOCKET, SO_TYPE, &sock_type, &optlen) < 0) {
         swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
-        return -1;
+        return false;
     }
     // get socket family
 #ifndef SO_DOMAIN
     swWarn("no getsockopt(SO_DOMAIN) supports");
-    return -1;
+    return false;
 #else
     optlen = sizeof(sock_family);
-    if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &sock_family, &optlen) < 0) {
+    if (socket->get_option(SOL_SOCKET, SO_DOMAIN, &sock_family, &optlen) < 0) {
         swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
-        return -1;
+        return false;
     }
 #endif
 
-    // get address info
-    address.len = sizeof(address.addr);
-    if (getsockname(sock, (struct sockaddr *) &address.addr, &address.len) < 0) {
+    socket->socket_type = type = Socket::convert_to_type(sock_family, sock_type);
+    if (socket->get_name(&address) < 0) {
         swWarn("getsockname(%d) failed", sock);
-        return -1;
+        return false;
     }
 
-    switch (sock_family) {
-    case AF_INET:
-        if (sock_type == SOCK_STREAM) {
-            type = SW_SOCK_TCP;
-        } else {
-            type = SW_SOCK_UDP;
-        }
-        port = ntohs(address.addr.inet_v4.sin_port);
-        strncpy(host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
-        break;
-    case AF_INET6:
-        if (sock_type == SOCK_STREAM) {
-            type = SW_SOCK_TCP6;
-        } else {
-            type = SW_SOCK_UDP6;
-        }
-        port = ntohs(address.addr.inet_v6.sin6_port);
-        inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-        strncpy(host, tmp, SW_HOST_MAXSIZE - 1);
-        break;
-    case AF_UNIX:
-        type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-        port = 0;
-        strncpy(host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
-        break;
-    default:
-        swWarn("Unknown socket family[%d]", sock_family);
-        break;
-    }
+    strncpy(host, address.get_addr(), SW_HOST_MAXSIZE - 1);
+    host[SW_HOST_MAXSIZE - 1] = 0;
 
-    return 0;
+    socket->fd_type = socket->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
+    socket->removed = 1;
+
+    return true;
 }
 
 void ListenPort::clear_protocol() {
