@@ -291,7 +291,7 @@ static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, Event *e
 }
 
 #define CLIENT_INFO_FMT " from session#%u on %s:%d"
-#define CLIENT_INFO_ARGS conn->session_id, port->host, port->port
+#define CLIENT_INFO_ARGS conn->session_id, port->host.c_str(), port->port
 
 /**
  * For Http Protocol
