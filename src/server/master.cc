@@ -237,8 +237,8 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     if (sock->is_inet6()) {
         sock->set_option(IPPROTO_IPV6, IPV6_V6ONLY, 0);
     }
-    if (sock->connect(sa) <0) {
-        swSysWarn("connect() failed");
+    if (sock->connect(sa) < 0) {
+        swSysWarn("connect(%s:%d) failed", sa->get_addr(), sa->get_port());
         goto _cleanup;
     }
 
@@ -1429,7 +1429,7 @@ int Server::add_systemd_socket() {
         ListenPort *ls = ptr.get();
 
         if (!ls->import(sock)) {
-            return count;
+            continue;
         }
 
         // O_NONBLOCK & O_CLOEXEC

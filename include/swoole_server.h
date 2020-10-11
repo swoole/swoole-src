@@ -225,7 +225,7 @@ struct PipeBuffer {
 };
 
 struct DgramPacket {
-    int socket_type;
+    enum swSocket_type socket_type;
     network::Address socket_addr;
     uint32_t length;
     char data[0];
