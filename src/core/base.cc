@@ -1026,21 +1026,23 @@ size_t swoole_random_bytes(char *buf, size_t size) {
     return read_bytes;
 }
 
+bool swoole_get_env(const char *name, int *value) {
+    const char *e = getenv(name);
+    if (!e) {
+        return false;
+    }
+    *value = atoi(e);
+    return true;
+}
+
 int swoole_get_systemd_listen_fds() {
     int ret;
-    char *e;
-
-    e = getenv("LISTEN_FDS");
-    if (!e) {
-        return 0;
-    }
-    ret = atoi(e);
-    if (ret < 1) {
+    if (!swoole_get_env("LISTEN_FDS", &ret)) {
         swWarn("invalid LISTEN_FDS");
-        return 0;
+        return -1;
     } else if (ret >= SW_MAX_LISTEN_PORT) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big");
-        return 0;
+        return -1;
     }
     return ret;
 }

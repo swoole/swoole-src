@@ -1405,26 +1405,26 @@ void Server::check_port_type(ListenPort *ls) {
  * Return the number of ports successfully
  */
 int Server::add_systemd_socket() {
-    const char *e = getenv("LISTEN_PID");
-    if (!e) {
-        return 0;
-    }
-
-    int pid = atoi(e);
-    if (getpid() != pid) {
+    int pid;
+    if (!swoole_get_env("LISTEN_PID", &pid) && getpid() != pid) {
         swWarn("invalid LISTEN_PID");
         return 0;
     }
 
     int n = swoole_get_systemd_listen_fds();
-    if (n == 0) {
+    if (n <= 0) {
         return 0;
     }
 
     int count = 0;
     int sock;
 
-    for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++) {
+    int start_fd;
+    if (!swoole_get_env("LISTEN_FDS_START", &start_fd)) {
+        start_fd = SW_SYSTEMD_FDS_START;
+    }
+
+    for (sock = start_fd; sock < start_fd + n; sock++) {
         std::unique_ptr<ListenPort> ptr(new ListenPort());
         ListenPort *ls = ptr.get();
 

@@ -247,7 +247,7 @@ struct ListenPort {
      * tcp socket listen backlog
      */
     uint16_t backlog = SW_BACKLOG;
-    bool listening;
+    bool listening = false;
     /**
      * open tcp_defer_accept option
      */
