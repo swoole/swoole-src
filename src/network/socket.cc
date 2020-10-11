@@ -257,10 +257,11 @@ void Socket::free() {
     }
 }
 
-int Socket::bind(const char *host, int *port) {
+int Socket::bind(const std::string &_host, int *port) {
     int ret;
     Address address = {};
-    size_t l_host = strlen(host);
+    size_t l_host = _host.length();
+    const char *host = _host.c_str();
 
     if (set_reuse_addr() < 0) {
         swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", fd);

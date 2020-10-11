@@ -84,7 +84,15 @@ struct Address {
     socklen_t len;
     enum swSocket_type type;
 
-    bool assign(enum swSocket_type _type, const char *_host, int _port);
+    Address() = default;
+
+    Address(enum swSocket_type _type, const std::string &_host, int _port) {
+        if (!assign(_type, _host, _port)) {
+            throw std::bad_exception();
+        }
+    }
+
+    bool assign(enum swSocket_type _type, const std::string &_host, int _port);
     const char *get_ip() {
         return get_addr();
     }
@@ -264,7 +272,7 @@ struct Socket {
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
-    int bind(const char *host, int *port);
+    int bind(const std::string &_host, int *port);
     int bind(const Address &sa) {
         return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
     }
@@ -286,7 +294,7 @@ struct Socket {
 
     inline int connect(const std::string &host, int port) {
         Address addr;
-        addr.assign(socket_type, host.c_str(), port);
+        addr.assign(socket_type, host, port);
         return connect(addr);
     }
 
@@ -323,6 +331,7 @@ struct Socket {
             swSysWarn("set_tcp_nodelay(fd=%d, ON) failed", fd);
             return false;
         }
+        return true;
     }
 
     int wait_event(int timeout_ms, int events);

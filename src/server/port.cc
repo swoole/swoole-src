@@ -180,7 +180,6 @@ void Server::init_port_protocol(ListenPort *ls) {
  * @description: set the ListenPort.host and ListenPort.port in ListenPort from sock
  */
 bool ListenPort::import(int sock) {
-    Address address;
     int sock_type, sock_family;
 
     socket = new Socket();
@@ -202,14 +201,13 @@ bool ListenPort::import(int sock) {
     }
 #endif
 
-    socket->socket_type = type = Socket::convert_to_type(sock_family, sock_type);
-    if (socket->get_name(&address) < 0) {
+    socket->socket_type = socket->info.type = type = Socket::convert_to_type(sock_family, sock_type);
+    if (socket->get_name(&socket->info) < 0) {
         swWarn("getsockname(%d) failed", sock);
         return false;
     }
 
-    strncpy(host, address.get_addr(), SW_HOST_MAXSIZE - 1);
-    host[SW_HOST_MAXSIZE - 1] = 0;
+    host = socket->info.get_addr();
 
     socket->fd_type = socket->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
     socket->removed = 1;
@@ -647,7 +645,7 @@ void ListenPort::close() {
 
     // remove unix socket file
     if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
-        unlink(host);
+        unlink(host.c_str());
     }
 }
 

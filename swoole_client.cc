@@ -458,7 +458,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
         bind_address = zend::String(ztmp).to_std_string();
     }
     if (bind_port > 0 || bind_address.length() > 0) {
-        cli->socket->bind(bind_address.c_str(), &bind_port);
+        cli->socket->bind(bind_address, &bind_port);
     }
     /**
      * client: tcp_nodelay

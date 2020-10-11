@@ -272,11 +272,11 @@ struct ListenPort {
 
     enum swSocket_type type = SW_SOCK_TCP;
     uint8_t ssl = 0;
+    std::string host;
     int port = 0;
     int socket_fd = 0;
     network::Socket *socket = nullptr;
     pthread_t thread_id = 0;
-    char host[SW_HOST_MAXSIZE] = {};
 
     /**
      * check data eof

@@ -135,7 +135,7 @@ TEST(coroutine_hook, socket) {
         ASSERT_GT(sock, 0);
         swoole::network::Address sa;
         std::string ip = System::gethostbyname("www.baidu.com", AF_INET, 10);
-        sa.assign(SW_SOCK_TCP, ip.c_str(), 80);
+        sa.assign(SW_SOCK_TCP, ip, 80);
         ASSERT_EQ(swoole_coroutine_connect(sock, &sa.addr.ss, sa.len), 0);
         ASSERT_EQ(swoole_coroutine_socket_wait_event(sock, SW_EVENT_WRITE, 5), SW_OK);
 

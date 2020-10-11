@@ -1472,8 +1472,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
 
     ls->type = type;
     ls->port = port;
-    strncpy(ls->host, host, SW_HOST_MAXSIZE - 1);
-    ls->host[SW_HOST_MAXSIZE - 1] = 0;
+    ls->host = host;
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
@@ -1512,11 +1511,11 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
     }
 #endif
 
-    ls->socket->info.assign(ls->type, host, port);
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
         ls->socket->free();
         return nullptr;
     }
+    ls->socket->info.assign(ls->type, ls->host, ls->port);
     check_port_type(ls);
     ptr.release();
     ls->socket_fd = ls->socket->fd;

@@ -1027,7 +1027,7 @@ bool Socket::bind(std::string address, int port) {
     bind_port = port;
     bind_address_info.type = type;
 
-    if (socket->bind(address.c_str(), &bind_port) != 0) {
+    if (socket->bind(address, &bind_port) != 0) {
         set_err(errno);
         return false;
     }
