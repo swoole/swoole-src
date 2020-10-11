@@ -68,7 +68,7 @@ function get_one_free_port(): int
 {
     $hookFlags = Swoole\Runtime::getHookFlags();
     Swoole\Runtime::enableCoroutine(false);
-    $server = stream_socket_server('tcp://127.0.0.1:0');
+    $server = @stream_socket_server('tcp://127.0.0.1:0');
     if (!$server) {
         $port = -1;
     } else {
@@ -88,7 +88,7 @@ function get_one_free_port_ipv6(): int
 {
     $hookFlags = Swoole\Runtime::getHookFlags();
     Swoole\Runtime::enableCoroutine(false);
-    $server = stream_socket_server('tcp://[::1]:0');
+    $server = @stream_socket_server('tcp://[::1]:0');
     if (!$server) {
         $port = -1;
     } else {

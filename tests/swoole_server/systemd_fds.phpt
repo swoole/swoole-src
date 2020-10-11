@@ -13,48 +13,39 @@ define('UNIX_SOCK_1', getenv('HOME').'/swoole.test.uinx_stream.sock');
 define('UNIX_SOCK_2', getenv('HOME').'/swoole.test.uinx_dgram.sock');
 define('HAVE_IPV6', boolval(@stream_socket_server('tcp://[::1]:0')));
 
+register_shutdown_function(function () {
+    if (is_file(UNIX_SOCK_1)) {
+        unlink(UNIX_SOCK_1);
+    }
+    if (is_file(UNIX_SOCK_2)) {
+        unlink(UNIX_SOCK_2);
+    }
+});
+
 $pm = new SwooleTest\ProcessManager;
 $pm->initFreePorts(2);
-$pm->initFreeIPv6Ports(2);
-
+if (HAVE_IPV6) {
+    $pm->initFreeIPv6Ports(2);
+}
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new Client(SWOOLE_SOCK_TCP);
-    Assert::notEmpty($client->connect("127.0.0.1", $pm->getFreePort(0)));
-    $client->send("SUCCESS");
-    Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-    $client->close();
+    $test_func = function ($type, $host, $port = 0) {
+        $client = new Client($type);
+        Assert::notEmpty($client->connect($host, $port));
+        $client->send("SUCCESS");
+        Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
+        $client->close();
+    };
 
-    $client = new Client(SWOOLE_SOCK_UDP);
-    Assert::notEmpty($client->connect("127.0.0.1", $pm->getFreePort(1)));
-    $client->send("SUCCESS");
-    Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-    $client->close();
+    $test_func(SWOOLE_SOCK_TCP, "127.0.0.1", $pm->getFreePort(0));
+    $test_func(SWOOLE_SOCK_UDP, "127.0.0.1", $pm->getFreePort(1));
 
     if (HAVE_IPV6) {
-        $client = new Client(SWOOLE_SOCK_TCP6);
-        Assert::notEmpty($client->connect("::1", $pm->getFreePort(2)));
-        $client->send("SUCCESS");
-        Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-        $client->close();
-    
-        $client = new Client(SWOOLE_SOCK_UDP6);
-        Assert::notEmpty($client->connect("::1", $pm->getFreePort(3), 0.5, 0));
-        $client->send("SUCCESS");
-        Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-        $client->close();
+        $test_func(SWOOLE_SOCK_TCP6, "::1", $pm->getFreePort(2));
+        $test_func(SWOOLE_SOCK_UDP6, "::1", $pm->getFreePort(3));
     }
 
-    $client = new Client(SWOOLE_SOCK_UNIX_STREAM);
-    Assert::notEmpty($client->connect(UNIX_SOCK_1));
-    $client->send("SUCCESS");
-    Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-    $client->close();
-
-    $client = new Client(SWOOLE_SOCK_UNIX_DGRAM);
-    Assert::notEmpty($client->connect(UNIX_SOCK_2));
-    $client->send("SUCCESS");
-    Assert::eq($client->recv(), 'SUCCESS'.PHP_EOL);
-    $client->close();
+    $test_func(SWOOLE_SOCK_UNIX_STREAM, UNIX_SOCK_1);
+    $test_func(SWOOLE_SOCK_UNIX_DGRAM, UNIX_SOCK_2);
 
     $pm->kill();
 };
@@ -94,13 +85,5 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
-
-if (is_file(UNIX_SOCK_1)) {
-    unlink(UNIX_SOCK_1);
-}
-if (is_file(UNIX_SOCK_2)) {
-    unlink(UNIX_SOCK_2);
-}
-
 ?>
 --EXPECT--
