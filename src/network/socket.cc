@@ -257,13 +257,13 @@ void Socket::free() {
     }
 }
 
-int Socket::bind(const char *host, int *port) {
+int Socket::bind(const std::string &_host, int *port) {
     int ret;
     Address address = {};
-    size_t l_host = strlen(host);
+    size_t l_host = _host.length();
+    const char *host = _host.c_str();
 
-    int option = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(int)) < 0) {
+    if (set_reuse_addr() < 0) {
         swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", fd);
     }
     // UnixSocket
@@ -339,7 +339,7 @@ bool Socket::set_buffer_size(uint32_t _buffer_size) {
 }
 
 bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
-    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+    if (set_option(SOL_SOCKET, SO_RCVBUF, _buffer_size) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
         return false;
     }
@@ -347,7 +347,7 @@ bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
 }
 
 bool Socket::set_send_buffer_size(uint32_t _buffer_size) {
-    if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &_buffer_size, sizeof(_buffer_size)) != 0) {
+    if (set_option(SOL_SOCKET, SO_SNDBUF, _buffer_size) != 0) {
         swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
         return false;
     }
@@ -396,21 +396,9 @@ int Socket::handle_sendfile() {
     BufferChunk *chunk = buffer->front();
     SendfileRequest *task = (SendfileRequest *) chunk->value.object;
 
-#ifdef HAVE_TCP_NOPUSH
-    if (task->offset == 0 && tcp_nopush == 0) {
-        // disable tcp_nodelay
-        if (tcp_nodelay) {
-            int tcp_nodelay = 0;
-            if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &tcp_nodelay, sizeof(int)) != 0) {
-                swSysWarn("setsockopt(TCP_NODELAY) failed");
-            }
-        }
-        // enable tcp_nopush
-        if (set_tcp_nopush(1) == -1) {
-            swSysWarn("set_tcp_nopush() failed");
-        }
+    if (task->offset == 0) {
+        cork();
     }
-#endif
 
     int sendn =
         (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
@@ -447,23 +435,12 @@ int Socket::handle_sendfile() {
         }
     }
 
-    // sendfile finish
+    // sendfile completed
     if ((size_t) task->offset >= task->length) {
         buffer->pop();
-#ifdef HAVE_TCP_NOPUSH
-        // disable tcp_nopush
-        if (set_tcp_nopush(0) == -1) {
-            swSysWarn("set_tcp_nopush() failed");
-        }
-        // enable tcp_nodelay
-        if (tcp_nodelay) {
-            int value = 1;
-            if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (const void *) &value, sizeof(int)) != 0) {
-                swSysWarn("setsockopt(TCP_NODELAY) failed");
-            }
-        }
-#endif
+        uncork();
     }
+
     return SW_OK;
 }
 
@@ -718,7 +695,7 @@ Socket *make_server_socket(enum swSocket_type type, const char *address, int por
         sock->free();
         return nullptr;
     }
-    if (Socket::is_stream(type) && listen(sock->fd, backlog) < 0) {
+    if (sock->is_stream() && sock->listen(backlog) < 0) {
         swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
         sock->free();
         return nullptr;

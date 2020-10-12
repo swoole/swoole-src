@@ -75,18 +75,16 @@ int ListenPort::enable_ssl_encrypt() {
 #endif
 
 int ListenPort::listen() {
-    int sock = socket->fd;
-    int option = 1;
-
     // listen stream socket
-    if (::listen(sock, backlog) < 0) {
-        swSysWarn("listen(%s:%d, %d) failed", host, port, backlog);
+    if (!listening && socket->listen(backlog) < 0) {
+        swSysWarn("listen(%s:%d, %d) failed", host.c_str(), port, backlog);
         return SW_ERR;
     }
+    listening = true;
 
 #ifdef TCP_DEFER_ACCEPT
     if (tcp_defer_accept) {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_DEFER_ACCEPT, (const void *) &tcp_defer_accept, sizeof(int)) != 0) {
+        if (socket->set_option(IPPROTO_TCP, TCP_DEFER_ACCEPT, tcp_defer_accept) != 0) {
             swSysWarn("setsockopt(TCP_DEFER_ACCEPT) failed");
         }
     }
@@ -94,7 +92,7 @@ int ListenPort::listen() {
 
 #ifdef TCP_FASTOPEN
     if (tcp_fastopen) {
-        if (setsockopt(sock, IPPROTO_TCP, TCP_FASTOPEN, (const void *) &tcp_fastopen, sizeof(int)) != 0) {
+        if (socket->set_option(IPPROTO_TCP, TCP_FASTOPEN, tcp_fastopen) != 0) {
             swSysWarn("setsockopt(TCP_FASTOPEN) failed");
         }
     }
@@ -102,23 +100,22 @@ int ListenPort::listen() {
 
 #ifdef SO_KEEPALIVE
     if (open_tcp_keepalive == 1) {
-        if (setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *) &option, sizeof(option)) != 0) {
+        if (socket->set_option(SOL_SOCKET, SO_KEEPALIVE, 1) != 0) {
             swSysWarn("setsockopt(SO_KEEPALIVE) failed");
         }
 #ifdef TCP_KEEPIDLE
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPIDLE, (void *) &tcp_keepidle, sizeof(int)) < 0) {
+        if (socket->set_option(IPPROTO_TCP, TCP_KEEPIDLE, tcp_keepidle) < 0) {
             swSysWarn("setsockopt(TCP_KEEPIDLE) failed");
         }
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPINTVL, (void *) &tcp_keepinterval, sizeof(int)) < 0) {
+        if (socket->set_option(IPPROTO_TCP, TCP_KEEPINTVL, tcp_keepinterval) < 0) {
             swSysWarn("setsockopt(TCP_KEEPINTVL) failed");
         }
-        if (setsockopt(sock, IPPROTO_TCP, TCP_KEEPCNT, (void *) &tcp_keepcount, sizeof(int)) < 0) {
+        if (socket->set_option(IPPROTO_TCP, TCP_KEEPCNT, tcp_keepcount) < 0) {
             swSysWarn("setsockopt(TCP_KEEPCNT) failed");
         }
 #endif
 #ifdef TCP_USER_TIMEOUT
-        if (tcp_user_timeout > 0 &&
-            setsockopt(sock, IPPROTO_TCP, TCP_USER_TIMEOUT, (void *) &tcp_user_timeout, sizeof(int)) != 0) {
+        if (tcp_user_timeout > 0 && socket->set_option(IPPROTO_TCP, TCP_USER_TIMEOUT, tcp_user_timeout) != 0) {
             swSysWarn("setsockopt(TCP_USER_TIMEOUT) failed");
         }
 #endif
@@ -180,70 +177,34 @@ void Server::init_port_protocol(ListenPort *ls) {
 }
 
 /**
- * @description: set the ListenPort.host and ListenPort.port in ListenPort from sock
+ * @description: import listen port from socket-fd
  */
-int ListenPort::set_address(int sock) {
-    socklen_t optlen;
-    Address address;
-    int sock_type, sock_family;
-    char tmp[INET6_ADDRSTRLEN];
+bool ListenPort::import(int sock) {
+    int _type, _family;
 
+    socket = new Socket();
+    socket->fd = sock;
+    
     // get socket type
-    optlen = sizeof(sock_type);
-    if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &sock_type, &optlen) < 0) {
-        swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
-        return -1;
+    if (socket->get_option(SOL_SOCKET, SO_TYPE, &_type) < 0) {
+        swSysWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
+        return false;
     }
-    // get socket family
-#ifndef SO_DOMAIN
-    swWarn("no getsockopt(SO_DOMAIN) supports");
-    return -1;
-#else
-    optlen = sizeof(sock_family);
-    if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &sock_family, &optlen) < 0) {
-        swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
-        return -1;
-    }
-#endif
-
-    // get address info
-    address.len = sizeof(address.addr);
-    if (getsockname(sock, (struct sockaddr *) &address.addr, &address.len) < 0) {
-        swWarn("getsockname(%d) failed", sock);
-        return -1;
+    if (socket->get_name(&socket->info) < 0) {
+        swSysWarn("getsockname(%d) failed", sock);
+        return false;
     }
 
-    switch (sock_family) {
-    case AF_INET:
-        if (sock_type == SOCK_STREAM) {
-            type = SW_SOCK_TCP;
-        } else {
-            type = SW_SOCK_UDP;
-        }
-        port = ntohs(address.addr.inet_v4.sin_port);
-        strncpy(host, inet_ntoa(address.addr.inet_v4.sin_addr), SW_HOST_MAXSIZE - 1);
-        break;
-    case AF_INET6:
-        if (sock_type == SOCK_STREAM) {
-            type = SW_SOCK_TCP6;
-        } else {
-            type = SW_SOCK_UDP6;
-        }
-        port = ntohs(address.addr.inet_v6.sin6_port);
-        inet_ntop(AF_INET6, &address.addr.inet_v6.sin6_addr, tmp, sizeof(tmp));
-        strncpy(host, tmp, SW_HOST_MAXSIZE - 1);
-        break;
-    case AF_UNIX:
-        type = sock_type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-        port = 0;
-        strncpy(host, address.addr.un.sun_path, SW_HOST_MAXSIZE);
-        break;
-    default:
-        swWarn("Unknown socket family[%d]", sock_family);
-        break;
-    }
+    _family = socket->info.addr.ss.sa_family;
+    socket->socket_type = socket->info.type = type = Socket::convert_to_type(_family, _type);
+    host = socket->info.get_addr();
+    port = socket->info.get_port();
+    listening = true;
 
-    return 0;
+    socket->fd_type = socket->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER;
+    socket->removed = 1;
+
+    return true;
 }
 
 void ListenPort::clear_protocol() {
@@ -322,7 +283,7 @@ static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, Event *e
 }
 
 #define CLIENT_INFO_FMT " from session#%u on %s:%d"
-#define CLIENT_INFO_ARGS conn->session_id, port->host, port->port
+#define CLIENT_INFO_ARGS conn->session_id, port->host.c_str(), port->port
 
 /**
  * For Http Protocol
@@ -676,7 +637,7 @@ void ListenPort::close() {
 
     // remove unix socket file
     if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
-        unlink(host);
+        unlink(host.c_str());
     }
 }
 

@@ -156,7 +156,7 @@ static int event_readable_callback(Reactor *reactor, swEvent *event) {
     return SW_OK;
 }
 
-static int event_writable_callback(Reactor *reactor, swEvent *event) {
+static int event_writable_callback(Reactor *reactor, Event *event) {
     EventObject *peo = (EventObject *) event->socket->object;
 
     if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, &peo->fci_cache_write, 1, &peo->zsocket, nullptr) != SUCCESS)) {
@@ -183,9 +183,7 @@ static int event_error_callback(Reactor *reactor, swEvent *event) {
     }
 
     int error;
-    socklen_t len = sizeof(error);
-
-    if (getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &error, &len) < 0) {
+    if (event->socket->get_option(SOL_SOCKET, SO_ERROR, &error) < 0) {
         php_swoole_sys_error(E_WARNING, "swoole_event->onError[1]: getsockopt[sock=%d] failed", event->fd);
     }
 

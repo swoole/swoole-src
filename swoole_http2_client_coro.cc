@@ -396,7 +396,7 @@ bool Client::connect() {
         return false;
     }
 
-    client = new Socket(Socket::convert_to_type(host));
+    client = new Socket(network::Socket::convert_to_type(host));
     if (UNEXPECTED(client->get_fd() < 0)) {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
         zend_update_property_long(swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), errno);

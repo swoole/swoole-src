@@ -124,31 +124,6 @@ class Socket {
     std::string ssl_get_peer_cert();
 #endif
 
-    static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0) {
-        switch (domain) {
-        case AF_INET:
-            return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
-        case AF_INET6:
-            return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
-        case AF_UNIX:
-            return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
-        default:
-            return SW_SOCK_TCP;
-        }
-    }
-
-    static inline enum swSocket_type convert_to_type(std::string &host) {
-        if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
-            host = host.substr(sizeof("unix:") - 1);
-            host.erase(0, host.find_first_not_of('/') - 1);
-            return SW_SOCK_UNIX_STREAM;
-        } else if (host.find(':') != std::string::npos) {
-            return SW_SOCK_TCP6;
-        } else {
-            return SW_SOCK_TCP;
-        }
-    }
-
     static inline void init_reactor(Reactor *reactor) {
         reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_READ, readable_event_callback);
         reactor->set_handler(SW_FD_CORO_SOCKET | SW_EVENT_WRITE, writable_event_callback);
@@ -300,7 +275,7 @@ class Socket {
     }
 
     inline bool set_option(int level, int optname, int optval) {
-        if (setsockopt(sock_fd, level, optname, &optval, sizeof(optval)) != 0) {
+        if (socket->set_option(level, optname, optval) < 0) {
             swSysWarn("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
             return false;
         }

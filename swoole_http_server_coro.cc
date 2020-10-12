@@ -330,14 +330,13 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
 
     http_server_coro_t *hsc = php_swoole_http_server_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     std::string host_str(host, l_host);
-    hsc->server = new http_server(Socket::convert_to_type(host_str));
+    hsc->server = new http_server(swoole::network::Socket::convert_to_type(host_str));
     Socket *sock = hsc->server->socket;
 
-#ifdef SO_REUSEPORT
     if (reuse_port) {
-        sock->set_option(SOL_SOCKET, SO_REUSEPORT, 1);
+        sock->get_socket()->set_reuse_port();
     }
-#endif
+
     if (!sock->bind(host_str, port)) {
         http_server_set_error(ZEND_THIS, sock);
         zend_throw_exception_ex(swoole_exception_ce, sock->errCode, "bind(%s:%d) failed", host, (int) port);

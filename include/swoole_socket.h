@@ -22,6 +22,9 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
+#include <netinet/ip6.h>
+#include <netinet/tcp.h>
+#include <netinet/udp.h>
 #include <arpa/inet.h>
 
 #include <string>
@@ -81,9 +84,20 @@ struct Address {
     socklen_t len;
     enum swSocket_type type;
 
-    bool assign(enum swSocket_type _type, const char *_host, int _port);
-    const char *get_ip();
+    Address() = default;
+
+    Address(enum swSocket_type _type, const std::string &_host, int _port) {
+        if (!assign(_type, _host, _port)) {
+            throw std::bad_exception();
+        }
+    }
+
+    bool assign(enum swSocket_type _type, const std::string &_host, int _port);
+    const char *get_ip() {
+        return get_addr();
+    }
     int get_port();
+    const char *get_addr();
 
     static bool verify_ip(int __af, const std::string &str) {
         char tmp_address[INET6_ADDRSTRLEN];
@@ -102,6 +116,7 @@ struct Socket {
     enum swFd_type fd_type;
     enum swSocket_type socket_type;
     int events;
+    bool enable_tcp_nodelay;
 
     uchar removed : 1;
     uchar nonblock : 1;
@@ -190,15 +205,65 @@ struct Socket {
         }
     }
 
+    inline int set_fd_option(int blocking, int cloexec) {
+        return swoole_fcntl_set_option(fd, blocking, cloexec);
+    }
+
+    inline int set_option(int level, int optname, int optval) {
+        return setsockopt(fd, level, optname, &optval, sizeof(optval));
+    }
+
+    inline int set_option(int level, int optname, const void *optval, socklen_t optlen) {
+        return setsockopt(fd, level, optname, optval, optlen);
+    }
+
+    inline int get_option(int level, int optname, void *optval, socklen_t *optlen) {
+        return getsockopt(fd, level, optname, optval, optlen);
+    }
+
+    inline int get_option(int level, int optname, int *optval) {
+        socklen_t optlen = sizeof(*optval);
+        return get_option(level, optname, optval, &optlen);
+    }
+
+    inline int get_name(Address *sa) {
+        sa->len = sizeof(sa->addr);
+        return getsockname(fd, &sa->addr.ss, &sa->len);
+    }
+
     inline int set_tcp_nopush(int nopush) {
-        tcp_nopush = nopush;
 #ifdef TCP_CORK
-#define HAVE_TCP_NOPUSH
-        return setsockopt(fd, IPPROTO_TCP, TCP_CORK, (const void *) &nopush, sizeof(int));
+        if (set_option(IPPROTO_TCP, TCP_CORK, nopush) == SW_ERR) {
+            return -1;
+        } else {
+            tcp_nopush = nopush;
+            return 0;
+        }
 #else
-        return 0;
+        return -1;
 #endif
     }
+
+    int set_reuse_addr(int enable = 1) {
+        return set_option(SOL_SOCKET, SO_REUSEADDR, enable);
+    }
+
+    int set_reuse_port(int enable = 1) {
+#ifdef SO_REUSEPORT
+        return set_option(SOL_SOCKET, SO_REUSEPORT, enable);
+#endif
+        return -1;
+    }
+
+    int set_tcp_nodelay(int nodelay = 1)  {
+        if (set_option(IPPROTO_TCP, TCP_NODELAY, nodelay) == SW_ERR) {
+            return -1;
+        } else {
+            tcp_nodelay = nodelay;
+            return 0;
+        }
+    }
+
     /**
      * socket io operation
      */
@@ -207,7 +272,13 @@ struct Socket {
     ssize_t send(const void *__buf, size_t __n, int __flags);
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
-    int bind(const char *host, int *port);
+    int bind(const std::string &_host, int *port);
+    int bind(const Address &sa) {
+        return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
+    }
+    int listen(int backlog = 0) {
+        return ::listen(fd, backlog <= 0 ? SW_BACKLOG : backlog);
+    }
     void clean();
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
@@ -217,15 +288,50 @@ struct Socket {
         return ::connect(fd, &sa.addr.ss, sa.len);
     }
 
+    inline int connect(const Address *sa) {
+        return ::connect(fd, &sa->addr.ss, sa->len);
+    }
+
     inline int connect(const std::string &host, int port) {
         Address addr;
-        addr.assign(socket_type, host.c_str(), port);
+        addr.assign(socket_type, host, port);
         return connect(addr);
     }
 
     inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);
         return ::recvfrom(fd, __buf, __len, flags, &sa->addr.ss, &sa->len);
+    }
+
+    inline bool cork() {
+        if (tcp_nopush) {
+            return false;
+        }
+        if (set_tcp_nopush(1) < 0) {
+            swSysWarn("set_tcp_nopush(fd=%d, ON) failed", fd);
+            return false;
+        }
+        // Need to turn off tcp nodelay when using nopush
+        if (tcp_nodelay && set_tcp_nodelay(0) != 0) {
+            swSysWarn("set_tcp_nodelay(fd=%d, OFF) failed", fd);
+        }
+        return true;
+    }
+
+    inline bool uncork() {
+        if (!tcp_nopush) {
+            return false;
+        }
+        if (set_tcp_nopush(0) < 0) {
+            swSysWarn("set_tcp_nopush(fd=%d, OFF) failed", fd);
+            return false;
+        }
+        // Restore tcp_nodelay setting
+        if (enable_tcp_nodelay && tcp_nodelay == 0 && set_tcp_nodelay(1) != 0) {
+            swSysWarn("set_tcp_nodelay(fd=%d, ON) failed", fd);
+            return false;
+        }
+        return true;
     }
 
     int wait_event(int timeout_ms, int events);
@@ -307,6 +413,31 @@ struct Socket {
             return SW_WAIT;
         default:
             return SW_ERROR;
+        }
+    }
+
+    static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0) {
+        switch (domain) {
+        case AF_INET:
+            return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
+        case AF_INET6:
+            return type == SOCK_STREAM ? SW_SOCK_TCP6 : SW_SOCK_UDP6;
+        case AF_UNIX:
+            return type == SOCK_STREAM ? SW_SOCK_UNIX_STREAM : SW_SOCK_UNIX_DGRAM;
+        default:
+            return SW_SOCK_TCP;
+        }
+    }
+
+    static inline enum swSocket_type convert_to_type(std::string &host) {
+        if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
+            host = host.substr(sizeof("unix:") - 1);
+            host.erase(0, host.find_first_not_of('/') - 1);
+            return SW_SOCK_UNIX_STREAM;
+        } else if (host.find(':') != std::string::npos) {
+            return SW_SOCK_TCP6;
+        } else {
+            return SW_SOCK_TCP;
         }
     }
 

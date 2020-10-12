@@ -446,7 +446,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 }
                 int err;
                 socklen_t len = sizeof(len);
-                ret = getsockopt(cli->socket->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+                ret = cli->socket->get_option(SOL_SOCKET, SO_ERROR, &err, &len);
                 if (ret < 0) {
                     swoole_set_last_error(errno);
                     return SW_ERR;
@@ -770,8 +770,8 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         cli->socket->clean();
     _connect_ok:
 
-        setsockopt(cli->socket->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, sizeof(bufsize));
-        setsockopt(cli->socket->fd, SOL_SOCKET, SO_RCVBUF, &bufsize, sizeof(bufsize));
+        cli->socket->set_option(SOL_SOCKET, SO_SNDBUF, bufsize);
+        cli->socket->set_option(SOL_SOCKET, SO_RCVBUF, bufsize);
 
         if (cli->async && cli->onConnect) {
             if (swoole_event_add(cli->socket, SW_EVENT_READ) < 0) {
@@ -1099,7 +1099,6 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
     Socket *_socket = cli->socket;
     int ret;
     int err;
-    socklen_t len = sizeof(err);
 
     if (cli->active) {
 #ifdef SW_USE_OPENSSL
@@ -1126,7 +1125,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         return SW_OK;
     }
 
-    ret = getsockopt(event->fd, SOL_SOCKET, SO_ERROR, &err, &len);
+    ret = _socket->get_option(SOL_SOCKET, SO_ERROR, &err);
     swoole_set_last_error(err);
     if (ret < 0) {
         swSysWarn("getsockopt(%d) failed", event->fd);

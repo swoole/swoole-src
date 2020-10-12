@@ -571,6 +571,7 @@ void swoole_print_trace(void);
 int swoole_ioctl_set_block(int sock, int nonblock);
 int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 char *swoole_string_format(size_t n, const char *format, ...);
+bool swoole_get_env(const char *name, int *value);
 int swoole_get_systemd_listen_fds();
 
 void swoole_init(void);

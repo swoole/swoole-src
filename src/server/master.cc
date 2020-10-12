@@ -216,53 +216,30 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     }
 
     int fd = sock->fd;
-    int on = 1, off = 0;
-    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, (const void *) &on, (socklen_t) sizeof(on));
+    sock->set_reuse_addr();
 #ifdef HAVE_KQUEUE
-    setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, (const void *) &on, (socklen_t) sizeof(on));
+    sock->set_reuse_port();
 #endif
 
     switch (port->type) {
-    case SW_SOCK_UDP: {
-        if (inet_pton(AF_INET, port->host, &port->socket->info.addr.inet_v4.sin_addr) < 0) {
-            swSysWarn("inet_pton(AF_INET, %s) failed", port->host);
-            goto _cleanup;
-        }
-        port->socket->info.addr.inet_v4.sin_port = htons(port->port);
-        port->socket->info.addr.inet_v4.sin_family = AF_INET;
-
-        if (bind(fd, (const struct sockaddr *) &port->socket->info.addr, sizeof(struct sockaddr_in))) {
-            swSysWarn("bind() failed");
-            goto _cleanup;
-        }
-        if (connect(fd, (struct sockaddr *) &sa->addr, sizeof(struct sockaddr_in))) {
-            swSysWarn("connect() failed");
-            goto _cleanup;
-        }
-        break;
-    }
-    case SW_SOCK_UDP6: {
-        if (inet_pton(AF_INET6, port->host, &port->socket->info.addr.inet_v6.sin6_addr) < 0) {
-            swSysWarn("inet_pton(AF_INET6, %s) failed", port->host);
-            goto _cleanup;
-        }
-        port->socket->info.addr.inet_v6.sin6_port = htons(port->port);
-        port->socket->info.addr.inet_v6.sin6_family = AF_INET6;
-
-        setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, (char *) &off, sizeof(off));
-        if (bind(fd, (const struct sockaddr *) &port->socket->info.addr, sizeof(struct sockaddr_in6))) {
-            swSysWarn("bind() failed");
-            goto _cleanup;
-        }
-        if (connect(fd, (struct sockaddr *) &sa->addr, sizeof(struct sockaddr_in6))) {
-            swSysWarn("connect() failed");
-            goto _cleanup;
-        }
-        break;
-    }
+    case SW_SOCK_UDP:
+    case SW_SOCK_UDP6:
+        break;    
     default:
         OPENSSL_assert(0);
         break;
+    }
+    
+    if (sock->bind(port->socket->info) < 0) {
+        swSysWarn("bind() failed");
+        goto _cleanup;
+    }
+    if (sock->is_inet6()) {
+        sock->set_option(IPPROTO_IPV6, IPV6_V6ONLY, 0);
+    }
+    if (sock->connect(sa) < 0) {
+        swSysWarn("connect(%s:%d) failed", sa->get_addr(), sa->get_port());
+        goto _cleanup;
     }
 
     memcpy(&sock->info, sa, sizeof(*sa));
@@ -1428,41 +1405,36 @@ void Server::check_port_type(ListenPort *ls) {
  * Return the number of ports successfully
  */
 int Server::add_systemd_socket() {
-    char *e = getenv("LISTEN_PID");
-    if (!e) {
-        return 0;
-    }
-
-    int pid = atoi(e);
-    if (getpid() != pid) {
+    int pid;
+    if (!swoole_get_env("LISTEN_PID", &pid) && getpid() != pid) {
         swWarn("invalid LISTEN_PID");
         return 0;
     }
 
     int n = swoole_get_systemd_listen_fds();
-    if (n == 0) {
+    if (n <= 0) {
         return 0;
     }
 
     int count = 0;
     int sock;
 
-    for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++) {
+    int start_fd;
+    if (!swoole_get_env("LISTEN_FDS_START", &start_fd)) {
+        start_fd = SW_SYSTEMD_FDS_START;
+    }
+
+    for (sock = start_fd; sock < start_fd + n; sock++) {
         std::unique_ptr<ListenPort> ptr(new ListenPort());
         ListenPort *ls = ptr.get();
 
-        if (ls->set_address(sock) < 0) {
-            return count;
+        if (!ls->import(sock)) {
+            continue;
         }
-        ls->host[SW_HOST_MAXSIZE - 1] = 0;
 
         // O_NONBLOCK & O_CLOEXEC
-        swoole_fcntl_set_option(sock, 1, 1);
-        ls->socket = swoole::make_socket(sock, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER);
-        if (ls->socket == nullptr) {
-            ::close(sock);
-            return count;
-        }
+        ls->socket->set_fd_option(1, 1);     
+
         ptr.release();
         check_port_type(ls);
         ports.push_back(ls);
@@ -1500,8 +1472,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
 
     ls->type = type;
     ls->port = port;
-    strncpy(ls->host, host, SW_HOST_MAXSIZE - 1);
-    ls->host[SW_HOST_MAXSIZE - 1] = 0;
+    ls->host = host;
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
@@ -1536,16 +1507,15 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
     if (ls->ssl_option.protocols & SW_SSL_DTLS) {
-        int on = 1;
-        setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &on, (socklen_t) sizeof(on));
+        ls->socket->set_reuse_port();
     }
 #endif
 
-    ls->socket->socket_type = ls->type;
     if (ls->socket->bind(ls->host, &ls->port) < 0) {
         ls->socket->free();
         return nullptr;
     }
+    ls->socket->info.assign(ls->type, ls->host, ls->port);
     check_port_type(ls);
     ptr.release();
     ls->socket_fd = ls->socket->fd;
@@ -1659,23 +1629,22 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
 
     // TCP Nodelay
     if (ls->open_tcp_nodelay && (ls->type == SW_SOCK_TCP || ls->type == SW_SOCK_TCP6)) {
-        int sockopt = 1;
-        if (setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &sockopt, sizeof(sockopt)) != 0) {
+        if (ls->socket->set_tcp_nodelay() != 0) {
             swSysWarn("setsockopt(TCP_NODELAY) failed");
         }
-        _socket->tcp_nodelay = 1;
+        _socket->enable_tcp_nodelay = true;
     }
 
     // socket recv buffer size
     if (ls->kernel_socket_recv_buffer_size > 0) {
-        if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &ls->kernel_socket_recv_buffer_size, sizeof(int)) != 0) {
+        if (ls->socket->set_option(SOL_SOCKET, SO_RCVBUF, ls->kernel_socket_recv_buffer_size) != 0) {
             swSysWarn("setsockopt(SO_RCVBUF, %d) failed", ls->kernel_socket_recv_buffer_size);
         }
     }
 
     // socket send buffer size
     if (ls->kernel_socket_send_buffer_size > 0) {
-        if (setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &ls->kernel_socket_send_buffer_size, sizeof(int)) != 0) {
+        if (ls->socket->set_option(SOL_SOCKET, SO_SNDBUF, ls->kernel_socket_send_buffer_size) != 0) {
             swSysWarn("setsockopt(SO_SNDBUF, %d) failed", ls->kernel_socket_send_buffer_size);
         }
     }
@@ -1728,11 +1697,10 @@ void Server::set_ipc_max_size() {
     ipc_max_size = SW_IPC_MAX_SIZE;
 #else
     int bufsize;
-    socklen_t _len = sizeof(bufsize);
     /**
      * Get the maximum ipc[unix socket with dgram] transmission length
      */
-    if (getsockopt(workers[0].pipe_master->fd, SOL_SOCKET, SO_SNDBUF, &bufsize, &_len) != 0) {
+    if (workers[0].pipe_master->get_option(SOL_SOCKET, SO_SNDBUF, &bufsize) != 0) {
         bufsize = SW_IPC_MAX_SIZE;
     }
     ipc_max_size = bufsize - SW_DGRAM_HEADER_SIZE;

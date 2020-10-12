@@ -134,7 +134,7 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
     task.info.type = SW_SERVER_EVENT_RECV_DGRAM;
     task.info.time = swoole_microtime();
 
-    int socket_type = server_sock->socket_type;
+    pkt->socket_addr.type = pkt->socket_type = server_sock->socket_type;
 
 _do_recvfrom:
 
@@ -187,15 +187,12 @@ _do_recvfrom:
     }
 #endif
 
-    if (socket_type == SW_SOCK_UDP) {
+    if (pkt->socket_type == SW_SOCK_UDP) {
         memcpy(&task.info.fd, &pkt->socket_addr.addr.inet_v4.sin_addr, sizeof(task.info.fd));
-    } else if (socket_type == SW_SOCK_UDP6) {
-        memcpy(&task.info.fd, &pkt->socket_addr.addr.inet_v6.sin6_addr, sizeof(task.info.fd));
     } else {
-        task.info.fd = swoole_crc32(pkt->socket_addr.addr.un.sun_path, pkt->socket_addr.len);
+        task.info.fd = swoole_crc32(pkt->socket_addr.get_addr(), pkt->socket_addr.len);
     }
 
-    pkt->socket_type = socket_type;
     pkt->length = ret;
     task.info.len = sizeof(*pkt) + ret;
     task.data = (char *) pkt;
@@ -263,7 +260,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         struct linger linger;
         linger.l_onoff = 1;
         linger.l_linger = 0;
-        if (setsockopt(fd, SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0) {
+        if (conn->socket->set_option(SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0) {
             swSysWarn("setsockopt(SO_LINGER) failed");
         }
     }

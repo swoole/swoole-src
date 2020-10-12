@@ -1014,7 +1014,7 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     /* linked */
     port->ptr = property;
 
-    zend_update_property_string(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("host"), port->host);
+    zend_update_property_string(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("host"), port->host.c_str());
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("port"), port->port);
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("type"), port->type);
     zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("sock"), port->socket->fd);
@@ -1054,7 +1054,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     auto primary_port = serv->get_primary_port();
     swTraceLog(SW_TRACE_SERVER,
                "Create Server: host=%s, port=%d, mode=%d, type=%d",
-               primary_port->host,
+               primary_port->host.c_str(),
                (int) primary_port->port,
                serv->is_base_mode() ? Server::MODE_BASE : Server::MODE_PROCESS,
                (int) primary_port->type);
@@ -1339,7 +1339,7 @@ int php_swoole_onPacket(Server *serv, RecvData *req) {
     } else if (packet->socket_type == SW_SOCK_UDP6) {
         inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v6.sin6_addr, address, sizeof(address));
         add_assoc_string(&zaddr, "address", address);
-        add_assoc_long(&zaddr, "port", packet->socket_addr.addr.inet_v6.sin6_port);
+        add_assoc_long(&zaddr, "port", ntohs(packet->socket_addr.addr.inet_v6.sin6_port));
     } else if (packet->socket_type == SW_SOCK_UNIX_DGRAM) {
         add_assoc_string(&zaddr, "address", packet->socket_addr.addr.un.sun_path);
     }
@@ -2794,17 +2794,16 @@ static PHP_METHOD(swoole_server, sendto) {
         RETURN_FALSE;
     }
 
-    char *ip;
-    size_t ip_len;
+    char *addr;
+    size_t addr_len;
     zend_long port;
     char *data;
     size_t len;
     zend_long server_socket_fd = -1;
-
-    zend_bool ipv6 = 0;
+    enum swSocket_type type;
 
     ZEND_PARSE_PARAMETERS_START(3, 4)
-    Z_PARAM_STRING(ip, ip_len)
+    Z_PARAM_STRING(addr, addr_len)
     Z_PARAM_LONG(port)
     Z_PARAM_STRING(data, len)
     Z_PARAM_OPTIONAL
@@ -2816,30 +2815,46 @@ static PHP_METHOD(swoole_server, sendto) {
         RETURN_FALSE;
     }
 
-    if (strchr(ip, ':')) {
-        ipv6 = 1;
-    }
-
-    if (ipv6 == 0 && !serv->udp_socket_ipv4) {
-        php_swoole_fatal_error(E_WARNING, "UDP listener has to be added before executing sendto");
-        RETURN_FALSE;
-    } else if (ipv6 == 1 && !serv->udp_socket_ipv6) {
-        php_swoole_fatal_error(E_WARNING, "UDP6 listener has to be added before executing sendto");
-        RETURN_FALSE;
+    if (addr[0] == '/') {
+        type = SW_SOCK_UNIX_DGRAM;
+    } else if (strchr(addr, ':')) {
+        type = SW_SOCK_UDP6;
+    } else {
+        type = SW_SOCK_UDP;
     }
 
     network::Socket *server_socket = nullptr;
-    if (server_socket_fd < 0) {
-        server_socket = ipv6 ? serv->udp_socket_ipv6 : serv->udp_socket_ipv4;
-    } else {
-        server_socket = serv->get_server_socket(server_socket_fd);
-    }
 
-    if (server_socket == nullptr) {
-        RETURN_FALSE;
+    switch (type) {
+    case SW_SOCK_UDP:
+        if (!serv->udp_socket_ipv4) {
+            php_swoole_fatal_error(E_WARNING, "UDP listener has to be added before executing sendto");
+            RETURN_FALSE;
+        } else {
+            server_socket = server_socket_fd < 0 ? serv->udp_socket_ipv4 : serv->get_server_socket(server_socket_fd);
+        }
+        break;
+    case SW_SOCK_UDP6:
+        if (!serv->udp_socket_ipv6) {
+            php_swoole_fatal_error(E_WARNING, "UDP6 listener has to be added before executing sendto");
+            RETURN_FALSE;
+        } else {
+            server_socket = server_socket_fd < 0 ? serv->udp_socket_ipv6 : serv->get_server_socket(server_socket_fd);
+        }
+        break;
+    case SW_SOCK_UNIX_DGRAM:
+        if (!serv->dgram_socket) {
+            php_swoole_fatal_error(E_WARNING, "UnixDgram listener has to be added before executing sendto");
+            RETURN_FALSE;
+        } else {
+            server_socket = server_socket_fd < 0 ? serv->dgram_socket : serv->get_server_socket(server_socket_fd);
+        }
+        break;
+    default:
+        abort();
+        break;
     }
-
-    SW_CHECK_RETURN(server_socket->sendto(ip, port, data, len));
+    SW_CHECK_RETURN(server_socket->sendto(addr, port, data, len));
 }
 
 static PHP_METHOD(swoole_server, sendfile) {

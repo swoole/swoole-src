@@ -527,8 +527,7 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
 static int ReactorProcess_reuse_port(ListenPort *ls) {
     ls->socket = swoole::make_socket(
         ls->type, ls->is_dgram() ? SW_FD_DGRAM_SERVER : SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
-    int option = 1;
-    if (setsockopt(ls->socket->fd, SOL_SOCKET, SO_REUSEPORT, &option, sizeof(int)) != 0) {
+    if (ls->socket->set_reuse_port() < 0) {
         ls->socket->free();
         return SW_ERR;
     }

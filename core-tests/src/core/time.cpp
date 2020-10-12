@@ -20,5 +20,5 @@ TEST(time, get_ms_steady) {
 TEST(time, get_seconds) {
     long sec1 = swoole::time<std::chrono::seconds>();
     time_t sec2 = time(NULL);
-    EXPECT_EQ(sec1, sec2);
+    ASSERT_TRUE(sec1 == sec2 or sec1 == sec2 - 1);
 }

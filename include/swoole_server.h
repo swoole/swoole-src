@@ -225,7 +225,7 @@ struct PipeBuffer {
 };
 
 struct DgramPacket {
-    int socket_type;
+    enum swSocket_type socket_type;
     network::Address socket_addr;
     uint32_t length;
     char data[0];
@@ -247,6 +247,7 @@ struct ListenPort {
      * tcp socket listen backlog
      */
     uint16_t backlog = SW_BACKLOG;
+    bool listening = false;
     /**
      * open tcp_defer_accept option
      */
@@ -272,11 +273,11 @@ struct ListenPort {
 
     enum swSocket_type type = SW_SOCK_TCP;
     uint8_t ssl = 0;
+    std::string host;
     int port = 0;
     int socket_fd = 0;
     network::Socket *socket = nullptr;
     pthread_t thread_id = 0;
-    char host[SW_HOST_MAXSIZE] = {};
 
     /**
      * check data eof
@@ -387,7 +388,7 @@ struct ListenPort {
     ~ListenPort() = default;
     int listen();
     void close();
-    int set_address(int sock);
+    bool import(int sock);
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
 #endif
