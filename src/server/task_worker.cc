@@ -350,7 +350,11 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         }
     }
     if (ret < 0) {
-        swSysWarn("TaskWorker: send result to worker failed");
+        if (swoole_get_last_error() == EAGAIN || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
+            swWarn("TaskWorker: send result to worker timed out");
+        } else {
+            swSysWarn("TaskWorker: send result to worker failed");
+        }
     }
     return ret;
 }

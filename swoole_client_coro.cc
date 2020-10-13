@@ -285,20 +285,18 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "write_timeout", ztmp)) {
         cli->set_timeout(zval_get_double(ztmp), Socket::TIMEOUT_WRITE);
     }
-    /**
-     * bind port
-     */
+    std::string _bind_address("");
+    int _bind_port = 0;
     if (php_swoole_array_get_value(vht, "bind_port", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        int bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
-        /**
-         * bind address
-         */
-        if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
-            if (!cli->bind(zend::String(ztmp).val(), bind_port)) {
-                ret = false;
-            }
-        }
+        _bind_port = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+    }
+    if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
+        zend::String tmp = ztmp;
+        _bind_address = tmp.to_std_string();
+    }
+    if ((_bind_port > 0 || !_bind_address.empty()) && !cli->bind(_bind_address, _bind_port)) {
+        ret = false;
     }
     /**
      * socket send/recv buffer size
