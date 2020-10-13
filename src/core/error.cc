@@ -140,6 +140,8 @@ const char *swoole_strerror(int code) {
         return "Client no connection";
     case SW_ERROR_SOCKET_CLOSED:
         return "Socket closed";
+    case SW_ERROR_SOCKET_POLL_TIMEOUT:
+        return "Socket poll timeout";
     case SW_ERROR_SOCKS5_UNSUPPORT_VERSION:
         return "Socks5 unsupport version";
     case SW_ERROR_SOCKS5_UNSUPPORT_METHOD:
