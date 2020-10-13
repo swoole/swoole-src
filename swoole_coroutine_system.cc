@@ -163,6 +163,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
 }
 
 static void co_socket_write(int fd, char *str, size_t l_str, INTERNAL_FUNCTION_PARAMETERS) {
+    TmpSocket *sock;
     ssize_t ret = write(fd, str, l_str);
     if (ret < 0) {
         if (errno == EAGAIN) {
@@ -173,8 +174,6 @@ static void co_socket_write(int fd, char *str, size_t l_str, INTERNAL_FUNCTION_P
     } else {
         RETURN_LONG(ret);
     }
-
-    TmpSocket *sock;
 
 _yield:
     sock = (TmpSocket *) ecalloc(1, sizeof(TmpSocket));
