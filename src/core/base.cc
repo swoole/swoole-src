@@ -624,6 +624,9 @@ ssize_t swoole_file_get_size(FILE *fp) {
         return SW_ERR;
     }
     long size = ftell(fp);
+    if (size < 0) {
+        return SW_ERR;
+    }
     if (fseek(fp, pos, SEEK_SET) < 0) {
         return SW_ERR;
     }
