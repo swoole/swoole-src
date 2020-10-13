@@ -11,7 +11,7 @@ int BIO_write(BIO *b, const char *data, int dlen) {
     swTraceLog(SW_TRACE_SSL, "BIO_write(%d)", dlen);
 
     Session *session = (Session *) BIO_get_data(b);
-    return write(session->socket->fd, data, dlen);
+    return session->socket->write(data, dlen);
 }
 
 int BIO_read(BIO *b, char *data, int len) {

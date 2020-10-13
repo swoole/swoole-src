@@ -96,9 +96,9 @@ int swPipeUnsock_create(swPipe *p, int blocking, int protocol) {
 }
 
 static ssize_t swPipeUnsock_read(swPipe *p, void *data, size_t length) {
-    return read(((swPipeUnsock *) p->object)->socks[0], data, length);
+    return p->worker_socket->read(data, length);
 }
 
 static ssize_t swPipeUnsock_write(swPipe *p, const void *data, size_t length) {
-    return write(((swPipeUnsock *) p->object)->socks[1], data, length);
+    return p->master_socket->write(data, length);
 }

@@ -439,7 +439,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
             }
             pool->stream_info_->last_connection = conn;
         } else {
-            n = read(worker->pipe_worker->fd, &out.buf, sizeof(out.buf));
+            n = worker->pipe_worker->read(&out.buf, sizeof(out.buf));
             if (n < 0 && errno != EINTR) {
                 swSysWarn("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
             }
@@ -562,7 +562,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
             data = pool->packet_buffer;
             pool->stream_info_->last_connection = conn;
         } else {
-            n = read(worker->pipe_worker->fd, pool->packet_buffer, pool->max_packet_size_);
+            n = worker->pipe_worker->read(pool->packet_buffer, pool->max_packet_size_);
             if (n < 0 && errno != EINTR) {
                 swSysWarn("[Worker#%d] read(%d) failed", worker->id, worker->pipe_worker->fd);
             }

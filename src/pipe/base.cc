@@ -86,11 +86,11 @@ static ssize_t PipeBase_read(Pipe *p, void *data, size_t length) {
             return SW_ERR;
         }
     }
-    return read(p->worker_socket->fd, data, length);
+    return p->worker_socket->read(data, length);
 }
 
 static ssize_t PipeBase_write(Pipe *p, const void *data, size_t length) {
-    return write(p->master_socket->fd, data, length);
+    return p->master_socket->write(data, length);
 }
 
 static void PipeBase_close(Pipe *p) {

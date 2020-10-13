@@ -3093,7 +3093,7 @@ static PHP_METHOD(swoole_server, taskwait) {
 
     // clear history task
     while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
-        if (read(task_notify_socket->fd, &notify, sizeof(notify)) <= 0) {
+        if (task_notify_socket->read(&notify, sizeof(notify)) <= 0) {
             break;
         }
     }
@@ -3186,7 +3186,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     // clear history task
     network::Socket *task_notify_socket = task_notify_pipe->get_socket(false);
-    while (read(task_notify_socket->fd, &notify, sizeof(notify)) > 0)
+    while (task_notify_socket->read(&notify, sizeof(notify)) > 0)
         ;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
