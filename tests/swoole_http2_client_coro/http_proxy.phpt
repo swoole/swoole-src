@@ -35,4 +35,3 @@ Co\run(function () {
 });
 ?>
 --EXPECT--
-
