@@ -267,7 +267,7 @@ struct Socket {
     bool check_liveness () {
         char buf;
         errno = 0;
-        ssize_t retval = recv(&buf, sizeof(buf), MSG_DONTWAIT | MSG_PEEK);
+        ssize_t retval = peek(&buf, sizeof(buf), MSG_DONTWAIT);
         return !(retval == 0 || (retval < 0 && catch_error(errno) == SW_CLOSE));
     }
 
