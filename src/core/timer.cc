@@ -55,6 +55,7 @@ Timer::Timer()
     next_msec_ = -1;
     _next_id = 1;
     round = 0;
+    now(&base_time);
 }
 
 bool Timer::init() {

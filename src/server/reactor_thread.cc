@@ -94,11 +94,12 @@ _delay_receive:
 
 static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uint32_t length) {
     SendData response;
-    DataHead *pkg_info = (DataHead *) data;
     Server *serv = (Server *) stream->private_data;
-    Connection *conn = serv->get_connection_verify(pkg_info->fd);
-    if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", pkg_info->fd);
+    Connection *conn = (Connection *) stream->private_data_2;
+    uint32_t session_id = stream->private_data_fd;
+
+    if (!conn->active || session_id != conn->session_id) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", session_id);
         return;
     }
     if (data == nullptr) {
@@ -108,6 +109,8 @@ static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uin
         sw_reactor()->trigger_close_event(&_ev);
         return;
     }
+
+    DataHead *pkg_info = (DataHead *) data;
     response.info.fd = conn->session_id;
     response.info.type = pkg_info->type;
     response.info.len = length - sizeof(DataHead);
@@ -1012,6 +1015,8 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
         }
         stream->response = ReactorThread_onStreamResponse;
         stream->private_data = serv;
+        stream->private_data_2 = conn;
+        stream->private_data_fd = conn->session_id;
         ListenPort *port = serv->get_port_by_fd(conn->fd);
         stream->set_max_length(port->protocol.package_max_length);
 

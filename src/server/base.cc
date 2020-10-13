@@ -127,7 +127,7 @@ static bool swFactory_end(Factory *factory, int fd) {
     } else if (conn->close_force) {
         goto _do_close;
     } else if (conn->closing) {
-        swWarn("The connection[%d] is closing", fd);
+        swWarn("the connection[%d] is closing", fd);
         return false;
     } else if (conn->closed) {
         return false;
@@ -147,6 +147,11 @@ static bool swFactory_end(Factory *factory, int fd) {
         conn->closing = 0;
         conn->closed = 1;
         conn->close_errno = 0;
+
+        if (conn->socket == nullptr) {
+            swWarn("the connection[%d]->socket is nullptr");
+            return false;
+        }
 
         if (Buffer::empty(conn->socket->out_buffer) || conn->peer_closed || conn->close_force) {
             Reactor *reactor = SwooleTG.reactor;

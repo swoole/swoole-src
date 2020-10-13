@@ -427,7 +427,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;
                 } else {
-                    swSysWarn("accept(%d) failed", pool->stream_info_->socket);
+                    swSysWarn("accept(%d) failed", pool->stream_info_->socket->get_fd());
                     break;
                 }
             }
@@ -540,7 +540,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
                 if (errno == EAGAIN || errno == EINTR) {
                     continue;
                 } else {
-                    swSysWarn("accept(%d) failed", pool->stream_info_->socket);
+                    swSysWarn("accept(%d) failed", pool->stream_info_->socket->get_fd());
                     break;
                 }
             }

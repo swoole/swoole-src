@@ -341,10 +341,6 @@ void Server::worker_start_callback() {
                 swWarn("get user [%s] info failed", user.c_str());
             }
         }
-        // chroot
-        if (!chroot.empty() && ::chroot(chroot.c_str()) != 0) {
-            swSysWarn("chroot to [%s] failed", chroot.c_str());
-        }
         // set process group
         if (_group && setgid(_group->gr_gid) < 0) {
             swSysWarn("setgid to [%s] failed", group.c_str());
@@ -352,6 +348,10 @@ void Server::worker_start_callback() {
         // set process user
         if (_passwd && setuid(_passwd->pw_uid) < 0) {
             swSysWarn("setuid to [%s] failed", user.c_str());
+        }
+        // chroot
+        if (!chroot.empty() && ::chroot(chroot.c_str()) != 0) {
+            swSysWarn("chroot to [%s] failed", chroot.c_str());
         }
     }
 

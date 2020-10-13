@@ -67,7 +67,7 @@ bool Address::assign(enum swSocket_type _type, const std::string &_host, int _po
         }
     } else if (_type == SW_SOCK_UNIX_STREAM || _type == SW_SOCK_UNIX_DGRAM) {
         addr.un.sun_family = AF_UNIX;
-        strncpy(addr.un.sun_path, host, sizeof(addr.un.sun_path) - 1);
+        swoole_strlcpy(addr.un.sun_path, host, sizeof(addr.un.sun_path));
         addr.un.sun_path[sizeof(addr.un.sun_path) - 1] = 0;
         len = sizeof(addr.un.sun_path);
         return true;
