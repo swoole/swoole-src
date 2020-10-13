@@ -542,9 +542,6 @@ int Server::wait_other_worker(ProcessPool *pool, pid_t pid, int status) {
     pid_t new_process_pid = -1;
 
     switch (worker_type) {
-    case SW_PROCESS_WORKER:
-        new_process_pid = serv->spawn_event_worker(exit_worker);
-        break;
     case SW_PROCESS_TASKWORKER:
         new_process_pid = serv->spawn_task_worker(exit_worker);
         break;

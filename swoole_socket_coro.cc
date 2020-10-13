@@ -1504,10 +1504,12 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
             RETURN_FALSE;
         }
         if (optlen == 1) {
-            other_val = *((unsigned char *) &other_val);
+            char _val;
+            memcpy(&_val, &other_val, optlen);
+            RETURN_LONG(_val);
+        } else {
+            RETURN_LONG(other_val);
         }
-
-        RETURN_LONG(other_val);
         break;
     }
     }

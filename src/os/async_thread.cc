@@ -220,11 +220,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
     try {
         std::thread *_thread = new std::thread([this, is_core_worker]() {
             bool exit_flag = false;
-
-            SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
-            if (SwooleTG.buffer_stack == nullptr) {
-                return;
-            }
+            SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
 
             swSignal_none();
 
@@ -262,6 +258,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                             } else if (errno == EINTR) {
                                 continue;
                             } else {
+                                delete event;
                                 swSysWarn("sendto swoole_aio_pipe_write failed");
                             }
                         }
@@ -310,7 +307,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                     --n_waiting;
                 }
             }
-            swString_free(SwooleTG.buffer_stack);
+            delete SwooleTG.buffer_stack;
         });
         threads[_thread->get_id()] = _thread;
     } catch (const std::system_error &e) {

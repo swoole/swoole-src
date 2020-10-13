@@ -149,13 +149,13 @@ check_stat:
 
     if (S_ISLNK(file_stat.st_mode)) {
         char buf[PATH_MAX];
-        size_t byte = ::readlink(task.filename, buf, PATH_MAX);
+        ssize_t byte = ::readlink(task.filename, buf, PATH_MAX - 1);
         if (byte <= 0) {
             return false;
         }
 
         strcpy(task.filename, buf);
-        task.filename[byte] = '\0';
+        task.filename[byte] = 0;
 
         goto check_stat;
     }

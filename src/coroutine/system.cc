@@ -530,10 +530,13 @@ struct EventWaiter {
         revents = 0;
         socket = swoole::make_socket(fd, SW_FD_CORO_EVENT);
         socket->object = this;
+        timer = nullptr;
+
         if (swoole_event_add(socket, events) < 0) {
             swoole_set_last_error(errno);
             goto _done;
         }
+
         if (timeout > 0) {
             timer = swoole_timer_add((long) (timeout * 1000),
                                      false,
@@ -543,11 +546,9 @@ struct EventWaiter {
                                          waiter->co->resume();
                                      },
                                      this);
-        } else {
-            timer = nullptr;
         }
-        co = Coroutine::get_current();
 
+        co = Coroutine::get_current();
         co->yield();
 
         if (timer != nullptr) {
