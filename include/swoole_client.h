@@ -144,6 +144,9 @@ class Stream {
     bool cancel = false;
     int errCode = 0;
     void *private_data = nullptr;
+    void *private_data_2 = nullptr;
+    int private_data_fd = -1;
+
     std::function<void(Stream *stream, const char *data, uint32_t length)> response = nullptr;
 
     int send(const char *data, size_t length);

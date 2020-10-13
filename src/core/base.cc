@@ -162,6 +162,9 @@ void swoole_init(void) {
     }
 
     char *tmp_dir = swoole_dirname(SwooleG.task_tmpdir);
+    if (tmp_dir == nullptr) {
+        exit(4);
+    }
     // create tmp dir
     if (access(tmp_dir, R_OK) < 0 && swoole_mkdir_recursive(tmp_dir) < 0) {
         swWarn("create task tmp dir(%s) failed", tmp_dir);

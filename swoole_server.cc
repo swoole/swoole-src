@@ -760,48 +760,7 @@ int php_swoole_create_dir(const char *path, size_t length) {
     if (access(path, F_OK) == 0) {
         return 0;
     }
-#if 1
     return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, nullptr) ? 0 : -1;
-#else
-    int startpath;
-    int endpath;
-    int i = 0;
-    int pathlen = length;
-    char curpath[128] = {};
-    if ('/' != path[0]) {
-        if (getcwd(curpath, sizeof(curpath)) == nullptr) {
-            php_swoole_sys_error(E_WARNING, "getcwd() failed");
-            return -1;
-        }
-        strcat(curpath, "/");
-        startpath = strlen(curpath);
-        strcat(curpath, path);
-        if (path[pathlen] != '/') {
-            strcat(curpath, "/");
-        }
-        endpath = strlen(curpath);
-    } else {
-        strcpy(curpath, path);
-        if (path[pathlen] != '/') {
-            strcat(curpath, "/");
-        }
-        startpath = 1;
-        endpath = strlen(curpath);
-    }
-    for (i = startpath; i < endpath; i++) {
-        if ('/' == curpath[i]) {
-            curpath[i] = '\0';
-            if (access(curpath, F_OK) != 0) {
-                if (mkdir(curpath, 0755) == -1) {
-                    php_swoole_sys_error(E_WARNING, "mkdir(%s, 0755)", path);
-                    return -1;
-                }
-            }
-            curpath[i] = '/';
-        }
-    }
-    return 0;
-#endif
 }
 
 int php_swoole_task_pack(EventData *task, zval *zdata) {
