@@ -27,5 +27,3 @@ Warning: unsupported option [invalid_option] in @swoole-src/library/core/Server/
 #0  Swoole\Server\Helper::checkOptions()
 #1  Swoole\Server\Port->set()
 #2  Swoole\Server->set() called at [%s:%d]
-
-
