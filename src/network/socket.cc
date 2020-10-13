@@ -400,7 +400,7 @@ int Socket::handle_sendfile() {
         cork();
     }
 
-    int sendn =
+    size_t sendn =
         (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
 
 #ifdef SW_USE_OPENSSL
