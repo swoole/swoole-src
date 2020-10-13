@@ -46,6 +46,12 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
+#if PHP_VERSION_ID < 70400
+typedef size_t php_stream_size_t;
+#else
+typedef ssize_t php_stream_size_t;
+#endif
+
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
@@ -66,13 +72,8 @@ static PHP_FUNCTION(swoole_user_func_handler);
 SW_EXTERN_C_END
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
-#if PHP_VERSION_ID < 70400
-static size_t socket_read(php_stream *stream, char *buf, size_t count);
-static size_t socket_write(php_stream *stream, const char *buf, size_t count);
-#else
-static ssize_t socket_read(php_stream *stream, char *buf, size_t count);
-static ssize_t socket_write(php_stream *stream, const char *buf, size_t count);
-#endif
+static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count);
+static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count);
 static int socket_flush(php_stream *stream);
 static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
@@ -255,11 +256,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
     return host;
 }
 
-#if PHP_VERSION_ID < 70400
-static size_t socket_write(php_stream *stream, const char *buf, size_t count)
-#else
-static ssize_t socket_write(php_stream *stream, const char *buf, size_t count)
-#endif
+static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count)
 {
     php_swoole_netstream_data_t *abstract;
     Socket *sock;
@@ -301,11 +298,7 @@ _exit:
     return didwrite;
 }
 
-#if PHP_VERSION_ID < 70400
-static size_t socket_read(php_stream *stream, char *buf, size_t count)
-#else
-static ssize_t socket_read(php_stream *stream, char *buf, size_t count)
-#endif
+static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count)
 {
     php_swoole_netstream_data_t *abstract;
     Socket *sock;

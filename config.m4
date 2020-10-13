@@ -462,7 +462,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/system.cc \
         src/coroutine/thread_context.cc \
         src/lock/atomic.cc \
-        src/lock/cond.cc \
         src/lock/mutex.cc \
         src/lock/rw_lock.cc \
         src/lock/spin_lock.cc \

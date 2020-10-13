@@ -66,24 +66,9 @@ struct swLock {
     int (*free)(swLock *);
 };
 
-// Thread Condition
-struct swCond {
-    swLock _lock;
-    pthread_cond_t _cond;
-
-    int (*wait)(swCond *object);
-    int (*timewait)(swCond *object, long, long);
-    int (*notify)(swCond *object);
-    int (*broadcast)(swCond *object);
-    void (*free)(swCond *object);
-    int (*lock)(swCond *object);
-    int (*unlock)(swCond *object);
-};
-
 int swAtomicLock_create(swLock *object);
 int swMutex_create(swLock *lock, int flags);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
-int swCond_create(swCond *cond);
 
 #ifdef HAVE_RWLOCK
 int swRWLock_create(swLock *lock, int use_in_process);

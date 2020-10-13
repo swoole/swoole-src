@@ -38,7 +38,7 @@ static bool http_context_send_data(http_context *ctx, const char *data, size_t l
 static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context *ctx);
 
-int php_swoole_http_onReceive(swServer *serv, swRecvData *req) {
+int php_swoole_http_onReceive(Server *serv, RecvData *req) {
     int fd = req->info.fd;
     int server_fd = req->info.server_fd;
 
@@ -96,7 +96,7 @@ int php_swoole_http_onReceive(swServer *serv, swRecvData *req) {
 
     do {
         zval *zserver = ctx->request.zserver;
-        swConnection *serv_sock = serv->get_connection(conn->server_fd);
+        Connection *serv_sock = serv->get_connection(conn->server_fd);
         if (serv_sock) {
             add_assoc_long(zserver, "server_port", serv_sock->info.get_port());
         }
@@ -142,8 +142,8 @@ _dtor_and_return:
     return SW_OK;
 }
 
-void php_swoole_http_onClose(swServer *serv, swDataHead *ev) {
-    swConnection *conn = serv->get_connection_by_session_id(ev->fd);
+void php_swoole_http_onClose(Server *serv, DataHead *ev) {
+    Connection *conn = serv->get_connection_by_session_id(ev->fd);
     if (!conn) {
         return;
     }
@@ -192,7 +192,7 @@ http_context *swoole_http_context_new(int fd) {
     return ctx;
 }
 
-void swoole_http_server_init_context(swServer *serv, http_context *ctx) {
+void swoole_http_server_init_context(Server *serv, http_context *ctx) {
     ctx->parse_cookie = serv->http_parse_cookie;
     ctx->parse_body = serv->http_parse_post;
     ctx->parse_files = serv->http_parse_files;
@@ -294,7 +294,7 @@ http_context *php_swoole_http_response_get_and_check_context(zval *zobject) {
 }
 
 bool http_context_send_data(http_context *ctx, const char *data, size_t length) {
-    swServer *serv = (swServer *) ctx->private_data;
+    Server *serv = (Server *) ctx->private_data;
     bool retval = serv->send(ctx->fd, (void *) data, length);
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
         zval yield_data, return_value;
@@ -307,11 +307,11 @@ bool http_context_send_data(http_context *ctx, const char *data, size_t length) 
 }
 
 static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    swServer *serv = (swServer *) ctx->private_data;
+    Server *serv = (Server *) ctx->private_data;
     return serv->sendfile(ctx->fd, file, l_file, offset, length) == SW_OK;
 }
 
 static bool http_context_disconnect(http_context *ctx) {
-    swServer *serv = (swServer *) ctx->private_data;
+    Server *serv = (Server *) ctx->private_data;
     return serv->close(ctx->fd, 0) == SW_OK;
 }
