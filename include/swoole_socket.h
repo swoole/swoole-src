@@ -84,18 +84,6 @@ struct Address {
     socklen_t len;
     enum swSocket_type type;
 
-    Address() {
-        addr = {};
-        len = 0;
-        type = SW_SOCK_TCP;
-    }
-
-    Address(enum swSocket_type _type, const std::string &_host, int _port) {
-        if (!assign(_type, _host, _port)) {
-            throw std::bad_exception();
-        }
-    }
-
     bool assign(enum swSocket_type _type, const std::string &_host, int _port);
     const char *get_ip() {
         return get_addr();

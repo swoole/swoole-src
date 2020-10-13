@@ -289,7 +289,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
     serv->unlock();
 
-    sw_memset_zero(conn, sizeof(Connection));
+    *conn = {};
     return Reactor::_close(reactor, socket);
 }
 
