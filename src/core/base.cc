@@ -36,6 +36,8 @@
 #include <list>
 #include <set>
 #include <unordered_map>
+#include <thread>
+#include <sstream>
 
 #include "swoole_api.h"
 #include "swoole_string.h"
@@ -345,12 +347,12 @@ int swoole_mkdir_recursive(const char *dir) {
     char tmp[PATH_MAX];
     int i, len = strlen(dir);
 
-    if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
-    {
+    // PATH_MAX limit includes string trailing null character
+    if (len + 1 > PATH_MAX) {
         swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters", dir, PATH_MAX - 1);
         return -1;
     }
-    strncpy(tmp, dir, PATH_MAX);
+    swoole_strlcpy(tmp, dir, PATH_MAX);
 
     if (dir[len - 1] != '/') {
         strcat(tmp, "/");
@@ -667,7 +669,7 @@ std::shared_ptr<String> swoole_file_get_contents(const char *filename) {
             if (errno == EINTR) {
                 continue;
             } else {
-                swSysWarn("pread(%d, %ld, %d) failed", fd, filesize - read_bytes, read_bytes);
+                swSysWarn("pread(%d, %ld, %ld) failed", fd, filesize - read_bytes, read_bytes);
                 return content;
             }
         }
@@ -698,19 +700,18 @@ bool swoole_file_put_contents(const char *filename, const char *content, size_t 
     }
 
     size_t chunk_size, written = 0;
-    ssize_t n = 0;
 
     while (written < length) {
         chunk_size = length - written;
         if (chunk_size > SW_BUFFER_SIZE_BIG) {
             chunk_size = SW_BUFFER_SIZE_BIG;
         }
-        n = write(fd, content + written, chunk_size);
+        ssize_t n = write(fd, content + written, chunk_size);
         if (n < 0) {
             if (errno == EINTR) {
                 continue;
             } else {
-                swSysWarn("write(%d, %d) failed", fd, chunk_size);
+                swSysWarn("write(%d, %zu) failed", fd, chunk_size);
                 return -1;
             }
         }

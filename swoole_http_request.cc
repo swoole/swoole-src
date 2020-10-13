@@ -574,7 +574,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             goto _end;
         }
 
-        strncpy(value_buf, Z_STRVAL_P(zform_name), Z_STRLEN_P(zform_name));
+        swoole_strlcpy(value_buf, Z_STRVAL_P(zform_name), sizeof(value_buf));
         value_len = Z_STRLEN_P(zform_name);
         char *tmp = http_trim_double_quote(value_buf, &value_len);
 
@@ -603,7 +603,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
             add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_OK);
             add_assoc_long(z_multipart_header, "size", 0);
 
-            strncpy(value_buf, Z_STRVAL_P(zfilename), Z_STRLEN_P(zfilename));
+            swoole_strlcpy(value_buf, Z_STRVAL_P(zfilename), sizeof(value_buf));
             value_len = Z_STRLEN_P(zfilename);
             tmp = http_trim_double_quote(value_buf, &value_len);
 
@@ -751,7 +751,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
         char *meta_path = meta_name + input_path_pos;
         size_t meta_path_len = sizeof(meta_name) - input_path_pos;
 
-        strncpy(meta_name, ctx->current_input_name, input_path_pos);
+        swoole_strlcpy(meta_name, ctx->current_input_name, sizeof(meta_name));
 
         zval *zname = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("name"));
         zval *ztype = zend_hash_str_find(Z_ARRVAL_P(z_multipart_header), ZEND_STRL("type"));

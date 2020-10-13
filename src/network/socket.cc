@@ -275,7 +275,7 @@ int Socket::bind(const std::string &_host, int *port) {
         }
         unlink(host);
         address.addr.un.sun_family = AF_UNIX;
-        strncpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path) - 1);
+        swoole_strlcpy(address.addr.un.sun_path, host, sizeof(address.addr.un.sun_path));
         ret = ::bind(fd, (struct sockaddr *) &address.addr.un, sizeof(address.addr.un));
     }
     // IPv6
@@ -400,7 +400,7 @@ int Socket::handle_sendfile() {
         cork();
     }
 
-    int sendn =
+    size_t sendn =
         (task->length - task->offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : task->length - task->offset;
 
 #ifdef SW_USE_OPENSSL

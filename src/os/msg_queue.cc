@@ -61,7 +61,7 @@ ssize_t swMsgQueue_pop(swMsgQueue *q, swQueue_data *data, size_t length) {
     if (ret < 0) {
         swoole_set_last_error(errno);
         if (errno != ENOMSG && errno != EINTR) {
-            swSysWarn("msgrcv(%d, %d, %ld) failed", q->msg_id, length, data->mtype);
+            swSysWarn("msgrcv(%d, %zu, %ld) failed", q->msg_id, length, data->mtype);
         }
     }
     return ret;
@@ -79,7 +79,7 @@ ssize_t swMsgQueue_push(swMsgQueue *q, swQueue_data *in, size_t length) {
             } else if (errno == EAGAIN) {
                 return -1;
             } else {
-                swSysWarn("msgsnd(%d, %d, %ld) failed", q->msg_id, length, in->mtype);
+                swSysWarn("msgsnd(%d, %uz, %ld) failed", q->msg_id, length, in->mtype);
                 return -1;
             }
         } else {
@@ -107,7 +107,7 @@ int swMsgQueue_set_capacity(swMsgQueue *q, size_t queue_bytes) {
     }
     __stat.msg_qbytes = queue_bytes;
     if (msgctl(q->msg_id, IPC_SET, &__stat)) {
-        swSysWarn("msgctl(msqid=%d, IPC_SET, msg_qbytes=%d) failed", q->msg_id, queue_bytes);
+        swSysWarn("msgctl(msqid=%d, IPC_SET, msg_qbytes=%uz) failed", q->msg_id, queue_bytes);
         return -1;
     }
     return 0;

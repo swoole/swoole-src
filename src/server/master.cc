@@ -1173,7 +1173,7 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
     SendfileTask *req = reinterpret_cast<SendfileTask *>(_buffer);
 
     // file name size
-    if (sw_unlikely(l_file > SW_IPC_BUFFER_SIZE - sizeof(SendfileTask) - 1)) {
+    if (sw_unlikely(l_file > sizeof(_buffer) - sizeof(*req) - 1)) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_NAME_TOO_LONG,
                          "sendfile name[%.8s...] length %u is exceed the max name len %u",
@@ -1183,13 +1183,12 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
         return false;
     }
     // string must be zero termination (for `state` system call)
-    char *_file = strncpy((char *) req->filename, file, l_file);
-    _file[l_file] = '\0';
+    swoole_strlcpy((char *) req->filename, file, sizeof(_buffer) - sizeof(*req));
 
     // check state
     struct stat file_stat;
-    if (stat(_file, &file_stat) < 0) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed", _file);
+    if (stat(req->filename, &file_stat) < 0) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed", req->filename);
         return false;
     }
     if (file_stat.st_size <= offset) {

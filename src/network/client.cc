@@ -365,7 +365,7 @@ static int Client_inet_addr(Client *cli, const char *host, int port) {
         }
     } else if (cli->socket->is_local()) {
         cli->server_addr.addr.un.sun_family = AF_UNIX;
-        strncpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path) - 1);
+        swoole_strlcpy(cli->server_addr.addr.un.sun_path, host, sizeof(cli->server_addr.addr.un.sun_path));
         cli->server_addr.addr.un.sun_path[sizeof(cli->server_addr.addr.un.sun_path) - 1] = 0;
         cli->server_addr.len = sizeof(cli->server_addr.addr.un.sun_path);
         return SW_OK;

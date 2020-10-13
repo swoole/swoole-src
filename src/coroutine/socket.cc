@@ -392,15 +392,15 @@ bool Socket::http_proxy_handshake() {
         n = sw_snprintf(auth_buf,
                         sizeof(auth_buf),
                         "%.*s:%.*s",
-                        http_proxy->username.length(),
+                        (int) http_proxy->username.length(),
                         http_proxy->username.c_str(),
-                        http_proxy->password.length(),
+                        (int) http_proxy->password.length(),
                         http_proxy->password.c_str());
         swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(send_buffer->str,
                         send_buffer->size,
                         HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
-                        http_proxy->target_host.length(),
+                        (int) http_proxy->target_host.length(),
                         http_proxy->target_host.c_str(),
                         http_proxy->target_port,
                         host_len,
@@ -411,7 +411,7 @@ bool Socket::http_proxy_handshake() {
         n = sw_snprintf(send_buffer->str,
                         send_buffer->size,
                         HTTP_PROXY_FMT "\r\n",
-                        http_proxy->target_host.length(),
+                        (int) http_proxy->target_host.length(),
                         http_proxy->target_host.c_str(),
                         http_proxy->target_port,
                         host_len,
@@ -1320,7 +1320,7 @@ ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, siz
             }
         } else if (type == SW_SOCK_UNIX_DGRAM) {
             addr.un.sun_family = AF_UNIX;
-            strncpy(addr.un.sun_path, host.c_str(), sizeof(addr.un.sun_path) - 1);
+            swoole_strlcpy(addr.un.sun_path, host.c_str(), sizeof(addr.un.sun_path));
             addr_size = sizeof(addr.un);
             break;
         } else {

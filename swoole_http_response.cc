@@ -838,7 +838,7 @@ bool swoole_http_response_set_header(
         swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
     if (ucwords) {
         char key_buf[SW_HTTP_HEADER_KEY_SIZE];
-        strncpy(key_buf, k, klen)[klen] = '\0';
+        swoole_strlcpy(key_buf, k, sizeof(key_buf));
 #ifdef SW_USE_HTTP2
         if (ctx->http2) {
             swoole_strtolower(key_buf, klen);
@@ -1110,7 +1110,7 @@ static PHP_METHOD(swoole_http_response, trailer) {
     }
     zval *ztrailer = swoole_http_init_and_read_property(
         swoole_http_response_ce, ctx->response.zobject, &ctx->response.ztrailer, ZEND_STRL("trailer"));
-    strncpy(key_buf, k, klen)[klen] = '\0';
+    swoole_strlcpy(key_buf, k, sizeof(key_buf));
     swoole_strtolower(key_buf, klen);
     if (UNEXPECTED(!v)) {
         add_assoc_null_ex(ztrailer, key_buf, klen);

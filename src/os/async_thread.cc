@@ -22,6 +22,7 @@
 #include "swoole_log.h"
 #include "swoole_pipe.h"
 #include "swoole_async.h"
+#include "swoole_util.h"
 
 #include <thread>
 #include <atomic>
@@ -30,6 +31,7 @@
 #include <condition_variable>
 #include <mutex>
 #include <queue>
+#include <sstream>
 
 namespace swoole {
 namespace async {
@@ -37,6 +39,14 @@ namespace async {
 static std::mutex init_lock;
 static std::atomic<int> refcount(0);
 static void aio_thread_release(AsyncEvent *event);
+static thread_local std::string tmp_thread_id;
+
+static const char *get_thread_id(std::thread::id id) {
+    std::stringstream ss;
+    ss << id;
+    tmp_thread_id = ss.str();
+    return tmp_thread_id.c_str();
+}
 
 class EventQueue {
   public:
@@ -80,7 +90,7 @@ class ThreadPool {
         max_wait_time = _max_wait_time == 0 ? SW_AIO_TASK_MAX_WAIT_TIME : _max_wait_time;
         max_idle_time = _max_idle_time == 0 ? SW_AIO_THREAD_MAX_IDLE_TIME : _max_idle_time;
 
-        current_pid = getpid();
+        creator_pid = getpid();
     }
 
     ~ThreadPool() {
@@ -170,16 +180,18 @@ class ThreadPool {
         return _queue.count();
     }
 
-    pid_t current_pid;
+    pid_t get_creator_pid() {
+        return creator_pid;
+    }
 
     void release_thread(std::thread::id tid) {
         auto i = threads.find(tid);
         if (i == threads.end()) {
-            swWarn("AIO thread#%zu is missing", tid);
+            swWarn("AIO thread#%s is missing", get_thread_id(tid));
             return;
         } else {
             std::thread *_thread = i->second;
-            swTraceLog(SW_TRACE_AIO, "release idle thread#%zu, we have %zu now", tid, threads.size() - 1);
+            swTraceLog(SW_TRACE_AIO, "release idle thread#%s, we have %zu now", get_thread_id(tid), threads.size() - 1);
             if (_thread->joinable()) {
                 _thread->join();
             }
@@ -207,7 +219,7 @@ class ThreadPool {
     std::atomic<size_t> n_waiting;
     std::atomic<size_t> n_closing;
     size_t current_task_id = 0;
-
+    pid_t creator_pid;
     std::unordered_map<std::thread::id, std::thread *> threads;
     EventQueue _queue;
     std::mutex event_mutex;
@@ -331,7 +343,7 @@ static void destroy(void *private_data) {
     SwooleTG.aio_init = 0;
     swoole_event_del(SwooleTG.aio_read_socket);
 
-    if (pool->current_pid == getpid()) {
+    if (pool->get_creator_pid() == getpid()) {
         if ((--refcount) == 0) {
             delete pool;
             pool = nullptr;

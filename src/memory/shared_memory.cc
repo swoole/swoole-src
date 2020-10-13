@@ -110,7 +110,7 @@ static void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const
     if ((tmpfd = open(mapfile, O_RDWR)) < 0) {
         return nullptr;
     }
-    strncpy(object->mapfile, mapfile, SW_SHM_MMAP_FILE_LEN);
+    sw_strlcpy(object->mapfile, mapfile, SW_SHM_MMAP_FILE_LEN);
     object->tmpfd = tmpfd;
 #endif
 
