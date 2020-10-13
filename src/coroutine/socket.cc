@@ -1320,7 +1320,7 @@ ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, siz
             }
         } else if (type == SW_SOCK_UNIX_DGRAM) {
             addr.un.sun_family = AF_UNIX;
-            strncpy(addr.un.sun_path, host.c_str(), sizeof(addr.un.sun_path) - 1);
+            swoole_strlcpy(addr.un.sun_path, host.c_str(), sizeof(addr.un.sun_path));
             addr_size = sizeof(addr.un);
             break;
         } else {

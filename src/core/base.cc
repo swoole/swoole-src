@@ -345,12 +345,12 @@ int swoole_mkdir_recursive(const char *dir) {
     char tmp[PATH_MAX];
     int i, len = strlen(dir);
 
-    if (len + 1 > PATH_MAX) /* PATH_MAX limit includes string trailing null character */
-    {
+    // PATH_MAX limit includes string trailing null character
+    if (len + 1 > PATH_MAX) {
         swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters", dir, PATH_MAX - 1);
         return -1;
     }
-    strncpy(tmp, dir, PATH_MAX);
+    swoole_strlcpy(tmp, dir, PATH_MAX);
 
     if (dir[len - 1] != '/') {
         strcat(tmp, "/");

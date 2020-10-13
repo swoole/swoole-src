@@ -244,6 +244,16 @@ struct swMemoryPool;
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 
+static inline size_t swoole_strlcpy(char *dest, const char *src, size_t size) {
+    const size_t len = strlen(src);
+    if (size != 0) {
+        const size_t n = std::min(len, size - 1);
+        memcpy(dest, src, n);
+        dest[n] = '\0';
+    }
+    return len;
+}
+
 static sw_inline char *swoole_strdup(const char *s) {
     size_t l = strlen(s) + 1;
     char *p = (char *) sw_malloc(l);
