@@ -185,8 +185,7 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
     }
 
     if (socket->nonblock == 0) {
-        swoole_fcntl_set_option(socket->fd, 1, -1);
-        socket->nonblock = 1;
+        socket->set_fd_option(1, -1);
     }
 
     if ((uint32_t) n > socket->buffer_size) {

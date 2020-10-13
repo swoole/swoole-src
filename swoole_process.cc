@@ -774,7 +774,7 @@ static PHP_METHOD(swoole_process, read) {
     }
 
     zend_string *buf = zend_string_alloc(buf_size, 0);
-    ssize_t ret = read(process->pipe_current->fd, buf->val, buf_size);
+    ssize_t ret = process->pipe_current->read(buf->val, buf_size);
     ;
     if (ret < 0) {
         efree(buf);
@@ -1069,9 +1069,9 @@ static PHP_METHOD(swoole_process, close) {
 
     int ret;
     if (which == SW_PIPE_CLOSE_READ) {
-        ret = shutdown(process->pipe_current->fd, SHUT_RD);
+        ret = process->pipe_current->shutdown(SHUT_RD);
     } else if (which == SW_PIPE_CLOSE_WRITE) {
-        ret = shutdown(process->pipe_current->fd, SHUT_WR);
+        ret = process->pipe_current->shutdown(SHUT_WR);
     } else {
         ret = swPipeUnsock_close_ext(process->pipe_object, which);
     }

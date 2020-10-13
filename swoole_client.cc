@@ -598,12 +598,7 @@ ssize_t php_swoole_length_func(Protocol *protocol, Socket *_socket, const char *
 }
 
 static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, int port) {
-    zval *ztype;
-    uint64_t tmp_buf;
-    int ret;
-
-    ztype = sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TYPE), 0);
-
+    zval *ztype = sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TYPE), 0);
     if (ztype == nullptr || ZVAL_IS_NULL(ztype)) {
         php_swoole_fatal_error(E_ERROR, "failed to get swoole_client->type");
         return nullptr;
@@ -638,9 +633,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
             std::queue<Client *> *q = i->second;
             cli = q->front();
             q->pop();
-            // try recv, check connection status
-            ret = recv(cli->socket->fd, &tmp_buf, sizeof(tmp_buf), MSG_DONTWAIT | MSG_PEEK);
-            if (ret == 0 || (ret < 0 && cli->socket->catch_error(errno) == SW_CLOSE)) {
+            if (!cli->socket->check_liveness()) {
                 cli->close();
                 php_swoole_client_free(zobject, cli);
                 goto _create_socket;
@@ -1174,8 +1167,7 @@ static PHP_METHOD(swoole_client, getsockname) {
         RETURN_FALSE;
     }
 
-    cli->socket->info.len = sizeof(cli->socket->info.addr);
-    if (getsockname(cli->socket->fd, (struct sockaddr *) &cli->socket->info.addr, &cli->socket->info.len) < 0) {
+    if (cli->socket->get_name(&cli->socket->info) < 0) {
         php_swoole_sys_error(E_WARNING, "getsockname() failed");
         RETURN_FALSE;
     }

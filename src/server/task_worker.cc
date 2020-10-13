@@ -196,7 +196,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
     Worker *worker = SwooleWG.worker;
     Server *serv = (Server *) pool->ptr;
 
-    if (read(event->fd, &task, sizeof(task)) > 0) {
+    if (event->socket->read(&task, sizeof(task)) > 0) {
         worker->status = SW_WORKER_BUSY;
         int retval = TaskWorker_onTask(pool, &task);
         worker->status = SW_WORKER_IDLE;

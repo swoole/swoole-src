@@ -76,7 +76,6 @@ int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout) {
 
 static ssize_t swPipeEventfd_read(swPipe *p, void *data, size_t length) {
     ssize_t ret = -1;
-    swPipeEventfd *object = (swPipeEventfd *) p->object;
 
     // eventfd not support socket timeout
     if (p->blocking == 1 && p->timeout > 0) {
@@ -86,7 +85,7 @@ static ssize_t swPipeEventfd_read(swPipe *p, void *data, size_t length) {
     }
 
     while (1) {
-        ret = read(object->event_fd, data, sizeof(uint64_t));
+        ret = p->master_socket->read(data, sizeof(uint64_t));
         if (ret < 0 && errno == EINTR) {
             continue;
         }
@@ -97,9 +96,8 @@ static ssize_t swPipeEventfd_read(swPipe *p, void *data, size_t length) {
 
 static ssize_t swPipeEventfd_write(swPipe *p, const void *data, size_t length) {
     ssize_t ret;
-    swPipeEventfd *object = (swPipeEventfd *) p->object;
     while (1) {
-        ret = write(object->event_fd, data, sizeof(uint64_t));
+        ret = p->master_socket->write(data, sizeof(uint64_t));
         if (ret < 0) {
             if (errno == EINTR) {
                 continue;

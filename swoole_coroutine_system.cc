@@ -87,7 +87,7 @@ static int co_socket_onReadable(Reactor *reactor, Event *event) {
         sock->timer = nullptr;
     }
 
-    int n = read(event->fd, ZSTR_VAL(sock->buf), sock->nbytes);
+    ssize_t n = event->socket->read(ZSTR_VAL(sock->buf), sock->nbytes);
     if (n < 0) {
         ZVAL_FALSE(&result);
         zend_string_free(sock->buf);
@@ -122,7 +122,7 @@ static int co_socket_onWritable(Reactor *reactor, Event *event) {
         sock->timer = nullptr;
     }
 
-    int n = write(event->fd, context->private_data, sock->nbytes);
+    ssize_t n = event->socket->write(context->private_data, sock->nbytes);
     if (n < 0) {
         swoole_set_last_error(errno);
         ZVAL_FALSE(&result);
@@ -163,7 +163,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
 }
 
 static void co_socket_write(int fd, char *str, size_t l_str, INTERNAL_FUNCTION_PARAMETERS) {
-    int ret = write(fd, str, l_str);
+    ssize_t ret = write(fd, str, l_str);
     if (ret < 0) {
         if (errno == EAGAIN) {
             goto _yield;

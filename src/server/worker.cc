@@ -677,7 +677,7 @@ _read_from_pipe:
             serv->move_buffer(serv, pipe_buffer);
         }
     } else {
-        recv_n = read(event->fd, pipe_buffer, serv->ipc_max_size);
+        recv_n = event->socket->read(pipe_buffer, serv->ipc_max_size);
     }
 
     if (recv_n > 0) {
