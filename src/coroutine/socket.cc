@@ -247,7 +247,7 @@ bool Socket::socks5_handshake() {
     ssize_t n;
     uchar version, method, result;
 
-    swSocks5_pack(ctx->buf, !socks5_proxy->username.empty() ? 0x02 : 0x00);
+    Socks5Proxy::pack(ctx->buf, !socks5_proxy->username.empty() ? 0x02 : 0x00);
     socks5_proxy->state = SW_SOCKS5_STATE_HANDSHAKE;
     if (send(ctx->buf, 3) != 3) {
         return false;
@@ -358,7 +358,7 @@ bool Socket::socks5_handshake() {
         return true;
     } else {
         swoole_error_log(
-            SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s", swSocks5_strerror(result));
+            SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s", Socks5Proxy::strerror(result));
         return false;
     }
 }

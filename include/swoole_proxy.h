@@ -51,6 +51,14 @@ struct Socks5Proxy {
     std::string target_host;
     int target_port;
     char buf[600];
+
+    static const char *strerror(int code);
+
+    static void pack(char *buf, int method) {
+        buf[0] = SW_SOCKS5_VERSION_CODE;
+        buf[1] = 0x01;
+        buf[2] = method;
+    }
 };
 }
 
@@ -66,11 +74,3 @@ enum swSocks5_method {
     SW_SOCKS5_METHOD_AUTH = 0x02,
 };
 
-static sw_inline void swSocks5_pack(char *buf, int method) {
-    buf[0] = SW_SOCKS5_VERSION_CODE;
-    buf[1] = 0x01;
-    buf[2] = method;
-}
-
-const char *swSocks5_strerror(int code);
-int swSocks5_connect(swoole::network::Client *cli, char *recv_data, int length);
