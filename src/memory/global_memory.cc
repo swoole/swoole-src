@@ -64,6 +64,7 @@ swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared) {
 
     char *page = swMemoryGlobal_new_page(gm);
     if (page == nullptr) {
+        delete gm;
         return nullptr;
     }
 
