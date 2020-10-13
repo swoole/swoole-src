@@ -55,12 +55,10 @@ Timer::Timer()
     next_msec_ = -1;
     _next_id = 1;
     round = 0;
+    now(&base_time);
 }
 
 bool Timer::init() {
-    if (now(&base_time) < 0) {
-        return false;
-    }
     if (SwooleTG.reactor) {
         return init_reactor(SwooleTG.reactor);
     } else {

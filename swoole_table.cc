@@ -452,8 +452,11 @@ static PHP_METHOD(swoole_table, set) {
         int ktype;
         zval *zv;
         SW_HASHTABLE_FOREACH_START2(ht, k, klen, ktype, zv) {
+            if (k == nullptr) {
+                continue;
+            }
             TableColumn *col = table->get_column(std::string(k, klen));
-            if (k == nullptr || col == nullptr) {
+            if (col == nullptr) {
                 continue;
             } else if (col->type == TableColumn::TYPE_STRING) {
                 zend_string *str = zval_get_string(zv);

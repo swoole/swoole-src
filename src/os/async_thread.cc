@@ -262,6 +262,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                             } else if (errno == EINTR) {
                                 continue;
                             } else {
+                                delete event;
                                 swSysWarn("sendto swoole_aio_pipe_write failed");
                             }
                         }
