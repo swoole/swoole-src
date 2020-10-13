@@ -17,7 +17,6 @@
 #include "php_swoole_cxx.h"
 
 #include "thirdparty/hiredis/hiredis.h"
-#include "thirdparty/hiredis/async.h"
 
 #include "ext/standard/php_var.h"
 

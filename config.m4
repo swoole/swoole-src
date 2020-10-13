@@ -461,7 +461,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/socket.cc \
         src/coroutine/system.cc \
         src/coroutine/thread_context.cc \
-        src/lock/atomic.cc \
         src/lock/mutex.cc \
         src/lock/rw_lock.cc \
         src/lock/spin_lock.cc \
@@ -558,7 +557,6 @@ if test "$PHP_SWOOLE" != "no"; then
         thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \

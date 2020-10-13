@@ -55,7 +55,6 @@ struct swLock {
 #ifdef HAVE_SPINLOCK
         pthread_spinlock_t spin_lock;
 #endif
-        sw_atomic_t atomic_lock;
     } object;
 
     int (*lock_rd)(swLock *);
@@ -66,7 +65,6 @@ struct swLock {
     int (*free)(swLock *);
 };
 
-int swAtomicLock_create(swLock *object);
 int swMutex_create(swLock *lock, int flags);
 int swMutex_lockwait(swLock *lock, int timeout_msec);
 

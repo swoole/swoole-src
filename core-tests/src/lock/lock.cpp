@@ -41,12 +41,6 @@ static void test_func(swLock &lock) {
     ASSERT_EQ(count, N * 2);
 }
 
-TEST(lock, atomic) {
-    swLock lock;
-    swAtomicLock_create(&lock);
-    test_func(lock);
-}
-
 TEST(lock, mutex) {
     swLock lock;
     swMutex_create(&lock, 0);

@@ -21,10 +21,8 @@
 #include "swoole_hash.h"
 
 static const int CRC32_TABLE_SIZE = 256;
-
 static uint32_t crc32_table[CRC32_TABLE_SIZE];
-
-bool generated = false;
+static bool generated = false;
 
 static void generate_table(uint32_t (&table)[CRC32_TABLE_SIZE]) {
     uint32_t polynomial = 0xEDB88320;
