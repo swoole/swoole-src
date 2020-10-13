@@ -132,7 +132,7 @@ ssize_t Socket::send_blocking(const void *__data, size_t __len) {
                        wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
-                swSysWarn("send %d bytes failed", __len);
+                swSysWarn("send %lu bytes failed", __len);
                 return SW_ERR;
             }
         }
