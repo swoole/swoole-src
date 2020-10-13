@@ -14,13 +14,6 @@ go(function () {
         Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
     }
     try {
-        $hcc = new \Swoole\Buffer();
-        serialize($hcc);
-        Assert::true(false, 'never here');
-    } catch (\Exception $exception) {
-        Assert::same(strpos($exception->getMessage(), 'Serialization'), 0);
-    }
-    try {
         $hcc = new \Swoole\Client(SWOOLE_TCP);
         serialize($hcc);
         Assert::true(false, 'never here');

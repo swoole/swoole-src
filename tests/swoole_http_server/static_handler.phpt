@@ -28,7 +28,18 @@ $pm->parentFunc = function () use ($pm) {
                     break;
                 }
             }
-            Assert::assert(md5($data) === md5_file(TEST_IMAGE));
+            Assert::same(md5($data), md5_file(TEST_IMAGE));
+
+            #3084
+            $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/http/empty.txt");
+            Assert::same($response['statusCode'], 200);
+            Assert::isEmpty($response['body']);
+
+            #3131
+            $response = httpRequest("http://127.0.0.1:{$pm->getFreePort()}/http/moc.moc");
+            Assert::same($response['statusCode'], 200);
+            Assert::same($response['body'], file_get_contents(__DIR__ . '/../../examples/http/moc.moc'));
+            Assert::same($response['headers']['content-type'], 'application/x-mocha');
         });
     }
     echo "DONE\n";
@@ -36,14 +47,14 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
+    Assert::true(swoole_mime_type_add('moc', 'application/x-mocha'));
     $http = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set([
         'log_file' => '/dev/null',
         'open_http2_protocol' => true,
         'enable_static_handler' => true,
         'document_root' => dirname(dirname(__DIR__)) . '/examples/',
-        'static_file_types' => [],
-        'static_file_locations' => ['/static', '/']
+        'static_handler_locations' => ['/static', '/']
     ]);
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();

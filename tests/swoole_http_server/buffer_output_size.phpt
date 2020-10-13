@@ -6,13 +6,13 @@ swoole_http_server: buffer output size
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 define('RANDOM_CHAR', get_safe_random(1));
-define('BUFFER_OUTPUT_SIZE', pow(2, 12));
+define('OUTPUT_BUFFER_SIZE', pow(2, 12));
 define('HTTP_HEADER_SIZE', pow(2, 8));
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}", ['timeout' => 0.1]);
-        Assert::same(strrpos($response, RANDOM_CHAR) + 1, BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE);
+        Assert::same(strrpos($response, RANDOM_CHAR) + 1, OUTPUT_BUFFER_SIZE - HTTP_HEADER_SIZE);
         Assert::throws(function () use ($pm) {
             $response = httpGetBody("http://127.0.0.1:{$pm->getFreePort()}/full", ['timeout' => 0.1]);
         }, Exception::class);
@@ -27,10 +27,10 @@ $pm->childFunc = function () use ($pm) {
     $server->set([
         'log_file' => TEST_LOG_FILE,
         'http_compression' => false,
-        'buffer_output_size' => BUFFER_OUTPUT_SIZE,
+        'output_buffer_size' => OUTPUT_BUFFER_SIZE,
     ]);
     $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($server) {
-        $length = $request->server['request_uri'] === '/full' ? BUFFER_OUTPUT_SIZE + 4096 : BUFFER_OUTPUT_SIZE - HTTP_HEADER_SIZE;
+        $length = $request->server['request_uri'] === '/full' ? OUTPUT_BUFFER_SIZE + 4096 : OUTPUT_BUFFER_SIZE - HTTP_HEADER_SIZE;
         $response->end(str_repeat(RANDOM_CHAR, $length));
     });
     $server->start();
@@ -40,5 +40,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-[%s]	WARNING	swFactoryProcess_finish (ERRNO %d): The length of data [%d] exceeds the output buffer size[%d], please use the sendfile, chunked transfer mode or adjust the buffer_output_size
+[%s]	WARNING	swFactoryProcess_finish (ERRNO %d): The length of data [%d] exceeds the output buffer size[%d], please use the sendfile, chunked transfer mode or adjust the output_buffer_size
 DONE

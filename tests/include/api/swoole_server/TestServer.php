@@ -23,7 +23,7 @@ abstract class TestServer
     protected $count = 0;
     protected $show_lost_package = false;
 
-    const PKG_NUM = 10000;
+    public static $PKG_NUM;
     const LEN_MIN = 0;
     const LEN_MAX = 200;
 
@@ -55,7 +55,7 @@ abstract class TestServer
         $this->count++;
         $this->recv_bytes += strlen($data);
         $this->onReceive($serv, $fd, $reactor_id, $data);
-        if ($this->count == self::PKG_NUM)
+        if ($this->count == self::$PKG_NUM)
         {
             $serv->send($fd, "end\n");
         }
@@ -66,7 +66,7 @@ abstract class TestServer
         echo "Total count={$this->count}, bytes={$this->recv_bytes}\n";
         if ($this->show_lost_package)
         {
-            for ($i = 0; $i < self::PKG_NUM; $i++)
+            for ($i = 0; $i < self::$PKG_NUM; $i++)
             {
                 if (!isset($this->index[$i]))
                 {

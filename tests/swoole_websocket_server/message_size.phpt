@@ -18,7 +18,7 @@ function test(Client $cli, $min, $max)
 {
     global $count;
     $len = mt_rand($min, $max);
-    $data = openssl_random_pseudo_bytes($len);
+    $data = get_safe_random($len);
     for ($n = N; $n--;) {
         $cli->push($data);
         $ret = $cli->recv();

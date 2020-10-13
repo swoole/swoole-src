@@ -17,7 +17,7 @@
  */
 
 #include "thirdparty/php/standard/proc_open.h"
-#include "coroutine_c_api.h"
+#include "swoole_coroutine_c_api.h"
 
 using namespace std;
 using swoole::coroutine::Socket;
@@ -95,7 +95,7 @@ static proc_co_env_t _php_array_to_envp(zval *environment)
         {
             l = ZSTR_LEN(key) + ZSTR_LEN(str) + 2;
             memcpy(p, ZSTR_VAL(key), ZSTR_LEN(key));
-            strncat(p, "=", 1);
+            strcat(p, "=");
             strncat(p, ZSTR_VAL(str), ZSTR_LEN(str));
 
             *ep = p;
@@ -335,7 +335,6 @@ PHP_FUNCTION(swoole_proc_open)
     }
 
     Coroutine::get_current_safe();
-    swoole_coroutine_signal_init();
 
 	command = estrdup(command);
 
@@ -581,9 +580,16 @@ PHP_FUNCTION(swoole_proc_open)
     proc->env = env;
     proc->running = true;
 
-	zval_ptr_dtor(pipes);
-	array_init(pipes);
-
+#if PHP_VERSION_ID >= 70400
+    pipes = zend_try_array_init(pipes);
+    if (!pipes)
+    {
+        goto exit_fail;
+    }
+#else
+    zval_ptr_dtor(pipes);
+    array_init(pipes);
+#endif
 
 	/* clean up all the child ends and then open streams on the parent
 	 * ends, where appropriate */

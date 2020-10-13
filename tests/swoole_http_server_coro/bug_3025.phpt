@@ -19,14 +19,14 @@ Coroutine\run(function () {
             if (!isset($length)) {
                 $length = strlen($request->getData());
             } else {
-                assert(strlen($request->getData()) === $length);
+                Assert::same(strlen($request->getData()), $length);
             }
         });
         $server->start();
     });
     Coroutine::create(function () use ($server) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $server->port);
-        for ($n = 10; $n--;) {
+        for ($n = MAX_REQUESTS; $n--;) {
             $cli->get('/');
         }
         $server->shutdown();
@@ -35,5 +35,5 @@ Coroutine\run(function () {
 });
 
 ?>
---EXPECTF--
+--EXPECT--
 DONE

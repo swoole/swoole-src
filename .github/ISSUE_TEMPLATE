@@ -16,6 +16,6 @@ Please answer these questions before submitting your issue. Thanks!
 
 
 
-5. What is your machine environment used (including version of kernel & php & gcc) ?
+5. What is your machine environment used (show your `uname -a` & `php -v` & `gcc -v`) ?
 
 

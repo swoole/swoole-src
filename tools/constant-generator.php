@@ -2,7 +2,7 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-$constant_php = LIBRARY_DIR . '/core/Constant.php';
+$constant_php = LIBRARY_SRC_DIR . '/core/Constant.php';
 if (!file_exists($constant_php)) {
     swoole_error("Unable to find source file [{$constant_php}]");
 }
@@ -23,7 +23,7 @@ preg_match_all('/php_swoole_array_get_value\(.+?, "(.+?)", .+?\)/', $source_cont
 $matches = array_unique($matches[1]);
 $result = '';
 foreach ($matches as $option) {
-    $result .= space(4) . sprintf("const OPTION_%s = '%s';\n", strtoupper($option), $option);
+    $result .= space(4) . sprintf("public const OPTION_%s = '%s';\n\n", strtoupper($option), $option);
 }
 
 $constant_php_content = file_get_contents($constant_php);

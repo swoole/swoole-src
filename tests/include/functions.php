@@ -1,27 +1,17 @@
 <?php
-/*
- +----------------------------------------------------------------------+
- | Swoole                                                               |
- +----------------------------------------------------------------------+
- | Copyright (c) 2012-2017 The Swoole Group                             |
- +----------------------------------------------------------------------+
- | This source file is subject to version 2.0 of the Apache license,    |
- | that is bundled with this package in the file LICENSE, and is        |
- | available through the world-wide-web at the following url:           |
- | http://www.apache.org/licenses/LICENSE-2.0.html                      |
- | If you did not receive a copy of the Apache2.0 license and are unable|
- | to obtain it through the world-wide-web, please send a note to       |
- | license@swoole.com so we can mail you a copy immediately.            |
- +----------------------------------------------------------------------+
- | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
- +----------------------------------------------------------------------+
+/**
+ * This file is part of Swoole, for internal use only
+ *
+ * @link     https://www.swoole.com
+ * @contact  team@swoole.com
+ * @license  https://github.com/swoole/library/blob/master/LICENSE
  */
 
 require_once __DIR__ . '/config.php';
 
 function switch_process()
 {
-    usleep((USE_VALGRIND ? 100 : 10) * 1000);
+    usleep((USE_VALGRIND ? 100 : 25) * 1000);
 }
 
 function clear_php()
@@ -74,29 +64,44 @@ function is_musl_libc(): bool
     return $bool;
 }
 
-function get_one_free_port()
+function get_one_free_port(): int
 {
-    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    if (!socket_bind($socket, "0.0.0.0", 0)) {
-        return false;
+    $hookFlags = Swoole\Runtime::getHookFlags();
+    Swoole\Runtime::enableCoroutine(false);
+    $server = @stream_socket_server('tcp://127.0.0.1:0');
+    if (!$server) {
+        $port = -1;
+    } else {
+        $name = stream_socket_get_name($server, false);
+        if (empty($name)) {
+            $port = -1;
+        }
+        else {
+            $port = (parse_url($name)['port'] ?? -1) ?: -1;
+        }
     }
-    if (!socket_listen($socket)) {
-        return false;
-    }
-    if (!socket_getsockname($socket, $addr, $port)) {
-        return false;
-    }
-    socket_close($socket);
+    Swoole\Runtime::enableCoroutine($hookFlags);
     return $port;
 }
 
-function get_one_free_port_coro()
+function get_one_free_port_ipv6(): int
 {
-    $socket = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-    $socket->bind('0.0.0.0');
-    $socket->listen();
-    $port = $socket->getsockname()['port'];
-    $socket->close();
+    $hookFlags = Swoole\Runtime::getHookFlags();
+    Swoole\Runtime::enableCoroutine(false);
+    $server = @stream_socket_server('tcp://[::1]:0');
+    if (!$server) {
+        $port = -1;
+    } else {
+        $name = stream_socket_get_name($server, false);
+        if (empty($name)) {
+            $port = -1;
+        }
+        else {
+            $port = explode(']:', $name)[1];
+        }
+    }
+
+    Swoole\Runtime::enableCoroutine($hookFlags);
     return $port;
 }
 
@@ -153,6 +158,20 @@ function phpt_var_dump(...$args)
     if (substr($argv[0], -5) === '.phpt') {
         var_dump(...$args);
     }
+}
+
+function httpPost($url, $data)
+{
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_HEADER, 0);
+    curl_setopt($ch, CURLOPT_POST, 1);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array('Expect:'));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    $res = curl_exec($ch);
+    curl_close($ch);
+    return $res;
 }
 
 function httpRequest(string $uri, array $options = [])
@@ -537,19 +556,9 @@ function arrayEqual(array $a, array $b, $strict = true)
     }
 }
 
-function check_tcp_port($ip, $port)
+function check_tcp_port(string $host, int $port): bool
 {
-    $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-    socket_set_nonblock($sock);
-    socket_connect($sock, $ip, $port);
-    socket_set_block($sock);
-    $r = [$sock];
-    $w = [$sock];
-    $f = [$sock];
-    $status = socket_select($r, $w, $f, 5);
-    socket_close($sock);
-
-    return $status;
+    return !!@fsockopen($host, $port);
 }
 
 function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 = null, $ext2 = null, $debug = false)
@@ -741,4 +750,15 @@ function readfile_with_lock($file)
     }
     fclose($fp);
     return $data;
+}
+
+function dump_to_file($file, $data)
+{
+    $fp = fopen($file, "w+");
+    $out = bin2hex($data);
+    $lines = str_split($out, 160);
+    foreach ($lines as $l) {
+        fwrite($fp, $l . "\n");
+    }
+    fclose($fp);
 }

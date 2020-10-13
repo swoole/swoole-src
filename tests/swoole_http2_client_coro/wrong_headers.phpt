@@ -8,7 +8,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 go(function () {
-    $domain = 'www.swoole.com';
+    $domain = 'mail.qq.com';
     $cli = new Swoole\Coroutine\Http2\Client($domain, 443, true);
     $cli->set([
         'timeout' => 10,
@@ -24,7 +24,7 @@ go(function () {
     /**@var $response swoole_http2_response */
     $response = $cli->recv();
     echo $response->statusCode;
-    Assert::assert(stripos($response->data, 'swoole') !== false);
+    Assert::assert(stripos($response->data, 'tencent') !== false);
 });
 ?>
 --EXPECT--

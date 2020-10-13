@@ -1,7 +1,9 @@
 --TEST--
 swoole_feature/full_duplex: socket
 --SKIPIF--
-<?php require __DIR__ . '/../../include/skipif.inc'; ?>
+<?php use Co\Socket;
+
+require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
@@ -92,6 +94,7 @@ $pm->childFunc = function () use ($pm) {
         ]);
         Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($server->listen(MAX_CONCURRENCY));
+        /** @var $conn Socket */
         while ($conn = $server->accept(-1)) {
             if (!Assert::assert($conn instanceof Co\Socket)) {
                 throw new RuntimeException('accept failed');
@@ -99,6 +102,9 @@ $pm->childFunc = function () use ($pm) {
                 set_socket_coro_buffer_size($conn, BUFFER_SIZE);
             }
             go(function () use ($pm, $conn) {
+                if (!Assert::true($conn->sslHandshake())) {
+                    return;
+                }
                 while (true) {
                     // id
                     $head = $conn->recv(tcp_type_length(), -1);

@@ -15,42 +15,38 @@
  */
 
 #include "swoole.h"
-#include "coroutine_socket.h"
+#include "swoole_coroutine_socket.h"
+
+#include <mutex>
 #include <string>
 #include <vector>
 
-#define SW_DNS_SERVER_CONF         "/etc/resolv.conf"
-#define SW_DNS_SERVER_NUM          2
+#define SW_DNS_SERVER_CONF "/etc/resolv.conf"
+#define SW_DNS_SERVER_NUM 2
 
-using namespace swoole::coroutine;
-using namespace std;
-
-enum swDNS_type
-{
-    SW_DNS_A_RECORD    = 0x01, //Lookup IPv4 address
-    SW_DNS_AAAA_RECORD = 0x1c, //Lookup IPv6 address
-    SW_DNS_MX_RECORD   = 0x0f  //Lookup mail server for domain
+enum swDNS_type {
+    SW_DNS_A_RECORD = 0x01,     // Lookup IPv4 address
+    SW_DNS_AAAA_RECORD = 0x1c,  // Lookup IPv6 address
+    SW_DNS_MX_RECORD = 0x0f     // Lookup mail server for domain
 };
 
-enum swDNS_error
-{
-    SW_DNS_NOT_EXIST, //Error: adress does not exist
-    SW_DNS_TIMEOUT,   //Lookup time expired
-    SW_DNS_ERROR      //No memory or other error
+enum swDNS_error {
+    SW_DNS_NOT_EXIST,  // Error: adress does not exist
+    SW_DNS_TIMEOUT,    // Lookup time expired
+    SW_DNS_ERROR       // No memory or other error
 };
 
 /* Struct for the DNS Header */
-typedef struct
-{
+typedef struct {
     uint16_t id;
-    uchar rd :1;
-    uchar tc :1;
-    uchar aa :1;
-    uchar opcode :4;
-    uchar qr :1;
-    uchar rcode :4;
-    uchar z :3;
-    uchar ra :1;
+    uchar rd : 1;
+    uchar tc : 1;
+    uchar aa : 1;
+    uchar opcode : 4;
+    uchar qr : 1;
+    uchar rcode : 4;
+    uchar z : 3;
+    uchar ra : 1;
     uint16_t qdcount;
     uint16_t ancount;
     uint16_t nscount;
@@ -58,15 +54,13 @@ typedef struct
 } swDNSResolver_header;
 
 /* Struct for the flags for the DNS Question */
-typedef struct q_flags
-{
+typedef struct q_flags {
     uint16_t qtype;
     uint16_t qclass;
 } Q_FLAGS;
 
 /* Struct for the flags for the DNS RRs */
-typedef struct rr_flags
-{
+typedef struct rr_flags {
     uint16_t type;
     uint16_t rdclass;
     uint32_t ttl;
@@ -79,54 +73,44 @@ static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
 static int get_dns_server();
 
-static int get_dns_server()
-{
+static int get_dns_server() {
     FILE *fp;
     char line[100];
-    char buf[16] = {0};
+    char buf[16] = {};
 
-    if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == NULL)
-    {
+    if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == nullptr) {
         swSysWarn("fopen(" SW_DNS_SERVER_CONF ") failed");
         return SW_ERR;
     }
 
-    while (fgets(line, 100, fp))
-    {
-        if (strncmp(line, "nameserver", 10) == 0)
-        {
+    while (fgets(line, 100, fp)) {
+        if (strncmp(line, "nameserver", 10) == 0) {
             strcpy(buf, strtok(line, " "));
-            strcpy(buf, strtok(NULL, "\n"));
+            strcpy(buf, strtok(nullptr, "\n"));
             break;
         }
     }
     fclose(fp);
 
-    if (strlen(buf) == 0)
-    {
+    if (strlen(buf) == 0) {
         SwooleG.dns_server_v4 = sw_strdup(SW_DNS_DEFAULT_SERVER);
-    }
-    else
-    {
+    } else {
         SwooleG.dns_server_v4 = sw_strdup(buf);
     }
 
     return SW_OK;
 }
 
-vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
-{
+std::vector<std::string> swoole::coroutine::dns_lookup(const char *domain, double timeout) {
     char *_domain_name;
-    Q_FLAGS *qflags = NULL;
+    Q_FLAGS *qflags = nullptr;
     char packet[SW_BUFFER_SIZE_STD];
-    swDNSResolver_header *header = NULL;
+    swDNSResolver_header *header = nullptr;
     int steps = 0;
 
-    vector<string> result;
-    if (SwooleG.dns_server_v4 == NULL)
-    {
-        if (get_dns_server() < 0)
-        {
+    std::vector<std::string> result;
+    if (SwooleG.dns_server_v4 == nullptr) {
+        if (get_dns_server() < 0) {
             return result;
         }
     }
@@ -152,8 +136,7 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
     _domain_name = &packet[steps];
 
     int len = strlen(domain);
-    if (domain_encode(domain, len, _domain_name) < 0)
-    {
+    if (domain_encode(domain, len, _domain_name) < 0) {
         swWarn("invalid domain[%s]", domain);
         return result;
     }
@@ -166,8 +149,7 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
     steps += sizeof(Q_FLAGS);
 
     Socket _sock(SW_SOCK_UDP);
-    if (timeout > 0)
-    {
+    if (timeout > 0) {
         _sock.set_timeout(timeout);
     }
 
@@ -175,22 +157,20 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];
     strcpy(dns_server_host, SwooleG.dns_server_v4);
-    if ((_port = strchr(SwooleG.dns_server_v4, ':')))
-    {
+    if ((_port = strchr(SwooleG.dns_server_v4, ':'))) {
         dns_server_port = atoi(_port + 1);
         dns_server_host[_port - SwooleG.dns_server_v4] = '\0';
     }
-    if (!_sock.sendto(dns_server_host, dns_server_port, (char *) packet, steps))
-    {
+    if (!_sock.sendto(dns_server_host, dns_server_port, (char *) packet, steps)) {
         return result;
     }
 
     /**
      * response
      */
-    header = NULL;
-    qflags = NULL;
-    RR_FLAGS *rrflags = NULL;
+    header = nullptr;
+    qflags = nullptr;
+    RR_FLAGS *rrflags = nullptr;
 
     uchar rdata[10][254];
     uint32_t type[10];
@@ -202,8 +182,7 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
     int i, j;
 
     int ret = _sock.recv(packet, sizeof(packet) - 1);
-    if (ret <= 0)
-    {
+    if (ret <= 0) {
         return result;
     }
 
@@ -220,26 +199,20 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
     steps = steps + sizeof(Q_FLAGS);
 
     int ancount = ntohs(header->ancount);
-    if (ancount > 10)
-    {
+    if (ancount > 10) {
         ancount = 10;
     }
     /* Parsing the RRs from the reply packet */
-    for (i = 0; i < ancount; ++i)
-    {
+    for (i = 0; i < ancount; ++i) {
         type[i] = 0;
         /* Parsing the NAME portion of the RR */
         temp = &packet[steps];
         j = 0;
-        while (*temp != 0)
-        {
-            if ((uchar) (*temp) == 0xc0)
-            {
+        while (*temp != 0) {
+            if ((uchar)(*temp) == 0xc0) {
                 ++temp;
                 temp = &packet[(uint8_t) *temp];
-            }
-            else
-            {
+            } else {
                 name[i][j] = *temp;
                 ++j;
                 ++temp;
@@ -255,29 +228,22 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
         steps = steps + sizeof(RR_FLAGS) - 2;
 
         /* Parsing the IPv4 address in the RR */
-        if (ntohs(rrflags->type) == 1)
-        {
-            for (j = 0; j < ntohs(rrflags->rdlength); ++j)
-            {
+        if (ntohs(rrflags->type) == 1) {
+            for (j = 0; j < ntohs(rrflags->rdlength); ++j) {
                 rdata[i][j] = (uchar) packet[steps + j];
             }
             type[i] = ntohs(rrflags->type);
         }
 
         /* Parsing the canonical name in the RR */
-        if (ntohs(rrflags->type) == 5)
-        {
+        if (ntohs(rrflags->type) == 5) {
             temp = &packet[steps];
             j = 0;
-            while (*temp != 0)
-            {
-                if ((uchar) (*temp) == 0xc0)
-                {
+            while (*temp != 0) {
+                if ((uchar)(*temp) == 0xc0) {
                     ++temp;
                     temp = &packet[(uint8_t) *temp];
-                }
-                else
-                {
+                } else {
                     rdata[i][j] = *temp;
                     ++j;
                     ++temp;
@@ -291,21 +257,18 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
     }
 
     int request_id = ntohs(header->id);
-    //bad response
-    if (request_id != _request_id)
-    {
+    // bad response
+    if (request_id != _request_id) {
         return result;
     }
-    for (i = 0; i < ancount; i++)
-    {
-        if (type[i] != SW_DNS_A_RECORD)
-        {
+    for (i = 0; i < ancount; i++) {
+        if (type[i] != SW_DNS_A_RECORD) {
             continue;
         }
         char address[16];
-        size_t n = sw_snprintf(address, sizeof(address), "%d.%d.%d.%d", rdata[i][0], rdata[i][1], rdata[i][2],
-                rdata[i][3]);
-        result.push_back(string(address, n));
+        size_t n =
+            sw_snprintf(address, sizeof(address), "%d.%d.%d.%d", rdata[i][0], rdata[i][1], rdata[i][2], rdata[i][3]);
+        result.push_back(std::string(address, n));
     }
     return result;
 }
@@ -314,10 +277,8 @@ vector<string> swoole::coroutine::dns_lookup(const char *domain, double timeout)
  * The function converts the dot-based hostname into the DNS format
  * (i.e. www.apple.com into 3www5apple3com0)
  */
-static int domain_encode(const char *src, int n, char *dest)
-{
-    if (src[n] == '.')
-    {
+static int domain_encode(const char *src, int n, char *dest) {
+    if (src[n] == '.') {
         return SW_ERR;
     }
 
@@ -330,10 +291,8 @@ static int domain_encode(const char *src, int n, char *dest)
     src = dest + 1;
     n++;
 
-    for (i = 0; i < n; i++)
-    {
-        if (src[i] == '.')
-        {
+    for (i = 0; i < n; i++) {
+        if (src[i] == '.') {
             len = i - pos;
             dest[pos] = len;
             pos += len + 1;
@@ -347,14 +306,11 @@ static int domain_encode(const char *src, int n, char *dest)
  * This function converts a DNS-based hostname into dot-based format
  * (i.e. 3www5apple3com0 into www.apple.com)
  */
-static void domain_decode(char *str)
-{
+static void domain_decode(char *str) {
     size_t i, j;
-    for (i = 0; i < strlen((const char*) str); i++)
-    {
+    for (i = 0; i < strlen((const char *) str); i++) {
         unsigned int len = str[i];
-        for (j = 0; j < len; j++)
-        {
+        for (j = 0; j < len; j++) {
             str[i] = str[i + 1];
             i++;
         }
@@ -362,3 +318,170 @@ static void domain_decode(char *str)
     }
     str[i - 1] = '\0';
 }
+
+namespace swoole {
+namespace network {
+
+#ifndef HAVE_GETHOSTBYNAME2_R
+static std::mutex g_gethostbyname2_lock;
+#endif
+
+/**
+ * DNS lookup
+ */
+#ifdef HAVE_GETHOSTBYNAME2_R
+int gethostbyname(int flags, const char *name, char *addr) {
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int index = 0;
+    int rc, err;
+    int buf_len = 256;
+    struct hostent hbuf;
+    struct hostent *result;
+
+    char *buf = (char *) sw_malloc(buf_len);
+    if (!buf) {
+        return SW_ERR;
+    }
+    memset(buf, 0, buf_len);
+    while ((rc = ::gethostbyname2_r(name, __af, &hbuf, buf, buf_len, &result, &err)) == ERANGE) {
+        buf_len *= 2;
+        char *tmp = (char *) sw_realloc(buf, buf_len);
+        if (nullptr == tmp) {
+            sw_free(buf);
+            return SW_ERR;
+        } else {
+            buf = tmp;
+        }
+    }
+
+    if (0 != rc || nullptr == result) {
+        sw_free(buf);
+        return SW_ERR;
+    }
+
+    union {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++) {
+        if (hbuf.h_addr_list[i] == nullptr) {
+            break;
+        }
+        if (__af == AF_INET) {
+            memcpy(addr_list[i].v4, hbuf.h_addr_list[i], hbuf.h_length);
+        } else {
+            memcpy(addr_list[i].v6, hbuf.h_addr_list[i], hbuf.h_length);
+        }
+    }
+    if (__af == AF_INET) {
+        memcpy(addr, addr_list[index].v4, hbuf.h_length);
+    } else {
+        memcpy(addr, addr_list[index].v6, hbuf.h_length);
+    }
+
+    sw_free(buf);
+
+    return SW_OK;
+}
+#else
+int gethostbyname(int flags, const char *name, char *addr) {
+    int __af = flags & (~SW_DNS_LOOKUP_RANDOM);
+    int index = 0;
+
+    std::lock_guard<std::mutex> _lock(g_gethostbyname2_lock);
+
+    struct hostent *host_entry;
+    if (!(host_entry = ::gethostbyname2(name, __af))) {
+        return SW_ERR;
+    }
+
+    union {
+        char v4[INET_ADDRSTRLEN];
+        char v6[INET6_ADDRSTRLEN];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+
+    int i = 0;
+    for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++) {
+        if (host_entry->h_addr_list[i] == nullptr) {
+            break;
+        }
+        if (__af == AF_INET) {
+            memcpy(addr_list[i].v4, host_entry->h_addr_list[i], host_entry->h_length);
+        } else {
+            memcpy(addr_list[i].v6, host_entry->h_addr_list[i], host_entry->h_length);
+        }
+    }
+    if (__af == AF_INET) {
+        memcpy(addr, addr_list[index].v4, host_entry->h_length);
+    } else {
+        memcpy(addr, addr_list[index].v6, host_entry->h_length);
+    }
+    return SW_OK;
+}
+#endif
+
+int getaddrinfo(GetaddrinfoRequest *req) {
+    struct addrinfo *result = nullptr;
+    struct addrinfo *ptr = nullptr;
+    struct addrinfo hints{};
+
+    hints.ai_family = req->family;
+    hints.ai_socktype = req->socktype;
+    hints.ai_protocol = req->protocol;
+
+    int ret = ::getaddrinfo(req->hostname, req->service, &hints, &result);
+    if (ret != 0) {
+        req->error = ret;
+        return SW_ERR;
+    }
+
+    void *buffer = req->result;
+    int i = 0;
+    for (ptr = result; ptr != nullptr; ptr = ptr->ai_next) {
+        switch (ptr->ai_family) {
+        case AF_INET:
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in)), ptr->ai_addr, sizeof(struct sockaddr_in));
+            break;
+        case AF_INET6:
+            memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
+            break;
+        default:
+            swWarn("unknown socket family[%d]", ptr->ai_family);
+            break;
+        }
+        i++;
+        if (i == SW_DNS_HOST_BUFFER_SIZE) {
+            break;
+        }
+    }
+    ::freeaddrinfo(result);
+    req->error = 0;
+    req->count = i;
+    return SW_OK;
+}
+
+void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) {
+    struct sockaddr_in *addr_v4;
+    struct sockaddr_in6 *addr_v6;
+
+    char tmp[INET6_ADDRSTRLEN];
+    const char *r;
+
+    for (int i = 0; i < count; i++) {
+        if (family == AF_INET) {
+            addr_v4 = (struct sockaddr_in *) ((char *) result + (i * sizeof(struct sockaddr_in)));
+            r = inet_ntop(AF_INET, (const void *) &addr_v4->sin_addr, tmp, sizeof(tmp));
+        } else {
+            addr_v6 = (struct sockaddr_in6 *) ((char *) result + (i * sizeof(struct sockaddr_in6)));
+            r = inet_ntop(AF_INET6, (const void *) &addr_v6->sin6_addr, tmp, sizeof(tmp));
+        }
+        if (r) {
+            retval.push_back(tmp);
+        }
+    }
+}
+
+}  // namespace network
+}  // namespace swoole

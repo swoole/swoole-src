@@ -49,12 +49,12 @@ Co\run(function () {
         Coroutine::create(function () use ($port) {
             Co::sleep(0.01);
             $client = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
-            $connected = $client->connect('127.0.0.1', $port);
+            $connected = $client->connect('127.0.0.1', $port, 3);
             if (!$connected) {
                 throw new Exception('Connect failed: ' . $client->errMsg);
             }
             for ($n = MAX_REQUESTS; $n--;) {
-                $bytes = mt_rand(0, 1024);
+                $bytes = mt_rand(2, 1024);
                 $random = $bytes ? get_safe_random($bytes - 1) . 'S' : '';
                 $data = Protocol::pack(mt_rand(0, 127), mt_rand(0, 4294967295), $random);
                 if ($client->sendAll($data) !== strlen($data)) {

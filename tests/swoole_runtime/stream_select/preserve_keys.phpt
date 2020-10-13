@@ -8,35 +8,25 @@ require __DIR__ . '/../../include/bootstrap.php';
 Swoole\Runtime::enableCoroutine();
 go(function () {
     $read[1] = fopen(__FILE__, 'r');
-    $read['myindex'] = reset($read);
+    $read['myindex'] = fopen(__FILE__, 'r');
     $write = null;
     $except = null;
 
-    var_dump($read);
-    stream_select($read, $write, $except, 0);
-    var_dump($read);
+    Assert::count($read, 2);
+    $n = stream_select($read, $write, $except, 0);
+    Assert::same($n, 2);
+    Assert::count($read, 2);
+    Assert::isEmpty($write);
+    Assert::isEmpty($except);
     fread(reset($read), 1);
-    stream_select($read, $write, $except, 0); // // emulate_read
-    var_dump($read);
+    $n = stream_select($read, $write, $except, 0); // // emulate_read
+    Assert::same($n, 1);
+    Assert::count($read, 1);
+    Assert::isEmpty($write);
+    Assert::isEmpty($except);
 });
 Swoole\Event::wait();
+echo "DONE\n"
 ?>
 --EXPECTF--
-array(2) {
-  [1]=>
-  resource(%d) of type (stream)
-  ["myindex"]=>
-  resource(%d) of type (stream)
-}
-array(2) {
-  [1]=>
-  resource(%d) of type (stream)
-  ["myindex"]=>
-  resource(%d) of type (stream)
-}
-array(2) {
-  [1]=>
-  resource(%d) of type (stream)
-  ["myindex"]=>
-  resource(%d) of type (stream)
-}
+DONE

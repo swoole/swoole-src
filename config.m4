@@ -46,8 +46,11 @@ PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
 
-PHP_ARG_ENABLE(gcov, enable gcov,
-[  --enable-gcov             Enable gcov], no, no)
+PHP_ARG_ENABLE(swoole-coverage,      whether to enable swoole coverage support,
+[  --enable-swoole-coverage Enable swoole coverage support], no, no)
+
+PHP_ARG_ENABLE(swoole-dev, whether to enable Swoole developer build flags,
+[  --enable-swoole-dev       Swoole: Enable developer flags],, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -273,11 +276,51 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
     AC_CHECK_LIB(c, gethostbyname2_r, AC_DEFINE(HAVE_GETHOSTBYNAME2_R, 1, [have gethostbyname2_r]))
     AC_CHECK_LIB(c, ptrace, AC_DEFINE(HAVE_PTRACE, 1, [have ptrace]))
+    AC_CHECK_LIB(c, getrandom, AC_DEFINE(HAVE_GETRANDOM, 1, [have getrandom]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
     AC_CHECK_LIB(pthread, pthread_spin_lock, AC_DEFINE(HAVE_SPINLOCK, 1, [have pthread_spin_lock]))
     AC_CHECK_LIB(pthread, pthread_mutex_timedlock, AC_DEFINE(HAVE_MUTEX_TIMEDLOCK, 1, [have pthread_mutex_timedlock]))
     AC_CHECK_LIB(pthread, pthread_barrier_init, AC_DEFINE(HAVE_PTHREAD_BARRIER, 1, [have pthread_barrier_init]))
+    AC_CHECK_LIB(pthread, pthread_mutexattr_setrobust, AC_DEFINE(HAVE_PTHREAD_MUTEXATTR_SETROBUST, 1, [have pthread_mutexattr_setrobust]))
+    AC_CHECK_LIB(pthread, pthread_mutex_consistent, AC_DEFINE(HAVE_PTHREAD_MUTEX_CONSISTENT, 1, [have pthread_mutex_consistent]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
+
+    if test "$PHP_SWOOLE_DEV" = "yes"; then
+        PHP_CHECK_GCC_ARG(-Wbool-conversion,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wbool-conversion")
+        PHP_CHECK_GCC_ARG(-Wdiscarded-qualifiers,           _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wdiscarded-qualifiers")
+        PHP_CHECK_GCC_ARG(-Wduplicate-enum,                 _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wduplicate-enum")
+        PHP_CHECK_GCC_ARG(-Wempty-body,                     _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wempty-body")
+        PHP_CHECK_GCC_ARG(-Wenum-compare,                   _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wenum-compare")
+        PHP_CHECK_GCC_ARG(-Werror,                          _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Werror")
+        PHP_CHECK_GCC_ARG(-Wextra,                          _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wextra")
+        PHP_CHECK_GCC_ARG(-Wformat-security,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wformat-security")
+        PHP_CHECK_GCC_ARG(-Wheader-guard,                   _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wheader-guard")
+        PHP_CHECK_GCC_ARG(-Wincompatible-pointer-types-discards-qualifiers, _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wincompatible-pointer-types-discards-qualifiers")
+        PHP_CHECK_GCC_ARG(-Winit-self,                      _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Winit-self")
+        PHP_CHECK_GCC_ARG(-Wlogical-not-parentheses,        _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wlogical-not-parentheses")
+        PHP_CHECK_GCC_ARG(-Wlogical-op,                     _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wlogical-op")
+        PHP_CHECK_GCC_ARG(-Wlogical-op-parentheses,         _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wlogical-op-parentheses")
+        PHP_CHECK_GCC_ARG(-Wloop-analysis,                  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wloop-analysis")
+        PHP_CHECK_GCC_ARG(-Wmaybe-uninitialized,            _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wmaybe-uninitialized")
+        PHP_CHECK_GCC_ARG(-Wno-missing-field-initializers,  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-missing-field-initializers")
+        PHP_CHECK_GCC_ARG(-Wno-sign-compare,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-sign-compare")
+        PHP_CHECK_GCC_ARG(-Wno-unused-but-set-variable,     _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-unused-but-set-variable")
+        PHP_CHECK_GCC_ARG(-Wno-unused-parameter,            _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-unused-parameter")
+        PHP_CHECK_GCC_ARG(-Wno-variadic-macros,             _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wno-variadic-macros")
+        PHP_CHECK_GCC_ARG(-Wparentheses,                    _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wparentheses")
+        PHP_CHECK_GCC_ARG(-Wpointer-bool-conversion,        _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wpointer-bool-conversion")
+        PHP_CHECK_GCC_ARG(-Wsizeof-array-argument,          _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wsizeof-array-argument")
+        PHP_CHECK_GCC_ARG(-Wwrite-strings,                  _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wwrite-strings")
+        PHP_CHECK_GCC_ARG(-fdiagnostics-show-option,        _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -fdiagnostics-show-option")
+        PHP_CHECK_GCC_ARG(-fno-omit-frame-pointer,          _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -fno-omit-frame-pointer")
+        PHP_CHECK_GCC_ARG(-fno-optimize-sibling-calls,      _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -fno-optimize-sibling-calls")
+        PHP_CHECK_GCC_ARG(-fsanitize-address,               _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -fsanitize-address")
+        PHP_CHECK_GCC_ARG(-fstack-protector,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -fstack-protector")
+
+        EXTRA_CFLAGS="$_MAINTAINER_CFLAGS"
+        CFLAGS="-g -O0 -Wall $CFLAGS"
+        CXXFLAGS="-g -O0 -Wall $CXXFLAGS"
+    fi
 
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
@@ -312,12 +355,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
         CXXFLAGS="$CXXFLAGS -fsanitize=address -fno-omit-frame-pointer"
-    fi
-    
-    if test "$PHP_GCOV" != "no"; then
-        PHP_DEBUG=1
-        CFLAGS="$CFLAGS -fprofile-arcs -ftest-coverage"
-        CXXFLAGS="$CXXFLAGS -fprofile-arcs -ftest-coverage"
     fi
 
     if test "$PHP_TRACE_LOG" != "no"; then
@@ -406,19 +443,16 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     swoole_source_file=" \
+        php_swoole.cc \
         php_swoole_cxx.cc \
-        src/core/array.c \
-        src/core/base.c \
-        src/core/channel.c \
+        src/core/base.cc \
+        src/core/channel.cc \
+        src/core/crc32.cc \
         src/core/error.cc \
-        src/core/hashmap.c \
-        src/core/heap.c \
-        src/core/list.c \
-        src/core/log.c \
-        src/core/rbtree.c \
-        src/core/ring_queue.c \
-        src/core/socket.c \
-        src/core/string.c \
+        src/core/heap.cc \
+        src/core/log.cc \
+        src/core/string.cc \
+        src/core/timer.cc \
         src/coroutine/base.cc \
         src/coroutine/channel.cc \
         src/coroutine/context.cc \
@@ -427,55 +461,48 @@ if test "$PHP_SWOOLE" != "no"; then
         src/coroutine/socket.cc \
         src/coroutine/system.cc \
         src/coroutine/thread_context.cc \
-        src/coroutine/ucontext.cc \
-        src/lock/atomic.c \
-        src/lock/cond.c \
-        src/lock/file_lock.c \
-        src/lock/mutex.c \
-        src/lock/rw_lock.c \
-        src/lock/semaphore.c \
-        src/lock/spin_lock.c \
-        src/memory/buffer.c \
-        src/memory/fixed_pool.c \
-        src/memory/global_memory.c \
-        src/memory/malloc.c \
-        src/memory/ring_buffer.c \
-        src/memory/shared_memory.c \
-        src/memory/table.c \
-        src/network/client.c \
-        src/network/connection.cc \
+        src/lock/mutex.cc \
+        src/lock/rw_lock.cc \
+        src/lock/spin_lock.cc \
+        src/memory/buffer.cc \
+        src/memory/fixed_pool.cc \
+        src/memory/global_memory.cc \
+        src/memory/ring_buffer.cc \
+        src/memory/shared_memory.cc \
+        src/memory/table.cc \
+        src/network/address.cc \
+        src/network/client.cc \
         src/network/dns.cc \
-        src/network/process_pool.c \
-        src/network/stream.c \
-        src/network/thread_pool.c \
-        src/network/timer.c \
+        src/network/socket.cc \
+        src/network/stream.cc \
         src/os/async_thread.cc \
-        src/os/base.c \
-        src/os/msg_queue.c \
-        src/os/sendfile.c \
-        src/os/signal.c \
-        src/os/timer.c \
+        src/os/base.cc \
+        src/os/msg_queue.cc \
+        src/os/process_pool.cc \
+        src/os/sendfile.cc \
+        src/os/signal.cc \
+        src/os/timer.cc \
         src/os/wait.cc \
-        src/pipe/base.c \
-        src/pipe/eventfd.c \
-        src/pipe/unix_socket.c \
+        src/pipe/base.cc \
+        src/pipe/eventfd.cc \
+        src/pipe/unix_socket.cc \
         src/protocol/base.cc \
-        src/protocol/base64.c \
+        src/protocol/base64.cc \
+        src/protocol/dtls.cc \
         src/protocol/http.cc \
-        src/protocol/http2.c \
-        src/protocol/mime_types.cc \
-        src/protocol/mqtt.c \
-        src/protocol/redis.c \
-        src/protocol/sha1.c \
-        src/protocol/socks5.c \
-        src/protocol/ssl.c \
-        src/protocol/websocket.c \
+        src/protocol/http2.cc \
+        src/protocol/mime_type.cc \
+        src/protocol/mqtt.cc \
+        src/protocol/redis.cc \
+        src/protocol/socks5.cc \
+        src/protocol/ssl.cc \
+        src/protocol/websocket.cc \
         src/reactor/base.cc \
         src/reactor/epoll.cc \
-        src/reactor/kqueue.c \
-        src/reactor/poll.c \
-        src/reactor/select.c \
-        src/server/base.c \
+        src/reactor/kqueue.cc \
+        src/reactor/poll.cc \
+        src/reactor/select.cc \
+        src/server/base.cc \
         src/server/manager.cc \
         src/server/master.cc \
         src/server/port.cc \
@@ -486,12 +513,9 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/task_worker.cc \
         src/server/worker.cc \
         src/wrapper/event.cc \
-        src/wrapper/server.cc \
         src/wrapper/timer.cc \
-        swoole.cc \
         swoole_async_coro.cc \
         swoole_atomic.cc \
-        swoole_buffer.c \
         swoole_channel_coro.cc \
         swoole_client.cc \
         swoole_client_coro.cc \
@@ -530,10 +554,9 @@ if test "$PHP_SWOOLE" != "no"; then
 
     swoole_source_file="$swoole_source_file \
         thirdparty/swoole_http_parser.c \
-	    thirdparty/multipart_parser.c"
+        thirdparty/multipart_parser.c"
 
     swoole_source_file="$swoole_source_file \
-        thirdparty/hiredis/async.c \
         thirdparty/hiredis/hiredis.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
@@ -558,6 +581,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [arm*], [SW_CPU="arm"],
       [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
+      [mips*], [SW_CPU="mips32"],
       [
         SW_USE_ASM_CONTEXT="no"
       ]
@@ -624,11 +648,20 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_ASM_CONTEXT, 1, [use boost asm context])
     fi
 
-    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,, cxx)
+    PHP_NEW_EXTENSION(swoole, $swoole_source_file, $ext_shared,,$EXTRA_CFLAGS, cxx)
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
+
+    AC_MSG_CHECKING([swoole coverage])
+    if test "$PHP_SWOOLE_COVERAGE" != "no"; then
+        AC_MSG_RESULT([enabled])
+
+        PHP_ADD_MAKEFILE_FRAGMENT
+    else
+        AC_MSG_RESULT([disabled])
+    fi
 
     PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 

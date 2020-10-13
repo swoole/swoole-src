@@ -11,7 +11,7 @@ for ($c = MAX_CONCURRENCY; $c--;) {
         for ($n = MAX_REQUESTS; $n--;) {
             $recv = new Chan;
             $send = new Chan;
-            $rand = openssl_random_pseudo_bytes(mt_rand(1, 1024));
+            $rand = get_safe_random(mt_rand(1, 1024));
             go(function () use ($recv) {
                 co::sleep(0.001);
                 $recv->push(new stdClass()); // response

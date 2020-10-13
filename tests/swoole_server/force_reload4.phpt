@@ -41,5 +41,5 @@ $pm->run();
 ?>
 --EXPECTF--
 [%s]	INFO	Server is shutdown now
-[%s]	WARNING	swWorker_reactor_is_empty (ERRNO 9012): worker exit timeout, forced to terminate
+[%s]	WARNING	%s (ERRNO 9012): worker exit timeout, forced termination
 OK

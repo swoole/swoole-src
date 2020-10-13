@@ -7,9 +7,11 @@ swoole_server: (eof protocol) recv 100k packet
 require __DIR__ . '/../include/bootstrap.php';
 require __DIR__ . '/../include/api/swoole_server/TestServer.php';
 
+TestServer::$PKG_NUM = MAX_PACKET_NUM;
+
 class EofServer extends TestServer
 {
-    protected $show_lost_package = true;
+    protected $show_lost_package = false;
     function onReceive($serv, $fd, $reactor_id, $data)
     {
         $pkg = unserialize(rtrim($data));
@@ -21,7 +23,7 @@ class EofServer extends TestServer
         {
             exit("error packet");
         }
-        if ($pkg['index'] > self::PKG_NUM)
+        if ($pkg['index'] > self::$PKG_NUM)
         {
             echo "invalid index #{$pkg['index']}\n";
         }
@@ -45,7 +47,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     $bytes = 0;
     $pkg_bytes = 0;
 
-    for ($i = 0; $i < TestServer::PKG_NUM; $i++)
+    for ($i = 0; $i < TestServer::$PKG_NUM; $i++)
     {
         $len = rand(1000, 1024 * 128 - 8);
         $sid = rand(10000, 99999);
@@ -70,7 +72,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     $recv = $client->recv();
     echo $recv;
 
-//    echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
+//    echo "send ".MAX_PACKET_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
     usleep(1);
     $pm->kill();
@@ -96,4 +98,4 @@ $pm->run();
 ?>
 --EXPECTREGEX--
 end
-Total count=100000?, bytes=\d+
+Total count=\d+, bytes=\d+

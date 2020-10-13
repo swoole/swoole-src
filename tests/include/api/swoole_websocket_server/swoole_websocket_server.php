@@ -15,7 +15,7 @@ class WebSocketServer
 
         $this->webSocketServ->set([
             // 输出限制
-            "buffer_output_size" => 1024 * 1024 * 1024,
+            "output_buffer_size" => 1024 * 1024 * 1024,
 
             "max_connection" => 10240,
             "pipe_buffer_size" => 1024 * 1024 * 1024,
@@ -51,11 +51,6 @@ class WebSocketServer
         $this->webSocketServ->on('message', [$this, 'onMessage']);
 
         $this->webSocketServ->on('close', [$this, 'onClose']);
-
-        $sock = $this->webSocketServ->getSocket();
-        if (!socket_set_option($sock, SOL_SOCKET, SO_REUSEADDR, 1)) {
-            echo 'Unable to set option on socket: '. socket_strerror(socket_last_error()) . PHP_EOL;
-        }
 
         $this->webSocketServ->start();
     }

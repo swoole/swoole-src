@@ -18,7 +18,7 @@ $table->set("44984", ['data' => '2']);
 $table->del("1234567890");
 
 foreach($table as $ip => $row) {
-	echo $ip;
+	echo $ip."\n";
 }
 
 ?>

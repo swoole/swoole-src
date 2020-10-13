@@ -104,7 +104,7 @@ function skip_if_file_not_exist(string $filename)
 
 function skip_if_command_not_found(string $command)
 {
-    skip("command {$command} not found", empty(`{$command} --help | grep -i usage`));
+    skip("command {$command} not found", empty(`{$command} --help 2>&1 | grep -i usage`));
 }
 
 function skip_if_no_ssl()
@@ -132,8 +132,7 @@ function skip_if_no_http2()
 
 function skip_if_no_ipv6()
 {
-    $socket = socket_create(AF_INET6, SOCK_STREAM, SOL_TCP);
-    skip('no ipv6 address', !socket_bind($socket, "::1", 0));
+    skip('no ipv6 address', !@stream_socket_server('tcp://[::1]:0'));
 }
 
 function skip_if_no_top()
@@ -182,7 +181,7 @@ function skip_if_offline()
 
 function skip_if_no_proxy(string $host, string $port)
 {
-    skip('no available proxy', IS_IN_TRAVIS || check_tcp_port($host, $port) <= 0);
+    skip('no available proxy', !check_tcp_port($host, $port));
 }
 
 function skip_if_no_http_proxy()

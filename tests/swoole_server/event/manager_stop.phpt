@@ -7,7 +7,6 @@ swoole_server/event: onManagerStop
 require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Server;
-use SwooleTest\ProcessManager;
 use Swoole\Atomic;
 
 $pm = new SwooleTest\ProcessManager;

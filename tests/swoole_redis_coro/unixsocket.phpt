@@ -14,8 +14,8 @@ go(function () {
     Assert::assert($redis->connect('unix:/' . REDIS_SERVER_PATH, 0));
     for ($c = MAX_CONCURRENCY_MID; $c--;) {
         for ($n = MAX_REQUESTS; $n--;) {
-            $key = md5(openssl_random_pseudo_bytes(mt_rand(1, 128)));
-            $value = md5(openssl_random_pseudo_bytes(mt_rand(1, 128)));
+            $key = md5(get_safe_random(mt_rand(1, 128)));
+            $value = md5(get_safe_random(mt_rand(1, 128)));
             Assert::assert($redis->set($key, $value));
             Assert::same($redis->get($key), $value);
             Assert::assert($redis->delete($key));

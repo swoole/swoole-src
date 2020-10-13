@@ -9,8 +9,9 @@ skip_if_offline();
 require __DIR__ . '/../include/bootstrap.php';
 
 Swoole\Coroutine::create(function () {
-    $ip = Swoole\Coroutine\System::gethostbyname('ipv6.baidu.com', AF_INET6);
-    Assert::assert(!empty($ip));
+    $ip = Swoole\Coroutine\System::gethostbyname('ipv6.google.com', AF_INET6);
+    phpt_var_dump($ip);
+    Assert::notEmpty($ip);
 });
 
 ?>

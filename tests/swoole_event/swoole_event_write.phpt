@@ -23,6 +23,7 @@ swoole_event_add($fp, function($fp) {
 swoole_event_write($fp, "GET / HTTP/1.1\r\nHost: www.qq.com\r\n\r\n");
 
 echo "Finish\n";
+\Swoole\Event::wait();
 ?>
 --EXPECT--
 Finish

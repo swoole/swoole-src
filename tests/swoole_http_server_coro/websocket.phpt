@@ -15,7 +15,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             $cli->set(['timeout' => 5]);
             $ret = $cli->upgrade('/websocket');
             Assert::assert($ret);
-            $data = sha1(openssl_random_pseudo_bytes(mt_rand(0, 1024)));
+            $data = sha1(get_safe_random(mt_rand(0, 1024)));
             for ($n = MAX_REQUESTS; $n--;) {
                 $cli->push($data);
                 $ret = $cli->recv();
@@ -43,6 +43,7 @@ $pm->childFunc = function () use ($pm) {
                 } else if ($frame == '') {
                     break;
                 } else {
+                    Assert::greaterThan($frame->fd, 0);
                     $ws->push("Hello {$frame->data}!");
                     $ws->push("How are you, {$frame->data}?");
                 }

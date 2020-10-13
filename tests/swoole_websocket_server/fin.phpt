@@ -4,8 +4,6 @@ swoole_websocket_server: websocket server recv and merge fin packages
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-declare(strict_types=1);
-
 require __DIR__ . '/../include/bootstrap.php';
 $count = 0;
 $pm = new ProcessManager;
@@ -19,7 +17,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             $rand_list = [];
             $times = MAX_REQUESTS;
             for ($n = $times; $n--;) {
-                $rand = openssl_random_pseudo_bytes(mt_rand(0, 1280));
+                $rand = get_safe_random(mt_rand(1, 1280));
                 $rand_list[] = $rand;
                 $opcode = $n === $times - 1 ? WEBSOCKET_OPCODE_TEXT : WEBSOCKET_OPCODE_CONTINUATION;
                 $finish = $n === 0;

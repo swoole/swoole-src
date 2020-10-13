@@ -14,29 +14,25 @@
  +----------------------------------------------------------------------+
  */
 
-#include "swoole.h"
 #include <string>
 
-namespace swoole
-{
+#include "swoole.h"
 
-class Exception
-{
-public:
+namespace swoole {
+
+class Exception {
+  public:
     int code;
     const char *msg;
 
-    Exception(int code) : code(code)
-    {
+    Exception(int code) : code(code) {
         msg = swoole_strerror(code);
     }
 };
-}
+}  // namespace swoole
 
-const char* swoole_strerror(int code)
-{
-    if (code < SW_ERROR_START)
-    {
+const char *swoole_strerror(int code) {
+    if (code < SW_ERROR_BEGIN) {
         return strerror(code);
     }
     /* swstrerror {{{*/
@@ -58,6 +54,8 @@ const char* swoole_strerror(int code)
         return "Operation not support";
     case SW_ERROR_PROTOCOL_ERROR:
         return "Protocol error";
+    case SW_ERROR_WRONG_OPERATION:
+        return "Wrong operation";
     case SW_ERROR_FILE_NOT_EXIST:
         return "File not exist";
     case SW_ERROR_FILE_TOO_LARGE:
@@ -74,6 +72,8 @@ const char* swoole_strerror(int code)
         return "Bad ipv6 address";
     case SW_ERROR_UNREGISTERED_SIGNAL:
         return "Unregistered signal";
+    case SW_ERROR_EVENT_SOCKET_REMOVED:
+        return "Event socket removed";
     case SW_ERROR_SESSION_CLOSED_BY_SERVER:
         return "Session closed by server";
     case SW_ERROR_SESSION_CLOSED_BY_CLIENT:
@@ -88,6 +88,8 @@ const char* swoole_strerror(int code)
         return "Session invalid id";
     case SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA:
         return "Session discard timeout data";
+    case SW_ERROR_SESSION_DISCARD_DATA:
+        return "Session discard data";
     case SW_ERROR_OUTPUT_BUFFER_OVERFLOW:
         return "Output buffer overflow";
     case SW_ERROR_OUTPUT_SEND_YIELD:
@@ -98,14 +100,16 @@ const char* swoole_strerror(int code)
         return "SSL cannot use senfile";
     case SW_ERROR_SSL_EMPTY_PEER_CERTIFICATE:
         return "SSL empty peer certificate";
-    case SW_ERROR_SSL_VEFIRY_FAILED:
-        return "SSL vefiry failed";
+    case SW_ERROR_SSL_VERIFY_FAILED:
+        return "SSL verify failed";
     case SW_ERROR_SSL_BAD_CLIENT:
         return "SSL bad client";
     case SW_ERROR_SSL_BAD_PROTOCOL:
         return "SSL bad protocol";
     case SW_ERROR_SSL_RESET:
         return "SSL reset";
+    case SW_ERROR_SSL_HANDSHAKE_FAILED:
+        return "SSL handshake failed";
     case SW_ERROR_PACKAGE_LENGTH_TOO_LARGE:
         return "Package length too large";
     case SW_ERROR_PACKAGE_LENGTH_NOT_FOUND:
@@ -124,6 +128,8 @@ const char* swoole_strerror(int code)
         return "Http2 stream no header";
     case SW_ERROR_HTTP2_STREAM_NOT_FOUND:
         return "Http2 stream not found";
+    case SW_ERROR_HTTP2_STREAM_IGNORE:
+        return "Http2 stream ignore";
     case SW_ERROR_AIO_BAD_REQUEST:
         return "Aio bad request";
     case SW_ERROR_AIO_CANCELED:
@@ -142,10 +148,16 @@ const char* swoole_strerror(int code)
         return "Socks5 auth failed";
     case SW_ERROR_SOCKS5_SERVER_ERROR:
         return "Socks5 server error";
+    case SW_ERROR_SOCKS5_HANDSHAKE_FAILED:
+        return "Socks5 handshake failed";
     case SW_ERROR_HTTP_PROXY_HANDSHAKE_ERROR:
         return "Http proxy handshake error";
     case SW_ERROR_HTTP_INVALID_PROTOCOL:
         return "Http invalid protocol";
+    case SW_ERROR_HTTP_PROXY_HANDSHAKE_FAILED:
+        return "Http proxy handshake failed";
+    case SW_ERROR_HTTP_PROXY_BAD_RESPONSE:
+        return "Http proxy bad response";
     case SW_ERROR_WEBSOCKET_BAD_CLIENT:
         return "Websocket bad client";
     case SW_ERROR_WEBSOCKET_BAD_OPCODE:
@@ -218,7 +230,6 @@ const char* swoole_strerror(int code)
 /*}}}*/
 }
 
-void swoole_throw_error(int code)
-{
+void swoole_throw_error(int code) {
     throw swoole::Exception(code);
 }

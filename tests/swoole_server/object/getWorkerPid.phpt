@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: getWorkerPid()
+swoole_server/object: getWorkerPid()
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

@@ -56,7 +56,7 @@ $pm->childFunc = function () use ($pm)
         'package_length_offset' => 4, // | seq || size || message |
         'package_body_offset' => 8, // seq + size
         'socket_buffer_size' => 1048576 * 4,
-        'buffer_output_size' => 1048576,
+        'output_buffer_size' => 1048576,
         'log_file' => TEST_LOG_FILE,
     ];
 

@@ -1,0 +1,31 @@
+# https://editorconfig.org/
+
+root = true
+
+[*]
+trim_trailing_whitespace = true
+insert_final_newline     = true
+end_of_line              = lf
+charset                  = utf-8
+indent_style             = space
+tab_width                = 4
+
+[{*.{awk,sh},Makefile*}]
+indent_size              = 4
+indent_style             = table
+max_line_length          = 80
+
+[*.{c,cc,cpp,h,html,inc,php,phpt}]
+indent_size              = 4
+indent_style             = space
+max_line_length          = 120
+
+[*.md]
+indent_style             = space
+max_line_length          = 120
+
+[COMMIT_EDITMSG]
+indent_size              = 4
+indent_style             = space
+max_line_length          = 80
+

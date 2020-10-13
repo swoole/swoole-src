@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_server: reuse port
+swoole_server_coro: reuse port
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 ?>

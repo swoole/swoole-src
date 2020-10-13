@@ -10,9 +10,8 @@
 //             co::sleep(0.1);
 //         }
 //     }
-
 // });
-go(function () {
+Co\Run(function () {
     $cli = new Co\http\Client("127.0.0.1", 9501);
     $cli->set([
         'timeout' => 1

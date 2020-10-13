@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine_server: (length protocol) 1
+swoole_server_coro: (length protocol) 1
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -10,7 +10,7 @@ use SwooleTest\LengthServer;
 
 class TestServer_5 extends LengthServer
 {
-    protected $show_lost_package = true;
+    protected $show_lost_package = false;
 
     function onWorkerStart()
     {
@@ -56,7 +56,7 @@ $pm->parentFunc = function ($pid) use ($pm)
 
     $recv = $client->recv();
     echo $recv;
-    //echo "send ".TestServer::PKG_NUM." packet sucess, send $bytes bytes\n";
+    //echo "send ".TestServer::$PKG_NUM." packet sucess, send $bytes bytes\n";
     $client->close();
 };
 

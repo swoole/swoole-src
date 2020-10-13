@@ -14,7 +14,7 @@ Co\run(function () {
     $cli = new Swoole\Coroutine\Http\Client(HTTPBIN_SERVER_HOST, HTTPBIN_SERVER_PORT);
     $cli->download('/absolute-redirect/1', FILE);
     Assert::contains(file_get_contents(FILE), 'Redirecting');
-    if (((string)$cli->statusCode){0} === '3') {
+    if (((string)$cli->statusCode)[0] === '3') {
         $cli->download($cli->headers['location'], FILE);
     }
     if (Assert::contains(json_decode(file_get_contents(FILE), true)['url'], 'get')) {

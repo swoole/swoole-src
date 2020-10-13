@@ -19,7 +19,7 @@ class HttpServer
 
         $config = [
             // 输出限制
-            "buffer_output_size" => 1024 * 1024 * 1024,
+            "output_buffer_size" => 1024 * 1024 * 1024,
             "max_connection" => 10240,
             "pipe_buffer_size" => 1024 * 1024 * 1024,
             // 'enable_port_reuse' => true,
@@ -67,10 +67,6 @@ class HttpServer
 
         $this->httpServ->on('close', [$this, 'onClose']);
 
-        $sock = $this->httpServ->getSocket();
-        if (!socket_set_option($sock, SOL_SOCKET, SO_REUSEADDR, 1)) {
-            echo 'Unable to set option on socket: '. socket_strerror(socket_last_error()) . PHP_EOL;
-        }
         $this->httpServ->start();
     }
 

@@ -1,7 +1,10 @@
 --TEST--
 swoole_server: sendfile with SSL
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_extension_not_exist('sockets');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
@@ -51,7 +54,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('connect', function (swoole_server $serv, $fd) {
-        $serv->sendfile($fd, TEST_IMAGE);
+        Assert::true($serv->sendfile($fd, TEST_IMAGE));
     });
     $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
 

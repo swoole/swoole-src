@@ -5,7 +5,7 @@ class G
     static $serv;
     static $config = array(
         //'reactor_num'              => 16,     // 线程数. 一般设置为CPU核数的1-4倍
-        'worker_num'               => 8,    // 工作进程数量. 设置为CPU的1-4倍最合理
+        'worker_num'               => 2,    // 工作进程数量. 设置为CPU的1-4倍最合理
         'max_request'              => 1000,     // 防止 PHP 内存溢出, 一个工作进程处理 X 次任务后自动重启 (注: 0,不自动重启)
         'max_conn'                 => 10000, // 最大连接数
         'task_worker_num'          => 1,     // 任务工作进程数量
@@ -17,36 +17,17 @@ class G
         //'daemonize'                => 1,     // 设置守护进程模式
         'backlog'                  => 128,
         //'log_file'                 => '/data/logs/swoole.log',
-        'heartbeat_check_interval' => 10,    // 心跳检测间隔时长(秒)
-        'heartbeat_idle_time'      => 20,   // 连接最大允许空闲的时间
+        'heartbeat_check_interval' => 2,    // 心跳检测间隔时长(秒)
+        'heartbeat_idle_time'      => 3,   // 连接最大允许空闲的时间
         //'open_eof_check'           => 1,
         //'open_eof_split'           => 1,
         //'package_eof'              => "\r\r\n",
         //'open_cpu_affinity'        => 1,
         'socket_buffer_size'         => 1024 * 1024 * 128,
-        'buffer_output_size'         => 1024 * 1024 * 2,
-        'enable_delay_receive'       => true,
+        'output_buffer_size'         => 1024 * 1024 * 2,
+        //'enable_delay_receive'       => true,
         //'cpu_affinity_ignore' =>array(0,1)//如果你的网卡2个队列（或者没有多队列那么默认是cpu0来处理中断）,并且绑定了core 0和core 1,那么可以通过这个设置避免swoole的线程或者进程绑定到这2个core，防止cpu0，1被耗光而造成的丢包
     );
-
-    private static $buffers = array();
-
-    /**
-     * @param $fd
-     * @return swoole_buffer
-     */
-    static function getBuffer($fd, $create = true)
-    {
-        if (!isset(self::$buffers[$fd]))
-        {
-            if (!$create)
-            {
-                return false;
-            }
-            self::$buffers[$fd] = new swoole_buffer(1024 * 128);
-        }
-        return self::$buffers[$fd];
-    }
 }
 
 if (isset($argv[1]) and $argv[1] == 'daemon') {
@@ -185,12 +166,7 @@ function my_onShutdown($serv)
 function my_onClose(swoole_server $serv, $fd, $reactor_id)
 {
     my_log("Client[$fd@$reactor_id]: fd=$fd is closed");
-    $buffer = G::getBuffer($fd);
-    if ($buffer)
-    {
-        $buffer->clear();
-    }
-    //var_dump($serv->getClientInfo($fd));
+    var_dump($serv->getClientInfo($fd));
 }
 
 function my_onConnect(swoole_server $serv, $fd, $reactor_id)
@@ -422,12 +398,6 @@ function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
     elseif($cmd == "fatalerror")
     {
         require __DIR__.'/php/error.php';
-    }
-    elseif($cmd == 'sendbuffer')
-    {
-        $buffer = G::getBuffer($fd);
-        $buffer->append("hello\n");
-        $serv->send($fd, $buffer);
     }
     elseif($cmd == 'defer')
     {

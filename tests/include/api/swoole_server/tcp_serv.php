@@ -12,7 +12,7 @@ class TcpServer
     {
         $this->swooleServer = new \swoole_server('127.0.0.1', 9001, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
-            // "buffer_output_size" => 1024 * 1024 * 1024, // 输出限制
+            // "output_buffer_size" => 1024 * 1024 * 1024, // 输出限制
 
             'log_file' => TEST_LOG_FILE,
             'max_connection'    => 10240,

@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     for ($i = MAX_REQUESTS; $i--;) {
-        $send_file = openssl_random_pseudo_bytes(mt_rand(0, 65535 * 10));
+        $send_file = get_safe_random(mt_rand(0, 65535 * 10));
         file_put_contents('/tmp/sendfile.txt', $send_file);
         $recv_file = file_get_contents("http://127.0.0.1:{$pm->getFreePort()}/test.jpg");
         Assert::same(md5($send_file), md5($recv_file));
@@ -30,6 +30,7 @@ $pm->childFunc = function () use ($pm) {
         $server->handle('/shutdown', function ($request, $response) use ($server) {
             echo "shutdown\n";
             $response->status(200);
+            $response->end();
             $server->shutdown();
         });
         $pm->wakeup();

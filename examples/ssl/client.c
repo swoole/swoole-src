@@ -28,7 +28,7 @@ int OpenConnection(const char *hostname, int port)
     }
 
     sd = socket(PF_INET, SOCK_STREAM, 0);
-    bzero(&addr, sizeof(addr));
+    sw_memset_zero(&addr, sizeof(addr));
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     addr.sin_addr.s_addr = *(long*) (host->h_addr);

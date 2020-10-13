@@ -41,6 +41,7 @@ $pm->childFunc = function () use ($pm, $atomic) {
     $server->set([
         'worker_num' => WORKER_NUM,
         'max_wait_time' => 1,
+        'enable_coroutine' => false,
     ]);
     $server->on('workerStart', function (Swoole\Server $server, $worker_id) use ($pm, $atomic) {
         echo "$worker_id [" . $server->worker_pid . "] start\n";
@@ -65,14 +66,14 @@ $pm->run();
 %d [%d] start
 %s start to reload
 [%s]	INFO	Server is reloading all workers now
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
-[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, forced kill
-[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
-[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
-[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
-[%s]	WARNING	swManager_check_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
+[%s]	WARNING	swManager_kill_timeout_process (ERRNO 9012): [Manager] Worker#%d[pid=%d] exit timeout, force kill the process
+[%s]	WARNING	check_worker_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
+[%s]	WARNING	check_worker_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
+[%s]	WARNING	check_worker_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
+[%s]	WARNING	check_worker_exit_status: worker#%d[pid=%d] abnormal exit, status=0, signal=9
 %d [%d] start
 %d [%d] start
 %d [%d] start

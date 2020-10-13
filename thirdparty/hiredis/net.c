@@ -54,7 +54,7 @@
 #include "net.h"
 #include "sds.h"
 
-#include "socket_hook.h"
+#include "swoole_socket_hook.h"
 
 /* Defined in hiredis.c */
 void __redisSetError(redisContext *c, int type, const char *str);
@@ -103,6 +103,8 @@ static int redisCreateSocket(redisContext *c, int type) {
 }
 
 static int redisSetBlocking(redisContext *c, int blocking) {
+
+    return REDIS_OK;
     int flags;
 
     /* Set the socket nonblocking.

@@ -1,7 +1,7 @@
 #include "swoole.h"
 #include "swoole_api.h"
 #include "client.h"
-#include "server.h"
+#include "swoole_server.h"
 #include "coroutine.h"
 #include "coroutine_socket.h"
 #include "coroutine_system.h"
@@ -24,7 +24,7 @@ static A G_a =
 
 int main(int argc, char **argv)
 {
-    swoole_event_init();
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     /**
      * 协程1
      */
