@@ -620,8 +620,8 @@ class login_packet : public client_packet
 public:
     login_packet(
         greeting_packet *greeting_packet,
-        const std::string user,
-        const std::string password,
+        const std::string &user,
+        const std::string &password,
         std::string database,
         char charset
     );
@@ -638,7 +638,7 @@ public:
 class auth_switch_response_packet : public client_packet
 {
 public:
-    auth_switch_response_packet(auth_switch_request_packet *req, const std::string password);
+    auth_switch_response_packet(auth_switch_request_packet *req, const std::string &password);
 };
 
 class auth_signature_request_packet : public server_packet
@@ -673,7 +673,7 @@ public:
 class auth_signature_response_packet : public client_packet
 {
 public:
-    auth_signature_response_packet(raw_data_packet *raw_data_pakcet, const std::string password, const char *auth_plugin_data);
+    auth_signature_response_packet(raw_data_packet *raw_data_pakcet, const std::string &password, const char *auth_plugin_data);
 };
 
 class lcb_packet : public server_packet

@@ -159,7 +159,7 @@ void *Heap::peek() {
 
 void Heap::print() {
     for (uint32_t i = 1; i < num; i++) {
-        printf("#%d\tpriority=%ld, data=%p\n", i, (long) nodes[i]->priority, nodes[i]->data);
+        printf("#%u\tpriority=%ld, data=%p\n", i, (long) nodes[i]->priority, nodes[i]->data);
     }
 }
 }  // namespace swoole
