@@ -535,9 +535,9 @@ class Server {
     /**
      * worker(worker and task_worker) process chroot / user / group
      */
-    std::string chroot;
-    std::string user;
-    std::string group;
+    std::string chroot_;
+    std::string user_;
+    std::string group_;
 
     /**
      * run as a daemon process
