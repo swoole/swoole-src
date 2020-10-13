@@ -153,6 +153,7 @@ check_stat:
         if (byte <= 0) {
             return false;
         }
+        buf[byte] = 0;
         swoole_strlcpy(task.filename, buf, sizeof(task.filename));
         goto check_stat;
     }
