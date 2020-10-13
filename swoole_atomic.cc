@@ -109,12 +109,15 @@ static void php_swoole_atomic_free_object(zend_object *object) {
 
 static zend_object *php_swoole_atomic_create_object(zend_class_entry *ce) {
     AtomicObject *atomic = (AtomicObject *) zend_object_alloc(sizeof(AtomicObject), ce);
+    if (atomic == nullptr) {
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
+    }
+
     zend_object_std_init(&atomic->std, ce);
     object_properties_init(&atomic->std, ce);
     atomic->std.handlers = &swoole_atomic_handlers;
-
     atomic->ptr = (sw_atomic_t *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_t));
-    if (atomic == nullptr) {
+    if (atomic->ptr == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
     }
 
@@ -145,12 +148,16 @@ static void php_swoole_atomic_long_free_object(zend_object *object) {
 
 static zend_object *php_swoole_atomic_long_create_object(zend_class_entry *ce) {
     AtomicLongObject *atomic_long = (AtomicLongObject *) zend_object_alloc(sizeof(AtomicLongObject), ce);
+    if (atomic_long == nullptr) {
+        zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
+    }
+
     zend_object_std_init(&atomic_long->std, ce);
     object_properties_init(&atomic_long->std, ce);
     atomic_long->std.handlers = &swoole_atomic_long_handlers;
 
     atomic_long->ptr = (sw_atomic_long_t *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(sw_atomic_long_t));
-    if (atomic_long == nullptr) {
+    if (atomic_long->ptr == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
     }
 

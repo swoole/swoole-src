@@ -494,6 +494,10 @@ static inline int socket_bind(php_stream *stream, Socket *sock, php_stream_xport
     } else {
         host = xparam->inputs.name;
     }
+    if (host == nullptr) {
+        sock->set_err(EINVAL);
+        return -1;
+    }
     int ret = sock->bind(host, portno) ? 0 : -1;
     if (ip_address) {
         efree(ip_address);
