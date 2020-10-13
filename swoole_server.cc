@@ -2098,13 +2098,13 @@ static PHP_METHOD(swoole_server, set) {
     php_swoole_set_global_option(vht);
 
     if (php_swoole_array_get_value(vht, "chroot", ztmp)) {
-        serv->chroot = zend::String(ztmp).to_std_string();
+        serv->chroot_ = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "user", ztmp)) {
-        serv->user = zend::String(ztmp).to_std_string();
+        serv->user_ = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "group", ztmp)) {
-        serv->group = zend::String(ztmp).to_std_string();
+        serv->group_ = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "daemonize", ztmp)) {
         serv->daemonize = zval_is_true(ztmp);

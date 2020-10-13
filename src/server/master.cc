@@ -261,7 +261,7 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
 
 _cleanup:
     if (conn) {
-        sw_memset_zero(conn, sizeof(*conn));
+        conn = {};
     }
     if (session) {
         delete session;
@@ -1620,7 +1620,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     unlock();
 
     Connection *connection = &(connection_list[fd]);
-    sw_memset_zero(connection, sizeof(*connection));
+    *connection = {};
     _socket->object = connection;
     _socket->removed = 1;
     _socket->buffer_size = ls->socket_buffer_size;

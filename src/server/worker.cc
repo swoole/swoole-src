@@ -234,12 +234,12 @@ int Server::accept_task(EventData *task) {
     switch (task->info.type) {
     case SW_SERVER_EVENT_RECV_DATA: {
         Connection *conn = get_connection_verify(task->info.fd);
-        if (conn && task->info.len > 0) {
-            sw_atomic_fetch_sub(&conn->recv_queued_bytes, task->info.len);
-            swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->recv_queued_bytes);
-        }
-        conn->last_dispatch_time = task->info.time;
         if (!Worker_discard_data(this, conn, task)) {
+            if (task->info.len > 0) {
+                sw_atomic_fetch_sub(&conn->recv_queued_bytes, task->info.len);
+                swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->recv_queued_bytes);
+            }
+            conn->last_dispatch_time = task->info.time;
             Worker_do_task(this, worker, task, onReceive);
         }
         break;
@@ -264,10 +264,12 @@ int Server::accept_task(EventData *task) {
         // SSL client certificate
         if (task->info.len > 0) {
             Connection *conn = get_connection_verify_no_ssl(task->info.fd);
-            char *cert_data = nullptr;
-            size_t length = get_packet(this, task, &cert_data);
-            conn->ssl_client_cert = new String(cert_data, length);
-            conn->ssl_client_cert_pid = SwooleG.pid;
+            if (conn) {
+                char *cert_data = nullptr;
+                size_t length = get_packet(this, task, &cert_data);
+                conn->ssl_client_cert = new String(cert_data, length);
+                conn->ssl_client_cert_pid = SwooleG.pid;
+            }
         }
 #endif
         if (onConnect) {
@@ -328,30 +330,30 @@ void Server::worker_start_callback() {
 
     if (is_root) {
         // get group info
-        if (!group.empty()) {
-            _group = getgrnam(group.c_str());
+        if (!group_.empty()) {
+            _group = getgrnam(group_.c_str());
             if (!_group) {
-                swWarn("get group [%s] info failed", group.c_str());
+                swWarn("get group [%s] info failed", group_.c_str());
             }
         }
         // get user info
-        if (!user.empty()) {
-            _passwd = getpwnam(user.c_str());
+        if (!user_.empty()) {
+            _passwd = getpwnam(user_.c_str());
             if (!_passwd) {
-                swWarn("get user [%s] info failed", user.c_str());
+                swWarn("get user [%s] info failed", user_.c_str());
             }
         }
         // set process group
         if (_group && setgid(_group->gr_gid) < 0) {
-            swSysWarn("setgid to [%s] failed", group.c_str());
+            swSysWarn("setgid to [%s] failed", group_.c_str());
         }
         // set process user
         if (_passwd && setuid(_passwd->pw_uid) < 0) {
-            swSysWarn("setuid to [%s] failed", user.c_str());
+            swSysWarn("setuid to [%s] failed", user_.c_str());
         }
         // chroot
-        if (!chroot.empty() && ::chroot(chroot.c_str()) != 0) {
-            swSysWarn("chroot to [%s] failed", chroot.c_str());
+        if (!chroot_.empty() && ::chroot(chroot_.c_str()) != 0) {
+            swSysWarn("chroot to [%s] failed", chroot_.c_str());
         }
     }
 
