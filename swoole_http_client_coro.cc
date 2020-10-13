@@ -770,14 +770,6 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp)) {
             websocket_mask = zval_is_true(ztmp);
         }
-        if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
-            zend::String tmp = ztmp;
-            bind_address = tmp.to_std_string();
-        }
-        if (php_swoole_array_get_value(vht, "bind_port", ztmp)) {
-            bind_port = zval_get_long(ztmp);
-            bind_port = bind_port > 0 ? bind_port : 0;
-        }
 #ifdef SW_HAVE_ZLIB
         if (php_swoole_array_get_value(vht, "websocket_compression", ztmp)) {
             websocket_compression = zval_is_true(ztmp);
@@ -794,12 +786,6 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
         {
             socket->http_proxy->dont_handshake = 1;
         }
-
-        if (!bind_address.empty()) {
-            if (!bind(bind_address, bind_port)) {
-                return;
-            }
-        }
     }
 }
 
@@ -813,10 +799,6 @@ void HttpClient::set_basic_auth(const std::string &username, const std::string &
         basic_auth = std::string((const char *) output, output_len);
         efree(output);
     }
-}
-
-bool HttpClient::bind(std::string address, int port) {
-    return socket->bind(address, port);
 }
 
 bool HttpClient::connect() {

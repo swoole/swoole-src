@@ -375,7 +375,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     while (1)
 #endif
     {
-        ssize_t n = read(ev->fd, resp, serv->ipc_max_size);
+        ssize_t n = ev->socket->read(resp, serv->ipc_max_size);
         if (n > 0) {
             // packet chunk
             if (resp->info.flags & SW_EVENT_DATA_CHUNK) {
@@ -568,7 +568,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 #ifdef SW_SUPPORT_DTLS
     if (port->ssl_option.protocols & SW_SSL_DTLS) {
         dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
-        buffer->length = read(event->fd, buffer->data, SW_BUFFER_SIZE_UDP);
+        buffer->length = event->socket->read(buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
         session->append(buffer);
         if (!session->listened && !session->listen()) {

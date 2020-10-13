@@ -262,7 +262,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
 
                 _send_event:
                     while (true) {
-                        int ret = ::write(event->pipe_socket->fd, &event, sizeof(event));
+                        ssize_t ret = event->pipe_socket->write(&event, sizeof(event));
                         if (ret < 0) {
                             if (errno == EAGAIN) {
                                 event->pipe_socket->wait_event(1000, SW_EVENT_WRITE);
@@ -432,7 +432,7 @@ int callback(Reactor *reactor, Event *event) {
     }
 
     AsyncEvent *events[SW_AIO_EVENT_NUM];
-    ssize_t n = read(event->fd, events, sizeof(AsyncEvent *) * SW_AIO_EVENT_NUM);
+    ssize_t n = event->socket->read(events, sizeof(AsyncEvent *) * SW_AIO_EVENT_NUM);
     if (n < 0) {
         swSysWarn("read() aio events failed");
         return SW_ERR;

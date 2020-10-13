@@ -45,9 +45,9 @@ pid_t Process::start() {
 }
 
 ssize_t Process::write(const void *__buf, size_t __n) {
-    return ::write(worker.pipe_current->fd, __buf, __n);
+    return worker.pipe_current->write(__buf, __n);
 }
 
 ssize_t Process::read(void *__buf, size_t __nbytes) {
-    return ::read(worker.pipe_current->fd, __buf, __nbytes);
+    return worker.pipe_current->read(__buf, __nbytes);
 }

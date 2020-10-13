@@ -137,10 +137,8 @@ static int swFactoryProcess_start(Factory *factory) {
         if (sock == nullptr) {
             return SW_ERR;
         }
+        sock->set_fd_option(1, 1);
         serv->stream_socket = sock;
-        swoole_fcntl_set_option(sock->fd, 1, 1);
-        serv->stream_socket->nonblock = 1;
-        serv->stream_socket->cloexec = 1;
     }
 
     for (uint32_t i = 0; i < serv->worker_num; i++) {

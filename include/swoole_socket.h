@@ -84,7 +84,11 @@ struct Address {
     socklen_t len;
     enum swSocket_type type;
 
-    Address() = default;
+    Address() {
+        addr = {};
+        len = 0;
+        type = SW_SOCK_TCP;
+    }
 
     Address(enum swSocket_type _type, const std::string &_host, int _port) {
         if (!assign(_type, _host, _port)) {
@@ -188,25 +192,21 @@ struct Socket {
     bool set_send_timeout(double timeout);
 
     inline int set_nonblock() {
-        if (swoole_fcntl_set_option(fd, 1, -1) < 0) {
-            return SW_ERR;
-        } else {
-            nonblock = 1;
-            return SW_OK;
-        }
+        return set_fd_option(1, -1);
     }
 
     inline int set_block() {
-        if (swoole_fcntl_set_option(fd, 0, -1) < 0) {
-            return SW_ERR;
-        } else {
-            nonblock = 0;
-            return SW_OK;
-        }
+        return set_fd_option(0, -1);
     }
 
-    inline int set_fd_option(int blocking, int cloexec) {
-        return swoole_fcntl_set_option(fd, blocking, cloexec);
+    inline int set_fd_option(int _nonblock, int _cloexec) {
+        if (swoole_fcntl_set_option(fd, _nonblock, _cloexec) == SW_OK) {
+            nonblock = _nonblock;
+            cloexec = _cloexec;
+            return SW_OK;
+        } else {
+            return SW_ERR;
+        }
     }
 
     inline int set_option(int level, int optname, int optval) {
@@ -266,6 +266,13 @@ struct Socket {
             tcp_nodelay = nodelay;
             return 0;
         }
+    }
+
+    bool check_liveness () {
+        char buf;
+        errno = 0;
+        ssize_t retval = peek(&buf, sizeof(buf), MSG_DONTWAIT);
+        return !(retval == 0 || (retval < 0 && catch_error(errno) == SW_CLOSE));
     }
 
     /**
@@ -371,6 +378,18 @@ struct Socket {
 
     bool is_local() {
         return socket_type == SW_SOCK_UNIX_STREAM || socket_type == SW_SOCK_UNIX_DGRAM;
+    }
+
+    ssize_t write(const void *__buf, size_t __len) {
+        return ::write(fd, __buf, __len);
+    }
+
+    ssize_t read(void *__buf, size_t __len) {
+        return ::read(fd, __buf, __len);
+    }
+
+    int shutdown(int __how) {
+        return ::shutdown(fd, __how);
     }
 
     ssize_t sendto_blocking(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);

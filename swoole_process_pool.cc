@@ -454,10 +454,7 @@ static PHP_METHOD(swoole_process_pool, listen) {
     } else {
         ret = pool->create_tcp_socket(host, port, backlog);
     }
-
-    swoole_fcntl_set_option(pool->stream_info_->socket->fd, 0, 1);
-    pool->stream_info_->socket->nonblock = 0;
-    pool->stream_info_->socket->cloexec = 1;
+    pool->stream_info_->socket->set_fd_option(0, 1);
 
     SW_CHECK_RETURN(ret);
 }

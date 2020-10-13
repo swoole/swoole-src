@@ -101,6 +101,7 @@ int Socket::wait_event(int timeout_ms, int events) {
     while (1) {
         int ret = poll(&event, 1, timeout_ms);
         if (ret == 0) {
+            swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
             return SW_ERR;
         } else if (ret < 0 && errno != EINTR) {
             swSysWarn("poll() failed");

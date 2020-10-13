@@ -792,14 +792,10 @@ bool Socket::check_liveness() {
     if (closed) {
         set_err(ECONNRESET);
         return false;
-    } else {
-        char buf;
-        errno = 0;
-        ssize_t retval = socket->peek(&buf, sizeof(buf), 0);
-        if (retval == 0 || (retval < 0 && socket->catch_error(errno) != SW_WAIT)) {
-            set_err(errno ? errno : ECONNRESET);
-            return false;
-        }
+    }
+    if (!socket->check_liveness()) {
+        set_err(errno ? errno : ECONNRESET);
+        return false;
     }
     set_err(0);
     return true;
@@ -857,7 +853,7 @@ ssize_t Socket::read(void *__buf, size_t __n) {
     ssize_t retval;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
     do {
-        retval = ::read(sock_fd, __buf, __n);
+        retval = socket->read(__buf, __n);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     return retval;
@@ -906,7 +902,7 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
-        retval = ::write(sock_fd, (void *) __buf, __n);
+        retval = socket->write((void *) __buf, __n);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
     set_err(retval < 0 ? errno : 0);

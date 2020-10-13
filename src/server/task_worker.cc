@@ -196,7 +196,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
     Worker *worker = SwooleWG.worker;
     Server *serv = (Server *) pool->ptr;
 
-    if (read(event->fd, &task, sizeof(task)) > 0) {
+    if (event->socket->read(&task, sizeof(task)) > 0) {
         worker->status = SW_WORKER_BUSY;
         int retval = TaskWorker_onTask(pool, &task);
         worker->status = SW_WORKER_IDLE;
@@ -350,7 +350,11 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         }
     }
     if (ret < 0) {
-        swSysWarn("TaskWorker: send result to worker failed");
+        if (swoole_get_last_error() == EAGAIN || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
+            swWarn("TaskWorker: send result to worker timed out");
+        } else {
+            swSysWarn("TaskWorker: send result to worker failed");
+        }
     }
     return ret;
 }
