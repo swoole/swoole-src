@@ -82,7 +82,8 @@ int System::sleep(double sec) {
 
 std::shared_ptr<String> System::read_file(const char *file, bool lock) {
     std::shared_ptr<String> result;
-    bool async_success = swoole::coroutine::async([&result, file, lock]() {
+    bool read_success = false;
+    bool async_success = swoole::coroutine::async([&result, file, lock, &read_success]() {
         File fp(file, O_RDONLY);
         if (!fp.ready()) {
             swSysWarn("open(%s, O_RDONLY) failed", file);
@@ -92,7 +93,16 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
             swSysWarn("flock(%s, LOCK_SH) failed", file);
             return;
         }
-        result = fp.read_content();
+        read_success = true;
+        ssize_t filesize = fp.get_size();
+        if (filesize > 0) {
+            auto content = make_string(filesize + 1);
+            content->length = fp.read_all(content->str, filesize);
+            content->str[content->length] = 0;
+            result = std::shared_ptr<String>(content);
+        } else {
+            result = fp.read_content();
+        }
         if (lock && !fp.unlock()) {
             swSysWarn("flock(%s, LOCK_UN) failed", file);
         }
@@ -105,7 +115,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
 }
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
-    ssize_t ret = -1;
+    ssize_t retval = -1;
     uint16_t file_flags = flags | O_CREAT | O_WRONLY;
     swoole::coroutine::async([&]() {
         File _file(file, file_flags, 0644);
@@ -117,16 +127,16 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
             swSysWarn("flock(%s, LOCK_EX) failed", file);
             return;
         }
-        size_t written = _file.write_all(buf, length);
+        size_t bytes = _file.write_all(buf, length);
         if ((file_flags & SW_AIO_WRITE_FSYNC) && !_file.sync()) {
             swSysWarn("fsync(%s) failed", file);
         }
         if (lock && !_file.unlock()) {
             swSysWarn("flock(%s, LOCK_UN) failed", file);
         }
-        ret = written;
+        retval = bytes;
     });
-    return ret;
+    return retval;
 }
 
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {

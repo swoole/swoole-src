@@ -27,19 +27,22 @@ using swoole::coroutine::System;
 
 static const char *test_file = "/tmp/swoole-core-test";
 
+static constexpr int DATA_SIZE = 8 * 1024 * 1024;
+
 TEST(coroutine_system, file) {
     test::coroutine::run([](void *arg) {
-        char buf[8192];
-        size_t n_buf = sizeof(buf);
-        ASSERT_EQ(swoole_random_bytes(buf, n_buf), n_buf);
+        std::shared_ptr<String> buf = std::make_shared<String>(DATA_SIZE);
+        ASSERT_EQ(swoole_random_bytes(buf->str, buf->size - 1), buf->size - 1);
+        buf->str[buf->size - 1] = 0;
+
         int flags = 0;
 #ifdef O_TMPFILE
         flags |= O_TMPFILE;
 #endif
-        ASSERT_EQ(System::write_file(test_file, buf, n_buf, true, flags), n_buf);
+        ASSERT_EQ(System::write_file(test_file, buf->str, buf->size, true, flags), buf->size);
         auto data = System::read_file(test_file, true);
         ASSERT_TRUE(data.get());
-        ASSERT_EQ(std::string(buf, n_buf), std::string(data->str, data->length));
+        ASSERT_STREQ(buf->str, data->str);
         unlink(test_file);
     });
 }

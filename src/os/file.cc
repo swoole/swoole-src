@@ -113,31 +113,46 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
     return file.write_all(content, length);
 }
 
-size_t File::read_all(void *buf, size_t len) {
-    ssize_t n = 0;
-    size_t count = len, toread, readn = 0;
-
-    while (count > 0) {
-        toread = count;
-        if (toread > SW_FILE_CHUNK_SIZE) {
-            toread = SW_FILE_CHUNK_SIZE;
-        }
-        n = read(buf, toread);
+size_t File::write_all(const void *data, size_t len) {
+    size_t written_bytes = 0;
+    while (written_bytes < len) {
+        ssize_t n = pwrite((char *) data + written_bytes, len - written_bytes, written_bytes);
         if (n > 0) {
-            buf = (char *) buf + n;
-            count -= n;
-            readn += n;
+            written_bytes += n;
         } else if (n == 0) {
             break;
         } else {
-            if (errno == EINTR || errno == EAGAIN) {
+            if (errno == EINTR) {
                 continue;
             }
-            swSysWarn("read() failed");
+            else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
+                swSysWarn("pwrite(%d, %p, %lu, %zu) failed", fd_, len - written_bytes, written_bytes);
+            }
             break;
         }
     }
-    return readn;
+    return written_bytes;
+}
+
+size_t File::read_all(void *buf, size_t len) {
+    size_t read_bytes = 0;
+    while (read_bytes < len) {
+        ssize_t n = pread((char *) buf + read_bytes, len - read_bytes, read_bytes);
+        if (n > 0) {
+            read_bytes += n;
+        } else if (n == 0) {
+            break;
+        } else {
+            if (errno == EINTR) {
+                continue;
+            }
+            else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
+                swSysWarn("pread(%d, %p, %lu, %zu) failed", fd_, len - read_bytes, read_bytes);
+            }
+            break;
+        }
+    }
+    return read_bytes;
 }
 
 std::shared_ptr<String> File::read_content() {
@@ -154,33 +169,6 @@ std::shared_ptr<String> File::read_content() {
         }
     }
     return data;
-}
-
-size_t File::write_all(const void *data, size_t len) {
-    ssize_t n = 0;
-    size_t count = len, towrite, written = 0;
-
-    while (count > 0) {
-        towrite = count;
-        if (towrite > SW_FILE_CHUNK_SIZE) {
-            towrite = SW_FILE_CHUNK_SIZE;
-        }
-        n = write(data, towrite);
-        if (n > 0) {
-            data = (char *) data + n;
-            count -= n;
-            written += n;
-        } else if (n == 0) {
-            break;
-        } else {
-            if (errno == EINTR || errno == EAGAIN) {
-                continue;
-            }
-            swSysWarn("write(%d, %zu) failed", fd_, towrite);
-            break;
-        }
-    }
-    return written;
 }
 
 }

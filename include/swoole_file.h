@@ -85,6 +85,14 @@ class File {
         return ::read(fd_, __buf, __n);
     }
 
+    ssize_t pwrite(const void *__buf, size_t __n, off_t __offset) {
+        return ::pwrite(fd_, __buf, __n, __offset);
+    }
+
+    ssize_t pread(void *__buf, size_t __n, off_t __offset) {
+        return ::pread(fd_, __buf, __n, __offset);
+    }
+
     size_t write_all(const void *__buf, size_t __n);
     size_t read_all(void *__buf, size_t __n);
 
