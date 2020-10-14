@@ -181,3 +181,33 @@ TEST(base, set_task_tmpdir) {
     unlink(fp.get_path().c_str());
     rmdir(tmpdir);
 }
+
+TEST(base, version) {
+    ASSERT_EQ(swoole_version(), SWOOLE_VERSION);
+    ASSERT_EQ(swoole_version_id(), SWOOLE_VERSION_ID);
+}
+
+static std::string test_func(std::string test_data_2) {
+    return test_data + test_data_2;
+}
+
+TEST(base, add_function) {
+    typedef std::string (*_func_t)(std::string);
+    swoole_add_function("test_func", (void *) test_func);
+    _func_t _func = (_func_t) swoole_get_function(SW_STRL("test_func"));
+    std::string b = ", swoole is best";
+    auto rs = _func(", swoole is best");
+    ASSERT_EQ(rs, test_data + b);
+}
+
+TEST(base, hook) {
+    int count = 0;
+    swoole_add_hook(SW_GLOBAL_HOOK_END, [](void *data) -> void {
+        int *_count = (int *) data;
+        *_count = 9999;
+    }, 1);
+    swoole_call_hook(SW_GLOBAL_HOOK_END, &count);
+    ASSERT_EQ(count, 9999);
+}
+
+

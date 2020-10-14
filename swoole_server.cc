@@ -3129,7 +3129,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     worker->lock.lock(&worker->lock);
     *finish_count = 0;
 
-    swoole_strlcpy(task_result->data + 4, file_path.c_str(), file_path.length());
+    swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
     worker->lock.unlock(&worker->lock);
 
     // clear history task

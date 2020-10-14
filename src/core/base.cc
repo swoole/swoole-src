@@ -183,7 +183,7 @@ SW_API int swoole_add_function(const char *name, void *func) {
 }
 
 SW_API void *swoole_get_function(const char *name, uint32_t length) {
-    auto iter = functions.find(std::string(name));
+    auto iter = functions.find(std::string(name, length));
     if (iter != functions.end()) {
         return iter->second;
     } else {
