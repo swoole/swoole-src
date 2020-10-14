@@ -33,6 +33,7 @@ enum swGlobal_hook_type {
     SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN,
     SW_GLOBAL_HOOK_BEFORE_WORKER_STOP,
     SW_GLOBAL_HOOK_ON_REACTOR_DESTROY,
+    SW_GLOBAL_HOOK_END  = SW_MAX_HOOK_TYPE - 1,
 };
 
 typedef void (*swHookFunc)(void *data);

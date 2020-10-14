@@ -569,7 +569,7 @@ static bool swoole_http2_server_respond(http_context *ctx, String *body) {
 static bool http2_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
     Http2Session *client = http2_sessions[ctx->fd];
     Http2Stream *stream = (Http2Stream *) ctx->stream;
-    swString *body;
+    std::shared_ptr<String> body;
 
 #ifdef SW_HAVE_COMPRESSION
     ctx->accept_compression = 0;
@@ -584,13 +584,12 @@ static bool http2_context_sendfile(http_context *ctx, const char *file, uint32_t
             return false;
         }
     } else {
-        int fd = open(file, O_RDONLY);
-        if (fd < 0) {
+        File fp(file, O_RDONLY);
+        if (!fp.ready()) {
             return false;
         }
-        body = swoole_sync_readfile_eof(fd);
-        close(fd);
-        if (!body) {
+        body = fp.read_content();
+        if (body->empty()) {
             return false;
         }
     }
@@ -616,14 +615,12 @@ static bool http2_context_sendfile(http_context *ctx, const char *file, uint32_t
     bool error = false;
 
     if (body->length > 0) {
-        if (!stream->send_body(body, end_stream, client->max_frame_size, offset, length)) {
+        if (!stream->send_body(body.get(), end_stream, client->max_frame_size, offset, length)) {
             error = true;
         } else {
             client->send_window -= length;  // TODO: flow control?
         }
     }
-
-    swString_free(body);
 
     if (!error && ztrailer) {
         if (!stream->send_trailer()) {

@@ -16,9 +16,11 @@
 
 #include "swoole_server.h"
 #include "swoole_util.h"
+#include "swoole_file.h"
 
 using namespace swoole;
 using swoole::network::Socket;
+using swoole::File;
 
 static void TaskWorker_signal_init(ProcessPool *pool);
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event);
@@ -73,27 +75,19 @@ bool EventData::pack(const void *_data, size_t _length) {
     }
 
     PacketTask pkg{};
-
-    memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
-
-    // create temp file
-    FileDescriptor _handler(swoole_tmpfile(pkg.tmpfile));
-
-    int tmp_fd = _handler.get();
-    if (tmp_fd < 0) {
+    File file = make_tmpfile();
+    if (!file.ready()) {
         return false;
     }
 
-    // write to file
-    if (swoole_sync_writefile(tmp_fd, _data, _length) != _length) {
+    if (file.write_all(_data, _length) != _length) {
         swWarn("write to tmpfile failed");
         return false;
     }
 
     info.len = sizeof(pkg);
-    // use tmp file
     swTask_type(this) |= SW_TASK_TMPFILE;
-
+    swoole_strlcpy(pkg.tmpfile, file.get_path().c_str(), sizeof(pkg.tmpfile));
     pkg.length = _length;
     memcpy(data, &pkg, sizeof(pkg));
 
@@ -104,17 +98,15 @@ bool EventData::unpack(String *buffer) {
     PacketTask _pkg{};
     memcpy(&_pkg, data, sizeof(_pkg));
 
-    FileDescriptor _handler(open(_pkg.tmpfile, O_RDONLY));
-
-    int tmp_file_fd = _handler.get();
-    if (tmp_file_fd < 0) {
+    File fp(_pkg.tmpfile, O_RDONLY);
+    if (!fp.ready()) {
         swSysWarn("open(%s) failed", _pkg.tmpfile);
         return false;
     }
     if (buffer->size < _pkg.length && !buffer->extend(_pkg.length)) {
         return false;
     }
-    if (swoole_sync_readfile(tmp_file_fd, buffer->str, _pkg.length) != _pkg.length) {
+    if (fp.read_all(buffer->str, _pkg.length) != _pkg.length) {
         return false;
     }
     if (!(swTask_type(this) & SW_TASK_PEEK)) {
@@ -307,8 +299,8 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         if (swTask_type(current_task) & SW_TASK_WAITALL) {
             sw_atomic_t *finish_count = (sw_atomic_t *) result->data;
             char *_tmpfile = result->data + 4;
-            int fd = open(_tmpfile, O_APPEND | O_WRONLY);
-            if (fd >= 0) {
+            File file(_tmpfile, O_APPEND | O_WRONLY);
+            if (file.ready()) {
                 buf.info.type = SW_SERVER_EVENT_FINISH;
                 buf.info.fd = current_task->info.fd;
                 swTask_type(&buf) = flags;
@@ -316,12 +308,11 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
                     swWarn("large task pack failed()");
                     buf.info.len = 0;
                 }
-                if (swoole_sync_writefile(fd, &buf, sizeof(buf.info) + buf.info.len) !=
-                    sizeof(buf.info) + buf.info.len) {
-                    swSysWarn("write(%s, %ld) failed", _tmpfile, sizeof(buf.info) + buf.info.len);
+                size_t bytes = sizeof(buf.info) + buf.info.len;
+                if (file.write_all(&buf, bytes) != bytes) {
+                    swSysWarn("write(%s, %ld) failed", _tmpfile, bytes);
                 }
                 sw_atomic_fetch_add(finish_count, 1);
-                ::close(fd);
             }
         } else {
             result->info.type = SW_SERVER_EVENT_FINISH;

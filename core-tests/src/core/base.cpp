@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_file.h"
 #include "swoole_util.h"
 
 using namespace swoole;
@@ -59,9 +60,23 @@ TEST(base, random_string) {
 TEST(base, file_put_contents) {
     char buf[65536];
     swoole_random_string(buf, sizeof(buf) - 1);
-    ASSERT_TRUE(swoole_file_put_contents(TEST_TMP_FILE, buf, sizeof(buf)));
-    auto result = swoole_file_get_contents(TEST_TMP_FILE);
+    ASSERT_TRUE(file_put_contents(TEST_TMP_FILE, buf, sizeof(buf)));
+    auto result = file_get_contents(TEST_TMP_FILE);
     ASSERT_STREQ(buf, result->value());
+}
+
+TEST(base, file_get_size) {
+    File f(TEST_TMP_FILE, File::WRITE | File::CREATE);
+    char buf[65536];
+    swoole_random_string(buf, sizeof(buf) - 1);
+
+    ASSERT_TRUE(f.ready());
+    f.truncate(0);
+    f.set_offest(0);
+    f.write(buf, sizeof(buf) - 1);
+    f.close();
+
+    ASSERT_EQ(file_get_size(TEST_TMP_FILE), sizeof(buf) -1);
 }
 
 TEST(base, version_compare) {
@@ -98,11 +113,11 @@ TEST(base, shell_exec) {
 
 TEST(base, file_size) {
     auto file = test::get_jpg_file();
-    ssize_t file_size = swoole_file_size(file.c_str());
+    ssize_t file_size = file_get_size(file);
     ASSERT_GT(file_size, 0);
     auto fp = fopen(file.c_str(), "r+");
     ASSERT_TRUE(fp);
-    ASSERT_EQ(swoole_file_get_size(fp), file_size);
+    ASSERT_EQ(file_get_size(fp), file_size);
     fclose(fp);
 }
 
@@ -138,4 +153,78 @@ TEST(base, string_format) {
     char *data = swoole_string_format(128, "hello %d world, %s is best.", 2020, "swoole");
     ASSERT_STREQ(data, "hello 2020 world, swoole is best.");
     sw_free(data);
+}
+
+TEST(base, dirname) {
+    ASSERT_EQ(dirname("/hello/world/index.html.abc"), "/hello/world");
+    ASSERT_EQ(dirname("/hello/world"), "/hello");
+    ASSERT_EQ(dirname("/root"), "/");
+    ASSERT_EQ(dirname("/"), "/");
+}
+
+TEST(base, set_task_tmpdir) {
+    const char *tmpdir = "/tmp/swoole/core_tests/base";
+    ASSERT_TRUE(swoole_set_task_tmpdir(tmpdir));
+    File fp = swoole::make_tmpfile();
+    ASSERT_TRUE(fp.ready());
+
+    char buf[128];
+    swoole_random_string(buf, sizeof(buf) - 2);
+    buf[sizeof(buf) - 2] = '\n';
+
+    fp.write(buf, sizeof(buf) - 1);
+    fp.close();
+
+    ASSERT_EQ(swoole::dirname(fp.get_path()), tmpdir);
+    ASSERT_STREQ(swoole::file_get_contents(fp.get_path())->str, buf);
+
+    unlink(fp.get_path().c_str());
+    rmdir(tmpdir);
+}
+
+TEST(base, version) {
+    ASSERT_STREQ(swoole_version(), SWOOLE_VERSION);
+    ASSERT_EQ(swoole_version_id(), SWOOLE_VERSION_ID);
+}
+
+static std::string test_func(std::string test_data_2) {
+    return test_data + test_data_2;
+}
+
+TEST(base, add_function) {
+    typedef std::string (*_func_t)(std::string);
+    swoole_add_function("test_func", (void *) test_func);
+    _func_t _func = (_func_t) swoole_get_function(SW_STRL("test_func"));
+    std::string b = ", swoole is best";
+    auto rs = _func(", swoole is best");
+    ASSERT_EQ(rs, test_data + b);
+}
+
+TEST(base, hook) {
+    int count = 0;
+    swoole_add_hook(SW_GLOBAL_HOOK_END, [](void *data) -> void {
+        int *_count = (int *) data;
+        *_count = 9999;
+    }, 1);
+    swoole_call_hook(SW_GLOBAL_HOOK_END, &count);
+    ASSERT_EQ(count, 9999);
+}
+
+TEST(base, intersection) {
+    std::vector<std::string> vec1{"index.php", "index.html", "default.html"};
+
+    std::set<std::string> vec2 {".", "..", "default.html", "index.php", "test.html", "a.json", "index.php"};
+    ASSERT_EQ("index.php", swoole::intersection(vec1, vec2));
+
+    std::set<std::string> vec3 {"a", "zh中", "、r\n"};
+    ASSERT_EQ("", swoole::intersection(vec1, vec3));
+}
+
+TEST(base, itoa) {
+    char buf[128];
+    long value = 123456987;
+    int n = swoole_itoa(buf, value);
+
+    ASSERT_EQ(n, 9);
+    ASSERT_STREQ(buf, "123456987");
 }

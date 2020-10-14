@@ -23,6 +23,7 @@
 #include "swoole_log.h"
 #include "swoole_ssl.h"
 #include "swoole_util.h"
+#include "swoole_file.h"
 
 namespace swoole {
 namespace network {
@@ -35,17 +36,16 @@ uint32_t Socket::default_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
 int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
-    int file_fd = open(filename, O_RDONLY);
-    if (file_fd < 0) {
+
+    File file(filename, O_RDONLY);
+    if (!file.ready()) {
         swSysWarn("open(%s) failed", filename);
         return SW_ERR;
     }
 
-    FileDescriptor _(file_fd);
     if (length == 0) {
-        struct stat file_stat;
-        if (fstat(file_fd, &file_stat) < 0) {
-            swSysWarn("fstat() failed");
+        FileStatus file_stat;
+        if (!file.stat(&file_stat)) {
             return SW_ERR;
         }
         length = file_stat.st_size;
@@ -59,7 +59,7 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
             return SW_ERR;
         } else {
             sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-            n = ::swoole_sendfile(fd, file_fd, &offset, sendn);
+            n = ::swoole_sendfile(fd, file.get_fd(), &offset, sendn);
             if (n <= 0) {
                 swSysWarn("sendfile(%d, %s) failed", fd, filename);
                 return SW_ERR;
@@ -182,7 +182,7 @@ Socket *Socket::accept() {
 #else
     socket->fd = ::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
     if (socket->fd >= 0) {
-        swoole_fcntl_set_option(socket->fd, nonblock, 1);
+        set_fd_option(nonblock, 1);
     }
 #endif
     if (socket->fd < 0) {
@@ -359,7 +359,7 @@ bool Socket::set_timeout(double timeout) {
     return set_recv_timeout(timeout) and set_send_timeout(timeout);
 }
 
-static inline bool _set_timeout(int fd, int type, double timeout) {
+static bool _set_timeout(int fd, int type, double timeout) {
     int ret;
     struct timeval timeo;
     timeo.tv_sec = (int) timeout;
@@ -370,6 +370,74 @@ static inline bool _set_timeout(int fd, int type, double timeout) {
         return false;
     } else {
         return true;
+    }
+}
+
+static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
+   int opts, ret;
+
+   if (nonblock >= 0) {
+       do {
+           opts = fcntl(sock, F_GETFL);
+       } while (opts < 0 && errno == EINTR);
+
+       if (opts < 0) {
+           swSysWarn("fcntl(%d, GETFL) failed", sock);
+       }
+
+       if (nonblock) {
+           opts = opts | O_NONBLOCK;
+       } else {
+           opts = opts & ~O_NONBLOCK;
+       }
+
+       do {
+           ret = fcntl(sock, F_SETFL, opts);
+       } while (ret < 0 && errno == EINTR);
+
+       if (ret < 0) {
+           swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
+           return false;
+       }
+   }
+
+#ifdef FD_CLOEXEC
+   if (cloexec >= 0) {
+       do {
+           opts = fcntl(sock, F_GETFD);
+       } while (opts < 0 && errno == EINTR);
+
+       if (opts < 0) {
+           swSysWarn("fcntl(%d, GETFL) failed", sock);
+       }
+
+       if (cloexec) {
+           opts = opts | FD_CLOEXEC;
+       } else {
+           opts = opts & ~FD_CLOEXEC;
+       }
+
+       do {
+           ret = fcntl(sock, F_SETFD, opts);
+       } while (ret < 0 && errno == EINTR);
+
+       if (ret < 0) {
+           swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
+           return false;
+       }
+   }
+#endif
+
+   return true;
+}
+
+bool Socket::set_fd_option(int _nonblock, int _cloexec) {
+    if (_fcntl_set_option(fd, _nonblock, _cloexec)) {
+        nonblock = _nonblock;
+        cloexec = _cloexec;
+        return true;
+    } else {
+        return false;
     }
 }
 
@@ -673,7 +741,7 @@ Socket *make_socket(enum swSocket_type type, enum swFd_type fd_type, int flags) 
         return nullptr;
     }
     if (nonblock || cloexec) {
-        if (swoole_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
+        if (network::_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
             close(sockfd);
             return nullptr;
         }

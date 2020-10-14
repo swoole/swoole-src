@@ -682,7 +682,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     }
 
     char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
-    snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir);
+    sw_snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir);
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0) {
         return 0;
@@ -734,7 +734,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
 
     zval *z_multipart_header = ctx->current_multipart_header;
     if (p->fp != nullptr) {
-        long size = swoole_file_get_size((FILE *) p->fp);
+        long size = swoole::file_get_size((FILE *) p->fp);
         add_assoc_long(z_multipart_header, "size", size);
 
         fclose((FILE *) p->fp);

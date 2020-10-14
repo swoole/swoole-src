@@ -18,10 +18,6 @@
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
 
-#include <sys/file.h>
-#include <fcntl.h>
-#include <assert.h>
-
 using namespace swoole;
 using swoole::coroutine::System;
 
@@ -84,90 +80,57 @@ int System::sleep(double sec) {
     return 0;
 }
 
-swString *System::read_file(const char *file, bool lock) {
-    swString *buf = nullptr;
-    bool async_success = swoole::coroutine::async([&]() {
-        int fd = open(file, O_RDONLY);
-        if (fd < 0) {
+std::shared_ptr<String> System::read_file(const char *file, bool lock) {
+    std::shared_ptr<String> result;
+    swoole::coroutine::async([&result, file, lock]() {
+        File fp(file, O_RDONLY);
+        if (!fp.ready()) {
             swSysWarn("open(%s, O_RDONLY) failed", file);
             return;
         }
-        struct stat file_stat;
-        if (fstat(fd, &file_stat) < 0) {
-            swSysWarn("fstat(%s) failed", file);
-        _error:
-            close(fd);
+        if (lock && !fp.lock(LOCK_SH)) {
+            swSysWarn("flock(%s, LOCK_SH) failed", file);
             return;
         }
-        if ((file_stat.st_mode & S_IFMT) != S_IFREG) {
-            errno = EISDIR;
-            goto _error;
-        }
-
-        /**
-         * lock
-         */
-        if (lock && flock(fd, LOCK_SH) < 0) {
-            swSysWarn("flock(%d, LOCK_SH) failed", fd);
-            goto _error;
-        }
-        /**
-         * regular file
-         */
-        if (file_stat.st_size == 0) {
-            buf = swoole_sync_readfile_eof(fd);
-            if (buf == nullptr) {
-                goto _error;
-            }
+        ssize_t filesize = fp.get_size();
+        if (filesize > 0) {
+            auto content = make_string(filesize + 1);
+            content->length = fp.read_all(content->str, filesize);
+            content->str[content->length] = 0;
+            result = std::shared_ptr<String>(content);
         } else {
-            buf = swoole::make_string(file_stat.st_size);
-            if (buf == nullptr) {
-                goto _error;
-            }
-            buf->length = swoole_sync_readfile(fd, buf->str, file_stat.st_size);
+            result = fp.read_content();
         }
-        /**
-         * unlock
-         */
-        if (lock && flock(fd, LOCK_UN) < 0) {
-            swSysWarn("flock(%d, LOCK_UN) failed", fd);
+        if (lock && !fp.unlock()) {
+            swSysWarn("flock(%s, LOCK_UN) failed", file);
         }
-        close(fd);
     });
-    if (async_success && errno == 0) {
-        return buf;
-    } else {
-        return nullptr;
-    }
+    return result;
 }
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
-    ssize_t ret = -1;
+    ssize_t retval = -1;
     uint16_t file_flags = flags | O_CREAT | O_WRONLY;
     swoole::coroutine::async([&]() {
-        int fd = open(file, file_flags, 0644);
-        if (fd < 0) {
+        File _file(file, file_flags, 0644);
+        if (!_file.ready()) {
             swSysWarn("open(%s, %d) failed", file, file_flags);
             return;
         }
-        if (lock && flock(fd, LOCK_EX) < 0) {
-            swSysWarn("flock(%d, LOCK_EX) failed", fd);
-            close(fd);
+        if (lock && !_file.lock(LOCK_EX)) {
+            swSysWarn("flock(%s, LOCK_EX) failed", file);
             return;
         }
-        size_t written = swoole_sync_writefile(fd, buf, length);
-        if (file_flags & SW_AIO_WRITE_FSYNC) {
-            if (fsync(fd) < 0) {
-                swSysWarn("fsync(%d) failed", fd);
-            }
+        size_t bytes = _file.write_all(buf, length);
+        if ((file_flags & SW_AIO_WRITE_FSYNC) && !_file.sync()) {
+            swSysWarn("fsync(%s) failed", file);
         }
-        if (lock && flock(fd, LOCK_UN) < 0) {
-            swSysWarn("flock(%d, LOCK_UN) failed", fd);
+        if (lock && !_file.unlock()) {
+            swSysWarn("flock(%s, LOCK_UN) failed", file);
         }
-        close(fd);
-        ret = written;
+        retval = bytes;
     });
-    return ret;
+    return retval;
 }
 
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {

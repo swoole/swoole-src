@@ -2239,20 +2239,7 @@ static PHP_METHOD(swoole_server, set) {
      */
     if (php_swoole_array_get_value(vht, "task_tmpdir", ztmp)) {
         zend::String str_v(ztmp);
-        if (php_swoole_create_dir(str_v.val(), str_v.len()) < 0) {
-            php_swoole_fatal_error(E_ERROR, "Unable to create task_tmpdir[%s]", str_v.val());
-            return;
-        }
-        if (SwooleG.task_tmpdir) {
-            sw_free(SwooleG.task_tmpdir);
-        }
-        SwooleG.task_tmpdir = (char *) sw_malloc(str_v.len() + sizeof(SW_TASK_TMP_FILE) + 1);
-        if (!SwooleG.task_tmpdir) {
-            php_swoole_fatal_error(E_ERROR, "malloc() failed");
-            RETURN_FALSE;
-        }
-        SwooleG.task_tmpdir_len =
-            sw_snprintf(SwooleG.task_tmpdir, SW_TASK_TMPDIR_SIZE, "%s/swoole.task.XXXXXX", str_v.val()) + 1;
+        swoole_set_task_tmpdir(str_v.to_std_string());
     }
     // task_max_request
     if (php_swoole_array_get_value(vht, "task_max_request", ztmp)) {
@@ -3130,17 +3117,19 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
     Worker *worker = serv->get_worker(SwooleG.process_id);
 
-    char _tmpfile[sizeof(SW_TASK_TMP_FILE)] = SW_TASK_TMP_FILE;
-    int _tmpfile_fd = swoole_tmpfile(_tmpfile);
-    if (_tmpfile_fd < 0) {
+    File fp = swoole::make_tmpfile();
+    if (!fp.ready()) {
         RETURN_FALSE;
     }
-    close(_tmpfile_fd);
+    std::string file_path = fp.get_path();
+    fp.close();
+
     int *finish_count = (int *) task_result->data;
 
     worker->lock.lock(&worker->lock);
     *finish_count = 0;
-    memcpy(task_result->data + 4, _tmpfile, sizeof(_tmpfile));
+
+    swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
     worker->lock.unlock(&worker->lock);
 
     // clear history task
@@ -3188,7 +3177,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     }
 
     worker->lock.lock(&worker->lock);
-    auto content = swoole_file_get_contents(_tmpfile);
+    auto content = swoole::file_get_contents(file_path);
     worker->lock.unlock(&worker->lock);
 
     if (content.get() == nullptr) {
@@ -3217,12 +3206,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         content->offset += sizeof(DataHead) + result->info.len;
     } while (content->offset < 0 || (size_t) content->offset < content->length);
     // delete tmp file
-    unlink(_tmpfile);
+    unlink(file_path.c_str());
 }
 
 static PHP_METHOD(swoole_server, taskCo) {
-
-
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");

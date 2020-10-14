@@ -1,5 +1,6 @@
 #include "test_core.h"
 #include "swoole_log.h"
+#include "swoole_file.h"
 #include <regex>
 
 using namespace swoole;
@@ -15,7 +16,7 @@ TEST(log, level) {
     sw_logger()->put(SW_LOG_NOTICE, SW_STRL("hello notice"));
     sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello warning"));
 
-    auto content = swoole_file_get_contents(file);
+    auto content = file_get_contents(file);
 
     sw_logger()->close();
     unlink(file);
@@ -31,7 +32,7 @@ TEST(log, date_format) {
     sw_logger()->open(file);
 
     sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
-    auto content = swoole_file_get_contents(file);
+    auto content = file_get_contents(file);
 
     sw_logger()->close();
     unlink(file);
@@ -75,7 +76,7 @@ TEST(log, date_with_microseconds) {
     sw_logger()->open(file);
 
     sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello world"));
-    auto content = swoole_file_get_contents(file);
+    auto content = file_get_contents(file);
 
     sw_logger()->close();
     unlink(file);
@@ -113,7 +114,7 @@ TEST(log, redirect) {
     retval = sw_logger()->redirect_stdout_and_stderr(1);
     ASSERT_EQ(retval, SW_OK);
     printf("hello world\n");
-    auto content = swoole_file_get_contents(file);
+    auto content = file_get_contents(file);
     ASSERT_NE(content.get(), nullptr);
 
     sw_logger()->close();
