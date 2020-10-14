@@ -741,7 +741,7 @@ Socket *make_socket(enum swSocket_type type, enum swFd_type fd_type, int flags) 
         return nullptr;
     }
     if (nonblock || cloexec) {
-        if (_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
+        if (network::_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
             close(sockfd);
             return nullptr;
         }
