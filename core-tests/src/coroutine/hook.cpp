@@ -18,9 +18,8 @@
 */
 
 #include "test_coroutine.h"
+#include "swoole_file.h"
 #include "swoole_util.h"
-
-#include <sys/file.h>
 
 using swoole::Coroutine;
 using swoole::coroutine::System;

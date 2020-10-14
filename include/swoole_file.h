@@ -90,6 +90,18 @@ class File {
         }
     }
 
+    bool truncate(size_t size) {
+        return ::ftruncate(fd_, size);
+    }
+
+    off_t set_offest(off_t offset) {
+        return lseek(fd_, offset, SEEK_SET);
+    }
+
+    off_t get_offset() {
+        return lseek(fd_, 0, SEEK_CUR);
+    }
+
     bool close() {
         if (fd_ == -1) {
             return false;
@@ -105,6 +117,10 @@ class File {
 
     int get_fd() {
         return fd_;
+    }
+
+    static bool exists(const std::string &file) {
+        return access(file.c_str(), R_OK) == 0;
     }
 };
 

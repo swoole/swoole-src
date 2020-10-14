@@ -63,7 +63,6 @@ TEST(base, file_put_contents) {
     ASSERT_TRUE(swoole_file_put_contents(TEST_TMP_FILE, buf, sizeof(buf)));
     auto result = swoole_file_get_contents(TEST_TMP_FILE);
     ASSERT_STREQ(buf, result->value());
-    unlink(TEST_TMP_FILE);
 }
 
 TEST(base, file_get_size) {
@@ -72,11 +71,12 @@ TEST(base, file_get_size) {
     swoole_random_string(buf, sizeof(buf) - 1);
 
     ASSERT_TRUE(f.ready());
+    f.truncate(0);
+    f.set_offest(0);
     f.write(buf, sizeof(buf) - 1);
     f.close();
 
     ASSERT_EQ(swoole_file_get_size(TEST_TMP_FILE), sizeof(buf) -1);
-    unlink(TEST_TMP_FILE);
 }
 
 TEST(base, version_compare) {
