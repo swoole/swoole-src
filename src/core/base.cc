@@ -18,6 +18,7 @@
 
 #include <stdarg.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #include <sys/stat.h>
 #include <sys/resource.h>
@@ -45,8 +46,6 @@
 #include "swoole_memory.h"
 #include "swoole_protocol.h"
 #include "swoole_util.h"
-#include "swoole_log.h"
-#include "swoole_atomic.h"
 #include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"

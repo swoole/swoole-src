@@ -23,11 +23,9 @@
 #include "swoole_reactor.h"
 #include "swoole_signal.h"
 #include "swoole_protocol.h"
-#include "swoole_log.h"
 #include "swoole_process_pool.h"
 #include "swoole_pipe.h"
 #include "swoole_channel.h"
-#include "swoole_ssl.h"
 
 #ifdef SW_USE_OPENSSL
 #include "swoole_dtls.h"

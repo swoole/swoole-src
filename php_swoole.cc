@@ -26,7 +26,6 @@
 #include "swoole_server.h"
 #include "swoole_client.h"
 #include "swoole_util.h"
-#include "swoole_log.h"
 
 #include <netinet/in.h>
 #include <arpa/inet.h>

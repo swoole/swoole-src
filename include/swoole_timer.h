@@ -30,6 +30,8 @@
 
 namespace swoole {
 
+typedef std::function<void(TimerNode *)> TimerDestructor;
+
 struct TimerNode {
     enum Type {
         TYPE_KERNEL,

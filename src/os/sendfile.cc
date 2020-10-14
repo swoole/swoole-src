@@ -15,8 +15,6 @@
 */
 
 #include "swoole.h"
-#include "swoole_log.h"
-
 #ifdef HAVE_KQUEUE
 #include <sys/socket.h>
 #include <sys/uio.h>

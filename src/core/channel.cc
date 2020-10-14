@@ -19,7 +19,6 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
-#include "swoole_log.h"
 #include "swoole_channel.h"
 #include "swoole_lock.h"
 #include "swoole_pipe.h"

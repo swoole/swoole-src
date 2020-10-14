@@ -17,8 +17,6 @@
 #include "swoole_timer.h"
 #include "swoole_signal.h"
 #include "swoole_util.h"
-#include "swoole_log.h"
-
 #include <signal.h>
 
 namespace swoole {

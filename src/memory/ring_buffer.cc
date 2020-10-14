@@ -16,8 +16,6 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
-#include "swoole_log.h"
-
 typedef struct {
     uint8_t shared;
     uint8_t status;

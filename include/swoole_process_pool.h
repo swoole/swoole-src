@@ -18,8 +18,11 @@
 #pragma once
 
 #include "swoole.h"
+
 #include <signal.h>
+
 #include "swoole_lock.h"
+#include "swoole_msg_queue.h"
 
 enum swWorker_status {
     SW_WORKER_BUSY = 1,

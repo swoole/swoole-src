@@ -19,7 +19,6 @@
 #include "swoole_signal.h"
 #include "swoole_socket.h"
 #include "swoole_string.h"
-#include "swoole_log.h"
 #include "swoole_msg_queue.h"
 #include "swoole_pipe.h"
 #include "swoole_server.h"

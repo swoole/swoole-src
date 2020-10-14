@@ -15,8 +15,6 @@
 */
 
 #include "swoole_coroutine_context.h"
-#include "swoole_log.h"
-
 #if __linux__
 #include <sys/mman.h>
 #endif

@@ -15,7 +15,6 @@
  */
 
 #include "swoole_string.h"
-#include "swoole_log.h"
 #include "swoole_base64.h"
 
 #include <memory>

@@ -16,8 +16,6 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
-#include "swoole_log.h"
-
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 #define MAP_ANONYMOUS MAP_ANON
 #endif

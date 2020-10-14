@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "swoole_ssl.h"
 #include "swoole_buffer.h"
 
 #ifndef SOCK_NONBLOCK

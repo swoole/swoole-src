@@ -21,8 +21,6 @@
 #include <chrono>  // NOLINT [build/c++11]
 
 #include "swoole.h"
-#include "swoole_log.h"
-
 namespace swoole {
 
 bool Logger::open(const char *_log_file) {

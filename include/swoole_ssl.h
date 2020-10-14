@@ -20,11 +20,16 @@
 
 #ifdef SW_USE_OPENSSL
 
+#include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include <openssl/ossl_typ.h>
+
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+#define SW_SUPPORT_DTLS
+#endif
 
 enum swSSL_create_flag {
     SW_SSL_SERVER = 1,

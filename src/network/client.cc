@@ -21,8 +21,6 @@
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
 #include "swoole_protocol.h"
-#include "swoole_log.h"
-#include "swoole_ssl.h"
 #include "swoole_client.h"
 #include "swoole_proxy.h"
 #include "swoole_async.h"

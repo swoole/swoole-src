@@ -22,7 +22,6 @@
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
-#include "swoole_log.h"
 #include "swoole_async.h"
 
 #include "swoole_coroutine_context.h"

@@ -17,8 +17,6 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
-#include "swoole_log.h"
-
 #include <unordered_map>
 
 using swoole::Reactor;

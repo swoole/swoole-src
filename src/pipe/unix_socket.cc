@@ -18,8 +18,6 @@
 
 #include "swoole.h"
 #include "swoole_pipe.h"
-#include "swoole_log.h"
-
 static ssize_t swPipeUnsock_read(swPipe *p, void *data, size_t length);
 static ssize_t swPipeUnsock_write(swPipe *p, const void *data, size_t length);
 static void swPipeUnsock_close(swPipe *p);

@@ -19,7 +19,6 @@
 
 #include "php_swoole_cxx.h"
 #include "swoole_util.h"
-#include "swoole_log.h"
 
 #ifdef SW_USE_OPENSSL
 #ifndef OPENSSL_NO_RSA

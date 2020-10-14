@@ -17,6 +17,7 @@
 #pragma once
 
 #include "swoole_api.h"
+#include "swoole_ssl.h"
 
 #ifdef SW_SUPPORT_DTLS
 #include <deque>

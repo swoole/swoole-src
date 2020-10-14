@@ -22,7 +22,6 @@
 #include "llhttp.h"
 #include "swoole_file.h"
 #include "swoole_http.h"
-#include "swoole_log.h"
 
 using namespace swoole;
 using namespace std;

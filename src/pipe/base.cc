@@ -19,8 +19,6 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_pipe.h"
-#include "swoole_log.h"
-
 using swoole::Pipe;
 using swoole::network::Socket;
 

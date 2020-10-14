@@ -16,7 +16,6 @@
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
-#include "swoole_log.h"
 #include "swoole_http.h"
 #include "swoole_lock.h"
 #include "swoole_util.h"

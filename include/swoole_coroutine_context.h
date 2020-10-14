@@ -18,7 +18,6 @@
 #pragma once
 
 #include "swoole.h"
-#include "swoole_error.h"
 
 #ifdef SW_USE_THREAD_CONTEXT
 #include <thread>

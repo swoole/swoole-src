@@ -19,8 +19,6 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
-#include "swoole_log.h"
-
 using swoole::Reactor;
 using swoole::ReactorHandler;
 using swoole::network::Socket;

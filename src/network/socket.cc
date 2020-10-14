@@ -20,8 +20,6 @@
 #include <memory>
 
 #include "swoole_api.h"
-#include "swoole_log.h"
-#include "swoole_ssl.h"
 #include "swoole_util.h"
 #include "swoole_file.h"
 

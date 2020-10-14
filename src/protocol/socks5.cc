@@ -19,8 +19,6 @@
 #include "swoole.h"
 #include "swoole_proxy.h"
 #include "swoole_client.h"
-#include "swoole_log.h"
-
 namespace swoole {
 const char *Socks5Proxy::strerror(int code) {
     switch (code) {

@@ -16,8 +16,6 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
-#include "swoole_log.h"
-
 static void swFixedPool_init(swFixedPool *object);
 static void *swFixedPool_alloc(swMemoryPool *pool, uint32_t size);
 static void swFixedPool_free(swMemoryPool *pool, void *ptr);

@@ -44,7 +44,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <sched.h> /* sched_yield() */
 #include <pthread.h>
@@ -182,28 +181,17 @@ typedef unsigned long ulong_t;
 #endif
 #endif
 
-#define sw_memset_zero(s, n) memset(s, '\0', n)
-
-static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
-    return s1 == s2 && memcmp(v1, v2, s2) == 0;
-}
-
 /*-------------------------------Declare Struct--------------------------------*/
 namespace swoole {
 class Reactor;
 class String;
-class Heap;
-struct HeapNode;
 class Timer;
 struct TimerNode;
 struct Event;
-struct AsyncEvent;
 struct Pipe;
 namespace network {
 struct Socket;
 struct Address;
-struct GetaddrinfoRequest;
-class Client;
 }  // namespace network
 struct Protocol;
 struct EventData;
@@ -211,14 +199,12 @@ struct DataHead;
 typedef int (*ReactorHandler)(Reactor *reactor, Event *event);
 typedef std::function<void(void *)> Callback;
 typedef std::function<void(Timer *, TimerNode *)> TimerCallback;
-typedef std::function<void(TimerNode *)> TimerDestructor;
 }  // namespace swoole
 
 typedef swoole::Reactor swReactor;
 typedef swoole::String swString;
 typedef swoole::Timer swTimer;
 typedef swoole::network::Socket swSocket;
-typedef swoole::network::Client swClient;
 typedef swoole::Protocol swProtocol;
 typedef swoole::EventData swEventData;
 typedef swoole::DataHead swDataHead;
@@ -226,12 +212,18 @@ typedef swoole::Event swEvent;
 typedef swoole::Pipe swPipe;
 typedef swoole::Callback swCallback;
 
-struct swMsgQueue;
 struct swMemoryPool;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s) s, sizeof(s)
 #define SW_STRL(s) s, sizeof(s) - 1
+
+#define SW_STREQ(str, len, const_str) swoole_streq(str, len, SW_STRL(const_str))
+#define SW_STRCASEEQ(str, len, const_str) swoole_strcaseeq(str, len, SW_STRL(const_str))
+
+/* string contain */
+#define SW_STRCT(str, len, const_sub_str) swoole_strct(str, len, SW_STRL(const_sub_str))
+#define SW_STRCASECT(str, len, const_sub_str) swoole_strcasect(str, len, SW_STRL(const_sub_str))
 
 #if defined(SW_USE_JEMALLOC) || defined(SW_USE_TCMALLOC)
 #define sw_strdup swoole_strdup
@@ -241,11 +233,15 @@ struct swMemoryPool;
 #define sw_strndup strndup
 #endif
 
-#define SW_Z_BEST_SPEED 1
-
 /** always return less than size, zero termination  */
 size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
+
+#define sw_memset_zero(s, n) memset(s, '\0', n)
+
+static sw_inline int sw_mem_equal(const void *v1, size_t s1, const void *v2, size_t s2) {
+    return s1 == s2 && memcmp(v1, v2, s2) == 0;
+}
 
 static inline size_t swoole_strlcpy(char *dest, const char *src, size_t size) {
     const size_t len = strlen(src);
@@ -257,7 +253,7 @@ static inline size_t swoole_strlcpy(char *dest, const char *src, size_t size) {
     return len;
 }
 
-static sw_inline char *swoole_strdup(const char *s) {
+static inline char *swoole_strdup(const char *s) {
     size_t l = strlen(s) + 1;
     char *p = (char *) sw_malloc(l);
     if (sw_likely(p)) {
@@ -266,7 +262,7 @@ static sw_inline char *swoole_strdup(const char *s) {
     return p;
 }
 
-static sw_inline char *swoole_strndup(const char *s, size_t n) {
+static inline char *swoole_strndup(const char *s, size_t n) {
     char *p = (char *) sw_malloc(n + 1);
     if (sw_likely(p)) {
         strncpy(p, s, n)[n] = '\0';
@@ -275,28 +271,79 @@ static sw_inline char *swoole_strndup(const char *s, size_t n) {
 }
 
 /* string equal */
-static sw_inline unsigned int swoole_streq(const char *str1, size_t len1, const char *str2, size_t len2) {
+static inline unsigned int swoole_streq(const char *str1, size_t len1, const char *str2, size_t len2) {
     return (len1 == len2) && (strncmp(str1, str2, len1) == 0);
 }
 
-static sw_inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, const char *str2, size_t len2) {
+static inline unsigned int swoole_strcaseeq(const char *str1, size_t len1, const char *str2, size_t len2) {
     return (len1 == len2) && (strncasecmp(str1, str2, len1) == 0);
 }
 
-static sw_inline unsigned int swoole_strct(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+static inline unsigned int swoole_strct(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncmp(pstr, sstr, slen) == 0);
 }
 
-static sw_inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const char *sstr, size_t slen) {
+static inline unsigned int swoole_strcasect(const char *pstr, size_t plen, const char *sstr, size_t slen) {
     return (plen >= slen) && (strncasecmp(pstr, sstr, slen) == 0);
 }
 
-#define SW_STREQ(str, len, const_str) swoole_streq(str, len, SW_STRL(const_str))
-#define SW_STRCASEEQ(str, len, const_str) swoole_strcaseeq(str, len, SW_STRL(const_str))
+static inline const char *swoole_strnstr(const char *haystack,
+                                         uint32_t haystack_length,
+                                         const char *needle,
+                                         uint32_t needle_length) {
+    assert(needle_length > 0);
+    uint32_t i;
 
-/* string contain */
-#define SW_STRCT(str, len, const_sub_str) swoole_strct(str, len, SW_STRL(const_sub_str))
-#define SW_STRCASECT(str, len, const_sub_str) swoole_strcasect(str, len, SW_STRL(const_sub_str))
+    if (sw_likely(needle_length <= haystack_length)) {
+        for (i = 0; i < haystack_length - needle_length + 1; i++) {
+            if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
+                return haystack;
+            }
+            haystack++;
+        }
+    }
+
+    return NULL;
+}
+
+static inline ssize_t swoole_strnpos(const char *haystack,
+                                     uint32_t haystack_length,
+                                     const char *needle,
+                                     uint32_t needle_length) {
+    assert(needle_length > 0);
+    const char *pos;
+
+    pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
+    return pos == NULL ? -1 : pos - haystack;
+}
+
+static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, uint32_t length) {
+    uint32_t needle_length = strlen(needle);
+    assert(needle_length > 0);
+    uint32_t i;
+    haystack += (length - needle_length);
+
+    for (i = length - needle_length; i > 0; i--) {
+        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
+            return i;
+        }
+        haystack--;
+    }
+
+    return -1;
+}
+
+static inline void swoole_strtolower(char *str, int length) {
+    char *c, *e;
+
+    c = str;
+    e = c + length;
+
+    while (c < e) {
+        *c = tolower(*c);
+        c++;
+    }
+}
 
 /*--------------------------------Constants------------------------------------*/
 enum swResult_code {
@@ -377,20 +424,11 @@ enum swFork_type {
 };
 
 //-------------------------------------------------------------------------------
-
-#define sw_yield() sched_yield() // or usleep(1)
-#define SW_MAX_FDTYPE 32         // 32 kinds of event
+#define sw_yield() sched_yield()
 
 //------------------------------Base--------------------------------
 #ifndef uchar
 typedef unsigned char uchar;
-#endif
-
-#ifdef SW_USE_OPENSSL
-#include <openssl/ssl.h>
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L
-#define SW_SUPPORT_DTLS
-#endif
 #endif
 
 struct swAllocator {
@@ -505,64 +543,6 @@ enum swPipe_type {
 //----------------------Tool Function---------------------
 uint32_t swoole_common_multiple(uint32_t u, uint32_t v);
 uint32_t swoole_common_divisor(uint32_t u, uint32_t v);
-
-static inline const char *swoole_strnstr(const char *haystack,
-                                         uint32_t haystack_length,
-                                         const char *needle,
-                                         uint32_t needle_length) {
-    assert(needle_length > 0);
-    uint32_t i;
-
-    if (sw_likely(needle_length <= haystack_length)) {
-        for (i = 0; i < haystack_length - needle_length + 1; i++) {
-            if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
-                return haystack;
-            }
-            haystack++;
-        }
-    }
-
-    return NULL;
-}
-
-static inline ssize_t swoole_strnpos(const char *haystack,
-                                     uint32_t haystack_length,
-                                     const char *needle,
-                                     uint32_t needle_length) {
-    assert(needle_length > 0);
-    const char *pos;
-
-    pos = swoole_strnstr(haystack, haystack_length, needle, needle_length);
-    return pos == NULL ? -1 : pos - haystack;
-}
-
-static inline ssize_t swoole_strrnpos(const char *haystack, const char *needle, uint32_t length) {
-    uint32_t needle_length = strlen(needle);
-    assert(needle_length > 0);
-    uint32_t i;
-    haystack += (length - needle_length);
-
-    for (i = length - needle_length; i > 0; i--) {
-        if ((haystack[0] == needle[0]) && (0 == memcmp(haystack, needle, needle_length))) {
-            return i;
-        }
-        haystack--;
-    }
-
-    return -1;
-}
-
-static inline void swoole_strtolower(char *str, int length) {
-    char *c, *e;
-
-    c = str;
-    e = c + length;
-
-    while (c < e) {
-        *c = tolower(*c);
-        c++;
-    }
-}
 
 int swoole_itoa(char *buf, long value);
 bool swoole_mkdir_recursive(const std::string &dir);

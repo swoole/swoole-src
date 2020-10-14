@@ -16,8 +16,6 @@
 
 #include "swoole.h"
 #include "swoole_buffer.h"
-#include "swoole_log.h"
-
 namespace swoole {
 
 Buffer::Buffer(uint32_t _chunk_size) {
