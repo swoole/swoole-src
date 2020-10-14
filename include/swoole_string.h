@@ -159,6 +159,10 @@ class String {
         }
     }
 
+    bool empty() {
+        return str == nullptr || length == 0;
+    }
+
     inline void clear() {
         length = 0;
         offset = 0;

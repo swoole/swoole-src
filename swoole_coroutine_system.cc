@@ -13,6 +13,7 @@ using swoole::Reactor;
 using swoole::Event;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::String;
 
 struct TmpSocket {
     FutureTask context;
@@ -391,12 +392,11 @@ PHP_METHOD(swoole_coroutine_system, readFile) {
     Z_PARAM_LONG(flags)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    swString *result = System::read_file(filename, flags & LOCK_EX);
+    auto result = System::read_file(filename, flags & LOCK_EX);
     if (result == nullptr) {
         RETURN_FALSE;
     } else {
         RETVAL_STRINGL(result->str, result->length);
-        swString_free(result);
     }
 }
 

@@ -216,10 +216,10 @@ TEST(http_server, static_get) {
         EXPECT_EQ(resp->status, 200);
 
         string file = test::get_root_path() + "/examples/test.jpg";
-        int fd = open(file.c_str(), O_RDONLY);
-        EXPECT_GT(fd, 0);
+        File fp(file, O_RDONLY);
+        EXPECT_TRUE(fp.ready());
 
-        std::unique_ptr<swString> str(swoole_sync_readfile_eof(fd));
+        auto str = fp.read_content();
 
         EXPECT_EQ(resp->body, str->to_std_string());
 

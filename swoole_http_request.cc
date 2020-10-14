@@ -734,7 +734,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
 
     zval *z_multipart_header = ctx->current_multipart_header;
     if (p->fp != nullptr) {
-        long size = swoole_file_get_size((FILE *) p->fp);
+        long size = swoole::file_get_size((FILE *) p->fp);
         add_assoc_long(z_multipart_header, "size", size);
 
         fclose((FILE *) p->fp);

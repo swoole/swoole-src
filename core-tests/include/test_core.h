@@ -26,7 +26,5 @@
 namespace swoole { namespace test {
 const std::string &get_root_path();
 std::string get_jpg_file();
-bool is_github_ci() {
-    return getenv("GITHUB_ACTIONS") != nullptr;
-}
+bool is_github_ci();
 }};

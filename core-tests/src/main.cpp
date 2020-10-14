@@ -32,10 +32,20 @@ static void init_root_path(const char *_exec_file) {
     }
 }
 
-const string &swoole::test::get_root_path() {
+namespace swoole {
+namespace test {
+
+const string &get_root_path() {
     return root_path;
 }
 
-string swoole::test::get_jpg_file() {
+string get_jpg_file() {
     return root_path + TEST_JPG_FILE;
 }
+
+bool is_github_ci() {
+    return getenv("GITHUB_ACTIONS") != nullptr;
+}
+
+}  // namespace test
+}  // namespace swoole

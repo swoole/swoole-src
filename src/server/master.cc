@@ -617,7 +617,7 @@ int Server::start() {
     // write PID file
     if (!pid_file.empty()) {
         size_t n = sw_snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size, "%d", getpid());
-        swoole_file_put_contents(pid_file.c_str(), SwooleTG.buffer_stack->str, n);
+        file_put_contents(pid_file.c_str(), SwooleTG.buffer_stack->str, n);
     }
     int ret;
     if (is_base_mode()) {

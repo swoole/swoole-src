@@ -3175,7 +3175,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     }
 
     worker->lock.lock(&worker->lock);
-    auto content = swoole_file_get_contents(_tmpfile);
+    auto content = swoole::file_get_contents(_tmpfile);
     worker->lock.unlock(&worker->lock);
 
     if (content.get() == nullptr) {

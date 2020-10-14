@@ -23,16 +23,13 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-size_t swoole_sync_writefile(int fd, const void *data, size_t len);
-size_t swoole_sync_readfile(int fd, void *buf, size_t len);
-swoole::String *swoole_sync_readfile_eof(int fd);
-ssize_t swoole_file_get_size(FILE *fp);
-ssize_t swoole_file_get_size(int fd);
-ssize_t swoole_file_get_size(const std::string &filename);
-std::shared_ptr<swoole::String> swoole_file_get_contents(const std::string &filename);
-bool swoole_file_put_contents(const char *filename, const char *content, size_t length);
-
 namespace swoole {
+
+ssize_t file_get_size(FILE *fp);
+ssize_t file_get_size(int fd);
+ssize_t file_get_size(const std::string &filename);
+std::shared_ptr<swoole::String> file_get_contents(const std::string &filename);
+bool file_put_contents(const std::string &filename, const char *content, size_t length);
 
 typedef struct stat FileStatus;
 
@@ -76,10 +73,14 @@ class File {
         return ::write(fd_, __buf, __n);
     }
 
-
     ssize_t read(void *__buf, size_t __n) {
         return ::read(fd_, __buf, __n);
     }
+
+    size_t write_all(const void *__buf, size_t __n);
+    size_t read_all(void *__buf, size_t __n);
+
+    std::shared_ptr<String> read_content();
 
     bool stat(FileStatus *_stat) {
         if ( ::fstat(fd_, _stat) < 0) {
@@ -88,6 +89,10 @@ class File {
         } else {
             return true;
         }
+    }
+
+    bool sync() {
+        return ::fsync(fd_) == 0;
     }
 
     bool truncate(size_t size) {
@@ -100,6 +105,18 @@ class File {
 
     off_t get_offset() {
         return lseek(fd_, 0, SEEK_CUR);
+    }
+
+    bool lock(int operation) {
+        return ::flock(fd_, operation) == 0;
+    }
+
+    bool unlock() {
+        return ::flock(fd_, LOCK_UN) == 0;
+    }
+
+    ssize_t get_size() {
+        return file_get_size(fd_);
     }
 
     bool close() {
