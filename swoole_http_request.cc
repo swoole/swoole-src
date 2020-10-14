@@ -682,7 +682,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     }
 
     char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
-    snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir);
+    sw_snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir);
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0) {
         return 0;

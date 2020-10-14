@@ -21,6 +21,7 @@ using swoole::File;
 using swoole::FileStatus;
 
 ssize_t swoole_file_get_size(FILE *fp) {
+    fflush(fp);
     return swoole_file_get_size(fileno(fp));
 }
 
