@@ -482,6 +482,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/sendfile.cc \
         src/os/signal.cc \
         src/os/timer.cc \
+        src/os/file.cc \
         src/os/wait.cc \
         src/pipe/base.cc \
         src/pipe/eventfd.cc \

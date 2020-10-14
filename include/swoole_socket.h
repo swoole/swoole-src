@@ -179,15 +179,15 @@ struct Socket {
     bool set_recv_timeout(double timeout);
     bool set_send_timeout(double timeout);
 
-    inline int set_nonblock() {
+    inline bool set_nonblock() {
         return set_fd_option(1, -1);
     }
 
-    inline int set_block() {
+    inline bool set_block() {
         return set_fd_option(0, -1);
     }
 
-    int set_fd_option(int _nonblock, int _cloexec);
+    bool set_fd_option(int _nonblock, int _cloexec);
 
     inline int set_option(int level, int optname, int optval) {
         return setsockopt(fd, level, optname, &optval, sizeof(optval));

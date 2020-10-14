@@ -588,6 +588,7 @@ void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_set_task_tmpdir(const std::string &dir);
+int swoole_tmpfile(char *filename);
 int swoole_open_tmpfile(char *filename);
 
 #ifdef HAVE_CPU_AFFINITY

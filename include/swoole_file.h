@@ -17,17 +17,18 @@
 #pragma once
 
 #include "swoole.h"
+#include "swoole_string.h"
 
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
 size_t swoole_sync_readfile(int fd, void *buf, size_t len);
-swString *swoole_sync_readfile_eof(int fd);
+swoole::String *swoole_sync_readfile_eof(int fd);
 ssize_t swoole_file_get_size(FILE *fp);
 ssize_t swoole_file_get_size(int fd);
 ssize_t swoole_file_get_size(const std::string &filename);
-int swoole_tmpfile(char *filename);
 std::shared_ptr<swoole::String> swoole_file_get_contents(const std::string &filename);
 bool swoole_file_put_contents(const char *filename, const char *content, size_t length);
 

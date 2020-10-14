@@ -373,7 +373,7 @@ static bool _set_timeout(int fd, int type, double timeout) {
     }
 }
 
-static int _fcntl_set_option(int sock, int nonblock, int cloexec) {
+static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
    int opts, ret;
 
    if (nonblock >= 0) {
@@ -397,7 +397,7 @@ static int _fcntl_set_option(int sock, int nonblock, int cloexec) {
 
        if (ret < 0) {
            swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
-           return SW_ERR;
+           return false;
        }
    }
 
@@ -423,20 +423,21 @@ static int _fcntl_set_option(int sock, int nonblock, int cloexec) {
 
        if (ret < 0) {
            swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
-           return SW_ERR;
+           return false;
        }
    }
 #endif
-   return SW_OK;
+
+   return true;
 }
 
-int Socket::set_fd_option(int _nonblock, int _cloexec) {
-    if (_fcntl_set_option(fd, _nonblock, _cloexec) == SW_OK) {
+bool Socket::set_fd_option(int _nonblock, int _cloexec) {
+    if (_fcntl_set_option(fd, _nonblock, _cloexec)) {
         nonblock = _nonblock;
         cloexec = _cloexec;
-        return SW_OK;
+        return true;
     } else {
-        return SW_ERR;
+        return false;
     }
 }
 
