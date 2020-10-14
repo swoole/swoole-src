@@ -187,15 +187,7 @@ struct Socket {
         return set_fd_option(0, -1);
     }
 
-    inline int set_fd_option(int _nonblock, int _cloexec) {
-        if (swoole_fcntl_set_option(fd, _nonblock, _cloexec) == SW_OK) {
-            nonblock = _nonblock;
-            cloexec = _cloexec;
-            return SW_OK;
-        } else {
-            return SW_ERR;
-        }
-    }
+    int set_fd_option(int _nonblock, int _cloexec);
 
     inline int set_option(int level, int optname, int optval) {
         return setsockopt(fd, level, optname, &optval, sizeof(optval));

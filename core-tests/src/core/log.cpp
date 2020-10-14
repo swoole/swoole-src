@@ -1,5 +1,6 @@
 #include "test_core.h"
 #include "swoole_log.h"
+#include "swoole_file.h"
 #include <regex>
 
 using namespace swoole;

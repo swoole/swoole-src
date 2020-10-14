@@ -182,7 +182,7 @@ Socket *Socket::accept() {
 #else
     socket->fd = ::accept(fd, (struct sockaddr *) &socket->info.addr, &socket->info.len);
     if (socket->fd >= 0) {
-        swoole_fcntl_set_option(socket->fd, nonblock, 1);
+        set_fd_option(nonblock, 1);
     }
 #endif
     if (socket->fd < 0) {
@@ -359,7 +359,7 @@ bool Socket::set_timeout(double timeout) {
     return set_recv_timeout(timeout) and set_send_timeout(timeout);
 }
 
-static inline bool _set_timeout(int fd, int type, double timeout) {
+static bool _set_timeout(int fd, int type, double timeout) {
     int ret;
     struct timeval timeo;
     timeo.tv_sec = (int) timeout;
@@ -370,6 +370,73 @@ static inline bool _set_timeout(int fd, int type, double timeout) {
         return false;
     } else {
         return true;
+    }
+}
+
+static int _fcntl_set_option(int sock, int nonblock, int cloexec) {
+   int opts, ret;
+
+   if (nonblock >= 0) {
+       do {
+           opts = fcntl(sock, F_GETFL);
+       } while (opts < 0 && errno == EINTR);
+
+       if (opts < 0) {
+           swSysWarn("fcntl(%d, GETFL) failed", sock);
+       }
+
+       if (nonblock) {
+           opts = opts | O_NONBLOCK;
+       } else {
+           opts = opts & ~O_NONBLOCK;
+       }
+
+       do {
+           ret = fcntl(sock, F_SETFL, opts);
+       } while (ret < 0 && errno == EINTR);
+
+       if (ret < 0) {
+           swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
+           return SW_ERR;
+       }
+   }
+
+#ifdef FD_CLOEXEC
+   if (cloexec >= 0) {
+       do {
+           opts = fcntl(sock, F_GETFD);
+       } while (opts < 0 && errno == EINTR);
+
+       if (opts < 0) {
+           swSysWarn("fcntl(%d, GETFL) failed", sock);
+       }
+
+       if (cloexec) {
+           opts = opts | FD_CLOEXEC;
+       } else {
+           opts = opts & ~FD_CLOEXEC;
+       }
+
+       do {
+           ret = fcntl(sock, F_SETFD, opts);
+       } while (ret < 0 && errno == EINTR);
+
+       if (ret < 0) {
+           swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
+           return SW_ERR;
+       }
+   }
+#endif
+   return SW_OK;
+}
+
+int Socket::set_fd_option(int _nonblock, int _cloexec) {
+    if (_fcntl_set_option(fd, _nonblock, _cloexec) == SW_OK) {
+        nonblock = _nonblock;
+        cloexec = _cloexec;
+        return SW_OK;
+    } else {
+        return SW_ERR;
     }
 }
 

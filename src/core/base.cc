@@ -642,7 +642,7 @@ ssize_t swoole_file_get_size(int fd) {
 }
 
 std::shared_ptr<String> swoole_file_get_contents(const std::string &filename) {
-    long filesize = swoole_file_get_size(filename.c_str());
+    long filesize = swoole_file_get_size(filename);
     if (filesize < 0) {
         return nullptr;
     } else if (filesize == 0) {
@@ -830,77 +830,6 @@ size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args) {
         buf[retval] = '\0';
     }
     return retval;
-}
-
-int swoole_ioctl_set_block(int sock, int nonblock) {
-    int ret;
-    do {
-        ret = ioctl(sock, FIONBIO, &nonblock);
-    } while (ret == -1 && errno == EINTR);
-
-    if (ret < 0) {
-        swSysWarn("ioctl(%d, FIONBIO, %d) failed", sock, nonblock);
-        return SW_ERR;
-    } else {
-        return SW_OK;
-    }
-}
-
-int swoole_fcntl_set_option(int sock, int nonblock, int cloexec) {
-    int opts, ret;
-
-    if (nonblock >= 0) {
-        do {
-            opts = fcntl(sock, F_GETFL);
-        } while (opts < 0 && errno == EINTR);
-
-        if (opts < 0) {
-            swSysWarn("fcntl(%d, GETFL) failed", sock);
-        }
-
-        if (nonblock) {
-            opts = opts | O_NONBLOCK;
-        } else {
-            opts = opts & ~O_NONBLOCK;
-        }
-
-        do {
-            ret = fcntl(sock, F_SETFL, opts);
-        } while (ret < 0 && errno == EINTR);
-
-        if (ret < 0) {
-            swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
-            return SW_ERR;
-        }
-    }
-
-#ifdef FD_CLOEXEC
-    if (cloexec >= 0) {
-        do {
-            opts = fcntl(sock, F_GETFD);
-        } while (opts < 0 && errno == EINTR);
-
-        if (opts < 0) {
-            swSysWarn("fcntl(%d, GETFL) failed", sock);
-        }
-
-        if (cloexec) {
-            opts = opts | FD_CLOEXEC;
-        } else {
-            opts = opts & ~FD_CLOEXEC;
-        }
-
-        do {
-            ret = fcntl(sock, F_SETFD, opts);
-        } while (ret < 0 && errno == EINTR);
-
-        if (ret < 0) {
-            swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
-            return SW_ERR;
-        }
-    }
-#endif
-    return SW_OK;
 }
 
 int swoole_itoa(char *buf, long value) {

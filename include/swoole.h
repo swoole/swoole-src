@@ -567,23 +567,14 @@ static inline void swoole_strtolower(char *str, int length) {
 int swoole_itoa(char *buf, long value);
 bool swoole_mkdir_recursive(const std::string &dir);
 std::string swoole_dirname(const std::string &file);
-size_t swoole_sync_writefile(int fd, const void *data, size_t len);
-size_t swoole_sync_readfile(int fd, void *buf, size_t len);
-swString *swoole_sync_readfile_eof(int fd);
+
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
-ssize_t swoole_file_get_size(FILE *fp);
-ssize_t swoole_file_get_size(int fd);
-ssize_t swoole_file_get_size(const std::string &filename);
-int swoole_tmpfile(char *filename);
-std::shared_ptr<swoole::String> swoole_file_get_contents(const std::string &filename);
-bool swoole_file_put_contents(const char *filename, const char *content, size_t length);
+
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
 #endif
-int swoole_ioctl_set_block(int sock, int nonblock);
-int swoole_fcntl_set_option(int sock, int nonblock, int cloexec);
 char *swoole_string_format(size_t n, const char *format, ...);
 bool swoole_get_env(const char *name, int *value);
 int swoole_get_systemd_listen_fds();

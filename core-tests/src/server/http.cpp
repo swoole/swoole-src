@@ -20,6 +20,7 @@
 #include "test_core.h"
 #include "httplib_client.h"
 #include "llhttp.h"
+#include "swoole_file.h"
 #include "swoole_http.h"
 #include "swoole_log.h"
 

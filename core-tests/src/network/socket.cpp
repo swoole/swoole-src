@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_file.h"
 
 using namespace std;
 using namespace swoole;

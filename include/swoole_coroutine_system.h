@@ -18,6 +18,7 @@
 #pragma once
 
 #include "swoole_coroutine.h"
+#include "swoole_file.h"
 
 #include <vector>
 

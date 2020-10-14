@@ -20,6 +20,7 @@
 #include "swoole_http.h"
 #include "swoole_lock.h"
 #include "swoole_util.h"
+#include "swoole_file.h"
 
 #include <assert.h>
 

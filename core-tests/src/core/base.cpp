@@ -113,7 +113,7 @@ TEST(base, shell_exec) {
 
 TEST(base, file_size) {
     auto file = test::get_jpg_file();
-    ssize_t file_size = swoole_file_get_size(file.c_str());
+    ssize_t file_size = swoole_file_get_size(file);
     ASSERT_GT(file_size, 0);
     auto fp = fopen(file.c_str(), "r+");
     ASSERT_TRUE(fp);

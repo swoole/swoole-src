@@ -18,10 +18,6 @@
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
 
-#include <sys/file.h>
-#include <fcntl.h>
-#include <assert.h>
-
 using namespace swoole;
 using swoole::coroutine::System;
 
