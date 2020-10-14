@@ -75,7 +75,7 @@ bool EventData::pack(const void *_data, size_t _length) {
     }
 
     PacketTask pkg{};
-    File file(swoole_open_tmpfile(pkg.tmpfile));
+    File file = make_tmpfile();
     if (!file.ready()) {
         return false;
     }
@@ -86,9 +86,8 @@ bool EventData::pack(const void *_data, size_t _length) {
     }
 
     info.len = sizeof(pkg);
-    // use tmp file
     swTask_type(this) |= SW_TASK_TMPFILE;
-
+    swoole_strlcpy(pkg.tmpfile, file.get_path().c_str(), sizeof(pkg.tmpfile));
     pkg.length = _length;
     memcpy(data, &pkg, sizeof(pkg));
 

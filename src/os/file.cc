@@ -16,6 +16,21 @@
 
 #include "swoole_file.h"
 
+int swoole_tmpfile(char *filename) {
+#if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
+    int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
+#else
+    int tmp_fd = mkstemp(filename);
+#endif
+
+    if (tmp_fd < 0) {
+        swSysWarn("mkstemp(%s) failed", filename);
+        return SW_ERR;
+    } else {
+        return tmp_fd;
+    }
+}
+
 namespace swoole {
 
 ssize_t file_get_size(FILE *fp) {
@@ -68,6 +83,17 @@ std::shared_ptr<String> file_get_contents(const std::string &filename) {
     content->length = read_bytes;
     content->str[read_bytes] = '\0';
     return content;
+}
+
+File make_tmpfile() {
+    char *tmpfile = SwooleTG.buffer_stack->str;
+    size_t l = swoole_strlcpy(tmpfile, SwooleG.task_tmpfile.c_str(), SW_TASK_TMP_PATH_SIZE);
+    int tmp_fd = swoole_tmpfile(tmpfile);
+    if (tmp_fd < 0) {
+        return File(-1);
+    } else {
+        return File(tmp_fd, std::string(tmpfile, l));
+    }
 }
 
 bool file_put_contents(const std::string &filename, const char *content, size_t length) {

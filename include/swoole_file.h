@@ -36,6 +36,7 @@ typedef struct stat FileStatus;
 class File {
  private:
     int fd_;
+    std::string path_;
 
  public:
     enum Flag {
@@ -47,16 +48,23 @@ class File {
         APPEND = O_APPEND,
     };
 
-    File(int fd) {
+    explicit File(int fd) {
         fd_ = fd;
     }
 
-    File(const std::string &file, int oflags) {
-        fd_ = ::open(file.c_str(), oflags);
+    File(int fd, const std::string &path) {
+        fd_ = fd;
+        path_ = path;
     }
 
-    File(const std::string &file, int oflags, int mode) {
-        fd_ = ::open(file.c_str(), oflags, mode);
+    File(const std::string &path, int oflags) {
+        fd_ = ::open(path.c_str(), oflags);
+        path_ = path;
+    }
+
+    File(const std::string &path, int oflags, int mode) {
+        fd_ = ::open(path.c_str(), oflags, mode);
+        path_ = path;
     }
 
     ~File() {
@@ -96,7 +104,7 @@ class File {
     }
 
     bool truncate(size_t size) {
-        return ::ftruncate(fd_, size);
+        return ::ftruncate(fd_, size) == 0;
     }
 
     off_t set_offest(off_t offset) {
@@ -136,9 +144,15 @@ class File {
         return fd_;
     }
 
+    const std::string &get_path() {
+        return path_;
+    }
+
     static bool exists(const std::string &file) {
         return access(file.c_str(), R_OK) == 0;
     }
 };
+
+File make_tmpfile();
 
 }

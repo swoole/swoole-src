@@ -167,7 +167,7 @@
 #define SW_USE_EVENTFD                                                                                                 \
     1  // Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
 
-#define SW_TASK_TMP_PATH_SIZE 128
+#define SW_TASK_TMP_PATH_SIZE  256
 #define SW_TASK_TMP_DIR  "/tmp"
 #define SW_TASK_TMP_FILE "swoole.task.XXXXXX"
 
@@ -207,7 +207,7 @@
 #define SW_HTTP_RESPONSE_INIT_SIZE 65536
 #define SW_HTTP_HEADER_MAX_SIZE 65536
 #define SW_HTTP_HEADER_KEY_SIZE 128
-#define SW_HTTP_UPLOAD_TMPDIR_SIZE 256
+#define SW_HTTP_UPLOAD_TMPDIR_SIZE SW_TASK_TMP_PATH_SIZE
 #define SW_HTTP_DATE_FORMAT "D, d M Y H:i:s T"
 #define SW_HTTP_RFC1123_DATE_GMT "%a, %d %b %Y %T GMT"
 #define SW_HTTP_RFC1123_DATE_UTC "%a, %d %b %Y %T UTC"

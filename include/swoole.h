@@ -566,7 +566,6 @@ static inline void swoole_strtolower(char *str, int length) {
 
 int swoole_itoa(char *buf, long value);
 bool swoole_mkdir_recursive(const std::string &dir);
-std::string swoole_dirname(const std::string &file);
 
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
@@ -589,7 +588,6 @@ int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
 bool swoole_set_task_tmpdir(const std::string &dir);
 int swoole_tmpfile(char *filename);
-int swoole_open_tmpfile(char *filename);
 
 #ifdef HAVE_CPU_AFFINITY
 #ifdef __FreeBSD__
@@ -745,6 +743,7 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
 }
 
 namespace swoole {
+std::string dirname(const std::string &file);
 int hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 }  // namespace swoole

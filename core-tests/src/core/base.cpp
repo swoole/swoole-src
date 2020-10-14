@@ -154,3 +154,30 @@ TEST(base, string_format) {
     ASSERT_STREQ(data, "hello 2020 world, swoole is best.");
     sw_free(data);
 }
+
+TEST(base, dirname) {
+    ASSERT_EQ(dirname("/hello/world/index.html.abc"), "/hello/world");
+    ASSERT_EQ(dirname("/hello/world"), "/hello");
+    ASSERT_EQ(dirname("/root"), "/");
+    ASSERT_EQ(dirname("/"), "/");
+}
+
+TEST(base, set_task_tmpdir) {
+    const char *tmpdir = "/tmp/swoole/core_tests/base";
+    ASSERT_TRUE(swoole_set_task_tmpdir(tmpdir));
+    File fp = swoole::make_tmpfile();
+    ASSERT_TRUE(fp.ready());
+
+    char buf[128];
+    swoole_random_string(buf, sizeof(buf) - 2);
+    buf[sizeof(buf) - 2] = '\n';
+
+    fp.write(buf, sizeof(buf) - 1);
+    fp.close();
+
+    ASSERT_EQ(swoole::dirname(fp.get_path()), tmpdir);
+    ASSERT_STREQ(swoole::file_get_contents(fp.get_path())->str, buf);
+
+    unlink(fp.get_path().c_str());
+    rmdir(tmpdir);
+}

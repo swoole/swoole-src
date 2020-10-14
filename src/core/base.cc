@@ -248,11 +248,6 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     return true;
 }
 
-int swoole_open_tmpfile(char *filename) {
-    memcpy(filename, SwooleG.task_tmpfile.c_str(), SwooleG.task_tmpfile.length());
-    return swoole_tmpfile(filename);
-}
-
 pid_t swoole_fork(int flags) {
     if (!(flags & SW_FORK_EXEC)) {
         if (swoole_coroutine_is_in()) {
@@ -387,14 +382,6 @@ bool swoole_mkdir_recursive(const std::string &dir) {
     }
 
     return true;
-}
-
-std::string swoole_dirname(const std::string &file) {
-    auto index = file.find_last_of('/');
-    if (index == std::string::npos) {
-        return std::string();
-    }
-    return file.substr(0, index);
 }
 
 int swoole_type_size(char type) {
@@ -567,21 +554,6 @@ void swoole_rtrim(char *str, int len) {
         default:
             return;
         }
-    }
-}
-
-int swoole_tmpfile(char *filename) {
-#if defined(HAVE_MKOSTEMP) && defined(HAVE_EPOLL)
-    int tmp_fd = mkostemp(filename, O_WRONLY | O_CREAT);
-#else
-    int tmp_fd = mkstemp(filename);
-#endif
-
-    if (tmp_fd < 0) {
-        swSysWarn("mkstemp(%s) failed", filename);
-        return SW_ERR;
-    } else {
-        return tmp_fd;
     }
 }
 
@@ -844,6 +816,16 @@ size_t swDataHead::dump(char *_buf, size_t _len) {
 
 namespace swoole {
 //-------------------------------------------------------------------------------
+std::string dirname(const std::string &file) {
+    size_t index = file.find_last_of('/');
+    if (index == std::string::npos) {
+        return std::string();
+    } else if (index == 0) {
+        return "/";
+    }
+    return file.substr(0, index);
+}
+
 int hook_add(void **hooks, int type, const Callback &func, int push_back) {
     if (hooks[type] == nullptr) {
         hooks[type] = new std::list<Callback>;
