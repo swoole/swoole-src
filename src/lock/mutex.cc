@@ -68,9 +68,7 @@ static int swMutex_trylock(swLock *lock) {
 
 #ifdef HAVE_MUTEX_TIMEDLOCK
 int swMutex_lockwait(swLock *lock, int timeout_msec) {
-    struct timespec timeo;
-    timeo.tv_sec = timeout_msec / 1000;
-    timeo.tv_nsec = (timeout_msec - timeo.tv_sec * 1000) * 1000 * 1000;
+    struct timespec timeo = swoole_time_until(timeout_msec);
     return pthread_mutex_timedlock(&lock->object.mutex._lock, &timeo);
 }
 #else

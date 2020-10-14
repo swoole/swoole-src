@@ -134,6 +134,9 @@ typedef unsigned long ulong_t;
 #define MIN(A, B) SW_MIN(A, B)
 #endif
 
+#define SW_NUM_BILLION   (1000 * 1000 *1000)
+#define SW_NUM_MILLION   (1000 * 1000)
+
 #ifdef SW_DEBUG
 #define SW_ASSERT(e) assert(e)
 #define SW_ASSERT_1BYTE(v)                                                                                             \
@@ -602,6 +605,31 @@ typedef cpuset_t cpu_set_t;
 #endif
 int swoole_set_cpu_affinity(cpu_set_t *set);
 #endif
+
+#ifdef HAVE_CLOCK_GETTIME
+#define swoole_clock_gettime     clock_gettime
+#else
+int swoole_clock_gettime(clock_id_t which_clock, struct timespec *t);
+#endif
+
+static inline struct timespec swoole_time_until(int milliseconds) {
+    struct timespec t;
+    swoole_clock_gettime(CLOCK_REALTIME, &t);
+
+    int sec = milliseconds / 1000;
+    int msec = milliseconds - (sec * 1000);
+
+    t.tv_sec += sec;
+    t.tv_nsec += msec * 1000 * 1000;
+
+    if (t.tv_nsec > SW_NUM_BILLION) {
+        int _sec = t.tv_nsec / SW_NUM_BILLION;
+        t.tv_sec += _sec;
+        t.tv_nsec -= _sec * SW_NUM_BILLION;
+    }
+
+    return t;
+}
 
 struct swThreadGlobal {
     uint16_t id;

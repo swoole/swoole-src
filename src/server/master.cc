@@ -261,7 +261,7 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
 
 _cleanup:
     if (conn) {
-        conn = {};
+        *conn = {};
     }
     if (session) {
         delete session;

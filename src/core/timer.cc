@@ -31,7 +31,7 @@
 static double orwl_timebase = 0.0;
 static uint64_t orwl_timestart = 0;
 
-static int clock_gettime(clock_id_t which_clock, struct timespec *t) {
+int swoole_clock_gettime(clock_id_t which_clock, struct timespec *t) {
     // be more careful in a multithreaded environement
     if (!orwl_timestart) {
         mach_timebase_info_data_t tb = {0};

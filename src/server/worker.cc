@@ -234,12 +234,14 @@ int Server::accept_task(EventData *task) {
     switch (task->info.type) {
     case SW_SERVER_EVENT_RECV_DATA: {
         Connection *conn = get_connection_verify(task->info.fd);
-        if (!Worker_discard_data(this, conn, task)) {
+        if (conn) {
             if (task->info.len > 0) {
                 sw_atomic_fetch_sub(&conn->recv_queued_bytes, task->info.len);
                 swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->recv_queued_bytes);
             }
             conn->last_dispatch_time = task->info.time;
+        }
+        if (!Worker_discard_data(this, conn, task)) {
             Worker_do_task(this, worker, task, onReceive);
         }
         break;

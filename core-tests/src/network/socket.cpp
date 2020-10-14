@@ -287,3 +287,48 @@ TEST(socket, clean) {
     unlink(sock1_path);
     unlink(sock2_path);
 }
+
+TEST(socket, check_liveness) {
+    mutex m;
+    m.lock();
+
+    thread t1([&m]() {
+        auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);
+        m.unlock();
+
+        auto cli = svr->accept();
+        ASSERT_TRUE(cli);
+
+        char buf[1024] = {};
+        cli->recv(buf, sizeof(buf), 0);
+        ASSERT_STREQ(test_data, buf);
+
+        ssize_t n = cli->recv(buf, sizeof(buf), 0);
+        buf[n] = 0;
+        ASSERT_STREQ("close", buf);
+        cli->shutdown(SHUT_RDWR);
+        cli->free();
+
+        svr->free();
+    });
+
+    thread t2([&m]() {
+        m.lock();
+
+        auto cli = make_socket(SW_SOCK_TCP, SW_FD_STREAM_CLIENT, 0);
+        ASSERT_EQ(cli->connect(TEST_HOST, TEST_PORT), SW_OK);
+
+        cli->send(test_data, sizeof(test_data), 0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        ASSERT_TRUE(cli->check_liveness());
+
+        cli->send(SW_STRL("close"), 0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        ASSERT_FALSE(cli->check_liveness());
+
+        cli->free();
+    });
+
+    t1.join();
+    t2.join();
+}

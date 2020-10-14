@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_util.h"
 #include <thread>
 
 static void test_func(swLock &lock) {
@@ -45,6 +46,33 @@ TEST(lock, mutex) {
     swLock lock;
     swMutex_create(&lock, 0);
     test_func(lock);
+}
+
+TEST(lock, lockwait) {
+    swLock lock;
+    swMutex_create(&lock, 0);
+
+    lock.lock(&lock);
+
+    std::thread t1([&lock]() {
+        long ms1 = swoole::time<std::chrono::milliseconds>();
+        const int TIMEOUT_1 = 2;
+        ASSERT_EQ(swMutex_lockwait(&lock, TIMEOUT_1), ETIMEDOUT);
+        long ms2 = swoole::time<std::chrono::milliseconds>();
+
+        ASSERT_GE(ms2 - ms1, TIMEOUT_1);
+
+        const int TIMEOUT_2 = 10;
+        ASSERT_EQ(swMutex_lockwait(&lock, TIMEOUT_2), 0);
+        long ms3 = swoole::time<std::chrono::milliseconds>();
+
+        ASSERT_LE(ms3 - ms2, TIMEOUT_2);
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    lock.unlock(&lock);
+
+    t1.join();
 }
 
 TEST(lock, rwlock) {
