@@ -210,6 +210,21 @@ TEST(base, hook) {
     ASSERT_EQ(count, 9999);
 }
 
+TEST(base, intersection) {
+    std::vector<std::string> vec1{"index.php", "index.html", "default.html"};
 
+    std::set<std::string> vec2 {".", "..", "default.html", "index.php", "test.html", "a.json", "index.php"};
+    ASSERT_EQ("index.php", swoole::intersection(vec1, vec2));
 
+    std::set<std::string> vec3 {"a", "zh中", "、r\n"};
+    ASSERT_EQ("", swoole::intersection(vec1, vec3));
+}
 
+TEST(base, itoa) {
+    char buf[128];
+    long value = 123456987;
+    int n = swoole_itoa(buf, value);
+
+    ASSERT_EQ(n, 9);
+    ASSERT_STREQ(buf, "123456987");
+}
