@@ -70,7 +70,7 @@ std::shared_ptr<String> file_get_contents(const std::string &filename) {
     return content;
 }
 
-bool file_put_contents(const char *filename, const char *content, size_t length) {
+bool file_put_contents(const std::string &filename, const char *content, size_t length) {
     if (length <= 0) {
         swoole_error_log(SW_LOG_TRACE, SW_ERROR_FILE_EMPTY, "content is empty");
         return false;
@@ -81,7 +81,7 @@ bool file_put_contents(const char *filename, const char *content, size_t length)
     }
     File file(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (!file.ready()) {
-        swSysWarn("open(%s) failed", filename);
+        swSysWarn("open(%s) failed", filename.c_str());
         return false;
     }
     return file.write_all(content, length);

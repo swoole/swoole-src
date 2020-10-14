@@ -151,7 +151,7 @@ TEST(socket, sendfile_blocking) {
     mutex m;
     m.lock();
 
-    auto str = swoole_file_get_contents(file);
+    auto str = file_get_contents(file);
 
     thread t1([&m, &str]() {
         auto svr = make_server_socket(SW_SOCK_TCP, TEST_HOST, TEST_PORT);

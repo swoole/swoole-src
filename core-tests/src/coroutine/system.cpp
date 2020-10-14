@@ -37,10 +37,9 @@ TEST(coroutine_system, file) {
         flags |= O_TMPFILE;
 #endif
         ASSERT_EQ(System::write_file(test_file, buf, n_buf, true, flags), n_buf);
-        swString *data = System::read_file(test_file, true);
-        ASSERT_TRUE(data);
+        auto data = System::read_file(test_file, true);
+        ASSERT_TRUE(data.get());
         ASSERT_EQ(std::string(buf, n_buf), std::string(data->str, data->length));
-        swString_free(data);
         unlink(test_file);
     });
 }

@@ -61,7 +61,7 @@ TEST(base, file_put_contents) {
     char buf[65536];
     swoole_random_string(buf, sizeof(buf) - 1);
     ASSERT_TRUE(file_put_contents(TEST_TMP_FILE, buf, sizeof(buf)));
-    auto result = swoole_file_get_contents(TEST_TMP_FILE);
+    auto result = file_get_contents(TEST_TMP_FILE);
     ASSERT_STREQ(buf, result->value());
 }
 
@@ -76,7 +76,7 @@ TEST(base, file_get_size) {
     f.write(buf, sizeof(buf) - 1);
     f.close();
 
-    ASSERT_EQ(swoole_file_get_size(TEST_TMP_FILE), sizeof(buf) -1);
+    ASSERT_EQ(file_get_size(TEST_TMP_FILE), sizeof(buf) -1);
 }
 
 TEST(base, version_compare) {
@@ -113,11 +113,11 @@ TEST(base, shell_exec) {
 
 TEST(base, file_size) {
     auto file = test::get_jpg_file();
-    ssize_t file_size = swoole_file_get_size(file);
+    ssize_t file_size = file_get_size(file);
     ASSERT_GT(file_size, 0);
     auto fp = fopen(file.c_str(), "r+");
     ASSERT_TRUE(fp);
-    ASSERT_EQ(swoole_file_get_size(fp), file_size);
+    ASSERT_EQ(file_get_size(fp), file_size);
     fclose(fp);
 }
 
