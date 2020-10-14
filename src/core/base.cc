@@ -363,7 +363,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
 
     // PATH_MAX limit includes string trailing null character
     if (len + 1 > PATH_MAX) {
-        swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters", dir, PATH_MAX - 1);
+        swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters", dir.c_str(), PATH_MAX - 1);
         return false;
     }
     swoole_strlcpy(tmp, dir.c_str(), PATH_MAX);
