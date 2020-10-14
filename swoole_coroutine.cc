@@ -1000,7 +1000,7 @@ PHP_METHOD(swoole_coroutine, list) {
     sw_zend_call_method_with_1_params(return_value,
                                       swoole_coroutine_iterator_ce,
                                       &swoole_coroutine_iterator_ce->constructor,
-                                      (const char *) "__construct",
+                                      "__construct",
                                       nullptr,
                                       &zlist);
     zval_ptr_dtor(&zlist);

@@ -285,7 +285,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "write_timeout", ztmp)) {
         cli->set_timeout(zval_get_double(ztmp), Socket::TIMEOUT_WRITE);
     }
-    std::string _bind_address("");
+    std::string _bind_address;
     int _bind_port = 0;
     if (php_swoole_array_get_value(vht, "bind_port", ztmp)) {
         zend_long v = zval_get_long(ztmp);

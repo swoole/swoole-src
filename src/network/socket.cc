@@ -418,7 +418,7 @@ int Socket::handle_sendfile() {
     if (ret <= 0) {
         switch (catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("sendfile(%s, %ld, %d) failed", task->filename, (long) task->offset, sendn);
+            swSysWarn("sendfile(%s, %ld, %zu) failed", task->filename, (long) task->offset, sendn);
             buffer->pop();
             return SW_OK;
         case SW_CLOSE:

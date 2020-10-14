@@ -174,6 +174,7 @@ std::vector<std::string> swoole::coroutine::dns_lookup(const char *domain, doubl
 
     uchar rdata[10][254];
     uint32_t type[10];
+    sw_memset_zero(rdata, sizeof(rdata));
 
     char *temp;
     steps = 0;
@@ -308,8 +309,8 @@ static int domain_encode(const char *src, int n, char *dest) {
  */
 static void domain_decode(char *str) {
     size_t i, j;
-    for (i = 0; i < strlen((const char *) str); i++) {
-        unsigned int len = str[i];
+    for (i = 0; i < strlen(str); i++) {
+        uint32_t len = str[i];
         for (j = 0; j < len; j++) {
             str[i] = str[i + 1];
             i++;

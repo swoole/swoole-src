@@ -501,8 +501,8 @@ greeting_packet::greeting_packet(const char *data) : server_packet(data) {
 };
 
 login_packet::login_packet(greeting_packet *greeting_packet,
-                           const std::string user,
-                           const std::string password,
+                           const std::string &user,
+                           const std::string &password,
                            std::string database,
                            char charset) {
     char *p = data.body;
@@ -569,7 +569,7 @@ auth_switch_request_packet::auth_switch_request_packet(const char *data) : serve
     swTraceLog(SW_TRACE_MYSQL_CLIENT, "auth switch plugin name=%s", auth_method_name.c_str());
 }
 
-auth_switch_response_packet::auth_switch_response_packet(auth_switch_request_packet *req, const std::string password) {
+auth_switch_response_packet::auth_switch_response_packet(auth_switch_request_packet *req, const std::string &password) {
     // if auth switch is triggered, password can't be empty
     // create auth switch response packet
     set_header(mysql_auth_encrypt_dispatch(data.body, req->auth_method_name, req->auth_method_data, password.c_str()),
@@ -580,7 +580,7 @@ auth_switch_response_packet::auth_switch_response_packet(auth_switch_request_pac
 //  Caching sha2 authentication. Public key request and send encrypted password
 // http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
 auth_signature_response_packet::auth_signature_response_packet(raw_data_packet *raw_data_pakcet,
-                                                               const std::string password,
+                                                               const std::string &password,
                                                                const char *auth_plugin_data) {
 #ifndef SW_MYSQL_RSA_SUPPORT
     {

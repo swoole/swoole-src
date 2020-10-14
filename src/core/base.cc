@@ -311,7 +311,7 @@ pid_t swoole_fork(int flags) {
 
 void swoole_dump_ascii(const char *data, size_t size) {
     for (size_t i = 0; i < size; i++) {
-        printf("%d ", (unsigned) data[i]);
+        printf("%u ", (unsigned) data[i]);
     }
     printf("\n");
 }

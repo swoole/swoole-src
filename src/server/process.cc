@@ -106,7 +106,7 @@ static int swFactoryProcess_create_pipes(Factory *factory) {
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
 
         if (swPipeUnsock_create(&object->pipes[i], 1, SOCK_DGRAM) < 0) {
-            sw_free(object->pipes);
+            delete[] object->pipes;
             object->pipes = nullptr;
             return SW_ERR;
         }

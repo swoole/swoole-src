@@ -65,7 +65,7 @@ static void swManager_kill_timeout_process(Timer *timer, TimerNode *tnode) {
             continue;
         }
         if (swoole_kill(pid, SIGKILL) < 0) {
-            swSysWarn("swKill(%d, SIGKILL) [%d] failed", pid, i);
+            swSysWarn("swKill(%d, SIGKILL) [%u] failed", pid, worker_id);
         } else {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
