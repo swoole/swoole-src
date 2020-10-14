@@ -28,6 +28,7 @@ using swoole::coroutine::System;
 static const char *test_file = "/tmp/swoole-core-test";
 
 static constexpr int DATA_SIZE = 8 * 1024 * 1024;
+static constexpr int DATA_SIZE_2 = 64 * 1024;
 
 TEST(coroutine_system, file) {
     test::coroutine::run([](void *arg) {
@@ -45,4 +46,42 @@ TEST(coroutine_system, file) {
         ASSERT_STREQ(buf->str, data->str);
         unlink(test_file);
     });
+}
+
+TEST(coroutine_system, flock) {
+
+    std::shared_ptr<String> buf = std::make_shared<String>(65536);
+    ASSERT_EQ(swoole_random_bytes(buf->str, buf->size - 1), buf->size - 1);
+    buf->str[buf->size - 1] = 0;
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    Coroutine::create([&buf](void*) {
+        int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
+        ASSERT_TRUE(fd > 0);
+        swoole_coroutine_flock_ex(test_file, fd, LOCK_EX);
+
+        for (int i = 0; i < 4; i++) {
+            Coroutine::create([&buf](void*) {
+                int fd = swoole_coroutine_open(test_file, File::READ, 0);
+                ASSERT_TRUE(fd > 0);
+                swoole_coroutine_flock_ex(test_file, fd, LOCK_SH);
+                String read_buf(DATA_SIZE_2);
+                auto rn = swoole_coroutine_read(fd, read_buf.str, read_buf.size - 1);
+                ASSERT_EQ(rn, read_buf.size - 1);
+                read_buf.str[read_buf.size - 1] = 0;
+                swoole_coroutine_flock_ex(test_file, fd, LOCK_UN);
+                EXPECT_STREQ(read_buf.str, buf->str);
+                swoole_coroutine_close(fd);
+            });
+        }
+
+        auto wn = swoole_coroutine_write(fd, buf->str, buf->size - 1);
+        ASSERT_EQ(wn, buf->size - 1);
+        swoole_coroutine_flock_ex(test_file, fd, LOCK_UN);
+        swoole_coroutine_close(fd);
+    });
+
+    swoole_event_wait();
+    unlink(test_file);
 }

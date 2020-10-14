@@ -82,8 +82,7 @@ int System::sleep(double sec) {
 
 std::shared_ptr<String> System::read_file(const char *file, bool lock) {
     std::shared_ptr<String> result;
-    bool read_success = false;
-    bool async_success = swoole::coroutine::async([&result, file, lock, &read_success]() {
+    swoole::coroutine::async([&result, file, lock]() {
         File fp(file, O_RDONLY);
         if (!fp.ready()) {
             swSysWarn("open(%s, O_RDONLY) failed", file);
@@ -93,7 +92,6 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
             swSysWarn("flock(%s, LOCK_SH) failed", file);
             return;
         }
-        read_success = true;
         ssize_t filesize = fp.get_size();
         if (filesize > 0) {
             auto content = make_string(filesize + 1);
@@ -107,11 +105,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
             swSysWarn("flock(%s, LOCK_UN) failed", file);
         }
     });
-    if (async_success && errno == 0) {
-        return result;
-    } else {
-        return nullptr;
-    }
+    return result;
 }
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {

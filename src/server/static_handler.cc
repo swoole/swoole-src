@@ -256,7 +256,7 @@ bool StaticHandler::set_filename(std::string &filename) {
         return false;
     }
 
-    if ((file_stat.st_mode & S_IFMT) != S_IFREG) {
+    if (!S_ISREG(file_stat.st_mode)) {
         return false;
     }
 

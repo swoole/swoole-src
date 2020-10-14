@@ -53,7 +53,7 @@ ssize_t file_get_size(int fd) {
         swoole_set_last_error(errno);
         return -1;
     }
-    if ((file_stat.st_mode & S_IFMT) != S_IFREG) {
+    if (!S_ISREG(file_stat.st_mode)) {
         swoole_set_last_error(EISDIR);
         return -1;
     }
