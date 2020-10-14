@@ -183,7 +183,7 @@ TEST(base, set_task_tmpdir) {
 }
 
 TEST(base, version) {
-    ASSERT_EQ(swoole_version(), SWOOLE_VERSION);
+    ASSERT_STREQ(swoole_version(), SWOOLE_VERSION);
     ASSERT_EQ(swoole_version_id(), SWOOLE_VERSION_ID);
 }
 
@@ -209,5 +209,7 @@ TEST(base, hook) {
     swoole_call_hook(SW_GLOBAL_HOOK_END, &count);
     ASSERT_EQ(count, 9999);
 }
+
+
 
 
