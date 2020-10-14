@@ -23,6 +23,7 @@
 #include "swoole_log.h"
 #include "swoole_ssl.h"
 #include "swoole_util.h"
+#include "swoole_file.h"
 
 namespace swoole {
 namespace network {
@@ -35,17 +36,16 @@ uint32_t Socket::default_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
 int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
-    int file_fd = open(filename, O_RDONLY);
-    if (file_fd < 0) {
+
+    File file(filename, O_RDONLY);
+    if (!file.ready()) {
         swSysWarn("open(%s) failed", filename);
         return SW_ERR;
     }
 
-    FileDescriptor _(file_fd);
     if (length == 0) {
-        struct stat file_stat;
-        if (fstat(file_fd, &file_stat) < 0) {
-            swSysWarn("fstat() failed");
+        FileStatus file_stat;
+        if (!file.stat(&file_stat)) {
             return SW_ERR;
         }
         length = file_stat.st_size;
@@ -59,7 +59,7 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
             return SW_ERR;
         } else {
             sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
-            n = ::swoole_sendfile(fd, file_fd, &offset, sendn);
+            n = ::swoole_sendfile(fd, file.get_fd(), &offset, sendn);
             if (n <= 0) {
                 swSysWarn("sendfile(%d, %s) failed", fd, filename);
                 return SW_ERR;

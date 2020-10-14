@@ -167,8 +167,9 @@
 #define SW_USE_EVENTFD                                                                                                 \
     1  // Whether to use eventfd for message notification, Linux 2.6.22 or later is required to support
 
-#define SW_TASK_TMP_FILE "/tmp/swoole.task.XXXXXX"
-#define SW_TASK_TMPDIR_SIZE 128
+#define SW_TASK_TMP_PATH_SIZE 128
+#define SW_TASK_TMP_DIR  "/tmp"
+#define SW_TASK_TMP_FILE "swoole.task.XXXXXX"
 
 #define SW_FILE_CHUNK_SIZE 65536
 

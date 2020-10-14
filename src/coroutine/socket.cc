@@ -23,6 +23,7 @@
 #include <iostream>
 
 #include "swoole_util.h"
+#include "swoole_file.h"
 #include "swoole_socket.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_buffer.h"
@@ -1219,16 +1220,16 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return false;
     }
-    int file_fd = ::open(filename, O_RDONLY);
-    if (file_fd < 0) {
+
+    File file(filename, O_RDONLY);
+    if (!file.ready()) {
         set_err(errno, std_string::format("open(%s) failed, %s", filename, strerror(errno)));
         return false;
     }
 
-    FileDescriptor _(file_fd);
     if (length == 0) {
-        struct stat file_stat;
-        if (::fstat(file_fd, &file_stat) < 0) {
+        FileStatus file_stat;
+        if (!file.stat(&file_stat)) {
             set_err(errno, std_string::format("fstat(%s) failed, %s", filename, strerror(errno)));
             return false;
         }
@@ -1244,11 +1245,11 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
 #ifdef SW_USE_OPENSSL
         if (socket->ssl) {
-            n = swSSL_sendfile(socket, file_fd, &offset, sendn);
+            n = swSSL_sendfile(socket, file.get_fd(), &offset, sendn);
         } else
 #endif
         {
-            n = ::swoole_sendfile(sock_fd, file_fd, &offset, sendn);
+            n = ::swoole_sendfile(sock_fd, file.get_fd(), &offset, sendn);
         }
         if (n > 0) {
             continue;

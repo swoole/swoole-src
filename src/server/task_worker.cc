@@ -16,9 +16,11 @@
 
 #include "swoole_server.h"
 #include "swoole_util.h"
+#include "swoole_file.h"
 
 using namespace swoole;
 using swoole::network::Socket;
+using swoole::File;
 
 static void TaskWorker_signal_init(ProcessPool *pool);
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event);
@@ -73,13 +75,9 @@ bool EventData::pack(const void *_data, size_t _length) {
     }
 
     PacketTask pkg{};
+    File file(swoole_open_tmpfile(pkg.tmpfile));
 
-    memcpy(pkg.tmpfile, SwooleG.task_tmpdir, SwooleG.task_tmpdir_len);
-
-    // create temp file
-    FileDescriptor _handler(swoole_tmpfile(pkg.tmpfile));
-
-    int tmp_fd = _handler.get();
+    int tmp_fd = file.get_fd();
     if (tmp_fd < 0) {
         return false;
     }
@@ -104,9 +102,9 @@ bool EventData::unpack(String *buffer) {
     PacketTask _pkg{};
     memcpy(&_pkg, data, sizeof(_pkg));
 
-    FileDescriptor _handler(open(_pkg.tmpfile, O_RDONLY));
+    File _handler(open(_pkg.tmpfile, O_RDONLY));
 
-    int tmp_file_fd = _handler.get();
+    int tmp_file_fd = _handler.get_fd();
     if (tmp_file_fd < 0) {
         swSysWarn("open(%s) failed", _pkg.tmpfile);
         return false;

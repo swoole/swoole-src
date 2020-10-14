@@ -234,7 +234,7 @@ struct DgramPacket {
 //------------------------------------Packet-------------------------------------------
 struct PacketTask {
     size_t length;
-    char tmpfile[SW_TASK_TMPDIR_SIZE + sizeof(SW_TASK_TMP_FILE)];
+    char tmpfile[SW_TASK_TMP_PATH_SIZE];
 };
 
 struct PacketPtr {

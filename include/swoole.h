@@ -134,7 +134,7 @@ typedef unsigned long ulong_t;
 #define MIN(A, B) SW_MIN(A, B)
 #endif
 
-#define SW_NUM_BILLION   (1000 * 1000 *1000)
+#define SW_NUM_BILLION   (1000 * 1000 * 1000)
 #define SW_NUM_MILLION   (1000 * 1000)
 
 #ifdef SW_DEBUG
@@ -565,18 +565,19 @@ static inline void swoole_strtolower(char *str, int length) {
 }
 
 int swoole_itoa(char *buf, long value);
-int swoole_mkdir_recursive(const char *dir);
-char *swoole_dirname(const char *file);
+bool swoole_mkdir_recursive(const std::string &dir);
+std::string swoole_dirname(const std::string &file);
 size_t swoole_sync_writefile(int fd, const void *data, size_t len);
 size_t swoole_sync_readfile(int fd, void *buf, size_t len);
 swString *swoole_sync_readfile_eof(int fd);
 int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 ssize_t swoole_file_get_size(FILE *fp);
+ssize_t swoole_file_get_size(int fd);
+ssize_t swoole_file_get_size(const std::string &filename);
 int swoole_tmpfile(char *filename);
-std::shared_ptr<swString> swoole_file_get_contents(const char *filename);
+std::shared_ptr<swoole::String> swoole_file_get_contents(const std::string &filename);
 bool swoole_file_put_contents(const char *filename, const char *content, size_t length);
-ssize_t swoole_file_size(const char *filename);
 int swoole_version_compare(const char *version1, const char *version2);
 #ifdef HAVE_EXECINFO
 void swoole_print_trace(void);
@@ -595,6 +596,8 @@ void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
+bool swoole_set_task_tmpdir(const std::string &dir);
+int swoole_open_tmpfile(char *filename);
 
 #ifdef HAVE_CPU_AFFINITY
 #ifdef __FreeBSD__
@@ -683,8 +686,7 @@ struct swGlobal {
     //-----------------------[Memory]--------------------------
     swMemoryPool *memory_pool;
     swAllocator std_allocator;
-    char *task_tmpdir;
-    uint16_t task_tmpdir_len;
+    std::string task_tmpfile;
     //-----------------------[DNS]--------------------------
     char *dns_server_v4;
     char *dns_server_v6;

@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_file.h"
 #include "swoole_util.h"
 
 using namespace swoole;
@@ -62,6 +63,20 @@ TEST(base, file_put_contents) {
     ASSERT_TRUE(swoole_file_put_contents(TEST_TMP_FILE, buf, sizeof(buf)));
     auto result = swoole_file_get_contents(TEST_TMP_FILE);
     ASSERT_STREQ(buf, result->value());
+    unlink(TEST_TMP_FILE);
+}
+
+TEST(base, file_get_size) {
+    File f(TEST_TMP_FILE, File::WRITE | File::CREATE);
+    char buf[65536];
+    swoole_random_string(buf, sizeof(buf) - 1);
+
+    ASSERT_TRUE(f.ready());
+    f.write(buf, sizeof(buf) - 1);
+    f.close();
+
+    ASSERT_EQ(swoole_file_get_size(TEST_TMP_FILE), sizeof(buf) -1);
+    unlink(TEST_TMP_FILE);
 }
 
 TEST(base, version_compare) {
@@ -98,7 +113,7 @@ TEST(base, shell_exec) {
 
 TEST(base, file_size) {
     auto file = test::get_jpg_file();
-    ssize_t file_size = swoole_file_size(file.c_str());
+    ssize_t file_size = swoole_file_get_size(file.c_str());
     ASSERT_GT(file_size, 0);
     auto fp = fopen(file.c_str(), "r+");
     ASSERT_TRUE(fp);

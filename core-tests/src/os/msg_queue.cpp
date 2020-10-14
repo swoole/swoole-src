@@ -18,7 +18,10 @@
 */
 
 #include "test_core.h"
+#include "swoole_file.h"
 #include "swoole_msg_queue.h"
+
+using swoole::File;
 
 TEST(msg_queue, rbac) {
     swMsgQueue q;
@@ -26,6 +29,12 @@ TEST(msg_queue, rbac) {
     swQueue_data in;
     in.mtype = 999;
     strcpy(in.mdata, "hello world");
+
+    File f("/proc/sys/kernel/msgmnb", File::READ);
+    char buf[128];
+    f.read(buf, sizeof(buf) -1);
+
+    ASSERT_TRUE(swMsgQueue_set_capacity(&q, atoi(buf) / 2));
 
     ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
 
