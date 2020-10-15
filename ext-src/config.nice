@@ -1,0 +1,10 @@
+#! /bin/sh
+#
+# Created by configure
+
+'./configure' \
+'--enable-openssl' \
+'--enable-sockets' \
+'--enable-mysqlnd' \
+'--enable-http2' \
+"$@"
