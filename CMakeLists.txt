@@ -59,7 +59,7 @@ add_definitions(-DHAVE_CONFIG_H)
 # test
 #add_definitions(-DSW_USE_THREAD_CONTEXT)
 
-include_directories(BEFORE ./include ./include/wrapper ./)
+include_directories(BEFORE ./include ./include/wrapper ext-src/ ./)
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 # find OpenSSL
@@ -121,7 +121,7 @@ add_dependencies(co lib-swoole)
 target_link_libraries(co swoole)
 
 # ext-swoole
-file(GLOB ext_cxx_files *.cc)
+file(GLOB ext_cxx_files ext-src/*.cc)
 set(ext_src_list  ${ext_cxx_files}
         thirdparty/php/sockets/multicast.cc
         thirdparty/php/sockets/sendrecvmsg.cc

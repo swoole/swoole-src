@@ -443,8 +443,8 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     swoole_source_file=" \
-        php_swoole.cc \
-        php_swoole_cxx.cc \
+        ext-src/php_swoole.cc \
+        ext-src/php_swoole_cxx.cc \
         src/core/base.cc \
         src/core/channel.cc \
         src/core/crc32.cc \
@@ -515,36 +515,36 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/worker.cc \
         src/wrapper/event.cc \
         src/wrapper/timer.cc \
-        swoole_async_coro.cc \
-        swoole_atomic.cc \
-        swoole_channel_coro.cc \
-        swoole_client.cc \
-        swoole_client_coro.cc \
-        swoole_coroutine.cc \
-        swoole_coroutine_scheduler.cc \
-        swoole_coroutine_system.cc \
-        swoole_event.cc \
-        swoole_http2_client_coro.cc \
-        swoole_http2_server.cc \
-        swoole_http_client_coro.cc \
-        swoole_http_request.cc \
-        swoole_http_response.cc \
-        swoole_http_server.cc \
-        swoole_http_server_coro.cc \
-        swoole_lock.cc \
-        swoole_mysql_coro.cc \
-        swoole_mysql_proto.cc \
-        swoole_process.cc \
-        swoole_process_pool.cc \
-        swoole_redis_coro.cc \
-        swoole_redis_server.cc \
-        swoole_runtime.cc \
-        swoole_server.cc \
-        swoole_server_port.cc \
-        swoole_socket_coro.cc \
-        swoole_table.cc \
-        swoole_timer.cc \
-        swoole_websocket_server.cc"
+        ext-src/swoole_async_coro.cc \
+        ext-src/swoole_atomic.cc \
+        ext-src/swoole_channel_coro.cc \
+        ext-src/swoole_client.cc \
+        ext-src/swoole_client_coro.cc \
+        ext-src/swoole_coroutine.cc \
+        ext-src/swoole_coroutine_scheduler.cc \
+        ext-src/swoole_coroutine_system.cc \
+        ext-src/swoole_event.cc \
+        ext-src/swoole_http2_client_coro.cc \
+        ext-src/swoole_http2_server.cc \
+        ext-src/swoole_http_client_coro.cc \
+        ext-src/swoole_http_request.cc \
+        ext-src/swoole_http_response.cc \
+        ext-src/swoole_http_server.cc \
+        ext-src/swoole_http_server_coro.cc \
+        ext-src/swoole_lock.cc \
+        ext-src/swoole_mysql_coro.cc \
+        ext-src/swoole_mysql_proto.cc \
+        ext-src/swoole_process.cc \
+        ext-src/swoole_process_pool.cc \
+        ext-src/swoole_redis_coro.cc \
+        ext-src/swoole_redis_server.cc \
+        ext-src/swoole_runtime.cc \
+        ext-src/swoole_server.cc \
+        ext-src/swoole_server_port.cc \
+        ext-src/swoole_socket_coro.cc \
+        ext-src/swoole_table.cc \
+        ext-src/swoole_timer.cc \
+        ext-src/swoole_websocket_server.cc"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/php/sockets/multicast.cc \
@@ -653,6 +653,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
+    PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     AC_MSG_CHECKING([swoole coverage])
@@ -676,6 +677,7 @@ if test "$PHP_SWOOLE" != "no"; then
         CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
+    PHP_ADD_BUILD_DIR($ext_builddir/ext-src)
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/reactor)

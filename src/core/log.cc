@@ -13,9 +13,9 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
-
-#include <sys/file.h>
 #include <string.h>
+#include <fcntl.h>
+#include <sys/file.h>
 
 #include <string>
 #include <chrono>  // NOLINT [build/c++11]

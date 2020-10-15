@@ -123,6 +123,20 @@ function scan_dir(string $dir, callable $filter = null): array
     return array_values($filter ? array_filter($files, $filter) : $files);
 }
 
+function scan_dir_recursive(string $dir, callable $filter = null): array
+{
+    $result = [];
+    $files = scan_dir($dir, $filter);
+    foreach ($files as $f) {
+        if (is_dir($f)) {
+            $result = array_merge($result, scan_dir_recursive($f, $filter));
+        } else {
+            $result[] = $f;
+        }
+    }
+    return $result;
+}
+
 function file_size(string $filename, int $decimals = 2): string
 {
     $bytes = filesize($filename);
