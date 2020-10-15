@@ -26,6 +26,10 @@
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include <openssl/ossl_typ.h>
+#include <openssl/crypto.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/rand.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define SW_SUPPORT_DTLS
@@ -121,4 +125,5 @@ void swSSL_free_context(SSL_CTX *ssl_context);
 int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth);
 int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
 const char *swSSL_get_error();
+int swSSL_get_ex_connection_index();
 #endif
