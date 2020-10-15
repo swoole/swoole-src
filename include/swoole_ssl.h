@@ -26,6 +26,10 @@
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include <openssl/ossl_typ.h>
+#include <openssl/crypto.h>
+#include <openssl/x509.h>
+#include <openssl/x509v3.h>
+#include <openssl/rand.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define SW_SUPPORT_DTLS
@@ -118,17 +122,8 @@ int swSSL_server_set_cipher(SSL_CTX *ssl_context, swSSL_config *cfg);
 void swSSL_server_http_advise(SSL_CTX *ssl_context, swSSL_config *cfg);
 SSL_CTX *swSSL_get_context(swSSL_option *option);
 void swSSL_free_context(SSL_CTX *ssl_context);
-int swSSL_create(swSocket *conn, SSL_CTX *ssl_context, int flags);
 int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth);
 int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
-int swSSL_check_host(swSocket *conn, const char *tls_host_name);
-int swSSL_get_peer_cert(SSL *ssl, char *buffer, size_t length);
 const char *swSSL_get_error();
-int swSSL_verify(swSocket *conn, int allow_self_signed);
-enum swReturn_code swSSL_accept(swSocket *conn);
-int swSSL_connect(swSocket *conn);
-void swSSL_close(swSocket *conn);
-ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n);
-ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n);
-int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size);
+int swSSL_get_ex_connection_index();
 #endif

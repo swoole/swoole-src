@@ -148,7 +148,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl) {
-            if (swSSL_create(sock, listen_host->ssl_context, SW_SSL_SERVER) < 0) {
+            if (sock->ssl_create(listen_host->ssl_context, SW_SSL_SERVER) < 0) {
                 reactor->close(reactor, sock);
                 return SW_OK;
             } else {
@@ -615,8 +615,8 @@ int Server::start() {
 
     // write PID file
     if (!pid_file.empty()) {
-        size_t n = sw_snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size, "%d", getpid());
-        file_put_contents(pid_file, SwooleTG.buffer_stack->str, n);
+        size_t n = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, "%d", getpid());
+        file_put_contents(pid_file, sw_tg_buffer()->str, n);
     }
     int ret;
     if (is_base_mode()) {
@@ -1421,6 +1421,9 @@ int Server::add_systemd_socket() {
     int start_fd;
     if (!swoole_get_env("LISTEN_FDS_START", &start_fd)) {
         start_fd = SW_SYSTEMD_FDS_START;
+    } else if (start_fd < 0) {
+        swWarn("invalid LISTEN_FDS_START");
+        return 0;
     }
 
     for (sock = start_fd; sock < start_fd + n; sock++) {

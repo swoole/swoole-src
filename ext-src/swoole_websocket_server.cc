@@ -849,7 +849,7 @@ static PHP_METHOD(swoole_websocket_server, push) {
 }
 
 static PHP_METHOD(swoole_websocket_server, pack) {
-    String *buffer = SwooleTG.buffer_stack;
+    String *buffer = sw_tg_buffer();
     zval *zdata;
     zend_long opcode = WEBSOCKET_OPCODE_TEXT;
     zval *zflags = nullptr;
@@ -880,7 +880,7 @@ static PHP_METHOD(swoole_websocket_server, pack) {
 }
 
 static PHP_METHOD(swoole_websocket_frame, __toString) {
-    String *buffer = SwooleTG.buffer_stack;
+    String *buffer = sw_tg_buffer();
     buffer->clear();
 
     if (php_swoole_websocket_frame_object_pack(buffer, ZEND_THIS, 0, 1) < 0) {

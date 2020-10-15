@@ -236,8 +236,8 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
         return false;
     }
 
-    SwooleTG.buffer_stack->format("%s/" SW_TASK_TMP_FILE, dir.c_str());
-    SwooleG.task_tmpfile = SwooleTG.buffer_stack->to_std_string();
+    sw_tg_buffer()->format("%s/" SW_TASK_TMP_FILE, dir.c_str());
+    SwooleG.task_tmpfile = sw_tg_buffer()->to_std_string();
 
     if (SwooleG.task_tmpfile.length() >= SW_TASK_TMP_PATH_SIZE) {
         swWarn("task tmp_dir is too large, the max size is '%d'", SW_TASK_TMP_PATH_SIZE - 1);
@@ -751,7 +751,7 @@ bool swoole_get_env(const char *name, int *value) {
     if (!e) {
         return false;
     }
-    *value = atoi(e);
+    *value = std::stoi(e);
     return true;
 }
 

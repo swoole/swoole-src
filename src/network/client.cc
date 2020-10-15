@@ -273,7 +273,7 @@ int Client::enable_ssl_encrypt() {
         }
     }
 
-    socket->ssl_send = 1;
+    socket->ssl_send_ = 1;
 #if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (http2) {
         if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0) {
@@ -286,7 +286,7 @@ int Client::enable_ssl_encrypt() {
 
 int Client::ssl_handshake() {
     if (!socket->ssl) {
-        if (swSSL_create(socket, ssl_context, SW_SSL_CLIENT) < 0) {
+        if (socket->ssl_create(ssl_context, SW_SSL_CLIENT) < 0) {
             return SW_ERR;
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
@@ -295,7 +295,7 @@ int Client::ssl_handshake() {
         }
 #endif
     }
-    if (swSSL_connect(socket) < 0) {
+    if (socket->ssl_connect() < 0) {
         return SW_ERR;
     }
     if (socket->ssl_state == SW_SSL_STATE_READY && ssl_option.verify_peer) {
@@ -307,11 +307,11 @@ int Client::ssl_handshake() {
 }
 
 int Client::ssl_verify(int allow_self_signed) {
-    if (swSSL_verify(socket, allow_self_signed) < 0) {
+    if (!socket->ssl_verify(allow_self_signed)) {
         return SW_ERR;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0) {
+    if (ssl_option.tls_host_name && !socket->ssl_check_host(ssl_option.tls_host_name)) {
         return SW_ERR;
     }
 #endif
@@ -470,7 +470,7 @@ int Client::close() {
 #ifdef SW_USE_OPENSSL
     if (open_ssl && ssl_context) {
         if (socket->ssl) {
-            swSSL_close(socket);
+            socket->ssl_close();
         }
     }
 #endif

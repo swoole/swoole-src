@@ -48,7 +48,7 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
         return SW_CONTINUE;
     }
 
-    enum swReturn_code code = swSSL_accept(_socket);
+    enum swReturn_code code = _socket->ssl_accept();
     if (code != SW_READY) {
         return code;
     }
@@ -56,20 +56,19 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
     Connection *conn = (Connection *) _socket->object;
     conn->ssl_ready = 1;
     if (port->ssl_option.client_cert_file) {
-        int retval = swSSL_get_peer_cert(_socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
-        if (retval < 0) {
+        if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
             if (port->ssl_option.verify_peer) {
                 return SW_ERROR;
             }
         } else {
-            if (!port->ssl_option.verify_peer || swSSL_verify(_socket, port->ssl_option.allow_self_signed) == SW_OK) {
+            if (!port->ssl_option.verify_peer || _socket->ssl_verify(port->ssl_option.allow_self_signed)) {
                 Factory *factory = &serv->factory;
                 SendData task;
                 task.info.fd = _socket->fd;
                 task.info.type = SW_SERVER_EVENT_CONNECT;
                 task.info.reactor_id = reactor->id;
-                task.info.len = retval;
-                task.data = SwooleTG.buffer_stack->str;
+                task.info.len = sw_tg_buffer()->length;
+                task.data = sw_tg_buffer()->str;
                 factory->dispatch(factory, &task);
                 goto _delay_receive;
             } else {
@@ -129,7 +128,7 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
     Connection *server_sock = serv->get_connection(fd);
     network::Socket *sock = server_sock->socket;
     SendData task = {};
-    DgramPacket *pkt = (DgramPacket *) SwooleTG.buffer_stack->str;
+    DgramPacket *pkt = (DgramPacket *) sw_tg_buffer()->str;
     Factory *factory = &serv->factory;
 
     task.info.server_fd = fd;
@@ -141,7 +140,7 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
 
 _do_recvfrom:
 
-    ret = sock->recvfrom(pkt->data, SwooleTG.buffer_stack->size - sizeof(*pkt), 0, &pkt->socket_addr);
+    ret = sock->recvfrom(pkt->data, sw_tg_buffer()->size - sizeof(*pkt), 0, &pkt->socket_addr);
     if (ret <= 0) {
         if (errno == EAGAIN) {
             return SW_OK;
@@ -231,7 +230,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 #ifdef SW_USE_OPENSSL
     if (socket->ssl) {
         conn->socket->ssl_quiet_shutdown = conn->peer_closed;
-        swSSL_close(conn->socket);
+        conn->socket->ssl_close();
     }
 #ifdef SW_SUPPORT_DTLS
     if (socket->dtls) {
@@ -527,7 +526,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 void Server::init_reactor(Reactor *reactor) {
     // support 64K packet
     if (have_dgram_sock) {
-        SwooleTG.buffer_stack->extend();
+        sw_tg_buffer()->extend();
     }
     // UDP Packet
     reactor->set_handler(SW_FD_DGRAM_SERVER, ReactorThread_onPacketReceived);

@@ -852,11 +852,11 @@ zval *php_swoole_task_unpack(EventData *task_result) {
      * Large result package
      */
     if (swTask_type(task_result) & SW_TASK_TMPFILE) {
-        if (!task_result->unpack(SwooleTG.buffer_stack)) {
+        if (!task_result->unpack(sw_tg_buffer())) {
             return nullptr;
         }
-        result_data_str = SwooleTG.buffer_stack->str;
-        result_data_len = SwooleTG.buffer_stack->length;
+        result_data_str = sw_tg_buffer()->str;
+        result_data_len = sw_tg_buffer()->length;
     } else {
         result_data_str = task_result->data;
         result_data_len = task_result->info.len;

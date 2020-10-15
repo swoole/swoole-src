@@ -196,7 +196,7 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
 
     if (Buffer::empty(buffer)) {
 #ifdef SW_USE_OPENSSL
-        if (socket->ssl_send) {
+        if (socket->ssl_send_) {
             goto _alloc_buffer;
         }
 #endif

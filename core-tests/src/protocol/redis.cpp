@@ -70,8 +70,8 @@ TEST(redis, server) {
         int session_id = req->info.fd;
         auto list = swRedis_parse(req->data, req->info.len);
 
-        swString *buffer = SwooleTG.buffer_stack;
-        swString_clear(buffer);
+        String *buffer = sw_tg_buffer();
+        buffer->clear();
 
         if (strcasecmp(list[0].c_str(), "GET") == 0) {
             swRedis_format(buffer, SW_REDIS_REPLY_STRING, REDIS_TEST_VALUE);
