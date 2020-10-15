@@ -919,7 +919,7 @@ int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
         } else {
             *_offset += ret;
         }
-        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%d, n=%d, ret=%d", _fd, readn, n, ret);
+        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%d, n=%d, ret=%d", fd, readn, n, ret);
         return ret;
     } else {
         swSysWarn("pread() failed");

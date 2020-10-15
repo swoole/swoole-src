@@ -9,7 +9,11 @@ git submodule init
 git submodule update
 
 phpize
-./configure --enable-openssl --enable-sockets --enable-mysqlnd --enable-http2
+if [ "$1" = "debug" ] ;then
+  ./configure --enable-openssl --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
+else
+  ./configure --enable-openssl --enable-sockets --enable-mysqlnd --enable-http2
+fi
 make clean
 make -j 8
 make install

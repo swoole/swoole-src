@@ -85,9 +85,6 @@ class HttpClient {
     /* request info */
     std::string host = "127.0.0.1";
     uint16_t port = 80;
-    /* must bind address first */
-    std::string bind_address;
-    int bind_port = 0;
 #ifdef SW_USE_OPENSSL
     uint8_t ssl = false;
 #endif
