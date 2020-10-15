@@ -307,6 +307,7 @@ struct Socket {
     int ssl_sendfile(int fd, off_t *offset, size_t size);
     X509* ssl_get_peer_certificate();
     int ssl_get_peer_certificate(char *buf, size_t n);
+    bool ssl_get_peer_certificate(String *buf);
     bool ssl_verify(bool allow_self_signed);
     bool ssl_check_host( const char *tls_host_name);
     void ssl_catch_error();

@@ -1319,11 +1319,10 @@ static PHP_METHOD(swoole_client, getPeerCert) {
         php_swoole_fatal_error(E_WARNING, "SSL is not ready");
         RETURN_FALSE;
     }
-    int n = cli->socket->ssl_get_peer_certificate(sw_tg_buffer()->str, sw_tg_buffer()->size);
-    if (n < 0) {
+    if (!cli->socket->ssl_get_peer_certificate(sw_tg_buffer())) {
         RETURN_FALSE;
     }
-    RETURN_STRINGL(sw_tg_buffer()->str, n);
+    RETURN_SW_STRING(sw_tg_buffer());
 }
 
 static PHP_METHOD(swoole_client, verifyPeerCert) {

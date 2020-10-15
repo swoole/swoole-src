@@ -672,6 +672,16 @@ X509* Socket::ssl_get_peer_certificate() {
     return SSL_get_peer_certificate(ssl);
 }
 
+bool Socket::ssl_get_peer_certificate(String *buf) {
+    int n = ssl_get_peer_certificate(buf->str, buf->size);
+    if (n < 0) {
+        return false;
+    } else {
+        buf->length = n;
+        return true;
+    }
+}
+
 int Socket::ssl_get_peer_certificate(char *buffer, size_t length) {
     long len;
     BIO *bio;

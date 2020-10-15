@@ -56,8 +56,7 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
     Connection *conn = (Connection *) _socket->object;
     conn->ssl_ready = 1;
     if (port->ssl_option.client_cert_file) {
-        int retval = _socket->ssl_get_peer_certificate(sw_tg_buffer()->str, sw_tg_buffer()->size);
-        if (retval < 0) {
+        if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
             if (port->ssl_option.verify_peer) {
                 return SW_ERROR;
             }
@@ -68,7 +67,7 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
                 task.info.fd = _socket->fd;
                 task.info.type = SW_SERVER_EVENT_CONNECT;
                 task.info.reactor_id = reactor->id;
-                task.info.len = retval;
+                task.info.len = sw_tg_buffer()->length;
                 task.data = sw_tg_buffer()->str;
                 factory->dispatch(factory, &task);
                 goto _delay_receive;

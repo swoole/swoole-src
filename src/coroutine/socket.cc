@@ -1204,11 +1204,10 @@ bool Socket::ssl_verify(bool allow_self_signed) {
 }
 
 std::string Socket::ssl_get_peer_cert() {
-    int n = socket->ssl_get_peer_certificate(sw_tg_buffer()->str, sw_tg_buffer()->size);
-    if (n <= 0) {
+    if (!socket->ssl_get_peer_certificate(sw_tg_buffer())) {
         return "";
     } else {
-        return std::string(sw_tg_buffer()->str, n);
+        return sw_tg_buffer()->to_std_string();
     }
 }
 #endif

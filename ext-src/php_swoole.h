@@ -912,6 +912,10 @@ static sw_inline zval* sw_zend_read_and_convert_property_array(zend_class_entry 
     RETURN_ZVAL(sw_zend_read_property(Z_OBJCE_P(ZEND_THIS), ZEND_THIS, ZEND_STRL(name), 0), 1, 0); \
 } while (0)
 
+#define RETURN_SW_STRING(buf) do { \
+    RETURN_STRINGL(buf->str, buf->length); \
+} while (0)
+
 //----------------------------------Function API------------------------------------
 
 /**
