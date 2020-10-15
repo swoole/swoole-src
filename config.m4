@@ -442,8 +442,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_MYSQLND, 1, [use mysqlnd])
     fi
 
-    PHP_ADD_BUILD_DIR($ext_builddir/ext-src)
-
     swoole_source_file=" \
         ext-src/php_swoole.cc \
         ext-src/php_swoole_cxx.cc \
@@ -679,6 +677,7 @@ if test "$PHP_SWOOLE" != "no"; then
         CXXFLAGS="$CXXFLAGS -std=c++11"
     fi
 
+    PHP_ADD_BUILD_DIR($ext_builddir/ext-src)
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/reactor)
