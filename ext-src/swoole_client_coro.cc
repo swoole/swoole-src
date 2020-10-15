@@ -908,12 +908,11 @@ static PHP_METHOD(swoole_client_coro, getPeerCert) {
         php_swoole_fatal_error(E_WARNING, "SSL is not ready");
         RETURN_FALSE;
     }
-    char buf[8192];
-    int n = swSSL_get_peer_cert(cli->get_ssl(), buf, sizeof(buf));
+    int n = cli->get_socket()->ssl_get_peer_certificate(sw_tg_buffer()->str, sw_tg_buffer()->size);
     if (n < 0) {
         RETURN_FALSE;
     }
-    RETURN_STRINGL(buf, n);
+    RETURN_STRINGL(sw_tg_buffer()->str, n);
 }
 
 static PHP_METHOD(swoole_client_coro, verifyPeerCert) {

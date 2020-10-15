@@ -86,7 +86,7 @@ std::shared_ptr<String> file_get_contents(const std::string &filename) {
 }
 
 File make_tmpfile() {
-    char *tmpfile = SwooleTG.buffer_stack->str;
+    char *tmpfile = sw_tg_buffer()->str;
     size_t l = swoole_strlcpy(tmpfile, SwooleG.task_tmpfile.c_str(), SW_TASK_TMP_PATH_SIZE);
     int tmp_fd = swoole_tmpfile(tmpfile);
     if (tmp_fd < 0) {

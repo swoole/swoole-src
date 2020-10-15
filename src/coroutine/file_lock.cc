@@ -119,7 +119,7 @@ int swoole_coroutine_flock_ex(const char *filename, int fd, int operation) {
         return ::flock(fd, operation);
     }
 
-    const char *real = realpath(filename, SwooleTG.buffer_stack->str);
+    const char *real = realpath(filename, sw_tg_buffer()->str);
     if (real == nullptr) {
         errno = ENOENT;
         swoole_set_last_error(ENOENT);

@@ -118,7 +118,7 @@ ssize_t Socket::send_blocking(const void *__data, size_t __len) {
     while (written < (ssize_t) __len) {
 #ifdef SW_USE_OPENSSL
         if (ssl) {
-            n = swSSL_send(this, (char *) __data + written, __len - written);
+            n = ssl_send((char *) __data + written, __len - written);
         } else
 #endif
         {
@@ -472,7 +472,7 @@ int Socket::handle_sendfile() {
 
 #ifdef SW_USE_OPENSSL
     if (ssl) {
-        ret = swSSL_sendfile(this, task->fd, &task->offset, sendn);
+        ret = ssl_sendfile(task->fd, &task->offset, sendn);
     } else
 #endif
     {
@@ -623,7 +623,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
         if (ssl) {
             ssize_t retval = 0;
             while ((size_t) total_bytes < __n) {
-                retval = swSSL_recv(this, ((char *) __buf) + total_bytes, __n - total_bytes);
+                retval = ssl_recv(((char *) __buf) + total_bytes, __n - total_bytes);
                 if (retval <= 0) {
                     if (total_bytes == 0) {
                         total_bytes = retval;
@@ -665,7 +665,7 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
     do {
 #ifdef SW_USE_OPENSSL
         if (ssl) {
-            retval = swSSL_send(this, __buf, __n);
+            retval = ssl_send(__buf, __n);
         } else
 #endif
         {

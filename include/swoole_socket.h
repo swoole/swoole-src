@@ -116,7 +116,7 @@ struct Socket {
     uchar cloexec : 1;
     uchar direct_send : 1;
 #ifdef SW_USE_OPENSSL
-    uchar ssl_send : 1;
+    uchar ssl_send_ : 1;
     uchar ssl_want_read : 1;
     uchar ssl_want_write : 1;
     uchar ssl_renegotiation : 1;
@@ -265,12 +265,15 @@ struct Socket {
     ssize_t peek(void *__buf, size_t __n, int __flags);
     Socket *accept();
     int bind(const std::string &_host, int *port);
+
     int bind(const Address &sa) {
         return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
     }
+
     int listen(int backlog = 0) {
         return ::listen(fd, backlog <= 0 ? SW_BACKLOG : backlog);
     }
+
     void clean();
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
@@ -289,6 +292,26 @@ struct Socket {
         addr.assign(socket_type, host, port);
         return connect(addr);
     }
+
+#ifdef SW_USE_OPENSSL
+    void ssl_clear_error() {
+        ERR_clear_error();
+        ssl_want_read = 0;
+        ssl_want_write = 0;
+    }
+    int ssl_create(SSL_CTX *_ssl_context, int _flags);
+    int ssl_connect();
+    enum swReturn_code ssl_accept();
+    ssize_t ssl_recv(void *__buf, size_t __n);
+    ssize_t ssl_send(const void *__buf, size_t __n);
+    int ssl_sendfile(int fd, off_t *offset, size_t size);
+    X509* ssl_get_peer_certificate();
+    int ssl_get_peer_certificate(char *buf, size_t n);
+    bool ssl_verify(bool allow_self_signed);
+    bool ssl_check_host( const char *tls_host_name);
+    void ssl_catch_error();
+    void ssl_close();
+#endif
 
     inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {
         sa->len = sizeof(sa->addr);

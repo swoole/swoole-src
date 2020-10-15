@@ -138,7 +138,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         if (dir_files.empty()) {
             handler.get_dir_files(dir_files);
         }
-        size_t body_length = handler.get_index_page(dir_files, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+        size_t body_length = handler.get_index_page(dir_files, sw_tg_buffer()->str, sw_tg_buffer()->size);
 
         response.info.len = sw_snprintf(header_buffer,
                                         sizeof(header_buffer),
@@ -158,7 +158,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
         send_to_connection(&response);
 
         response.info.len = body_length;
-        response.data = SwooleTG.buffer_stack->str;
+        response.data = sw_tg_buffer()->str;
         send_to_connection(&response);
         return true;
     }

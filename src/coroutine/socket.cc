@@ -1103,7 +1103,7 @@ bool Socket::ssl_check_context() {
             return false;
         }
     }
-    socket->ssl_send = 1;
+    socket->ssl_send_ = 1;
 #if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
     if (http2) {
 #ifndef OPENSSL_NO_NEXTPROTONEG
@@ -1121,7 +1121,7 @@ bool Socket::ssl_create(SSL_CTX *ssl_context) {
     if (socket->ssl) {
         return true;
     }
-    if (swSSL_create(socket, ssl_context, 0) < 0) {
+    if (socket->ssl_create(ssl_context, 0) < 0) {
         return false;
     }
 #ifdef SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
@@ -1152,7 +1152,7 @@ bool Socket::ssl_handshake() {
     }
     if (!ssl_is_server) {
         while (true) {
-            if (swSSL_connect(socket) < 0) {
+            if (socket->ssl_connect() < 0) {
                 set_err(errno);
                 return false;
             }
@@ -1170,7 +1170,7 @@ bool Socket::ssl_handshake() {
         TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
         do {
-            retval = swSSL_accept(socket);
+            retval = socket->ssl_accept();
         } while (retval == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
 
         if (retval != SW_READY) {
@@ -1190,12 +1190,12 @@ bool Socket::ssl_handshake() {
 }
 
 bool Socket::ssl_verify(bool allow_self_signed) {
-    if (swSSL_verify(socket, allow_self_signed) < 0) {
+    if (!socket->ssl_verify(allow_self_signed)) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (ssl_option.tls_host_name && swSSL_check_host(socket, ssl_option.tls_host_name) < 0) {
+    if (ssl_option.tls_host_name && !socket->ssl_check_host(ssl_option.tls_host_name)) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
@@ -1204,14 +1204,11 @@ bool Socket::ssl_verify(bool allow_self_signed) {
 }
 
 std::string Socket::ssl_get_peer_cert() {
-    if (!socket->ssl) {
-        return "";
-    }
-    int n = swSSL_get_peer_cert(socket->ssl, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size);
+    int n = socket->ssl_get_peer_certificate(sw_tg_buffer()->str, sw_tg_buffer()->size);
     if (n <= 0) {
         return "";
     } else {
-        return std::string(SwooleTG.buffer_stack->str, n);
+        return std::string(sw_tg_buffer()->str, n);
     }
 }
 #endif
@@ -1245,7 +1242,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
 #ifdef SW_USE_OPENSSL
         if (socket->ssl) {
-            n = swSSL_sendfile(socket, file.get_fd(), &offset, sendn);
+            n = socket->ssl_sendfile(file.get_fd(), &offset, sendn);
         } else
 #endif
         {
@@ -1573,7 +1570,7 @@ bool Socket::shutdown(int __how) {
 #ifdef SW_USE_OPENSSL
 bool Socket::ssl_shutdown() {
     if (socket->ssl) {
-        swSSL_close(socket);
+        socket->ssl_close();
     }
     if (ssl_context) {
         swSSL_free_context(ssl_context);

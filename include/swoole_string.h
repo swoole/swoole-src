@@ -268,7 +268,6 @@ static inline void swString_free(swString *str) {
     delete str;
 }
 
-inline swoole::String *swString_new(size_t size) {
+static inline swoole::String *swString_new(size_t size) {
     return new swoole::String(size);
 }
-

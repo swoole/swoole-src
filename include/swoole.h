@@ -722,6 +722,10 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
     }
 }
 
+static sw_inline swoole::String *sw_tg_buffer() {
+   return SwooleTG.buffer_stack;
+}
+
 namespace swoole {
 std::string dirname(const std::string &file);
 int hook_add(void **hooks, int type, const Callback &func, int push_back);

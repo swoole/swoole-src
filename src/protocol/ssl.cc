@@ -22,6 +22,7 @@
 #ifdef SW_USE_OPENSSL
 
 using swoole::network::Address;
+using swoole::network::Socket;
 
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
 #error "require openssl version 1.0 or later"
@@ -135,15 +136,9 @@ static int ssl_error_cb(const char *str, size_t len, void *buf) {
 }
 
 const char *swSSL_get_error() {
-    ERR_print_errors_cb(ssl_error_cb, SwooleTG.buffer_stack->str);
+    ERR_print_errors_cb(ssl_error_cb, sw_tg_buffer()->str);
 
-    return SwooleTG.buffer_stack->str;
-}
-
-static sw_inline void swSSL_clear_error(swSocket *conn) {
-    ERR_clear_error();
-    conn->ssl_want_read = 0;
-    conn->ssl_want_write = 0;
+    return sw_tg_buffer()->str;
 }
 
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
@@ -621,133 +616,69 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len) {
 }
 #endif
 
-int swSSL_check_host(swSocket *conn, const char *tls_host_name) {
-    X509 *cert = SSL_get_peer_certificate(conn->ssl);
+bool Socket::ssl_check_host(const char *tls_host_name) {
+    X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
-        return SW_ERR;
+        return false;
     }
 
-#ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
-    /* X509_check_host() is only available in OpenSSL 1.0.2+ */
     if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr) != 1) {
         swWarn("X509_check_host(): no match");
         goto _failed;
     }
     goto _found;
-#else
-    int n, i;
-    X509_NAME *sname;
-    ASN1_STRING *str;
-    X509_NAME_ENTRY *entry;
-    GENERAL_NAME *altname;
-    STACK_OF(GENERAL_NAME) * altnames;
-
-    /*
-     * As per RFC6125 and RFC2818, we check subjectAltName extension,
-     * and if it's not present - commonName in Subject is checked.
-     */
-    altnames = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(cert, NID_subject_alt_name, nullptr, nullptr);
-
-    if (altnames) {
-        n = sk_GENERAL_NAME_num(altnames);
-
-        for (i = 0; i < n; i++) {
-            altname = sk_GENERAL_NAME_value(altnames, i);
-
-            if (altname->type != GEN_DNS) {
-                continue;
-            }
-
-            str = altname->d.dNSName;
-            swTrace("SSL subjectAltName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
-
-            if (swSSL_check_name(tls_host_name, str) == SW_OK) {
-                swTrace("SSL subjectAltName: match");
-                GENERAL_NAMES_free(altnames);
-                goto _found;
-            }
-        }
-
-        swTrace("SSL subjectAltName: no match");
-        GENERAL_NAMES_free(altnames);
-        goto _failed;
-    }
-
-    /*
-     * If there is no subjectAltName extension, check commonName
-     * in Subject.  While RFC2818 requires to only check "most specific"
-     * CN, both Apache and OpenSSL check all CNs, and so do we.
-     */
-    sname = X509_get_subject_name(cert);
-
-    if (sname == nullptr) {
-        goto _failed;
-    }
-
-    i = -1;
-    for (;;) {
-        i = X509_NAME_get_index_by_NID(sname, NID_commonName, i);
-
-        if (i < 0) {
-            break;
-        }
-
-        entry = X509_NAME_get_entry(sname, i);
-        str = X509_NAME_ENTRY_get_data(entry);
-
-        swTrace("SSL commonName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
-
-        if (swSSL_check_name(tls_host_name, str) == SW_OK) {
-            swTrace("SSL commonName: match");
-            goto _found;
-        }
-    }
-    swTrace("SSL commonName: no match");
-#endif
 
 _failed:
     X509_free(cert);
-    return SW_ERR;
+    return false;
 
 _found:
     X509_free(cert);
-    return SW_OK;
+    return true;
 }
 
-int swSSL_verify(swSocket *conn, int allow_self_signed) {
-    int err = SSL_get_verify_result(conn->ssl);
+bool Socket::ssl_verify(bool allow_self_signed) {
+    long err = SSL_get_verify_result(ssl);
     switch (err) {
     case X509_V_OK:
-        return SW_OK;
+        break;
     case X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT:
         if (allow_self_signed) {
-            return SW_OK;
+            break;
         } else {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SSL_VERIFY_FAILED,
                              "self signed certificate from fd#%d is not allowed",
-                             conn->fd);
-            return SW_ERR;
+                             fd);
+            return false;
         }
     default:
-        break;
+        swoole_error_log(SW_LOG_NOTICE,
+                         SW_ERROR_SSL_VERIFY_FAILED,
+                         "can not verify peer from fd#%d with error#%d: %s",
+                         fd,
+                         err,
+                         X509_verify_cert_error_string(err));
+        return false;
     }
-    swoole_error_log(SW_LOG_NOTICE,
-                     SW_ERROR_SSL_VERIFY_FAILED,
-                     "can not verify peer from fd#%d with error#%d: %s",
-                     conn->fd,
-                     err,
-                     X509_verify_cert_error_string(err));
-    return SW_ERR;
+
+    return true;
 }
 
-int swSSL_get_peer_cert(SSL *ssl, char *buffer, size_t length) {
+X509* Socket::ssl_get_peer_certificate() {
+    if (!ssl) {
+        return NULL;
+    }
+    return SSL_get_peer_certificate(ssl);
+}
+
+int Socket::ssl_get_peer_certificate(char *buffer, size_t length) {
     long len;
     BIO *bio;
     X509 *cert;
     int n;
 
-    cert = SSL_get_peer_certificate(ssl);
+    cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
         return SW_ERR;
     }
@@ -785,19 +716,19 @@ _failed:
     return SW_ERR;
 }
 
-enum swReturn_code swSSL_accept(swSocket *conn) {
-    swSSL_clear_error(conn);
+enum swReturn_code Socket::ssl_accept() {
+    ssl_clear_error();
 
-    int n = SSL_accept(conn->ssl);
+    int n = SSL_accept(ssl);
     /**
      * The TLS/SSL handshake was successfully completed
      */
     if (n == 1) {
-        conn->ssl_state = SW_SSL_STATE_READY;
+        ssl_state = SW_SSL_STATE_READY;
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 #ifdef SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS
-        if (conn->ssl->s3) {
-            conn->ssl->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
+        if (ssl->s3) {
+            ssl->s3->flags |= SSL3_FLAGS_NO_RENEGOTIATE_CIPHERS;
         }
 #endif
 #endif
@@ -810,29 +741,29 @@ enum swReturn_code swSSL_accept(swSocket *conn) {
         return SW_ERROR;
     }
 
-    long err = SSL_get_error(conn->ssl, n);
+    long err = SSL_get_error(ssl, n);
     if (err == SSL_ERROR_WANT_READ) {
-        conn->ssl_want_read = 1;
-        conn->ssl_want_write = 0;
+        ssl_want_read = 1;
+        ssl_want_write = 0;
         return SW_WAIT;
     } else if (err == SSL_ERROR_WANT_WRITE) {
-        conn->ssl_want_read = 0;
-        conn->ssl_want_write = 1;
+        ssl_want_read = 0;
+        ssl_want_write = 1;
         return SW_WAIT;
     } else if (err == SSL_ERROR_SSL) {
         int error = ERR_get_error();
         int reason = ERR_GET_REASON(error);
         const char *error_string = ERR_reason_error_string(error);
         swWarn("bad SSL client[%s:%d], reason=%d, error_string=%s",
-               conn->info.get_ip(),
-               conn->info.get_port(),
+               info.get_ip(),
+               info.get_port(),
                reason,
                error_string);
         return SW_ERROR;
     } else if (err == SSL_ERROR_SYSCALL) {
 #ifdef SW_SUPPORT_DTLS
-        if (conn->dtls && errno == 0) {
-            conn->ssl_want_read = 1;
+        if (dtls && errno == 0) {
+            ssl_want_read = 1;
             return SW_WAIT;
         }
 #endif
@@ -842,35 +773,35 @@ enum swReturn_code swSSL_accept(swSocket *conn) {
     return SW_ERROR;
 }
 
-int swSSL_connect(swSocket *conn) {
-    swSSL_clear_error(conn);
+int Socket::ssl_connect() {
+    ssl_clear_error();
 
-    int n = SSL_connect(conn->ssl);
+    int n = SSL_connect(ssl);
     if (n == 1) {
-        conn->ssl_state = SW_SSL_STATE_READY;
+        ssl_state = SW_SSL_STATE_READY;
 
 #ifdef SW_LOG_TRACE_OPEN
-        const char *ssl_version = SSL_get_version(conn->ssl);
-        const char *ssl_cipher = SSL_get_cipher_name(conn->ssl);
+        const char *ssl_version = SSL_get_version(ssl);
+        const char *ssl_cipher = SSL_get_cipher_name(ssl);
         swTraceLog(SW_TRACE_SSL, "connected (%s %s)", ssl_version, ssl_cipher);
 #endif
 
         return SW_OK;
     }
 
-    long err = SSL_get_error(conn->ssl, n);
+    long err = SSL_get_error(ssl, n);
     if (err == SSL_ERROR_WANT_READ) {
-        conn->ssl_want_read = 1;
-        conn->ssl_want_write = 0;
-        conn->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+        ssl_want_read = 1;
+        ssl_want_write = 0;
+        ssl_state = SW_SSL_STATE_WAIT_STREAM;
         return SW_OK;
     } else if (err == SSL_ERROR_WANT_WRITE) {
-        conn->ssl_want_read = 0;
-        conn->ssl_want_write = 1;
-        conn->ssl_state = SW_SSL_STATE_WAIT_STREAM;
+        ssl_want_read = 0;
+        ssl_want_write = 1;
+        ssl_state = SW_SSL_STATE_WAIT_STREAM;
         return SW_OK;
     } else if (err == SSL_ERROR_ZERO_RETURN) {
-        swDebug("SSL_connect(fd=%d) closed", conn->fd);
+        swDebug("SSL_connect(fd=%d) closed", fd);
         return SW_ERR;
     } else if (err == SSL_ERROR_SYSCALL) {
         if (n) {
@@ -880,29 +811,29 @@ int swSSL_connect(swSocket *conn) {
     }
 
     long err_code = ERR_get_error();
-    char *msg = ERR_error_string(err_code, SwooleTG.buffer_stack->str);
-    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d]", conn->fd, msg, err, ERR_GET_REASON(err_code));
+    char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
+    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d]", fd, msg, err, ERR_GET_REASON(err_code));
 
     return SW_ERR;
 }
 
-int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size) {
+int Socket::ssl_sendfile(int _fd, off_t *_offset, size_t _size) {
     char buf[SW_BUFFER_SIZE_BIG];
-    int readn = size > sizeof(buf) ? sizeof(buf) : size;
+    int readn = _size > sizeof(buf) ? sizeof(buf) : _size;
 
     int ret;
-    int n = pread(fd, buf, readn, *offset);
+    int n = pread(_fd, buf, readn, *_offset);
 
     if (n > 0) {
-        ret = swSSL_send(conn, buf, n);
+        ret = ssl_send(buf, n);
         if (ret < 0) {
-            if (conn->catch_error(errno) == SW_ERROR) {
+            if (catch_error(errno) == SW_ERROR) {
                 swSysWarn("write() failed");
             }
         } else {
-            *offset += ret;
+            *_offset += ret;
         }
-        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%d, n=%d, ret=%d", fd, readn, n, ret);
+        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%d, n=%d, ret=%d", _fd, readn, n, ret);
         return ret;
     } else {
         swSysWarn("pread() failed");
@@ -910,17 +841,17 @@ int swSSL_sendfile(swSocket *conn, int fd, off_t *offset, size_t size) {
     }
 }
 
-void swSSL_close(swSocket *conn) {
+void Socket::ssl_close() {
     int n, sslerr, err;
 
-    if (SSL_in_init(conn->ssl)) {
+    if (SSL_in_init(ssl)) {
         /*
          * OpenSSL 1.0.2f complains if SSL_shutdown() is called during
          * an SSL handshake, while previous versions always return 0.
          * Avoid calling SSL_shutdown() if handshake wasn't completed.
          */
-        SSL_free(conn->ssl);
-        conn->ssl = nullptr;
+        SSL_free(ssl);
+        ssl = nullptr;
         return;
     }
 
@@ -928,15 +859,15 @@ void swSSL_close(swSocket *conn) {
      * If the peer close first, local should be set to quiet mode and do not send any data,
      * otherwise the peer will send RST segment.
      */
-    if (conn->ssl_quiet_shutdown) {
-        SSL_set_quiet_shutdown(conn->ssl, 1);
+    if (ssl_quiet_shutdown) {
+        SSL_set_quiet_shutdown(ssl, 1);
     }
 
-    int mode = SSL_get_shutdown(conn->ssl);
+    int mode = SSL_get_shutdown(ssl);
 
-    SSL_set_shutdown(conn->ssl, mode | SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
+    SSL_set_shutdown(ssl, mode | SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
 
-    n = SSL_shutdown(conn->ssl);
+    n = SSL_shutdown(ssl);
 
     swTrace("SSL_shutdown: %d", n);
 
@@ -944,7 +875,7 @@ void swSSL_close(swSocket *conn) {
 
     /* before 0.9.8m SSL_shutdown() returned 0 instead of -1 on errors */
     if (n != 1 && ERR_peek_error()) {
-        sslerr = SSL_get_error(conn->ssl, n);
+        sslerr = SSL_get_error(ssl, n);
         swTrace("SSL_get_error: %d", sslerr);
     }
 
@@ -953,11 +884,11 @@ void swSSL_close(swSocket *conn) {
         swWarn("SSL_shutdown() failed. Error: %d:%d", sslerr, err);
     }
 
-    SSL_free(conn->ssl);
-    conn->ssl = nullptr;
+    SSL_free(ssl);
+    ssl = nullptr;
 }
 
-static sw_inline void swSSL_connection_error(swSocket *conn) {
+void Socket::ssl_catch_error() {
     int level = SW_LOG_NOTICE;
     int reason = ERR_GET_REASON(ERR_peek_error());
 
@@ -1030,26 +961,26 @@ static sw_inline void swSSL_connection_error(swSocket *conn) {
     swoole_error_log(level,
                      SW_ERROR_SSL_BAD_PROTOCOL,
                      "SSL connection#%d[%s:%d] protocol error[%d]",
-                     conn->fd,
-                     conn->info.get_ip(),
-                     conn->info.get_port(),
+                     fd,
+                     info.get_ip(),
+                     info.get_port(),
                      reason);
 }
 
-ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n) {
-    swSSL_clear_error(conn);
+ssize_t Socket::ssl_recv(void *__buf, size_t __n) {
+    ssl_clear_error();
 
-    int n = SSL_read(conn->ssl, __buf, __n);
+    int n = SSL_read(ssl, __buf, __n);
     if (n < 0) {
-        int _errno = SSL_get_error(conn->ssl, n);
+        int _errno = SSL_get_error(ssl, n);
         switch (_errno) {
         case SSL_ERROR_WANT_READ:
-            conn->ssl_want_read = 1;
+            ssl_want_read = 1;
             errno = EAGAIN;
             return SW_ERR;
 
         case SSL_ERROR_WANT_WRITE:
-            conn->ssl_want_write = 1;
+            ssl_want_write = 1;
             errno = EAGAIN;
             return SW_ERR;
 
@@ -1058,7 +989,7 @@ ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n) {
             return SW_ERR;
 
         case SSL_ERROR_SSL:
-            swSSL_connection_error(conn);
+            ssl_catch_error();
             errno = SW_ERROR_SSL_BAD_CLIENT;
             return SW_ERR;
 
@@ -1069,26 +1000,26 @@ ssize_t swSSL_recv(swSocket *conn, void *__buf, size_t __n) {
     return n;
 }
 
-ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n) {
-    swSSL_clear_error(conn);
+ssize_t Socket::ssl_send(const void *__buf, size_t __n) {
+    ssl_clear_error();
 
 #ifdef SW_SUPPORT_DTLS
-    if (conn->dtls && conn->chunk_size && __n > conn->chunk_size) {
-        __n = conn->chunk_size;
+    if (dtls && chunk_size && __n > chunk_size) {
+        __n = chunk_size;
     }
 #endif
 
-    int n = SSL_write(conn->ssl, __buf, __n);
+    int n = SSL_write(ssl, __buf, __n);
     if (n < 0) {
-        int _errno = SSL_get_error(conn->ssl, n);
+        int _errno = SSL_get_error(ssl, n);
         switch (_errno) {
         case SSL_ERROR_WANT_READ:
-            conn->ssl_want_read = 1;
+            ssl_want_read = 1;
             errno = EAGAIN;
             return SW_ERR;
 
         case SSL_ERROR_WANT_WRITE:
-            conn->ssl_want_write = 1;
+            ssl_want_write = 1;
             errno = EAGAIN;
             return SW_ERR;
 
@@ -1097,7 +1028,7 @@ ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n) {
             return SW_ERR;
 
         case SSL_ERROR_SSL:
-            swSSL_connection_error(conn);
+            ssl_catch_error();
             errno = SW_ERROR_SSL_BAD_CLIENT;
             return SW_ERR;
 
@@ -1108,30 +1039,29 @@ ssize_t swSSL_send(swSocket *conn, const void *__buf, size_t __n) {
     return n;
 }
 
-int swSSL_create(swSocket *conn, SSL_CTX *ssl_context, int flags) {
-    swSSL_clear_error(conn);
+int Socket::ssl_create(SSL_CTX *_ssl_context, int _flags) {
+    ssl_clear_error();
 
-    SSL *ssl = SSL_new(ssl_context);
+    ssl = SSL_new(_ssl_context);
     if (ssl == nullptr) {
         swWarn("SSL_new() failed");
         return SW_ERR;
     }
-    if (!SSL_set_fd(ssl, conn->fd)) {
+    if (!SSL_set_fd(ssl, fd)) {
         long err = ERR_get_error();
         swWarn("SSL_set_fd() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
         return SW_ERR;
     }
-    if (flags & SW_SSL_CLIENT) {
+    if (_flags & SW_SSL_CLIENT) {
         SSL_set_connect_state(ssl);
-    } else if (flags & SW_SSL_SERVER) {
+    } else if (_flags & SW_SSL_SERVER) {
         SSL_set_accept_state(ssl);
     }
-    if (SSL_set_ex_data(ssl, ssl_connection_index, conn) == 0) {
+    if (SSL_set_ex_data(ssl, ssl_connection_index, this) == 0) {
         swWarn("SSL_set_ex_data() failed");
         return SW_ERR;
     }
-    conn->ssl = ssl;
-    conn->ssl_state = 0;
+    ssl_state = 0;
     return SW_OK;
 }
 

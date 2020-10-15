@@ -22,7 +22,7 @@ static int swFactory_start(Factory *factory);
 static int swFactory_shutdown(Factory *factory);
 static bool swFactory_dispatch(Factory *factory, SendData *req);
 static bool swFactory_notify(Factory *factory, DataHead *event);
-static bool swFactory_end(Factory *factory, int fd);
+static bool swFactory_end(Factory *factory, int session_id);
 static void swFactory_free(Factory *factory);
 
 int swFactory_create(Factory *factory) {
@@ -111,23 +111,23 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     return serv->accept_task((EventData *) info) == SW_OK;
 }
 
-static bool swFactory_end(Factory *factory, int fd) {
+static bool swFactory_end(Factory *factory, int session_id) {
     Server *serv = (Server *) factory->ptr;
     SendData _send{};
     DataHead info;
 
-    _send.info.fd = fd;
+    _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    Connection *conn = serv->get_connection_by_session_id(fd);
+    Connection *conn = serv->get_connection_by_session_id(session_id);
     if (conn == nullptr || conn->active == 0) {
         // swWarn("can not close. Connection[%d] not found", _send.info.fd);
         return false;
     } else if (conn->close_force) {
         goto _do_close;
     } else if (conn->closing) {
-        swWarn("the connection[%d] is closing", fd);
+        swWarn("the connection[%d] is closing", session_id);
         return false;
     } else if (conn->closed) {
         return false;
@@ -135,7 +135,7 @@ static bool swFactory_end(Factory *factory, int fd) {
     _do_close:
         conn->closing = 1;
         if (serv->onClose != nullptr) {
-            info.fd = fd;
+            info.fd = session_id;
             if (conn->close_actively) {
                 info.reactor_id = -1;
             } else {
@@ -149,7 +149,7 @@ static bool swFactory_end(Factory *factory, int fd) {
         conn->close_errno = 0;
 
         if (conn->socket == nullptr) {
-            swWarn("the connection[%d]->socket is nullptr");
+            swWarn("the connection[%d]->socket is nullptr", session_id);
             return false;
         }
 

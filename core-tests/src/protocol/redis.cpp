@@ -70,7 +70,7 @@ TEST(redis, server) {
         int session_id = req->info.fd;
         auto list = swRedis_parse(req->data, req->info.len);
 
-        swString *buffer = SwooleTG.buffer_stack;
+        swString *buffer = sw_tg_buffer()->str;
         swString_clear(buffer);
 
         if (strcasecmp(list[0].c_str(), "GET") == 0) {
