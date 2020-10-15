@@ -77,19 +77,19 @@ class File {
         return fd_ != -1;
     }
 
-    ssize_t write(const void *__buf, size_t __n) {
+    ssize_t write(const void *__buf, size_t __n) const {
         return ::write(fd_, __buf, __n);
     }
 
-    ssize_t read(void *__buf, size_t __n) {
+    ssize_t read(void *__buf, size_t __n) const {
         return ::read(fd_, __buf, __n);
     }
 
-    ssize_t pwrite(const void *__buf, size_t __n, off_t __offset) {
+    ssize_t pwrite(const void *__buf, size_t __n, off_t __offset) const {
         return ::pwrite(fd_, __buf, __n, __offset);
     }
 
-    ssize_t pread(void *__buf, size_t __n, off_t __offset) {
+    ssize_t pread(void *__buf, size_t __n, off_t __offset) const {
         return ::pread(fd_, __buf, __n, __offset);
     }
 
@@ -98,8 +98,8 @@ class File {
 
     std::shared_ptr<String> read_content();
 
-    bool stat(FileStatus *_stat) {
-        if ( ::fstat(fd_, _stat) < 0) {
+    bool stat(FileStatus *_stat) const {
+        if (::fstat(fd_, _stat) < 0) {
             swSysWarn("fstat() failed");
             return false;
         } else {

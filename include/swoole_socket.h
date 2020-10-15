@@ -32,6 +32,7 @@
 
 #include "swoole_ssl.h"
 #include "swoole_buffer.h"
+#include "swoole_file.h"
 
 #ifndef SOCK_NONBLOCK
 #define SOCK_NONBLOCK O_NONBLOCK
@@ -68,11 +69,15 @@ struct SendfileTask {
 };
 
 struct SendfileRequest {
-    char *filename;
-    uint16_t name_len;
-    int fd;
+    File file;
     size_t length;
     off_t offset;
+
+  public:
+    SendfileRequest(const char *filename, off_t _offset, size_t _length) : file(filename, O_RDONLY) {
+        offset = _offset;
+        length = _length;
+    }
 };
 
 struct Address {
@@ -240,7 +245,7 @@ struct Socket {
         return -1;
     }
 
-    int set_tcp_nodelay(int nodelay = 1)  {
+    int set_tcp_nodelay(int nodelay = 1) {
         if (set_option(IPPROTO_TCP, TCP_NODELAY, nodelay) == SW_ERR) {
             return -1;
         } else {
@@ -249,7 +254,7 @@ struct Socket {
         }
     }
 
-    bool check_liveness () {
+    bool check_liveness() {
         char buf;
         errno = 0;
         ssize_t retval = peek(&buf, sizeof(buf), MSG_DONTWAIT);
@@ -304,12 +309,12 @@ struct Socket {
     enum swReturn_code ssl_accept();
     ssize_t ssl_recv(void *__buf, size_t __n);
     ssize_t ssl_send(const void *__buf, size_t __n);
-    int ssl_sendfile(int fd, off_t *offset, size_t size);
-    X509* ssl_get_peer_certificate();
+    int ssl_sendfile(const File &fp, off_t *offset, size_t size);
+    X509 *ssl_get_peer_certificate();
     int ssl_get_peer_certificate(char *buf, size_t n);
     bool ssl_get_peer_certificate(String *buf);
     bool ssl_verify(bool allow_self_signed);
-    bool ssl_check_host( const char *tls_host_name);
+    bool ssl_check_host(const char *tls_host_name);
     void ssl_catch_error();
     void ssl_close();
 #endif
