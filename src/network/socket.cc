@@ -21,7 +21,6 @@
 
 #include "swoole_api.h"
 #include "swoole_util.h"
-#include "swoole_file.h"
 #include "swoole_string.h"
 
 namespace swoole {
@@ -473,11 +472,11 @@ int Socket::handle_sendfile() {
 
 #ifdef SW_USE_OPENSSL
     if (ssl) {
-        ret = ssl_sendfile(task->fd, &task->offset, sendn);
+        ret = ssl_sendfile(task->file, &task->offset, sendn);
     } else
 #endif
     {
-        ret = ::swoole_sendfile(fd, task->fd, &task->offset, sendn);
+        ret = ::swoole_sendfile(fd, task->file.get_fd(), &task->offset, sendn);
     }
 
     swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, (long) task->offset, sendn, task->length);
@@ -485,7 +484,7 @@ int Socket::handle_sendfile() {
     if (ret <= 0) {
         switch (catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("sendfile(%s, %ld, %zu) failed", task->filename, (long) task->offset, sendn);
+            swSysWarn("sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->offset, sendn);
             buffer->pop();
             return SW_OK;
         case SW_CLOSE:
@@ -558,28 +557,24 @@ int Socket::handle_send() {
 
 static void Socket_sendfile_destructor(BufferChunk *chunk) {
     SendfileRequest *task = (SendfileRequest *) chunk->value.object;
-    close(task->fd);
-    sw_free(task->filename);
     delete task;
 }
 
 int Socket::sendfile(const char *filename, off_t offset, size_t length) {
-    int file_fd = open(filename, O_RDONLY);
-    if (file_fd < 0) {
+    std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, length));
+    if (!task->file.ready()) {
         swSysWarn("open(%s) failed", filename);
         return SW_OK;
     }
 
-    struct stat file_stat;
-    if (fstat(file_fd, &file_stat) < 0) {
+    FileStatus file_stat;
+    if (!task->file.stat(&file_stat)) {
         swSysWarn("fstat(%s) failed", filename);
-        close(file_fd);
         return SW_ERR;
     }
 
     if (file_stat.st_size == 0) {
         swWarn("empty file[%s]", filename);
-        close(file_fd);
         return SW_ERR;
     }
 
@@ -590,17 +585,8 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
         }
     }
 
-    BufferChunk error_chunk;
-    SendfileRequest *task = new SendfileRequest();
-
-    task->filename = sw_strdup(filename);
-    task->fd = file_fd;
-    task->offset = offset;
-
     if (offset < 0 || (length + offset > (size_t) file_stat.st_size)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_INVALID_PARAMS, "length or offset is invalid");
-        error_chunk.value.object = task;
-        Socket_sendfile_destructor(&error_chunk);
         return SW_OK;
     }
     if (length == 0) {
@@ -610,7 +596,7 @@ int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     }
 
     BufferChunk *chunk = out_buffer->alloc(BufferChunk::TYPE_SENDFILE, 0);
-    chunk->value.object = task;
+    chunk->value.object = task.release();
     chunk->destroy = Socket_sendfile_destructor;
 
     return SW_OK;
@@ -919,15 +905,13 @@ int Socket::ssl_connect() {
     return SW_ERR;
 }
 
-int Socket::ssl_sendfile(int _fd, off_t *_offset, size_t _size) {
+int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
     char buf[SW_BUFFER_SIZE_BIG];
-    int readn = _size > sizeof(buf) ? sizeof(buf) : _size;
+    ssize_t readn = _size > sizeof(buf) ? sizeof(buf) : _size;
 
-    int ret;
-    int n = pread(_fd, buf, readn, *_offset);
-
+    ssize_t n = fp.pread(buf, readn, *_offset);
     if (n > 0) {
-        ret = ssl_send(buf, n);
+        ssize_t ret = ssl_send(buf, n);
         if (ret < 0) {
             if (catch_error(errno) == SW_ERROR) {
                 swSysWarn("write() failed");

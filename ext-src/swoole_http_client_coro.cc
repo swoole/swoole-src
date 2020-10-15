@@ -46,6 +46,7 @@ SW_EXTERN_C_END
 
 using swoole::network::Address;
 using swoole::coroutine::Socket;
+using swoole::File;
 
 enum http_client_error_status_code {
     HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
@@ -117,8 +118,8 @@ class HttpClient {
 #ifdef SW_HAVE_ZLIB
     bool websocket_compression = false;  // allow to compress websocket messages
 #endif
-    int download_file_fd = -1;        // save http response to file
-    zend::String download_file_name;  // unlink the file on error
+    File *download_file = nullptr;        // save http response to file
+    zend::String download_file_name;      // unlink the file on error
     zend_long download_offset = 0;
     bool has_upload_files = false;
 
@@ -552,29 +553,27 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
         }
     }
     if (http->download_file_name.get() && http->body->length > 0) {
-        if (http->download_file_fd < 0) {
+        if (http->download_file == nullptr) {
             char *download_file_name = http->download_file_name.val();
-            int fd = ::open(download_file_name, O_CREAT | O_WRONLY, 0664);
-            if (fd < 0) {
+            std::unique_ptr<File> fp(new File(download_file_name, O_CREAT | O_WRONLY, 0664));
+            if (!fp->ready()) {
                 swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
                 return false;
             }
             if (http->download_offset == 0) {
-                if (::ftruncate(fd, 0) < 0) {
+                if (!fp->truncate(0)) {
                     swSysWarn("ftruncate(%s) failed", download_file_name);
-                    ::close(fd);
                     return false;
                 }
             } else {
-                if (::lseek(fd, http->download_offset, SEEK_SET) < 0) {
+                if (!fp->set_offest(http->download_offset)) {
                     swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
-                    ::close(fd);
                     return false;
                 }
             }
-            http->download_file_fd = fd;
+            http->download_file = fp.release();
         }
-        if (swoole_coroutine_write(http->download_file_fd, SW_STRINGL(http->body)) != (ssize_t) http->body->length) {
+        if (swoole_coroutine_write(http->download_file->get_fd(), SW_STRINGL(http->body)) != (ssize_t) http->body->length) {
             return -1;
         }
         swString_clear(http->body);
@@ -594,7 +593,7 @@ static int http_parser_on_message_complete(swoole_http_parser *parser) {
 
     zend_update_property_long(
         swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("statusCode"), parser->status_code);
-    if (http->download_file_fd <= 0) {
+    if (http->download_file == nullptr) {
         zend_update_property_stringl(
             swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("body"), SW_STRINGL(http->body));
     } else {
@@ -1623,9 +1622,9 @@ void HttpClient::reset() {
     if (has_upload_files) {
         zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("uploadFiles"));
     }
-    if (download_file_fd >= 0) {
-        ::close(download_file_fd);
-        download_file_fd = -1;
+    if (download_file != nullptr) {
+        delete download_file;
+        download_file = nullptr;
         download_file_name.release();
         download_offset = 0;
         zend_update_property_null(swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("downloadFile"));

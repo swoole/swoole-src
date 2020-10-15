@@ -23,7 +23,6 @@
 #include <iostream>
 
 #include "swoole_util.h"
-#include "swoole_file.h"
 #include "swoole_socket.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_buffer.h"
@@ -1241,7 +1240,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
         sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
 #ifdef SW_USE_OPENSSL
         if (socket->ssl) {
-            n = socket->ssl_sendfile(file.get_fd(), &offset, sendn);
+            n = socket->ssl_sendfile(file, &offset, sendn);
         } else
 #endif
         {
