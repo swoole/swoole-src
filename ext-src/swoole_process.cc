@@ -882,7 +882,7 @@ static PHP_METHOD(swoole_process, push) {
     message.type = process->id + 1;
     memcpy(message.data, data, length);
 
-    if (process->queue->push((QueueNode *) &message, length) < 0) {
+    if (!process->queue->push((QueueNode *) &message, length)) {
         RETURN_FALSE;
     }
     RETURN_TRUE;

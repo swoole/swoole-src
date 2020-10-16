@@ -47,7 +47,7 @@ class MsgQueue {
 
     void set_blocking(bool blocking);
     bool set_capacity(size_t queue_bytes);
-    ssize_t push(QueueNode *in, size_t data_length);
+    bool push(QueueNode *in, size_t data_length);
     ssize_t pop(QueueNode *out, size_t buffer_length);
     bool stat(size_t *queue_num, size_t *queue_bytes);
     bool destroy();

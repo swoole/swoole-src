@@ -35,7 +35,7 @@ TEST(msg_queue, rbac) {
     }
 
     // input data
-    ASSERT_EQ(q.push(&in, strlen(in.mdata)), strlen(in.mdata));
+    ASSERT_TRUE(q.push(&in, strlen(in.mdata)));
 
     size_t queue_num, queue_bytes;
     ASSERT_TRUE(q.stat(&queue_num, &queue_bytes));
