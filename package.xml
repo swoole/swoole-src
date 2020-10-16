@@ -42,8 +42,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-10-13</date>
-    <time>11:00:00</time>
+    <date>2020-10-16</date>
+    <time>16:00:00</time>
     <version>
         <release>4.5.5</release>
         <api>4.0</api>
@@ -500,6 +500,49 @@
             <file role="doc" name="examples/www/file2.txt" />
             <file role="doc" name="examples/www/index.html" />
             <file role="doc" name="examples/www/index.txt" />
+            <file role="src" name="ext-src/php_swoole.cc" />
+            <file role="src" name="ext-src/php_swoole.h" />
+            <file role="src" name="ext-src/php_swoole_client.h" />
+            <file role="src" name="ext-src/php_swoole_coroutine.h" />
+            <file role="src" name="ext-src/php_swoole_coroutine_system.h" />
+            <file role="src" name="ext-src/php_swoole_cxx.cc" />
+            <file role="src" name="ext-src/php_swoole_cxx.h" />
+            <file role="src" name="ext-src/php_swoole_http.h" />
+            <file role="src" name="ext-src/php_swoole_http_server.h" />
+            <file role="src" name="ext-src/php_swoole_library.h" />
+            <file role="src" name="ext-src/php_swoole_mysql_proto.h" />
+            <file role="src" name="ext-src/php_swoole_process.h" />
+            <file role="src" name="ext-src/php_swoole_server.h" />
+            <file role="src" name="ext-src/swoole_async_coro.cc" />
+            <file role="src" name="ext-src/swoole_atomic.cc" />
+            <file role="src" name="ext-src/swoole_channel_coro.cc" />
+            <file role="src" name="ext-src/swoole_client.cc" />
+            <file role="src" name="ext-src/swoole_client_coro.cc" />
+            <file role="src" name="ext-src/swoole_coroutine.cc" />
+            <file role="src" name="ext-src/swoole_coroutine_scheduler.cc" />
+            <file role="src" name="ext-src/swoole_coroutine_system.cc" />
+            <file role="src" name="ext-src/swoole_event.cc" />
+            <file role="src" name="ext-src/swoole_http2_client_coro.cc" />
+            <file role="src" name="ext-src/swoole_http2_server.cc" />
+            <file role="src" name="ext-src/swoole_http_client_coro.cc" />
+            <file role="src" name="ext-src/swoole_http_request.cc" />
+            <file role="src" name="ext-src/swoole_http_response.cc" />
+            <file role="src" name="ext-src/swoole_http_server.cc" />
+            <file role="src" name="ext-src/swoole_http_server_coro.cc" />
+            <file role="src" name="ext-src/swoole_lock.cc" />
+            <file role="src" name="ext-src/swoole_mysql_coro.cc" />
+            <file role="src" name="ext-src/swoole_mysql_proto.cc" />
+            <file role="src" name="ext-src/swoole_process.cc" />
+            <file role="src" name="ext-src/swoole_process_pool.cc" />
+            <file role="src" name="ext-src/swoole_redis_coro.cc" />
+            <file role="src" name="ext-src/swoole_redis_server.cc" />
+            <file role="src" name="ext-src/swoole_runtime.cc" />
+            <file role="src" name="ext-src/swoole_server.cc" />
+            <file role="src" name="ext-src/swoole_server_port.cc" />
+            <file role="src" name="ext-src/swoole_socket_coro.cc" />
+            <file role="src" name="ext-src/swoole_table.cc" />
+            <file role="src" name="ext-src/swoole_timer.cc" />
+            <file role="src" name="ext-src/swoole_websocket_server.cc" />
             <file role="doc" name="gdbinit" />
             <file role="src" name="google-style.xml" />
             <file role="src" name="include/helper/kqueue.h" />
@@ -523,6 +566,7 @@
             <file role="src" name="include/swoole_coroutine_system.h" />
             <file role="src" name="include/swoole_dtls.h" />
             <file role="src" name="include/swoole_error.h" />
+            <file role="src" name="include/swoole_file.h" />
             <file role="src" name="include/swoole_file_hook.h" />
             <file role="src" name="include/swoole_hash.h" />
             <file role="src" name="include/swoole_heap.h" />
@@ -556,19 +600,6 @@
             <file role="src" name="include/swoole_wheel_timer.h" />
             <file role="src" name="make.sh" />
             <file role="src" name="mascot.png" />
-            <file role="src" name="php_swoole.cc" />
-            <file role="src" name="php_swoole.h" />
-            <file role="src" name="php_swoole_client.h" />
-            <file role="src" name="php_swoole_coroutine.h" />
-            <file role="src" name="php_swoole_coroutine_system.h" />
-            <file role="src" name="php_swoole_cxx.cc" />
-            <file role="src" name="php_swoole_cxx.h" />
-            <file role="src" name="php_swoole_http.h" />
-            <file role="src" name="php_swoole_http_server.h" />
-            <file role="src" name="php_swoole_library.h" />
-            <file role="src" name="php_swoole_mysql_proto.h" />
-            <file role="src" name="php_swoole_process.h" />
-            <file role="src" name="php_swoole_server.h" />
             <file role="src" name="remake_library.sh" />
             <file role="src" name="src/core/base.cc" />
             <file role="src" name="src/core/channel.cc" />
@@ -586,8 +617,6 @@
             <file role="src" name="src/coroutine/socket.cc" />
             <file role="src" name="src/coroutine/system.cc" />
             <file role="src" name="src/coroutine/thread_context.cc" />
-            <file role="src" name="src/lock/atomic.cc" />
-            <file role="src" name="src/lock/cond.cc" />
             <file role="src" name="src/lock/mutex.cc" />
             <file role="src" name="src/lock/rw_lock.cc" />
             <file role="src" name="src/lock/spin_lock.cc" />
@@ -604,6 +633,7 @@
             <file role="src" name="src/network/stream.cc" />
             <file role="src" name="src/os/async_thread.cc" />
             <file role="src" name="src/os/base.cc" />
+            <file role="src" name="src/os/file.cc" />
             <file role="src" name="src/os/msg_queue.cc" />
             <file role="src" name="src/os/process_pool.cc" />
             <file role="src" name="src/os/sendfile.cc" />
@@ -641,36 +671,6 @@
             <file role="src" name="src/server/worker.cc" />
             <file role="src" name="src/wrapper/event.cc" />
             <file role="src" name="src/wrapper/timer.cc" />
-            <file role="src" name="swoole_async_coro.cc" />
-            <file role="src" name="swoole_atomic.cc" />
-            <file role="src" name="swoole_channel_coro.cc" />
-            <file role="src" name="swoole_client.cc" />
-            <file role="src" name="swoole_client_coro.cc" />
-            <file role="src" name="swoole_coroutine.cc" />
-            <file role="src" name="swoole_coroutine_scheduler.cc" />
-            <file role="src" name="swoole_coroutine_system.cc" />
-            <file role="src" name="swoole_event.cc" />
-            <file role="src" name="swoole_http2_client_coro.cc" />
-            <file role="src" name="swoole_http2_server.cc" />
-            <file role="src" name="swoole_http_client_coro.cc" />
-            <file role="src" name="swoole_http_request.cc" />
-            <file role="src" name="swoole_http_response.cc" />
-            <file role="src" name="swoole_http_server.cc" />
-            <file role="src" name="swoole_http_server_coro.cc" />
-            <file role="src" name="swoole_lock.cc" />
-            <file role="src" name="swoole_mysql_coro.cc" />
-            <file role="src" name="swoole_mysql_proto.cc" />
-            <file role="src" name="swoole_process.cc" />
-            <file role="src" name="swoole_process_pool.cc" />
-            <file role="src" name="swoole_redis_coro.cc" />
-            <file role="src" name="swoole_redis_server.cc" />
-            <file role="src" name="swoole_runtime.cc" />
-            <file role="src" name="swoole_server.cc" />
-            <file role="src" name="swoole_server_port.cc" />
-            <file role="src" name="swoole_socket_coro.cc" />
-            <file role="src" name="swoole_table.cc" />
-            <file role="src" name="swoole_timer.cc" />
-            <file role="src" name="swoole_websocket_server.cc" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
             <file role="test" name="tests/clean" />
@@ -1836,31 +1836,7 @@
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
             <file role="doc" name="thirdparty/hiredis/CHANGELOG.md" />
             <file role="doc" name="thirdparty/hiredis/COPYING" />
-            <file role="src" name="thirdparty/hiredis/Makefile" />
             <file role="doc" name="thirdparty/hiredis/README.md" />
-            <file role="src" name="thirdparty/hiredis/adapters/ae.h" />
-            <file role="src" name="thirdparty/hiredis/adapters/glib.h" />
-            <file role="src" name="thirdparty/hiredis/adapters/ivykis.h" />
-            <file role="src" name="thirdparty/hiredis/adapters/libev.h" />
-            <file role="src" name="thirdparty/hiredis/adapters/libevent.h" />
-            <file role="src" name="thirdparty/hiredis/adapters/libuv.h" />
-            <file role="src" name="thirdparty/hiredis/adapters/macosx.h" />
-            <file role="src" name="thirdparty/hiredis/adapters/qt.h" />
-            <file role="src" name="thirdparty/hiredis/appveyor.yml" />
-            <file role="src" name="thirdparty/hiredis/async.c" />
-            <file role="src" name="thirdparty/hiredis/async.h" />
-            <file role="src" name="thirdparty/hiredis/dict.c" />
-            <file role="src" name="thirdparty/hiredis/dict.h" />
-            <file role="src" name="thirdparty/hiredis/examples/example-ae.c" />
-            <file role="src" name="thirdparty/hiredis/examples/example-glib.c" />
-            <file role="src" name="thirdparty/hiredis/examples/example-ivykis.c" />
-            <file role="src" name="thirdparty/hiredis/examples/example-libev.c" />
-            <file role="src" name="thirdparty/hiredis/examples/example-libevent.c" />
-            <file role="src" name="thirdparty/hiredis/examples/example-libuv.c" />
-            <file role="src" name="thirdparty/hiredis/examples/example-macosx.c" />
-            <file role="src" name="thirdparty/hiredis/examples/example-qt.cpp" />
-            <file role="src" name="thirdparty/hiredis/examples/example-qt.h" />
-            <file role="src" name="thirdparty/hiredis/examples/example.c" />
             <file role="src" name="thirdparty/hiredis/fmacros.h" />
             <file role="src" name="thirdparty/hiredis/hiredis.c" />
             <file role="src" name="thirdparty/hiredis/hiredis.h" />
@@ -1871,8 +1847,6 @@
             <file role="src" name="thirdparty/hiredis/sds.c" />
             <file role="src" name="thirdparty/hiredis/sds.h" />
             <file role="src" name="thirdparty/hiredis/sdsalloc.h" />
-            <file role="src" name="thirdparty/hiredis/test.c" />
-            <file role="src" name="thirdparty/hiredis/win32.h" />
             <file role="src" name="thirdparty/multipart_parser.c" />
             <file role="src" name="thirdparty/multipart_parser.h" />
             <file role="src" name="thirdparty/nghttp2/nghttp2.h" />
@@ -1901,6 +1875,7 @@
             <file role="src" name="thirdparty/php/streams/plain_wrapper.c" />
             <file role="src" name="thirdparty/swoole_http_parser.c" />
             <file role="src" name="thirdparty/swoole_http_parser.h" />
+            <file role="src" name="tools/analysis.php" />
             <file role="src" name="tools/arginfo-check.php" />
             <file role="src" name="tools/bootstrap.php" />
             <file role="src" name="tools/build-library.php" />

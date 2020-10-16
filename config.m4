@@ -445,6 +445,36 @@ if test "$PHP_SWOOLE" != "no"; then
     swoole_source_file=" \
         ext-src/php_swoole.cc \
         ext-src/php_swoole_cxx.cc \
+        ext-src/swoole_async_coro.cc \
+        ext-src/swoole_atomic.cc \
+        ext-src/swoole_channel_coro.cc \
+        ext-src/swoole_client.cc \
+        ext-src/swoole_client_coro.cc \
+        ext-src/swoole_coroutine.cc \
+        ext-src/swoole_coroutine_scheduler.cc \
+        ext-src/swoole_coroutine_system.cc \
+        ext-src/swoole_event.cc \
+        ext-src/swoole_http2_client_coro.cc \
+        ext-src/swoole_http2_server.cc \
+        ext-src/swoole_http_client_coro.cc \
+        ext-src/swoole_http_request.cc \
+        ext-src/swoole_http_response.cc \
+        ext-src/swoole_http_server.cc \
+        ext-src/swoole_http_server_coro.cc \
+        ext-src/swoole_lock.cc \
+        ext-src/swoole_mysql_coro.cc \
+        ext-src/swoole_mysql_proto.cc \
+        ext-src/swoole_process.cc \
+        ext-src/swoole_process_pool.cc \
+        ext-src/swoole_redis_coro.cc \
+        ext-src/swoole_redis_server.cc \
+        ext-src/swoole_runtime.cc \
+        ext-src/swoole_server.cc \
+        ext-src/swoole_server_port.cc \
+        ext-src/swoole_socket_coro.cc \
+        ext-src/swoole_table.cc \
+        ext-src/swoole_timer.cc \
+        ext-src/swoole_websocket_server.cc \
         src/core/base.cc \
         src/core/channel.cc \
         src/core/crc32.cc \
@@ -477,12 +507,12 @@ if test "$PHP_SWOOLE" != "no"; then
         src/network/stream.cc \
         src/os/async_thread.cc \
         src/os/base.cc \
+        src/os/file.cc \
         src/os/msg_queue.cc \
         src/os/process_pool.cc \
         src/os/sendfile.cc \
         src/os/signal.cc \
         src/os/timer.cc \
-        src/os/file.cc \
         src/os/wait.cc \
         src/pipe/base.cc \
         src/pipe/eventfd.cc \
@@ -514,37 +544,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/task_worker.cc \
         src/server/worker.cc \
         src/wrapper/event.cc \
-        src/wrapper/timer.cc \
-        ext-src/swoole_async_coro.cc \
-        ext-src/swoole_atomic.cc \
-        ext-src/swoole_channel_coro.cc \
-        ext-src/swoole_client.cc \
-        ext-src/swoole_client_coro.cc \
-        ext-src/swoole_coroutine.cc \
-        ext-src/swoole_coroutine_scheduler.cc \
-        ext-src/swoole_coroutine_system.cc \
-        ext-src/swoole_event.cc \
-        ext-src/swoole_http2_client_coro.cc \
-        ext-src/swoole_http2_server.cc \
-        ext-src/swoole_http_client_coro.cc \
-        ext-src/swoole_http_request.cc \
-        ext-src/swoole_http_response.cc \
-        ext-src/swoole_http_server.cc \
-        ext-src/swoole_http_server_coro.cc \
-        ext-src/swoole_lock.cc \
-        ext-src/swoole_mysql_coro.cc \
-        ext-src/swoole_mysql_proto.cc \
-        ext-src/swoole_process.cc \
-        ext-src/swoole_process_pool.cc \
-        ext-src/swoole_redis_coro.cc \
-        ext-src/swoole_redis_server.cc \
-        ext-src/swoole_runtime.cc \
-        ext-src/swoole_server.cc \
-        ext-src/swoole_server_port.cc \
-        ext-src/swoole_socket_coro.cc \
-        ext-src/swoole_table.cc \
-        ext-src/swoole_timer.cc \
-        ext-src/swoole_websocket_server.cc"
+        src/wrapper/timer.cc"
 
     swoole_source_file="$swoole_source_file \
         thirdparty/php/sockets/multicast.cc \
