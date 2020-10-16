@@ -11,7 +11,7 @@ use Swoole\Coroutine\Http\Server;
 use Swoole\Coroutine\Http\Client;
 
 $pm = new ProcessManager;
-$pm->parentFunc = function (int $pid) use ($pm) {
+$pm->parentFunc = function () use ($pm) {
     go(function () use ($pm) {
         $cli = new Client('127.0.0.1', $pm->getFreePort());
         $cli->set(['timeout' => 5]);
@@ -20,6 +20,8 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         $cli->push('Swoole');
         $ret = $cli->recv();
         Assert::same($ret->data, "How are you, Swoole?");
+        $ret = $cli->recv();
+        Assert::same($ret->opcode, WEBSOCKET_OPCODE_PING);
         $pingFrame = new Frame;
         $pingFrame->opcode = WEBSOCKET_OPCODE_PING;
         // 发送 PING
@@ -49,6 +51,10 @@ $pm->childFunc = function () use ($pm) {
                         $ws->push($pFrame);
                     } else {
                         $ws->push("How are you, {$frame->data}?");
+                        $pFrame = new Frame;
+                        // 发送 PING
+                        $pFrame->opcode = WEBSOCKET_OPCODE_PING;
+                        $ws->push($pFrame);
                     }
                 }
             }
