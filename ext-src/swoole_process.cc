@@ -70,7 +70,7 @@ static void php_swoole_process_free_object(zend_object *object) {
         }
 
         if (worker->queue) {
-            efree(worker->queue);
+            delete worker->queue;
         }
 
         zend::Process *proc = (zend::Process *) worker->ptr2;
@@ -438,20 +438,21 @@ static PHP_METHOD(swoole_process, useQueue) {
         msgkey = ftok(zend_get_executed_filename(), 1);
     }
 
-    swMsgQueue *queue = (swMsgQueue *) emalloc(sizeof(swMsgQueue));
-    if (swMsgQueue_create(queue, 1, msgkey, 0) < 0) {
+    MsgQueue *queue = new MsgQueue(msgkey);
+    if (!queue->ready()) {
+        delete queue;
         RETURN_FALSE;
     }
     if (mode & MSGQUEUE_NOWAIT) {
-        swMsgQueue_set_blocking(queue, 0);
+        queue->set_blocking(false);
         mode = mode & (~MSGQUEUE_NOWAIT);
     }
     if (capacity > 0) {
-        swMsgQueue_set_capacity(queue, capacity);
+        queue->set_capacity(capacity);
     }
     process->queue = queue;
     process->ipc_mode = mode;
-    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueId"), queue->msg_id);
+    zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueId"), queue->get_id());
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("msgQueueKey"), msgkey);
     RETURN_TRUE;
 }
@@ -465,7 +466,7 @@ static PHP_METHOD(swoole_process, statQueue) {
 
     size_t queue_num = -1;
     size_t queue_bytes = -1;
-    if (swMsgQueue_stat(process->queue, &queue_num, &queue_bytes) == 0) {
+    if (process->queue->stat(&queue_num, &queue_bytes)) {
         array_init(return_value);
         add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), queue_num);
         add_assoc_long_ex(return_value, ZEND_STRL("queue_bytes"), queue_bytes);
@@ -476,8 +477,8 @@ static PHP_METHOD(swoole_process, statQueue) {
 
 static PHP_METHOD(swoole_process, freeQueue) {
     Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
-    if (process->queue && swMsgQueue_free(process->queue) == SW_OK) {
-        efree(process->queue);
+    if (process->queue && process->queue->destroy()) {
+        delete process->queue;
         process->queue = nullptr;
         RETURN_TRUE;
     } else {
@@ -881,7 +882,7 @@ static PHP_METHOD(swoole_process, push) {
     message.type = process->id + 1;
     memcpy(message.data, data, length);
 
-    if (swMsgQueue_push(process->queue, (swQueue_data *) &message, length) < 0) {
+    if (process->queue->push((QueueNode *) &message, length) < 0) {
         RETURN_FALSE;
     }
     RETURN_TRUE;
@@ -915,7 +916,7 @@ static PHP_METHOD(swoole_process, pop) {
         message.type = process->id + 1;
     }
 
-    int n = swMsgQueue_pop(process->queue, (swQueue_data *) &message, maxsize);
+    ssize_t n = process->queue->pop((QueueNode *) &message, maxsize);
     if (n < 0) {
         RETURN_FALSE;
     }

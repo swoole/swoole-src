@@ -666,10 +666,10 @@ struct swGlobal {
     uint32_t aio_worker_num;
     double aio_max_wait_time;
     double aio_max_idle_time;
-    swSocket *aio_default_socket;
+    swoole::network::Socket *aio_default_socket;
     //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
-    std::function<bool(swReactor *reactor, int &event_num)> user_exit_condition;
+    std::function<bool(swoole::Reactor *reactor, int &event_num)> user_exit_condition;
 };
 
 extern swGlobal SwooleG;                  // Local Global Variable

@@ -372,61 +372,61 @@ static bool _set_timeout(int fd, int type, double timeout) {
 }
 
 static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
-   int opts, ret;
+    int opts, ret;
 
-   if (nonblock >= 0) {
-       do {
-           opts = fcntl(sock, F_GETFL);
-       } while (opts < 0 && errno == EINTR);
+    if (nonblock >= 0) {
+        do {
+            opts = fcntl(sock, F_GETFL);
+        } while (opts < 0 && errno == EINTR);
 
-       if (opts < 0) {
-           swSysWarn("fcntl(%d, GETFL) failed", sock);
-       }
+        if (opts < 0) {
+            swSysWarn("fcntl(%d, GETFL) failed", sock);
+        }
 
-       if (nonblock) {
-           opts = opts | O_NONBLOCK;
-       } else {
-           opts = opts & ~O_NONBLOCK;
-       }
+        if (nonblock) {
+            opts = opts | O_NONBLOCK;
+        } else {
+            opts = opts & ~O_NONBLOCK;
+        }
 
-       do {
-           ret = fcntl(sock, F_SETFL, opts);
-       } while (ret < 0 && errno == EINTR);
+        do {
+            ret = fcntl(sock, F_SETFL, opts);
+        } while (ret < 0 && errno == EINTR);
 
-       if (ret < 0) {
-           swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
-           return false;
-       }
-   }
+        if (ret < 0) {
+            swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
+            return false;
+        }
+    }
 
 #ifdef FD_CLOEXEC
-   if (cloexec >= 0) {
-       do {
-           opts = fcntl(sock, F_GETFD);
-       } while (opts < 0 && errno == EINTR);
+    if (cloexec >= 0) {
+        do {
+            opts = fcntl(sock, F_GETFD);
+        } while (opts < 0 && errno == EINTR);
 
-       if (opts < 0) {
-           swSysWarn("fcntl(%d, GETFL) failed", sock);
-       }
+        if (opts < 0) {
+            swSysWarn("fcntl(%d, GETFL) failed", sock);
+        }
 
-       if (cloexec) {
-           opts = opts | FD_CLOEXEC;
-       } else {
-           opts = opts & ~FD_CLOEXEC;
-       }
+        if (cloexec) {
+            opts = opts | FD_CLOEXEC;
+        } else {
+            opts = opts & ~FD_CLOEXEC;
+        }
 
-       do {
-           ret = fcntl(sock, F_SETFD, opts);
-       } while (ret < 0 && errno == EINTR);
+        do {
+            ret = fcntl(sock, F_SETFD, opts);
+        } while (ret < 0 && errno == EINTR);
 
-       if (ret < 0) {
-           swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
-           return false;
-       }
-   }
+        if (ret < 0) {
+            swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
+            return false;
+        }
+    }
 #endif
 
-   return true;
+    return true;
 }
 
 bool Socket::set_fd_option(int _nonblock, int _cloexec) {
@@ -693,7 +693,6 @@ ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
 
 #ifdef SW_USE_OPENSSL
 
-
 bool Socket::ssl_check_host(const char *tls_host_name) {
     X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
@@ -724,10 +723,8 @@ bool Socket::ssl_verify(bool allow_self_signed) {
         if (allow_self_signed) {
             break;
         } else {
-            swoole_error_log(SW_LOG_NOTICE,
-                             SW_ERROR_SSL_VERIFY_FAILED,
-                             "self signed certificate from fd#%d is not allowed",
-                             fd);
+            swoole_error_log(
+                SW_LOG_NOTICE, SW_ERROR_SSL_VERIFY_FAILED, "self signed certificate from fd#%d is not allowed", fd);
             return false;
         }
     default:
@@ -743,7 +740,7 @@ bool Socket::ssl_verify(bool allow_self_signed) {
     return true;
 }
 
-X509* Socket::ssl_get_peer_certificate() {
+X509 *Socket::ssl_get_peer_certificate() {
     if (!ssl) {
         return NULL;
     }
@@ -842,11 +839,8 @@ enum swReturn_code Socket::ssl_accept() {
         int error = ERR_get_error();
         int reason = ERR_GET_REASON(error);
         const char *error_string = ERR_reason_error_string(error);
-        swWarn("bad SSL client[%s:%d], reason=%d, error_string=%s",
-               info.get_ip(),
-               info.get_port(),
-               reason,
-               error_string);
+        swWarn(
+            "bad SSL client[%s:%d], reason=%d, error_string=%s", info.get_ip(), info.get_port(), reason, error_string);
         return SW_ERROR;
     } else if (err == SSL_ERROR_SYSCALL) {
 #ifdef SW_SUPPORT_DTLS
@@ -1188,7 +1182,7 @@ Socket *make_socket(enum swSocket_type type, enum swFd_type fd_type, int flags) 
         return nullptr;
     }
     if (nonblock || cloexec) {
-        if (network::_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1) < 0) {
+        if (!network::_fcntl_set_option(sockfd, nonblock ? 1 : -1, cloexec ? 1 : -1)) {
             close(sockfd);
             return nullptr;
         }

@@ -297,7 +297,7 @@ class Reactor {
         continue;                                                                                                      \
     }
 
-int swReactorEpoll_create(swReactor *reactor, int max_event_num);
-int swReactorPoll_create(swReactor *reactor, int max_event_num);
-int swReactorKqueue_create(swReactor *reactor, int max_event_num);
-int swReactorSelect_create(swReactor *reactor);
+int swReactorEpoll_create(swoole::Reactor *reactor, int max_event_num);
+int swReactorPoll_create(swoole::Reactor *reactor, int max_event_num);
+int swReactorKqueue_create(swoole::Reactor *reactor, int max_event_num);
+int swReactorSelect_create(swoole::Reactor *reactor);

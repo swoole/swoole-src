@@ -25,12 +25,14 @@
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
 
+using swoole::MsgQueue;
 using swoole::ProcessPool;
-using swoole::Worker;
-using swoole::network::Stream;
-using swoole::network::Socket;
+using swoole::QueueNode;
 using swoole::Timer;
 using swoole::TimerNode;
+using swoole::Worker;
+using swoole::network::Socket;
+using swoole::network::Stream;
 
 /**
  * call onTask
@@ -85,23 +87,14 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
     if (ipc_mode == SW_IPC_MSGQUEUE) {
         pool->use_msgqueue = 1;
         pool->msgqueue_key = msgqueue_key;
-
-        pool->queue = (swMsgQueue *) sw_malloc(sizeof(swMsgQueue));
-        if (pool->queue == nullptr) {
-            swSysWarn("malloc[2] failed");
-            return SW_ERR;
-        }
-
-        if (swMsgQueue_create(pool->queue, 1, pool->msgqueue_key, 0) < 0) {
+        pool->queue = new MsgQueue(pool->msgqueue_key);
+        if (!pool->queue->ready()) {
+            delete pool->queue;
+            pool->queue = nullptr;
             return SW_ERR;
         }
     } else if (ipc_mode == SW_IPC_UNIXSOCK) {
-        pool->pipes = (Pipe *) sw_calloc(worker_num, sizeof(Pipe));
-        if (pool->pipes == nullptr) {
-            swWarn("malloc[2] failed");
-            return SW_ERR;
-        }
-
+        pool->pipes = new Pipe[worker_num]();
         Pipe *pipe;
         for (i = 0; i < worker_num; i++) {
             pipe = &pool->pipes[i];
@@ -415,7 +408,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
          * fetch task
          */
         if (pool->use_msgqueue) {
-            n = swMsgQueue_pop(pool->queue, (swQueue_data *) &out, sizeof(out.buf));
+            n = pool->queue->pop((QueueNode *) &out, sizeof(out.buf));
             if (n < 0 && errno != EINTR) {
                 swSysWarn("[Worker#%d] msgrcv() failed", worker->id);
                 break;
@@ -456,7 +449,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
             continue;
         }
 
-        if (n != (ssize_t) (out.buf.info.len + sizeof(out.buf.info))) {
+        if (n != (ssize_t)(out.buf.info.len + sizeof(out.buf.info))) {
             swWarn("bad task packet, The received data-length[%ld] is inconsistent with the packet-length[%ld]",
                    n,
                    out.buf.info.len + sizeof(out.buf.info));
@@ -518,7 +511,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
     ssize_t n;
     char *data;
 
-    swQueue_data *outbuf = (swQueue_data *) pool->packet_buffer;
+    QueueNode *outbuf = (QueueNode *) pool->packet_buffer;
     outbuf->mtype = 0;
 
     while (pool->running) {
@@ -526,7 +519,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
          * fetch task
          */
         if (pool->use_msgqueue) {
-            n = swMsgQueue_pop(pool->queue, outbuf, SW_MSGMAX);
+            n = pool->queue->pop(outbuf, SW_MSGMAX);
             if (n < 0 && errno != EINTR) {
                 swSysWarn("[Worker#%d] msgrcv() failed", worker->id);
                 break;
@@ -718,11 +711,15 @@ void ProcessPool::destroy() {
             _pipe = &pipes[i];
             _pipe->close(_pipe);
         }
-        sw_free(pipes);
+        delete[] pipes;
     }
 
     if (use_msgqueue == 1 && msgqueue_key == 0) {
-        swMsgQueue_free(queue);
+        queue->destroy();
+    }
+
+    if (queue) {
+        delete queue;
     }
 
     if (stream_info_) {

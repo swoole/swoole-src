@@ -2922,7 +2922,7 @@ static PHP_METHOD(swoole_server, stats) {
     if (serv->task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
         size_t queue_num = -1;
         size_t queue_bytes = -1;
-        if (swMsgQueue_stat(serv->gs->task_workers.queue, &queue_num, &queue_bytes) == 0) {
+        if (serv->gs->task_workers.queue->stat(&queue_num, &queue_bytes)) {
             add_assoc_long_ex(return_value, ZEND_STRL("task_queue_num"), queue_num);
             add_assoc_long_ex(return_value, ZEND_STRL("task_queue_bytes"), queue_bytes);
         }

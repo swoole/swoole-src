@@ -75,7 +75,7 @@ struct Worker {
 
     swMemoryPool *pool_output;
 
-    swMsgQueue *queue;
+    MsgQueue *queue;
 
     bool redirect_stdout;
     bool redirect_stdin;
@@ -191,7 +191,7 @@ struct ProcessPool {
     Pipe *pipes;
     std::unordered_map<pid_t, Worker *> *map_;
     Reactor *reactor;
-    swMsgQueue *queue;
+    MsgQueue *queue;
     StreamInfo *stream_info_;
 
     void *ptr;
