@@ -124,8 +124,7 @@ size_t File::write_all(const void *data, size_t len) {
         } else {
             if (errno == EINTR) {
                 continue;
-            }
-            else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
+            } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
                 swSysWarn("pwrite(%d, %p, %lu, %zu) failed", fd_, len - written_bytes, written_bytes);
             }
             break;
@@ -145,8 +144,7 @@ size_t File::read_all(void *buf, size_t len) {
         } else {
             if (errno == EINTR) {
                 continue;
-            }
-            else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
+            } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
                 swSysWarn("pread(%d, %p, %lu, %zu) failed", fd_, len - read_bytes, read_bytes);
             }
             break;
@@ -171,4 +169,4 @@ std::shared_ptr<String> File::read_content() {
     return data;
 }
 
-}
+}  // namespace swoole

@@ -34,11 +34,11 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
 typedef struct stat FileStatus;
 
 class File {
- private:
+  private:
     int fd_;
     std::string path_;
 
- public:
+  public:
     enum Flag {
         READ = O_RDONLY,
         WRITE = O_WRONLY,
@@ -163,4 +163,4 @@ class File {
 
 File make_tmpfile();
 
-}
+}  // namespace swoole

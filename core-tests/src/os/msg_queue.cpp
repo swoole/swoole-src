@@ -20,30 +20,33 @@
 #include "test_core.h"
 #include "swoole_msg_queue.h"
 
+using swoole::MsgQueue;
+using swoole::QueueNode;
+
 TEST(msg_queue, rbac) {
-    swMsgQueue q;
-    ASSERT_EQ(swMsgQueue_create(&q, 0, 0, 0), SW_OK);
-    swQueue_data in;
+    MsgQueue q(0);
+    ASSERT_TRUE(q.ready());
+    QueueNode in;
     in.mtype = 999;
     strcpy(in.mdata, "hello world");
 
     if (!swoole::test::is_github_ci()) {
-        ASSERT_TRUE(swMsgQueue_set_capacity(&q, 8192));
+        ASSERT_TRUE(q.set_capacity(8192));
     }
 
     // input data
-    ASSERT_EQ(swMsgQueue_push(&q, &in, strlen(in.mdata)), SW_OK);
+    ASSERT_TRUE(q.push(&in, strlen(in.mdata)));
 
     size_t queue_num, queue_bytes;
-    ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
+    ASSERT_TRUE(q.stat(&queue_num, &queue_bytes));
     ASSERT_EQ(queue_num, 1);
     ASSERT_GT(queue_bytes, 10);
 
     // output data
-    swQueue_data out = {};
-    ASSERT_GT(swMsgQueue_pop(&q, &out, sizeof(out)), 1);
+    QueueNode out = {};
+    ASSERT_GT(q.pop(&out, sizeof(out)), 1);
 
-    ASSERT_EQ(swMsgQueue_stat(&q, &queue_num, &queue_bytes), SW_OK);
+    ASSERT_TRUE(q.stat(&queue_num, &queue_bytes));
     ASSERT_EQ(queue_num, 0);
     ASSERT_EQ(queue_bytes, 0);
 

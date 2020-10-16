@@ -709,7 +709,7 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
         msg.mtype = id + 1;
         memcpy(&msg.buf, buf, n);
 
-        return swMsgQueue_push(pool->queue, (swQueue_data *) &msg, n);
+        return pool->queue->push((QueueNode *) &msg, n) ? n : -1;
     }
 
     if ((flags & SW_PIPE_NONBLOCK) && SwooleTG.reactor) {

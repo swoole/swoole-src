@@ -50,8 +50,8 @@ SW_API bool swoole_event_isset_handler(int fdtype);
 SW_API bool swoole_event_is_available();
 
 #ifdef __MACH__
-swReactor *sw_reactor();
-swTimer *sw_timer();
+swoole::Reactor *sw_reactor();
+swoole::Timer *sw_timer();
 #else
 #define sw_reactor() (SwooleTG.reactor)
 #define sw_timer() (SwooleTG.timer)
