@@ -28,6 +28,7 @@ bool MsgQueue::destroy() {
         swSysWarn("msgctl(%d, IPC_RMID) failed", msg_id_);
         return false;
     }
+    msg_id_ = -1;
     return true;
 }
 
@@ -44,12 +45,20 @@ MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
         perms = 0666;
     }
     msg_id_ = msgget(msg_key, IPC_CREAT | perms);
+    msg_key_ = msg_key;
     if (msg_id_ < 0) {
         swSysWarn("msgget() failed");
     } else {
         perms_ = perms;
         blocking_ = blocking;
         set_blocking(blocking);
+    }
+}
+
+MsgQueue::~MsgQueue() {
+    // anonymous queue must be destroyed
+    if (msg_key_ == 0 && msg_id_ >= 0) {
+        destroy();
     }
 }
 

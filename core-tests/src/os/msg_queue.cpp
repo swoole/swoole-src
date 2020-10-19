@@ -52,4 +52,6 @@ TEST(msg_queue, rbac) {
 
     ASSERT_EQ(out.mtype, in.mtype);
     ASSERT_STREQ(out.mdata, in.mdata);
+
+    ASSERT_TRUE(q.destroy());
 }

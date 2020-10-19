@@ -32,10 +32,12 @@ class MsgQueue {
   private:
     bool blocking_;
     int msg_id_;
+    key_t msg_key_;
     int flags_;
     int perms_;
   public:
     explicit MsgQueue(key_t msg_key, bool blocking = true, int perms = 0);
+    ~MsgQueue();
 
     bool ready() {
         return msg_id_ >= 0;
