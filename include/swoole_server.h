@@ -82,9 +82,10 @@ struct Request;
 }
 
 struct Session {
-    uint32_t id;
-    uint32_t fd : 24;
+    SessionId id;
+    int fd;
     uint32_t reactor_id : 8;
+    uint32_t reserve_ : 24;
 };
 
 struct Connection {

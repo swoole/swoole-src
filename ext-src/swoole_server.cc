@@ -40,7 +40,7 @@ struct ServerProperty {
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
     std::unordered_map<int, zend_fcall_info_cache> task_callbacks;
     std::unordered_map<int, TaskCo *> task_coroutine_map;
-    std::unordered_map<int, std::list<FutureTask *> *> send_coroutine_map;
+    std::unordered_map<SessionId, std::list<FutureTask *> *> send_coroutine_map;
 };
 
 struct ServerObject {
@@ -1805,21 +1805,21 @@ static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask
     return SW_READY;
 }
 
-void php_swoole_server_send_yield(Server *serv, int fd, zval *zdata, zval *return_value) {
+void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdata, zval *return_value) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->ptr2));
     std::list<FutureTask *> *coros_list;
-    auto coroutine_iterator = server_object->property->send_coroutine_map.find(fd);
+    auto coroutine_iterator = server_object->property->send_coroutine_map.find(session_id);
 
     if (coroutine_iterator == server_object->property->send_coroutine_map.end()) {
         coros_list = new std::list<FutureTask *>;
-        server_object->property->send_coroutine_map[fd] = coros_list;
+        server_object->property->send_coroutine_map[session_id] = coros_list;
     } else {
         coros_list = coroutine_iterator->second;
     }
 
     FutureTask *context = (FutureTask *) emalloc(sizeof(FutureTask));
     coros_list->push_back(context);
-    context->private_data = (void *) (long) fd;
+    context->private_data = (void *) (long) session_id;
     if (serv->send_timeout > 0) {
         context->timer = swoole_timer_add((long) (serv->send_timeout * 1000), false, php_swoole_onSendTimeout, context);
     } else {

@@ -479,7 +479,7 @@ struct Event {
 typedef int64_t SessionId;
 
 struct DataHead {
-    int fd;
+    SessionId fd;
     uint32_t len;
     int16_t reactor_id;
     uint8_t type;
