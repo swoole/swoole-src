@@ -899,19 +899,14 @@ void Server::destroy() {
 /**
  * worker to master process
  */
-bool Server::feedback(int session_id, int event) {
-    Connection *conn = get_connection_verify(session_id);
-    if (!conn) {
-        return false;
-    }
-
+bool Server::feedback(Connection *conn, enum ServerEventType event) {
     SendData _send{};
     _send.info.type = event;
-    _send.info.fd = session_id;
+    _send.info.fd = conn->session_id;
     _send.info.reactor_id = conn->reactor_id;
 
     if (is_process_mode()) {
-        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), session_id) > 0;
+        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info),  conn->session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
@@ -934,9 +929,8 @@ void Server::store_pipe_fd(Pipe *p) {
 
 /**
  * @process Worker
- * @return SW_OK or SW_ERR
  */
-bool Server::send(int session_id, const void *data, uint32_t length) {
+bool Server::send(SessionId session_id, const void *data, uint32_t length) {
     SendData _send;
     sw_memset_zero(&_send.info, sizeof(_send.info));
 
@@ -958,7 +952,7 @@ bool Server::send(int session_id, const void *data, uint32_t length) {
  * @return SW_OK or SW_ERR
  */
 int Server::send_to_connection(SendData *_send) {
-    uint32_t session_id = _send->info.fd;
+    SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
 
@@ -1143,7 +1137,7 @@ int Server::send_to_connection(SendData *_send) {
 /**
  * use in master process
  */
-bool Server::notify(Connection *conn, int event) {
+bool Server::notify(Connection *conn, enum ServerEventType event) {
     DataHead notify_event = {};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
@@ -1156,7 +1150,7 @@ bool Server::notify(Connection *conn, int event) {
  * @process Worker
  * @return SW_OK or SW_ERR
  */
-bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
+bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
     if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d]", session_id);
         return false;
@@ -1210,7 +1204,7 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
 /**
  * [Worker] Returns the number of bytes sent
  */
-bool Server::sendwait(int session_id, const void *data, uint32_t length) {
+bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
         swoole_error_log(SW_LOG_NOTICE,
@@ -1282,7 +1276,7 @@ void Server::call_hook(HookType type, void *arg) {
 /**
  * [Worker]
  */
-bool Server::close(int session_id, bool reset) {
+bool Server::close(SessionId session_id, bool reset) {
     if (sw_unlikely(is_master())) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
         return false;

@@ -1040,7 +1040,7 @@ class Server {
         }
     }
 
-    inline int get_connection_fd(uint32_t session_id) {
+    inline int get_connection_fd(SessionId session_id) {
         return session_list[session_id % SW_SESSION_LIST_SIZE].fd;
     }
 
@@ -1057,7 +1057,7 @@ class Server {
         return conn;
     }
 
-    inline Connection *get_connection_verify(uint32_t session_id) {
+    inline Connection *get_connection_verify(SessionId session_id) {
         Connection *conn = get_connection_verify_no_ssl(session_id);
 #ifdef SW_USE_OPENSSL
         if (conn && conn->ssl && !conn->ssl_ready) {
@@ -1075,11 +1075,11 @@ class Server {
         return &connection_list[fd];
     }
 
-    inline Connection *get_connection_by_session_id(int session_id) {
+    inline Connection *get_connection_by_session_id(SessionId session_id) {
         return get_connection(get_connection_fd(session_id));
     }
 
-    inline Session *get_session(uint32_t session_id) {
+    inline Session *get_session(SessionId session_id) {
         return &session_list[session_id % SW_SESSION_LIST_SIZE];
     }
 
@@ -1118,12 +1118,13 @@ class Server {
     ssize_t send_to_reactor_thread(EventData *ev_data, size_t sendn, int session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
-    bool send(int session_id, const void *data, uint32_t length);
-    bool sendfile(int session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
-    bool sendwait(int session_id, const void *data, uint32_t length);
-    bool close(int session_id, bool reset);
-    bool notify(Connection *conn, int event);
-    bool feedback(int session_id, int event);
+    bool send(SessionId session_id, const void *data, uint32_t length);
+    bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
+    bool sendwait(SessionId session_id, const void *data, uint32_t length);
+    bool close(SessionId session_id, bool reset);
+
+    bool notify(Connection *conn, enum ServerEventType event);
+    bool feedback(Connection *conn, enum ServerEventType event);
 
     void init_reactor(Reactor *reactor);
     void init_worker(Worker *worker);

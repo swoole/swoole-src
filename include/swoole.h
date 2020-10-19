@@ -476,6 +476,8 @@ struct Event {
     network::Socket *socket;
 };
 
+typedef int64_t SessionId;
+
 struct DataHead {
     int fd;
     uint32_t len;

@@ -2720,7 +2720,7 @@ static PHP_METHOD(swoole_server, send) {
     }
 
     fd = zval_get_long(zfd);
-    if (UNEXPECTED((int) fd <= 0)) {
+    if (UNEXPECTED(fd <= 0)) {
         php_swoole_fatal_error(E_WARNING, "invalid fd[" ZEND_LONG_FMT "]", fd);
         RETURN_FALSE;
     }
@@ -2825,7 +2825,7 @@ static PHP_METHOD(swoole_server, sendfile) {
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(serv->sendfile((int) fd, filename, len, offset, length));
+    RETURN_BOOL(serv->sendfile(fd, filename, len, offset, length));
 }
 
 static PHP_METHOD(swoole_server, close) {
@@ -2850,7 +2850,7 @@ static PHP_METHOD(swoole_server, close) {
     Z_PARAM_BOOL(reset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(serv->close((int) fd, reset));
+    RETURN_BOOL(serv->close(fd, reset));
 }
 
 static PHP_METHOD(swoole_server, pause) {
@@ -2861,12 +2861,15 @@ static PHP_METHOD(swoole_server, pause) {
     }
 
     zend_long fd;
-
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE) {
         RETURN_FALSE;
     }
-
-    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_PAUSE_RECV));
+    Connection *conn = serv->get_connection_verify(fd);
+    if (!conn) {
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(serv->feedback(conn, SW_SERVER_EVENT_PAUSE_RECV));
 }
 
 static PHP_METHOD(swoole_server, resume) {
@@ -2877,12 +2880,15 @@ static PHP_METHOD(swoole_server, resume) {
     }
 
     zend_long fd;
-
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE) {
         RETURN_FALSE;
     }
-
-    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_RESUME_RECV));
+    Connection *conn = serv->get_connection_verify(fd);
+    if (!conn) {
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(serv->feedback(conn, SW_SERVER_EVENT_RESUME_RECV));
 }
 
 static PHP_METHOD(swoole_server, stats) {
