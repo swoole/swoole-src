@@ -95,7 +95,7 @@ struct Connection {
     /**
      * session id
      */
-    uint32_t session_id;
+    SessionId session_id;
     /**
      * socket type, SW_SOCK_TCP or SW_SOCK_UDP
      */
@@ -400,7 +400,7 @@ struct ServerGS {
     pid_t master_pid;
     pid_t manager_pid;
 
-    uint32_t session_round : 24;
+    SessionId session_round;
     sw_atomic_t start;
     sw_atomic_t shutdown;
 
@@ -429,7 +429,7 @@ struct Factory {
     bool (*dispatch)(Factory *, SendData *);
     bool (*finish)(Factory *, SendData *);
     bool (*notify)(Factory *, DataHead *);  // send a event notify
-    bool (*end)(Factory *, int fd);
+    bool (*end)(Factory *, SessionId sesion_id);
     void (*free)(Factory *);
 };
 
@@ -685,7 +685,7 @@ class Server {
         return get_port_by_server_fd(connection_list[fd].server_fd);
     }
 
-    inline ListenPort *get_port_by_session_id(int session_id) {
+    inline ListenPort *get_port_by_session_id(SessionId session_id) {
         Connection *conn = get_connection_by_session_id(session_id);
         if (!conn) {
             return nullptr;
@@ -894,7 +894,7 @@ class Server {
     /**
      * reactor_id: The fd in which the reactor.
      */
-    inline swSocket *get_reactor_thread_pipe(int session_id, int reactor_id) {
+    inline swSocket *get_reactor_thread_pipe(SessionId session_id, int reactor_id) {
         int pipe_index = session_id % reactor_pipe_num;
         /**
          * pipe_worker_id: The pipe in which worker.
@@ -1044,7 +1044,7 @@ class Server {
         return session_list[session_id % SW_SESSION_LIST_SIZE].fd;
     }
 
-    inline Connection *get_connection_verify_no_ssl(uint32_t session_id) {
+    inline Connection *get_connection_verify_no_ssl(SessionId session_id) {
         Session *session = get_session(session_id);
         int fd = session->fd;
         Connection *conn = get_connection(fd);
@@ -1115,7 +1115,7 @@ class Server {
     int send_to_connection(SendData *);
     ssize_t send_to_worker_from_master(Worker *worker, const void *data, size_t len);
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
-    ssize_t send_to_reactor_thread(EventData *ev_data, size_t sendn, int session_id);
+    ssize_t send_to_reactor_thread(EventData *ev_data, size_t sendn, SessionId session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
     bool send(SessionId session_id, const void *data, uint32_t length);

@@ -22,7 +22,7 @@ static int swFactory_start(Factory *factory);
 static int swFactory_shutdown(Factory *factory);
 static bool swFactory_dispatch(Factory *factory, SendData *req);
 static bool swFactory_notify(Factory *factory, DataHead *event);
-static bool swFactory_end(Factory *factory, int session_id);
+static bool swFactory_end(Factory *factory, SessionId session_id);
 static void swFactory_free(Factory *factory);
 
 int swFactory_create(Factory *factory) {
@@ -111,7 +111,7 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     return serv->accept_task((EventData *) info) == SW_OK;
 }
 
-static bool swFactory_end(Factory *factory, int session_id) {
+static bool swFactory_end(Factory *factory, SessionId session_id) {
     Server *serv = (Server *) factory->ptr;
     SendData _send{};
     DataHead info;

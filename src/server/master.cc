@@ -1662,10 +1662,9 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
 
     Session *session;
     sw_spinlock(&gs->spinlock);
-    uint32_t i;
-    uint32_t session_id = gs->session_round;
+    SessionId session_id = gs->session_round;
     // get session id
-    for (i = 0; i < max_connection; i++) {
+    for (uint32_t i = 0; i < max_connection; i++) {
         session_id++;
         // SwooleGS->session_round just has 24 bits size;
         if (sw_unlikely(session_id == 1 << 24)) {
