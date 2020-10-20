@@ -21,6 +21,7 @@
 #include "ext/pcre/php_pcre.h"
 #endif
 #include "zend_exceptions.h"
+#include "ext/json/php_json.h"
 
 #include "swoole_mime_type.h"
 #include "swoole_server.h"
@@ -63,6 +64,8 @@ static PHP_FUNCTION(swoole_mime_type_delete);
 static PHP_FUNCTION(swoole_mime_type_get);
 static PHP_FUNCTION(swoole_mime_type_exists);
 static PHP_FUNCTION(swoole_mime_type_list);
+static PHP_FUNCTION(swoole_ext_unserialize);
+static PHP_FUNCTION(swoole_ext_json_decode);
 static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 SW_EXTERN_C_END
 
@@ -94,6 +97,20 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
     ZEND_ARG_INFO(1, write_array)
     ZEND_ARG_INFO(1, error_array)
     ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ext_unserialize, 0, 0, 2)
+    ZEND_ARG_INFO(0, offset)
+    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, options)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ext_json_decode, 0, 0, 2)
+    ZEND_ARG_INFO(0, offset)
+    ZEND_ARG_INFO(0, json)
+    ZEND_ARG_INFO(0, associative)
+    ZEND_ARG_INFO(0, depth)
+    ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_set_process_name, 0, 0, 1)
@@ -153,6 +170,8 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_mime_type_exists, arginfo_swoole_mime_type_read)
     PHP_FE(swoole_mime_type_list, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
+    PHP_FE(swoole_ext_unserialize, arginfo_swoole_ext_unserialize)
+    PHP_FE(swoole_ext_json_decode, arginfo_swoole_ext_json_decode)
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -1193,4 +1212,90 @@ static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin) {
         php_error_docref(nullptr, E_WARNING, "can not call this function in user level");
         RETURN_FALSE;
     }
+}
+
+static PHP_FUNCTION(swoole_ext_unserialize) {
+    zend_long offset;
+	char *buf = NULL;
+	size_t buf_len;
+	HashTable *options = NULL;
+
+	ZEND_PARSE_PARAMETERS_START(2, 2)
+        Z_PARAM_LONG(offset)
+		Z_PARAM_STRING(buf, buf_len)
+        Z_PARAM_OPTIONAL
+		Z_PARAM_ARRAY_HT(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+#if PHP_VERSION_ID < 80000
+    php_error_docref(nullptr, E_WARNING, "only supports php8");
+    RETURN_FALSE;
+#else
+    if (buf_len == 0 || (zend_long) buf_len <= offset) {
+		RETURN_FALSE;
+	}
+	php_unserialize_with_options(return_value, buf + offset, buf_len - offset, options, "swoole_ext_unserialize");
+#endif
+}
+
+static PHP_FUNCTION(swoole_ext_json_decode) {
+    zend_long offset;
+    char *str;
+	size_t str_len;
+	zend_bool assoc = 0; /* return JS objects as PHP objects by default */
+	zend_bool assoc_null = 1;
+	zend_long depth = PHP_JSON_PARSER_DEFAULT_DEPTH;
+	zend_long options = 0;
+
+	ZEND_PARSE_PARAMETERS_START(2, 5)
+        Z_PARAM_LONG(offset)
+		Z_PARAM_STRING(str, str_len)
+		Z_PARAM_OPTIONAL
+		Z_PARAM_BOOL_EX(assoc, assoc_null, 1, 0)
+		Z_PARAM_LONG(depth)
+		Z_PARAM_LONG(options)
+	ZEND_PARSE_PARAMETERS_END();
+
+#if PHP_VERSION_ID < 80000
+    php_error_docref(nullptr, E_WARNING, "only supports php8");
+    RETURN_FALSE;
+#else
+    if (str_len == 0 || (zend_long) str_len <= offset) {
+		RETURN_FALSE;
+	}
+
+    if (!(options & PHP_JSON_THROW_ON_ERROR)) {
+		JSON_G(error_code) = PHP_JSON_ERROR_NONE;
+	}
+
+	if (!str_len) {
+		if (!(options & PHP_JSON_THROW_ON_ERROR)) {
+			JSON_G(error_code) = PHP_JSON_ERROR_SYNTAX;
+		} else {
+			zend_throw_exception(php_json_exception_ce, php_json_get_error_msg(PHP_JSON_ERROR_SYNTAX), PHP_JSON_ERROR_SYNTAX);
+		}
+		RETURN_NULL();
+	}
+
+	if (depth <= 0) {
+		zend_argument_value_error(3, "must be greater than 0");
+		RETURN_THROWS();
+	}
+
+	if (depth > INT_MAX) {
+		zend_argument_value_error(3, "must be less than %d", INT_MAX);
+		RETURN_THROWS();
+	}
+
+	/* For BC reasons, the bool $assoc overrides the long $options bit for PHP_JSON_OBJECT_AS_ARRAY */
+	if (!assoc_null) {
+		if (assoc) {
+			options |=  PHP_JSON_OBJECT_AS_ARRAY;
+		} else {
+			options &= ~PHP_JSON_OBJECT_AS_ARRAY;
+		}
+	}
+
+	php_json_decode_ex(return_value, str, str_len, options, depth);
+#endif
 }
