@@ -62,27 +62,27 @@ MsgQueue::~MsgQueue() {
     }
 }
 
-ssize_t MsgQueue::pop(QueueNode *data, size_t length) {
-    ssize_t ret = msgrcv(msg_id_, data, length, data->mtype, flags_);
+ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) {
+    ssize_t ret = msgrcv(msg_id_, data, mdata_size, data->mtype, flags_);
     if (ret < 0) {
         swoole_set_last_error(errno);
         if (errno != ENOMSG && errno != EINTR) {
-            swSysWarn("msgrcv(%d, %zu, %ld) failed", msg_id_, length, data->mtype);
+            swSysWarn("msgrcv(%d, %zu, %ld) failed", msg_id_, mdata_size, data->mtype);
         }
     }
     return ret;
 }
 
-bool MsgQueue::push(QueueNode *in, size_t length) {
+bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
     while (1) {
-        if (msgsnd(msg_id_, in, length, flags_) == 0) {
+        if (msgsnd(msg_id_, in, mdata_length, flags_) == 0) {
             return true;
         }
         if (errno == EINTR) {
             continue;
         }
         if (errno != EAGAIN) {
-            swSysWarn("msgsnd(%d, %lu, %ld) failed", msg_id_, length, in->mtype);
+            swSysWarn("msgsnd(%d, %lu, %ld) failed", msg_id_, mdata_length, in->mtype);
         }
         swoole_set_last_error(errno);
         break;

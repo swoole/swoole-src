@@ -110,7 +110,7 @@ int php_swoole_websocket_frame_object_pack_ex(swoole::String *buffer, zval *zdat
 void php_swoole_websocket_frame_unpack(swoole::String *data, zval *zframe);
 void php_swoole_websocket_frame_unpack_ex(swoole::String *data, zval *zframe, uchar allow_uncompress);
 
-int php_swoole_task_pack(swoole::EventData *task, zval *data);
+swoole::TaskId php_swoole_task_pack(swoole::EventData *task, zval *data);
 zval* php_swoole_task_unpack(swoole::EventData *task_result);
 
 #ifdef SW_HAVE_ZLIB

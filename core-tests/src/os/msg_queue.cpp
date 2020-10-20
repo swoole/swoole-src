@@ -43,8 +43,8 @@ TEST(msg_queue, rbac) {
     ASSERT_GT(queue_bytes, 10);
 
     // output data
-    QueueNode out = {};
-    ASSERT_GT(q.pop(&out, sizeof(out)), 1);
+    QueueNode out{};
+    ASSERT_GT(q.pop(&out, sizeof(out.mdata)), 1);
 
     ASSERT_TRUE(q.stat(&queue_num, &queue_bytes));
     ASSERT_EQ(queue_num, 0);

@@ -763,7 +763,7 @@ int php_swoole_create_dir(const char *path, size_t length) {
     return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, nullptr) ? 0 : -1;
 }
 
-int php_swoole_task_pack(EventData *task, zval *zdata) {
+TaskId php_swoole_task_pack(EventData *task, zval *zdata) {
     smart_str serialized_data = {};
     php_serialize_data_t var_hash;
 
@@ -3030,7 +3030,7 @@ static PHP_METHOD(swoole_server, taskwait) {
         return;
     }
 
-    int task_id = buf.info.fd;
+    TaskId task_id = buf.info.fd;
 
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
@@ -3101,7 +3101,6 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     array_init(return_value);
 
     int dst_worker_id;
-    int task_id;
     int i = 0;
     int n_task = php_swoole_array_length(ztasks);
 
@@ -3139,7 +3138,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         ;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
-    task_id = php_swoole_task_pack(&buf, ztask);
+    TaskId task_id = php_swoole_task_pack(&buf, ztask);
     if (task_id < 0) {
         php_swoole_fatal_error(E_WARNING, "task pack failed");
         goto _fail;
@@ -3191,7 +3190,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     do {
         result = (EventData *) (content->str + content->offset);
-        task_id = result->info.fd;
+        TaskId task_id = result->info.fd;
         zdata = php_swoole_task_unpack(result);
         if (zdata == nullptr) {
             goto _next;
