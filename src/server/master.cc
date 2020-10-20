@@ -993,7 +993,7 @@ int Server::send_to_connection(SendData *_send) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {
             swoole_error_log(
-                SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow", fd);
+                SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
         }
         return SW_ERR;
     }
@@ -1148,11 +1148,10 @@ bool Server::notify(Connection *conn, enum ServerEventType event) {
 
 /**
  * @process Worker
- * @return SW_OK or SW_ERR
  */
 bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
     if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID)) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d]", session_id);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
     }
 
@@ -1209,7 +1208,7 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     if (!conn) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_CLOSED,
-                         "send %d byte failed, because session#%d is closed",
+                         "send %d byte failed, because session#%ld is closed",
                          length,
                          session_id);
         return false;
