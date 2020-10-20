@@ -56,8 +56,8 @@ MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
 }
 
 MsgQueue::~MsgQueue() {
-    // anonymous queue must be destroyed
-    if (msg_key_ == 0 && msg_id_ >= 0) {
+    // private queue must be destroyed
+    if (msg_key_ == IPC_PRIVATE && msg_id_ >= 0) {
         destroy();
     }
 }

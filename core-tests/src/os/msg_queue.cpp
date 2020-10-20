@@ -24,7 +24,7 @@ using swoole::MsgQueue;
 using swoole::QueueNode;
 
 TEST(msg_queue, rbac) {
-    MsgQueue q(0);
+    MsgQueue q(0x950001);
     ASSERT_TRUE(q.ready());
     QueueNode in;
     in.mtype = 999;

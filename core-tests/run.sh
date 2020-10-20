@@ -1,2 +1,5 @@
 #!/bin/bash
-cmake . && make -j8 && ./bin/core_tests
+cmake .
+make -j8
+ipcs -q
+./bin/core_tests
