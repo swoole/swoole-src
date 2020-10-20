@@ -100,7 +100,7 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     }
     // server active close, discard data.
     if (conn->closed) {
-        swWarn("dispatch[type=%d] failed, session#%ld is closed by server", info->type, info->session_id);
+        swWarn("dispatch[type=%d] failed, session#%ld is closed by server", info->type, info->fd);
         return false;
     }
     // converted fd to session_id
