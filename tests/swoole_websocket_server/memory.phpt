@@ -10,11 +10,10 @@ skip_if_no_top();
 require __DIR__ . '/../include/bootstrap.php';
 
 define('FRAME_DATA_SIZE', 100 * 1024);
-define('REQUESTS_TIMES', 64);
 
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
-    phpt_echo("start to benchmark " . REQUESTS_TIMES . " times...\n");
+    phpt_echo("start to benchmark " . MAX_REQUESTS_MID . " times...\n");
     $concurrency = PRESSURE_LEVEL === PRESSURE_NORMAL ? MAX_CONCURRENCY * 4 : MAX_CONCURRENCY;
     Co::set(['max_coroutine' => $concurrency + 1]);
     Co\run(function () use ($pm, $concurrency) {
