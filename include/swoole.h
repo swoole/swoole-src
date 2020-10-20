@@ -477,6 +477,7 @@ struct Event {
 };
 
 typedef int64_t SessionId;
+typedef int64_t TaskId;
 
 struct DataHead {
     SessionId fd;
@@ -606,7 +607,8 @@ static inline struct timespec swoole_time_until(int milliseconds) {
     return t;
 }
 
-struct swThreadGlobal {
+namespace swoole {
+struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
@@ -627,7 +629,7 @@ struct swThreadGlobal {
 #endif
 };
 
-struct swGlobal {
+struct Global {
     uchar init : 1;
     uchar running : 1;
     uchar enable_coroutine : 1;
@@ -640,7 +642,7 @@ struct swGlobal {
 
     int process_type;
     uint32_t process_id;
-    long task_id;
+    TaskId current_task_id;
     pid_t pid;
 
     int signal_fd;
@@ -674,8 +676,10 @@ struct swGlobal {
     std::function<bool(swoole::Reactor *reactor, int &event_num)> user_exit_condition;
 };
 
-extern swGlobal SwooleG;                  // Local Global Variable
-extern __thread swThreadGlobal SwooleTG;  // Thread Global Variable
+}
+
+extern swoole::Global SwooleG;                  // Local Global Variable
+extern __thread swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
 
 #define SW_CPU_NUM (SwooleG.cpu_num)
 

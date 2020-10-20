@@ -38,8 +38,8 @@ struct ServerProperty {
     std::vector<zval *> user_processes;
     php_swoole_server_port_property *primary_port;
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-    std::unordered_map<int, zend_fcall_info_cache> task_callbacks;
-    std::unordered_map<int, TaskCo *> task_coroutine_map;
+    std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
+    std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
     std::unordered_map<SessionId, std::list<FutureTask *> *> send_coroutine_map;
 };
 
@@ -768,12 +768,7 @@ int php_swoole_task_pack(EventData *task, zval *zdata) {
     php_serialize_data_t var_hash;
 
     task->info.type = SW_SERVER_EVENT_TASK;
-    // field fd save task_id
-    task->info.fd = SwooleG.task_id++;
-    if (sw_unlikely(SwooleG.task_id >= INT_MAX)) {
-        SwooleG.task_id = 0;
-    }
-    // field reactor_id save the worker_id
+    task->info.fd = SwooleG.current_task_id++;
     task->info.reactor_id = SwooleG.process_id;
     swTask_type(task) = 0;
 
@@ -1392,7 +1387,7 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
     }
 
     if (swTask_type(req) & SW_TASK_COROUTINE) {
-        int task_id = req->info.fd;
+        TaskId task_id = req->info.fd;
         auto task_co_iterator = server_object->property->task_coroutine_map.find(task_id);
 
         if (task_co_iterator == server_object->property->task_coroutine_map.end()) {
@@ -1429,7 +1424,7 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
             }
         }
         if (task_index < 0) {
-            php_swoole_fatal_error(E_WARNING, "task[%d] is invalid", task_id);
+            php_swoole_fatal_error(E_WARNING, "task[%ld] is invalid", task_id);
             goto _fail;
         }
         (void) add_index_zval(result, task_index, zdata);
@@ -3237,7 +3232,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     }
 
     int dst_worker_id = -1;
-    int task_id;
+    TaskId task_id;
     int i = 0;
     uint32_t n_task = php_swoole_array_length(ztasks);
 
