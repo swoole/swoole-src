@@ -1659,18 +1659,16 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
         _socket->direct_send = 1;
     }
 
-    Session *session;
     sw_spinlock(&gs->spinlock);
     SessionId session_id = gs->session_round;
     // get session id
     for (uint32_t i = 0; i < max_connection; i++) {
         session_id++;
-        // SwooleGS->session_round just has 24 bits size;
-        if (sw_unlikely(session_id == 1 << 24)) {
+        if (sw_unlikely(session_id == SW_MAX_SESSION_ID)) {
             session_id = 1;
         }
-        session = get_session(session_id);
-        // vacancy
+        Session *session = get_session(session_id);
+        // available slot
         if (session->fd == 0) {
             session->fd = fd;
             session->id = session_id;

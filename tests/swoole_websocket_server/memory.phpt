@@ -60,7 +60,7 @@ $pm->childFunc = function () use ($pm) {
                 'worker_real' => $worker_top['RES']
             ];
             phpt_var_dump(end($mem_records));
-            if (($records_count = count($mem_records)) === REQUESTS_TIMES) {
+            if (($records_count = count($mem_records)) === MAX_REQUESTS_MID) {
                 phpt_echo("=== master virtual ===\n");
                 phpt_var_dump($master_virtual = array_column($mem_records, 'master_virtual'));
                 phpt_echo("=== master real ===\n");
