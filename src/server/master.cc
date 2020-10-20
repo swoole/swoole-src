@@ -46,7 +46,7 @@ TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, C
         }
         long ms = time<std::chrono::milliseconds>(true);
         if (ms - conn->socket->last_received_time < port->max_idle_time &&
-                ms - conn->socket->last_sent_time < port->max_idle_time) {
+            ms - conn->socket->last_sent_time < port->max_idle_time) {
             return;
         }
         if (disable_notify || conn->closed || conn->close_force) {
@@ -223,12 +223,12 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     switch (port->type) {
     case SW_SOCK_UDP:
     case SW_SOCK_UDP6:
-        break;    
+        break;
     default:
         OPENSSL_assert(0);
         break;
     }
-    
+
     if (sock->bind(port->socket->info) < 0) {
         swSysWarn("bind() failed");
         goto _cleanup;
@@ -728,7 +728,8 @@ int Server::create() {
     }
     // Reactor Thread Num
     if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
-        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d", reactor_num,
+        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d",
+               reactor_num,
                SW_CPU_NUM * SW_MAX_THREAD_NCPU);
         reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     } else if (reactor_num == 0) {
@@ -739,8 +740,8 @@ int Server::create() {
     }
     // Worker Process Num
     if (worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-        swWarn("worker_num == %d, Too many processes, reset to max value %d", worker_num,
-               SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+        swWarn(
+            "worker_num == %d, Too many processes, reset to max value %d", worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
         worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
     }
     if (worker_num < reactor_num) {
@@ -749,7 +750,8 @@ int Server::create() {
     // TaskWorker Process Num
     if (task_worker_num > 0) {
         if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d", task_worker_num,
+            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d",
+                   task_worker_num,
                    SW_CPU_NUM * SW_MAX_WORKER_NCPU);
             task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
         }
@@ -906,7 +908,7 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     _send.info.reactor_id = conn->reactor_id;
 
     if (is_process_mode()) {
-        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info),  conn->session_id) > 0;
+        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), conn->session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
@@ -992,8 +994,7 @@ int Server::send_to_connection(SendData *_send) {
         if (send_yield) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {
-            swoole_error_log(
-                SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
         }
         return SW_ERR;
     }
@@ -1277,7 +1278,8 @@ void Server::call_hook(HookType type, void *arg) {
  */
 bool Server::close(SessionId session_id, bool reset) {
     if (sw_unlikely(is_master())) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
+        swoole_error_log(
+            SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "cannot close session#%ld in master process", session_id);
         return false;
     }
     Connection *conn = get_connection_verify_no_ssl(session_id);
@@ -1290,7 +1292,7 @@ bool Server::close(SessionId session_id, bool reset) {
     }
     // server is initiative to close the connection
     conn->close_actively = 1;
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
+    swTraceLog(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
 
     Worker *worker;
     DataHead ev = {};
@@ -1427,7 +1429,7 @@ int Server::add_systemd_socket() {
         }
 
         // O_NONBLOCK & O_CLOEXEC
-        ls->socket->set_fd_option(1, 1);     
+        ls->socket->set_fd_option(1, 1);
 
         ptr.release();
         check_port_type(ls);
@@ -1444,8 +1446,10 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
         return nullptr;
     }
     if (ports.size() >= SW_MAX_LISTEN_PORT) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "up to %d listening ports are allowed", SW_MAX_LISTEN_PORT);
+        swoole_error_log(SW_LOG_ERROR,
+                         SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
+                         "up to %d listening ports are allowed",
+                         SW_MAX_LISTEN_PORT);
         return nullptr;
     }
     if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 0 || port > 65535)) {

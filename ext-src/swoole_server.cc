@@ -107,7 +107,7 @@ static void php_swoole_onManagerStart(Server *serv);
 static void php_swoole_onManagerStop(Server *serv);
 
 static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode);
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, int fd);
+static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, SeesionId fd);
 static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
