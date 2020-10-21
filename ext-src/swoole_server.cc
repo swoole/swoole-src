@@ -1739,19 +1739,19 @@ static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode) {
     swoole_set_last_error(ETIMEDOUT);
     ZVAL_FALSE(&result);
 
-    int fd = (int) (long) context->private_data;
+    SessionId session_id = (long) context->private_data;
 
-    auto _i_coros_list = server_object->property->send_coroutine_map.find(fd);
+    auto _i_coros_list = server_object->property->send_coroutine_map.find(session_id);
     if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
         auto coros_list = _i_coros_list->second;
         coros_list->remove(context);
         // free memory
         if (coros_list->size() == 0) {
             delete coros_list;
-            server_object->property->send_coroutine_map.erase(fd);
+            server_object->property->send_coroutine_map.erase(session_id);
         }
     } else {
-        swWarn("send coroutine[fd=%d] not exists", fd);
+        swWarn("send coroutine[session#%ld] not exists", session_id);
         return;
     }
 
