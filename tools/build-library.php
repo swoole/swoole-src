@@ -2,7 +2,7 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
-define('LIBRARY_HEADER', ROOT_DIR . '/php_swoole_library.h');
+define('LIBRARY_HEADER', ROOT_DIR . '/ext-src/php_swoole_library.h');
 define('PHP_TAG', '<?php');
 
 preg_match(
