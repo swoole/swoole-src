@@ -20,9 +20,9 @@
 #include <dirent.h>
 #include <algorithm>
 
-using namespace swoole;
-using swoole::http_server::StaticHandler;
+namespace swoole {
 
+namespace http_server {
 bool StaticHandler::is_modified(const std::string &date_if_modified_since) {
     char date_tmp[64];
     if (date_if_modified_since.empty() || date_if_modified_since.length() > sizeof(date_tmp) - 1) {
@@ -130,13 +130,9 @@ bool StaticHandler::hit() {
         return false;
     }
 
-/**
- * non-static file
- */
+// non-static file
 _detect_mime_type:
-/**
- * file does not exist
- */
+// file does not exist
 check_stat:
     if (lstat(task.filename, &file_stat) < 0) {
         if (last) {
@@ -264,7 +260,7 @@ bool StaticHandler::set_filename(std::string &filename) {
 
     return true;
 }
-
+}  // namespace http_server
 void Server::add_static_handler_location(const std::string &location) {
     if (locations == nullptr) {
         locations = new std::unordered_set<std::string>;
@@ -282,3 +278,4 @@ void Server::add_static_handler_index_files(const std::string &file) {
         http_index_files->push_back(file);
     }
 }
+}  // namespace swoole

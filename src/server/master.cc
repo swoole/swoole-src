@@ -22,12 +22,13 @@
 
 #include <assert.h>
 
-using namespace swoole;
 using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-Server *g_server_instance = nullptr;
+swoole::Server *g_server_instance = nullptr;
+
+namespace swoole {
 
 static void Server_signal_handler(int sig);
 
@@ -1750,3 +1751,4 @@ int Server::get_idle_task_worker_num() {
 
     return idle_worker_num;
 }
+}  // namespace swoole
