@@ -44,13 +44,14 @@ MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
     if (perms <= 0 || perms >= 01000) {
         perms = 0666;
     }
-    msg_id_ = msgget(msg_key, IPC_CREAT | perms);
     msg_key_ = msg_key;
+    flags_ = 0;
+    perms_ = perms;
+    blocking_ = blocking;
+    msg_id_ = msgget(msg_key, IPC_CREAT | perms);
     if (msg_id_ < 0) {
         swSysWarn("msgget() failed");
     } else {
-        perms_ = perms;
-        blocking_ = blocking;
         set_blocking(blocking);
     }
 }
