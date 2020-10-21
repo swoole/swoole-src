@@ -36,6 +36,7 @@ using swoole::ListenPort;
 using swoole::String;
 using swoole::RecvData;
 using swoole::coroutine::Socket;
+using swoole::SessionId;
 
 using http_request = swoole::http::Request;
 using http_response = swoole::http::Response;
@@ -283,7 +284,7 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
 void swoole_websocket_onOpen(Server *serv, http_context *ctx) {
     Connection *conn = serv->get_connection_by_session_id(ctx->fd);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
         return;
     }
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, conn->server_fd, SW_SERVER_CB_onOpen);
@@ -293,7 +294,7 @@ void swoole_websocket_onOpen(Server *serv, http_context *ctx) {
         args[1] = *ctx->request.zobject;
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine))) {
             php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
-            serv->close(ctx->fd, 0);
+            serv->close(ctx->fd, false);
         }
     }
 }
@@ -367,7 +368,7 @@ bool swoole_websocket_handshake(http_context *ctx) {
         serv = (Server *) ctx->private_data;
         conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%d] is closed", ctx->fd);
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
             return false;
         }
 #ifdef SW_HAVE_ZLIB
@@ -549,7 +550,7 @@ static bool websocket_message_compress(String *buffer, const char *data, size_t 
 #endif
 
 int swoole_websocket_onMessage(Server *serv, RecvData *req) {
-    int fd = req->info.fd;
+    SessionId fd = req->info.fd;
     uchar flags = 0;
     zend_long opcode = 0;
     auto port        = serv->get_port_by_session_id(fd);
@@ -618,7 +619,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
 }
 
 int swoole_websocket_onHandshake(Server *serv, ListenPort *port, http_context *ctx) {
-    int fd = ctx->fd;
+    SessionId fd = ctx->fd;
     bool success = swoole_websocket_handshake(ctx);
     if (success) {
         swoole_websocket_onOpen(serv, ctx);
@@ -726,9 +727,9 @@ void php_swoole_websocket_server_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("WEBSOCKET_CLOSE_TLS", WEBSOCKET_CLOSE_TLS);
 }
 
-static sw_inline bool swoole_websocket_server_push(Server *serv, int fd, String *buffer) {
+static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, String *buffer) {
     if (sw_unlikely(fd <= 0)) {
-        php_swoole_fatal_error(E_WARNING, "fd[%d] is invalid", fd);
+        php_swoole_fatal_error(E_WARNING, "fd[%ld] is invalid", fd);
         return false;
     }
 
@@ -736,7 +737,7 @@ static sw_inline bool swoole_websocket_server_push(Server *serv, int fd, String 
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_UNCONNECTED);
         php_swoole_fatal_error(
-            E_WARNING, "the connected client of connection[%d] is not a websocket client or closed", (int) fd);
+            E_WARNING, "the connected client of connection[%ld] is not a websocket client or closed", fd);
         return false;
     }
 
@@ -753,7 +754,7 @@ static sw_inline bool swoole_websocket_server_push(Server *serv, int fd, String 
     return ret;
 }
 
-static sw_inline bool swoole_websocket_server_close(Server *serv, int fd, String *buffer, bool real_close) {
+static sw_inline bool swoole_websocket_server_close(Server *serv, SessionId fd, String *buffer, bool real_close) {
     bool ret = swoole_websocket_server_push(serv, fd, buffer);
     if (!ret || !real_close) {
         return ret;

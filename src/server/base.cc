@@ -22,7 +22,7 @@ static int swFactory_start(Factory *factory);
 static int swFactory_shutdown(Factory *factory);
 static bool swFactory_dispatch(Factory *factory, SendData *req);
 static bool swFactory_notify(Factory *factory, DataHead *event);
-static bool swFactory_end(Factory *factory, int session_id);
+static bool swFactory_end(Factory *factory, SessionId session_id);
 static void swFactory_free(Factory *factory);
 
 int swFactory_create(Factory *factory) {
@@ -95,12 +95,12 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     Server *serv = (Server *) factory->ptr;
     Connection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
-        swWarn("dispatch[type=%d] failed, connection#%d is not active", info->type, info->fd);
+        swWarn("dispatch[type=%d] failed, socket#%d is not active", info->type, info->fd);
         return false;
     }
     // server active close, discard data.
     if (conn->closed) {
-        swWarn("dispatch[type=%d] failed, connection#%d is closed by server", info->type, info->fd);
+        swWarn("dispatch[type=%d] failed, session#%ld is closed by server", info->type, info->fd);
         return false;
     }
     // converted fd to session_id
@@ -111,7 +111,7 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     return serv->accept_task((EventData *) info) == SW_OK;
 }
 
-static bool swFactory_end(Factory *factory, int session_id) {
+static bool swFactory_end(Factory *factory, SessionId session_id) {
     Server *serv = (Server *) factory->ptr;
     SendData _send{};
     DataHead info;
@@ -122,12 +122,12 @@ static bool swFactory_end(Factory *factory, int session_id) {
 
     Connection *conn = serv->get_connection_by_session_id(session_id);
     if (conn == nullptr || conn->active == 0) {
-        // swWarn("can not close. Connection[%d] not found", _send.info.fd);
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
     } else if (conn->close_force) {
         goto _do_close;
     } else if (conn->closing) {
-        swWarn("the connection[%d] is closing", session_id);
+        swWarn("session#%ld is closing", session_id);
         return false;
     } else if (conn->closed) {
         return false;
@@ -149,7 +149,7 @@ static bool swFactory_end(Factory *factory, int session_id) {
         conn->close_errno = 0;
 
         if (conn->socket == nullptr) {
-            swWarn("the connection[%d]->socket is nullptr", session_id);
+            swWarn("session#%ld->socket is nullptr", session_id);
             return false;
         }
 

@@ -417,6 +417,7 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
+#if PHP_VERSION_ID < 80100
     if (UNEXPECTED(BG(array_walk_fci).size != 0)) {
         if (!task->array_walk_fci) {
             task->array_walk_fci = (zend::Function *) emalloc(sizeof(*task->array_walk_fci));
@@ -424,6 +425,7 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
         memcpy(task->array_walk_fci, &BG(array_walk_fci), sizeof(*task->array_walk_fci));
         memset(&BG(array_walk_fci), 0, sizeof(*task->array_walk_fci));
     }
+#endif
     if (UNEXPECTED(task->in_silence)) {
         task->tmp_error_reporting = EG(error_reporting);
         EG(error_reporting) = task->ori_error_reporting;
@@ -444,10 +446,12 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
+#if PHP_VERSION_ID < 80100
     if (UNEXPECTED(task->array_walk_fci && task->array_walk_fci->fci.size != 0)) {
         memcpy(&BG(array_walk_fci), task->array_walk_fci, sizeof(*task->array_walk_fci));
         task->array_walk_fci->fci.size = 0;
     }
+#endif
     if (UNEXPECTED(task->in_silence)) {
         EG(error_reporting) = task->tmp_error_reporting;
     }
@@ -526,9 +530,11 @@ void PHPCoroutine::on_close(void *arg) {
         php_output_activate();
         SG(request_info).no_headers = no_headers;
     }
+#if PHP_VERSION_ID < 80100
     if (task->array_walk_fci) {
         efree(task->array_walk_fci);
     }
+#endif
     vm_stack_destroy();
     restore_task(origin_task);
 
@@ -611,8 +617,10 @@ void PHPCoroutine::main_func(void *arg) {
         EG(exception) = nullptr;
 
         task->output_ptr = nullptr;
+#if PHP_VERSION_ID < 80100
         task->array_walk_fci = nullptr;
         task->in_silence = false;
+#endif
 
         task->co = Coroutine::get_current();
         task->co->set_task((void *) task);

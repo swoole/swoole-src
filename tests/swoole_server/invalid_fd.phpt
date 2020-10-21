@@ -45,5 +45,4 @@ Warning: Swoole\Server::send(): fd can not be null in %s/tests/swoole_server/inv
 
 Warning: Swoole\Server::send(): invalid fd[-1] in %s/tests/swoole_server/invalid_fd.php on line %d
 [%s]	NOTICE	send_to_connection (ERRNO 1005): send %d byte failed, session#100 does not exist
-
-Warning: Swoole\Server::send(): invalid fd[9223372036854775807] in %s/tests/swoole_server/invalid_fd.php on line %d%s
+[%s]	NOTICE	send_to_connection (ERRNO 1005): send %d byte failed, session#9223372036854775807 does not exist

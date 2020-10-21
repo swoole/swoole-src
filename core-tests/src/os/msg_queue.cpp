@@ -24,7 +24,7 @@ using swoole::MsgQueue;
 using swoole::QueueNode;
 
 TEST(msg_queue, rbac) {
-    MsgQueue q(0);
+    MsgQueue q(0x950001);
     ASSERT_TRUE(q.ready());
     QueueNode in;
     in.mtype = 999;
@@ -43,8 +43,8 @@ TEST(msg_queue, rbac) {
     ASSERT_GT(queue_bytes, 10);
 
     // output data
-    QueueNode out = {};
-    ASSERT_GT(q.pop(&out, sizeof(out)), 1);
+    QueueNode out{};
+    ASSERT_GT(q.pop(&out, sizeof(out.mdata)), 1);
 
     ASSERT_TRUE(q.stat(&queue_num, &queue_bytes));
     ASSERT_EQ(queue_num, 0);
@@ -52,4 +52,6 @@ TEST(msg_queue, rbac) {
 
     ASSERT_EQ(out.mtype, in.mtype);
     ASSERT_STREQ(out.mdata, in.mdata);
+
+    ASSERT_TRUE(q.destroy());
 }

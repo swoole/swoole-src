@@ -22,12 +22,13 @@
 
 #include <assert.h>
 
-using namespace swoole;
 using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-Server *g_server_instance = nullptr;
+swoole::Server *g_server_instance = nullptr;
+
+namespace swoole {
 
 static void Server_signal_handler(int sig);
 
@@ -46,7 +47,7 @@ TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, C
         }
         long ms = time<std::chrono::milliseconds>(true);
         if (ms - conn->socket->last_received_time < port->max_idle_time &&
-                ms - conn->socket->last_sent_time < port->max_idle_time) {
+            ms - conn->socket->last_sent_time < port->max_idle_time) {
             return;
         }
         if (disable_notify || conn->closed || conn->close_force) {
@@ -223,12 +224,12 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     switch (port->type) {
     case SW_SOCK_UDP:
     case SW_SOCK_UDP6:
-        break;    
+        break;
     default:
         OPENSSL_assert(0);
         break;
     }
-    
+
     if (sock->bind(port->socket->info) < 0) {
         swSysWarn("bind() failed");
         goto _cleanup;
@@ -728,7 +729,8 @@ int Server::create() {
     }
     // Reactor Thread Num
     if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
-        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d", reactor_num,
+        swWarn("serv->reactor_num == %d, Too many threads, reset to max value %d",
+               reactor_num,
                SW_CPU_NUM * SW_MAX_THREAD_NCPU);
         reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     } else if (reactor_num == 0) {
@@ -739,8 +741,8 @@ int Server::create() {
     }
     // Worker Process Num
     if (worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-        swWarn("worker_num == %d, Too many processes, reset to max value %d", worker_num,
-               SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+        swWarn(
+            "worker_num == %d, Too many processes, reset to max value %d", worker_num, SW_CPU_NUM * SW_MAX_WORKER_NCPU);
         worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
     }
     if (worker_num < reactor_num) {
@@ -749,7 +751,8 @@ int Server::create() {
     // TaskWorker Process Num
     if (task_worker_num > 0) {
         if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
-            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d", task_worker_num,
+            swWarn("serv->task_worker_num == %d, Too many processes, reset to max value %d",
+                   task_worker_num,
                    SW_CPU_NUM * SW_MAX_WORKER_NCPU);
             task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
         }
@@ -899,19 +902,14 @@ void Server::destroy() {
 /**
  * worker to master process
  */
-bool Server::feedback(int session_id, int event) {
-    Connection *conn = get_connection_verify(session_id);
-    if (!conn) {
-        return false;
-    }
-
+bool Server::feedback(Connection *conn, enum ServerEventType event) {
     SendData _send{};
     _send.info.type = event;
-    _send.info.fd = session_id;
+    _send.info.fd = conn->session_id;
     _send.info.reactor_id = conn->reactor_id;
 
     if (is_process_mode()) {
-        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), session_id) > 0;
+        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), conn->session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
@@ -934,9 +932,8 @@ void Server::store_pipe_fd(Pipe *p) {
 
 /**
  * @process Worker
- * @return SW_OK or SW_ERR
  */
-bool Server::send(int session_id, const void *data, uint32_t length) {
+bool Server::send(SessionId session_id, const void *data, uint32_t length) {
     SendData _send;
     sw_memset_zero(&_send.info, sizeof(_send.info));
 
@@ -958,7 +955,7 @@ bool Server::send(int session_id, const void *data, uint32_t length) {
  * @return SW_OK or SW_ERR
  */
 int Server::send_to_connection(SendData *_send) {
-    uint32_t session_id = _send->info.fd;
+    SessionId session_id = _send->info.fd;
     const char *_send_data = _send->data;
     uint32_t _send_length = _send->info.len;
 
@@ -972,13 +969,13 @@ int Server::send_to_connection(SendData *_send) {
         if (_send->info.type == SW_SERVER_EVENT_RECV_DATA) {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
-                             "send %d byte failed, session#%d does not exist",
+                             "send %d byte failed, session#%ld does not exist",
                              _send_length,
                              session_id);
         } else {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
-                             "send event[%d] failed, session#%d does not exist",
+                             "send event[%d] failed, session#%ld does not exist",
                              _send->info.type,
                              session_id);
         }
@@ -998,8 +995,7 @@ int Server::send_to_connection(SendData *_send) {
         if (send_yield) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {
-            swoole_error_log(
-                SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "connection#%d output buffer overflow", fd);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
         }
         return SW_ERR;
     }
@@ -1143,7 +1139,7 @@ int Server::send_to_connection(SendData *_send) {
 /**
  * use in master process
  */
-bool Server::notify(Connection *conn, int event) {
+bool Server::notify(Connection *conn, enum ServerEventType event) {
     DataHead notify_event = {};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
@@ -1154,11 +1150,10 @@ bool Server::notify(Connection *conn, int event) {
 
 /**
  * @process Worker
- * @return SW_OK or SW_ERR
  */
-bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
+bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
     if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID)) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%d]", session_id);
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
     }
 
@@ -1210,12 +1205,12 @@ bool Server::sendfile(int session_id, const char *file, uint32_t l_file, off_t o
 /**
  * [Worker] Returns the number of bytes sent
  */
-bool Server::sendwait(int session_id, const void *data, uint32_t length) {
+bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     Connection *conn = get_connection_verify(session_id);
     if (!conn) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_CLOSED,
-                         "send %d byte failed, because session#%d is closed",
+                         "send %d byte failed, because session#%ld is closed",
                          length,
                          session_id);
         return false;
@@ -1282,9 +1277,10 @@ void Server::call_hook(HookType type, void *arg) {
 /**
  * [Worker]
  */
-bool Server::close(int session_id, bool reset) {
+bool Server::close(SessionId session_id, bool reset) {
     if (sw_unlikely(is_master())) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't close the connections in master process");
+        swoole_error_log(
+            SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "cannot close session#%ld in master process", session_id);
         return false;
     }
     Connection *conn = get_connection_verify_no_ssl(session_id);
@@ -1297,7 +1293,7 @@ bool Server::close(int session_id, bool reset) {
     }
     // server is initiative to close the connection
     conn->close_actively = 1;
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%d, fd=%d", session_id, conn->session_id);
+    swTraceLog(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
 
     Worker *worker;
     DataHead ev = {};
@@ -1434,7 +1430,7 @@ int Server::add_systemd_socket() {
         }
 
         // O_NONBLOCK & O_CLOEXEC
-        ls->socket->set_fd_option(1, 1);     
+        ls->socket->set_fd_option(1, 1);
 
         ptr.release();
         check_port_type(ls);
@@ -1451,8 +1447,10 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
         return nullptr;
     }
     if (ports.size() >= SW_MAX_LISTEN_PORT) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "up to %d listening ports are allowed", SW_MAX_LISTEN_PORT);
+        swoole_error_log(SW_LOG_ERROR,
+                         SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT,
+                         "up to %d listening ports are allowed",
+                         SW_MAX_LISTEN_PORT);
         return nullptr;
     }
     if (!(type == SW_SOCK_UNIX_DGRAM || type == SW_SOCK_UNIX_STREAM) && (port < 0 || port > 65535)) {
@@ -1666,19 +1664,16 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
         _socket->direct_send = 1;
     }
 
-    Session *session;
     sw_spinlock(&gs->spinlock);
-    uint32_t i;
-    uint32_t session_id = gs->session_round;
+    SessionId session_id = gs->session_round;
     // get session id
-    for (i = 0; i < max_connection; i++) {
+    for (uint32_t i = 0; i < max_connection; i++) {
         session_id++;
-        // SwooleGS->session_round just has 24 bits size;
-        if (sw_unlikely(session_id == 1 << 24)) {
+        if (sw_unlikely(session_id == SW_MAX_SESSION_ID)) {
             session_id = 1;
         }
-        session = get_session(session_id);
-        // vacancy
+        Session *session = get_session(session_id);
+        // available slot
         if (session->fd == 0) {
             session->fd = fd;
             session->id = session_id;
@@ -1756,3 +1751,4 @@ int Server::get_idle_task_worker_num() {
 
     return idle_worker_num;
 }
+}  // namespace swoole

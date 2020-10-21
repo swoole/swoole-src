@@ -38,9 +38,9 @@ struct ServerProperty {
     std::vector<zval *> user_processes;
     php_swoole_server_port_property *primary_port;
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-    std::unordered_map<int, zend_fcall_info_cache> task_callbacks;
-    std::unordered_map<int, TaskCo *> task_coroutine_map;
-    std::unordered_map<int, std::list<FutureTask *> *> send_coroutine_map;
+    std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
+    std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
+    std::unordered_map<SessionId, std::list<FutureTask *> *> send_coroutine_map;
 };
 
 struct ServerObject {
@@ -51,7 +51,7 @@ struct ServerObject {
 
 struct ConnectionIterator {
     int current_fd;
-    uint32_t session_id;
+    SessionId session_id;
     Server *serv;
     ListenPort *port;
     int index;
@@ -107,7 +107,7 @@ static void php_swoole_onManagerStart(Server *serv);
 static void php_swoole_onManagerStop(Server *serv);
 
 static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode);
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, int fd);
+static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd);
 static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
@@ -763,22 +763,17 @@ int php_swoole_create_dir(const char *path, size_t length) {
     return php_stream_mkdir(path, 0777, PHP_STREAM_MKDIR_RECURSIVE | REPORT_ERRORS, nullptr) ? 0 : -1;
 }
 
-int php_swoole_task_pack(EventData *task, zval *zdata) {
+TaskId php_swoole_task_pack(EventData *task, zval *zdata) {
     smart_str serialized_data = {};
     php_serialize_data_t var_hash;
 
     task->info.type = SW_SERVER_EVENT_TASK;
-    // field fd save task_id
-    task->info.fd = SwooleG.task_id++;
-    if (sw_unlikely(SwooleG.task_id >= INT_MAX)) {
-        SwooleG.task_id = 0;
-    }
-    // field reactor_id save the worker_id
+    task->info.fd = SwooleG.current_task_id++;
     task->info.reactor_id = SwooleG.process_id;
     swTask_type(task) = 0;
 
     char *task_data_str;
-    int task_data_len = 0;
+    size_t task_data_len = 0;
     // need serialize
     if (Z_TYPE_P(zdata) != IS_STRING) {
         // serialize
@@ -845,7 +840,7 @@ static sw_inline int php_swoole_check_task_param(Server *serv, zend_long dst_wor
 zval *php_swoole_task_unpack(EventData *task_result) {
     zval *result_data, *result_unserialized_data;
     char *result_data_str;
-    int result_data_len = 0;
+    size_t result_data_len = 0;
     php_unserialize_data_t var_hash;
 
     /**
@@ -1199,7 +1194,7 @@ static int php_swoole_task_finish(Server *serv, zval *zdata, EventData *current_
     smart_str serialized_data = {};
     php_serialize_data_t var_hash;
     char *data_str;
-    int data_len = 0;
+    size_t data_len = 0;
     int ret;
 
     // need serialize
@@ -1392,11 +1387,11 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
     }
 
     if (swTask_type(req) & SW_TASK_COROUTINE) {
-        int task_id = req->info.fd;
+        TaskId task_id = req->info.fd;
         auto task_co_iterator = server_object->property->task_coroutine_map.find(task_id);
 
         if (task_co_iterator == server_object->property->task_coroutine_map.end()) {
-            swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_TIMEOUT, "task[%d] has expired", task_id);
+            swoole_error_log(SW_LOG_WARNING, SW_ERROR_TASK_TIMEOUT, "task[%ld] has expired", task_id);
         _fail:
             sw_zval_free(zdata);
             return SW_OK;
@@ -1429,7 +1424,7 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
             }
         }
         if (task_index < 0) {
-            php_swoole_fatal_error(E_WARNING, "task[%d] is invalid", task_id);
+            php_swoole_fatal_error(E_WARNING, "task[%ld] is invalid", task_id);
             goto _fail;
         }
         (void) add_index_zval(result, task_index, zdata);
@@ -1454,7 +1449,7 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
     }
 
     args[0] = *zserv;
-    ZVAL_LONG(&args[1], (zend_long) req->info.fd);
+    ZVAL_LONG(&args[1], req->info.fd);
     args[2] = *zdata;
 
     zend_fcall_info_cache *fci_cache = nullptr;
@@ -1744,19 +1739,19 @@ static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode) {
     swoole_set_last_error(ETIMEDOUT);
     ZVAL_FALSE(&result);
 
-    int fd = (int) (long) context->private_data;
+    SessionId session_id = (long) context->private_data;
 
-    auto _i_coros_list = server_object->property->send_coroutine_map.find(fd);
+    auto _i_coros_list = server_object->property->send_coroutine_map.find(session_id);
     if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
         auto coros_list = _i_coros_list->second;
         coros_list->remove(context);
         // free memory
         if (coros_list->size() == 0) {
             delete coros_list;
-            server_object->property->send_coroutine_map.erase(fd);
+            server_object->property->send_coroutine_map.erase(session_id);
         }
     } else {
-        swWarn("send coroutine[fd=%d] not exists", fd);
+        swWarn("send coroutine[session#%ld] not exists", session_id);
         return;
     }
 
@@ -1770,7 +1765,7 @@ static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode) {
     efree(context);
 }
 
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, int fd) {
+static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd) {
     char *data;
     zval *zdata = &context->coro_params;
     zval result;
@@ -1805,21 +1800,21 @@ static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask
     return SW_READY;
 }
 
-void php_swoole_server_send_yield(Server *serv, int fd, zval *zdata, zval *return_value) {
+void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdata, zval *return_value) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->ptr2));
     std::list<FutureTask *> *coros_list;
-    auto coroutine_iterator = server_object->property->send_coroutine_map.find(fd);
+    auto coroutine_iterator = server_object->property->send_coroutine_map.find(session_id);
 
     if (coroutine_iterator == server_object->property->send_coroutine_map.end()) {
         coros_list = new std::list<FutureTask *>;
-        server_object->property->send_coroutine_map[fd] = coros_list;
+        server_object->property->send_coroutine_map[session_id] = coros_list;
     } else {
         coros_list = coroutine_iterator->second;
     }
 
     FutureTask *context = (FutureTask *) emalloc(sizeof(FutureTask));
     coros_list->push_back(context);
-    context->private_data = (void *) (long) fd;
+    context->private_data = (void *) session_id;
     if (serv->send_timeout > 0) {
         context->timer = swoole_timer_add((long) (serv->send_timeout * 1000), false, php_swoole_onSendTimeout, context);
     } else {
@@ -1839,7 +1834,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
     zend_long worker_id = -1;
 
     *zserv = *((zval *) serv->ptr2);
-    ZVAL_LONG(zfd, (zend_long)(conn ? conn->session_id : data->info.fd));
+    ZVAL_LONG(zfd, conn ? conn->session_id : data->info.fd);
     ZVAL_LONG(ztype, (zend_long)(data ? data->info.type : (int) SW_SERVER_EVENT_CLOSE));
     if (data && sw_zend_function_max_num_args(fci_cache->function_handler) > 3) {
         // TODO: reduce memory copy
@@ -2720,7 +2715,7 @@ static PHP_METHOD(swoole_server, send) {
     }
 
     fd = zval_get_long(zfd);
-    if (UNEXPECTED((int) fd <= 0)) {
+    if (UNEXPECTED(fd <= 0)) {
         php_swoole_fatal_error(E_WARNING, "invalid fd[" ZEND_LONG_FMT "]", fd);
         RETURN_FALSE;
     }
@@ -2825,7 +2820,7 @@ static PHP_METHOD(swoole_server, sendfile) {
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(serv->sendfile((int) fd, filename, len, offset, length));
+    RETURN_BOOL(serv->sendfile(fd, filename, len, offset, length));
 }
 
 static PHP_METHOD(swoole_server, close) {
@@ -2850,7 +2845,7 @@ static PHP_METHOD(swoole_server, close) {
     Z_PARAM_BOOL(reset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    RETURN_BOOL(serv->close((int) fd, reset));
+    RETURN_BOOL(serv->close(fd, reset));
 }
 
 static PHP_METHOD(swoole_server, pause) {
@@ -2861,12 +2856,15 @@ static PHP_METHOD(swoole_server, pause) {
     }
 
     zend_long fd;
-
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE) {
         RETURN_FALSE;
     }
-
-    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_PAUSE_RECV));
+    Connection *conn = serv->get_connection_verify(fd);
+    if (!conn) {
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(serv->feedback(conn, SW_SERVER_EVENT_PAUSE_RECV));
 }
 
 static PHP_METHOD(swoole_server, resume) {
@@ -2877,12 +2875,15 @@ static PHP_METHOD(swoole_server, resume) {
     }
 
     zend_long fd;
-
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE) {
         RETURN_FALSE;
     }
-
-    RETURN_BOOL(serv->feedback(fd, SW_SERVER_EVENT_RESUME_RECV));
+    Connection *conn = serv->get_connection_verify(fd);
+    if (!conn) {
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(serv->feedback(conn, SW_SERVER_EVENT_RESUME_RECV));
 }
 
 static PHP_METHOD(swoole_server, stats) {
@@ -3029,7 +3030,7 @@ static PHP_METHOD(swoole_server, taskwait) {
         return;
     }
 
-    int task_id = buf.info.fd;
+    TaskId task_id = buf.info.fd;
 
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
@@ -3100,7 +3101,6 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     array_init(return_value);
 
     int dst_worker_id;
-    int task_id;
     int i = 0;
     int n_task = php_swoole_array_length(ztasks);
 
@@ -3138,7 +3138,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         ;
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
-    task_id = php_swoole_task_pack(&buf, ztask);
+    TaskId task_id = php_swoole_task_pack(&buf, ztask);
     if (task_id < 0) {
         php_swoole_fatal_error(E_WARNING, "task pack failed");
         goto _fail;
@@ -3190,7 +3190,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     do {
         result = (EventData *) (content->str + content->offset);
-        task_id = result->info.fd;
+        TaskId task_id = result->info.fd;
         zdata = php_swoole_task_unpack(result);
         if (zdata == nullptr) {
             goto _next;
@@ -3231,7 +3231,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     }
 
     int dst_worker_id = -1;
-    int task_id;
+    TaskId task_id;
     int i = 0;
     uint32_t n_task = php_swoole_array_length(ztasks);
 

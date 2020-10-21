@@ -275,7 +275,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         }
 
         if (worker->pool->use_socket && worker->pool->stream_info_->last_connection) {
-            int32_t _len = htonl(data_len);
+            uint32_t _len = htonl(data_len);
             ret = worker->pool->stream_info_->last_connection->send_blocking((void *) &_len, sizeof(_len));
             if (ret > 0) {
                 ret = worker->pool->stream_info_->last_connection->send_blocking(data, data_len);

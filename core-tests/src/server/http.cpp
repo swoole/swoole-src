@@ -112,7 +112,7 @@ static void test_run_server(function<void(swServer *)> fn) {
     };
 
     serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
-        int session_id = req->info.fd;
+        SessionId session_id = req->info.fd;
         auto conn = serv->get_connection_by_session_id(session_id);
 
         if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {

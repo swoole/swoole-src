@@ -24,12 +24,12 @@ using http_request = swoole::http::Request;
 using http_response = swoole::http::Response;
 using http_context = swoole::http::Context;
 
-swString *swoole_http_buffer;
+String *swoole_http_buffer;
 #ifdef SW_HAVE_COMPRESSION
 /* not only be used by zlib but also be used by br */
-swString *swoole_zlib_buffer;
+String *swoole_zlib_buffer;
 #endif
-swString *swoole_http_form_data_buffer;
+String *swoole_http_form_data_buffer;
 
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
@@ -39,12 +39,12 @@ static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t 
 static bool http_context_disconnect(http_context *ctx);
 
 int php_swoole_http_onReceive(Server *serv, RecvData *req) {
-    int fd = req->info.fd;
+    SessionId session_id = req->info.fd;
     int server_fd = req->info.server_fd;
 
-    Connection *conn = serv->get_connection_verify_no_ssl(fd);
+    Connection *conn = serv->get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[%d] is closed", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
         return SW_ERR;
     }
 
@@ -63,7 +63,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
     }
 #endif
 
-    http_context *ctx = swoole_http_context_new(fd);
+    http_context *ctx = swoole_http_context_new(session_id);
     swoole_http_server_init_context(serv, ctx);
 
     zval *zdata = &ctx->request.zdata;
@@ -71,7 +71,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
 
     swTraceLog(SW_TRACE_SERVER,
                "http request from %d with %d bytes: <<EOF\n%.*s\nEOF",
-               fd,
+               session_id,
                (int) Z_STRLEN_P(zdata),
                (int) Z_STRLEN_P(zdata),
                Z_STRVAL_P(zdata));
@@ -163,7 +163,7 @@ void php_swoole_http_server_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
 }
 
-http_context *swoole_http_context_new(int fd) {
+http_context *swoole_http_context_new(SessionId fd) {
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
 
     zval *zrequest_object = &ctx->request._zobject;
