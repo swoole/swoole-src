@@ -231,10 +231,10 @@ extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 
-extern swString *swoole_http_buffer;
-extern swString *swoole_http_form_data_buffer;
+extern swoole::String *swoole_http_buffer;
+extern swoole::String *swoole_http_form_data_buffer;
 #ifdef SW_HAVE_COMPRESSION
-extern swString *swoole_zlib_buffer;
+extern swoole::String *swoole_zlib_buffer;
 #endif
 
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);

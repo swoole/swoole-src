@@ -24,12 +24,12 @@ using http_request = swoole::http::Request;
 using http_response = swoole::http::Response;
 using http_context = swoole::http::Context;
 
-swString *swoole_http_buffer;
+String *swoole_http_buffer;
 #ifdef SW_HAVE_COMPRESSION
 /* not only be used by zlib but also be used by br */
-swString *swoole_zlib_buffer;
+String *swoole_zlib_buffer;
 #endif
-swString *swoole_http_form_data_buffer;
+String *swoole_http_form_data_buffer;
 
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
