@@ -441,7 +441,7 @@ static int ReactorProcess_send2worker(Socket *socket, const void *data, size_t l
 
 static bool ReactorProcess_send2client(Factory *factory, SendData *data) {
     Server *serv = (Server *) factory->ptr;
-    int session_id = data->info.fd;
+    SessionId session_id = data->info.fd;
 
     Session *session = serv->get_session(session_id);
     if (session->reactor_id != SwooleG.process_id) {

@@ -40,7 +40,7 @@ TEST(server, create_pipe_buffers) {
 static const char *packet = "hello world\n";
 
 TEST(server, base) {
-    swServer serv(swoole::Server::MODE_BASE);
+    Server serv(Server::MODE_BASE);
     serv.worker_num = 1;
 
     sw_logger()->set_level(SW_LOG_WARNING);
@@ -84,7 +84,7 @@ TEST(server, base) {
 }
 
 TEST(server, process) {
-    swServer serv(swoole::Server::MODE_PROCESS);
+    Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
 
     SwooleG.running = 1;
@@ -95,7 +95,7 @@ TEST(server, process) {
     swMutex_create(lock, SW_MUTEX_PROCESS_SHARED);
     lock->lock(lock);
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
         swWarn("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -226,7 +226,7 @@ TEST(server, worker_num) {
 }
 
 TEST(server, reactor_num_base) {
-    Server serv(swoole::Server::MODE_BASE);
+    Server serv(Server::MODE_BASE);
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
     serv.create();
 
@@ -234,7 +234,7 @@ TEST(server, reactor_num_base) {
 }
 
 TEST(server, reactor_num_large) {
-    Server serv(swoole::Server::MODE_PROCESS);
+    Server serv(Server::MODE_PROCESS);
     serv.worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
     serv.create();
@@ -243,7 +243,7 @@ TEST(server, reactor_num_large) {
 }
 
 TEST(server, reactor_num_large2) {
-    Server serv(swoole::Server::MODE_PROCESS);
+    Server serv(Server::MODE_PROCESS);
     serv.reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU + 99;
     serv.create();
 

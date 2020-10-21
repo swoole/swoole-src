@@ -714,12 +714,9 @@ void ProcessPool::destroy() {
         delete[] pipes;
     }
 
-    if (use_msgqueue == 1 && msgqueue_key == 0) {
-        queue->destroy();
-    }
-
     if (queue) {
         delete queue;
+        queue = nullptr;
     }
 
     if (stream_info_) {

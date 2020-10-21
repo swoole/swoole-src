@@ -36,7 +36,7 @@ static int swFactoryProcess_create_pipes(Factory *factory);
 static bool swFactoryProcess_notify(Factory *factory, DataHead *event);
 static bool swFactoryProcess_dispatch(Factory *factory, SendData *data);
 static bool swFactoryProcess_finish(Factory *factory, SendData *data);
-static bool swFactoryProcess_end(Factory *factory, int fd);
+static bool swFactoryProcess_end(Factory *factory, SessionId fd);
 
 static bool process_send_packet(Server *serv, PipeBuffer *buf, SendData *resp, send_func_t _send, void *private_data);
 static int process_sendto_worker(Server *serv, PipeBuffer *buf, size_t n, void *private_data);
@@ -344,7 +344,7 @@ static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
         return false;
     }
 
-    int session_id = resp->info.fd;
+    SessionId session_id = resp->info.fd;
     Connection *conn;
     if (resp->info.type != SW_SERVER_EVENT_CLOSE) {
         conn = serv->get_connection_verify(session_id);
@@ -352,12 +352,12 @@ static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
         conn = serv->get_connection_verify_no_ssl(session_id);
     }
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         return false;
     } else if ((conn->closed || conn->peer_closed) && resp->info.type != SW_SERVER_EVENT_CLOSE) {
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SESSION_CLOSED,
-                         "send %d bytes failed, because connection[fd=%d] is closed",
+                         "send %d bytes failed, because session#%ld is closed",
                          resp->info.len,
                          session_id);
         return false;
@@ -367,7 +367,7 @@ static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
         } else {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_OUTPUT_BUFFER_OVERFLOW,
-                             "send failed, connection[fd=%d] output buffer overflow",
+                             "send failed, session=%ld output buffer overflow",
                              session_id);
         }
         return false;
@@ -377,16 +377,15 @@ static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
      * stream
      */
     if (serv->last_stream_socket) {
-        int _len = resp->info.len;
-        int _header = htonl(_len + sizeof(resp->info));
-        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, (char *) &_header, sizeof(_header)) <
-            0) {
+        uint32_t _len = resp->info.len;
+        uint32_t _header = htonl(_len + sizeof(resp->info));
+        if (swoole_event_write(serv->last_stream_socket, (char *) &_header, sizeof(_header)) < 0) {
             return false;
         }
-        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, &resp->info, sizeof(resp->info)) < 0) {
+        if (swoole_event_write(serv->last_stream_socket, &resp->info, sizeof(resp->info)) < 0) {
             return false;
         }
-        if (SwooleTG.reactor->write(SwooleTG.reactor, serv->last_stream_socket, resp->data, _len) < 0) {
+        if (swoole_event_write(serv->last_stream_socket, resp->data, _len) < 0) {
             return false;
         }
         return true;
@@ -404,23 +403,23 @@ static bool swFactoryProcess_finish(Factory *factory, SendData *resp) {
     return process_send_packet(serv, buf, resp, process_sendto_reactor, conn);
 }
 
-static bool swFactoryProcess_end(Factory *factory, int fd) {
+static bool swFactoryProcess_end(Factory *factory, SessionId session_id) {
     Server *serv = (Server *) factory->ptr;
-    SendData _send = {};
-    DataHead info = {};
+    SendData _send{};
+    DataHead info{};
 
-    _send.info.fd = fd;
+    _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    Connection *conn = serv->get_connection_by_session_id(fd);
+    Connection *conn = serv->get_connection_by_session_id(session_id);
     if (conn == nullptr || conn->active == 0) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
     } else if (conn->close_force) {
         goto _do_close;
     } else if (conn->closing) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "The connection[%d] is closing", fd);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
     } else if (conn->closed) {
         return false;
@@ -428,7 +427,7 @@ static bool swFactoryProcess_end(Factory *factory, int fd) {
     _do_close:
         conn->closing = 1;
         if (serv->onClose != nullptr) {
-            info.fd = fd;
+            info.fd = session_id;
             if (conn->close_actively) {
                 info.reactor_id = -1;
             } else {

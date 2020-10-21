@@ -28,6 +28,7 @@ bool MsgQueue::destroy() {
         swSysWarn("msgctl(%d, IPC_RMID) failed", msg_id_);
         return false;
     }
+    msg_id_ = -1;
     return true;
 }
 
@@ -43,37 +44,46 @@ MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
     if (perms <= 0 || perms >= 01000) {
         perms = 0666;
     }
+    msg_key_ = msg_key;
+    flags_ = 0;
+    perms_ = perms;
+    blocking_ = blocking;
     msg_id_ = msgget(msg_key, IPC_CREAT | perms);
     if (msg_id_ < 0) {
         swSysWarn("msgget() failed");
     } else {
-        perms_ = perms;
-        blocking_ = blocking;
         set_blocking(blocking);
     }
 }
 
-ssize_t MsgQueue::pop(QueueNode *data, size_t length) {
-    ssize_t ret = msgrcv(msg_id_, data, length, data->mtype, flags_);
+MsgQueue::~MsgQueue() {
+    // private queue must be destroyed
+    if (msg_key_ == IPC_PRIVATE && msg_id_ >= 0) {
+        destroy();
+    }
+}
+
+ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) {
+    ssize_t ret = msgrcv(msg_id_, data, mdata_size, data->mtype, flags_);
     if (ret < 0) {
         swoole_set_last_error(errno);
         if (errno != ENOMSG && errno != EINTR) {
-            swSysWarn("msgrcv(%d, %zu, %ld) failed", msg_id_, length, data->mtype);
+            swSysWarn("msgrcv(%d, %zu, %ld) failed", msg_id_, mdata_size, data->mtype);
         }
     }
     return ret;
 }
 
-bool MsgQueue::push(QueueNode *in, size_t length) {
+bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
     while (1) {
-        if (msgsnd(msg_id_, in, length, flags_) == 0) {
+        if (msgsnd(msg_id_, in, mdata_length, flags_) == 0) {
             return true;
         }
         if (errno == EINTR) {
             continue;
         }
         if (errno != EAGAIN) {
-            swSysWarn("msgsnd(%d, %lu, %ld) failed", msg_id_, length, in->mtype);
+            swSysWarn("msgsnd(%d, %lu, %ld) failed", msg_id_, mdata_length, in->mtype);
         }
         swoole_set_last_error(errno);
         break;

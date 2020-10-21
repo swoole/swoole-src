@@ -117,7 +117,7 @@ struct Response {
 };
 
 struct Context {
-    int fd;
+    SessionId fd;
     uchar completed : 1;
     uchar end : 1;
     uchar send_header : 1;
@@ -219,7 +219,7 @@ class Session {
 
     void (*handle)(Session *, Stream *) = nullptr;
 
-    Session(int _fd);
+    Session(SessionId _fd);
     ~Session();
 };
 }  // namespace http2
@@ -231,13 +231,13 @@ extern zend_class_entry *swoole_http_server_ce;
 extern zend_class_entry *swoole_http_request_ce;
 extern zend_class_entry *swoole_http_response_ce;
 
-extern swString *swoole_http_buffer;
-extern swString *swoole_http_form_data_buffer;
+extern swoole::String *swoole_http_buffer;
+extern swoole::String *swoole_http_form_data_buffer;
 #ifdef SW_HAVE_COMPRESSION
-extern swString *swoole_zlib_buffer;
+extern swoole::String *swoole_zlib_buffer;
 #endif
 
-swoole::http::Context *swoole_http_context_new(int fd);
+swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
 void swoole_http_context_free(swoole::http::Context *ctx);

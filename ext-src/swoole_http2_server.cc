@@ -33,7 +33,7 @@ using http_context = swoole::http::Context;
 using Http2Stream = swoole::http2::Stream;
 using Http2Session = swoole::http2::Session;
 
-static std::unordered_map<int, Http2Session *> http2_sessions;
+static std::unordered_map<SessionId, Http2Session *> http2_sessions;
 extern String *swoole_http_buffer;
 
 static bool swoole_http2_server_respond(http_context *ctx, String *body);
@@ -63,7 +63,7 @@ void Http2Stream::reset(uint32_t error_code) {
     ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_RST_STREAM_SIZE);
 }
 
-Http2Session::Session(int _fd) {
+Http2Session::Session(SessionId _fd) {
     fd = _fd;
     header_table_size = SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE;
     send_window = SW_HTTP2_DEFAULT_WINDOW_SIZE;
@@ -722,7 +722,7 @@ static int http2_parse_header(Http2Session *client, http_context *ctx, int flags
                     } else if (SW_STRCASECT((char *) nv.value, nv.valuelen, "multipart/form-data")) {
                         int boundary_len = nv.valuelen - (sizeof("multipart/form-data; boundary=") - 1);
                         if (boundary_len <= 0) {
-                            swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
+                            swWarn("invalid multipart/form-data body fd:%ld", ctx->fd);
                             return SW_ERR;
                         }
                         swoole_http_parse_form_data(ctx, (char *) nv.value + nv.valuelen - boundary_len, boundary_len);
