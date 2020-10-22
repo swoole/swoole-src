@@ -25,7 +25,7 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
 #if PHP_VERSION_ID >= 70400
         classes = zend_hash_str_find_deref(Z_ARRVAL_P(options), "allowed_classes", sizeof("allowed_classes") - 1);
 #else
-        classes = zend_hash_str_find(Z_ARRVAL_P(options), "allowed_classes", sizeof("allowed_classes")-1);
+        classes = zend_hash_str_find(Z_ARRVAL_P(options), "allowed_classes", sizeof("allowed_classes") - 1);
 #endif
         if (classes && Z_TYPE_P(classes) != IS_ARRAY && Z_TYPE_P(classes) != IS_TRUE && Z_TYPE_P(classes) != IS_FALSE) {
             php_error_docref(NULL, E_WARNING, "allowed_classes option should be array or boolean");
@@ -86,11 +86,16 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
 #endif
     }
 
+#if PHP_VERSION_ID >= 70400
     if (BG(unserialize).level > 1) {
         retval = var_tmp_var(&var_hash);
     } else {
         retval = return_value;
     }
+#else
+    retval = var_tmp_var(&var_hash);
+#endif
+
     if (!php_var_unserialize(retval, &p, p + buf_len, &var_hash)) {
         if (!EG(exception)) {
             php_error_docref(NULL,
@@ -103,12 +108,19 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
             zval_ptr_dtor(return_value);
         }
         RETVAL_FALSE;
-    } else if (BG(unserialize).level > 1) {
+    }
+#if PHP_VERSION_ID >= 70200
+    else if (BG(unserialize).level > 1) {
         ZVAL_COPY(return_value, retval);
     } else if (Z_REFCOUNTED_P(return_value)) {
         zend_refcounted *ref = Z_COUNTED_P(return_value);
         gc_check_possible_root(ref);
     }
+#else
+    else {
+        ZVAL_COPY(return_value, retval);
+    }
+#endif
 
 cleanup:
     if (class_hash) {
@@ -163,13 +175,11 @@ static const char *php_json_get_error_msg(php_json_error_code error_code) /* {{{
 }
 
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long depth) {
-#ifdef PHP_JSON_THROW_ON_ERROR
+#if PHP_VERSION_ID >= 70300
     if (!(options & PHP_JSON_THROW_ON_ERROR)) {
         JSON_G(error_code) = PHP_JSON_ERROR_NONE;
     }
-#endif
 
-#ifdef PHP_JSON_THROW_ON_ERROR
     if (!str_len) {
         if (!(options & PHP_JSON_THROW_ON_ERROR)) {
             JSON_G(error_code) = PHP_JSON_ERROR_SYNTAX;
@@ -177,6 +187,13 @@ void json_decode(zval *return_value, const char *str, size_t str_len, zend_long 
             zend_throw_exception(
                 php_json_exception_ce, php_json_get_error_msg(PHP_JSON_ERROR_SYNTAX), PHP_JSON_ERROR_SYNTAX);
         }
+        RETURN_NULL();
+    }
+#else
+    JSON_G(error_code) = PHP_JSON_ERROR_NONE;
+
+    if (!str_len) {
+        JSON_G(error_code) = PHP_JSON_ERROR_SYNTAX;
         RETURN_NULL();
     }
 #endif

@@ -104,7 +104,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ext_unserialize, 0, 0, 2)
-    ZEND_ARG_INFO(0, data)
+    ZEND_ARG_INFO(0, str)
     ZEND_ARG_INFO(0, offset)
     ZEND_ARG_INFO(0, length)
     ZEND_ARG_INFO(0, options)
