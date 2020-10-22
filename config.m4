@@ -38,7 +38,7 @@ PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
 [  --enable-mysqlnd          Enable mysqlnd], no, no)
 
 PHP_ARG_WITH(openssl_dir, dir of openssl,
-[  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 0.9.6)], no, no)
+[  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 1.0.2)], no, no)
 
 PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
 [  --with-jemalloc-dir[=DIR]   Include jemalloc support], no, no)
@@ -47,10 +47,13 @@ PHP_ARG_ENABLE(asan, enable asan,
 [  --enable-asan             Enable asan], no, no)
 
 PHP_ARG_ENABLE(swoole-coverage,      whether to enable swoole coverage support,
-[  --enable-swoole-coverage Enable swoole coverage support], no, no)
+[  --enable-swoole-coverage  Enable swoole coverage support], no, no)
 
 PHP_ARG_ENABLE(swoole-dev, whether to enable Swoole developer build flags,
-[  --enable-swoole-dev       Swoole: Enable developer flags],, no)
+[  --enable-swoole-dev       Enable developer flags], no, no)
+
+PHP_ARG_ENABLE(swoole-json, whether to enable Swoole JSON build flags,
+[  --enable-swoole-json      Enable JSON support], no, no)
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -322,6 +325,10 @@ if test "$PHP_SWOOLE" != "no"; then
         CXXFLAGS="-g -O0 -Wall $CXXFLAGS"
     fi
 
+    if test "$PHP_SWOOLE_JSON" = "yes"; then
+        AC_DEFINE(SW_HAVE_JSON, 1, [do we enable json decoder])
+    fi
+
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
@@ -350,7 +357,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_DEBUG, 1, [do we enable swoole debug])
         PHP_DEBUG=1
     fi
-    
+
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
