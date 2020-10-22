@@ -15,10 +15,10 @@ $val = serialize($a);
 $str = pack('N', strlen($val)).$val."\r\n";
 
 $l = strlen($str) - 6;
-Assert::eq($a, swoole_substr_unserialize($str, 4, $l));
-Assert::eq($a, swoole_substr_unserialize($str, 4));
-Assert::eq(false, @swoole_substr_unserialize($str, 0));
-Assert::eq(false, @swoole_substr_unserialize($str, 6));
-Assert::eq(false, @swoole_substr_unserialize($str, 4, $l - 4));
+Assert::eq(swoole_substr_unserialize($str, 4, $l), $a);
+Assert::eq(swoole_substr_unserialize($str, 4), $a);
+Assert::eq(@swoole_substr_unserialize($str, 0), false);
+Assert::eq(@swoole_substr_unserialize($str, 6), false);
+Assert::eq(@swoole_substr_unserialize($str, 4, $l - 4), false);
 ?>
 --EXPECT--

@@ -112,7 +112,7 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
         }
         RETVAL_FALSE;
     }
-#if PHP_VERSION_ID >= 70200
+#if PHP_VERSION_ID >= 70400
     else if (BG(unserialize).level > 1) {
         ZVAL_COPY(return_value, retval);
     } else if (Z_REFCOUNTED_P(return_value)) {
