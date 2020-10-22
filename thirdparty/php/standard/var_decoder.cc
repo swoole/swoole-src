@@ -9,6 +9,9 @@ END_EXTERN_C()
 
 namespace zend {
 void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *options) {
+#if PHP_VERSION_ID >= 80000
+    php_unserialize_with_options(return_value, buf, buf_len, Z_ARRVAL_P(options), "swoole_ext_unserialize");
+#else
     HashTable *class_hash = NULL, *prev_class_hash;
     const unsigned char *p = (const unsigned char *) buf;
     php_unserialize_data_t var_hash;
@@ -142,6 +145,7 @@ cleanup:
     if (Z_ISREF_P(return_value)) {
         zend_unwrap_reference(return_value);
     }
+#endif
 }
 
 static const char *php_json_get_error_msg(php_json_error_code error_code) /* {{{ */

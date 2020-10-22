@@ -24,7 +24,9 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_var.h"
+#ifdef SW_HAVE_JSON
 #include "ext/json/php_json.h"
+#endif
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -68,8 +70,10 @@ static PHP_FUNCTION(swoole_mime_type_delete);
 static PHP_FUNCTION(swoole_mime_type_get);
 static PHP_FUNCTION(swoole_mime_type_exists);
 static PHP_FUNCTION(swoole_mime_type_list);
-static PHP_FUNCTION(swoole_ext_unserialize);
-static PHP_FUNCTION(swoole_ext_json_decode);
+static PHP_FUNCTION(swoole_substr_unserialize);
+#ifdef SW_HAVE_JSON
+static PHP_FUNCTION(swoole_substr_json_decode);
+#endif
 static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
 SW_EXTERN_C_END
 
@@ -103,14 +107,15 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ext_unserialize, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_substr_unserialize, 0, 0, 2)
     ZEND_ARG_INFO(0, str)
     ZEND_ARG_INFO(0, offset)
     ZEND_ARG_INFO(0, length)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ext_json_decode, 0, 0, 2)
+#ifdef SW_HAVE_JSON
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_substr_json_decode, 0, 0, 2)
     ZEND_ARG_INFO(0, json)
     ZEND_ARG_INFO(0, offset)
     ZEND_ARG_INFO(0, length)
@@ -118,6 +123,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ext_json_decode, 0, 0, 2)
     ZEND_ARG_INFO(0, depth)
     ZEND_ARG_INFO(0, flags)
 ZEND_END_ARG_INFO()
+#endif
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_set_process_name, 0, 0, 1)
     ZEND_ARG_INFO(0, process_name)
@@ -176,8 +182,8 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_mime_type_exists, arginfo_swoole_mime_type_read)
     PHP_FE(swoole_mime_type_list, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
-    PHP_FE(swoole_ext_unserialize, arginfo_swoole_ext_unserialize)
-    PHP_FE(swoole_ext_json_decode, arginfo_swoole_ext_json_decode)
+    PHP_FE(swoole_substr_unserialize, arginfo_swoole_substr_unserialize)
+    PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
@@ -1220,26 +1226,18 @@ static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin) {
     }
 }
 
-static PHP_FUNCTION(swoole_ext_unserialize) {
+static PHP_FUNCTION(swoole_substr_unserialize) {
     zend_long offset, length = 0;
 	char *buf = NULL;
 	size_t buf_len;
-#if PHP_VERSION_ID < 80000
     zval *options = NULL;
-#else
-	HashTable *options = NULL;
-#endif
 
 	ZEND_PARSE_PARAMETERS_START(2, 4)
     Z_PARAM_STRING(buf, buf_len)
     Z_PARAM_LONG(offset)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(length)
-#if PHP_VERSION_ID < 80000
     Z_PARAM_ARRAY(options)
-#else
-    Z_PARAM_ARRAY_HT(options)
-#endif
 	ZEND_PARSE_PARAMETERS_END();
 
     if (buf_len == 0 || (zend_long) buf_len <= offset) {
@@ -1248,15 +1246,11 @@ static PHP_FUNCTION(swoole_ext_unserialize) {
     if (length <= 0) {
         length = buf_len - offset;
     }
-
-#if PHP_VERSION_ID < 80000
     zend::unserialize(return_value, buf + offset, length, options);
-#else
-	php_unserialize_with_options(return_value, buf + offset, length, options, "swoole_ext_unserialize");
-#endif
 }
 
-static PHP_FUNCTION(swoole_ext_json_decode) {
+#ifdef SW_HAVE_JSON
+static PHP_FUNCTION(swoole_substr_json_decode) {
     zend_long offset, length = 0;
     char *str;
 	size_t str_len;
@@ -1291,3 +1285,5 @@ static PHP_FUNCTION(swoole_ext_json_decode) {
     }
     zend::json_decode(return_value, str + offset, length, options, depth);
 }
+#endif
+
