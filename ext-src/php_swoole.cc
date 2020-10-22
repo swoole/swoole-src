@@ -40,6 +40,10 @@ END_EXTERN_C()
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
+#if __MACH__
+#include <net/if_dl.h>
+#endif
+
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
 #endif
@@ -183,7 +187,9 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_mime_type_list, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
     PHP_FE(swoole_substr_unserialize, arginfo_swoole_substr_unserialize)
+#ifdef HAVE_JSON
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
+#endif
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };

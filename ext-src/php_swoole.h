@@ -67,20 +67,11 @@ BEGIN_EXTERN_C()
 #include <ext/standard/php_http.h>
 
 #define PHP_SWOOLE_VERSION SWOOLE_VERSION
-#define PHP_SWOOLE_CHECK_CALLBACK
 #define PHP_SWOOLE_CLIENT_USE_POLL
-
-#ifndef ZEND_MOD_END
-#define ZEND_MOD_END {NULL,NULL,NULL}
-#endif
-
-#define SW_HOST_SIZE  128
 
 extern PHPAPI int php_array_merge(HashTable *dest, HashTable *src);
 
 extern zend_module_entry swoole_module_entry;
-
-#define phpext_swoole_ptr &swoole_module_entry
 
 #ifdef PHP_WIN32
 # define PHP_SWOOLE_API __declspec(dllexport)
@@ -88,10 +79,6 @@ extern zend_module_entry swoole_module_entry;
 # define PHP_SWOOLE_API __attribute__ ((visibility("default")))
 #else
 # define PHP_SWOOLE_API
-#endif
-
-#if __MACH__
-#include <net/if_dl.h>
 #endif
 
 #define SW_CHECK_RETURN(s)      if(s<0){RETURN_FALSE;}else{RETURN_TRUE;}
@@ -340,14 +327,10 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #define sw_zend_bailout() zend_bailout()
 #endif
 
-// Fixed in php-7.0.28, php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
-#if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 0 && PHP_RELEASE_VERSION < 28) || (PHP_MINOR_VERSION == 1 && PHP_RELEASE_VERSION < 15) || (PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))
+// Fixed in php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
+#if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 1 && PHP_RELEASE_VERSION < 15) || (PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))
 // See https://github.com/php/php-src/commit/0495bf5650995cd8f18d6a9909eb4c5dcefde669
 // Then https://github.com/php/php-src/commit/2dcfd8d16f5fa69582015cbd882aff833075a34c
-#if PHP_VERSION_ID < 70100
-#define zend_wrong_parameters_count_error zend_wrong_paramers_count_error
-#endif
-
 // See https://github.com/php/php-src/commit/52db03b3e52bfc886896925d050af79bc4dc1ba3
 #if PHP_MINOR_VERSION == 2
 #define SW_ZEND_WRONG_PARAMETERS_COUNT_ERROR zend_wrong_parameters_count_error(_flags & ZEND_PARSE_PARAMS_THROW, _num_args, _min_num_args, _max_num_args)
