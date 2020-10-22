@@ -24,7 +24,7 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_var.h"
-#ifdef SW_HAVE_JSON
+#ifdef HAVE_JSON
 #include "ext/json/php_json.h"
 #endif
 END_EXTERN_C()
@@ -71,7 +71,7 @@ static PHP_FUNCTION(swoole_mime_type_get);
 static PHP_FUNCTION(swoole_mime_type_exists);
 static PHP_FUNCTION(swoole_mime_type_list);
 static PHP_FUNCTION(swoole_substr_unserialize);
-#ifdef SW_HAVE_JSON
+#ifdef HAVE_JSON
 static PHP_FUNCTION(swoole_substr_json_decode);
 #endif
 static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
@@ -114,7 +114,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_substr_unserialize, 0, 0, 2)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
-#ifdef SW_HAVE_JSON
+#ifdef HAVE_JSON
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_substr_json_decode, 0, 0, 2)
     ZEND_ARG_INFO(0, json)
     ZEND_ARG_INFO(0, offset)
@@ -1249,7 +1249,7 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     zend::unserialize(return_value, buf + offset, length, options);
 }
 
-#ifdef SW_HAVE_JSON
+#ifdef HAVE_JSON
 static PHP_FUNCTION(swoole_substr_json_decode) {
     zend_long offset, length = 0;
     char *str;

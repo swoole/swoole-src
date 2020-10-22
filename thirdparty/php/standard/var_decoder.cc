@@ -2,9 +2,11 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_var.h"
+#ifdef HAVE_JSON
 #include "ext/json/php_json.h"
 
 PHP_JSON_API zend_class_entry *php_json_exception_ce;
+#endif
 END_EXTERN_C()
 
 namespace zend {
@@ -148,6 +150,8 @@ cleanup:
 #endif
 }
 
+#ifdef HAVE_JSON
+#if PHP_VERSION_ID >= 70300
 static const char *php_json_get_error_msg(php_json_error_code error_code) /* {{{ */
 {
     switch (error_code) {
@@ -177,6 +181,7 @@ static const char *php_json_get_error_msg(php_json_error_code error_code) /* {{{
         return "Unknown error";
     }
 }
+#endif
 
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long depth) {
 #if PHP_VERSION_ID >= 70300
@@ -213,4 +218,5 @@ void json_decode(zval *return_value, const char *str, size_t str_len, zend_long 
     }
     php_json_decode_ex(return_value, (char *) str, str_len, options, depth);
 }
+#endif
 }  // namespace zend

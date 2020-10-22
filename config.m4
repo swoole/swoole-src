@@ -351,10 +351,6 @@ if test "$PHP_SWOOLE" != "no"; then
         PHP_DEBUG=1
     fi
     
-    if test "$PHP_JSON" != "no"; then
-    	AC_DEFINE(SW_HAVE_JSON, 1, [do we enable ext-json])
-    fi
-
     if test "$PHP_ASAN" != "no"; then
         PHP_DEBUG=1
         CFLAGS="$CFLAGS -fsanitize=address -fno-omit-frame-pointer"
