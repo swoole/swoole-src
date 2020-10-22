@@ -729,7 +729,7 @@ void php_swoole_websocket_server_minit(int module_number) {
 
 static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, String *buffer) {
     if (sw_unlikely(fd <= 0)) {
-        php_swoole_fatal_error(E_WARNING, "fd[%ld] is invalid", fd);
+        php_swoole_fatal_error(E_WARNING, "fd[%lld] is invalid", fd);
         return false;
     }
 
@@ -737,7 +737,7 @@ static sw_inline bool swoole_websocket_server_push(Server *serv, SessionId fd, S
     if (!conn || conn->websocket_status < WEBSOCKET_STATUS_HANDSHAKE) {
         swoole_set_last_error(SW_ERROR_WEBSOCKET_UNCONNECTED);
         php_swoole_fatal_error(
-            E_WARNING, "the connected client of connection[%ld] is not a websocket client or closed", fd);
+            E_WARNING, "the connected client of connection[%lld] is not a websocket client or closed", fd);
         return false;
     }
 
