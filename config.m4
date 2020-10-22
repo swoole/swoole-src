@@ -551,6 +551,7 @@ if test "$PHP_SWOOLE" != "no"; then
         thirdparty/php/sockets/sendrecvmsg.cc \
         thirdparty/php/sockets/conversions.cc \
         thirdparty/php/sockets/sockaddr_conv.cc \
+        thirdparty/php/standard/var_unserialize.cc \
         thirdparty/php/standard/proc_open.cc"
 
     swoole_source_file="$swoole_source_file \
