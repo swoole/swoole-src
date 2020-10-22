@@ -15,8 +15,9 @@ $val = json_encode($a);
 $str = pack('N', strlen($val)).$val."\r\n";
 
 $l = strlen($str) - 6;
-$rs = swoole_ext_json_decode($str, 4, $l, true);
-
-Assert::eq($a, $rs);
+Assert::eq($a, swoole_ext_json_decode($str, 4, $l, true));
+Assert::eq($a, swoole_ext_json_decode($str, 4, 0, true));
+Assert::eq(false, @swoole_ext_json_decode($str, 0, -1, true));
+Assert::eq(false, @swoole_ext_json_decode($str, 6, 0, true));
 ?>
 --EXPECT--

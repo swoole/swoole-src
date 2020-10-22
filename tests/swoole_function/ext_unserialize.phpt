@@ -17,6 +17,8 @@ $str = pack('N', strlen($val)).$val."\r\n";
 $l = strlen($str) - 6;
 Assert::eq($a, swoole_ext_unserialize($str, 4, $l));
 Assert::eq($a, swoole_ext_unserialize($str, 4));
-
+Assert::eq(false, @swoole_ext_unserialize($str, 0));
+Assert::eq(false, @swoole_ext_unserialize($str, 6));
+Assert::eq(false, @swoole_ext_unserialize($str, 4, $l - 4));
 ?>
 --EXPECT--

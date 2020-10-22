@@ -10,19 +10,23 @@ END_EXTERN_C()
 namespace zend {
 void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *options) {
     HashTable *class_hash = NULL, *prev_class_hash;
-    zend_long prev_max_depth, prev_cur_depth;
     const unsigned char *p = (const unsigned char *) buf;
     php_unserialize_data_t var_hash;
     PHP_VAR_UNSERIALIZE_INIT(var_hash);
     zval *retval;
 
     prev_class_hash = php_var_unserialize_get_allowed_classes(var_hash);
-    prev_max_depth = php_var_unserialize_get_max_depth(var_hash);
-    prev_cur_depth = php_var_unserialize_get_cur_depth(var_hash);
+#if PHP_VERSION_ID >= 70400
+    zend_long prev_max_depth = php_var_unserialize_get_max_depth(var_hash);
+    zend_long prev_cur_depth = php_var_unserialize_get_cur_depth(var_hash);
+#endif
     if (options != NULL) {
-        zval *classes, *max_depth;
-
+        zval *classes;
+#if PHP_VERSION_ID >= 70400
         classes = zend_hash_str_find_deref(Z_ARRVAL_P(options), "allowed_classes", sizeof("allowed_classes") - 1);
+#else
+        classes = zend_hash_str_find(Z_ARRVAL_P(options), "allowed_classes", sizeof("allowed_classes")-1);
+#endif
         if (classes && Z_TYPE_P(classes) != IS_ARRAY && Z_TYPE_P(classes) != IS_TRUE && Z_TYPE_P(classes) != IS_FALSE) {
             php_error_docref(NULL, E_WARNING, "allowed_classes option should be array or boolean");
             RETVAL_FALSE;
@@ -45,7 +49,11 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
                 convert_to_string_ex(entry);
                 lcname = zend_string_tolower(Z_STR_P(entry));
                 zend_hash_add_empty_element(class_hash, lcname);
+#if PHP_VERSION_ID >= 70400
                 zend_string_release_ex(lcname, 0);
+#else
+                zend_string_release(lcname);
+#endif
             }
             ZEND_HASH_FOREACH_END();
 
@@ -56,7 +64,8 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
         }
         php_var_unserialize_set_allowed_classes(var_hash, class_hash);
 
-        max_depth = zend_hash_str_find_deref(Z_ARRVAL_P(options), "max_depth", sizeof("max_depth") - 1);
+#if PHP_VERSION_ID >= 70400
+        zval *max_depth = zend_hash_str_find_deref(Z_ARRVAL_P(options), "max_depth", sizeof("max_depth") - 1);
         if (max_depth) {
             if (Z_TYPE_P(max_depth) != IS_LONG) {
                 php_error_docref(NULL, E_WARNING, "max_depth should be int");
@@ -74,6 +83,7 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
              * start counting from zero again (for the nested call only). */
             php_var_unserialize_set_cur_depth(var_hash, 0);
         }
+#endif
     }
 
     if (BG(unserialize).level > 1) {
@@ -108,8 +118,10 @@ cleanup:
 
     /* Reset to previous options in case this is a nested call */
     php_var_unserialize_set_allowed_classes(var_hash, prev_class_hash);
+#if PHP_VERSION_ID >= 70400
     php_var_unserialize_set_max_depth(var_hash, prev_max_depth);
     php_var_unserialize_set_cur_depth(var_hash, prev_cur_depth);
+#endif
     PHP_VAR_UNSERIALIZE_DESTROY(var_hash);
 
     /* Per calling convention we must not return a reference here, so unwrap. We're doing this at
