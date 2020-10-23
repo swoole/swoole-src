@@ -15,8 +15,8 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     run(function () use ($pm) {
-        $header = "POST / HTTP/1.1\r\n";
-        $header .= "Host: 127.0.0.1\r\n";
+        $requestLine = "POST / HTTP/1.1\r\n";
+        $header = "Host: 127.0.0.1\r\n";
         $header .= "Connection: keep-alive\r\n";
         $header .= "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8\r\n";
         $header .= "Content-Length: 5\r\n";
@@ -27,8 +27,8 @@ $pm->parentFunc = function () use ($pm) {
 
         $conn = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         $conn->connect('127.0.0.1', $pm->getFreePort());
-        $ret = $conn->writev([$header, $body]);
-        Assert::same($ret, strlen($header) + strlen($body));
+        $ret = $conn->writev([$requestLine, $header, $body]);
+        Assert::same($ret, strlen($requestLine) + strlen($header) + strlen($body));
         $ret = $conn->recv();
         Assert::contains($ret, 'world');
         $pm->kill();
