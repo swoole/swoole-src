@@ -924,10 +924,12 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         return;
     }
 
-    ReactorThread *thread = serv->get_thread(reactor_id);
+    if (swoole_event_init(0) < 0) {
+        return;
+    }
 
-    swoole_event_init(0);
-    Reactor *reactor = SwooleTG.reactor;
+    ReactorThread *thread = serv->get_thread(reactor_id);
+    Reactor *reactor = sw_reactor();
 
 #ifdef HAVE_CPU_AFFINITY
     // cpu affinity setting

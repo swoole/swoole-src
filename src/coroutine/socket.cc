@@ -757,6 +757,10 @@ bool Socket::connect(std::string _host, int _port, int flags) {
             return false;
         }
     }
+    if (_target_addr == nullptr) {
+        set_err(EINVAL, "bad target host");
+        return false;
+    }
     if (connect(_target_addr, socket->info.len) == false) {
         return false;
     }

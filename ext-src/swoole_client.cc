@@ -426,9 +426,6 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "socket_buffer_size", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         value = SW_MAX(1, SW_MIN(v, INT_MAX));
-        if (value <= 0) {
-            value = INT_MAX;
-        }
         cli->socket->set_buffer_size(value);
         cli->socket->buffer_size = value;
     }
@@ -1377,7 +1374,7 @@ PHP_FUNCTION(swoole_client_select) {
     if (e_array != nullptr && php_swoole_array_length(e_array) > 0) {
         index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
     }
-    if (index == 0) {
+    if (index <= 0) {
         efree(fds);
         php_swoole_fatal_error(E_WARNING, "no resource arrays were passed to select");
         RETURN_FALSE;

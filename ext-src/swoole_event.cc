@@ -238,7 +238,10 @@ int php_swoole_reactor_init() {
     if (!sw_reactor()) {
         swTraceLog(SW_TRACE_PHP, "init reactor");
 
-        swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+        if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
+            php_swoole_fatal_error(E_ERROR, "Unable to create event-loop reactor");
+            return SW_ERR;
+        }
 
         php_swoole_register_shutdown_function("Swoole\\Event::rshutdown");
     }

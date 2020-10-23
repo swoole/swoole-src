@@ -494,6 +494,7 @@ struct EventWaiter {
         socket = swoole::make_socket(fd, SW_FD_CORO_EVENT);
         socket->object = this;
         timer = nullptr;
+        co = nullptr;
 
         if (swoole_event_add(socket, events) < 0) {
             swoole_set_last_error(errno);

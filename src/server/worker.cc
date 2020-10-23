@@ -353,8 +353,12 @@ void Server::worker_start_callback() {
             swSysWarn("setuid to [%s] failed", user_.c_str());
         }
         // chroot
-        if (!chroot_.empty() && ::chroot(chroot_.c_str()) != 0) {
-            swSysWarn("chroot to [%s] failed", chroot_.c_str());
+        if (!chroot_.empty()) {
+            if (::chroot(chroot_.c_str()) == 0) {
+                chdir("/");
+            } else {
+                swSysWarn("chroot to [%s] failed", chroot_.c_str());
+            }
         }
     }
 

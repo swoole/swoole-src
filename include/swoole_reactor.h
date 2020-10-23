@@ -139,6 +139,7 @@ class Reactor {
   public:
     Reactor(int max_event = SW_REACTOR_MAXEVENTS);
     ~Reactor();
+    bool ready() { return running; }
     bool if_exit();
     void defer(Callback cb, void *data = nullptr);
     void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
