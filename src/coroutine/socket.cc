@@ -922,7 +922,7 @@ ssize_t Socket::writev(const struct iovec *iov, int iovcnt) {
     do {
         retval = socket->writev(iov, iovcnt);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
-             wait_event(SW_EVENT_WRITE, nullptr, 0));
+             wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
