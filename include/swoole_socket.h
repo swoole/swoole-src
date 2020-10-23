@@ -395,6 +395,10 @@ struct Socket {
         return ::write(fd, __buf, __len);
     }
 
+    ssize_t readv(const struct iovec *iov, int iovcnt) {
+        return ::readv(fd, iov, iovcnt);
+    }
+
     ssize_t writev(const struct iovec *iov, int iovcnt) {
         return ::writev(fd, iov, iovcnt);
     }

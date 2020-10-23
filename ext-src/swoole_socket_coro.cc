@@ -48,6 +48,7 @@ static PHP_METHOD(swoole_socket_coro, checkLiveness);
 static PHP_METHOD(swoole_socket_coro, peek);
 static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
+static PHP_METHOD(swoole_socket_coro, readv);
 static PHP_METHOD(swoole_socket_coro, writev);
 static PHP_METHOD(swoole_socket_coro, sendFile);
 static PHP_METHOD(swoole_socket_coro, recvAll);
@@ -115,6 +116,11 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readv, 0, 0, 1)
+    ZEND_ARG_INFO(1, iov)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writev, 0, 0, 1)
     ZEND_ARG_INFO(0, iov)
     ZEND_ARG_INFO(0, timeout)
@@ -176,6 +182,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, recv,          arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvPacket,    arginfo_swoole_socket_coro_recvPacket,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send,          arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, readv,         arginfo_swoole_socket_coro_readv,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, writev,        arginfo_swoole_socket_coro_writev,        ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendFile,      arginfo_swoole_socket_coro_sendFile,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvAll,       arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
@@ -1304,6 +1311,60 @@ static PHP_METHOD(swoole_socket_coro, writev) {
     ssize_t retval = sock->socket->writev(iov, iovcnt);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
+        RETURN_FALSE;
+    } else {
+        RETURN_LONG(retval);
+    }
+}
+
+static PHP_METHOD(swoole_socket_coro, readv) {
+    zval *ziov = nullptr;
+    zval *element = nullptr;
+    HashTable *vht;
+    double timeout = 0;
+    int iovcnt = 0;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ZVAL_DEREF(ziov)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_get_socket_coro(sock, ZEND_THIS);
+
+    vht = Z_ARRVAL_P(ziov);
+    iovcnt = zend_array_count(vht);
+
+    zend_string *iov_base = nullptr;
+    size_t iov_len = 0;
+    iovec iov[iovcnt];
+
+    iovcnt = 0;
+
+    SW_HASHTABLE_FOREACH_START(vht, element)
+    if (!ZVAL_IS_ARRAY(element)) {
+        zend_throw_exception_ex(
+                swoole_socket_coro_exception_ce, EINVAL, "the data must be array, index[%d]", iovcnt);
+        RETURN_FALSE;
+    }
+    iov_len = Z_LVAL(Z_ARRVAL_P(element)->arData[0].val);
+	iov_base = zend_string_alloc(iov_len, 0);
+
+    add_next_index_str(element, iov_base);
+
+    iov[iovcnt].iov_base = iov_base->val;
+    iov[iovcnt].iov_len = iov_len;
+    iovcnt++;
+    SW_HASHTABLE_FOREACH_END();
+
+    Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
+    ssize_t retval = sock->socket->readv(iov, iovcnt);
+    swoole_socket_coro_sync_properties(ZEND_THIS, sock);
+    if (UNEXPECTED(retval < 0)) {
+        for (size_t i = 0; i < iovcnt; i++) {
+            zend_string_free((zend_string *) ((char *) iov[i].iov_base - XtOffsetOf(zend_string, val)));
+        }
+
         RETURN_FALSE;
     } else {
         RETURN_LONG(retval);
