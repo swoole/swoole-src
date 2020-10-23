@@ -112,7 +112,7 @@ static sw_inline bool Worker_discard_data(Server *serv, Connection *conn, EventD
 _discard_data : {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
-                     "[2] ignore data[%d bytes] received from socket#%d",
+                     "[2] ignore data[%u bytes] received from session#%lld",
                      task->info.len,
                      task->info.fd);
 }
