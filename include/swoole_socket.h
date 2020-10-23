@@ -21,6 +21,7 @@
 
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/uio.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
@@ -392,6 +393,10 @@ struct Socket {
 
     ssize_t write(const void *__buf, size_t __len) {
         return ::write(fd, __buf, __len);
+    }
+
+    ssize_t writev(const struct iovec *iov, int iovcnt) {
+        return ::writev(fd, iov, iovcnt);
     }
 
     ssize_t read(void *__buf, size_t __len) {

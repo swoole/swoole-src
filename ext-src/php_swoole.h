@@ -495,6 +495,13 @@ static sw_inline zend_bool ZVAL_IS_BOOL(zval *v)
 }
 #endif
 
+#ifndef ZVAL_IS_STRING
+static sw_inline zend_bool ZVAL_IS_STRING(zval *v)
+{
+    return Z_TYPE_P(v) == IS_STRING;
+}
+#endif
+
 #ifndef Z_BVAL_P
 static sw_inline zend_bool Z_BVAL_P(zval *v)
 {

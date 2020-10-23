@@ -913,6 +913,20 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
     return retval;
 }
 
+ssize_t Socket::writev(const struct iovec *iov, int iovcnt) {
+    if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
+        return -1;
+    }
+    ssize_t retval;
+    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    do {
+        retval = socket->writev(iov, iovcnt);
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
+             wait_event(SW_EVENT_WRITE, nullptr, 0));
+    set_err(retval < 0 ? errno : 0);
+    return retval;
+}
+
 ssize_t Socket::recv_all(void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
