@@ -462,7 +462,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 boundary_len = tmp - boundary_str;
             }
             if (boundary_len <= 0) {
-                swWarn("invalid multipart/form-data body fd:%d", ctx->fd);
+                swWarn("invalid multipart/form-data body fd:%ld", ctx->fd);
                 return -1;
             }
             // trim '"'

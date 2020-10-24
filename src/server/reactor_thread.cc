@@ -98,7 +98,7 @@ static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uin
     SessionId session_id = stream->private_data_fd;
 
     if (!conn->active || session_id != conn->session_id) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%lld does not exists", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld does not exists", session_id);
         return;
     }
     if (data == nullptr) {
@@ -499,7 +499,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             } else if (serv->discard_timeout_request) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
-                                 "[1] ignore data[%u bytes] received from session#%lld",
+                                 "[1] ignore data[%u bytes] received from session#%ld",
                                  send_data->info.len,
                                  send_data->info.fd);
                 goto _discard;

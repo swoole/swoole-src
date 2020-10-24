@@ -54,12 +54,12 @@ static bool swFactory_dispatch(Factory *factory, SendData *task) {
     if (Server::is_stream_event(task->info.type)) {
         conn = serv->get_connection(task->info.fd);
         if (conn == nullptr || conn->active == 0) {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, task->info.fd);
+            swWarn("dispatch[type=%d] failed, socket#%ld is not active", task->info.type, task->info.fd);
             return false;
         }
         // server active close, discard data.
         if (conn->closed) {
-            swWarn("dispatch[type=%d] failed, connection#%d is closed by server", task->info.type, task->info.fd);
+            swWarn("dispatch[type=%d] failed, socket#%ld is closed by server", task->info.type, task->info.fd);
             return false;
         }
         // converted fd to session_id
@@ -95,12 +95,12 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     Server *serv = (Server *) factory->ptr;
     Connection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
-        swWarn("dispatch[type=%d] failed, socket#%lld is not active", info->type, info->fd);
+        swWarn("dispatch[type=%d] failed, socket#%ld is not active", info->type, info->fd);
         return false;
     }
     // server active close, discard data.
     if (conn->closed) {
-        swWarn("dispatch[type=%d] failed, session#%lld is closed by server", info->type, conn->session_id);
+        swWarn("dispatch[type=%d] failed, session#%ld is closed by server", info->type, conn->session_id);
         return false;
     }
     // converted fd to session_id
