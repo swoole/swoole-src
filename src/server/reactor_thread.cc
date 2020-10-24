@@ -98,7 +98,7 @@ static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uin
     SessionId session_id = stream->private_data_fd;
 
     if (!conn->active || session_id != conn->session_id) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%lld] does not exists", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%lld does not exists", session_id);
         return;
     }
     if (data == nullptr) {
