@@ -282,7 +282,7 @@ static int Port_onRead_check_length(Reactor *reactor, ListenPort *port, Event *e
     return SW_OK;
 }
 
-#define CLIENT_INFO_FMT " from session#%u on %s:%d"
+#define CLIENT_INFO_FMT " from session#%lld on %s:%d"
 #define CLIENT_INFO_ARGS conn->session_id, port->host.c_str(), port->port
 
 /**

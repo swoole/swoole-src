@@ -95,12 +95,12 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     Server *serv = (Server *) factory->ptr;
     Connection *conn = serv->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
-        swWarn("dispatch[type=%d] failed, socket#%d is not active", info->type, info->fd);
+        swWarn("dispatch[type=%d] failed, socket#%lld is not active", info->type, info->fd);
         return false;
     }
     // server active close, discard data.
     if (conn->closed) {
-        swWarn("dispatch[type=%d] failed, session#%ld is closed by server", info->type, info->fd);
+        swWarn("dispatch[type=%d] failed, session#%lld is closed by server", info->type, conn->session_id);
         return false;
     }
     // converted fd to session_id

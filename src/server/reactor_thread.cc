@@ -98,7 +98,7 @@ static void ReactorThread_onStreamResponse(Stream *stream, const char *data, uin
     SessionId session_id = stream->private_data_fd;
 
     if (!conn->active || session_id != conn->session_id) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "connection[fd=%d] does not exists", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%lld does not exists", session_id);
         return;
     }
     if (data == nullptr) {
@@ -190,7 +190,7 @@ _do_recvfrom:
 #endif
 
     if (pkt->socket_type == SW_SOCK_UDP) {
-        memcpy(&task.info.fd, &pkt->socket_addr.addr.inet_v4.sin_addr, sizeof(task.info.fd));
+        task.info.fd = *(int *) &pkt->socket_addr.addr.inet_v4.sin_addr;
     } else {
         task.info.fd = swoole_crc32(pkt->socket_addr.get_addr(), pkt->socket_addr.len);
     }
@@ -499,7 +499,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             } else if (serv->discard_timeout_request) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
-                                 "[1] ignore data[%d bytes] received from socket#%d",
+                                 "[1] ignore data[%u bytes] received from session#%lld",
                                  send_data->info.len,
                                  send_data->info.fd);
                 goto _discard;
@@ -924,10 +924,12 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         return;
     }
 
-    ReactorThread *thread = serv->get_thread(reactor_id);
+    if (swoole_event_init(0) < 0) {
+        return;
+    }
 
-    swoole_event_init(0);
-    Reactor *reactor = SwooleTG.reactor;
+    ReactorThread *thread = serv->get_thread(reactor_id);
+    Reactor *reactor = sw_reactor();
 
 #ifdef HAVE_CPU_AFFINITY
     // cpu affinity setting

@@ -130,7 +130,7 @@ class HttpClient {
   private:
 #ifdef SW_HAVE_ZLIB
     bool gzip_stream_active = false;
-    z_stream gzip_stream;
+    z_stream gzip_stream = {};
 #endif
 #ifdef SW_HAVE_BROTLI
     BrotliDecoderState *brotli_decoder_state = nullptr;

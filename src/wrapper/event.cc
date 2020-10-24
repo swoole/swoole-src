@@ -45,6 +45,10 @@ int swoole_event_init(int flags) {
     }
 
     Reactor *reactor = new Reactor(SW_REACTOR_MAXEVENTS);
+    if (!reactor->ready()) {
+        return SW_ERR;
+    }
+
     if (flags & SW_EVENTLOOP_WAIT_EXIT) {
         reactor->wait_exit = 1;
     }

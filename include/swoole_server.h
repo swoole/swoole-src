@@ -662,7 +662,7 @@ class Server {
     void *ptr2 = nullptr;
     void *private_data_3 = nullptr;
 
-    Factory factory;
+    Factory factory = {};
     std::vector<ListenPort *> ports;
 
     inline ListenPort *get_primary_port() {
