@@ -106,6 +106,9 @@ _recv_data:
                     request->state = SW_REDIS_RECEIVE_LENGTH;
                     break;
                 }
+                if (p == nullptr) {
+                    goto _failed;
+                }
                 /* no break */
 
             case SW_REDIS_RECEIVE_LENGTH:
@@ -123,6 +126,9 @@ _recv_data:
                 // integer
                 else if (*p == ':' && (p = swRedis_get_number(p, &ret))) {
                     break;
+                }
+                if (p == nullptr) {
+                    goto _failed;
                 }
                 /* no break */
 

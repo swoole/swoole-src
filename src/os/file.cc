@@ -125,7 +125,7 @@ size_t File::write_all(const void *data, size_t len) {
             if (errno == EINTR) {
                 continue;
             } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
-                swSysWarn("pwrite(%d, %p, %llu, %llu) failed", fd_, data, len - written_bytes, written_bytes);
+                swSysWarn("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
             }
             break;
         }
@@ -145,7 +145,7 @@ size_t File::read_all(void *buf, size_t len) {
             if (errno == EINTR) {
                 continue;
             } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
-                swSysWarn("pread(%d, %p, %llu, %llu) failed", fd_, buf, len - read_bytes, read_bytes);
+                swSysWarn("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
             }
             break;
         }

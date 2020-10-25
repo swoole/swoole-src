@@ -112,7 +112,7 @@ static sw_inline bool Worker_discard_data(Server *serv, Connection *conn, EventD
 _discard_data : {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
-                     "[2] ignore data[%u bytes] received from session#%lld",
+                     "[2] ignore data[%u bytes] received from session#%ld",
                      task->info.len,
                      task->info.fd);
 }
@@ -355,9 +355,11 @@ void Server::worker_start_callback() {
         // chroot
         if (!chroot_.empty()) {
             if (::chroot(chroot_.c_str()) == 0) {
-                chdir("/");
+                if (chdir("/") < 0) {
+                    swSysWarn("chdir(\"/\") failed");
+                }
             } else {
-                swSysWarn("chroot to [%s] failed", chroot_.c_str());
+                swSysWarn("chroot(\"%s\") failed", chroot_.c_str());
             }
         }
     }

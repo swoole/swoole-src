@@ -799,7 +799,7 @@ size_t swDataHead::dump(char *_buf, size_t _len) {
                        _len,
                        "swDataHead[%p]\n"
                        "{\n"
-                       "    int fd = %d;\n"
+                       "    long fd = %ld;\n"
                        "    uint32_t len = %d;\n"
                        "    int16_t reactor_id = %d;\n"
                        "    uint8_t type = %d;\n"
