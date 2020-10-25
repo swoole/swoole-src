@@ -126,7 +126,7 @@ static PHP_METHOD(swoole_client, getSocket);
 SW_EXTERN_C_END
 
 #ifdef PHP_SWOOLE_CLIENT_USE_POLL
-static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int maxevents, int event);
+static uint32_t client_poll_add(zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event);
 static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents, int n_event, int revent);
 #else
 static int client_select_add(zval *sock_array, fd_set *fds, int *max_fd);
@@ -1354,7 +1354,8 @@ static PHP_METHOD(swoole_client, shutdown) {
 PHP_FUNCTION(swoole_client_select) {
 #ifdef PHP_SWOOLE_CLIENT_USE_POLL
     zval *r_array, *w_array, *e_array;
-    int retval, index = 0;
+    int retval;
+    uint32_t index = 0;
     double timeout = SW_CLIENT_CONNECT_TIMEOUT;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a!a!a!|d", &r_array, &w_array, &e_array, &timeout) == FAILURE) {
@@ -1374,7 +1375,7 @@ PHP_FUNCTION(swoole_client_select) {
     if (e_array != nullptr && php_swoole_array_length(e_array) > 0) {
         index = client_poll_add(e_array, index, fds, maxevents, POLLHUP);
     }
-    if (index <= 0) {
+    if (index == 0) {
         efree(fds);
         php_swoole_fatal_error(E_WARNING, "no resource arrays were passed to select");
         RETURN_FALSE;
@@ -1503,13 +1504,13 @@ static int client_poll_wait(zval *sock_array, struct pollfd *fds, int maxevents,
 
     zval_ptr_dtor(sock_array);
     ZVAL_COPY_VALUE(sock_array, &new_array);
-    return num ? 1 : 0;
+    return num;
 }
 
-static int client_poll_add(zval *sock_array, int index, struct pollfd *fds, int maxevents, int event) {
+static uint32_t client_poll_add(zval *sock_array, uint32_t index, struct pollfd *fds, int maxevents, int event) {
     zval *element = nullptr;
     if (!ZVAL_IS_ARRAY(sock_array)) {
-        return -1;
+        return 0;
     }
 
     int sock;

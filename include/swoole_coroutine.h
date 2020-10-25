@@ -176,7 +176,7 @@ class Coroutine {
     long init_msec = Timer::get_absolute_msec();
     void *task = nullptr;
     coroutine::Context ctx;
-    Coroutine *origin;
+    Coroutine *origin = nullptr;
 
     Coroutine(const coroutine_func_t &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
