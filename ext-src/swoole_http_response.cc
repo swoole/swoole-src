@@ -1127,7 +1127,7 @@ static PHP_METHOD(swoole_http_response, ping) {
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->http2)) {
-        php_swoole_fatal_error(E_WARNING, "fd[%" PRId64 "] is not a HTTP2 conncetion", ctx->fd);
+        php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a HTTP2 conncetion", ctx->fd);
         RETURN_FALSE;
     }
     SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
@@ -1140,7 +1140,7 @@ static PHP_METHOD(swoole_http_response, goaway) {
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->http2)) {
-        php_swoole_fatal_error(E_WARNING, "fd[%" PRId64 "] is not a HTTP2 conncetion", ctx->fd);
+        php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a HTTP2 conncetion", ctx->fd);
         RETURN_FALSE;
     }
     zend_long error_code = SW_HTTP2_ERROR_NO_ERROR;
@@ -1174,7 +1174,7 @@ static PHP_METHOD(swoole_http_response, push) {
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade)) {
-        php_swoole_fatal_error(E_WARNING, "fd[%" PRId64 "] is not a websocket conncetion", ctx->fd);
+        php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a websocket conncetion", ctx->fd);
         RETURN_FALSE;
     }
 
@@ -1225,7 +1225,7 @@ static PHP_METHOD(swoole_http_response, recv) {
         RETURN_FALSE;
     }
     if (UNEXPECTED(!ctx->co_socket || !ctx->upgrade)) {
-        php_swoole_fatal_error(E_WARNING, "fd[%" PRId64 "] is not a websocket conncetion", ctx->fd);
+        php_swoole_fatal_error(E_WARNING, "fd[%ld] is not a websocket conncetion", ctx->fd);
         RETURN_FALSE;
     }
 

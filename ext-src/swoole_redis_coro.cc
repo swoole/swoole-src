@@ -2750,7 +2750,7 @@ static PHP_METHOD(swoole_redis_coro, sRandMember) {
     SW_REDIS_COMMAND_ARGV_FILL("SRANDMEMBER", 11);
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
     if (argc == 3) {
-        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
+        buf_len = sw_snprintf(buf, sizeof(buf), "%" PRId64 "", count);
         SW_REDIS_COMMAND_ARGV_FILL((char *) buf, buf_len);
     }
     redis_request(redis, argc, argv, argvlen, return_value);
@@ -3011,9 +3011,9 @@ static PHP_METHOD(swoole_redis_coro, zRange) {
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     char buf[32];
     size_t buf_len;
-    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", start);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%" PRId64 "", start);
     SW_REDIS_COMMAND_ARGV_FILL((char *) buf, buf_len)
-    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", end);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%" PRId64 "", end);
     SW_REDIS_COMMAND_ARGV_FILL((char *) buf, buf_len)
     if (ws) {
         SW_REDIS_COMMAND_ARGV_FILL("WITHSCORES", 10)
@@ -3048,9 +3048,9 @@ static PHP_METHOD(swoole_redis_coro, zRevRange) {
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
     char buf[32];
     size_t buf_len;
-    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", start);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%" PRId64 "", start);
     SW_REDIS_COMMAND_ARGV_FILL((char *) buf, buf_len)
-    buf_len = sw_snprintf(buf, sizeof(buf), "%ld", end);
+    buf_len = sw_snprintf(buf, sizeof(buf), "%" PRId64 "", end);
     SW_REDIS_COMMAND_ARGV_FILL((char *) buf, buf_len)
     if (ws) {
         SW_REDIS_COMMAND_ARGV_FILL("WITHSCORES", 10)
@@ -3700,7 +3700,7 @@ static PHP_METHOD(swoole_redis_coro, zPopMin) {
     SW_REDIS_COMMAND_ARGV_FILL("ZPOPMIN", 7);
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
     if (argc == 3) {
-        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
+        buf_len = sw_snprintf(buf, sizeof(buf), "%" PRId64 "", count);
         SW_REDIS_COMMAND_ARGV_FILL((char *) buf, buf_len);
     }
     redis_request(redis, argc, argv, argvlen, return_value);
@@ -3724,7 +3724,7 @@ static PHP_METHOD(swoole_redis_coro, zPopMax) {
     SW_REDIS_COMMAND_ARGV_FILL("ZPOPMAX", 7);
     SW_REDIS_COMMAND_ARGV_FILL(key, key_len);
     if (argc == 3) {
-        buf_len = sw_snprintf(buf, sizeof(buf), "%ld", count);
+        buf_len = sw_snprintf(buf, sizeof(buf), "%" PRId64 "", count);
         SW_REDIS_COMMAND_ARGV_FILL((char *) buf, buf_len);
     }
     redis_request(redis, argc, argv, argvlen, return_value);

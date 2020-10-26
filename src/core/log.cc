@@ -237,7 +237,7 @@ void Logger::put(int level, const char *content, size_t length) {
     if (date_with_microseconds) {
         auto now_us = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
         l_data_str +=
-            sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%ld>", now_us - now_sec * 1000000);
+            sw_snprintf(date_str + l_data_str, SW_LOG_DATE_STRLEN - l_data_str, "<.%lld>", now_us - now_sec * 1000000);
     }
 
     char process_flag = '@';

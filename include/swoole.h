@@ -234,7 +234,8 @@ struct swMemoryPool;
 #endif
 
 /** always return less than size, zero termination  */
-size_t sw_snprintf(char *buf, size_t size, const char *format, ...);
+size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
+    __attribute__ ((format (printf, 3, 4)));
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 
 #define sw_memset_zero(s, n) memset(s, '\0', n)
@@ -476,8 +477,8 @@ struct Event {
     network::Socket *socket;
 };
 
-typedef int64_t SessionId;
-typedef int64_t TaskId;
+typedef long SessionId;
+typedef long TaskId;
 
 struct DataHead {
     SessionId fd;

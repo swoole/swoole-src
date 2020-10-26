@@ -730,7 +730,7 @@ bool Socket::ssl_verify(bool allow_self_signed) {
     default:
         swoole_error_log(SW_LOG_NOTICE,
                          SW_ERROR_SSL_VERIFY_FAILED,
-                         "can not verify peer from fd#%d with error#%d: %s",
+                         "can not verify peer from fd#%d with error#%ld: %s",
                          fd,
                          err,
                          X509_verify_cert_error_string(err));

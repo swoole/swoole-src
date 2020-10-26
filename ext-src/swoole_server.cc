@@ -1424,7 +1424,7 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
             }
         }
         if (task_index < 0) {
-            php_swoole_fatal_error(E_WARNING, "task[%" PRId64 "] is invalid", task_id);
+            php_swoole_fatal_error(E_WARNING, "task[%ld] is invalid", task_id);
             goto _fail;
         }
         (void) add_index_zval(result, task_index, zdata);

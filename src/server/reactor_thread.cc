@@ -490,7 +490,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
                 if (conn->closed) {
                     swoole_error_log(SW_LOG_NOTICE,
                                      SW_ERROR_SESSION_CLOSED_BY_SERVER,
-                                     "Session#%d is closed by server",
+                                     "Session#%ld is closed by server",
                                      send_data->info.fd);
                 _discard:
                     buffer->pop();
