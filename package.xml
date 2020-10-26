@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-10-16</date>
-    <time>16:00:00</time>
+    <date>2020-10-24</date>
+    <time>22:00:00</time>
     <version>
-        <release>4.5.5</release>
+        <release>4.5.6</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,29 +56,23 @@
     <notes>
         New APIs
         ---
-        + Added Process\Manager and alias Process\ProcessManager (swoole/library#eac1ac5) (@matyhtf)
-        + Support HTTP2 server-side GOAWAY (#3710) (@doubaokun)
-        + Added Co\map() function (swoole/library#57) (@leocavalcante)
+        + Added swoole_substr_unserialize and swoole_substr_json_decode (#3762) (@matyhtf)
 
         Enhancement
         ---
-        + Support http2 client unix socket (#3668) (@sy-records)
-        + Set the worker status to SW_WORKER_EXIT when the worker process exits (#3724) (@matyhtf)
-        + Add send_queued_bytes and recv_queued_bytes in Server::getClientInfo() (#3721) (#3731) (@matyhtf) (@Yurunsoft)
-        + Support option of stats_file (#3725) (@matyhtf) (@Yurunsoft)
+        + Modified Coroutine\Http\Server::onAccept to private property (#dfcc83b) (@matyhtf)
 
         Fixed
         ---
-        * Fixed PHP8 build (zend_compile_string change) (#3670) (@twose)
-        * Fixed PHP8 build (ext/sockets compatibility) (#3684) (@twose)
-        * Fixed PHP8 build (php_url_encode_hash_ex change) (#3713) (@remicollet)
-        * Fixed invalid conversion from 'const char*' to 'char*' for build (#3686) (@remicollet)
-        * Fixed HTTP2 client over HTTP proxy is not working (#3677) (@matyhtf) (@twose)
-        * Fixed PDO context data confusion (swoole/library#54) (@sy-records)
+        * Fixed coverity issues (#3737) (#3740) (@matyhtf)
+        * Fixed some bugs on Alpine (#3738) (@matyhtf)
+        * Fixed swMutex_lockwait (#0fc5665) (@matyhtf)
+        * Fixed PHP-8.1 build error (#3757) (@twose)
 
         Kernel
         ---
-        * Code optimization (#3671) (#3689) (#3700) (#3701) (#3708) (#3718) (#3722) (#3723) (@matyhtf)
+        * Added check_liveness for Socket::read/write/shutdown (#3735) (@matyhtf)
+        * Changed the type of session_id and task_id to int64 (#3756) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -1035,6 +1029,8 @@
             <file role="test" name="tests/swoole_feature/full_duplex/socket.phpt" />
             <file role="test" name="tests/swoole_feature/full_duplex/socket_ssl.phpt" />
             <file role="test" name="tests/swoole_feature/full_duplex/websocket.phpt" />
+            <file role="test" name="tests/swoole_function/substr_json_decode.phpt" />
+            <file role="test" name="tests/swoole_function/substr_unserialize.phpt" />
             <file role="test" name="tests/swoole_function/swoole_clear_dns_cache.phpt" />
             <file role="test" name="tests/swoole_function/swoole_cpu_num.phpt" />
             <file role="test" name="tests/swoole_function/swoole_get_local_ip.phpt" />
@@ -1244,6 +1240,7 @@
             <file role="test" name="tests/swoole_http_server_coro/websocket_close.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/websocket_compression.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/websocket_mixed.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/websocket_ping_pong.phpt" />
             <file role="test" name="tests/swoole_library/array_object/base.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/1.phpt" />
             <file role="test" name="tests/swoole_library/curl/basic/10.phpt" />
@@ -1529,6 +1526,7 @@
             <file role="test" name="tests/swoole_server/close_in_task_worker.phpt" />
             <file role="test" name="tests/swoole_server/close_queued.phpt" />
             <file role="test" name="tests/swoole_server/connections.phpt" />
+            <file role="test" name="tests/swoole_server/discard_timeout_packet.phpt" />
             <file role="test" name="tests/swoole_server/dispatch_fallback.phpt" />
             <file role="test" name="tests/swoole_server/dispatch_func.phpt" />
             <file role="test" name="tests/swoole_server/dispatch_func_discard.phpt" />
@@ -1871,6 +1869,7 @@
             <file role="src" name="thirdparty/php/sockets/sockaddr_conv.cc" />
             <file role="src" name="thirdparty/php/standard/proc_open.cc" />
             <file role="src" name="thirdparty/php/standard/proc_open.h" />
+            <file role="src" name="thirdparty/php/standard/var_decoder.cc" />
             <file role="src" name="thirdparty/php/streams/php_streams_int.h" />
             <file role="src" name="thirdparty/php/streams/plain_wrapper.c" />
             <file role="src" name="thirdparty/swoole_http_parser.c" />
