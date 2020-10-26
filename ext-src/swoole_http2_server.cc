@@ -798,7 +798,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                     if (client->deflater) {
                         int ret = nghttp2_hd_deflate_change_table_size(client->deflater, value);
                         if (ret != 0) {
-                            swWarn("nghttp2_hd_deflate_change_table_size() failed, errno=%s, errmsg=%s",
+                            swWarn("nghttp2_hd_deflate_change_table_size() failed, errno=%d, errmsg=%s",
                                    ret,
                                    nghttp2_strerror(ret));
                             return SW_ERR;

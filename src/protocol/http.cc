@@ -183,7 +183,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
 
     // Use tcp_nopush to improve sending efficiency
     conn->socket->cork();
-    
+
     // Send HTTP header
     send_to_connection(&response);
 
@@ -709,7 +709,7 @@ void Server::destroy_http_request(Connection *conn) {
 static void protocol_status_error(Socket *socket, Connection *conn) {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_PROTOCOL_ERROR,
-                     "unexpected protocol status of session#%u<%s:%d>",
+                     "unexpected protocol status of session#%ld<%s:%d>",
                      conn->session_id,
                      conn->info.get_ip(),
                      conn->info.get_port());
