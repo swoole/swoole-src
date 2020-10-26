@@ -1292,7 +1292,7 @@ static PHP_METHOD(swoole_socket_coro, writev) {
     vht = Z_ARRVAL_P(ziov);
     iovcnt = zend_array_count(vht);
 
-    iovec iov[iovcnt];
+    std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
 
     iovcnt = 0;
 
@@ -1308,7 +1308,7 @@ static PHP_METHOD(swoole_socket_coro, writev) {
     SW_HASHTABLE_FOREACH_END();
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
-    ssize_t retval = sock->socket->writev(iov, iovcnt);
+    ssize_t retval = sock->socket->writev(iov.get(), iovcnt);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
         RETURN_FALSE;
@@ -1337,7 +1337,8 @@ static PHP_METHOD(swoole_socket_coro, readv) {
 
     zend_string *iov_base = nullptr;
     size_t iov_len = 0;
-    iovec iov[iovcnt];
+
+    std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
 
     iovcnt = 0;
 
@@ -1348,7 +1349,7 @@ static PHP_METHOD(swoole_socket_coro, readv) {
         RETURN_FALSE;
     }
     iov_len = Z_LVAL(Z_ARRVAL_P(element)->arData[0].val);
-	iov_base = zend_string_alloc(iov_len, 0);
+    iov_base = zend_string_alloc(iov_len, 0);
 
     add_next_index_str(element, iov_base);
 
@@ -1358,7 +1359,7 @@ static PHP_METHOD(swoole_socket_coro, readv) {
     SW_HASHTABLE_FOREACH_END();
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
-    ssize_t retval = sock->socket->readv(iov, iovcnt);
+    ssize_t retval = sock->socket->readv(iov.get(), iovcnt);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
         for (size_t i = 0; i < iovcnt; i++) {
