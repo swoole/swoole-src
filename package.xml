@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-09-16</date>
-    <time>21:00:00</time>
+    <date>2020-10-27</date>
+    <time>18:00:00</time>
     <version>
-        <release>4.4.21</release>
+        <release>4.4.22</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,47 +54,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New APIs
-        ---
-        * Added Swoole\Process\ProcessManager (swoole/library#88f147b) (@huanghantao)
-        * Added ArrayObject::append, StringObject::equals (swoole/library#f28556f) (@matyhtf)
-        * Added Coroutine::parallel (swoole/library#6aa89a9) (@matyhtf)
-        * Added Coroutine\Barrier (swoole/library#2988b2a) (@matyhtf)
-        * Added Swoole\Process\ProcessManager (swoole/library#88f147b) (@huanghantao)
-        * Added ArrayObject::append, StringObject::equals (swoole/library#f28556f) (@matyhtf)
-        * Added Coroutine::parallel (swoole/library#6aa89a9) (@matyhtf)
-        * Added Coroutine\Barrier (swoole/library#2988b2a) (@matyhtf)
-        * Added firstKey and lastKey (swoole/library#51) (@sy-records)
-
-        Enhancement
-        ---
-        * Support CURLOPT_FAILONERROR (swoole/library#20) (@sy-records)
-        * Support CURLOPT_FAILONERROR (swoole/library#20) (@sy-records)
-        * Support CURLOPT_SSLCERTTYPE, CURLOPT_SSLCERT, CURLOPT_SSLKEYTYPE, CURLOPT_SSLKEY (swoole/library#22) (@sy-records)
-        * Support CURLOPT_HTTPGET (swoole/library@d730bd0) (@shiguangqi)
-        * Support CURLOPT_CAINFO and CURLOPT_CAPATH (swoole/library#32) (@sy-records)
-        * Support CURLOPT_FORBID_REUSE (swoole/library#33) (@sy-records)
-        * Support cURL __toString (swoole/library#38) (@twose)
-        * Added lowercase_header to fix cURL header name (swoole/library#e7c2a82) (@twose)
-        * Set wait count directly in WaitGroup constructor (swoole/library#2fb228b8) (@matyhtf)
-        * Added CURLOPT_REDIR_PROTOCOLS (swoole/library#46) (@sy-records)
-
         Fixed
         ---
-        * Fixed fseek ftell file larger than 2G bug (#3619) (@Yurunsoft)
-        * Fixed http proxy handshake bug (#3630) (@matyhtf)
-        * Fixed zend_hash_clean assertion failure (#3634) (@twose)
-        * Fixed header parse in Co\Http\Client  (#3632) (@matyhtf)
-        * Fixed mysqli options error (swoole/library#35) (@sy-records)
-        * Fixed response header parsing when there is no space after the colon in the response header (swoole/library#27) (@Yurunsoft)
-        * Fixed CURLOPT_POSTFIELDS (swoole/library@ed192f6) (@twose)
-        * Fixed the latest connection can not be released before accept new one (swoole/library@1ef7933) (@twose)
-        * Fixed ArrayObject and StringObject bug (swoole/library#44) (@matyhtf)
-        * Fixed mysqli error (swoole/library#45) (@sy-records)
-        * Fixed set error code and error message when curl execution fails (swoole/library#1b6c65e) (@sy-records)
-        * Fixed ArrayObject and StringObject bug (swoole/library#44) (@matyhtf)
-        * Fixed mysqli error, typo (swoole/library#45) (@sy-records)
-        * Fixed array_key_last (swoole/library#46) (@sy-records)
+        * Fixed systemd fds bugs
+        * Fixed onPacket callback or UDP Server with IPv6 return wrong port
+        * Fixed swMutex_lockwait invalid
+        * Fixed PDO context data confusion
+        * Fixed HTTP2 client over HTTP proxy is not working
     </notes>
     <contents>
         <dir name="/">
@@ -1039,6 +1005,7 @@
             <file role="test" name="tests/swoole_http2_client_coro/goaway.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/headers.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/host.phpt" />
+            <file role="test" name="tests/swoole_http2_client_coro/http_proxy.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/huge_headers.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/issues_2374.phpt" />
             <file role="test" name="tests/swoole_http2_client_coro/multi.phpt" />
@@ -1544,6 +1511,7 @@
             <file role="test" name="tests/swoole_server/stats.phpt" />
             <file role="test" name="tests/swoole_server/stop.phpt" />
             <file role="test" name="tests/swoole_server/stop_in_workerStart.phpt" />
+            <file role="test" name="tests/swoole_server/systemd_fds.phpt" />
             <file role="test" name="tests/swoole_server/task/base.phpt" />
             <file role="test" name="tests/swoole_server/task/bug_2585.phpt" />
             <file role="test" name="tests/swoole_server/task/callback_is_null.phpt" />
