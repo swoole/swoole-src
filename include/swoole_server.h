@@ -697,10 +697,12 @@ class Server {
      */
     uint32_t ipc_max_size = SW_IPC_MAX_SIZE;
 
-    void *ptr2 = nullptr;
+    void *private_data_1 = nullptr;
+    void *private_data_2 = nullptr;
     void *private_data_3 = nullptr;
 
-    Factory *factory;
+    Factory *factory = nullptr;
+
     std::vector<ListenPort *> ports;
 
     inline ListenPort *get_primary_port() {
