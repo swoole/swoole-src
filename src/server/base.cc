@@ -16,43 +16,23 @@
 
 #include "swoole_server.h"
 
-using namespace swoole;
+namespace swoole {
 
-static int swFactory_start(Factory *factory);
-static int swFactory_shutdown(Factory *factory);
-static bool swFactory_dispatch(Factory *factory, SendData *req);
-static bool swFactory_notify(Factory *factory, DataHead *event);
-static bool swFactory_end(Factory *factory, SessionId session_id);
-static void swFactory_free(Factory *factory);
-
-int swFactory_create(Factory *factory) {
-    factory->dispatch = swFactory_dispatch;
-    factory->finish = swFactory_finish;
-    factory->start = swFactory_start;
-    factory->shutdown = swFactory_shutdown;
-    factory->end = swFactory_end;
-    factory->notify = swFactory_notify;
-    factory->free = swFactory_free;
-
-    return SW_OK;
-}
-
-static int swFactory_start(Factory *factory) {
+bool BaseFactory::start() {
     SwooleWG.run_always = true;
-    return SW_OK;
+    return true;
 }
 
-static int swFactory_shutdown(Factory *factory) {
-    return SW_OK;
+bool BaseFactory::shutdown() {
+    return true;
 }
 
-static bool swFactory_dispatch(Factory *factory, SendData *task) {
-    Server *serv = (Server *) factory->ptr;
+bool BaseFactory::dispatch(SendData *task) {
     PacketPtr pkg;
     Connection *conn = nullptr;
 
     if (Server::is_stream_event(task->info.type)) {
-        conn = serv->get_connection(task->info.fd);
+        conn = server_->get_connection(task->info.fd);
         if (conn == nullptr || conn->active == 0) {
             swWarn("dispatch[type=%d] failed, socket#%ld is not active", task->info.type, task->info.fd);
             return false;
@@ -80,20 +60,19 @@ static bool swFactory_dispatch(Factory *factory, SendData *task) {
             pkg.info.flags |= SW_EVENT_DATA_POP_PTR;
         }
 
-        return serv->accept_task((EventData *) &pkg) == SW_OK;
+        return server_->accept_task((EventData *) &pkg) == SW_OK;
     }
     // no data
     else {
-        return serv->accept_task((EventData *) &task->info) == SW_OK;
+        return server_->accept_task((EventData *) &task->info) == SW_OK;
     }
 }
 
 /**
  * only stream fd
  */
-static bool swFactory_notify(Factory *factory, DataHead *info) {
-    Server *serv = (Server *) factory->ptr;
-    Connection *conn = serv->get_connection(info->fd);
+bool BaseFactory::notify(DataHead *info) {
+    Connection *conn = server_->get_connection(info->fd);
     if (conn == nullptr || conn->active == 0) {
         swWarn("dispatch[type=%d] failed, socket#%ld is not active", info->type, info->fd);
         return false;
@@ -108,11 +87,10 @@ static bool swFactory_notify(Factory *factory, DataHead *info) {
     info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
 
-    return serv->accept_task((EventData *) info) == SW_OK;
+    return server_->accept_task((EventData *) info) == SW_OK;
 }
 
-static bool swFactory_end(Factory *factory, SessionId session_id) {
-    Server *serv = (Server *) factory->ptr;
+bool BaseFactory::end(SessionId session_id) {
     SendData _send{};
     DataHead info;
 
@@ -120,7 +98,7 @@ static bool swFactory_end(Factory *factory, SessionId session_id) {
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    Connection *conn = serv->get_connection_by_session_id(session_id);
+    Connection *conn = server_->get_connection_by_session_id(session_id);
     if (conn == nullptr || conn->active == 0) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
@@ -134,7 +112,7 @@ static bool swFactory_end(Factory *factory, SessionId session_id) {
     } else {
     _do_close:
         conn->closing = 1;
-        if (serv->onClose != nullptr) {
+        if (server_->onClose != nullptr) {
             info.fd = session_id;
             if (conn->close_actively) {
                 info.reactor_id = -1;
@@ -142,7 +120,7 @@ static bool swFactory_end(Factory *factory, SessionId session_id) {
                 info.reactor_id = conn->reactor_id;
             }
             info.server_fd = conn->server_fd;
-            serv->onClose(serv, &info);
+            server_->onClose(server_, &info);
         }
         conn->closing = 0;
         conn->closed = 1;
@@ -165,11 +143,60 @@ static bool swFactory_end(Factory *factory, SessionId session_id) {
     }
 }
 
-/**
- * @return: success returns SW_OK, failure returns SW_ERR.
- */
-bool swFactory_finish(Factory *factory, SendData *resp) {
-    return ((Server *) factory->ptr)->send_to_connection(resp) == SW_OK;
+static int send_func(network::Socket *socket, const void *data, size_t length) {
+    if (!swoole_event_is_available()) {
+        return socket->send_blocking(data, length);
+    } else {
+        return swoole_event_write(socket, data, length);
+    }
 }
 
-static void swFactory_free(Factory *factory) {}
+bool BaseFactory::finish(SendData *data) {
+    SessionId session_id = data->info.fd;
+
+    Session *session = server_->get_session(session_id);
+    if (session->reactor_id != SwooleG.process_id) {
+        swTrace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, SwooleG.process_id);
+        Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
+        EventData proxy_msg{};
+
+        if (data->info.type == SW_SERVER_EVENT_RECV_DATA) {
+            proxy_msg.info.fd = session_id;
+            proxy_msg.info.reactor_id = SwooleG.process_id;
+            proxy_msg.info.type = SW_SERVER_EVENT_PROXY_START;
+
+            size_t send_n = data->info.len;
+            size_t offset = 0;
+
+            while (send_n > 0) {
+                if (send_n > SW_IPC_BUFFER_SIZE) {
+                    proxy_msg.info.len = SW_IPC_BUFFER_SIZE;
+                } else {
+                    proxy_msg.info.type = SW_SERVER_EVENT_PROXY_END;
+                    proxy_msg.info.len = send_n;
+                }
+                memcpy(proxy_msg.data, data->data + offset, proxy_msg.info.len);
+                send_n -= proxy_msg.info.len;
+                offset += proxy_msg.info.len;
+                send_func(worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+            }
+
+            swTrace("proxy message, fd=%d, len=%ld", worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
+        } else if (data->info.type == SW_SERVER_EVENT_SEND_FILE) {
+            memcpy(&proxy_msg.info, &data->info, sizeof(proxy_msg.info));
+            memcpy(proxy_msg.data, data->data, data->info.len);
+            return send_func(
+                worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
+        } else {
+            swWarn("unkown event type[%d]", data->info.type);
+            return false;
+        }
+        return true;
+    } else {
+        return server_->send_to_connection(data) == SW_OK;
+    }
+}
+
+BaseFactory::~BaseFactory() {}
+
+}  // namespace swoole

@@ -421,17 +421,57 @@ struct ServerGS {
     ProcessPool event_workers;
 };
 
-struct Factory {
-    void *object;
-    void *ptr;  // server object
+class Server;
 
-    int (*start)(Factory *);
-    int (*shutdown)(Factory *);
-    bool (*dispatch)(Factory *, SendData *);
-    bool (*finish)(Factory *, SendData *);
-    bool (*notify)(Factory *, DataHead *);  // send a event notify
-    bool (*end)(Factory *, SessionId sesion_id);
-    void (*free)(Factory *);
+class Factory {
+ protected:
+    Server *server_;
+ public:
+    Factory(Server *_server) {
+        server_ = _server;
+    }
+    virtual ~Factory() {
+
+    }
+    virtual bool start() = 0;
+    virtual bool shutdown() = 0;
+    virtual bool dispatch(SendData*) = 0;
+    virtual bool finish(SendData*) = 0;
+    virtual bool notify(DataHead*) = 0;
+    virtual bool end(SessionId sesion_id) = 0;
+};
+
+class BaseFactory: public Factory {
+public:
+    BaseFactory(Server *server): Factory(server) {
+
+    }
+    ~BaseFactory();
+    bool start();
+    bool shutdown();
+    bool dispatch(SendData*);
+    bool finish(SendData*);
+    bool notify(DataHead*);
+    bool end(SessionId sesion_id);
+};
+
+class ProcessFactory : public Factory {
+ private:
+    Pipe *pipes;
+    PipeBuffer *send_buffer;
+    bool create_pipes();
+ public:
+    ProcessFactory(Server *server): Factory(server) {
+        pipes = nullptr;
+        send_buffer = nullptr;
+    }
+     ~ProcessFactory();
+     bool start();
+     bool shutdown();
+     bool dispatch(SendData*);
+     bool finish(SendData*);
+     bool notify(DataHead*);
+     bool end(SessionId sesion_id);
 };
 
 enum ServerEventType {
@@ -662,7 +702,7 @@ class Server {
     void *ptr2 = nullptr;
     void *private_data_3 = nullptr;
 
-    Factory factory = {};
+    Factory *factory;
     std::vector<ListenPort *> ports;
 
     inline ListenPort *get_primary_port() {
@@ -1286,5 +1326,3 @@ extern swoole::Server *g_server_instance;
 static inline swoole::Server *sw_server() {
     return g_server_instance;
 }
-
-bool swFactory_finish(swoole::Factory *factory, swoole::SendData *_send);

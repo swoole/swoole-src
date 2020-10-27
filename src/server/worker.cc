@@ -257,7 +257,7 @@ int Server::accept_task(EventData *task) {
             conn->ssl_client_cert = nullptr;
         }
 #endif
-        factory.end(&factory, task->info.fd);
+        factory->end(task->info.fd);
         break;
     }
     case SW_SERVER_EVENT_CONNECT: {
