@@ -40,3 +40,9 @@ services:
   httpbin:
     container_name: "httpbin"
     image: "kennethreitz/httpbin"
+  goproxy:
+    container_name: "tinyproxy"
+    image: "vimagick/tinyproxy"
+  socks5:
+    container_name: "socks5"
+    image: "xkuma/socks5"
