@@ -1373,7 +1373,7 @@ static PHP_METHOD(swoole_socket_coro, readv) {
             zend_string_free((zend_string *) ((char *) iov[i].iov_base - XtOffsetOf(zend_string, val)));
         }
 
-        RETURN_EMPTY_STRING();
+        RETURN_EMPTY_ARRAY();
     } else {
         return;
     }
