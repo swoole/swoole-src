@@ -2,7 +2,7 @@
 
 #include "test_core.h"
 
-#define SERVER_THIS ((swoole::test::Server *) serv->ptr2)
+#define SERVER_THIS ((swoole::test::Server *) serv->private_data_2)
 
 #define ON_WORKERSTART_PARAMS   swServer *serv, int worker_id
 #define ON_PACKET_PARAMS        swServer *serv, swRecvData *req
