@@ -1,0 +1,14 @@
+name: Mirror to Gitee Repo
+
+on: [ push, delete, create ]
+
+jobs:
+  git-mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: wearerequired/git-mirror-action@v1
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.GITEE_PRIVATE_KEY }}
+        with:
+          source-repo: 'https://github.com/swoole/swoole-src.git'
+          destination-repo: 'git@gitee.com:swoole/swoole.git'
