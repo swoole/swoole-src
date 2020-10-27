@@ -1341,17 +1341,18 @@ static PHP_METHOD(swoole_socket_coro, readv) {
     std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
 
     iovcnt = 0;
+    array_init(return_value);
 
     SW_HASHTABLE_FOREACH_START(vht, element)
-    if (!ZVAL_IS_ARRAY(element)) {
+    if (!ZVAL_IS_LONG(element)) {
         zend_throw_exception_ex(
-                swoole_socket_coro_exception_ce, EINVAL, "the data must be array, index[%d]", iovcnt);
+                swoole_socket_coro_exception_ce, EINVAL, "the data must be int, index[%d]", iovcnt);
         RETURN_FALSE;
     }
-    iov_len = Z_LVAL(Z_ARRVAL_P(element)->arData[0].val);
+    iov_len = Z_LVAL(*element);
     iov_base = zend_string_alloc(iov_len, 0);
 
-    add_next_index_str(element, iov_base);
+    add_next_index_str(return_value, iov_base);
 
     iov[iovcnt].iov_base = iov_base->val;
     iov[iovcnt].iov_len = iov_len;
@@ -1367,8 +1368,14 @@ static PHP_METHOD(swoole_socket_coro, readv) {
         }
 
         RETURN_FALSE;
+    } else if (UNEXPECTED(retval == 0)) {
+        for (size_t i = 0; i < iovcnt; i++) {
+            zend_string_free((zend_string *) ((char *) iov[i].iov_base - XtOffsetOf(zend_string, val)));
+        }
+
+        RETURN_EMPTY_STRING();
     } else {
-        RETURN_LONG(retval);
+        return;
     }
 }
 

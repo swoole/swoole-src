@@ -18,10 +18,9 @@ $pm->parentFunc = function () use ($pm) {
         $conn = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         $conn->connect('127.0.0.1', $pm->getFreePort());
         $conn->send('hello');
-        $iov = [[5], [5]];
-        $conn->readv($iov);
-        Assert::same($iov[0][1], 'hello');
-        Assert::same($iov[1][1], 'world');
+        $iov = [5, 5];
+        $ret = $conn->readv($iov);
+        Assert::same($ret, ['hello', 'world']);
         echo "DONE\n";
     });
 };
