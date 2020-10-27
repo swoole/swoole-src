@@ -424,54 +424,52 @@ struct ServerGS {
 class Server;
 
 class Factory {
- protected:
+  protected:
     Server *server_;
- public:
+
+  public:
     Factory(Server *_server) {
         server_ = _server;
     }
-    virtual ~Factory() {
-
-    }
+    virtual ~Factory() {}
     virtual bool start() = 0;
     virtual bool shutdown() = 0;
-    virtual bool dispatch(SendData*) = 0;
-    virtual bool finish(SendData*) = 0;
-    virtual bool notify(DataHead*) = 0;
+    virtual bool dispatch(SendData *) = 0;
+    virtual bool finish(SendData *) = 0;
+    virtual bool notify(DataHead *) = 0;
     virtual bool end(SessionId sesion_id) = 0;
 };
 
-class BaseFactory: public Factory {
-public:
-    BaseFactory(Server *server): Factory(server) {
-
-    }
+class BaseFactory : public Factory {
+  public:
+    BaseFactory(Server *server) : Factory(server) {}
     ~BaseFactory();
     bool start();
     bool shutdown();
-    bool dispatch(SendData*);
-    bool finish(SendData*);
-    bool notify(DataHead*);
+    bool dispatch(SendData *);
+    bool finish(SendData *);
+    bool notify(DataHead *);
     bool end(SessionId sesion_id);
 };
 
 class ProcessFactory : public Factory {
- private:
+  private:
     Pipe *pipes;
     PipeBuffer *send_buffer;
     bool create_pipes();
- public:
-    ProcessFactory(Server *server): Factory(server) {
+
+  public:
+    ProcessFactory(Server *server) : Factory(server) {
         pipes = nullptr;
         send_buffer = nullptr;
     }
-     ~ProcessFactory();
-     bool start();
-     bool shutdown();
-     bool dispatch(SendData*);
-     bool finish(SendData*);
-     bool notify(DataHead*);
-     bool end(SessionId sesion_id);
+    ~ProcessFactory();
+    bool start();
+    bool shutdown();
+    bool dispatch(SendData *);
+    bool finish(SendData *);
+    bool notify(DataHead *);
+    bool end(SessionId sesion_id);
 };
 
 enum ServerEventType {
