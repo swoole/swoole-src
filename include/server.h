@@ -223,6 +223,7 @@ typedef struct _swListenPort
 
     swProtocol protocol;
     void *ptr;
+    int listening;
     int (*onRead)(swReactor *reactor, struct _swListenPort *port, swEvent *event);
 } swListenPort;
 
@@ -384,6 +385,7 @@ struct _swServer
 
     int udp_socket_ipv4;
     int udp_socket_ipv6;
+    int dgram_socket;
 
     uint32_t max_wait_time;
 

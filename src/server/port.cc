@@ -97,11 +97,12 @@ int swPort_listen(swListenPort *ls)
     int option = 1;
 
     //listen stream socket
-    if (listen(sock, ls->backlog) < 0)
+    if (0 == ls->listening && listen(sock, ls->backlog) < 0)
     {
         swSysWarn("listen(%s:%d, %d) failed", ls->host, ls->port, ls->backlog);
         return SW_ERR;
     }
+    ls->listening = 1;
 
 #ifdef TCP_DEFER_ACCEPT
     if (ls->tcp_defer_accept)

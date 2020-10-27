@@ -309,6 +309,8 @@ void swServer_store_listen_socket(swServer *serv)
             {
                 serv->udp_socket_ipv6 = sockfd;
                 serv->connection_list[sockfd].info.addr.inet_v6.sin6_port = htons(ls->port);
+            } else if (ls->type == SW_SOCK_UNIX_DGRAM) {
+                serv->dgram_socket = sockfd;
             }
         }
         else
@@ -1506,7 +1508,19 @@ int swServer_add_systemd_socket(swServer *serv)
     int sock_type, sock_family;
     char tmp[INET6_ADDRSTRLEN];
 
-    for (sock = SW_SYSTEMD_FDS_START; sock < SW_SYSTEMD_FDS_START + n; sock++)
+    int start_fd;
+    e = getenv("LISTEN_FDS_START");
+    if (e) {
+        start_fd = atoi(e);
+    } else {
+        start_fd = SW_SYSTEMD_FDS_START;
+    }
+    if (start_fd < 0) {
+        swWarn("invalid LISTEN_FDS_START");
+        return 0;
+    }
+
+    for (sock = start_fd; sock < start_fd + n; sock++)
     {
         swListenPort *ls = (swListenPort *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swListenPort));
         if (ls == NULL)
@@ -1518,31 +1532,21 @@ int swServer_add_systemd_socket(swServer *serv)
         optlen = sizeof(val);
         if (getsockopt(sock, SOL_SOCKET, SO_TYPE, &val, &optlen) < 0)
         {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
-            return count;
+            swWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed %s", sock, strerror(errno));
+            continue;
         }
         sock_type = val;
-        //get socket family
-#ifndef SO_DOMAIN
-        swWarn("no getsockopt(SO_DOMAIN) supports");
-        return count;
-#else
-        optlen = sizeof(val);
-        if (getsockopt(sock, SOL_SOCKET, SO_DOMAIN, &val, &optlen) < 0)
-        {
-            swWarn("getsockopt(%d, SOL_SOCKET, SO_DOMAIN) failed", sock);
-            return count;
-        }
-#endif
-        sock_family = val;
+
         //get address info
         address.len = sizeof(address.addr);
         if (getsockname(sock, (struct sockaddr*) &address.addr, &address.len) < 0)
         {
             swWarn("getsockname(%d) failed", sock);
-            return count;
+            continue;
         }
+        sock_family = ((struct sockaddr*) &address.addr)->sa_family;
 
+        ls->listening = 1;
         swPort_init(ls);
 
         switch (sock_family)
