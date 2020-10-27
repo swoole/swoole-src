@@ -1402,7 +1402,7 @@ int php_swoole_onPacket(swServer *serv, swEventData *req)
     {
         inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v6.sin6_addr, address, sizeof(address));
         add_assoc_string(&zaddr, "address", address);
-        add_assoc_long(&zaddr, "port", packet->socket_addr.addr.inet_v6.sin6_port);
+        add_assoc_long(&zaddr, "port", ntohs(packet->socket_addr.addr.inet_v6.sin6_port));
     }
     else if (packet->socket_type == SW_SOCK_UNIX_DGRAM)
     {
