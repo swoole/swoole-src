@@ -203,6 +203,10 @@ class String {
         }
     }
 
+    inline static zend_string *fetch_zend_string_by_val(char *val) {
+        return (zend_string *) (val - XtOffsetOf(zend_string, val));
+    }
+
     ~String() {
         release();
     }
