@@ -1323,6 +1323,8 @@ static PHP_METHOD(swoole_socket_coro, readv) {
     HashTable *vht;
     double timeout = 0;
     int iovcnt = 0;
+    int iov_index = 0;
+    ssize_t total_length = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ZVAL_DEREF(ziov)
@@ -1340,13 +1342,13 @@ static PHP_METHOD(swoole_socket_coro, readv) {
 
     std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
 
-    iovcnt = 0;
+    iov_index = 0;
     array_init(return_value);
 
     SW_HASHTABLE_FOREACH_START(vht, element)
     if (!ZVAL_IS_LONG(element)) {
         zend_throw_exception_ex(
-                swoole_socket_coro_exception_ce, EINVAL, "the data must be int, index[%d]", iovcnt);
+                swoole_socket_coro_exception_ce, EINVAL, "the data must be int, index[%d]", iov_index);
         RETURN_FALSE;
     }
     iov_len = Z_LVAL(*element);
@@ -1354,9 +1356,10 @@ static PHP_METHOD(swoole_socket_coro, readv) {
 
     add_next_index_str(return_value, iov_base);
 
-    iov[iovcnt].iov_base = iov_base->val;
-    iov[iovcnt].iov_len = iov_len;
-    iovcnt++;
+    iov[iov_index].iov_base = iov_base->val;
+    iov[iov_index].iov_len = iov_len;
+    iov_index++;
+    total_length += iov_len;
     SW_HASHTABLE_FOREACH_END();
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
@@ -1374,9 +1377,32 @@ static PHP_METHOD(swoole_socket_coro, readv) {
         }
 
         RETURN_EMPTY_ARRAY();
-    } else {
-        return;
+    } else if (retval < total_length) {
+        iov_index = 0;
+        total_length = 0;
+        bool has_data = true;
+
+        SW_HASHTABLE_FOREACH_START(vht, element)
+        iov_len = zval_get_long(element);
+        zend_string *str = (zend_string *) ((char *) iov[iov_index].iov_base - XtOffsetOf(zend_string, val));
+
+        total_length += iov_len;
+
+        if (!has_data) {
+            str->len = 0;
+            zend_string_free(str);
+            zend_hash_index_del(Z_ARRVAL_P(return_value), iov_index);
+        } else if (has_data && total_length > retval) {
+            str->len = iov_len - (total_length - retval);
+            str->val[str->len + 1] = 0;
+            has_data = false;
+        }
+
+        iov_index++;
+        SW_HASHTABLE_FOREACH_END();
     }
+
+    return;
 }
 
 static PHP_METHOD(swoole_socket_coro, sendFile) {

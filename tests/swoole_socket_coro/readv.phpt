@@ -21,6 +21,17 @@ $pm->parentFunc = function () use ($pm) {
         $iov = [5, 5];
         $ret = $conn->readv($iov);
         Assert::same($ret, ['hello', 'world']);
+
+        $conn->send('hello');
+        $iov = [5, 7];
+        $ret = $conn->readv($iov);
+        Assert::same($ret, ['hello', 'world']);
+
+        $conn->send('hello');
+        $iov = [5, 7, 7];
+        $ret = $conn->readv($iov);
+        Assert::same($ret, ['hello', 'world']);
+        $pm->kill();
         echo "DONE\n";
     });
 };
@@ -29,10 +40,10 @@ $pm->childFunc = function () use ($pm) {
         $server = new Server('127.0.0.1', $pm->getFreePort(), false);
 
         $server->handle(function (Connection $conn) use ($server) {
-            $conn->send("helloworld\n");
-            $conn->close();
-
-            $server->shutdown();
+            while (true) {
+                $conn->recv();
+                $conn->send("helloworld");
+            }
         });
 
         $server->start();
