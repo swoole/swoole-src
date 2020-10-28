@@ -1393,8 +1393,7 @@ static PHP_METHOD(swoole_socket_coro, readv) {
             zend_string_free(str);
             zend_hash_index_del(Z_ARRVAL_P(return_value), iov_index);
         } else if (has_data && total_length > retval) {
-            str->len = iov_len - (total_length - retval);
-            str->val[str->len + 1] = 0;
+            sw_zend_string_recycle(str, iov_len, iov_len - (total_length - retval));
             has_data = false;
         }
 
