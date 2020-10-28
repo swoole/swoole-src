@@ -205,10 +205,15 @@ class ProcessManager
 
     public function initFreePorts(int $num = 1)
     {
-        if (empty($this->freePorts)) {
-            for ($i = $num; $i--;) {
-                $this->freePorts[] = $this->useConstantPorts ? (9500 + $num - $i) : get_one_free_port();
-            }
+        for ($i = $num; $i--;) {
+            $this->freePorts[] = $this->useConstantPorts ? (9500 + $num - $i + count($this->freePorts)) : get_one_free_port();
+        }
+    }
+
+    public function initFreeIPv6Ports(int $num = 1)
+    {
+        for ($i = $num; $i--;) {
+            $this->freePorts[] = $this->useConstantPorts ? (9500 + $num - $i + count($this->freePorts)) : get_one_free_port_ipv6();
         }
     }
 

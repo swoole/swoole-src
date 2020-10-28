@@ -102,10 +102,10 @@ int clock_gettime(clock_id_t which_clock, struct timespec *t);
 
 #define SWOOLE_MAJOR_VERSION      4
 #define SWOOLE_MINOR_VERSION      4
-#define SWOOLE_RELEASE_VERSION    21
+#define SWOOLE_RELEASE_VERSION    22
 #define SWOOLE_EXTRA_VERSION      ""
-#define SWOOLE_VERSION            "4.4.21"
-#define SWOOLE_VERSION_ID         40421
+#define SWOOLE_VERSION            "4.4.22"
+#define SWOOLE_VERSION_ID         40422
 #define SWOOLE_BUG_REPORT \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"\
     "The Swoole developers probably don't know about it,\n"\
@@ -217,6 +217,9 @@ typedef unsigned long ulong_t;
 #ifndef MIN
 #define MIN(A, B)              SW_MIN(A, B)
 #endif
+
+#define SW_NUM_BILLION   (1000 * 1000 *1000)
+#define SW_NUM_MILLION   (1000 * 1000)
 
 #ifdef SW_DEBUG
 #define SW_ASSERT(e)           assert(e)
@@ -2498,6 +2501,31 @@ static sw_inline int64_t swTimer_get_absolute_msec()
     int64_t msec1 = (now.tv_sec) * 1000;
     int64_t msec2 = (now.tv_usec) / 1000;
     return msec1 + msec2;
+}
+
+#ifdef HAVE_CLOCK_GETTIME
+#define swoole_clock_gettime     clock_gettime
+#else
+int swoole_clock_gettime(clock_id_t which_clock, struct timespec *t);
+#endif
+
+static inline struct timespec swoole_time_until(int milliseconds) {
+    struct timespec t;
+    swoole_clock_gettime(CLOCK_REALTIME, &t);
+
+    int sec = milliseconds / 1000;
+    int msec = milliseconds - (sec * 1000);
+
+    t.tv_sec += sec;
+    t.tv_nsec += msec * 1000 * 1000;
+
+    if (t.tv_nsec > SW_NUM_BILLION) {
+        int _sec = t.tv_nsec / SW_NUM_BILLION;
+        t.tv_sec += _sec;
+        t.tv_nsec -= _sec * SW_NUM_BILLION;
+    }
+
+    return t;
 }
 
 SW_EXTERN_C_END

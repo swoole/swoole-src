@@ -435,6 +435,8 @@ bool http2_client::connect()
     return true;
 }
 
+extern void php_swoole_client_coro_socket_free(Socket *cli);
+
 bool http2_client::close()
 {
     Socket *_client = client;
@@ -462,10 +464,7 @@ bool http2_client::close()
         }
         client = nullptr;
     }
-    if (_client->close())
-    {
-        delete _client;
-    }
+    php_swoole_client_coro_socket_free(_client);
     return true;
 }
 
