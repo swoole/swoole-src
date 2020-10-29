@@ -23,6 +23,9 @@ $pm->childFunc = function () use ($pm) {
         'worker_num' => 2,
         'dispatch_mode' => 5, //uid dispatch
     ]);
+    $server->on("workerStart", function ($serv) use ($pm) {
+        $pm->wakeup();
+    });
     $server->on('receive', function (Swoole\Server $server, $fd, $reactor_id, $data) {
         $status = $server->bind($fd, -1);
         Assert::false($status);
@@ -33,6 +36,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-[%s]	INFO	Server is shutdown now
-
 Warning: Swoole\Server::bind(): uid can not be greater than 4294967295 or less than 0 in %s on line %d
+[%s]	INFO	Server is shutdown now
