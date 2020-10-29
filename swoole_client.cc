@@ -957,24 +957,16 @@ static PHP_METHOD(swoole_client, connect)
         php_swoole_client_check_setting(cli, zset);
     }
 
-
-    //nonblock async
-    if (cli->connect(cli, host, port, timeout, sock_flag) < 0)
-    {
-        if (errno == 0)
-        {
-            if (SwooleG.error == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED)
-            {
-                php_swoole_error(E_WARNING, "connect to server[%s:%d] failed. Error: %s[%d]", host, (int ) port,
-                        swoole_strerror(SwooleG.error), SwooleG.error);
-            }
-            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), SwooleG.error);
-        }
-        else
-        {
-            php_swoole_sys_error(E_WARNING, "connect to server[%s:%d] failed", host, (int )port);
-            zend_update_property_long(swoole_client_ce, ZEND_THIS, ZEND_STRL("errCode"), errno);
-        }
+    // nonblock async
+    if (cli->connect(cli, host, port, timeout, sock_flag) < 0) {
+        php_swoole_error(E_WARNING,
+                         "connect to server[%s:%d] failed. Error: %s[%d]",
+                         host,
+                         (int) port,
+                         swoole_strerror(SwooleG.error),
+                         SwooleG.error);
+        zend_update_property_long(
+            swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SwooleG.error);
         php_swoole_client_free(ZEND_THIS, cli);
         RETURN_FALSE;
     }
