@@ -65,6 +65,7 @@ accept_count: %d
 close_count: %d
 worker_num: %d
 idle_worker_num: %d
+task_worker_num: %d
 tasking_num: %d
 request_count: %d
 worker_request_count: %d
