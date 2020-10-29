@@ -3468,8 +3468,8 @@ static PHP_METHOD(swoole_server, bind) {
         RETURN_FALSE;
     }
 
-    if (uid > UINT32_MAX) {
-        php_swoole_fatal_error(E_WARNING, "uid can not be greater than %u", UINT32_MAX);
+    if (uid > UINT32_MAX || uid < 0) {
+        php_swoole_fatal_error(E_WARNING, "uid can not be greater than %u or less than 0", UINT32_MAX);
         RETURN_FALSE;
     }
 
