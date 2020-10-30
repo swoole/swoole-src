@@ -20,6 +20,7 @@ $lock->lock();
 $process1 = new Process(function ($p) use ($lock, $fp) {
     fwrite($fp, "[Child 1] Wait Lock\n");
     $lock->lock();
+    usleep(10);
     fwrite($fp, "[Child 1] Get Lock\n");
     $lock->unlock();
     fwrite($fp, "[Child 1] exit\n");

@@ -135,12 +135,7 @@ void swoole_init(void) {
 #endif
 
     // init global shared memory
-    SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-    if (SwooleG.memory_pool == nullptr) {
-        printf("[Core] Fatal Error: global memory allocation failure");
-        exit(1);
-    }
-
+    SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
@@ -216,7 +211,7 @@ void swoole_clean(void) {
         swoole_event_free();
     }
     if (SwooleG.memory_pool != nullptr) {
-        SwooleG.memory_pool->destroy(SwooleG.memory_pool);
+        delete SwooleG.memory_pool;
     }
     if (g_logger_instance) {
         delete g_logger_instance;
@@ -277,24 +272,14 @@ pid_t swoole_fork(int flags) {
             swoole_timer_free();
         }
         if (SwooleG.memory_pool) {
-            SwooleG.memory_pool->destroy(SwooleG.memory_pool);
+            delete SwooleG.memory_pool;
         }
         if (!(flags & SW_FORK_EXEC)) {
-            /**
-             * reset SwooleG.memory_pool
-             */
-            SwooleG.memory_pool = swMemoryGlobal_new(SW_GLOBAL_MEMORY_PAGESIZE, 1);
-            if (SwooleG.memory_pool == nullptr) {
-                printf("[Worker] Fatal Error: global memory allocation failure");
-                exit(1);
-            }
-            /**
-             * reopen log file
-             */
+            // reset SwooleG.memory_pool
+            SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
+            // reopen log file
             sw_logger()->reopen();
-            /**
-             * reset eventLoop
-             */
+            // reset eventLoop
             if (SwooleTG.reactor) {
                 swoole_event_free();
                 swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");

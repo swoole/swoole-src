@@ -20,67 +20,67 @@
 #include "swoole.h"
 
 //-------------------memory manager-------------------------
-struct swMemoryPool {
-    void *object;
-    void *(*alloc)(swMemoryPool *pool, uint32_t size);
-    void (*free)(swMemoryPool *pool, void *ptr);
-    void (*destroy)(swMemoryPool *pool);
+namespace swoole {
+
+class MemoryPool {
+  public:
+    virtual ~MemoryPool(){};
+    virtual void *alloc(uint32_t size) = 0;
+    virtual void free(void *ptr) = 0;
+  protected:
+    MemoryPool() {};
 };
 
-struct swFixedPool_slice {
-    uint8_t lock;
-    swFixedPool_slice *next;
-    swFixedPool_slice *pre;
-    char data[0];
+struct FixedPoolImpl;
+
+class FixedPool : public MemoryPool {
+  private:
+    FixedPoolImpl *impl;
+
+  public:
+    FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared);
+    FixedPool(uint32_t slice_size, void *memory, size_t size, bool shared);
+    ~FixedPool();
+    void *alloc(uint32_t size);
+    void free(void *ptr);
+    void debug();
+
+    static size_t sizeof_struct_slice();
+    static size_t sizeof_struct_impl();
 };
 
-struct swFixedPool {
-    void *memory;
-    size_t size;
+struct RingBufferImpl;
 
-    swFixedPool_slice *head;
-    swFixedPool_slice *tail;
+// RingBuffer, In order for malloc / free
+class RingBuffer : public MemoryPool {
+  private:
+    RingBufferImpl *impl;
 
-    /**
-     * total memory size
-     */
-    uint32_t slice_num;
-
-    /**
-     * memory usage
-     */
-    uint32_t slice_use;
-
-    /**
-     * Fixed slice size, not include the memory used by swFixedPool_slice
-     */
-    uint32_t slice_size;
-
-    /**
-     * use shared memory
-     */
-    uint8_t shared;
+  public:
+    RingBuffer(uint32_t size, bool shared);
+    ~RingBuffer();
+    void *alloc(uint32_t size);
+    void free(void *ptr);
 };
 
-/**
- * FixedPool, random alloc/free fixed size memory
- */
-swMemoryPool *swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared);
-swMemoryPool *swFixedPool_new2(uint32_t slice_size, void *memory, size_t size);
+struct GlobalMemoryImpl;
 
-/**
- * RingBuffer, In order for malloc / free
- */
-swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared);
+// Global memory, the program life cycle only malloc / free one time
+class GlobalMemory : public MemoryPool {
+  private:
+    GlobalMemoryImpl *impl;
 
-/**
- * Global memory, the program life cycle only malloc / free one time
- */
-swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared);
+  public:
+    GlobalMemory(uint32_t page_size, bool shared);
+    ~GlobalMemory();
+    void *alloc(uint32_t size);
+    void free(void *ptr);
+    void destroy();
+};
+}  // namespace swoole
 
-void swFixedPool_debug(swMemoryPool *pool);
 void *sw_shm_malloc(size_t size);
 void sw_shm_free(void *ptr);
 void *sw_shm_calloc(size_t num, size_t _size);
-int sw_shm_protect(void *addr, int flags);
+int sw_shm_protect(void *ptr, int flags);
 void *sw_shm_realloc(void *ptr, size_t new_size);

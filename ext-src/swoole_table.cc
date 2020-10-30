@@ -102,7 +102,7 @@ static inline Table *php_swoole_table_get_and_check_ptr(zval *zobject) {
 
 static inline Table *php_swoole_table_get_and_check_ptr2(zval *zobject) {
     Table *table = php_swoole_table_get_and_check_ptr(zobject);
-    if (!table->is_created()) {
+    if (!table->ready()) {
         php_swoole_fatal_error(E_ERROR, "table is not created or has been destroyed");
     }
     return table;
@@ -368,7 +368,7 @@ PHP_METHOD(swoole_table, column) {
         }
         size = SW_MEM_ALIGNED_SIZE(size);
     }
-    if (table->is_created()) {
+    if (table->ready()) {
         php_swoole_fatal_error(E_WARNING, "unable to add column after table has been created");
         RETURN_FALSE;
     }
@@ -406,7 +406,7 @@ static PHP_METHOD(swoole_table, set) {
     Z_PARAM_ARRAY(array)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (!table->is_created()) {
+    if (!table->ready()) {
         php_swoole_fatal_error(E_ERROR, "the table object does not exist");
         RETURN_FALSE;
     }

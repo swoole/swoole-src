@@ -116,7 +116,7 @@ struct TableColumn {
 };
 
 class Table {
- private:
+  private:
     Table() = delete;
     ~Table() = delete;
 
@@ -134,11 +134,11 @@ class Table {
     sw_atomic_t row_num;
 
     TableRow **rows;
-    swMemoryPool *pool;
+    FixedPool *pool;
 
     TableIterator *iterator;
     HashFunc hash_func;
-    pid_t create_pid;
+    bool created;
 
     void *memory;
 
@@ -148,7 +148,7 @@ class Table {
     int conflict_max_level;
 #endif
 
- public:
+  public:
     std::vector<TableColumn *> *column_list;
 
     static Table *make(uint32_t rows_size, float conflict_proportion);
@@ -162,6 +162,10 @@ class Table {
     void destroy();
 
     bool is_created() {
+        return created;
+    }
+
+    bool ready() {
         return memory != nullptr;
     }
 
@@ -224,4 +228,4 @@ class Table {
 #endif
     }
 };
-}
+}  // namespace swoole

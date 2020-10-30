@@ -16,27 +16,28 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
-typedef struct {
-    uint8_t shared;
+
+namespace swoole {
+
+struct RingBufferImpl {
+    void *memory;
+    bool shared;
     uint8_t status;
     uint32_t size;
     uint32_t alloc_offset;
     uint32_t collect_offset;
     uint32_t alloc_count;
     sw_atomic_t free_count;
-    void *memory;
-} swRingBuffer;
 
-typedef struct {
+    void collect();
+};
+
+struct RingBufferItem {
     uint16_t lock;
     uint16_t index;
     uint32_t length;
     char data[0];
-} swRingBuffer_item;
-
-static void swRingBuffer_destroy(swMemoryPool *pool);
-static void *swRingBuffer_alloc(swMemoryPool *pool, uint32_t size);
-static void swRingBuffer_free(swMemoryPool *pool, void *ptr);
+};
 
 #ifdef SW_RINGBUFFER_DEBUG
 static void swRingBuffer_print(swRingBuffer *object, char *prefix);
@@ -44,148 +45,125 @@ static void swRingBuffer_print(swRingBuffer *object, char *prefix);
 static void swRingBuffer_print(swRingBuffer *object, char *prefix) {
     printf("%s: size=%d, status=%d, alloc_count=%d, free_count=%d, offset=%d, next_offset=%d\n",
            prefix,
-           object->size,
-           object->status,
-           object->alloc_count,
-           object->free_count,
-           object->alloc_offset,
-           object->collect_offset);
+           impl->size,
+           impl->status,
+           impl->alloc_count,
+           impl->free_count,
+           impl->alloc_offset,
+           impl->collect_offset);
 }
 #endif
 
-swMemoryPool *swRingBuffer_new(uint32_t size, uint8_t shared) {
+RingBuffer::RingBuffer(uint32_t size, bool shared) {
     size = SW_MEM_ALIGNED_SIZE(size);
     void *mem = (shared == 1) ? sw_shm_malloc(size) : sw_malloc(size);
     if (mem == nullptr) {
-        swWarn("malloc(%d) failed", size);
-        return nullptr;
+        throw std::bad_alloc();
     }
 
-    swRingBuffer *object = (swRingBuffer *) mem;
-    mem = (char *) mem + sizeof(swRingBuffer);
-    sw_memset_zero(object, sizeof(swRingBuffer));
+    impl = (RingBufferImpl *) mem;
+    mem = (char *) mem + sizeof(*impl);
+    sw_memset_zero(impl, sizeof(*impl));
 
-    object->size = (size - sizeof(swRingBuffer) - sizeof(swMemoryPool));
-    object->shared = shared;
-
-    swMemoryPool *pool = (swMemoryPool *) mem;
-    mem = (char *) mem + sizeof(swMemoryPool);
-
-    pool->object = object;
-    pool->destroy = swRingBuffer_destroy;
-    pool->free = swRingBuffer_free;
-    pool->alloc = swRingBuffer_alloc;
-
-    object->memory = mem;
+    impl->size = size - sizeof(impl);
+    impl->shared = shared;
+    impl->memory = mem;
 
     swDebug("memory: ptr=%p", mem);
-
-    return pool;
 }
 
-static void swRingBuffer_collect(swRingBuffer *object) {
-    swRingBuffer_item *item;
-    sw_atomic_t *free_count = &object->free_count;
-
-    int count = object->free_count;
-    int i;
-    uint32_t n_size;
-
-    for (i = 0; i < count; i++) {
-        item = (swRingBuffer_item *) ((char *) object->memory + object->collect_offset);
+void RingBufferImpl::collect() {
+    for (uint32_t i = 0; i < free_count; i++) {
+        RingBufferItem *item = (RingBufferItem*) ((char*) memory + collect_offset);
         if (item->lock == 0) {
-            n_size = item->length + sizeof(swRingBuffer_item);
-
-            object->collect_offset += n_size;
-
-            if (object->collect_offset + sizeof(swRingBuffer_item) > object->size ||
-                object->collect_offset >= object->size) {
-                object->collect_offset = 0;
-                object->status = 0;
+            uint32_t n_size = item->length + sizeof(RingBufferItem);
+            collect_offset += n_size;
+            if (collect_offset + sizeof(RingBufferItem) > size || collect_offset >= size) {
+                collect_offset = 0;
+                status = 0;
             }
-            sw_atomic_fetch_sub(free_count, 1);
+            sw_atomic_fetch_sub(&free_count, 1);
         } else {
             break;
         }
     }
 }
 
-static void *swRingBuffer_alloc(swMemoryPool *pool, uint32_t size) {
+void *RingBuffer::alloc(uint32_t size) {
     assert(size > 0);
 
-    swRingBuffer *object = (swRingBuffer *) pool->object;
-    swRingBuffer_item *item;
+    RingBufferItem *item;
     uint32_t capacity;
 
     size = SW_MEM_ALIGNED_SIZE(size);
-    uint32_t alloc_size = size + sizeof(swRingBuffer_item);
+    uint32_t alloc_size = size + sizeof(RingBufferItem);
 
-    if (object->free_count > 0) {
-        swRingBuffer_collect(object);
+    if (impl->free_count > 0) {
+        impl->collect();
     }
 
-    if (object->status == 0) {
-        if (object->alloc_offset + alloc_size >= (object->size - sizeof(swRingBuffer_item))) {
-            uint32_t skip_n = object->size - object->alloc_offset;
-            if (skip_n >= sizeof(swRingBuffer_item)) {
-                item = (swRingBuffer_item *) ((char *) object->memory + object->alloc_offset);
+    if (impl->status == 0) {
+        if (impl->alloc_offset + alloc_size >= (impl->size - sizeof(RingBufferItem))) {
+            uint32_t skip_n = impl->size - impl->alloc_offset;
+            if (skip_n >= sizeof(RingBufferItem)) {
+                item = (RingBufferItem *) ((char *) impl->memory + impl->alloc_offset);
                 item->lock = 0;
-                item->length = skip_n - sizeof(swRingBuffer_item);
-                sw_atomic_t *free_count = &object->free_count;
+                item->length = skip_n - sizeof(RingBufferItem);
+                sw_atomic_t *free_count = &impl->free_count;
                 sw_atomic_fetch_add(free_count, 1);
             }
-            object->alloc_offset = 0;
-            object->status = 1;
-            capacity = object->collect_offset - object->alloc_offset;
+            impl->alloc_offset = 0;
+            impl->status = 1;
+            capacity = impl->collect_offset - impl->alloc_offset;
         } else {
-            capacity = object->size - object->alloc_offset;
+            capacity = impl->size - impl->alloc_offset;
         }
     } else {
-        capacity = object->collect_offset - object->alloc_offset;
+        capacity = impl->collect_offset - impl->alloc_offset;
     }
 
     if (capacity < alloc_size) {
         return nullptr;
     }
 
-    item = (swRingBuffer_item *) ((char *) object->memory + object->alloc_offset);
+    item = (RingBufferItem *) ((char *) impl->memory + impl->alloc_offset);
     item->lock = 1;
     item->length = size;
-    item->index = object->alloc_count;
+    item->index = impl->alloc_count;
 
-    object->alloc_offset += alloc_size;
-    object->alloc_count++;
+    impl->alloc_offset += alloc_size;
+    impl->alloc_count++;
 
-    swDebug("alloc: ptr=%p", (void *) (item->data - (char *) object->memory));
+    swDebug("alloc: ptr=%p", (void *) (item->data - (char *) impl->memory));
 
     return item->data;
 }
 
-static void swRingBuffer_free(swMemoryPool *pool, void *ptr) {
-    swRingBuffer *object = (swRingBuffer *) pool->object;
-    swRingBuffer_item *item = (swRingBuffer_item *) ((char *) ptr - sizeof(swRingBuffer_item));
+void RingBuffer::free(void *ptr) {
+    RingBufferItem *item = (RingBufferItem *) ((char *) ptr - sizeof(RingBufferItem));
 
-    assert(ptr >= object->memory);
-    assert((char *) ptr <= (char *) object->memory + object->size);
+    assert(ptr >= impl->memory);
+    assert((char *) ptr <= (char *) impl->memory + impl->size);
     assert(item->lock == 1);
 
     if (item->lock != 1) {
-        swDebug("invalid free: index=%d, ptr=%p", item->index, (void *) (item->data - (char *) object->memory));
+        swDebug("invalid free: index=%d, ptr=%p", item->index, (void *) (item->data - (char *) impl->memory));
     } else {
         item->lock = 0;
     }
 
-    swDebug("free: ptr=%p", (void *) (item->data - (char *) object->memory));
+    swDebug("free: ptr=%p", (void *) (item->data - (char *) impl->memory));
 
-    sw_atomic_t *free_count = &object->free_count;
+    sw_atomic_t *free_count = &impl->free_count;
     sw_atomic_fetch_add(free_count, 1);
 }
 
-static void swRingBuffer_destroy(swMemoryPool *pool) {
-    swRingBuffer *object = (swRingBuffer *) pool->object;
-    if (object->shared) {
-        sw_shm_free(object);
+RingBuffer::~RingBuffer() {
+    if (impl->shared) {
+        sw_shm_free(impl);
     } else {
-        sw_free(object);
+        sw_free(impl);
     }
+}
+
 }

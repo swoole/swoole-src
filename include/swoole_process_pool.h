@@ -72,9 +72,6 @@ struct Worker {
     pthread_t tid;
 
     ProcessPool *pool;
-
-    swMemoryPool *pool_output;
-
     MsgQueue *queue;
 
     bool redirect_stdout;

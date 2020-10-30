@@ -21,154 +21,108 @@
 #include <mutex>
 
 #define SW_MIN_PAGE_SIZE 4096
-#define SW_MIN_EXPONENT 5   // 32
-#define SW_MAX_EXPONENT 21  // 2M
+
+namespace swoole {
 
 struct MemoryBlock;
 
-struct MemoryPool {
-    pid_t create_pid;
+struct GlobalMemoryImpl {
     bool shared;
     uint32_t pagesize;
     std::mutex lock;
     std::vector<char *> pages;
-    std::vector<std::list<MemoryBlock *>> pool;
     uint32_t alloc_offset;
-    swMemoryPool allocator;
+    pid_t create_pid;
+
+  public:
+    GlobalMemoryImpl(uint32_t _pagesize, bool _shared);
+    char *new_page();
 };
 
 struct MemoryBlock {
     uint32_t size;
-    uint32_t index;
-    bool shared;
-    pid_t create_pid;
     char memory[0];
 };
 
-static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size);
-static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr);
-static void swMemoryGlobal_destroy(swMemoryPool *pool);
-static char *swMemoryGlobal_new_page(MemoryPool *gm);
-
-swMemoryPool *swMemoryGlobal_new(uint32_t pagesize, uint8_t shared) {
+/**
+ * After the memory is allocated,
+ * it will not be released until it is recycled by OS when the process exits
+ */
+GlobalMemory::GlobalMemory(uint32_t pagesize, bool shared) {
     assert(pagesize >= SW_MIN_PAGE_SIZE);
-
-    MemoryPool *gm = new MemoryPool();
-
-    gm->shared = shared;
-    gm->pagesize = SW_MEM_ALIGNED_SIZE_EX(pagesize, SwooleG.pagesize);
-    gm->create_pid = SwooleG.pid;
-    gm->pool.resize(20);
-
-    char *page = swMemoryGlobal_new_page(gm);
-    if (page == nullptr) {
-        delete gm;
-        return nullptr;
-    }
-
-    swMemoryPool *allocator = &gm->allocator;
-    allocator->object = gm;
-    allocator->alloc = swMemoryGlobal_alloc;
-    allocator->destroy = swMemoryGlobal_destroy;
-    allocator->free = swMemoryGlobal_free;
-
-    return allocator;
+    impl = new GlobalMemoryImpl(pagesize, shared);
 }
 
-static char *swMemoryGlobal_new_page(MemoryPool *gm) {
-    char *page = (char *) (gm->shared ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize));
+GlobalMemoryImpl::GlobalMemoryImpl(uint32_t _pagesize, bool _shared) {
+    shared = _shared;
+    pagesize = SW_MEM_ALIGNED_SIZE_EX(_pagesize, SwooleG.pagesize);
+    create_pid = SwooleG.pid;
+
+    if (new_page() == nullptr) {
+        throw std::bad_alloc();
+    }
+}
+
+char *GlobalMemoryImpl::new_page() {
+    char *page = (char *) (shared ? sw_shm_malloc(pagesize) : sw_malloc(pagesize));
     if (page == nullptr) {
         return nullptr;
     }
-    sw_memset_zero(page, gm->pagesize);
 
-    gm->pages.push_back(page);
-    gm->alloc_offset = 0;
+    pages.push_back(page);
+    alloc_offset = 0;
 
     return page;
 }
 
-static void *swMemoryGlobal_alloc(swMemoryPool *pool, uint32_t size) {
-    MemoryPool *gm = (MemoryPool *) pool->object;
+/**
+ * The returned memory must be initialized to 0
+ */
+void *GlobalMemory::alloc(uint32_t size) {
     MemoryBlock *block;
-    uint32_t alloc_size = sizeof(MemoryBlock) + size;
-    std::unique_lock<std::mutex> lock(gm->lock);
+    size = SW_MEM_ALIGNED_SIZE(size);
+    uint32_t alloc_size = sizeof(*block) + size;
+    std::unique_lock<std::mutex> lock(impl->lock);
 
-    if (alloc_size > gm->pagesize) {
-        swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, gm->pagesize);
+    if (alloc_size > impl->pagesize) {
+        swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, impl->pagesize);
         return nullptr;
     }
 
-    int index = SW_MIN_EXPONENT;
-    if (alloc_size > (1 << SW_MIN_EXPONENT)) {
-        for (; index <= SW_MAX_EXPONENT; index++) {
-            if ((alloc_size >> index) == 1) {
-                break;
-            }
-        }
-        index++;
-    }
-    alloc_size = 1 << (index);
-    swTrace("alloc_size = %d, size=%d, index=%d\n", alloc_size, size, index);
-    index -= SW_MIN_EXPONENT;
-
-    std::list<MemoryBlock *> &free_blocks = gm->pool.at(index);
-    if (!free_blocks.empty()) {
-        block = free_blocks.back();
-        free_blocks.pop_back();
-        return block->memory;
+    if (impl->shared and impl->create_pid != getpid()) {
+        GlobalMemoryImpl *old_impl = impl;
+        impl = new GlobalMemoryImpl(old_impl->pagesize, old_impl->shared);
     }
 
-    if (gm->alloc_offset + alloc_size > gm->pagesize) {
-        char *page = swMemoryGlobal_new_page(gm);
+    swTrace("alloc_size=%u, size=%u", alloc_size, size);
+
+    if (impl->alloc_offset + alloc_size > impl->pagesize) {
+        char *page = impl->new_page();
         if (page == nullptr) {
             swWarn("alloc memory error");
             return nullptr;
         }
     }
 
-    block = (MemoryBlock *) gm->pages.back() + gm->alloc_offset;
-    gm->alloc_offset += alloc_size;
+    block = (MemoryBlock *) impl->pages.back() + impl->alloc_offset;
+    impl->alloc_offset += alloc_size;
 
     block->size = size;
-    block->index = index;
-    block->shared = gm->shared;
-    block->create_pid = SwooleG.pid;
 
+    sw_memset_zero(block->memory, size);
     return block->memory;
 }
 
-static void swMemoryGlobal_free(swMemoryPool *pool, void *ptr) {
-    MemoryPool *gm = (MemoryPool *) pool->object;
-    MemoryBlock *block = (MemoryBlock *) ((char *) ptr - sizeof(*block));
-    std::unique_lock<std::mutex> lock(gm->lock);
+void GlobalMemory::free(void *ptr) {}
 
-    swTrace("[PID=%d] gm->create_pid=%d, block->create_pid=%d, SwooleG.pid=%d\n",
-            getpid(),
-            gm->create_pid,
-            block->create_pid,
-            SwooleG.pid);
-
-    if (block->shared && (gm->create_pid != block->create_pid or block->create_pid != SwooleG.pid)) {
-        return;
+void GlobalMemory::destroy() {
+    for (auto page : impl->pages) {
+        impl->shared ? ::sw_shm_free(page) : ::sw_free(page);
     }
-
-    swTrace("[PID=%d] free block\n", getpid());
-
-    std::list<MemoryBlock *> &free_blocks = gm->pool.at(block->index);
-    free_blocks.push_back(block);
 }
 
-static void swMemoryGlobal_destroy(swMemoryPool *pool) {
-    MemoryPool *gm = (MemoryPool *) pool->object;
-
-    if (gm->shared and gm->create_pid != SwooleG.pid) {
-        delete gm;
-        return;
-    }
-
-    for (auto page : gm->pages) {
-        gm->shared ? sw_shm_free(page) : sw_free(page);
-    }
-    delete gm;
+GlobalMemory::~GlobalMemory() {
+    delete impl;
 }
+
+}  // namespace swoole

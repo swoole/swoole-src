@@ -29,7 +29,7 @@ struct swSignal {
 
 #ifdef HAVE_SIGNALFD
 void swSignalfd_init();
-int swSignalfd_setup(swReactor *reactor);
+int swSignalfd_setup(swoole::Reactor *reactor);
 #endif
 
 swSignalHandler swSignal_set(int signo, swSignalHandler func);

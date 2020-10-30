@@ -16,106 +16,110 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
-static void swFixedPool_init(swFixedPool *object);
-static void *swFixedPool_alloc(swMemoryPool *pool, uint32_t size);
-static void swFixedPool_free(swMemoryPool *pool, void *ptr);
-static void swFixedPool_destroy(swMemoryPool *pool);
 
-void swFixedPool_debug_slice(swFixedPool_slice *slice);
+namespace swoole {
+
+struct FixedPoolSlice {
+    uint8_t lock;
+    FixedPoolSlice *next;
+    FixedPoolSlice *pre;
+    char data[0];
+};
+
+struct FixedPoolImpl {
+    void *memory;
+    size_t size;
+
+    FixedPoolSlice *head;
+    FixedPoolSlice *tail;
+
+    // total memory size
+    uint32_t slice_num;
+
+    // memory usage
+    uint32_t slice_use;
+
+    // Fixed slice size, not include the memory used by FixedPoolSlice
+    uint32_t slice_size;
+    bool shared;
+    bool allocated;
+
+    void init();
+};
 
 /**
  * create new FixedPool, random alloc/free fixed size memory
  */
-swMemoryPool *swFixedPool_new(uint32_t slice_num, uint32_t slice_size, uint8_t shared) {
+FixedPool::FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared) {
     slice_size = SW_MEM_ALIGNED_SIZE(slice_size);
-    size_t size = slice_size * slice_num + slice_num * sizeof(swFixedPool_slice);
-    size_t alloc_size = size + sizeof(swFixedPool) + sizeof(swMemoryPool);
-    void *memory = (shared == 1) ? sw_shm_malloc(alloc_size) : sw_malloc(alloc_size);
+    size_t size = slice_num * (sizeof(FixedPoolSlice) + slice_size);
+    size_t alloc_size = size + sizeof(*impl);
+    void *memory = shared ? ::sw_shm_malloc(alloc_size) : ::sw_malloc(alloc_size);
     if (!memory) {
-        swWarn("malloc(%ld) failed", size);
-        return nullptr;
+        throw std::bad_alloc();
     }
 
-    swFixedPool *object = (swFixedPool *) memory;
-    memory = (char *) memory + sizeof(swFixedPool);
-    sw_memset_zero(object, sizeof(swFixedPool));
+    impl = (FixedPoolImpl *) memory;
+    memory = (char *) memory + sizeof(*impl);
+    sw_memset_zero(impl, sizeof(*impl));
 
-    object->shared = shared;
-    object->slice_num = slice_num;
-    object->slice_size = slice_size;
-    object->size = size;
-
-    swMemoryPool *pool = (swMemoryPool *) memory;
-    memory = (char *) memory + sizeof(swMemoryPool);
-    pool->object = object;
-    pool->alloc = swFixedPool_alloc;
-    pool->free = swFixedPool_free;
-    pool->destroy = swFixedPool_destroy;
-
-    object->memory = memory;
-
-    /**
-     * init linked list
-     */
-    swFixedPool_init(object);
-
-    return pool;
+    impl->shared = shared;
+    impl->slice_num = slice_num;
+    impl->slice_size = slice_size;
+    impl->size = size;
+    impl->memory = memory;
+    impl->allocated = true;
+    impl->init();
 }
 
 /**
  * create new FixedPool, Using the given memory
  */
-swMemoryPool *swFixedPool_new2(uint32_t slice_size, void *memory, size_t size) {
-    swFixedPool *object = (swFixedPool *) memory;
-    memory = (char *) memory + sizeof(swFixedPool);
-    sw_memset_zero(object, sizeof(swFixedPool));
+FixedPool::FixedPool(uint32_t slice_size, void *memory, size_t size, bool shared) {
+    impl = (FixedPoolImpl*) memory;
+    memory = (char*) memory + sizeof(*impl);
+    sw_memset_zero(impl, sizeof(*impl));
 
-    object->slice_size = slice_size;
-    object->size = size - sizeof(swMemoryPool) - sizeof(swFixedPool);
-    object->slice_num = object->size / (slice_size + sizeof(swFixedPool_slice));
+    impl->shared = shared;
+    impl->slice_size = slice_size;
+    impl->size = size - sizeof(*impl);
+    impl->slice_num = impl->size / (slice_size + sizeof(FixedPoolSlice));
+    impl->memory = memory;
+    impl->allocated = false;
+    impl->init();
+}
 
-    swMemoryPool *pool = (swMemoryPool *) memory;
-    memory = (char *) memory + sizeof(swMemoryPool);
-    sw_memset_zero(pool, sizeof(swMemoryPool));
+size_t FixedPool::sizeof_struct_slice() {
+    return sizeof(FixedPoolSlice);
+}
 
-    pool->object = object;
-    pool->alloc = swFixedPool_alloc;
-    pool->free = swFixedPool_free;
-    pool->destroy = swFixedPool_destroy;
-
-    object->memory = memory;
-
-    /**
-     * init linked list
-     */
-    swFixedPool_init(object);
-
-    return pool;
+size_t FixedPool::sizeof_struct_impl() {
+    return sizeof(FixedPoolImpl);
 }
 
 /**
  * linked list
  */
-static void swFixedPool_init(swFixedPool *object) {
-    swFixedPool_slice *slice;
-    void *cur = object->memory;
-    void *max = (char *) object->memory + object->size;
+void FixedPoolImpl::init() {
+    FixedPoolSlice *slice;
+    void *cur = memory;
+    void *max = (char *) memory + size;
     do {
-        slice = (swFixedPool_slice *) cur;
-        sw_memset_zero(slice, sizeof(swFixedPool_slice));
+        slice = (FixedPoolSlice *) cur;
+        sw_memset_zero(slice, sizeof(FixedPoolSlice));
 
-        if (object->head != nullptr) {
-            object->head->pre = slice;
-            slice->next = object->head;
+        if (head != nullptr) {
+            head->pre = slice;
+            slice->next = head;
         } else {
-            object->tail = slice;
+            tail = slice;
         }
 
-        object->head = slice;
-        cur = (char *) cur + (sizeof(swFixedPool_slice) + object->slice_size);
+        head = slice;
+        cur = (char *) cur + (sizeof(FixedPoolSlice) + slice_size);
 
         if (cur < max) {
-            slice->pre = (swFixedPool_slice *) cur;
+            slice->pre = (FixedPoolSlice *) cur;
         } else {
             slice->pre = nullptr;
             break;
@@ -124,28 +128,27 @@ static void swFixedPool_init(swFixedPool *object) {
     } while (1);
 }
 
-static void *swFixedPool_alloc(swMemoryPool *pool, uint32_t size) {
-    swFixedPool *object = (swFixedPool *) pool->object;
-    swFixedPool_slice *slice;
+void *FixedPool::alloc(uint32_t size) {
+    FixedPoolSlice *slice;
 
-    slice = object->head;
+    slice = impl->head;
 
     if (slice->lock == 0) {
         slice->lock = 1;
-        object->slice_use++;
+        impl->slice_use++;
         /**
          * move next slice to head (idle list)
          */
-        object->head = slice->next;
+        impl->head = slice->next;
         slice->next->pre = nullptr;
 
         /*
          * move this slice to tail (busy list)
          */
-        object->tail->next = slice;
+        impl->tail->next = slice;
         slice->next = nullptr;
-        slice->pre = object->tail;
-        object->tail = slice;
+        slice->pre = impl->tail;
+        impl->tail = slice;
 
         return slice->data;
     } else {
@@ -153,16 +156,15 @@ static void *swFixedPool_alloc(swMemoryPool *pool, uint32_t size) {
     }
 }
 
-static void swFixedPool_free(swMemoryPool *pool, void *ptr) {
-    swFixedPool *object = (swFixedPool *) pool->object;
-    swFixedPool_slice *slice;
+void FixedPool::free(void *ptr) {
+    FixedPoolSlice *slice;
 
-    assert(ptr > object->memory && (char *) ptr < (char *) object->memory + object->size);
+    assert(ptr > impl->memory && (char *) ptr < (char *) impl->memory + impl->size);
 
-    slice = (swFixedPool_slice *) ((char *) ptr - sizeof(swFixedPool_slice));
+    slice = (FixedPoolSlice *) ((char *) ptr - sizeof(FixedPoolSlice));
 
     if (slice->lock) {
-        object->slice_use--;
+        impl->slice_use--;
     }
 
     slice->lock = 0;
@@ -174,7 +176,7 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr) {
     // list tail, DE
     if (slice->next == nullptr) {
         slice->pre->next = nullptr;
-        object->tail = slice->pre;
+        impl->tail = slice->pre;
     }
     // middle BCD
     else {
@@ -183,32 +185,38 @@ static void swFixedPool_free(swMemoryPool *pool, void *ptr) {
     }
 
     slice->pre = nullptr;
-    slice->next = object->head;
-    object->head->pre = slice;
-    object->head = slice;
+    slice->next = impl->head;
+    impl->head->pre = slice;
+    impl->head = slice;
 }
 
-static void swFixedPool_destroy(swMemoryPool *pool) {
-    swFixedPool *object = (swFixedPool *) pool->object;
-    if (object->shared) {
-        sw_shm_free(object);
+FixedPool::~FixedPool() {
+    if (!impl->allocated) {
+        return;
+    }
+    if (impl->shared) {
+        ::sw_shm_free(impl);
     } else {
-        sw_free(object);
+        ::sw_free(impl);
     }
 }
 
-void swFixedPool_debug(swMemoryPool *pool) {
+void FixedPool::debug() {
     int line = 0;
-    swFixedPool *object = (swFixedPool *) pool->object;
-    swFixedPool_slice *slice = object->head;
+    FixedPoolSlice *slice = impl->head;
 
     printf("===============================%s=================================\n", __FUNCTION__);
     while (slice != nullptr) {
         if (slice->next == slice) {
             printf("-------------------@@@@@@@@@@@@@@@@@@@@@@----------------\n");
         }
+
         printf("#%d\t", line);
-        swFixedPool_debug_slice(slice);
+        printf("Slab[%p]\t", slice);
+        printf("pre=%p\t", slice->pre);
+        printf("next=%p\t", slice->next);
+        printf("tag=%d\t", slice->lock);
+        printf("data=%p\n", slice->data);
 
         slice = slice->next;
         line++;
@@ -216,10 +224,4 @@ void swFixedPool_debug(swMemoryPool *pool) {
     }
 }
 
-void swFixedPool_debug_slice(swFixedPool_slice *slice) {
-    printf("Slab[%p]\t", slice);
-    printf("pre=%p\t", slice->pre);
-    printf("next=%p\t", slice->next);
-    printf("tag=%d\t", slice->lock);
-    printf("data=%p\n", slice->data);
 }

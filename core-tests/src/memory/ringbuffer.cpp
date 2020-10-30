@@ -8,7 +8,7 @@
 #define PACKET_LEN 90000
 //#define PRINT_SERNUM_N      10
 
-static swMemoryPool *pool = NULL;
+static swoole::MemoryPool *pool = NULL;
 
 typedef struct {
     uint32_t id;
@@ -28,8 +28,8 @@ static ThreadObject threads[READ_THREAD_N];
 
 TEST(ringbuffer, thread) {
     int i;
-    pool = swRingBuffer_new(1024 * 1024 * 4, 1);
-    ASSERT_NE(pool, nullptr);
+    pool = new swoole::RingBuffer(1024 * 1024 * 4, true);
+    ASSERT_NE(nullptr, pool);
 
     for (i = 0; i < READ_THREAD_N; i++) {
         int ret = swPipeUnsock_create(&threads[i].pipe, 1, SOCK_DGRAM);
@@ -61,7 +61,7 @@ static void thread_write(void) {
 
         yield_count = 0;
         do {
-            ptr = pool->alloc(pool, size);
+            ptr = pool->alloc(size);
             if (ptr) {
                 break;
             } else {
@@ -72,10 +72,8 @@ static void thread_write(void) {
         } while (yield_count < 100);
 
         if (!ptr) {
-            printf("alloc failed. index=%d, break\n", i);
-            break;
+            swWarn("alloc failed. index=%d, break", i);
         }
-
         ASSERT_NE(ptr, nullptr);
 
         send_pkg.id = i;
@@ -120,7 +118,7 @@ static void thread_read(int i) {
         }
 #endif
 
-        pool->free(pool, recv_pkg.ptr);
+        pool->free(recv_pkg.ptr);
         recv_count++;
     }
 }

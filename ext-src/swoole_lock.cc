@@ -51,7 +51,7 @@ static void php_swoole_lock_free_object(zend_object *object) {
     LockObject *o = php_swoole_lock_fetch_object(object);
     if (o->ptr and o->create_pid == SwooleG.pid) {
         o->ptr->free(o->ptr);
-        SwooleG.memory_pool->free(SwooleG.memory_pool, o->ptr);
+        SwooleG.memory_pool->free(o->ptr);
     }
     zend_object_std_dtor(object);
 }
@@ -142,7 +142,7 @@ static PHP_METHOD(swoole_lock, __construct) {
         php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
     }
 
-    lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(swLock));
+    lock = (swLock *) SwooleG.memory_pool->alloc(sizeof(swLock));
     if (lock == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
         RETURN_FALSE;

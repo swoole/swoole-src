@@ -35,10 +35,11 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
         conflict_proportion = SW_TABLE_CONFLICT_PROPORTION;
     }
 
-    Table *table = (Table *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(Table));
+    Table *table = (Table *) sw_mem_pool()->alloc(sizeof(*table));
     if (table == nullptr) {
         return nullptr;
     }
+    table->created = false;
     if (swMutex_create(&table->lock, SW_MUTEX_PROCESS_SHARED) < 0) {
         swWarn("mutex create failed");
         return nullptr;
@@ -56,7 +57,6 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
 #endif
 
     sw_memset_zero(table->iterator, sizeof(TableIterator));
-    table->memory = nullptr;
 
     return table;
 }
@@ -98,7 +98,7 @@ size_t Table::get_memory_size() {
     /**
      * memory pool for conflict rows
      */
-    _memory_size += sizeof(swMemoryPool) + sizeof(swFixedPool) + ((_row_num - size) * sizeof(swFixedPool_slice));
+    _memory_size += FixedPool::sizeof_struct_impl() + ((_row_num - size) * FixedPool::sizeof_struct_slice());
 
     /**
      * for iterator, Iterate through all the elements
@@ -107,10 +107,16 @@ size_t Table::get_memory_size() {
 
     memory_size = _memory_size;
 
+    swTrace("_memory_size=%lu, _row_num=%lu, _row_memory_size=%lu", _memory_size, _row_num, _row_memory_size);
+
     return _memory_size;
 }
 
 bool Table::create() {
+    if (created) {
+        return false;
+    }
+
     size_t _memory_size = get_memory_size();
     size_t _row_memory_size = sizeof(TableRow) + item_size;
 
@@ -131,8 +137,8 @@ bool Table::create() {
 
     _memory = (char *) _memory + _row_memory_size * size;
     _memory_size -= _row_memory_size * size;
-    pool = swFixedPool_new2(_row_memory_size, _memory, _memory_size);
-    create_pid = SwooleG.pid;
+    pool = new FixedPool(_row_memory_size, _memory, _memory_size, true);
+    created = true;
 
     return true;
 }
@@ -154,16 +160,12 @@ void Table::destroy() {
     delete column_map;
     delete column_list;
     delete iterator;
-
-    if (create_pid != SwooleG.pid) {
-        return;
-    }
-
+    delete pool;
     if (memory) {
         sw_shm_free(memory);
     }
     memory = nullptr;
-    SwooleG.memory_pool->free(SwooleG.memory_pool, this);
+    sw_mem_pool()->free(this);
 }
 
 void TableRow::lock() {
@@ -287,7 +289,7 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
                 break;
             } else if (row->next == nullptr) {
                 lock.lock(&lock);
-                TableRow *new_row = (TableRow *) pool->alloc(pool, 0);
+                TableRow *new_row = (TableRow *) pool->alloc(0);
 #ifdef SW_TABLE_DEBUG
                 conflict_count++;
                 if (_conflict_level > conflict_max_level) {
@@ -373,7 +375,7 @@ bool Table::del(const char *key, uint16_t keylen) {
         }
         lock.lock(&lock);
         tmp->clear();
-        pool->free(pool, tmp);
+        pool->free(tmp);
         lock.unlock(&lock);
     }
 
@@ -420,4 +422,4 @@ void TableRow::set_value(TableColumn *col, void *value, size_t vlen) {
     }
 }
 
-}
+}  // namespace swoole
