@@ -43,9 +43,7 @@ bool ProcessFactory::shutdown() {
 }
 
 ProcessFactory::~ProcessFactory() {
-    uint32_t i;
-
-    for (i = 0; i < server_->reactor_num; i++) {
+    SW_LOOP_N(server_->reactor_num) {
         sw_free(server_->pipe_buffers[i]);
     }
     sw_free(server_->pipe_buffers);
@@ -56,13 +54,10 @@ ProcessFactory::~ProcessFactory() {
         server_->stream_socket->free();
     }
 
-    for (i = 0; i < server_->worker_num; i++) {
+    SW_LOOP_N(server_->worker_num){
+        pipes[i].close(&pipes[i]);
         Worker *worker = &server_->workers[i];
         server_->destroy_worker(worker);
-    }
-
-    for (i = 0; i < server_->worker_num; i++) {
-        pipes[i].close(&pipes[i]);
     }
 
     sw_free(send_buffer);
@@ -72,7 +67,7 @@ ProcessFactory::~ProcessFactory() {
 bool ProcessFactory::create_pipes() {
     pipes = new Pipe[server_->worker_num]();
 
-    for (uint32_t i = 0; i < server_->worker_num; i++) {
+    SW_LOOP_N(server_->worker_num) {
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
 
         if (swPipeUnsock_create(&pipes[i], 1, SOCK_DGRAM) < 0) {
@@ -108,7 +103,7 @@ bool ProcessFactory::start() {
         server_->stream_socket = sock;
     }
 
-    for (uint32_t i = 0; i < server_->worker_num; i++) {
+    SW_LOOP_N(server_->worker_num) {
         if (server_->create_worker(server_->get_worker(i)) < 0) {
             return false;
         }

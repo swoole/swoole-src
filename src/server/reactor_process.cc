@@ -91,8 +91,7 @@ int Server::start_reactor_processes() {
     gs->event_workers.main_loop = ReactorProcess_loop;
     gs->event_workers.onWorkerNotFound = Server::wait_other_worker;
 
-    uint32_t i;
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
         gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
@@ -107,7 +106,7 @@ int Server::start_reactor_processes() {
         return retval;
     }
 
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         if (create_worker(&gs->event_workers.workers[i]) < 0) {
             return SW_ERR;
         }
@@ -176,7 +175,7 @@ int Server::start_reactor_processes() {
         onManagerStop(this);
     }
 
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         destroy_worker(&gs->event_workers.workers[i]);
     }
 
