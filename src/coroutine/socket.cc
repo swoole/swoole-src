@@ -953,7 +953,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     do
     {
         retval = socket->writev(iov, remain_cnt);
-        swTraceLog(SW_TRACE_SOCKET, "writev %ld/%ld bytes, errno=%d", retval, __n, errno);
+        swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
 
         if (retval == 0) {
             return retval;
