@@ -1298,8 +1298,7 @@ static PHP_METHOD(swoole_socket_coro, writev) {
 
     SW_HASHTABLE_FOREACH_START(vht, element)
     if (!ZVAL_IS_STRING(element)) {
-        zend_throw_exception_ex(
-                swoole_socket_coro_exception_ce, EINVAL, "the data must be string, index[%d]", iovcnt);
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce, EINVAL, "the data must be string, index[%d]", iovcnt);
         RETURN_FALSE;
     }
     iov[iovcnt].iov_base = Z_STRVAL_P(element);
@@ -1347,8 +1346,7 @@ static PHP_METHOD(swoole_socket_coro, readv) {
 
     SW_HASHTABLE_FOREACH_START(vht, element)
     if (!ZVAL_IS_LONG(element)) {
-        zend_throw_exception_ex(
-                swoole_socket_coro_exception_ce, EINVAL, "the data must be int, index[%d]", iov_index);
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce, EINVAL, "the data must be int, index[%d]", iov_index);
         RETURN_FALSE;
     }
     iov_len = Z_LVAL(*element);
@@ -1366,13 +1364,13 @@ static PHP_METHOD(swoole_socket_coro, readv) {
     ssize_t retval = sock->socket->readv(iov.get(), iovcnt);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
-        for (size_t i = 0; i < iovcnt; i++) {
+        for (int i = 0; i < iovcnt; i++) {
             zend_string_free(zend::String::fetch_zend_string_by_val((char *) iov[i].iov_base));
         }
 
         RETURN_FALSE;
     } else if (UNEXPECTED(retval == 0)) {
-        for (size_t i = 0; i < iovcnt; i++) {
+        for (int i = 0; i < iovcnt; i++) {
             zend_string_free(zend::String::fetch_zend_string_by_val((char *) iov[i].iov_base));
         }
 
