@@ -176,6 +176,10 @@ int Server::start_reactor_processes() {
         onManagerStop(this);
     }
 
+    for (i = 0; i < worker_num; i++) {
+        destroy_worker(&gs->event_workers.workers[i]);
+    }
+
     return SW_OK;
 }
 

@@ -57,6 +57,11 @@ ProcessFactory::~ProcessFactory() {
     }
 
     for (i = 0; i < server_->worker_num; i++) {
+        Worker *worker = &server_->workers[i];
+        server_->destroy_worker(worker);
+    }
+
+    for (i = 0; i < server_->worker_num; i++) {
         pipes[i].close(&pipes[i]);
     }
 

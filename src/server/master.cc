@@ -901,11 +901,6 @@ void Server::destroy() {
 
     sw_shm_free(session_list);
     sw_shm_free(port_connnection_num_list);
-
-    for (uint32_t i = 0; i < worker_num; i++) {
-        Worker *worker = &workers[i];
-        destroy_worker(worker);
-    }
     sw_shm_free(workers);
 
     session_list = nullptr;
