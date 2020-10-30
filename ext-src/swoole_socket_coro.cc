@@ -118,6 +118,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVector, 0, 0, 1)
     ZEND_ARG_INFO(0, iov)
+    ZEND_ARG_INFO(0, all)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -1327,10 +1328,12 @@ static PHP_METHOD(swoole_socket_coro, readVector) {
     int iovcnt = 0;
     int iov_index = 0;
     ssize_t total_length = 0;
+    zend_bool all = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ZVAL_DEREF(ziov)
     Z_PARAM_OPTIONAL
+    Z_PARAM_BOOL(all)
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -1364,7 +1367,7 @@ static PHP_METHOD(swoole_socket_coro, readVector) {
     SW_HASHTABLE_FOREACH_END();
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
-    ssize_t retval = sock->socket->readv(iov.get(), iovcnt);
+    ssize_t retval = all ? sock->socket->readv_all(iov.get(), iovcnt) : sock->socket->readv(iov.get(), iovcnt);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
         for (int i = 0; i < iovcnt; i++) {

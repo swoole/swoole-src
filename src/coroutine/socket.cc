@@ -926,6 +926,59 @@ ssize_t Socket::readv(const struct iovec *iov, int iovcnt) {
     return retval;
 }
 
+ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return -1;
+    }
+    int index = 0;
+    int remain_cnt = iovcnt;
+    size_t offset_bytes = 0;
+    ssize_t retval, total_bytes = 0;
+    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+
+    do
+    {
+        retval = socket->readv(iov, remain_cnt);
+        swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
+
+        if (retval == 0) {
+            return retval;
+        }
+        if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+            set_err(errno);
+            return retval;
+        }
+
+        total_bytes += retval > 0 ? retval : 0;
+        network::Socket::get_iovector_index(iov, remain_cnt, retval, index, offset_bytes);
+
+        if (offset_bytes < iov[index].iov_len) {
+            recv_barrier.hold = true;
+            recv_barrier.n = iov[index].iov_len;
+            recv_barrier.total_bytes = offset_bytes;
+            recv_barrier.buf = (char *) iov[index].iov_base;
+            retval = -1;
+
+            if (timer.start() && wait_event(SW_EVENT_READ)) {
+                retval = recv_barrier.retval;
+            }
+
+            total_bytes += retval;
+            recv_barrier.hold = false;
+            set_err(retval < 0 ? errno : 0);
+            if (retval < 0 && total_bytes == 0) {
+                return -1;
+            }
+        }
+
+        index++;
+        iov += index;
+        remain_cnt -= index;
+    } while (remain_cnt > 0);
+
+    return total_bytes;
+}
+
 ssize_t Socket::writev(const struct iovec *iov, int iovcnt) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
