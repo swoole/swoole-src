@@ -28,7 +28,7 @@ struct RWLockImpl {
 
 RWLock::RWLock(int use_in_process) : Lock() {
     if (use_in_process) {
-        impl = (RWLockImpl *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*impl));
+        impl = (RWLockImpl *) sw_mem_pool()->alloc(sizeof(*impl));
         if (impl == nullptr) {
             throw std::bad_alloc();
         }
@@ -71,7 +71,7 @@ int RWLock::trylock() {
 RWLock::~RWLock() {
     pthread_rwlock_destroy(&impl->_lock);
     if (shared_) {
-        SwooleG.memory_pool->free(SwooleG.memory_pool, impl);
+        sw_mem_pool()->free(impl);
     } else {
         delete impl;
     }

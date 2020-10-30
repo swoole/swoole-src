@@ -26,7 +26,7 @@ struct MutexImpl {
 
 Mutex::Mutex(int flags) : Lock() {
     if (flags & PROCESS_SHARED) {
-        impl = (MutexImpl *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*impl));
+        impl = (MutexImpl *) sw_mem_pool()->alloc(sizeof(*impl));
         if (impl == nullptr) {
             throw std::bad_alloc();
         }
@@ -113,7 +113,7 @@ Mutex::~Mutex() {
     pthread_mutexattr_destroy(&impl->attr_);
     pthread_mutex_destroy(&impl->lock_);
     if (shared_) {
-        SwooleG.memory_pool->free(SwooleG.memory_pool, impl);
+        sw_mem_pool()->free(impl);
     } else {
         delete impl;
     }

@@ -88,19 +88,26 @@ TEST(lock, shared) {
 
     const int sleep_us = 10000;
 
-    int *_num = (int *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(int));
+    int magic_num = swoole_rand(100000, 9999999);
+    int *_num = (int *) sw_mem_pool()->alloc(sizeof(int));
     *_num = 0;
 
-    if (fork() == 0) {
+    pid_t pid = fork() ;
+
+    if (pid == 0) {
         lock.lock();
-        *_num = 999;
+        *_num = magic_num;
         usleep(1);
         exit(0);
     } else {
         usleep(sleep_us);
         lock.unlock();
-        wait(nullptr);
-        ASSERT_EQ(*_num, 999);
+        int status;
+        pid_t _pid = waitpid(pid, &status, 0);
+        if (_pid != pid ) {
+            swWarn("error pid=%d", _pid);
+        }
+        ASSERT_EQ(*_num, magic_num);
     }
 }
 

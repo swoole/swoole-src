@@ -23,7 +23,7 @@ namespace swoole {
 
 SpinLock::SpinLock(int use_in_process) : Lock() {
     if (use_in_process) {
-        impl = (pthread_spinlock_t *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*impl));
+        impl = (pthread_spinlock_t *) sw_mem_pool()->alloc(sizeof(*impl));
         if (impl == nullptr) {
             throw std::bad_alloc();
         }
@@ -62,7 +62,7 @@ int SpinLock::trylock_rd() {
 SpinLock::~SpinLock() {
     pthread_spin_destroy(impl);
     if (shared_) {
-        SwooleG.memory_pool->free(SwooleG.memory_pool, (void *) impl);
+        sw_mem_pool()->free((void *) impl);
     } else {
         delete impl;
     }
