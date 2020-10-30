@@ -17,7 +17,7 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 
-using namespace swoole;
+namespace swoole {
 using network::Socket;
 
 static int ReactorProcess_loop(ProcessPool *pool, Worker *worker);
@@ -38,7 +38,7 @@ int Server::create_reactor_processes() {
     reactor_num = worker_num;
     connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
     if (connection_list == nullptr) {
-        swSysWarn("calloc[2](%d) failed", (int ) (max_connection * sizeof(Connection)));
+        swSysWarn("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
         return SW_ERR;
     }
     return SW_OK;
@@ -472,3 +472,5 @@ static int ReactorProcess_reuse_port(ListenPort *ls) {
     return ls->listen();
 }
 #endif
+
+}  // namespace swoole

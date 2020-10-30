@@ -18,8 +18,8 @@
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
 
-using namespace swoole;
-using swoole::coroutine::System;
+namespace swoole {
+namespace coroutine {
 
 struct AsyncTask {
     Coroutine *co;
@@ -360,10 +360,7 @@ static void socket_poll_completed(void *data) {
     task->co->resume();
 }
 
-static inline void socket_poll_trigger_event(Reactor *reactor,
-                                             CoroPollTask *task,
-                                             int fd,
-                                             enum swEvent_type event) {
+static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, int fd, enum swEvent_type event) {
     auto i = task->fds->find(fd);
     if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR)) {
         if (i->second.events & SW_EVENT_READ) {
@@ -617,7 +614,7 @@ static void async_task_timeout(Timer *timer, TimerNode *tnode) {
     task->co->resume();
 }
 
-bool coroutine::async(async::Handler handler, AsyncEvent &event, double timeout) {
+bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     AsyncTask task;
     TimerNode *timer = nullptr;
 
@@ -666,7 +663,7 @@ static void async_lambda_callback(AsyncEvent *event) {
     task->co->resume();
 }
 
-bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
+bool async(const std::function<void(void)> &fn, double timeout) {
     TimerNode *timer = nullptr;
     AsyncEvent event{};
     AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
@@ -694,3 +691,6 @@ bool coroutine::async(const std::function<void(void)> &fn, double timeout) {
         return true;
     }
 }
+
+}  // namespace coroutine
+}  // namespace swoole

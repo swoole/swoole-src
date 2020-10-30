@@ -24,13 +24,8 @@
 
 #include <system_error>
 
-using swoole::CallbackManager;
-using swoole::Reactor;
-using swoole::ReactorHandler;
-using swoole::Event;
-using swoole::network::Socket;
-using swoole::Buffer;
-using swoole::BufferChunk;
+namespace swoole {
+using network::Socket;
 
 #ifdef SW_USE_MALLOC_TRIM
 #ifdef __APPLE__
@@ -57,7 +52,7 @@ Reactor::Reactor(int max_event, Type _type) {
         type_ = _type;
     }
 
-    switch(type_) {
+    switch (type_) {
 #ifdef HAVE_EPOLL
     case TYPE_EPOLL:
         impl = make_reactor_epoll(this, max_event);
@@ -214,8 +209,9 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
     }
 
     if ((uint32_t) n > socket->buffer_size) {
-        swoole_error_log(
-            SW_LOG_WARNING, SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "data packet is too large, cannot exceed the buffer size");
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                         "data packet is too large, cannot exceed the buffer size");
         return SW_ERR;
     }
 
@@ -237,7 +233,7 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
                 goto _alloc_buffer;
             }
         } else if (socket->catch_error(errno) == SW_WAIT) {
-            _alloc_buffer:
+        _alloc_buffer:
             if (!socket->out_buffer) {
                 buffer = new Buffer(socket->chunk_size);
                 if (!buffer) {
@@ -362,3 +358,5 @@ Reactor::~Reactor() {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
     }
 }
+
+}  // namespace swoole

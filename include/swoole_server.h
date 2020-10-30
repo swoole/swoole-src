@@ -696,6 +696,7 @@ class Server {
     void *private_data_1 = nullptr;
     void *private_data_2 = nullptr;
     void *private_data_3 = nullptr;
+    void *private_data_4 = nullptr;
 
     Factory *factory = nullptr;
 

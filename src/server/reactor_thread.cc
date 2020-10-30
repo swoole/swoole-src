@@ -24,8 +24,9 @@
 #include <assert.h>
 
 using std::unordered_map;
-using namespace swoole;
-using namespace swoole::network;
+
+namespace swoole {
+using namespace network;
 
 static void ReactorThread_loop(Server *serv, int reactor_id);
 static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_id);
@@ -277,7 +278,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
         // find the new max_fd
         for (; serv->is_valid_connection(serv->get_connection(find_max_fd)) && find_max_fd > serv->get_minfd();
-                find_max_fd--) {
+             find_max_fd--) {
             // pass
         }
         serv->set_maxfd(find_max_fd);
@@ -1104,3 +1105,5 @@ void Server::start_heartbeat_thread() {
         }
     });
 }
+
+}  // namespace swoole
