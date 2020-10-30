@@ -123,6 +123,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVector, 0, 0, 1)
     ZEND_ARG_INFO(0, iov)
+    ZEND_ARG_INFO(0, all)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -1280,10 +1281,12 @@ static PHP_METHOD(swoole_socket_coro, writeVector) {
     HashTable *vht;
     double timeout = 0;
     int iovcnt = 0;
+    zend_bool all = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 2)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ARRAY(ziov)
     Z_PARAM_OPTIONAL
+    Z_PARAM_BOOL(all)
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -1307,7 +1310,7 @@ static PHP_METHOD(swoole_socket_coro, writeVector) {
     SW_HASHTABLE_FOREACH_END();
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
-    ssize_t retval = sock->socket->writev(iov.get(), iovcnt);
+    ssize_t retval = all ? sock->socket->writev_all(iov.get(), iovcnt) : sock->socket->writev(iov.get(), iovcnt);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
         RETURN_FALSE;

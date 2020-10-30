@@ -26,6 +26,7 @@
 #include <set>
 #include <vector>
 #include <stack>
+#include <sys/uio.h>
 
 namespace swoole {
 
@@ -60,13 +61,30 @@ static inline long time(bool steady = false) {
     }
 }
 
+static inline int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, int &index, size_t &offset_bytes) {
+    index = 0;
+    offset_bytes = 0;
+    int total_bytes = 0;
+
+    for (; index < iovcnt; index++) {
+        total_bytes += iov[index].iov_len;
+        if (total_bytes >= __n) {
+            offset_bytes = iov[index].iov_len - (total_bytes - __n);
+            return 0;
+        }
+    }
+
+    // represents the length of __n greater than total_bytes
+    return -1;
+}
+
 class DeferFn {
   private:
     using Fn = std::function<void(void)>;
     Fn fn_;
     bool cancelled_ = false;
   public:
-    DeferFn(const Fn &fn) : 
+    DeferFn(const Fn &fn) :
         fn_(fn) {
     }
     void cancel() {
