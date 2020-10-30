@@ -63,22 +63,22 @@ int swoole_event_init(int flags) {
 }
 
 int swoole_event_add(Socket *socket, int events) {
-    return SwooleTG.reactor->add(SwooleTG.reactor, socket, events);
+    return SwooleTG.reactor->add(socket, events);
 }
 
 int swoole_event_set(Socket *socket, int events) {
-    return SwooleTG.reactor->set(SwooleTG.reactor, socket, events);
+    return SwooleTG.reactor->set(socket, events);
 }
 
 int swoole_event_del(Socket *socket) {
-    return SwooleTG.reactor->del(SwooleTG.reactor, socket);
+    return SwooleTG.reactor->del(socket);
 }
 
 int swoole_event_wait() {
     Reactor *reactor = SwooleTG.reactor;
     int retval = 0;
     if (!reactor->wait_exit or !reactor->if_exit()) {
-        retval = SwooleTG.reactor->wait(SwooleTG.reactor, nullptr);
+        retval = SwooleTG.reactor->wait(nullptr);
     }
     swoole_event_free();
     return retval;

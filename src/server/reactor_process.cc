@@ -298,7 +298,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
             }
         }
 #endif
-        if (reactor->add(reactor, ls->socket, SW_EVENT_READ) < 0) {
+        if (reactor->add(ls->socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }
@@ -329,10 +329,10 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     if (worker->pipe_worker) {
         worker->pipe_worker->set_nonblock();
         worker->pipe_master->set_nonblock();
-        if (reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ) < 0) {
+        if (reactor->add(worker->pipe_worker, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
-        if (reactor->add(reactor, worker->pipe_master, SW_EVENT_READ) < 0) {
+        if (reactor->add(worker->pipe_master, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }
@@ -378,7 +378,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         }
     }
 
-    int retval = reactor->wait(reactor, nullptr);
+    int retval = reactor->wait(nullptr);
 
     /**
      * Close all connections
@@ -412,7 +412,7 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
     if (event->socket->removed) {
         return Server::close_connection(reactor, event->socket);
     }
-    if (reactor->del(reactor, event->socket) == 0) {
+    if (reactor->del(event->socket) == 0) {
         if (conn->close_queued) {
             return Server::close_connection(reactor, event->socket);
         } else {

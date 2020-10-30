@@ -135,7 +135,7 @@ static int Worker_onStreamAccept(Reactor *reactor, Event *event) {
     sock->fd_type = SW_FD_STREAM;
     sock->socket_type = SW_SOCK_UNIX_STREAM;
 
-    return reactor->add(reactor, sock, SW_EVENT_READ);
+    return reactor->add(sock, SW_EVENT_READ);
 }
 
 static int Worker_onStreamRead(Reactor *reactor, Event *event) {
@@ -174,7 +174,7 @@ static int Worker_onStreamClose(Reactor *reactor, Event *event) {
     serv->buffer_pool->push(sock->recv_buffer);
     sock->recv_buffer = nullptr;
 
-    reactor->del(reactor, sock);
+    reactor->del(sock);
     reactor->close(reactor, sock);
 
     if (serv->last_stream_socket == sock) {
@@ -439,7 +439,7 @@ void Server::stop_async_worker(Worker *worker) {
     SwooleWG.worker = worker;
 
     if (stream_socket) {
-        reactor->del(reactor, stream_socket);
+        reactor->del(stream_socket);
         stream_socket->free();
         stream_socket = nullptr;
     }
@@ -451,7 +451,7 @@ void Server::stop_async_worker(Worker *worker) {
     if (is_base_mode()) {
         if (is_worker()) {
             for (auto ls : ports) {
-                reactor->del(reactor, ls->socket);
+                reactor->del(ls->socket);
             }
             if (worker->pipe_master && !worker->pipe_master->removed) {
                 reactor->remove_read_event(worker->pipe_master);
@@ -566,11 +566,11 @@ int Server::start_event_worker(Worker *worker) {
 
     worker->pipe_worker->set_nonblock();
     reactor->ptr = this;
-    reactor->add(reactor, worker->pipe_worker, SW_EVENT_READ);
+    reactor->add(worker->pipe_worker, SW_EVENT_READ);
     reactor->set_handler(SW_FD_PIPE, Worker_onPipeReceive);
 
     if (dispatch_mode == SW_DISPATCH_STREAM) {
-        reactor->add(reactor, stream_socket, SW_EVENT_READ);
+        reactor->add(stream_socket, SW_EVENT_READ);
         reactor->set_handler(SW_FD_STREAM_SERVER, Worker_onStreamAccept);
         reactor->set_handler(SW_FD_STREAM, Worker_onStreamRead);
         network::Stream::set_protocol(&stream_protocol);
@@ -584,7 +584,7 @@ int Server::start_event_worker(Worker *worker) {
     worker_start_callback();
 
     // main loop
-    reactor->wait(reactor, nullptr);
+    reactor->wait(nullptr);
     // drain pipe buffer
     drain_worker_pipe();
     // reactor free
