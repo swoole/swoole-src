@@ -72,10 +72,8 @@ static void thread_write(void) {
         } while (yield_count < 100);
 
         if (!ptr) {
-            printf("alloc failed. index=%d, break\n", i);
-            break;
+            swWarn("alloc failed. index=%d, break", i);
         }
-
         ASSERT_NE(ptr, nullptr);
 
         send_pkg.id = i;
