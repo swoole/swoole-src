@@ -21,14 +21,24 @@
 #include "swoole_memory.h"
 
 TEST(global_memory, alloc) {
-    auto m = swMemoryGlobal_new(2 * 1024 * 1024, false);
+    auto pool = new swoole::GlobalMemory(2 * 1024 * 1024, false);
 
-    void *ptr1 = m->alloc(m, 199);
-    m->free(m, ptr1);
+    char *ptr1 = (char *) pool->alloc(199);
+    pool->free(ptr1);
+    strcpy(ptr1, "hello, world, #1");
 
-    void *ptr2 = m->alloc(m, 12);
-    void *ptr3 = m->alloc(m, 198);
+    char *ptr2 = (char *) pool->alloc(12);
+    strcpy(ptr2, "hello, world, #2");
+    char *ptr3 = (char *) pool->alloc(198);
+    strcpy(ptr3, "hello, world, #3");
 
-    ASSERT_EQ(ptr1, ptr3);
-    ASSERT_NE(ptr1, ptr2);
+    ASSERT_TRUE(ptr1);
+    ASSERT_TRUE(ptr2);
+    ASSERT_TRUE(ptr3);
+
+    delete pool;
+
+    ASSERT_STREQ(ptr1, "hello, world, #1");
+    ASSERT_STREQ(ptr2, "hello, world, #2");
+    ASSERT_STREQ(ptr3, "hello, world, #3");
 }

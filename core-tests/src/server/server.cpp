@@ -91,7 +91,7 @@ TEST(server, process) {
 
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    swLock *lock = (swLock *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(*lock));
+    swLock *lock = (swLock *) SwooleG.memory_pool->alloc(sizeof(*lock));
     swMutex_create(lock, SW_MUTEX_PROCESS_SHARED);
     lock->lock(lock);
 
@@ -136,7 +136,7 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.start(), 0);
 
-    SwooleG.memory_pool->free(SwooleG.memory_pool, lock);
+    SwooleG.memory_pool->free(lock);
 }
 
 TEST(server, task_worker) {

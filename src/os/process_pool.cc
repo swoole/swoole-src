@@ -25,14 +25,10 @@
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
 
-using swoole::MsgQueue;
-using swoole::ProcessPool;
-using swoole::QueueNode;
-using swoole::Timer;
-using swoole::TimerNode;
-using swoole::Worker;
-using swoole::network::Socket;
-using swoole::network::Stream;
+namespace swoole {
+
+using network::Socket;
+using network::Stream;
 
 /**
  * call onTask
@@ -78,7 +74,7 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
     /**
      * Shared memory is used here
      */
-    pool->workers = (Worker *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, worker_num * sizeof(Worker));
+    pool->workers = (Worker *) SwooleG.memory_pool->alloc(worker_num * sizeof(Worker));
     if (pool->workers == nullptr) {
         swSysWarn("malloc[1] failed");
         return SW_ERR;
@@ -742,5 +738,7 @@ void ProcessPool::destroy() {
         delete map_;
     }
 
-    SwooleG.memory_pool->free(SwooleG.memory_pool, workers);
+    SwooleG.memory_pool->free(workers);
 }
+
+}  // namespace swoole

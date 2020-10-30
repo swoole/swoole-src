@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
+
 #if defined(MAP_ANON) && !defined(MAP_ANONYMOUS)
 #define MAP_ANONYMOUS MAP_ANON
 #endif
@@ -28,76 +29,31 @@
 
 #define SW_SHM_MMAP_FILE_LEN 64
 
-struct swShareMemory {
-    size_t size;
-    char mapfile[SW_SHM_MMAP_FILE_LEN];
-    int tmpfd;
-    void *mem;
+namespace swoole {
+
+struct SharedMemory {
+    size_t size_;
+#ifndef MAP_ANONYMOUS
+    char mapfile_[SW_SHM_MMAP_FILE_LEN];
+    int tmpfd_;
+#endif
+
+    static void *alloc(size_t size, const char *mapfile);
+    static void free(void *ptr);
+
+    static SharedMemory *fetch_object(void *ptr) {
+        return (SharedMemory *) ((char *) ptr - sizeof(SharedMemory));
+    }
 };
 
-static void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile);
-static int swShareMemory_mmap_free(swShareMemory *object);
-
-void *sw_shm_malloc(size_t size) {
-    size = SW_MEM_ALIGNED_SIZE(size);
-    swShareMemory object;
-    void *mem;
-    size += sizeof(swShareMemory);
-    mem = swShareMemory_mmap_create(&object, size, nullptr);
-    if (mem == nullptr) {
-        return nullptr;
-    } else {
-        memcpy(mem, &object, sizeof(swShareMemory));
-        return (char *) mem + sizeof(swShareMemory);
-    }
-}
-
-void *sw_shm_calloc(size_t num, size_t _size) {
-    swShareMemory object;
-    void *mem;
-    void *ret_mem;
-    size_t size = sizeof(swShareMemory) + (num * _size);
-    size = SW_MEM_ALIGNED_SIZE(size);
-
-    mem = swShareMemory_mmap_create(&object, size, nullptr);
-    if (mem == nullptr) {
-        return nullptr;
-    } else {
-        memcpy(mem, &object, sizeof(swShareMemory));
-        ret_mem = (char *) mem + sizeof(swShareMemory);
-        sw_memset_zero(ret_mem, size - sizeof(swShareMemory));
-        return ret_mem;
-    }
-}
-
-int sw_shm_protect(void *addr, int flags) {
-    swShareMemory *object = (swShareMemory *) ((char *) addr - sizeof(swShareMemory));
-    return mprotect(object, object->size, flags);
-}
-
-void sw_shm_free(void *ptr) {
-    swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
-    swShareMemory_mmap_free(object);
-}
-
-void *sw_shm_realloc(void *ptr, size_t new_size) {
-    swShareMemory *object = (swShareMemory *) ((char *) ptr - sizeof(swShareMemory));
-    void *new_ptr;
-    new_ptr = sw_shm_malloc(new_size);
-    if (new_ptr == nullptr) {
-        return nullptr;
-    } else {
-        memcpy(new_ptr, ptr, object->size);
-        sw_shm_free(ptr);
-        return new_ptr;
-    }
-}
-
-static void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const char *mapfile) {
+void *SharedMemory::alloc(size_t size, const char *mapfile) {
     void *mem;
     int tmpfd = -1;
     int flag = MAP_SHARED;
-    sw_memset_zero(object, sizeof(swShareMemory));
+    SharedMemory object;
+
+    size = SW_MEM_ALIGNED_SIZE(size);
+    size += sizeof(SharedMemory);
 
 #ifdef MAP_ANONYMOUS
     flag |= MAP_ANONYMOUS;
@@ -108,8 +64,8 @@ static void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const
     if ((tmpfd = open(mapfile, O_RDWR)) < 0) {
         return nullptr;
     }
-    sw_strlcpy(object->mapfile, mapfile, SW_SHM_MMAP_FILE_LEN);
-    object->tmpfd = tmpfd;
+    sw_strlcpy(object->mapfile_, mapfile, SW_SHM_MMAP_FILE_LEN);
+    object->tmpfd_ = tmpfd;
 #endif
 
 #if defined(SW_USE_HUGEPAGE) && defined(MAP_HUGE_PAGE)
@@ -130,15 +86,51 @@ static void *swShareMemory_mmap_create(swShareMemory *object, size_t size, const
     if (!mem)
 #endif
     {
-        swSysWarn("mmap(%ld) failed", size);
+        swSysWarn("mmap(%lu) failed", size);
         return nullptr;
     } else {
-        object->size = size;
-        object->mem = mem;
-        return mem;
+        object.size_ = size;
+        memcpy(mem, &object, sizeof(object));
+        return (char *) mem + sizeof(object);
     }
 }
 
-static int swShareMemory_mmap_free(swShareMemory *object) {
-    return munmap(object->mem, object->size);
+void SharedMemory::free(void *ptr) {
+    SharedMemory *object = SharedMemory::fetch_object(ptr);
+    size_t size = object->size_;
+    if (munmap(object, size) < 0) {
+        swSysWarn("munmap(%p, %lu) failed", object, size);
+    }
+}
+
+}  // namespace swoole
+
+using swoole::SharedMemory;
+
+void *sw_shm_malloc(size_t size) {
+    return SharedMemory::alloc(size, nullptr);
+}
+
+void *sw_shm_calloc(size_t num, size_t _size) {
+    return SharedMemory::alloc(num * _size, nullptr);
+}
+
+int sw_shm_protect(void *ptr, int flags) {
+    SharedMemory *object = SharedMemory::fetch_object(ptr);
+    return mprotect(object, object->size_, flags);
+}
+
+void sw_shm_free(void *ptr) {
+    SharedMemory::free(ptr);
+}
+
+void *sw_shm_realloc(void *ptr, size_t new_size) {
+    SharedMemory *object = SharedMemory::fetch_object(ptr);
+    void *new_ptr = sw_shm_malloc(new_size);
+    if (new_ptr == nullptr) {
+        return nullptr;
+    }
+    memcpy(new_ptr, ptr, object->size_);
+    SharedMemory::free(ptr);
+    return new_ptr;
 }

@@ -184,6 +184,7 @@ typedef unsigned long ulong_t;
 
 /*-------------------------------Declare Struct--------------------------------*/
 namespace swoole {
+class MemoryPool;
 class Reactor;
 class String;
 class Timer;
@@ -213,7 +214,6 @@ typedef swoole::Event swEvent;
 typedef swoole::Pipe swPipe;
 typedef swoole::Callback swCallback;
 
-struct swMemoryPool;
 /*----------------------------------String-------------------------------------*/
 
 #define SW_STRS(s) s, sizeof(s)
@@ -658,7 +658,7 @@ struct Global {
     struct utsname uname;
     uint32_t max_sockets;
     //-----------------------[Memory]--------------------------
-    swMemoryPool *memory_pool;
+    MemoryPool *memory_pool;
     swAllocator std_allocator;
     std::string task_tmpfile;
     //-----------------------[DNS]--------------------------
@@ -730,6 +730,10 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
 
 static sw_inline swoole::String *sw_tg_buffer() {
    return SwooleTG.buffer_stack;
+}
+
+static sw_inline swoole::MemoryPool *sw_mem_pool() {
+    return SwooleG.memory_pool;
 }
 
 namespace swoole {
