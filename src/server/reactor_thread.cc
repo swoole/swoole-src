@@ -706,10 +706,6 @@ int Server::create_reactor_threads() {
         swError("calloc[1] failed");
         return SW_ERR;
     }
-    if (worker_num < 1) {
-        swError("Fatal Error: worker_num < 1");
-        return SW_ERR;
-    }
     reactor_pipe_num = worker_num / reactor_num;
     return SW_OK;
 }

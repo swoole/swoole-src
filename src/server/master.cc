@@ -704,12 +704,6 @@ int Server::create() {
         return SW_ERR;
     }
 
-    if (mode_ == Server::MODE_BASE) {
-        factory = new BaseFactory(this);
-    } else {
-        factory = new ProcessFactory(this);
-    }
-
     session_list = (Session *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(Session));
     if (session_list == nullptr) {
         swError("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(Session));
@@ -777,8 +771,10 @@ int Server::create() {
     }
 
     if (is_base_mode()) {
+        factory = new BaseFactory(this);
         return create_reactor_processes();
     } else {
+        factory = new ProcessFactory(this);
         return create_reactor_threads();
     }
 }

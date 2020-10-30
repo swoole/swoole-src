@@ -459,10 +459,7 @@ class ProcessFactory : public Factory {
     bool create_pipes();
 
   public:
-    ProcessFactory(Server *server) : Factory(server) {
-        pipes = nullptr;
-        send_buffer = nullptr;
-    }
+    ProcessFactory(Server *server);
     ~ProcessFactory();
     bool start() override;
     bool shutdown() override;

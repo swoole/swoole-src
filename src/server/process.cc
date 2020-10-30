@@ -28,6 +28,27 @@ static bool process_send_packet(Server *serv, PipeBuffer *buf, SendData *resp, s
 static int process_sendto_worker(Server *serv, PipeBuffer *buf, size_t n, void *private_data);
 static int process_sendto_reactor(Server *serv, PipeBuffer *buf, size_t n, void *private_data);
 
+ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
+    pipes = nullptr;
+    send_buffer = nullptr;
+    
+    pipes = new Pipe[server_->worker_num]();
+
+    SW_LOOP_N(server_->worker_num) {
+        if (swPipeUnsock_create(&pipes[i], 1, SOCK_DGRAM) < 0) {
+            if (i > 0) {
+                while(--i) {
+                    pipes[i].close(&pipes[i]);  
+                }
+            }
+            delete[] pipes;
+            pipes = nullptr;
+            swFatalError(errno, "failed to create pipe");
+            return;
+        }
+    }
+}
+
 bool ProcessFactory::shutdown() {
     int status;
 
@@ -37,6 +58,11 @@ bool ProcessFactory::shutdown() {
 
     if (swoole_waitpid(server_->gs->manager_pid, &status, 0) < 0) {
         swSysWarn("waitpid(%d) failed", server_->gs->manager_pid);
+    }
+
+    SW_LOOP_N(server_->worker_num){
+        Worker *worker = &server_->workers[i];
+        server_->destroy_worker(worker);
     }
 
     return SW_OK;
@@ -54,27 +80,17 @@ ProcessFactory::~ProcessFactory() {
         server_->stream_socket->free();
     }
 
+    sw_free(send_buffer);
+
     SW_LOOP_N(server_->worker_num){
         pipes[i].close(&pipes[i]);
-        Worker *worker = &server_->workers[i];
-        server_->destroy_worker(worker);
     }
-
-    sw_free(send_buffer);
     delete[] pipes;
 }
 
-bool ProcessFactory::create_pipes() {
-    pipes = new Pipe[server_->worker_num]();
-
+bool ProcessFactory::start() {
     SW_LOOP_N(server_->worker_num) {
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
-
-        if (swPipeUnsock_create(&pipes[i], 1, SOCK_DGRAM) < 0) {
-            delete[] pipes;
-            pipes = nullptr;
-            return false;
-        }
 
         server_->workers[i].pipe_master = pipes[i].get_socket(true);
         server_->workers[i].pipe_worker = pipes[i].get_socket(false);
@@ -86,10 +102,6 @@ bool ProcessFactory::create_pipes() {
         server_->store_pipe_fd(server_->workers[i].pipe_object);
     }
 
-    return true;
-}
-
-bool ProcessFactory::start() {
     if (server_->dispatch_mode == SW_DISPATCH_STREAM) {
         server_->stream_socket_file = swoole_string_format(64, "/tmp/swoole.%d.sock", server_->gs->master_pid);
         if (server_->stream_socket_file == nullptr) {
@@ -107,10 +119,6 @@ bool ProcessFactory::start() {
         if (server_->create_worker(server_->get_worker(i)) < 0) {
             return false;
         }
-    }
-
-    if (!create_pipes()) {
-        return false;
     }
 
     server_->set_ipc_max_size();
