@@ -87,7 +87,7 @@ void ManagerProcess::add_timeout_killer(Server *serv, Worker *workers, int n) {
     /**
      * separate old workers, free memory in the timer
      */
-    ReloadWorkerList *_list = new reload_list_t;
+    ReloadWorkerList *_list = new ReloadWorkerList();
     for (int i = 0; i < n; i++) {
         _list->emplace(workers[i].id, workers[i].pid);
     }
