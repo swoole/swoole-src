@@ -117,7 +117,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readv, 0, 0, 1)
-    ZEND_ARG_INFO(1, iov)
+    ZEND_ARG_INFO(0, iov)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
