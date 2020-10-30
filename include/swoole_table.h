@@ -121,7 +121,7 @@ class Table {
     ~Table() = delete;
 
     std::unordered_map<std::string, TableColumn *> *column_map;
-    swLock lock;
+    Mutex *mutex;
     size_t size;
     size_t mask;
     size_t item_size;

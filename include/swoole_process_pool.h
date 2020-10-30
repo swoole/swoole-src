@@ -101,7 +101,7 @@ struct Worker {
      */
     uint32_t id;
 
-    swLock lock;
+    Mutex *lock;
 
     Pipe *pipe_object;
 

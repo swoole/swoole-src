@@ -66,10 +66,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     // use lock
     if (flags & SW_CHAN_LOCK) {
         // init lock
-        if (swMutex_create(&object->lock, SW_MUTEX_PROCESS_SHARED) < 0) {
-            swWarn("mutex init failed");
-            return nullptr;
-        }
+        object->lock = new Mutex(Mutex::PROCESS_SHARED);
     }
     // use notify
     if (flags & SW_CHAN_NOTIFY) {
@@ -147,12 +144,12 @@ int Channel::peek(void *out, int buffer_length) {
     }
 
     int length;
-    lock.lock(&lock);
+    lock->lock();
     Channel_item *item = (Channel_item *) ((char *) mem + head);
     assert(buffer_length >= item->length);
     memcpy(out, item->data, item->length);
     length = item->length;
-    lock.unlock(&lock);
+    lock->unlock();
 
     return length;
 }
@@ -180,9 +177,9 @@ int Channel::notify() {
  */
 int Channel::push(const void *in_data, int data_length) {
     assert(flags & SW_CHAN_LOCK);
-    lock.lock(&lock);
+    lock->lock();
     int ret = in(in_data, data_length);
-    lock.unlock(&lock);
+    lock->unlock();
     return ret;
 }
 
@@ -191,7 +188,7 @@ int Channel::push(const void *in_data, int data_length) {
  */
 void Channel::destroy() {
     if (flags & SW_CHAN_LOCK) {
-        lock.free(&lock);
+        delete lock;
     }
     if (flags & SW_CHAN_NOTIFY) {
         notify_pipe->close(notify_pipe);
@@ -209,9 +206,9 @@ void Channel::destroy() {
  */
 int Channel::pop(void *out_buf, int buffer_length) {
     assert(flags & SW_CHAN_LOCK);
-    lock.lock(&lock);
+    lock->lock();
     int n = out(out_buf, buffer_length);
-    lock.unlock(&lock);
+    lock->unlock();
     return n;
 }
 

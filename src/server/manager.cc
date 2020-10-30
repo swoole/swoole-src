@@ -107,9 +107,7 @@ int Server::start_manager_process() {
         Worker *worker;
         for (i = 0; i < task_worker_num; i++) {
             worker = &gs->task_workers.workers[i];
-            if (create_worker(worker) < 0) {
-                return SW_ERR;
-            }
+            create_worker(worker);
             if (task_ipc_mode == SW_TASK_IPC_UNIXSOCK) {
                 store_pipe_fd(worker->pipe_object);
             }
@@ -125,9 +123,7 @@ int Server::start_manager_process() {
         i = 0;
         for (auto worker : *user_worker_list) {
             memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
-            if (create_worker(&user_workers[i]) < 0) {
-                return SW_ERR;
-            }
+            create_worker(worker);
             i++;
         }
     }

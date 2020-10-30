@@ -29,16 +29,13 @@ pid_t Process::start() {
         printf("[Worker] Fatal Error: fork() failed");
         exit(1);
     } else if (pid == 0) {
-
         worker.child_process = 1;
         worker.pipe_current = worker.pipe_worker;
         handler(this);
-
         exit(0);
     } else {
         worker.pid = pid;
         worker.child_process = 0;
-
         return pid;
     }
 }

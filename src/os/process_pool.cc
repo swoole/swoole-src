@@ -74,7 +74,7 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
     /**
      * Shared memory is used here
      */
-    pool->workers = (Worker *) SwooleG.memory_pool->alloc(worker_num * sizeof(Worker));
+    pool->workers = (Worker *) sw_mem_pool()->alloc(worker_num * sizeof(Worker));
     if (pool->workers == nullptr) {
         swSysWarn("malloc[1] failed");
         return SW_ERR;
@@ -738,7 +738,7 @@ void ProcessPool::destroy() {
         delete map_;
     }
 
-    SwooleG.memory_pool->free(workers);
+    sw_mem_pool()->free(workers);
 }
 
 }  // namespace swoole

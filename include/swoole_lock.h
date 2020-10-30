@@ -18,60 +18,92 @@
 #pragma once
 
 #include "swoole.h"
+#include "swoole_memory.h"
 
-enum swLock_type {
-    SW_RWLOCK = 1,
-    SW_FILELOCK = 2,
-    SW_MUTEX = 3,
-    SW_SEM = 4,
-    SW_SPINLOCK = 5,
-    SW_ATOMLOCK = 6,
+#include <system_error>
+
+namespace swoole {
+
+class Lock {
+  public:
+    enum Type {
+        NONE,
+        RW_LOCK = 1,
+        FILE_LOCK = 2,
+        MUTEX = 3,
+        SEM = 4,
+        SPIN_LOCK = 5,
+        ATOMIC_LOCK = 6,
+    };
+    Type get_type() {
+        return type_;
+    }
+    virtual ~Lock(){};
+    virtual int lock_rd() = 0;
+    virtual int lock() = 0;
+    virtual int unlock() = 0;
+    virtual int trylock_rd() = 0;
+    virtual int trylock() = 0;
+
+  protected:
+    Lock() {
+        type_ = NONE;
+        shared_ = false;
+    }
+    enum Type type_;
+    bool shared_;
 };
 
-struct swMutex {
-    pthread_mutex_t _lock;
-    pthread_mutexattr_t attr;
-};
+struct MutexImpl;
 
-enum swMutex_flag {
-    SW_MUTEX_PROCESS_SHARED = 1,
-    SW_MUTEX_ROBUST = 2,
+class Mutex : public Lock {
+    MutexImpl *impl;
+
+  public:
+    enum Flag {
+        PROCESS_SHARED = 1,
+        ROBUST = 2,
+    };
+
+    Mutex(int flags);
+    ~Mutex();
+    int lock_rd() override;
+    int lock() override;
+    int unlock() override;
+    int trylock_rd() override;
+    int trylock() override;
+    int lock_wait(int timeout_msec);
 };
 
 #ifdef HAVE_RWLOCK
-struct swRWLock {
-    pthread_rwlock_t _lock;
-    pthread_rwlockattr_t attr;
+struct RWLockImpl;
+
+class RWLock : public Lock {
+    RWLockImpl *impl;
+
+  public:
+    RWLock(int use_in_process);
+    ~RWLock();
+    int lock_rd() override;
+    int lock() override;
+    int unlock() override;
+    int trylock_rd() override;
+    int trylock() override;
 };
 #endif
 
-struct swLock {
-    int type;
-    union {
-        swMutex mutex;
-#ifdef HAVE_RWLOCK
-        swRWLock rwlock;
-#endif
 #ifdef HAVE_SPINLOCK
-        pthread_spinlock_t spin_lock;
-#endif
-    } object;
+class SpinLock : public Lock {
+    pthread_spinlock_t *impl;
 
-    int (*lock_rd)(swLock *);
-    int (*lock)(swLock *);
-    int (*unlock)(swLock *);
-    int (*trylock_rd)(swLock *);
-    int (*trylock)(swLock *);
-    int (*free)(swLock *);
+  public:
+    SpinLock(int use_in_process);
+    ~SpinLock();
+    int lock_rd() override;
+    int lock() override;
+    int unlock() override;
+    int trylock_rd() override;
+    int trylock() override;
 };
-
-int swMutex_create(swLock *lock, int flags);
-int swMutex_lockwait(swLock *lock, int timeout_msec);
-
-#ifdef HAVE_RWLOCK
-int swRWLock_create(swLock *lock, int use_in_process);
 #endif
-
-#ifdef HAVE_SPINLOCK
-int swSpinLock_create(swLock *object, int spin);
-#endif
+}  // namespace swoole

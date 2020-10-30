@@ -14,59 +14,69 @@
   +----------------------------------------------------------------------+
 */
 
+#include "swoole.h"
 #include "swoole_lock.h"
 
 #ifdef HAVE_RWLOCK
 
-static int swRWLock_lock_rd(swLock *lock);
-static int swRWLock_lock_rw(swLock *lock);
-static int swRWLock_unlock(swLock *lock);
-static int swRWLock_trylock_rw(swLock *lock);
-static int swRWLock_trylock_rd(swLock *lock);
-static int swRWLock_free(swLock *lock);
+namespace swoole {
 
-int swRWLock_create(swLock *lock, int use_in_process) {
-    int ret;
-    sw_memset_zero(lock, sizeof(swLock));
-    lock->type = SW_RWLOCK;
-    pthread_rwlockattr_init(&lock->object.rwlock.attr);
+struct RWLockImpl {
+    pthread_rwlock_t _lock;
+    pthread_rwlockattr_t attr;
+};
+
+RWLock::RWLock(int use_in_process) : Lock() {
+    if (use_in_process) {
+        impl = (RWLockImpl *) sw_mem_pool()->alloc(sizeof(*impl));
+        if (impl == nullptr) {
+            throw std::bad_alloc();
+        }
+        shared_ = true;
+    } else {
+        impl = new RWLockImpl();
+        shared_ = false;
+    }
+
+    type_ = RW_LOCK;
+    pthread_rwlockattr_init(&impl->attr);
     if (use_in_process == 1) {
-        pthread_rwlockattr_setpshared(&lock->object.rwlock.attr, PTHREAD_PROCESS_SHARED);
+        pthread_rwlockattr_setpshared(&impl->attr, PTHREAD_PROCESS_SHARED);
     }
-    if ((ret = pthread_rwlock_init(&lock->object.rwlock._lock, &lock->object.rwlock.attr)) < 0) {
-        return SW_ERR;
+    if (pthread_rwlock_init(&impl->_lock, &impl->attr) < 0) {
+        throw std::system_error(errno, std::generic_category(), "pthread_rwlock_init() failed");
     }
-    lock->lock_rd = swRWLock_lock_rd;
-    lock->lock = swRWLock_lock_rw;
-    lock->unlock = swRWLock_unlock;
-    lock->trylock = swRWLock_trylock_rw;
-    lock->trylock_rd = swRWLock_trylock_rd;
-    lock->free = swRWLock_free;
-    return SW_OK;
 }
 
-static int swRWLock_lock_rd(swLock *lock) {
-    return pthread_rwlock_rdlock(&lock->object.rwlock._lock);
+int RWLock::lock_rd() {
+    return pthread_rwlock_rdlock(&impl->_lock);
 }
 
-static int swRWLock_lock_rw(swLock *lock) {
-    return pthread_rwlock_wrlock(&lock->object.rwlock._lock);
+int RWLock::lock() {
+    return pthread_rwlock_wrlock(&impl->_lock);
 }
 
-static int swRWLock_unlock(swLock *lock) {
-    return pthread_rwlock_unlock(&lock->object.rwlock._lock);
+int RWLock::unlock() {
+    return pthread_rwlock_unlock(&impl->_lock);
 }
 
-static int swRWLock_trylock_rd(swLock *lock) {
-    return pthread_rwlock_tryrdlock(&lock->object.rwlock._lock);
+int RWLock::trylock_rd() {
+    return pthread_rwlock_tryrdlock(&impl->_lock);
 }
 
-static int swRWLock_trylock_rw(swLock *lock) {
-    return pthread_rwlock_trywrlock(&lock->object.rwlock._lock);
+int RWLock::trylock() {
+    return pthread_rwlock_trywrlock(&impl->_lock);
 }
 
-static int swRWLock_free(swLock *lock) {
-    return pthread_rwlock_destroy(&lock->object.rwlock._lock);
+RWLock::~RWLock() {
+    pthread_rwlock_destroy(&impl->_lock);
+    if (shared_) {
+        sw_mem_pool()->free(impl);
+    } else {
+        delete impl;
+    }
 }
+
+}  // namespace swoole
 
 #endif

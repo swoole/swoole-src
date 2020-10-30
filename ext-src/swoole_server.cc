@@ -3128,11 +3128,11 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     int *finish_count = (int *) task_result->data;
 
-    worker->lock.lock(&worker->lock);
+    worker->lock->lock();
     *finish_count = 0;
 
     swoole_strlcpy(task_result->data + 4, file_path.c_str(), SW_TASK_TMP_PATH_SIZE);
-    worker->lock.unlock(&worker->lock);
+    worker->lock->unlock();
 
     // clear history task
     network::Socket *task_notify_socket = task_notify_pipe->get_socket(false);
@@ -3178,9 +3178,9 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         break;
     }
 
-    worker->lock.lock(&worker->lock);
+    worker->lock->lock();
     auto content = swoole::file_get_contents(file_path);
-    worker->lock.unlock(&worker->lock);
+    worker->lock->unlock();
 
     if (content.get() == nullptr) {
         RETURN_FALSE;

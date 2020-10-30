@@ -14,43 +14,58 @@
   +----------------------------------------------------------------------+
 */
 
+#include "swoole.h"
 #include "swoole_lock.h"
 
 #ifdef HAVE_SPINLOCK
 
-static int swSpinLock_lock(swLock *lock);
-static int swSpinLock_unlock(swLock *lock);
-static int swSpinLock_trylock(swLock *lock);
-static int swSpinLock_free(swLock *lock);
+namespace swoole {
 
-int swSpinLock_create(swLock *lock, int use_in_process) {
-    int ret;
-    sw_memset_zero(lock, sizeof(swLock));
-    lock->type = SW_SPINLOCK;
-    if ((ret = pthread_spin_init(&lock->object.spin_lock, use_in_process)) < 0) {
-        return -1;
+SpinLock::SpinLock(int use_in_process) : Lock() {
+    if (use_in_process) {
+        impl = (pthread_spinlock_t *) sw_mem_pool()->alloc(sizeof(*impl));
+        if (impl == nullptr) {
+            throw std::bad_alloc();
+        }
+        shared_ = true;
+    } else {
+        impl = new pthread_spinlock_t();
+        shared_ = false;
     }
-    lock->lock = swSpinLock_lock;
-    lock->unlock = swSpinLock_unlock;
-    lock->trylock = swSpinLock_trylock;
-    lock->free = swSpinLock_free;
-    return 0;
+
+    type_ = SPIN_LOCK;
+    if (pthread_spin_init(impl, use_in_process) < 0) {
+        throw std::system_error(errno, std::generic_category(), "pthread_spin_init() failed");
+    }
 }
 
-static int swSpinLock_lock(swLock *lock) {
-    return pthread_spin_lock(&lock->object.spin_lock);
+int SpinLock::lock() {
+    return pthread_spin_lock(impl);
 }
 
-static int swSpinLock_unlock(swLock *lock) {
-    return pthread_spin_unlock(&lock->object.spin_lock);
+int SpinLock::lock_rd() {
+    return lock();
 }
 
-static int swSpinLock_trylock(swLock *lock) {
-    return pthread_spin_trylock(&lock->object.spin_lock);
+int SpinLock::unlock() {
+    return pthread_spin_unlock(impl);
 }
 
-static int swSpinLock_free(swLock *lock) {
-    return pthread_spin_destroy(&lock->object.spin_lock);
+int SpinLock::trylock() {
+    return pthread_spin_trylock(impl);
 }
 
+int SpinLock::trylock_rd() {
+    return trylock();
+}
+
+SpinLock::~SpinLock() {
+    pthread_spin_destroy(impl);
+    if (shared_) {
+        sw_mem_pool()->free((void *) impl);
+    } else {
+        delete impl;
+    }
+}
+}  // namespace swoole
 #endif

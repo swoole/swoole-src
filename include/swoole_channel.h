@@ -48,7 +48,7 @@ struct Channel {
      * memory point
      */
     void *mem;
-    swLock lock;
+    Lock *lock;
     Pipe *notify_pipe;
 
     inline bool empty() {

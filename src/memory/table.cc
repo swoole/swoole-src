@@ -39,11 +39,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
     if (table == nullptr) {
         return nullptr;
     }
-    table->created = false;
-    if (swMutex_create(&table->lock, SW_MUTEX_PROCESS_SHARED) < 0) {
-        swWarn("mutex create failed");
-        return nullptr;
-    }
+    table->mutex = new Mutex(Mutex::PROCESS_SHARED);
     table->iterator = new TableIterator;
     table->column_map = new std::unordered_map<std::string, TableColumn *>;
     table->column_list = new std::vector<TableColumn *>;
@@ -165,6 +161,7 @@ void Table::destroy() {
         sw_shm_free(memory);
     }
     memory = nullptr;
+    delete mutex;
     sw_mem_pool()->free(this);
 }
 
@@ -288,7 +285,7 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
             if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
                 break;
             } else if (row->next == nullptr) {
-                lock.lock(&lock);
+                mutex->lock();
                 TableRow *new_row = (TableRow *) pool->alloc(0);
 #ifdef SW_TABLE_DEBUG
                 conflict_count++;
@@ -296,7 +293,7 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
                     conflict_max_level = _conflict_level;
                 }
 #endif
-                lock.unlock(&lock);
+                mutex->unlock();
                 if (!new_row) {
                     return nullptr;
                 }
@@ -373,10 +370,10 @@ bool Table::del(const char *key, uint16_t keylen) {
         if (prev) {
             prev->next = tmp->next;
         }
-        lock.lock(&lock);
+        mutex->lock();
         tmp->clear();
         pool->free(tmp);
-        lock.unlock(&lock);
+        mutex->unlock();
     }
 
 _delete_element:

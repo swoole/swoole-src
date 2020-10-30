@@ -107,9 +107,7 @@ int Server::start_reactor_processes() {
     }
 
     SW_LOOP_N(worker_num) {
-        if (create_worker(&gs->event_workers.workers[i]) < 0) {
-            return SW_ERR;
-        }
+        create_worker(&gs->event_workers.workers[i]);
     }
 
     // task workers
