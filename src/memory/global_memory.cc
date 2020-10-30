@@ -89,7 +89,7 @@ void *GlobalMemory::alloc(uint32_t size) {
         impl =  new GlobalMemoryImpl(old_impl->pagesize, old_impl->shared);
     }
 
-    swTrace("alloc_size = %d, size=%d, index=%d\n", alloc_size, size, index);
+    swTrace("alloc_size=%u, size=%u", alloc_size, size);
 
     if (impl->alloc_offset + alloc_size > impl->pagesize) {
         char *page = impl->new_page();

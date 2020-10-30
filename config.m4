@@ -173,6 +173,22 @@ AC_DEFUN([AC_SWOOLE_HAVE_VALGRIND],
     ])
 ])
 
+AC_DEFUN([AC_SWOOLE_HAVE_BOOST_STACKTRACE],
+[
+    AC_MSG_CHECKING([for valgrind])
+    AC_LANG([C++])
+    AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #include <boost/stacktrace.hpp>
+    ]], [[
+
+    ]])],[
+        AC_DEFINE([HAVE_BOOST_STACKTRACE], 1, [have boost-stacktrace?])
+        AC_MSG_RESULT([yes])
+    ],[
+        AC_MSG_RESULT([no])
+    ])
+])
+
 AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     dnl Check for struct cmsghdr
     AC_CACHE_CHECK([for struct cmsghdr], ac_cv_cmsghdr,
@@ -395,6 +411,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_SWOOLE_HAVE_UCONTEXT
     AC_SWOOLE_HAVE_VALGRIND
     AC_SWOOLE_CHECK_SOCKETS
+    AC_SWOOLE_HAVE_BOOST_STACKTRACE
 
     AS_CASE([$host_os],
       [darwin*], [SW_OS="MAC"],
