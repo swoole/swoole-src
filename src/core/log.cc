@@ -13,6 +13,9 @@
   | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
 */
+
+#include "swoole.h"
+
 #include <string.h>
 #include <fcntl.h>
 #include <sys/file.h>
@@ -20,7 +23,6 @@
 #include <string>
 #include <chrono>  // NOLINT [build/c++11]
 
-#include "swoole.h"
 namespace swoole {
 
 bool Logger::open(const char *_log_file) {
@@ -291,6 +293,9 @@ void Logger::put(int level, const char *content, size_t length) {
     }
     if (opened && flock(log_fd, LOCK_UN) == -1) {
         printf("flock(%d, LOCK_UN) failed. Error: %s[%d]\n", log_fd, strerror(errno), errno);
+    }
+    if (display_backtrace_) {
+        swoole_print_backtrace();
     }
 }
 }  // namespace swoole

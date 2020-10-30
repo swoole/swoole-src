@@ -767,8 +767,14 @@ int swoole_get_systemd_listen_fds() {
     return ret;
 }
 
-#ifdef HAVE_EXECINFO
-void swoole_print_trace(void) {
+#ifdef HAVE_BOOST_STACKTRACE
+#include <boost/stacktrace.hpp>
+#include <iostream>
+void swoole_print_backtrace(void) {
+    std::cout << boost::stacktrace::stacktrace();
+}
+#elif defined(HAVE_EXECINFO)
+void swoole_print_backtrace(void) {
     int size = 16;
     void *array[16];
     int stack_num = backtrace(array, size);
@@ -779,6 +785,10 @@ void swoole_print_trace(void) {
         printf("%s\n", stacktrace[i]);
     }
     free(stacktrace);
+}
+#else
+void swoole_print_backtrace(void) {
+
 }
 #endif
 

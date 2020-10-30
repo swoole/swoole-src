@@ -556,9 +556,7 @@ int swoole_rand(int min, int max);
 int swoole_system_random(int min, int max);
 
 int swoole_version_compare(const char *version1, const char *version2);
-#ifdef HAVE_EXECINFO
-void swoole_print_trace(void);
-#endif
+void swoole_print_backtrace(void);
 char *swoole_string_format(size_t n, const char *format, ...);
 bool swoole_get_env(const char *name, int *value);
 int swoole_get_systemd_listen_fds();
