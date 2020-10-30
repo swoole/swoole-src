@@ -304,10 +304,7 @@ static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
     struct kevent ev;
     swSignalHandler origin_handler = nullptr;
     Reactor *reactor = sw_reactor();
-    struct reactor_object {
-        int fd;
-    };
-    struct reactor_object *reactor_obj = (struct reactor_object *) reactor->object;
+
     // clear signal
     if (handler == nullptr) {
         signal(signo, SIG_DFL);
@@ -324,7 +321,7 @@ static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
         // save swSignal* as udata
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, &signals[signo]);
     }
-    int n = kevent(reactor_obj->fd, &ev, 1, nullptr, 0, nullptr);
+    int n = kevent(reactor->native_handle, &ev, 1, nullptr, 0, nullptr);
     if (n < 0 && sw_unlikely(handler)) {
         swSysWarn("kevent set signal[%d] error", signo);
     }

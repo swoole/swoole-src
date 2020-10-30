@@ -98,7 +98,9 @@ bool ReactorEpoll::ready() {
 }
 
 ReactorEpoll::~ReactorEpoll() {
-    close(epfd_);
+    if (epfd_ >= 0) {
+        close(epfd_);
+    }
     delete[] events_;
 }
 
