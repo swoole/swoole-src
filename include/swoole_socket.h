@@ -515,6 +515,23 @@ struct Socket {
 
         return SW_OK;
     }
+
+    static inline int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, int &index, size_t &offset_bytes) {
+        index = 0;
+        offset_bytes = 0;
+        int total_bytes = 0;
+
+        for (; index < iovcnt; index++) {
+            total_bytes += iov[index].iov_len;
+            if (total_bytes >= __n) {
+                offset_bytes = iov[index].iov_len - (total_bytes - __n);
+                return 0;
+            }
+        }
+
+        // represents the length of __n greater than total_bytes
+        return -1;
+    }
 };
 
 int gethostbyname(int type, const char *name, char *addr);

@@ -964,7 +964,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
         }
 
         total_bytes += retval > 0 ? retval : 0;
-        swoole::get_iovector_index(iov, remain_cnt, retval, index, offset_bytes);
+        network::Socket::get_iovector_index(iov, remain_cnt, retval, index, offset_bytes);
 
         if (offset_bytes < iov[index].iov_len) {
             send_barrier.hold = true;
