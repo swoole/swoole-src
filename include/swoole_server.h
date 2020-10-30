@@ -1177,7 +1177,7 @@ class Server {
     }
 
     int create_pipe_buffers();
-    int create_worker(Worker *worker);
+    void create_worker(Worker *worker);
     void destroy_worker(Worker *worker);
     void disable_accept();
     void destroy_http_request(Connection *conn);

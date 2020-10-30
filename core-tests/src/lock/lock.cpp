@@ -18,8 +18,16 @@
 */
 
 #include "test_core.h"
+#include "swoole_lock.h"
 #include "swoole_util.h"
+
 #include <thread>
+
+using swLock = swoole::Lock;
+
+using swoole::RWLock;
+using swoole::SpinLock;
+using swoole::Mutex;
 
 static void test_func(swLock &lock) {
     int count = 0;
@@ -27,9 +35,9 @@ static void test_func(swLock &lock) {
 
     auto fn = [&]() {
         for (int i = 0; i < N; i++) {
-            ASSERT_EQ(lock.lock(&lock), 0);
+            ASSERT_EQ(lock.lock(), 0);
             count++;
-            ASSERT_EQ(lock.unlock(&lock), 0);
+            ASSERT_EQ(lock.unlock(), 0);
         }
     };
 
@@ -43,48 +51,69 @@ static void test_func(swLock &lock) {
 }
 
 TEST(lock, mutex) {
-    swLock lock;
-    swMutex_create(&lock, 0);
-    test_func(lock);
+    Mutex lock(0);
+    test_func( reinterpret_cast<swLock &>(lock));
 }
 
 TEST(lock, lockwait) {
-    swLock lock;
-    swMutex_create(&lock, 0);
+    Mutex lock(0);
 
-    lock.lock(&lock);
+    lock.lock();
 
     std::thread t1([&lock]() {
         long ms1 = swoole::time<std::chrono::milliseconds>();
         const int TIMEOUT_1 = 2;
-        ASSERT_EQ(swMutex_lockwait(&lock, TIMEOUT_1), ETIMEDOUT);
+        ASSERT_EQ(lock.lock_wait(TIMEOUT_1), ETIMEDOUT);
         long ms2 = swoole::time<std::chrono::milliseconds>();
 
         ASSERT_GE(ms2 - ms1, TIMEOUT_1);
 
         const int TIMEOUT_2 = 10;
-        ASSERT_EQ(swMutex_lockwait(&lock, TIMEOUT_2), 0);
+        ASSERT_EQ(lock.lock_wait(TIMEOUT_2), 0);
         long ms3 = swoole::time<std::chrono::milliseconds>();
 
         ASSERT_LE(ms3 - ms2, TIMEOUT_2);
     });
 
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
-    lock.unlock(&lock);
+    lock.unlock();
 
     t1.join();
 }
 
+TEST(lock, shared) {
+    Mutex lock(Mutex::PROCESS_SHARED);
+
+    lock.lock();
+
+    const int sleep_us = 10000;
+
+    int *_num = (int *) SwooleG.memory_pool->alloc(SwooleG.memory_pool, sizeof(int));
+    *_num = 0;
+
+    if (fork() == 0) {
+        lock.lock();
+        *_num = 999;
+        usleep(1);
+        exit(0);
+    } else {
+        usleep(sleep_us);
+        lock.unlock();
+        wait(nullptr);
+        ASSERT_EQ(*_num, 999);
+    }
+}
+
+#ifdef HAVE_RWLOCK
 TEST(lock, rwlock) {
-    swLock lock;
-    swRWLock_create(&lock, 0);
+    RWLock lock(false);
     test_func(lock);
 }
+#endif
 
 #ifdef HAVE_SPINLOCK
 TEST(lock, spinlock) {
-    swLock lock;
-    swSpinLock_create(&lock, 0);
+    SpinLock lock(false);
     test_func(lock);
 }
 #endif

@@ -19,6 +19,7 @@
 
 #include "test_core.h"
 #include "swoole_memory.h"
+#include "swoole_signal.h"
 #include "swoole_lock.h"
 
 using namespace std;
@@ -91,9 +92,8 @@ TEST(server, process) {
 
     sw_logger()->set_level(SW_LOG_WARNING);
 
-    swLock *lock = (swLock *) SwooleG.memory_pool->alloc(sizeof(*lock));
-    swMutex_create(lock, SW_MUTEX_PROCESS_SHARED);
-    lock->lock(lock);
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
@@ -107,7 +107,7 @@ TEST(server, process) {
         thread t1([=]() {
             swSignal_none();
 
-            lock->lock(lock);
+            lock->lock();
 
             swListenPort *port = serv->get_primary_port();
 
@@ -123,7 +123,7 @@ TEST(server, process) {
         t1.detach();
     };
 
-    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock->unlock(lock); };
+    serv.onWorkerStart = [&lock](swServer *serv, int worker_id) { lock->unlock(); };
 
     serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -136,7 +136,7 @@ TEST(server, process) {
 
     ASSERT_EQ(serv.start(), 0);
 
-    SwooleG.memory_pool->free(lock);
+    delete lock;
 }
 
 TEST(server, task_worker) {

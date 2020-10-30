@@ -69,8 +69,24 @@ char *GlobalMemoryImpl::new_page() {
         return nullptr;
     }
 
-    pages.push_back(page);
-    alloc_offset = 0;
+    swMemoryPool *allocator = &gm->allocator;
+    allocator->object = gm;
+    allocator->alloc = swMemoryGlobal_alloc;
+    allocator->destroy = swMemoryGlobal_destroy;
+    allocator->free = swMemoryGlobal_free;
+
+    return allocator;
+}
+
+static char *swMemoryGlobal_new_page(MemoryPool *gm) {
+    char *page = (char *) (gm->shared ? sw_shm_malloc(gm->pagesize) : sw_malloc(gm->pagesize));
+    if (page == nullptr) {
+        return nullptr;
+    }
+    sw_memset_zero(page, gm->pagesize);
+
+    gm->pages.push_back(page);
+    gm->alloc_offset = 0;
 
     return page;
 }

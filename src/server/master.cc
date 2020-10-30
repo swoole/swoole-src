@@ -457,12 +457,13 @@ int Server::create_user_workers() {
 /**
  * [Master]
  */
-int Server::create_worker(Worker *worker) {
-    return swMutex_create(&worker->lock, SW_MUTEX_PROCESS_SHARED);
+void Server::create_worker(Worker *worker) {
+    worker->lock = new Mutex(Mutex::PROCESS_SHARED);
 }
 
 void Server::destroy_worker(Worker *worker) {
-    worker->lock.free(&worker->lock);
+    delete worker->lock;
+    worker->lock = nullptr;
 }
 
 /**

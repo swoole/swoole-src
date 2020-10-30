@@ -293,7 +293,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         Pipe *task_notify_pipe = &(task_notify[source_worker_id]);
 
         // lock worker
-        worker->lock.lock(&worker->lock);
+        worker->lock->lock();
 
         if (swTask_type(current_task) & SW_TASK_WAITALL) {
             sw_atomic_t *finish_count = (sw_atomic_t *) result->data;
@@ -319,14 +319,14 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
             swTask_type(result) = flags;
             if (!result->pack(data, data_len)) {
                 // unlock worker
-                worker->lock.unlock(&worker->lock);
+                worker->lock->unlock();
                 swWarn("large task pack failed()");
                 return SW_ERR;
             }
         }
 
         // unlock worker
-        worker->lock.unlock(&worker->lock);
+        worker->lock->unlock();
 
         while (1) {
             ret = task_notify_pipe->write(task_notify_pipe, &flag, sizeof(flag));

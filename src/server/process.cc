@@ -89,9 +89,7 @@ bool ProcessFactory::start() {
     }
 
     SW_LOOP_N(server_->worker_num) {
-        if (server_->create_worker(server_->get_worker(i)) < 0) {
-            return false;
-        }
+        server_->create_worker(server_->get_worker(i));
     }
 
     pipes = new Pipe[server_->worker_num]();
