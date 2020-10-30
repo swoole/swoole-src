@@ -444,12 +444,12 @@ class BaseFactory : public Factory {
   public:
     BaseFactory(Server *server) : Factory(server) {}
     ~BaseFactory();
-    bool start();
-    bool shutdown();
-    bool dispatch(SendData *);
-    bool finish(SendData *);
-    bool notify(DataHead *);
-    bool end(SessionId sesion_id);
+    bool start() override;
+    bool shutdown() override;
+    bool dispatch(SendData *) override;
+    bool finish(SendData *) override;
+    bool notify(DataHead *) override;
+    bool end(SessionId sesion_id) override;
 };
 
 class ProcessFactory : public Factory {
@@ -464,12 +464,12 @@ class ProcessFactory : public Factory {
         send_buffer = nullptr;
     }
     ~ProcessFactory();
-    bool start();
-    bool shutdown();
-    bool dispatch(SendData *);
-    bool finish(SendData *);
-    bool notify(DataHead *);
-    bool end(SessionId sesion_id);
+    bool start() override;
+    bool shutdown() override;
+    bool dispatch(SendData *) override;
+    bool finish(SendData *) override;
+    bool notify(DataHead *) override;
+    bool end(SessionId sesion_id) override;
 };
 
 enum ServerEventType {
@@ -1182,8 +1182,8 @@ class Server {
 
     int create_pipe_buffers();
     int create_worker(Worker *worker);
+    void destroy_worker(Worker *worker);
     void disable_accept();
-
     void destroy_http_request(Connection *conn);
 
     inline int schedule_worker(int fd, SendData *data) {

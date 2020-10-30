@@ -416,16 +416,14 @@ void Server::worker_stop_callback() {
 }
 
 void Server::stop_async_worker(Worker *worker) {
-    Server *serv = (Server *) worker->pool->ptr;
     worker->status = SW_WORKER_EXIT;
-
     Reactor *reactor = SwooleTG.reactor;
 
     /**
      * force to end.
      */
-    if (serv->reload_async == 0) {
-        serv->running = false;
+    if (reload_async == 0) {
+        running = false;
         reactor->running = false;
         return;
     }
@@ -440,30 +438,30 @@ void Server::stop_async_worker(Worker *worker) {
     *worker = *SwooleWG.worker;
     SwooleWG.worker = worker;
 
-    if (serv->stream_socket) {
-        reactor->del(reactor, serv->stream_socket);
-        serv->stream_socket->free();
-        serv->stream_socket = nullptr;
+    if (stream_socket) {
+        reactor->del(reactor, stream_socket);
+        stream_socket->free();
+        stream_socket = nullptr;
     }
 
-    if (worker->pipe_worker) {
+    if (worker->pipe_worker && !worker->pipe_worker->removed) {
         reactor->remove_read_event(worker->pipe_worker);
     }
 
-    if (serv->is_base_mode()) {
-        if (serv->is_worker()) {
-            for (auto ls : serv->ports) {
+    if (is_base_mode()) {
+        if (is_worker()) {
+            for (auto ls : ports) {
                 reactor->del(reactor, ls->socket);
             }
-            if (worker->pipe_master) {
+            if (worker->pipe_master && !worker->pipe_master->removed) {
                 reactor->remove_read_event(worker->pipe_master);
             }
-            serv->foreach_connection([reactor](Connection *conn) {
+            foreach_connection([reactor](Connection *conn) {
                 if (!conn->peer_closed && !conn->socket->removed) {
                     reactor->remove_read_event(conn->socket);
                 }
             });
-            serv->clear_timer();
+            clear_timer();
         }
     } else {
         WorkerStopMessage msg;
@@ -471,10 +469,10 @@ void Server::stop_async_worker(Worker *worker) {
         msg.worker_id = SwooleG.process_id;
 
         // send message to manager
-        if (serv->message_box && serv->message_box->push(&msg, sizeof(msg)) < 0) {
-            serv->running = 0;
+        if (message_box && message_box->push(&msg, sizeof(msg)) < 0) {
+            running = 0;
         } else {
-            swoole_kill(serv->gs->manager_pid, SIGIO);
+            swoole_kill(gs->manager_pid, SIGIO);
         }
     }
 
@@ -484,7 +482,7 @@ void Server::stop_async_worker(Worker *worker) {
 
     Worker_reactor_try_to_exit(reactor);
     if (!reactor->running) {
-        serv->running = false;
+        running = false;
     }
 }
 
