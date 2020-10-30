@@ -936,6 +936,8 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
     ssize_t retval, total_bytes = 0;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
+    set_err(0);
+
     do
     {
         retval = socket->readv(iov, remain_cnt);
@@ -965,8 +967,9 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
 
             total_bytes += retval;
             recv_barrier.hold = false;
-            set_err(retval < 0 ? errno : 0);
-            if (retval < 0 && total_bytes == 0) {
+
+            if (retval < 0) {
+                set_err(errno);
                 return -1;
             }
         }
@@ -1003,6 +1006,8 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
 
+    set_err(0);
+
     do
     {
         retval = socket->writev(iov, remain_cnt);
@@ -1032,8 +1037,9 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
 
             total_bytes += retval;
             send_barrier.hold = false;
-            set_err(retval < 0 ? errno : 0);
-            if (retval < 0 && total_bytes == 0) {
+
+            if (retval < 0) {
+                set_err(errno);
                 return -1;
             }
         }
