@@ -42,20 +42,44 @@ using swoole::BufferChunk;
 
 static void reactor_begin(Reactor *reactor);
 
-Reactor::Reactor(int max_event) {
-    int ret;
-
+Reactor::Reactor(int max_event, Type _type) {
+    if (_type == TYPE_AUTO) {
 #ifdef HAVE_EPOLL
-    ret = swReactorEpoll_create(this, max_event);
+        type_ = TYPE_EPOLL;
 #elif defined(HAVE_KQUEUE)
-    ret = swReactorKqueue_create(this, max_event);
+        type_ = TYPE_KQUEUE;
 #elif defined(HAVE_POLL)
-    ret = swReactorPoll_create(this, max_event);
+        type_ = TYPE_POLL;
 #else
-    ret = swReactorSelect_create(this);
+        type_ = TYPE_SELECT;
 #endif
+    } else {
+        type_ = _type;
+    }
 
-    if (ret < 0) {
+    switch(type_) {
+#ifdef HAVE_EPOLL
+    case TYPE_EPOLL:
+        impl = make_reactor_epoll(this, max_event);
+        break;
+#endif
+#ifdef HAVE_KQUEUE
+    case TYPE_KQUEUE:
+        impl = make_reactor_kqueue(this, max_event);
+        break;
+#endif
+#ifdef HAVE_POLL
+    case TYPE_POLL:
+        impl = make_reactor_poll(this, max_event);
+        break;
+#endif
+    case TYPE_SELECT:
+    default:
+        impl = make_reactor_select(this);
+        break;
+    }
+
+    if (!impl->ready()) {
         running = false;
         return;
     }
@@ -333,7 +357,7 @@ void Reactor::execute_end_callbacks(bool timedout) {
 Reactor::~Reactor() {
     destroyed = true;
     destroy_callbacks.execute();
-    free(this);
+    delete impl;
     if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
     }

@@ -79,7 +79,7 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
     }
 _delay_receive:
     if (serv->enable_delay_receive) {
-        if (reactor->del(reactor, _socket) < 0) {
+        if (reactor->del(_socket) < 0) {
             return SW_ERROR;
         }
     }
@@ -214,7 +214,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         swoole_timer_del(conn->timer);
     }
 
-    if (!socket->removed && reactor->del(reactor, socket) < 0) {
+    if (!socket->removed && reactor->del(socket) < 0) {
         return SW_ERR;
     }
 
@@ -312,7 +312,7 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     } else if (serv->disable_notify) {
         Server::close_connection(reactor, socket);
         return SW_OK;
-    } else if (reactor->del(reactor, socket) == 0) {
+    } else if (reactor->del(socket) == 0) {
         if (conn->close_queued) {
             Server::close_connection(reactor, socket);
             return SW_OK;
@@ -338,7 +338,7 @@ static void ReactorThread_shutdown(Reactor *reactor) {
                 if (ls->socket->fd % serv->reactor_num != reactor->id) {
                     continue;
                 }
-                reactor->del(reactor, ls->socket);
+                reactor->del(ls->socket);
             }
         }
     }
@@ -688,7 +688,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
 
     // remove EPOLLOUT event
     if (!conn->peer_closed && !socket->removed && Buffer::empty(socket->out_buffer)) {
-        reactor->set(reactor, socket, SW_EVENT_READ);
+        reactor->set(socket, SW_EVENT_READ);
     }
     return SW_OK;
 }
@@ -735,7 +735,7 @@ int Server::start_reactor_threads() {
             swoole_event_free();
             return SW_ERR;
         }
-        reactor->add(reactor, port->socket, SW_EVENT_READ);
+        reactor->add(port->socket, SW_EVENT_READ);
     }
 
     /**
@@ -857,7 +857,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
             serv_sock->socket_type = ls->type;
             serv_sock->object = ls;
             ls->thread_id = pthread_self();
-            if (reactor->add(reactor, ls->socket, SW_EVENT_READ) < 0) {
+            if (reactor->add(ls->socket, SW_EVENT_READ) < 0) {
                 return SW_ERR;
             }
         }
@@ -886,7 +886,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
 
         socket->set_nonblock();
 
-        if (reactor->add(reactor, socket, SW_EVENT_READ) < 0) {
+        if (reactor->add(socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
         if (thread->notify_pipe == nullptr) {

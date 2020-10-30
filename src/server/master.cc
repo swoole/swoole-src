@@ -187,12 +187,12 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
     }
 #ifdef SW_USE_OPENSSL
     if (conn->socket->ssl) {
-        return reactor->add(reactor, conn->socket, SW_EVENT_READ);
+        return reactor->add(conn->socket, SW_EVENT_READ);
     }
 #endif
     // delay receive, wait resume command
     if (!enable_delay_receive) {
-        if (reactor->add(reactor, conn->socket, SW_EVENT_READ) < 0) {
+        if (reactor->add(conn->socket, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
     }
@@ -808,7 +808,7 @@ void Server::shutdown() {
             if (port->is_dgram() and is_process_mode()) {
                 continue;
             }
-            reactor->del(reactor, port->socket);
+            reactor->del(port->socket);
         }
         clear_timer();
     }
@@ -1026,9 +1026,9 @@ int Server::send_to_connection(SendData *_send) {
             return SW_OK;
         }
         if (_socket->events & SW_EVENT_WRITE) {
-            return reactor->set(reactor, conn->socket, SW_EVENT_WRITE);
+            return reactor->set(conn->socket, SW_EVENT_WRITE);
         } else {
-            return reactor->del(reactor, conn->socket);
+            return reactor->del(conn->socket);
         }
     }
     /**
@@ -1039,9 +1039,9 @@ int Server::send_to_connection(SendData *_send) {
             return SW_OK;
         }
         if (_socket->events & SW_EVENT_WRITE) {
-            return reactor->set(reactor, _socket, SW_EVENT_READ | SW_EVENT_WRITE);
+            return reactor->set(_socket, SW_EVENT_READ | SW_EVENT_WRITE);
         } else {
-            return reactor->add(reactor, _socket, SW_EVENT_READ);
+            return reactor->add(_socket, SW_EVENT_READ);
         }
     }
 
@@ -1139,7 +1139,7 @@ int Server::send_to_connection(SendData *_send) {
     }
 
     // listen EPOLLOUT event
-    if (reactor->set(reactor, _socket, SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT)) {
+    if (reactor->set(_socket, SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT)) {
         goto _close_fd;
     }
 

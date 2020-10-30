@@ -17,11 +17,8 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
-#include <unordered_map>
 
-using swoole::Reactor;
-using swoole::ReactorHandler;
-using swoole::network::Socket;
+#include <unordered_map>
 
 #define EVENT_DEBUG 0
 
@@ -35,9 +32,41 @@ using swoole::network::Socket;
 #error "require linux kernel version 2.6.32 or later"
 #endif
 
-struct ReactorEpoll {
-    int epfd;
-    struct epoll_event *events;
+namespace swoole {
+
+using network::Socket;
+
+class ReactorEpoll : public ReactorImpl {
+  private:
+    int epfd_;
+    struct epoll_event *events_;
+
+  public:
+    ReactorEpoll(Reactor *_reactor, int max_events);
+    ~ReactorEpoll();
+    bool ready() override;
+    int add(Socket *socket, int events) override;
+    int set(Socket *socket, int events) override;
+    int del(Socket *socket) override;
+    int wait(struct timeval *) override;
+
+    static inline int get_events(int fdtype) {
+        int events = 0;
+        if (Reactor::isset_read_event(fdtype)) {
+            events |= EPOLLIN;
+        }
+        if (Reactor::isset_write_event(fdtype)) {
+            events |= EPOLLOUT;
+        }
+        if (fdtype & SW_EVENT_ONCE) {
+            events |= EPOLLONESHOT;
+        }
+        if (Reactor::isset_error_event(fdtype)) {
+            // flag |= (EPOLLRDHUP);
+            events |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
+        }
+        return events;
+    }
 };
 
 #if EVENT_DEBUG
@@ -48,69 +77,40 @@ Socket *swoole_event_map_get(int sockfd) {
 }
 #endif
 
-static int swReactorEpoll_add(Reactor *reactor, Socket *socket, int events);
-static int swReactorEpoll_set(Reactor *reactor, Socket *socket, int events);
-static int swReactorEpoll_del(Reactor *reactor, Socket *_socket);
-static int swReactorEpoll_wait(Reactor *reactor, struct timeval *timeo);
-static void swReactorEpoll_free(Reactor *reactor);
-
-static sw_inline int swReactorEpoll_event_set(int fdtype) {
-    uint32_t flag = 0;
-    if (Reactor::isset_read_event(fdtype)) {
-        flag |= EPOLLIN;
-    }
-    if (Reactor::isset_write_event(fdtype)) {
-        flag |= EPOLLOUT;
-    }
-    if (fdtype & SW_EVENT_ONCE) {
-        flag |= EPOLLONESHOT;
-    }
-    if (Reactor::isset_error_event(fdtype)) {
-        // flag |= (EPOLLRDHUP);
-        flag |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
-    }
-    return flag;
+ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events) {
+    return new ReactorEpoll(_reactor, max_events);
 }
 
-int swReactorEpoll_create(Reactor *reactor, int max_event_num) {
-    int epfd = epoll_create(512);
-    if (epfd < 0) {
+ReactorEpoll::ReactorEpoll(Reactor *_reactor, int max_events) : ReactorImpl(_reactor) {
+    epfd_ = epoll_create(512);
+    if (!ready()) {
         swSysWarn("epoll_create failed");
-        return SW_ERR;
+        return;
     }
 
-    reactor->add = swReactorEpoll_add;
-    reactor->set = swReactorEpoll_set;
-    reactor->del = swReactorEpoll_del;
-    reactor->wait = swReactorEpoll_wait;
-    reactor->free = swReactorEpoll_free;
-
-    ReactorEpoll *object = new ReactorEpoll();
-    object->events = new struct epoll_event[max_event_num];
-    object->epfd = epfd;
-    reactor->max_event_num = max_event_num;
-    reactor->object = object;
-
-    return SW_OK;
+    events_ = new struct epoll_event[max_events];
+    reactor_->max_event_num = max_events;
+    reactor_->native_handle = epfd_;
 }
 
-static void swReactorEpoll_free(Reactor *reactor) {
-    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
-    close(object->epfd);
-    delete[] object->events;
-    delete object;
+bool ReactorEpoll::ready() {
+    return epfd_ >= 0;
 }
 
-static int swReactorEpoll_add(Reactor *reactor, Socket *socket, int events) {
-    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
+ReactorEpoll::~ReactorEpoll() {
+    close(epfd_);
+    delete[] events_;
+}
+
+int ReactorEpoll::add(Socket *socket, int events) {
     struct epoll_event e;
 
-    e.events = swReactorEpoll_event_set(events);
+    e.events = get_events(events);
     e.data.ptr = socket;
 
-    if (epoll_ctl(object->epfd, EPOLL_CTL_ADD, socket->fd, &e) < 0) {
+    if (epoll_ctl(epfd_, EPOLL_CTL_ADD, socket->fd, &e) < 0) {
         swSysWarn(
-            "failed to add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fd_type, events);
+            "failed to add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor_->id, socket->fd_type, events);
         return SW_ERR;
     }
 
@@ -118,15 +118,14 @@ static int swReactorEpoll_add(Reactor *reactor, Socket *socket, int events) {
     event_map[socket->fd] = socket;
 #endif
 
-    reactor->_add(socket, events);
+    reactor_->_add(socket, events);
     swTraceLog(
-        SW_TRACE_EVENT, "add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fd_type, events);
+        SW_TRACE_EVENT, "add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor_->id, socket->fd_type, events_);
 
     return SW_OK;
 }
 
-static int swReactorEpoll_del(Reactor *reactor, Socket *_socket) {
-    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
+int ReactorEpoll::del(Socket *_socket) {
     if (_socket->removed) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_EVENT_SOCKET_REMOVED,
@@ -134,10 +133,10 @@ static int swReactorEpoll_del(Reactor *reactor, Socket *_socket) {
                          _socket->fd);
         return SW_ERR;
     }
-    if (epoll_ctl(object->epfd, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
+    if (epoll_ctl(epfd_, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
         swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]",
                   _socket->fd,
-                  reactor->id,
+                  reactor_->id,
                   _socket->fd_type,
                   _socket->events);
         if (errno != EBADF && errno != ENOENT) {
@@ -149,116 +148,112 @@ static int swReactorEpoll_del(Reactor *reactor, Socket *_socket) {
     event_map.erase(_socket->fd);
 #endif
 
-    swTraceLog(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor->id, _socket->fd);
-    reactor->_del(_socket);
+    swTraceLog(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor_->id, _socket->fd);
+    reactor_->_del(_socket);
 
     return SW_OK;
 }
 
-static int swReactorEpoll_set(Reactor *reactor, Socket *socket, int events) {
-    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
+int ReactorEpoll::set(Socket *socket, int events) {
     struct epoll_event e;
 
-    e.events = swReactorEpoll_event_set(events);
+    e.events = get_events(events);
     e.data.ptr = socket;
 
-    int ret = epoll_ctl(object->epfd, EPOLL_CTL_MOD, socket->fd, &e);
+    int ret = epoll_ctl(epfd_, EPOLL_CTL_MOD, socket->fd, &e);
     if (ret < 0) {
         swSysWarn(
-            "failed to set events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor->id, socket->fd_type, events);
+            "failed to set events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor_->id, socket->fd_type, events);
         return SW_ERR;
     }
 
-    swTraceLog(SW_TRACE_EVENT, "set event[reactor_id=%d, fd=%d, events=%d]", reactor->id, socket->fd, events);
-    reactor->_set(socket, events);
+    swTraceLog(SW_TRACE_EVENT, "set event[reactor_id=%d, fd=%d, events=%d]", reactor_->id, socket->fd, events_);
+    reactor_->_set(socket, events);
 
     return SW_OK;
 }
 
-static int swReactorEpoll_wait(Reactor *reactor, struct timeval *timeo) {
+int ReactorEpoll::wait(struct timeval *timeo) {
     swEvent event;
-    ReactorEpoll *object = (ReactorEpoll *) reactor->object;
     ReactorHandler handler;
     int i, n, ret;
 
-    int reactor_id = reactor->id;
-    int epoll_fd = object->epfd;
-    int max_event_num = reactor->max_event_num;
-    struct epoll_event *events = object->events;
+    int reactor_id = reactor_->id;
+    int max_event_num = reactor_->max_event_num;
 
-    if (reactor->timeout_msec == 0) {
+    if (reactor_->timeout_msec == 0) {
         if (timeo == nullptr) {
-            reactor->timeout_msec = -1;
+            reactor_->timeout_msec = -1;
         } else {
-            reactor->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
+            reactor_->timeout_msec = timeo->tv_sec * 1000 + timeo->tv_usec / 1000;
         }
     }
 
-    reactor->before_wait();
+    reactor_->before_wait();
 
-    while (reactor->running) {
-        if (reactor->onBegin != nullptr) {
-            reactor->onBegin(reactor);
+    while (reactor_->running) {
+        if (reactor_->onBegin != nullptr) {
+            reactor_->onBegin(reactor_);
         }
-        n = epoll_wait(epoll_fd, events, max_event_num, reactor->get_timeout_msec());
+        n = epoll_wait(epfd_, events_, max_event_num, reactor_->get_timeout_msec());
         if (n < 0) {
-            if (!reactor->catch_error()) {
+            if (!reactor_->catch_error()) {
                 swSysWarn("[Reactor#%d] epoll_wait failed", reactor_id);
                 return SW_ERR;
             } else {
                 goto _continue;
             }
         } else if (n == 0) {
-            reactor->execute_end_callbacks(true);
+            reactor_->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         }
         for (i = 0; i < n; i++) {
             event.reactor_id = reactor_id;
-            event.socket = (Socket *) events[i].data.ptr;
+            event.socket = (Socket *) events_[i].data.ptr;
             event.type = event.socket->fd_type;
             event.fd = event.socket->fd;
 
             // read
-            if ((events[i].events & EPOLLIN) && !event.socket->removed) {
-                if (events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) {
+            if ((events_[i].events & EPOLLIN) && !event.socket->removed) {
+                if (events_[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) {
                     event.socket->event_hup = 1;
                 }
-                handler = reactor->get_handler(SW_EVENT_READ, event.type);
-                ret = handler(reactor, &event);
+                handler = reactor_->get_handler(SW_EVENT_READ, event.type);
+                ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swSysWarn("EPOLLIN handle failed. fd=%d", event.fd);
                 }
             }
             // write
-            if ((events[i].events & EPOLLOUT) && !event.socket->removed) {
-                handler = reactor->get_handler(SW_EVENT_WRITE, event.type);
-                ret = handler(reactor, &event);
+            if ((events_[i].events & EPOLLOUT) && !event.socket->removed) {
+                handler = reactor_->get_handler(SW_EVENT_WRITE, event.type);
+                ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swSysWarn("EPOLLOUT handle failed. fd=%d", event.fd);
                 }
             }
             // error
-            if ((events[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed) {
+            if ((events_[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) && !event.socket->removed) {
                 // ignore ERR and HUP, because event is already processed at IN and OUT handler.
-                if ((events[i].events & EPOLLIN) || (events[i].events & EPOLLOUT)) {
+                if ((events_[i].events & EPOLLIN) || (events_[i].events & EPOLLOUT)) {
                     continue;
                 }
-                handler = reactor->get_handler(SW_EVENT_ERROR, event.type);
-                ret = handler(reactor, &event);
+                handler = reactor_->get_handler(SW_EVENT_ERROR, event.type);
+                ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swSysWarn("EPOLLERR handle failed. fd=%d", event.fd);
                 }
             }
             if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE)) {
-                reactor->_del(event.socket);
+                reactor_->_del(event.socket);
             }
         }
 
     _continue:
-        reactor->execute_end_callbacks(false);
+        reactor_->execute_end_callbacks(false);
         SW_REACTOR_CONTINUE;
     }
     return 0;
 }
-
+}  // namespace swoole
 #endif

@@ -30,6 +30,38 @@ struct DeferCallback {
     void *data;
 };
 
+class Reactor;
+
+class ReactorImpl {
+  protected:
+    Reactor *reactor_;
+
+  public:
+    ReactorImpl(Reactor *_reactor) {
+        reactor_ = _reactor;
+    }
+    virtual ~ReactorImpl(){};
+    virtual bool ready() = 0;
+    virtual int add(network::Socket *socket, int events) = 0;
+    virtual int set(network::Socket *socket, int events) = 0;
+    virtual int del(network::Socket *socket) = 0;
+    virtual int wait(struct timeval *) = 0;
+};
+
+#ifdef HAVE_EPOLL
+ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
+#endif
+
+#ifdef HAVE_POLL
+ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
+#endif
+
+#ifdef HAVE_KQUEUE
+ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
+#endif
+
+ReactorImpl *make_reactor_select(Reactor *_reactor);
+
 class CallbackManager {
   public:
     inline void append(Callback fn, void *private_data) {
@@ -52,6 +84,13 @@ class CallbackManager {
 
 class Reactor {
   public:
+    enum Type {
+        TYPE_AUTO,
+        TYPE_EPOLL,
+        TYPE_KQUEUE,
+        TYPE_POLL,
+        TYPE_SELECT,
+    };
 
     enum EndCallback {
         PRIORITY_TIMER = 0,
@@ -75,8 +114,9 @@ class Reactor {
         EXIT_CONDITION_USER_AFTER_DEFAULT,
     };
 
-    void *object = nullptr;
+    Type type_;
     void *ptr = nullptr;
+    int native_handle = -1;
 
     /**
      * last signal number
@@ -115,11 +155,21 @@ class Reactor {
     ReactorHandler default_write_handler = nullptr;
     ReactorHandler default_error_handler = nullptr;
 
-    int (*add)(Reactor *reactor, network::Socket *socket, int events) = nullptr;
-    int (*set)(Reactor *reactor, network::Socket *socket, int events) = nullptr;
-    int (*del)(Reactor *reactor, network::Socket *socket) = nullptr;
-    int (*wait)(Reactor *reactor, struct timeval *) = nullptr;
-    void (*free)(Reactor *) = nullptr;
+    int add(network::Socket *socket, int events) {
+        return impl->add(socket, events);
+    }
+
+    int set(network::Socket *socket, int events) {
+        return impl->set(socket, events);
+    }
+
+    int del(network::Socket *socket) {
+        return impl->del(socket);
+    }
+
+    int wait(struct timeval *timeout) {
+        return impl->wait(timeout);
+    }
 
     CallbackManager *defer_tasks = nullptr;
     CallbackManager destroy_callbacks;
@@ -133,41 +183,48 @@ class Reactor {
     int (*close)(Reactor *reactor, network::Socket *socket) = nullptr;
 
   private:
+    ReactorImpl *impl;
     std::map<int, std::function<void(Reactor *)>> end_callbacks;
     std::map<int, std::function<bool(Reactor *, int &)>> exit_conditions;
 
   public:
-    Reactor(int max_event = SW_REACTOR_MAXEVENTS);
+    Reactor(int max_event = SW_REACTOR_MAXEVENTS, Type _type = TYPE_AUTO);
     ~Reactor();
-    bool ready() { return running; }
     bool if_exit();
     void defer(Callback cb, void *data = nullptr);
     void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
     void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, int &)> &fn);
-    inline size_t remove_exit_condition(enum ExitCondition id) {
-        return exit_conditions.erase(id);
-    }
-    inline bool isset_exit_condition(enum ExitCondition id) {
-        return exit_conditions.find(id) != exit_conditions.end();
-    }
-    inline bool isset_handler(int fdtype) {
-        return read_handler[fdtype] != nullptr;
-    }
     bool set_handler(int _fdtype, ReactorHandler handler);
     void add_destroy_callback(Callback cb, void *data = nullptr);
     void execute_end_callbacks(bool timedout = false);
     void drain_write_buffer(network::Socket *socket);
 
+    bool ready() {
+        return running;
+    }
+
+    inline size_t remove_exit_condition(enum ExitCondition id) {
+        return exit_conditions.erase(id);
+    }
+
+    inline bool isset_exit_condition(enum ExitCondition id) {
+        return exit_conditions.find(id) != exit_conditions.end();
+    }
+
+    inline bool isset_handler(int fdtype) {
+        return read_handler[fdtype] != nullptr;
+    }
+
     inline int add_event(network::Socket *_socket, enum swEvent_type event_type) {
         if (!(_socket->events & event_type)) {
-            return set(this, _socket, _socket->events | event_type);
+            return set(_socket, _socket->events | event_type);
         }
         return SW_OK;
     }
 
     inline int del_event(network::Socket *_socket, enum swEvent_type event_type) {
         if (_socket->events & event_type) {
-            return set(this, _socket, _socket->events & (~event_type));
+            return set(_socket, _socket->events & (~event_type));
         }
         return SW_OK;
     }
@@ -175,36 +232,36 @@ class Reactor {
     inline int remove_read_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_WRITE) {
             _socket->events &= (~SW_EVENT_READ);
-            return set(this, _socket, _socket->events);
+            return set(_socket, _socket->events);
         } else {
-            return del(this, _socket);
+            return del(_socket);
         }
     }
 
     inline int remove_write_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_READ) {
             _socket->events &= (~SW_EVENT_WRITE);
-            return set(this, _socket, _socket->events);
+            return set(_socket, _socket->events);
         } else {
-            return del(this, _socket);
+            return del(_socket);
         }
     }
 
     inline int add_read_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_WRITE) {
             _socket->events |= SW_EVENT_READ;
-            return set(this, _socket, _socket->events);
+            return set(_socket, _socket->events);
         } else {
-            return add(this, _socket, SW_EVENT_READ);
+            return add(_socket, SW_EVENT_READ);
         }
     }
 
     inline int add_write_event(network::Socket *_socket) {
         if (_socket->events & SW_EVENT_READ) {
             _socket->events |= SW_EVENT_WRITE;
-            return set(this, _socket, _socket->events);
+            return set(_socket, _socket->events);
         } else {
-            return add(this, _socket, SW_EVENT_WRITE);
+            return add(_socket, SW_EVENT_WRITE);
         }
     }
 
@@ -292,13 +349,8 @@ class Reactor {
 }  // namespace swoole
 
 #define SW_REACTOR_CONTINUE                                                                                            \
-    if (reactor->once) {                                                                                               \
+    if (reactor_->once) {                                                                                              \
         break;                                                                                                         \
     } else {                                                                                                           \
         continue;                                                                                                      \
     }
-
-int swReactorEpoll_create(swoole::Reactor *reactor, int max_event_num);
-int swReactorPoll_create(swoole::Reactor *reactor, int max_event_num);
-int swReactorKqueue_create(swoole::Reactor *reactor, int max_event_num);
-int swReactorSelect_create(swoole::Reactor *reactor);

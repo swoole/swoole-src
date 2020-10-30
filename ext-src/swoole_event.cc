@@ -283,8 +283,7 @@ void php_swoole_event_wait() {
         zend_bool in_shutdown = EG(flags) & EG_FLAGS_IN_SHUTDOWN;
         EG(flags) &= ~EG_FLAGS_IN_SHUTDOWN;
 #endif
-        int ret = sw_reactor()->wait(sw_reactor(), nullptr);
-        if (ret < 0) {
+        if (sw_reactor()->wait(nullptr) < 0) {
             php_swoole_sys_error(E_ERROR, "reactor wait failed");
         }
 #if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)
@@ -745,8 +744,7 @@ static PHP_FUNCTION(swoole_event_dispatch) {
     }
 #endif
 
-    int ret = sw_reactor()->wait(sw_reactor(), nullptr);
-    if (ret < 0) {
+    if (sw_reactor()->wait(nullptr) < 0) {
         php_swoole_sys_error(E_ERROR, "reactor wait failed");
     }
 

@@ -26,16 +26,9 @@ using swoole::Reactor;
 TEST(reactor, create) {
     swoole_event_init(0);
 
-    swReactor *reactor = SwooleTG.reactor;
+    Reactor *reactor = SwooleTG.reactor;
 
-    ASSERT_NE(reactor->object, nullptr);
     ASSERT_EQ(reactor->max_event_num, SW_REACTOR_MAXEVENTS);
-
-    ASSERT_NE(reactor->add, nullptr);
-    ASSERT_NE(reactor->set, nullptr);
-    ASSERT_NE(reactor->del, nullptr);
-    ASSERT_NE(reactor->wait, nullptr);
-    ASSERT_NE(reactor->free, nullptr);
 
     ASSERT_TRUE(reactor->running);
     ASSERT_NE(reactor->write, nullptr);
@@ -67,7 +60,7 @@ TEST(reactor, create) {
 }
 
 TEST(reactor, set_handler) {
-    swReactor reactor;
+    Reactor reactor;
 
     reactor.set_handler(SW_EVENT_READ, (ReactorHandler) 0x1);
     ASSERT_EQ(reactor.read_handler[Reactor::get_fd_type(SW_EVENT_READ)], (ReactorHandler) 0x1);
@@ -90,13 +83,13 @@ TEST(reactor, wait) {
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
-    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int {
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, swEvent *ev) -> int {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
-        reactor->del(reactor, ev->socket);
+        reactor->del(ev->socket);
 
         return SW_OK;
     });
@@ -123,13 +116,13 @@ TEST(reactor, write) {
     ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
     ASSERT_EQ(ret, SW_OK);
 
-    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *ev) -> int {
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, swEvent *ev) -> int {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
         EXPECT_EQ(sizeof("hello world"), n);
         EXPECT_STREQ("hello world", buffer);
-        reactor->del(reactor, ev->socket);
+        reactor->del(ev->socket);
 
         return SW_OK;
     });
@@ -147,46 +140,42 @@ TEST(reactor, write) {
 
 static const char *pkt = "hello world\r\n";
 
-static void reactor_test_func(swReactor *reactor) {
+static void reactor_test_func(Reactor *reactor) {
     swPipe p;
     ASSERT_EQ(swPipeBase_create(&p, 1), SW_OK);
-    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](swReactor *reactor, swEvent *event) -> int {
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, swEvent *event) -> int {
         char buf[1024];
         size_t l = strlen(pkt);
         size_t n = read(event->fd, buf, sizeof(buf));
         EXPECT_EQ(n, l);
         buf[n] = 0;
         EXPECT_EQ(std::string(buf, n), std::string(pkt));
-        reactor->del(reactor, event->socket);
+        reactor->del(event->socket);
 
         return SW_OK;
     });
-    reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](swReactor *reactor, swEvent *event) -> int {
+    reactor->set_handler(SW_FD_PIPE | SW_EVENT_WRITE, [](Reactor *reactor, swEvent *event) -> int {
         size_t l = strlen(pkt);
         EXPECT_EQ(write(event->fd, pkt, l), l);
-        reactor->del(reactor, event->socket);
+        reactor->del(event->socket);
 
         return SW_OK;
     });
-    reactor->add(reactor, p.get_socket(false), SW_EVENT_READ);
-    reactor->add(reactor, p.get_socket(true), SW_EVENT_WRITE);
-    reactor->wait(reactor, nullptr);
+    reactor->add(p.get_socket(false), SW_EVENT_READ);
+    reactor->add(p.get_socket(true), SW_EVENT_WRITE);
+    reactor->wait(nullptr);
 
     p.close(&p);
 }
 
 TEST(reactor, poll) {
-    swReactor reactor(1024);
-    reactor.free(&reactor);
+    Reactor reactor(1024, Reactor::TYPE_POLL);
     reactor.wait_exit = true;
-    ASSERT_EQ(swReactorPoll_create(&reactor, 1024), SW_OK);
     reactor_test_func(&reactor);
 }
 
 TEST(reactor, select) {
-    swReactor reactor(1024);
-    reactor.free(&reactor);
+    Reactor reactor(1024, Reactor::TYPE_SELECT);
     reactor.wait_exit = true;
-    ASSERT_EQ(swReactorSelect_create(&reactor), SW_OK);
     reactor_test_func(&reactor);
 }
