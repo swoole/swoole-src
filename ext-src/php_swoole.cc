@@ -205,12 +205,25 @@ zend_object_handlers swoole_exception_handlers;
 zend_class_entry *swoole_error_ce;
 zend_object_handlers swoole_error_handlers;
 
+static const zend_module_dep swoole_deps[] = {
+#ifdef HAVE_JSON
+     ZEND_MOD_REQUIRED("json")
+#endif
+#ifdef SW_USE_MYSQLND
+     ZEND_MOD_REQUIRED("mysqlnd")
+#endif
+#ifdef SW_SOCKETS
+     ZEND_MOD_REQUIRED("sockets")
+#endif
+     ZEND_MOD_END
+};
+
 // clang-format off
 zend_module_entry swoole_module_entry =
 {
     STANDARD_MODULE_HEADER_EX,
     nullptr,
-    nullptr,
+    swoole_deps,
     "swoole",
     swoole_functions,
     PHP_MINIT(swoole),
