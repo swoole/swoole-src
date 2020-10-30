@@ -456,7 +456,6 @@ class ProcessFactory : public Factory {
   private:
     Pipe *pipes;
     PipeBuffer *send_buffer;
-    bool create_pipes();
 
   public:
     ProcessFactory(Server *server);

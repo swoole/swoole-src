@@ -31,19 +31,18 @@ static int process_sendto_reactor(Server *serv, PipeBuffer *buf, size_t n, void 
 ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
     pipes = nullptr;
     send_buffer = nullptr;
-    
+
     pipes = new Pipe[server_->worker_num]();
 
     SW_LOOP_N(server_->worker_num) {
         if (swPipeUnsock_create(&pipes[i], 1, SOCK_DGRAM) < 0) {
             if (i > 0) {
-                while(--i) {
-                    pipes[i].close(&pipes[i]);  
+                while (--i) {
+                    pipes[i].close(&pipes[i]);
                 }
             }
             delete[] pipes;
             pipes = nullptr;
-            swFatalError(errno, "failed to create pipe");
             return;
         }
     }
@@ -60,7 +59,7 @@ bool ProcessFactory::shutdown() {
         swSysWarn("waitpid(%d) failed", server_->gs->manager_pid);
     }
 
-    SW_LOOP_N(server_->worker_num){
+    SW_LOOP_N(server_->worker_num) {
         Worker *worker = &server_->workers[i];
         server_->destroy_worker(worker);
     }
@@ -82,13 +81,16 @@ ProcessFactory::~ProcessFactory() {
 
     sw_free(send_buffer);
 
-    SW_LOOP_N(server_->worker_num){
+    SW_LOOP_N(server_->worker_num) {
         pipes[i].close(&pipes[i]);
     }
     delete[] pipes;
 }
 
 bool ProcessFactory::start() {
+    if (!pipes) {
+        return false;
+    }
     SW_LOOP_N(server_->worker_num) {
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
 
