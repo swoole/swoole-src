@@ -100,25 +100,21 @@ TEST(log, rotation) {
 }
 
 TEST(log, redirect) {
-    int retval;
     char *p = getenv("GITHUB_ACTIONS");
     if (p) {
         return;
     }
 
     sw_logger()->reset();
-    retval = sw_logger()->open(file);
-    ASSERT_EQ(retval, SW_OK);
+    ASSERT_TRUE(sw_logger()->open(file));
+    ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(1));
 
-    retval = sw_logger()->redirect_stdout_and_stderr(1);
-    ASSERT_EQ(retval, SW_OK);
     printf("hello world\n");
     auto content = file_get_contents(file);
     ASSERT_NE(content.get(), nullptr);
 
     sw_logger()->close();
-    retval = sw_logger()->redirect_stdout_and_stderr(0);
-    ASSERT_EQ(retval, SW_OK);
+    ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(0));
     unlink(sw_logger()->get_real_file());
 
     ASSERT_TRUE(content->contains(SW_STRL("hello world\n")));
