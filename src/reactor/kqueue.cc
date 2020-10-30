@@ -81,6 +81,10 @@ ReactorKqueue::ReactorKqueue(Reactor *reactor, int max_events) : ReactorImpl(rea
     events_ = new struct kevent[max_events];
 }
 
+bool ReactorKqueue::ready() {
+    return epfd_ >= 0;
+}
+
 ReactorKqueue::~ReactorKqueue() {
     if (epfd_ >= 0) {
         close(epfd_);
