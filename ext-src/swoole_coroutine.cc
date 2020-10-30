@@ -619,8 +619,8 @@ void PHPCoroutine::main_func(void *arg) {
         task->output_ptr = nullptr;
 #if PHP_VERSION_ID < 80100
         task->array_walk_fci = nullptr;
-        task->in_silence = false;
 #endif
+        task->in_silence = false;
 
         task->co = Coroutine::get_current();
         task->co->set_task((void *) task);
