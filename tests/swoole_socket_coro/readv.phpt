@@ -19,17 +19,17 @@ $pm->parentFunc = function () use ($pm) {
         $conn->connect('127.0.0.1', $pm->getFreePort());
         $conn->send('hello');
         $iov = [5, 5];
-        $ret = $conn->readv($iov);
+        $ret = $conn->readVector($iov);
         Assert::same($ret, ['hello', 'world']);
 
         $conn->send('hello');
         $iov = [5, 7];
-        $ret = $conn->readv($iov);
+        $ret = $conn->readVector($iov);
         Assert::same($ret, ['hello', 'world']);
 
         $conn->send('hello');
         $iov = [5, 7, 7];
-        $ret = $conn->readv($iov);
+        $ret = $conn->readVector($iov);
         Assert::same($ret, ['hello', 'world']);
         $pm->kill();
         echo "DONE\n";

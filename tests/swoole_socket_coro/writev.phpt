@@ -27,7 +27,7 @@ $pm->parentFunc = function () use ($pm) {
 
         $conn = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         $conn->connect('127.0.0.1', $pm->getFreePort());
-        $ret = $conn->writev([$requestLine, $header, $body]);
+        $ret = $conn->writeVector([$requestLine, $header, $body]);
         Assert::same($ret, strlen($requestLine) + strlen($header) + strlen($body));
         $ret = $conn->recv();
         Assert::contains($ret, 'world');

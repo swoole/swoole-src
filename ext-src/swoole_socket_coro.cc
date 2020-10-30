@@ -48,8 +48,8 @@ static PHP_METHOD(swoole_socket_coro, checkLiveness);
 static PHP_METHOD(swoole_socket_coro, peek);
 static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
-static PHP_METHOD(swoole_socket_coro, readv);
-static PHP_METHOD(swoole_socket_coro, writev);
+static PHP_METHOD(swoole_socket_coro, readVector);
+static PHP_METHOD(swoole_socket_coro, writeVector);
 static PHP_METHOD(swoole_socket_coro, sendFile);
 static PHP_METHOD(swoole_socket_coro, recvAll);
 static PHP_METHOD(swoole_socket_coro, sendAll);
@@ -116,12 +116,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readv, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVector, 0, 0, 1)
     ZEND_ARG_INFO(0, iov)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writev, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVector, 0, 0, 1)
     ZEND_ARG_INFO(0, iov)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
@@ -182,8 +182,8 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, recv,          arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvPacket,    arginfo_swoole_socket_coro_recvPacket,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send,          arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, readv,         arginfo_swoole_socket_coro_readv,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, writev,        arginfo_swoole_socket_coro_writev,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, readVector,    arginfo_swoole_socket_coro_readVector,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, writeVector,   arginfo_swoole_socket_coro_writeVector,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendFile,      arginfo_swoole_socket_coro_sendFile,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvAll,       arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendAll,       arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
@@ -1274,7 +1274,7 @@ static PHP_METHOD(swoole_socket_coro, send) {
     swoole_socket_coro_send(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
-static PHP_METHOD(swoole_socket_coro, writev) {
+static PHP_METHOD(swoole_socket_coro, writeVector) {
     zval *ziov = nullptr;
     zval *element = nullptr;
     HashTable *vht;
@@ -1316,7 +1316,7 @@ static PHP_METHOD(swoole_socket_coro, writev) {
     }
 }
 
-static PHP_METHOD(swoole_socket_coro, readv) {
+static PHP_METHOD(swoole_socket_coro, readVector) {
     zval *ziov = nullptr;
     zval *element = nullptr;
     HashTable *vht;
