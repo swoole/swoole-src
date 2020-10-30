@@ -44,10 +44,9 @@ namespace swoole {
 class Logger {
   private:
     bool opened = false;
-    /**
-     * Redirect stdin and stdout to log_fd
-     */
+    // Redirect stdin and stdout to log_fd
     bool redirected = false;
+    bool display_backtrace_ = false;
     int stdout_fd = -1;
     int stderr_fd = -1;
     int log_fd = STDOUT_FILENO;
@@ -73,6 +72,11 @@ class Logger {
     bool is_opened();
     bool redirect_stdout_and_stderr(int enable);
     void set_date_with_microseconds(bool enable);
+
+    void display_backtrace() {
+        display_backtrace_ = true;
+    }
+
     static std::string gen_real_file(const std::string &file);
 };
 }  // namespace swoole

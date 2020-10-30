@@ -11,6 +11,10 @@ int main(int argc, char **argv) {
     swoole_init();
     init_root_path(argv[0]);
 
+    if (getenv("DISPLAY_BACKTRACE") != nullptr) {
+        sw_logger()->display_backtrace();
+    }
+
     ::testing::InitGoogleTest(&argc, argv);
     int retval = RUN_ALL_TESTS();
 
