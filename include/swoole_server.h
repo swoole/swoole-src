@@ -421,17 +421,51 @@ struct ServerGS {
     ProcessPool event_workers;
 };
 
-struct Factory {
-    void *object;
-    void *ptr;  // server object
+class Server;
 
-    int (*start)(Factory *);
-    int (*shutdown)(Factory *);
-    bool (*dispatch)(Factory *, SendData *);
-    bool (*finish)(Factory *, SendData *);
-    bool (*notify)(Factory *, DataHead *);  // send a event notify
-    bool (*end)(Factory *, SessionId sesion_id);
-    void (*free)(Factory *);
+class Factory {
+  protected:
+    Server *server_;
+
+  public:
+    Factory(Server *_server) {
+        server_ = _server;
+    }
+    virtual ~Factory() {}
+    virtual bool start() = 0;
+    virtual bool shutdown() = 0;
+    virtual bool dispatch(SendData *) = 0;
+    virtual bool finish(SendData *) = 0;
+    virtual bool notify(DataHead *) = 0;
+    virtual bool end(SessionId sesion_id) = 0;
+};
+
+class BaseFactory : public Factory {
+  public:
+    BaseFactory(Server *server) : Factory(server) {}
+    ~BaseFactory();
+    bool start() override;
+    bool shutdown() override;
+    bool dispatch(SendData *) override;
+    bool finish(SendData *) override;
+    bool notify(DataHead *) override;
+    bool end(SessionId sesion_id) override;
+};
+
+class ProcessFactory : public Factory {
+  private:
+    Pipe *pipes;
+    PipeBuffer *send_buffer;
+
+  public:
+    ProcessFactory(Server *server);
+    ~ProcessFactory();
+    bool start() override;
+    bool shutdown() override;
+    bool dispatch(SendData *) override;
+    bool finish(SendData *) override;
+    bool notify(DataHead *) override;
+    bool end(SessionId sesion_id) override;
 };
 
 enum ServerEventType {
@@ -659,10 +693,12 @@ class Server {
      */
     uint32_t ipc_max_size = SW_IPC_MAX_SIZE;
 
-    void *ptr2 = nullptr;
+    void *private_data_1 = nullptr;
+    void *private_data_2 = nullptr;
     void *private_data_3 = nullptr;
 
-    Factory factory = {};
+    Factory *factory = nullptr;
+
     std::vector<ListenPort *> ports;
 
     inline ListenPort *get_primary_port() {
@@ -1142,8 +1178,8 @@ class Server {
 
     int create_pipe_buffers();
     int create_worker(Worker *worker);
+    void destroy_worker(Worker *worker);
     void disable_accept();
-
     void destroy_http_request(Connection *conn);
 
     inline int schedule_worker(int fd, SendData *data) {
@@ -1286,5 +1322,3 @@ extern swoole::Server *g_server_instance;
 static inline swoole::Server *sw_server() {
     return g_server_instance;
 }
-
-bool swFactory_finish(swoole::Factory *factory, swoole::SendData *_send);

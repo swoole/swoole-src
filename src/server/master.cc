@@ -461,6 +461,10 @@ int Server::create_worker(Worker *worker) {
     return swMutex_create(&worker->lock, SW_MUTEX_PROCESS_SHARED);
 }
 
+void Server::destroy_worker(Worker *worker) {
+    worker->lock.free(&worker->lock);
+}
+
 /**
  * [Worker]
  */
@@ -608,7 +612,7 @@ int Server::start() {
     }
     running = true;
     // factory start
-    if (factory.start(&factory) < 0) {
+    if (!factory->start()) {
         return SW_ERR;
     }
     init_signal_handler();
@@ -647,6 +651,7 @@ Server::Server(enum Mode _mode) {
     worker_num = SW_CPU_NUM;
     max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
     mode_ = _mode;
+    factory = nullptr;
 
     // http server
 #ifdef SW_HAVE_COMPRESSION
@@ -695,7 +700,9 @@ Server::~Server() {
 }
 
 int Server::create() {
-    factory.ptr = this;
+    if (factory) {
+        return SW_ERR;
+    }
 
     session_list = (Session *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(Session));
     if (session_list == nullptr) {
@@ -764,8 +771,10 @@ int Server::create() {
     }
 
     if (is_base_mode()) {
+        factory = new BaseFactory(this);
         return create_reactor_processes();
     } else {
+        factory = new ProcessFactory(this);
         return create_reactor_threads();
     }
 }
@@ -819,9 +828,7 @@ void Server::destroy() {
     /**
      * shutdown workers
      */
-    if (factory.shutdown) {
-        factory.shutdown(&(factory));
-    }
+    factory->shutdown();
     if (is_base_mode()) {
         swTraceLog(SW_TRACE_SERVER, "terminate task workers");
         if (task_worker_num > 0) {
@@ -896,6 +903,9 @@ void Server::destroy() {
     port_connnection_num_list = nullptr;
     workers = nullptr;
 
+    delete factory;
+    factory = nullptr;
+
     g_server_instance = nullptr;
 }
 
@@ -947,7 +957,7 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) {
     _send.info.type = SW_SERVER_EVENT_RECV_DATA;
     _send.data = (char *) data;
     _send.info.len = length;
-    return factory.finish(&factory, &_send);
+    return factory->finish(&_send);
 }
 
 /**
@@ -1145,7 +1155,7 @@ bool Server::notify(Connection *conn, enum ServerEventType event) {
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
     notify_event.server_fd = conn->server_fd;
-    return factory.notify(&factory, &notify_event);
+    return factory->notify(&notify_event);
 }
 
 /**
@@ -1199,7 +1209,7 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
     send_data.info.len = sizeof(SendfileTask) + l_file + 1;
     send_data.data = _buffer;
 
-    return factory.finish(&factory, &send_data);
+    return factory->finish(&send_data);
 }
 
 /**
@@ -1315,7 +1325,7 @@ bool Server::close(SessionId session_id, bool reset) {
         return send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
     } else {
     _close:
-        return factory.end(&factory, session_id);
+        return factory->end(session_id);
     }
 }
 

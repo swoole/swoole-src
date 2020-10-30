@@ -195,7 +195,6 @@ struct ProcessPool {
     StreamInfo *stream_info_;
 
     void *ptr;
-    void *ptr2;
 
     inline void set_type(int _type) {
         uint32_t i;

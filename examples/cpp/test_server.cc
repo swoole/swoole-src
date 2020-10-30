@@ -165,9 +165,9 @@ void my_onShutdown(swServer *serv) {
 }
 
 void my_onConnect(swServer *serv, swDataHead *info) {
-    swNotice("PID=%d\tConnect fd=%d|reactor_id=%d", getpid(), info->fd, info->reactor_id);
+    swNotice("PID=%d\tConnect fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }
 
 void my_onClose(swServer *serv, swDataHead *info) {
-    swNotice("PID=%d\tClose fd=%d|reactor_id=%d", getpid(), info->fd, info->reactor_id);
+    swNotice("PID=%d\tClose fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }

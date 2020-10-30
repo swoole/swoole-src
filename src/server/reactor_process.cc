@@ -20,13 +20,9 @@
 using namespace swoole;
 using network::Socket;
 
-int swFactory_create(Factory *factory);
-
 static int ReactorProcess_loop(ProcessPool *pool, Worker *worker);
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event);
 static int ReactorProcess_onClose(Reactor *reactor, Event *event);
-static bool ReactorProcess_send2client(Factory *, SendData *data);
-static int ReactorProcess_send2worker(Socket *socket, const void *data, size_t length);
 static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode);
 
 #ifdef HAVE_REUSEPORT
@@ -45,17 +41,10 @@ int Server::create_reactor_processes() {
         swSysWarn("calloc[2](%d) failed", (int ) (max_connection * sizeof(Connection)));
         return SW_ERR;
     }
-    // create factry object
-    if (swFactory_create(&(factory)) < 0) {
-        swError("create factory failed");
-        return SW_ERR;
-    }
-    factory.finish = ReactorProcess_send2client;
     return SW_OK;
 }
 
 void Server::destroy_reactor_processes() {
-    factory.free(&factory);
     sw_free(connection_list);
 }
 
@@ -102,8 +91,7 @@ int Server::start_reactor_processes() {
     gs->event_workers.main_loop = ReactorProcess_loop;
     gs->event_workers.onWorkerNotFound = Server::wait_other_worker;
 
-    uint32_t i;
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
         gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
@@ -118,7 +106,7 @@ int Server::start_reactor_processes() {
         return retval;
     }
 
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         if (create_worker(&gs->event_workers.workers[i]) < 0) {
             return SW_ERR;
         }
@@ -187,6 +175,10 @@ int Server::start_reactor_processes() {
         onManagerStop(this);
     }
 
+    SW_LOOP_N(worker_num) {
+        destroy_worker(&gs->event_workers.workers[i]);
+    }
+
     return SW_OK;
 }
 
@@ -194,7 +186,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     EventData task;
     SendData _send;
     Server *serv = (Server *) reactor->ptr;
-    Factory *factory = &serv->factory;
+    Factory *factory = serv->factory;
     String *output_buffer;
 
     if (read(event->fd, &task, sizeof(task)) <= 0) {
@@ -211,7 +203,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     case SW_SERVER_EVENT_SEND_FILE:
         memcpy(&_send.info, &task.info, sizeof(_send.info));
         _send.data = task.data;
-        factory->finish(factory, &_send);
+        factory->finish(&_send);
         break;
     case SW_SERVER_EVENT_PROXY_START:
     case SW_SERVER_EVENT_PROXY_END:
@@ -222,7 +214,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
             _send.info.type = SW_SERVER_EVENT_RECV_DATA;
             _send.data = output_buffer->str;
             _send.info.len = output_buffer->length;
-            factory->finish(factory, &_send);
+            factory->finish(&_send);
             swString_clear(output_buffer);
         }
         break;
@@ -428,62 +420,6 @@ static int ReactorProcess_onClose(Reactor *reactor, Event *event) {
         }
     } else {
         return SW_ERR;
-    }
-}
-
-static int ReactorProcess_send2worker(Socket *socket, const void *data, size_t length) {
-    if (!swoole_event_is_available()) {
-        return socket->send_blocking(data, length);
-    } else {
-        return swoole_event_write(socket, data, length);
-    }
-}
-
-static bool ReactorProcess_send2client(Factory *factory, SendData *data) {
-    Server *serv = (Server *) factory->ptr;
-    SessionId session_id = data->info.fd;
-
-    Session *session = serv->get_session(session_id);
-    if (session->reactor_id != SwooleG.process_id) {
-        swTrace("session->reactor_id=%d, SwooleG.process_id=%d", session->reactor_id, SwooleG.process_id);
-        Worker *worker = serv->gs->event_workers.get_worker(session->reactor_id);
-        EventData proxy_msg {};
-
-        if (data->info.type == SW_SERVER_EVENT_RECV_DATA) {
-            proxy_msg.info.fd = session_id;
-            proxy_msg.info.reactor_id = SwooleG.process_id;
-            proxy_msg.info.type = SW_SERVER_EVENT_PROXY_START;
-
-            size_t send_n = data->info.len;
-            size_t offset = 0;
-
-            while (send_n > 0) {
-                if (send_n > SW_IPC_BUFFER_SIZE) {
-                    proxy_msg.info.len = SW_IPC_BUFFER_SIZE;
-                } else {
-                    proxy_msg.info.type = SW_SERVER_EVENT_PROXY_END;
-                    proxy_msg.info.len = send_n;
-                }
-                memcpy(proxy_msg.data, data->data + offset, proxy_msg.info.len);
-                send_n -= proxy_msg.info.len;
-                offset += proxy_msg.info.len;
-                ReactorProcess_send2worker(
-                    worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
-            }
-
-            swTrace("proxy message, fd=%d, len=%ld", worker->pipe_master, sizeof(proxy_msg.info) + proxy_msg.info.len);
-        } else if (data->info.type == SW_SERVER_EVENT_SEND_FILE) {
-            memcpy(&proxy_msg.info, &data->info, sizeof(proxy_msg.info));
-            memcpy(proxy_msg.data, data->data, data->info.len);
-            return ReactorProcess_send2worker(
-                worker->pipe_master, (const char *) &proxy_msg, sizeof(proxy_msg.info) + proxy_msg.info.len);
-        } else {
-            swWarn("unkown event type[%d]", data->info.type);
-            return false;
-        }
-        return true;
-    } else {
-        return swFactory_finish(factory, data);
     }
 }
 

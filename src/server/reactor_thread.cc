@@ -27,8 +27,6 @@ using std::unordered_map;
 using namespace swoole;
 using namespace swoole::network;
 
-int swFactoryProcess_create(Factory *factory, uint32_t worker_num);
-
 static void ReactorThread_loop(Server *serv, int reactor_id);
 static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_id);
 static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev);
@@ -62,14 +60,13 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
             }
         } else {
             if (!port->ssl_option.verify_peer || _socket->ssl_verify(port->ssl_option.allow_self_signed)) {
-                Factory *factory = &serv->factory;
                 SendData task;
                 task.info.fd = _socket->fd;
                 task.info.type = SW_SERVER_EVENT_CONNECT;
                 task.info.reactor_id = reactor->id;
                 task.info.len = sw_tg_buffer()->length;
                 task.data = sw_tg_buffer()->str;
-                factory->dispatch(factory, &task);
+                serv->factory->dispatch(&task);
                 goto _delay_receive;
             } else {
                 return SW_ERROR;
@@ -129,7 +126,6 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
     network::Socket *sock = server_sock->socket;
     SendData task = {};
     DgramPacket *pkt = (DgramPacket *) sw_tg_buffer()->str;
-    Factory *factory = &serv->factory;
 
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
@@ -199,7 +195,7 @@ _do_recvfrom:
     task.info.len = sizeof(*pkt) + ret;
     task.data = (char *) pkt;
 
-    if (!factory->dispatch(factory, &task)) {
+    if (!serv->factory->dispatch(&task)) {
         return SW_ERR;
     } else {
         goto _do_recvfrom;
@@ -326,7 +322,7 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
              * and the connection is no longer available.
              */
             conn->peer_closed = 1;
-            return serv->factory.notify(&serv->factory, &notify_ev);
+            return serv->factory->notify(&notify_ev);
         }
     } else {
         return SW_ERR;
@@ -698,7 +694,6 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
 }
 
 int Server::create_reactor_threads() {
-    int ret = 0;
     /**
      * init reactor thread pool
      */
@@ -709,15 +704,6 @@ int Server::create_reactor_threads() {
     connection_list = (Connection *) sw_shm_calloc(max_connection, sizeof(Connection));
     if (connection_list == nullptr) {
         swError("calloc[1] failed");
-        return SW_ERR;
-    }
-    if (worker_num < 1) {
-        swError("Fatal Error: worker_num < 1");
-        return SW_ERR;
-    }
-    ret = swFactoryProcess_create(&(factory), worker_num);
-    if (ret < 0) {
-        swError("create factory failed");
         return SW_ERR;
     }
     reactor_pipe_num = worker_num / reactor_num;
@@ -1037,7 +1023,7 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
         task.info.fd = conn->fd;
         task.info.len = length;
         task.data = data;
-        if (!serv->factory.dispatch(&serv->factory, &task)) {
+        if (!serv->factory->dispatch(&task)) {
             return SW_ERR;
         }
         if (length > 0) {
@@ -1086,7 +1072,6 @@ void Server::join_reactor_thread() {
 }
 
 void Server::destroy_reactor_threads() {
-    factory.free(&factory);
     sw_shm_free(connection_list);
     delete[] reactor_threads;
 

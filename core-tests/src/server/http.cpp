@@ -88,7 +88,7 @@ static void test_run_server(function<void(swServer *)> fn) {
     thread child_thread;
     swServer serv(swoole::Server::MODE_BASE);
     serv.worker_num = 1;
-    serv.ptr2 = (void *) &fn;
+    serv.private_data_2 = (void *) &fn;
 
     serv.enable_static_handler = true;
     serv.set_document_root(test::get_root_path());
@@ -107,7 +107,7 @@ static void test_run_server(function<void(swServer *)> fn) {
     serv.create();
 
     serv.onWorkerStart = [&child_thread](swServer *serv, int worker_id) {
-        function<void(swServer *)> fn = *(function<void(swServer *)> *) serv->ptr2;
+        function<void(swServer *)> fn = *(function<void(swServer *)> *) serv->private_data_2;
         child_thread = thread(fn, serv);
     };
 

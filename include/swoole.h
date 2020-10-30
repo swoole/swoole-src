@@ -125,6 +125,7 @@ typedef unsigned long ulong_t;
 
 #define SW_MAX(A, B) ((A) > (B) ? (A) : (B))
 #define SW_MIN(A, B) ((A) < (B) ? (A) : (B))
+#define SW_LOOP_N(n) for (decltype(n) i = 0; i < n; i++)
 
 #ifndef MAX
 #define MAX(A, B) SW_MAX(A, B)

@@ -34,7 +34,7 @@ Server::Server(std::string _host, int _port, swoole::Server::Mode _mode, int _ty
     }
 
     serv.dispatch_mode = 2;
-    serv.ptr2 = this;
+    serv.private_data_2 = this;
 
     if (!listen(host, port, (swSocket_type) type)) {
         swWarn("listen fail[error=%d].", errno);
