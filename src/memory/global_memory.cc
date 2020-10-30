@@ -21,8 +21,6 @@
 #include <mutex>
 
 #define SW_MIN_PAGE_SIZE 4096
-#define SW_MIN_EXPONENT 5   // 32
-#define SW_MAX_EXPONENT 21  // 2M
 
 namespace swoole {
 
@@ -46,6 +44,10 @@ struct MemoryBlock {
     char memory[0];
 };
 
+/**
+ * After the memory is allocated,
+ * it will not be released until it is recycled by OS when the process exits
+ */
 GlobalMemory::GlobalMemory(uint32_t pagesize, bool shared) {
     assert(pagesize >= SW_MIN_PAGE_SIZE);
     impl = new GlobalMemoryImpl(pagesize, shared);
@@ -73,6 +75,9 @@ char *GlobalMemoryImpl::new_page() {
     return page;
 }
 
+/**
+ * The returned memory must be initialized to 0
+ */
 void *GlobalMemory::alloc(uint32_t size) {
     MemoryBlock *block;
     size = SW_MEM_ALIGNED_SIZE(size);
@@ -84,9 +89,9 @@ void *GlobalMemory::alloc(uint32_t size) {
         return nullptr;
     }
 
-    if (impl->create_pid != getpid()) {
+    if (impl->shared and impl->create_pid != getpid()) {
         GlobalMemoryImpl *old_impl = impl;
-        impl =  new GlobalMemoryImpl(old_impl->pagesize, old_impl->shared);
+        impl = new GlobalMemoryImpl(old_impl->pagesize, old_impl->shared);
     }
 
     swTrace("alloc_size=%u, size=%u", alloc_size, size);
