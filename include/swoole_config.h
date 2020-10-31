@@ -58,7 +58,6 @@
 #define SW_SYSTEMD_FDS_START 3
 
 #define SW_GLOBAL_MEMORY_PAGESIZE (2 * 1024 * 1024)  // global memory page
-// #define SW_USE_HUGEPAGE
 
 #define SW_MAX_THREAD_NCPU 4     // n * cpu_num
 #define SW_MAX_WORKER_NCPU 1000  // n * cpu_num
