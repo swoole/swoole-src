@@ -854,9 +854,6 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_TCMALLOC
     php_info_print_table_row(2, "tcmalloc", "enabled");
 #endif
-#ifdef SW_USE_HUGEPAGE
-    php_info_print_table_row(2, "hugepage", "enabled");
-#endif
     php_info_print_table_row(2, "async_redis", "enabled");
 #ifdef SW_USE_POSTGRESQL
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
