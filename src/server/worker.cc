@@ -26,10 +26,10 @@
 #include "swoole_client.h"
 #include "swoole_async.h"
 
-using namespace swoole;
-using namespace swoole::network;
+swoole::WorkerGlobal SwooleWG = {};
 
-WorkerGlobal SwooleWG = {};
+namespace swoole {
+using namespace network;
 
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static int Worker_onStreamAccept(Reactor *reactor, Event *event);
@@ -722,3 +722,4 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
         return pipe_sock->send_blocking(buf, n);
     }
 }
+}  // namespace swoole

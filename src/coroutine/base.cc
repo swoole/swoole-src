@@ -17,7 +17,7 @@
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_c_api.h"
 
-using namespace swoole;
+namespace swoole {
 
 Coroutine *Coroutine::current = nullptr;
 long Coroutine::last_cid = 0;
@@ -149,37 +149,48 @@ void Coroutine::bailout(BailoutCallback func) {
     // expect that never here
     exit(1);
 }
+namespace coroutine {
+bool run(const coroutine_func_t &fn, void *arg) {
+    if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
+        return false;
+    }
+    long cid = Coroutine::create(fn, arg);
+    swoole_event_wait();
+    return cid > 0;
+}
+}  // namespace coroutine
+}  // namespace swoole
 
 uint8_t swoole_coroutine_is_in() {
-    return !!Coroutine::get_current();
+    return !!swoole::Coroutine::get_current();
 }
 
 long swoole_coroutine_get_current_id() {
-    return Coroutine::get_current_cid();
+    return swoole::Coroutine::get_current_cid();
 }
 
 /**
  * for gdb
  */
-static std::unordered_map<long, Coroutine *>::iterator _gdb_iterator;
+static std::unordered_map<long, swoole::Coroutine *>::iterator _gdb_iterator;
 
 void swoole_coro_iterator_reset() {
-    _gdb_iterator = Coroutine::coroutines.begin();
+    _gdb_iterator = swoole::Coroutine::coroutines.begin();
 }
 
-Coroutine *swoole_coro_iterator_each() {
-    if (_gdb_iterator == Coroutine::coroutines.end()) {
+swoole::Coroutine *swoole_coro_iterator_each() {
+    if (_gdb_iterator == swoole::Coroutine::coroutines.end()) {
         return nullptr;
     } else {
-        Coroutine *co = _gdb_iterator->second;
+        swoole::Coroutine *co = _gdb_iterator->second;
         _gdb_iterator++;
         return co;
     }
 }
 
-Coroutine *swoole_coro_get(long cid) {
-    auto i = Coroutine::coroutines.find(cid);
-    if (i == Coroutine::coroutines.end()) {
+swoole::Coroutine *swoole_coro_get(long cid) {
+    auto i = swoole::Coroutine::coroutines.find(cid);
+    if (i == swoole::Coroutine::coroutines.end()) {
         return nullptr;
     } else {
         return i->second;
@@ -187,14 +198,5 @@ Coroutine *swoole_coro_get(long cid) {
 }
 
 size_t swoole_coro_count() {
-    return Coroutine::coroutines.size();
-}
-
-bool coroutine::run(const coroutine_func_t &fn, void *arg) {
-    if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
-        return false;
-    }
-    long cid = Coroutine::create(fn, arg);
-    swoole_event_wait();
-    return cid > 0;
+    return swoole::Coroutine::coroutines.size();
 }

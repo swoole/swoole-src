@@ -18,8 +18,8 @@
 
 #include <unordered_map>
 
-using swoole::coroutine::Channel;
-using namespace swoole;
+namespace swoole {
+namespace coroutine {
 
 void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
     TimeoutMessage *msg = (TimeoutMessage *) tnode->data;
@@ -143,3 +143,6 @@ bool Channel::close() {
     }
     return true;
 }
+
+}  // namespace coroutine
+}  // namespace swoole

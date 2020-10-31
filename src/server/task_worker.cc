@@ -17,9 +17,8 @@
 #include "swoole_server.h"
 #include "swoole_util.h"
 
-using namespace swoole;
-using swoole::network::Socket;
-using swoole::File;
+namespace swoole {
+using network::Socket;
 
 static void TaskWorker_signal_init(ProcessPool *pool);
 static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event);
@@ -157,7 +156,7 @@ static void TaskWorker_onStart(ProcessPool *pool, int worker_id) {
     serv->worker_start_callback();
 
     Worker *worker = pool->get_worker(worker_id);
-    worker->start_time = time(nullptr);
+    worker->start_time = ::time(nullptr);
     worker->request_count = 0;
     SwooleWG.worker = worker;
     SwooleWG.worker->status = SW_WORKER_IDLE;
@@ -348,3 +347,4 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     }
     return ret;
 }
+}  // namespace swoole
