@@ -38,7 +38,6 @@ using swoole::coroutine::System;
 
 static std::unordered_map<int, Socket *> socket_map;
 static std::mutex socket_map_lock;
-static thread_local struct dirent _tmp_dirent;
 
 static sw_inline bool is_no_coro() {
     return SwooleTG.reactor == nullptr || !Coroutine::get_current();
@@ -337,15 +336,10 @@ struct dirent *swoole_coroutine_readdir(DIR *dirp) {
         return readdir(dirp);
     }
 
-    struct dirent *retval = &_tmp_dirent;
+    struct dirent *retval;
 
     swoole::coroutine::async([&retval, dirp]() {
-        struct dirent *tmp = readdir(dirp);
-        if (tmp) {
-            memcpy(retval, tmp, sizeof(*tmp));
-        } else {
-            retval = nullptr;
-        }
+        retval = readdir(dirp);
     });
 
     return retval;
