@@ -113,7 +113,7 @@ int String::append_random_bytes(size_t _length, bool base64) {
 
     if (base64) {
         std::unique_ptr<char[]> out(new char[base_encode_size]);
-        n = swBase64_encode((uchar *) str + length, _length, out.get());
+        n = base64_encode((uchar *) str + length, _length, out.get());
         memcpy(str + length, out.get(), n);
     }
 

@@ -16,9 +16,9 @@
  +----------------------------------------------------------------------+
  */
 
-#include <stdio.h>
-#include <string.h>
 #include "swoole_base64.h"
+
+namespace swoole {
 
 // clang-format off
 
@@ -60,7 +60,7 @@ static signed char base64de[] = {
 
 // clang-format on
 
-size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out) {
+size_t base64_encode(const unsigned char *in, size_t inlen, char *out) {
     size_t i, j;
 
     for (i = j = 0; i < inlen; i++) {
@@ -93,7 +93,7 @@ size_t swBase64_encode(const unsigned char *in, size_t inlen, char *out) {
     return j;
 }
 
-size_t swBase64_decode(const char *in, size_t inlen, char *out) {
+size_t base64_decode(const char *in, size_t inlen, char *out) {
     size_t i, j;
 
     for (i = j = 0; i < inlen; i++) {
@@ -129,4 +129,6 @@ size_t swBase64_decode(const char *in, size_t inlen, char *out) {
     out[j] = '\0';
 
     return j;
+}
+
 }

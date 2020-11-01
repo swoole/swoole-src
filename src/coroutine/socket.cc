@@ -396,7 +396,7 @@ bool Socket::http_proxy_handshake() {
                         http_proxy->username.c_str(),
                         (int) http_proxy->password.length(),
                         http_proxy->password.c_str());
-        swBase64_encode((unsigned char *) auth_buf, n, encode_buf);
+        base64_encode((unsigned char *) auth_buf, n, encode_buf);
         n = sw_snprintf(send_buffer->str,
                         send_buffer->size,
                         HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
