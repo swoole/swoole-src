@@ -3469,7 +3469,7 @@ static PHP_METHOD(swoole_server, bind) {
     }
 
     if (uid > UINT32_MAX || uid < INT32_MIN) {
-        php_swoole_fatal_error(E_WARNING, "uid can not be greater than %u or less than -%u", UINT32_MAX, INT32_MIN);
+        php_swoole_fatal_error(E_WARNING, "uid can not be greater than %u or less than %d", UINT32_MAX, INT32_MIN);
         RETURN_FALSE;
     }
 
