@@ -20,11 +20,13 @@
 #include "php_swoole_cxx.h"
 #include "php_swoole_http.h"
 
+#include "swoole_string.h"
 #include "swoole_file.h"
 #include "swoole_util.h"
 #include "swoole_websocket.h"
 #include "swoole_mime_type.h"
 #include "swoole_base64.h"
+#include "swoole_socket.h"
 
 SW_EXTERN_C_BEGIN
 
@@ -1749,9 +1751,6 @@ void php_swoole_http_client_coro_minit(int module_number) {
 
 #ifdef SW_HAVE_COMPRESSION
     swoole_zlib_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!swoole_zlib_buffer) {
-        php_swoole_fatal_error(E_ERROR, "[2] new String(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
-    }
 #endif
 }
 
