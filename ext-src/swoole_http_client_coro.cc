@@ -791,7 +791,7 @@ void HttpClient::set_basic_auth(const std::string &username, const std::string &
     char *output = (char *) emalloc(output_size);
     if (sw_likely(output)) {
         size_t output_len = sprintf(output, "Basic ");
-        output_len += swBase64_encode((const unsigned char *) input.c_str(), input.size(), output + output_len);
+        output_len += base64_encode((const unsigned char *) input.c_str(), input.size(), output + output_len);
         basic_auth = std::string((const char *) output, output_len);
         efree(output);
     }

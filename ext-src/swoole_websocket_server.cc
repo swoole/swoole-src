@@ -350,7 +350,7 @@ bool swoole_websocket_handshake(http_context *ctx) {
     // sha1 sec_websocket_accept
     php_swoole_sha1(sec_buf, str_pData.len() + sizeof(SW_WEBSOCKET_GUID) - 1, (unsigned char *) sha1_str);
     // base64 encode
-    int sec_len = swBase64_encode((unsigned char *) sha1_str, sizeof(sha1_str), sec_buf);
+    int sec_len = swoole::base64_encode((unsigned char *) sha1_str, sizeof(sha1_str), sec_buf);
 
     swoole_http_response_set_header(ctx, ZEND_STRL("Upgrade"), ZEND_STRL("websocket"), false);
     swoole_http_response_set_header(ctx, ZEND_STRL("Connection"), ZEND_STRL("Upgrade"), false);

@@ -20,7 +20,7 @@
 #include <sys/uio.h>
 
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
-    int ret;
+    ssize_t ret;
 
 #ifdef __MACH__
     struct sf_hdtr hdtr;
@@ -66,13 +66,11 @@ _do_sendfile:
 #elif !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     char buf[SW_BUFFER_SIZE_BIG];
-    int readn = size > sizeof(buf) ? sizeof(buf) : size;
-
-    int ret;
-    int n = pread(in_fd, buf, readn, *offset);
+    size_t readn = size > sizeof(buf) ? sizeof(buf) : size;
+    ssize_t n = pread(in_fd, buf, readn, *offset);
 
     if (n > 0) {
-        ret = write(out_fd, buf, n);
+        ssize_t ret = write(out_fd, buf, n);
         if (ret < 0) {
             swSysWarn("write() failed");
         } else {
