@@ -238,7 +238,10 @@ struct PacketTask {
 
 struct PacketPtr {
     DataHead info;
-    String data;
+    struct {
+        uint32_t length;
+        char *str;
+    } data;
 };
 
 struct ListenPort {

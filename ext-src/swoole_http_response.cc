@@ -323,7 +323,7 @@ static PHP_METHOD(swoole_http_response, write) {
 
     if (!ctx->send_header) {
         ctx->send_chunked = 1;
-        swString_clear(http_buffer);
+        http_buffer->clear();
         http_build_header(ctx, http_buffer, 0);
         if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
             ctx->send_chunked = 0;
@@ -351,7 +351,7 @@ static PHP_METHOD(swoole_http_response, write) {
     // so the chunk encoding itself is not compressed,
     // **and the data in each chunk is not compressed individually.**
     // The remote endpoint then decodes the stream by concatenating the chunks and decompressing the result.
-    swString_clear(http_buffer);
+    http_buffer->clear();
     char *hex_string = swoole_dec2hex(http_body.length, 16);
     int hex_len = strlen(hex_string);
     //"%.*s\r\n%.*s\r\n", hex_len, hex_string, body.length, body.str
@@ -698,7 +698,7 @@ static PHP_METHOD(swoole_http_response, end) {
 void swoole_http_response_send_trailer(http_context *ctx, zval *return_value) {
     swString *http_buffer = http_get_write_buffer(ctx);
 
-    swString_clear(http_buffer);
+    http_buffer->clear();
     if (http_build_trailer(ctx, http_buffer) == 0) {
         return;
     }
@@ -739,7 +739,7 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
     else {
         swString *http_buffer = http_get_write_buffer(ctx);
 
-        swString_clear(http_buffer);
+        http_buffer->clear();
 #ifdef SW_HAVE_COMPRESSION
         if (ctx->accept_compression) {
             if (http_body.length == 0 ||
@@ -913,7 +913,7 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 #endif
             swString *http_buffer = http_get_write_buffer(ctx);
 
-            swString_clear(http_buffer);
+            http_buffer->clear();
 
             zval *zheader = sw_zend_read_and_convert_property_array(
                 swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
@@ -1195,7 +1195,7 @@ static PHP_METHOD(swoole_http_response, push) {
     }
 
     swString *http_buffer = http_get_write_buffer(ctx);
-    swString_clear(http_buffer);
+    http_buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
         if (php_swoole_websocket_frame_object_pack(http_buffer, zdata, 0, ctx->websocket_compression) < 0) {
             RETURN_FALSE;

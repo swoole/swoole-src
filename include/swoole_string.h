@@ -74,7 +74,7 @@ class String {
         allocator = nullptr;
     }
 
-    String(size_t _size, const swAllocator *_allocator = nullptr) {
+    explicit String(size_t _size, const swAllocator *_allocator = nullptr) {
         alloc(_size, _allocator);
     }
 
@@ -258,16 +258,3 @@ inline String *make_string(size_t size, const swAllocator *allocator = nullptr) 
     return new String(size, allocator);
 }
 }  // namespace swoole
-
-static inline void swString_clear(swString *str) {
-    str->length = 0;
-    str->offset = 0;
-}
-
-static inline void swString_free(swString *str) {
-    delete str;
-}
-
-static inline swoole::String *swString_new(size_t size) {
-    return new swoole::String(size);
-}

@@ -241,7 +241,7 @@ class mysql_client {
             /* without unread data */
             swString *buffer = socket->get_read_buffer();
             SW_ASSERT(buffer->length == (size_t) buffer->offset);
-            swString_clear(buffer);
+            buffer->clear();
             return true;
         }
     }
@@ -610,7 +610,7 @@ const char *mysql_client::recv_length(size_t need_length, const bool try_to_recy
                        "mysql buffer will be recycled, length=%zu, offset=%jd",
                        buffer->length,
                        (intmax_t) offset);
-            swString_clear(buffer);
+            buffer->clear();
             offset = 0;
         }
         while (read_n < need_length) {

@@ -431,7 +431,7 @@ Client::~Client() {
 #endif
     // clear buffer
     if (buffer) {
-        swString_free(buffer);
+        delete buffer;
         buffer = nullptr;
     }
     if (server_str) {
@@ -618,11 +618,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     cli->timeout = timeout;
 
     if (!cli->buffer) {
-        // alloc input memory buffer
-        cli->buffer = swString_new(cli->input_buffer_size);
-        if (!cli->buffer) {
-            return SW_ERR;
-        }
+        cli->buffer = new String(cli->input_buffer_size);
     }
 
     if (!(cli->onConnect && cli->onError && cli->onClose)) {
@@ -996,7 +992,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
                 goto _connect_fail;
             } else {
                 cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
-                swString_clear(cli->buffer);
+                cli->buffer->clear();
             }
             if (cli->enable_ssl_encrypt() < 0) {
                 goto _connect_fail;

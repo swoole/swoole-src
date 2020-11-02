@@ -240,7 +240,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
 
     // free the receive memory buffer
     if (socket->recv_buffer) {
-        swString_free(socket->recv_buffer);
+        delete socket->recv_buffer;
         socket->recv_buffer = nullptr;
     }
 
@@ -379,13 +379,8 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                 int key = (ev->fd << 16) + worker_id;
                 auto it = thread->send_buffers.find(key);
                 if (it == thread->send_buffers.end()) {
-                    package = swString_new(SW_BUFFER_SIZE_BIG);
-                    if (package == nullptr) {
-                        swSysWarn("get buffer(worker-%d) failed", worker_id);
-                        return SW_OK;
-                    } else {
-                        thread->send_buffers.emplace(std::make_pair(key, package));
-                    }
+                    package = new String(SW_BUFFER_SIZE_BIG);
+                    thread->send_buffers.emplace(std::make_pair(key, package));
                 } else {
                     package = it->second;
                 }
@@ -399,7 +394,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                 _send.data = package->str;
                 _send.info.len = package->length;
                 serv->send_to_connection(&_send);
-                swString_free(package);
+                delete package;
                 thread->send_buffers.erase(key);
             } else {
                 /**
@@ -906,7 +901,7 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
-    SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
+    SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == nullptr) {
         return;
     }
@@ -952,11 +947,11 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
     swoole_event_wait();
 
     for (auto it = thread->send_buffers.begin(); it != thread->send_buffers.end(); it++) {
-        swString_free(it->second);
+        delete it->second;
     }
     sw_free(thread->pipe_sockets);
 
-    swString_free(SwooleTG.buffer_stack);
+    delete SwooleTG.buffer_stack;
 }
 
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {

@@ -145,7 +145,7 @@ void swoole_init(void) {
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
     }
 
-    SwooleTG.buffer_stack = swString_new(SW_STACK_BUFFER_SIZE);
+    SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
     if (SwooleTG.buffer_stack == nullptr) {
         exit(3);
     }

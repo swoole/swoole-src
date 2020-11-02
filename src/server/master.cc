@@ -368,26 +368,19 @@ void Server::store_listen_socket() {
 }
 
 static void **Server_worker_create_buffers(Server *serv, uint32_t buffer_num) {
-    String **buffers = (String **) sw_malloc(sizeof(String *) * buffer_num);
-    if (buffers == nullptr) {
-        swError("malloc for worker input_buffers failed");
-    }
-
+    String **buffers = new String *[buffer_num];
     for (uint i = 0; i < buffer_num; i++) {
-        buffers[i] = swString_new(SW_BUFFER_SIZE_BIG);
-        if (buffers[i] == nullptr) {
-            swError("worker input_buffers init failed");
-        }
+        buffers[i] = new String(SW_BUFFER_SIZE_BIG);
     }
-
     return (void **) buffers;
 }
 
-static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void **buffers) {
+static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void **_buffers) {
+    String **buffers = (String **) _buffers;
     for (uint i = 0; i < buffer_num; i++) {
-        swString_free((String *) buffers[i]);
+        delete buffers[i];
     }
-    sw_free(buffers);
+    delete[] buffers;
 }
 
 /**
@@ -1238,7 +1231,7 @@ static void *Server_worker_get_buffer(Server *serv, DataHead *info) {
     String *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
 
     if (worker_buffer == nullptr) {
-        worker_buffer = swString_new(info->len);
+        worker_buffer = new String(info->len);
         Server_worker_set_buffer(serv, info, worker_buffer);
     }
 

@@ -20,8 +20,13 @@
 #include "php_swoole_cxx.h"
 #include "php_swoole_http.h"
 
+#include "swoole_string.h"
+#include "swoole_file.h"
 #include "swoole_util.h"
 #include "swoole_websocket.h"
+#include "swoole_mime_type.h"
+#include "swoole_base64.h"
+#include "swoole_socket.h"
 
 SW_EXTERN_C_BEGIN
 
@@ -37,9 +42,6 @@ SW_EXTERN_C_BEGIN
 
 SW_EXTERN_C_END
 
-#include "swoole_mime_type.h"
-#include "swoole_base64.h"
-
 #ifdef SW_HAVE_BROTLI
 #include <brotli/decode.h>
 #endif
@@ -47,6 +49,7 @@ SW_EXTERN_C_END
 using swoole::network::Address;
 using swoole::coroutine::Socket;
 using swoole::File;
+using swoole::String;
 
 enum http_client_error_status_code {
     HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
@@ -573,7 +576,7 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
         if (swoole_coroutine_write(http->download_file->get_fd(), SW_STRINGL(http->body)) != (ssize_t) http->body->length) {
             return -1;
         }
-        swString_clear(http->body);
+        http->body->clear();
     }
     return 0;
 }
@@ -800,7 +803,7 @@ void HttpClient::set_basic_auth(const std::string &username, const std::string &
 bool HttpClient::connect() {
     if (!socket) {
         if (!body) {
-            body = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
+            body = new String(SW_HTTP_RESPONSE_INIT_SIZE);
             if (!body) {
                 zend_update_property_long(
                     swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), ENOMEM);
@@ -915,9 +918,9 @@ bool HttpClient::send() {
     swoole_set_last_error(0);
     // alloc buffer
     swString *buffer = socket->get_write_buffer();
-    swString_clear(buffer);
+    buffer->clear();
     // clear body
-    swString_clear(body);
+    body->clear();
 
     zmethod = sw_zend_read_property_not_null_ex(
         swoole_http_client_coro_ce, zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_REQUEST_METHOD), 0);
@@ -1247,7 +1250,7 @@ bool HttpClient::send() {
                  * from memory
                  */
                 if (zcontent) {
-                    swString_clear(buffer);
+                    buffer->clear();
                     buffer->append(header_buf, n);
                     buffer->append(Z_STRVAL_P(zcontent), Z_STRLEN_P(zcontent));
                     buffer->append("\r\n", 2);
@@ -1488,7 +1491,7 @@ bool HttpClient::recv_http_response(double timeout) {
                 header_completed = true;
                 header_crlf_offset = 0;
                 retval = buffer->length;
-                swString_clear(buffer);
+                buffer->clear();
             }
         }
 
@@ -1571,7 +1574,7 @@ bool HttpClient::push(zval *zdata, zend_long opcode, uint8_t flags) {
     }
 
     swString *buffer = socket->get_write_buffer();
-    swString_clear(buffer);
+    buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
         if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, websocket_compression) < 0) {
             return false;
@@ -1747,10 +1750,7 @@ void php_swoole_http_client_coro_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HTTP_CLIENT_ESTATUS_SERVER_RESET", HTTP_CLIENT_ESTATUS_SERVER_RESET);
 
 #ifdef SW_HAVE_COMPRESSION
-    swoole_zlib_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!swoole_zlib_buffer) {
-        php_swoole_fatal_error(E_ERROR, "[2] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
-    }
+    swoole_zlib_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
 #endif
 }
 

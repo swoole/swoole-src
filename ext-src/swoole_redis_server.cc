@@ -349,7 +349,7 @@ static PHP_METHOD(swoole_redis_server, format) {
             php_swoole_fatal_error(E_WARNING, "invalid string size");
             RETURN_FALSE;
         }
-        swString_clear(format_buffer);
+        format_buffer->clear();
         length = sw_snprintf(message, sizeof(message), "$%zu\r\n", str_value.len());
         format_buffer->append(message, length);
         format_buffer->append(str_value.val(), str_value.len());
@@ -362,7 +362,7 @@ static PHP_METHOD(swoole_redis_server, format) {
         if (!ZVAL_IS_ARRAY(value)) {
             php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
         }
-        swString_clear(format_buffer);
+        format_buffer->clear();
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", zend_hash_num_elements(Z_ARRVAL_P(value)));
         format_buffer->append(message, length);
 
@@ -383,7 +383,7 @@ static PHP_METHOD(swoole_redis_server, format) {
         if (!ZVAL_IS_ARRAY(value)) {
             php_swoole_fatal_error(E_WARNING, "the second parameter should be an array");
         }
-        swString_clear(format_buffer);
+        format_buffer->clear();
         length = sw_snprintf(message, sizeof(message), "*%d\r\n", 2 * zend_hash_num_elements(Z_ARRVAL_P(value)));
         format_buffer->append(message, length);
 

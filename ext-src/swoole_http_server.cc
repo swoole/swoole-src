@@ -242,11 +242,11 @@ void swoole_http_context_free(http_context *ctx) {
         zend_string_release(Z_STR(req->zdata));
     }
     if (req->chunked_body) {
-        swString_free(req->chunked_body);
+        delete req->chunked_body;
     }
 #ifdef SW_USE_HTTP2
     if (req->h2_data_buffer) {
-        swString_free(req->h2_data_buffer);
+        delete req->h2_data_buffer;
     }
 #endif
     if (res->reason) {
@@ -256,19 +256,8 @@ void swoole_http_context_free(http_context *ctx) {
 }
 
 void php_swoole_http_server_init_global_variant() {
-    swoole_http_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!swoole_http_buffer) {
-        php_swoole_fatal_error(E_ERROR, "[swoole_http_buffer] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
-        return;
-    }
-
-    swoole_http_form_data_buffer = swString_new(SW_HTTP_RESPONSE_INIT_SIZE);
-    if (!swoole_http_form_data_buffer) {
-        php_swoole_fatal_error(
-            E_ERROR, "[swoole_http_form_data_buffer] swString_new(%d) failed", SW_HTTP_RESPONSE_INIT_SIZE);
-        return;
-    }
-
+    swoole_http_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
+    swoole_http_form_data_buffer = new String(SW_HTTP_RESPONSE_INIT_SIZE);
     // for is_uploaded_file and move_uploaded_file
     if (!SG(rfc1867_uploaded_files)) {
         ALLOC_HASHTABLE(SG(rfc1867_uploaded_files));

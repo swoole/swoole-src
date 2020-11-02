@@ -56,7 +56,7 @@ struct http_context {
         }
         buf->append(SW_STRL("\r\n"));
         server->send(fd, buf->str, buf->length);
-        swString_free(buf);
+        delete buf;
     }
 };
 
@@ -116,7 +116,7 @@ static void test_run_server(function<void(swServer *)> fn) {
         auto conn = serv->get_connection_by_session_id(session_id);
 
         if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
-            swString_clear(SwooleTG.buffer_stack);
+            SwooleTG.buffer_stack->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
             swWebSocket_encode(
                 SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN);

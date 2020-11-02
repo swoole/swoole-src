@@ -559,11 +559,7 @@ PHP_METHOD(swoole_coroutine_system, exec) {
         RETURN_FALSE;
     }
 
-    swString *buffer = swString_new(1024);
-    if (buffer == nullptr) {
-        RETURN_FALSE;
-    }
-
+    String *buffer = new String(1024);
     Socket socket(fd, SW_SOCK_UNIX_STREAM);
     while (1) {
         ssize_t retval = socket.read(buffer->str + buffer->length, buffer->size - buffer->length);
@@ -586,7 +582,7 @@ PHP_METHOD(swoole_coroutine_system, exec) {
     } else {
         ZVAL_STRINGL(&zdata, buffer->str, buffer->length);
     }
-    swString_free(buffer);
+    delete buffer;
 
     int status;
     pid_t _pid = swoole_coroutine_waitpid(pid, &status, 0);

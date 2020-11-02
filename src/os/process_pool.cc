@@ -484,17 +484,9 @@ int ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
     if (task_protocol) {
         main_loop = ProcessPool_worker_loop;
     } else {
-        packet_buffer = (char *) sw_malloc(max_packet_size);
-        if (packet_buffer == nullptr) {
-            swSysWarn("malloc(%d) failed", max_packet_size);
-            return SW_ERR;
-        }
+        packet_buffer = new char[max_packet_size];
         if (stream_info_) {
-            stream_info_->response_buffer = swString_new(SW_BUFFER_SIZE_STD);
-            if (stream_info_->response_buffer == nullptr) {
-                sw_free(packet_buffer);
-                return SW_ERR;
-            }
+            stream_info_->response_buffer = new String(SW_BUFFER_SIZE_STD);
         }
         max_packet_size_ = max_packet_size;
         main_loop = ProcessPool_worker_loop_ex;
@@ -577,7 +569,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
                 int _l = htonl(resp_buf->length);
                 pool->stream_info_->last_connection->send_blocking(&_l, sizeof(_l));
                 pool->stream_info_->last_connection->send_blocking(resp_buf->str, resp_buf->length);
-                swString_clear(resp_buf);
+                resp_buf->clear();
             }
             pool->stream_info_->last_connection->free();
             pool->stream_info_->last_connection = nullptr;
@@ -725,13 +717,13 @@ void ProcessPool::destroy() {
             stream_info_->socket = nullptr;
         }
         if (stream_info_->response_buffer) {
-            swString_free(stream_info_->response_buffer);
+            delete stream_info_->response_buffer;
         }
         delete stream_info_;
     }
 
     if (packet_buffer) {
-        sw_free(packet_buffer);
+        delete[] packet_buffer;
     }
 
     if (map_) {

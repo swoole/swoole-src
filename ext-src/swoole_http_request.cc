@@ -724,7 +724,7 @@ static int multipart_body_on_data_end(multipart_parser *p) {
         efree(ctx->current_form_data_name);
         ctx->current_form_data_name = nullptr;
         ctx->current_form_data_name_len = 0;
-        swString_clear(swoole_http_form_data_buffer);
+        swoole_http_form_data_buffer->clear();
         return 0;
     }
 
@@ -796,10 +796,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
 
     if (ctx->recv_chunked) {
         if (ctx->request.chunked_body == nullptr) {
-            ctx->request.chunked_body = swString_new(SW_BUFFER_SIZE_STD);
-            if (ctx->request.chunked_body == nullptr) {
-                return -1;
-            }
+            ctx->request.chunked_body = new swoole::String(SW_BUFFER_SIZE_STD);
         }
         ctx->request.chunked_body->append(at, length);
     } else {

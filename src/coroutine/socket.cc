@@ -201,7 +201,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
     } else  // if (event == SW_EVENT_WRITE)
     {
         if (sw_unlikely(!zero_copy && __n > 0 && *__buf != get_write_buffer()->str)) {
-            swString_clear(write_buffer);
+            write_buffer->clear();
             if (write_buffer->append((const char *) *__buf, __n) != SW_OK) {
                 set_err(ENOMEM);
                 goto _failed;
@@ -1398,7 +1398,7 @@ _get_length:
         }
         goto _recv_header;
     } else if (packet_len > protocol.package_max_length) {
-        swString_clear(read_buffer);
+        read_buffer->clear();
         set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
         return -1;
     }
@@ -1411,7 +1411,7 @@ _get_length:
 
     if ((size_t) packet_len > read_buffer->size) {
         if (!read_buffer->extend(packet_len)) {
-            swString_clear(read_buffer);
+            read_buffer->clear();
             set_err(ENOMEM);
             return -1;
         }
@@ -1449,7 +1449,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
 
         retval = recv(buf, l_buf);
         if (retval <= 0) {
-            swString_clear(read_buffer);
+            read_buffer->clear();
             return retval;
         }
 
@@ -1465,7 +1465,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
             return (read_buffer->offset = eof + protocol.package_eof_len);
         }
         if (read_buffer->length == protocol.package_max_length) {
-            swString_clear(read_buffer);
+            read_buffer->clear();
             set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "no package eof, package_max_length exceeded");
             return -1;
         }
@@ -1475,7 +1475,7 @@ ssize_t Socket::recv_packet_with_eof_protocol() {
                 new_size = protocol.package_max_length;
             }
             if (!read_buffer->extend(new_size)) {
-                swString_clear(read_buffer);
+                read_buffer->clear();
                 set_err(ENOMEM);
                 return -1;
             }
@@ -1527,7 +1527,7 @@ ssize_t Socket::recv_packet(double timeout) {
         }
     }
     if (recv_bytes <= 0) {
-        swString_clear(read_buffer);
+        read_buffer->clear();
     }
     return recv_bytes;
 }
@@ -1651,10 +1651,10 @@ Socket::~Socket() {
     }
 #endif
     if (read_buffer) {
-        swString_free(read_buffer);
+        delete read_buffer;
     }
     if (write_buffer) {
-        swString_free(write_buffer);
+        delete write_buffer;
     }
     /* {{{ release socket resources */
 #ifdef SW_USE_OPENSSL

@@ -146,10 +146,7 @@ static int Worker_onStreamRead(Reactor *reactor, Event *event) {
 
     if (!event->socket->recv_buffer) {
         if (serv->buffer_pool->empty()) {
-            buffer = swString_new(8192);
-            if (!buffer) {
-                return SW_ERR;
-            }
+            buffer = new String(SW_BUFFER_SIZE_STD);
         } else {
             buffer = serv->buffer_pool->front();
             serv->buffer_pool->pop();

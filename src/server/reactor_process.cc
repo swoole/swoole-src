@@ -213,7 +213,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
             _send.data = output_buffer->str;
             _send.info.len = output_buffer->length;
             factory->finish(&_send);
-            swString_clear(output_buffer);
+            output_buffer->clear();
         }
         break;
     default:
@@ -231,7 +231,7 @@ static int ReactorProcess_alloc_output_buffer(int n_buffer) {
 
     int i;
     for (i = 0; i < n_buffer; i++) {
-        SwooleWG.output_buffer[i] = swString_new(SW_BUFFER_SIZE_BIG);
+        SwooleWG.output_buffer[i] = new String(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.output_buffer[i] == nullptr) {
             swError("output_buffer init failed");
             return SW_ERR;
@@ -243,7 +243,7 @@ static int ReactorProcess_alloc_output_buffer(int n_buffer) {
 static void ReactorProcess_free_output_buffer(int n_buffer) {
     int i;
     for (i = 0; i < n_buffer; i++) {
-        swString_free(SwooleWG.output_buffer[i]);
+        delete SwooleWG.output_buffer[i];
     }
     sw_free(SwooleWG.output_buffer);
 }

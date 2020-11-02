@@ -27,6 +27,7 @@ using swoole::network::Client;
 using swoole::network::Socket;
 using swoole::Socks5Proxy;
 using swoole::HttpProxy;
+using swoole::String;
 
 #include "ext/standard/basic_functions.h"
 
@@ -1021,7 +1022,7 @@ static PHP_METHOD(swoole_client, recv) {
 
                 sw_set_zend_string(return_value, buffer->str, eof);
                 buffer->str = nullptr;
-                swString_free(buffer);
+                delete buffer;
 
                 return;
             } else {
@@ -1047,9 +1048,9 @@ static PHP_METHOD(swoole_client, recv) {
         RETURN_FALSE;
     } else if (cli->open_length_check) {
         if (cli->buffer == nullptr) {
-            cli->buffer = swString_new(SW_BUFFER_SIZE_STD);
+            cli->buffer = new String(SW_BUFFER_SIZE_STD);
         } else {
-            swString_clear(cli->buffer);
+            cli->buffer->clear();
         }
         swString *buffer = cli->buffer;
 
