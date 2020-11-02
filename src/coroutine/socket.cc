@@ -162,9 +162,19 @@ bool Socket::add_event(const enum swEvent_type event) {
     return ret;
 }
 
+/**
+ * If an exception occurs while waiting for an event, false is returned.
+ * For example, when waiting for a read event, timeout, connection closed, are exceptions to the interrupt event.
+ * And these exceptions will actively set the errCode, We don't need to set the exception's errCode ourselves.
+ * We only need to set the errCode for the socket operation when wait_event returns true,
+ * which means that the exception's error code priority is greater than the current event error priority.
+ */
 bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n) {
     enum swEvent_type added_event = event;
     Coroutine *co = Coroutine::get_current_safe();
+
+    // clear the last errCode
+    set_err(0);
 #ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->ssl && ((event == SW_EVENT_READ && socket->ssl_want_write) ||
                                     (event == SW_EVENT_WRITE && socket->ssl_want_read)))) {
@@ -930,8 +940,6 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
     struct iovec *_iov = (iovec *) iov;
 
-    set_err(0);
-
     retval = socket->readv(_iov, remain_cnt);
     swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
 
@@ -957,7 +965,8 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
         return retval;
     }
 
-    recv_barrier = new EventBarrier();
+    EventBarrier barrier;
+    recv_barrier = &barrier;
     recv_barrier->func = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> int {
 
         _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
@@ -986,9 +995,10 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
         return SW_READY;
     };
 
-    timer.start() && wait_event(SW_EVENT_READ);
+    if (timer.start() && wait_event(SW_EVENT_READ)) {
+        set_err(retval < 0 ? errno : 0);
+    }
 
-    delete recv_barrier;
     recv_barrier = nullptr;
 
     return total_bytes;
@@ -1103,7 +1113,9 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
 
     retval = -1;
 
-    recv_barrier = new EventBarrier();
+    EventBarrier barrier;
+    recv_barrier = &barrier;
+
     recv_barrier->func = [&__n, &total_bytes, &retval, &__buf, this]() -> int {
         retval = socket->recv((char *) __buf + total_bytes, __n - total_bytes, 0);
 
@@ -1114,12 +1126,11 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
         return SW_READY;
     };
 
-    timer.start() && wait_event(SW_EVENT_READ);
+    if (timer.start() && wait_event(SW_EVENT_READ)) {
+        set_err(retval < 0 ? errno : 0);
+    }
 
-    delete recv_barrier;
     recv_barrier = nullptr;
-
-    set_err(retval < 0 ? errno : 0);
 
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
@@ -1144,7 +1155,8 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
 
     retval = -1;
 
-    send_barrier = new EventBarrier();
+    EventBarrier barrier;
+    send_barrier = &barrier;
     send_barrier->func = [&__n, &total_bytes, &retval, &__buf, this]() -> int {
         retval = socket->send((char *) __buf + total_bytes, __n - total_bytes, 0);
 
@@ -1155,12 +1167,11 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
         return SW_READY;
     };
 
-    timer.start() && wait_event(SW_EVENT_WRITE);
+    if (timer.start() && wait_event(SW_EVENT_WRITE)) {
+        set_err(retval < 0 ? errno : 0);
+    }
 
-    delete send_barrier;
     send_barrier = nullptr;
-
-    set_err(retval < 0 ? errno : 0);
 
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }

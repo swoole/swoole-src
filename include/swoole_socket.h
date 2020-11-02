@@ -519,7 +519,7 @@ struct Socket {
     static inline int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, int &index, size_t &offset_bytes) {
         index = 0;
         offset_bytes = 0;
-        int total_bytes = 0;
+        size_t total_bytes = 0;
 
         for (; index < iovcnt; index++) {
             total_bytes += iov[index].iov_len;
