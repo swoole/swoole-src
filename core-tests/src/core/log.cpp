@@ -57,7 +57,7 @@ TEST(log, date_format) {
 TEST(log, date_format_long_string) {
     sw_logger()->reset();
     sw_logger()->set_level(SW_LOG_ERROR);
-    std::unique_ptr<swString> content(swString_new(256));
+    std::unique_ptr<String> content(new String(256));
     auto str = content.get();
 
     str->repeat("x", 1, 120);

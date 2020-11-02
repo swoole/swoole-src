@@ -388,7 +388,7 @@ bool Http2Stream::send_header(size_t body_length, bool end_stream) {
         return false;
     }
 
-    swString_clear(swoole_http_buffer);
+    swoole_http_buffer->clear();
 
     /**
      +---------------+
@@ -433,7 +433,7 @@ bool Http2Stream::send_body(swString *body, bool end_stream, size_t max_frame_si
     while (l > 0) {
         size_t send_n;
         int _send_flag;
-        swString_clear(swoole_http_buffer);
+        swoole_http_buffer->clear();
         if (l > max_frame_size) {
             send_n = max_frame_size;
             _send_flag = 0;
@@ -460,7 +460,7 @@ bool Http2Stream::send_trailer() {
     char header_buffer[SW_BUFFER_SIZE_STD] = {};
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
 
-    swString_clear(swoole_http_buffer);
+    swoole_http_buffer->clear();
     ssize_t bytes = http2_build_trailer(ctx, (uchar *) header_buffer);
     if (bytes > 0) {
         swHttp2_set_frame_header(
@@ -877,7 +877,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
 
         swString *buffer = ctx->request.h2_data_buffer;
         if (!buffer) {
-            buffer = swString_new(SW_HTTP2_DATA_BUFFER_SIZE);
+            buffer = new String(SW_HTTP2_DATA_BUFFER_SIZE);
             ctx->request.h2_data_buffer = buffer;
         }
         buffer->append(buf, length);

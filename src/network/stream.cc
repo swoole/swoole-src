@@ -34,7 +34,7 @@ static void Stream_onConnect(Client *cli) {
     if (cli->send(cli, stream->buffer->str, stream->buffer->length, 0) < 0) {
         cli->close();
     } else {
-        swString_free(stream->buffer);
+        delete stream->buffer;
         stream->buffer = nullptr;
     }
 }
@@ -98,7 +98,7 @@ Stream::Stream(const char *dst_host, int dst_port, enum swSocket_type type) : cl
 
 Stream::~Stream() {
     if (buffer) {
-        swString_free(buffer);
+        delete buffer;
     }
 }
 
@@ -120,9 +120,6 @@ void Stream::set_max_length(uint32_t max_length) {
 int Stream::send(const char *data, size_t length) {
     if (buffer == nullptr) {
         buffer = new String(swoole_size_align(length + 4, SwooleG.pagesize));
-        if (buffer == nullptr) {
-            return SW_ERR;
-        }
         buffer->length = 4;
     }
     if (buffer->append(data, length) < 0) {

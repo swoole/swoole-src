@@ -24,6 +24,7 @@ using swoole::coroutine::Socket;
 using swoole::network::Address;
 using swoole::Socks5Proxy;
 using swoole::HttpProxy;
+using swoole::String;
 
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;

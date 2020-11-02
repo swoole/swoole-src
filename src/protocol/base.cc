@@ -90,7 +90,7 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
         offset = buffer->length - package_eof_len;
         buffer->offset = offset > 0 ? offset : 0;
     } else {
-        swString_clear(buffer);
+        buffer->clear();
     }
 
 #ifdef SW_USE_OPENSSL
@@ -163,7 +163,7 @@ _do_recv:
                     buffer->reduce(buffer->offset);
                     goto _do_get_length;
                 } else {
-                    swString_clear(buffer);
+                    buffer->clear();
                 }
             }
 #ifdef SW_USE_OPENSSL
@@ -273,7 +273,7 @@ _recv_data:
             if (socket->removed) {
                 return SW_OK;
             }
-            swString_clear(buffer);
+            buffer->clear();
 #ifdef SW_USE_OPENSSL
             if (socket->ssl && SSL_pending(socket->ssl) > 0) {
                 goto _recv_data;

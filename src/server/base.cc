@@ -28,7 +28,7 @@ bool BaseFactory::shutdown() {
 }
 
 bool BaseFactory::dispatch(SendData *task) {
-    PacketPtr pkg;
+    PacketPtr pkg{};
     Connection *conn = nullptr;
 
     if (Server::is_stream_event(task->info.type)) {
@@ -50,7 +50,6 @@ bool BaseFactory::dispatch(SendData *task) {
     if (task->info.len > 0) {
         memcpy(&pkg.info, &task->info, sizeof(pkg.info));
         pkg.info.flags = SW_EVENT_DATA_PTR;
-        swString_clear(&pkg.data);
         pkg.data.length = task->info.len;
         pkg.data.str = (char *) task->data;
 
