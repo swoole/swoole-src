@@ -100,11 +100,9 @@ int Socket::readable_event_callback(Reactor *reactor, Event *event) {
     } else
 #endif
     {
-        EventBarrier &barrier = socket->recv_barrier;
-        if (barrier.hold) {
-            barrier.retval = socket->socket->recv(barrier.buf + barrier.total_bytes, barrier.n - barrier.total_bytes, 0);
-            if ((barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
-                    || (barrier.retval > 0 && (barrier.total_bytes += barrier.retval) < barrier.n)) {
+        if (socket->recv_barrier) {
+            int retval = socket->recv_barrier->func();
+            if (retval == SW_CONTINUE) {
                 return SW_OK;
             }
         }
@@ -125,11 +123,9 @@ int Socket::writable_event_callback(Reactor *reactor, Event *event) {
     } else
 #endif
     {
-        EventBarrier &barrier = socket->send_barrier;
-        if (barrier.hold) {
-            barrier.retval = socket->socket->send(barrier.buf + barrier.total_bytes, barrier.n - barrier.total_bytes, 0);
-            if ((barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
-                    || (barrier.retval > 0 && (barrier.total_bytes += barrier.retval) < barrier.n)) {
+        if (socket->send_barrier) {
+            int retval = socket->send_barrier->func();
+            if (retval == SW_CONTINUE) {
                 return SW_OK;
             }
         }
@@ -207,9 +203,6 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
                 goto _failed;
             }
             *__buf = write_buffer->str;
-            if (send_barrier.hold) {
-                send_barrier.buf = (char *) write_buffer->str;
-            }
         }
         write_co = co;
         write_co->yield();
@@ -935,49 +928,68 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
     size_t offset_bytes = 0;
     ssize_t retval, total_bytes = 0;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    struct iovec *_iov = (iovec *) iov;
 
     set_err(0);
 
-    do
-    {
-        retval = socket->readv(iov, remain_cnt);
-        swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
+    retval = socket->readv(_iov, remain_cnt);
+    swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
 
-        if (retval == 0) {
-            return retval;
-        }
+    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+        set_err(errno);
+        return retval;
+    }
+
+    if (retval == 0) {
+        return retval;
+    }
+
+    total_bytes += retval > 0 ? retval : 0;
+    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+
+    if (offset_bytes == _iov[index].iov_len) {
+        index++;
+    }
+    _iov += index;
+    remain_cnt -= index;
+
+    if (remain_cnt == 0) {
+        return retval;
+    }
+
+    recv_barrier = new EventBarrier();
+    recv_barrier->func = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> int {
+
+        _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+        _iov->iov_len = _iov->iov_len - offset_bytes;
+        retval = this->socket->readv(_iov, remain_cnt);
+
         if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
             set_err(errno);
-            return retval;
+            return SW_READY;
         }
 
         total_bytes += retval > 0 ? retval : 0;
-        network::Socket::get_iovector_index(iov, remain_cnt, retval, index, offset_bytes);
+        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
 
-        if (offset_bytes < iov[index].iov_len) {
-            recv_barrier.hold = true;
-            recv_barrier.n = iov[index].iov_len;
-            recv_barrier.total_bytes = offset_bytes;
-            recv_barrier.buf = (char *) iov[index].iov_base;
-            retval = -1;
-
-            if (timer.start() && wait_event(SW_EVENT_READ)) {
-                retval = recv_barrier.retval;
-            }
-
-            total_bytes += retval;
-            recv_barrier.hold = false;
-
-            if (retval < 0) {
-                set_err(errno);
-                return -1;
-            }
+        if (offset_bytes == _iov[index].iov_len) {
+            index++;
         }
 
-        index++;
-        iov += index;
+        _iov += index;
         remain_cnt -= index;
-    } while (remain_cnt > 0);
+
+        if ((retval < 0 && this->socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && remain_cnt > 0)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
+    timer.start() && wait_event(SW_EVENT_READ);
+
+    delete recv_barrier;
+    recv_barrier = nullptr;
 
     return total_bytes;
 }
@@ -1005,49 +1017,68 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     size_t offset_bytes = 0;
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    struct iovec *_iov = (iovec *) iov;
 
     set_err(0);
 
-    do
-    {
-        retval = socket->writev(iov, remain_cnt);
-        swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
+    retval = socket->writev(iov, remain_cnt);
+    swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
 
-        if (retval == 0) {
-            return retval;
-        }
+    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+        set_err(errno);
+        return retval;
+    }
+
+    if (retval == 0) {
+        return retval;
+    }
+
+    total_bytes += retval > 0 ? retval : 0;
+    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+
+    if (offset_bytes == _iov[index].iov_len) {
+        index++;
+    }
+    _iov += index;
+    remain_cnt -= index;
+
+    if (remain_cnt == 0) {
+        return retval;
+    }
+
+    send_barrier = new EventBarrier();
+    send_barrier->func = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> int {
+
+        _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+        _iov->iov_len = _iov->iov_len - offset_bytes;
+        retval = this->socket->writev(_iov, remain_cnt);
+
         if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
             set_err(errno);
-            return retval;
+            return SW_READY;
         }
 
         total_bytes += retval > 0 ? retval : 0;
-        network::Socket::get_iovector_index(iov, remain_cnt, retval, index, offset_bytes);
+        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
 
-        if (offset_bytes < iov[index].iov_len) {
-            send_barrier.hold = true;
-            send_barrier.n = iov[index].iov_len;
-            send_barrier.total_bytes = offset_bytes;
-            send_barrier.buf = (char *) iov[index].iov_base;
-            retval = -1;
-
-            if (timer.start() && wait_event(SW_EVENT_WRITE)) {
-                retval = send_barrier.retval;
-            }
-
-            total_bytes += retval;
-            send_barrier.hold = false;
-
-            if (retval < 0) {
-                set_err(errno);
-                return -1;
-            }
+        if (offset_bytes == _iov[index].iov_len) {
+            index++;
         }
 
-        index++;
-        iov += index;
+        _iov += index;
         remain_cnt -= index;
-    } while (remain_cnt > 0);
+
+        if ((retval < 0 && this->socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && remain_cnt > 0)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
+    timer.start() && wait_event(SW_EVENT_WRITE);
+
+    delete send_barrier;
+    send_barrier = nullptr;
 
     return total_bytes;
 }
@@ -1060,6 +1091,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
     retval = socket->recv(__buf, __n, 0);
+
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
@@ -1069,18 +1101,24 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
     }
     total_bytes = retval > 0 ? retval : 0;
 
-    recv_barrier.hold = true;
-    recv_barrier.n = __n;
-    recv_barrier.total_bytes = total_bytes;
-    recv_barrier.buf = (char *) __buf;
     retval = -1;
 
-    if (timer.start() && wait_event(SW_EVENT_READ)) {
-        retval = recv_barrier.retval;
-    }
+    recv_barrier = new EventBarrier();
+    recv_barrier->func = [&__n, &total_bytes, &retval, &__buf, this]() -> int {
+        retval = socket->recv((char *) __buf + total_bytes, __n - total_bytes, 0);
 
-    total_bytes = recv_barrier.total_bytes;
-    recv_barrier.hold = false;
+        if ((retval < 0 && socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && (total_bytes += retval) < __n)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
+    timer.start() && wait_event(SW_EVENT_READ);
+
+    delete recv_barrier;
+    recv_barrier = nullptr;
+
     set_err(retval < 0 ? errno : 0);
 
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
@@ -1094,6 +1132,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
 
     retval = socket->send(__buf, __n, 0);
+
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
@@ -1103,18 +1142,24 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     }
     total_bytes = retval > 0 ? retval : 0;
 
-    send_barrier.hold = true;
-    send_barrier.n = __n;
-    send_barrier.total_bytes = total_bytes;
-    send_barrier.buf = (char *) __buf;
     retval = -1;
 
-    if (timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n)) {
-        retval = send_barrier.retval;
-    }
+    send_barrier = new EventBarrier();
+    send_barrier->func = [&__n, &total_bytes, &retval, &__buf, this]() -> int {
+        retval = socket->send((char *) __buf + total_bytes, __n - total_bytes, 0);
 
-    total_bytes = send_barrier.total_bytes;
-    send_barrier.hold = false;
+        if ((retval < 0 && socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && (total_bytes += retval) < __n)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
+    timer.start() && wait_event(SW_EVENT_WRITE);
+
+    delete send_barrier;
+    send_barrier = nullptr;
+
     set_err(retval < 0 ? errno : 0);
 
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
