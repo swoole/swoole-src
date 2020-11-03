@@ -1097,7 +1097,8 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    ssize_t retval = 0;
+    size_t total_bytes = 0;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
     retval = socket->recv(__buf, __n, 0);
@@ -1139,7 +1140,8 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    ssize_t retval = 0;
+    size_t total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
 
     retval = socket->send(__buf, __n, 0);

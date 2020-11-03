@@ -203,10 +203,6 @@ class String {
         }
     }
 
-    inline static zend_string *fetch_zend_string_by_val(char *val) {
-        return (zend_string *) (val - XtOffsetOf(zend_string, val));
-    }
-
     ~String() {
         release();
     }
@@ -400,6 +396,7 @@ void known_strings_init(void);
 void known_strings_dtor(void);
 void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *options);
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long zend_long);
+zend_string *fetch_zend_string_by_val(char *val);
 
 #if PHP_VERSION_ID < 80000
 #define ZEND_STR_CONST

@@ -1371,13 +1371,13 @@ static PHP_METHOD(swoole_socket_coro, readVector) {
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
         for (int i = 0; i < iovcnt; i++) {
-            zend_string_free(zend::String::fetch_zend_string_by_val((char *) iov[i].iov_base));
+            zend_string_free(zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
         }
 
         RETURN_FALSE;
     } else if (UNEXPECTED(retval == 0)) {
         for (int i = 0; i < iovcnt; i++) {
-            zend_string_free(zend::String::fetch_zend_string_by_val((char *) iov[i].iov_base));
+            zend_string_free(zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
         }
 
         RETURN_EMPTY_ARRAY();
@@ -1388,7 +1388,7 @@ static PHP_METHOD(swoole_socket_coro, readVector) {
 
         SW_HASHTABLE_FOREACH_START(vht, element)
         iov_len = zval_get_long(element);
-        zend_string *str = zend::String::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
+        zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
 
         total_length += iov_len;
 
