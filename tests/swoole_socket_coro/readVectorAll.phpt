@@ -38,7 +38,7 @@ run(function () {
         for ($i = 0; $i < 10; $i++) {
             $iov[] = 1024 * 128;
         }
-        Assert::eq($conn->readVector($iov, true), $iovector);
+        Assert::eq($conn->readVectorAll($iov), $iovector);
     });
 
     go(function () use ($server, $port) {

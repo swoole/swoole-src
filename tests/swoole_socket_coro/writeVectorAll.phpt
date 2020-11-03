@@ -42,7 +42,7 @@ run(function () {
 
         $conn = new Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         Assert::assert($conn->connect('127.0.0.1', $port));
-        $ret = $conn->writeVector($iovector, true);
+        $ret = $conn->writeVectorAll($iovector);
         Assert::eq($ret, $totalLength);
         $server->close();
     });

@@ -49,7 +49,9 @@ static PHP_METHOD(swoole_socket_coro, peek);
 static PHP_METHOD(swoole_socket_coro, recv);
 static PHP_METHOD(swoole_socket_coro, send);
 static PHP_METHOD(swoole_socket_coro, readVector);
+static PHP_METHOD(swoole_socket_coro, readVectorAll);
 static PHP_METHOD(swoole_socket_coro, writeVector);
+static PHP_METHOD(swoole_socket_coro, writeVectorAll);
 static PHP_METHOD(swoole_socket_coro, sendFile);
 static PHP_METHOD(swoole_socket_coro, recvAll);
 static PHP_METHOD(swoole_socket_coro, sendAll);
@@ -118,13 +120,21 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVector, 0, 0, 1)
     ZEND_ARG_INFO(0, iov)
-    ZEND_ARG_INFO(0, all)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVectorAll, 0, 0, 1)
+    ZEND_ARG_INFO(0, iov)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVector, 0, 0, 1)
     ZEND_ARG_INFO(0, iov)
-    ZEND_ARG_INFO(0, all)
+    ZEND_ARG_INFO(0, timeout)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVectorAll, 0, 0, 1)
+    ZEND_ARG_INFO(0, iov)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -185,7 +195,9 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, recvPacket,    arginfo_swoole_socket_coro_recvPacket,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send,          arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, readVector,    arginfo_swoole_socket_coro_readVector,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, readVectorAll, arginfo_swoole_socket_coro_readVectorAll, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, writeVector,   arginfo_swoole_socket_coro_writeVector,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, writeVectorAll,arginfo_swoole_socket_coro_writeVectorAll,ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendFile,      arginfo_swoole_socket_coro_sendFile,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvAll,       arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendAll,       arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
@@ -1276,18 +1288,16 @@ static PHP_METHOD(swoole_socket_coro, send) {
     swoole_socket_coro_send(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
-static PHP_METHOD(swoole_socket_coro, writeVector) {
+static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
     zval *ziov = nullptr;
     zval *element = nullptr;
     HashTable *vht;
     double timeout = 0;
     int iovcnt = 0;
-    zend_bool all = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ARRAY(ziov)
     Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(all)
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -1320,7 +1330,15 @@ static PHP_METHOD(swoole_socket_coro, writeVector) {
     }
 }
 
-static PHP_METHOD(swoole_socket_coro, readVector) {
+static PHP_METHOD(swoole_socket_coro, writeVector) {
+    swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+static PHP_METHOD(swoole_socket_coro, writeVectorAll) {
+    swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+}
+
+static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
     zval *ziov = nullptr;
     zval *element = nullptr;
     HashTable *vht;
@@ -1328,12 +1346,10 @@ static PHP_METHOD(swoole_socket_coro, readVector) {
     int iovcnt = 0;
     int iov_index = 0;
     ssize_t total_length = 0;
-    zend_bool all = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ZVAL_DEREF(ziov)
     Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(all)
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -1406,6 +1422,14 @@ static PHP_METHOD(swoole_socket_coro, readVector) {
     }
 
     return;
+}
+
+static PHP_METHOD(swoole_socket_coro, readVector) {
+    swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+}
+
+static PHP_METHOD(swoole_socket_coro, readVectorAll) {
+    swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static PHP_METHOD(swoole_socket_coro, sendFile) {
