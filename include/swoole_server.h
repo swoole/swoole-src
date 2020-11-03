@@ -1187,72 +1187,7 @@ class Server {
     void disable_accept();
     void destroy_http_request(Connection *conn);
 
-    inline int schedule_worker(int fd, SendData *data) {
-        uint32_t key = 0;
-
-        if (dispatch_func) {
-            int id = dispatch_func(this, get_connection(fd), data);
-            if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK) {
-                return id;
-            }
-        }
-
-        // polling mode
-        if (dispatch_mode == SW_DISPATCH_ROUND) {
-            key = sw_atomic_fetch_add(&worker_round_id, 1);
-        }
-        // Using the FD touch access to hash
-        else if (dispatch_mode == SW_DISPATCH_FDMOD) {
-            key = fd;
-        }
-        // Using the IP touch access to hash
-        else if (dispatch_mode == SW_DISPATCH_IPMOD) {
-            Connection *conn = get_connection(fd);
-            // UDP
-            if (conn == nullptr) {
-                key = fd;
-            }
-            // IPv4
-            else if (conn->socket_type == SW_SOCK_TCP) {
-                key = conn->info.addr.inet_v4.sin_addr.s_addr;
-            }
-            // IPv6
-            else {
-#ifdef HAVE_KQUEUE
-                key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
-#elif defined(_WIN32)
-                key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
-#else
-                key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
-#endif
-            }
-        } else if (dispatch_mode == SW_DISPATCH_UIDMOD) {
-            Connection *conn = get_connection(fd);
-            if (conn == nullptr || conn->uid == 0) {
-                key = fd;
-            } else {
-                key = conn->uid;
-            }
-        }
-        // Preemptive distribution
-        else {
-            uint32_t i;
-            bool found = false;
-            for (i = 0; i < worker_num + 1; i++) {
-                key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
-                if (workers[key].status == SW_WORKER_IDLE) {
-                    found = true;
-                    break;
-                }
-            }
-            if (sw_unlikely(!found)) {
-                scheduler_warning = true;
-            }
-            swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
-            return key;
-        }
-        return key % worker_num;
-    }
+    int schedule_worker(int fd, SendData *data);
 
     /**
      * [Manager]

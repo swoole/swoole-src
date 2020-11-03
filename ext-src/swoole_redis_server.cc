@@ -312,7 +312,7 @@ static PHP_METHOD(swoole_redis_server, format) {
     char message[256];
     int length;
 
-    swString *format_buffer = SwooleTG.buffer_stack;
+    swoole::String *format_buffer = sw_tg_buffer();
 
     if (type == SW_REDIS_REPLY_NIL) {
         RETURN_STRINGL(SW_REDIS_RETURN_NIL, sizeof(SW_REDIS_RETURN_NIL) - 1);

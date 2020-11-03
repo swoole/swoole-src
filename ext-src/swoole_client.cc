@@ -618,8 +618,8 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
     if (zconnection_id && Z_TYPE_P(zconnection_id) == IS_STRING && Z_STRLEN_P(zconnection_id) > 0) {
         conn_key = std::string(Z_STRVAL_P(zconnection_id), Z_STRLEN_P(zconnection_id));
     } else {
-        size_t size = sw_snprintf(SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->size, "%s:%d", host, port);
-        conn_key = std::string(SwooleTG.buffer_stack->str, size);
+        size_t size = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, "%s:%d", host, port);
+        conn_key = std::string(sw_tg_buffer()->str, size);
     }
 
     // keep the tcp connection

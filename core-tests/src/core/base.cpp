@@ -128,12 +128,12 @@ TEST(base, eventdata_pack) {
     ASSERT_EQ(string(ed1.data, ed1.info.len), test_data);
 
     swEventData ed2 { };
-    ASSERT_EQ(swoole_random_bytes(SwooleTG.buffer_stack->str, SW_BUFFER_SIZE_BIG), SW_BUFFER_SIZE_BIG);
-    ASSERT_TRUE(ed2.pack(SwooleTG.buffer_stack->str, SW_BUFFER_SIZE_BIG));
+    ASSERT_EQ(swoole_random_bytes(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG), SW_BUFFER_SIZE_BIG);
+    ASSERT_TRUE(ed2.pack(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
 
     String _buffer(SW_BUFFER_SIZE_BIG);
     ASSERT_TRUE(ed2.unpack(&_buffer));
-    ASSERT_EQ(memcmp(SwooleTG.buffer_stack->str, _buffer.str, SW_BUFFER_SIZE_BIG), 0);
+    ASSERT_EQ(memcmp(sw_tg_buffer()->str, _buffer.str, SW_BUFFER_SIZE_BIG), 0);
 }
 
 TEST(base, stack_defer_fn) {

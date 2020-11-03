@@ -685,7 +685,7 @@ static int http2_parse_header(Http2Session *client, http_context *ctx, int flags
                 if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "method")) {
                     add_assoc_stringl_ex(zserver, ZEND_STRL("request_method"), (char *) nv.value, nv.valuelen);
                 } else if (SW_STRCASEEQ((char *) nv.name + 1, nv.namelen - 1, "path")) {
-                    char *pathbuf = SwooleTG.buffer_stack->str;
+                    char *pathbuf = sw_tg_buffer()->str;
                     char *v_str = strchr((char *) nv.value, '?');
                     zend_string *zstr_path;
                     if (v_str) {

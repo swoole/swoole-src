@@ -365,8 +365,8 @@ static PHP_METHOD(swoole_http_response, write) {
 }
 
 static void http_build_header(http_context *ctx, swString *response, size_t body_length) {
-    char *buf = SwooleTG.buffer_stack->str;
-    size_t l_buf = SwooleTG.buffer_stack->size;
+    char *buf = sw_tg_buffer()->str;
+    size_t l_buf = sw_tg_buffer()->size;
     int n;
     char *date_str;
 
@@ -497,8 +497,8 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
 }
 
 static ssize_t http_build_trailer(http_context *ctx, swString *response) {
-    char *buf = SwooleTG.buffer_stack->str;
-    size_t l_buf = SwooleTG.buffer_stack->size;
+    char *buf = sw_tg_buffer()->str;
+    size_t l_buf = sw_tg_buffer()->size;
     int n;
     ssize_t ret = 0;
 

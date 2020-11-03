@@ -116,11 +116,11 @@ static void test_run_server(function<void(swServer *)> fn) {
         auto conn = serv->get_connection_by_session_id(session_id);
 
         if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
-            SwooleTG.buffer_stack->clear();
+            sw_tg_buffer()->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
             swWebSocket_encode(
-                SwooleTG.buffer_stack, resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN);
-            serv->send(session_id, SwooleTG.buffer_stack->str, SwooleTG.buffer_stack->length);
+                sw_tg_buffer(), resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN);
+            serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             return SW_OK;
         }
 

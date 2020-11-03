@@ -1039,7 +1039,7 @@ ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
         zval *zvalue;
         char *encoded_value;
         int encoded_value_len;
-        String *buffer = SwooleTG.buffer_stack;
+        String *buffer = sw_tg_buffer();
 
         ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zcookies), key, zvalue) {
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
@@ -1155,7 +1155,7 @@ uint32_t Client::send_request(zval *zrequest) {
     /**
      * send headers
      */
-    char *buffer = SwooleTG.buffer_stack->str;
+    char *buffer = sw_tg_buffer()->str;
     ssize_t bytes = build_header(zobject, zrequest, buffer + SW_HTTP2_FRAME_HEADER_SIZE);
 
     if (bytes <= 0) {

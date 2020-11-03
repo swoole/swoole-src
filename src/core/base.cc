@@ -146,9 +146,6 @@ void swoole_init(void) {
     }
 
     SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
-    if (SwooleTG.buffer_stack == nullptr) {
-        exit(3);
-    }
 
     if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR) ) {
         exit(4);

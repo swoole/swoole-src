@@ -901,10 +901,8 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
-    SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
-    if (SwooleTG.buffer_stack == nullptr) {
-        return;
-    }
+    std::unique_ptr<String> _thread_buffer(new String(SW_STACK_BUFFER_SIZE));
+    SwooleTG.buffer_stack = _thread_buffer.get();
 
     if (swoole_event_init(0) < 0) {
         return;
@@ -950,8 +948,6 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         delete it->second;
     }
     sw_free(thread->pipe_sockets);
-
-    delete SwooleTG.buffer_stack;
 }
 
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {
