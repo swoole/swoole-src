@@ -204,6 +204,7 @@ bool ProcessFactory::dispatch(SendData *task) {
 
     if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
         worker->dispatch_count++;
+        server_->gs->dispatch_count++;
     }
 
     /**

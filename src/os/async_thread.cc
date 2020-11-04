@@ -231,7 +231,8 @@ void ThreadPool::create_thread(const bool is_core_worker) {
     try {
         std::thread *_thread = new std::thread([this, is_core_worker]() {
             bool exit_flag = false;
-            SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
+            std::unique_ptr<String> _thread_buffer(new String(SW_STACK_BUFFER_SIZE));
+            SwooleTG.buffer_stack = _thread_buffer.get();
 
             swSignal_none();
 
@@ -318,7 +319,6 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                     --n_waiting;
                 }
             }
-            delete SwooleTG.buffer_stack;
         });
         threads[_thread->get_id()] = _thread;
     } catch (const std::system_error &e) {

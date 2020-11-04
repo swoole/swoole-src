@@ -417,6 +417,7 @@ struct ServerGS {
     sw_atomic_long_t accept_count;
     sw_atomic_long_t close_count;
     sw_atomic_long_t request_count;
+    sw_atomic_long_t dispatch_count;
 
     sw_atomic_t spinlock;
 

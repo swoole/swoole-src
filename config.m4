@@ -1,4 +1,3 @@
-dnl $Id$
 dnl config.m4 for extension swoole
 
 dnl  +----------------------------------------------------------------------+
@@ -342,7 +341,7 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_SWOOLE_JSON" = "yes"; then
-        AC_DEFINE(SW_HAVE_JSON, 1, [do we enable json decoder])
+        AC_DEFINE(SW_USE_JSON, 1, [do we enable json decoder])
     fi
 
     AC_CHECK_LIB(z, gzgets, [

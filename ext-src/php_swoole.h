@@ -105,10 +105,6 @@ extern zend_module_entry swoole_module_entry;
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if defined(SW_HAVE_JSON) && !defined(HAVE_JSON)
-#define HAVE_JSON
-#endif
-
 #if PHP_VERSION_ID < 70100
 #error "require PHP version 7.1 or later"
 #endif

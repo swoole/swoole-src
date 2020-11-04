@@ -2,7 +2,7 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_var.h"
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
 #include "ext/json/php_json.h"
 
 PHP_JSON_API zend_class_entry *php_json_exception_ce;
@@ -150,7 +150,7 @@ cleanup:
 #endif
 }
 
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
 #if PHP_VERSION_ID >= 70300
 static const char *php_json_get_error_msg(php_json_error_code error_code) /* {{{ */
 {

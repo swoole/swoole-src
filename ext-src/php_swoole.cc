@@ -24,7 +24,7 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_var.h"
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
 #include "ext/json/php_json.h"
 #endif
 END_EXTERN_C()
@@ -75,7 +75,7 @@ static PHP_FUNCTION(swoole_mime_type_get);
 static PHP_FUNCTION(swoole_mime_type_exists);
 static PHP_FUNCTION(swoole_mime_type_list);
 static PHP_FUNCTION(swoole_substr_unserialize);
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
 static PHP_FUNCTION(swoole_substr_json_decode);
 #endif
 static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin);
@@ -118,7 +118,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_substr_unserialize, 0, 0, 2)
     ZEND_ARG_INFO(0, options)
 ZEND_END_ARG_INFO()
 
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_substr_json_decode, 0, 0, 2)
     ZEND_ARG_INFO(0, json)
     ZEND_ARG_INFO(0, offset)
@@ -187,7 +187,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_mime_type_list, arginfo_swoole_void)
     PHP_FE(swoole_clear_dns_cache, arginfo_swoole_void)
     PHP_FE(swoole_substr_unserialize, arginfo_swoole_substr_unserialize)
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
 #endif
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
@@ -206,7 +206,7 @@ zend_class_entry *swoole_error_ce;
 zend_object_handlers swoole_error_handlers;
 
 static const zend_module_dep swoole_deps[] = {
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
      ZEND_MOD_REQUIRED("json")
 #endif
 #ifdef SW_USE_MYSQLND
@@ -1265,7 +1265,7 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     zend::unserialize(return_value, buf + offset, length, options);
 }
 
-#ifdef HAVE_JSON
+#ifdef SW_USE_JSON
 static PHP_FUNCTION(swoole_substr_json_decode) {
     zend_long offset, length = 0;
     char *str;
