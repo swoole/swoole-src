@@ -1029,8 +1029,6 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     struct iovec *_iov = (iovec *) iov;
 
-    set_err(0);
-
     retval = socket->writev(iov, remain_cnt);
     swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
 

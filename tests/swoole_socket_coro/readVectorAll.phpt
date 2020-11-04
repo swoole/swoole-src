@@ -39,6 +39,8 @@ run(function () {
             $iov[] = 1024 * 128;
         }
         Assert::eq($conn->readVectorAll($iov), $iovector);
+        // has close
+        Assert::eq($conn->readVectorAll($iov), []);
     });
 
     go(function () use ($server, $port) {
