@@ -1320,6 +1320,13 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
     iovcnt++;
     SW_HASHTABLE_FOREACH_END();
 
+    if (iovcnt > IOV_MAX) {
+        sprintf(sw_error, IOV_MAX_ERROR_MSG, IOV_MAX);
+        sock->socket->set_err(EINVAL, sw_error);
+        swoole_socket_coro_sync_properties(ZEND_THIS, sock);
+        RETURN_FALSE;
+    }
+
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->writev_all(iov.get(), iovcnt) : sock->socket->writev(iov.get(), iovcnt);
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
@@ -1357,6 +1364,13 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     vht = Z_ARRVAL_P(ziov);
     iovcnt = zend_array_count(vht);
+
+    if (iovcnt > IOV_MAX) {
+        sprintf(sw_error, IOV_MAX_ERROR_MSG, IOV_MAX);
+        sock->socket->set_err(EINVAL, sw_error);
+        swoole_socket_coro_sync_properties(ZEND_THIS, sock);
+        RETURN_FALSE;
+    }
 
     zend_string *iov_base = nullptr;
     size_t iov_len = 0;

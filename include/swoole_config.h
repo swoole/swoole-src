@@ -198,6 +198,12 @@
 
 #define SW_Z_BEST_SPEED 1
 
+#ifndef IOV_MAX
+#define IOV_MAX   16
+#endif
+
+#define IOV_MAX_ERROR_MSG "The maximum of iov count is %d"
+
 /**
  * HTTP Protocol
  */

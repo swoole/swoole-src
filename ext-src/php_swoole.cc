@@ -665,6 +665,11 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_UNIXSOCK", SW_IPC_UNIXSOCK);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_SOCKET", SW_IPC_SOCKET);
 
+    /**
+     * limit
+     */
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_IOV_MAX", IOV_MAX);
+
     // clang-format on
 
     if (SWOOLE_G(use_shortname)) {
