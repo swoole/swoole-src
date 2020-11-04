@@ -24,8 +24,8 @@
 #include <string>
 
 using swoole::Protocol;
-using swoole::network::Address;
 using swoole::coroutine::Socket;
+using swoole::network::Address;
 
 zend_class_entry *swoole_socket_coro_ce;
 static zend_object_handlers swoole_socket_coro_handlers;
@@ -944,19 +944,20 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
         sock->protocol.package_length_size = FCGI_HEADER_LEN;
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
-        sock->protocol.get_package_length = [](Protocol *protocol, swoole::network::Socket *conn, const char *data, uint32_t size) {
-            const uint8_t *p = (const uint8_t *) data;
-            ssize_t length = 0;
-            if (size >= FCGI_HEADER_LEN) {
-                length = ((p[4] << 8) | p[5]) + p[6];
-                if (length > FCGI_MAX_LENGTH) {
-                    length = -1;
-                } else {
-                    length += FCGI_HEADER_LEN;
+        sock->protocol.get_package_length =
+            [](Protocol *protocol, swoole::network::Socket *conn, const char *data, uint32_t size) {
+                const uint8_t *p = (const uint8_t *) data;
+                ssize_t length = 0;
+                if (size >= FCGI_HEADER_LEN) {
+                    length = ((p[4] << 8) | p[5]) + p[6];
+                    if (length > FCGI_MAX_LENGTH) {
+                        length = -1;
+                    } else {
+                        length += FCGI_HEADER_LEN;
+                    }
                 }
-            }
-            return length;
-        };
+                return length;
+            };
     }
     // open mqtt protocol
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
@@ -1295,6 +1296,7 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
     HashTable *vht;
     double timeout = 0;
     int iovcnt = 0;
+    int iov_index = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ARRAY(ziov)
@@ -1311,25 +1313,27 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
     vht = Z_ARRVAL_P(ziov);
     iovcnt = zend_array_count(vht);
 
-    std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
-
-    iovcnt = 0;
-
-    SW_HASHTABLE_FOREACH_START(vht, zelement)
-    if (!ZVAL_IS_STRING(zelement)) {
-        zend_throw_exception_ex(swoole_socket_coro_exception_ce, EINVAL, "the data must be string, index[%d]", iovcnt);
-        RETURN_FALSE;
-    }
-    iov[iovcnt].iov_base = Z_STRVAL_P(zelement);
-    iov[iovcnt].iov_len = Z_STRLEN_P(zelement);
-    iovcnt++;
-    SW_HASHTABLE_FOREACH_END();
-
     if (iovcnt > IOV_MAX) {
         sprintf(sw_error, IOV_MAX_ERROR_MSG, IOV_MAX);
         sock->socket->set_err(EINVAL, sw_error);
         RETURN_FALSE;
     }
+
+    std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+
+    SW_HASHTABLE_FOREACH_START(vht, zelement)
+    if (!ZVAL_IS_STRING(zelement)) {
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                EINVAL,
+                                "Item #[%d] must be of type string, %s given",
+                                iov_index,
+                                zend_get_type_by_const(Z_TYPE_P(zelement)));
+        RETURN_FALSE;
+    }
+    iov[iov_index].iov_base = Z_STRVAL_P(zelement);
+    iov[iov_index].iov_len = Z_STRLEN_P(zelement);
+    iov_index++;
+    SW_HASHTABLE_FOREACH_END();
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->writev_all(iov.get(), iovcnt) : sock->socket->writev(iov.get(), iovcnt);
@@ -1383,12 +1387,15 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
 
-    iov_index = 0;
     array_init(return_value);
 
     SW_HASHTABLE_FOREACH_START(vht, zelement)
     if (!ZVAL_IS_LONG(zelement)) {
-        zend_throw_exception_ex(swoole_socket_coro_exception_ce, EINVAL, "the data must be int, index[%d]", iov_index);
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                EINVAL,
+                                "Item #[%d] must be of type int, %s given",
+                                iov_index,
+                                zend_get_type_by_const(Z_TYPE_P(zelement)));
         RETURN_FALSE;
     }
     iov_len = Z_LVAL(*zelement);
@@ -1794,8 +1801,8 @@ static PHP_METHOD(swoole_socket_coro, setOption) {
         convert_to_long_ex(usec);
         tv.tv_sec = Z_LVAL_P(sec);
         tv.tv_usec = Z_LVAL_P(usec);
-        sock->socket->set_timeout(&tv,
-                                  optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_CONNECT | Socket::TIMEOUT_WRITE);
+        sock->socket->set_timeout(
+            &tv, optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_CONNECT | Socket::TIMEOUT_WRITE);
         RETURN_TRUE;
         break;
     }
