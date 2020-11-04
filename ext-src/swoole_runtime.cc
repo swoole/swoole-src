@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole_cxx.h"
-#include "helper/scope_guard.h"
+#include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
 #include <unordered_map>

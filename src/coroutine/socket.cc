@@ -385,9 +385,9 @@ bool Socket::http_proxy_handshake() {
 #endif
 
     String *send_buffer = get_write_buffer();
-    DeferFn _1([send_buffer](){
+    ON_SCOPE_EXIT {
         send_buffer->clear();
-    });
+    };
 
     if (!http_proxy->password.empty()) {
         char auth_buf[256];
@@ -430,9 +430,9 @@ bool Socket::http_proxy_handshake() {
     }
 
     String *recv_buffer = get_read_buffer();
-    DeferFn _2([recv_buffer](){
+    ON_SCOPE_EXIT {
         recv_buffer->clear();
-    });
+    };
 
     ProtocolSwitch ps(this);
     open_eof_check = true;

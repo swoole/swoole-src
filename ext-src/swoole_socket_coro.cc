@@ -17,6 +17,7 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "swoole_util.h"
 #include "swoole_mqtt.h"
 #include "thirdparty/php/sockets/php_sockets_cxx.h"
 
@@ -1303,6 +1304,10 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
+    ON_SCOPE_EXIT {
+        swoole_socket_coro_sync_properties(ZEND_THIS, sock);
+    };
+
     vht = Z_ARRVAL_P(ziov);
     iovcnt = zend_array_count(vht);
 
@@ -1323,13 +1328,11 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
     if (iovcnt > IOV_MAX) {
         sprintf(sw_error, IOV_MAX_ERROR_MSG, IOV_MAX);
         sock->socket->set_err(EINVAL, sw_error);
-        swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
     ssize_t retval = all ? sock->socket->writev_all(iov.get(), iovcnt) : sock->socket->writev(iov.get(), iovcnt);
-    swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
         RETURN_FALSE;
     } else {
@@ -1362,13 +1365,16 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
+    ON_SCOPE_EXIT {
+        swoole_socket_coro_sync_properties(ZEND_THIS, sock);
+    };
+
     vht = Z_ARRVAL_P(ziov);
     iovcnt = zend_array_count(vht);
 
     if (iovcnt > IOV_MAX) {
         sprintf(sw_error, IOV_MAX_ERROR_MSG, IOV_MAX);
         sock->socket->set_err(EINVAL, sw_error);
-        swoole_socket_coro_sync_properties(ZEND_THIS, sock);
         RETURN_FALSE;
     }
 
@@ -1398,7 +1404,6 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
     ssize_t retval = all ? sock->socket->readv_all(iov.get(), iovcnt) : sock->socket->readv(iov.get(), iovcnt);
-    swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(retval < 0)) {
         for (int i = 0; i < iovcnt; i++) {
             zend_string_free(zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
