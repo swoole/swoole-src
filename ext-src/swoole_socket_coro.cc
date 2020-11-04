@@ -119,22 +119,22 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_send, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVector, 0, 0, 1)
-    ZEND_ARG_INFO(0, iov)
+    ZEND_ARG_INFO(0, io_vector)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_readVectorAll, 0, 0, 1)
-    ZEND_ARG_INFO(0, iov)
+    ZEND_ARG_INFO(0, io_vector)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVector, 0, 0, 1)
-    ZEND_ARG_INFO(0, iov)
+    ZEND_ARG_INFO(0, io_vector)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_writeVectorAll, 0, 0, 1)
-    ZEND_ARG_INFO(0, iov)
+    ZEND_ARG_INFO(0, io_vector)
     ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
@@ -1290,7 +1290,7 @@ static PHP_METHOD(swoole_socket_coro, send) {
 
 static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
     zval *ziov = nullptr;
-    zval *element = nullptr;
+    zval *zelement = nullptr;
     HashTable *vht;
     double timeout = 0;
     int iovcnt = 0;
@@ -1310,13 +1310,13 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
 
     iovcnt = 0;
 
-    SW_HASHTABLE_FOREACH_START(vht, element)
-    if (!ZVAL_IS_STRING(element)) {
+    SW_HASHTABLE_FOREACH_START(vht, zelement)
+    if (!ZVAL_IS_STRING(zelement)) {
         zend_throw_exception_ex(swoole_socket_coro_exception_ce, EINVAL, "the data must be string, index[%d]", iovcnt);
         RETURN_FALSE;
     }
-    iov[iovcnt].iov_base = Z_STRVAL_P(element);
-    iov[iovcnt].iov_len = Z_STRLEN_P(element);
+    iov[iovcnt].iov_base = Z_STRVAL_P(zelement);
+    iov[iovcnt].iov_len = Z_STRLEN_P(zelement);
     iovcnt++;
     SW_HASHTABLE_FOREACH_END();
 
@@ -1347,7 +1347,7 @@ static PHP_METHOD(swoole_socket_coro, writeVectorAll) {
 
 static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
     zval *ziov = nullptr;
-    zval *element = nullptr;
+    zval *zelement = nullptr;
     HashTable *vht;
     double timeout = 0;
     int iovcnt = 0;
@@ -1380,12 +1380,12 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
     iov_index = 0;
     array_init(return_value);
 
-    SW_HASHTABLE_FOREACH_START(vht, element)
-    if (!ZVAL_IS_LONG(element)) {
+    SW_HASHTABLE_FOREACH_START(vht, zelement)
+    if (!ZVAL_IS_LONG(zelement)) {
         zend_throw_exception_ex(swoole_socket_coro_exception_ce, EINVAL, "the data must be int, index[%d]", iov_index);
         RETURN_FALSE;
     }
-    iov_len = Z_LVAL(*element);
+    iov_len = Z_LVAL(*zelement);
     iov_base = zend_string_alloc(iov_len, 0);
 
     add_next_index_str(return_value, iov_base);
@@ -1416,8 +1416,8 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
         total_length = 0;
         bool has_data = true;
 
-        SW_HASHTABLE_FOREACH_START(vht, element)
-        iov_len = zval_get_long(element);
+        SW_HASHTABLE_FOREACH_START(vht, zelement)
+        iov_len = zval_get_long(zelement);
         zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
 
         total_length += iov_len;
