@@ -27,9 +27,7 @@
 namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
-struct EventBarrier {
-    std::function<int()> func;
-};
+using EventBarrier = std::function<int()>;
 
 class Socket {
   public:
