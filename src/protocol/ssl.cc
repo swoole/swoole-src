@@ -500,42 +500,6 @@ int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx) {
     return SW_OK;
 }
 
-#ifndef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
-static int swSSL_check_name(const char *name, ASN1_STRING *pattern) {
-    char *s, *end;
-    size_t slen, plen;
-
-    s = (char *)name;
-    slen = strlen(name);
-
-    uchar *p = ASN1_STRING_data(pattern);
-    plen = ASN1_STRING_length(pattern);
-
-    if (swoole_strcaseeq(s, slen, (char *) p, plen)) {
-        return SW_OK;
-    }
-
-    if (plen > 2 && p[0] == '*' && p[1] == '.') {
-        plen -= 1;
-        p += 1;
-
-        end = s + slen;
-        s = swoole_strlchr(s, end, '.');
-
-        if (s == nullptr) {
-            return SW_ERR;
-        }
-
-        slen = end - s;
-
-        if (swoole_strcaseeq(s, slen, (char *) p, plen)) {
-            return SW_OK;
-        }
-    }
-    return SW_ERR;
-}
-#endif
-
 #ifdef SW_SUPPORT_DTLS
 
 #define COOKIE_SECRET_LENGTH (32)

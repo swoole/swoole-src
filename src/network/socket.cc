@@ -693,17 +693,124 @@ ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
 
 #ifdef SW_USE_OPENSSL
 
+#ifndef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+static int ssl_check_name(const char *name, ASN1_STRING *pattern) {
+    char *s, *end;
+    size_t slen, plen;
+
+    s = (char *)name;
+    slen = strlen(name);
+
+    uchar *p = ASN1_STRING_data(pattern);
+    plen = ASN1_STRING_length(pattern);
+
+    if (swoole_strcaseeq(s, slen, (char *) p, plen)) {
+        return SW_OK;
+    }
+
+    if (plen > 2 && p[0] == '*' && p[1] == '.') {
+        plen -= 1;
+        p += 1;
+
+        end = s + slen;
+        s = swoole_strlchr(s, end, '.');
+
+        if (s == nullptr) {
+            return SW_ERR;
+        }
+
+        slen = end - s;
+
+        if (swoole_strcaseeq(s, slen, (char *) p, plen)) {
+            return SW_OK;
+        }
+    }
+    return SW_ERR;
+}
+#endif
+
 bool Socket::ssl_check_host(const char *tls_host_name) {
     X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
         return false;
     }
-
+#ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
+    /* X509_check_host() is only available in OpenSSL 1.0.2+ */
     if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr) != 1) {
         swWarn("X509_check_host(): no match");
         goto _failed;
     }
     goto _found;
+#else
+    int n, i;
+    X509_NAME *sname;
+    ASN1_STRING *str;
+    X509_NAME_ENTRY *entry;
+    GENERAL_NAME *altname;
+    STACK_OF(GENERAL_NAME) * altnames;
+
+    /*
+     * As per RFC6125 and RFC2818, we check subjectAltName extension,
+     * and if it's not present - commonName in Subject is checked.
+     */
+    altnames = (STACK_OF(GENERAL_NAME) *) X509_get_ext_d2i(cert, NID_subject_alt_name, nullptr, nullptr);
+
+    if (altnames) {
+        n = sk_GENERAL_NAME_num(altnames);
+
+        for (i = 0; i < n; i++) {
+            altname = sk_GENERAL_NAME_value(altnames, i);
+
+            if (altname->type != GEN_DNS) {
+                continue;
+            }
+
+            str = altname->d.dNSName;
+            swTrace("SSL subjectAltName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+
+            if (ssl_check_name(tls_host_name, str) == SW_OK) {
+                swTrace("SSL subjectAltName: match");
+                GENERAL_NAMES_free(altnames);
+                goto _found;
+            }
+        }
+
+        swTrace("SSL subjectAltName: no match");
+        GENERAL_NAMES_free(altnames);
+        goto _failed;
+    }
+
+    /*
+     * If there is no subjectAltName extension, check commonName
+     * in Subject.  While RFC2818 requires to only check "most specific"
+     * CN, both Apache and OpenSSL check all CNs, and so do we.
+     */
+    sname = X509_get_subject_name(cert);
+
+    if (sname == nullptr) {
+        goto _failed;
+    }
+
+    i = -1;
+    for (;;) {
+        i = X509_NAME_get_index_by_NID(sname, NID_commonName, i);
+
+        if (i < 0) {
+            break;
+        }
+
+        entry = X509_NAME_get_entry(sname, i);
+        str = X509_NAME_ENTRY_get_data(entry);
+
+        swTrace("SSL commonName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+
+        if (ssl_check_name(tls_host_name, str) == SW_OK) {
+            swTrace("SSL commonName: match");
+            goto _found;
+        }
+    }
+    swTrace("SSL commonName: no match");
+#endif
 
 _failed:
     X509_free(cert);
