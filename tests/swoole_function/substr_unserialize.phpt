@@ -20,5 +20,7 @@ Assert::eq(swoole_substr_unserialize($str, 4), $a);
 Assert::eq(@swoole_substr_unserialize($str, 0), false);
 Assert::eq(@swoole_substr_unserialize($str, 6), false);
 Assert::eq(@swoole_substr_unserialize($str, 4, $l - 4), false);
+// offset is negative
+Assert::eq(swoole_substr_unserialize($str, -(strlen($str)-4), $l), $a);
 ?>
 --EXPECT--

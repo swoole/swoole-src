@@ -822,6 +822,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_HTTP2
     php_info_print_table_row(2, "http2", "enabled");
 #endif
+#ifdef SW_USE_JSON
+    php_info_print_table_row(2, "json", "enabled");
+#endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
 #endif
@@ -1259,6 +1262,9 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     if (buf_len == 0 || (zend_long) buf_len <= offset) {
         RETURN_FALSE;
     }
+    if (offset < 0) {
+        offset = buf_len + offset;
+    }
     if (length <= 0) {
         length = buf_len - offset;
     }
@@ -1287,6 +1293,9 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
 
     if (str_len == 0 || (zend_long) str_len <= offset) {
         RETURN_FALSE;
+    }
+    if (offset < 0) {
+        offset = str_len + offset;
     }
     if (length <= 0) {
         length = str_len - offset;
