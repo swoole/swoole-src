@@ -30,7 +30,7 @@ run(function () {
 
 echo "DONE\n";
 ?>
---EXPECT--
-Item #[0] must be of type string, int given
-Item #[1] must be of type int, string given
+--EXPECTF--
+Item #[0] must be of type string, %s given
+Item #[1] must be of type int, %s given
 DONE
