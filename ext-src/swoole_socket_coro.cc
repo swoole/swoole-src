@@ -1414,9 +1414,6 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     auto free_func = [&return_value](const iovec *iov, int iovcnt, int iov_index) {
         for (; iov_index < iovcnt; iov_index++) {
-            zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
-
-            zend_string_free(str);
             zend_hash_index_del(Z_ARRVAL_P(return_value), iov_index);
         }
     };
