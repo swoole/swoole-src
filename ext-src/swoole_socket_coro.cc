@@ -1424,27 +1424,24 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
         RETURN_EMPTY_ARRAY();
     } else if (retval < total_length) {
-        iov_index = 0;
-        total_length = 0;
-        bool has_data = true;
+        /**
+         * Free the extra memory.
+         * For example iov is [5, 5, 5], but we get ['hello', 'world'], we should free the last iov.
+         */
 
-        SW_HASHTABLE_FOREACH_START(vht, zelement)
-        iov_len = zval_get_long(zelement);
+        size_t offset_bytes = 0;
+
+        swoole::network::Socket::get_iovector_index(iov.get(), iovcnt, retval, iov_index, offset_bytes);
+
         zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
+        sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes);
+        iov_index++;
 
-        total_length += iov_len;
-
-        if (!has_data) {
-            str->len = 0;
+        for (; iov_index < iovcnt; iov_index++) {
+            zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
             zend_string_free(str);
             zend_hash_index_del(Z_ARRVAL_P(return_value), iov_index);
-        } else if (has_data && total_length > retval) {
-            sw_zend_string_recycle(str, iov_len, iov_len - (total_length - retval));
-            has_data = false;
         }
-
-        iov_index++;
-        SW_HASHTABLE_FOREACH_END();
     }
 
     return;
