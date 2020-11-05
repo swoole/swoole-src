@@ -1259,11 +1259,14 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     Z_PARAM_ARRAY(options)
 	ZEND_PARSE_PARAMETERS_END();
 
-    if (buf_len == 0 || (zend_long) buf_len <= offset) {
+    if (buf_len == 0) {
         RETURN_FALSE;
     }
     if (offset < 0) {
         offset = buf_len + offset;
+    }
+    if ((zend_long) buf_len <= offset) {
+        RETURN_FALSE;
     }
     if (length <= 0) {
         length = buf_len - offset;
@@ -1291,11 +1294,14 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     Z_PARAM_LONG(options)
 	ZEND_PARSE_PARAMETERS_END();
 
-    if (str_len == 0 || (zend_long) str_len <= offset) {
+    if (str_len == 0) {
         RETURN_FALSE;
     }
     if (offset < 0) {
         offset = str_len + offset;
+    }
+    if ((zend_long) str_len <= offset) {
+        RETURN_FALSE;
     }
     if (length <= 0) {
         length = str_len - offset;
