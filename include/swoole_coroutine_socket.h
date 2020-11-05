@@ -28,11 +28,7 @@ namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
 struct EventBarrier {
-    size_t n;
-    size_t total_bytes;
-    ssize_t retval;
-    char *buf;
-    bool hold;
+    std::function<int()> func;
 };
 
 class Socket {
@@ -91,6 +87,10 @@ class Socket {
 
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
+    ssize_t readv(const struct iovec *iov, int iovcnt);
+    ssize_t readv_all(const struct iovec *iov, int iovcnt);
+    ssize_t writev(const struct iovec *iov, int iovcnt);
+    ssize_t writev_all(const struct iovec *iov, int iovcnt);
     ssize_t recvmsg(struct msghdr *msg, int flags);
     ssize_t sendmsg(const struct msghdr *msg, int flags);
     ssize_t recv_all(void *__buf, size_t __n);
@@ -379,8 +379,8 @@ class Socket {
     String *write_buffer = nullptr;
     network::Address bind_address_info = {};
 
-    EventBarrier recv_barrier = {};
-    EventBarrier send_barrier = {};
+    EventBarrier *recv_barrier = nullptr;
+    EventBarrier *send_barrier = nullptr;
 
 #ifdef SW_USE_OPENSSL
     bool ssl_is_server = false;

@@ -386,12 +386,30 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 #endif
 
 /* PHP 7.4 compatibility macro {{{*/
-#ifndef E_FATAL_ERRORS
-#define E_FATAL_ERRORS (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
+#ifndef ZEND_COMPILE_EXTENDED_STMT
+#define ZEND_COMPILE_EXTENDED_STMT ZEND_COMPILE_EXTENDED_INFO
+#endif
+
+#ifndef ZVAL_EMPTY_ARRAY
+#define ZVAL_EMPTY_ARRAY(zval) (array_init((zval)))
+#endif
+#ifndef RETVAL_EMPTY_ARRAY
+#define RETVAL_EMPTY_ARRAY()   ZVAL_EMPTY_ARRAY(return_value)
+#endif
+#ifndef RETURN_EMPTY_ARRAY
+#define RETURN_EMPTY_ARRAY()   do { RETVAL_EMPTY_ARRAY(); return; } while (0)
 #endif
 
 #ifndef ZEND_THIS
 #define ZEND_THIS (&EX(This))
+#endif
+
+#ifndef ZEND_THIS_OBJECT
+#define ZEND_THIS_OBJECT Z_OBJ_P(ZEND_THIS)
+#endif
+
+#ifndef E_FATAL_ERRORS
+#define E_FATAL_ERRORS (E_ERROR | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR | E_RECOVERABLE_ERROR | E_PARSE)
 #endif
 /*}}}*/
 
@@ -410,58 +428,6 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 /* PHP 7 wrapper functions / macros */
 
 //----------------------------------Zval API------------------------------------
-
-// ide-helper
-#ifdef USE_KQUEUE_IDE_HELPER
-#undef RETURN_BOOL
-#undef RETURN_NULL
-#undef RETURN_LONG
-#undef RETURN_DOUBLE
-#undef RETURN_STR
-#undef RETURN_INTERNED_STR
-#undef RETURN_NEW_STR
-#undef RETURN_STR_COPY
-#undef RETURN_STRING
-#undef RETURN_STRINGL
-#undef RETURN_EMPTY_STRING
-#undef RETURN_RES
-#undef RETURN_ARR
-#undef RETURN_EMPTY_ARRAY
-#undef RETURN_OBJ
-#undef RETURN_ZVAL
-#undef RETURN_FALSE
-#undef RETURN_TRUE
-#undef ZVAL_LONG
-#undef ZVAL_DOUBLE
-#define RETURN_BOOL(b)                  do { RETVAL_BOOL(b); return; } while (0)
-#define RETURN_NULL()                   do { RETVAL_NULL(); return;} while (0)
-#define RETURN_LONG(l)                  do { RETVAL_LONG(l); return; } while (0)
-#define RETURN_DOUBLE(d)                do { RETVAL_DOUBLE(d); return; } while (0)
-#define RETURN_STR(s)                   do { RETVAL_STR(s); return; } while (0)
-#define RETURN_INTERNED_STR(s)          do { RETVAL_INTERNED_STR(s); return; } while (0)
-#define RETURN_NEW_STR(s)               do { RETVAL_NEW_STR(s); return; } while (0)
-#define RETURN_STR_COPY(s)              do { RETVAL_STR_COPY(s); return; } while (0)
-#define RETURN_STRING(s)                do { RETVAL_STRING(s); return; } while (0)
-#define RETURN_STRINGL(s, l)            do { RETVAL_STRINGL(s, l); return; } while (0)
-#define RETURN_EMPTY_STRING()           do { RETVAL_EMPTY_STRING(); return; } while (0)
-#define RETURN_RES(r)                   do { RETVAL_RES(r); return; } while (0)
-#define RETURN_ARR(r)                   do { RETVAL_ARR(r); return; } while (0)
-#define RETURN_EMPTY_ARRAY()            do { RETVAL_EMPTY_ARRAY(); return; } while (0)
-#define RETURN_OBJ(r)                   do { RETVAL_OBJ(r); return; } while (0)
-#define RETURN_ZVAL(zv, copy, dtor)     do { RETVAL_ZVAL(zv, copy, dtor); return; } while (0)
-#define RETURN_FALSE                    do { RETVAL_FALSE; return; } while (0)
-#define RETURN_TRUE                     do { RETVAL_TRUE; return; } while (0)
-#define ZVAL_LONG(z, l) do {            \
-        zval *__z = (z);                \
-        Z_LVAL_P(__z) = l;              \
-        Z_TYPE_INFO_P(__z) = IS_LONG;   \
-    } while (0)
-#define ZVAL_DOUBLE(z, d) do {          \
-        zval *__z = (z);                \
-        Z_DVAL_P(__z) = d;              \
-        Z_TYPE_INFO_P(__z) = IS_DOUBLE; \
-    } while (0)
-#endif
 
 // Deprecated: do not use it anymore
 // do not use sw_copy_to_stack(return_value, foo);
@@ -488,6 +454,20 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 static sw_inline zend_bool ZVAL_IS_BOOL(zval *v)
 {
     return Z_TYPE_P(v) == IS_TRUE || Z_TYPE_P(v) == IS_FALSE;
+}
+#endif
+
+#ifndef ZVAL_IS_LONG
+static sw_inline zend_bool ZVAL_IS_LONG(zval *v)
+{
+    return Z_TYPE_P(v) == IS_LONG;
+}
+#endif
+
+#ifndef ZVAL_IS_STRING
+static sw_inline zend_bool ZVAL_IS_STRING(zval *v)
+{
+    return Z_TYPE_P(v) == IS_STRING;
 }
 #endif
 

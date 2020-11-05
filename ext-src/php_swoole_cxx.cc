@@ -96,6 +96,10 @@ void known_strings_dtor(void) {
     sw_zend_known_strings = nullptr;
 }
 
+zend_string *fetch_zend_string_by_val(char *val) {
+    return (zend_string *) (val - XtOffsetOf(zend_string, val));
+}
+
 namespace function {
 
 bool call(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv, zval *retval, const bool enable_coroutine) {

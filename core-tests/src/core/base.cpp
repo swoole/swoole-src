@@ -137,16 +137,17 @@ TEST(base, eventdata_pack) {
 }
 
 TEST(base, stack_defer_fn) {
-    StackDeferFn s;
     int count = 0;
-    s.add([&count](){
+
+    ON_SCOPE_EXIT {
         count++;
         ASSERT_EQ(count, 2);
-    });
-    s.add([&count](){
+    };
+
+    ON_SCOPE_EXIT {
         count++;
         ASSERT_EQ(count, 1);
-    });
+    };
 }
 
 TEST(base, string_format) {

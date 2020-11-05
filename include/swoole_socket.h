@@ -21,6 +21,7 @@
 
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/uio.h>
 #include <netinet/in.h>
 #include <netinet/ip6.h>
 #include <netinet/tcp.h>
@@ -394,6 +395,14 @@ struct Socket {
         return ::write(fd, __buf, __len);
     }
 
+    ssize_t readv(const struct iovec *iov, int iovcnt) {
+        return ::readv(fd, iov, iovcnt);
+    }
+
+    ssize_t writev(const struct iovec *iov, int iovcnt) {
+        return ::writev(fd, iov, iovcnt);
+    }
+
     ssize_t read(void *__buf, size_t __len) {
         return ::read(fd, __buf, __len);
     }
@@ -505,6 +514,23 @@ struct Socket {
         }
 
         return SW_OK;
+    }
+
+    static inline int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, int &index, size_t &offset_bytes) {
+        index = 0;
+        offset_bytes = 0;
+        size_t total_bytes = 0;
+
+        for (; index < iovcnt; index++) {
+            total_bytes += iov[index].iov_len;
+            if (total_bytes >= __n) {
+                offset_bytes = iov[index].iov_len - (total_bytes - __n);
+                return 0;
+            }
+        }
+
+        // represents the length of __n greater than total_bytes
+        return -1;
     }
 };
 

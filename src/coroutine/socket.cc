@@ -100,11 +100,9 @@ int Socket::readable_event_callback(Reactor *reactor, Event *event) {
     } else
 #endif
     {
-        EventBarrier &barrier = socket->recv_barrier;
-        if (barrier.hold) {
-            barrier.retval = socket->socket->recv(barrier.buf + barrier.total_bytes, barrier.n - barrier.total_bytes, 0);
-            if ((barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
-                    || (barrier.retval > 0 && (barrier.total_bytes += barrier.retval) < barrier.n)) {
+        if (socket->recv_barrier) {
+            int retval = socket->recv_barrier->func();
+            if (retval == SW_CONTINUE) {
                 return SW_OK;
             }
         }
@@ -125,11 +123,9 @@ int Socket::writable_event_callback(Reactor *reactor, Event *event) {
     } else
 #endif
     {
-        EventBarrier &barrier = socket->send_barrier;
-        if (barrier.hold) {
-            barrier.retval = socket->socket->send(barrier.buf + barrier.total_bytes, barrier.n - barrier.total_bytes, 0);
-            if ((barrier.retval < 0 && socket->socket->catch_error(errno) == SW_WAIT)
-                    || (barrier.retval > 0 && (barrier.total_bytes += barrier.retval) < barrier.n)) {
+        if (socket->send_barrier) {
+            int retval = socket->send_barrier->func();
+            if (retval == SW_CONTINUE) {
                 return SW_OK;
             }
         }
@@ -166,9 +162,19 @@ bool Socket::add_event(const enum swEvent_type event) {
     return ret;
 }
 
+/**
+ * If an exception occurs while waiting for an event, false is returned.
+ * For example, when waiting for a read event, timeout, connection closed, are exceptions to the interrupt event.
+ * And these exceptions will actively set the errCode, We don't need to set the exception's errCode ourselves.
+ * We only need to set the errCode for the socket operation when wait_event returns true,
+ * which means that the exception's error code priority is greater than the current event error priority.
+ */
 bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n) {
     enum swEvent_type added_event = event;
     Coroutine *co = Coroutine::get_current_safe();
+
+    // clear the last errCode
+    set_err(0);
 #ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->ssl && ((event == SW_EVENT_READ && socket->ssl_want_write) ||
                                     (event == SW_EVENT_WRITE && socket->ssl_want_read)))) {
@@ -207,9 +213,6 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
                 goto _failed;
             }
             *__buf = write_buffer->str;
-            if (send_barrier.hold) {
-                send_barrier.buf = (char *) write_buffer->str;
-            }
         }
         write_co = co;
         write_co->yield();
@@ -382,9 +385,9 @@ bool Socket::http_proxy_handshake() {
 #endif
 
     String *send_buffer = get_write_buffer();
-    DeferFn _1([send_buffer](){
+    ON_SCOPE_EXIT {
         send_buffer->clear();
-    });
+    };
 
     if (!http_proxy->password.empty()) {
         char auth_buf[256];
@@ -427,9 +430,9 @@ bool Socket::http_proxy_handshake() {
     }
 
     String *recv_buffer = get_read_buffer();
-    DeferFn _2([recv_buffer](){
+    ON_SCOPE_EXIT {
         recv_buffer->clear();
-    });
+    };
 
     ProtocolSwitch ps(this);
     open_eof_check = true;
@@ -913,14 +916,191 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
     return retval;
 }
 
+ssize_t Socket::readv(const struct iovec *iov, int iovcnt) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return -1;
+    }
+    ssize_t retval;
+    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    do {
+        retval = socket->readv(iov, iovcnt);
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
+    set_err(retval < 0 ? errno : 0);
+    return retval;
+}
+
+ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
+    if (sw_unlikely(!is_available(SW_EVENT_READ))) {
+        return -1;
+    }
+    int index = 0;
+    int remain_cnt = iovcnt;
+    size_t offset_bytes = 0;
+    ssize_t retval, total_bytes = 0;
+    TimerController timer(&read_timer, read_timeout, this, timer_callback);
+    struct iovec *_iov = (iovec *) iov;
+
+    retval = socket->readv(_iov, remain_cnt);
+    swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
+
+    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+        set_err(errno);
+        return retval;
+    }
+
+    if (retval == 0) {
+        return retval;
+    }
+
+    total_bytes += retval > 0 ? retval : 0;
+    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+
+    if (offset_bytes == _iov[index].iov_len) {
+        index++;
+    }
+    _iov += index;
+    remain_cnt -= index;
+
+    if (remain_cnt == 0) {
+        return retval;
+    }
+
+    EventBarrier barrier;
+    recv_barrier = &barrier;
+    recv_barrier->func = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> int {
+
+        _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+        _iov->iov_len = _iov->iov_len - offset_bytes;
+        retval = this->socket->readv(_iov, remain_cnt);
+
+        if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+            set_err(errno);
+            return SW_READY;
+        }
+
+        total_bytes += retval > 0 ? retval : 0;
+        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+
+        if (offset_bytes == _iov[index].iov_len) {
+            index++;
+        }
+
+        _iov += index;
+        remain_cnt -= index;
+
+        if ((retval < 0 && this->socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && remain_cnt > 0)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
+    if (timer.start() && wait_event(SW_EVENT_READ)) {
+        set_err(retval < 0 ? errno : 0);
+    }
+
+    recv_barrier = nullptr;
+
+    return total_bytes;
+}
+
+ssize_t Socket::writev(const struct iovec *iov, int iovcnt) {
+    if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
+        return -1;
+    }
+    ssize_t retval;
+    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    do {
+        retval = socket->writev(iov, iovcnt);
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
+             wait_event(SW_EVENT_WRITE));
+    set_err(retval < 0 ? errno : 0);
+    return retval;
+}
+
+ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
+    if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
+        return -1;
+    }
+    int index = 0;
+    int remain_cnt = iovcnt;
+    size_t offset_bytes = 0;
+    ssize_t retval, total_bytes = 0;
+    TimerController timer(&write_timer, write_timeout, this, timer_callback);
+    struct iovec *_iov = (iovec *) iov;
+
+    retval = socket->writev(iov, remain_cnt);
+    swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
+
+    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+        set_err(errno);
+        return retval;
+    }
+
+    if (retval == 0) {
+        return retval;
+    }
+
+    total_bytes += retval > 0 ? retval : 0;
+    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+
+    if (offset_bytes == _iov[index].iov_len) {
+        index++;
+    }
+    _iov += index;
+    remain_cnt -= index;
+
+    if (remain_cnt == 0) {
+        return retval;
+    }
+
+    send_barrier = new EventBarrier();
+    send_barrier->func = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> int {
+
+        _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+        _iov->iov_len = _iov->iov_len - offset_bytes;
+        retval = this->socket->writev(_iov, remain_cnt);
+
+        if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+            set_err(errno);
+            return SW_READY;
+        }
+
+        total_bytes += retval > 0 ? retval : 0;
+        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+
+        if (offset_bytes == _iov[index].iov_len) {
+            index++;
+        }
+
+        _iov += index;
+        remain_cnt -= index;
+
+        if ((retval < 0 && this->socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && remain_cnt > 0)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
+    timer.start() && wait_event(SW_EVENT_WRITE);
+
+    delete send_barrier;
+    send_barrier = nullptr;
+
+    return total_bytes;
+}
+
 ssize_t Socket::recv_all(void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    ssize_t retval = 0;
+    size_t total_bytes = 0;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
     retval = socket->recv(__buf, __n, 0);
+
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
@@ -930,19 +1110,26 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
     }
     total_bytes = retval > 0 ? retval : 0;
 
-    recv_barrier.hold = true;
-    recv_barrier.n = __n;
-    recv_barrier.total_bytes = total_bytes;
-    recv_barrier.buf = (char *) __buf;
     retval = -1;
 
+    EventBarrier barrier;
+    recv_barrier = &barrier;
+
+    recv_barrier->func = [&__n, &total_bytes, &retval, &__buf, this]() -> int {
+        retval = socket->recv((char *) __buf + total_bytes, __n - total_bytes, 0);
+
+        if ((retval < 0 && socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && (total_bytes += retval) < __n)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
     if (timer.start() && wait_event(SW_EVENT_READ)) {
-        retval = recv_barrier.retval;
+        set_err(retval < 0 ? errno : 0);
     }
 
-    total_bytes = recv_barrier.total_bytes;
-    recv_barrier.hold = false;
-    set_err(retval < 0 ? errno : 0);
+    recv_barrier = nullptr;
 
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }
@@ -951,10 +1138,12 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
-    ssize_t retval, total_bytes = 0;
+    ssize_t retval = 0;
+    size_t total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
 
     retval = socket->send(__buf, __n, 0);
+
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
@@ -964,19 +1153,25 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     }
     total_bytes = retval > 0 ? retval : 0;
 
-    send_barrier.hold = true;
-    send_barrier.n = __n;
-    send_barrier.total_bytes = total_bytes;
-    send_barrier.buf = (char *) __buf;
     retval = -1;
 
-    if (timer.start() && wait_event(SW_EVENT_WRITE, &__buf, __n)) {
-        retval = send_barrier.retval;
+    EventBarrier barrier;
+    send_barrier = &barrier;
+    send_barrier->func = [&__n, &total_bytes, &retval, &__buf, this]() -> int {
+        retval = socket->send((char *) __buf + total_bytes, __n - total_bytes, 0);
+
+        if ((retval < 0 && socket->catch_error(errno) == SW_WAIT)
+                || (retval > 0 && (total_bytes += retval) < __n)) {
+            return SW_CONTINUE;
+        }
+        return SW_READY;
+    };
+
+    if (timer.start() && wait_event(SW_EVENT_WRITE)) {
+        set_err(retval < 0 ? errno : 0);
     }
 
-    total_bytes = send_barrier.total_bytes;
-    send_barrier.hold = false;
-    set_err(retval < 0 ? errno : 0);
+    send_barrier = nullptr;
 
     return retval < 0 && total_bytes == 0 ? -1 : total_bytes;
 }

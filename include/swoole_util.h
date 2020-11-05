@@ -26,6 +26,10 @@
 #include <set>
 #include <vector>
 #include <stack>
+#include <type_traits>
+
+#define __SCOPEGUARD_CONCATENATE_IMPL(s1, s2) s1##s2
+#define __SCOPEGUARD_CONCATENATE(s1, s2) __SCOPEGUARD_CONCATENATE_IMPL(s1, s2)
 
 namespace swoole {
 
@@ -60,42 +64,46 @@ static inline long time(bool steady = false) {
     }
 }
 
-class DeferFn {
-  private:
-    using Fn = std::function<void(void)>;
-    Fn fn_;
-    bool cancelled_ = false;
+template <typename Fun>
+class ScopeGuard {
   public:
-    DeferFn(const Fn &fn) : 
-        fn_(fn) {
-    }
-    void cancel() {
-        cancelled_ = true;
-    }
-    ~DeferFn() {
-        if (!cancelled_) {
-            fn_();
+    ScopeGuard(Fun &&f) : _fun(std::forward<Fun>(f)), _active(true) {}
+
+    ~ScopeGuard() {
+        if (_active) {
+            _fun();
         }
     }
+
+    void dismiss() {
+        _active = false;
+    }
+
+    ScopeGuard() = delete;
+    ScopeGuard(const ScopeGuard &) = delete;
+    ScopeGuard &operator=(const ScopeGuard &) = delete;
+
+    ScopeGuard(ScopeGuard &&rhs) : _fun(std::move(rhs._fun)), _active(rhs._active) {
+        rhs.dismiss();
+    }
+
+  private:
+    Fun _fun;
+    bool _active;
 };
 
-class StackDeferFn {
-  private:
-    using Fn = std::function<void(void)>;
-    std::stack<Fn> stack_;
-  public:
-    StackDeferFn() = default;
-    ~StackDeferFn() {
-        while(!stack_.empty()) {
-            auto fn = stack_.top();
-            stack_.pop();
-            fn();
-        }
-    }
-    void add(const Fn &fn) {
-        stack_.emplace(fn);
-    }
-};
+namespace detail {
+enum class ScopeGuardOnExit {};
+
+template <typename Fun>
+inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
+    return ScopeGuard<Fun>(std::forward<Fun>(fn));
+}
+}
+
+// Helper macro
+#define ON_SCOPE_EXIT                                                                                                  \
+    auto __SCOPEGUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
 
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
 }  // namespace swoole
