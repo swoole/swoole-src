@@ -1411,17 +1411,21 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
     ssize_t retval = all ? sock->socket->readv_all(iov.get(), iovcnt) : sock->socket->readv(iov.get(), iovcnt);
-    if (UNEXPECTED(retval < 0)) {
-        for (int i = 0; i < iovcnt; i++) {
-            zend_string_free(zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
-        }
 
+    auto free_func = [&return_value](const iovec *iov, int iovcnt, int iov_index) {
+        for (; iov_index < iovcnt; iov_index++) {
+            zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
+
+            zend_string_free(str);
+            zend_hash_index_del(Z_ARRVAL_P(return_value), iov_index);
+        }
+    };
+
+    if (UNEXPECTED(retval < 0)) {
+        free_func(iov.get(), iovcnt, 0);
         RETURN_FALSE;
     } else if (UNEXPECTED(retval == 0)) {
-        for (int i = 0; i < iovcnt; i++) {
-            zend_string_free(zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
-        }
-
+        free_func(iov.get(), iovcnt, 0);
         RETURN_EMPTY_ARRAY();
     } else if (retval < total_length) {
         /**
@@ -1437,11 +1441,7 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
         sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes);
         iov_index++;
 
-        for (; iov_index < iovcnt; iov_index++) {
-            zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
-            zend_string_free(str);
-            zend_hash_index_del(Z_ARRVAL_P(return_value), iov_index);
-        }
+        free_func(iov.get(), iovcnt, iov_index);
     }
 
     return;
