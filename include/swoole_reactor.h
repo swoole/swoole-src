@@ -215,16 +215,16 @@ class Reactor {
         return read_handler[fdtype] != nullptr;
     }
 
-    inline int add_event(network::Socket *_socket, enum swEvent_type swEvent_type) {
-        if (!(_socket->events & swEvent_type)) {
-            return set(_socket, _socket->events | swEvent_type);
+    inline int add_event(network::Socket *_socket, enum swEvent_type event_type) {
+        if (!(_socket->events & event_type)) {
+            return set(_socket, _socket->events | event_type);
         }
         return SW_OK;
     }
 
-    inline int del_event(network::Socket *_socket, enum swEvent_type swEvent_type) {
-        if (_socket->events & swEvent_type) {
-            return set(_socket, _socket->events & (~swEvent_type));
+    inline int del_event(network::Socket *_socket, enum swEvent_type event_type) {
+        if (_socket->events & event_type) {
+            return set(_socket, _socket->events & (~event_type));
         }
         return SW_OK;
     }
@@ -273,8 +273,8 @@ class Reactor {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
 
-    inline ReactorHandler get_handler(enum swEvent_type swEvent_type, enum swFd_type fd_type) {
-        switch (swEvent_type) {
+    inline ReactorHandler get_handler(enum swEvent_type event_type, enum swFd_type fd_type) {
+        switch (event_type) {
         case SW_EVENT_READ:
             return read_handler[fd_type];
         case SW_EVENT_WRITE:
