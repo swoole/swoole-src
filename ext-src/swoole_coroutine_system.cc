@@ -78,7 +78,6 @@ static int co_socket_onReadable(Reactor *reactor, Event *event) {
     TmpSocket *sock = (TmpSocket *) event->socket->object;
     FutureTask *context = &sock->context;
 
-    zval *retval = nullptr;
     zval result;
 
     swoole_event_del(event->socket);
@@ -100,11 +99,8 @@ static int co_socket_onReadable(Reactor *reactor, Event *event) {
         ZSTR_LEN(sock->buf) = n;
         ZVAL_STR(&result, sock->buf);
     }
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
+    PHPCoroutine::resume_m(context, &result);
     zval_ptr_dtor(&result);
-    if (ret == Coroutine::ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
     efree(sock);
     return SW_OK;
 }
@@ -113,7 +109,6 @@ static int co_socket_onWritable(Reactor *reactor, Event *event) {
     TmpSocket *sock = (TmpSocket *) event->socket->object;
     FutureTask *context = &sock->context;
 
-    zval *retval = nullptr;
     zval result;
 
     swoole_event_del(event->socket);
@@ -130,10 +125,7 @@ static int co_socket_onWritable(Reactor *reactor, Event *event) {
     } else {
         ZVAL_LONG(&result, n);
     }
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == Coroutine::ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
+    PHPCoroutine::resume_m(context, &result);
     efree(sock);
     return SW_OK;
 }
