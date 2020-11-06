@@ -630,3 +630,34 @@ TEST(coroutine_socket, length_7) {
                         ASSERT_EQ(buf->offset, 4);
                     }});
 }
+
+TEST(coroutine_socket, event_hup) {
+    coroutine::run({[](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.bind("127.0.0.1", 9502);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.listen(128), true);
+
+        Socket *conn = sock.accept();
+        System::sleep(0.05);
+        char buf[1024];
+        auto ret_n = conn->recv(buf, sizeof(buf));
+        ASSERT_EQ(ret_n, 0);
+        delete conn;
+    },
+
+    [](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.connect("127.0.0.1", 9502, -1);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.errCode, 0);
+
+        auto buf = sock.get_read_buffer();
+        swoole::Coroutine::create([&sock](void *args) {
+            System::sleep(0.01);
+            sock.shutdown(SHUT_RDWR);
+        });
+        auto n = sock.recv_all(buf->str, buf->size);
+        ASSERT_EQ(n, 0);
+    }});
+}
