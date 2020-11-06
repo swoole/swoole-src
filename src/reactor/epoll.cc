@@ -39,7 +39,7 @@ using network::Socket;
 class ReactorEpoll : public ReactorImpl {
   private:
     int epfd_;
-    struct epoll_event *events_;
+    struct epoll_event *events_ = nullptr;
 
   public:
     ReactorEpoll(Reactor *_reactor, int max_events);

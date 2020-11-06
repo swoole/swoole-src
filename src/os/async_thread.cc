@@ -233,6 +233,9 @@ void ThreadPool::create_thread(const bool is_core_worker) {
             bool exit_flag = false;
             std::unique_ptr<String> _thread_buffer(new String(SW_STACK_BUFFER_SIZE));
             SwooleTG.buffer_stack = _thread_buffer.get();
+            ON_SCOPE_EXIT {
+                SwooleTG.buffer_stack = nullptr;
+            };
 
             swSignal_none();
 

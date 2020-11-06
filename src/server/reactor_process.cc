@@ -187,8 +187,13 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     Factory *factory = serv->factory;
     String *output_buffer;
 
-    if (read(event->fd, &task, sizeof(task)) <= 0) {
+    ssize_t retval = read(event->fd, &task, sizeof(task));
+    if (retval <= 0) {
         return SW_ERR;
+    }
+    else if ((size_t)  retval != task.info.len + sizeof(_send.info)) {
+        swWarn("bad pipeline data");
+        return SW_OK;
     }
 
     switch (task.info.type) {
@@ -199,7 +204,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         serv->onFinish(serv, &task);
         break;
     case SW_SERVER_EVENT_SEND_FILE:
-        memcpy(&_send.info, &task.info, sizeof(_send.info));
+        _send.info = task.info;
         _send.data = task.data;
         factory->finish(&_send);
         break;
@@ -229,8 +234,7 @@ static int ReactorProcess_alloc_output_buffer(int n_buffer) {
         return SW_ERR;
     }
 
-    int i;
-    for (i = 0; i < n_buffer; i++) {
+    SW_LOOP_N(n_buffer) {
         SwooleWG.output_buffer[i] = new String(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.output_buffer[i] == nullptr) {
             swError("output_buffer init failed");

@@ -19,6 +19,7 @@
 #include "swoole_hash.h"
 #include "swoole_http.h"
 #include "swoole_client.h"
+#include "swoole_util.h"
 #include "swoole_websocket.h"
 
 #include <assert.h>
@@ -903,6 +904,9 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
 
     std::unique_ptr<String> _thread_buffer(new String(SW_STACK_BUFFER_SIZE));
     SwooleTG.buffer_stack = _thread_buffer.get();
+    ON_SCOPE_EXIT {
+        SwooleTG.buffer_stack = nullptr;
+    };
 
     if (swoole_event_init(0) < 0) {
         return;
