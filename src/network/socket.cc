@@ -637,6 +637,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
         }
     }
 
+    // The POLLHUP event is triggered, but Socket::recv returns EAGAIN
     if (total_bytes < 0 && catch_error(errno) == SW_WAIT && event_hup) {
         total_bytes = 0;
     }
