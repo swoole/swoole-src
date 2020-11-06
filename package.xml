@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-10-24</date>
-    <time>22:00:00</time>
+    <date>2020-11-06</date>
+    <time>13:00:00</time>
     <version>
-        <release>4.5.6</release>
+        <release>4.5.7</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,23 +56,25 @@
     <notes>
         New APIs
         ---
-        + Added swoole_substr_unserialize and swoole_substr_json_decode (#3762) (@matyhtf)
+        + Added writeVector, writeVectorAll, readVector, readVectorAll for Coroutine::Socket (#3764) (@huanghantao)
 
         Enhancement
         ---
-        + Modified Coroutine\Http\Server::onAccept to private property (#dfcc83b) (@matyhtf)
+        + Added task_worker_num and dispatch_count for server->stats (#3771) (#3806) (@sy-records) (@matyhtf)
+        + Added extension dependencies, including json, mysqlnd, sockets (#3789) (@remicollet)
+        + Limited the minimum for uid server->bind is INT32_MIN (#3785) (@sy-records)
+        + Added compilation option for JSON decoder, Support negative offset (#3809) (@matyhtf)
+        + Added CURLOPT_TCP_NODELAY for Curl (swoole/library#65) (@sy-records) (@deminy)
 
         Fixed
         ---
-        * Fixed coverity issues (#3737) (#3740) (@matyhtf)
-        * Fixed some bugs on Alpine (#3738) (@matyhtf)
-        * Fixed swMutex_lockwait (#0fc5665) (@matyhtf)
-        * Fixed PHP-8.1 build error (#3757) (@twose)
+        * Fixed sync client::connect error info (#3784) (@twose)
+        * Fixed the scandir function hooked (#3793) (@twose)
+        * Fixed some errors in the barrier (swoole/library#68) (@sy-records)
 
         Kernel
         ---
-        * Added check_liveness for Socket::read/write/shutdown (#3735) (@matyhtf)
-        * Changed the type of session_id and task_id to int64 (#3756) (@matyhtf)
+        * Optimized print-backtrace, using boost.stacktrace (#3788) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -106,6 +108,7 @@
             <file role="doc" name="core-tests/samples/README.md" />
             <file role="src" name="core-tests/samples/s1.cc" />
             <file role="src" name="core-tests/src/_lib/http.cpp" />
+            <file role="src" name="core-tests/src/_lib/process.cpp" />
             <file role="src" name="core-tests/src/_lib/redis.cpp" />
             <file role="src" name="core-tests/src/_lib/server.cpp" />
             <file role="src" name="core-tests/src/core/base.cpp" />
@@ -141,7 +144,6 @@
             <file role="src" name="core-tests/src/os/signal.cpp" />
             <file role="src" name="core-tests/src/os/timer.cpp" />
             <file role="src" name="core-tests/src/os/wait.cpp" />
-            <file role="src" name="core-tests/src/process/process.cpp" />
             <file role="src" name="core-tests/src/protocol/base.cpp" />
             <file role="src" name="core-tests/src/protocol/base64.cpp" />
             <file role="src" name="core-tests/src/protocol/mime_type.cpp" />
@@ -223,6 +225,7 @@
             <file role="doc" name="examples/coroutine/mysql_procedure_exec.php" />
             <file role="doc" name="examples/coroutine/mysql_query.php" />
             <file role="doc" name="examples/coroutine/mysql_unixsocket.php" />
+            <file role="doc" name="examples/coroutine/proc_open.php" />
             <file role="doc" name="examples/coroutine/reconnect_test.php" />
             <file role="doc" name="examples/coroutine/redis/auth.php" />
             <file role="doc" name="examples/coroutine/redis/defer.php" />
@@ -540,7 +543,6 @@
             <file role="doc" name="gdbinit" />
             <file role="src" name="google-style.xml" />
             <file role="src" name="include/helper/kqueue.h" />
-            <file role="src" name="include/helper/scope_guard.h" />
             <file role="src" name="include/swoole.h" />
             <file role="src" name="include/swoole_api.h" />
             <file role="src" name="include/swoole_asm_context.h" />
@@ -1445,6 +1447,7 @@
             <file role="test" name="tests/swoole_runtime/file_hook/a.inc" />
             <file role="test" name="tests/swoole_runtime/file_hook/b.inc" />
             <file role="test" name="tests/swoole_runtime/file_hook/bug_ftell_2g.phpt" />
+            <file role="test" name="tests/swoole_runtime/file_hook/bug_scandir.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/co_fread.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/flock.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/include.phpt" />
@@ -1687,6 +1690,7 @@
             <file role="test" name="tests/swoole_socket_coro/accept.phpt" />
             <file role="test" name="tests/swoole_socket_coro/all.phpt" />
             <file role="test" name="tests/swoole_socket_coro/cancel.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/check_writev_readv_param_type.phpt" />
             <file role="test" name="tests/swoole_socket_coro/closed.phpt" />
             <file role="test" name="tests/swoole_socket_coro/complete_test.phpt" />
             <file role="test" name="tests/swoole_socket_coro/concurrency.phpt" />
@@ -1695,9 +1699,12 @@
             <file role="test" name="tests/swoole_socket_coro/getopt/get.phpt" />
             <file role="test" name="tests/swoole_socket_coro/getpeername.phpt" />
             <file role="test" name="tests/swoole_socket_coro/getsockname.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/iov_max.phpt" />
             <file role="test" name="tests/swoole_socket_coro/peek_and_checkLiveness.phpt" />
             <file role="test" name="tests/swoole_socket_coro/protocol/bug_3586.phpt" />
             <file role="test" name="tests/swoole_socket_coro/protocol/package_length_func.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/readVectorAll.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/readv.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_bad_packet.phpt" />
@@ -1718,6 +1725,8 @@
             <file role="test" name="tests/swoole_socket_coro/tcp-c10k.phpt" />
             <file role="test" name="tests/swoole_socket_coro/ulimit.phpt" />
             <file role="test" name="tests/swoole_socket_coro/unix_dgram.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/writeVectorAll.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/writev.phpt" />
             <file role="test" name="tests/swoole_table/big_size.phpt" />
             <file role="test" name="tests/swoole_table/bug_2263.phpt" />
             <file role="test" name="tests/swoole_table/bug_2290.phpt" />
