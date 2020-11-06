@@ -215,16 +215,16 @@ class Reactor {
         return read_handler[fdtype] != nullptr;
     }
 
-    inline int add_event(network::Socket *_socket, enum swEvent_type event_type) {
-        if (!(_socket->events & event_type)) {
-            return set(_socket, _socket->events | event_type);
+    inline int add_event(network::Socket *_socket, enum swEvent_type swEvent_type) {
+        if (!(_socket->events & swEvent_type)) {
+            return set(_socket, _socket->events | swEvent_type);
         }
         return SW_OK;
     }
 
-    inline int del_event(network::Socket *_socket, enum swEvent_type event_type) {
-        if (_socket->events & event_type) {
-            return set(_socket, _socket->events & (~event_type));
+    inline int del_event(network::Socket *_socket, enum swEvent_type swEvent_type) {
+        if (_socket->events & swEvent_type) {
+            return set(_socket, _socket->events & (~swEvent_type));
         }
         return SW_OK;
     }
@@ -273,8 +273,8 @@ class Reactor {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
 
-    inline ReactorHandler get_handler(enum swEvent_type event_type, enum swFd_type fd_type) {
-        switch (event_type) {
+    inline ReactorHandler get_handler(enum swEvent_type swEvent_type, enum swFd_type fd_type) {
+        switch (swEvent_type) {
         case SW_EVENT_READ:
             return read_handler[fd_type];
         case SW_EVENT_WRITE:
@@ -288,11 +288,23 @@ class Reactor {
         return nullptr;
     }
 
+    inline ReactorHandler get_error_handler(enum swFd_type fd_type) {
+        ReactorHandler handler = get_handler(SW_EVENT_ERROR, fd_type);
+        // error callback is not set, try to use readable or writable callback
+        if (handler == nullptr) {
+            handler = get_handler(SW_EVENT_READ, fd_type);
+            if (handler == nullptr) {
+                handler = get_handler(SW_EVENT_WRITE, fd_type);
+            }
+        }
+        return handler;
+    }
+
     inline void before_wait() {
         start = running = true;
     }
 
-    inline int trigger_close_event(swEvent *event) {
+    inline int trigger_close_event(Event *event) {
         return default_error_handler(this, event);
     }
 

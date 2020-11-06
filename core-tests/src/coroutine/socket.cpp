@@ -658,6 +658,7 @@ TEST(coroutine_socket, event_hup) {
             sock.shutdown(SHUT_RDWR);
         });
         auto n = sock.recv_all(buf->str, buf->size);
+        ASSERT_EQ(sock.get_socket()->event_hup, 1);
         ASSERT_EQ(n, 0);
     }});
 }

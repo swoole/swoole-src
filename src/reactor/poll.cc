@@ -184,12 +184,13 @@ int ReactorPoll::wait(struct timeval *timeo) {
                 event.reactor_id = reactor_->id;
                 event.type = event.socket->fd_type;
 
+                if (events_[i].revents & (POLLHUP | POLLERR)) {
+                    event.socket->event_hup = 1;
+                }
+
                 swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor_->id, event.type);
                 // in
                 if ((events_[i].revents & POLLIN) && !event.socket->removed) {
-                    if (events_[i].revents & (POLLHUP | POLLERR)) {
-                        event.socket->event_hup = 1;
-                    }
                     handler = reactor_->get_handler(SW_EVENT_READ, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
@@ -210,7 +211,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     if ((events_[i].revents & POLLIN) || (events_[i].revents & POLLOUT)) {
                         continue;
                     }
-                    handler = reactor_->get_handler(SW_EVENT_ERROR, event.type);
+                    handler = reactor_->get_error_handler(event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
                         swSysWarn("poll[POLLERR] handler failed. fd=%d", event.fd);
