@@ -743,22 +743,21 @@ void PHPCoroutine::defer(zend::Function *fci) {
     task->defer_tasks->push(fci);
 }
 
-void PHPCoroutine::yield_m(zval *return_value, FutureTask *sw_current_context) {
+void PHPCoroutine::yield_m(zval *return_value, FutureTask *task) {
     PHPContext *ctx = get_context();
-    sw_current_context->current_coro_return_value_ptr = return_value;
-    sw_current_context->current_task = ctx;
+    task->current_coro_return_value_ptr = return_value;
+    task->current_task = ctx;
     on_yield(ctx);
     ctx->co->yield_naked();
 }
 
-int PHPCoroutine::resume_m(FutureTask *sw_current_context, zval *retval, zval *coro_retval) {
-    PHPContext *task = sw_current_context->current_task;
-    on_resume(task);
+void PHPCoroutine::resume_m(FutureTask *task, zval *retval) {
+    PHPContext *ctx = task->current_task;
+    on_resume(ctx);
     if (retval) {
-        ZVAL_COPY(sw_current_context->current_coro_return_value_ptr, retval);
+        ZVAL_COPY(task->current_coro_return_value_ptr, retval);
     }
-    task->co->resume_naked();
-    return Coroutine::ERR_END;
+    ctx->co->resume_naked();
 }
 
 void php_swoole_coroutine_minit(int module_number) {

@@ -911,16 +911,12 @@ static void php_swoole_task_wait_co(
 static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode) {
     TaskCo *task_co = (TaskCo *) tnode->data;
     FutureTask *context = &task_co->context;
-    zval *retval = nullptr;
 
     // Server->taskwait, single task
     if (task_co->list == nullptr) {
         zval result;
         ZVAL_FALSE(&result);
-        int ret = PHPCoroutine::resume_m(context, &result, retval);
-        if (ret == Coroutine::ERR_END && retval) {
-            zval_ptr_dtor(retval);
-        }
+        PHPCoroutine::resume_m(context, &result);
         task_co->server_object->property->task_coroutine_map.erase(Z_LVAL(context->coro_params));
         efree(task_co);
         return;
@@ -936,10 +932,7 @@ static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode) {
         }
     }
 
-    int ret = PHPCoroutine::resume_m(context, result, retval);
-    if (ret == Coroutine::ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
+    PHPCoroutine::resume_m(context, result);
     sw_zval_free(result);
     efree(task_co);
 }
@@ -1399,15 +1392,11 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
         TaskCo *task_co = task_co_iterator->second;
         // Server->taskwait
         if (task_co->list == nullptr) {
-            zval *retval = nullptr;
             if (task_co->timer) {
                 swoole_timer_del(task_co->timer);
             }
             FutureTask *context = &task_co->context;
-            int ret = PHPCoroutine::resume_m(context, zdata, retval);
-            if (ret == Coroutine::ERR_END && retval) {
-                zval_ptr_dtor(retval);
-            }
+            PHPCoroutine::resume_m(context, zdata);
             efree(task_co);
             sw_zval_free(zdata);
             server_object->property->task_coroutine_map.erase(task_id);
@@ -1432,16 +1421,12 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
         server_object->property->task_coroutine_map.erase(task_id);
 
         if (php_swoole_array_length(result) == task_co->count) {
-            zval *retval = nullptr;
             if (task_co->timer) {
                 swoole_timer_del(task_co->timer);
                 task_co->timer = nullptr;
             }
             FutureTask *context = &task_co->context;
-            int ret = PHPCoroutine::resume_m(context, result, retval);
-            if (ret == Coroutine::ERR_END && retval) {
-                zval_ptr_dtor(retval);
-            }
+            PHPCoroutine::resume_m(context, result);
             sw_zval_free(result);
             efree(task_co);
         }
@@ -1731,7 +1716,6 @@ static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode) {
     FutureTask *context = (FutureTask *) tnode->data;
     zval *zdata = &context->coro_params;
     zval result;
-    zval *retval = nullptr;
 
     Server *serv = sw_server();
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
@@ -1757,10 +1741,7 @@ static void php_swoole_onSendTimeout(Timer *timer, TimerNode *tnode) {
 
     context->private_data = nullptr;
 
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == Coroutine::ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
+    PHPCoroutine::resume_m(context, &result);
     zval_ptr_dtor(zdata);
     efree(context);
 }
@@ -1769,7 +1750,6 @@ static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask
     char *data;
     zval *zdata = &context->coro_params;
     zval result;
-    zval *retval = nullptr;
 
     if (ZVAL_IS_NULL(zdata)) {
     _fail:
@@ -1791,10 +1771,7 @@ static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask
         context->timer = nullptr;
     }
 
-    int ret = PHPCoroutine::resume_m(context, &result, retval);
-    if (ret == Coroutine::ERR_END && retval) {
-        zval_ptr_dtor(retval);
-    }
+    PHPCoroutine::resume_m(context, &result);
     zval_ptr_dtor(zdata);
     efree(context);
     return SW_READY;

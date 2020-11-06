@@ -125,7 +125,7 @@ class PHPCoroutine {
 
     // TODO: remove old coro APIs (Manual)
     static void yield_m(zval *return_value, FutureTask *task);
-    static int resume_m(FutureTask *task, zval *retval, zval *coro_retval);
+    static void resume_m(FutureTask *task, zval *retval);
 
     static inline long get_cid() {
         return sw_likely(active) ? Coroutine::get_current_cid() : -1;
