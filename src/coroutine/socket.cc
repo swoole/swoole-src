@@ -979,10 +979,7 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
         _iov += index;
         remain_cnt -= index;
 
-        if ((retval < 0 && this->socket->catch_error(errno) == SW_WAIT) || (retval > 0 && remain_cnt > 0)) {
-            return true;
-        }
-        return false;
+        return (retval < 0 && this->socket->catch_error(errno) == SW_WAIT) || (retval > 0 && remain_cnt > 0);
     };
 
     recv_barrier = &barrier;
@@ -1064,10 +1061,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
         _iov += index;
         remain_cnt -= index;
 
-        if ((retval < 0 && this->socket->catch_error(errno) == SW_WAIT) || (retval > 0 && remain_cnt > 0)) {
-            return true;
-        }
-        return false;
+        return (retval < 0 && this->socket->catch_error(errno) == SW_WAIT) || (retval > 0 && remain_cnt > 0);
     };
 
     send_barrier = &barrier;
@@ -1100,14 +1094,9 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
 
     retval = -1;
 
-    EventBarrier barrier = [&__n, &total_bytes, &retval, &__buf, this]() -> int {
+    EventBarrier barrier = [&__n, &total_bytes, &retval, &__buf, this]() -> bool {
         retval = socket->recv((char *) __buf + total_bytes, __n - total_bytes, 0);
-
-        if ((retval < 0 && socket->catch_error(errno) == SW_WAIT)
-                || (retval > 0 && (total_bytes += retval) < __n)) {
-            return SW_CONTINUE;
-        }
-        return SW_READY;
+        return (retval < 0 && socket->catch_error(errno) == SW_WAIT) || (retval > 0 && (total_bytes += retval) < __n);
     };
 
     recv_barrier = &barrier;
@@ -1142,10 +1131,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
 
     EventBarrier barrier = [&__n, &total_bytes, &retval, &__buf, this]() -> bool {
         retval = socket->send((char *) __buf + total_bytes, __n - total_bytes, 0);
-        if ((retval < 0 && socket->catch_error(errno) == SW_WAIT) || (retval > 0 && (total_bytes += retval) < __n)) {
-            return true;
-        }
-        return false;
+        return (retval < 0 && socket->catch_error(errno) == SW_WAIT) || (retval > 0 && (total_bytes += retval) < __n);
     };
 
     send_barrier = &barrier;
