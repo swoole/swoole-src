@@ -27,7 +27,11 @@
 namespace swoole {
 namespace coroutine {
 //-------------------------------------------------------------------------------
-using EventBarrier = std::function<int()>;
+/**
+ * @return true: continue to wait for events
+ * @return false: stop event waiting and resume coroutine
+ */
+using EventBarrier = std::function<bool()>;
 
 class Socket {
   public:

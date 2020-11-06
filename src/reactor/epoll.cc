@@ -215,11 +215,11 @@ int ReactorEpoll::wait(struct timeval *timeo) {
             event.type = event.socket->fd_type;
             event.fd = event.socket->fd;
 
+            if (events_[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) {
+                event.socket->event_hup = 1;
+            }
             // read
             if ((events_[i].events & EPOLLIN) && !event.socket->removed) {
-                if (events_[i].events & (EPOLLRDHUP | EPOLLERR | EPOLLHUP)) {
-                    event.socket->event_hup = 1;
-                }
                 handler = reactor_->get_handler(SW_EVENT_READ, event.type);
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
@@ -240,7 +240,7 @@ int ReactorEpoll::wait(struct timeval *timeo) {
                 if ((events_[i].events & EPOLLIN) || (events_[i].events & EPOLLOUT)) {
                     continue;
                 }
-                handler = reactor_->get_handler(SW_EVENT_ERROR, event.type);
+                handler = reactor_->get_error_handler(event.type);
                 ret = handler(reactor_, &event);
                 if (ret < 0) {
                     swSysWarn("EPOLLERR handle failed. fd=%d", event.fd);

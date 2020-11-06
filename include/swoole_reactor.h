@@ -288,11 +288,23 @@ class Reactor {
         return nullptr;
     }
 
+    inline ReactorHandler get_error_handler(enum swFd_type fd_type) {
+        ReactorHandler handler = get_handler(SW_EVENT_ERROR, fd_type);
+        // error callback is not set, try to use readable or writable callback
+        if (handler == nullptr) {
+            handler = get_handler(SW_EVENT_READ, fd_type);
+            if (handler == nullptr) {
+                handler = get_handler(SW_EVENT_WRITE, fd_type);
+            }
+        }
+        return handler;
+    }
+
     inline void before_wait() {
         start = running = true;
     }
 
-    inline int trigger_close_event(swEvent *event) {
+    inline int trigger_close_event(Event *event) {
         return default_error_handler(this, event);
     }
 
