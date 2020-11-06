@@ -311,6 +311,9 @@ void php_swoole_table_minit(int module_number) {
     zend_class_implements(swoole_table_ce, 1, zend_ce_countable);
 #endif
 
+    zend_declare_property_null(swoole_table_ce, ZEND_STRL("size"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_table_ce, ZEND_STRL("memorySize"), ZEND_ACC_PUBLIC);
+
     zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_INT"), TableColumn::TYPE_INT);
     zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_STRING"), TableColumn::TYPE_STRING);
     zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_FLOAT"), TableColumn::TYPE_FLOAT);
