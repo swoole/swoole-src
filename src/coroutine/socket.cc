@@ -969,8 +969,7 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
             retval = this->socket->readv(_iov, remain_cnt);
 
             if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
-                set_err(errno);
-                return false;
+                break;
             }
 
             total_bytes += retval > 0 ? retval : 0;
@@ -1055,8 +1054,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
             retval = this->socket->writev(_iov, remain_cnt);
 
             if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
-                set_err(errno);
-                return false;
+                break;
             }
 
             total_bytes += retval > 0 ? retval : 0;
