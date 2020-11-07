@@ -1015,6 +1015,10 @@ class Server {
         return (Pipe *) connection_list[pipe_fd].object;
     }
 
+    size_t get_all_worker_num() {
+        return worker_num + task_worker_num + user_worker_num;
+    }
+
     inline String *get_worker_input_buffer(int reactor_id) {
         if (is_base_mode()) {
             return (String *) worker_input_buffers[0];

@@ -902,9 +902,9 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
     SwooleTG.type = SW_THREAD_REACTOR;
 
-    std::unique_ptr<String> _thread_buffer(new String(SW_STACK_BUFFER_SIZE));
-    SwooleTG.buffer_stack = _thread_buffer.get();
+    SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     ON_SCOPE_EXIT {
+        delete SwooleTG.buffer_stack;
         SwooleTG.buffer_stack = nullptr;
     };
 
