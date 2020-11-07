@@ -1377,8 +1377,8 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
     iovcnt = zend_array_count(vht);
 
     if (iovcnt > IOV_MAX) {
-        sprintf(sw_error, IOV_MAX_ERROR_MSG, IOV_MAX);
-        sock->socket->set_err(EINVAL, sw_error);
+        sw_tg_buffer()->length = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, IOV_MAX_ERROR_MSG, IOV_MAX);
+        sock->socket->set_err(EINVAL, sw_tg_buffer()->str);
         RETURN_FALSE;
     }
 
@@ -1398,7 +1398,14 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
                                 zend_get_type_by_const(Z_TYPE_P(zelement)));
         RETURN_FALSE;
     }
-    iov_len = Z_LVAL(*zelement);
+    if (Z_LVAL_P(zelement) < 0) {
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                EINVAL,
+                                "Item #[%d] must be greater than 0",
+                                iov_index);
+        RETURN_FALSE;
+    }
+    iov_len = Z_LVAL_P(zelement);
     iov_base = zend_string_alloc(iov_len, 0);
 
     add_next_index_str(return_value, iov_base);

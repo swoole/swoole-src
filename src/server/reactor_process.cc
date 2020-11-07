@@ -187,8 +187,12 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     Factory *factory = serv->factory;
     String *output_buffer;
 
-    if (read(event->fd, &task, sizeof(task)) <= 0) {
+    ssize_t retval = read(event->fd, &task, sizeof(task));
+    if (retval <= 0) {
         return SW_ERR;
+    } else if ((size_t) retval != task.info.len + sizeof(_send.info)) {
+        swWarn("bad pipeline data");
+        return SW_OK;
     }
 
     switch (task.info.type) {
@@ -199,12 +203,16 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         serv->onFinish(serv, &task);
         break;
     case SW_SERVER_EVENT_SEND_FILE:
-        memcpy(&_send.info, &task.info, sizeof(_send.info));
+        _send.info = task.info;
         _send.data = task.data;
         factory->finish(&_send);
         break;
     case SW_SERVER_EVENT_PROXY_START:
     case SW_SERVER_EVENT_PROXY_END:
+        if (task.info.reactor_id < 0 || task.info.reactor_id >= serv->get_all_worker_num()) {
+            swWarn("invalid worker_id=%d", task.info.reactor_id);
+            return SW_OK;
+        }
         output_buffer = SwooleWG.output_buffer[task.info.reactor_id];
         output_buffer->append(task.data, task.info.len);
         if (task.info.type == SW_SERVER_EVENT_PROXY_END) {
@@ -222,15 +230,14 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int ReactorProcess_alloc_output_buffer(int n_buffer) {
+static int ReactorProcess_alloc_output_buffer(size_t n_buffer) {
     SwooleWG.output_buffer = (String **) sw_malloc(sizeof(String *) * n_buffer);
     if (SwooleWG.output_buffer == nullptr) {
         swError("malloc for SwooleWG.output_buffer failed");
         return SW_ERR;
     }
 
-    int i;
-    for (i = 0; i < n_buffer; i++) {
+    SW_LOOP_N(n_buffer) {
         SwooleWG.output_buffer[i] = new String(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.output_buffer[i] == nullptr) {
             swError("output_buffer init failed");
@@ -240,9 +247,8 @@ static int ReactorProcess_alloc_output_buffer(int n_buffer) {
     return SW_OK;
 }
 
-static void ReactorProcess_free_output_buffer(int n_buffer) {
-    int i;
-    for (i = 0; i < n_buffer; i++) {
+static void ReactorProcess_free_output_buffer(size_t n_buffer) {
+    SW_LOOP_N(n_buffer) {
         delete SwooleWG.output_buffer[i];
     }
     sw_free(SwooleWG.output_buffer);
@@ -281,7 +287,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         SwooleTG.timer->reinit(reactor);
     }
 
-    int n_buffer = serv->worker_num + serv->task_worker_num + serv->user_worker_num;
+    size_t n_buffer = serv->get_all_worker_num();
     if (ReactorProcess_alloc_output_buffer(n_buffer)) {
         return SW_ERR;
     }
