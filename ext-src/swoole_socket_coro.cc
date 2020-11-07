@@ -1314,8 +1314,8 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
     iovcnt = zend_array_count(vht);
 
     if (iovcnt > IOV_MAX) {
-        sprintf(sw_error, IOV_MAX_ERROR_MSG, IOV_MAX);
-        sock->socket->set_err(EINVAL, sw_error);
+        sw_tg_buffer()->length = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, IOV_MAX_ERROR_MSG, IOV_MAX);
+        sock->socket->set_err(EINVAL, sw_tg_buffer()->to_std_string());
         RETURN_FALSE;
     }
 
@@ -1328,6 +1328,13 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
                                 "Item #[%d] must be of type string, %s given",
                                 iov_index,
                                 zend_get_type_by_const(Z_TYPE_P(zelement)));
+        RETURN_FALSE;
+    }
+    if (Z_STRLEN_P(zelement) == 0) {
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                EINVAL,
+                                "Item #[%d] cannot be empty string",
+                                iov_index);
         RETURN_FALSE;
     }
     iov[iov_index].iov_base = Z_STRVAL_P(zelement);
@@ -1378,7 +1385,7 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     if (iovcnt > IOV_MAX) {
         sw_tg_buffer()->length = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, IOV_MAX_ERROR_MSG, IOV_MAX);
-        sock->socket->set_err(EINVAL, sw_tg_buffer()->str);
+        sock->socket->set_err(EINVAL, sw_tg_buffer()->to_std_string());
         RETURN_FALSE;
     }
 
