@@ -1389,12 +1389,7 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
         RETURN_FALSE;
     }
 
-    zend_string *iov_base = nullptr;
-    size_t iov_len = 0;
-
     std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
-
-    array_init(return_value);
 
     SW_HASHTABLE_FOREACH_START(vht, zelement)
     if (!ZVAL_IS_LONG(zelement)) {
@@ -1412,12 +1407,9 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
                                 iov_index);
         RETURN_FALSE;
     }
-    iov_len = Z_LVAL_P(zelement);
-    iov_base = zend_string_alloc(iov_len, 0);
+    size_t iov_len = Z_LVAL_P(zelement);
 
-    add_next_index_str(return_value, iov_base);
-
-    iov[iov_index].iov_base = iov_base->val;
+    iov[iov_index].iov_base = zend_string_alloc(iov_len, 0)->val;
     iov[iov_index].iov_len = iov_len;
     iov_index++;
     total_length += iov_len;
@@ -1428,7 +1420,7 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     auto free_func = [&return_value](const iovec *iov, int iovcnt, int iov_index) {
         for (; iov_index < iovcnt; iov_index++) {
-            zend_hash_index_del(Z_ARRVAL_P(return_value), iov_index);
+            zend_string_free(zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base));
         }
     };
 
@@ -1438,24 +1430,29 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
     } else if (UNEXPECTED(retval == 0)) {
         free_func(iov.get(), iovcnt, 0);
         RETURN_EMPTY_ARRAY();
-    } else if (retval < total_length) {
-        /**
-         * Free the extra memory.
-         * For example iov is [5, 5, 5], but we get ['hello', 'world'], we should free the last iov.
-         */
+    } else {
+        array_init(return_value);
+        size_t real_count;
 
-        size_t offset_bytes = 0;
+        if (retval < total_length) {
+            /**
+             * Free the extra memory.
+             * For example iov is [5, 5, 5], but we get ['hello', 'world'], we should free the last iov.
+             */
+            size_t offset_bytes = 0;
+            iov_index = swoole::network::Socket::get_iovector_index(iov.get(), iovcnt, retval, &offset_bytes);
+            real_count = iov_index + 1;
+            zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
+            iov[iov_index].iov_base = sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes)->val;
+            free_func(iov.get(), iovcnt, real_count);
+        } else {
+            real_count = iovcnt;
+        }
 
-        swoole::network::Socket::get_iovector_index(iov.get(), iovcnt, retval, iov_index, offset_bytes);
-
-        zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
-        sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes);
-        iov_index++;
-
-        free_func(iov.get(), iovcnt, iov_index);
+        SW_LOOP_N(real_count) {
+            add_next_index_str(return_value, zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
+        }
     }
-
-    return;
 }
 
 static PHP_METHOD(swoole_socket_coro, readVector) {

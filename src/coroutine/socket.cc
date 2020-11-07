@@ -947,7 +947,7 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
     }
 
     total_bytes += retval > 0 ? retval : 0;
-    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+    index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
     if (offset_bytes == _iov[index].iov_len) {
         index++;
@@ -970,7 +970,7 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
         }
 
         total_bytes += retval > 0 ? retval : 0;
-        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+        index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
         if (offset_bytes == _iov[index].iov_len) {
             index++;
@@ -1029,7 +1029,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     }
 
     total_bytes += retval > 0 ? retval : 0;
-    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+    index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
     if (offset_bytes == _iov[index].iov_len) {
         index++;
@@ -1052,7 +1052,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
         }
 
         total_bytes += retval > 0 ? retval : 0;
-        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+        index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
         if (offset_bytes == _iov[index].iov_len) {
             index++;
