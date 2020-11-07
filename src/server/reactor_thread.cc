@@ -21,7 +21,6 @@
 #include "swoole_client.h"
 #include "swoole_util.h"
 #include "swoole_websocket.h"
-#include "swoole_util.h"
 
 #include <assert.h>
 
