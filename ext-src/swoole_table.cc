@@ -236,6 +236,7 @@ static PHP_METHOD(swoole_table, incr);
 static PHP_METHOD(swoole_table, decr);
 static PHP_METHOD(swoole_table, count);
 static PHP_METHOD(swoole_table, destroy);
+static PHP_METHOD(swoole_table, getSize);
 static PHP_METHOD(swoole_table, getMemorySize);
 static PHP_METHOD(swoole_table, offsetExists);
 static PHP_METHOD(swoole_table, offsetGet);
@@ -271,6 +272,7 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_MALIAS(swoole_table, exist, exists, arginfo_swoole_table_exists, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, getSize,    arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, getMemorySize,    arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     // implement ArrayAccess
     PHP_ME(swoole_table, offsetExists,     arginfo_swoole_table_offsetExists, ZEND_ACC_PUBLIC)
@@ -308,6 +310,9 @@ void php_swoole_table_minit(int module_number) {
 #ifdef SW_HAVE_COUNTABLE
     zend_class_implements(swoole_table_ce, 1, zend_ce_countable);
 #endif
+
+    zend_declare_property_null(swoole_table_ce, ZEND_STRL("size"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_table_ce, ZEND_STRL("memorySize"), ZEND_ACC_PUBLIC);
 
     zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_INT"), TableColumn::TYPE_INT);
     zend_declare_class_constant_long(swoole_table_ce, ZEND_STRL("TYPE_STRING"), TableColumn::TYPE_STRING);
@@ -722,6 +727,16 @@ static PHP_METHOD(swoole_table, getMemorySize) {
         RETURN_LONG(0);
     } else {
         RETURN_LONG(table->get_memory_size());
+    }
+}
+
+static PHP_METHOD(swoole_table, getSize) {
+    Table *table = php_swoole_table_get_ptr(ZEND_THIS);
+
+    if (!table) {
+        RETURN_LONG(0);
+    } else {
+        RETURN_LONG(table->get_size());
     }
 }
 
