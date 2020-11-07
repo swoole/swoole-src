@@ -199,7 +199,12 @@ static PHP_METHOD(swoole_lock, lockwait) {
         zend_throw_exception(swoole_exception_ce, "only mutex supports lockwait", -2);
         RETURN_FALSE;
     }
-    SW_LOCK_CHECK_RETURN(dynamic_cast<Mutex *>(lock)->lock_wait((int) timeout * 1000));
+    Mutex *mutex = dynamic_cast<Mutex *>(lock);
+    if (mutex == nullptr) {
+        zend_throw_exception(swoole_exception_ce, "wrong lock type", -3);
+        RETURN_FALSE;
+    }
+    SW_LOCK_CHECK_RETURN(mutex->lock_wait((int) timeout * 1000));
 }
 
 static PHP_METHOD(swoole_lock, unlock) {

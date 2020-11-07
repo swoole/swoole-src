@@ -516,20 +516,20 @@ struct Socket {
         return SW_OK;
     }
 
-    static inline int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, int &index, size_t &offset_bytes) {
-        index = 0;
-        offset_bytes = 0;
+    static inline int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, size_t *offset_bytes) {
+        *offset_bytes = 0;
         size_t total_bytes = 0;
 
-        for (; index < iovcnt; index++) {
-            total_bytes += iov[index].iov_len;
+        SW_LOOP_N(iovcnt) {
+            total_bytes += iov[i].iov_len;
             if (total_bytes >= __n) {
-                offset_bytes = iov[index].iov_len - (total_bytes - __n);
-                return 0;
+                *offset_bytes = iov[i].iov_len - (total_bytes - __n);
+                return i;
             }
         }
 
         // represents the length of __n greater than total_bytes
+        abort();
         return -1;
     }
 };

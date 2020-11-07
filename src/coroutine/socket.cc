@@ -932,7 +932,10 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
     size_t offset_bytes = 0;
     ssize_t retval, total_bytes = 0;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
-    struct iovec *_iov = (iovec *) iov;
+
+    struct iovec *_iov = new iovec[iovcnt];
+    std::unique_ptr<struct iovec[]> _iov_ptr(_iov);
+    memcpy(_iov, iov, sizeof(*iov) * iovcnt);
 
     retval = socket->readv(_iov, remain_cnt);
     swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
@@ -947,7 +950,7 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
     }
 
     total_bytes += retval > 0 ? retval : 0;
-    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+    index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
     if (offset_bytes == _iov[index].iov_len) {
         index++;
@@ -960,26 +963,28 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
     }
 
     EventBarrier barrier = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> bool {
-        _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
-        _iov->iov_len = _iov->iov_len - offset_bytes;
-        retval = this->socket->readv(_iov, remain_cnt);
+        do {
+            _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+            _iov->iov_len = _iov->iov_len - offset_bytes;
+            retval = this->socket->readv(_iov, remain_cnt);
 
-        if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
-            set_err(errno);
-            return false;
-        }
+            if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+                set_err(errno);
+                return false;
+            }
 
-        total_bytes += retval > 0 ? retval : 0;
-        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+            total_bytes += retval > 0 ? retval : 0;
+            index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
-        if (offset_bytes == _iov[index].iov_len) {
-            index++;
-        }
+            if (offset_bytes == _iov[index].iov_len) {
+                index++;
+            }
 
-        _iov += index;
-        remain_cnt -= index;
+            _iov += index;
+            remain_cnt -= index;
+        } while (retval > 0 && remain_cnt > 0);
 
-        return (retval < 0 && this->socket->catch_error(errno) == SW_WAIT) || (retval > 0 && remain_cnt > 0);
+        return retval < 0 && this->socket->catch_error(errno) == SW_WAIT;
     };
 
     recv_barrier = &barrier;
@@ -999,8 +1004,7 @@ ssize_t Socket::writev(const struct iovec *iov, int iovcnt) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = socket->writev(iov, iovcnt);
-    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
-             wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     return retval;
 }
@@ -1014,7 +1018,10 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     size_t offset_bytes = 0;
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
-    struct iovec *_iov = (iovec *) iov;
+
+    struct iovec *_iov = new iovec[iovcnt];
+    std::unique_ptr<struct iovec[]> _iov_ptr(_iov);
+    memcpy(_iov, iov, sizeof(*iov) * iovcnt);
 
     retval = socket->writev(iov, remain_cnt);
     swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
@@ -1029,7 +1036,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     }
 
     total_bytes += retval > 0 ? retval : 0;
-    network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+    index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
     if (offset_bytes == _iov[index].iov_len) {
         index++;
@@ -1042,26 +1049,28 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     }
 
     EventBarrier barrier = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> bool {
-        _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
-        _iov->iov_len = _iov->iov_len - offset_bytes;
-        retval = this->socket->writev(_iov, remain_cnt);
+        do {
+            _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+            _iov->iov_len = _iov->iov_len - offset_bytes;
+            retval = this->socket->writev(_iov, remain_cnt);
 
-        if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
-            set_err(errno);
-            return false;
-        }
+            if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+                set_err(errno);
+                return false;
+            }
 
-        total_bytes += retval > 0 ? retval : 0;
-        network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, index, offset_bytes);
+            total_bytes += retval > 0 ? retval : 0;
+            index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
 
-        if (offset_bytes == _iov[index].iov_len) {
-            index++;
-        }
+            if (offset_bytes == _iov[index].iov_len) {
+                index++;
+            }
 
-        _iov += index;
-        remain_cnt -= index;
+            _iov += index;
+            remain_cnt -= index;
+        } while (retval > 0 && remain_cnt > 0);
 
-        return (retval < 0 && this->socket->catch_error(errno) == SW_WAIT) || (retval > 0 && remain_cnt > 0);
+        return retval < 0 && this->socket->catch_error(errno) == SW_WAIT;
     };
 
     send_barrier = &barrier;
