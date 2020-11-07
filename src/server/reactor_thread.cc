@@ -909,10 +909,6 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         SwooleTG.buffer_stack = nullptr;
     };
 
-    ON_SCOPE_EXIT {
-        SwooleTG.buffer_stack = nullptr;
-    };
-
     if (swoole_event_init(0) < 0) {
         return;
     }

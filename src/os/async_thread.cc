@@ -237,10 +237,6 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                 SwooleTG.buffer_stack = nullptr;
             };
 
-            ON_SCOPE_EXIT {
-                SwooleTG.buffer_stack = nullptr;
-            };
-
             swSignal_none();
 
             while (running) {
