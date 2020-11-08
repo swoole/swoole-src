@@ -1418,7 +1418,7 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
     ssize_t retval = all ? sock->socket->readv_all(iov.get(), iovcnt) : sock->socket->readv(iov.get(), iovcnt);
 
-    auto free_func = [&return_value](const iovec *iov, int iovcnt, int iov_index) {
+    auto free_func = [](const iovec *iov, int iovcnt, int iov_index) {
         for (; iov_index < iovcnt; iov_index++) {
             zend_string_free(zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base));
         }

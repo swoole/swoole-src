@@ -966,15 +966,14 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
         do {
             _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
             _iov->iov_len = _iov->iov_len - offset_bytes;
-            retval = this->socket->readv(_iov, remain_cnt);
+            retval = socket->readv(_iov, remain_cnt);
 
-            if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
-                set_err(errno);
-                return false;
+            if (retval <= 0) {
+                break;
             }
 
-            total_bytes += retval > 0 ? retval : 0;
-            index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
+            total_bytes += retval;
+            index = network::Socket::get_iovector_index(_iov, remain_cnt, retval, &offset_bytes);
 
             if (offset_bytes == _iov[index].iov_len) {
                 index++;
@@ -984,7 +983,7 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
             remain_cnt -= index;
         } while (retval > 0 && remain_cnt > 0);
 
-        return retval < 0 && this->socket->catch_error(errno) == SW_WAIT;
+        return retval < 0 && socket->catch_error(errno) == SW_WAIT;
     };
 
     recv_barrier = &barrier;
@@ -1052,15 +1051,14 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
         do {
             _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
             _iov->iov_len = _iov->iov_len - offset_bytes;
-            retval = this->socket->writev(_iov, remain_cnt);
+            retval = socket->writev(_iov, remain_cnt);
 
-            if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
-                set_err(errno);
-                return false;
+            if (retval <= 0) {
+                break;
             }
 
-            total_bytes += retval > 0 ? retval : 0;
-            index = network::Socket::get_iovector_index(_iov, remain_cnt, retval > 0 ? retval : 0, &offset_bytes);
+            total_bytes += retval;
+            index = network::Socket::get_iovector_index(_iov, remain_cnt, retval, &offset_bytes);
 
             if (offset_bytes == _iov[index].iov_len) {
                 index++;
@@ -1070,7 +1068,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
             remain_cnt -= index;
         } while (retval > 0 && remain_cnt > 0);
 
-        return retval < 0 && this->socket->catch_error(errno) == SW_WAIT;
+        return retval < 0 && socket->catch_error(errno) == SW_WAIT;
     };
 
     send_barrier = &barrier;
