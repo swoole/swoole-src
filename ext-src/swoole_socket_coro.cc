@@ -1369,7 +1369,11 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
     ssize_t total_length = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-    Z_PARAM_ZVAL_DEREF(ziov)
+#if PHP_VERSION_ID >= 70400
+	Z_PARAM_ZVAL(ziov)
+#else
+	Z_PARAM_ZVAL_DEREF(ziov)
+#endif
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
