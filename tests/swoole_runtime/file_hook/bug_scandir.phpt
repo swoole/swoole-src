@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/file_hook: fseek ftell file larger than 2G bug
+swoole_runtime/file_hook: bug #3792
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
