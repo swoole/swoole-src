@@ -690,7 +690,7 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_MSG_RESULT([disabled])
     fi
 
-    PHP_INSTALL_HEADERS([ext/swoole], [*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [ext-src/*.h config.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
 
