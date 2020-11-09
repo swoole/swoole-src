@@ -296,7 +296,7 @@ bool php_swoole_client_set(Socket *cli, zval *zset) {
         zend::String tmp = ztmp;
         _bind_address = tmp.to_std_string();
     }
-    if ((_bind_port > 0 || !_bind_address.empty()) && !cli->bind(_bind_address, _bind_port)) {
+    if (!_bind_address.empty() && !cli->bind(_bind_address, _bind_port)) {
         ret = false;
     }
     /**
