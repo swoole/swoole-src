@@ -1290,7 +1290,7 @@ static PHP_METHOD(swoole_socket_coro, send) {
     swoole_socket_coro_send(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
-static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
+static void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
     zval *ziov = nullptr;
     zval *zelement = nullptr;
     HashTable *vht;
@@ -1366,7 +1366,7 @@ static PHP_METHOD(swoole_socket_coro, writeVectorAll) {
     swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
-static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
+static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
     zval *ziov = nullptr;
     zval *zelement = nullptr;
     HashTable *vht;
@@ -1376,11 +1376,7 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
     ssize_t total_length = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
-#if PHP_VERSION_ID >= 70400
-    Z_PARAM_ZVAL(ziov)
-#else
-    Z_PARAM_ZVAL_DEREF(ziov)
-#endif
+    Z_PARAM_ARRAY(ziov)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
@@ -1468,6 +1464,7 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
         }
 
         SW_LOOP_N(real_count) {
+            ((char *) iov[i].iov_base)[iov[i].iov_len] = '\0';
             add_next_index_str(return_value, zend::fetch_zend_string_by_val((char *) iov[i].iov_base));
         }
     }
