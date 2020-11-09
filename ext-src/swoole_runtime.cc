@@ -965,6 +965,10 @@ static php_stream *socket_create(const char *proto,
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
+    if (!SWOOLE_G(cli)) {
+        php_swoole_fatal_error(E_ERROR, "must be used in PHP CLI mode");
+        return false;
+    }
     if (!hook_init) {
         HashTable *xport_hash = php_stream_xport_get_hash();
         // php_stream
