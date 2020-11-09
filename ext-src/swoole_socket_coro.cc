@@ -1306,6 +1306,15 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
+#ifdef SW_USE_OPENSSL
+    if (sock->socket->open_ssl) {
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                SW_ERROR_OPERATION_NOT_SUPPORT,
+                                "Use writeVector or writeVectorAll in ssl is not supported");
+        RETURN_FALSE;
+    }
+#endif
+
     ON_SCOPE_EXIT {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     };
@@ -1331,10 +1340,8 @@ static sw_inline void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETE
         RETURN_FALSE;
     }
     if (Z_STRLEN_P(zelement) == 0) {
-        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
-                                EINVAL,
-                                "Item #[%d] cannot be empty string",
-                                iov_index);
+        zend_throw_exception_ex(
+            swoole_socket_coro_exception_ce, EINVAL, "Item #[%d] cannot be empty string", iov_index);
         RETURN_FALSE;
     }
     iov[iov_index].iov_base = Z_STRVAL_P(zelement);
@@ -1380,6 +1387,15 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
+#ifdef SW_USE_OPENSSL
+    if (sock->socket->open_ssl) {
+        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                SW_ERROR_OPERATION_NOT_SUPPORT,
+                                "Use readVector or readVectorAll in ssl is not supported");
+        RETURN_FALSE;
+    }
+#endif
+
     ON_SCOPE_EXIT {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     };
@@ -1405,10 +1421,8 @@ static sw_inline void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETER
         RETURN_FALSE;
     }
     if (Z_LVAL_P(zelement) < 0) {
-        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
-                                EINVAL,
-                                "Item #[%d] must be greater than 0",
-                                iov_index);
+        zend_throw_exception_ex(
+            swoole_socket_coro_exception_ce, EINVAL, "Item #[%d] must be greater than 0", iov_index);
         RETURN_FALSE;
     }
     size_t iov_len = Z_LVAL_P(zelement);
