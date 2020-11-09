@@ -1163,6 +1163,10 @@ bool PHPCoroutine::disable_hook() {
 }
 
 static PHP_METHOD(swoole_runtime, enableCoroutine) {
+    if (!SWOOLE_G(cli)) {
+        php_swoole_fatal_error(E_ERROR, "must be used in PHP CLI mode");
+        RETURN_FALSE;
+    }
     zval *zflags = nullptr;
     zend_long flags = PHPCoroutine::HOOK_ALL;
 
@@ -1200,6 +1204,10 @@ static PHP_METHOD(swoole_runtime, getHookFlags) {
 }
 
 static PHP_METHOD(swoole_runtime, setHookFlags) {
+    if (!SWOOLE_G(cli)) {
+        php_swoole_fatal_error(E_ERROR, "must be used in PHP CLI mode");
+        RETURN_FALSE;
+    }
     zend_long flags = PHPCoroutine::HOOK_ALL;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
