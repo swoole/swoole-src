@@ -113,7 +113,7 @@ define __co_bt
     set $cid = (int)$arg0
     set $co = swoole_coro_get($cid)
     if $co
-        set $task = (php_coro_task *) $co->task
+        set $task = ('swoole::PHPContext' *) $co->get_task()
         if $task
             sw_dump_bt $task->execute_data
         end
