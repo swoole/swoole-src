@@ -1045,6 +1045,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
 
     if (offset_bytes == _iov[index].iov_len) {
         index++;
+        offset_bytes = 0;
     }
     _iov += index;
     remain_cnt -= index;
@@ -1053,10 +1054,11 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
         return retval;
     }
 
+    _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+    _iov->iov_len = _iov->iov_len - offset_bytes;
+
     EventBarrier barrier = [&remain_cnt, &total_bytes, &retval, &offset_bytes, &index, &_iov, this]() -> bool {
         do {
-            _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
-            _iov->iov_len = _iov->iov_len - offset_bytes;
             retval = socket->writev(_iov, remain_cnt);
 
             if (retval <= 0) {
@@ -1068,10 +1070,14 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
 
             if (offset_bytes == _iov[index].iov_len) {
                 index++;
+                offset_bytes = 0;
             }
 
             _iov += index;
             remain_cnt -= index;
+
+            _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
+            _iov->iov_len = _iov->iov_len - offset_bytes;
         } while (retval > 0 && remain_cnt > 0);
 
         return retval < 0 && socket->catch_error(errno) == SW_WAIT;
