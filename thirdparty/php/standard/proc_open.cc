@@ -153,9 +153,10 @@ static void proc_co_rsrc_dtor(zend_resource *rsrc)
         }
     }
 
-    if (proc->running)
-    {
-        swoole_coroutine_waitpid(proc->child, &wstatus, 0);
+    if (proc->running) {
+        if (::waitpid(proc->child, &wstatus, WNOHANG) == 0) {
+            swoole_coroutine_waitpid(proc->child, &wstatus, 0);
+        }
     }
     if (proc->wstatus)
     {
