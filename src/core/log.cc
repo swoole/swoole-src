@@ -78,7 +78,7 @@ void Logger::set_level(int level) {
 }
 
 void Logger::set_rotation(int _rotation) {
-    log_rotation = _rotation == 0 ? SW_LOG_ROTATION_SINGLE : SW_LOG_ROTATION_DAILY;
+    log_rotation = _rotation;
 }
 
 bool Logger::redirect_stdout_and_stderr(int enable) {
@@ -183,7 +183,25 @@ const char *Logger::get_file() {
 std::string Logger::gen_real_file(const std::string &file) {
     char date_str[16];
     auto now_sec = ::time(nullptr);
-    size_t l_data_str = std::strftime(date_str, sizeof(date_str), "%Y%m%d", std::localtime(&now_sec));
+    const char *fmt;
+
+    switch (log_rotation) {
+    case SW_LOG_ROTATION_MONTHLY:
+        fmt = "%Y%m";
+        break;
+    case SW_LOG_ROTATION_HOURLY:
+        fmt = "%Y%m%d%H";
+        break;
+    case SW_LOG_ROTATION_EVERY_MINUTE:
+        fmt = "%Y%m%d%H%M";
+        break;
+    case SW_LOG_ROTATION_DAILY:
+    default:
+        fmt = "%Y%m%d";
+        break;
+    }
+
+    size_t l_data_str = std::strftime(date_str, sizeof(date_str), fmt, std::localtime(&now_sec));
     std::string real_file = file + "." + std::string(date_str, l_data_str);
 
     return real_file;

@@ -470,38 +470,6 @@ enum swEventData_flag {
     SW_EVENT_DATA_POP_PTR = 1u << 5,
 };
 
-namespace swoole {
-struct Event {
-    int fd;
-    int16_t reactor_id;
-    enum swFd_type type;
-    network::Socket *socket;
-};
-
-typedef long SessionId;
-typedef long TaskId;
-
-struct DataHead {
-    SessionId fd;
-    uint32_t len;
-    int16_t reactor_id;
-    uint8_t type;
-    uint8_t flags;
-    uint16_t server_fd;
-    uint16_t ext_flags;
-    double time;
-    size_t dump(char *buf, size_t len);
-};
-
-struct EventData {
-    DataHead info;
-    char data[SW_IPC_BUFFER_SIZE];
-    bool pack(const void *data, size_t data_len);
-    bool unpack(String *buffer);
-};
-
-}  // namespace swoole
-
 #define swTask_type(task) ((task)->info.server_fd)
 
 /**
@@ -608,25 +576,51 @@ static inline struct timespec swoole_time_until(int milliseconds) {
 }
 
 namespace swoole {
+struct Event {
+    int fd;
+    int16_t reactor_id;
+    enum swFd_type type;
+    network::Socket *socket;
+};
+
+typedef long SessionId;
+typedef long TaskId;
+
+struct DataHead {
+    SessionId fd;
+    uint32_t len;
+    int16_t reactor_id;
+    uint8_t type;
+    uint8_t flags;
+    uint16_t server_fd;
+    uint16_t ext_flags;
+    double time;
+    size_t dump(char *buf, size_t len);
+};
+
+struct EventData {
+    DataHead info;
+    char data[SW_IPC_BUFFER_SIZE];
+    bool pack(const void *data, size_t data_len);
+    bool unpack(String *buffer);
+};
+
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
     uint8_t update_time;
-    swoole::String *buffer_stack;
-    swoole::Reactor *reactor;
-    swoole::Timer *timer;
+    String *buffer_stack;
+    Reactor *reactor;
+    Timer *timer;
     uint8_t aio_init;
     uint8_t aio_schedule;
     uint32_t aio_task_num;
-    swPipe *aio_pipe;
-    swSocket *aio_read_socket;
-    swSocket *aio_write_socket;
+    Pipe *aio_pipe;
+    network::Socket *aio_read_socket;
+    network::Socket *aio_write_socket;
     uint32_t signal_listener_num;
     uint32_t co_signal_listener_num;
     int error;
-#ifdef SW_AIO_WRITE_LOCK
-    swLock aio_lock;
-#endif
 };
 
 struct Global {
@@ -676,6 +670,9 @@ struct Global {
     std::function<bool(swoole::Reactor *reactor, int &event_num)> user_exit_condition;
 };
 
+std::string dirname(const std::string &file);
+int hook_add(void **hooks, int type, const Callback &func, int push_back);
+void hook_call(void **hooks, int type, void *arg);
 }
 
 extern swoole::Global SwooleG;                  // Local Global Variable
@@ -736,8 +733,3 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
     return SwooleG.memory_pool;
 }
 
-namespace swoole {
-std::string dirname(const std::string &file);
-int hook_add(void **hooks, int type, const Callback &func, int push_back);
-void hook_call(void **hooks, int type, void *arg);
-}  // namespace swoole

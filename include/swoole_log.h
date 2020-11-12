@@ -37,7 +37,10 @@ enum swLog_level {
 
 enum swLog_rotation_type {
     SW_LOG_ROTATION_SINGLE = 0,
+    SW_LOG_ROTATION_MONTHLY,
     SW_LOG_ROTATION_DAILY,
+    SW_LOG_ROTATION_HOURLY,
+    SW_LOG_ROTATION_EVERY_MINUTE,
 };
 
 namespace swoole {
@@ -72,12 +75,11 @@ class Logger {
     bool is_opened();
     bool redirect_stdout_and_stderr(int enable);
     void set_date_with_microseconds(bool enable);
+    std::string gen_real_file(const std::string &file);
 
     void display_backtrace() {
         display_backtrace_ = true;
     }
-
-    static std::string gen_real_file(const std::string &file);
 };
 }  // namespace swoole
 
