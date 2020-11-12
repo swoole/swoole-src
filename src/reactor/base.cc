@@ -37,6 +37,20 @@ using network::Socket;
 
 static void reactor_begin(Reactor *reactor);
 
+#ifdef HAVE_EPOLL
+ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
+#endif
+
+#ifdef HAVE_POLL
+ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
+#endif
+
+#ifdef HAVE_KQUEUE
+ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
+#endif
+
+ReactorImpl *make_reactor_select(Reactor *_reactor);
+
 Reactor::Reactor(int max_event, Type _type) {
     if (_type == TYPE_AUTO) {
 #ifdef HAVE_EPOLL

@@ -48,20 +48,6 @@ class ReactorImpl {
     virtual int wait(struct timeval *) = 0;
 };
 
-#ifdef HAVE_EPOLL
-ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events);
-#endif
-
-#ifdef HAVE_POLL
-ReactorImpl *make_reactor_poll(Reactor *_reactor, int max_events);
-#endif
-
-#ifdef HAVE_KQUEUE
-ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
-#endif
-
-ReactorImpl *make_reactor_select(Reactor *_reactor);
-
 class CallbackManager {
   public:
     inline void append(Callback fn, void *private_data) {
