@@ -409,15 +409,7 @@ size_t thread_count() {
     return pool ? pool->worker_count() : 0;
 }
 
-ssize_t dispatch(const AsyncEvent *request) {
-    AsyncEvent *event = dispatch2(request);
-    if (event == nullptr) {
-        return -1;
-    }
-    return event->task_id;
-}
-
-AsyncEvent *dispatch2(const AsyncEvent *request) {
+AsyncEvent *dispatch(const AsyncEvent *request) {
     if (sw_unlikely(!SwooleTG.aio_init)) {
         init();
     }

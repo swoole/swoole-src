@@ -175,7 +175,7 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     /* TODO: find a better way */
     ev.ret = 1;
 
-    AsyncEvent *event = async::dispatch2(&ev);
+    AsyncEvent *event = async::dispatch(&ev);
     TimerNode *timer = nullptr;
     if (timeout > 0) {
         timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
@@ -233,7 +233,7 @@ std::vector<std::string> System::getaddrinfo(
     req.service = service.empty() ? nullptr : service.c_str();
     req.result = result_buffer;
 
-    AsyncEvent *event = async::dispatch2(&ev);
+    AsyncEvent *event = async::dispatch(&ev);
     TimerNode *timer = nullptr;
     if (timeout > 0) {
         timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
@@ -625,7 +625,7 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     event.handler = handler;
     event.callback = async_task_completed;
 
-    AsyncEvent *_ev = async::dispatch2(&event);
+    AsyncEvent *_ev = async::dispatch(&event);
     if (_ev == nullptr) {
         return false;
     }
@@ -672,7 +672,7 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     event.handler = async_lambda_handler;
     event.callback = async_lambda_callback;
 
-    AsyncEvent *_ev = async::dispatch2(&event);
+    AsyncEvent *_ev = async::dispatch(&event);
     if (_ev == nullptr) {
         return false;
     }

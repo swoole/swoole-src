@@ -39,7 +39,7 @@ TEST(async, dispatch) {
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
     for (int i = 0; i < 1000; ++i) {
-        auto ret = swoole::async::dispatch2(&event);
+        auto ret = swoole::async::dispatch(&event);
         EXPECT_EQ(ret->object, event.object);
     }
 

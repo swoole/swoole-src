@@ -64,8 +64,7 @@ namespace async {
 
 typedef void (*Handler)(AsyncEvent *event);
 
-ssize_t dispatch(const AsyncEvent *request);
-AsyncEvent *dispatch2(const AsyncEvent *request);
+AsyncEvent *dispatch(const AsyncEvent *request);
 int cancel(int task_id);
 int callback(Reactor *reactor, swEvent *_event);
 size_t thread_count();

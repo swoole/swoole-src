@@ -658,7 +658,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         ev.handler = async::handler_gethostbyname;
         ev.callback = Client_onResolveCompleted;
 
-        if (swoole::async::dispatch(&ev) < 0) {
+        if (swoole::async::dispatch(&ev) == nullptr) {
             sw_free(ev.buf);
             return SW_ERR;
         } else {
