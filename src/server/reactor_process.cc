@@ -209,7 +209,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         break;
     case SW_SERVER_EVENT_PROXY_START:
     case SW_SERVER_EVENT_PROXY_END:
-        if (task.info.reactor_id < 0 || task.info.reactor_id >= serv->get_all_worker_num()) {
+        if (task.info.reactor_id < 0 || task.info.reactor_id >= (int16_t) serv->get_all_worker_num()) {
             swWarn("invalid worker_id=%d", task.info.reactor_id);
             return SW_OK;
         }
