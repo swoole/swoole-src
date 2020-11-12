@@ -154,6 +154,10 @@ typedef unsigned long ulong_t;
 #define SW_START_SLEEP usleep(100000)  // sleep 1s,wait fork and pthread_create
 
 /*-----------------------------------Memory------------------------------------*/
+void *sw_malloc(size_t size);
+void sw_free(void *ptr);
+void *sw_calloc(size_t nmemb, size_t size);
+void *sw_realloc(void *ptr, size_t size);
 
 // Evaluates to the number of elements in 'array'
 #define SW_ARRAY_SIZE(array) (sizeof(array) / sizeof(array[0]))
@@ -161,26 +165,6 @@ typedef unsigned long ulong_t;
 #define SW_DEFAULT_ALIGNMENT sizeof(unsigned long)
 #define SW_MEM_ALIGNED_SIZE(size) SW_MEM_ALIGNED_SIZE_EX(size, SW_DEFAULT_ALIGNMENT)
 #define SW_MEM_ALIGNED_SIZE_EX(size, alignment) (((size) + ((alignment) -1LL)) & ~((alignment) -1LL))
-
-#ifdef SW_USE_EMALLOC
-#define sw_malloc emalloc
-#define sw_free efree
-#define sw_calloc ecalloc
-#define sw_realloc erealloc
-#else
-#ifdef SW_USE_JEMALLOC
-#include <jemalloc/jemalloc.h>
-#define sw_malloc je_malloc
-#define sw_free je_free
-#define sw_calloc je_calloc
-#define sw_realloc je_realloc
-#else
-#define sw_malloc malloc
-#define sw_free free
-#define sw_calloc calloc
-#define sw_realloc realloc
-#endif
-#endif
 
 /*-------------------------------Declare Struct--------------------------------*/
 namespace swoole {

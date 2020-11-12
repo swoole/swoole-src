@@ -97,6 +97,22 @@ swoole::Logger *sw_logger() {
     return g_logger_instance;
 }
 
+void *sw_malloc(size_t size) {
+    return SwooleG.std_allocator.malloc(size);
+}
+
+void sw_free(void *ptr) {
+    return SwooleG.std_allocator.free(ptr);
+}
+
+void *sw_calloc(size_t nmemb, size_t size) {
+    return SwooleG.std_allocator.calloc(nmemb, size);
+}
+
+void *sw_realloc(void *ptr, size_t size) {
+    return SwooleG.std_allocator.realloc(ptr, size);
+}
+
 void swoole_init(void) {
     if (SwooleG.init) {
         return;
@@ -109,10 +125,10 @@ void swoole_init(void) {
     SwooleG.init = 1;
     SwooleG.enable_coroutine = 1;
 
-    SwooleG.std_allocator.malloc = sw_malloc;
-    SwooleG.std_allocator.calloc = sw_calloc;
-    SwooleG.std_allocator.realloc = sw_realloc;
-    SwooleG.std_allocator.free = sw_free;
+    SwooleG.std_allocator.malloc = malloc;
+    SwooleG.std_allocator.calloc = calloc;
+    SwooleG.std_allocator.realloc = realloc;
+    SwooleG.std_allocator.free = free;
 
     SwooleG.fatal_error = swoole_fatal_error;
 
