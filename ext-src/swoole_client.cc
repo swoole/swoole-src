@@ -455,8 +455,12 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "bind_address", ztmp)) {
         bind_address = zend::String(ztmp).to_std_string();
     }
-    if (bind_address.length() > 0) {
-        cli->socket->bind(bind_address, &bind_port);
+    if (bind_address.length() > 0 && cli->socket->bind(bind_address, &bind_port) < 0) {
+        php_swoole_fatal_error(E_ERROR,
+                               "bind_address failed. Error: %s [%d]",
+                               swoole_strerror(errno),
+                               errno);
+        return;
     }
     /**
      * client: tcp_nodelay
