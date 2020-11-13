@@ -23,14 +23,12 @@ try {
     $client->connect('127.0.0.1', 9501);
 } catch (\Exception $e) {
     echo get_class($e) . PHP_EOL;
-    echo "{$e->getCode()}" . PHP_EOL;
-    echo $e->getMessage() . PHP_EOL;
+    Assert::eq($e->getCode(), SOCKET_EADDRINUSE);
+    Assert::eq($e->getMessage(), swoole_strerror(SOCKET_EADDRINUSE));
 }
 
 echo "DONE\n";
 ?>
 --EXPECT--
 Swoole\Client\Exception
-48
-Address already in use
 DONE
