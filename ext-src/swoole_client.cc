@@ -348,10 +348,10 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         cli->protocol.package_eof_len = str_v.len();
         if (cli->protocol.package_eof_len == 0) {
             php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
-            return false;
+            return;
         } else if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
             php_swoole_fatal_error(E_ERROR, "package_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            return false;
+            return;
         }
         memcpy(cli->protocol.package_eof, str_v.val(), str_v.len());
     }
@@ -377,7 +377,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
             php_swoole_fatal_error(E_ERROR,
                                    "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack",
                                    cli->protocol.package_length_type);
-            return false;
+            return;
         }
     }
     // package length offset
@@ -405,7 +405,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
             if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
                 php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-                return false;
+                return;
             }
             efree(func_name);
             cli->protocol.get_package_length = php_swoole_length_func;
