@@ -928,7 +928,7 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
         return -1;
     }
     int index = 0;
-    int remain_cnt = iovcnt;
+    uint16_t remain_cnt = iovcnt;
     size_t offset_bytes = 0;
     ssize_t retval, total_bytes = 0;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
@@ -956,12 +956,13 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
         index++;
         offset_bytes = 0;
     }
-    _iov += index;
-    remain_cnt -= index;
 
+    remain_cnt -= index;
     if (remain_cnt == 0) {
+        // iov should not be modified, prevent valgrind from checking for invalid read
         return retval;
     }
+    _iov += index;
 
     _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
     _iov->iov_len = _iov->iov_len - offset_bytes;
@@ -982,12 +983,16 @@ ssize_t Socket::readv_all(const struct iovec *iov, int iovcnt) {
                 offset_bytes = 0;
             }
 
-            _iov += index;
             remain_cnt -= index;
+            if (remain_cnt == 0) {
+                // iov should not be modified, prevent valgrind from checking for invalid read
+                break;
+            }
+            _iov += index;
 
             _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
             _iov->iov_len = _iov->iov_len - offset_bytes;
-        } while (retval > 0 && remain_cnt > 0);
+        } while (retval > 0);
 
         return retval < 0 && socket->catch_error(errno) == SW_WAIT;
     };
@@ -1019,7 +1024,7 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
         return -1;
     }
     int index = 0;
-    int remain_cnt = iovcnt;
+    uint16_t remain_cnt = iovcnt;
     size_t offset_bytes = 0;
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
@@ -1047,12 +1052,13 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
         index++;
         offset_bytes = 0;
     }
-    _iov += index;
-    remain_cnt -= index;
 
+    remain_cnt -= index;
     if (remain_cnt == 0) {
+        // iov should not be modified, prevent valgrind from checking for invalid read
         return retval;
     }
+    _iov += index;
 
     _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
     _iov->iov_len = _iov->iov_len - offset_bytes;
@@ -1073,12 +1079,16 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
                 offset_bytes = 0;
             }
 
-            _iov += index;
             remain_cnt -= index;
+            if (remain_cnt == 0) {
+                // iov should not be modified, prevent valgrind from checking for invalid read
+                break;
+            }
+            _iov += index;
 
             _iov->iov_base = (char *) _iov->iov_base + offset_bytes;
             _iov->iov_len = _iov->iov_len - offset_bytes;
-        } while (retval > 0 && remain_cnt > 0);
+        } while (retval > 0);
 
         return retval < 0 && socket->catch_error(errno) == SW_WAIT;
     };
