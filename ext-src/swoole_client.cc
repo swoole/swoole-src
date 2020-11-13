@@ -49,6 +49,9 @@ static std::unordered_map<std::string, std::queue<Client *> *> long_connections;
 zend_class_entry *swoole_client_ce;
 static zend_object_handlers swoole_client_handlers;
 
+static zend_class_entry *swoole_client_exception_ce;
+static zend_object_handlers swoole_client_exception_handlers;
+
 struct ClientObject {
     Client *cli;
     zval *zsocket;
@@ -233,6 +236,13 @@ void php_swoole_client_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_client, php_swoole_client_create_object, php_swoole_client_free_object, ClientObject, std);
 
+    SW_INIT_CLASS_ENTRY_EX(swoole_client_exception,
+                           "Swoole\\Client\\Exception",
+                           nullptr,
+                           nullptr,
+                           nullptr,
+                           swoole_exception);
+
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_bool(swoole_client_ce, ZEND_STRL("reuse"), 0, ZEND_ACC_PUBLIC);
@@ -314,7 +324,7 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
 }
 #endif
 
-void php_swoole_client_check_setting(Client *cli, zval *zset) {
+bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     HashTable *vht;
     zval *ztmp;
     int value = 1;
@@ -338,10 +348,10 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
         cli->protocol.package_eof_len = str_v.len();
         if (cli->protocol.package_eof_len == 0) {
             php_swoole_fatal_error(E_ERROR, "package_eof cannot be an empty string");
-            return;
+            return false;
         } else if (cli->protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
             php_swoole_fatal_error(E_ERROR, "package_eof max length is %d", SW_DATA_EOF_MAXLEN);
-            return;
+            return false;
         }
         memcpy(cli->protocol.package_eof, str_v.val(), str_v.len());
     }
@@ -367,7 +377,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
             php_swoole_fatal_error(E_ERROR,
                                    "Unknown package_length_type name '%c', see pack(). Link: http://php.net/pack",
                                    cli->protocol.package_length_type);
-            return;
+            return false;
         }
     }
     // package length offset
@@ -395,7 +405,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
             zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
             if (!sw_zend_is_callable_ex(ztmp, nullptr, 0, &func_name, nullptr, fci_cache, nullptr)) {
                 php_swoole_fatal_error(E_ERROR, "function '%s' is not callable", func_name);
-                return;
+                return false;
             }
             efree(func_name);
             cli->protocol.get_package_length = php_swoole_length_func;
@@ -456,11 +466,8 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
         bind_address = zend::String(ztmp).to_std_string();
     }
     if (bind_address.length() > 0 && cli->socket->bind(bind_address, &bind_port) < 0) {
-        php_swoole_fatal_error(E_ERROR,
-                               "bind_address failed. Error: %s [%d]",
-                               swoole_strerror(errno),
-                               errno);
-        return;
+        zend_throw_exception(swoole_client_exception_ce, swoole_strerror(errno), errno);
+        return false;
     }
     /**
      * client: tcp_nodelay
@@ -500,10 +507,12 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
                     }
                 } else {
                     php_swoole_fatal_error(E_WARNING, "socks5_password should not be null");
+                    return false;
                 }
             }
         } else {
             php_swoole_fatal_error(E_WARNING, "socks5_port should not be null");
+            return false;
         }
     }
     /**
@@ -528,10 +537,12 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
                     }
                 } else {
                     php_swoole_fatal_error(E_WARNING, "http_proxy_password should not be null");
+                    return false;
                 }
             }
         } else {
             php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
+            return false;
         }
     }
     /**
@@ -542,6 +553,7 @@ void php_swoole_client_check_setting(Client *cli, zval *zset) {
         php_swoole_client_check_ssl_setting(cli, zset);
     }
 #endif
+    return true;
 }
 
 static void php_swoole_client_free(zval *zobject, Client *cli) {
@@ -787,7 +799,9 @@ static PHP_METHOD(swoole_client, connect) {
 
     zval *zset = sw_zend_read_property_ex(swoole_client_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (zset && ZVAL_IS_ARRAY(zset)) {
-        php_swoole_client_check_setting(cli, zset);
+        if (!php_swoole_client_check_setting(cli, zset)) {
+            RETURN_FALSE;
+        }
     }
 
     // nonblock async
