@@ -21,26 +21,59 @@
 #include "swoole_socket.h"
 
 namespace swoole {
-struct Pipe {
-    void *object;
-    int blocking;
+
+class Pipe {
+  protected:
+    bool blocking;
     double timeout;
+
+    /**
+     * master : socks[1]
+     * worker : socks[0]
+     */
+    int socks[2];
+    /**
+     * master pipe is closed
+     */
+    bool pipe_master_closed;
+    /**
+     * worker pipe is closed
+     */
+    bool pipe_worker_closed;
 
     network::Socket *master_socket;
     network::Socket *worker_socket;
+    bool init_socket(int master_fd, int worker_fd);
 
-    ssize_t (*read)(Pipe *, void *_buf, size_t length);
-    ssize_t (*write)(Pipe *, const void *_buf, size_t length);
-    void (*close)(Pipe *);
+ public:
+    Pipe(bool blocking);
+    virtual ssize_t read(void *_buf, size_t length);
+    virtual ssize_t write(const void *_buf, size_t length);
+    virtual bool close(int which = 0);
+    virtual ~Pipe();
 
     network::Socket *get_socket(bool _master) {
         return _master ? master_socket : worker_socket;
     }
     
+    bool ready() {
+        return master_socket != nullptr;
+    }
+
     void set_timeout(double _timeout) {
         timeout = _timeout;
     }
 };
+
+class UnixSocket : public Pipe {
+  public:
+    UnixSocket(bool blocking, int protocol);
+    ~UnixSocket();
+
+    ssize_t read(void *_buf, size_t length) override;
+    ssize_t write(const void *_buf, size_t length) override;
+};
+
 }  // namespace swoole
 
 enum swPipe_close_which {
@@ -50,17 +83,3 @@ enum swPipe_close_which {
     SW_PIPE_CLOSE_WRITE = 4,
     SW_PIPE_CLOSE_BOTH = 0,
 };
-
-int swPipeBase_create(swPipe *p, int blocking);
-int swPipeEventfd_create(swPipe *p, int blocking, int semaphore, int timeout);
-int swPipeUnsock_create(swPipe *p, int blocking, int protocol);
-int swPipeUnsock_close_ext(swPipe *p, int which);
-int swPipe_init_socket(swPipe *p, int master_fd, int worker_fd, int blocking);
-
-static inline int swPipeNotify_auto(swPipe *p, int blocking, int semaphore) {
-#ifdef HAVE_EVENTFD
-    return swPipeEventfd_create(p, blocking, semaphore, 0);
-#else
-    return swPipeBase_create(p, blocking);
-#endif
-}

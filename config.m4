@@ -538,9 +538,8 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/signal.cc \
         src/os/timer.cc \
         src/os/wait.cc \
-        src/pipe/base.cc \
-        src/pipe/eventfd.cc \
-        src/pipe/unix_socket.cc \
+        src/os/pipe.cc \
+        src/os/unix_socket.cc \
         src/protocol/base.cc \
         src/protocol/base64.cc \
         src/protocol/dtls.cc \

@@ -579,16 +579,12 @@ int Server::start() {
             swWarn("malloc[task_result] failed");
             return SW_ERR;
         }
-        task_notify = (Pipe *) sw_calloc(worker_num, sizeof(Pipe));
-        if (!task_notify) {
-            swWarn("malloc[task_notify] failed");
-            sw_shm_free(task_result);
-            return SW_ERR;
-        }
-        for (i = 0; i < worker_num; i++) {
-            if (swPipeNotify_auto(&task_notify[i], 1, 0)) {
+        task_notify_pipes = new std::vector<Pipe>;
+        SW_LOOP_N(worker_num) {
+            task_notify_pipes->emplace_back(true);
+            if (!task_notify_pipes->at(i).ready()) {
                 sw_shm_free(task_result);
-                sw_free(task_notify);
+                delete task_notify_pipes;
                 return SW_ERR;
             }
         }
@@ -880,6 +876,9 @@ void Server::destroy() {
     }
     if (http_index_files) {
         delete http_index_files;
+    }
+    if (task_notify_pipes) {
+        delete task_notify_pipes;
     }
     for (auto i = 0; i < SW_MAX_HOOK_TYPE; i++) {
         if (hooks[i]) {

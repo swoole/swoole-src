@@ -90,16 +90,17 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
             return SW_ERR;
         }
     } else if (ipc_mode == SW_IPC_UNIXSOCK) {
-        pool->pipes = new Pipe[worker_num]();
-        Pipe *pipe;
+        pool->pipes = new std::vector<UnixSocket>;
         for (i = 0; i < worker_num; i++) {
-            pipe = &pool->pipes[i];
-            if (swPipeUnsock_create(pipe, 1, SOCK_DGRAM) < 0) {
+            pool->pipes->emplace_back(true, SOCK_DGRAM);
+            if (pool->pipes->at(i).ready()) {
+                delete pool->pipes;
+                pool->pipes = nullptr;
                 return SW_ERR;
             }
-            pool->workers[i].pipe_master = pipe->get_socket(true);
-            pool->workers[i].pipe_worker = pipe->get_socket(false);
-            pool->workers[i].pipe_object = pipe;
+            pool->workers[i].pipe_master = pool->pipes->at(i).get_socket(true);
+            pool->workers[i].pipe_worker = pool->pipes->at(i).get_socket(false);
+            pool->workers[i].pipe_object = &pool->pipes->at(i);
         }
     } else if (ipc_mode == SW_IPC_SOCKET) {
         pool->use_socket = 1;
@@ -691,15 +692,11 @@ int ProcessPool::wait() {
 }
 
 void ProcessPool::destroy() {
-    uint32_t i;
-    Pipe *_pipe;
-
     if (pipes) {
-        for (i = 0; i < worker_num; i++) {
-            _pipe = &pipes[i];
-            _pipe->close(_pipe);
+        SW_LOOP_N(worker_num) {
+            pipes->at(i).close();
         }
-        delete[] pipes;
+        delete pipes;
     }
 
     if (queue) {

@@ -63,10 +63,9 @@ static void php_swoole_process_free_object(zend_object *object) {
     Worker *worker = process->worker;
 
     if (worker) {
-        Pipe *_pipe = worker->pipe_object;
+        UnixSocket *_pipe = worker->pipe_object;
         if (_pipe) {
-            _pipe->close(_pipe);
-            efree(_pipe);
+            delete _pipe;
         }
 
         if (worker->queue) {
@@ -370,11 +369,11 @@ static PHP_METHOD(swoole_process, __construct) {
     }
 
     if (pipe_type > 0) {
-        Pipe *_pipe = (Pipe *) emalloc(sizeof(*_pipe));
         int socket_type = pipe_type == zend::PIPE_TYPE_STREAM ? SOCK_STREAM : SOCK_DGRAM;
-        if (swPipeUnsock_create(_pipe, 1, socket_type) < 0) {
-            zend_throw_exception(swoole_exception_ce, "swPipeUnsock_create failed", errno);
-            efree(_pipe);
+        UnixSocket *_pipe = new UnixSocket(true, socket_type);
+        if (!_pipe->ready()) {
+            zend_throw_exception(swoole_exception_ce, "failed to create unix soccket", errno);
+            delete _pipe;
             efree(process);
             RETURN_FALSE;
         }
@@ -1074,7 +1073,7 @@ static PHP_METHOD(swoole_process, close) {
     } else if (which == SW_PIPE_CLOSE_WRITE) {
         ret = process->pipe_current->shutdown(SHUT_WR);
     } else {
-        ret = swPipeUnsock_close_ext(process->pipe_object, which);
+        ret = process->pipe_object->close(which);
     }
     if (ret < 0) {
         php_swoole_sys_error(E_WARNING, "close() failed");
