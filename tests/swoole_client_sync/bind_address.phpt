@@ -19,16 +19,11 @@ $client->set([
     'bind_port' => 9501,
 ]);
 
-try {
-    $client->connect('127.0.0.1', 9501);
-} catch (\Exception $e) {
-    echo get_class($e) . PHP_EOL;
-    Assert::eq($e->getCode(), SOCKET_EADDRINUSE);
-    Assert::eq($e->getMessage(), swoole_strerror(SOCKET_EADDRINUSE));
-}
+Assert::false($client->connect('127.0.0.1', 9501));
+Assert::eq($client->errCode, SOCKET_EADDRINUSE);
 
 echo "DONE\n";
 ?>
---EXPECT--
-Swoole\Client\Exception
+--EXPECTF--
+Warning: Swoole\Client::connect(): bind address or port error in set method in %s
 DONE

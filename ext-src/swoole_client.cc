@@ -466,7 +466,8 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         bind_address = zend::String(ztmp).to_std_string();
     }
     if (bind_address.length() > 0 && cli->socket->bind(bind_address, &bind_port) < 0) {
-        zend_throw_exception(swoole_client_exception_ce, swoole_strerror(errno), errno);
+        php_swoole_error(E_WARNING, "bind address or port error in set method");
+        swoole_set_last_error(errno);
         return false;
     }
     /**
@@ -800,6 +801,8 @@ static PHP_METHOD(swoole_client, connect) {
     zval *zset = sw_zend_read_property_ex(swoole_client_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (zset && ZVAL_IS_ARRAY(zset)) {
         if (!php_swoole_client_check_setting(cli, zset)) {
+            zend_update_property_long(
+                swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
             RETURN_FALSE;
         }
     }
