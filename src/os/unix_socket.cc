@@ -15,34 +15,30 @@
 */
 
 #include "swoole_pipe.h"
+#include "swoole_socket.h"
 
 #include <memory>
 
 namespace swoole {
-
-UnixSocket::UnixSocket(bool _blocking, int _protocol):
-        Pipe(_blocking) {
-
-    if (socketpair(AF_UNIX, _protocol, 0, socks) < 0) {
+UnixSocket::UnixSocket(bool blocking, int _protocol) :
+        SocketPair(blocking), protocol_(_protocol) {
+    if (socketpair(AF_UNIX, protocol_, 0, socks) < 0) {
         swSysWarn("socketpair() failed");
         return;
     }
-
     if (!init_socket(socks[1], socks[0])) {
         return;
     }
-
-    uint32_t sbsize = network::Socket::default_buffer_size;
-    master_socket->set_buffer_size(sbsize);
-    worker_socket->set_buffer_size(sbsize);
+    set_buffer_size(network::Socket::default_buffer_size);
 }
 
-ssize_t UnixSocket::read(void *data, size_t length) {
-    return worker_socket->read(data, length);
+bool UnixSocket::set_buffer_size(size_t _size) {
+    if (!master_socket->set_buffer_size(_size)) {
+        return false;
+    }
+    if (!worker_socket->set_buffer_size(_size)) {
+        return false;
+    }
+    return true;
 }
-
-ssize_t UnixSocket::write(const void *data, size_t length) {
-    return master_socket->write(data, length);
-}
-
 }

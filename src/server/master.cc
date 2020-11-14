@@ -918,7 +918,7 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     }
 }
 
-void Server::store_pipe_fd(Pipe *p) {
+void Server::store_pipe_fd(UnixSocket *p) {
     Socket *master_socket = p->get_socket(true);
     Socket *worker_socket = p->get_socket(false);
 

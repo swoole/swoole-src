@@ -705,7 +705,6 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/src/core)
     PHP_ADD_BUILD_DIR($ext_builddir/src/memory)
     PHP_ADD_BUILD_DIR($ext_builddir/src/reactor)
-    PHP_ADD_BUILD_DIR($ext_builddir/src/pipe)
     PHP_ADD_BUILD_DIR($ext_builddir/src/lock)
     PHP_ADD_BUILD_DIR($ext_builddir/src/os)
     PHP_ADD_BUILD_DIR($ext_builddir/src/network)

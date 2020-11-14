@@ -1,11 +1,11 @@
 #include "test_process.h"
 
 using swoole::test::Process;
+using swoole::UnixSocket;
 
 Process::Process(std::function<void(Process *)> fn, int pipe_type) : handler(fn) {
     if (pipe_type > 0) {
-        swPipe *pipe = (swPipe *) sw_malloc(sizeof(swPipe));
-        swPipeUnsock_create(pipe, 1, SOCK_DGRAM);
+        auto pipe = new UnixSocket(true, SOCK_DGRAM);
 
         worker.pipe_master = pipe->get_socket(true);
         worker.pipe_worker = pipe->get_socket(false);
@@ -17,8 +17,8 @@ Process::Process(std::function<void(Process *)> fn, int pipe_type) : handler(fn)
 
 Process::~Process() {
     if (worker.pipe_object) {
-        worker.pipe_object->close(worker.pipe_object);
-        sw_free(worker.pipe_object);
+        worker.pipe_object->close();
+        delete worker.pipe_object;
     }
 }
 

@@ -911,7 +911,7 @@ class Server {
     }
 
     void store_listen_socket();
-    void store_pipe_fd(Pipe *p);
+    void store_pipe_fd(UnixSocket *p);
 
     inline const std::string &get_document_root() {
         return document_root;

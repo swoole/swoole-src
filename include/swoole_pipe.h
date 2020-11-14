@@ -20,9 +20,16 @@
 #include "swoole.h"
 #include "swoole_socket.h"
 
-namespace swoole {
+enum swPipe_close_which {
+    SW_PIPE_CLOSE_MASTER = 1,
+    SW_PIPE_CLOSE_WORKER = 2,
+    SW_PIPE_CLOSE_READ = 3,
+    SW_PIPE_CLOSE_WRITE = 4,
+    SW_PIPE_CLOSE_BOTH = 0,
+};
 
-class Pipe {
+namespace swoole {
+class SocketPair {
   protected:
     bool blocking;
     double timeout;
@@ -32,32 +39,29 @@ class Pipe {
      * worker : socks[0]
      */
     int socks[2];
-    /**
-     * master pipe is closed
-     */
-    bool pipe_master_closed;
-    /**
-     * worker pipe is closed
-     */
-    bool pipe_worker_closed;
 
-    network::Socket *master_socket;
-    network::Socket *worker_socket;
+    network::Socket *master_socket = nullptr;
+    network::Socket *worker_socket = nullptr;
+
     bool init_socket(int master_fd, int worker_fd);
 
- public:
-    Pipe(bool blocking);
-    virtual ssize_t read(void *_buf, size_t length);
-    virtual ssize_t write(const void *_buf, size_t length);
-    virtual bool close(int which = 0);
-    virtual ~Pipe();
+  public:
+    SocketPair(bool _blocking) {
+        blocking = _blocking;
+        timeout = network::Socket::default_read_timeout;
+    }
+    ~SocketPair();
+
+    ssize_t read(void *_buf, size_t length);
+    ssize_t write(const void *_buf, size_t length);
+    bool close(int which = 0);
 
     network::Socket *get_socket(bool _master) {
         return _master ? master_socket : worker_socket;
     }
-    
+
     bool ready() {
-        return master_socket != nullptr;
+        return master_socket != nullptr && worker_socket != nullptr;
     }
 
     void set_timeout(double _timeout) {
@@ -65,21 +69,16 @@ class Pipe {
     }
 };
 
-class UnixSocket : public Pipe {
-  public:
-    UnixSocket(bool blocking, int protocol);
-    ~UnixSocket();
+class Pipe : public SocketPair {
+ public:
+    Pipe(bool blocking);
+};
 
-    ssize_t read(void *_buf, size_t length) override;
-    ssize_t write(const void *_buf, size_t length) override;
+class UnixSocket : public SocketPair {
+    int protocol_;
+  public:
+    UnixSocket(bool blocking, int _protocol);
+    bool set_buffer_size(size_t _size);
 };
 
 }  // namespace swoole
-
-enum swPipe_close_which {
-    SW_PIPE_CLOSE_MASTER = 1,
-    SW_PIPE_CLOSE_WORKER = 2,
-    SW_PIPE_CLOSE_READ = 3,
-    SW_PIPE_CLOSE_WRITE = 4,
-    SW_PIPE_CLOSE_BOTH = 0,
-};

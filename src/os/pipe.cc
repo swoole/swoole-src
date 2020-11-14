@@ -22,7 +22,7 @@
 namespace swoole {
 using network::Socket;
 
-bool Pipe::init_socket(int master_fd, int worker_fd) {
+bool SocketPair::init_socket(int master_fd, int worker_fd) {
     master_socket = make_socket(master_fd, SW_FD_PIPE);
     if (master_socket == nullptr) {
     _error:
@@ -48,8 +48,7 @@ bool Pipe::init_socket(int master_fd, int worker_fd) {
     return true;
 }
 
-Pipe::Pipe(bool _blocking) {
-    blocking = _blocking;
+Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
     if (pipe(socks) < 0) {
         swSysWarn("pipe() failed");
         return;
@@ -57,37 +56,43 @@ Pipe::Pipe(bool _blocking) {
     if (!init_socket(socks[1], socks[0])) {
         return;
     }
-    timeout = -1;
 }
 
-ssize_t Pipe::read(void *data, size_t length) {
-    if (blocking && timeout > 0) {
+ssize_t SocketPair::read(void *data, size_t length) {
+    ssize_t n = worker_socket->read(data, length);
+    if (blocking && n < 0 && timeout > 0 && worker_socket->catch_error(errno) == SW_WAIT) {
         if (worker_socket->wait_event(timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
+        n = worker_socket->read(data, length);
     }
-    return worker_socket->read(data, length);
+    return n;
 }
 
-ssize_t Pipe::write(const void *data, size_t length) {
-    return master_socket->write(data, length);
+ssize_t SocketPair::write(const void *data, size_t length) {
+    ssize_t n = master_socket->write(data, length);
+    if (blocking && n < 0 && timeout > 0 && master_socket->catch_error(errno) == SW_WAIT) {
+        if (master_socket->wait_event(timeout * 1000, SW_EVENT_READ) < 0) {
+            return SW_ERR;
+        }
+        n = master_socket->write(data, length);
+    }
+    return n;
 }
 
-bool Pipe::close(int which) {
+bool SocketPair::close(int which) {
     if (which == SW_PIPE_CLOSE_MASTER) {
-        if (pipe_master_closed) {
+        if (master_socket == nullptr) {
             return false;
         }
         master_socket->free();
         master_socket = nullptr;
-        pipe_master_closed = true;
     } else if (which == SW_PIPE_CLOSE_WORKER) {
-        if (pipe_worker_closed) {
+        if (worker_socket == nullptr) {
             return false;
         }
         worker_socket->free();
         worker_socket = nullptr;
-        pipe_worker_closed = true;
     } else {
         close(SW_PIPE_CLOSE_MASTER);
         close(SW_PIPE_CLOSE_WORKER);
@@ -95,11 +100,11 @@ bool Pipe::close(int which) {
     return true;
 }
 
-Pipe::~Pipe() {
-    if (!pipe_master_closed) {
+SocketPair::~SocketPair() {
+    if (!master_socket) {
         close(SW_PIPE_CLOSE_MASTER);
     }
-    if (!pipe_worker_closed) {
+    if (!worker_socket) {
         close(SW_PIPE_CLOSE_WORKER);
     }
 }
