@@ -547,7 +547,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
         } else {
             php_swoole_fatal_error(E_WARNING, "http_proxy_port should not be null");
             // because we do not set last errcode, return true
-            return false;
+            return true;
         }
     }
     /**
