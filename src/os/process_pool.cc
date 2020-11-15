@@ -67,8 +67,6 @@ static void ProcessPool_kill_timeout_worker(Timer *timer, TimerNode *tnode) {
  */
 int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode) {
     *pool = {};
-    uint32_t i;
-
     pool->worker_num = worker_num;
 
     /**
@@ -91,9 +89,9 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
         }
     } else if (ipc_mode == SW_IPC_UNIXSOCK) {
         pool->pipes = new std::vector<UnixSocket>;
-        for (i = 0; i < worker_num; i++) {
+        SW_LOOP_N(worker_num) {
             pool->pipes->emplace_back(true, SOCK_DGRAM);
-            if (pool->pipes->at(i).ready()) {
+            if (!pool->pipes->at(i).ready()) {
                 delete pool->pipes;
                 pool->pipes = nullptr;
                 return SW_ERR;
@@ -116,7 +114,7 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
         pool->main_loop = ProcessPool_worker_loop;
     }
 
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         pool->workers[i].pool = pool;
     }
 

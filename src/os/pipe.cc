@@ -59,14 +59,12 @@ Pipe::Pipe(bool _blocking) : SocketPair(_blocking) {
 }
 
 ssize_t SocketPair::read(void *data, size_t length) {
-    ssize_t n = worker_socket->read(data, length);
-    if (blocking && n < 0 && timeout > 0 && worker_socket->catch_error(errno) == SW_WAIT) {
+    if (blocking && timeout > 0) {
         if (worker_socket->wait_event(timeout * 1000, SW_EVENT_READ) < 0) {
             return SW_ERR;
         }
-        n = worker_socket->read(data, length);
     }
-    return n;
+    return worker_socket->read(data, length);
 }
 
 ssize_t SocketPair::write(const void *data, size_t length) {
