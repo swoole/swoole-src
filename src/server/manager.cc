@@ -89,7 +89,7 @@ void Manager::add_timeout_killer(Worker *workers, int n) {
      * separate old workers, free memory in the timer
      */
     ReloadWorkerList *_list = new ReloadWorkerList();
-    for (int i = 0; i < n; i++) {
+    SW_LOOP_N(n) {
         _list->emplace(workers[i].id, workers[i].pid);
     }
     /**
@@ -100,7 +100,6 @@ void Manager::add_timeout_killer(Worker *workers, int n) {
 
 // create worker child proccess
 int Server::start_manager_process() {
-    uint32_t i;
     pid_t pid;
 
     if (task_worker_num > 0) {
@@ -109,7 +108,7 @@ int Server::start_manager_process() {
         }
 
         Worker *worker;
-        for (i = 0; i < task_worker_num; i++) {
+        SW_LOOP_N(task_worker_num) {
             worker = &gs->task_workers.workers[i];
             create_worker(worker);
             if (task_ipc_mode == SW_TASK_IPC_UNIXSOCK) {
@@ -124,7 +123,7 @@ int Server::start_manager_process() {
             return SW_ERR;
         }
 
-        i = 0;
+        int i = 0;
         for (auto worker : *user_worker_list) {
             memcpy(&user_workers[i], worker, sizeof(user_workers[i]));
             create_worker(worker);
@@ -158,7 +157,7 @@ int Server::start_manager_process() {
             }
         }
 
-        for (uint32_t i = 0; i < worker_num; i++) {
+        SW_LOOP_N(worker_num) {
             Worker *worker = get_worker(i);
             pid = spawn_event_worker(worker);
             if (pid < 0) {
