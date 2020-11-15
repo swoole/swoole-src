@@ -186,7 +186,7 @@ struct ProcessPool {
     sw_atomic_t round_id;
 
     Worker *workers;
-    std::vector<UnixSocket> *pipes;
+    std::vector<std::shared_ptr<UnixSocket>> *pipes;
     std::unordered_map<pid_t, Worker *> *map_;
     Reactor *reactor;
     MsgQueue *queue;

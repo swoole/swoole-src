@@ -125,7 +125,7 @@ TEST(reactor, write) {
     ret = swoole_event_add(p.get_socket(false), SW_EVENT_READ);
     ASSERT_EQ(ret, SW_OK);
 
-    ret = swoole_event_write(p.get_socket(false), (void *) SW_STRS("hello world"));
+    ret = swoole_event_write(p.get_socket(true), (void *) SW_STRS("hello world"));
     ASSERT_EQ(ret, sizeof("hello world"));
 
     ret = swoole_event_wait();

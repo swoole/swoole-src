@@ -88,17 +88,19 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
             return SW_ERR;
         }
     } else if (ipc_mode == SW_IPC_UNIXSOCK) {
-        pool->pipes = new std::vector<UnixSocket>;
+        pool->pipes = new std::vector<std::shared_ptr<UnixSocket>>;
         SW_LOOP_N(worker_num) {
-            pool->pipes->emplace_back(true, SOCK_DGRAM);
-            if (!pool->pipes->at(i).ready()) {
+            auto sock = new UnixSocket(true, SOCK_DGRAM);
+            if (!sock->ready()) {
+                delete sock;
                 delete pool->pipes;
                 pool->pipes = nullptr;
                 return SW_ERR;
             }
-            pool->workers[i].pipe_master = pool->pipes->at(i).get_socket(true);
-            pool->workers[i].pipe_worker = pool->pipes->at(i).get_socket(false);
-            pool->workers[i].pipe_object = &pool->pipes->at(i);
+            pool->pipes->emplace_back(sock);
+            pool->workers[i].pipe_master = pool->pipes->at(i)->get_socket(true);
+            pool->workers[i].pipe_worker = pool->pipes->at(i)->get_socket(false);
+            pool->workers[i].pipe_object = pool->pipes->at(i).get();
         }
     } else if (ipc_mode == SW_IPC_SOCKET) {
         pool->use_socket = 1;
@@ -563,7 +565,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
         pool->onMessage(pool, data, n);
 
         if (pool->use_socket && pool->stream_info_->last_connection) {
-            swString *resp_buf = pool->stream_info_->response_buffer;
+            String *resp_buf = pool->stream_info_->response_buffer;
             if (resp_buf && resp_buf->length > 0) {
                 int _l = htonl(resp_buf->length);
                 pool->stream_info_->last_connection->send_blocking(&_l, sizeof(_l));
@@ -691,10 +693,8 @@ int ProcessPool::wait() {
 
 void ProcessPool::destroy() {
     if (pipes) {
-        SW_LOOP_N(worker_num) {
-            pipes->at(i).close();
-        }
         delete pipes;
+        pipes = nullptr;
     }
 
     if (queue) {

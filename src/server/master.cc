@@ -579,14 +579,14 @@ int Server::start() {
             swWarn("malloc[task_result] failed");
             return SW_ERR;
         }
-        task_notify_pipes = new std::vector<Pipe>;
         SW_LOOP_N(worker_num) {
-            task_notify_pipes->emplace_back(true);
-            if (!task_notify_pipes->at(i).ready()) {
+            auto _pipe = new Pipe(true);
+            if (!_pipe->ready()) {
                 sw_shm_free(task_result);
-                delete task_notify_pipes;
+                delete _pipe;
                 return SW_ERR;
             }
+            task_notify_pipes.emplace_back(_pipe);
         }
     }
 
@@ -876,9 +876,6 @@ void Server::destroy() {
     }
     if (http_index_files) {
         delete http_index_files;
-    }
-    if (task_notify_pipes) {
-        delete task_notify_pipes;
     }
     for (auto i = 0; i < SW_MAX_HOOK_TYPE; i++) {
         if (hooks[i]) {

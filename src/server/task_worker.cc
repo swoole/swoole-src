@@ -289,7 +289,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
          * Use worker shm store the result
          */
         EventData *result = &(task_result[source_worker_id]);
-        Pipe &task_notify_pipe = task_notify_pipes->at(source_worker_id);
+        Pipe *pipe = task_notify_pipes.at(source_worker_id).get();
 
         // lock worker
         worker->lock->lock();
@@ -328,8 +328,8 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         worker->lock->unlock();
 
         while (1) {
-            ret = task_notify_pipe.write(&flag, sizeof(flag));
-            auto _sock = task_notify_pipe.get_socket(true);
+            ret = pipe->write(&flag, sizeof(flag));
+            auto _sock = pipe->get_socket(true);
             if (ret < 0 && _sock->catch_error(errno) == SW_WAIT) {
                 if (_sock->wait_event(-1, SW_EVENT_WRITE) == 0) {
                     continue;

@@ -29,7 +29,6 @@ static int process_sendto_worker(Server *serv, PipeBuffer *buf, size_t n, void *
 static int process_sendto_reactor(Server *serv, PipeBuffer *buf, size_t n, void *private_data);
 
 ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
-    pipes = nullptr;
     send_buffer = nullptr;
 }
 
@@ -65,10 +64,6 @@ ProcessFactory::~ProcessFactory() {
     }
 
     sw_free(send_buffer);
-
-    if (pipes) {
-        delete pipes;
-    }
 }
 
 bool ProcessFactory::start() {
@@ -89,23 +84,22 @@ bool ProcessFactory::start() {
         server_->create_worker(server_->get_worker(i));
     }
 
-    pipes = new std::vector<UnixSocket>;
     SW_LOOP_N(server_->worker_num) {
         int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
-        pipes->emplace_back(true, SOCK_DGRAM);
-        if (!pipes->at(i).ready()) {
-            delete[] pipes;
-            pipes = nullptr;
+        auto _sock = new UnixSocket(true, SOCK_DGRAM);
+        if (!_sock->ready()) {
+            delete _sock;
             return false;
         }
 
-        server_->workers[i].pipe_master = pipes->at(i).get_socket(true);
-        server_->workers[i].pipe_worker = pipes->at(i).get_socket(false);
+        pipes.emplace_back(_sock);
+        server_->workers[i].pipe_master = _sock->get_socket(true);
+        server_->workers[i].pipe_worker = _sock->get_socket(false);
 
         server_->workers[i].pipe_master->set_send_buffer_size(kernel_buffer_size);
         server_->workers[i].pipe_worker->set_send_buffer_size(kernel_buffer_size);
 
-        server_->workers[i].pipe_object = &pipes->at(i);
+        server_->workers[i].pipe_object = _sock;
         server_->store_pipe_fd(server_->workers[i].pipe_object);
     }
 
