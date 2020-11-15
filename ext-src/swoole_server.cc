@@ -3119,8 +3119,9 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
 
     // clear history task
     network::Socket *task_notify_socket = pipe->get_socket(false);
-    while (task_notify_socket->read(&notify, sizeof(notify)) > 0)
-        ;
+    task_notify_socket->set_nonblock();
+    while (task_notify_socket->read(&notify, sizeof(notify)) > 0) {}
+    task_notify_socket->set_block();
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
     TaskId task_id = php_swoole_task_pack(&buf, ztask);

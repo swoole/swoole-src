@@ -775,7 +775,7 @@ static PHP_METHOD(swoole_process, read) {
 
     zend_string *buf = zend_string_alloc(buf_size, 0);
     ssize_t ret = process->pipe_current->read(buf->val, buf_size);
-    ;
+    
     if (ret < 0) {
         efree(buf);
         if (errno != EINTR) {

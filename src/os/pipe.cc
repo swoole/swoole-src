@@ -36,8 +36,7 @@ bool SocketPair::init_socket(int master_fd, int worker_fd) {
         ::close(worker_fd);
         goto _error;
     }
-    worker_socket->set_nonblock();
-    master_socket->set_nonblock();
+    set_blocking(blocking);
     return true;
 }
 

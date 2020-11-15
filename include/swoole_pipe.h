@@ -67,6 +67,16 @@ class SocketPair {
     void set_timeout(double _timeout) {
         timeout = _timeout;
     }
+
+    void set_blocking(bool blocking) {
+        if (blocking) {
+            worker_socket->set_block();
+            master_socket->set_block();
+        } else {
+            worker_socket->set_nonblock();
+            master_socket->set_nonblock();
+        }
+    }
 };
 
 class Pipe : public SocketPair {

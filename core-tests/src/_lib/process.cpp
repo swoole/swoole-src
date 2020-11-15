@@ -17,7 +17,6 @@ Process::Process(std::function<void(Process *)> fn, int pipe_type) : handler(fn)
 
 Process::~Process() {
     if (worker.pipe_object) {
-        worker.pipe_object->close();
         delete worker.pipe_object;
     }
 }
