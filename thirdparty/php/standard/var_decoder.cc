@@ -10,9 +10,9 @@ PHP_JSON_API zend_class_entry *php_json_exception_ce;
 END_EXTERN_C()
 
 namespace zend {
-void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *options) {
+void unserialize(zval *return_value, const char *buf, size_t buf_len, HashTable *options) {
 #if PHP_VERSION_ID >= 80000
-    php_unserialize_with_options(return_value, buf, buf_len, Z_ARRVAL_P(options), "swoole_ext_unserialize");
+    php_unserialize_with_options(return_value, buf, buf_len, options, "swoole_ext_unserialize");
 #else
     HashTable *class_hash = NULL, *prev_class_hash;
     const unsigned char *p = (const unsigned char *) buf;
@@ -28,9 +28,9 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
     if (options != NULL) {
         zval *classes;
 #if PHP_VERSION_ID >= 70400
-        classes = zend_hash_str_find_deref(Z_ARRVAL_P(options), "allowed_classes", sizeof("allowed_classes") - 1);
+        classes = zend_hash_str_find_deref(options, "allowed_classes", sizeof("allowed_classes") - 1);
 #else
-        classes = zend_hash_str_find(Z_ARRVAL_P(options), "allowed_classes", sizeof("allowed_classes") - 1);
+        classes = zend_hash_str_find(options, "allowed_classes", sizeof("allowed_classes") - 1);
 #endif
         if (classes && Z_TYPE_P(classes) != IS_ARRAY && Z_TYPE_P(classes) != IS_TRUE && Z_TYPE_P(classes) != IS_FALSE) {
             php_error_docref(NULL, E_WARNING, "allowed_classes option should be array or boolean");
@@ -70,7 +70,7 @@ void unserialize(zval *return_value, const char *buf, size_t buf_len, zval *opti
         php_var_unserialize_set_allowed_classes(var_hash, class_hash);
 
 #if PHP_VERSION_ID >= 70400
-        zval *max_depth = zend_hash_str_find_deref(Z_ARRVAL_P(options), "max_depth", sizeof("max_depth") - 1);
+        zval *max_depth = zend_hash_str_find_deref(options, "max_depth", sizeof("max_depth") - 1);
         if (max_depth) {
             if (Z_TYPE_P(max_depth) != IS_LONG) {
                 php_error_docref(NULL, E_WARNING, "max_depth should be int");

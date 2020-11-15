@@ -1299,7 +1299,7 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
     if (length <= 0) {
         length = buf_len - offset;
     }
-    zend::unserialize(return_value, buf + offset, length, options);
+    zend::unserialize(return_value, buf + offset, length, options ? Z_ARRVAL_P(options) : NULL);
 }
 
 #ifdef SW_USE_JSON

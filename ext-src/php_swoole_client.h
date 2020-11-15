@@ -21,7 +21,7 @@
 #include "php_swoole_cxx.h"
 #include "swoole_client.h"
 
-void php_swoole_client_check_setting(swoole::network::Client *cli, zval *zset);
+bool php_swoole_client_check_setting(swoole::network::Client *cli, zval *zset);
 #ifdef SW_USE_OPENSSL
 void php_swoole_client_check_ssl_setting(swoole::network::Client *cli, zval *zset);
 #endif
