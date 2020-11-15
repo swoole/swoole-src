@@ -98,9 +98,9 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
                 return SW_ERR;
             }
             pool->pipes->emplace_back(sock);
-            pool->workers[i].pipe_master = pool->pipes->at(i)->get_socket(true);
-            pool->workers[i].pipe_worker = pool->pipes->at(i)->get_socket(false);
-            pool->workers[i].pipe_object = pool->pipes->at(i).get();
+            pool->workers[i].pipe_master = sock->get_socket(true);
+            pool->workers[i].pipe_worker = sock->get_socket(false);
+            pool->workers[i].pipe_object = sock;
         }
     } else if (ipc_mode == SW_IPC_SOCKET) {
         pool->use_socket = 1;

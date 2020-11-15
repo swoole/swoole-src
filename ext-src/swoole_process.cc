@@ -1080,9 +1080,9 @@ static PHP_METHOD(swoole_process, close) {
         RETURN_FALSE;
     }
     if (which == 0) {
-        process->pipe_current = nullptr;
-        efree(process->pipe_object);
+        delete process->pipe_object;
         process->pipe_object = nullptr;
+        process->pipe_current = nullptr;
     }
     RETURN_TRUE;
 }
