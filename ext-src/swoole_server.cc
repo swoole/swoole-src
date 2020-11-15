@@ -3149,9 +3149,9 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         RETURN_FALSE;
     }
 
+    pipe->set_timeout(timeout);
     double _now = swoole_microtime();
     while (n_task > 0) {
-        pipe->set_timeout(timeout);
         int ret = pipe->read(&notify, sizeof(notify));
         if (ret > 0 && *finish_count < n_task) {
             if (swoole_microtime() - _now < timeout) {
