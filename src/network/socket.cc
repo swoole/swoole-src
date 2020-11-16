@@ -32,6 +32,63 @@ double Socket::default_read_timeout = SW_SOCKET_DEFAULT_READ_TIMEOUT;
 double Socket::default_write_timeout = SW_SOCKET_DEFAULT_WRITE_TIMEOUT;
 uint32_t Socket::default_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
+IOVector::IOVector(struct iovec *_iov, int _iovcnt) {
+    iov_iterator = iov = new iovec[_iovcnt];
+    remain_cnt = _iovcnt;
+    memcpy(iov_iterator, _iov, sizeof(*_iov) * _iovcnt);
+}
+
+IOVector::~IOVector() {
+    delete[] iov;
+}
+
+void IOVector::update_iterator(size_t __n) {
+    size_t total_bytes = 0;
+    offset_bytes = 0;
+
+    SW_LOOP_N(remain_cnt) {
+        total_bytes += iov_iterator[i].iov_len;
+        if (total_bytes >= __n) {
+            offset_bytes = iov_iterator[i].iov_len - (total_bytes - __n);
+            index = i;
+
+            if (offset_bytes == iov_iterator[index].iov_len) {
+                index++;
+                offset_bytes = 0;
+            }
+            remain_cnt -= index;
+            if (remain_cnt == 0) {
+                // iov should not be modified, prevent valgrind from checking for invalid read
+                return;
+            }
+            iov_iterator += index;
+            iov_iterator->iov_base = reinterpret_cast<char *> (iov_iterator->iov_base) + offset_bytes;
+            iov_iterator->iov_len = iov_iterator->iov_len - offset_bytes;
+            return;
+        }
+    }
+
+    // represents the length of __n greater than total_bytes
+    abort();
+}
+
+int IOVector::get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, size_t *offset_bytes) {
+    *offset_bytes = 0;
+    size_t total_bytes = 0;
+
+    SW_LOOP_N(iovcnt) {
+        total_bytes += iov[i].iov_len;
+        if (total_bytes >= __n) {
+            *offset_bytes = iov[i].iov_len - (total_bytes - __n);
+            return i;
+        }
+    }
+
+    // represents the length of __n greater than total_bytes
+    abort();
+    return -1;
+}
+
 int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
 

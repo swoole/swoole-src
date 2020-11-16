@@ -1454,7 +1454,7 @@ static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const b
              * For example iov is [5, 5, 5], but we get ['hello', 'world'], we should free the last iov.
              */
             size_t offset_bytes = 0;
-            iov_index = swoole::network::Socket::get_iovector_index(iov.get(), iovcnt, retval, &offset_bytes);
+            iov_index = swoole::network::IOVector::get_iovector_index(iov.get(), iovcnt, retval, &offset_bytes);
             real_count = iov_index + 1;
             zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
             iov[iov_index].iov_base = sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes)->val;

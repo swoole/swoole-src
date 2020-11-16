@@ -104,6 +104,28 @@ struct Address {
     }
 };
 
+struct IOVector {
+    struct iovec *iov = nullptr;
+    struct iovec *iov_iterator = nullptr;
+    int remain_cnt = 0;
+    int index = 0;
+    size_t offset_bytes = 0;
+
+    IOVector(struct iovec *_iov, int _iovcnt);
+    ~IOVector();
+
+    void update_iterator(size_t __n);
+    inline struct iovec *get_iterator() {
+        return iov_iterator;
+    }
+
+    inline int get_remain_cnt() {
+        return remain_cnt;
+    }
+
+    static int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, size_t *offset_bytes);
+};
+
 struct Socket {
     static double default_dns_timeout;
     static double default_connect_timeout;
@@ -514,23 +536,6 @@ struct Socket {
         }
 
         return SW_OK;
-    }
-
-    static inline int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, size_t *offset_bytes) {
-        *offset_bytes = 0;
-        size_t total_bytes = 0;
-
-        SW_LOOP_N(iovcnt) {
-            total_bytes += iov[i].iov_len;
-            if (total_bytes >= __n) {
-                *offset_bytes = iov[i].iov_len - (total_bytes - __n);
-                return i;
-            }
-        }
-
-        // represents the length of __n greater than total_bytes
-        abort();
-        return -1;
     }
 };
 
