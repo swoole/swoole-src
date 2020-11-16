@@ -7,7 +7,7 @@ swoole_coroutine_system: writeFile use FILE_APPEND
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\System;
-use Swoole\Coroutine\run;
+use function Swoole\Coroutine\run;
 
 $filename = __DIR__ . '/tmp_file.txt';
 run(function () use ($filename) {
