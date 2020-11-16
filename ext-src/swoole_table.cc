@@ -763,7 +763,7 @@ static PHP_METHOD(swoole_table, key) {
     TableRow *row = table->current();
     if (row) {
         row->lock();
-        RETVAL_STRING(row->key);
+        RETVAL_STRINGL(row->key, row->key_len);
         row->unlock();
     } else {
         RETURN_NULL();
