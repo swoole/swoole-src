@@ -329,10 +329,12 @@ struct Socket {
         if (tcp_nopush) {
             return false;
         }
+#ifdef TCP_CORK
         if (set_tcp_nopush(1) < 0) {
             swSysWarn("set_tcp_nopush(fd=%d, ON) failed", fd);
             return false;
         }
+#endif
         // Need to turn off tcp nodelay when using nopush
         if (tcp_nodelay && set_tcp_nodelay(0) != 0) {
             swSysWarn("set_tcp_nodelay(fd=%d, OFF) failed", fd);
@@ -344,10 +346,12 @@ struct Socket {
         if (!tcp_nopush) {
             return false;
         }
+#ifdef TCP_CORK
         if (set_tcp_nopush(0) < 0) {
             swSysWarn("set_tcp_nopush(fd=%d, OFF) failed", fd);
             return false;
         }
+#endif
         // Restore tcp_nodelay setting
         if (enable_tcp_nodelay && tcp_nodelay == 0 && set_tcp_nodelay(1) != 0) {
             swSysWarn("set_tcp_nodelay(fd=%d, ON) failed", fd);
