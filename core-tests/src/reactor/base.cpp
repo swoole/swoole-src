@@ -20,8 +20,7 @@
 #include "test_core.h"
 #include "swoole_pipe.h"
 
-using swoole::ReactorHandler;
-using swoole::Reactor;
+using namespace swoole;
 
 TEST(reactor, create) {
     swoole_event_init(0);
@@ -74,16 +73,14 @@ TEST(reactor, set_handler) {
 
 TEST(reactor, wait) {
     int ret;
-    swPipe p;
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
 
     ret = swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     ASSERT_EQ(ret, SW_OK);
     ASSERT_NE(SwooleTG.reactor, nullptr);
 
-    ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
-    ASSERT_EQ(ret, SW_OK);
-
-    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, swEvent *ev) -> int {
+    swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, Event *ev) -> int {
         char buffer[16];
 
         ssize_t n = read(ev->fd, buffer, sizeof(buffer));
@@ -94,10 +91,10 @@ TEST(reactor, wait) {
         return SW_OK;
     });
 
-    ret = swoole_event_add(p.worker_socket, SW_EVENT_READ);
+    ret = swoole_event_add(p.get_socket(false), SW_EVENT_READ);
     ASSERT_EQ(ret, SW_OK);
 
-    ret = p.write(&p, (void *) SW_STRS("hello world"));
+    ret = p.write((void *) SW_STRS("hello world"));
     ASSERT_EQ(ret, sizeof("hello world"));
 
     ret = swoole_event_wait();
@@ -107,14 +104,12 @@ TEST(reactor, wait) {
 
 TEST(reactor, write) {
     int ret;
-    swPipe p;
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
 
     ret = swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
     ASSERT_EQ(ret, SW_OK);
     ASSERT_NE(SwooleTG.reactor, nullptr);
-
-    ret = swPipeUnsock_create(&p, 1, SOCK_DGRAM);
-    ASSERT_EQ(ret, SW_OK);
 
     swoole_event_set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, swEvent *ev) -> int {
         char buffer[16];
@@ -127,10 +122,10 @@ TEST(reactor, write) {
         return SW_OK;
     });
 
-    ret = swoole_event_add(p.worker_socket, SW_EVENT_READ);
+    ret = swoole_event_add(p.get_socket(false), SW_EVENT_READ);
     ASSERT_EQ(ret, SW_OK);
 
-    ret = swoole_event_write(p.master_socket, (void *) SW_STRS("hello world"));
+    ret = swoole_event_write(p.get_socket(true), (void *) SW_STRS("hello world"));
     ASSERT_EQ(ret, sizeof("hello world"));
 
     ret = swoole_event_wait();
@@ -141,8 +136,9 @@ TEST(reactor, write) {
 static const char *pkt = "hello world\r\n";
 
 static void reactor_test_func(Reactor *reactor) {
-    swPipe p;
-    ASSERT_EQ(swPipeBase_create(&p, 1), SW_OK);
+    Pipe p(true);
+    ASSERT_TRUE(p.ready());
+
     reactor->set_handler(SW_FD_PIPE | SW_EVENT_READ, [](Reactor *reactor, swEvent *event) -> int {
         char buf[1024];
         size_t l = strlen(pkt);
@@ -164,8 +160,6 @@ static void reactor_test_func(Reactor *reactor) {
     reactor->add(p.get_socket(false), SW_EVENT_READ);
     reactor->add(p.get_socket(true), SW_EVENT_WRITE);
     reactor->wait(nullptr);
-
-    p.close(&p);
 }
 
 TEST(reactor, poll) {

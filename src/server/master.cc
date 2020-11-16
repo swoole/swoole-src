@@ -579,18 +579,14 @@ int Server::start() {
             swWarn("malloc[task_result] failed");
             return SW_ERR;
         }
-        task_notify = (Pipe *) sw_calloc(worker_num, sizeof(Pipe));
-        if (!task_notify) {
-            swWarn("malloc[task_notify] failed");
-            sw_shm_free(task_result);
-            return SW_ERR;
-        }
-        for (i = 0; i < worker_num; i++) {
-            if (swPipeNotify_auto(&task_notify[i], 1, 0)) {
+        SW_LOOP_N(worker_num) {
+            auto _pipe = new Pipe(true);
+            if (!_pipe->ready()) {
                 sw_shm_free(task_result);
-                sw_free(task_notify);
+                delete _pipe;
                 return SW_ERR;
             }
+            task_notify_pipes.emplace_back(_pipe);
         }
     }
 
@@ -919,7 +915,7 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     }
 }
 
-void Server::store_pipe_fd(Pipe *p) {
+void Server::store_pipe_fd(UnixSocket *p) {
     Socket *master_socket = p->get_socket(true);
     Socket *worker_socket = p->get_socket(false);
 

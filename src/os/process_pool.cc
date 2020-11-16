@@ -67,8 +67,6 @@ static void ProcessPool_kill_timeout_worker(Timer *timer, TimerNode *tnode) {
  */
 int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode) {
     *pool = {};
-    uint32_t i;
-
     pool->worker_num = worker_num;
 
     /**
@@ -90,16 +88,19 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
             return SW_ERR;
         }
     } else if (ipc_mode == SW_IPC_UNIXSOCK) {
-        pool->pipes = new Pipe[worker_num]();
-        Pipe *pipe;
-        for (i = 0; i < worker_num; i++) {
-            pipe = &pool->pipes[i];
-            if (swPipeUnsock_create(pipe, 1, SOCK_DGRAM) < 0) {
+        pool->pipes = new std::vector<std::shared_ptr<UnixSocket>>;
+        SW_LOOP_N(worker_num) {
+            auto sock = new UnixSocket(true, SOCK_DGRAM);
+            if (!sock->ready()) {
+                delete sock;
+                delete pool->pipes;
+                pool->pipes = nullptr;
                 return SW_ERR;
             }
-            pool->workers[i].pipe_master = pipe->get_socket(true);
-            pool->workers[i].pipe_worker = pipe->get_socket(false);
-            pool->workers[i].pipe_object = pipe;
+            pool->pipes->emplace_back(sock);
+            pool->workers[i].pipe_master = sock->get_socket(true);
+            pool->workers[i].pipe_worker = sock->get_socket(false);
+            pool->workers[i].pipe_object = sock;
         }
     } else if (ipc_mode == SW_IPC_SOCKET) {
         pool->use_socket = 1;
@@ -115,7 +116,7 @@ int ProcessPool::create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_k
         pool->main_loop = ProcessPool_worker_loop;
     }
 
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         pool->workers[i].pool = pool;
     }
 
@@ -564,7 +565,7 @@ static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {
         pool->onMessage(pool, data, n);
 
         if (pool->use_socket && pool->stream_info_->last_connection) {
-            swString *resp_buf = pool->stream_info_->response_buffer;
+            String *resp_buf = pool->stream_info_->response_buffer;
             if (resp_buf && resp_buf->length > 0) {
                 int _l = htonl(resp_buf->length);
                 pool->stream_info_->last_connection->send_blocking(&_l, sizeof(_l));
@@ -691,15 +692,9 @@ int ProcessPool::wait() {
 }
 
 void ProcessPool::destroy() {
-    uint32_t i;
-    Pipe *_pipe;
-
     if (pipes) {
-        for (i = 0; i < worker_num; i++) {
-            _pipe = &pipes[i];
-            _pipe->close(_pipe);
-        }
-        delete[] pipes;
+        delete pipes;
+        pipes = nullptr;
     }
 
     if (queue) {

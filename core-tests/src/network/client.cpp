@@ -9,6 +9,7 @@ using swoole::network::AsyncClient;
 using swoole::network::Client;
 using swoole::test::Process;
 using swoole::test::Server;
+using swoole::Pipe;
 
 TEST(client, tcp) {
     int ret;
@@ -84,8 +85,8 @@ TEST(client, udp) {
 TEST(client, async_tcp) {
     pid_t pid;
 
-    swPipe p;
-    ASSERT_EQ(swPipeNotify_auto(&p, 1, 1), 0);
+    Pipe p(true);
+    ASSERT_TRUE(p.ready());
 
     Process proc([&p](Process *proc) {
         on_receive_lambda_type receive_fn = [](ON_RECEIVE_PARAMS) {
@@ -99,9 +100,9 @@ TEST(client, async_tcp) {
         serv.on("onReceive", (void *) receive_fn);
 
         on_workerstart_lambda_type worker_start_fn = [](ON_WORKERSTART_PARAMS) {
-            swPipe *p = (swPipe *) SERVER_THIS->get_private_data("pipe");
+            Pipe *p = (Pipe *) SERVER_THIS->get_private_data("pipe");
             int64_t value = 1;
-            p->write(p, &value, sizeof(value));
+            p->write(&value, sizeof(value));
         };
 
         serv.on("onWorkerStart", (void *) worker_start_fn);
@@ -112,8 +113,7 @@ TEST(client, async_tcp) {
     pid = proc.start();
     int64_t value;
     p.set_timeout(10);
-    p.read(&p, &value, sizeof(value));
-    p.close(&p);
+    p.read(&value, sizeof(value));
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 

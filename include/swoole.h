@@ -174,7 +174,7 @@ class String;
 class Timer;
 struct TimerNode;
 struct Event;
-struct Pipe;
+class Pipe;
 namespace network {
 struct Socket;
 struct Address;

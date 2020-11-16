@@ -350,7 +350,7 @@ static void destroy(void *private_data) {
             delete pool;
             pool = nullptr;
 
-            SwooleTG.aio_pipe->close(SwooleTG.aio_pipe);
+            SwooleTG.aio_pipe->close();
             SwooleTG.aio_read_socket = nullptr;
             SwooleTG.aio_write_socket = nullptr;
             delete SwooleTG.aio_pipe;
@@ -369,9 +369,11 @@ static int init() {
         return SW_ERR;
     }
 
-    SwooleTG.aio_pipe = new Pipe();
+    SwooleTG.aio_pipe = new Pipe(false);
 
-    if (swPipeBase_create(SwooleTG.aio_pipe, 0) < 0) {
+    if (!SwooleTG.aio_pipe->ready()) {
+        delete SwooleTG.aio_pipe;
+        SwooleTG.aio_pipe = nullptr;
         swoole_throw_error(SW_ERROR_SYSTEM_CALL_FAIL);
     }
 

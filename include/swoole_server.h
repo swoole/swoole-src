@@ -459,7 +459,7 @@ class BaseFactory : public Factory {
 
 class ProcessFactory : public Factory {
   private:
-    Pipe *pipes;
+    std::vector<std::shared_ptr<UnixSocket>> pipes;
     PipeBuffer *send_buffer;
 
   public:
@@ -747,7 +747,7 @@ class Server {
     uint8_t task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
     uint32_t task_max_request = 0;
     uint32_t task_max_request_grace = 0;
-    Pipe *task_notify = nullptr;
+    std::vector<std::shared_ptr<Pipe>> task_notify_pipes;
     EventData *task_result = nullptr;
 
     /**
@@ -911,7 +911,7 @@ class Server {
     }
 
     void store_listen_socket();
-    void store_pipe_fd(Pipe *p);
+    void store_pipe_fd(UnixSocket *p);
 
     inline const std::string &get_document_root() {
         return document_root;

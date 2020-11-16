@@ -22,6 +22,7 @@
 #include <signal.h>
 
 #include "swoole_lock.h"
+#include "swoole_pipe.h"
 #include "swoole_msg_queue.h"
 
 enum swWorker_status {
@@ -103,7 +104,7 @@ struct Worker {
 
     Mutex *lock;
 
-    Pipe *pipe_object;
+    UnixSocket *pipe_object;
 
     network::Socket *pipe_master;
     network::Socket *pipe_worker;
@@ -185,7 +186,7 @@ struct ProcessPool {
     sw_atomic_t round_id;
 
     Worker *workers;
-    Pipe *pipes;
+    std::vector<std::shared_ptr<UnixSocket>> *pipes;
     std::unordered_map<pid_t, Worker *> *map_;
     Reactor *reactor;
     MsgQueue *queue;

@@ -3020,8 +3020,8 @@ static PHP_METHOD(swoole_server, taskwait) {
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
-    network::Socket *task_notify_socket = task_notify_pipe->get_socket(false);
+    Pipe *pipe = serv->task_notify_pipes.at(SwooleG.process_id).get();
+    network::Socket *task_notify_socket = pipe->get_socket(false);
 
     // clear history task
     while (task_notify_socket->wait_event(0, SW_EVENT_READ) == SW_OK) {
@@ -3037,7 +3037,7 @@ static PHP_METHOD(swoole_server, taskwait) {
             if (task_notify_socket->wait_event((int) (timeout * 1000), SW_EVENT_READ) != SW_OK) {
                 break;
             }
-            if (task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify)) > 0) {
+            if (pipe->read(&notify, sizeof(notify)) > 0) {
                 if (task_result->info.fd != task_id) {
                     continue;
                 }
@@ -3099,7 +3099,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     uint64_t notify;
     EventData *task_result = &(serv->task_result[SwooleG.process_id]);
     sw_memset_zero(task_result, sizeof(*task_result));
-    Pipe *task_notify_pipe = &serv->task_notify[SwooleG.process_id];
+    Pipe *pipe = serv->task_notify_pipes.at(SwooleG.process_id).get();
     Worker *worker = serv->get_worker(SwooleG.process_id);
 
     File fp = swoole::make_tmpfile();
@@ -3118,9 +3118,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     worker->lock->unlock();
 
     // clear history task
-    network::Socket *task_notify_socket = task_notify_pipe->get_socket(false);
-    while (task_notify_socket->read(&notify, sizeof(notify)) > 0)
-        ;
+    network::Socket *task_notify_socket = pipe->get_socket(false);
+    task_notify_socket->set_nonblock();
+    while (task_notify_socket->read(&notify, sizeof(notify)) > 0) {}
+    task_notify_socket->set_block();
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask)
     TaskId task_id = php_swoole_task_pack(&buf, ztask);
@@ -3149,10 +3150,10 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         RETURN_FALSE;
     }
 
+    pipe->set_timeout(timeout);
     double _now = swoole_microtime();
     while (n_task > 0) {
-        task_notify_pipe->timeout = timeout;
-        int ret = task_notify_pipe->read(task_notify_pipe, &notify, sizeof(notify));
+        int ret = pipe->read(&notify, sizeof(notify));
         if (ret > 0 && *finish_count < n_task) {
             if (swoole_microtime() - _now < timeout) {
                 continue;

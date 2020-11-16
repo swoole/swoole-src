@@ -34,7 +34,6 @@ struct Channel_item {
 
 Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     assert(size >= maxlen);
-    int ret;
     void *mem;
 
     // use shared memory
@@ -70,10 +69,10 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     }
     // use notify
     if (flags & SW_CHAN_NOTIFY) {
-        object->notify_pipe = new Pipe();
-        ret = swPipeNotify_auto(object->notify_pipe, 1, 1);
-        if (ret < 0) {
+        object->notify_pipe = new Pipe(true);
+        if (!object->notify_pipe->ready()) {
             swWarn("notify_fd init failed");
+            delete object->notify_pipe;
             return nullptr;
         }
     }
@@ -160,7 +159,7 @@ int Channel::peek(void *out, int buffer_length) {
 int Channel::wait() {
     assert(flags & SW_CHAN_NOTIFY);
     uint64_t value;
-    return notify_pipe->read(notify_pipe, &value, sizeof(value));
+    return notify_pipe->read(&value, sizeof(value));
 }
 
 /**
@@ -169,7 +168,7 @@ int Channel::wait() {
 int Channel::notify() {
     assert(flags & SW_CHAN_NOTIFY);
     uint64_t value = 1;
-    return notify_pipe->write(notify_pipe, &value, sizeof(value));
+    return notify_pipe->write(&value, sizeof(value));
 }
 
 /**
@@ -191,7 +190,7 @@ void Channel::destroy() {
         delete lock;
     }
     if (flags & SW_CHAN_NOTIFY) {
-        notify_pipe->close(notify_pipe);
+        notify_pipe->close();
         delete notify_pipe;
     }
     if (flags & SW_CHAN_SHM) {
