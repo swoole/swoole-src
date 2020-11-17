@@ -110,7 +110,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
 
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
     ssize_t retval = -1;
-    uint16_t file_flags = flags | O_CREAT | O_WRONLY;
+    int file_flags = flags | O_CREAT | O_WRONLY;
     swoole::coroutine::async([&]() {
         File _file(file, file_flags, 0644);
         if (!_file.ready()) {

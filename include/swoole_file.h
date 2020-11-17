@@ -36,6 +36,7 @@ typedef struct stat FileStatus;
 class File {
   private:
     int fd_;
+    int flags_;
     std::string path_;
 
   public:
@@ -50,21 +51,25 @@ class File {
 
     explicit File(int fd) {
         fd_ = fd;
+        flags_ = 0;
     }
 
     File(int fd, const std::string &path) {
         fd_ = fd;
         path_ = path;
+        flags_ = 0;
     }
 
     File(const std::string &path, int oflags) {
         fd_ = ::open(path.c_str(), oflags);
         path_ = path;
+        flags_ = oflags;
     }
 
     File(const std::string &path, int oflags, int mode) {
         fd_ = ::open(path.c_str(), oflags, mode);
         path_ = path;
+        flags_ = oflags;
     }
 
     ~File() {
