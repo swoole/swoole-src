@@ -841,7 +841,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         cli->ssl_option.protocols = SW_SSL_DTLS;
         cli->ssl_option.create_flag = SW_SSL_CLIENT;
         cli->socket->dtls = 1;
-        cli->socket->chunk_size = SW_BUFFER_SIZE_STD;
+        cli->socket->chunk_size = SW_SSL_BUFFER_SIZE;
         cli->send = Client_tcp_send_sync;
         cli->recv = Client_tcp_recv_no_buffer;
     }

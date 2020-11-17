@@ -243,7 +243,7 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     }
 
     memcpy(&sock->info, sa, sizeof(*sa));
-    sock->chunk_size = SW_BUFFER_SIZE_STD;
+    sock->chunk_size = SW_SSL_BUFFER_SIZE;
 
     conn = add_connection(port, sock, port->socket->fd);
     if (conn == nullptr) {
