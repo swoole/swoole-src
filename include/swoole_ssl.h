@@ -22,7 +22,6 @@
 
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
-#include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/conf.h>
 #include <openssl/ossl_typ.h>
