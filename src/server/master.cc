@@ -1558,7 +1558,6 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
 
         if (ls->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
-            ls->ssl_option.create_flag = SW_SSL_SERVER;
             ls->ssl_option.protocols = SW_SSL_DTLS;
             ls->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
 
