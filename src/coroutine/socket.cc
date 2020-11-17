@@ -1281,7 +1281,6 @@ bool Socket::ssl_check_context() {
 #ifdef SW_SUPPORT_DTLS
         socket->dtls = 1;
         ssl_option.protocols = SW_SSL_DTLS;
-        ssl_option.create_flag = SW_SSL_CLIENT;
 #else
         swWarn("DTLS support require openssl-1.1 or later");
         return false;
