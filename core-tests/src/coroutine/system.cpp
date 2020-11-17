@@ -35,12 +35,7 @@ TEST(coroutine_system, file) {
         std::shared_ptr<String> buf = std::make_shared<String>(DATA_SIZE);
         ASSERT_EQ(swoole_random_bytes(buf->str, buf->size - 1), buf->size - 1);
         buf->str[buf->size - 1] = 0;
-
-        int flags = 0;
-#ifdef O_TMPFILE
-        flags |= O_TMPFILE;
-#endif
-        ASSERT_EQ(System::write_file(test_file, buf->str, buf->size, true, flags), buf->size);
+        ASSERT_EQ(System::write_file(test_file, buf->str, buf->size, true, 0), buf->size);
         auto data = System::read_file(test_file, true);
         ASSERT_TRUE(data.get());
         ASSERT_STREQ(buf->str, data->str);

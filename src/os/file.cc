@@ -116,7 +116,12 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
 size_t File::write_all(const void *data, size_t len) {
     size_t written_bytes = 0;
     while (written_bytes < len) {
-        ssize_t n = pwrite((char *) data + written_bytes, len - written_bytes, written_bytes);
+        ssize_t n;
+        if (flags_ & APPEND) {
+            n = write((char *) data + written_bytes, len - written_bytes);
+        } else {
+            n = pwrite((char *) data + written_bytes, len - written_bytes, written_bytes);
+        }
         if (n > 0) {
             written_bytes += n;
         } else if (n == 0) {
