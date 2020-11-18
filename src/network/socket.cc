@@ -47,7 +47,7 @@ IOVector::~IOVector() {
 
 void IOVector::update_iterator(size_t __n) {
     size_t total_bytes = 0;
-    int _offset_bytes = 0;
+    size_t _offset_bytes = 0;
     int _index = 0;
 
     SW_LOOP_N(remain_count) {
