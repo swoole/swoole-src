@@ -64,7 +64,11 @@ void IOVector::update_iterator(ssize_t __n) {
                 _index++;
                 _offset_bytes = 0;
             }
+            // update remain_count, index, offset_bytes
             remain_count -= _index;
+            index += _index;
+            offset_bytes = i > 0 ? 0 : offset_bytes;
+            offset_bytes += _offset_bytes;
             if (remain_count == 0) {
                 // iov should not be modified, prevent valgrind from checking for invalid read
                 return;
@@ -73,12 +77,6 @@ void IOVector::update_iterator(ssize_t __n) {
             iov_iterator->iov_base = reinterpret_cast<char *> (iov_iterator->iov_base) + _offset_bytes;
             iov_iterator->iov_len = iov_iterator->iov_len - _offset_bytes;
 
-            // update index and offset_bytes
-            if (i > 0) {
-                offset_bytes = 0;
-            }
-            index += _index;
-            offset_bytes += _offset_bytes;
             return;
         }
     }
