@@ -129,9 +129,7 @@ struct IOVector {
     }
 
     inline size_t get_offset_bytes() {
-        int index = get_index();
-
-        return reinterpret_cast<char *> (iov_iterator->iov_base) - reinterpret_cast<char *> (iov[index].iov_base);
+        return offset_bytes;
     }
 };
 

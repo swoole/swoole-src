@@ -47,18 +47,18 @@ IOVector::~IOVector() {
 
 void IOVector::update_iterator(size_t __n) {
     size_t total_bytes = 0;
-    offset_bytes = 0;
+    int _offset_bytes = 0;
     int _index = 0;
 
     SW_LOOP_N(remain_count) {
         total_bytes += iov_iterator[i].iov_len;
         if (total_bytes >= __n) {
-            offset_bytes = iov_iterator[i].iov_len - (total_bytes - __n);
+            _offset_bytes = iov_iterator[i].iov_len - (total_bytes - __n);
             _index = i;
 
-            if (offset_bytes == iov_iterator[i].iov_len) {
+            if (_offset_bytes == iov_iterator[i].iov_len) {
                 _index++;
-                offset_bytes = 0;
+                _offset_bytes = 0;
             }
             remain_count -= _index;
             if (remain_count == 0) {
@@ -66,9 +66,15 @@ void IOVector::update_iterator(size_t __n) {
                 return;
             }
             iov_iterator += _index;
+            iov_iterator->iov_base = reinterpret_cast<char *> (iov_iterator->iov_base) + _offset_bytes;
+            iov_iterator->iov_len = iov_iterator->iov_len - _offset_bytes;
+
+            // update index and offset_bytes
+            if (i > 0) {
+                offset_bytes = 0;
+            }
             index += _index;
-            iov_iterator->iov_base = reinterpret_cast<char *> (iov_iterator->iov_base) + offset_bytes;
-            iov_iterator->iov_len = iov_iterator->iov_len - offset_bytes;
+            offset_bytes += _offset_bytes;
             return;
         }
     }
