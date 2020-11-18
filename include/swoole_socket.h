@@ -105,6 +105,7 @@ struct Address {
 };
 
 struct IOVector {
+    // we should modify iov_iterator instead of iov, iov is readonly
     struct iovec *iov = nullptr;
     struct iovec *iov_iterator = nullptr;
     int count = 0;
