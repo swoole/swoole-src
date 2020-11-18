@@ -116,7 +116,7 @@ struct IOVector {
     IOVector(struct iovec *_iov, int _iovcnt);
     ~IOVector();
 
-    void update_iterator(size_t __n);
+    void update_iterator(ssize_t __n);
     inline struct iovec *get_iterator() {
         return iov_iterator;
     }

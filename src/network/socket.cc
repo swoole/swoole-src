@@ -45,10 +45,14 @@ IOVector::~IOVector() {
     delete[] iov;
 }
 
-void IOVector::update_iterator(size_t __n) {
+void IOVector::update_iterator(ssize_t __n) {
     size_t total_bytes = 0;
     size_t _offset_bytes = 0;
     int _index = 0;
+
+    if (__n <= 0) {
+        return;
+    }
 
     SW_LOOP_N(remain_count) {
         total_bytes += iov_iterator[i].iov_len;
