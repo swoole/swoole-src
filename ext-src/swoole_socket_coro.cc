@@ -1349,8 +1349,10 @@ static void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const 
     iov_index++;
     SW_HASHTABLE_FOREACH_END();
 
+    swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
-    ssize_t retval = all ? sock->socket->writev_all(iov.get(), iovcnt) : sock->socket->writev(iov.get(), iovcnt);
+    ssize_t retval = all ? sock->socket->writev_all(&io_vector) : sock->socket->writev(&io_vector);
     if (UNEXPECTED(retval < 0)) {
         RETURN_FALSE;
     } else {
@@ -1429,8 +1431,10 @@ static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const b
     total_length += iov_len;
     SW_HASHTABLE_FOREACH_END();
 
+    swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
-    ssize_t retval = all ? sock->socket->readv_all(iov.get(), iovcnt) : sock->socket->readv(iov.get(), iovcnt);
+    ssize_t retval = all ? sock->socket->readv_all(&io_vector) : sock->socket->readv(&io_vector);
 
     auto free_func = [](const iovec *iov, int iovcnt, int iov_index) {
         for (; iov_index < iovcnt; iov_index++) {
@@ -1453,8 +1457,9 @@ static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const b
              * Free the extra memory.
              * For example iov is [5, 5, 5], but we get ['hello', 'world'], we should free the last iov.
              */
-            size_t offset_bytes = 0;
-            iov_index = swoole::network::Socket::get_iovector_index(iov.get(), iovcnt, retval, &offset_bytes);
+            iov_index = io_vector.get_index();
+            size_t offset_bytes = io_vector.get_offset_bytes();
+
             real_count = iov_index + 1;
             zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
             iov[iov_index].iov_base = sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes)->val;

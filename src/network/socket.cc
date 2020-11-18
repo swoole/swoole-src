@@ -32,6 +32,61 @@ double Socket::default_read_timeout = SW_SOCKET_DEFAULT_READ_TIMEOUT;
 double Socket::default_write_timeout = SW_SOCKET_DEFAULT_WRITE_TIMEOUT;
 uint32_t Socket::default_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
+IOVector::IOVector(struct iovec *_iov, int _iovcnt) {
+    iov = new iovec[_iovcnt + _iovcnt];
+    iov_iterator = iov + _iovcnt;
+    count = remain_count = _iovcnt;
+
+    memcpy(iov, _iov, sizeof(*_iov) * _iovcnt);
+    memcpy(iov_iterator, _iov, sizeof(*_iov) * _iovcnt);
+}
+
+IOVector::~IOVector() {
+    delete[] iov;
+}
+
+void IOVector::update_iterator(ssize_t __n) {
+    size_t total_bytes = 0;
+    size_t _offset_bytes = 0;
+    int _index = 0;
+
+    if (__n <= 0) {
+        return;
+    }
+
+    SW_LOOP_N(remain_count) {
+        total_bytes += iov_iterator[i].iov_len;
+        if (total_bytes >= __n) {
+            _offset_bytes = iov_iterator[i].iov_len - (total_bytes - __n);
+            _index = i;
+
+            if (_offset_bytes == iov_iterator[i].iov_len) {
+                _index++;
+                _offset_bytes = 0;
+            }
+            remain_count -= _index;
+            if (remain_count == 0) {
+                // iov should not be modified, prevent valgrind from checking for invalid read
+                return;
+            }
+            iov_iterator += _index;
+            iov_iterator->iov_base = reinterpret_cast<char *> (iov_iterator->iov_base) + _offset_bytes;
+            iov_iterator->iov_len = iov_iterator->iov_len - _offset_bytes;
+
+            // update index and offset_bytes
+            if (i > 0) {
+                offset_bytes = 0;
+            }
+            index += _index;
+            offset_bytes += _offset_bytes;
+            return;
+        }
+    }
+
+    // represents the length of __n greater than total_bytes
+    abort();
+}
+
 int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout) {
     int timeout_ms = timeout < 0 ? -1 : timeout * 1000;
 
