@@ -107,7 +107,8 @@ struct Address {
 struct IOVector {
     struct iovec *iov = nullptr;
     struct iovec *iov_iterator = nullptr;
-    int remain_cnt = 0;
+    int count = 0;
+    int remain_count = 0;
     int index = 0;
     size_t offset_bytes = 0;
 
@@ -119,11 +120,19 @@ struct IOVector {
         return iov_iterator;
     }
 
-    inline int get_remain_cnt() {
-        return remain_cnt;
+    inline int get_remain_count() {
+        return remain_count;
     }
 
-    static int get_iovector_index(const struct iovec *iov, int iovcnt, size_t __n, size_t *offset_bytes);
+    inline int get_index() {
+        return index;
+    }
+
+    inline size_t get_offset_bytes() {
+        int index = get_index();
+
+        return reinterpret_cast<char *> (iov_iterator->iov_base) - reinterpret_cast<char *> (iov[index].iov_base);
+    }
 };
 
 struct Socket {

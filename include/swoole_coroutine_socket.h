@@ -89,8 +89,8 @@ class Socket {
 
     ssize_t read(void *__buf, size_t __n);
     ssize_t write(const void *__buf, size_t __n);
-    ssize_t readv(const struct iovec *iov, int iovcnt);
-    ssize_t readv_all(const struct iovec *iov, int iovcnt);
+    ssize_t readv(network::IOVector *io_vector);
+    ssize_t readv_all(network::IOVector *io_vector);
     ssize_t writev(const struct iovec *iov, int iovcnt);
     ssize_t writev_all(const struct iovec *iov, int iovcnt);
     ssize_t recvmsg(struct msghdr *msg, int flags);
