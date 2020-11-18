@@ -979,29 +979,29 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
     return total_bytes;
 }
 
-ssize_t Socket::writev(const struct iovec *iov, int iovcnt) {
+ssize_t Socket::writev(network::IOVector *io_vector) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
-        retval = socket->writev(iov, iovcnt);
+        retval = socket->writev(io_vector->get_iterator(), io_vector->get_remain_count());
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
+    io_vector->update_iterator(retval > 0 ? retval : 0);
+
     return retval;
 }
 
-ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
+ssize_t Socket::writev_all(network::IOVector *io_vector) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
 
-    network::IOVector io_vector((struct iovec *) iov, iovcnt);
-
-    retval = socket->writev(io_vector.get_iterator(), io_vector.get_remain_count());
+    retval = socket->writev(io_vector->get_iterator(), io_vector->get_remain_count());
     swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
 
     if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
@@ -1014,24 +1014,24 @@ ssize_t Socket::writev_all(const struct iovec *iov, int iovcnt) {
     }
 
     total_bytes += retval > 0 ? retval : 0;
-    io_vector.update_iterator(retval > 0 ? retval : 0);
-    if (io_vector.get_remain_count() == 0) {
+    io_vector->update_iterator(retval > 0 ? retval : 0);
+    if (io_vector->get_remain_count() == 0) {
         // iov should not be modified, prevent valgrind from checking for invalid read
         return retval;
     }
 
     EventBarrier barrier = [&io_vector, &total_bytes, &retval, this]() -> bool {
         do {
-            retval = socket->writev(io_vector.get_iterator(), io_vector.get_remain_count());
+            retval = socket->writev(io_vector->get_iterator(), io_vector->get_remain_count());
 
             if (retval <= 0) {
                 break;
             }
 
             total_bytes += retval;
-            io_vector.update_iterator(retval > 0 ? retval : 0);
+            io_vector->update_iterator(retval > 0 ? retval : 0);
 
-            if (io_vector.get_remain_count() == 0) {
+            if (io_vector->get_remain_count() == 0) {
                 // iov should not be modified, prevent valgrind from checking for invalid read
                 break;
             }

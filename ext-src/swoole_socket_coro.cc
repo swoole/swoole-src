@@ -1349,8 +1349,10 @@ static void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const 
     iov_index++;
     SW_HASHTABLE_FOREACH_END();
 
+    swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_WRITE);
-    ssize_t retval = all ? sock->socket->writev_all(iov.get(), iovcnt) : sock->socket->writev(iov.get(), iovcnt);
+    ssize_t retval = all ? sock->socket->writev_all(&io_vector) : sock->socket->writev(&io_vector);
     if (UNEXPECTED(retval < 0)) {
         RETURN_FALSE;
     } else {
