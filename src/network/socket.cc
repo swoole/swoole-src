@@ -33,8 +33,8 @@ double Socket::default_write_timeout = SW_SOCKET_DEFAULT_WRITE_TIMEOUT;
 uint32_t Socket::default_buffer_size = SW_SOCKET_BUFFER_SIZE;
 
 IOVector::IOVector(struct iovec *_iov, int _iovcnt) {
-    iov = new iovec[_iovcnt];
-    iov_iterator = new iovec[_iovcnt];
+    iov = new iovec[_iovcnt + _iovcnt];
+    iov_iterator = iov + _iovcnt;
     count = remain_count = _iovcnt;
 
     memcpy(iov, _iov, sizeof(*_iov) * _iovcnt);
