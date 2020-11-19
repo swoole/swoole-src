@@ -736,6 +736,7 @@ ssize_t Socket::writev(IOVector *io_vector) {
         retval = ssl_writev(io_vector);
     } else {
         retval = ::writev(fd, io_vector->get_iterator(), io_vector->get_remain_count());
+        io_vector->update_iterator(retval);
     }
 
     return retval;
