@@ -729,50 +729,37 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
 ssize_t Socket::readv(IOVector *io_vector) {
     ssize_t retval;
 
-    if (ssl) {
-        retval = ssl_readv(io_vector);
-    } else {
-        retval = ::readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
-        io_vector->update_iterator(retval);
-    }
+    do {
+#ifdef SW_USE_OPENSSL
+        if (ssl) {
+            retval = ssl_readv(io_vector);
+        } else
+#endif
+        {
+            retval = ::readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
+            io_vector->update_iterator(retval);
+        }
+    } while (retval < 0 && errno == EINTR);
 
     return retval;
 }
 ssize_t Socket::writev(IOVector *io_vector) {
     ssize_t retval;
 
-    if (ssl) {
-        retval = ssl_writev(io_vector);
-    } else {
-        retval = ::writev(fd, io_vector->get_iterator(), io_vector->get_remain_count());
-        io_vector->update_iterator(retval);
-    }
+    do {
+
+#ifdef SW_USE_OPENSSL
+        if (ssl) {
+            retval = ssl_writev(io_vector);
+        } else
+#endif
+        {
+            retval = ::writev(fd, io_vector->get_iterator(), io_vector->get_remain_count());
+            io_vector->update_iterator(retval);
+        }
+    } while (retval < 0 && errno == EINTR);
 
     return retval;
-}
-
-ssize_t Socket::ssl_readv(IOVector *io_vector) {
-    ssize_t retval, total_bytes = 0;
-
-    do {
-        retval = ssl_recv(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
-        total_bytes += retval > 0 ? retval : 0;
-        io_vector->update_iterator(retval);
-    } while (retval > 0 && io_vector->get_remain_count() > 0);
-
-    return total_bytes > 0 ? total_bytes : retval;
-}
-
-ssize_t Socket::ssl_writev(IOVector *io_vector) {
-    ssize_t retval, total_bytes = 0;
-
-    do {
-        retval = ssl_send(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
-        total_bytes += retval > 0 ? retval : 0;
-        io_vector->update_iterator(retval);
-    } while (retval > 0 && io_vector->get_remain_count() > 0);
-
-    return total_bytes > 0 ? total_bytes : retval;
 }
 
 ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
@@ -1327,6 +1314,30 @@ ssize_t Socket::ssl_send(const void *__buf, size_t __n) {
         }
     }
     return n;
+}
+
+ssize_t Socket::ssl_readv(IOVector *io_vector) {
+    ssize_t retval, total_bytes = 0;
+
+    do {
+        retval = ssl_recv(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        total_bytes += retval > 0 ? retval : 0;
+        io_vector->update_iterator(retval);
+    } while (retval > 0 && io_vector->get_remain_count() > 0);
+
+    return total_bytes > 0 ? total_bytes : retval;
+}
+
+ssize_t Socket::ssl_writev(IOVector *io_vector) {
+    ssize_t retval, total_bytes = 0;
+
+    do {
+        retval = ssl_send(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        total_bytes += retval > 0 ? retval : 0;
+        io_vector->update_iterator(retval);
+    } while (retval > 0 && io_vector->get_remain_count() > 0);
+
+    return total_bytes > 0 ? total_bytes : retval;
 }
 
 int Socket::ssl_create(SSL_CTX *_ssl_context, int _flags) {

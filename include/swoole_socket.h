@@ -332,9 +332,6 @@ struct Socket {
         return connect(addr);
     }
 
-    ssize_t ssl_readv(IOVector *io_vector);
-    ssize_t ssl_writev(IOVector *io_vector);
-
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
         ERR_clear_error();
@@ -346,6 +343,8 @@ struct Socket {
     enum swReturn_code ssl_accept();
     ssize_t ssl_recv(void *__buf, size_t __n);
     ssize_t ssl_send(const void *__buf, size_t __n);
+    ssize_t ssl_readv(IOVector *io_vector);
+    ssize_t ssl_writev(IOVector *io_vector);
     int ssl_sendfile(const File &fp, off_t *offset, size_t size);
     X509 *ssl_get_peer_certificate();
     int ssl_get_peer_certificate(char *buf, size_t n);
