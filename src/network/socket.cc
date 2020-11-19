@@ -50,7 +50,7 @@ void IOVector::update_iterator(ssize_t __n) {
     size_t _offset_bytes = 0;
     int _index = 0;
 
-    if (__n <= 0) {
+    if (__n <= 0 || remain_count == 0) {
         return;
     }
 
@@ -724,6 +724,37 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
     swTraceLog(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, __n, errno);
 
     return retval;
+}
+
+ssize_t Socket::readv(IOVector *io_vector) {
+    return ::readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
+}
+ssize_t Socket::writev(IOVector *io_vector) {
+    ssize_t retval;
+
+    if (ssl) {
+        retval = ssl_writev(io_vector);
+    } else {
+        retval = ::writev(fd, io_vector->get_iterator(), io_vector->get_remain_count());
+    }
+
+    return retval;
+}
+
+ssize_t Socket::ssl_readv(IOVector *io_vector) {
+    return 0;
+}
+
+ssize_t Socket::ssl_writev(IOVector *io_vector) {
+    ssize_t retval, total_bytes = 0;
+
+    do {
+        retval = ssl_send(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        total_bytes += retval > 0 ? retval : 0;
+        io_vector->update_iterator(retval);
+    } while (retval > 0 && io_vector->get_remain_count() > 0);
+
+    return total_bytes;
 }
 
 ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {

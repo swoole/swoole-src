@@ -302,6 +302,9 @@ struct Socket {
     Socket *accept();
     int bind(const std::string &_host, int *port);
 
+    ssize_t readv(IOVector *io_vector);
+    ssize_t writev(IOVector *io_vector);
+
     int bind(const Address &sa) {
         return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
     }
@@ -328,6 +331,9 @@ struct Socket {
         addr.assign(socket_type, host, port);
         return connect(addr);
     }
+
+    ssize_t ssl_readv(IOVector *io_vector);
+    ssize_t ssl_writev(IOVector *io_vector);
 
 #ifdef SW_USE_OPENSSL
     void ssl_clear_error() {
@@ -427,14 +433,6 @@ struct Socket {
 
     ssize_t write(const void *__buf, size_t __len) {
         return ::write(fd, __buf, __len);
-    }
-
-    ssize_t readv(const struct iovec *iov, int iovcnt) {
-        return ::readv(fd, iov, iovcnt);
-    }
-
-    ssize_t writev(const struct iovec *iov, int iovcnt) {
-        return ::writev(fd, iov, iovcnt);
     }
 
     ssize_t read(void *__buf, size_t __len) {

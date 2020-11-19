@@ -917,7 +917,7 @@ ssize_t Socket::readv(network::IOVector *io_vector) {
     ssize_t retval;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
     do {
-        retval = socket->readv(io_vector->get_iterator(), io_vector->get_remain_count());
+        retval = socket->readv(io_vector);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
     io_vector->update_iterator(retval);
@@ -932,7 +932,7 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
     ssize_t retval, total_bytes = 0;
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
-    retval = socket->readv(io_vector->get_iterator(), io_vector->get_remain_count());
+    retval = socket->readv(io_vector);
     swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
 
     if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
@@ -953,7 +953,7 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
 
     EventBarrier barrier = [&io_vector, &total_bytes, &retval, this]() -> bool {
         do {
-            retval = socket->readv(io_vector->get_iterator(), io_vector->get_remain_count());
+            retval = socket->readv(io_vector);
 
             if (retval <= 0) {
                 break;
@@ -982,7 +982,7 @@ ssize_t Socket::writev(network::IOVector *io_vector) {
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
-        retval = socket->writev(io_vector->get_iterator(), io_vector->get_remain_count());
+        retval = socket->writev(io_vector);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     set_err(retval < 0 ? errno : 0);
     io_vector->update_iterator(retval);
@@ -997,7 +997,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
 
-    retval = socket->writev(io_vector->get_iterator(), io_vector->get_remain_count());
+    retval = socket->writev(io_vector);
     swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
 
     if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
@@ -1018,7 +1018,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
 
     EventBarrier barrier = [&io_vector, &total_bytes, &retval, this]() -> bool {
         do {
-            retval = socket->writev(io_vector->get_iterator(), io_vector->get_remain_count());
+            retval = socket->writev(io_vector);
 
             if (retval <= 0) {
                 break;

@@ -1306,15 +1306,6 @@ static void swoole_socket_coro_write_vector(INTERNAL_FUNCTION_PARAMETERS, const 
 
     swoole_get_socket_coro(sock, ZEND_THIS);
 
-#ifdef SW_USE_OPENSSL
-    if (sock->socket->open_ssl) {
-        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
-                                SW_ERROR_OPERATION_NOT_SUPPORT,
-                                "Use writeVector or writeVectorAll in ssl is not supported");
-        RETURN_FALSE;
-    }
-#endif
-
     ON_SCOPE_EXIT {
         swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     };
