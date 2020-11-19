@@ -34,8 +34,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $conn->connect('127.0.0.1', $pm->getFreePort());
 
         $ret = $conn->writeVectorAll($iovector);
-        $conn->recv();
         Assert::eq($ret, $totalLength);
+        $conn->recv();
         echo "DONE\n";
     });
 };
