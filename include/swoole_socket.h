@@ -302,6 +302,9 @@ struct Socket {
     Socket *accept();
     int bind(const std::string &_host, int *port);
 
+    ssize_t readv(IOVector *io_vector);
+    ssize_t writev(IOVector *io_vector);
+
     int bind(const Address &sa) {
         return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
     }
@@ -340,6 +343,8 @@ struct Socket {
     enum swReturn_code ssl_accept();
     ssize_t ssl_recv(void *__buf, size_t __n);
     ssize_t ssl_send(const void *__buf, size_t __n);
+    ssize_t ssl_readv(IOVector *io_vector);
+    ssize_t ssl_writev(IOVector *io_vector);
     int ssl_sendfile(const File &fp, off_t *offset, size_t size);
     X509 *ssl_get_peer_certificate();
     int ssl_get_peer_certificate(char *buf, size_t n);
@@ -427,14 +432,6 @@ struct Socket {
 
     ssize_t write(const void *__buf, size_t __len) {
         return ::write(fd, __buf, __len);
-    }
-
-    ssize_t readv(const struct iovec *iov, int iovcnt) {
-        return ::readv(fd, iov, iovcnt);
-    }
-
-    ssize_t writev(const struct iovec *iov, int iovcnt) {
-        return ::writev(fd, iov, iovcnt);
     }
 
     ssize_t read(void *__buf, size_t __len) {
