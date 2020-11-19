@@ -760,7 +760,7 @@ ssize_t Socket::ssl_readv(IOVector *io_vector) {
         io_vector->update_iterator(retval);
     } while (retval > 0 && io_vector->get_remain_count() > 0);
 
-    return total_bytes;
+    return total_bytes > 0 ? total_bytes : retval;
 }
 
 ssize_t Socket::ssl_writev(IOVector *io_vector) {
@@ -772,7 +772,7 @@ ssize_t Socket::ssl_writev(IOVector *io_vector) {
         io_vector->update_iterator(retval);
     } while (retval > 0 && io_vector->get_remain_count() > 0);
 
-    return total_bytes;
+    return total_bytes > 0 ? total_bytes : retval;
 }
 
 ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
