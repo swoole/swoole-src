@@ -420,7 +420,6 @@ static size_t curl_progress(void *clientp, double dltotal, double dlnow, double 
 static size_t curl_read(char *data, size_t size, size_t nmemb, void *ctx)
 {
 	php_curl *ch = (php_curl *)ctx;
-
 	php_curl_read *t = ch->handlers->read;
 	int length = 0;
 
