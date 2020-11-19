@@ -946,9 +946,9 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 }
 
 static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode) {
-    char *name, *value = nullptr, *path = nullptr, *domain = nullptr, *samesite = nullptr;
+    char *name, *value = nullptr, *path = nullptr, *domain = nullptr, *samesite = nullptr, *priority = nullptr;
     zend_long expires = 0;
-    size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0;
+    size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0, priority_len = 0;
     zend_bool secure = 0, httponly = 0;
 
     ZEND_PARSE_PARAMETERS_START(1, 8)
@@ -961,6 +961,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     Z_PARAM_BOOL(secure)
     Z_PARAM_BOOL(httponly)
     Z_PARAM_STRING(samesite, samesite_len)
+    Z_PARAM_STRING(priority, priority_len)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
@@ -992,12 +993,12 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
             encoded_value = php_swoole_url_encode(value, value_len, &encoded_value_len);
             cookie_size += encoded_value_len;
             cookie = (char *) emalloc(cookie_size);
-            snprintf(cookie, cookie_size, "%s=%s", name, encoded_value);
+            sw_snprintf(cookie, cookie_size, "%s=%s", name, encoded_value);
             efree(encoded_value);
         } else {
             cookie_size += value_len;
             cookie = (char *) emalloc(cookie_size);
-            snprintf(cookie, cookie_size, "%s=%s", name, value);
+            sw_snprintf(cookie, cookie_size, "%s=%s", name, value);
         }
         if (expires > 0) {
             strlcat(cookie, "; expires=", cookie_size);
@@ -1030,6 +1031,10 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     if (samesite_len > 0) {
         strlcat(cookie, "; samesite=", cookie_size);
         strlcat(cookie, samesite, cookie_size);
+    }
+    if (priority_len > 0) {
+        strlcat(cookie, "; priority=", cookie_size);
+        strlcat(cookie, priority, cookie_size);
     }
     add_next_index_stringl(
         swoole_http_init_and_read_property(
