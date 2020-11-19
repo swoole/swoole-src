@@ -213,6 +213,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_cookie, 0, 0, 1)
     ZEND_ARG_INFO(0, secure)
     ZEND_ARG_INFO(0, httponly)
     ZEND_ARG_INFO(0, samesite)
+    ZEND_ARG_INFO(0, priority)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_write, 0, 0, 1)
@@ -951,7 +952,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
     size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0, priority_len = 0;
     zend_bool secure = 0, httponly = 0;
 
-    ZEND_PARSE_PARAMETERS_START(1, 8)
+    ZEND_PARSE_PARAMETERS_START(1, 9)
     Z_PARAM_STRING(name, name_len)
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING(value, value_len)
