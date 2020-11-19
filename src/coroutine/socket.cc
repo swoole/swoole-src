@@ -920,7 +920,6 @@ ssize_t Socket::readv(network::IOVector *io_vector) {
         retval = socket->readv(io_vector);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
     set_err(retval < 0 ? errno : 0);
-    io_vector->update_iterator(retval);
 
     return retval;
 }
@@ -945,7 +944,6 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
     }
 
     total_bytes += retval > 0 ? retval : 0;
-    io_vector->update_iterator(retval);
     if (io_vector->get_remain_count() == 0) {
         // iov should not be modified, prevent valgrind from checking for invalid read
         return retval;
@@ -960,7 +958,6 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
             }
 
             total_bytes += retval;
-            io_vector->update_iterator(retval);
         } while (retval > 0 && io_vector->get_remain_count() > 0);
 
         return retval < 0 && socket->catch_error(errno) == SW_WAIT;

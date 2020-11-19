@@ -727,7 +727,16 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
 }
 
 ssize_t Socket::readv(IOVector *io_vector) {
-    return ::readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
+    ssize_t retval;
+
+    if (ssl) {
+        retval = ssl_readv(io_vector);
+    } else {
+        retval = ::readv(fd, io_vector->get_iterator(), io_vector->get_remain_count());
+        io_vector->update_iterator(retval);
+    }
+
+    return retval;
 }
 ssize_t Socket::writev(IOVector *io_vector) {
     ssize_t retval;
@@ -743,7 +752,15 @@ ssize_t Socket::writev(IOVector *io_vector) {
 }
 
 ssize_t Socket::ssl_readv(IOVector *io_vector) {
-    return 0;
+    ssize_t retval, total_bytes = 0;
+
+    do {
+        retval = ssl_recv(io_vector->get_iterator()->iov_base, io_vector->get_iterator()->iov_len);
+        total_bytes += retval > 0 ? retval : 0;
+        io_vector->update_iterator(retval);
+    } while (retval > 0 && io_vector->get_remain_count() > 0);
+
+    return total_bytes;
 }
 
 ssize_t Socket::ssl_writev(IOVector *io_vector) {
