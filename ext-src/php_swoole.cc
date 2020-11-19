@@ -926,6 +926,28 @@ static void _sw_zend_string_free(void *address) {
     zend_string_free((zend_string *) (sw_get_zend_string(address)));
 }
 
+static swoole::Allocator php_allocator {
+    _sw_emalloc,
+    _sw_ecalloc,
+    _sw_erealloc,
+    _sw_efree,
+};
+
+static swoole::Allocator zend_string_allocator {
+    _sw_zend_string_malloc,
+    _sw_zend_string_calloc,
+    _sw_zend_string_realloc,
+    _sw_zend_string_free,
+};
+
+const swoole::Allocator *sw_php_allocator() {
+    return &php_allocator;
+}
+
+const swoole::Allocator *sw_zend_string_allocator() {
+    return &zend_string_allocator;
+}
+
 PHP_RINIT_FUNCTION(swoole) {
     if (!SWOOLE_G(cli)) {
         return SUCCESS;
@@ -933,16 +955,6 @@ PHP_RINIT_FUNCTION(swoole) {
 
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_BEGIN;
     SwooleG.running = 1;
-
-    SWOOLE_G(php_allocator).malloc = _sw_emalloc;
-    SWOOLE_G(php_allocator).calloc = _sw_ecalloc;
-    SWOOLE_G(php_allocator).realloc = _sw_erealloc;
-    SWOOLE_G(php_allocator).free = _sw_efree;
-
-    SWOOLE_G(zend_string_allocator).malloc = _sw_zend_string_malloc;
-    SWOOLE_G(zend_string_allocator).calloc = _sw_zend_string_calloc;
-    SWOOLE_G(zend_string_allocator).realloc = _sw_zend_string_realloc;
-    SWOOLE_G(zend_string_allocator).free = _sw_zend_string_free;
 
     php_swoole_register_shutdown_function("swoole_internal_call_user_shutdown_begin");
 

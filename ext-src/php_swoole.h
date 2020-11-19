@@ -302,8 +302,6 @@ ZEND_BEGIN_MODULE_GLOBALS(swoole)
     zend_bool enable_library;
     long socket_buffer_size;
     php_swoole_req_status req_status;
-    swAllocator php_allocator;
-    swAllocator zend_string_allocator;
 ZEND_END_MODULE_GLOBALS(swoole)
 
 extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
