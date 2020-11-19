@@ -222,6 +222,7 @@ static const zend_module_dep swoole_deps[] = {
 #ifdef SW_SOCKETS
      ZEND_MOD_REQUIRED("sockets")
 #endif
+     ZEND_MOD_REQUIRED("curl")
      ZEND_MOD_END
 };
 

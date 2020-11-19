@@ -69,6 +69,40 @@ static PHP_FUNCTION(swoole_time_sleep_until);
 static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
+
+PHP_FUNCTION(swoole_native_curl_close);
+PHP_FUNCTION(swoole_native_curl_copy_handle);
+PHP_FUNCTION(swoole_native_curl_errno);
+PHP_FUNCTION(swoole_native_curl_error);
+PHP_FUNCTION(swoole_native_curl_exec);
+PHP_FUNCTION(swoole_native_curl_getinfo);
+PHP_FUNCTION(swoole_native_curl_init);
+PHP_FUNCTION(swoole_native_curl_setopt);
+PHP_FUNCTION(swoole_native_curl_setopt_array);
+
+#include <curl/curl.h>
+#include <curl/multi.h>
+
+#if LIBCURL_VERSION_NUM >= 0x070c00 /* 7.12.0 */
+PHP_FUNCTION(swoole_native_curl_strerror);
+PHP_FUNCTION(swoole_native_curl_multi_strerror);
+PHP_FUNCTION(swoole_native_curl_share_strerror);
+#endif
+
+#if LIBCURL_VERSION_NUM >= 0x070c01 /* 7.12.1 */
+PHP_FUNCTION(swoole_native_curl_reset);
+#endif
+
+#if LIBCURL_VERSION_NUM >= 0x070f04 /* 7.15.4 */
+PHP_FUNCTION(swoole_native_curl_escape);
+PHP_FUNCTION(swoole_native_curl_unescape);
+PHP_FUNCTION(swoole_native_curl_multi_setopt);
+#endif
+
+#if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
+PHP_FUNCTION(swoole_native_curl_pause);
+#endif
+
 SW_EXTERN_C_END
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);
@@ -163,6 +197,7 @@ static zend_array *function_table = nullptr;
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
+void swoole_native_curl_init(int module_number);
 SW_EXTERN_C_END
 
 void php_swoole_runtime_minit(int module_number) {
@@ -182,9 +217,11 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", PHPCoroutine::HOOK_SLEEP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PROC", PHPCoroutine::HOOK_PROC);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL", PHPCoroutine::HOOK_CURL);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL_NATIVE", PHPCoroutine::HOOK_CURL_NATIVE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 
+    swoole_native_curl_init(module_number);
     swoole_proc_open_init(module_number);
 }
 
@@ -1123,6 +1160,25 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(gethostbyname);
             SW_UNHOOK_FUNC(exec);
             SW_UNHOOK_FUNC(shell_exec);
+        }
+    }
+
+    if (flags & PHPCoroutine::HOOK_CURL_NATIVE) {
+        flags ^= PHPCoroutine::HOOK_CURL;
+        if (!(hook_flags & PHPCoroutine::HOOK_CURL_NATIVE)) {
+            hook_func(ZEND_STRL("curl_close"), PHP_FN(swoole_native_curl_close));
+            hook_func(ZEND_STRL("curl_copy_handle"), PHP_FN(swoole_native_curl_copy_handle));
+            hook_func(ZEND_STRL("curl_errno"), PHP_FN(swoole_native_curl_errno));
+            hook_func(ZEND_STRL("curl_error"), PHP_FN(swoole_native_curl_error));
+            hook_func(ZEND_STRL("curl_exec"), PHP_FN(swoole_native_curl_exec));
+            hook_func(ZEND_STRL("curl_getinfo"), PHP_FN(swoole_native_curl_getinfo));
+            hook_func(ZEND_STRL("curl_init"), PHP_FN(swoole_native_curl_init));
+            hook_func(ZEND_STRL("curl_setopt"), PHP_FN(swoole_native_curl_setopt));
+            hook_func(ZEND_STRL("curl_setopt_array"), PHP_FN(swoole_native_curl_setopt_array));
+        }
+    } else {
+        if (hook_flags & PHPCoroutine::HOOK_CURL_NATIVE) {
+            SW_UNHOOK_FUNC(curl_exec);
         }
     }
 

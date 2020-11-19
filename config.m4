@@ -570,6 +570,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/timer.cc"
 
     swoole_source_file="$swoole_source_file \
+        thirdparty/php/curl/interface.cc \
         thirdparty/php/sockets/multicast.cc \
         thirdparty/php/sockets/sendrecvmsg.cc \
         thirdparty/php/sockets/conversions.cc \

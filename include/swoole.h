@@ -717,3 +717,6 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
     return SwooleG.memory_pool;
 }
 
+static sw_inline const swoole::Allocator *sw_std_allocator() {
+    return &SwooleG.std_allocator;
+}

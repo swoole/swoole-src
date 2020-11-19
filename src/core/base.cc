@@ -124,16 +124,11 @@ void swoole_init(void) {
     SwooleG.running = 1;
     SwooleG.init = 1;
     SwooleG.enable_coroutine = 1;
-
-    SwooleG.std_allocator.malloc = malloc;
-    SwooleG.std_allocator.calloc = calloc;
-    SwooleG.std_allocator.realloc = realloc;
-    SwooleG.std_allocator.free = free;
-
+    SwooleG.std_allocator = { malloc, calloc, realloc, free };
     SwooleG.fatal_error = swoole_fatal_error;
-
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
+
     // get system uname
     uname(&SwooleG.uname);
     // random seed
