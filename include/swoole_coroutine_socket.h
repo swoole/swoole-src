@@ -324,7 +324,7 @@ class Socket {
         zero_copy = enable;
     }
 
-    inline void set_buffer_allocator(swAllocator *allocator) {
+    inline void set_buffer_allocator(const Allocator *allocator) {
         buffer_allocator = allocator;
     }
 
@@ -375,7 +375,7 @@ class Socket {
     TimerNode *read_timer = nullptr;
     TimerNode *write_timer = nullptr;
 
-    const swAllocator *buffer_allocator = nullptr;
+    const Allocator *buffer_allocator = nullptr;
     size_t buffer_init_size = SW_BUFFER_SIZE_BIG;
     String *read_buffer = nullptr;
     String *write_buffer = nullptr;

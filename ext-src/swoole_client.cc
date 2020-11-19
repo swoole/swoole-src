@@ -994,7 +994,7 @@ static PHP_METHOD(swoole_client, recv) {
 
     if (cli->open_eof_check) {
         if (cli->buffer == nullptr) {
-            cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, &SWOOLE_G(zend_string_allocator));
+            cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, sw_zend_string_allocator());
         }
 
         swString *buffer = cli->buffer;
@@ -1038,7 +1038,7 @@ static PHP_METHOD(swoole_client, recv) {
                 eof += protocol->package_eof_len;
 
                 if ((ssize_t) buffer->length > eof) {
-                    cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, &SWOOLE_G(zend_string_allocator));
+                    cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, sw_zend_string_allocator());
                     cli->buffer->length = buffer->length - eof;
                     memcpy(cli->buffer->str, buffer->str + eof, cli->buffer->length);
                 } else {

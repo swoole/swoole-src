@@ -71,7 +71,7 @@ SW_ZEND_KNOWN_STRINGS(_SW_ZEND_STR_ID)
 // clang-format on
 
 #define SW_ZSTR_KNOWN(idx) sw_zend_known_strings[idx]
-SW_API extern zend_string **sw_zend_known_strings;
+extern zend_string **sw_zend_known_strings;
 
 //----------------------------------Swoole known string------------------------------------
 
@@ -116,6 +116,9 @@ zval* php_swoole_task_unpack(swoole::EventData *task_result);
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
 #endif
+
+const swoole::Allocator *sw_php_allocator();
+const swoole::Allocator *sw_zend_string_allocator();
 
 namespace zend {
 //-----------------------------------namespace begin--------------------------------------------

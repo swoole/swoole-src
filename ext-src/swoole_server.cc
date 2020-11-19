@@ -1033,7 +1033,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     serv->get_packet = php_swoole_server_worker_get_packet;
 
     if (serv->is_base_mode()) {
-        serv->buffer_allocator = &SWOOLE_G(zend_string_allocator);
+        serv->buffer_allocator = sw_zend_string_allocator();
     }
 
     /**

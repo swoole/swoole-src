@@ -517,7 +517,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Socket *sock = php_swoole_get_socket(zconn);
-    sock->set_buffer_allocator(&SWOOLE_G(zend_string_allocator));
+    sock->set_buffer_allocator(sw_zend_string_allocator());
     swString *buffer = sock->get_read_buffer();
     http_context *ctx = nullptr;
     bool header_completed = false;

@@ -31,7 +31,7 @@ typedef std::function<bool(const char *, size_t)> StringExplodeHandler;
 
 class String {
   private:
-    void alloc(size_t _size, const swAllocator *_allocator) {
+    void alloc(size_t _size, const Allocator *_allocator) {
         if (_allocator == nullptr) {
             _allocator = &SwooleG.std_allocator;
         }
@@ -66,7 +66,7 @@ class String {
     size_t size;
     off_t offset;
     char *str;
-    const swAllocator *allocator;
+    const Allocator *allocator;
 
     String() {
         length = size = offset = 0;
@@ -74,7 +74,7 @@ class String {
         allocator = nullptr;
     }
 
-    explicit String(size_t _size, const swAllocator *_allocator = nullptr) {
+    explicit String(size_t _size, const Allocator *_allocator = nullptr) {
         alloc(_size, _allocator);
     }
 
@@ -254,7 +254,7 @@ class String {
     void reduce(off_t offset);
 };
 
-inline String *make_string(size_t size, const swAllocator *allocator = nullptr) {
+inline String *make_string(size_t size, const Allocator *allocator = nullptr) {
     return new String(size, allocator);
 }
 }  // namespace swoole

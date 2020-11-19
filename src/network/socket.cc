@@ -56,7 +56,7 @@ void IOVector::update_iterator(ssize_t __n) {
 
     SW_LOOP_N(remain_count) {
         total_bytes += iov_iterator[i].iov_len;
-        if (total_bytes >= __n) {
+        if ((ssize_t) total_bytes >= __n) {
             _offset_bytes = iov_iterator[i].iov_len - (total_bytes - __n);
             _index = i;
 

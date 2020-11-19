@@ -417,13 +417,6 @@ enum swFork_type {
 typedef unsigned char uchar;
 #endif
 
-struct swAllocator {
-    void *(*malloc)(size_t size);
-    void *(*calloc)(size_t nmemb, size_t size);
-    void *(*realloc)(void *ptr, size_t size);
-    void (*free)(void *ptr);
-};
-
 #define swoole_tolower(c) (uchar)((c >= 'A' && c <= 'Z') ? (c | 0x20) : c)
 #define swoole_toupper(c) (uchar)((c >= 'a' && c <= 'z') ? (c & ~0x20) : c)
 
@@ -607,6 +600,13 @@ struct ThreadGlobal {
     int error;
 };
 
+struct Allocator {
+    void *(*malloc)(size_t size);
+    void *(*calloc)(size_t nmemb, size_t size);
+    void *(*realloc)(void *ptr, size_t size);
+    void (*free)(void *ptr);
+};
+
 struct Global {
     uchar init : 1;
     uchar running : 1;
@@ -637,7 +637,7 @@ struct Global {
     uint32_t max_sockets;
     //-----------------------[Memory]--------------------------
     MemoryPool *memory_pool;
-    swAllocator std_allocator;
+    Allocator std_allocator;
     std::string task_tmpfile;
     //-----------------------[DNS]--------------------------
     char *dns_server_v4;

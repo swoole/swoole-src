@@ -794,7 +794,7 @@ class Server {
     EventData *last_task = nullptr;
     std::queue<String *> *buffer_pool = nullptr;
 
-    swAllocator *buffer_allocator = &SwooleG.std_allocator;
+    const Allocator *buffer_allocator = &SwooleG.std_allocator;
     size_t recv_buffer_size = SW_BUFFER_SIZE_BIG;
 
     int manager_alarm = 0;
