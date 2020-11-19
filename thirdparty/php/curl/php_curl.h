@@ -123,6 +123,8 @@ typedef struct {
 	zend_bool                     in_callback;
 	uint32_t*                     clone;
 	swoole::Coroutine *co;
+	swoole::FutureTask *context;
+	std::function<bool(void)> *callback;
 } php_curl;
 
 #define CURLOPT_SAFE_UPLOAD -1

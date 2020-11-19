@@ -146,6 +146,7 @@ enum php_swoole_fd_type
      * for Co::fread/Co::fwrite
      */
     PHP_SWOOLE_FD_CO_UTIL,
+    PHP_SWOOLE_FD_CO_CURL,
 };
 //---------------------------------------------------------
 typedef enum
@@ -452,6 +453,20 @@ static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
 static sw_inline zend_bool ZVAL_IS_BOOL(zval *v)
 {
     return Z_TYPE_P(v) == IS_TRUE || Z_TYPE_P(v) == IS_FALSE;
+}
+#endif
+
+#ifndef ZVAL_IS_TRUE
+static sw_inline zend_bool ZVAL_IS_TRUE(zval *v)
+{
+    return Z_TYPE_P(v) == IS_TRUE;
+}
+#endif
+
+#ifndef ZVAL_IS_FALSE
+static sw_inline zend_bool ZVAL_IS_FALSE(zval *v)
+{
+    return Z_TYPE_P(v) == IS_FALSE;
 }
 #endif
 

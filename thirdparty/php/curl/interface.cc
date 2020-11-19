@@ -18,6 +18,9 @@
 
 #include "php_swoole_cxx.h"
 
+using swoole::network::Socket;
+using namespace swoole;
+
 SW_EXTERN_C_BEGIN
 
 #include <stdio.h>
@@ -222,6 +225,119 @@ void _php_curl_verify_handlers(php_curl *ch, int reporterror) /* {{{ */
 }
 /* }}} */
 
+static CURLM * g_curl_multi_handle;
+static TimerNode *timer;
+
+static void check_multi_info(void);
+
+static int curl_event_readable_callback(Reactor *reactor, Event *event) {
+    int running_handles;
+    curl_multi_socket_action(g_curl_multi_handle, event->fd, CURL_CSELECT_IN, &running_handles);
+    check_multi_info();
+    return 0;
+}
+
+static int curl_event_writable_callback(Reactor *reactor, Event *event) {
+    int running_handles;
+    curl_multi_socket_action(g_curl_multi_handle, event->fd, CURL_CSELECT_OUT, &running_handles);
+    check_multi_info();
+    return 0;
+}
+
+static Socket* create_curl_context(curl_socket_t sockfd) {
+    if (!swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL)) {
+        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_READ, curl_event_readable_callback);
+        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_WRITE, curl_event_writable_callback);
+    }
+    Socket *socket = new Socket();
+    socket->fd = sockfd;
+    socket->fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_CURL;
+    return socket;
+}
+
+static int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp) {
+    Socket *socket;
+    int events = 0;
+
+    switch (action) {
+    case CURL_POLL_IN:
+    case CURL_POLL_OUT:
+    case CURL_POLL_INOUT:
+        socket = socketp ? (Socket*) socketp : create_curl_context(s);
+        curl_multi_assign(g_curl_multi_handle, s, (void*) socket);
+
+        if (action != CURL_POLL_IN) {
+            events |= SW_EVENT_WRITE;
+        }
+        if (action != CURL_POLL_OUT) {
+            events |= SW_EVENT_READ;
+        }
+        swoole_event_add(socket, events);
+        break;
+    case CURL_POLL_REMOVE:
+        if (socketp) {
+            socket = socketp ? (Socket*) socketp : create_curl_context(s);
+            swoole_event_del(socket);
+            socket->fd = -1;
+            socket->free();
+            curl_multi_assign(g_curl_multi_handle, s, NULL);
+        }
+        break;
+    default:
+        abort();
+    }
+
+    return 0;
+}
+
+static void check_multi_info(void) {
+    CURLMsg *message;
+    int pending;
+    CURL *easy_handle;
+
+    while ((message = curl_multi_info_read(g_curl_multi_handle, &pending))) {
+        switch (message->msg) {
+        case CURLMSG_DONE:
+            /* Do not use message data after calling curl_multi_remove_handle() and
+             curl_easy_cleanup(). As per curl_multi_info_read() docs:
+             "WARNING: The data the returned pointer points to will not survive
+             calling curl_multi_cleanup, curl_multi_remove_handle or
+             curl_easy_cleanup." */
+            easy_handle = message->easy_handle;
+            curl_multi_remove_handle(g_curl_multi_handle, easy_handle);
+            php_curl *ch;
+            curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &ch);
+            zval result;
+            ZVAL_TRUE(&result);
+            ch->callback = nullptr;
+            PHPCoroutine::resume_m(ch->context, &result);
+            break;
+        default:
+            swWarn("CURLMSG default\n");
+            break;
+        }
+    }
+}
+
+static int start_timeout(CURLM *multi, long timeout_ms, void *userp) {
+    if (timeout_ms < 0) {
+        if (timer) {
+            swoole_timer_del(timer);
+        }
+    } else {
+        if (timeout_ms == 0) {
+            timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */
+        }
+        swoole_timer_del(timer);
+        timer = swoole_timer_add(timeout_ms, true, [](Timer *timer, TimerNode *tnode) {
+            int running_handles;
+            curl_multi_socket_action(g_curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
+            check_multi_info();
+
+        });
+    }
+    return 0;
+}
 
 /* {{{ PHP_MINIT_FUNCTION
  */
@@ -230,6 +346,9 @@ void swoole_native_curl_init(int module_number)
 	le_curl = zend_register_list_destructors_ex(_php_curl_close, NULL, le_curl_name, module_number);
 //	le_curl_multi_handle = zend_register_list_destructors_ex(_php_curl_multi_close, NULL, "curl_multi", module_number);
 //	le_curl_share_handle = zend_register_list_destructors_ex(_php_curl_share_close, NULL, "curl_share", module_number);
+    g_curl_multi_handle = curl_multi_init();
+    curl_multi_setopt(g_curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
+    curl_multi_setopt(g_curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout);
 
 #ifdef PHP_CURL_NEED_GNUTLS_TSL
 	gcry_control(GCRYCTL_SET_THREAD_CBS, &php_curl_gnutls_tsl);
@@ -491,8 +610,7 @@ static size_t curl_write_header(char *data, size_t size, size_t nmemb, void *ctx
 
 	switch (t->method) {
 		case PHP_CURL_STDOUT:
-			/* Handle special case write when we're returning the entire transfer
-			 */
+			// Handle special case write when we're returning the entire transfer
 			if (ch->handlers->write->method == PHP_CURL_RETURN && length > 0) {
 				smart_str_appendl(&ch->handlers->write->buf, data, (int) length);
 			} else {
@@ -502,36 +620,45 @@ static size_t curl_write_header(char *data, size_t size, size_t nmemb, void *ctx
 		case PHP_CURL_FILE:
 			return fwrite(data, size, nmemb, t->fp);
 		case PHP_CURL_USER: {
-			zval argv[2];
-			zval retval;
-			int  error;
-			zend_fcall_info fci;
+		    std::function<bool(void)> fn = [&]() -> bool {
+	            zval argv[2];
+	            zval retval;
+	            int  error;
+	            zend_fcall_info fci;
 
-			ZVAL_RES(&argv[0], ch->res);
-			Z_ADDREF(argv[0]);
-			ZVAL_STRINGL(&argv[1], data, length);
+	            ZVAL_RES(&argv[0], ch->res);
+	            Z_ADDREF(argv[0]);
+	            ZVAL_STRINGL(&argv[1], data, length);
 
-			fci.size = sizeof(fci);
-			ZVAL_COPY_VALUE(&fci.function_name, &t->func_name);
-			fci.object = NULL;
-			fci.retval = &retval;
-			fci.param_count = 2;
-			fci.params = argv;
-			fci.no_separation = 0;
+	            fci.size = sizeof(fci);
+	            ZVAL_COPY_VALUE(&fci.function_name, &t->func_name);
+	            fci.object = NULL;
+	            fci.retval = &retval;
+	            fci.param_count = 2;
+	            fci.params = argv;
+	            fci.no_separation = 0;
 
-			ch->in_callback = 1;
-			error = zend_call_function(&fci, &t->fci_cache);
-			ch->in_callback = 0;
-			if (error == FAILURE) {
-				php_error_docref(NULL, E_WARNING, "Could not call the CURLOPT_HEADERFUNCTION");
-				length = -1;
-			} else if (!Z_ISUNDEF(retval)) {
-				_php_curl_verify_handlers(ch, 1);
-				length = zval_get_long(&retval);
-			}
-			zval_ptr_dtor(&argv[0]);
-			zval_ptr_dtor(&argv[1]);
-			break;
+	            ch->in_callback = 1;
+	            error = zend_call_function(&fci, &t->fci_cache);
+	            ch->in_callback = 0;
+	            if (error == FAILURE) {
+	                php_error_docref(NULL, E_WARNING, "Could not call the CURLOPT_HEADERFUNCTION");
+	                length = -1;
+	            } else if (!Z_ISUNDEF(retval)) {
+	                _php_curl_verify_handlers(ch, 1);
+	                length = zval_get_long(&retval);
+	            }
+	            zval_ptr_dtor(&argv[0]);
+	            zval_ptr_dtor(&argv[1]);
+
+	            return true;
+		    };
+
+            zval result;
+            ZVAL_NULL(&result);
+            ch->callback = &fn;
+            PHPCoroutine::resume_m(ch->context, &result);
+            break;
 		}
 
 		case PHP_CURL_IGNORE:
@@ -706,6 +833,8 @@ static void _php_curl_set_default_options(php_curl *ch)
 	curl_easy_setopt(ch->cp, CURLOPT_INFILE,            (void *) ch);
 	curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION,    curl_write_header);
 	curl_easy_setopt(ch->cp, CURLOPT_WRITEHEADER,       (void *) ch);
+    curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, ch);
+
 #if !defined(ZTS)
 	curl_easy_setopt(ch->cp, CURLOPT_DNS_USE_GLOBAL_CACHE, 1);
 #endif
@@ -1796,12 +1925,20 @@ PHP_FUNCTION(swoole_native_curl_exec)
 	}
 
 	_php_curl_verify_handlers(ch, 1);
-
 	_php_curl_cleanup_handle(ch);
 
-	swoole::coroutine::async([&error, ch]() {
-	    error = curl_easy_perform(ch->cp);
-	});
+	curl_multi_add_handle(g_curl_multi_handle, ch->cp);
+
+    FutureTask *context = (FutureTask *) emalloc(sizeof(FutureTask));
+    ch->context = context;
+
+    do {
+        PHPCoroutine::yield_m(return_value, context);
+    } while(ZVAL_IS_NULL(return_value) && ch->callback && (*ch->callback)());
+
+    if (ZVAL_IS_TRUE(return_value)) {
+        error = CURLE_OK;
+    }
 
 	SAVE_CURL_ERROR(ch, error);
 	/* CURLE_PARTIAL_FILE is returned by HEAD requests */
