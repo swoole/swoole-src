@@ -7,6 +7,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v1
+    - name: install-deps
+      run: sudo apt install -y libcurl4-openssl-dev php-curl
     - name: phpize
       run: phpize
     - name: build1
@@ -35,6 +37,8 @@ jobs:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
+    - name: install-deps
+      run: sudo apt install -y libcurl4-openssl-dev php-curl
     - name: phpize
       run: phpize
     - name: build1
@@ -60,7 +64,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - name: install dependencies
-      run: brew install openssl && brew link openssl
+      run: brew install openssl && brew link openssl && brew install curl && brew link curl 
     - uses: actions/checkout@v1
     - name: phpize
       run: phpize
