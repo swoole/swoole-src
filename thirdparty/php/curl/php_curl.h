@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2017 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -85,9 +85,6 @@ struct php_curl_handlers {
     php_curl_write *write;
     php_curl_write *write_header;
     php_curl_read *read;
-#if CURLOPT_PASSWDFUNCTION != 0
-	zval               passwd;
-#endif
     zval std_err;
     php_curl_progress *progress;
 #if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
@@ -129,7 +126,6 @@ struct php_curl {
 
 #define CURLOPT_SAFE_UPLOAD -1
 
-php_curl *curl_alloc_handle();
 void _php_curl_cleanup_handle(php_curl *);
 void _php_curl_verify_handlers(php_curl *ch, int reporterror);
 void _php_setup_easy_copy_handlers(php_curl *ch, php_curl *source);

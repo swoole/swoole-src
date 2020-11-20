@@ -90,6 +90,7 @@ static int le_curl;
 
 static void _php_curl_close_ex(php_curl *ch);
 static void _php_curl_close(zend_resource *rsrc);
+static php_curl *curl_alloc_handle();
 
 #define SAVE_CURL_ERROR(__handle, __err) (__handle)->err.no = (int) __err;
 
@@ -396,7 +397,6 @@ int cURLMulti::handle_timeout(CURLM *multi, long timeout_ms, void *userp) {
 
 void swoole_native_curl_init(int module_number)
 {
-    swSSL_init();
     le_curl = zend_register_list_destructors_ex(_php_curl_close, NULL, le_curl_name, module_number);
     g_curl_multi = new cURLMulti();
 }
@@ -815,7 +815,7 @@ static void curl_free_slist(zval *el)
 }
 /* }}} */
 
-php_curl *curl_alloc_handle()
+static php_curl *curl_alloc_handle()
 {
     php_curl *ch               = (php_curl *)ecalloc(1, sizeof(php_curl));
     ch->to_free                = (struct _php_curl_free *)ecalloc(1, sizeof(struct _php_curl_free));
