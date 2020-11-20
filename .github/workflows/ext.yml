@@ -27,7 +27,7 @@ jobs:
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build7
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json \
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json 
         --enable-openssl --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
 
@@ -52,7 +52,7 @@ jobs:
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build6
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json \
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json 
         --enable-openssl --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
 
@@ -80,7 +80,7 @@ jobs:
         --with-openssl-dir=/usr/local/opt/openssl@1.1 &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build6
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json \
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json 
         --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
 

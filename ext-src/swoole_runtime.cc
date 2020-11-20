@@ -1165,7 +1165,9 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 
 #ifdef SW_USE_CURL
     if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {
-        flags ^= PHPCoroutine::HOOK_CURL;
+        if (flags & PHPCoroutine::HOOK_CURL) {
+            flags ^= PHPCoroutine::HOOK_CURL;
+        }
         if (!(hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
             hook_func(ZEND_STRL("curl_close"), PHP_FN(swoole_native_curl_close));
             hook_func(ZEND_STRL("curl_copy_handle"), PHP_FN(swoole_native_curl_copy_handle));
