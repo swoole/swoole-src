@@ -1,5 +1,5 @@
 <?php
-Co::set(['hook_flags' => SWOOLE_HOOK_ALL | SWOOLE_HOOK_CURL_NATIVE, ]);
+Co::set(['hook_flags' => SWOOLE_HOOK_ALL | SWOOLE_HOOK_NATIVE_CURL, ]);
 //Co::set(['hook_flags' => SWOOLE_HOOK_ALL, ]);
 
 Co\run(function () {

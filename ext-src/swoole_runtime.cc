@@ -96,6 +96,8 @@ PHP_FUNCTION(swoole_native_curl_unescape);
 #if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
 PHP_FUNCTION(swoole_native_curl_pause);
 #endif
+void swoole_native_curl_init(int module_number);
+void swoole_native_curl_rshutdown();
 #endif
 
 SW_EXTERN_C_END
@@ -192,8 +194,6 @@ static zend_array *function_table = nullptr;
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
-void swoole_native_curl_init(int module_number);
-void swoole_native_curl_rshutdown();
 SW_EXTERN_C_END
 
 void php_swoole_runtime_minit(int module_number) {
@@ -213,11 +213,12 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", PHPCoroutine::HOOK_SLEEP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PROC", PHPCoroutine::HOOK_PROC);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL", PHPCoroutine::HOOK_CURL);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL_NATIVE", PHPCoroutine::HOOK_CURL_NATIVE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NATIVE_CURL", PHPCoroutine::HOOK_NATIVE_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
-
+#ifdef SW_USE_CURL
     swoole_native_curl_init(module_number);
+#endif
     swoole_proc_open_init(module_number);
 }
 
@@ -1162,9 +1163,9 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
 
 #ifdef SW_USE_CURL
-    if (flags & PHPCoroutine::HOOK_CURL_NATIVE) {
+    if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {
         flags ^= PHPCoroutine::HOOK_CURL;
-        if (!(hook_flags & PHPCoroutine::HOOK_CURL_NATIVE)) {
+        if (!(hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
             hook_func(ZEND_STRL("curl_close"), PHP_FN(swoole_native_curl_close));
             hook_func(ZEND_STRL("curl_copy_handle"), PHP_FN(swoole_native_curl_copy_handle));
             hook_func(ZEND_STRL("curl_errno"), PHP_FN(swoole_native_curl_errno));
@@ -1180,7 +1181,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("curl_unescape"), PHP_FN(swoole_native_curl_unescape));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_CURL_NATIVE) {
+        if (hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
             SW_UNHOOK_FUNC(curl_close);
             SW_UNHOOK_FUNC(curl_copy_handle);
             SW_UNHOOK_FUNC(curl_errno);

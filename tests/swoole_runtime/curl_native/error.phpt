@@ -12,7 +12,7 @@ use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;
 
-Runtime::enableCoroutine(SWOOLE_HOOK_ALL | SWOOLE_HOOK_CURL_NATIVE);
+Runtime::enableCoroutine(SWOOLE_HOOK_ALL | SWOOLE_HOOK_NATIVE_CURL);
 $s = microtime(true);
 run(function () {
     $ch = curl_init();
