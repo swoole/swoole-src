@@ -80,7 +80,7 @@ jobs:
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build5
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl \
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl 
         --with-openssl-dir=/usr/local/opt/openssl@1.1 &&
         make clean && make -j$(sysctl -n hw.ncpu)
     - name: build6
