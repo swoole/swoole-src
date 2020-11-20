@@ -448,21 +448,26 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             ctx->request.post_form_urlencoded = 1;
         } else if (SW_STRCASECT(at, length, "multipart/form-data")) {
             offset = sizeof("multipart/form-data") - 1;
-            while (at[offset] == ' ' || at[offset] == ';') {
+            // skip ' ' and ';'
+            while (offset < length && (at[offset] == ' ' || at[offset] == ';')) {
                 offset++;
             }
+            // skip 'boundary='
             offset += sizeof("boundary=") - 1;
-
             int boundary_len = length - offset;
             char *boundary_str = (char *) at + offset;
-
-            // find ';'
-            char *tmp = (char *) memchr(boundary_str, ';', boundary_len);
-            if (tmp) {
-                boundary_len = tmp - boundary_str;
+            // find eof of boundary
+            if (boundary_len > 0) {
+                // find ';'
+                char *tmp = (char *) memchr(boundary_str, ';', boundary_len);
+                if (tmp) {
+                    boundary_len = tmp - boundary_str;
+                }
             }
             if (boundary_len <= 0) {
                 swWarn("invalid multipart/form-data body fd:%ld", ctx->fd);
+                /* make it same with protocol error */
+                ctx->parser.state = s_dead;
                 return -1;
             }
             // trim '"'
