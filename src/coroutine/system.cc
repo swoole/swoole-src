@@ -646,7 +646,6 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
 struct AsyncLambdaTask {
     Coroutine *co;
     std::function<void(void)> fn;
-    bool completed;
 };
 
 static void async_lambda_handler(AsyncEvent *event) {
@@ -661,14 +660,13 @@ static void async_lambda_callback(AsyncEvent *event) {
         return;
     }
     AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
-    task->completed = true;
     task->co->resume();
 }
 
 bool async(const std::function<void(void)> &fn, double timeout) {
     TimerNode *timer = nullptr;
     AsyncEvent event{};
-    AsyncLambdaTask task{Coroutine::get_current_safe(), fn, false};
+    AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
 
     event.object = &task;
     event.handler = async_lambda_handler;
@@ -681,9 +679,7 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     if (timeout > 0) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
-    do {
-        task.co->yield();
-    } while (!task.completed && !_ev->canceled);
+    task.co->yield();
     errno = _ev->error;
     swoole_set_last_error(_ev->error);
     if (_ev->error == SW_ERROR_AIO_TIMEOUT) {
