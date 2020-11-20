@@ -85,16 +85,16 @@ void Heap::percolate_down(uint32_t i) {
 }
 
 HeapNode *Heap::push(uint64_t priority, void *data) {
-    void *tmp;
+    HeapNode **tmp;
     uint32_t i;
     uint32_t newsize;
 
     if (num >= size) {
         newsize = size * 2;
-        if (!(tmp = sw_realloc(nodes, sizeof(void *) * newsize))) {
+        if (!(tmp = (HeapNode **) sw_realloc(nodes, sizeof(HeapNode *) * newsize))) {
             return nullptr;
         }
-        nodes = (HeapNode **) tmp;
+        nodes = tmp;
         size = newsize;
     }
 
