@@ -70,6 +70,7 @@ static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 
+#ifdef SW_USE_CURL
 PHP_FUNCTION(swoole_native_curl_close);
 PHP_FUNCTION(swoole_native_curl_copy_handle);
 PHP_FUNCTION(swoole_native_curl_errno);
@@ -83,12 +84,6 @@ PHP_FUNCTION(swoole_native_curl_setopt_array);
 #include <curl/curl.h>
 #include <curl/multi.h>
 
-#if LIBCURL_VERSION_NUM >= 0x070c00 /* 7.12.0 */
-PHP_FUNCTION(swoole_native_curl_strerror);
-PHP_FUNCTION(swoole_native_curl_multi_strerror);
-PHP_FUNCTION(swoole_native_curl_share_strerror);
-#endif
-
 #if LIBCURL_VERSION_NUM >= 0x070c01 /* 7.12.1 */
 PHP_FUNCTION(swoole_native_curl_reset);
 #endif
@@ -96,11 +91,11 @@ PHP_FUNCTION(swoole_native_curl_reset);
 #if LIBCURL_VERSION_NUM >= 0x070f04 /* 7.15.4 */
 PHP_FUNCTION(swoole_native_curl_escape);
 PHP_FUNCTION(swoole_native_curl_unescape);
-PHP_FUNCTION(swoole_native_curl_multi_setopt);
 #endif
 
 #if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
 PHP_FUNCTION(swoole_native_curl_pause);
+#endif
 #endif
 
 SW_EXTERN_C_END
@@ -1163,6 +1158,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 
+#ifdef SW_USE_CURL
     if (flags & PHPCoroutine::HOOK_CURL_NATIVE) {
         flags ^= PHPCoroutine::HOOK_CURL;
         if (!(hook_flags & PHPCoroutine::HOOK_CURL_NATIVE)) {
@@ -1175,12 +1171,29 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("curl_init"), PHP_FN(swoole_native_curl_init));
             hook_func(ZEND_STRL("curl_setopt"), PHP_FN(swoole_native_curl_setopt));
             hook_func(ZEND_STRL("curl_setopt_array"), PHP_FN(swoole_native_curl_setopt_array));
+            hook_func(ZEND_STRL("curl_reset"), PHP_FN(swoole_native_curl_reset));
+            hook_func(ZEND_STRL("curl_pause"), PHP_FN(swoole_native_curl_pause));
+            hook_func(ZEND_STRL("curl_escape"), PHP_FN(swoole_native_curl_escape));
+            hook_func(ZEND_STRL("curl_unescape"), PHP_FN(swoole_native_curl_unescape));
         }
     } else {
         if (hook_flags & PHPCoroutine::HOOK_CURL_NATIVE) {
+            SW_UNHOOK_FUNC(curl_close);
+            SW_UNHOOK_FUNC(curl_copy_handle);
+            SW_UNHOOK_FUNC(curl_errno);
+            SW_UNHOOK_FUNC(curl_error);
             SW_UNHOOK_FUNC(curl_exec);
+            SW_UNHOOK_FUNC(curl_getinfo);
+            SW_UNHOOK_FUNC(curl_init);
+            SW_UNHOOK_FUNC(curl_setopt);
+            SW_UNHOOK_FUNC(curl_setopt_array);
+            SW_UNHOOK_FUNC(curl_reset);
+            SW_UNHOOK_FUNC(curl_pause);
+            SW_UNHOOK_FUNC(curl_escape);
+            SW_UNHOOK_FUNC(curl_unescape);
         }
     }
+#endif
 
     if (flags & PHPCoroutine::HOOK_CURL) {
         if (!(hook_flags & PHPCoroutine::HOOK_CURL)) {

@@ -55,6 +55,9 @@ PHP_ARG_ENABLE(swoole-dev, whether to enable Swoole developer build flags,
 PHP_ARG_ENABLE(swoole-json, whether to enable Swoole JSON build flags,
 [  --enable-swoole-json      Enable JSON support], no, no)
 
+PHP_ARG_ENABLE(swoole-curl, whether to enable Swoole CURL build flags,
+[  --enable-swoole-curl      Enable cURL support], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -343,6 +346,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_SWOOLE_JSON" = "yes"; then
         AC_DEFINE(SW_USE_JSON, 1, [do we enable json decoder])
+    fi
+    
+    if test "$PHP_SWOOLE_CURL" = "yes"; then
+        AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
     fi
 
     AC_CHECK_LIB(z, gzgets, [

@@ -18,6 +18,7 @@
 
 #include "php_swoole_cxx.h"
 
+#ifdef SW_USE_CURL
 #include "swoole_util.h"
 
 using swoole::network::Socket;
@@ -226,7 +227,7 @@ void _php_curl_verify_handlers(php_curl *ch, int reporterror) /* {{{ */
 /* }}} */
 
 static CURLM * g_curl_multi_handle;
-static TimerNode *timer;
+static TimerNode *g_curl_timer;
 
 static void check_multi_info(void);
 
@@ -312,7 +313,7 @@ static void check_multi_info(void) {
             php_curl *ch;
             curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &ch);
             zval result;
-            ZVAL_TRUE(&result);
+            ZVAL_LONG(&result, message->data.result);
             ch->callback = nullptr;
             PHPCoroutine::resume_m(ch->context, &result);
             break;
@@ -323,17 +324,17 @@ static void check_multi_info(void) {
     }
 }
 
-static int start_timeout(CURLM *multi, long timeout_ms, void *userp) {
+static int handle_timeout(CURLM *multi, long timeout_ms, void *userp) {
     if (timeout_ms < 0) {
-        if (timer) {
-            swoole_timer_del(timer);
+        if (g_curl_timer) {
+            swoole_timer_del(g_curl_timer);
         }
     } else {
         if (timeout_ms == 0) {
             timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */
         }
-        swoole_timer_del(timer);
-        timer = swoole_timer_add(timeout_ms, true, [](Timer *timer, TimerNode *tnode) {
+        swoole_timer_del(g_curl_timer);
+        g_curl_timer = swoole_timer_add(timeout_ms, true, [](Timer *timer, TimerNode *tnode) {
             int running_handles;
             curl_multi_socket_action(g_curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
             check_multi_info();
@@ -351,7 +352,7 @@ void swoole_native_curl_init(int module_number)
 	le_curl = zend_register_list_destructors_ex(_php_curl_close, NULL, le_curl_name, module_number);
     g_curl_multi_handle = curl_multi_init();
     curl_multi_setopt(g_curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
-    curl_multi_setopt(g_curl_multi_handle, CURLMOPT_TIMERFUNCTION, start_timeout);
+    curl_multi_setopt(g_curl_multi_handle, CURLMOPT_TIMERFUNCTION, handle_timeout);
 }
 /* }}} */
 
@@ -855,7 +856,7 @@ static void create_certinfo(struct curl_certinfo *ci, zval *listcode)
    Set default options for a handle */
 static void _php_curl_set_default_options(php_curl *ch)
 {
-	char *cainfo;
+	const char *cainfo;
 
 	curl_easy_setopt(ch->cp, CURLOPT_NOPROGRESS,        1);
 	curl_easy_setopt(ch->cp, CURLOPT_VERBOSE,           0);
@@ -1967,11 +1968,9 @@ PHP_FUNCTION(swoole_native_curl_exec)
         PHPCoroutine::yield_m(return_value, context);
     } while(ZVAL_IS_NULL(return_value) && ch->callback && (*ch->callback)());
 
-    if (ZVAL_IS_TRUE(return_value)) {
-        error = CURLE_OK;
-    }
-
+    error = (CURLcode) Z_LVAL_P(return_value);
 	SAVE_CURL_ERROR(ch, error);
+
 	/* CURLE_PARTIAL_FILE is returned by HEAD requests */
 	if (error != CURLE_OK && error != CURLE_PARTIAL_FILE) {
 		smart_str_free(&ch->handlers->write->buf);
@@ -2143,7 +2142,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo)
 				} else {
 					RETURN_FALSE;
 				}
-                /* no break */
+                break;
 #if LIBCURL_VERSION_NUM >= 0x071301 /* Available since 7.19.1 */
 			case CURLINFO_CERTINFO: {
 				struct curl_certinfo *ci = NULL;
@@ -2367,28 +2366,6 @@ static void _php_curl_close(zend_resource *rsrc)
 }
 /* }}} */
 
-#if LIBCURL_VERSION_NUM >= 0x070c00 /* Available since 7.12.0 */
-/* {{{ proto bool curl_strerror(int code)
-      return string describing error code */
-PHP_FUNCTION(swoole_native_curl_strerror)
-{
-	zend_long code;
-	const char *str;
-
-	if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &code) == FAILURE) {
-		return;
-	}
-
-	str = curl_easy_strerror((CURLcode) code);
-	if (str) {
-		RETURN_STRING(str);
-	} else {
-		RETURN_NULL();
-	}
-}
-/* }}} */
-#endif
-
 #if LIBCURL_VERSION_NUM >= 0x070c01 /* 7.12.1 */
 /* {{{ _php_curl_reset_handlers()
    Reset all handlers of a given php_curl */
@@ -2560,3 +2537,4 @@ PHP_FUNCTION(swoole_native_curl_pause)
  */
 
 SW_EXTERN_C_END
+#endif

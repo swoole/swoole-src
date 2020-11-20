@@ -24,6 +24,7 @@ function test() {
     });
 
     $output = curl_exec($ch);
+    var_dump($output);
     var_dump(strlen($output));
     if ($output === false) {
         echo "CURL Error:" . curl_error($ch);
