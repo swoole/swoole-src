@@ -107,6 +107,7 @@ struct _php_curl_send_headers {
 struct _php_curl_free {
 	zend_llist str;
 	zend_llist post;
+    zend_llist stream;
 	HashTable *slist;
 };
 
@@ -119,6 +120,9 @@ struct php_curl {
     struct _php_curl_error err;
     zend_bool in_callback;
     uint32_t *clone;
+#if LIBCURL_VERSION_NUM >= 0x073800 /* 7.56.0 */
+    zval postfields;
+#endif
     swoole::FutureTask *context;
     std::function<bool(void)> *callback;
 };
