@@ -533,13 +533,13 @@ if test "$PHP_SWOOLE" != "no"; then
         src/os/base.cc \
         src/os/file.cc \
         src/os/msg_queue.cc \
+        src/os/pipe.cc \
         src/os/process_pool.cc \
         src/os/sendfile.cc \
         src/os/signal.cc \
         src/os/timer.cc \
-        src/os/wait.cc \
-        src/os/pipe.cc \
         src/os/unix_socket.cc \
+        src/os/wait.cc \
         src/protocol/base.cc \
         src/protocol/base64.cc \
         src/protocol/dtls.cc \
