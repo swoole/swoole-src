@@ -253,8 +253,9 @@ void php_swoole_runtime_rshutdown() {
     zend_hash_destroy(function_table);
     efree(function_table);
     function_table = nullptr;
-
+#ifdef SW_USE_CURL
     swoole_native_curl_rshutdown();
+#endif
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err) {
