@@ -1,5 +1,6 @@
 <?php
 Co::set(['hook_flags' => SWOOLE_HOOK_ALL | SWOOLE_HOOK_CURL_NATIVE, ]);
+//Co::set(['hook_flags' => SWOOLE_HOOK_ALL, ]);
 
 Co\run(function () {
     $n = 3;
@@ -11,20 +12,22 @@ Co\run(function () {
 function test() {
     echo "curl init\n";
     $ch = curl_init();
-    var_dump($ch);
-    curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:9801/");
+//    $url = 'https://www.baidu.com/';
+    $url = "http://127.0.0.1:9801/";
+
+    curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
     curl_setopt($ch, CURLOPT_HEADER, 0);
     curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $strHeader) {
-        var_dump($ch, $strHeader);
+        //var_dump($ch, $strHeader);
         return strlen($strHeader);
     });
 
     $output = curl_exec($ch);
-    var_dump($output);
+    var_dump(strlen($output));
     if ($output === false) {
         echo "CURL Error:" . curl_error($ch);
     }
-    echo $output;
+//    var_dump($output);
     curl_close($ch);
 }
