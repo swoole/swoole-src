@@ -106,6 +106,87 @@ static void _php_curl_close(zend_resource *rsrc);
 # define php_curl_ret(__ret) RETVAL_FALSE; return;
 #endif
 
+namespace swoole {
+class cURLMulti {
+    CURLM *handle;
+    TimerNode *timer;
+
+    void read_info();
+
+    Socket *create_socket(curl_socket_t sockfd) {
+        if (!swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL)) {
+            swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_READ, cb_readable);
+            swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_WRITE, cb_writable);
+        }
+        Socket *socket = new Socket();
+        socket->fd = sockfd;
+        socket->fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_CURL;
+        curl_multi_assign(handle, sockfd, (void*) socket);
+        return socket;
+    }
+
+ public:
+    cURLMulti() {
+        handle = curl_multi_init();
+        curl_multi_setopt(handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
+        curl_multi_setopt(handle, CURLMOPT_TIMERFUNCTION, handle_timeout);
+        timer = nullptr;
+    }
+
+    bool add(CURL *cp) {
+        return curl_multi_add_handle(handle, cp) == CURLM_OK;
+    }
+
+    void add_timer(long timeout_ms) {
+       timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
+            socket_action(CURL_SOCKET_TIMEOUT, 0);
+            read_info();
+        });
+    }
+
+    void del_timer() {
+        if (timer) {
+            swoole_timer_del(timer);
+        }
+    }
+
+    void set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
+        Socket *socket = socket_ptr ? (Socket*) socket_ptr : create_socket(sockfd);
+        int events = 0;
+        if (action != CURL_POLL_IN) {
+            events |= SW_EVENT_WRITE;
+        }
+        if (action != CURL_POLL_OUT) {
+            events |= SW_EVENT_READ;
+        }
+        if (socket->events) {
+            swoole_event_set(socket, events);
+        } else {
+            swoole_event_add(socket, events);
+        }
+    }
+
+    void del_event(void *socket_ptr, curl_socket_t sockfd) {
+        Socket *socket = (Socket*) socket_ptr;
+        swoole_event_del(socket);
+        socket->fd = -1;
+        socket->free();
+        curl_multi_assign(handle, sockfd, NULL);
+    }
+
+    void socket_action(int fd, int type) {
+        int running_handles;
+        curl_multi_socket_action(handle, fd, CURL_CSELECT_IN, &running_handles);
+        read_info();
+    }
+
+    static int cb_readable(Reactor *reactor, Event *event);
+    static int cb_writable(Reactor *reactor, Event *event);
+    static int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp);
+    static int handle_timeout(CURLM *multi, long timeout_ms, void *userp);
+};
+}
+
 static int php_curl_option_str(php_curl *ch, zend_long option, const char *str, const size_t len, zend_bool make_copy)
 {
 	long error = CURLE_OK;
@@ -226,81 +307,49 @@ void _php_curl_verify_handlers(php_curl *ch, int reporterror) /* {{{ */
 }
 /* }}} */
 
-static CURLM * g_curl_multi_handle;
-static TimerNode *g_curl_timer;
 
-static void check_multi_info(void);
+static cURLMulti *g_curl_multi = nullptr;
 
-static int cb_readable(Reactor *reactor, Event *event) {
-    int running_handles;
-    curl_multi_socket_action(g_curl_multi_handle, event->fd, CURL_CSELECT_IN, &running_handles);
-    check_multi_info();
+static inline cURLMulti *sw_curl_multi() {
+    return g_curl_multi;
+}
+
+static void curl_read_multi_info(void);
+
+int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
+    sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_IN);
     return 0;
 }
 
-static int cb_writable(Reactor *reactor, Event *event) {
-    int running_handles;
-    curl_multi_socket_action(g_curl_multi_handle, event->fd, CURL_CSELECT_OUT, &running_handles);
-    check_multi_info();
+int cURLMulti::cb_writable(Reactor *reactor, Event *event) {
+    sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_OUT);
     return 0;
 }
 
-static Socket* create_curl_context(curl_socket_t sockfd) {
-    if (!swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL)) {
-        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_READ, cb_readable);
-        swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_WRITE, cb_writable);
-    }
-    Socket *socket = new Socket();
-    socket->fd = sockfd;
-    socket->fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_CURL;
-    return socket;
-}
-
-static int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp) {
-    Socket *socket;
-    int events = 0;
-
+int cURLMulti::handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp) {
     switch (action) {
     case CURL_POLL_IN:
     case CURL_POLL_OUT:
     case CURL_POLL_INOUT:
-        socket = socketp ? (Socket*) socketp : create_curl_context(s);
-        curl_multi_assign(g_curl_multi_handle, s, (void*) socket);
-
-        if (action != CURL_POLL_IN) {
-            events |= SW_EVENT_WRITE;
-        }
-        if (action != CURL_POLL_OUT) {
-            events |= SW_EVENT_READ;
-        }
-        if (socket->events) {
-            swoole_event_set(socket, events);
-        } else {
-            swoole_event_add(socket, events);
-        }
+        sw_curl_multi()->set_event(socketp, s, action);
         break;
     case CURL_POLL_REMOVE:
         if (socketp) {
-            socket = (Socket*) socketp;
-            swoole_event_del(socket);
-            socket->fd = -1;
-            socket->free();
-            curl_multi_assign(g_curl_multi_handle, s, NULL);
+            sw_curl_multi()->del_event(socketp, s);
         }
         break;
     default:
         abort();
     }
-
     return 0;
 }
 
-static void check_multi_info(void) {
+void cURLMulti::read_info() {
     CURLMsg *message;
     int pending;
     CURL *easy_handle;
 
-    while ((message = curl_multi_info_read(g_curl_multi_handle, &pending))) {
+    while ((message = curl_multi_info_read(handle, &pending))) {
         switch (message->msg) {
         case CURLMSG_DONE:
             /* Do not use message data after calling curl_multi_remove_handle() and
@@ -309,7 +358,7 @@ static void check_multi_info(void) {
              calling curl_multi_cleanup, curl_multi_remove_handle or
              curl_easy_cleanup." */
             easy_handle = message->easy_handle;
-            curl_multi_remove_handle(g_curl_multi_handle, easy_handle);
+            curl_multi_remove_handle(handle, easy_handle);
             php_curl *ch;
             curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &ch);
             zval result;
@@ -318,43 +367,36 @@ static void check_multi_info(void) {
             PHPCoroutine::resume_m(ch->context, &result);
             break;
         default:
-            swWarn("CURLMSG default\n");
+            swWarn("CURLMSG default");
             break;
         }
     }
 }
 
-static int handle_timeout(CURLM *multi, long timeout_ms, void *userp) {
+int cURLMulti::handle_timeout(CURLM *multi, long timeout_ms, void *userp) {
     if (timeout_ms < 0) {
-        if (g_curl_timer) {
-            swoole_timer_del(g_curl_timer);
-        }
+        sw_curl_multi()->del_timer();
     } else {
         if (timeout_ms == 0) {
             timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */
         }
-        swoole_timer_del(g_curl_timer);
-        g_curl_timer = swoole_timer_add(timeout_ms, true, [](Timer *timer, TimerNode *tnode) {
-            int running_handles;
-            curl_multi_socket_action(g_curl_multi_handle, CURL_SOCKET_TIMEOUT, 0, &running_handles);
-            check_multi_info();
-
-        });
+        sw_curl_multi()->add_timer(timeout_ms);
     }
     return 0;
 }
 
-/* {{{ PHP_MINIT_FUNCTION
- */
 void swoole_native_curl_init(int module_number)
 {
     swSSL_init();
 	le_curl = zend_register_list_destructors_ex(_php_curl_close, NULL, le_curl_name, module_number);
-    g_curl_multi_handle = curl_multi_init();
-    curl_multi_setopt(g_curl_multi_handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
-    curl_multi_setopt(g_curl_multi_handle, CURLMOPT_TIMERFUNCTION, handle_timeout);
+	g_curl_multi = new cURLMulti();
 }
-/* }}} */
+
+void swoole_native_curl_rshutdown() {
+    delete g_curl_multi;
+    g_curl_multi = nullptr;
+}
+
 
 /* {{{ curl_write_nothing
  * Used as a work around. See _php_curl_close_ex
@@ -787,9 +829,7 @@ static void curl_free_slist(zval *el)
 }
 /* }}} */
 
-/* {{{ alloc_curl_handle
- */
-php_curl *alloc_curl_handle()
+php_curl *curl_alloc_handle()
 {
 	php_curl *ch               = (php_curl *)ecalloc(1, sizeof(php_curl));
 	ch->to_free                = (struct _php_curl_free *)ecalloc(1, sizeof(struct _php_curl_free));
@@ -814,7 +854,6 @@ php_curl *alloc_curl_handle()
 
 	return ch;
 }
-/* }}} */
 
 #if LIBCURL_VERSION_NUM >= 0x071301 /* Available since 7.19.1 */
 /* {{{ create_certinfo
@@ -905,7 +944,7 @@ PHP_FUNCTION(swoole_native_curl_init)
 		RETURN_FALSE;
 	}
 
-	ch = alloc_curl_handle();
+	ch = curl_alloc_handle();
 
 	ch->cp = cp;
 
@@ -1022,7 +1061,7 @@ PHP_FUNCTION(swoole_native_curl_copy_handle)
 		RETURN_FALSE;
 	}
 
-	dupch = alloc_curl_handle();
+	dupch = curl_alloc_handle();
 	dupch->cp = cp;
 
 	_php_setup_easy_copy_handlers(dupch, ch);
@@ -1956,7 +1995,7 @@ PHP_FUNCTION(swoole_native_curl_exec)
 	_php_curl_verify_handlers(ch, 1);
 	_php_curl_cleanup_handle(ch);
 
-	curl_multi_add_handle(g_curl_multi_handle, ch->cp);
+	sw_curl_multi()->add(ch->cp);
 
     FutureTask *context = (FutureTask*) emalloc(sizeof(FutureTask));
     ON_SCOPE_EXIT {

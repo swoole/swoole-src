@@ -125,7 +125,7 @@ struct php_curl {
 
 #define CURLOPT_SAFE_UPLOAD -1
 
-php_curl *alloc_curl_handle();
+php_curl *curl_alloc_handle();
 void _php_curl_cleanup_handle(php_curl *);
 void _php_curl_verify_handlers(php_curl *ch, int reporterror);
 void _php_setup_easy_copy_handlers(php_curl *ch, php_curl *source);

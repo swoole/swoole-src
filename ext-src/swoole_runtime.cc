@@ -193,6 +193,7 @@ SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
 #include "thirdparty/php/streams/plain_wrapper.c"
 void swoole_native_curl_init(int module_number);
+void swoole_native_curl_rshutdown();
 SW_EXTERN_C_END
 
 void php_swoole_runtime_minit(int module_number) {
@@ -251,6 +252,8 @@ void php_swoole_runtime_rshutdown() {
     zend_hash_destroy(function_table);
     efree(function_table);
     function_table = nullptr;
+
+    swoole_native_curl_rshutdown();
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err) {
