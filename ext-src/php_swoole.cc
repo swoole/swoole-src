@@ -843,6 +843,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #ifdef SW_USE_JSON
     php_info_print_table_row(2, "json", "enabled");
 #endif
+#ifdef SW_USE_CURL
+    php_info_print_table_row(2, "curl-native", "enabled");
+#endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
 #endif

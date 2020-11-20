@@ -314,8 +314,6 @@ static inline cURLMulti *sw_curl_multi() {
     return g_curl_multi;
 }
 
-static void curl_read_multi_info(void);
-
 int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
     sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_IN);
     return 0;

@@ -20,6 +20,7 @@ phpize > /dev/null && \
 --enable-mysqlnd \
 --enable-gconv \
 --enable-swoole-json \
+--enable-swoole-curl \
 > /dev/null && \
 make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
