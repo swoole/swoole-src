@@ -411,7 +411,7 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     zend_fcall_info_cache fci_cache;
     zval zcallback;
     ZVAL_STRING(&zcallback, "onAccept");
-    if (!sw_zend_is_callable_ex(&zcallback, ZEND_THIS, 0, &func_name, nullptr, &fci_cache, nullptr)) {
+    if (!sw_zend_is_callable_at_frame(&zcallback, ZEND_THIS, execute_data, 0, &func_name, nullptr, &fci_cache, nullptr)) {
         php_swoole_fatal_error(E_CORE_ERROR, "function '%s' is not callable", func_name);
         return;
     }

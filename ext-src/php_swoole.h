@@ -923,10 +923,15 @@ static sw_inline zend_bool sw_zend_is_callable(zval *callable, int check_flags, 
     return ret;
 }
 
-static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, size_t *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
+static sw_inline zend_bool sw_zend_is_callable_at_frame(zval *zcallable, zval *zobject, zend_execute_data *frame, uint check_flags, char **callable_name, size_t *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
 {
     zend_string *name;
-    zend_bool ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &name, fci_cache, error);
+    zend_bool ret;
+#if PHP_VERSION_ID < 80000
+    ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &name, fci_cache, error);
+#else
+    ret = zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, &name, fci_cache, error);
+#endif
     if (callable_name)
     {
         *callable_name = estrndup(ZSTR_VAL(name), ZSTR_LEN(name));
@@ -937,6 +942,11 @@ static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable, zval *zobject
     }
     zend_string_release(name);
     return ret;
+}
+
+static sw_inline zend_bool sw_zend_is_callable_ex(zval *zcallable, zval *zobject, uint check_flags, char **callable_name, size_t *callable_name_len, zend_fcall_info_cache *fci_cache, char **error)
+{
+    return sw_zend_is_callable_at_frame(zcallable, zobject, NULL, check_flags, callable_name, callable_name_len, fci_cache, error);
 }
 
 /* this API can work well when retval is NULL */

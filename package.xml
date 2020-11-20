@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-11-06</date>
-    <time>13:00:00</time>
+    <date>2020-11-20</date>
+    <time>15:00:00</time>
     <version>
-        <release>4.5.7</release>
+        <release>4.5.8</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,25 +56,31 @@
     <notes>
         New APIs
         ---
-        + Added writeVector, writeVectorAll, readVector, readVectorAll for Coroutine::Socket (#3764) (@huanghantao)
+        + Added swoole_error_log function (swoole/swoole-src@67d2bff) (@matyhtf)
+        + Supported SSL for readVector and writeVector (#3857) (@huanghantao)
 
         Enhancement
         ---
-        + Added task_worker_num and dispatch_count for server->stats (#3771) (#3806) (@sy-records) (@matyhtf)
-        + Added extension dependencies, including json, mysqlnd, sockets (#3789) (@remicollet)
-        + Limited the minimum for uid server->bind is INT32_MIN (#3785) (@sy-records)
-        + Added compilation option for JSON decoder, Support negative offset (#3809) (@matyhtf)
-        + Added CURLOPT_TCP_NODELAY for Curl (swoole/library#65) (@sy-records) (@deminy)
+        + Did not wait when the child process does not exist (#3832) (@matyhtf)
+        + Supported DTLS 16k record (#3849) (@matyhtf)
+        + Supported priority for cookie (#3854) (@matyhtf)
+        + Supported more CURL options (swoole/library#71) (@sy-records)
+        + Handled CURL header names in case insensitive manner (swoole/library#76) (@filakhtov) (@twose) (@sy-records)
 
         Fixed
         ---
-        * Fixed sync client::connect error info (#3784) (@twose)
-        * Fixed the scandir function hooked (#3793) (@twose)
-        * Fixed some errors in the barrier (swoole/library#68) (@sy-records)
+        * Fixed readv_all and writev_all when trigger EAGAIN errno (#3830) (@huanghantao)
+        * Fixed warning for PHP8 (swoole/swoole-src@03f3fb0) (@matyhtf)
+        * Fixed binary security of swoole table keys (#3842) (@twose)
+        * Fixed System::writeFile append file issue when using FILE_APPEND (swoole/swoole-src@a71956d) (@matyhtf)
+        * Fixed CURLOPT_WRITEFUNCTION (swoole/library#74) (@sy-records)
+        * Fixed memory overread when parse form-data boundary (#3858) (@twose)
+        * Fixed is_callable() can not access internal private callable on PHP8 (#3859) (@twose)
 
         Kernel
         ---
-        * Optimized print-backtrace, using boost.stacktrace (#3788) (@matyhtf)
+        * Refactored memory allocation function, replace macro with SwooleG.std_allocator (#3853) (@matyhtf)
+        * Refactored pipe (#3841) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -631,14 +637,13 @@
             <file role="src" name="src/os/base.cc" />
             <file role="src" name="src/os/file.cc" />
             <file role="src" name="src/os/msg_queue.cc" />
+            <file role="src" name="src/os/pipe.cc" />
             <file role="src" name="src/os/process_pool.cc" />
             <file role="src" name="src/os/sendfile.cc" />
             <file role="src" name="src/os/signal.cc" />
             <file role="src" name="src/os/timer.cc" />
+            <file role="src" name="src/os/unix_socket.cc" />
             <file role="src" name="src/os/wait.cc" />
-            <file role="src" name="src/pipe/base.cc" />
-            <file role="src" name="src/pipe/eventfd.cc" />
-            <file role="src" name="src/pipe/unix_socket.cc" />
             <file role="src" name="src/protocol/base.cc" />
             <file role="src" name="src/protocol/base64.cc" />
             <file role="src" name="src/protocol/dtls.cc" />
@@ -845,6 +850,7 @@
             <file role="test" name="tests/swoole_client_coro/udp_recv_failed.phpt" />
             <file role="test" name="tests/swoole_client_coro/unsock_dgram.phpt" />
             <file role="test" name="tests/swoole_client_coro/unsock_stream.phpt" />
+            <file role="test" name="tests/swoole_client_sync/bind_address.phpt" />
             <file role="test" name="tests/swoole_client_sync/connect_1.phpt" />
             <file role="test" name="tests/swoole_client_sync/connect_2.phpt" />
             <file role="test" name="tests/swoole_client_sync/connect_3.phpt" />
@@ -991,6 +997,7 @@
             <file role="test" name="tests/swoole_coroutine_system/waitPid.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/waitSignal.phpt" />
             <file role="test" name="tests/swoole_coroutine_system/writefile.phpt" />
+            <file role="test" name="tests/swoole_coroutine_system/writefile_append.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/dns_lookup.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/exec.phpt" />
             <file role="test" name="tests/swoole_coroutine_util/exec_sleep.phpt" />
@@ -1472,6 +1479,7 @@
             <file role="test" name="tests/swoole_runtime/proc/3.phpt" />
             <file role="test" name="tests/swoole_runtime/proc/4.phpt" />
             <file role="test" name="tests/swoole_runtime/proc/5.phpt" />
+            <file role="test" name="tests/swoole_runtime/proc/close_after_wait.phpt" />
             <file role="test" name="tests/swoole_runtime/proc/proc_open_pipes.inc" />
             <file role="test" name="tests/swoole_runtime/redis_connect.phpt" />
             <file role="test" name="tests/swoole_runtime/redis_pconnect.phpt" />
@@ -1606,6 +1614,7 @@
             <file role="test" name="tests/swoole_server/send_2m_in_user_process.phpt" />
             <file role="test" name="tests/swoole_server/send_3.phpt" />
             <file role="test" name="tests/swoole_server/send_big_packet.phpt" />
+            <file role="test" name="tests/swoole_server/send_in_other_worker_with_base.phpt" />
             <file role="test" name="tests/swoole_server/sendfile.phpt" />
             <file role="test" name="tests/swoole_server/sendfile_02.phpt" />
             <file role="test" name="tests/swoole_server/sendfile_ssl.phpt" />
@@ -1624,6 +1633,7 @@
             <file role="test" name="tests/swoole_server/ssl/code/client.go" />
             <file role="test" name="tests/swoole_server/ssl/code/client.js" />
             <file role="test" name="tests/swoole_server/ssl/dtls.phpt" />
+            <file role="test" name="tests/swoole_server/ssl/dtls_big_packet.phpt" />
             <file role="test" name="tests/swoole_server/ssl/dtls_with_length_protocol.phpt" />
             <file role="test" name="tests/swoole_server/ssl/golang.phpt" />
             <file role="test" name="tests/swoole_server/ssl/nodejs.phpt" />
@@ -1704,7 +1714,11 @@
             <file role="test" name="tests/swoole_socket_coro/protocol/bug_3586.phpt" />
             <file role="test" name="tests/swoole_socket_coro/protocol/package_length_func.phpt" />
             <file role="test" name="tests/swoole_socket_coro/readVectorAll.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/readVectorAll_ssl.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/readVector_ssl.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/readVector_ssl_eagain.phpt" />
             <file role="test" name="tests/swoole_socket_coro/readv.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/readv_eagain.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_bad_packet.phpt" />
@@ -1726,7 +1740,11 @@
             <file role="test" name="tests/swoole_socket_coro/ulimit.phpt" />
             <file role="test" name="tests/swoole_socket_coro/unix_dgram.phpt" />
             <file role="test" name="tests/swoole_socket_coro/writeVectorAll.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/writeVectorAll_ssl.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/writeVector_ssl.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/writeVector_ssl_eagain.phpt" />
             <file role="test" name="tests/swoole_socket_coro/writev.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/writev_eagain.phpt" />
             <file role="test" name="tests/swoole_table/big_size.phpt" />
             <file role="test" name="tests/swoole_table/bug_2263.phpt" />
             <file role="test" name="tests/swoole_table/bug_2290.phpt" />
