@@ -726,4 +726,5 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
 fi
