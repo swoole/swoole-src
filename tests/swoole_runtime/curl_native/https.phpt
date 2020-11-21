@@ -27,6 +27,8 @@ run(function () {
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_HEADER, 0);
+            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT , 2);
+            curl_setopt($curl, CURLOPT_TIMEOUT, 5);
             curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $strHeader) {
                 return strlen($strHeader);
             });
