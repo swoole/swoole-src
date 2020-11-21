@@ -27,18 +27,18 @@ run(function () {
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
             curl_setopt($ch, CURLOPT_HEADER, 0);
-            curl_setopt($curl, CURLOPT_CONNECTTIMEOUT , 2);
-            curl_setopt($curl, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT , 2);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
             curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $strHeader) {
                 return strlen($strHeader);
             });
 
             $output = curl_exec($ch);
-            Assert::notEmpty($output);
-            Assert::greaterThan(strlen($output), 10000);
             if ($output === false) {
                 echo "CURL Error:" . curl_error($ch);
             }
+            Assert::notEmpty($output);
+            Assert::greaterThan(strlen($output), 10000);
             curl_close($ch);
         });
     }
