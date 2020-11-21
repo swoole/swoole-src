@@ -14,7 +14,7 @@ use function Swoole\Coroutine\run;
 
 const N = 8;
 
-Runtime::enableCoroutine(SWOOLE_HOOK_ALL | SWOOLE_HOOK_NATIVE_CURL);
+Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 $s = microtime(true);
 run(function () {
     $n = N;

@@ -18,7 +18,7 @@ $pm = new SwooleTest\ProcessManager;
 const N = 8;
 
 $pm->parentFunc = function () use ($pm) {
-    Runtime::enableCoroutine(SWOOLE_HOOK_ALL | SWOOLE_HOOK_NATIVE_CURL);
+    Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
     $s = microtime(true);
     run(function () use ($pm) {
         $n = N;
