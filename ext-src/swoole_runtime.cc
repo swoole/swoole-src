@@ -1166,6 +1166,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 #ifdef SW_USE_CURL
     if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {
         if (flags & PHPCoroutine::HOOK_CURL) {
+            php_swoole_fatal_error(E_WARNING, "cannot enable both hooks HOOK_NATIVE_CURL and HOOK_CURL at same time");
             flags ^= PHPCoroutine::HOOK_CURL;
         }
         if (!(hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
