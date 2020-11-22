@@ -138,6 +138,43 @@ class cURLMulti {
     bool add(CURL *cp) {
         return curl_multi_add_handle(handle, cp) == CURLM_OK;
     }
+    
+    void set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
+        Socket *socket = socket_ptr ? (Socket*) socket_ptr : create_socket(sockfd);
+        int events = 0;
+        if (action != CURL_POLL_IN) {
+            events |= SW_EVENT_WRITE;
+        }
+        if (action != CURL_POLL_OUT) {
+            events |= SW_EVENT_READ;
+        }
+        if (socket->events) {
+            swoole_event_set(socket, events);
+        } else {
+            swoole_event_add(socket, events);
+        }
+    }
+
+    void del_event(void *socket_ptr, curl_socket_t sockfd) {
+        Socket *socket = (Socket*) socket_ptr;
+        swoole_event_del(socket);
+        socket->fd = -1;
+        socket->free();
+        curl_multi_assign(handle, sockfd, NULL);
+    }
+
+    void add_timer(long timeout_ms) {
+       timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
+            socket_action(CURL_SOCKET_TIMEOUT, 0);
+            read_info();
+        });
+    }
+
+    void del_timer() {
+        if (timer) {
+            swoole_timer_del(timer);
+        }
+    }
 
  public:
     cURLMulti() {
@@ -166,43 +203,6 @@ class cURLMulti {
         } while(ZVAL_IS_NULL(return_value) && ch->callback && (*ch->callback)());
 
         return (CURLcode) Z_LVAL_P(return_value);
-    }
-
-    void add_timer(long timeout_ms) {
-       timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
-            socket_action(CURL_SOCKET_TIMEOUT, 0);
-            read_info();
-        });
-    }
-
-    void del_timer() {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
-    }
-
-    void set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
-        Socket *socket = socket_ptr ? (Socket*) socket_ptr : create_socket(sockfd);
-        int events = 0;
-        if (action != CURL_POLL_IN) {
-            events |= SW_EVENT_WRITE;
-        }
-        if (action != CURL_POLL_OUT) {
-            events |= SW_EVENT_READ;
-        }
-        if (socket->events) {
-            swoole_event_set(socket, events);
-        } else {
-            swoole_event_add(socket, events);
-        }
-    }
-
-    void del_event(void *socket_ptr, curl_socket_t sockfd) {
-        Socket *socket = (Socket*) socket_ptr;
-        swoole_event_del(socket);
-        socket->fd = -1;
-        socket->free();
-        curl_multi_assign(handle, sockfd, NULL);
     }
 
     void socket_action(int fd, int type) {
