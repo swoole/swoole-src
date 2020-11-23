@@ -160,7 +160,6 @@ class cURLMulti {
         Socket *socket = (Socket*) socket_ptr;
         if (socket->events && swoole_event_del(socket) < 0) {
             swWarn("failed to remove from eventloop");
-            swoole_print_backtrace();
         }
         socket->fd = -1;
         socket->free();
@@ -211,7 +210,7 @@ class cURLMulti {
 
     void socket_action(int fd, int type) {
         int running_handles;
-        curl_multi_socket_action(handle, fd, CURL_CSELECT_IN, &running_handles);
+        curl_multi_socket_action(handle, fd, type, &running_handles);
         read_info();
     }
 
