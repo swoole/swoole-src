@@ -136,11 +136,11 @@ class cURLMulti {
         curl_multi_assign(handle, sockfd, (void*) socket);
         return socket;
     }
-    
+
     bool add(CURL *cp) {
         return curl_multi_add_handle(handle, cp) == CURLM_OK;
     }
-    
+
     void set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
         Socket *socket = socket_ptr ? (Socket*) socket_ptr : create_socket(sockfd);
         int events = 0;
@@ -171,7 +171,6 @@ class cURLMulti {
     void add_timer(long timeout_ms) {
        timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
             socket_action(CURL_SOCKET_TIMEOUT, 0);
-            read_info();
         });
     }
 
