@@ -127,6 +127,7 @@ class cURLMulti {
         if (!swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL)) {
             swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_READ, cb_readable);
             swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_WRITE, cb_writable);
+            swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_ERROR, cb_error);
         }
         Socket *socket = new Socket();
         socket->fd = sockfd;
@@ -208,14 +209,15 @@ class cURLMulti {
         return (CURLcode) Z_LVAL_P(return_value);
     }
 
-    void socket_action(int fd, int type) {
+    void socket_action(int fd, int event_bitmask) {
         int running_handles;
-        curl_multi_socket_action(handle, fd, type, &running_handles);
+        curl_multi_socket_action(handle, fd, event_bitmask, &running_handles);
         read_info();
     }
 
     static int cb_readable(Reactor *reactor, Event *event);
     static int cb_writable(Reactor *reactor, Event *event);
+    static int cb_error(Reactor *reactor, Event *event);
     static int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp);
     static int handle_timeout(CURLM *multi, long timeout_ms, void *userp);
 };
@@ -366,6 +368,11 @@ int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
 
 int cURLMulti::cb_writable(Reactor *reactor, Event *event) {
     sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_OUT);
+    return 0;
+}
+
+int cURLMulti::cb_error(Reactor *reactor, Event *event) {
+    sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_ERR);
     return 0;
 }
 

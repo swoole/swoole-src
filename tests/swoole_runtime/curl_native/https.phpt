@@ -22,7 +22,12 @@ run(function () {
         go(function() {
             $ch = curl_init();
             $code = uniqid('swoole_');
-            $url = "https://www.baidu.com/?code=".urlencode($code);
+            if (IS_IN_TRAVIS) {
+                $domain = 'www.google.com';
+            } else {
+                $domain = 'www.baidu.com';
+            }
+            $url = "https://{$domain}/?code=".urlencode($code);
 
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
