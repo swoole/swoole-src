@@ -158,8 +158,9 @@ class cURLMulti {
 
     void del_event(void *socket_ptr, curl_socket_t sockfd) {
         Socket *socket = (Socket*) socket_ptr;
-        if (socket->events) {
-            swoole_event_del(socket);
+        if (socket->events && swoole_event_del(socket) < 0) {
+            swWarn("failed to remove from eventloop");
+            swoole_print_backtrace();
         }
         socket->fd = -1;
         socket->free();
