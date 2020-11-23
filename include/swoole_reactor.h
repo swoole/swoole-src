@@ -40,6 +40,7 @@ class ReactorImpl {
     ReactorImpl(Reactor *_reactor) {
         reactor_ = _reactor;
     }
+    void after_removal_failure(network::Socket *_socket);
     virtual ~ReactorImpl(){};
     virtual bool ready() = 0;
     virtual int add(network::Socket *socket, int events) = 0;

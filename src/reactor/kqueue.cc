@@ -202,7 +202,7 @@ int ReactorKqueue::del(Socket *socket) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, socket);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
+            after_removal_failure(socket);
             if (errno != EBADF && errno != ENOENT) {
                 return SW_ERR;
             }

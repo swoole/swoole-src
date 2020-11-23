@@ -148,6 +148,7 @@ struct Socket {
     bool enable_tcp_nodelay;
 
     uchar removed : 1;
+    uchar silent_remove : 1;
     uchar nonblock : 1;
     uchar cloexec : 1;
     uchar direct_send : 1;
