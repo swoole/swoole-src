@@ -130,6 +130,7 @@ class cURLMulti {
         }
         Socket *socket = new Socket();
         socket->fd = sockfd;
+        socket->removed = 1;
         socket->fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_CURL;
         curl_multi_assign(handle, sockfd, (void*) socket);
         return socket;
@@ -157,7 +158,9 @@ class cURLMulti {
 
     void del_event(void *socket_ptr, curl_socket_t sockfd) {
         Socket *socket = (Socket*) socket_ptr;
-        swoole_event_del(socket);
+        if (socket->events) {
+            swoole_event_del(socket);
+        }
         socket->fd = -1;
         socket->free();
         curl_multi_assign(handle, sockfd, NULL);
