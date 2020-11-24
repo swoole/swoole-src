@@ -119,7 +119,7 @@ static php_curl *curl_alloc_handle();
 namespace swoole {
 class cURLMulti {
     CURLM *handle;
-    std::vector<TimerNode *> timers;
+    TimerNode *timer = nullptr;
 
     void read_info();
 
@@ -169,18 +169,17 @@ class cURLMulti {
     }
 
     void add_timer(long timeout_ms) {
-        TimerNode *timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
+        if (timer) {
+            swoole_timer_del(timer);
+        }
+
+        timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
             socket_action(CURL_SOCKET_TIMEOUT, 0);
         });
-
-        // because this timeout_ms might be large, if the timer is not triggered, the last event loop does not exit.
-        // so let's save all the timers first, and clear all the timers after curl_exec has finished.
-        timers.push_back(timer);
     }
 
     void del_timer() {
-        //TODO: maybe we have a more elegant way of clear all the timers
-        for(auto timer : timers) {
+        if (timer) {
             swoole_timer_del(timer);
         }
     }
