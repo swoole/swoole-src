@@ -44,6 +44,7 @@ int swoole_add_hook(enum swGlobal_hook_type type, swHookFunc cb, int push_back);
 void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
 const char *swoole_version(void);
 int swoole_version_id(void);
+int swoole_api_version_id(void);
 
 #ifdef __cplusplus
 } /* end extern "C" */
