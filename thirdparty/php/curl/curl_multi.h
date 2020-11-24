@@ -35,9 +35,9 @@ SW_EXTERN_C_END
             ZVAL_NULL(&result); \
             ch->callback = &fn; \
             PHPCoroutine::resume_m(ch->context, &result); \
+            break;
 
 using swoole::network::Socket;
-
 
 namespace swoole {
 class cURLMulti {
