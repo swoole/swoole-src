@@ -72,51 +72,6 @@ static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 
 #ifdef SW_USE_CURL
-PHP_FUNCTION(swoole_native_curl_close);
-PHP_FUNCTION(swoole_native_curl_copy_handle);
-PHP_FUNCTION(swoole_native_curl_errno);
-PHP_FUNCTION(swoole_native_curl_error);
-PHP_FUNCTION(swoole_native_curl_exec);
-PHP_FUNCTION(swoole_native_curl_getinfo);
-PHP_FUNCTION(swoole_native_curl_init);
-PHP_FUNCTION(swoole_native_curl_setopt);
-PHP_FUNCTION(swoole_native_curl_setopt_array);
-
-#if LIBCURL_VERSION_NUM >= 0x070c01 /* 7.12.1 */
-PHP_FUNCTION(swoole_native_curl_reset);
-#endif
-
-#if LIBCURL_VERSION_NUM >= 0x070f04 /* 7.15.4 */
-PHP_FUNCTION(swoole_native_curl_escape);
-PHP_FUNCTION(swoole_native_curl_unescape);
-#endif
-
-#if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
-PHP_FUNCTION(swoole_native_curl_pause);
-#endif
-
-static const zend_function_entry swoole_native_curl_functions[] = {
-    ZEND_FENTRY(curl_close, PHP_FN(swoole_native_curl_close), arginfo_swoole_native_curl_close, 0)
-    ZEND_FENTRY(curl_copy_handle, PHP_FN(swoole_native_curl_copy_handle), arginfo_swoole_native_curl_copy_handle, 0)
-    ZEND_FENTRY(curl_errno, PHP_FN(swoole_native_curl_errno), arginfo_swoole_native_curl_errno, 0)
-    ZEND_FENTRY(curl_error, PHP_FN(swoole_native_curl_error), arginfo_swoole_native_curl_error, 0)
-    ZEND_FENTRY(curl_exec, PHP_FN(swoole_native_curl_exec), arginfo_swoole_native_curl_exec, 0)
-    ZEND_FENTRY(curl_getinfo, PHP_FN(swoole_native_curl_getinfo), arginfo_swoole_native_curl_getinfo, 0)
-    ZEND_FENTRY(curl_init, PHP_FN(swoole_native_curl_init), arginfo_swoole_native_curl_init, 0)
-    ZEND_FENTRY(curl_setopt, PHP_FN(swoole_native_curl_setopt), arginfo_swoole_native_curl_setopt, 0)
-    ZEND_FENTRY(curl_setopt_array, PHP_FN(swoole_native_curl_setopt_array), arginfo_swoole_native_curl_setopt_array, 0)
-    #if LIBCURL_VERSION_NUM >= 0x070c01 /* 7.12.1 */
-    ZEND_FENTRY(curl_reset, PHP_FN(swoole_native_curl_reset), arginfo_swoole_native_curl_reset, 0)
-    #endif
-    #if LIBCURL_VERSION_NUM >= 0x070f04 /* 7.15.4 */
-    ZEND_FENTRY(curl_escape, PHP_FN(swoole_native_curl_escape), arginfo_swoole_native_curl_escape, 0)
-    ZEND_FENTRY(curl_unescape, PHP_FN(swoole_native_curl_unescape), arginfo_swoole_native_curl_unescape, 0)
-    #endif
-    #if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
-    ZEND_FENTRY(curl_pause, PHP_FN(swoole_native_curl_pause), arginfo_swoole_native_curl_pause, 0)
-    #endif
-    PHP_FE_END
-};
 
 void swoole_native_curl_init(int module_number);
 void swoole_native_curl_rshutdown();
@@ -1612,7 +1567,7 @@ static PHP_FUNCTION(swoole_stream_select) {
 
 bool hook_internal_functions(const zend_function_entry *fes)
 {
-    zend_unregister_functions(fes, sizeof(swoole_native_curl_functions) - 1, CG(function_table));
+    zend_unregister_functions(fes, -1, CG(function_table));
     if (zend_register_functions(NULL, fes, NULL, MODULE_PERSISTENT) != SUCCESS) {
         return false;
     }

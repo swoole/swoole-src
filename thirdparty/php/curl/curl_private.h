@@ -152,6 +152,7 @@ void _php_curl_multi_cleanup_list(void *data);
 void _php_curl_verify_handlers(php_curl *ch, int reporterror);
 void _php_setup_easy_copy_handlers(php_curl *ch, php_curl *source);
 
+#if PHP_VERSION_ID >= 80000
 static inline php_curl *curl_from_obj(zend_object *obj) {
 	return (php_curl *)((char *)(obj) - XtOffsetOf(php_curl, std));
 }
@@ -163,10 +164,7 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 }
 
 #define Z_CURL_SHARE_P(zv) curl_share_from_obj(Z_OBJ_P(zv))
-
-void curl_multi_register_class(const zend_function_entry *method_entries);
-void curl_share_register_class(const zend_function_entry *method_entries);
-void curlfile_register_class(void);
 int curl_cast_object(zend_object *obj, zval *result, int type);
+#endif
 
 #endif  /* _PHP_CURL_PRIVATE_H */

@@ -1959,7 +1959,7 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
 #endif
         {
             zval *current;
-            HashTable *ph;
+            HashTable *ph = NULL;
             zend_string *val;
             struct curl_slist *slist = NULL;
 
