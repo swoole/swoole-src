@@ -37,7 +37,7 @@ $pm->childFunc = function () use ($pm) {
 
         $server->handle('/rawcookie', function (Request $request, Response $response) {
             $value = "cn\r\nmalicious-header:injected\r\nContent-Length:27\r\n\r\n<h3>malicious response body";
-            $response->rawcookie('lang', $value);
+            $response->rawCookie('lang', $value);
             $response->end('hello world');
         });
 
@@ -54,5 +54,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Http\Response::rawcookie(): Header may not contain more than a single header, new line detected in %s
+Warning: Swoole\Http\Response::rawCookie(): Header may not contain more than a single header, new line detected in %s
 DONE

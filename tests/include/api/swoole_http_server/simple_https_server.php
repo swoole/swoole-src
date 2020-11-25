@@ -10,7 +10,7 @@ class swoole_http_server extends swoole_server
 class swoole_http_response
 {
     public swoole_function cookie() {}
-    public swoole_function rawcookie() {}
+    public swoole_function rawCookie() {}
     public swoole_function status() {}
     public swoole_function gzip() {}
     public swoole_function header() {}

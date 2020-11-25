@@ -302,7 +302,7 @@ class HttpServer
 
         if ($uri === "/rawcookie") {
             $response->cookie($name, $value, $expire, $path, $domain, $secure, $httpOnly);
-            $response->rawcookie("rawcontent", $request->rawcontent());
+            $response->rawCookie("rawcontent", $request->rawcontent());
         }
 
         $response->end("Hello World!");

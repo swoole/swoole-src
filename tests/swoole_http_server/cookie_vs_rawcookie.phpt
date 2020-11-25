@@ -43,7 +43,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
         $request->get['cookie'] = urldecode($request->get['cookie']);
         $response->cookie('cookie', $request->get['cookie']);
-        $response->rawcookie('rawcookie', $request->get['cookie']);
+        $response->rawCookie('rawcookie', $request->get['cookie']);
         $response->end();
     });
     $http->start();

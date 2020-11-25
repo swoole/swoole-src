@@ -160,7 +160,7 @@ static PHP_METHOD(swoole_http_response, end);
 static PHP_METHOD(swoole_http_response, sendfile);
 static PHP_METHOD(swoole_http_response, redirect);
 static PHP_METHOD(swoole_http_response, cookie);
-static PHP_METHOD(swoole_http_response, rawcookie);
+static PHP_METHOD(swoole_http_response, rawCookie);
 static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
 static PHP_METHOD(swoole_http_response, detach);
@@ -251,7 +251,7 @@ const zend_function_entry swoole_http_response_methods[] =
     PHP_ME(swoole_http_response, initHeader, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_http_response, setCookie, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, rawcookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, rawCookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, status, arginfo_swoole_http_response_status, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_http_response, setStatusCode, status, arginfo_swoole_http_response_status, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, header, arginfo_swoole_http_response_header, ZEND_ACC_PUBLIC)
@@ -1050,7 +1050,7 @@ static PHP_METHOD(swoole_http_response, cookie) {
     php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
-static PHP_METHOD(swoole_http_response, rawcookie) {
+static PHP_METHOD(swoole_http_response, rawCookie) {
     php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
