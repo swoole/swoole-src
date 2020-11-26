@@ -273,6 +273,12 @@ void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
 
+/**
+ * MSHUTDOWN
+ * ==============================================================
+ */
+void php_swoole_runtime_mshutdown() ;
+
 static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata)
 {
     return Z_TYPE_P(zdata) == IS_OBJECT && instanceof_function(Z_OBJCE_P(zdata), swoole_websocket_frame_ce);

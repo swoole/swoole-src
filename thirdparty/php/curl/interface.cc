@@ -28,11 +28,6 @@ SW_EXTERN_C_BEGIN
 #include <stdio.h>
 #include <string.h>
 
-#ifdef PHP_WIN32
-#include <winsock2.h>
-#include <sys/types.h>
-#endif
-
 #include <curl/curl.h>
 #include <curl/easy.h>
 
@@ -2391,6 +2386,11 @@ PHP_FUNCTION(swoole_native_curl_close)
 
     if ((ch = (php_curl*)zend_fetch_resource(Z_RES_P(zid), le_curl_name, le_curl)) == NULL) {
         RETURN_FALSE;
+    }
+
+    if (ch->context) {
+        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "The cURL client is executing, do not close the handle");
+        return;
     }
 
     if (ch->in_callback) {

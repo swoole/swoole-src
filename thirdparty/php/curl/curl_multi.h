@@ -102,7 +102,7 @@ class cURLMulti {
     }
 
     void del_timer() {
-        if (timer) {
+        if (timer && swoole_event_is_available()) {
             swoole_timer_del(timer);
         }
     }
@@ -115,6 +115,11 @@ class cURLMulti {
     }
 
     CURLcode exec(php_curl *ch) {
+        Coroutine::get_current_safe();
+        if (ch->context) {
+            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "The cURL client is executing, do not exec again");
+            return CURLE_FAILED_INIT;
+        }
         if (!add(ch->cp)) {
             return CURLE_FAILED_INIT;
         }
@@ -131,6 +136,8 @@ class cURLMulti {
         do {
             PHPCoroutine::yield_m(return_value, context);
         } while(ZVAL_IS_NULL(return_value) && ch->callback && (*ch->callback)());
+
+        ch->context = nullptr;
 
         return (CURLcode) Z_LVAL_P(return_value);
     }

@@ -253,6 +253,9 @@ void php_swoole_runtime_rshutdown() {
     zend_hash_destroy(function_table);
     efree(function_table);
     function_table = nullptr;
+}
+
+void php_swoole_runtime_mshutdown() {
 #ifdef SW_USE_CURL
     swoole_native_curl_rshutdown();
 #endif
