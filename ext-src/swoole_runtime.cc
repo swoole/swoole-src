@@ -137,6 +137,13 @@ static struct
     nullptr,
 };
 
+static std::vector<std::string> unsafe_functions {
+    "pcntl_fork",
+    "pcntl_wait",
+    "pcntl_waitpid",
+    "pcntl_sigtimedwait",
+};
+
 static const zend_function_entry swoole_runtime_methods[] =
 {
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -154,7 +161,7 @@ static php_stream_wrapper ori_php_plain_files_wrapper;
 static void hook_func(const char *name, size_t l_name, zif_handler handler = nullptr);
 static void unhook_func(const char *name, size_t l_name);
 
-static zend_array *function_table = nullptr;
+static zend_array *tmp_function_table = nullptr;
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/file.h"
@@ -199,7 +206,7 @@ void php_swoole_runtime_rshutdown() {
     hook_init = false;
 
     void *ptr;
-    ZEND_HASH_FOREACH_PTR(function_table, ptr) {
+    ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
         real_func *rf = reinterpret_cast<real_func *>(ptr);
         /**
          * php library function
@@ -212,9 +219,9 @@ void php_swoole_runtime_rshutdown() {
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
-    zend_hash_destroy(function_table);
-    efree(function_table);
-    function_table = nullptr;
+    zend_hash_destroy(tmp_function_table);
+    efree(tmp_function_table);
+    tmp_function_table = nullptr;
 }
 
 static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *portno, int get_err, zend_string **err) {
@@ -960,6 +967,12 @@ static php_stream *socket_create(const char *proto,
     return stream;
 }
 
+void PHPCoroutine::disable_unsafe_function() {
+    for (auto &f : unsafe_functions) {
+        zend_disable_function((char *) f.c_str(), f.length());
+    }
+}
+
 bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (!hook_init) {
         HashTable *xport_hash = php_stream_xport_get_hash();
@@ -974,8 +987,8 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         // file
         memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
 
-        function_table = (zend_array *) emalloc(sizeof(zend_array));
-        zend_hash_init(function_table, 8, nullptr, nullptr, 0);
+        tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
+        zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
 
         hook_init = true;
     }
@@ -1502,7 +1515,7 @@ static PHP_FUNCTION(swoole_stream_select) {
 }
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(function_table, name, l_name);
+    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
     bool use_php_func = false;
     /**
      * use php library function
@@ -1544,11 +1557,11 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler) {
         rf->fci_cache = func_cache;
     }
 
-    zend_hash_add_ptr(function_table, zf->common.function_name, rf);
+    zend_hash_add_ptr(tmp_function_table, zf->common.function_name, rf);
 }
 
 static void unhook_func(const char *name, size_t l_name) {
-    real_func *rf = (real_func *) zend_hash_str_find_ptr(function_table, name, l_name);
+    real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
     if (rf == nullptr) {
         return;
     }
@@ -1626,6 +1639,6 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     fci.no_separation = 1;
 #endif
 
-    real_func *rf = (real_func *) zend_hash_find_ptr(function_table, execute_data->func->common.function_name);
+    real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, execute_data->func->common.function_name);
     zend_call_function(&fci, rf->fci_cache);
 }

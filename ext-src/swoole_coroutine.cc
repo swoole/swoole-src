@@ -332,6 +332,8 @@ inline void PHPCoroutine::activate() {
         enable_hook(config.hook_flags);
     }
 
+    disable_unsafe_function();
+
     /**
      * deactivate when reactor free.
      */
