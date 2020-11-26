@@ -166,7 +166,7 @@ class ThreadPool {
         _queue.push(_event_copy);
         _cv.notify_one();
         event_mutex.unlock();
-        swDebug("push and notify one: %f", swoole_microtime());
+        swDebug("push and notify one: %f", microtime());
         return _event_copy;
     }
 
@@ -244,7 +244,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                 AsyncEvent *event = _queue.pop();
                 event_mutex.unlock();
 
-                swDebug("%s: %f", event ? "pop 1 event" : "no event", swoole_microtime());
+                swDebug("%s: %f", event ? "pop 1 event" : "no event", microtime());
 
                 if (event) {
                     if (sw_unlikely(event->handler == nullptr)) {
