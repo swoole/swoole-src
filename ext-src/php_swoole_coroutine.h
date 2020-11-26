@@ -120,6 +120,7 @@ class PHPCoroutine {
 
     static bool enable_hook(uint32_t flags);
     static bool disable_hook();
+    static void disable_unsafe_function();
 
     static void interrupt_thread_stop();
 
