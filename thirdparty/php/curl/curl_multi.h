@@ -23,7 +23,7 @@ SW_EXTERN_C_BEGIN
 
 #include <curl/curl.h>
 
-#include "php_curl.h"
+#include "curl_private.h"
 
 SW_EXTERN_C_END
 
