@@ -1122,7 +1122,7 @@ int Server::send_to_connection(SendData *_send) {
         _direct_send:
             n = _socket->send(_send_data, _send_length, 0);
             if (n == _send_length) {
-                conn->last_send_time = swoole_microtime();
+                conn->last_send_time = microtime();
                 return SW_OK;
             } else if (n > 0) {
                 _send_data += n;
@@ -1717,7 +1717,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     connection->fd = fd;
     connection->reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
-    connection->last_recv_time = connection->connect_time = swoole_microtime();
+    connection->last_recv_time = connection->connect_time = microtime();
     connection->active = 1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
@@ -1733,7 +1733,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     sw_spinlock(&gs->spinlock);
     SessionId session_id = gs->session_round;
     // get session id
-    for (uint32_t i = 0; i < max_connection; i++) {
+    SW_LOOP_N(max_connection) {
         Session *session = get_session(++session_id);
         // available slot
         if (session->fd == 0) {

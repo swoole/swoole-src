@@ -23,6 +23,7 @@
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::microtime;
 
 using http_request = swoole::http::Request;
 using http_response = swoole::http::Response;
@@ -670,7 +671,7 @@ static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     zval *zserver = ctx->request.zserver;
 
     add_assoc_long(zserver, "request_time", time(nullptr));
-    add_assoc_double(zserver, "request_time_float", swoole_microtime());
+    add_assoc_double(zserver, "request_time_float", microtime());
     add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());
     add_assoc_long(zserver, "remote_port", sock->get_port());
     add_assoc_string(zserver, "remote_addr", (char *) sock->get_ip());

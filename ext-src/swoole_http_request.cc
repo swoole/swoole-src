@@ -52,6 +52,7 @@ enum http_upload_errno {
 
 using http_request = swoole::http::Request;
 using http_context = swoole::http::Context;
+using swoole::microtime;
 
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
@@ -523,7 +524,7 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
     ZSTR_LEN(zstr_path) = php_url_decode(ZSTR_VAL(zstr_path), ZSTR_LEN(zstr_path));
     add_assoc_str_ex(zserver, ZEND_STRL("path_info"), zstr_path);
     add_assoc_long_ex(zserver, ZEND_STRL("request_time"), time(nullptr));
-    add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), swoole_microtime());
+    add_assoc_double_ex(zserver, ZEND_STRL("request_time_float"), microtime());
     add_assoc_string(zserver, "server_protocol", (char *) (ctx->request.version == 101 ? "HTTP/1.1" : "HTTP/1.0"));
 
     ctx->current_header_name = nullptr;

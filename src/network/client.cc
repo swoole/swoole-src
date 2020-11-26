@@ -784,9 +784,9 @@ static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, in
         }
         if (errno == EINTR) {
             if (cli->interrupt_time <= 0) {
-                cli->interrupt_time = swoole_microtime();
+                cli->interrupt_time = microtime();
                 continue;
-            } else if (swoole_microtime() > cli->interrupt_time + cli->timeout) {
+            } else if (microtime() > cli->interrupt_time + cli->timeout) {
                 break;
             } else {
                 continue;
