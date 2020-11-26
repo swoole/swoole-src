@@ -7,7 +7,7 @@ swoole_server: big session id
 require __DIR__ . '/../include/bootstrap.php';
 const N = 10;
 
-define('START_SESSION_ID', 1 << 32);
+define('START_SESSION_ID', 1 << 32 - 1);
 
 use Swoole\Coroutine\Client;
 use Swoole\Timer;
