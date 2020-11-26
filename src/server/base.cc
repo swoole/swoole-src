@@ -91,8 +91,6 @@ bool BaseFactory::notify(DataHead *info) {
 
 bool BaseFactory::end(SessionId session_id) {
     SendData _send{};
-    DataHead info;
-
     _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
@@ -112,6 +110,7 @@ bool BaseFactory::end(SessionId session_id) {
     _do_close:
         conn->closing = 1;
         if (server_->onClose != nullptr) {
+            DataHead info{};
             info.fd = session_id;
             if (conn->close_actively) {
                 info.reactor_id = -1;

@@ -648,7 +648,11 @@ class Server {
     /**
      * use task object
      */
-    bool task_use_object = false;
+    bool event_object = false;
+    /**
+     * use task object
+     */
+    bool task_object = false;
     /**
      * enable coroutine in task worker
      */
