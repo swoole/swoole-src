@@ -148,10 +148,6 @@ static const zend_function_entry swoole_runtime_methods[] =
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
 
-#if PHP_VERSION_ID < 70200
-typedef void (*zif_handler)(INTERNAL_FUNCTION_PARAMETERS);
-#endif
-
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
 #define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
 
