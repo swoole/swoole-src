@@ -969,7 +969,11 @@ static php_stream *socket_create(const char *proto,
 
 void PHPCoroutine::disable_unsafe_function() {
     for (auto &f : unsafe_functions) {
+#if PHP_VERSION_ID < 0x80000
         zend_disable_function((char *) f.c_str(), f.length());
+#else
+        zend_disable_functions(f.c_str());
+#endif
     }
 }
 
