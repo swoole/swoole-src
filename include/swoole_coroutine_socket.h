@@ -520,9 +520,9 @@ class Socket {
             SW_ASSERT_1BYTE(type);
             if (timeout > 0) {
                 if (sw_unlikely(startup_time == 0)) {
-                    startup_time = swoole_microtime();
+                    startup_time = microtime();
                 } else {
-                    double used_time = swoole_microtime() - startup_time;
+                    double used_time = microtime() - startup_time;
                     if (sw_unlikely(timeout - used_time < SW_TIMER_MIN_SEC)) {
                         socket_->set_err(ETIMEDOUT);
                         return true;

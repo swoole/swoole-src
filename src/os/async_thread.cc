@@ -67,7 +67,7 @@ class EventQueue {
             return 0;
         } else {
             AsyncEvent *event = _queue.front();
-            return swoole_microtime() - event->timestamp;
+            return microtime() - event->timestamp;
         }
     }
 
@@ -160,7 +160,7 @@ class ThreadPool {
         }
         auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
-        _event_copy->timestamp = swoole_microtime();
+        _event_copy->timestamp = microtime();
         _event_copy->pipe_socket = SwooleTG.aio_write_socket;
         event_mutex.lock();
         _queue.push(_event_copy);

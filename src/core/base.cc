@@ -536,12 +536,6 @@ int swoole_version_compare(const char *version1, const char *version2) {
     return result;
 }
 
-double swoole_microtime(void) {
-    struct timeval t;
-    gettimeofday(&t, nullptr);
-    return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
-}
-
 void swoole_rtrim(char *str, int len) {
     int i;
     for (i = len; i > 0;) {
@@ -878,5 +872,12 @@ std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &
 
     return result;
 }
+
+double microtime(void) {
+    struct timeval t;
+    gettimeofday(&t, nullptr);
+    return (double) t.tv_sec + ((double) t.tv_usec / 1000000);
+}
+
 //-------------------------------------------------------------------------------
 };  // namespace swoole

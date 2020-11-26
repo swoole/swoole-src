@@ -132,7 +132,7 @@ static int ReactorThread_onPacketReceived(Reactor *reactor, Event *event) {
     task.info.server_fd = fd;
     task.info.reactor_id = SwooleTG.id;
     task.info.type = SW_SERVER_EVENT_RECV_DGRAM;
-    task.info.time = swoole_microtime();
+    task.info.time = microtime();
 
     pkt->socket_addr.type = pkt->socket_type = server_sock->socket_type;
 
@@ -479,7 +479,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
             // send_data->info.fd is session_id
             Connection *conn = serv->get_connection_verify(send_data->info.fd);
             if (conn) {
-                conn->last_send_time = swoole_microtime();
+                conn->last_send_time = microtime();
                 if (conn->closed) {
                     swoole_error_log(SW_LOG_NOTICE,
                                      SW_ERROR_SESSION_CLOSED_BY_SERVER,
@@ -589,7 +589,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     }
 #endif
 
-    conn->last_recv_time = swoole_microtime();
+    conn->last_recv_time = microtime();
 
     int retval = port->onRead(reactor, port, event);
     if (!conn->active) {
@@ -1084,7 +1084,7 @@ void Server::start_heartbeat_thread() {
         SwooleTG.id = reactor_num;
 
         while (running) {
-            double checktime = swoole_microtime() - heartbeat_idle_time;
+            double checktime = microtime() - heartbeat_idle_time;
             foreach_connection([this, checktime](Connection *conn) {
                 if (conn->protect || conn->last_recv_time == 0 || conn->last_recv_time > checktime) {
                     return;

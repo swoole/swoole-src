@@ -2961,7 +2961,7 @@ static PHP_METHOD(swoole_server, heartbeat) {
     }
 
     array_init(return_value);
-    double checktime = swoole_microtime() - serv->heartbeat_idle_time;
+    double checktime = microtime() - serv->heartbeat_idle_time;
 
     serv->foreach_connection([serv, checktime, close_connection, return_value](Connection *conn) {
         swTrace("heartbeat check fd=%d", conn->fd);
@@ -3151,11 +3151,11 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
     }
 
     pipe->set_timeout(timeout);
-    double _now = swoole_microtime();
+    double _now = microtime();
     while (n_task > 0) {
         int ret = pipe->read(&notify, sizeof(notify));
         if (ret > 0 && *finish_count < n_task) {
-            if (swoole_microtime() - _now < timeout) {
+            if (microtime() - _now < timeout) {
                 continue;
             }
         }
@@ -3547,7 +3547,7 @@ static PHP_METHOD(swoole_server, getClientInfo) {
         add_assoc_long(return_value, "remote_port", conn->info.get_port());
         add_assoc_string(return_value, "remote_ip", (char * ) conn->info.get_ip());
         add_assoc_long(return_value, "reactor_id", conn->reactor_id);
-        add_assoc_long(return_value, "connect_time", (int ) conn->connect_time);
+        add_assoc_long(return_value, "connect_time", conn->connect_time);
         add_assoc_long(return_value, "last_time", (int ) conn->last_recv_time);
         add_assoc_double(return_value, "last_recv_time", conn->last_recv_time);
         add_assoc_double(return_value, "last_send_time", conn->last_send_time);

@@ -509,7 +509,6 @@ int swoole_get_systemd_listen_fds();
 void swoole_init(void);
 void swoole_clean(void);
 pid_t swoole_fork(int flags);
-double swoole_microtime(void);
 void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
@@ -657,6 +656,7 @@ struct Global {
 std::string dirname(const std::string &file);
 int hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
+double microtime(void);
 }
 
 extern swoole::Global SwooleG;                  // Local Global Variable
