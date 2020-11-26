@@ -1264,8 +1264,6 @@ typedef swoole::ListenPort swListenPort;
 typedef swoole::Connection swConnection;
 typedef swoole::RecvData swRecvData;
 
-#define SW_MAX_SESSION_ID 0x1000000
-
 extern swoole::Server *g_server_instance;
 
 static inline swoole::Server *sw_server() {

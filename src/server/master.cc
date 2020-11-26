@@ -1219,7 +1219,7 @@ bool Server::notify(Connection *conn, enum ServerEventType event) {
  * @process Worker
  */
 bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID)) {
+    if (sw_unlikely(session_id <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
     }
