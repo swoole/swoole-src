@@ -209,6 +209,10 @@ SW_API int swoole_version_id(void) {
     return SWOOLE_VERSION_ID;
 }
 
+SW_API int swoole_api_version_id(void) {
+    return SWOOLE_API_VERSION_ID;
+}
+
 SW_EXTERN_C_END
 
 void swoole_clean(void) {

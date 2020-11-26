@@ -24,6 +24,7 @@
 #include "swoole_signal.h"
 
 #include <sys/ipc.h>
+#include <sys/resource.h>
 
 using namespace swoole;
 
@@ -104,11 +105,13 @@ static PHP_METHOD(swoole_process, alarm);
 static PHP_METHOD(swoole_process, wait);
 static PHP_METHOD(swoole_process, daemon);
 #ifdef HAVE_CPU_AFFINITY
-static PHP_METHOD(swoole_process, setaffinity);
+static PHP_METHOD(swoole_process, setAffinity);
 #endif
 static PHP_METHOD(swoole_process, set);
 static PHP_METHOD(swoole_process, setTimeout);
 static PHP_METHOD(swoole_process, setBlocking);
+static PHP_METHOD(swoole_process, setPriority);
+static PHP_METHOD(swoole_process, getPriority);
 static PHP_METHOD(swoole_process, start);
 static PHP_METHOD(swoole_process, write);
 static PHP_METHOD(swoole_process, read);
@@ -158,10 +161,19 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_daemon, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 #ifdef HAVE_CPU_AFFINITY
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setaffinity, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setAffinity, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, cpu_settings, 0)
 ZEND_END_ARG_INFO()
 #endif
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_setPriority, 0, 0, 2)
+    ZEND_ARG_INFO(0, which)
+    ZEND_ARG_INFO(0, priority)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_getPriority, 0, 0, 1)
+    ZEND_ARG_INFO(0, which)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_process_set, 0, 0, 1)
     ZEND_ARG_ARRAY_INFO(0, settings, 0)
@@ -222,8 +234,10 @@ static const zend_function_entry swoole_process_methods[] =
     PHP_ME(swoole_process, kill, arginfo_swoole_process_kill, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_process, daemon, arginfo_swoole_process_daemon, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #ifdef HAVE_CPU_AFFINITY
-    PHP_ME(swoole_process, setaffinity, arginfo_swoole_process_setaffinity, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_process, setAffinity, arginfo_swoole_process_setAffinity, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
 #endif
+    PHP_ME(swoole_process, setPriority, arginfo_swoole_process_setPriority, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process, getPriority, arginfo_swoole_process_getPriority, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, set, arginfo_swoole_process_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, setTimeout, arginfo_swoole_process_setTimeout, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_process, setBlocking, arginfo_swoole_process_setBlocking, ZEND_ACC_PUBLIC)
@@ -308,6 +322,10 @@ void php_swoole_process_minit(int module_number) {
         REGISTER_LONG_CONSTANT("SIGSYS", (zend_long) SIGSYS, CONST_CS | CONST_PERSISTENT);
 #endif
         REGISTER_LONG_CONSTANT("SIG_IGN", (zend_long) SIG_IGN, CONST_CS | CONST_PERSISTENT);
+
+        REGISTER_LONG_CONSTANT("PRIO_PROCESS", (zend_long) PRIO_PROCESS, CONST_CS | CONST_PERSISTENT);
+        REGISTER_LONG_CONSTANT("PRIO_PGRP", (zend_long) PRIO_PGRP, CONST_CS | CONST_PERSISTENT);
+        REGISTER_LONG_CONSTANT("PRIO_USER", (zend_long) PRIO_USER, CONST_CS | CONST_PERSISTENT);
     }
 }
 
@@ -995,7 +1013,7 @@ static PHP_METHOD(swoole_process, daemon) {
 }
 
 #ifdef HAVE_CPU_AFFINITY
-static PHP_METHOD(swoole_process, setaffinity) {
+static PHP_METHOD(swoole_process, setAffinity) {
     zval *array;
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "a", &array) == FAILURE) {
         RETURN_FALSE;
@@ -1136,4 +1154,25 @@ static PHP_METHOD(swoole_process, setBlocking) {
     } else {
         process->pipe_current->set_nonblock();
     }
+}
+
+static PHP_METHOD(swoole_process, setPriority) {
+    zend_long which, priority;
+    ZEND_PARSE_PARAMETERS_START(2, 2)
+    Z_PARAM_LONG(which)
+    Z_PARAM_LONG(priority)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    RETURN_BOOL(setpriority(which, process->pid, priority) == 0);
+}
+
+static PHP_METHOD(swoole_process, getPriority) {
+    zend_long which;
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(which)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Worker *process = php_swoole_process_get_and_check_worker(ZEND_THIS);
+    RETURN_LONG(getpriority(which, process->pid));
 }

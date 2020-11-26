@@ -39,16 +39,7 @@
 #include "config.h"
 #endif
 
-// zend iterator interface
-#if PHP_VERSION_ID < 70200
-#ifdef HAVE_PCRE
-#include "ext/spl/spl_iterators.h"
-#define zend_ce_countable spl_ce_Countable
 #define SW_HAVE_COUNTABLE 1
-#endif
-#else
-#define SW_HAVE_COUNTABLE 1
-#endif
 
 #include "swoole_api.h"
 #include "swoole_async.h"
@@ -105,8 +96,8 @@ extern zend_module_entry swoole_module_entry;
 #define SWOOLE_SOCKETS_SUPPORT
 #endif
 
-#if PHP_VERSION_ID < 70100
-#error "require PHP version 7.1 or later"
+#if PHP_VERSION_ID < 70200
+#error "require PHP version 7.2 or later"
 #endif
 
 //--------------------------------------------------------
@@ -320,20 +311,10 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #endif
 
 /* PHP 7 compatibility patches */
-
-// Fixed C++ warning (https://github.com/php/php-src/commit/ec31924cd68df4f5591664d487baaba0d01b1daf)
-#if PHP_VERSION_ID < 70200
-#define sw_zend_bailout() _sw_zend_bailout(__FILE__, __LINE__)
-static sw_inline void _sw_zend_bailout(const char *filename, uint32_t lineno)
-{
-    _zend_bailout((char *)filename, lineno);
-}
-#else
 #define sw_zend_bailout() zend_bailout()
-#endif
 
-// Fixed in php-7.1.15RC1, php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
-#if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 1 && PHP_RELEASE_VERSION < 15) || (PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))
+// Fixed in php-7.2.3RC1 (https://github.com/php/php-src/commit/e88e83d3e5c33fcd76f08b23e1a2e4e8dc98ce41)
+#if PHP_MAJOR_VERSION == 7 && ((PHP_MINOR_VERSION == 2 && PHP_RELEASE_VERSION < 3))
 // See https://github.com/php/php-src/commit/0495bf5650995cd8f18d6a9909eb4c5dcefde669
 // Then https://github.com/php/php-src/commit/2dcfd8d16f5fa69582015cbd882aff833075a34c
 // See https://github.com/php/php-src/commit/52db03b3e52bfc886896925d050af79bc4dc1ba3
@@ -933,7 +914,7 @@ static sw_inline zend_bool sw_zend_is_callable_at_frame(zval *zcallable, zval *z
 {
     zend_string *name;
     zend_bool ret;
-#if PHP_VERSION_ID < 80001
+#if PHP_VERSION_ID < 80000
     ret = zend_is_callable_ex(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, check_flags, &name, fci_cache, error);
 #else
     ret = zend_is_callable_at_frame(zcallable, zobject ? Z_OBJ_P(zobject) : NULL, frame, check_flags, fci_cache, error);

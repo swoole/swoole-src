@@ -1219,7 +1219,7 @@ bool Server::notify(Connection *conn, enum ServerEventType event) {
  * @process Worker
  */
 bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    if (sw_unlikely(session_id <= 0 || session_id > SW_MAX_SESSION_ID)) {
+    if (sw_unlikely(session_id <= 0)) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SESSION_INVALID_ID, "invalid fd[%ld]", session_id);
         return false;
     }
@@ -1734,11 +1734,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     SessionId session_id = gs->session_round;
     // get session id
     for (uint32_t i = 0; i < max_connection; i++) {
-        session_id++;
-        if (sw_unlikely(session_id == SW_MAX_SESSION_ID)) {
-            session_id = 1;
-        }
-        Session *session = get_session(session_id);
+        Session *session = get_session(++session_id);
         // available slot
         if (session->fd == 0) {
             session->fd = fd;
