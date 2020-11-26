@@ -1734,11 +1734,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     SessionId session_id = gs->session_round;
     // get session id
     for (uint32_t i = 0; i < max_connection; i++) {
-        session_id++;
-        if (sw_unlikely(session_id == SW_MAX_SESSION_ID)) {
-            session_id = 1;
-        }
-        Session *session = get_session(session_id);
+        Session *session = get_session(++session_id);
         // available slot
         if (session->fd == 0) {
             session->fd = fd;
