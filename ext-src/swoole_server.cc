@@ -2235,7 +2235,7 @@ static PHP_METHOD(swoole_server, set) {
         serv->set_max_connection(SW_MAX(0, SW_MIN(v, UINT32_MAX)));
     }
     if (php_swoole_array_get_value(vht, "start_session_id", ztmp)) {
-        serv->gs->session_round = zval_get_long(ztmp);
+        serv->set_start_session_id(zval_get_long(ztmp));
     }
     // heartbeat_check_interval
     if (php_swoole_array_get_value(vht, "heartbeat_check_interval", ztmp)) {

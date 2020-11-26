@@ -1186,6 +1186,10 @@ class Server {
         return max_connection;
     }
 
+    void set_start_session_id(uint32_t value) {
+        gs->session_round = value;
+    }
+
     int create_pipe_buffers();
     void create_worker(Worker *worker);
     void destroy_worker(Worker *worker);

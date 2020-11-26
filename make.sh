@@ -1,6 +1,6 @@
 #!/bin/sh -e
 __DIR__=$(cd "$(dirname "$0")";pwd)
-__EXT_DIR__=`php-config --extension-dir`
+__EXT_DIR__=$(php-config --extension-dir)
 
 cd "${__DIR__}"
 
