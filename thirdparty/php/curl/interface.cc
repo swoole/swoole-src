@@ -2303,8 +2303,10 @@ PHP_FUNCTION(swoole_native_curl_setopt)
         php_error_docref(NULL, E_WARNING, "Invalid curl configuration option");
         RETURN_FALSE;
     }
-#endif
     RETURN_BOOL(_php_curl_setopt(ch, options, zvalue) == SUCCESS);
+#else
+    RETURN_BOOL(_php_curl_setopt(ch, options, zvalue, 0) == SUCCESS);
+#endif
 }
 /* }}} */
 

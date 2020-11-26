@@ -19,6 +19,8 @@
 
 /* Copied from PHP-7.4.11 */
 
+#ifdef SW_USE_CURL
+
 #ifndef _PHP_CURL_H
 #define _PHP_CURL_H
 
@@ -68,3 +70,4 @@ PHP_CURL_API extern zend_class_entry *curl_CURLFile_class;
 #define curl_module_ptr NULL
 #endif /* HAVE_CURL */
 #define phpext_curl_ptr curl_module_ptr
+#endif

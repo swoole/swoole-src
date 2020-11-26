@@ -14,6 +14,8 @@
  +----------------------------------------------------------------------+
  */
 
+#ifdef SW_USE_CURL
+
 #pragma once
 
 #include "php_swoole_cxx.h"
@@ -150,3 +152,5 @@ class cURLMulti {
     static int handle_timeout(CURLM *multi, long timeout_ms, void *userp);
 };
 }
+
+#endif

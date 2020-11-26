@@ -73,7 +73,7 @@ $pm->run();
 --EXPECTF--
 Fatal error: Uncaught Swoole\Coroutine\Curl\Exception: The cURL client is executing, this handle cannot be operated in %s:%d
 Stack trace:
-#0 %s(%d): curl_close(Resource id #%d)
+#0 %s(%d): curl_close(%s)
 #1 {main}
   thrown in %s on line %d
 
