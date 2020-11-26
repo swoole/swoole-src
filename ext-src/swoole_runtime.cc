@@ -72,9 +72,8 @@ static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 
 #ifdef SW_USE_CURL
-
 void swoole_native_curl_init(int module_number);
-void swoole_native_curl_rshutdown();
+void swoole_native_curl_shutdown();
 #endif
 
 SW_EXTERN_C_END
@@ -236,7 +235,7 @@ void php_swoole_runtime_rshutdown() {
 
 void php_swoole_runtime_mshutdown() {
 #ifdef SW_USE_CURL
-    swoole_native_curl_rshutdown();
+    swoole_native_curl_shutdown();
 #endif
 }
 

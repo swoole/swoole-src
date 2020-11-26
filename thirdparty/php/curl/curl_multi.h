@@ -115,11 +115,6 @@ class cURLMulti {
     }
 
     CURLcode exec(php_curl *ch) {
-        Coroutine::get_current_safe();
-        if (ch->context) {
-            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "The cURL client is executing, do not exec again");
-            return CURLE_FAILED_INIT;
-        }
         if (!add(ch->cp)) {
             return CURLE_FAILED_INIT;
         }
