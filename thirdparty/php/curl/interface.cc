@@ -972,14 +972,12 @@ static php_curl *get_curl_handle(zval *zid) {
     ch = Z_CURL_P(zid);
 #else
     if ((ch = (php_curl*) zend_fetch_resource(Z_RES_P(zid), le_curl_name, le_curl)) == NULL) {
-        zend_throw_exception(swoole_native_curl_exception_ce, "failed to fetch resource", SW_ERROR_INVALID_PARAMS);
+        swFatalError(SW_ERROR_INVALID_PARAMS, "The cURL client is executing, this handle cannot be operated");
         return nullptr;
     }
 #endif
     if (ch->context) {
-        zend_throw_exception(swoole_native_curl_exception_ce,
-                             "The cURL client is executing, this handle cannot be operated",
-                             SW_ERROR_CO_HAS_BEEN_BOUND);
+        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "The cURL client is executing, this handle cannot be operated");
         return nullptr;
     }
     return ch;

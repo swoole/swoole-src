@@ -383,8 +383,7 @@ static void fatal_error(int code, const char *format, ...) {
     exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
     zend_exception_error(exception, E_ERROR);
-    // should never here
-    abort();
+    exit(255);
 }
 
 /* {{{ PHP_MINIT_FUNCTION
