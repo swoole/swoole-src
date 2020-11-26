@@ -1186,7 +1186,10 @@ class Server {
         return max_connection;
     }
 
-    void set_start_session_id(uint32_t value) {
+    void set_start_session_id(SessionId value) {
+        if (value > UINT_MAX) {
+            value = UINT_MAX;
+        }
         gs->session_round = value;
     }
 

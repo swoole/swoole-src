@@ -1733,7 +1733,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     sw_spinlock(&gs->spinlock);
     SessionId session_id = gs->session_round;
     // get session id
-    for (uint32_t i = 0; i < max_connection; i++) {
+    SW_LOOP_N(max_connection) {
         Session *session = get_session(++session_id);
         // available slot
         if (session->fd == 0) {
