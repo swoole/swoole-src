@@ -3547,8 +3547,6 @@ static PHP_METHOD(swoole_server, sendMessage) {
     }
 
     buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
-    buf.info.reactor_id = SwooleG.process_id;
-    buf.info.time = swoole::microtime();
 
     Worker *to_worker = serv->get_worker(worker_id);
     SW_CHECK_RETURN(serv->send_to_worker_from_worker(
