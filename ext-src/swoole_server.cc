@@ -1292,6 +1292,10 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
         php_swoole_error(E_WARNING, "%s->onPipeMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
 
+    if (serv->event_object) {
+        zval_ptr_dtor(&args[1]);
+    }
+
     sw_zval_free(zdata);
 }
 
@@ -1311,7 +1315,7 @@ int php_swoole_onReceive(Server *serv, RecvData *req) {
             zval data;
             object_init_ex(object, swoole_server_event_ce);
             zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("fd"), (zend_long) req->info.fd);
-            zend_update_property_long(swoole_server_task_ce, object, ZEND_STRL("id"), (zend_long) req->info.reactor_id);
+            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("reactor_id"), (zend_long) req->info.reactor_id);
             zend_update_property_double(swoole_server_event_ce, object, ZEND_STRL("dispatch_time"), req->info.time);
             php_swoole_get_recv_data(serv, &data, req);
             zend_update_property(swoole_server_event_ce, object, ZEND_STRL("data"), &data);
@@ -1790,7 +1794,7 @@ void php_swoole_onConnect(Server *serv, DataHead *info) {
             zval *object = &args[1];
             object_init_ex(object, swoole_server_event_ce);
             zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("fd"), (zend_long) info->fd);
-            zend_update_property_long(swoole_server_task_ce, object, ZEND_STRL("reactor_id"), (zend_long) info->reactor_id);
+            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("reactor_id"), (zend_long) info->reactor_id);
             zend_update_property_double(swoole_server_event_ce, object, ZEND_STRL("dispatch_time"), info->time);
             argc = 2;
         } else {
@@ -1841,7 +1845,7 @@ void php_swoole_onClose(Server *serv, DataHead *info) {
             zval *object = &args[1];
             object_init_ex(object, swoole_server_event_ce);
             zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("fd"), (zend_long) info->fd);
-            zend_update_property_long(swoole_server_task_ce, object, ZEND_STRL("reactor_id"), (zend_long) info->reactor_id);
+            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("reactor_id"), (zend_long) info->reactor_id);
             zend_update_property_double(swoole_server_event_ce, object, ZEND_STRL("dispatch_time"), info->time);
             argc = 2;
         } else {
