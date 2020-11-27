@@ -2,8 +2,8 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
-if [ "${TRAVIS}"x = ""x || "${GITHUB_ACTIONS}"x = ""x ]; then
-  echo "\n❌ This script is just for Travis or Github!"
+if [ "${GITHUB_ACTIONS}"x = ""x ]; then
+  echo "\n❌ This script is just for Github!"
   exit 255
 fi
 
