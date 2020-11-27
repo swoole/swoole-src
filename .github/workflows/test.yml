@@ -3,20 +3,19 @@ name: run-swoole-test
 on: [push, pull_request]
 
 jobs:
-  run-php-test:
+  run-swoole-test:
     runs-on: ubuntu-latest
-    name: run php test
     strategy:
       fail-fast: false
       matrix:
         php: [7.2, 7.3, 7.4, 8.0, 8.1]
     steps:
     - uses: actions/checkout@v1
-    - name: setup PHP
+    - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
         php-version: "${{ matrix.php }}"
-    - name: info
+    - name: Show machine information
       run: |
         date
         env
@@ -28,12 +27,12 @@ jobs:
         pwd
         echo "`git log -20 --pretty --oneline`"
         echo "`git log -10 --stat --pretty --oneline`"
-    - name: run pecl-install.sh
+    - name: Run pecl-install.sh
       run: |
         sudo ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
-    - name: run simple-compile-on-github.sh
+    - name: Run simple-compile-on-github.sh
       run: |
         sudo ${{runner.workspace}}/swoole-src/travis/simple-compile-on-github.sh
-    - name: start
+    - name: Run Swoole test
       run: |
         ${{runner.workspace}}/swoole-src/travis/route.sh
