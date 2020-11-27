@@ -9,9 +9,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        php: [7.2, 7.3, 7.4, nightly]
+        php: [7.2, 7.3, 7.4, 8.0, 8.1]
     steps:
     - uses: actions/checkout@v1
+    - name: setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: "${{ matrix.php }}"
     - name: info
       run: |
         date
@@ -19,6 +23,7 @@ jobs:
         uname -a
         ulimit -a
         php -v
+        php --ini
         ls -al
         pwd
         echo "`git log -20 --pretty --oneline`"
@@ -28,7 +33,6 @@ jobs:
         sudo ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
     - name: run simple-compile-on-github.sh
       run: |
-        php --ini
         sudo ${{runner.workspace}}/swoole-src/travis/simple-compile-on-github.sh
     - name: start
       run: |
