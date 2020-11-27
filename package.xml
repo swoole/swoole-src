@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-11-20</date>
-    <time>15:00:00</time>
+    <date>2020-11-26</date>
+    <time>00:00:00</time>
     <version>
-        <release>4.5.8</release>
+        <release>4.5.9</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,33 +54,13 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New APIs
-        ---
-        + Added swoole_error_log function (swoole/swoole-src@67d2bff) (@matyhtf)
-        + Supported SSL for readVector and writeVector (#3857) (@huanghantao)
-
         Enhancement
         ---
-        + Did not wait when the child process does not exist (#3832) (@matyhtf)
-        + Supported DTLS 16k record (#3849) (@matyhtf)
-        + Supported priority for cookie (#3854) (@matyhtf)
-        + Supported more CURL options (swoole/library#71) (@sy-records)
-        + Handled CURL header names in case insensitive manner (swoole/library#76) (@filakhtov) (@twose) (@sy-records)
+        + Added SWOOLE_HTTP_CLIENT_ESTATUS_SEND_FAILED constant for Coroutine\\Http\\Client (#3873) (@sy-records)
 
         Fixed
         ---
-        * Fixed readv_all and writev_all when trigger EAGAIN errno (#3830) (@huanghantao)
-        * Fixed warning for PHP8 (swoole/swoole-src@03f3fb0) (@matyhtf)
-        * Fixed binary security of swoole table keys (#3842) (@twose)
-        * Fixed System::writeFile append file issue when using FILE_APPEND (swoole/swoole-src@a71956d) (@matyhtf)
-        * Fixed CURLOPT_WRITEFUNCTION (swoole/library#74) (@sy-records)
-        * Fixed memory overread when parse form-data boundary (#3858) (@twose)
-        * Fixed is_callable() can not access internal private callable on PHP8 (#3859) (@twose)
-
-        Kernel
-        ---
-        * Refactored memory allocation function, replace macro with SwooleG.std_allocator (#3853) (@matyhtf)
-        * Refactored pipe (#3841) (@matyhtf)
+        * Fixed PHP8 compatibility (#3868) (#3869) (#3872) (@twose) (@huanghantao) (@doubaokun)
     </notes>
     <contents>
         <dir name="/">
