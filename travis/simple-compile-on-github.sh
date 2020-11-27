@@ -2,7 +2,7 @@
 __CURRENT__=`pwd`
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
-if [ "${GITHUB_ACTIONS}"x = ""x ]; then
+if [ "${GITHUB_ACTIONS}" = true ]; then
   echo "\n❌ This script is just for Github!"
   exit 255
 fi
