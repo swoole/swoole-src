@@ -26,9 +26,10 @@ jobs:
     - name: run pecl-install.sh
       run: |
         sudo ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
-    - name: run simple-compile.sh
+    - name: run simple-compile-on-github.sh
       run: |
-        sudo ${{runner.workspace}}/swoole-src/travis/simple-compile.sh
+        php --ini
+        sudo ${{runner.workspace}}/swoole-src/travis/simple-compile-on-github.sh
     - name: start
       run: |
         ${{runner.workspace}}/swoole-src/travis/route.sh
