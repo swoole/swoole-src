@@ -15,5 +15,4 @@ phpize > /dev/null && \
 make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && \
-echo "\n[swoole]\nextension=swoole.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini && \
-php --ri swoole
+php -d extension=swoole.so --ri swoole
