@@ -259,7 +259,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     if (swTask_type(current_task) & SW_TASK_NONBLOCK) {
         buf.info.type = SW_SERVER_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;
-        buf.info.time = swoole_microtime();
+        buf.info.time = microtime();
         buf.info.reactor_id = SwooleWG.worker->id;
         // callback function
         if (swTask_type(current_task) & SW_TASK_CALLBACK) {

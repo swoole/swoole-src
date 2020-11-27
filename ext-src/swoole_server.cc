@@ -688,6 +688,7 @@ void php_swoole_server_minit(int module_number) {
                                ServerTaskObject,
                                std);
     zend_declare_property_null(swoole_server_task_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
+    zend_declare_property_double(swoole_server_task_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_ce, ZEND_STRL("id"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_ce, ZEND_STRL("worker_id"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_ce, ZEND_STRL("flags"), 0, ZEND_ACC_PUBLIC);
@@ -695,8 +696,8 @@ void php_swoole_server_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_server_event, "Swoole\\Server\\Event", "swoole_server_event", nullptr, nullptr);
     zend_declare_property_long(swoole_server_event_ce, ZEND_STRL("reactor_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_event_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_double(swoole_server_task_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_task_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
+    zend_declare_property_double(swoole_server_event_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_event_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
     // ---------------------------------------Packet-------------------------------------
     SW_INIT_CLASS_ENTRY(swoole_server_packet, "Swoole\\Server\\Packet", "swoole_server_packet", nullptr, nullptr);
     zend_declare_property_long(swoole_server_packet_ce, ZEND_STRL("server_socket"), 0, ZEND_ACC_PUBLIC);
@@ -811,6 +812,7 @@ TaskId php_swoole_task_pack(EventData *task, zval *zdata) {
     task->info.type = SW_SERVER_EVENT_TASK;
     task->info.fd = SwooleG.current_task_id++;
     task->info.reactor_id = SwooleG.process_id;
+    task->info.time = swoole::microtime();
     swTask_type(task) = 0;
 
     char *task_data_str;
@@ -1427,6 +1429,7 @@ static sw_inline void php_swoole_create_task_object(zval *ztask, Server *serv, E
         swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("worker_id"), (zend_long) req->info.reactor_id);
     zend_update_property_long(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("id"), (zend_long) req->info.fd);
     zend_update_property(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("data"), zdata);
+    zend_update_property_double(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("dispatch_time"), req->info.time);
     zend_update_property_long(
         swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("flags"), (zend_long) swTask_type(req));
 }
@@ -3546,7 +3549,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
 
     buf.info.type = SW_SERVER_EVENT_PIPE_MESSAGE;
     buf.info.reactor_id = SwooleG.process_id;
-    buf.info.time = swoole_microtime();
+    buf.info.time = swoole::microtime();
 
     Worker *to_worker = serv->get_worker(worker_id);
     SW_CHECK_RETURN(serv->send_to_worker_from_worker(
