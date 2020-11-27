@@ -25,8 +25,8 @@ jobs:
         echo "`git log -10 --stat --pretty --oneline`"
     - name: before script
       run: |
-        ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
-        ${{runner.workspace}}/swoole-src/travis/simple-compile.sh
+        sudo ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
+        sudo ${{runner.workspace}}/swoole-src/travis/simple-compile.sh
         php --ri swoole
     - name: start
       run: |
