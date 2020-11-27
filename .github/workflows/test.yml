@@ -23,11 +23,12 @@ jobs:
         pwd
         echo "`git log -20 --pretty --oneline`"
         echo "`git log -10 --stat --pretty --oneline`"
-    - name: before script
+    - name: run pecl-install.sh
       run: |
         sudo ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
+    - name: run simple-compile.sh
+      run: |
         sudo ${{runner.workspace}}/swoole-src/travis/simple-compile.sh
-        php --ri swoole
     - name: start
       run: |
         ${{runner.workspace}}/swoole-src/travis/route.sh
