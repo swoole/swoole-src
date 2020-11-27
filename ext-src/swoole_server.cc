@@ -693,26 +693,25 @@ void php_swoole_server_minit(int module_number) {
     zend_declare_property_long(swoole_server_task_ce, ZEND_STRL("worker_id"), -1, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_ce, ZEND_STRL("flags"), 0, ZEND_ACC_PUBLIC);
     // ---------------------------------------Event-------------------------------------
-    SW_INIT_CLASS_ENTRY(swoole_server_event, "Swoole\\Server\\Event", "swoole_server_event", nullptr, nullptr);
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_event, "Swoole\\Server\\Event");
     zend_declare_property_long(swoole_server_event_ce, ZEND_STRL("reactor_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_event_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_double(swoole_server_event_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_event_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
     // ---------------------------------------Packet-------------------------------------
-    SW_INIT_CLASS_ENTRY(swoole_server_packet, "Swoole\\Server\\Packet", "swoole_server_packet", nullptr, nullptr);
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_packet, "Swoole\\Server\\Packet");
     zend_declare_property_long(swoole_server_packet_ce, ZEND_STRL("server_socket"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_packet_ce, ZEND_STRL("server_port"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_double(swoole_server_packet_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_packet_ce, ZEND_STRL("address"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_packet_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
     // ---------------------------------------PipeMessage-------------------------------------
-    SW_INIT_CLASS_ENTRY(swoole_server_pipe_message, "Swoole\\Server\\PipeMessage", "swoole_server_pipe_message",
-                        nullptr, nullptr);
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_pipe_message, "Swoole\\Server\\PipeMessage");
     zend_declare_property_long(swoole_server_pipe_message_ce, ZEND_STRL("source_worker_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_double(swoole_server_pipe_message_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_pipe_message_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
     // ---------------------------------------TaskResult-------------------------------------
-    SW_INIT_CLASS_ENTRY(swoole_server_task_result, "Swoole\\Server\\TaskResult", "swoole_server_task_result", nullptr, nullptr);
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_task_result, "Swoole\\Server\\TaskResult");
     zend_declare_property_long(swoole_server_task_result_ce, ZEND_STRL("task_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_task_result_ce, ZEND_STRL("task_worker_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_double(swoole_server_task_result_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
