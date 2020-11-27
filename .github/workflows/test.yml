@@ -1,0 +1,33 @@
+name: run-swoole-test
+
+on: [push, pull_request]
+
+jobs:
+  run-php-test:
+    runs-on: ubuntu-latest
+    name: run php test
+    strategy:
+      fail-fast: false
+      matrix:
+        php: [7.2, 7.3, 7.4, nightly]
+    steps:
+    - uses: actions/checkout@v1
+    - name: info
+      run: |
+        date
+        env
+        uname -a
+        ulimit -a
+        php -v
+        ls -al
+        pwd
+        echo "`git log -20 --pretty --oneline`"
+        echo "`git log -10 --stat --pretty --oneline`"
+    - name: before script
+      run: |
+        ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
+        ${{runner.workspace}}/swoole-src/travis/simple-compile.sh
+        php --ri swoole
+    - name: start
+      run: |
+        ${{runner.workspace}}/swoole-src/travis/route.sh
