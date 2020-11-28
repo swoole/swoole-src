@@ -17,7 +17,6 @@
 #include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
-#include "thirdparty/php/curl/curl_arginfo.h"
 #include <unordered_map>
 #include <initializer_list>
 
@@ -72,6 +71,7 @@ static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 
 #ifdef SW_USE_CURL
+#include "thirdparty/php/curl/curl_arginfo.h"
 void swoole_native_curl_init(int module_number);
 void swoole_native_curl_shutdown();
 #endif
@@ -167,8 +167,7 @@ static php_stream_wrapper ori_php_plain_files_wrapper;
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler = nullptr, zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
-bool hook_internal_function(const zend_function_entry *fe);
-bool hook_internal_functions(const zend_function_entry *fes);
+static bool hook_internal_functions(const zend_function_entry *fes);
 
 static zend_array *tmp_function_table = nullptr;
 
@@ -1580,14 +1579,9 @@ static PHP_FUNCTION(swoole_stream_select) {
     RETURN_LONG(retval);
 }
 
-bool hook_internal_functions(const zend_function_entry *fes)
-{
+bool hook_internal_functions(const zend_function_entry *fes) {
     zend_unregister_functions(fes, -1, CG(function_table));
-    if (zend_register_functions(NULL, fes, NULL, MODULE_PERSISTENT) != SUCCESS) {
-        return false;
-    }
-
-    return true;
+    return zend_register_functions(NULL, fes, NULL, MODULE_PERSISTENT) == SUCCESS;
 }
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
