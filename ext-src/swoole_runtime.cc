@@ -17,6 +17,8 @@
 #include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
+#include "thirdparty/php/curl/curl_arginfo.h"
+
 #include <unordered_map>
 #include <initializer_list>
 
@@ -71,7 +73,6 @@ static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 
 #ifdef SW_USE_CURL
-#include "thirdparty/php/curl/curl_arginfo.h"
 void swoole_native_curl_init(int module_number);
 void swoole_native_curl_shutdown();
 #endif
