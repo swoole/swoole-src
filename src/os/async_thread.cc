@@ -67,7 +67,7 @@ class EventQueue {
             return 0;
         } else {
             AsyncEvent *event = _queue.front();
-            return swoole_microtime() - event->timestamp;
+            return microtime() - event->timestamp;
         }
     }
 
@@ -160,13 +160,13 @@ class ThreadPool {
         }
         auto _event_copy = new AsyncEvent(*request);
         _event_copy->task_id = current_task_id++;
-        _event_copy->timestamp = swoole_microtime();
+        _event_copy->timestamp = microtime();
         _event_copy->pipe_socket = SwooleTG.aio_write_socket;
         event_mutex.lock();
         _queue.push(_event_copy);
         _cv.notify_one();
         event_mutex.unlock();
-        swDebug("push and notify one: %f", swoole_microtime());
+        swDebug("push and notify one: %f", microtime());
         return _event_copy;
     }
 
@@ -244,7 +244,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                 AsyncEvent *event = _queue.pop();
                 event_mutex.unlock();
 
-                swDebug("%s: %f", event ? "pop 1 event" : "no event", swoole_microtime());
+                swDebug("%s: %f", event ? "pop 1 event" : "no event", microtime());
 
                 if (event) {
                     if (sw_unlikely(event->handler == nullptr)) {

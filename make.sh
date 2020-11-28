@@ -19,6 +19,7 @@ if [ "$1" = "clean" ] ;then
 fi
 
 if [ "$1" = "install-module" ] ;then
+  make ext-swoole
   cp lib/swoole.so "${__EXT_DIR__}"
   echo "cp lib/swoole.so ${__EXT_DIR__}"
   exit 0

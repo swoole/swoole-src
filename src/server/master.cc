@@ -164,11 +164,11 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
                 return SW_OK;
             }
         } else {
-            DataHead ev = {};
+            DataHead ev{};
             ev.type = SW_SERVER_EVENT_INCOMING;
-            ev.fd = sock->fd;
-            Socket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
-            if (reactor->write(reactor, _pipe_sock, &ev, sizeof(ev)) < 0) {
+            ev.fd = conn->session_id;
+            ev.reactor_id = conn->reactor_id;
+            if (serv->send_to_reactor_thread((EventData*) &ev, sizeof(ev), conn->session_id) < 0) {
                 reactor->close(reactor, sock);
                 return SW_OK;
             }
@@ -909,7 +909,7 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     _send.info.reactor_id = conn->reactor_id;
 
     if (is_process_mode()) {
-        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), conn->session_id) > 0;
+        return send_to_reactor_thread((EventData*) &_send.info, sizeof(_send.info), conn->session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
@@ -934,18 +934,10 @@ void Server::store_pipe_fd(UnixSocket *p) {
  * @process Worker
  */
 bool Server::send(SessionId session_id, const void *data, uint32_t length) {
-    SendData _send;
-    sw_memset_zero(&_send.info, sizeof(_send.info));
-
-    if (sw_unlikely(is_master())) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "can't send data to the connections in master process");
-        return false;
-    }
-
+    SendData _send{};
     _send.info.fd = session_id;
     _send.info.type = SW_SERVER_EVENT_RECV_DATA;
-    _send.data = (char *) data;
+    _send.data = (char*) data;
     _send.info.len = length;
     return factory->finish(&_send);
 }
@@ -1122,7 +1114,7 @@ int Server::send_to_connection(SendData *_send) {
         _direct_send:
             n = _socket->send(_send_data, _send_length, 0);
             if (n == _send_length) {
-                conn->last_send_time = swoole_microtime();
+                conn->last_send_time = microtime();
                 return SW_OK;
             } else if (n > 0) {
                 _send_data += n;
@@ -1717,7 +1709,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     connection->fd = fd;
     connection->reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
     connection->server_fd = (sw_atomic_t) server_fd;
-    connection->last_recv_time = connection->connect_time = swoole_microtime();
+    connection->last_recv_time = connection->connect_time = microtime();
     connection->active = 1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
@@ -1733,7 +1725,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     sw_spinlock(&gs->spinlock);
     SessionId session_id = gs->session_round;
     // get session id
-    for (uint32_t i = 0; i < max_connection; i++) {
+    SW_LOOP_N(max_connection) {
         Session *session = get_session(++session_id);
         // available slot
         if (session->fd == 0) {

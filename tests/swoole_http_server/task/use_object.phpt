@@ -31,6 +31,8 @@ int(2)
 object(Swoole\Server\Task)#%d (%d) {
   ["data"]=>
   string(0) ""
+  ["dispatch_time"]=>
+  float(%f)
   ["id"]=>
   int(0)
   ["worker_id"]=>

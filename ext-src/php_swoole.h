@@ -610,25 +610,30 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 /* PHP 7 class declaration macros */
 
-#define SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_ce) do { \
+#define SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_ce) do { \
     zend_class_entry _##module##_ce = {}; \
-    INIT_CLASS_ENTRY(_##module##_ce, namespaceName, methods); \
+    INIT_CLASS_ENTRY(_##module##_ce, namespace_name, methods); \
     module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce); \
-    SW_CLASS_ALIAS(snake_name, module); \
-    SW_CLASS_ALIAS_SHORT_NAME(shortName, module); \
+    if (snake_name) SW_CLASS_ALIAS(snake_name, module); \
+    if (short_name) SW_CLASS_ALIAS_SHORT_NAME(short_name, module); \
 } while (0)
 
-#define SW_INIT_CLASS_ENTRY(module, namespaceName, snake_name, shortName, methods) \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, NULL); \
+#define SW_INIT_CLASS_ENTRY(module, namespace_name, snake_name, short_name, methods) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, NULL); \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
-#define SW_INIT_CLASS_ENTRY_EX(module, namespaceName, snake_name, shortName, methods, parent_module) \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module##_ce); \
+#define SW_INIT_CLASS_ENTRY_EX(module, namespace_name, snake_name, short_name, methods, parent_module) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_module##_ce); \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers))
 
-#define SW_INIT_CLASS_ENTRY_EX2(module, namespaceName, snake_name, shortName, methods, parent_module_ce, parent_module_handlers) \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespaceName, snake_name, shortName, methods, parent_module_ce); \
+#define SW_INIT_CLASS_ENTRY_EX2(module, namespace_name, snake_name, short_name, methods, parent_module_ce, parent_module_handlers) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_module_ce); \
     memcpy(&module##_handlers, parent_module_handlers, sizeof(zend_object_handlers))
+
+// Data Object: no methods, no parent
+#define SW_INIT_CLASS_ENTRY_DATA_OBJECT(module, namespace_name) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, NULL, NULL, NULL, NULL); \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
 #define SW_CLASS_ALIAS(name, module) do { \
     if (name) { \
@@ -636,9 +641,9 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
     } \
 } while (0)
 
-#define SW_CLASS_ALIAS_SHORT_NAME(shortName, module) do { \
+#define SW_CLASS_ALIAS_SHORT_NAME(short_name, module) do { \
     if (SWOOLE_G(use_shortname)) { \
-        SW_CLASS_ALIAS(shortName, module); \
+        SW_CLASS_ALIAS(short_name, module); \
     } \
 } while (0)
 

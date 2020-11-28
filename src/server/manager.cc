@@ -208,7 +208,7 @@ void Server::check_worker_exit_status(int worker_id, pid_t pid, int status) {
                WTERMSIG(status),
                WTERMSIG(status) == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : "");
         if (onWorkerError != nullptr) {
-            onWorkerError(this, worker_id, pid, WEXITSTATUS(status), WTERMSIG(status));
+            onWorkerError(this, worker_id, pid, status);
         }
     }
 }
