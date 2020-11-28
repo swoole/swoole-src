@@ -153,7 +153,6 @@ _do_recvfrom:
 
     if (port->ssl_option.protocols & SW_SSL_DTLS) {
         dtls::Session *session = serv->accept_dtls_connection(port, &pkt->socket_addr);
-
         if (!session) {
             return SW_ERR;
         }
@@ -171,13 +170,11 @@ _do_recvfrom:
                 return SW_OK;
             }
         } else {
-            DataHead ev = {};
+            DataHead ev{};
             ev.type = SW_SERVER_EVENT_INCOMING;
-            ev.fd = session->socket->fd;
-            Socket *_pipe_sock = serv->get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
-            ReactorThread *thread = serv->get_thread(SwooleTG.id);
-            Socket *socket = &thread->pipe_sockets[_pipe_sock->fd];
-            if (reactor->write(reactor, socket, &ev, sizeof(ev)) < 0) {
+            ev.fd = conn->session_id;
+            ev.reactor_id = conn->reactor_id;
+            if (serv->send_to_reactor_thread((EventData*) &ev, sizeof(ev), conn->session_id) < 0) {
                 reactor->close(reactor, session->socket);
                 return SW_OK;
             }
@@ -402,8 +399,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                  * connection incoming
                  */
                 if (resp->info.type == SW_SERVER_EVENT_INCOMING) {
-                    int fd = resp->info.fd;
-                    Connection *conn = serv->get_connection(fd);
+                    Connection *conn = serv->get_connection_by_session_id(resp->info.fd);
                     if (serv->connection_incoming(reactor, conn) < 0) {
                         return reactor->close(reactor, conn->socket);
                     }

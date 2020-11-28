@@ -102,7 +102,7 @@ static void php_swoole_onWorkerExit(Server *serv, int worker_id);
 static void php_swoole_onUserWorkerStart(Server *serv, Worker *worker);
 static int php_swoole_onTask(Server *, EventData *task);
 static int php_swoole_onFinish(Server *, EventData *task);
-static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_pid, int exit_code, int signo);
+static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_pid, int status);
 static void php_swoole_onManagerStart(Server *serv);
 static void php_swoole_onManagerStop(Server *serv);
 
@@ -195,6 +195,9 @@ static zend_object_handlers swoole_server_packet_handlers;
 
 static zend_class_entry *swoole_server_pipe_message_ce;
 static zend_object_handlers swoole_server_pipe_message_handlers;
+
+static zend_class_entry *swoole_server_status_info_ce;
+static zend_object_handlers swoole_server_status_info_handlers;
 
 static zend_class_entry *swoole_server_task_result_ce;
 static zend_object_handlers swoole_server_task_result_handlers;
@@ -710,6 +713,11 @@ void php_swoole_server_minit(int module_number) {
     zend_declare_property_long(swoole_server_pipe_message_ce, ZEND_STRL("source_worker_id"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_double(swoole_server_pipe_message_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_pipe_message_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
+    // ---------------------------------------StatusInfo-------------------------------------
+    SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_status_info, "Swoole\\Server\\StatusInfo");
+    zend_declare_property_long(swoole_server_status_info_ce, ZEND_STRL("worker_id"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_double(swoole_server_status_info_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_status_info_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
     // ---------------------------------------TaskResult-------------------------------------
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_task_result, "Swoole\\Server\\TaskResult");
     zend_declare_property_long(swoole_server_task_result_ce, ZEND_STRL("task_id"), 0, ZEND_ACC_PUBLIC);
@@ -1765,20 +1773,38 @@ static void php_swoole_onUserWorkerStart(Server *serv, Worker *worker) {
     php_swoole_process_start(worker, object);
 }
 
-static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_pid, int exit_code, int signo) {
+static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_pid, int status) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerError];
+
     zval args[5];
-
+    int argc;
     args[0] = *zserv;
-    ZVAL_LONG(&args[1], worker_id);
-    ZVAL_LONG(&args[2], worker_pid);
-    ZVAL_LONG(&args[3], exit_code);
-    ZVAL_LONG(&args[4], signo);
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 5, args, nullptr, false))) {
+    if (serv->event_object) {
+        zval *object = &args[1];
+        object_init_ex(object, swoole_server_status_info_ce);
+        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("worker_id"), worker_id);
+        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("worker_pid"), worker_pid);
+        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("status"), status);
+        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("exit_code"), WEXITSTATUS(status));
+        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("signal"), WTERMSIG(status));
+        argc = 2;
+    } else {
+        ZVAL_LONG(&args[1], worker_id);
+        ZVAL_LONG(&args[2], worker_pid);
+        ZVAL_LONG(&args[3], WEXITSTATUS(status));
+        ZVAL_LONG(&args[4], WTERMSIG(status));
+        argc = 5;
+    }
+
+    if (UNEXPECTED(!zend::function::call(fci_cache, argc, args, nullptr, false))) {
         php_swoole_error(E_WARNING, "%s->onWorkerError handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+    }
+
+    if (serv->event_object) {
+        zval_ptr_dtor(&args[1]);
     }
 }
 
@@ -3913,7 +3939,14 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
 static PHP_METHOD(swoole_server, getWorkerPid) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (!serv->is_worker()) {
-        RETURN_FALSE;
+        zend_long worker_id = -1;
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &worker_id) == FAILURE) {
+            RETURN_FALSE;
+        }
+        if (worker_id < 0) {
+            RETURN_FALSE;
+        }
+        RETURN_LONG(serv->get_worker(worker_id)->pid);
     } else {
         RETURN_LONG(SwooleG.pid);
     }
