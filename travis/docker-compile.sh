@@ -9,7 +9,7 @@ fi
 
 #-----------compile------------
 #-------print error only-------
-apt install libcurl4-openssl-dev
+apt install -y libcurl4-openssl-dev && \
 cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \
