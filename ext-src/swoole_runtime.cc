@@ -1156,6 +1156,39 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(shell_exec);
         }
     }
+    if (flags & PHPCoroutine::HOOK_SOCKETS) {
+        if (!(hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
+            hook_func(ZEND_STRL("socket_create"));
+            hook_func(ZEND_STRL("socket_create_listen"));
+            hook_func(ZEND_STRL("socket_connect"));
+            hook_func(ZEND_STRL("socket_write"));
+            hook_func(ZEND_STRL("socket_read"));
+            hook_func(ZEND_STRL("socket_send"));
+            hook_func(ZEND_STRL("socket_recv"));
+            hook_func(ZEND_STRL("socket_bind"));
+            hook_func(ZEND_STRL("socket_listen"));
+            hook_func(ZEND_STRL("socket_accept"));
+            hook_func(ZEND_STRL("socket_getpeername"));
+            hook_func(ZEND_STRL("socket_getsockname"));
+            hook_func(ZEND_STRL("socket_close"));
+        }
+    } else {
+        if (hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
+            SW_UNHOOK_FUNC(socket_create);
+            SW_UNHOOK_FUNC(socket_create_listen);
+            SW_UNHOOK_FUNC(socket_connect);
+            SW_UNHOOK_FUNC(socket_write);
+            SW_UNHOOK_FUNC(socket_read);
+            SW_UNHOOK_FUNC(socket_send);
+            SW_UNHOOK_FUNC(socket_recv);
+            SW_UNHOOK_FUNC(socket_bind);
+            SW_UNHOOK_FUNC(socket_listen);
+            SW_UNHOOK_FUNC(socket_accept);
+            SW_UNHOOK_FUNC(socket_getpeername);
+            SW_UNHOOK_FUNC(socket_getsockname);
+            SW_UNHOOK_FUNC(socket_close);
+        }
+    }
 
 #ifdef SW_USE_CURL
     if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {

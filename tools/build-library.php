@@ -5,15 +5,18 @@ require __DIR__ . '/bootstrap.php';
 define('LIBRARY_HEADER', ROOT_DIR . '/ext-src/php_swoole_library.h');
 define('PHP_TAG', '<?php');
 
-preg_match(
-    '/^(\d+)/',
-    trim(shell_exec('cd ' . LIBRARY_DIR . ' && git diff --shortstat')),
-    $file_change
-);
-$file_change = (int) ($file_change[1] ?? 0);
-if ($file_change > 0) {
-    swoole_error($file_change . ' file changed in [' . LIBRARY_DIR . ']');
+if (!isset($argv[1]) or $argv[1] != 'dev') {
+    preg_match(
+        '/^(\d+)/',
+        trim(shell_exec('cd ' . LIBRARY_DIR . ' && git diff --shortstat')),
+        $file_change
+    );
+    $file_change = (int) ($file_change[1] ?? 0);
+    if ($file_change > 0) {
+        swoole_error($file_change . ' file changed in [' . LIBRARY_DIR . ']');
+    }
 }
+
 $commit_id = trim(shell_exec('cd ' . LIBRARY_DIR . ' && git rev-parse HEAD'));
 if (!$commit_id || strlen($commit_id) != 40) {
     swoole_error('Unable to get commit id of library in [' . LIBRARY_DIR . ']');
@@ -86,6 +89,7 @@ $files = [
     'core/Coroutine/functions.php',
     # <ext> #
     'ext/curl.php',
+    'ext/sockets.php',
     # <finalizer> #
     'functions.php',
     'alias.php',
