@@ -716,8 +716,10 @@ void php_swoole_server_minit(int module_number) {
     // ---------------------------------------StatusInfo-------------------------------------
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_status_info, "Swoole\\Server\\StatusInfo");
     zend_declare_property_long(swoole_server_status_info_ce, ZEND_STRL("worker_id"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_double(swoole_server_status_info_ce, ZEND_STRL("dispatch_time"), 0, ZEND_ACC_PUBLIC);
-    zend_declare_property_null(swoole_server_status_info_ce, ZEND_STRL("data"), ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_status_info_ce, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_status_info_ce, ZEND_STRL("status"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_status_info_ce, ZEND_STRL("exit_code"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_server_status_info_ce, ZEND_STRL("signal"), 0, ZEND_ACC_PUBLIC);
     // ---------------------------------------TaskResult-------------------------------------
     SW_INIT_CLASS_ENTRY_DATA_OBJECT(swoole_server_task_result, "Swoole\\Server\\TaskResult");
     zend_declare_property_long(swoole_server_task_result_ce, ZEND_STRL("task_id"), 0, ZEND_ACC_PUBLIC);
@@ -1286,9 +1288,11 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval *object = &args[1];
         object_init_ex(object, swoole_server_pipe_message_ce);
-        zend_update_property_long(swoole_server_pipe_message_ce, object, ZEND_STRL("worker_id"), (zend_long) req->info.reactor_id);
-        zend_update_property_double(swoole_server_pipe_message_ce, object, ZEND_STRL("dispatch_time"), req->info.time);
-        zend_update_property(swoole_server_pipe_message_ce, object, ZEND_STRL("data"), zdata);
+        zend_update_property_long(swoole_server_pipe_message_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_id"),
+                                  (zend_long) req->info.reactor_id);
+        zend_update_property_double(swoole_server_pipe_message_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"),
+                                    req->info.time);
+        zend_update_property(swoole_server_pipe_message_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), zdata);
         argc = 2;
     } else {
         ZVAL_LONG(&args[1], (zend_long) req->info.reactor_id);
@@ -1322,11 +1326,14 @@ int php_swoole_onReceive(Server *serv, RecvData *req) {
             zval *object = &args[1];
             zval data;
             object_init_ex(object, swoole_server_event_ce);
-            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("fd"), (zend_long) req->info.fd);
-            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("reactor_id"), (zend_long) req->info.reactor_id);
-            zend_update_property_double(swoole_server_event_ce, object, ZEND_STRL("dispatch_time"), req->info.time);
+            zend_update_property_long(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("fd"),
+                                      (zend_long) req->info.fd);
+            zend_update_property_long(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("reactor_id"),
+                                      (zend_long) req->info.reactor_id);
+            zend_update_property_double(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"),
+                                        req->info.time);
             php_swoole_get_recv_data(serv, &data, req);
-            zend_update_property(swoole_server_event_ce, object, ZEND_STRL("data"), &data);
+            zend_update_property(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), &data);
             zval_ptr_dtor(&data);
             argc = 2;
         } else {
@@ -1362,31 +1369,34 @@ int php_swoole_onPacket(Server *serv, RecvData *req) {
     if (serv->event_object) {
         zval zobject;
         object_init_ex(&zobject, swoole_server_packet_ce);
-        zend_update_property_long(swoole_server_packet_ce, &zobject, ZEND_STRL("server_socket"), req->info.server_fd);
-        zend_update_property_double(swoole_server_packet_ce, &zobject, ZEND_STRL("dispatch_time"), req->info.time);
+        zend_update_property_long(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("server_socket"),
+                                  req->info.server_fd);
+        zend_update_property_double(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("dispatch_time"),
+                                    req->info.time);
 
         Connection *server_sock = serv->get_connection(req->info.server_fd);
         if (server_sock) {
-            zend_update_property_long(swoole_server_packet_ce, &zobject, ZEND_STRL("server_port"),
-                                        server_sock->info.get_port());
+            zend_update_property_long(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("server_port"),
+                                      server_sock->info.get_port());
         }
 
         char address[INET6_ADDRSTRLEN];
         if (packet->socket_type == SW_SOCK_UDP) {
             inet_ntop(AF_INET, &packet->socket_addr.addr.inet_v4.sin_addr, address, sizeof(address));
-            zend_update_property_string(swoole_server_packet_ce, &zobject, ZEND_STRL("address"), address);
-            zend_update_property_long(swoole_server_packet_ce, &zobject, ZEND_STRL("port"),
+            zend_update_property_string(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("address"), address);
+            zend_update_property_long(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("port"),
                                       ntohs(packet->socket_addr.addr.inet_v4.sin_port));
         } else if (packet->socket_type == SW_SOCK_UDP6) {
             inet_ntop(AF_INET6, &packet->socket_addr.addr.inet_v6.sin6_addr, address, sizeof(address));
-            zend_update_property_string(swoole_server_packet_ce, &zobject, ZEND_STRL("address"), address);
-            zend_update_property_long(swoole_server_packet_ce, &zobject, ZEND_STRL("port"),
+            zend_update_property_string(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("address"), address);
+            zend_update_property_long(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("port"),
                                       ntohs(packet->socket_addr.addr.inet_v6.sin6_port));
         } else if (packet->socket_type == SW_SOCK_UNIX_DGRAM) {
-            zend_update_property_string(swoole_server_packet_ce, &zobject, ZEND_STRL("address"),
+            zend_update_property_string(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("address"),
                                         packet->socket_addr.addr.un.sun_path);
         }
-        zend_update_property_stringl(swoole_server_packet_ce, &zobject, ZEND_STRL("data"), packet->data, packet->length);
+        zend_update_property_stringl(swoole_server_packet_ce, SW_Z8_OBJ_P(&zobject), ZEND_STRL("data"), packet->data,
+                                     packet->length);
         args[1] = zobject;
         argc = 2;
     } else {
@@ -1580,11 +1590,13 @@ static int php_swoole_onFinish(Server *serv, EventData *req) {
     if (serv->event_object) {
         zval *object = &args[1];
         object_init_ex(object, swoole_server_task_result_ce);
-        zend_update_property_long(swoole_server_task_result_ce, object, ZEND_STRL("task_id"), (zend_long) req->info.fd);
-        zend_update_property_long(swoole_server_task_result_ce, object, ZEND_STRL("task_worker_id"),
+        zend_update_property_long(swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("task_id"),
+                                  (zend_long) req->info.fd);
+        zend_update_property_long(swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("task_worker_id"),
                                   (zend_long) req->info.reactor_id);
-        zend_update_property_double(swoole_server_task_result_ce, object, ZEND_STRL("dispatch_time"), req->info.time);
-        zend_update_property(swoole_server_task_result_ce, object, ZEND_STRL("data"), zdata);
+        zend_update_property_double(swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"),
+                                    req->info.time);
+        zend_update_property(swoole_server_task_result_ce, SW_Z8_OBJ_P(object), ZEND_STRL("data"), zdata);
         argc = 2;
     } else {
         ZVAL_LONG(&args[1], req->info.fd);
@@ -1785,11 +1797,11 @@ static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_p
     if (serv->event_object) {
         zval *object = &args[1];
         object_init_ex(object, swoole_server_status_info_ce);
-        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("worker_id"), worker_id);
-        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("worker_pid"), worker_pid);
-        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("status"), status);
-        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("exit_code"), WEXITSTATUS(status));
-        zend_update_property_long(swoole_server_status_info_ce, object, ZEND_STRL("signal"), WTERMSIG(status));
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_id"), worker_id);
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_pid"), worker_pid);
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("status"), status);
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("exit_code"), WEXITSTATUS(status));
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("signal"), WTERMSIG(status));
         argc = 2;
     } else {
         ZVAL_LONG(&args[1], worker_id);
@@ -1819,9 +1831,12 @@ void php_swoole_onConnect(Server *serv, DataHead *info) {
         if (serv->event_object) {
             zval *object = &args[1];
             object_init_ex(object, swoole_server_event_ce);
-            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("fd"), (zend_long) info->fd);
-            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("reactor_id"), (zend_long) info->reactor_id);
-            zend_update_property_double(swoole_server_event_ce, object, ZEND_STRL("dispatch_time"), info->time);
+            zend_update_property_long(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("fd"),
+                                      (zend_long) info->fd);
+            zend_update_property_long(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("reactor_id"),
+                                      (zend_long) info->reactor_id);
+            zend_update_property_double(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"),
+                                        info->time);
             argc = 2;
         } else {
             ZVAL_LONG(&args[1], info->fd);
@@ -1870,9 +1885,12 @@ void php_swoole_onClose(Server *serv, DataHead *info) {
         if (serv->event_object) {
             zval *object = &args[1];
             object_init_ex(object, swoole_server_event_ce);
-            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("fd"), (zend_long) info->fd);
-            zend_update_property_long(swoole_server_event_ce, object, ZEND_STRL("reactor_id"), (zend_long) info->reactor_id);
-            zend_update_property_double(swoole_server_event_ce, object, ZEND_STRL("dispatch_time"), info->time);
+            zend_update_property_long(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("fd"),
+                                      (zend_long) info->fd);
+            zend_update_property_long(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("reactor_id"),
+                                      (zend_long) info->reactor_id);
+            zend_update_property_double(swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"),
+                                        info->time);
             argc = 2;
         } else {
             ZVAL_LONG(&args[1], info->fd);
