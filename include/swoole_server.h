@@ -648,7 +648,11 @@ class Server {
     /**
      * use task object
      */
-    bool task_use_object = false;
+    bool event_object = false;
+    /**
+     * use task object
+     */
+    bool task_object = false;
     /**
      * enable coroutine in task worker
      */
@@ -816,7 +820,7 @@ class Server {
      */
     std::function<void(Server *)> onManagerStart;
     std::function<void(Server *)> onManagerStop;
-    std::function<void(Server *, int, pid_t, int, int)> onWorkerError;
+    std::function<void(Server *, int, pid_t, int)> onWorkerError;
     std::function<void(Server *)> onBeforeReload;
     std::function<void(Server *)> onAfterReload;
     /**

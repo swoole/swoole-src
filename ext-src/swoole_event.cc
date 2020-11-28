@@ -730,7 +730,7 @@ static PHP_FUNCTION(swoole_event_rshutdown) {
         if (!sw_reactor()) {
             return;
         }
-        php_swoole_fatal_error(E_DEPRECATED, "Do Event::wait() in shutdown function is deprecated");
+        php_swoole_fatal_error(E_DEPRECATED, "Event::wait() in shutdown function is deprecated");
         php_swoole_event_wait();
     }
     zend_end_try();

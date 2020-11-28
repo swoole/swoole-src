@@ -278,9 +278,6 @@ static bool inline process_is_supported_send_yield(Server *serv, Connection *con
  * [Worker] send to client, proxy by reactor
  */
 bool ProcessFactory::finish(SendData *resp) {
-    if (sw_unlikely(server_->is_master())) {
-        return server_->send_to_connection(resp) == SW_OK;
-    }
     /**
      * More than the output buffer
      */
