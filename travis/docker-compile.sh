@@ -9,6 +9,7 @@ fi
 
 #-----------compile------------
 #-------print error only-------
+apt update -y
 apt install -y libcurl4-openssl-dev
 cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
