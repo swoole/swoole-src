@@ -55,6 +55,9 @@ PHP_ARG_ENABLE(swoole-dev, whether to enable Swoole developer build flags,
 PHP_ARG_ENABLE(swoole-json, whether to enable Swoole JSON build flags,
 [  --enable-swoole-json      Enable JSON support], no, no)
 
+PHP_ARG_ENABLE(swoole-curl, whether to enable Swoole CURL build flags,
+[  --enable-swoole-curl      Enable cURL support], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -310,7 +313,6 @@ if test "$PHP_SWOOLE" != "no"; then
         AX_CHECK_COMPILE_FLAG(-Wduplicate-enum,                 _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wduplicate-enum")
         AX_CHECK_COMPILE_FLAG(-Wempty-body,                     _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wempty-body")
         AX_CHECK_COMPILE_FLAG(-Wenum-compare,                   _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wenum-compare")
-        AX_CHECK_COMPILE_FLAG(-Werror,                          _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Werror")
         AX_CHECK_COMPILE_FLAG(-Wextra,                          _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wextra")
         AX_CHECK_COMPILE_FLAG(-Wformat-security,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wformat-security")
         AX_CHECK_COMPILE_FLAG(-Wheader-guard,                   _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wheader-guard")
@@ -342,6 +344,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_SWOOLE_JSON" = "yes"; then
         AC_DEFINE(SW_USE_JSON, 1, [do we enable json decoder])
+    fi
+
+    if test "$PHP_SWOOLE_CURL" = "yes"; then
+        AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
     fi
 
     AC_CHECK_LIB(z, gzgets, [
@@ -569,6 +575,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/wrapper/timer.cc"
 
     swoole_source_file="$swoole_source_file \
+        thirdparty/php/curl/interface.cc \
         thirdparty/php/sockets/multicast.cc \
         thirdparty/php/sockets/sendrecvmsg.cc \
         thirdparty/php/sockets/conversions.cc \
@@ -717,4 +724,5 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/nghttp2)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/sockets)
     PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/standard)
+    PHP_ADD_BUILD_DIR($ext_builddir/thirdparty/php/curl)
 fi

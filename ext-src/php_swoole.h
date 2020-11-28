@@ -137,6 +137,7 @@ enum php_swoole_fd_type
      * for Co::fread/Co::fwrite
      */
     PHP_SWOOLE_FD_CO_UTIL,
+    PHP_SWOOLE_FD_CO_CURL,
 };
 //---------------------------------------------------------
 typedef enum
@@ -262,6 +263,12 @@ void php_swoole_register_shutdown_function_prepend(const char *function);
 void php_swoole_event_init();
 void php_swoole_event_wait();
 void php_swoole_event_exit();
+
+/**
+ * MSHUTDOWN
+ * ==============================================================
+ */
+void php_swoole_runtime_mshutdown() ;
 
 static sw_inline zend_bool php_swoole_websocket_frame_is_object(zval *zdata)
 {
@@ -433,6 +440,20 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 static sw_inline zend_bool ZVAL_IS_BOOL(zval *v)
 {
     return Z_TYPE_P(v) == IS_TRUE || Z_TYPE_P(v) == IS_FALSE;
+}
+#endif
+
+#ifndef ZVAL_IS_TRUE
+static sw_inline zend_bool ZVAL_IS_TRUE(zval *v)
+{
+    return Z_TYPE_P(v) == IS_TRUE;
+}
+#endif
+
+#ifndef ZVAL_IS_FALSE
+static sw_inline zend_bool ZVAL_IS_FALSE(zval *v)
+{
+    return Z_TYPE_P(v) == IS_FALSE;
 }
 #endif
 

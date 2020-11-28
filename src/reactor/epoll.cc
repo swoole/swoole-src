@@ -136,11 +136,7 @@ int ReactorEpoll::del(Socket *_socket) {
         return SW_ERR;
     }
     if (epoll_ctl(epfd_, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {
-        swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]",
-                  _socket->fd,
-                  reactor_->id,
-                  _socket->fd_type,
-                  _socket->events);
+        after_removal_failure(_socket);
         if (errno != EBADF && errno != ENOENT) {
             return SW_ERR;
         }

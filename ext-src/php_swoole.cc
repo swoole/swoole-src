@@ -222,6 +222,9 @@ static const zend_module_dep swoole_deps[] = {
 #ifdef SW_SOCKETS
      ZEND_MOD_REQUIRED("sockets")
 #endif
+#ifdef SW_USE_CURL
+     ZEND_MOD_REQUIRED("curl")
+#endif
      ZEND_MOD_END
 };
 
@@ -380,8 +383,7 @@ static void fatal_error(int code, const char *format, ...) {
     exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
     zend_exception_error(exception, E_ERROR);
-    // should never here
-    abort();
+    exit(255);
 }
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -775,6 +777,7 @@ PHP_MINIT_FUNCTION(swoole) {
 PHP_MSHUTDOWN_FUNCTION(swoole) {
     swoole_clean();
     zend::known_strings_dtor();
+    php_swoole_runtime_mshutdown();
 
     return SUCCESS;
 }
@@ -839,6 +842,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef SW_USE_JSON
     php_info_print_table_row(2, "json", "enabled");
+#endif
+#ifdef SW_USE_CURL
+    php_info_print_table_row(2, "curl-native", "enabled");
 #endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");

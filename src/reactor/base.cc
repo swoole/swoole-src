@@ -51,6 +51,13 @@ ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events);
 
 ReactorImpl *make_reactor_select(Reactor *_reactor);
 
+void ReactorImpl::after_removal_failure(network::Socket *_socket) {
+    if (!_socket->silent_remove) {
+        swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]", _socket->fd, reactor_->id,
+                  _socket->fd_type, _socket->events);
+    }
+}
+
 Reactor::Reactor(int max_event, Type _type) {
     if (_type == TYPE_AUTO) {
 #ifdef HAVE_EPOLL

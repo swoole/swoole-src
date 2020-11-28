@@ -33,7 +33,7 @@ class String {
   private:
     void alloc(size_t _size, const Allocator *_allocator) {
         if (_allocator == nullptr) {
-            _allocator = &SwooleG.std_allocator;
+            _allocator = sw_std_allocator();
         }
 
         _size = SW_MEM_ALIGNED_SIZE(_size);

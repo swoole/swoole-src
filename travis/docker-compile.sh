@@ -1,5 +1,5 @@
 #!/bin/sh -e
-__CURRENT__=`pwd`
+__CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 if [ ! -f "/.dockerenv" ]; then
@@ -9,7 +9,9 @@ fi
 
 #-----------compile------------
 #-------print error only-------
-cd ${__DIR__} && cd ../ && \
+apt update -y
+apt install -y libcurl4-openssl-dev
+cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \
 phpize > /dev/null && \
@@ -20,6 +22,7 @@ phpize > /dev/null && \
 --enable-mysqlnd \
 --enable-gconv \
 --enable-swoole-json \
+--enable-swoole-curl \
 > /dev/null && \
 make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \

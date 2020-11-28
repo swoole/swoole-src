@@ -947,7 +947,7 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 }
 
 static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode) {
-    char *name, *value = nullptr, *path = nullptr, *domain = nullptr, *samesite = nullptr, *priority = nullptr;
+    char *name = nullptr, *value = nullptr, *path = nullptr, *domain = nullptr, *samesite = nullptr, *priority = nullptr;
     zend_long expires = 0;
     size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0, priority_len = 0;
     zend_bool secure = 0, httponly = 0;
@@ -970,7 +970,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         RETURN_FALSE;
     }
 
-    int cookie_size = name_len /* + value_len */ + path_len + domain_len + 100;
+    size_t cookie_size = name_len /* + value_len */ + path_len + domain_len + 100;
     char *cookie = nullptr, *date = nullptr;
 
     if (name_len > 0 && strpbrk(name, "=,; \t\r\n\013\014") != nullptr) {
