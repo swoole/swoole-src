@@ -1176,8 +1176,12 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("socket_get_option"));
             hook_func(ZEND_STRL("socket_setopt"));
             hook_func(ZEND_STRL("socket_set_option"));
+            hook_func(ZEND_STRL("socket_set_block"));
+            hook_func(ZEND_STRL("socket_set_nonblock"));
             hook_func(ZEND_STRL("socket_shutdown"));
             hook_func(ZEND_STRL("socket_close"));
+            hook_func(ZEND_STRL("socket_clear_error"));
+            hook_func(ZEND_STRL("socket_last_error"));
         }
     } else {
         if (hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
@@ -1199,8 +1203,12 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(socket_get_option);
             SW_UNHOOK_FUNC(socket_setopt);
             SW_UNHOOK_FUNC(socket_set_option);
+            SW_UNHOOK_FUNC(socket_set_block);
+            SW_UNHOOK_FUNC(socket_set_nonblock);
             SW_UNHOOK_FUNC(socket_shutdown);
             SW_UNHOOK_FUNC(socket_close);
+            SW_UNHOOK_FUNC(socket_clear_error);
+            SW_UNHOOK_FUNC(socket_last_error);
         }
     }
 

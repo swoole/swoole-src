@@ -1623,7 +1623,6 @@ static PHP_METHOD(swoole_socket_coro, getpeername) {
 
 static PHP_METHOD(swoole_socket_coro, getOption) {
     struct linger linger_val;
-    struct timeval tv;
     socklen_t optlen;
     int other_val;
     zend_long level, optname;
@@ -1686,21 +1685,11 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
     case SO_RCVTIMEO:
     case SO_SNDTIMEO: {
-        optlen = sizeof(tv);
-
-        if (_socket->get_option(level, optname, (char *) &tv, &optlen) != 0) {
-            php_swoole_sys_error(E_WARNING,
-                                 "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
-                                 sock->socket->get_fd(),
-                                 level,
-                                 optname);
-            RETURN_FALSE;
-        }
-
+        double timeout = sock->socket->get_timeout(optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
         array_init(return_value);
-
-        add_assoc_long(return_value, "sec", tv.tv_sec);
-        add_assoc_long(return_value, "usec", tv.tv_usec);
+        int sec =  (int) timeout;
+        add_assoc_long(return_value, "sec", (int) timeout);
+        add_assoc_long(return_value, "usec", (timeout - (double) sec) * 1000000);
         break;
     }
     default: {

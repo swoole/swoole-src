@@ -64,6 +64,7 @@ SW_EXTERN_C_BEGIN
 static PHP_FUNCTION(swoole_version);
 static PHP_FUNCTION(swoole_cpu_num);
 static PHP_FUNCTION(swoole_strerror);
+static PHP_FUNCTION(swoole_clear_error);
 static PHP_FUNCTION(swoole_errno);
 static PHP_FUNCTION(swoole_error_log);
 static PHP_FUNCTION(swoole_get_local_ip);
@@ -183,6 +184,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_get_local_mac, arginfo_swoole_void)
     PHP_FE(swoole_strerror, arginfo_swoole_strerror)
     PHP_FE(swoole_errno, arginfo_swoole_void)
+    PHP_FE(swoole_clear_error, arginfo_swoole_void)
     PHP_FE(swoole_error_log, arginfo_swoole_error_log)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE(swoole_mime_type_add, arginfo_swoole_mime_type_write)
@@ -1068,6 +1070,10 @@ static PHP_FUNCTION(swoole_hashcode) {
     default:
         RETURN_LONG(zend_hash_func(data, l_data));
     }
+}
+
+static PHP_FUNCTION(swoole_clear_error) {
+    swoole_set_last_error(0);
 }
 
 PHP_FUNCTION(swoole_last_error) {
