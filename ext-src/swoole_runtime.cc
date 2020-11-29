@@ -1160,6 +1160,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
             hook_func(ZEND_STRL("socket_create"));
             hook_func(ZEND_STRL("socket_create_listen"));
+            hook_func(ZEND_STRL("socket_create_pair"), PHP_FN(swoole_coroutine_socketpair));
             hook_func(ZEND_STRL("socket_connect"));
             hook_func(ZEND_STRL("socket_write"));
             hook_func(ZEND_STRL("socket_read"));
@@ -1187,6 +1188,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(socket_create);
             SW_UNHOOK_FUNC(socket_create_listen);
+            SW_UNHOOK_FUNC(socket_create_pair);
             SW_UNHOOK_FUNC(socket_connect);
             SW_UNHOOK_FUNC(socket_write);
             SW_UNHOOK_FUNC(socket_read);
