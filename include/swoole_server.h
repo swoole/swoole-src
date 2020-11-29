@@ -646,7 +646,7 @@ class Server {
      */
     bool reload_async = true;
     /**
-     * use task object
+     * use event object
      */
     bool event_object = false;
     /**
