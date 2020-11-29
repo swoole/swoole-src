@@ -32,6 +32,28 @@ if [ "$1" = "sync-module" ] ;then
   exit 0
 fi
 
+if [ "$1" = "library" ] ;then
+  set -e
+  cd ${__DIR__}
+  set +e
+  echo "rm ext-src/php_swoole.lo"
+  rm -f ext-src/php_swoole.lo
+  echo "rm ext-src/php_swoole_library.h"
+  rm -f ext-src/php_swoole_library.h
+  set -e
+
+  if [ "$2" = "dev" ] ;then
+    /usr/bin/env php tools/build-library.php dev
+  else
+     /usr/bin/env php tools/build-library.php
+  fi
+
+  echo "remake..."
+  make
+  echo "done"
+  exit 0
+fi
+
 if [ "$1" = "help" ] ;then
   echo "./make.sh cmake"
   echo "./make.sh install-module"
@@ -39,6 +61,7 @@ if [ "$1" = "help" ] ;then
   echo "./make.sh clean"
   echo "./make.sh debug"
   echo "./make.sh"
+   echo "./make.sh library"
   exit 0
 fi
 

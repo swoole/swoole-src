@@ -223,16 +223,19 @@ class Socket {
 
     inline void set_err(int e) {
         errCode = errno = e;
+        swoole_set_last_error(errCode);
         errMsg = e ? swoole_strerror(e) : "";
     }
 
     inline void set_err(int e, const char *s) {
         errCode = errno = e;
+        swoole_set_last_error(errCode);
         errMsg = s;
     }
 
     inline void set_err(int e, std::string s) {
         errCode = errno = e;
+        swoole_set_last_error(errCode);
         errString = s;
         errMsg = errString.c_str();
     }

@@ -805,6 +805,9 @@ void php_swoole_socket_coro_minit(int module_number) {
                                std);
 
     zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("fd"), -1, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("domain"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("type"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("protocol"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_socket_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_socket_coro_ce, ZEND_STRL("errMsg"), "", ZEND_ACC_PUBLIC);
 
@@ -832,6 +835,9 @@ static void sw_inline php_swoole_init_socket(zval *zobject, SocketObject *sock) 
     sock->socket->set_zero_copy(true);
     sock->socket->set_buffer_allocator(sw_zend_string_allocator());
     zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("fd"), sock->socket->get_fd());
+    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("domain"), sock->socket->get_sock_domain());
+    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
+    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
 }
 
 SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
@@ -850,17 +856,21 @@ SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
 }
 
 SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type) {
-    zval zobject;
-    zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
-    SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
-
     php_swoole_check_reactor();
     int new_fd = dup(fd);
     if (new_fd < 0) {
         php_swoole_sys_error(E_WARNING, "dup(%d) failed", fd);
         return nullptr;
     }
-    sock->socket = new Socket(new_fd, type);
+    return php_swoole_create_socket_from_fd(new_fd, type);
+}
+
+SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocket_type type) {
+    zval zobject;
+    zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
+    SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
+
+    sock->socket = new Socket(fd, type);
     if (UNEXPECTED(sock->socket->get_fd() < 0)) {
         php_swoole_sys_error(E_WARNING, "new Socket() failed");
         delete sock->socket;
@@ -1035,6 +1045,45 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     }
 
     return ret;
+}
+
+PHP_FUNCTION(swoole_coroutine_socketpair) {
+    zend_long domain, type, protocol;
+    php_socket_t pair[2];
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+    Z_PARAM_LONG(domain)
+    Z_PARAM_LONG(type)
+    Z_PARAM_LONG(protocol)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    if (0 != socketpair((int) domain, (int) type, (int) protocol, pair)) {
+        php_swoole_error(E_WARNING, "failed to create sockets: [%d]: %s", errno, strerror(errno));
+        RETURN_FALSE;
+    }
+
+    php_swoole_check_reactor();
+
+    auto sock_type = swoole::network::Socket::convert_to_type(domain, type, protocol);
+
+    zend_object *s1 = php_swoole_create_socket_from_fd(pair[0], sock_type);
+    if (s1 == nullptr) {
+        RETURN_FALSE;
+    }
+
+    zend_object *s2 = php_swoole_create_socket_from_fd(pair[1], sock_type);
+    if (s2 == nullptr) {
+        OBJ_RELEASE(s1);
+        RETURN_FALSE;
+    }
+
+    zval zobject1, zobject2;
+    ZVAL_OBJ(&zobject1, s1);
+    ZVAL_OBJ(&zobject2, s2);
+
+    array_init(return_value);
+    add_next_index_zval(return_value, &zobject1);
+    add_next_index_zval(return_value, &zobject2);
 }
 
 static PHP_METHOD(swoole_socket_coro, __construct) {
@@ -1617,7 +1666,6 @@ static PHP_METHOD(swoole_socket_coro, getpeername) {
 
 static PHP_METHOD(swoole_socket_coro, getOption) {
     struct linger linger_val;
-    struct timeval tv;
     socklen_t optlen;
     int other_val;
     zend_long level, optname;
@@ -1680,21 +1728,11 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
     case SO_RCVTIMEO:
     case SO_SNDTIMEO: {
-        optlen = sizeof(tv);
-
-        if (_socket->get_option(level, optname, (char *) &tv, &optlen) != 0) {
-            php_swoole_sys_error(E_WARNING,
-                                 "getsockopt(%d, " ZEND_LONG_FMT ", " ZEND_LONG_FMT ")",
-                                 sock->socket->get_fd(),
-                                 level,
-                                 optname);
-            RETURN_FALSE;
-        }
-
+        double timeout = sock->socket->get_timeout(optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
         array_init(return_value);
-
-        add_assoc_long(return_value, "sec", tv.tv_sec);
-        add_assoc_long(return_value, "usec", tv.tv_usec);
+        int sec =  (int) timeout;
+        add_assoc_long(return_value, "sec", (int) timeout);
+        add_assoc_long(return_value, "usec", (timeout - (double) sec) * 1000000);
         break;
     }
     default: {
