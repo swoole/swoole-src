@@ -608,6 +608,15 @@ ssize_t Server::send_to_reactor_thread(EventData *ev_data, size_t sendn, Session
     }
 }
 
+ssize_t Server::send_to_reactor_thread(DataHead *head, struct iovec *iov, size_t iovcnt, SessionId session_id) {
+    Socket *pipe_sock = get_reactor_thread_pipe(session_id, head->reactor_id);
+    if (SwooleTG.reactor) {
+        return swoole_event_writev_to_pipe(pipe_sock, iov, iovcnt);
+    } else {
+        return pipe_sock->send_to_pipe_blocking(iov, iovcnt);
+    }
+}
+
 /**
  * send message from worker to another worker
  */

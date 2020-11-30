@@ -447,13 +447,13 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-ssize_t Server::send_to_worker_from_master(Worker *worker, const void *data, size_t len) {
+ssize_t Server::send_to_worker_from_master(Worker *worker, struct iovec *iov, size_t iovcnt) {
     if (SwooleTG.reactor) {
         ReactorThread *thread = get_thread(SwooleTG.id);
         Socket *socket = &thread->pipe_sockets[worker->pipe_master->fd];
-        return swoole_event_write(socket, data, len);
+        return swoole_event_writev_to_pipe(socket, iov, iovcnt);
     } else {
-        return worker->pipe_master->send_blocking(data, len);
+        return worker->pipe_master->send_to_pipe_blocking(iov, iovcnt);
     }
 }
 

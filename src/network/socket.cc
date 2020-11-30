@@ -122,6 +122,31 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
     return SW_OK;
 }
 
+ssize_t Socket::send_to_pipe_blocking(struct iovec *iov, size_t iovcnt) {
+    ssize_t n = 0;
+    ssize_t written = 0;
+
+    assert(iovcnt == 2);
+
+    while (written < (ssize_t) iov[1].iov_len) {
+        n = ::writev(fd, iov, iovcnt);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            } else if (catch_error(errno) == SW_WAIT &&
+                       wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
+                continue;
+            } else {
+                swSysWarn("send %lu bytes failed", iov[1].iov_len);
+                return SW_ERR;
+            }
+        }
+        written += n;
+    }
+
+    return written;
+}
+
 /**
  * clear socket buffer.
  */
@@ -760,6 +785,10 @@ ssize_t Socket::writev(IOVector *io_vector) {
     } while (retval < 0 && errno == EINTR);
 
     return retval;
+}
+
+ssize_t Socket::writev(struct iovec *iov, size_t iovcnt) {
+    return ::writev(fd, iov, iovcnt);
 }
 
 ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {

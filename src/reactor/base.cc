@@ -290,6 +290,82 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
     return SW_OK;
 }
 
+int Reactor::_writev_to_pipe(Reactor *reactor, network::Socket *socket, struct iovec *iov, size_t iovcnt) {
+    assert(iovcnt == 2);
+
+    ssize_t retval;
+    Buffer *buffer = socket->out_buffer;
+    int fd = socket->fd;
+    ssize_t n = iov[1].iov_len;
+
+    if (socket->buffer_size == 0) {
+        socket->buffer_size = Socket::default_buffer_size;
+    }
+
+    if (socket->nonblock == 0) {
+        socket->set_fd_option(1, -1);
+    }
+
+    if ((uint32_t) n > socket->buffer_size) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                         "data packet is too large, cannot exceed the buffer size");
+        return SW_ERR;
+    }
+
+    if (Buffer::empty(buffer)) {
+#ifdef SW_USE_OPENSSL
+        if (socket->ssl_send_) {
+            goto _alloc_buffer;
+        }
+#endif
+    _do_send:
+        retval = socket->writev(iov, iovcnt);
+
+        if (retval > 0) {
+            if ((ssize_t) n == retval) {
+                return retval;
+            } else {
+                goto _alloc_buffer;
+            }
+        } else if (socket->catch_error(errno) == SW_WAIT) {
+        _alloc_buffer:
+            if (!socket->out_buffer) {
+                buffer = new Buffer(socket->chunk_size);
+                if (!buffer) {
+                    swWarn("create worker buffer failed");
+                    return SW_ERR;
+                }
+                socket->out_buffer = buffer;
+            }
+
+            reactor->add_write_event(socket);
+            goto _append_buffer;
+        } else if (errno == EINTR) {
+            goto _do_send;
+        } else {
+            swoole_set_last_error(errno);
+            return SW_ERR;
+        }
+    } else {
+    _append_buffer:
+        if (buffer->length() > socket->buffer_size) {
+            if (socket->dontwait) {
+                swoole_set_last_error(SW_ERROR_OUTPUT_BUFFER_OVERFLOW);
+                return SW_ERR;
+            } else {
+                swoole_error_log(
+                    SW_LOG_WARNING, SW_ERROR_OUTPUT_BUFFER_OVERFLOW, "socket#%d output buffer overflow", fd);
+                sw_yield();
+                socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
+            }
+        }
+        buffer->append(iov[0].iov_base, iov[0].iov_len);
+        buffer->append(iov[1].iov_base, iov[1].iov_len);
+    }
+    return SW_OK;
+}
+
 int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
     int ret;
 

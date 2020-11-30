@@ -305,6 +305,7 @@ struct Socket {
 
     ssize_t readv(IOVector *io_vector);
     ssize_t writev(IOVector *io_vector);
+    ssize_t writev(struct iovec *iov, size_t iovcnt);
 
     int bind(const Address &sa) {
         return ::bind(fd, &sa.addr.ss, sizeof(sa.addr.ss));
@@ -318,6 +319,7 @@ struct Socket {
     ssize_t send_blocking(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
+    ssize_t send_to_pipe_blocking(struct iovec *iov, size_t iovcnt);
 
     inline int connect(const Address &sa) {
         return ::connect(fd, &sa.addr.ss, sa.len);
