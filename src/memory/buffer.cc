@@ -79,4 +79,32 @@ void Buffer::append(const void *data, uint32_t size) {
     }
 }
 
+void Buffer::append(struct iovec *iov, size_t iovcnt) {
+    uint32_t _length = iov[0].iov_len + iov[1].iov_len;
+    char *_pos1 = (char *) iov[0].iov_base;
+    char *_pos2 = (char *) iov[1].iov_base;
+    uint32_t _n;
+
+    // buffer enQueue
+    while (_length > 0) {
+        _n = _length >= chunk_size ? chunk_size : _length;
+
+        BufferChunk *chunk = alloc(BufferChunk::TYPE_DATA, _n);
+
+        total_length += _n;
+
+        memcpy(chunk->value.ptr, _pos1, iov[0].iov_len);
+        chunk->length += iov[0].iov_len;
+
+        memcpy(chunk->value.ptr + iov[0].iov_len, _pos2, iov[1].iov_len);
+        chunk->length += iov[1].iov_len;
+
+        swTraceLog(SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", count(), _n, chunk->length, chunk);
+
+        _pos1 += iov[0].iov_len;
+        _pos2 += iov[1].iov_len;
+        _length -= iov[0].iov_len;
+        _length -= iov[1].iov_len;
+    }
+}
 }  // namespace swoole

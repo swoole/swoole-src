@@ -361,8 +361,7 @@ int Reactor::_writev_to_pipe(Reactor *reactor, network::Socket *socket, struct i
                 socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
         }
-        buffer->append(iov[0].iov_base, iov[0].iov_len);
-        buffer->append(iov[1].iov_base, iov[1].iov_len);
+        buffer->append(iov, iovcnt);
     }
     return SW_OK;
 }

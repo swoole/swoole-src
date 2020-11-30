@@ -17,6 +17,7 @@
 #pragma once
 
 #include <queue>
+#include <sys/uio.h>
 
 namespace swoole {
 
@@ -61,6 +62,7 @@ class Buffer {
 
     void pop();
     void append(const void *data, uint32_t size);
+    void append(struct iovec *iov, size_t iovcnt);
 
     uint32_t length() {
         return total_length;
