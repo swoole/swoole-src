@@ -104,7 +104,7 @@ ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
 
-SW_API ssize_t swoole_event_writev_to_pipe(swoole::network::Socket *socket, struct iovec *iov, size_t iovcnt) {
+ssize_t swoole_event_writev_to_pipe(swoole::network::Socket *socket, struct iovec *iov, size_t iovcnt) {
     return SwooleTG.reactor->writev_to_pipe(SwooleTG.reactor, socket, iov, iovcnt);
 }
 

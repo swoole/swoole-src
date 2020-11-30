@@ -103,6 +103,7 @@ Reactor::Reactor(int max_event, Type _type) {
     running = true;
 
     write = _write;
+    writev_to_pipe = _writev_to_pipe;
     close = _close;
 
     default_write_handler = _writable_callback;

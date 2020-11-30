@@ -336,11 +336,10 @@ bool ProcessFactory::finish(SendData *resp) {
     }
 
     SendData task;
+    memcpy(&task, resp, sizeof(SendData));
     task.info.fd = session_id;
-    task.info.type = resp->info.type;
     task.info.reactor_id = conn->reactor_id;
     task.info.server_fd = SwooleG.process_id;
-
 
     swTrace("worker_id=%d, type=%d", SwooleG.process_id, buf->info.type);
 
