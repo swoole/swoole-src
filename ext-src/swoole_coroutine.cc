@@ -46,7 +46,11 @@ bool PHPCoroutine::active = false;
 
 PHPCoroutine::Config PHPCoroutine::config {
     SW_DEFAULT_MAX_CORO_NUM,
-    PHPCoroutine::HOOK_NONE,
+#ifdef SW_USE_CURL
+    PHPCoroutine::HOOK_ALL & ~PHPCoroutine::HOOK_CURL,
+#else
+    PHPCoroutine::HOOK_ALL & ~PHPCoroutine::HOOK_NATIVE_CURL,
+#endif
     false,
 };
 
