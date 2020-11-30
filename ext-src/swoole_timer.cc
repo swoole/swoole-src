@@ -31,11 +31,6 @@ static zend_object_handlers swoole_timer_handlers;
 
 static zend_class_entry *swoole_timer_iterator_ce;
 
-static struct {
-    bool enable_coroutine_isset;
-    bool enable_coroutine;
-} settings;
-
 SW_EXTERN_C_BEGIN
 static PHP_FUNCTION(swoole_timer_set);
 static PHP_FUNCTION(swoole_timer_after);
@@ -82,7 +77,8 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_timer_methods[] =
 {
-    ZEND_FENTRY(set, ZEND_FN(swoole_timer_set), arginfo_swoole_timer_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(set, ZEND_FN(swoole_timer_set), arginfo_swoole_timer_set,
+                ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
     ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -158,9 +154,7 @@ bool php_swoole_timer_clear_all() {
 
 static void php_swoole_onTimeout(Timer *timer, TimerNode *tnode) {
     Function *fci = (Function *) tnode->data;
-    bool enable_coroutine = settings.enable_coroutine_isset ? settings.enable_coroutine : SwooleG.enable_coroutine;
-
-    if (UNEXPECTED(!fci->call(nullptr, enable_coroutine))) {
+    if (UNEXPECTED(!fci->call(nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
     if (!tnode->interval || tnode->removed) {
@@ -220,18 +214,16 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) 
 
 static PHP_FUNCTION(swoole_timer_set) {
     zval *zset = nullptr;
-    HashTable *vht = nullptr;
     zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    vht = Z_ARRVAL_P(zset);
+    HashTable *vht = Z_ARRVAL_P(zset);
 
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        settings.enable_coroutine_isset = true;
-        settings.enable_coroutine = zval_is_true(ztmp);
+        SWOOLE_G(enable_coroutine) = zval_is_true(ztmp);
     }
 }
 

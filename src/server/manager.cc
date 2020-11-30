@@ -216,10 +216,10 @@ void Server::check_worker_exit_status(int worker_id, pid_t pid, int status) {
 int Manager::start(Server *_server) {
     server_ = _server;
     server_->manager = this;
+    server_->enable_coroutine = false;
 
     SwooleG.use_signalfd = 0;
     SwooleTG.reactor = nullptr;
-    SwooleG.enable_coroutine = 0;
 
     reload_workers = (Worker *) sw_calloc(_server->worker_num + _server->task_worker_num, sizeof(Worker));
     if (reload_workers == nullptr) {

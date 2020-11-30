@@ -126,7 +126,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
             }
         }
 
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine))) {
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
 #ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
             ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));

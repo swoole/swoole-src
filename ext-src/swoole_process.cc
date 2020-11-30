@@ -656,11 +656,10 @@ static void php_swoole_onSignal(int signo) {
     zend_fcall_info_cache *fci_cache = signal_fci_caches[signo];
 
     if (fci_cache) {
-        zval zsigno;
+        zval argv[1];
+        ZVAL_LONG(& argv[0], signo);
 
-        ZVAL_LONG(&zsigno, signo);
-
-        if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, fci_cache, 1, &zsigno, nullptr) != SUCCESS)) {
+        if (UNEXPECTED(!zend::function::call(fci_cache, 1, argv, nullptr, php_swoole_is_enable_coroutine()))) {
             php_swoole_fatal_error(
                 E_WARNING, "%s: signal [%d] handler error", ZSTR_VAL(swoole_process_ce->name), signo);
         }

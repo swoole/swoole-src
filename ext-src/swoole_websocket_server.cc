@@ -292,7 +292,7 @@ void swoole_websocket_onOpen(Server *serv, http_context *ctx) {
         zval args[2];
         args[0] = *((zval *) serv->private_data_2);
         args[1] = *ctx->request.zobject;
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine))) {
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
             php_swoole_error(E_WARNING, "%s->onOpen handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
             serv->close(ctx->fd, false);
         }
@@ -607,7 +607,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     php_swoole_websocket_construct_frame(&args[1], opcode, &zdata, flags);
     zend_update_property_long(swoole_websocket_frame_ce, SW_Z8_OBJ_P(&args[1]), ZEND_STRL("fd"), fd);
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine))) {
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onMessage handler error", ZSTR_VAL(swoole_websocket_server_ce->name));
         serv->close(fd, false);
     }

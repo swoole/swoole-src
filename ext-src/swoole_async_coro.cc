@@ -93,7 +93,7 @@ PHP_FUNCTION(swoole_async_set) {
         SwooleG.use_async_resolver = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        SwooleG.enable_coroutine = zval_is_true(ztmp);
+        SWOOLE_G(enable_coroutine) = zval_is_true(ztmp);
     }
 }
 

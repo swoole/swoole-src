@@ -385,6 +385,14 @@ void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_d
     rshutdown_callbacks.append(cb, private_data);
 }
 
+SW_API bool php_swoole_is_enable_coroutine() {
+    if (sw_server()) {
+        return sw_server()->is_enable_coroutine();
+    } else {
+        return SWOOLE_G(enable_coroutine);
+    }
+}
+
 static void fatal_error(int code, const char *format, ...) {
     va_list args;
     zend_object *exception;
@@ -712,9 +720,6 @@ PHP_MINIT_FUNCTION(swoole) {
     }
 
     swoole_init();
-    if (!SWOOLE_G(enable_coroutine)) {
-        SwooleG.enable_coroutine = 0;
-    }
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0) {
         SWOOLE_G(cli) = 1;
     }

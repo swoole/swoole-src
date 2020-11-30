@@ -968,6 +968,14 @@ class Server {
         return mode_ == MODE_BASE;
     }
 
+    inline bool is_enable_coroutine() {
+        if (is_task_worker()) {
+            return task_enable_coroutine;
+        } else {
+            return enable_coroutine;
+        }
+    }
+
     inline bool is_hash_dispatch_mode() {
         return dispatch_mode == SW_DISPATCH_FDMOD || dispatch_mode == SW_DISPATCH_IPMOD;
     }
