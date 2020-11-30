@@ -110,7 +110,11 @@ class PHPCoroutine {
         HOOK_NATIVE_CURL       = 1u << 12,
         HOOK_BLOCKING_FUNCTION = 1u << 13,
         HOOK_SOCKETS           = 1u << 14,
+#ifdef SW_USE_CURL
+        HOOK_ALL               = 0x7fffffff ^ HOOK_CURL,
+#else
         HOOK_ALL               = 0x7fffffff ^ HOOK_NATIVE_CURL,
+#endif
     };
 
     static const uint8_t MAX_EXEC_MSEC = 10;
@@ -189,6 +193,10 @@ class PHPCoroutine {
 
     static inline void set_hook_flags(uint32_t flags) {
         config.hook_flags = flags;
+    }
+
+    static inline uint32_t get_hook_flags() {
+        return config.hook_flags;
     }
 
     static inline void enable_preemptive_scheduler(bool value) {

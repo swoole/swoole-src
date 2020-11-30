@@ -125,8 +125,8 @@ struct php_swoole_netstream_data_t
     double write_timeout;
 };
 
-static bool hook_init = false;
-static int hook_flags = 0;
+static bool runtime_hook_init = false;
+static int runtime_hook_flags = 0;
 
 static struct
 {
@@ -212,11 +212,11 @@ struct real_func {
 };
 
 void php_swoole_runtime_rshutdown() {
-    if (!hook_init) {
+    if (!runtime_hook_init) {
         return;
     }
 
-    hook_init = false;
+    runtime_hook_init = false;
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
@@ -997,7 +997,7 @@ void PHPCoroutine::disable_unsafe_function() {
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
-    if (!hook_init) {
+    if (!runtime_hook_init) {
         HashTable *xport_hash = php_stream_xport_get_hash();
         // php_stream
         ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
@@ -1013,61 +1013,61 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
         zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
 
-        hook_init = true;
+        runtime_hook_init = true;
     }
     // php_stream
     if (flags & PHPCoroutine::HOOK_TCP) {
-        if (!(hook_flags & PHPCoroutine::HOOK_TCP)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_TCP)) {
             if (php_stream_xport_register("tcp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TCP;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_TCP) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_TCP) {
             php_stream_xport_register("tcp", ori_factory.tcp);
         }
     }
     if (flags & PHPCoroutine::HOOK_UDP) {
-        if (!(hook_flags & PHPCoroutine::HOOK_UDP)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDP)) {
             if (php_stream_xport_register("udp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDP;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_UDP) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_UDP) {
             php_stream_xport_register("udp", ori_factory.udp);
         }
     }
     if (flags & PHPCoroutine::HOOK_UNIX) {
-        if (!(hook_flags & PHPCoroutine::HOOK_UNIX)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_UNIX)) {
             if (php_stream_xport_register("unix", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UNIX;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_UNIX) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_UNIX) {
             php_stream_xport_register("unix", ori_factory._unix);
         }
     }
     if (flags & PHPCoroutine::HOOK_UDG) {
-        if (!(hook_flags & PHPCoroutine::HOOK_UDG)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDG)) {
             if (php_stream_xport_register("udg", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDG;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_UDG) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_UDG) {
             php_stream_xport_register("udg", ori_factory.udg);
         }
     }
     if (flags & PHPCoroutine::HOOK_SSL) {
-        if (!(hook_flags & PHPCoroutine::HOOK_SSL)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_SSL)) {
             if (php_stream_xport_register("ssl", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_SSL;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_SSL) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_SSL) {
             if (ori_factory.ssl != nullptr) {
                 php_stream_xport_register("ssl", ori_factory.ssl);
             } else {
@@ -1076,13 +1076,13 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
     if (flags & PHPCoroutine::HOOK_TLS) {
-        if (!(hook_flags & PHPCoroutine::HOOK_TLS)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_TLS)) {
             if (php_stream_xport_register("tls", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TLS;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_TLS) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_TLS) {
             if (ori_factory.tls != nullptr) {
                 php_stream_xport_register("tls", ori_factory.tls);
             } else {
@@ -1091,36 +1091,36 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
     if (flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
-        if (!(hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
             SW_HOOK_FUNC(stream_select);
             SW_HOOK_FUNC(stream_socket_pair);
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
             SW_UNHOOK_FUNC(stream_select);
             SW_UNHOOK_FUNC(stream_socket_pair);
         }
     }
     // file
     if (flags & PHPCoroutine::HOOK_FILE) {
-        if (!(hook_flags & PHPCoroutine::HOOK_FILE)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
             memcpy((void *) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_FILE) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
             memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
     }
     // sleep
     if (flags & PHPCoroutine::HOOK_SLEEP) {
-        if (!(hook_flags & PHPCoroutine::HOOK_SLEEP)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_SLEEP)) {
             SW_HOOK_FUNC(sleep);
             SW_HOOK_FUNC(usleep);
             SW_HOOK_FUNC(time_nanosleep);
             SW_HOOK_FUNC(time_sleep_until);
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_SLEEP) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_SLEEP) {
             SW_UNHOOK_FUNC(sleep);
             SW_UNHOOK_FUNC(usleep);
             SW_UNHOOK_FUNC(time_nanosleep);
@@ -1129,14 +1129,14 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
     // proc_open
     if (flags & PHPCoroutine::HOOK_PROC) {
-        if (!(hook_flags & PHPCoroutine::HOOK_PROC)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PROC)) {
             SW_HOOK_FUNC(proc_open);
             SW_HOOK_FUNC(proc_close);
             SW_HOOK_FUNC(proc_get_status);
             SW_HOOK_FUNC(proc_terminate);
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_PROC) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PROC) {
             SW_UNHOOK_FUNC(proc_open);
             SW_UNHOOK_FUNC(proc_close);
             SW_UNHOOK_FUNC(proc_get_status);
@@ -1145,20 +1145,20 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
     // blocking function
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
-        if (!(hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
             hook_func(ZEND_STRL("exec"));
             hook_func(ZEND_STRL("shell_exec"));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(gethostbyname);
             SW_UNHOOK_FUNC(exec);
             SW_UNHOOK_FUNC(shell_exec);
         }
     }
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
-        if (!(hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
             hook_func(ZEND_STRL("socket_create"));
             hook_func(ZEND_STRL("socket_create_listen"));
             hook_func(ZEND_STRL("socket_create_pair"), PHP_FN(swoole_coroutine_socketpair));
@@ -1186,7 +1186,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("socket_last_error"));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(socket_create);
             SW_UNHOOK_FUNC(socket_create_listen);
             SW_UNHOOK_FUNC(socket_create_pair);
@@ -1221,7 +1221,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             php_swoole_fatal_error(E_WARNING, "cannot enable both hooks HOOK_NATIVE_CURL and HOOK_CURL at same time");
             flags ^= PHPCoroutine::HOOK_CURL;
         }
-        if (!(hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
 #if PHP_VERSION_ID >= 80000
             hook_internal_functions(swoole_native_curl_functions);
 #else
@@ -1241,7 +1241,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             #endif
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
             SW_UNHOOK_FUNC(curl_close);
             SW_UNHOOK_FUNC(curl_copy_handle);
             SW_UNHOOK_FUNC(curl_errno);
@@ -1260,7 +1260,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 #endif
 
     if (flags & PHPCoroutine::HOOK_CURL) {
-        if (!(hook_flags & PHPCoroutine::HOOK_CURL)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_CURL)) {
             hook_func(ZEND_STRL("curl_init"));
             hook_func(ZEND_STRL("curl_setopt"));
             hook_func(ZEND_STRL("curl_setopt_array"));
@@ -1273,7 +1273,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("curl_multi_getcontent"));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_CURL) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_CURL) {
             SW_UNHOOK_FUNC(curl_init);
             SW_UNHOOK_FUNC(curl_setopt);
             SW_UNHOOK_FUNC(curl_setopt_array);
@@ -1287,7 +1287,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 
-    hook_flags = flags;
+    runtime_hook_flags = flags;
     return true;
 }
 
@@ -1333,7 +1333,11 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
 }
 
 static PHP_METHOD(swoole_runtime, getHookFlags) {
-    RETURN_LONG(hook_flags);
+    if (runtime_hook_init) {
+        RETURN_LONG(runtime_hook_flags);
+    } else {
+        RETURN_LONG(PHPCoroutine::get_hook_flags());
+    }
 }
 
 static PHP_METHOD(swoole_runtime, setHookFlags) {
