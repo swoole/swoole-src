@@ -188,7 +188,10 @@ bool ProcessFactory::dispatch(SendData *task) {
         server_->gs->dispatch_count++;
     }
 
-    return process_send_packet(server_, task, process_sendto_worker, worker);
+    SendData _task;
+    memcpy(&_task, task, sizeof(SendData));
+
+    return process_send_packet(server_, &_task, process_sendto_worker, worker);
 }
 
 /**
