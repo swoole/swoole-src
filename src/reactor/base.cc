@@ -297,7 +297,7 @@ int Reactor::_writev_to_pipe(Reactor *reactor, network::Socket *socket, struct i
     ssize_t retval;
     Buffer *buffer = socket->out_buffer;
     int fd = socket->fd;
-    ssize_t n = iov[1].iov_len;
+    ssize_t n = iov[0].iov_len + iov[1].iov_len;
 
     if (socket->buffer_size == 0) {
         socket->buffer_size = Socket::default_buffer_size;
