@@ -107,10 +107,9 @@ class PHPCoroutine {
         HOOK_SLEEP             = 1u << 9,
         HOOK_PROC              = 1u << 10,
         HOOK_CURL              = 1u << 11,
-        HOOK_NATIVE_CURL       = 1u << 12,
-        HOOK_BLOCKING_FUNCTION = 1u << 13,
-        HOOK_SOCKETS           = 1u << 14, // sockets extension
-        HOOK_ALL               = 0x7fffffff ^ HOOK_NATIVE_CURL,
+        HOOK_BLOCKING_FUNCTION = 1u << 12,
+        HOOK_SOCKETS           = 1u << 13,
+        HOOK_ALL               = 0x7fffffff,
     };
 
     static const uint8_t MAX_EXEC_MSEC = 10;

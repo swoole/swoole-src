@@ -194,7 +194,6 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", PHPCoroutine::HOOK_SLEEP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PROC", PHPCoroutine::HOOK_PROC);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL", PHPCoroutine::HOOK_CURL);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NATIVE_CURL", PHPCoroutine::HOOK_NATIVE_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
@@ -1214,16 +1213,12 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 
+    if (flags & PHPCoroutine::HOOK_CURL) {
+        if (!(hook_flags & PHPCoroutine::HOOK_CURL)) {
 #ifdef SW_USE_CURL
-    if (flags & PHPCoroutine::HOOK_NATIVE_CURL) {
-        if (flags & PHPCoroutine::HOOK_CURL) {
-            php_swoole_fatal_error(E_WARNING, "cannot enable both hooks HOOK_NATIVE_CURL and HOOK_CURL at same time");
-            flags ^= PHPCoroutine::HOOK_CURL;
-        }
-        if (!(hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
-            #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
             hook_internal_functions(swoole_native_curl_functions);
-            #else
+#else
             hook_func(ZEND_STRL("curl_close"), PHP_FN(swoole_native_curl_close));
             hook_func(ZEND_STRL("curl_copy_handle"), PHP_FN(swoole_native_curl_copy_handle));
             hook_func(ZEND_STRL("curl_errno"), PHP_FN(swoole_native_curl_errno));
@@ -1237,10 +1232,24 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("curl_pause"), PHP_FN(swoole_native_curl_pause));
             hook_func(ZEND_STRL("curl_escape"), PHP_FN(swoole_native_curl_escape));
             hook_func(ZEND_STRL("curl_unescape"), PHP_FN(swoole_native_curl_unescape));
-            #endif
+#endif
+#else
+            hook_func(ZEND_STRL("curl_init"));
+            hook_func(ZEND_STRL("curl_setopt"));
+            hook_func(ZEND_STRL("curl_setopt_array"));
+            hook_func(ZEND_STRL("curl_exec"));
+            hook_func(ZEND_STRL("curl_getinfo"));
+            hook_func(ZEND_STRL("curl_errno"));
+            hook_func(ZEND_STRL("curl_error"));
+            hook_func(ZEND_STRL("curl_reset"));
+            hook_func(ZEND_STRL("curl_close"));
+            hook_func(ZEND_STRL("curl_multi_getcontent"));
+#endif
+
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
+        if (hook_flags & PHPCoroutine::HOOK_CURL) {
+#ifdef SW_USE_CURL
             SW_UNHOOK_FUNC(curl_close);
             SW_UNHOOK_FUNC(curl_copy_handle);
             SW_UNHOOK_FUNC(curl_errno);
@@ -1254,25 +1263,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(curl_pause);
             SW_UNHOOK_FUNC(curl_escape);
             SW_UNHOOK_FUNC(curl_unescape);
-        }
-    }
-#endif
-
-    if (flags & PHPCoroutine::HOOK_CURL) {
-        if (!(hook_flags & PHPCoroutine::HOOK_CURL)) {
-            hook_func(ZEND_STRL("curl_init"));
-            hook_func(ZEND_STRL("curl_setopt"));
-            hook_func(ZEND_STRL("curl_setopt_array"));
-            hook_func(ZEND_STRL("curl_exec"));
-            hook_func(ZEND_STRL("curl_getinfo"));
-            hook_func(ZEND_STRL("curl_errno"));
-            hook_func(ZEND_STRL("curl_error"));
-            hook_func(ZEND_STRL("curl_reset"));
-            hook_func(ZEND_STRL("curl_close"));
-            hook_func(ZEND_STRL("curl_multi_getcontent"));
-        }
-    } else {
-        if (hook_flags & PHPCoroutine::HOOK_CURL) {
+#else
             SW_UNHOOK_FUNC(curl_init);
             SW_UNHOOK_FUNC(curl_setopt);
             SW_UNHOOK_FUNC(curl_setopt_array);
@@ -1283,6 +1274,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(curl_reset);
             SW_UNHOOK_FUNC(curl_close);
             SW_UNHOOK_FUNC(curl_multi_getcontent);
+#endif
         }
     }
 
