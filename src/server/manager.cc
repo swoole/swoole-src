@@ -219,7 +219,6 @@ int Manager::start(Server *_server) {
 
     SwooleG.use_signalfd = 0;
     SwooleTG.reactor = nullptr;
-    SwooleG.enable_coroutine = 0;
 
     reload_workers = (Worker *) sw_calloc(_server->worker_num + _server->task_worker_num, sizeof(Worker));
     if (reload_workers == nullptr) {

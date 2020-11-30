@@ -195,6 +195,10 @@ class PHPCoroutine {
         config.enable_preemptive_scheduler = value;
     }
 
+    static inline bool is_activated() {
+        return active;
+    }
+
   protected:
     static bool active;
     static PHPContext main_task;
