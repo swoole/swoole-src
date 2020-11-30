@@ -101,6 +101,8 @@ Reactor::Reactor(int max_event, Type _type) {
     }
 
     running = true;
+    idle_task = {};
+    future_task = {};
 
     write = _write;
     close = _close;

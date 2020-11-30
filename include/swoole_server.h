@@ -971,6 +971,8 @@ class Server {
     inline bool is_enable_coroutine() {
         if (is_task_worker()) {
             return task_enable_coroutine;
+        } else if (is_manager()) {
+            return false;
         } else {
             return enable_coroutine;
         }

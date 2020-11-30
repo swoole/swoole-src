@@ -118,7 +118,7 @@ void php_swoole_timer_minit(int module_number) {
     SW_REGISTER_DOUBLE_CONSTANT("SWOOLE_TIMER_MAX_SEC", SW_TIMER_MAX_SEC);
 }
 
-static void php_swoole_timer_dtor(TimerNode *tnode) {
+static void timer_dtor(TimerNode *tnode) {
     Function *fci = (Function *) tnode->data;
     sw_zend_fci_params_discard(&fci->fci);
     sw_zend_fci_cache_discard(&fci->fci_cache);
@@ -152,17 +152,18 @@ bool php_swoole_timer_clear_all() {
     return true;
 }
 
-static void php_swoole_onTimeout(Timer *timer, TimerNode *tnode) {
+static void timer_callback(Timer *timer, TimerNode *tnode) {
     Function *fci = (Function *) tnode->data;
+
     if (UNEXPECTED(!fci->call(nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
     if (!tnode->interval || tnode->removed) {
-        php_swoole_timer_dtor(tnode);
+        timer_dtor(tnode);
     }
 }
 
-static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
+static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     zend_long ms;
     Function *fci = (Function *) ecalloc(1, sizeof(Function));
     TimerNode *tnode;
@@ -185,13 +186,13 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) 
         php_swoole_check_reactor();
     }
 
-    tnode = swoole_timer_add(ms, persistent, php_swoole_onTimeout, fci);
+    tnode = swoole_timer_add(ms, persistent, timer_callback, fci);
     if (UNEXPECTED(!tnode)) {
         php_swoole_fatal_error(E_WARNING, "add timer failed");
         goto _failed;
     }
     tnode->type = TimerNode::TYPE_PHP;
-    tnode->destructor = php_swoole_timer_dtor;
+    tnode->destructor = timer_dtor;
     if (persistent) {
         if (fci->fci.param_count > 0) {
             uint32_t i;
@@ -228,11 +229,11 @@ static PHP_FUNCTION(swoole_timer_set) {
 }
 
 static PHP_FUNCTION(swoole_timer_after) {
-    php_swoole_timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+    timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
 static PHP_FUNCTION(swoole_timer_tick) {
-    php_swoole_timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+    timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static PHP_FUNCTION(swoole_timer_exists) {
