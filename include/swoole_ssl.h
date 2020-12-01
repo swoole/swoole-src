@@ -154,10 +154,7 @@ struct SSLContext {
 
 void swSSL_init(void);
 void swSSL_init_thread_safety();
-int swSSL_server_set_cipher(SSL_CTX *ssl_context, const swoole::SSLContext &);
 void swSSL_server_http_advise(swoole::SSLContext &);
-int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth);
-int swSSL_set_capath(swoole::SSLContext *cfg, SSL_CTX *ctx);
 const char *swSSL_get_error();
 int swSSL_get_ex_connection_index();
 int swSSL_get_ex_port_index();

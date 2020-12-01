@@ -44,15 +44,6 @@ static int swSSL_set_default_dhparam(SSL_CTX *ssl_context);
 static int swSSL_set_dhparam(SSL_CTX *ssl_context, const char *file);
 static int swSSL_set_ecdh_curve(SSL_CTX *ssl_context, const char *ecdh_curve);
 
-#ifdef TLSEXT_TYPE_next_proto_neg
-static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg);
-#endif
-
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-static int swSSL_alpn_advertised(
-    SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
-#endif
-
 #ifdef SW_SUPPORT_DTLS
 static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
 static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
@@ -171,22 +162,6 @@ void swSSL_init_thread_safety() {
     CRYPTO_set_locking_callback(swSSL_lock_callback);
 }
 
-void swSSL_server_http_advise(SSLContext &cfg) {
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-    SSL_CTX_set_alpn_select_cb(cfg.get_context(), swSSL_alpn_advertised, (void *) &cfg);
-#endif
-
-#ifdef TLSEXT_TYPE_next_proto_neg
-    SSL_CTX_set_next_protos_advertised_cb(cfg.get_context(), swSSL_npn_advertised, (void *) &cfg);
-#endif
-
-    if (cfg.http) {
-        SSL_CTX_set_session_id_context(cfg.get_context(), (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
-        SSL_CTX_set_session_cache_mode(cfg.get_context(), SSL_SESS_CACHE_SERVER);
-        SSL_CTX_sess_set_cache_size(cfg.get_context(), 1);
-    }
-}
-
 static void swSSL_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;
     swSocket *sock;
@@ -233,6 +208,7 @@ namespace swoole {
 const std::string HTTP2_H2_ALPN("\x2h2");
 const std::string HTTP2_H2_16_ALPN("\x5h2-16");
 const std::string HTTP2_H2_14_ALPN("\x5h2-14");
+const std::string HTTP1_NPN("\x08http/1.1");
 
 static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const std::string &key) {
     for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
@@ -251,6 +227,30 @@ static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uin
            ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
 }
 
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+static int ssl_alpn_advertised(
+    SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
+    unsigned int srvlen;
+    unsigned char *srv;
+
+    std::string value;
+    SSLContext *cfg = (SSLContext*) arg;
+    if (cfg->http_v2) {
+        value = HTTP2_H2_ALPN + HTTP1_NPN;
+    } else {
+        value = HTTP1_NPN;
+    }
+
+    srv = (unsigned char *) value.c_str();
+    srvlen = value.length();
+    if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+    return SSL_TLSEXT_ERR_OK;
+}
+#endif
+
 static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const uchar *in, uint inlen, void *arg) {
 #ifdef SW_LOG_TRACE_OPEN
     std::string info("[NPN] server offers:\n");
@@ -259,12 +259,15 @@ static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const 
     }
     swTraceLog(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
 #endif
-    if (!ssl_select_h2(const_cast<const unsigned char **>(out), outlen, in, inlen)) {
+    SSLContext *ctx = (SSLContext *) arg;
+    if (ctx->http_v2 && !ssl_select_h2(const_cast<const unsigned char**>(out), outlen, in, inlen)) {
         swWarn("HTTP/2 protocol was not selected, expects [h2]");
         return SSL_TLSEXT_ERR_NOACK;
-    } else {
-        return SSL_TLSEXT_ERR_OK;
+    } else if (ctx->http) {
+        *out = (uchar*) HTTP1_NPN.c_str();
+        *outlen = HTTP1_NPN.length();
     }
+    return SSL_TLSEXT_ERR_OK;
 }
 #endif
 
@@ -449,18 +452,32 @@ bool SSLContext::create() {
         return false;
     }
 
-#if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
-    if (http_v2) {
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+    if (http || http_v2) {
+        std::string value;
+        if (http_v2) {
+            value = HTTP2_H2_ALPN + HTTP1_NPN;
+        } else {
+            value = HTTP1_NPN;
+        }
 #ifndef OPENSSL_NO_NEXTPROTONEG
         SSL_CTX_set_next_proto_select_cb(context, ssl_select_next_proto_cb, nullptr);
 #endif
-        if (SSL_CTX_set_alpn_protos(context, (const unsigned char *) SW_STRL(SW_SSL_HTTP2_NPN_ADVERTISE)) < 0) {
+        if (SSL_CTX_set_alpn_protos(context, (const unsigned char *) value.c_str(), value.length()) < 0) {
             return false;
         }
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+        SSL_CTX_set_alpn_select_cb(context, ssl_alpn_advertised, (void *) this);
+#endif
+
+        SSL_CTX_set_session_id_context(context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
+        SSL_CTX_set_session_cache_mode(context, SSL_SESS_CACHE_SERVER);
+        SSL_CTX_sess_set_cache_size(context, 1);
     }
 #endif
 
-    if (!client_cert_file.empty() && set_client_certificate(client_cert_file.c_str(), verify_depth) == SW_ERR) {
+    if (!client_cert_file.empty() && !set_client_certificate(client_cert_file.c_str(), verify_depth)) {
         swWarn("set_client_certificate() error");
         return false;
     }
@@ -811,48 +828,5 @@ static int swSSL_set_dhparam(SSL_CTX *ssl_context, const char *file) {
 
     return SW_OK;
 }
-
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-
-static int swSSL_alpn_advertised(
-    SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
-    unsigned int srvlen;
-    unsigned char *srv;
-
-#ifdef SW_USE_HTTP2
-    SSLContext *cfg = (SSLContext *) arg;
-    if (cfg->http_v2) {
-        srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
-    } else
-#endif
-    {
-        srv = (unsigned char *) SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
-    }
-    if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
-        return SSL_TLSEXT_ERR_NOACK;
-    }
-    return SSL_TLSEXT_ERR_OK;
-}
-#endif
-
-#ifdef TLSEXT_TYPE_next_proto_neg
-
-static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg) {
-#ifdef SW_USE_HTTP2
-    SSLContext *ctx = (SSLContext *) arg;
-    if (ctx->http_v2) {
-        *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
-    } else
-#endif
-    {
-        *out = (uchar *) SW_SSL_NPN_ADVERTISE;
-        *outlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
-    }
-    return SSL_TLSEXT_ERR_OK;
-}
-#endif
 
 #endif

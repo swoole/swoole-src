@@ -141,7 +141,6 @@ bool ListenPort::ssl_create_context(SSLContext *context) {
     }
     if (open_http2_protocol) {
         context->http_v2 = 1;
-//        swSSL_server_http_advise(context);
     }
     if (!context->create()) {
         swWarn("swSSL_get_context() error");
