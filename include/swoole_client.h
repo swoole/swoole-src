@@ -102,7 +102,7 @@ class Client {
     bool open_ssl = false;
     bool ssl_wait_handshake = false;
     SSL_CTX *ssl_context = nullptr;
-    swSSL_option ssl_option = {};
+    ssl::Config ssl_option = {};
 #endif
 
     void (*onConnect)(Client *cli) = nullptr;

@@ -148,11 +148,9 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl) {
-            if (sock->ssl_create(listen_host->ssl_context, SW_SSL_SERVER) < 0) {
+            if (!listen_host->ssl_create(conn, sock)) {
                 reactor->close(reactor, sock);
                 return SW_OK;
-            } else {
-                conn->ssl = 1;
             }
         } else {
             sock->ssl = nullptr;
@@ -1546,7 +1544,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
 
         if (ls->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
-            ls->ssl_option.protocols = SW_SSL_DTLS;
+            ls->ssl_config.protocols = SW_SSL_DTLS;
             ls->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
 
 #else
@@ -1563,7 +1561,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->ssl_option.protocols & SW_SSL_DTLS) {
+    if (ls->ssl_config.protocols & SW_SSL_DTLS) {
         ls->socket->set_reuse_port();
     }
 #endif

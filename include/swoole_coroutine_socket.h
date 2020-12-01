@@ -60,7 +60,7 @@ class Socket {
 
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;
-    swSSL_option ssl_option = {};
+    ssl::Config ssl_option = {};
 #endif
 
     Socket(int domain, int type, int protocol);

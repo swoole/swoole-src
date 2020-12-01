@@ -23,6 +23,7 @@
 
 using swoole::network::Address;
 using swoole::network::Socket;
+using swoole::ssl::Config;
 
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
 #error "require openssl version 1.0 or later"
@@ -30,9 +31,10 @@ using swoole::network::Socket;
 
 static int openssl_init = 0;
 static int ssl_connection_index = 0;
+static int ssl_port_index = 0;
 static pthread_mutex_t *lock_array;
 
-static const SSL_METHOD *swSSL_get_method(swSSL_option *option);
+static const SSL_METHOD *swSSL_get_method(Config *option);
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
 #ifndef OPENSSL_NO_RSA
 static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length);
@@ -65,9 +67,9 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
 
-static const SSL_METHOD *swSSL_get_method(swSSL_option *option) {
+static const SSL_METHOD *swSSL_get_method(const swoole::ssl::Config &cfg) {
 #ifdef SW_SUPPORT_DTLS
-    if (option->protocols & SW_SSL_DTLS) {
+    if (cfg.protocols & SW_SSL_DTLS) {
         return DTLS_method();
     }
 #endif
@@ -94,11 +96,21 @@ void swSSL_init(void) {
         return;
     }
 
+    ssl_port_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
+    if (ssl_port_index < 0) {
+        swError("SSL_get_ex_new_index() failed");
+        return;
+    }
+
     openssl_init = 1;
 }
 
 int swSSL_get_ex_connection_index() {
     return ssl_connection_index;
+}
+
+int swSSL_get_ex_port_index() {
+    return ssl_port_index;
 }
 
 void swSSL_destroy() {
@@ -169,33 +181,33 @@ void swSSL_init_thread_safety() {
     CRYPTO_set_locking_callback(swSSL_lock_callback);
 }
 
-void swSSL_server_http_advise(SSL_CTX *ssl_context, swSSL_config *cfg) {
+void swSSL_server_http_advise(SSL_CTX *ssl_context, const Config &cfg) {
 #ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-    SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, cfg);
+    SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, (void *) &cfg);
 #endif
 
 #ifdef TLSEXT_TYPE_next_proto_neg
-    SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, cfg);
+    SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, (void *) &cfg);
 #endif
 
-    if (cfg->http) {
+    if (cfg.http) {
         SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
         SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
         SSL_CTX_sess_set_cache_size(ssl_context, 1);
     }
 }
 
-int swSSL_server_set_cipher(SSL_CTX *ssl_context, swSSL_config *cfg) {
+int swSSL_server_set_cipher(SSL_CTX *ssl_context, const swoole::ssl::Config &cfg) {
 #ifndef TLS1_2_VERSION
     return SW_OK;
 #endif
 
-    if (cfg->ciphers && strlen(cfg->ciphers) > 0) {
-        if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0) {
-            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", cfg->ciphers);
+    if (!cfg.ciphers.empty()) {
+        if (SSL_CTX_set_cipher_list(ssl_context, cfg.ciphers.c_str()) == 0) {
+            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", cfg.ciphers.c_str());
             return SW_ERR;
         }
-        if (cfg->prefer_server_ciphers) {
+        if (cfg.prefer_server_ciphers) {
             SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
         }
     }
@@ -204,26 +216,27 @@ int swSSL_server_set_cipher(SSL_CTX *ssl_context, swSSL_config *cfg) {
     SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa_key_callback);
 #endif
 
-    if (cfg->dhparam && strlen(cfg->dhparam) > 0) {
-        swSSL_set_dhparam(ssl_context, cfg->dhparam);
+    if (!cfg.dhparam.empty()) {
+        swSSL_set_dhparam(ssl_context, cfg.dhparam.c_str());
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     else {
         swSSL_set_default_dhparam(ssl_context);
     }
 #endif
-    if (cfg->ecdh_curve && strlen(cfg->ecdh_curve) > 0) {
-        swSSL_set_ecdh_curve(ssl_context, cfg->ecdh_curve);
+    if (!cfg.ecdh_curve.empty()) {
+        swSSL_set_ecdh_curve(ssl_context, cfg.ecdh_curve.c_str());
     }
     return SW_OK;
 }
 
 static int swSSL_passwd_callback(char *buf, int num, int verify, void *data) {
-    swSSL_option *option = (swSSL_option *) data;
-    if (option->passphrase) {
-        int len = strlen(option->passphrase);
+    Config *option = (Config*) data;
+    if (!option->passphrase.empty()) {
+        int len = option->passphrase.length();
         if (len < num - 1) {
-            memcpy(buf, option->passphrase, len + 1);
+            memcpy(buf, option->passphrase.c_str(), len);
+            buf[len] = '\0';
             return (int) len;
         }
     }
@@ -269,13 +282,13 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret) {
     }
 }
 
-SSL_CTX *swSSL_get_context(swSSL_option *option) {
+SSL_CTX *swSSL_get_context(const swoole::ssl::Config &cfg) {
     if (!openssl_init) {
         swSSL_init();
     }
 
-    uint32_t protocols = (0 == option->protocols ? SW_SSL_ALL : option->protocols);
-    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(option));
+    uint32_t protocols = (0 == cfg.protocols ? SW_SSL_ALL : cfg.protocols);
+    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(cfg));
     if (ssl_context == nullptr) {
         int error = ERR_get_error();
         swWarn("SSL_CTX_new() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
@@ -360,7 +373,7 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
 #endif
 
 #ifdef SSL_OP_NO_COMPRESSION
-    if (option->disable_compress) {
+    if (cfg.disable_compress) {
         SSL_CTX_set_options(ssl_context, SSL_OP_NO_COMPRESSION);
     }
 #endif
@@ -376,16 +389,16 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
     SSL_CTX_set_read_ahead(ssl_context, 1);
     SSL_CTX_set_info_callback(ssl_context, swSSL_info_callback);
 
-    if (option->passphrase) {
-        SSL_CTX_set_default_passwd_cb_userdata(ssl_context, option);
+    if (!cfg.passphrase.empty()) {
+        SSL_CTX_set_default_passwd_cb_userdata(ssl_context, (void *) &cfg);
         SSL_CTX_set_default_passwd_cb(ssl_context, swSSL_passwd_callback);
     }
 
-    if (option->cert_file) {
+    if (!cfg.cert_file.empty()) {
         /*
          * set the local certificate from CertFile
          */
-        if (SSL_CTX_use_certificate_file(ssl_context, option->cert_file, SSL_FILETYPE_PEM) <= 0) {
+        if (SSL_CTX_use_certificate_file(ssl_context, cfg.cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_certificate_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
             return nullptr;
@@ -394,7 +407,7 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
          * if the crt file have many certificate entry ,means certificate chain
          * we need call this function
          */
-        if (SSL_CTX_use_certificate_chain_file(ssl_context, option->cert_file) <= 0) {
+        if (SSL_CTX_use_certificate_chain_file(ssl_context, cfg.cert_file.c_str()) <= 0) {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_certificate_chain_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
             return nullptr;
@@ -402,7 +415,7 @@ SSL_CTX *swSSL_get_context(swSSL_option *option) {
         /*
          * set the private key from KeyFile (may be the same as CertFile)
          */
-        if (SSL_CTX_use_PrivateKey_file(ssl_context, option->key_file, SSL_FILETYPE_PEM) <= 0) {
+        if (SSL_CTX_use_PrivateKey_file(ssl_context, cfg.key_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_PrivateKey_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
             return nullptr;
@@ -481,9 +494,9 @@ int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth)
     return SW_OK;
 }
 
-int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx) {
-    if (cfg->cafile || cfg->capath) {
-        if (!SSL_CTX_load_verify_locations(ctx, cfg->cafile, cfg->capath)) {
+int swSSL_set_capath(Config *cfg, SSL_CTX *ctx) {
+    if (!cfg->cafile.empty() || !cfg->capath.empty()) {
+        if (!SSL_CTX_load_verify_locations(ctx, cfg->cafile.c_str(), cfg->capath.c_str())) {
             return SW_ERR;
         }
     } else {
@@ -736,7 +749,7 @@ static int swSSL_alpn_advertised(
     unsigned char *srv;
 
 #ifdef SW_USE_HTTP2
-    swSSL_config *cfg = (swSSL_config *) arg;
+    Config *cfg = (Config *) arg;
     if (cfg->http_v2) {
         srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
         srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
@@ -757,7 +770,7 @@ static int swSSL_alpn_advertised(
 
 static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg) {
 #ifdef SW_USE_HTTP2
-    swSSL_config *cfg = (swSSL_config *) arg;
+    Config *cfg = (Config *) arg;
     if (cfg->http_v2) {
         *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
         *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;

@@ -279,7 +279,7 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
             php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
             return;
         }
-        cli->ssl_option.cert_file = sw_strdup(str_v.val());
+        cli->ssl_option.cert_file = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
         zend::String str_v(ztmp);
@@ -287,16 +287,16 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
             php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
             return;
         }
-        cli->ssl_option.key_file = sw_strdup(str_v.val());
+        cli->ssl_option.key_file = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.passphrase = sw_strdup(str_v.val());
+        cli->ssl_option.passphrase = str_v.to_std_string();
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.tls_host_name = sw_strdup(str_v.val());
+        cli->ssl_option.tls_host_name = str_v.to_std_string();
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
@@ -307,17 +307,17 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.cafile = sw_strdup(str_v.val());
+        cli->ssl_option.cafile = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.capath = sw_strdup(str_v.val());
+        cli->ssl_option.capath = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         cli->ssl_option.verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
-    if (cli->ssl_option.cert_file && !cli->ssl_option.key_file) {
+    if (cli->ssl_option.cert_file.empty() || cli->ssl_option.key_file.empty()) {
         php_swoole_fatal_error(E_ERROR, "ssl require key file");
         return;
     }

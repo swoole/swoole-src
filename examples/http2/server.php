@@ -3,7 +3,7 @@ Co::set([
     'trace_flags' => SWOOLE_TRACE_HTTP2,
     'log_level' => 0,
 ]);
-$key_dir = dirname(dirname(__DIR__)) . '/tests/include/api/swoole_http_server/localhost-ssl';
+$key_dir = dirname(dirname(__DIR__)) . '/tests/include/ssl_certs';
 $http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $http->set([
     'open_http2_protocol' => 1,

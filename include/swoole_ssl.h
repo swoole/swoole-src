@@ -20,6 +20,10 @@
 
 #ifdef SW_USE_OPENSSL
 
+#include <unordered_map>
+#include <string>
+#include <array>
+
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -37,25 +41,6 @@
 enum swSSL_create_flag {
     SW_SSL_SERVER = 1,
     SW_SSL_CLIENT = 2,
-};
-
-struct swSSL_option {
-    char *cert_file;
-    char *key_file;
-    char *passphrase;
-    char *client_cert_file;
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    uchar disable_tls_host_name : 1;
-    char *tls_host_name;
-#endif
-    char *cafile;
-    char *capath;
-    uint8_t verify_depth;
-    uchar disable_compress : 1;
-    uchar verify_peer : 1;
-    uchar allow_self_signed : 1;
-    uint32_t protocols;
-    uint8_t create_flag;
 };
 
 enum swSSL_state {
@@ -102,27 +87,46 @@ enum swSSL_method {
 #endif
 };
 
-struct swSSL_config {
+namespace swoole { namespace ssl {
+struct Config {
     uchar http : 1;
     uchar http_v2 : 1;
     uchar prefer_server_ciphers : 1;
     uchar session_tickets : 1;
     uchar stapling : 1;
     uchar stapling_verify : 1;
-    char *ciphers;
-    char *ecdh_curve;
-    char *session_cache;
-    char *dhparam;
+    std::string ciphers;
+    std::string ecdh_curve;
+    std::string session_cache;
+    std::string dhparam;
+    std::string cert_file;
+    std::string key_file;
+    std::string passphrase;
+    std::string client_cert_file;
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    uchar disable_tls_host_name : 1;
+    std::string tls_host_name;
+#endif
+    std::string cafile;
+    std::string capath;
+    uint8_t verify_depth;
+    uchar disable_compress : 1;
+    uchar verify_peer : 1;
+    uchar allow_self_signed : 1;
+    uint32_t protocols;
+    uint8_t create_flag;
 };
+}}
 
 void swSSL_init(void);
 void swSSL_init_thread_safety();
-int swSSL_server_set_cipher(SSL_CTX *ssl_context, swSSL_config *cfg);
-void swSSL_server_http_advise(SSL_CTX *ssl_context, swSSL_config *cfg);
-SSL_CTX *swSSL_get_context(swSSL_option *option);
+int swSSL_server_set_cipher(SSL_CTX *ssl_context, const swoole::ssl::Config &);
+void swSSL_server_http_advise(SSL_CTX *ssl_context, const swoole::ssl::Config &);
+SSL_CTX *swSSL_get_context(const swoole::ssl::Config &);
 void swSSL_free_context(SSL_CTX *ssl_context);
 int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth);
-int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
+int swSSL_set_capath(swoole::ssl::Config *cfg, SSL_CTX *ctx);
 const char *swSSL_get_error();
 int swSSL_get_ex_connection_index();
+int swSSL_get_ex_port_index();
 #endif

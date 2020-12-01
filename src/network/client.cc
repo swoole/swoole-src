@@ -262,7 +262,7 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
 
 #ifdef SW_USE_OPENSSL
 int Client::enable_ssl_encrypt() {
-    ssl_context = swSSL_get_context(&ssl_option);
+    ssl_context = swSSL_get_context(ssl_option);
     if (ssl_context == nullptr) {
         return SW_ERR;
     }
@@ -290,8 +290,8 @@ int Client::ssl_handshake() {
             return SW_ERR;
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name) {
-            SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
+        if (!ssl_option.tls_host_name.empty()) {
+            SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name.c_str());
         }
 #endif
     }
@@ -311,7 +311,7 @@ int Client::ssl_verify(int allow_self_signed) {
         return SW_ERR;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (ssl_option.tls_host_name && !socket->ssl_check_host(ssl_option.tls_host_name)) {
+    if (!ssl_option.tls_host_name.empty() && !socket->ssl_check_host(ssl_option.tls_host_name.c_str())) {
         return SW_ERR;
     }
 #endif
@@ -407,26 +407,6 @@ Client::~Client() {
 #ifdef SW_USE_OPENSSL
     if (open_ssl && ssl_context) {
         swSSL_free_context(ssl_context);
-        if (ssl_option.cert_file) {
-            sw_free(ssl_option.cert_file);
-        }
-        if (ssl_option.key_file) {
-            sw_free(ssl_option.key_file);
-        }
-        if (ssl_option.passphrase) {
-            sw_free(ssl_option.passphrase);
-        }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name) {
-            sw_free(ssl_option.tls_host_name);
-        }
-#endif
-        if (ssl_option.cafile) {
-            sw_free(ssl_option.cafile);
-        }
-        if (ssl_option.capath) {
-            sw_free(ssl_option.capath);
-        }
     }
 #endif
     // clear buffer

@@ -407,49 +407,35 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (sock->ssl_option.cert_file) {
-            sw_free(sock->ssl_option.cert_file);
-            sock->ssl_option.cert_file = nullptr;
-        }
         if (access(str_v.val(), R_OK) == 0) {
-            sock->ssl_option.cert_file = str_v.dup();
+            sock->ssl_option.cert_file = str_v.to_std_string();
         } else {
-            php_swoole_fatal_error(E_WARNING, "ssl cert file[%s] not found", sock->ssl_option.cert_file);
+            php_swoole_fatal_error(E_WARNING, "ssl cert file[%s] not found", str_v.val());
             ret = false;
         }
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (sock->ssl_option.key_file) {
-            sw_free(sock->ssl_option.key_file);
-            sock->ssl_option.key_file = nullptr;
-        }
         if (access(str_v.val(), R_OK) == 0) {
-            sock->ssl_option.key_file = str_v.dup();
+            sock->ssl_option.key_file = str_v.to_std_string();
         } else {
-            php_swoole_fatal_error(E_WARNING, "ssl key file[%s] not found", sock->ssl_option.key_file);
+            php_swoole_fatal_error(E_WARNING, "ssl key file[%s] not found", str_v.val());
             ret = false;
         }
     }
-    if (sock->ssl_option.cert_file && !sock->ssl_option.key_file) {
+    if (!sock->ssl_option.cert_file.empty() && sock->ssl_option.key_file.empty()) {
         php_swoole_fatal_error(E_WARNING, "ssl require key file");
-    } else if (sock->ssl_option.key_file && !sock->ssl_option.cert_file) {
+    } else if (!sock->ssl_option.key_file.empty() && sock->ssl_option.cert_file.empty()) {
         php_swoole_fatal_error(E_WARNING, "ssl require cert file");
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp)) {
-        if (sock->ssl_option.passphrase) {
-            sw_free(sock->ssl_option.passphrase);
-        }
-        sock->ssl_option.passphrase = zend::String(ztmp).dup();
+        sock->ssl_option.passphrase = zend::String(ztmp).to_std_string();
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
-        if (sock->ssl_option.tls_host_name) {
-            sw_free(sock->ssl_option.tls_host_name);
-        }
-        sock->ssl_option.tls_host_name = zend::String(ztmp).dup();
+        sock->ssl_option.tls_host_name = zend::String(ztmp).to_std_string();
         /* if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically */
-        sock->ssl_option.disable_tls_host_name = !sock->ssl_option.tls_host_name;
+        sock->ssl_option.disable_tls_host_name = sock->ssl_option.tls_host_name.empty();
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
@@ -459,16 +445,10 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         sock->ssl_option.allow_self_signed = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
-        if (sock->ssl_option.cafile) {
-            sw_free(sock->ssl_option.cafile);
-        }
-        sock->ssl_option.cafile = zend::String(ztmp).dup();
+        sock->ssl_option.cafile = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
-        if (sock->ssl_option.capath) {
-            sw_free(sock->ssl_option.capath);
-        }
-        sock->ssl_option.capath = zend::String(ztmp).dup();
+        sock->ssl_option.capath = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
         zend_long v = zval_get_long(ztmp);

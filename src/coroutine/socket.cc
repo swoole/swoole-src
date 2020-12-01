@@ -372,9 +372,9 @@ bool Socket::http_proxy_handshake() {
     const char *host = http_proxy->target_host.c_str();
     int host_len = http_proxy->target_host.length();
 #ifdef SW_USE_OPENSSL
-    if (open_ssl && ssl_option.tls_host_name) {
-        host = ssl_option.tls_host_name;
-        host_len = strlen(ssl_option.tls_host_name);
+    if (open_ssl && !ssl_option.tls_host_name.empty()) {
+        host = ssl_option.tls_host_name.c_str();
+        host_len = ssl_option.tls_host_name.length();
     }
 #endif
 
@@ -1219,7 +1219,7 @@ bool Socket::ssl_check_context() {
         return false;
 #endif
     }
-    ssl_context = swSSL_get_context(&ssl_option);
+    ssl_context = swSSL_get_context(ssl_option);
     if (ssl_context == nullptr) {
         swWarn("swSSL_get_context() error");
         return false;
@@ -1254,8 +1254,8 @@ bool Socket::ssl_create(SSL_CTX *ssl_context) {
     SSL_set_mode(socket->ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 #endif
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (ssl_option.tls_host_name) {
-        SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
+    if (!ssl_option.tls_host_name.empty()) {
+        SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name.c_str());
     } else if (!ssl_option.disable_tls_host_name && !ssl_host_name.empty()) {
         SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
     }
@@ -1321,7 +1321,7 @@ bool Socket::ssl_verify(bool allow_self_signed) {
         return false;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (ssl_option.tls_host_name && !socket->ssl_check_host(ssl_option.tls_host_name)) {
+    if (!ssl_option.tls_host_name.empty() && !socket->ssl_check_host(ssl_option.tls_host_name.c_str())) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
@@ -1782,27 +1782,6 @@ Socket::~Socket() {
     /* {{{ release socket resources */
 #ifdef SW_USE_OPENSSL
     ssl_shutdown();
-    if (ssl_option.cert_file) {
-        sw_free(ssl_option.cert_file);
-    }
-    if (ssl_option.key_file) {
-        sw_free(ssl_option.key_file);
-    }
-    if (ssl_option.passphrase) {
-        sw_free(ssl_option.passphrase);
-    }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (ssl_option.tls_host_name) {
-        sw_free(ssl_option.tls_host_name);
-    }
-#endif
-    if (ssl_option.cafile) {
-        sw_free(ssl_option.cafile);
-    }
-    if (ssl_option.capath) {
-        sw_free(ssl_option.capath);
-    }
-    ssl_option = {};
 #endif
     if (socket->in_buffer) {
         delete socket->in_buffer;
