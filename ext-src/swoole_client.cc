@@ -317,7 +317,7 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
         zend_long v = zval_get_long(ztmp);
         cli->ssl_option.verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
-    if (cli->ssl_option.cert_file.empty() || cli->ssl_option.key_file.empty()) {
+    if (!cli->ssl_option.cert_file.empty() && cli->ssl_option.key_file.empty()) {
         php_swoole_fatal_error(E_ERROR, "ssl require key file");
         return;
     }
