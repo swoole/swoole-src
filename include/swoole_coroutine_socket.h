@@ -121,11 +121,15 @@ class Socket {
         ssl_context = new SSLContext();
         return true;
     }
+
+    SSLContext *get_ssl_context() {
+        return ssl_context;
+    }
+
     bool ssl_check_context();
     bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
     std::string ssl_get_peer_cert();
-    SSLContext *get_ssl_context();
 #endif
 
     static inline void init_reactor(Reactor *reactor) {
