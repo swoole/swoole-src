@@ -233,6 +233,7 @@ static PHP_METHOD(swoole_server_port, __construct) {
 
 static PHP_METHOD(swoole_server_port, __destruct) {}
 
+#ifdef SW_USE_OPENSSL
 static bool php_swoole_server_set_ssl_option(zend_array *vht, ssl::Config *cfg) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
@@ -253,6 +254,7 @@ static bool php_swoole_server_set_ssl_option(zend_array *vht, ssl::Config *cfg) 
     }
     return true;
 }
+#endif
 
 static PHP_METHOD(swoole_server_port, set) {
     zval *zset = nullptr;
