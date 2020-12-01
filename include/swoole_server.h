@@ -334,10 +334,6 @@ struct ListenPort {
      */
     bool open_tcp_keepalive = false;
     /**
-     * open tcp keepalive
-     */
-    bool open_ssl_encrypt = false;
-    /**
      * Sec-WebSocket-Protocol
      */
     std::string websocket_subprotocol;
@@ -349,7 +345,7 @@ struct ListenPort {
 
 #ifdef SW_USE_OPENSSL
     SSLContext *ssl_context = nullptr;
-    std::unordered_map<std::string, SSLContext *> sni_contexts;
+    std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
 #endif

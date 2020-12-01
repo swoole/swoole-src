@@ -266,9 +266,6 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
     HashTable *vht = Z_ARRVAL_P(zset);
     zval *ztmp;
 
-    if (!cli->ssl_context) {
-        cli->ssl_context = new swoole::SSLContext();
-    }
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
         cli->ssl_context->set_protocols(zval_get_long(ztmp));
     }
@@ -684,7 +681,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        cli->open_ssl = 1;
+        cli->enable_ssl_encrypt();
     }
 #endif
 
@@ -1313,13 +1310,10 @@ static PHP_METHOD(swoole_client, enableSSL) {
         php_swoole_fatal_error(E_WARNING, "SSL has been enabled");
         RETURN_FALSE;
     }
-    cli->open_ssl = 1;
+    cli->enable_ssl_encrypt();
     zval *zset = sw_zend_read_property_ex(swoole_client_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (ZVAL_IS_ARRAY(zset)) {
         php_swoole_client_check_ssl_setting(cli, zset);
-    }
-    if (cli->enable_ssl_encrypt() < 0) {
-        RETURN_FALSE;
     }
     if (cli->ssl_handshake() < 0) {
         RETURN_FALSE;

@@ -262,25 +262,31 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
 
 #ifdef SW_USE_OPENSSL
 int Client::enable_ssl_encrypt() {
+    if (ssl_context) {
+        return SW_ERR;
+    }
+    ssl_context = new swoole::SSLContext();
+    open_ssl = true;
+    return SW_OK;
+}
+
+int Client::ssl_handshake() {
+    if (socket->ssl) {
+        return SW_ERR;
+    }
     ssl_context->http_v2 = http2;
     if (!ssl_context->create()) {
         return SW_ERR;
     }
     socket->ssl_send_ = 1;
-    return SW_OK;
-}
-
-int Client::ssl_handshake() {
-    if (!socket->ssl) {
-        if (socket->ssl_create(ssl_context, SW_SSL_CLIENT) < 0) {
-            return SW_ERR;
-        }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (!ssl_context->tls_host_name.empty()) {
-            SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
-        }
-#endif
+    if (socket->ssl_create(ssl_context, SW_SSL_CLIENT) < 0) {
+        return SW_ERR;
     }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    if (!ssl_context->tls_host_name.empty()) {
+        SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
+    }
+#endif
     if (socket->ssl_connect() < 0) {
         return SW_ERR;
     }
@@ -565,9 +571,6 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
 
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-                return SW_ERR;
-            }
             if (cli->ssl_handshake() < 0) {
                 return SW_ERR;
             }
@@ -836,13 +839,8 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
             execute_onConnect(cli);
         }
 #ifdef SW_USE_OPENSSL
-        if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-                return SW_ERR;
-            }
-            if (cli->ssl_handshake() < 0) {
-                return SW_ERR;
-            }
+        if (cli->open_ssl && cli->ssl_handshake() < 0) {
+            return SW_ERR;
         }
 #endif
         return SW_OK;
@@ -959,14 +957,10 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
                 cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
                 cli->buffer->clear();
             }
-            if (cli->enable_ssl_encrypt() < 0) {
+            if (cli->ssl_handshake() < 0) {
                 goto _connect_fail;
             } else {
-                if (cli->ssl_handshake() < 0) {
-                    goto _connect_fail;
-                } else {
-                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
-                }
+                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
                 return swoole_event_set(event->socket, SW_EVENT_WRITE);
             }
             if (cli->onConnect) {
@@ -989,19 +983,14 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-            _connect_fail:
-                cli->active = 0;
+            if (cli->ssl_handshake() < 0) {
+                _connect_fail: cli->active = 0;
                 cli->close();
                 if (cli->onError) {
                     cli->onError(cli);
                 }
             } else {
-                if (cli->ssl_handshake() < 0) {
-                    goto _connect_fail;
-                } else {
-                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
-                }
+                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
                 return swoole_event_set(event->socket, SW_EVENT_WRITE);
             }
         } else
@@ -1217,9 +1206,6 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-                goto _connect_fail;
-            }
             if (cli->ssl_handshake() < 0) {
                 goto _connect_fail;
             } else {

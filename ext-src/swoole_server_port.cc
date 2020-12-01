@@ -499,8 +499,8 @@ static PHP_METHOD(swoole_server_port, set) {
 
 #ifdef SW_USE_OPENSSL
     if (port->ssl) {
-        if (php_swoole_server_set_ssl_option(vht, port->ssl_context)) {
-            port->open_ssl_encrypt = 1;
+        if (!php_swoole_server_set_ssl_option(vht, port->ssl_context)) {
+            RETURN_FALSE;
         }
         if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
             port->ssl_context->disable_compress = !zval_is_true(ztmp);
