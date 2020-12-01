@@ -44,12 +44,11 @@ ListenPort::ListenPort() {
 }
 
 #ifdef SW_USE_OPENSSL
-bool ListenPort::ssl_add_sni_cert(const std::string &name, ssl::Config &config) {
-    SSL_CTX *ctx = ssl_create_context(config);
-    if (ctx == nullptr) {
+
+bool ListenPort::ssl_add_sni_cert(const std::string &name, SSLContext *ctx) {
+    if (!ssl_create_context(ctx)) {
         return false;
     }
-    sni_options.emplace(name, config);
     sni_contexts.emplace(name, ctx);
     return true;
 }
@@ -102,7 +101,7 @@ static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
 
     for (auto i = port->sni_contexts.begin(); i != port->sni_contexts.end(); i++) {
         if (ssl_matches_wildcard_name(server_name, i->first.c_str())) {
-            SSL_set_SSL_CTX(ssl, i->second);
+            SSL_set_SSL_CTX(ssl, i->second->get_context());
             return SSL_TLSEXT_ERR_OK;
         }
     }
@@ -111,12 +110,11 @@ static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
 }
 
 bool ListenPort::ssl_init() {
-    ssl_context = ssl_create_context(ssl_config);
-    if (ssl_context == nullptr) {
+    if (!ssl_create_context(ssl_context)) {
         return false;
     }
-    if (sni_options.size() > 0) {
-        SSL_CTX_set_tlsext_servername_callback(ssl_context, ssl_server_sni_callback);
+    if (sni_contexts.size() > 0) {
+        SSL_CTX_set_tlsext_servername_callback(ssl_context->get_context(), ssl_server_sni_callback);
     }
     return true;
 }
@@ -133,36 +131,23 @@ bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
     return true;
 }
 
-SSL_CTX *ListenPort::ssl_create_context(ssl::Config &config) {
-    if (config.cert_file.empty() || config.key_file.empty()) {
+bool ListenPort::ssl_create_context(SSLContext *context) {
+    if (context->cert_file.empty() || context->key_file.empty()) {
         swWarn("SSL error, require ssl_cert_file and ssl_key_file");
-        return nullptr;
-    }
-    SSL_CTX *context = swSSL_get_context(config);
-    if (context == nullptr) {
-        swWarn("swSSL_get_context() error");
-        return nullptr;
-    }
-    if (!config.client_cert_file.empty()
-            && swSSL_set_client_certificate(context, config.client_cert_file.c_str(), config.verify_depth)
-                    == SW_ERR) {
-        swWarn("swSSL_set_client_certificate() error");
-        swSSL_free_context(context);
-        return nullptr;
+        return false;
     }
     if (open_http_protocol) {
-        config.http = 1;
+        context->http = 1;
     }
     if (open_http2_protocol) {
-        config.http_v2 = 1;
-        swSSL_server_http_advise(context, config);
+        context->http_v2 = 1;
+//        swSSL_server_http_advise(context);
     }
-    if (swSSL_server_set_cipher(context, config) < 0) {
-        swWarn("swSSL_server_set_cipher() error");
-        swSSL_free_context(context);
-        return nullptr;
+    if (!context->create()) {
+        swWarn("swSSL_get_context() error");
+        return false;
     }
-    return context;
+    return true;
 }
 #endif
 
@@ -707,7 +692,7 @@ void ListenPort::close() {
 #ifdef SW_USE_OPENSSL
     if (ssl) {
         if (ssl_context) {
-            swSSL_free_context(ssl_context);
+            delete ssl_context;
         }
 #ifdef SW_SUPPORT_DTLS
         if (dtls_sessions) {

@@ -87,8 +87,9 @@ enum swSSL_method {
 #endif
 };
 
-namespace swoole { namespace ssl {
-struct Config {
+namespace swoole {
+
+struct SSLContext {
     uchar http : 1;
     uchar http_v2 : 1;
     uchar prefer_server_ciphers : 1;
@@ -115,17 +116,48 @@ struct Config {
     uchar allow_self_signed : 1;
     uint32_t protocols;
     uint8_t create_flag;
+    SSL_CTX *context;
+
+    SSL_CTX *get_context() {
+        return context;
+    }
+
+    void set_protocols(uint32_t _protocols) {
+        protocols = _protocols;
+    }
+
+    bool set_cert_file(const std::string &_cert_file) {
+        if (access(_cert_file.c_str(), R_OK) < 0) {
+            swWarn("ssl cert file[%s] not found", _cert_file.c_str());
+            return false;
+        }
+        cert_file = _cert_file;
+        return true;
+    }
+
+    bool set_key_file(const std::string &_key_file) {
+        if (access(_key_file.c_str(), R_OK) < 0) {
+            swWarn("ssl key file[%s] not found", _key_file.c_str());
+            return false;
+        }
+        key_file = _key_file;
+        return true;
+    }
+
+    bool create();
+    bool set_capath();
+    bool set_ciphers();
+    bool set_client_certificate(const char *cert_file, int depth);
+    ~SSLContext();
 };
-}}
+}
 
 void swSSL_init(void);
 void swSSL_init_thread_safety();
-int swSSL_server_set_cipher(SSL_CTX *ssl_context, const swoole::ssl::Config &);
-void swSSL_server_http_advise(SSL_CTX *ssl_context, const swoole::ssl::Config &);
-SSL_CTX *swSSL_get_context(const swoole::ssl::Config &);
-void swSSL_free_context(SSL_CTX *ssl_context);
+int swSSL_server_set_cipher(SSL_CTX *ssl_context, const swoole::SSLContext &);
+void swSSL_server_http_advise(swoole::SSLContext &);
 int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth);
-int swSSL_set_capath(swoole::ssl::Config *cfg, SSL_CTX *ctx);
+int swSSL_set_capath(swoole::SSLContext *cfg, SSL_CTX *ctx);
 const char *swSSL_get_error();
 int swSSL_get_ex_connection_index();
 int swSSL_get_ex_port_index();

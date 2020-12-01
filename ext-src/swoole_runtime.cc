@@ -557,7 +557,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     Socket *clisock = sock->accept();
 
 #ifdef SW_USE_OPENSSL
-    if (clisock != nullptr && clisock->open_ssl) {
+    if (clisock != nullptr && clisock->get_ssl_context()) {
         if (!clisock->ssl_handshake()) {
             sock->errCode = clisock->errCode;
             delete clisock;
@@ -909,7 +909,7 @@ static php_stream *socket_create(const char *proto,
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
 #ifdef SW_USE_OPENSSL
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
-        sock->open_ssl = true;
+        sock->enable_ssl_encrypt();
 #else
         php_swoole_error(E_WARNING,
                          "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
@@ -953,7 +953,7 @@ static php_stream *socket_create(const char *proto,
     if (context && ZVAL_IS_ARRAY(&context->options)) {
 #ifdef SW_USE_OPENSSL
         zval *ztmp;
-        if (sock->open_ssl && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
+        if (sock->get_ssl_context() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
             ZVAL_IS_ARRAY(ztmp)) {
             [](Socket *sock, HashTable *options) {
                 zval zalias, *ztmp;

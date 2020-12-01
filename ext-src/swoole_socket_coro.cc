@@ -908,9 +908,11 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
      */
 #ifdef SW_USE_OPENSSL
     if (php_swoole_array_get_value(vht, "open_ssl", ztmp)) {
-        sock->open_ssl = zval_is_true(ztmp);
+        if (zval_is_true(ztmp)) {
+            sock->enable_ssl_encrypt();
+        }
     }
-    if (sock->open_ssl) {
+    if (sock->get_ssl_context()) {
         if (!php_swoole_socket_set_ssl(sock, zset)) {
             ret = false;
         }

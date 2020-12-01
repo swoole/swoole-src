@@ -25,6 +25,7 @@
 namespace swoole {
 namespace dtls {
 //-------------------------------------------------------------------------------
+using Socket = network::Socket;
 
 int BIO_write(BIO *b, const char *data, int dlen);
 int BIO_read(BIO *b, char *data, int dlen);
@@ -40,13 +41,13 @@ struct Buffer {
 };
 
 struct Session {
-    SSL_CTX *ctx;
+    SSLContext *ctx;
     bool listened = false;
-    swSocket *socket;
+    Socket *socket;
     std::deque<Buffer *> rxqueue;
     bool peek_mode = false;
 
-    Session(swSocket *_sock, SSL_CTX *_ctx) {
+    Session(Socket *_sock, SSLContext *_ctx) {
         socket = _sock;
         ctx = _ctx;
     }

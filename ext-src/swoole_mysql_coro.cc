@@ -575,7 +575,9 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl) {
         }
         socket->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
-        socket->open_ssl = ssl;
+        if (ssl) {
+            socket->enable_ssl_encrypt();
+        }
 #endif
         socket->set_timeout(connect_timeout, Socket::TIMEOUT_CONNECT);
         add_timeout_controller(connect_timeout, Socket::TIMEOUT_ALL);

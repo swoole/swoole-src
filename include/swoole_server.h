@@ -348,10 +348,8 @@ struct ListenPort {
     int kernel_socket_send_buffer_size = 0;
 
 #ifdef SW_USE_OPENSSL
-    SSL_CTX *ssl_context = nullptr;
-    ssl::Config ssl_config = {};
-    std::unordered_map<std::string, ssl::Config> sni_options;
-    std::unordered_map<std::string, SSL_CTX *> sni_contexts;
+    SSLContext *ssl_context = nullptr;
+    std::unordered_map<std::string, SSLContext *> sni_contexts;
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
 #endif
@@ -393,9 +391,9 @@ struct ListenPort {
     void close();
     bool import(int sock);
 #ifdef SW_USE_OPENSSL
-    SSL_CTX *ssl_create_context(ssl::Config &config);
+    bool ssl_create_context(SSLContext *context);
     bool ssl_create(Connection *conn, network::Socket *sock);
-    bool ssl_add_sni_cert(const std::string &name, ssl::Config &config);
+    bool ssl_add_sni_cert(const std::string &name, SSLContext *context);
     bool ssl_init();
 #endif
     void clear_protocol();

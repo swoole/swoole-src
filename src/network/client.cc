@@ -262,25 +262,11 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
 
 #ifdef SW_USE_OPENSSL
 int Client::enable_ssl_encrypt() {
-    ssl_context = swSSL_get_context(ssl_option);
-    if (ssl_context == nullptr) {
+    ssl_context->http_v2 = http2;
+    if (!ssl_context->create()) {
         return SW_ERR;
     }
-
-    if (ssl_option.verify_peer) {
-        if (swSSL_set_capath(&ssl_option, ssl_context) < 0) {
-            return SW_ERR;
-        }
-    }
-
     socket->ssl_send_ = 1;
-#if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
-    if (http2) {
-        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0) {
-            return SW_ERR;
-        }
-    }
-#endif
     return SW_OK;
 }
 
@@ -290,16 +276,16 @@ int Client::ssl_handshake() {
             return SW_ERR;
         }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (!ssl_option.tls_host_name.empty()) {
-            SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name.c_str());
+        if (!ssl_context->tls_host_name.empty()) {
+            SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
         }
 #endif
     }
     if (socket->ssl_connect() < 0) {
         return SW_ERR;
     }
-    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_option.verify_peer) {
-        if (ssl_verify(ssl_option.allow_self_signed) < 0) {
+    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_context->verify_peer) {
+        if (ssl_verify(ssl_context->allow_self_signed) < 0) {
             return SW_ERR;
         }
     }
@@ -311,7 +297,7 @@ int Client::ssl_verify(int allow_self_signed) {
         return SW_ERR;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_option.tls_host_name.empty() && !socket->ssl_check_host(ssl_option.tls_host_name.c_str())) {
+    if (!ssl_context->tls_host_name.empty() && !socket->ssl_check_host(ssl_context->tls_host_name.c_str())) {
         return SW_ERR;
     }
 #endif
@@ -406,7 +392,7 @@ Client::~Client() {
 
 #ifdef SW_USE_OPENSSL
     if (open_ssl && ssl_context) {
-        swSSL_free_context(ssl_context);
+        delete ssl_context;
     }
 #endif
     // clear buffer
@@ -818,7 +804,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
 #ifdef SW_SUPPORT_DTLS
     {
         udp_connect = 1;
-        cli->ssl_option.protocols = SW_SSL_DTLS;
+        cli->ssl_context->protocols = SW_SSL_DTLS;
         cli->socket->dtls = 1;
         cli->socket->chunk_size = SW_SSL_BUFFER_SIZE;
         cli->send = Client_tcp_send_sync;

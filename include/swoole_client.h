@@ -101,8 +101,7 @@ class Client {
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;
     bool ssl_wait_handshake = false;
-    SSL_CTX *ssl_context = nullptr;
-    ssl::Config ssl_option = {};
+    SSLContext *ssl_context = nullptr;
 #endif
 
     void (*onConnect)(Client *cli) = nullptr;

@@ -234,7 +234,7 @@ static PHP_METHOD(swoole_server_port, __construct) {
 static PHP_METHOD(swoole_server_port, __destruct) {}
 
 #ifdef SW_USE_OPENSSL
-static bool php_swoole_server_set_ssl_option(zend_array *vht, ssl::Config *cfg) {
+static bool php_swoole_server_set_ssl_option(zend_array *vht, SSLContext *ctx) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
@@ -242,7 +242,7 @@ static bool php_swoole_server_set_ssl_option(zend_array *vht, ssl::Config *cfg) 
             php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
             return false;
         }
-        cfg->cert_file = str_v.to_std_string();
+        ctx->cert_file = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
         zend::String str_v(ztmp);
@@ -250,7 +250,7 @@ static bool php_swoole_server_set_ssl_option(zend_array *vht, ssl::Config *cfg) 
             php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
             return false;
         }
-        cfg->key_file = str_v.to_std_string();
+        ctx->key_file = str_v.to_std_string();
     }
     return true;
 }
@@ -499,24 +499,24 @@ static PHP_METHOD(swoole_server_port, set) {
 
 #ifdef SW_USE_OPENSSL
     if (port->ssl) {
-        if (php_swoole_server_set_ssl_option(vht, &port->ssl_config)) {
+        if (php_swoole_server_set_ssl_option(vht, port->ssl_context)) {
             port->open_ssl_encrypt = 1;
         }
         if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-            port->ssl_config.disable_compress = !zval_is_true(ztmp);
+            port->ssl_context->disable_compress = !zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
             zend_long v = zval_get_long(ztmp);
-            port->ssl_config.protocols = v;
-            if ((port->ssl_config.protocols & SW_SSL_DTLS) && !port->is_dgram()) {
-                port->ssl_config.protocols ^= SW_SSL_DTLS;
+            port->ssl_context->protocols = v;
+            if ((port->ssl_context->protocols & SW_SSL_DTLS) && !port->is_dgram()) {
+                port->ssl_context->protocols ^= SW_SSL_DTLS;
             }
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-            port->ssl_config.verify_peer = zval_is_true(ztmp);
+            port->ssl_context->verify_peer = zval_is_true(ztmp);
         }
         if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-            port->ssl_config.allow_self_signed = zval_is_true(ztmp);
+            port->ssl_context->allow_self_signed = zval_is_true(ztmp);
         }
         // verify client cert
         if (php_swoole_array_get_value(vht, "ssl_client_cert_file", ztmp)) {
@@ -525,35 +525,35 @@ static PHP_METHOD(swoole_server_port, set) {
                 php_swoole_fatal_error(E_ERROR, "ssl_client_cert_file[%s] not found", str_v.val());
                 return;
             }
-            port->ssl_config.client_cert_file = str_v.to_std_string();
+            port->ssl_context->client_cert_file = str_v.to_std_string();
         }
         if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
             zend_long v = zval_get_long(ztmp);
-            port->ssl_config.verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+            port->ssl_context->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
         }
         if (php_swoole_array_get_value(vht, "ssl_prefer_server_ciphers", ztmp)) {
-            port->ssl_config.prefer_server_ciphers = zval_is_true(ztmp);
+            port->ssl_context->prefer_server_ciphers = zval_is_true(ztmp);
         }
         //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_tickets"))))
         //    {
-        //        port->ssl_config.session_tickets = zval_is_true(v);
+        //        port->ssl_context->session_tickets = zval_is_true(v);
         //    }
         //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_stapling"))))
         //    {
-        //        port->ssl_config.stapling = zval_is_true(v);
+        //        port->ssl_context->stapling = zval_is_true(v);
         //    }
         //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_stapling_verify"))))
         //    {
-        //        port->ssl_config.stapling_verify = zval_is_true(v);
+        //        port->ssl_context->stapling_verify = zval_is_true(v);
         //    }
         if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
-            port->ssl_config.ciphers = zend::String(ztmp).to_std_string();
+            port->ssl_context->ciphers = zend::String(ztmp).to_std_string();
         }
         if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", ztmp)) {
-            port->ssl_config.ecdh_curve = zend::String(ztmp).to_std_string();
+            port->ssl_context->ecdh_curve = zend::String(ztmp).to_std_string();
         }
         if (php_swoole_array_get_value(vht, "ssl_dhparam", ztmp)) {
-            port->ssl_config.dhparam = zend::String(ztmp).to_std_string();
+            port->ssl_context->dhparam = zend::String(ztmp).to_std_string();
         }
         if (php_swoole_array_get_value(vht, "ssl_sni_certs", ztmp)) {
             if (Z_TYPE_P(ztmp) != IS_ARRAY) {
@@ -575,18 +575,19 @@ static PHP_METHOD(swoole_server_port, set) {
                     php_swoole_fatal_error(E_WARNING, "invalid SNI_cert setting");
                     RETURN_FALSE;
                 }
-                ssl::Config option = port->ssl_config;
-                if (!php_swoole_server_set_ssl_option(Z_ARRVAL_P(current), &option)) {
+                SSLContext *context = new SSLContext();
+                *context = *port->ssl_context;
+                if (!php_swoole_server_set_ssl_option(Z_ARRVAL_P(current), context)) {
                     RETURN_FALSE;
                 }
-                if (!port->ssl_add_sni_cert(std::string(key->val, key->len), option)) {
+                if (!port->ssl_add_sni_cert(std::string(key->val, key->len), context)) {
                     php_swoole_fatal_error(E_ERROR, "ssl_add_sni_cert() failed");
                     RETURN_FALSE;
                 }
             } ZEND_HASH_FOREACH_END();
         }
 
-        if (!port->ssl_config.cert_file.empty() || port->sni_contexts.empty()) {
+        if (!port->ssl_context->cert_file.empty() || port->sni_contexts.empty()) {
             if (!port->ssl_init()) {
                 php_swoole_fatal_error(E_ERROR, "ssl_init() failed");
                 RETURN_FALSE;
@@ -594,7 +595,7 @@ static PHP_METHOD(swoole_server_port, set) {
         }
         //    if ((v = zend_hash_str_find(vht, ZEND_STRL("ssl_session_cache"))))
         //    {
-        //        port->ssl_config.session_cache = zend::string_dup(v);
+        //        port->ssl_context->session_cache = zend::string_dup(v);
         //    }
     }
 #endif

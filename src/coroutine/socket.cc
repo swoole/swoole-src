@@ -31,48 +31,6 @@
 namespace swoole {
 namespace coroutine {
 
-#ifdef SW_USE_OPENSSL
-#ifndef OPENSSL_NO_NEXTPROTONEG
-
-const std::string HTTP2_H2_ALPN("\x2h2");
-const std::string HTTP2_H2_16_ALPN("\x5h2-16");
-const std::string HTTP2_H2_14_ALPN("\x5h2-14");
-
-static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const std::string &key) {
-    for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
-        if (std::equal(std::begin(key), std::end(key), p)) {
-            *out = p + 1;
-            *outlen = *p;
-            return true;
-        }
-    }
-    return false;
-}
-
-static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uint inlen) {
-    return ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_ALPN) ||
-           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_16_ALPN) ||
-           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
-}
-
-static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const uchar *in, uint inlen, void *arg) {
-#ifdef SW_LOG_TRACE_OPEN
-    std::string info("[NPN] server offers:\n");
-    for (unsigned int i = 0; i < inlen; i += in[i] + 1) {
-        info += "        * " + std::string(reinterpret_cast<const char *>(&in[i + 1]), in[i]);
-    }
-    swTraceLog(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
-#endif
-    if (!ssl_select_h2(const_cast<const unsigned char **>(out), outlen, in, inlen)) {
-        swWarn("HTTP/2 protocol was not selected, expects [h2]");
-        return SSL_TLSEXT_ERR_NOACK;
-    } else {
-        return SSL_TLSEXT_ERR_OK;
-    }
-}
-#endif
-#endif
-
 enum Socket::TimeoutType Socket::timeout_type_list[4] = { TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE };
 
 void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
@@ -372,9 +330,9 @@ bool Socket::http_proxy_handshake() {
     const char *host = http_proxy->target_host.c_str();
     int host_len = http_proxy->target_host.length();
 #ifdef SW_USE_OPENSSL
-    if (open_ssl && !ssl_option.tls_host_name.empty()) {
-        host = ssl_option.tls_host_name.c_str();
-        host_len = ssl_option.tls_host_name.length();
+    if (ssl_context && !ssl_context->tls_host_name.empty()) {
+        host = ssl_context->tls_host_name.c_str();
+        host_len = ssl_context->tls_host_name.length();
     }
 #endif
 
@@ -579,14 +537,10 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
     protocol = server_sock->protocol;
     connected = true;
 #ifdef SW_USE_OPENSSL
-    open_ssl = server_sock->open_ssl;
+    ssl_context = server_sock->ssl_context;
     ssl_is_server = server_sock->ssl_is_server;
-    if (open_ssl) {
-        if (server_sock->ssl_context) {
-            if (!ssl_create(server_sock->ssl_context)) {
-                close();
-            }
-        }
+    if (ssl_context && server_sock->ssl_context && !ssl_create(server_sock->ssl_context)) {
+        close();
     }
 #endif
 }
@@ -649,7 +603,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     }
 
 #ifdef SW_USE_OPENSSL
-    if (open_ssl && (socks5_proxy || http_proxy)) {
+    if (ssl_context && (socks5_proxy || http_proxy)) {
         /* If the proxy is enabled, the host will be replaced with the proxy ip,
          * so we have to handle the host first,
          * if the host is not a ip, assign it to ssl_host_name
@@ -700,7 +654,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
 
             if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr)) {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl && !(socks5_proxy || http_proxy)) {
+                if (ssl_context && !(socks5_proxy || http_proxy)) {
                     ssl_host_name = connect_host;
                 }
 #endif
@@ -724,7 +678,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
 
             if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr)) {
 #ifdef SW_USE_OPENSSL
-                if (open_ssl && !(socks5_proxy || http_proxy)) {
+                if (ssl_context && !(socks5_proxy || http_proxy)) {
                     ssl_host_name = connect_host;
                 }
 #endif
@@ -777,7 +731,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     }
 #ifdef SW_USE_OPENSSL
     ssl_is_server = false;
-    if (open_ssl) {
+    if (ssl_context) {
         if (!ssl_handshake()) {
             if (errCode == 0) {
                 set_err(SW_ERROR_SSL_HANDSHAKE_FAILED);
@@ -1169,7 +1123,7 @@ bool Socket::listen(int backlog) {
     }
 #ifdef SW_USE_OPENSSL
     ssl_is_server = true;
-    if (open_ssl) {
+    if (ssl_context) {
         return ssl_check_context();
     }
 #endif
@@ -1212,38 +1166,23 @@ bool Socket::ssl_check_context() {
     if (socket->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
         socket->dtls = 1;
-        ssl_option.protocols = SW_SSL_DTLS;
+        ssl_context->protocols = SW_SSL_DTLS;
         socket->chunk_size = SW_SSL_BUFFER_SIZE;
 #else
         swWarn("DTLS support require openssl-1.1 or later");
         return false;
 #endif
     }
-    ssl_context = swSSL_get_context(ssl_option);
-    if (ssl_context == nullptr) {
+    ssl_context->http_v2 = http2;
+    if (!ssl_context->create()) {
         swWarn("swSSL_get_context() error");
         return false;
     }
-    if (ssl_option.verify_peer) {
-        if (swSSL_set_capath(&ssl_option, ssl_context) < 0) {
-            return false;
-        }
-    }
     socket->ssl_send_ = 1;
-#if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
-    if (http2) {
-#ifndef OPENSSL_NO_NEXTPROTONEG
-        SSL_CTX_set_next_proto_select_cb(ssl_context, ssl_select_next_proto_cb, nullptr);
-#endif
-        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) SW_STRL(SW_SSL_HTTP2_NPN_ADVERTISE)) < 0) {
-            return false;
-        }
-    }
-#endif
     return true;
 }
 
-bool Socket::ssl_create(SSL_CTX *ssl_context) {
+bool Socket::ssl_create(SSLContext *ssl_context) {
     if (socket->ssl) {
         return true;
     }
@@ -1254,9 +1193,9 @@ bool Socket::ssl_create(SSL_CTX *ssl_context) {
     SSL_set_mode(socket->ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 #endif
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_option.tls_host_name.empty()) {
-        SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name.c_str());
-    } else if (!ssl_option.disable_tls_host_name && !ssl_host_name.empty()) {
+    if (!ssl_context->tls_host_name.empty()) {
+        SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
+    } else if (!ssl_context->disable_tls_host_name && !ssl_host_name.empty()) {
         SSL_set_tlsext_host_name(socket->ssl, ssl_host_name.c_str());
     }
 #endif
@@ -1304,12 +1243,11 @@ bool Socket::ssl_handshake() {
             return false;
         }
     }
-    if (ssl_option.verify_peer) {
-        if (!ssl_verify(ssl_option.allow_self_signed)) {
+    if (ssl_context->verify_peer) {
+        if (!ssl_verify(ssl_context->allow_self_signed)) {
             return false;
         }
     }
-    open_ssl = true;
     ssl_handshaked = true;
 
     return true;
@@ -1321,7 +1259,7 @@ bool Socket::ssl_verify(bool allow_self_signed) {
         return false;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_option.tls_host_name.empty() && !socket->ssl_check_host(ssl_option.tls_host_name.c_str())) {
+    if (!ssl_context->tls_host_name.empty() && !socket->ssl_check_host(ssl_context->tls_host_name.c_str())) {
         set_err(SW_ERROR_SSL_VERIFY_FAILED);
         return false;
     }
@@ -1698,7 +1636,7 @@ bool Socket::ssl_shutdown() {
         socket->ssl_close();
     }
     if (ssl_context) {
-        swSSL_free_context(ssl_context);
+        delete ssl_context;
         ssl_context = nullptr;
     }
     return true;

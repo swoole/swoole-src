@@ -25,6 +25,7 @@ using swoole::network::Address;
 using swoole::Socks5Proxy;
 using swoole::HttpProxy;
 using swoole::String;
+using swoole::SSLContext;
 
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
@@ -231,7 +232,7 @@ static Socket *client_coro_new(zval *zobject, int port) {
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        cli->open_ssl = true;
+        cli->enable_ssl_encrypt();
     }
 #endif
 
@@ -398,17 +399,17 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
 
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        sock->ssl_option.protocols = v;
+        sock->get_ssl_context()->protocols = v;
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-        sock->ssl_option.disable_compress = !zval_is_true(ztmp);
+        sock->get_ssl_context()->disable_compress = !zval_is_true(ztmp);
     } else if (php_swoole_array_get_value(vht, "ssl_disable_compression", ztmp)) {
-        sock->ssl_option.disable_compress = !zval_is_true(ztmp);
+        sock->get_ssl_context()->disable_compress = !zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
         if (access(str_v.val(), R_OK) == 0) {
-            sock->ssl_option.cert_file = str_v.to_std_string();
+            sock->get_ssl_context()->cert_file = str_v.to_std_string();
         } else {
             php_swoole_fatal_error(E_WARNING, "ssl cert file[%s] not found", str_v.val());
             ret = false;
@@ -417,42 +418,42 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
         zend::String str_v(ztmp);
         if (access(str_v.val(), R_OK) == 0) {
-            sock->ssl_option.key_file = str_v.to_std_string();
+            sock->get_ssl_context()->key_file = str_v.to_std_string();
         } else {
             php_swoole_fatal_error(E_WARNING, "ssl key file[%s] not found", str_v.val());
             ret = false;
         }
     }
-    if (!sock->ssl_option.cert_file.empty() && sock->ssl_option.key_file.empty()) {
+    if (!sock->get_ssl_context()->cert_file.empty() && sock->get_ssl_context()->key_file.empty()) {
         php_swoole_fatal_error(E_WARNING, "ssl require key file");
-    } else if (!sock->ssl_option.key_file.empty() && sock->ssl_option.cert_file.empty()) {
+    } else if (!sock->get_ssl_context()->key_file.empty() && sock->get_ssl_context()->cert_file.empty()) {
         php_swoole_fatal_error(E_WARNING, "ssl require cert file");
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp)) {
-        sock->ssl_option.passphrase = zend::String(ztmp).to_std_string();
+        sock->get_ssl_context()->passphrase = zend::String(ztmp).to_std_string();
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
-        sock->ssl_option.tls_host_name = zend::String(ztmp).to_std_string();
+        sock->get_ssl_context()->tls_host_name = zend::String(ztmp).to_std_string();
         /* if user set empty ssl_host_name, disable it, otherwise the underlying may set it automatically */
-        sock->ssl_option.disable_tls_host_name = sock->ssl_option.tls_host_name.empty();
+        sock->get_ssl_context()->disable_tls_host_name = sock->get_ssl_context()->tls_host_name.empty();
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-        sock->ssl_option.verify_peer = zval_is_true(ztmp);
+        sock->get_ssl_context()->verify_peer = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-        sock->ssl_option.allow_self_signed = zval_is_true(ztmp);
+        sock->get_ssl_context()->allow_self_signed = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
-        sock->ssl_option.cafile = zend::String(ztmp).to_std_string();
+        sock->get_ssl_context()->cafile = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
-        sock->ssl_option.capath = zend::String(ztmp).to_std_string();
+        sock->get_ssl_context()->capath = zend::String(ztmp).to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        sock->ssl_option.verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+        sock->get_ssl_context()->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
 
     return ret;

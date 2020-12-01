@@ -408,7 +408,9 @@ bool Client::connect() {
     }
     client->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
-    client->open_ssl = ssl;
+    if (ssl) {
+        client->enable_ssl_encrypt();
+    }
 #endif
     client->http2 = 1;
     client->open_length_check = 1;

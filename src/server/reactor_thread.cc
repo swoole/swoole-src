@@ -55,13 +55,13 @@ static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor
 
     Connection *conn = (Connection *) _socket->object;
     conn->ssl_ready = 1;
-    if (!port->ssl_config.client_cert_file.empty()) {
+    if (!port->ssl_context->client_cert_file.empty()) {
         if (!_socket->ssl_get_peer_certificate(sw_tg_buffer())) {
-            if (port->ssl_config.verify_peer) {
+            if (port->ssl_context->verify_peer) {
                 return SW_ERROR;
             }
         } else {
-            if (!port->ssl_config.verify_peer || _socket->ssl_verify(port->ssl_config.allow_self_signed)) {
+            if (!port->ssl_context->verify_peer || _socket->ssl_verify(port->ssl_context->allow_self_signed)) {
                 SendData task;
                 task.info.fd = _socket->fd;
                 task.info.type = SW_SERVER_EVENT_CONNECT;
@@ -151,7 +151,7 @@ _do_recvfrom:
 #ifdef SW_SUPPORT_DTLS
     ListenPort *port = (ListenPort *) server_sock->object;
 
-    if (port->ssl_config.protocols & SW_SSL_DTLS) {
+    if (port->ssl_context->protocols & SW_SSL_DTLS) {
         dtls::Session *session = serv->accept_dtls_connection(port, &pkt->socket_addr);
         if (!session) {
             return SW_ERR;
@@ -532,7 +532,7 @@ void Server::init_reactor(Reactor *reactor) {
     for (auto port : ports) {
         if (port->is_dgram()
 #ifdef SW_SUPPORT_DTLS
-            && !(port->ssl_config.protocols & SW_SSL_DTLS)
+            && !(port->ssl_context->protocols & SW_SSL_DTLS)
 #endif
         ) {
             continue;
@@ -554,7 +554,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     ListenPort *port = serv->get_port_by_fd(event->fd);
 #ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
-    if (port->ssl_config.protocols & SW_SSL_DTLS) {
+    if (port->ssl_context->protocols & SW_SSL_DTLS) {
         dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
         buffer->length = event->socket->read(buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
