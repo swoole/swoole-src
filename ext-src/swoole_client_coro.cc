@@ -25,7 +25,9 @@ using swoole::network::Address;
 using swoole::Socks5Proxy;
 using swoole::HttpProxy;
 using swoole::String;
+#ifdef SW_USE_OPENSSL
 using swoole::SSLContext;
+#endif
 
 static zend_class_entry *swoole_client_coro_ce;
 static zend_object_handlers swoole_client_coro_handlers;
