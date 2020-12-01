@@ -106,4 +106,15 @@ inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
     auto __SCOPEGUARD_CONCATENATE(ext_exitBlock_, __LINE__) = swoole::detail::ScopeGuardOnExit() + [&]()
 
 std::string intersection(std::vector<std::string> &vec1, std::set<std::string> &vec2);
+
+static inline size_t rtrim(const char *str, size_t l_str) {
+    for (auto i = l_str - 1; i > 0; i--) {
+        if (str[i] == '\r' || str[i] == '\n' || str[i] == ' ' || str[i] == '\t') {
+            l_str--;
+        } else {
+            break;
+        }
+    }
+    return l_str;
+}
 }  // namespace swoole

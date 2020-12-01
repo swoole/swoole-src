@@ -110,6 +110,8 @@ struct Response {
     zval _zobject;
     zval *zheader;
     zval _zheader;
+    zval *zheader_list;
+    zval _zheader_list;
     zval *zcookie;
     zval _zcookie;
     zval *ztrailer;

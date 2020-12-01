@@ -28,6 +28,7 @@ extern "C" {
 }
 
 #include "swoole_base64.h"
+#include "swoole_util.h"
 
 #ifdef SW_HAVE_ZLIB
 #include <zlib.h>
@@ -191,7 +192,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_status, 0, 0, 1)
     ZEND_ARG_INFO(0, reason)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 1)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, value)
     ZEND_ARG_INFO(0, ucwords)
@@ -294,6 +295,7 @@ void php_swoole_http_response_minit(int module_number) {
     zend_declare_property_long(swoole_http_response_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("socket"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("header_list"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("cookie"), ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_http_response_ce, ZEND_STRL("trailer"), ZEND_ACC_PUBLIC);
 }
@@ -365,6 +367,22 @@ static PHP_METHOD(swoole_http_response, write) {
     RETURN_BOOL(ctx->send(ctx, http_buffer->str, http_buffer->length));
 }
 
+static void parse_header_flags(http_context *ctx, const char *key, size_t keylen, uint32_t &header_flags) {
+    if (SW_STRCASEEQ(key, keylen, "Server")) {
+        header_flags |= HTTP_HEADER_SERVER;
+    } else if (SW_STRCASEEQ(key, keylen, "Connection")) {
+        header_flags |= HTTP_HEADER_CONNECTION;
+    } else if (SW_STRCASEEQ(key, keylen, "Date")) {
+        header_flags |= HTTP_HEADER_DATE;
+    } else if (SW_STRCASEEQ(key, keylen, "Content-Length") && ctx->parser.method != PHP_HTTP_HEAD) {
+        return;  // ignore
+    } else if (SW_STRCASEEQ(key, keylen, "Content-Type")) {
+        header_flags |= HTTP_HEADER_CONTENT_TYPE;
+    } else if (SW_STRCASEEQ(key, keylen, "Transfer-Encoding")) {
+        header_flags |= HTTP_HEADER_TRANSFER_ENCODING;
+    }
+}
+
 static void http_build_header(http_context *ctx, swString *response, size_t body_length) {
     char *buf = sw_tg_buffer()->str;
     size_t l_buf = sw_tg_buffer()->size;
@@ -383,12 +401,13 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     }
     response->append(buf, n);
 
+    uint32_t header_flags = 0x0;
+
     /**
      * http header
      */
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
-    uint32_t header_flag = 0x0;
     if (ZVAL_IS_ARRAY(zheader)) {
         const char *key;
         uint32_t keylen;
@@ -400,19 +419,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
-            if (SW_STRCASEEQ(key, keylen, "Server")) {
-                header_flag |= HTTP_HEADER_SERVER;
-            } else if (SW_STRCASEEQ(key, keylen, "Connection")) {
-                header_flag |= HTTP_HEADER_CONNECTION;
-            } else if (SW_STRCASEEQ(key, keylen, "Date")) {
-                header_flag |= HTTP_HEADER_DATE;
-            } else if (SW_STRCASEEQ(key, keylen, "Content-Length") && ctx->parser.method != PHP_HTTP_HEAD) {
-                continue;  // ignore
-            } else if (SW_STRCASEEQ(key, keylen, "Content-Type")) {
-                header_flag |= HTTP_HEADER_CONTENT_TYPE;
-            } else if (SW_STRCASEEQ(key, keylen, "Transfer-Encoding")) {
-                header_flag |= HTTP_HEADER_TRANSFER_ENCODING;
-            }
+            parse_header_flags(ctx, key, keylen, header_flags);
             if (!ZVAL_IS_NULL(zvalue)) {
                 zend::String str_value(zvalue);
                 n = sw_snprintf(
@@ -422,6 +429,26 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
         }
         SW_HASHTABLE_FOREACH_END();
         (void) type;
+    }
+
+    zval *zheader_list = sw_zend_read_property_ex(
+        swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER_LIST), 0);
+    if (ZVAL_IS_ARRAY(zheader_list)) {
+        zval *zvalue;
+
+        SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zheader_list), zvalue) {
+            if (!ZVAL_IS_STRING(zvalue)) {
+                continue;
+            }
+            char *key = Z_STRVAL_P(zvalue);
+            auto colon = memchr(key, ':', Z_STRLEN_P(zvalue));
+            if (colon) {
+                parse_header_flags(ctx, key, (const char *) colon - key, header_flags);
+            }
+            response->append(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
+            response->append("\r\n", 2);
+        }
+        SW_HASHTABLE_FOREACH_END();
     }
 
     // http cookies
@@ -440,7 +467,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
         SW_HASHTABLE_FOREACH_END();
     }
 
-    if (!(header_flag & HTTP_HEADER_SERVER)) {
+    if (!(header_flags & HTTP_HEADER_SERVER)) {
         response->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
 
@@ -451,17 +478,17 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
         return;
     }
 
-    if (!(header_flag & HTTP_HEADER_CONNECTION)) {
+    if (!(header_flags & HTTP_HEADER_CONNECTION)) {
         if (ctx->keepalive) {
             response->append(ZEND_STRL("Connection: keep-alive\r\n"));
         } else {
             response->append(ZEND_STRL("Connection: close\r\n"));
         }
     }
-    if (!(header_flag & HTTP_HEADER_CONTENT_TYPE)) {
+    if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
         response->append(ZEND_STRL("Content-Type: text/html\r\n"));
     }
-    if (!(header_flag & HTTP_HEADER_DATE)) {
+    if (!(header_flags & HTTP_HEADER_DATE)) {
         date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
         n = sw_snprintf(buf, l_buf, "Date: %s\r\n", date_str);
         response->append(buf, n);
@@ -470,7 +497,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
 
     if (ctx->send_chunked) {
         SW_ASSERT(body_length == 0);
-        if (!(header_flag & HTTP_HEADER_TRANSFER_ENCODING)) {
+        if (!(header_flags & HTTP_HEADER_TRANSFER_ENCODING)) {
             response->append(ZEND_STRL("Transfer-Encoding: chunked\r\n"));
         }
     }
@@ -666,6 +693,8 @@ static PHP_METHOD(swoole_http_response, initHeader) {
     zval *zresponse_object = ctx->response.zobject;
     swoole_http_init_and_read_property(
         swoole_http_response_ce, zresponse_object, &ctx->response.zheader, ZEND_STRL("header"));
+    swoole_http_init_and_read_property(
+        swoole_http_response_ce, zresponse_object, &ctx->response.zheader, ZEND_STRL("header_list"));
     swoole_http_init_and_read_property(
         swoole_http_response_ce, zresponse_object, &ctx->response.zcookie, ZEND_STRL("cookie"));
     swoole_http_init_and_read_property(
@@ -863,6 +892,42 @@ bool swoole_http_response_set_header(
     return true;
 }
 
+/**
+ * Allows Duplicates
+ */
+bool swoole_http_response_add_header(http_context *ctx, const char *k, size_t klen, bool ucwords) {
+    // rtrim
+    klen = swoole::rtrim(k, klen);
+    if (klen == 0) {
+        return false;
+    }
+    if (http_has_crlf(k, klen)) {
+        return false;
+    }
+    if (ucwords) {
+        auto colon = memchr(k, ':', klen);
+        if (colon != nullptr) {
+            size_t len = (const char *) colon - k;
+            auto buf = sw_tg_buffer();
+            buf->clear();
+            buf->append(k, klen);
+#ifdef SW_USE_HTTP2
+            if (ctx->http2) {
+                swoole_strtolower(buf->str, len);
+            } else
+#endif
+            {
+                http_header_key_format(buf->str, len);
+            }
+            k = buf->str;
+        }
+    }
+    zval *zheader_list = swoole_http_init_and_read_property(
+        swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader_list, ZEND_STRL("header_list"));
+    add_next_index_stringl(zheader_list, k, klen);
+    return true;
+}
+
 static PHP_METHOD(swoole_http_response, sendfile) {
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
@@ -947,7 +1012,8 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 }
 
 static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode) {
-    char *name = nullptr, *value = nullptr, *path = nullptr, *domain = nullptr, *samesite = nullptr, *priority = nullptr;
+    char *name = nullptr, *value = nullptr, *path = nullptr, *domain = nullptr, *samesite = nullptr,
+         *priority = nullptr;
     zend_long expires = 0;
     size_t name_len, value_len = 0, path_len = 0, domain_len = 0, samesite_len = 0, priority_len = 0;
     zend_bool secure = 0, httponly = 0;
@@ -1076,14 +1142,14 @@ static PHP_METHOD(swoole_http_response, status) {
 }
 
 static PHP_METHOD(swoole_http_response, header) {
-    char *k, *v;
+    char *k, *v = nullptr;
     size_t klen, vlen;
     zend_bool ucwords = 1;
 
-    ZEND_PARSE_PARAMETERS_START(2, 3)
+    ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_STRING(k, klen)
-    Z_PARAM_STRING_EX(v, vlen, 1, 0)
     Z_PARAM_OPTIONAL
+    Z_PARAM_STRING_EX(v, vlen, 1, 0)
     Z_PARAM_BOOL(ucwords)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
@@ -1092,7 +1158,11 @@ static PHP_METHOD(swoole_http_response, header) {
         RETURN_FALSE;
     }
 
-    RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, v, vlen, ucwords));
+    if (v == nullptr || vlen == 0) {
+        RETURN_BOOL(swoole_http_response_add_header(ctx, k, klen, ucwords));
+    } else {
+        RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, v, vlen, ucwords));
+    }
 }
 
 #ifdef SW_USE_HTTP2
@@ -1138,7 +1208,6 @@ static PHP_METHOD(swoole_http_response, ping) {
     }
     SW_CHECK_RETURN(swoole_http2_server_ping(ctx));
 }
-
 
 static PHP_METHOD(swoole_http_response, goaway) {
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
