@@ -29,11 +29,16 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
-        $response->header("Test-Value: a\r\n");
-        $response->header("teST-valUe : b1234\r\n");
-        $response->header("test-VALUE: c\r\n", null, false);
-        $response->header("test-VALUE: d5678");
-        $response->header("content-length: 10000\n ");
+        $response->header("content-length", "10000 ");
+        $response->header("Test-Value", [
+            "a\r\n",
+            "b1234 ",
+            "d5678",
+            "e  \n ",
+            null,
+            5678,
+            3.1415926,
+        ]);
         $response->end("hello world");
     });
     $http->start();
@@ -45,10 +50,11 @@ $pm->run();
 --EXPECTF--
 HTTP/1.1 200 OK
 Test-Value: a
-Test-Value : b1234
-test-VALUE: c
+Test-Value: b1234
 Test-Value: d5678
-Content-Length: 10000
+Test-Value: e
+Test-Value: 5678
+Test-Value: 3.1415926
 Server: swoole-http-server
 Connection: keep-alive
 Content-Type: text/html

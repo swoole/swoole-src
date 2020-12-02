@@ -18,6 +18,7 @@
 
 #include "php_swoole.h"
 #include "php_swoole_coroutine.h"
+#include "swoole_util.h"
 
 #include <string>
 
@@ -44,7 +45,6 @@
     _(SW_ZEND_STR_DOWNLOAD_OFFSET,          "downloadOffset") \
     _(SW_ZEND_STR_TMPFILES,                 "tmpfiles") \
     _(SW_ZEND_STR_HEADER,                   "header") \
-    _(SW_ZEND_STR_HEADER_LIST,              "header_list") \
     _(SW_ZEND_STR_COOKIE,                   "cookie") \
     _(SW_ZEND_STR_METHOD,                   "method") \
     _(SW_ZEND_STR_PATH,                     "path") \
@@ -189,6 +189,10 @@ class String {
 
     inline zend_string *get() {
         return str;
+    }
+
+    void rtrim() {
+        ZSTR_LEN(str) = swoole::rtrim(val(), len());
     }
 
     inline const std::string to_std_string() {
