@@ -293,10 +293,11 @@ bool SSLContext::create() {
 #ifdef SW_SUPPORT_DTLS
     if (protocols & SW_SSL_DTLS) {
         method = DTLS_method();
-    }
+    } else
 #endif
-    method = SSLv23_method();
-
+    {
+        method = SSLv23_method();
+    }
     if (protocols == 0) {
         protocols = SW_SSL_ALL;
     }

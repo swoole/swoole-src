@@ -56,7 +56,7 @@ struct Session {
         while (!rxqueue.empty()) {
             Buffer *buffer = rxqueue.front();
             rxqueue.pop_front();
-            delete buffer;
+            sw_free(buffer);
         }
     }
 
