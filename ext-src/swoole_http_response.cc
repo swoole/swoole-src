@@ -441,9 +441,9 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
             if (!ZVAL_IS_STRING(zvalue)) {
                 continue;
             }
-            ssize_t l_key = substr_len(key, Z_STRLEN_P(zvalue), ':', true);
+            ssize_t l_key = substr_len(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue), ':', true);
             if (l_key > 0) {
-                parse_header_flags(ctx, key, l_key, header_flags);
+                parse_header_flags(ctx, Z_STRVAL_P(zvalue), l_key, header_flags);
             }
             response->append(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
             response->append("\r\n", 2);
