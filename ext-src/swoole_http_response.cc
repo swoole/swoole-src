@@ -882,7 +882,7 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         }
         k = sw_tg_buffer()->str;
     }
-
+    Z_ADDREF_P(zvalue);
     add_assoc_zval_ex(zheader, k, klen, zvalue);
     return true;
 }
