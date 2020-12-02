@@ -828,7 +828,6 @@ static PHP_METHOD(swoole_client_coro, getsockname) {
     zval zaddress;
     ZVAL_STRING(&zaddress, sa.get_ip());
     add_assoc_zval(return_value, "host", &zaddress); /* backward compatibility */
-    Z_ADDREF(zaddress);
     add_assoc_zval(return_value, "address", &zaddress);
     add_assoc_long(return_value, "port", sa.get_port());
 }
@@ -870,7 +869,6 @@ static PHP_METHOD(swoole_client_coro, getpeername) {
     zval zaddress;
     ZVAL_STRING(&zaddress, sa.get_ip());
     add_assoc_zval(return_value, "host", &zaddress); /* backward compatibility */
-    Z_ADDREF(zaddress);
     add_assoc_zval(return_value, "address", &zaddress);
     add_assoc_long(return_value, "port", sa.get_port());
 }

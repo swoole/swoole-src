@@ -855,9 +855,6 @@ _skip_copy:
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool format) {
     zval ztmp;
     ZVAL_STRINGL(&ztmp, v, vlen);
-    ON_SCOPE_EXIT {
-        zval_ptr_dtor(&ztmp);
-    };
     return swoole_http_response_set_header(ctx, k, klen, &ztmp, format);
 }
 
