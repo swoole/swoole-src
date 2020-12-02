@@ -18,8 +18,10 @@
 */
 
 #include "test_core.h"
+
 #include "httplib_client.h"
 #include "llhttp.h"
+#include "swoole_server.h"
 #include "swoole_file.h"
 #include "swoole_http.h"
 

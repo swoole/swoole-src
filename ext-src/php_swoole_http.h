@@ -263,8 +263,9 @@ swoole::http::Context *php_swoole_http_response_get_context(zval *zobject);
 void php_swoole_http_response_set_context(zval *zobject, swoole::http::Context *context);
 size_t swoole_http_requset_parse(swoole::http::Context *ctx, const char *data, size_t length);
 
-bool swoole_http_response_set_header(
-    swoole::http::Context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool ucwords);
+bool swoole_http_response_set_header(swoole::http::Context *, const char *, size_t, zval *, bool);
+bool swoole_http_response_set_header(swoole::http::Context *, const char *, size_t, const char *, size_t, bool);
+
 void swoole_http_response_end(swoole::http::Context *ctx, zval *zdata, zval *return_value);
 void swoole_http_response_send_trailer(swoole::http::Context *ctx, zval *return_value);
 

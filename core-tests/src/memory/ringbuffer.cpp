@@ -1,5 +1,6 @@
 #include "test_core.h"
 #include "swoole_memory.h"
+#include "swoole_pipe.h"
 
 using namespace swoole;
 

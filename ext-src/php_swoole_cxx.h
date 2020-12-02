@@ -18,6 +18,7 @@
 
 #include "php_swoole.h"
 #include "php_swoole_coroutine.h"
+#include "swoole_util.h"
 
 #include <string>
 
@@ -188,6 +189,10 @@ class String {
 
     inline zend_string *get() {
         return str;
+    }
+
+    void rtrim() {
+        ZSTR_LEN(str) = swoole::rtrim(val(), len());
     }
 
     inline const std::string to_std_string() {

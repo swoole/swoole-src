@@ -1,16 +1,17 @@
 #include "test_core.h"
+#include "swoole_util.h"
 
 using namespace std;
 
 TEST(string, rtrim) {
     char buf[1024];
     strcpy(buf, "hello world  ");
-    swoole_rtrim(buf, strlen(buf));
+    swoole::rtrim(buf, strlen(buf));
     ASSERT_EQ(strcmp("hello world", buf), 0);
     ASSERT_NE(strcmp("hello world  ", buf), 0);
 
     strcpy(buf, "  ");
-    swoole_rtrim(buf, strlen(buf));
+    swoole::rtrim(buf, strlen(buf));
     ASSERT_EQ(strlen(buf), 0);
 }
 
@@ -193,4 +194,10 @@ TEST(string, format) {
 
     EXPECT_GT(str.size, 1024);
     EXPECT_STREQ(str.str + str.length - 2, "\r\n");
+}
+
+TEST(string, substr_len) {
+    const char *str1 = "hello: swoole & world";
+    ASSERT_EQ(swoole::substr_len(str1, strlen(str1), ':', true), 5);
+    ASSERT_EQ(swoole::substr_len(str1, strlen(str1), ':', false), 15);
 }
