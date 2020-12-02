@@ -1,4 +1,5 @@
 #include "test_core.h"
+#include "swoole_signal.h"
 
 #ifdef HAVE_SIGNALFD
 static void sig_usr1(int signo) {}

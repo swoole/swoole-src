@@ -530,24 +530,6 @@ int swoole_version_compare(const char *version1, const char *version2) {
     return result;
 }
 
-void swoole_rtrim(char *str, int len) {
-    int i;
-    for (i = len; i > 0;) {
-        switch (str[--i]) {
-        case ' ':
-        case '\0':
-        case '\n':
-        case '\r':
-        case '\t':
-        case '\v':
-            str[i] = 0;
-            break;
-        default:
-            return;
-        }
-    }
-}
-
 /**
  * Maximum common divisor
  */
