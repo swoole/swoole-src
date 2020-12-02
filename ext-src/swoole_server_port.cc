@@ -508,7 +508,7 @@ static PHP_METHOD(swoole_server_port, set) {
         if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
             zend_long v = zval_get_long(ztmp);
             port->ssl_context->protocols = v;
-            if ((port->ssl_context->protocols & SW_SSL_DTLS) && !port->is_dgram()) {
+            if (port->is_dtls() && !port->is_dgram()) {
                 port->ssl_context->protocols ^= SW_SSL_DTLS;
             }
         }

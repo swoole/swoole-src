@@ -1562,7 +1562,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->ssl_context->protocols & SW_SSL_DTLS) {
+    if (ls->is_dtls()) {
         ls->socket->set_reuse_port();
     }
 #endif

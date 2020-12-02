@@ -348,6 +348,9 @@ struct ListenPort {
     std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
+    bool is_dtls() {
+        return ssl_context && (ssl_context->protocols & SW_SSL_DTLS);
+    }
 #endif
 #endif
 
