@@ -457,7 +457,9 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         zend_long v = zval_get_long(ztmp);
         sock->get_ssl_context()->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
-
+    if (!sock->ssl_check_context()) {
+        ret = false;
+    }
     return ret;
 }
 #endif

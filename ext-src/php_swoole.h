@@ -563,6 +563,7 @@ static sw_inline zend_string* sw_zend_string_recycle(zend_string *s, size_t allo
 
 #define php_swoole_array_length(zarray)        zend_hash_num_elements(Z_ARRVAL_P(zarray))
 #define php_swoole_array_get_value(ht, str, v) ((v = zend_hash_str_find(ht, str, sizeof(str)-1)) && !ZVAL_IS_NULL(v))
+#define php_swoole_array_get_value_ex(ht, str, v) ((v = zend_hash_str_find(ht, str, strlen(str))) && !ZVAL_IS_NULL(v))
 
 static sw_inline int php_swoole_array_length_safe(zval *zarray)
 {
