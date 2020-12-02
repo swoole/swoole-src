@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm) {
             unset($response->header);
         } catch (Error $e) {
             echo $e->getMessage() . PHP_EOL;
-            $response->header('Foo', null);
+            unset($response->header['Foo']);
         }
         $response->header('Bar', 'Foo');
         $response->end("just an 500 error for fun\n");

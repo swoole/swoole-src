@@ -1157,7 +1157,7 @@ static PHP_METHOD(swoole_http_response, header) {
         RETURN_FALSE;
     }
 
-    if (ZEND_NUM_ARGS() == 1) {
+    if (v == nullptr || vlen == 0) {
         RETURN_BOOL(swoole_http_response_add_header(ctx, k, klen, ucwords));
     } else {
         RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, v, vlen, ucwords));
