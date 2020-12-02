@@ -862,10 +862,12 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, zval *zvalue, bool format) {
     if (UNEXPECTED(klen > SW_HTTP_HEADER_KEY_SIZE - 1)) {
         php_swoole_error(E_WARNING, "header key is too long");
+        Z_TRY_DELREF_P(zvalue);
         return false;
     }
 
     if (http_has_crlf(k, klen)) {
+        Z_TRY_DELREF_P(zvalue);
         return false;
     }
 
@@ -1117,7 +1119,7 @@ static PHP_METHOD(swoole_http_response, header) {
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    Z_ADDREF_P(zvalue);
+    Z_TRY_ADDREF_P(zvalue);
     RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, zvalue, format));
 }
 
