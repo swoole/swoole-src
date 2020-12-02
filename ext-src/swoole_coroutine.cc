@@ -416,6 +416,9 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
     task->vm_stack_page_size = EG(vm_stack_page_size);
 #endif
     task->execute_data = EG(current_execute_data);
+#if PHP_VERSION_ID >= 80000
+    task->jit_trace_num = EG(jit_trace_num);
+#endif
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
@@ -445,6 +448,9 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
     EG(vm_stack_page_size) = task->vm_stack_page_size;
 #endif
     EG(current_execute_data) = task->execute_data;
+#if PHP_VERSION_ID >= 80000
+    EG(jit_trace_num) = task->jit_trace_num;
+#endif
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
@@ -617,6 +623,9 @@ void PHPCoroutine::main_func(void *arg) {
         EG(error_handling) = EH_NORMAL;
         EG(exception_class) = nullptr;
         EG(exception) = nullptr;
+#if PHP_VERSION_ID >= 80000
+        EG(jit_trace_num) = 0;
+#endif
 
         task->output_ptr = nullptr;
 #if PHP_VERSION_ID < 80100
