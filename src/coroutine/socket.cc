@@ -1123,9 +1123,6 @@ bool Socket::listen(int backlog) {
     }
 #ifdef SW_USE_OPENSSL
     ssl_is_server = true;
-    if (ssl_context) {
-        return ssl_check_context();
-    }
 #endif
     return true;
 }
