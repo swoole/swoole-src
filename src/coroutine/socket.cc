@@ -1160,7 +1160,7 @@ Socket *Socket::accept(double timeout) {
 
 #ifdef SW_USE_OPENSSL
 bool Socket::ssl_check_context() {
-    if (socket->ssl || ssl_context->get_context()) {
+    if (socket->ssl || (get_ssl_context() && get_ssl_context()->get_context())) {
         return true;
     }
     if (socket->is_dgram()) {
