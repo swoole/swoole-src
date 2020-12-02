@@ -1124,7 +1124,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         }
 
 #ifdef SW_USE_OPENSSL
-        if (port->ssl_context->verify_peer && port->ssl_context->client_cert_file.empty()) {
+        if (port->ssl_context && port->ssl_context->verify_peer && port->ssl_context->client_cert_file.empty()) {
             php_swoole_fatal_error(E_ERROR, "server open verify peer require client_cert_file config");
             return;
         }

@@ -554,7 +554,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     ListenPort *port = serv->get_port_by_fd(event->fd);
 #ifdef SW_USE_OPENSSL
 #ifdef SW_SUPPORT_DTLS
-    if (port->ssl_context->protocols & SW_SSL_DTLS) {
+    if (port->ssl_context && (port->ssl_context->protocols & SW_SSL_DTLS)) {
         dtls::Buffer *buffer = (dtls::Buffer *) sw_malloc(sizeof(*buffer) + SW_BUFFER_SIZE_UDP);
         buffer->length = event->socket->read(buffer->data, SW_BUFFER_SIZE_UDP);
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
