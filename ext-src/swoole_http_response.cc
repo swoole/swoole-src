@@ -39,6 +39,7 @@ extern "C" {
 #endif
 
 using swoole::coroutine::Socket;
+using swoole::substr_len;
 using http_response = swoole::http::Response;
 using http_context = swoole::http::Context;
 
@@ -440,10 +441,9 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
             if (!ZVAL_IS_STRING(zvalue)) {
                 continue;
             }
-            char *key = Z_STRVAL_P(zvalue);
-            auto colon = memchr(key, ':', Z_STRLEN_P(zvalue));
-            if (colon) {
-                parse_header_flags(ctx, key, (const char *) colon - key, header_flags);
+            ssize_t l_key = substr_len(key, Z_STRLEN_P(zvalue), ':', true);
+            if (l_key > 0) {
+                parse_header_flags(ctx, key, l_key, header_flags);
             }
             response->append(Z_STRVAL_P(zvalue), Z_STRLEN_P(zvalue));
             response->append("\r\n", 2);
@@ -860,35 +860,34 @@ bool swoole_http_response_set_header(
         return false;
     }
 
-    if (http_has_crlf(v, vlen)) {
+    if (http_has_crlf(k, klen)) {
+        return false;
+    }
+    if (v && http_has_crlf(v, vlen)) {
         return false;
     }
 
     zval *zheader = swoole_http_init_and_read_property(
         swoole_http_response_ce, ctx->response.zobject, &ctx->response.zheader, ZEND_STRL("header"));
     if (ucwords) {
-        char key_buf[SW_HTTP_HEADER_KEY_SIZE];
-        swoole_strlcpy(key_buf, k, sizeof(key_buf));
+        swoole_strlcpy(sw_tg_buffer()->str, k, SW_HTTP_HEADER_KEY_SIZE);
 #ifdef SW_USE_HTTP2
         if (ctx->http2) {
-            swoole_strtolower(key_buf, klen);
+            swoole_strtolower(sw_tg_buffer()->str, klen);
         } else
 #endif
         {
-            http_header_key_format(key_buf, klen);
+            http_header_key_format(sw_tg_buffer()->str, klen);
         }
-        if (UNEXPECTED(!v)) {
-            add_assoc_null_ex(zheader, key_buf, klen);
-        } else {
-            add_assoc_stringl_ex(zheader, key_buf, klen, (char *) v, vlen);
-        }
-    } else {
-        if (UNEXPECTED(!v)) {
-            add_assoc_null_ex(zheader, k, klen);
-        } else {
-            add_assoc_stringl_ex(zheader, k, klen, (char *) v, vlen);
-        }
+        k = sw_tg_buffer()->str;
     }
+
+    if (UNEXPECTED(!v)) {
+        add_assoc_null_ex(zheader, k, klen);
+    } else {
+        add_assoc_stringl_ex(zheader, k, klen, (char *) v, vlen);
+    }
+
     return true;
 }
 
@@ -896,7 +895,6 @@ bool swoole_http_response_set_header(
  * Allows Duplicates
  */
 bool swoole_http_response_add_header(http_context *ctx, const char *k, size_t klen, bool ucwords) {
-    // rtrim
     klen = swoole::rtrim(k, klen);
     if (klen == 0) {
         return false;
@@ -905,9 +903,10 @@ bool swoole_http_response_add_header(http_context *ctx, const char *k, size_t kl
         return false;
     }
     if (ucwords) {
-        auto colon = memchr(k, ':', klen);
-        if (colon != nullptr) {
-            size_t len = (const char *) colon - k;
+        ssize_t len = substr_len(k, klen, ':', true);
+        if (len == 0) {
+            return false;
+        } else if (len > 0) {
             auto buf = sw_tg_buffer();
             buf->clear();
             buf->append(k, klen);
@@ -1143,7 +1142,7 @@ static PHP_METHOD(swoole_http_response, status) {
 
 static PHP_METHOD(swoole_http_response, header) {
     char *k, *v = nullptr;
-    size_t klen, vlen;
+    size_t klen, vlen = 0;
     zend_bool ucwords = 1;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
@@ -1158,7 +1157,7 @@ static PHP_METHOD(swoole_http_response, header) {
         RETURN_FALSE;
     }
 
-    if (v == nullptr || vlen == 0) {
+    if (ZEND_NUM_ARGS() == 1) {
         RETURN_BOOL(swoole_http_response_add_header(ctx, k, klen, ucwords));
     } else {
         RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, v, vlen, ucwords));

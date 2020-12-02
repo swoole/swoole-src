@@ -4,6 +4,8 @@
  * ./bin/test_server
  */
 #include "swoole_server.h"
+#include "swoole_util.h"
+
 using namespace swoole;
 
 int my_onPacket(swServer *serv, swRecvData *req);
@@ -98,7 +100,7 @@ int my_onReceive(swServer *serv, swRecvData *req) {
     swConnection *conn = serv->get_connection_by_session_id(req->info.fd);
 
     memcpy(req_data, req->data, req->info.len);
-    swoole_rtrim(req_data, req->info.len);
+    swoole::rtrim(req_data, req->info.len);
     swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d",
              g_receive_count,
              conn->info.get_ip(),

@@ -81,6 +81,8 @@ object(Swoole\Http\Response)#%d (%d) {
   NULL
   ["header"]=>
   NULL
+  ["header_list"]=>
+  NULL
   ["cookie"]=>
   NULL
   ["trailer"]=>
