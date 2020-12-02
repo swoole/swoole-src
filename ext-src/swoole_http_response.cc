@@ -196,7 +196,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_response_header, 0, 0, 2)
     ZEND_ARG_INFO(0, key)
     ZEND_ARG_INFO(0, value)
-    ZEND_ARG_INFO(0, format_key)
+    ZEND_ARG_INFO(0, format)
 ZEND_END_ARG_INFO()
 
 #ifdef SW_USE_HTTP2
@@ -855,6 +855,7 @@ _skip_copy:
 bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t klen, const char *v, size_t vlen, bool format) {
     zval ztmp;
     ZVAL_STRINGL(&ztmp, v, vlen);
+    Z_ADDREF(ztmp);
     return swoole_http_response_set_header(ctx, k, klen, &ztmp, format);
 }
 
@@ -882,7 +883,6 @@ bool swoole_http_response_set_header(http_context *ctx, const char *k, size_t kl
         }
         k = sw_tg_buffer()->str;
     }
-    Z_ADDREF_P(zvalue);
     add_assoc_zval_ex(zheader, k, klen, zvalue);
     return true;
 }
@@ -1104,20 +1104,21 @@ static PHP_METHOD(swoole_http_response, header) {
     char *k;
     size_t klen;
     zval *zvalue;
-    zend_bool format_key = 1;
+    zend_bool format = 1;
 
     ZEND_PARSE_PARAMETERS_START(2, 3)
     Z_PARAM_STRING(k, klen)
     Z_PARAM_ZVAL(zvalue)
     Z_PARAM_OPTIONAL
-    Z_PARAM_BOOL(format_key)
+    Z_PARAM_BOOL(format)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     http_context *ctx = php_swoole_http_response_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, zvalue, format_key));
+    Z_ADDREF_P(zvalue);
+    RETURN_BOOL(swoole_http_response_set_header(ctx, k, klen, zvalue, format));
 }
 
 #ifdef SW_USE_HTTP2
