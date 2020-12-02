@@ -1535,7 +1535,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
         type = (enum swSocket_type)(type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
-        ls->ssl_context = new SSLContext;
+        ls->ssl_context = new SSLContext();
         ls->ssl_context->prefer_server_ciphers = 1;
         ls->ssl_context->session_tickets = 0;
         ls->ssl_context->stapling = 1;

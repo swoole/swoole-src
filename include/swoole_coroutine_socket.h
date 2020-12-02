@@ -115,15 +115,15 @@ class Socket {
 
 #ifdef SW_USE_OPENSSL
     bool enable_ssl_encrypt() {
-        if (ssl_context) {
+        if (ssl_context.get()) {
             return false;
         }
-        ssl_context = new SSLContext();
+        ssl_context.reset(new SSLContext());
         return true;
     }
 
     SSLContext *get_ssl_context() {
-        return ssl_context;
+        return ssl_context.get();
     }
 
     bool ssl_check_context();
@@ -399,7 +399,7 @@ class Socket {
 #ifdef SW_USE_OPENSSL
     bool ssl_is_server = false;
     bool ssl_handshaked = false;
-    SSLContext *ssl_context;
+    std::shared_ptr<SSLContext> ssl_context;
     std::string ssl_host_name;
     bool ssl_create(SSLContext *ssl_context);
 #endif

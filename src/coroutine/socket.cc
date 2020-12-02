@@ -539,7 +539,7 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
 #ifdef SW_USE_OPENSSL
     ssl_context = server_sock->ssl_context;
     ssl_is_server = server_sock->ssl_is_server;
-    if (ssl_context && server_sock->ssl_context && !ssl_create(server_sock->ssl_context)) {
+    if (server_sock->get_ssl_context() && !ssl_create(server_sock->get_ssl_context())) {
         close();
     }
 #endif
@@ -1160,7 +1160,7 @@ Socket *Socket::accept(double timeout) {
 
 #ifdef SW_USE_OPENSSL
 bool Socket::ssl_check_context() {
-    if (socket->ssl || ssl_context) {
+    if (socket->ssl || ssl_context->get_context()) {
         return true;
     }
     if (socket->is_dgram()) {
@@ -1212,7 +1212,7 @@ bool Socket::ssl_handshake() {
     if (!ssl_check_context()) {
         return false;
     }
-    if (!ssl_create(ssl_context)) {
+    if (!ssl_create(get_ssl_context())) {
         return false;
     }
     if (!ssl_is_server) {
@@ -1634,10 +1634,6 @@ bool Socket::shutdown(int __how) {
 bool Socket::ssl_shutdown() {
     if (socket->ssl) {
         socket->ssl_close();
-    }
-    if (ssl_context) {
-        delete ssl_context;
-        ssl_context = nullptr;
     }
     return true;
 }
