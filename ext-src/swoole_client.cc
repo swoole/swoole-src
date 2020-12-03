@@ -1401,7 +1401,10 @@ PHP_FUNCTION(swoole_client_select) {
         RETURN_FALSE;
     }
 
-    retval = poll(fds, maxevents, (int) (timeout * 1000));
+    do {
+        retval = poll(fds, maxevents, (int) (timeout * 1000));
+    } while (retval < 0 && errno == EINTR);
+
     if (retval == -1) {
         efree(fds);
         php_swoole_sys_error(E_WARNING, "unable to poll()");
