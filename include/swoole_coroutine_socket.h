@@ -58,11 +58,6 @@ class Socket {
 
     static enum TimeoutType timeout_type_list[4];
 
-#ifdef SW_USE_OPENSSL
-    bool open_ssl = false;
-    swSSL_option ssl_option = {};
-#endif
-
     Socket(int domain, int type, int protocol);
     Socket(int _fd, int _domain, int _type, int _protocol);
     Socket(enum swSocket_type type = SW_SOCK_TCP);
@@ -117,7 +112,31 @@ class Socket {
     ssize_t sendto(const std::string &host, int port, const void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n);
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
+
 #ifdef SW_USE_OPENSSL
+    /**
+     * Operation sequence:
+     * 1. enable_ssl_encrypt()
+     * 2. Set SSL parameters, such as certificate file, key file
+     * 3. ssl_check_context()
+     * 4. ssl_accept()/ssl_connect()/ssl_handshake()
+     */
+    bool enable_ssl_encrypt() {
+        if (ssl_context.get()) {
+            return false;
+        }
+        ssl_context.reset(new SSLContext());
+        return true;
+    }
+
+    bool ssl_is_enable() {
+        return get_ssl_context() != nullptr;
+    }
+
+    SSLContext *get_ssl_context() {
+        return ssl_context.get();
+    }
+
     bool ssl_check_context();
     bool ssl_handshake();
     bool ssl_verify(bool allow_self_signed);
@@ -339,7 +358,7 @@ class Socket {
     }
 
 #ifdef SW_USE_OPENSSL
-    inline bool is_ssl_enable() {
+    inline bool ssl_is_available() {
         return socket && ssl_handshaked;
     }
 
@@ -390,9 +409,9 @@ class Socket {
 #ifdef SW_USE_OPENSSL
     bool ssl_is_server = false;
     bool ssl_handshaked = false;
-    SSL_CTX *ssl_context = nullptr;
+    std::shared_ptr<SSLContext> ssl_context = nullptr;
     std::string ssl_host_name;
-    bool ssl_create(SSL_CTX *ssl_context);
+    bool ssl_create(SSLContext *ssl_context);
 #endif
 
     bool connected = false;

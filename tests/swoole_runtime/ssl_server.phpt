@@ -17,8 +17,8 @@ go(function () use ($ready) {
     $context = stream_context_create();
     stream_context_set_option($context, 'ssl', 'allow_self_signed', true);
     stream_context_set_option($context, 'ssl', 'verify_peer', false);
-    stream_context_set_option($context, 'ssl', 'local_cert', dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.crt');
-    stream_context_set_option($context, 'ssl', 'local_pk', dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.key');
+    stream_context_set_option($context, 'ssl', 'local_cert', SSL_FILE_DIR.'/server.crt');
+    stream_context_set_option($context, 'ssl', 'local_pk', SSL_FILE_DIR.'/server.key');
     $socket = stream_socket_server("ssl://0.0.0.0:8000", $errno, $errstr, STREAM_SERVER_BIND | STREAM_SERVER_LISTEN, $context);
     if (!$socket) {
         echo "$errstr ($errno)<br />\n";

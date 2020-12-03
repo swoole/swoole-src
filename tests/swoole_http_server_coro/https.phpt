@@ -11,8 +11,8 @@ $port = get_one_free_port();
 go(function () use ($port) {
     $server = new Co\Http\Server("127.0.0.1", $port, true);
     $server->set(['open_tcp_nodelay' => true,
-        'ssl_cert_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.crt',
-        'ssl_key_file' => dirname(__DIR__) . '/include/api/swoole_http_server/localhost-ssl/server.key',
+        'ssl_cert_file' => SSL_FILE_DIR.'/server.crt',
+        'ssl_key_file' => SSL_FILE_DIR.'/server.key',
     ]);
     $server->handle('/', function ($request, $response) {
         $response->end("<h1>Index</h1>");

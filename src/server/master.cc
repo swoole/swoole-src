@@ -148,11 +148,9 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl) {
-            if (sock->ssl_create(listen_host->ssl_context, SW_SSL_SERVER) < 0) {
+            if (!listen_host->ssl_create(conn, sock)) {
                 reactor->close(reactor, sock);
                 return SW_OK;
-            } else {
-                conn->ssl = 1;
             }
         } else {
             sock->ssl = nullptr;
@@ -1537,16 +1535,17 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
         type = (enum swSocket_type)(type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
-        ls->ssl_config.prefer_server_ciphers = 1;
-        ls->ssl_config.session_tickets = 0;
-        ls->ssl_config.stapling = 1;
-        ls->ssl_config.stapling_verify = 1;
-        ls->ssl_config.ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
-        ls->ssl_config.ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
+        ls->ssl_context = new SSLContext();
+        ls->ssl_context->prefer_server_ciphers = 1;
+        ls->ssl_context->session_tickets = 0;
+        ls->ssl_context->stapling = 1;
+        ls->ssl_context->stapling_verify = 1;
+        ls->ssl_context->ciphers = sw_strdup(SW_SSL_CIPHER_LIST);
+        ls->ssl_context->ecdh_curve = sw_strdup(SW_SSL_ECDH_CURVE);
 
         if (ls->is_dgram()) {
 #ifdef SW_SUPPORT_DTLS
-            ls->ssl_option.protocols = SW_SSL_DTLS;
+            ls->ssl_context->protocols = SW_SSL_DTLS;
             ls->dtls_sessions = new std::unordered_map<int, dtls::Session *>;
 
 #else
@@ -1563,7 +1562,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
         return nullptr;
     }
 #if defined(SW_SUPPORT_DTLS) && defined(HAVE_KQUEUE)
-    if (ls->ssl_option.protocols & SW_SSL_DTLS) {
+    if (ls->is_dtls()) {
         ls->socket->set_reuse_port();
     }
 #endif

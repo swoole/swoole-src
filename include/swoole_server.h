@@ -334,10 +334,6 @@ struct ListenPort {
      */
     bool open_tcp_keepalive = false;
     /**
-     * open tcp keepalive
-     */
-    bool open_ssl_encrypt = false;
-    /**
      * Sec-WebSocket-Protocol
      */
     std::string websocket_subprotocol;
@@ -348,11 +344,13 @@ struct ListenPort {
     int kernel_socket_send_buffer_size = 0;
 
 #ifdef SW_USE_OPENSSL
-    SSL_CTX *ssl_context = nullptr;
-    swSSL_config ssl_config = {};
-    swSSL_option ssl_option = {};
+    SSLContext *ssl_context = nullptr;
+    std::unordered_map<std::string, std::shared_ptr<SSLContext>> sni_contexts;
 #ifdef SW_SUPPORT_DTLS
     std::unordered_map<int, dtls::Session *> *dtls_sessions = nullptr;
+    bool is_dtls() {
+        return ssl_context && (ssl_context->protocols & SW_SSL_DTLS);
+    }
 #endif
 #endif
 
@@ -392,7 +390,10 @@ struct ListenPort {
     void close();
     bool import(int sock);
 #ifdef SW_USE_OPENSSL
-    int enable_ssl_encrypt();
+    bool ssl_create_context(SSLContext *context);
+    bool ssl_create(Connection *conn, network::Socket *sock);
+    bool ssl_add_sni_cert(const std::string &name, SSLContext *context);
+    bool ssl_init();
 #endif
     void clear_protocol();
     inline network::Socket *get_socket() {
