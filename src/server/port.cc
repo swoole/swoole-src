@@ -49,7 +49,7 @@ bool ListenPort::ssl_add_sni_cert(const std::string &name, SSLContext *ctx) {
     if (!ssl_create_context(ctx)) {
         return false;
     }
-    sni_contexts.emplace(name, ctx);
+    sni_contexts.emplace(name, std::shared_ptr<SSLContext>(ctx));
     return true;
 }
 
