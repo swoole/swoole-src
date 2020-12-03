@@ -147,7 +147,9 @@ struct SSLContext {
     bool create();
     bool set_capath();
     bool set_ciphers();
-    bool set_client_certificate(const char *cert_file, int depth);
+    bool set_client_certificate();
+    bool set_ecdh_curve();
+    bool set_dhparam();
     ~SSLContext();
 };
 }

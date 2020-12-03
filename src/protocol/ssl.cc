@@ -41,8 +41,6 @@ static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length);
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static int swSSL_set_default_dhparam(SSL_CTX *ssl_context);
 #endif
-static int swSSL_set_dhparam(SSL_CTX *ssl_context, const char *file);
-static int swSSL_set_ecdh_curve(SSL_CTX *ssl_context, const char *ecdh_curve);
 
 #ifdef SW_SUPPORT_DTLS
 static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
@@ -478,7 +476,7 @@ bool SSLContext::create() {
     }
 #endif
 
-    if (!client_cert_file.empty() && !set_client_certificate(client_cert_file.c_str(), verify_depth)) {
+    if (!client_cert_file.empty() && !set_client_certificate()) {
         swWarn("set_client_certificate() error");
         return false;
     }
@@ -529,22 +527,25 @@ bool SSLContext::set_ciphers() {
     SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa_key_callback);
 #endif
 
-    if (!dhparam.empty()) {
-        swSSL_set_dhparam(context, dhparam.c_str());
+    if (!dhparam.empty() && !set_dhparam()) {
+        return false;
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     else {
-        swSSL_set_default_dhparam(ssl_context);
+        swSSL_set_default_dhparam(context);
     }
 #endif
-    if (!ecdh_curve.empty()) {
-        swSSL_set_ecdh_curve(context, ecdh_curve.c_str());
+    if (!ecdh_curve.empty() && !set_ecdh_curve()) {
+        return false;
     }
     return true;
 }
 
-bool SSLContext::set_client_certificate(const char *cert_file, int depth) {
+bool SSLContext::set_client_certificate() {
     STACK_OF(X509_NAME) * list;
+
+    const char *cert_file = client_cert_file.c_str();
+    int depth = verify_depth;
 
     SSL_CTX_set_verify(context, SSL_VERIFY_PEER, swSSL_verify_callback);
     SSL_CTX_set_verify_depth(context, depth);
@@ -563,6 +564,95 @@ bool SSLContext::set_client_certificate(const char *cert_file, int depth) {
 
     ERR_clear_error();
     SSL_CTX_set_client_CA_list(context, list);
+
+    return true;
+}
+
+bool SSLContext::set_ecdh_curve() {
+#ifndef OPENSSL_NO_ECDH
+    /*
+     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
+     * from RFC 4492 section 5.1.1, or explicitly described curves over
+     * binary fields.  OpenSSL only supports the "named curves", which provide
+     * maximum interoperability.
+     */
+#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
+    /*
+     * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
+     * curve previously supported.  By default an internal list is used,
+     * with prime256v1 being preferred by server in OpenSSL 1.0.2b+
+     * and X25519 in OpenSSL 1.1.0+.
+     *
+     * By default a curve preferred by the client will be used for
+     * key exchange.  The SSL_OP_CIPHER_SERVER_PREFERENCE option can
+     * be used to prefer server curves instead, similar to what it
+     * does for ciphers.
+     */
+    SSL_CTX_set_options(context, SSL_OP_SINGLE_ECDH_USE);
+#if SSL_CTRL_SET_ECDH_AUTO
+    /* not needed in OpenSSL 1.1.0+ */
+    SSL_CTX_set_ecdh_auto(context, 1);
+#endif
+    if (strcmp(ecdh_curve.c_str(), "auto") == 0) {
+        return true;
+    }
+    if (SSL_CTX_set1_curves_list(context, ecdh_curve.c_str()) == 0) {
+        swWarn("SSL_CTX_set1_curves_list(\"%s\") failed", ecdh_curve.c_str());
+        return false;
+    }
+#else
+    EC_KEY *ecdh;
+    /*
+     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
+     * from RFC 4492 section 5.1.1, or explicitly described curves over
+     * binary fields. OpenSSL only supports the "named curves", which provide
+     * maximum interoperability.
+     */
+    int nid = OBJ_sn2nid(ecdh_curve.c_str());
+    if (nid == 0) {
+        swWarn("Unknown curve name \"%s\"", ecdh_curve.c_str());
+        return false;
+    }
+
+    ecdh = EC_KEY_new_by_curve_name(nid);
+    if (ecdh == nullptr) {
+        swWarn("Unable to create curve \"%s\"", ecdh_curve.c_str());
+        return false;
+    }
+
+    SSL_CTX_set_options(context, SSL_OP_SINGLE_ECDH_USE);
+    SSL_CTX_set_tmp_ecdh(context, ecdh);
+
+    EC_KEY_free(ecdh);
+#endif
+#endif
+
+    return true;
+}
+
+bool SSLContext::set_dhparam() {
+    DH *dh;
+    BIO *bio;
+
+    const char *file = dhparam.c_str();
+
+    bio = BIO_new_file(file, "r");
+    if (bio == nullptr) {
+        swWarn("BIO_new_file(%s) failed", file);
+        return false;
+    }
+
+    dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
+    if (dh == nullptr) {
+        swWarn("PEM_read_bio_DHparams(%s) failed", file);
+        BIO_free(bio);
+        return false;
+    }
+
+    SSL_CTX_set_tmp_dh(context, dh);
+
+    DH_free(dh);
+    BIO_free(bio);
 
     return true;
 }
@@ -741,93 +831,5 @@ static int swSSL_set_default_dhparam(SSL_CTX *ssl_context) {
     return SW_OK;
 }
 #endif
-
-static int swSSL_set_ecdh_curve(SSL_CTX *ssl_context, const char *ecdh_curve) {
-#ifndef OPENSSL_NO_ECDH
-    /*
-     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
-     * from RFC 4492 section 5.1.1, or explicitly described curves over
-     * binary fields.  OpenSSL only supports the "named curves", which provide
-     * maximum interoperability.
-     */
-#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
-    /*
-     * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-     * curve previously supported.  By default an internal list is used,
-     * with prime256v1 being preferred by server in OpenSSL 1.0.2b+
-     * and X25519 in OpenSSL 1.1.0+.
-     *
-     * By default a curve preferred by the client will be used for
-     * key exchange.  The SSL_OP_CIPHER_SERVER_PREFERENCE option can
-     * be used to prefer server curves instead, similar to what it
-     * does for ciphers.
-     */
-    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_ECDH_USE);
-#if SSL_CTRL_SET_ECDH_AUTO
-    /* not needed in OpenSSL 1.1.0+ */
-    SSL_CTX_set_ecdh_auto(ssl_context, 1);
-#endif
-    if (strcmp(ecdh_curve, "auto") == 0) {
-        return SW_OK;
-    }
-    if (SSL_CTX_set1_curves_list(ssl_context, ecdh_curve) == 0) {
-        swWarn("SSL_CTX_set1_curves_list(\"%s\") failed", ecdh_curve);
-        return SW_ERR;
-    }
-#else
-
-    EC_KEY *ecdh;
-    /*
-     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
-     * from RFC 4492 section 5.1.1, or explicitly described curves over
-     * binary fields. OpenSSL only supports the "named curves", which provide
-     * maximum interoperability.
-     */
-    int nid = OBJ_sn2nid(ecdh_curve);
-    if (nid == 0) {
-        swWarn("Unknown curve name \"%s\"", ecdh_curve);
-        return SW_ERR;
-    }
-
-    ecdh = EC_KEY_new_by_curve_name(nid);
-    if (ecdh == nullptr) {
-        swWarn("Unable to create curve \"%s\"", ecdh_curve);
-        return SW_ERR;
-    }
-
-    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_ECDH_USE);
-    SSL_CTX_set_tmp_ecdh(ssl_context, ecdh);
-
-    EC_KEY_free(ecdh);
-#endif
-#endif
-
-    return SW_OK;
-}
-
-static int swSSL_set_dhparam(SSL_CTX *ssl_context, const char *file) {
-    DH *dh;
-    BIO *bio;
-
-    bio = BIO_new_file((char *) file, "r");
-    if (bio == nullptr) {
-        swWarn("BIO_new_file(%s) failed", file);
-        return SW_ERR;
-    }
-
-    dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
-    if (dh == nullptr) {
-        swWarn("PEM_read_bio_DHparams(%s) failed", file);
-        BIO_free(bio);
-        return SW_ERR;
-    }
-
-    SSL_CTX_set_tmp_dh(ssl_context, dh);
-
-    DH_free(dh);
-    BIO_free(bio);
-
-    return SW_OK;
-}
 
 #endif

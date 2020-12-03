@@ -114,6 +114,13 @@ class Socket {
     ssize_t recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, socklen_t *_socklen);
 
 #ifdef SW_USE_OPENSSL
+    /**
+     * Operation sequence:
+     * 1. enable_ssl_encrypt()
+     * 2. Set SSL parameters, such as certificate file, key file
+     * 3. ssl_check_context()
+     * 4. ssl_accept()/ssl_connect()/ssl_handshake()
+     */
     bool enable_ssl_encrypt() {
         if (ssl_context.get()) {
             return false;
