@@ -265,7 +265,7 @@ int Client::enable_ssl_encrypt() {
     if (ssl_context) {
         return SW_ERR;
     }
-    ssl_context = new swoole::SSLContext();
+    ssl_context.reset(new swoole::SSLContext());
     open_ssl = true;
     return SW_OK;
 }
@@ -279,7 +279,7 @@ int Client::ssl_handshake() {
         return SW_ERR;
     }
     socket->ssl_send_ = 1;
-    if (socket->ssl_create(ssl_context, SW_SSL_CLIENT) < 0) {
+    if (socket->ssl_create(ssl_context.get(), SW_SSL_CLIENT) < 0) {
         return SW_ERR;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
@@ -395,12 +395,6 @@ Client::~Client() {
     if (!closed) {
         close();
     }
-
-#ifdef SW_USE_OPENSSL
-    if (open_ssl && ssl_context) {
-        delete ssl_context;
-    }
-#endif
     // clear buffer
     if (buffer) {
         delete buffer;

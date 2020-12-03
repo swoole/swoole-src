@@ -778,7 +778,7 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
     if (socket) {
         php_swoole_client_set(socket, zset);
 #ifdef SW_USE_OPENSSL
-        if (socket->http_proxy && !socket->get_ssl_context())
+        if (socket->http_proxy && !socket->ssl_is_enable())
 #else
         if (socket->http_proxy)
 #endif
@@ -971,7 +971,7 @@ bool HttpClient::send() {
 
     // ============ path & proxy ============
 #ifdef SW_USE_OPENSSL
-    if (socket->http_proxy && !socket->get_ssl_context())
+    if (socket->http_proxy && !socket->ssl_is_enable())
 #else
     if (socket->http_proxy)
 #endif

@@ -539,7 +539,7 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
 #ifdef SW_USE_OPENSSL
     ssl_context = server_sock->ssl_context;
     ssl_is_server = server_sock->ssl_is_server;
-    if (server_sock->get_ssl_context() && !ssl_create(server_sock->get_ssl_context())) {
+    if (server_sock->ssl_is_enable() && !ssl_create(server_sock->get_ssl_context())) {
         close();
     }
 #endif

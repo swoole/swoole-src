@@ -529,7 +529,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     auto client_iterator = hs->clients.begin();
 
 #ifdef SW_USE_OPENSSL
-    if (sock->get_ssl_context() && !sock->ssl_handshake()) {
+    if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
         goto _handshake_failed;
     }
 #endif

@@ -101,7 +101,7 @@ class Client {
 #ifdef SW_USE_OPENSSL
     bool open_ssl = false;
     bool ssl_wait_handshake = false;
-    SSLContext *ssl_context = nullptr;
+    std::shared_ptr<SSLContext> ssl_context = nullptr;
 #endif
 
     void (*onConnect)(Client *cli) = nullptr;

@@ -557,7 +557,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     Socket *clisock = sock->accept();
 
 #ifdef SW_USE_OPENSSL
-    if (clisock != nullptr && clisock->get_ssl_context()) {
+    if (clisock != nullptr && clisock->ssl_is_enable()) {
         if (!clisock->ssl_handshake()) {
             sock->errCode = clisock->errCode;
             delete clisock;
@@ -656,7 +656,7 @@ static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xpor
 }
 
 static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
-    if (cparam->inputs.activate && !sock->is_ssl_enable()) {
+    if (cparam->inputs.activate && !sock->ssl_is_available()) {
         sock->enable_ssl_encrypt();
         if (!sock->ssl_check_context()) {
             return -1;
@@ -665,7 +665,7 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
             return -1;
         }
         return 0;
-    } else if (!cparam->inputs.activate && sock->is_ssl_enable()) {
+    } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
         return sock->ssl_shutdown() ? 0 : -1;
     }
     return -1;
@@ -961,7 +961,7 @@ static php_stream *socket_create(const char *proto,
 #ifdef SW_USE_OPENSSL
         zval *ztmp;
 
-        if (sock->get_ssl_context() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
+        if (sock->ssl_is_enable() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
             ZVAL_IS_ARRAY(ztmp)) {
 
             zval zalias;

@@ -913,7 +913,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
             sock->enable_ssl_encrypt();
         }
     }
-    if (sock->get_ssl_context()) {
+    if (sock->ssl_is_enable()) {
         if (!php_swoole_socket_set_ssl(sock, zset)) {
             ret = false;
         }
