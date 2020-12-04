@@ -122,7 +122,7 @@ class PHPCoroutine {
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(zend::Function *fci);
-
+    static void deadlock_detect();
     static bool enable_hook(uint32_t flags);
     static bool disable_hook();
     static void disable_unsafe_function();

@@ -278,14 +278,16 @@ void PHPCoroutine::init() {
 }
 
 void PHPCoroutine::deactivate(void *ptr) {
-    PHPCoroutine::interrupt_thread_stop();
+    interrupt_thread_stop();
     /**
      * reset runtime hook
      */
-    PHPCoroutine::disable_hook();
+    disable_hook();
 
     zend_interrupt_function = orig_interrupt_function;
     zend_error_cb = orig_error_function;
+
+    deadlock_detect();
 
     active = false;
 }
@@ -344,6 +346,21 @@ inline void PHPCoroutine::activate() {
 void PHPCoroutine::shutdown() {
     interrupt_thread_stop();
     Coroutine::bailout(nullptr);
+}
+
+void PHPCoroutine::deadlock_detect() {
+    if (Coroutine::count() == 0) {
+        return;
+    }
+
+    if (SWOOLE_G(enable_library)) {
+        zend::function::call("\\Swoole\\Coroutine\\deadlock_detect", 0, nullptr);
+    } else {
+        printf("\n==================================================================="
+               "\n [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock!"
+               "\n===================================================================\n",
+               Coroutine::count());
+    }
 }
 
 void PHPCoroutine::interrupt_thread_stop() {
