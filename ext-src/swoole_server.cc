@@ -143,26 +143,17 @@ void php_swoole_server_rshutdown() {
     serv->drain_worker_pipe();
 
     if (serv->is_started() && !serv->is_user_worker()) {
-        if (PG(last_error_message)) {
-            switch (PG(last_error_type)) {
-            case E_ERROR:
-            case E_CORE_ERROR:
-            case E_USER_ERROR:
-            case E_COMPILE_ERROR:
-                swoole_error_log(SW_LOG_ERROR,
-                                 SW_ERROR_PHP_FATAL_ERROR,
-                                 "Fatal error: %s in %s on line %d",
+        if (php_swoole_is_fatal_error()) {
+            swoole_error_log(SW_LOG_ERROR,
+                             SW_ERROR_PHP_FATAL_ERROR,
+                             "Fatal error: %s in %s on line %d",
 #if PHP_VERSION_ID < 80000
-                                 PG(last_error_message),
+                             PG(last_error_message),
 #else
-                                 PG(last_error_message)->val,
+                             PG(last_error_message)->val,
 #endif
-                                 PG(last_error_file) ? PG(last_error_file) : "-",
-                                 PG(last_error_lineno));
-                break;
-            default:
-                break;
-            }
+                             PG(last_error_file) ? PG(last_error_file) : "-",
+                             PG(last_error_lineno));
         } else {
             swoole_error_log(
                 SW_LOG_NOTICE, SW_ERROR_SERVER_WORKER_TERMINATED, "worker process is terminated by exit()/die()");

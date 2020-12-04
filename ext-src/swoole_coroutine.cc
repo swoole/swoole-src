@@ -36,7 +36,7 @@ using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-#define PHP_CORO_TASK_SLOT                                                                                             \
+#define PHP_CORO_TASK_SLOT                                                                                          \
     ((int) ((ZEND_MM_ALIGNED_SIZE(sizeof(PHPContext)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) /                   \
             ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
@@ -48,6 +48,7 @@ PHPCoroutine::Config PHPCoroutine::config {
     SW_DEFAULT_MAX_CORO_NUM,
     PHPCoroutine::HOOK_NONE,
     false,
+    true,
 };
 
 PHPContext PHPCoroutine::main_task {};
@@ -89,6 +90,7 @@ static PHP_METHOD(swoole_coroutine, getCid);
 static PHP_METHOD(swoole_coroutine, getPcid);
 static PHP_METHOD(swoole_coroutine, getContext);
 static PHP_METHOD(swoole_coroutine, getBackTrace);
+static PHP_METHOD(swoole_coroutine, printBackTrace);
 static PHP_METHOD(swoole_coroutine, getElapsed);
 static PHP_METHOD(swoole_coroutine, list);
 static PHP_METHOD(swoole_coroutine, enableScheduler);
@@ -130,6 +132,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getBackTrace, 0, 0, 0)
     ZEND_ARG_INFO(0, limit)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_printBackTrace, 0, 0, 0)
+    ZEND_ARG_INFO(0, cid)
+    ZEND_ARG_INFO(0, options)
+    ZEND_ARG_INFO(0, limit)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getPcid, 0, 0, 0)
     ZEND_ARG_INFO(0, cid)
 ZEND_END_ARG_INFO()
@@ -156,6 +164,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     PHP_ME(swoole_coroutine, getPcid, arginfo_swoole_coroutine_getPcid, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, getContext, arginfo_swoole_coroutine_getContext, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, printBackTrace, arginfo_swoole_coroutine_printBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, getElapsed, arginfo_swoole_coroutine_getElapsed, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine, listCoroutines, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -287,7 +296,9 @@ void PHPCoroutine::deactivate(void *ptr) {
     zend_interrupt_function = orig_interrupt_function;
     zend_error_cb = orig_error_function;
 
-    deadlock_detect();
+    if (config.enable_deadlock_check) {
+        deadlock_check();
+    }
 
     active = false;
 }
@@ -348,11 +359,13 @@ void PHPCoroutine::shutdown() {
     Coroutine::bailout(nullptr);
 }
 
-void PHPCoroutine::deadlock_detect() {
+void PHPCoroutine::deadlock_check() {
     if (Coroutine::count() == 0) {
         return;
     }
-
+    if (php_swoole_is_fatal_error()) {
+        return;
+    }
     if (SWOOLE_G(enable_library)) {
         zend::function::call("\\Swoole\\Coroutine\\deadlock_detect", 0, nullptr);
     } else {
@@ -1017,6 +1030,36 @@ PHP_METHOD(swoole_coroutine, getBackTrace) {
         zend_execute_data *ex_backup = EG(current_execute_data);
         EG(current_execute_data) = task->execute_data;
         zend_fetch_debug_backtrace(return_value, 0, options, limit);
+        EG(current_execute_data) = ex_backup;
+    }
+}
+
+PHP_METHOD(swoole_coroutine, printBackTrace) {
+    zend_long cid = 0;
+    zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;
+    zend_long limit = 0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 3)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(cid)
+    Z_PARAM_LONG(options)
+    Z_PARAM_LONG(limit)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    zval argv[2];
+    ZVAL_LONG(&argv[0], options);
+    ZVAL_LONG(&argv[1], limit);
+
+    if (!cid || cid == PHPCoroutine::get_cid()) {
+        zend::function::call("debug_print_backtrace", 2, argv);
+    } else {
+        PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+        if (UNEXPECTED(!task)) {
+            RETURN_FALSE;
+        }
+        zend_execute_data *ex_backup = EG(current_execute_data);
+        EG(current_execute_data) = task->execute_data;
+        zend::function::call("debug_print_backtrace", 2, argv);
         EG(current_execute_data) = ex_backup;
     }
 }
