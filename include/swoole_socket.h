@@ -316,6 +316,7 @@ struct Socket {
 
     void clean();
     ssize_t send_blocking(const void *__data, size_t __len);
+    ssize_t send_async(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
 

@@ -726,6 +726,14 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
     return retval;
 }
 
+ssize_t Socket::send_async(const void *__buf, size_t __n) {
+    if (!swoole_event_is_available()) {
+        return send_blocking(__buf, __n);
+    } else {
+        return swoole_event_write(this, __buf, __n);
+    }
+}
+
 ssize_t Socket::readv(IOVector *io_vector) {
     ssize_t retval;
 
