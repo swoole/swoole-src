@@ -41,5 +41,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Warning: Swoole\Http\Response::header(): Header may not contain more than a single header, new line detected in %s
+Warning: Swoole\Http\Response::end(): Header may not contain more than a single header, new line detected in %s
 DONE

@@ -2,7 +2,6 @@
 
 #include "swoole_api.h"
 #include "swoole_client.h"
-#include "swoole_server.h"
 
 #include <gtest/gtest.h>
 

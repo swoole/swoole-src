@@ -18,6 +18,8 @@
 */
 
 #include "test_core.h"
+
+#include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_signal.h"
 #include "swoole_lock.h"

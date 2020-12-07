@@ -18,6 +18,7 @@
 
 #include "php_swoole_cxx.h"
 #include "swoole_util.h"
+#include "swoole_protocol.h"
 #include "swoole_mqtt.h"
 #include "thirdparty/php/sockets/php_sockets_cxx.h"
 
@@ -908,13 +909,12 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
      */
 #ifdef SW_USE_OPENSSL
     if (php_swoole_array_get_value(vht, "open_ssl", ztmp)) {
-        sock->open_ssl = zval_is_true(ztmp);
-    }
-    if (sock->open_ssl) {
-        if (!php_swoole_socket_set_ssl(sock, zset)) {
-            ret = false;
+        if (zval_is_true(ztmp)) {
+            sock->enable_ssl_encrypt();
         }
-        if (!sock->ssl_check_context()) {
+    }
+    if (sock->ssl_is_enable()) {
+        if (!php_swoole_socket_set_ssl(sock, zset)) {
             ret = false;
         }
     }

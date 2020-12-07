@@ -339,7 +339,7 @@ struct Socket {
         ssl_want_read = 0;
         ssl_want_write = 0;
     }
-    int ssl_create(SSL_CTX *_ssl_context, int _flags);
+    int ssl_create(SSLContext *_ssl_context, int _flags);
     int ssl_connect();
     enum swReturn_code ssl_accept();
     ssize_t ssl_recv(void *__buf, size_t __n);

@@ -44,33 +44,109 @@ ListenPort::ListenPort() {
 }
 
 #ifdef SW_USE_OPENSSL
-int ListenPort::enable_ssl_encrypt() {
-    if (ssl_option.cert_file == nullptr || ssl_option.key_file == nullptr) {
+
+bool ListenPort::ssl_add_sni_cert(const std::string &name, SSLContext *ctx) {
+    if (!ssl_create_context(ctx)) {
+        return false;
+    }
+    sni_contexts.emplace(name, std::shared_ptr<SSLContext>(ctx));
+    return true;
+}
+
+static bool ssl_matches_wildcard_name(const char *subjectname, const char *certname) /* {{{ */
+{
+    const char *wildcard = NULL;
+    ptrdiff_t prefix_len;
+    size_t suffix_len, subject_len;
+
+    if (strcasecmp(subjectname, certname) == 0) {
+        return 1;
+    }
+
+    /* wildcard, if present, must only be present in the left-most component */
+    if (!(wildcard = strchr(certname, '*')) || memchr(certname, '.', wildcard - certname)) {
+        return 0;
+    }
+
+    /* 1) prefix, if not empty, must match subject */
+    prefix_len = wildcard - certname;
+    if (prefix_len && strncasecmp(subjectname, certname, prefix_len) != 0) {
+        return 0;
+    }
+
+    suffix_len = strlen(wildcard + 1);
+    subject_len = strlen(subjectname);
+    if (suffix_len <= subject_len) {
+        /* 2) suffix must match
+         * 3) no . between prefix and suffix
+         **/
+        return strcasecmp(wildcard + 1, subjectname + subject_len - suffix_len) == 0 &&
+            memchr(subjectname + prefix_len, '.', subject_len - suffix_len - prefix_len) == NULL;
+    }
+
+    return 0;
+}
+
+static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
+    const char *server_name = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+    if (!server_name) {
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+
+    ListenPort *port = (ListenPort *) SSL_get_ex_data(ssl, swSSL_get_ex_port_index());
+
+    if (port->sni_contexts.empty()) {
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+
+    for (auto i = port->sni_contexts.begin(); i != port->sni_contexts.end(); i++) {
+        if (ssl_matches_wildcard_name(server_name, i->first.c_str())) {
+            SSL_set_SSL_CTX(ssl, i->second->get_context());
+            return SSL_TLSEXT_ERR_OK;
+        }
+    }
+
+    return SSL_TLSEXT_ERR_NOACK;
+}
+
+bool ListenPort::ssl_init() {
+    if (!ssl_create_context(ssl_context)) {
+        return false;
+    }
+    if (sni_contexts.size() > 0) {
+        SSL_CTX_set_tlsext_servername_callback(ssl_context->get_context(), ssl_server_sni_callback);
+    }
+    return true;
+}
+
+bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
+    if (sock->ssl_create(ssl_context, SW_SSL_SERVER) < 0) {
+        return false;
+    }
+    conn->ssl = 1;
+    if (SSL_set_ex_data(sock->ssl, swSSL_get_ex_port_index(), this) == 0) {
+        swWarn("SSL_set_ex_data() failed");
+        return false;
+    }
+    return true;
+}
+
+bool ListenPort::ssl_create_context(SSLContext *context) {
+    if (context->cert_file.empty() || context->key_file.empty()) {
         swWarn("SSL error, require ssl_cert_file and ssl_key_file");
-        return SW_ERR;
-    }
-    ssl_context = swSSL_get_context(&ssl_option);
-    if (ssl_context == nullptr) {
-        swWarn("swSSL_get_context() error");
-        return SW_ERR;
-    }
-    if (ssl_option.client_cert_file &&
-        swSSL_set_client_certificate(ssl_context, ssl_option.client_cert_file, ssl_option.verify_depth) == SW_ERR) {
-        swWarn("swSSL_set_client_certificate() error");
-        return SW_ERR;
+        return false;
     }
     if (open_http_protocol) {
-        ssl_config.http = 1;
+        context->http = 1;
     }
     if (open_http2_protocol) {
-        ssl_config.http_v2 = 1;
-        swSSL_server_http_advise(ssl_context, &ssl_config);
+        context->http_v2 = 1;
     }
-    if (swSSL_server_set_cipher(ssl_context, &ssl_config) < 0) {
-        swWarn("swSSL_server_set_cipher() error");
-        return SW_ERR;
+    if (!context->create()) {
+        swWarn("swSSL_get_context() error");
+        return false;
     }
-    return SW_OK;
+    return true;
 }
 #endif
 
@@ -615,12 +691,7 @@ void ListenPort::close() {
 #ifdef SW_USE_OPENSSL
     if (ssl) {
         if (ssl_context) {
-            swSSL_free_context(ssl_context);
-        }
-        sw_free(ssl_option.cert_file);
-        sw_free(ssl_option.key_file);
-        if (ssl_option.client_cert_file) {
-            sw_free(ssl_option.client_cert_file);
+            delete ssl_context;
         }
 #ifdef SW_SUPPORT_DTLS
         if (dtls_sessions) {

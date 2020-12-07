@@ -20,6 +20,10 @@
 
 #ifdef SW_USE_OPENSSL
 
+#include <unordered_map>
+#include <string>
+#include <array>
+
 #include <openssl/ssl.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -37,25 +41,6 @@
 enum swSSL_create_flag {
     SW_SSL_SERVER = 1,
     SW_SSL_CLIENT = 2,
-};
-
-struct swSSL_option {
-    char *cert_file;
-    char *key_file;
-    char *passphrase;
-    char *client_cert_file;
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    uchar disable_tls_host_name : 1;
-    char *tls_host_name;
-#endif
-    char *cafile;
-    char *capath;
-    uint8_t verify_depth;
-    uchar disable_compress : 1;
-    uchar verify_peer : 1;
-    uchar allow_self_signed : 1;
-    uint32_t protocols;
-    uint8_t create_flag;
 };
 
 enum swSSL_state {
@@ -102,27 +87,77 @@ enum swSSL_method {
 #endif
 };
 
-struct swSSL_config {
+namespace swoole {
+
+struct SSLContext {
     uchar http : 1;
     uchar http_v2 : 1;
     uchar prefer_server_ciphers : 1;
     uchar session_tickets : 1;
     uchar stapling : 1;
     uchar stapling_verify : 1;
-    char *ciphers;
-    char *ecdh_curve;
-    char *session_cache;
-    char *dhparam;
+    std::string ciphers;
+    std::string ecdh_curve;
+    std::string session_cache;
+    std::string dhparam;
+    std::string cert_file;
+    std::string key_file;
+    std::string passphrase;
+    std::string client_cert_file;
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    uchar disable_tls_host_name : 1;
+    std::string tls_host_name;
+#endif
+    std::string cafile;
+    std::string capath;
+    uint8_t verify_depth;
+    uchar disable_compress : 1;
+    uchar verify_peer : 1;
+    uchar allow_self_signed : 1;
+    uint32_t protocols;
+    uint8_t create_flag;
+    SSL_CTX *context;
+
+    SSL_CTX *get_context() {
+        return context;
+    }
+
+    void set_protocols(uint32_t _protocols) {
+        protocols = _protocols;
+    }
+
+    bool set_cert_file(const std::string &_cert_file) {
+        if (access(_cert_file.c_str(), R_OK) < 0) {
+            swWarn("ssl cert file[%s] not found", _cert_file.c_str());
+            return false;
+        }
+        cert_file = _cert_file;
+        return true;
+    }
+
+    bool set_key_file(const std::string &_key_file) {
+        if (access(_key_file.c_str(), R_OK) < 0) {
+            swWarn("ssl key file[%s] not found", _key_file.c_str());
+            return false;
+        }
+        key_file = _key_file;
+        return true;
+    }
+
+    bool create();
+    bool set_capath();
+    bool set_ciphers();
+    bool set_client_certificate();
+    bool set_ecdh_curve();
+    bool set_dhparam();
+    ~SSLContext();
 };
+}
 
 void swSSL_init(void);
 void swSSL_init_thread_safety();
-int swSSL_server_set_cipher(SSL_CTX *ssl_context, swSSL_config *cfg);
-void swSSL_server_http_advise(SSL_CTX *ssl_context, swSSL_config *cfg);
-SSL_CTX *swSSL_get_context(swSSL_option *option);
-void swSSL_free_context(SSL_CTX *ssl_context);
-int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth);
-int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx);
+void swSSL_server_http_advise(swoole::SSLContext &);
 const char *swSSL_get_error();
 int swSSL_get_ex_connection_index();
+int swSSL_get_ex_port_index();
 #endif

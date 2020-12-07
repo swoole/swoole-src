@@ -1340,10 +1340,10 @@ ssize_t Socket::ssl_writev(IOVector *io_vector) {
     return total_bytes > 0 ? total_bytes : retval;
 }
 
-int Socket::ssl_create(SSL_CTX *_ssl_context, int _flags) {
+int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
     ssl_clear_error();
 
-    ssl = SSL_new(_ssl_context);
+    ssl = SSL_new(ssl_context->get_context());
     if (ssl == nullptr) {
         swWarn("SSL_new() failed");
         return SW_ERR;

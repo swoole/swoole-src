@@ -694,18 +694,18 @@
             <file role="test" name="tests/include/api/swoole_http_server/htf_swoole20_https_server.php" />
             <file role="test" name="tests/include/api/swoole_http_server/http_server.php" />
             <file role="test" name="tests/include/api/swoole_http_server/http_server_without_response.php" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/ca.crt" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/ca.csr" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/ca.key" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/ca.srl" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/client.crt" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/client.csr" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/client.key" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/client.pem" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/server.crt" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/server.csr" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/server.key" />
-            <file role="test" name="tests/include/api/swoole_http_server/localhost-ssl/server.pem" />
+            <file role="test" name="tests/include/ssl_certs/ca.crt" />
+            <file role="test" name="tests/include/ssl_certs/ca.csr" />
+            <file role="test" name="tests/include/ssl_certs/ca.key" />
+            <file role="test" name="tests/include/ssl_certs/ca.srl" />
+            <file role="test" name="tests/include/ssl_certs/client.crt" />
+            <file role="test" name="tests/include/ssl_certs/client.csr" />
+            <file role="test" name="tests/include/ssl_certs/client.key" />
+            <file role="test" name="tests/include/ssl_certs/client.pem" />
+            <file role="test" name="tests/include/ssl_certs/server.crt" />
+            <file role="test" name="tests/include/ssl_certs/server.csr" />
+            <file role="test" name="tests/include/ssl_certs/server.key" />
+            <file role="test" name="tests/include/ssl_certs/server.pem" />
             <file role="test" name="tests/include/api/swoole_http_server/simple_http_server.php" />
             <file role="test" name="tests/include/api/swoole_http_server/simple_https_server.php" />
             <file role="test" name="tests/include/api/swoole_server/TestServer.php" />
