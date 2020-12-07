@@ -2998,7 +2998,6 @@ static PHP_METHOD(swoole_server, sendfile) {
 }
 
 static PHP_METHOD(swoole_server, close) {
-
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
     if (sw_unlikely(!serv->is_started())) {
         php_swoole_fatal_error(E_WARNING, "server is not running");

@@ -224,6 +224,9 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
             output_buffer->clear();
         }
         break;
+    case SW_SERVER_EVENT_CLOSE:
+        serv->close(task.info.fd, false);
+        break;
     default:
         break;
     }
