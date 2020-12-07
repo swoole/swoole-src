@@ -305,7 +305,7 @@ void PHPCoroutine::deactivate(void *ptr) {
     active = false;
 }
 
-inline void PHPCoroutine::activate() {
+void PHPCoroutine::activate() {
     if (sw_unlikely(active)) {
         return;
     }
