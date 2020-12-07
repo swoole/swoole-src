@@ -47,7 +47,7 @@ zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config {
     SW_DEFAULT_MAX_CORO_NUM,
-    PHPCoroutine::HOOK_NONE,
+    0,
     false,
     true,
 };
@@ -305,7 +305,7 @@ void PHPCoroutine::deactivate(void *ptr) {
     active = false;
 }
 
-inline void PHPCoroutine::activate() {
+void PHPCoroutine::activate() {
     if (sw_unlikely(active)) {
         return;
     }
@@ -517,6 +517,21 @@ inline void PHPCoroutine::restore_og(PHPContext *task) {
         efree(task->output_ptr);
         task->output_ptr = nullptr;
     }
+}
+
+void PHPCoroutine::set_hook_flags(uint32_t flags) {
+    zval options;
+    array_init(&options);
+    add_assoc_long(&options, "hook_flags", flags);
+
+    if (PHPCoroutine::options) {
+        zend_hash_merge(PHPCoroutine::options, Z_ARRVAL(options), nullptr, true);
+        zval_ptr_dtor(&options);
+    } else {
+        PHPCoroutine::options = Z_ARRVAL(options);
+    }
+
+    config.hook_flags = flags;
 }
 
 void PHPCoroutine::save_task(PHPContext *task) {
