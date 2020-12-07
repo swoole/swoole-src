@@ -35,6 +35,7 @@
 
 SW_EXTERN_C_BEGIN
 PHP_METHOD(swoole_coroutine_scheduler, set);
+PHP_METHOD(swoole_coroutine_scheduler, getOptions);
 SW_EXTERN_C_END
 
 namespace zend {
@@ -95,7 +96,10 @@ class PHPCoroutine {
         uint64_t max_num;
         uint32_t hook_flags;
         bool enable_preemptive_scheduler;
+        bool enable_deadlock_check;
     };
+
+    static zend_array *options;
 
     enum HookType {
         HOOK_NONE              = 0,
@@ -122,7 +126,7 @@ class PHPCoroutine {
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(zend::Function *fci);
-
+    static void deadlock_check();
     static bool enable_hook(uint32_t flags);
     static bool disable_hook();
     static void disable_unsafe_function();
@@ -166,6 +170,10 @@ class PHPCoroutine {
 
     static inline void set_max_num(uint64_t n) {
         config.max_num = n;
+    }
+
+    static inline void set_deadlock_check(bool value = true) {
+        config.enable_deadlock_check = value;
     }
 
     static inline bool is_schedulable(PHPContext *task) {
