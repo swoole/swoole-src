@@ -35,6 +35,7 @@
 
 SW_EXTERN_C_BEGIN
 PHP_METHOD(swoole_coroutine_scheduler, set);
+PHP_METHOD(swoole_coroutine_scheduler, getOptions);
 SW_EXTERN_C_END
 
 namespace zend {
@@ -97,6 +98,8 @@ class PHPCoroutine {
         bool enable_preemptive_scheduler;
         bool enable_deadlock_check;
     };
+
+    static zend_array *options;
 
     enum HookType {
         HOOK_NONE              = 0,

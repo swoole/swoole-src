@@ -60,7 +60,7 @@ BEGIN_EXTERN_C()
 #define PHP_SWOOLE_VERSION SWOOLE_VERSION
 #define PHP_SWOOLE_CLIENT_USE_POLL
 
-extern PHPAPI int php_array_merge(HashTable *dest, HashTable *src);
+extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 
 extern zend_module_entry swoole_module_entry;
 
@@ -254,7 +254,9 @@ void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
 
 int php_swoole_reactor_init();
-void php_swoole_set_global_option(HashTable *vht);
+void php_swoole_set_global_option(zend_array *vht);
+void php_swoole_set_coroutine_option(zend_array *vht);
+void php_swoole_set_aio_option(zend_array *vht);
 
 // shutdown
 void php_swoole_register_shutdown_function(const char *function);
@@ -688,8 +690,8 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 static sw_inline int sw_zend_register_function_alias
 (
-    HashTable *origin_function_table, const char *origin, size_t origin_length,
-    HashTable *alias_function_table, const char *alias, size_t alias_length
+    zend_array *origin_function_table, const char *origin, size_t origin_length,
+    zend_array *alias_function_table, const char *alias, size_t alias_length
 )
 {
     zend_string *lowercase_origin = zend_string_alloc(origin_length, 0);

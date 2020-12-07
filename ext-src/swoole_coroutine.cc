@@ -43,6 +43,7 @@ using swoole::coroutine::System;
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::active = false;
+zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config {
     SW_DEFAULT_MAX_CORO_NUM,
@@ -146,7 +147,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getElapsed, 0, 0, 0)
     ZEND_ARG_INFO(0, cid)
 ZEND_END_ARG_INFO()
 
-static const zend_function_entry swoole_coroutine_util_methods[] =
+static const zend_function_entry swoole_coroutine_methods[] =
 {
     /**
      * Coroutine Core API
@@ -154,6 +155,7 @@ static const zend_function_entry swoole_coroutine_util_methods[] =
     ZEND_FENTRY(create, ZEND_FN(swoole_coroutine_create), arginfo_swoole_coroutine_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(defer, ZEND_FN(swoole_coroutine_defer), arginfo_swoole_coroutine_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_scheduler, set, arginfo_swoole_coroutine_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine_scheduler, getOptions, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, exists, arginfo_swoole_coroutine_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -357,6 +359,10 @@ inline void PHPCoroutine::activate() {
 void PHPCoroutine::shutdown() {
     interrupt_thread_stop();
     Coroutine::bailout(nullptr);
+    if (options) {
+        zend_array_destroy(options);
+        options = nullptr;
+    }
 }
 
 void PHPCoroutine::deadlock_check() {
@@ -367,7 +373,7 @@ void PHPCoroutine::deadlock_check() {
         return;
     }
     if (SWOOLE_G(enable_library)) {
-        zend::function::call("\\Swoole\\Coroutine\\deadlock_detect", 0, nullptr);
+        zend::function::call("\\Swoole\\Coroutine\\deadlock_check", 0, nullptr);
     } else {
         printf("\n==================================================================="
                "\n [FATAL ERROR]: all coroutines (count: %lu) are asleep - deadlock!"
@@ -801,7 +807,7 @@ void php_swoole_coroutine_minit(int module_number) {
     PHPCoroutine::init();
 
     SW_INIT_CLASS_ENTRY_BASE(
-        swoole_coroutine_util, "Swoole\\Coroutine", nullptr, "Co", swoole_coroutine_util_methods, nullptr);
+        swoole_coroutine_util, "Swoole\\Coroutine", nullptr, "Co", swoole_coroutine_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
 
     SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator,

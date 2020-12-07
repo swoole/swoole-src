@@ -2260,7 +2260,10 @@ static PHP_METHOD(swoole_server, set) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     vht = Z_ARRVAL_P(zset);
+
     php_swoole_set_global_option(vht);
+    php_swoole_set_coroutine_option(vht);
+    php_swoole_set_aio_option(vht);
 
     if (php_swoole_array_get_value(vht, "chroot", ztmp)) {
         serv->chroot_ = zend::String(ztmp).to_std_string();
@@ -2306,15 +2309,6 @@ static PHP_METHOD(swoole_server, set) {
         serv->enable_coroutine = zval_is_true(ztmp);
     } else {
         serv->enable_coroutine = SWOOLE_G(enable_coroutine);
-    }
-    if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) ||
-        php_swoole_array_get_value(vht, "max_coroutine", ztmp)) {
-        zend_long max_num;
-        max_num = zval_get_long(ztmp);
-        PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
-    }
-    if (php_swoole_array_get_value(vht, "hook_flags", ztmp)) {
-        PHPCoroutine::set_hook_flags(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "send_timeout", ztmp)) {
         serv->send_timeout = zval_get_double(ztmp);
