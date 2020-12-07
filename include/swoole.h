@@ -509,7 +509,6 @@ int swoole_get_systemd_listen_fds();
 void swoole_init(void);
 void swoole_clean(void);
 pid_t swoole_fork(int flags);
-void swoole_rtrim(char *str, int len);
 void swoole_redirect_stdout(int new_fd);
 int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream);
 int swoole_daemon(int nochdir, int noclose);
@@ -609,7 +608,6 @@ struct Allocator {
 struct Global {
     uchar init : 1;
     uchar running : 1;
-    uchar enable_coroutine : 1;
     uchar use_signalfd : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;

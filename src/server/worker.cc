@@ -318,10 +318,6 @@ void Server::worker_start_callback() {
         SwooleG.process_type = SW_PROCESS_WORKER;
     }
 
-    if (enable_coroutine) {
-        SwooleG.enable_coroutine = 1;
-    }
-
     int is_root = !geteuid();
     struct passwd *_passwd = nullptr;
     struct group *_group = nullptr;

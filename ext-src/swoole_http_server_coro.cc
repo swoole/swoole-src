@@ -356,6 +356,7 @@ static PHP_METHOD(swoole_http_server_coro, __construct) {
         zval *zsettings =
             sw_zend_read_and_convert_property_array(swoole_http_server_coro_ce, ZEND_THIS, ZEND_STRL("settings"), 0);
         add_assoc_bool(zsettings, "open_ssl", 1);
+        sock->enable_ssl_encrypt();
 #endif
     }
     if (!sock->listen()) {
@@ -528,10 +529,8 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     auto client_iterator = hs->clients.begin();
 
 #ifdef SW_USE_OPENSSL
-    if (sock->open_ssl) {
-        if (!sock->ssl_handshake()) {
-            goto _handshake_failed;
-        }
+    if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
+        goto _handshake_failed;
     }
 #endif
 
@@ -681,7 +680,7 @@ static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
 
     if (fci_cache) {
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, SwooleG.enable_coroutine))) {
+        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, true))) {
             stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
             php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
         }

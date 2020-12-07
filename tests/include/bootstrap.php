@@ -30,6 +30,7 @@ if (empty(getenv('SWOOLE_DEBUG'))) {
     Co::set([
         'log_level' => SWOOLE_LOG_INFO,
         'trace_flags' => 0,
+        'enable_deadlock_check' => false,
     ]);
 }
 

@@ -751,6 +751,14 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
     return retval;
 }
 
+ssize_t Socket::send_async(const void *__buf, size_t __n) {
+    if (!swoole_event_is_available()) {
+        return send_blocking(__buf, __n);
+    } else {
+        return swoole_event_write(this, __buf, __n);
+    }
+}
+
 ssize_t Socket::readv(IOVector *io_vector) {
     ssize_t retval;
 
@@ -1369,10 +1377,10 @@ ssize_t Socket::ssl_writev(IOVector *io_vector) {
     return total_bytes > 0 ? total_bytes : retval;
 }
 
-int Socket::ssl_create(SSL_CTX *_ssl_context, int _flags) {
+int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
     ssl_clear_error();
 
-    ssl = SSL_new(_ssl_context);
+    ssl = SSL_new(ssl_context->get_context());
     if (ssl == nullptr) {
         swWarn("SSL_new() failed");
         return SW_ERR;

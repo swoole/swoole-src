@@ -125,8 +125,8 @@ struct php_swoole_netstream_data_t
     double write_timeout;
 };
 
-static bool hook_init = false;
-static int hook_flags = 0;
+static bool runtime_hook_init = false;
+static int runtime_hook_flags = 0;
 
 static struct
 {
@@ -163,12 +163,12 @@ static const zend_function_entry swoole_runtime_methods[] =
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
 
-#define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
-#define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
-
 static void hook_func(const char *name, size_t l_name, zif_handler handler = nullptr, zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
 static bool hook_internal_functions(const zend_function_entry *fes);
+
+#define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
+#define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
 
 static zend_array *tmp_function_table = nullptr;
 
@@ -196,6 +196,7 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL", PHPCoroutine::HOOK_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NATIVE_CURL", PHPCoroutine::HOOK_NATIVE_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
     swoole_native_curl_init(module_number);
@@ -211,11 +212,11 @@ struct real_func {
 };
 
 void php_swoole_runtime_rshutdown() {
-    if (!hook_init) {
+    if (!runtime_hook_init) {
         return;
     }
 
-    hook_init = false;
+    runtime_hook_init = false;
 
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
@@ -557,7 +558,7 @@ static inline int socket_accept(php_stream *stream, Socket *sock, php_stream_xpo
     Socket *clisock = sock->accept();
 
 #ifdef SW_USE_OPENSSL
-    if (clisock != nullptr && clisock->open_ssl) {
+    if (clisock != nullptr && clisock->ssl_is_enable()) {
         if (!clisock->ssl_handshake()) {
             sock->errCode = clisock->errCode;
             delete clisock;
@@ -656,9 +657,16 @@ static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xpor
 }
 
 static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
-    if (cparam->inputs.activate && !sock->is_ssl_enable()) {
-        return sock->ssl_handshake() ? 0 : -1;
-    } else if (!cparam->inputs.activate && sock->is_ssl_enable()) {
+    if (cparam->inputs.activate && !sock->ssl_is_available()) {
+        sock->enable_ssl_encrypt();
+        if (!sock->ssl_check_context()) {
+            return -1;
+        }
+        if (!sock->ssl_handshake()) {
+            return -1;
+        }
+        return 0;
+    } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
         return sock->ssl_shutdown() ? 0 : -1;
     }
     return -1;
@@ -909,7 +917,7 @@ static php_stream *socket_create(const char *proto,
     } else if (SW_STREQ(proto, protolen, "ssl") || SW_STREQ(proto, protolen, "tls")) {
 #ifdef SW_USE_OPENSSL
         sock = new Socket(resourcename[0] == '[' ? SW_SOCK_TCP6 : SW_SOCK_TCP);
-        sock->open_ssl = true;
+        sock->enable_ssl_encrypt();
 #else
         php_swoole_error(E_WARNING,
                          "you must configure with `--enable-openssl` to support ssl connection when compiling Swoole");
@@ -953,31 +961,37 @@ static php_stream *socket_create(const char *proto,
     if (context && ZVAL_IS_ARRAY(&context->options)) {
 #ifdef SW_USE_OPENSSL
         zval *ztmp;
-        if (sock->open_ssl && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
+
+        if (sock->ssl_is_enable() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
             ZVAL_IS_ARRAY(ztmp)) {
-            [](Socket *sock, HashTable *options) {
-                zval zalias, *ztmp;
-                array_init(&zalias);
-#define SSL_OPTION_ALIAS(name, alias)                                                                                  \
-    do {                                                                                                               \
-        if (php_swoole_array_get_value(options, name, ztmp)) {                                                         \
-            add_assoc_zval_ex(&zalias, ZEND_STRL(alias), ztmp);                                                        \
-        }                                                                                                              \
-    } while (0);
-                SSL_OPTION_ALIAS("peer_name", "ssl_host_name");
-                SSL_OPTION_ALIAS("verify_peer", "ssl_verify_peer");
-                SSL_OPTION_ALIAS("allow_self_signed", "ssl_allow_self_signed");
-                SSL_OPTION_ALIAS("cafile", "ssl_cafile");
-                SSL_OPTION_ALIAS("capath", "ssl_capath");
-                SSL_OPTION_ALIAS("local_cert", "ssl_cert_file");
-                SSL_OPTION_ALIAS("local_pk", "ssl_key_file");
-                SSL_OPTION_ALIAS("passphrase", "ssl_passphrase");
-                SSL_OPTION_ALIAS("verify_depth", "ssl_verify_depth");
-                SSL_OPTION_ALIAS("disable_compression", "ssl_disable_compression");
-#undef SSL_OPTION_ALIAS
-                php_swoole_socket_set_ssl(sock, &zalias);
-                zend_array_destroy(Z_ARRVAL(zalias));
-            }(sock, Z_ARRVAL_P(ztmp));
+
+            zval zalias;
+            array_init(&zalias);
+            zend_array *options = Z_ARRVAL_P(ztmp);
+
+            auto add_alias = [&zalias, options](const char *name, const char *alias) {
+                zval *ztmp;
+                if (php_swoole_array_get_value_ex(options, name, ztmp)) {
+                    add_assoc_zval_ex(&zalias, alias, strlen(alias), ztmp);
+                }
+            };
+
+            add_alias("peer_name", "ssl_host_name");
+            add_alias("verify_peer", "ssl_verify_peer");
+            add_alias("allow_self_signed", "ssl_allow_self_signed");
+            add_alias("cafile", "ssl_cafile");
+            add_alias("capath", "ssl_capath");
+            add_alias("local_cert", "ssl_cert_file");
+            add_alias("local_pk", "ssl_key_file");
+            add_alias("passphrase", "ssl_passphrase");
+            add_alias("verify_depth", "ssl_verify_depth");
+            add_alias("disable_compression", "ssl_disable_compression");
+
+            php_swoole_socket_set_ssl(sock, &zalias);
+            if (!sock->ssl_check_context()) {
+                goto _failed;
+            }
+            zend_array_destroy(Z_ARRVAL(zalias));
         }
 #endif
     }
@@ -996,7 +1010,7 @@ void PHPCoroutine::disable_unsafe_function() {
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
-    if (!hook_init) {
+    if (!runtime_hook_init) {
         HashTable *xport_hash = php_stream_xport_get_hash();
         // php_stream
         ori_factory.tcp = (php_stream_transport_factory) zend_hash_str_find_ptr(xport_hash, ZEND_STRL("tcp"));
@@ -1012,61 +1026,61 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
         zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
 
-        hook_init = true;
+        runtime_hook_init = true;
     }
     // php_stream
     if (flags & PHPCoroutine::HOOK_TCP) {
-        if (!(hook_flags & PHPCoroutine::HOOK_TCP)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_TCP)) {
             if (php_stream_xport_register("tcp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TCP;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_TCP) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_TCP) {
             php_stream_xport_register("tcp", ori_factory.tcp);
         }
     }
     if (flags & PHPCoroutine::HOOK_UDP) {
-        if (!(hook_flags & PHPCoroutine::HOOK_UDP)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDP)) {
             if (php_stream_xport_register("udp", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDP;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_UDP) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_UDP) {
             php_stream_xport_register("udp", ori_factory.udp);
         }
     }
     if (flags & PHPCoroutine::HOOK_UNIX) {
-        if (!(hook_flags & PHPCoroutine::HOOK_UNIX)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_UNIX)) {
             if (php_stream_xport_register("unix", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UNIX;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_UNIX) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_UNIX) {
             php_stream_xport_register("unix", ori_factory._unix);
         }
     }
     if (flags & PHPCoroutine::HOOK_UDG) {
-        if (!(hook_flags & PHPCoroutine::HOOK_UDG)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_UDG)) {
             if (php_stream_xport_register("udg", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_UDG;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_UDG) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_UDG) {
             php_stream_xport_register("udg", ori_factory.udg);
         }
     }
     if (flags & PHPCoroutine::HOOK_SSL) {
-        if (!(hook_flags & PHPCoroutine::HOOK_SSL)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_SSL)) {
             if (php_stream_xport_register("ssl", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_SSL;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_SSL) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_SSL) {
             if (ori_factory.ssl != nullptr) {
                 php_stream_xport_register("ssl", ori_factory.ssl);
             } else {
@@ -1075,13 +1089,13 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
     if (flags & PHPCoroutine::HOOK_TLS) {
-        if (!(hook_flags & PHPCoroutine::HOOK_TLS)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_TLS)) {
             if (php_stream_xport_register("tls", socket_create) != SUCCESS) {
                 flags ^= PHPCoroutine::HOOK_TLS;
             }
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_TLS) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_TLS) {
             if (ori_factory.tls != nullptr) {
                 php_stream_xport_register("tls", ori_factory.tls);
             } else {
@@ -1090,36 +1104,36 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
     if (flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
-        if (!(hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION)) {
             SW_HOOK_FUNC(stream_select);
             SW_HOOK_FUNC(stream_socket_pair);
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_STREAM_FUNCTION) {
             SW_UNHOOK_FUNC(stream_select);
             SW_UNHOOK_FUNC(stream_socket_pair);
         }
     }
     // file
     if (flags & PHPCoroutine::HOOK_FILE) {
-        if (!(hook_flags & PHPCoroutine::HOOK_FILE)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
             memcpy((void *) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_FILE) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
             memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         }
     }
     // sleep
     if (flags & PHPCoroutine::HOOK_SLEEP) {
-        if (!(hook_flags & PHPCoroutine::HOOK_SLEEP)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_SLEEP)) {
             SW_HOOK_FUNC(sleep);
             SW_HOOK_FUNC(usleep);
             SW_HOOK_FUNC(time_nanosleep);
             SW_HOOK_FUNC(time_sleep_until);
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_SLEEP) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_SLEEP) {
             SW_UNHOOK_FUNC(sleep);
             SW_UNHOOK_FUNC(usleep);
             SW_UNHOOK_FUNC(time_nanosleep);
@@ -1128,14 +1142,14 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
     // proc_open
     if (flags & PHPCoroutine::HOOK_PROC) {
-        if (!(hook_flags & PHPCoroutine::HOOK_PROC)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_PROC)) {
             SW_HOOK_FUNC(proc_open);
             SW_HOOK_FUNC(proc_close);
             SW_HOOK_FUNC(proc_get_status);
             SW_HOOK_FUNC(proc_terminate);
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_PROC) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_PROC) {
             SW_UNHOOK_FUNC(proc_open);
             SW_UNHOOK_FUNC(proc_close);
             SW_UNHOOK_FUNC(proc_get_status);
@@ -1144,20 +1158,20 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
     // blocking function
     if (flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
-        if (!(hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION)) {
             hook_func(ZEND_STRL("gethostbyname"), PHP_FN(swoole_coroutine_gethostbyname));
             hook_func(ZEND_STRL("exec"));
             hook_func(ZEND_STRL("shell_exec"));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(gethostbyname);
             SW_UNHOOK_FUNC(exec);
             SW_UNHOOK_FUNC(shell_exec);
         }
     }
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
-        if (!(hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
             hook_func(ZEND_STRL("socket_create"));
             hook_func(ZEND_STRL("socket_create_listen"));
             hook_func(ZEND_STRL("socket_create_pair"), PHP_FN(swoole_coroutine_socketpair));
@@ -1185,7 +1199,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("socket_last_error"));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
             SW_UNHOOK_FUNC(socket_create);
             SW_UNHOOK_FUNC(socket_create_listen);
             SW_UNHOOK_FUNC(socket_create_pair);
@@ -1220,10 +1234,10 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             php_swoole_fatal_error(E_WARNING, "cannot enable both hooks HOOK_NATIVE_CURL and HOOK_CURL at same time");
             flags ^= PHPCoroutine::HOOK_CURL;
         }
-        if (!(hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
-            #if PHP_VERSION_ID >= 80000
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
+#if PHP_VERSION_ID >= 80000
             hook_internal_functions(swoole_native_curl_functions);
-            #else
+#else
             hook_func(ZEND_STRL("curl_close"), PHP_FN(swoole_native_curl_close));
             hook_func(ZEND_STRL("curl_copy_handle"), PHP_FN(swoole_native_curl_copy_handle));
             hook_func(ZEND_STRL("curl_errno"), PHP_FN(swoole_native_curl_errno));
@@ -1240,7 +1254,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             #endif
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
             SW_UNHOOK_FUNC(curl_close);
             SW_UNHOOK_FUNC(curl_copy_handle);
             SW_UNHOOK_FUNC(curl_errno);
@@ -1259,7 +1273,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 #endif
 
     if (flags & PHPCoroutine::HOOK_CURL) {
-        if (!(hook_flags & PHPCoroutine::HOOK_CURL)) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_CURL)) {
             hook_func(ZEND_STRL("curl_init"));
             hook_func(ZEND_STRL("curl_setopt"));
             hook_func(ZEND_STRL("curl_setopt_array"));
@@ -1272,7 +1286,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             hook_func(ZEND_STRL("curl_multi_getcontent"));
         }
     } else {
-        if (hook_flags & PHPCoroutine::HOOK_CURL) {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_CURL) {
             SW_UNHOOK_FUNC(curl_init);
             SW_UNHOOK_FUNC(curl_setopt);
             SW_UNHOOK_FUNC(curl_setopt_array);
@@ -1286,7 +1300,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         }
     }
 
-    hook_flags = flags;
+    runtime_hook_flags = flags;
     return true;
 }
 
@@ -1332,7 +1346,11 @@ static PHP_METHOD(swoole_runtime, enableCoroutine) {
 }
 
 static PHP_METHOD(swoole_runtime, getHookFlags) {
-    RETURN_LONG(hook_flags);
+    if (runtime_hook_init) {
+        RETURN_LONG(runtime_hook_flags);
+    } else {
+        RETURN_LONG(PHPCoroutine::get_hook_flags());
+    }
 }
 
 static PHP_METHOD(swoole_runtime, setHookFlags) {

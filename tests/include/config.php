@@ -27,7 +27,7 @@ define('TEST_LINK_IMAGE', __DIR__ . '/../../examples/test_link.jpg');
 define('TEST_IMAGE2', __DIR__ . '/../../examples/logo.svg');
 define('TEST_LOG_FILE', '/tmp/swoole.log');
 define('TEST_PID_FILE', '/tmp/swoole.pid');
-define('SSL_FILE_DIR', __DIR__ . '/api/swoole_http_server/localhost-ssl');
+define('SSL_FILE_DIR', __DIR__ . '/ssl_certs/');
 define('SSL_FILE_DIR2', __DIR__ . '/../include/api/ssl-ca');
 define('DOCUMENT_ROOT', __DIR__ . '/../../examples/www');
 
@@ -65,17 +65,22 @@ define('REDIS_SERVER_PORT', (int)(getenv('REDIS_SERVER_PORT') ?: 6379));
 define('REDIS_SERVER_PWD', getenv('REDIS_SERVER_PWD') ?: 'root');
 define('REDIS_SERVER_DB', (int)(getenv('REDIS_SERVER_DB') ?: 0));
 
+if (!getenv('SWOOLE_TEST_NO_DOCKER')) {
+    if (!empty($info = `docker ps 2>&1 | grep httpbin 2>&1`) &&
+        preg_match('/\s+?[^:]+:(\d+)->\d+\/tcp\s+/', $info, $matches) &&
+        is_numeric($matches[1])) {
+        define('HTTPBIN_SERVER_PORT_IN_DOCKER', (int)$matches[1]);
+    }
+}
+
 /** ============== HttpBin ============== */
 if (IS_IN_TRAVIS) {
     define('HTTPBIN_SERVER_HOST', 'httpbin');
     define('HTTPBIN_SERVER_PORT', 80);
     define('HTTPBIN_LOCALLY', true);
-} elseif (!empty($info = `docker ps 2>&1 | grep httpbin 2>&1`) &&
-    preg_match('/\s+?[^:]+:(\d+)->\d+\/tcp\s+/', $info, $matches) &&
-    is_numeric($matches[1])
-) {
+} elseif (defined('HTTPBIN_SERVER_PORT_IN_DOCKER')) {
     define('HTTPBIN_SERVER_HOST', '127.0.0.1');
-    define('HTTPBIN_SERVER_PORT', (int)$matches[1]);
+    define('HTTPBIN_SERVER_PORT', HTTPBIN_SERVER_PORT_IN_DOCKER);
     define('HTTPBIN_LOCALLY', true);
 } elseif (getenv('HTTPBIN_SERVER_HOST')) {
     define('HTTPBIN_SERVER_HOST', getenv('HTTPBIN_SERVER_HOST'));

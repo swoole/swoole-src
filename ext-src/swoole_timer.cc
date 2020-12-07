@@ -31,11 +31,6 @@ static zend_object_handlers swoole_timer_handlers;
 
 static zend_class_entry *swoole_timer_iterator_ce;
 
-static struct {
-    bool enable_coroutine_isset;
-    bool enable_coroutine;
-} settings;
-
 SW_EXTERN_C_BEGIN
 static PHP_FUNCTION(swoole_timer_set);
 static PHP_FUNCTION(swoole_timer_after);
@@ -82,7 +77,8 @@ ZEND_END_ARG_INFO()
 
 static const zend_function_entry swoole_timer_methods[] =
 {
-    ZEND_FENTRY(set, ZEND_FN(swoole_timer_set), arginfo_swoole_timer_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(set, ZEND_FN(swoole_timer_set), arginfo_swoole_timer_set,
+                ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
     ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -122,7 +118,7 @@ void php_swoole_timer_minit(int module_number) {
     SW_REGISTER_DOUBLE_CONSTANT("SWOOLE_TIMER_MAX_SEC", SW_TIMER_MAX_SEC);
 }
 
-static void php_swoole_timer_dtor(TimerNode *tnode) {
+static void timer_dtor(TimerNode *tnode) {
     Function *fci = (Function *) tnode->data;
     sw_zend_fci_params_discard(&fci->fci);
     sw_zend_fci_cache_discard(&fci->fci_cache);
@@ -156,19 +152,18 @@ bool php_swoole_timer_clear_all() {
     return true;
 }
 
-static void php_swoole_onTimeout(Timer *timer, TimerNode *tnode) {
+static void timer_callback(Timer *timer, TimerNode *tnode) {
     Function *fci = (Function *) tnode->data;
-    bool enable_coroutine = settings.enable_coroutine_isset ? settings.enable_coroutine : SwooleG.enable_coroutine;
 
-    if (UNEXPECTED(!fci->call(nullptr, enable_coroutine))) {
+    if (UNEXPECTED(!fci->call(nullptr, php_swoole_is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onTimeout handler error", ZSTR_VAL(swoole_timer_ce->name));
     }
     if (!tnode->interval || tnode->removed) {
-        php_swoole_timer_dtor(tnode);
+        timer_dtor(tnode);
     }
 }
 
-static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
+static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     zend_long ms;
     Function *fci = (Function *) ecalloc(1, sizeof(Function));
     TimerNode *tnode;
@@ -191,13 +186,13 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) 
         php_swoole_check_reactor();
     }
 
-    tnode = swoole_timer_add(ms, persistent, php_swoole_onTimeout, fci);
+    tnode = swoole_timer_add(ms, persistent, timer_callback, fci);
     if (UNEXPECTED(!tnode)) {
         php_swoole_fatal_error(E_WARNING, "add timer failed");
         goto _failed;
     }
     tnode->type = TimerNode::TYPE_PHP;
-    tnode->destructor = php_swoole_timer_dtor;
+    tnode->destructor = timer_dtor;
     if (persistent) {
         if (fci->fci.param_count > 0) {
             uint32_t i;
@@ -220,27 +215,25 @@ static void php_swoole_timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) 
 
 static PHP_FUNCTION(swoole_timer_set) {
     zval *zset = nullptr;
-    HashTable *vht = nullptr;
     zval *ztmp;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_ARRAY(zset)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    vht = Z_ARRVAL_P(zset);
+    HashTable *vht = Z_ARRVAL_P(zset);
 
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        settings.enable_coroutine_isset = true;
-        settings.enable_coroutine = zval_is_true(ztmp);
+        SWOOLE_G(enable_coroutine) = zval_is_true(ztmp);
     }
 }
 
 static PHP_FUNCTION(swoole_timer_after) {
-    php_swoole_timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+    timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
 }
 
 static PHP_FUNCTION(swoole_timer_tick) {
-    php_swoole_timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+    timer_add(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
 }
 
 static PHP_FUNCTION(swoole_timer_exists) {

@@ -89,8 +89,8 @@ $pm->childFunc = function () use ($pm) {
         $server = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         $server->setProtocol([
             'open_ssl' => true,
-            'ssl_cert_file' => __DIR__ . '/../../include/api/swoole_http_server/localhost-ssl/client.crt',
-            'ssl_key_file' => __DIR__ . '/../../include/api/swoole_http_server/localhost-ssl/client.key'
+            'ssl_cert_file' => SSL_FILE_DIR.'/client.crt',
+            'ssl_key_file' => SSL_FILE_DIR.'/client.key'
         ]);
         Assert::assert($server->bind('127.0.0.1', $pm->getFreePort()));
         Assert::assert($server->listen(MAX_CONCURRENCY));

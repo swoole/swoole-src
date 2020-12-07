@@ -188,7 +188,7 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
     ZVAL_LONG(&args[0], fd);
     args[1] = zparams;
 
-    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, &retval, SwooleG.enable_coroutine))) {
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, &retval, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING,
                          "%s->onRequest with command '%.*s' handler error",
                          ZSTR_VAL(swoole_redis_server_ce->name),

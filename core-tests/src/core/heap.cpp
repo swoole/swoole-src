@@ -1,4 +1,5 @@
 #include "test_core.h"
+#include "swoole_heap.h"
 #include <map>
 
 typedef struct node_t {

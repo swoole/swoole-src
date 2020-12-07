@@ -35,6 +35,7 @@
 
 SW_EXTERN_C_BEGIN
 PHP_METHOD(swoole_coroutine_scheduler, set);
+PHP_METHOD(swoole_coroutine_scheduler, getOptions);
 SW_EXTERN_C_END
 
 namespace zend {
@@ -60,6 +61,9 @@ struct PHPContext {
     zend_vm_stack vm_stack;
     size_t vm_stack_page_size;
     zend_execute_data *execute_data;
+#if PHP_VERSION_ID >= 80000
+    uint32_t jit_trace_num;
+#endif
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;
@@ -92,7 +96,10 @@ class PHPCoroutine {
         uint64_t max_num;
         uint32_t hook_flags;
         bool enable_preemptive_scheduler;
+        bool enable_deadlock_check;
     };
+
+    static zend_array *options;
 
     enum HookType {
         HOOK_NONE              = 0,
@@ -109,8 +116,12 @@ class PHPCoroutine {
         HOOK_CURL              = 1u << 11,
         HOOK_NATIVE_CURL       = 1u << 12,
         HOOK_BLOCKING_FUNCTION = 1u << 13,
-        HOOK_SOCKETS           = 1u << 14, // sockets extension
+        HOOK_SOCKETS           = 1u << 14,
+#ifdef SW_USE_CURL
+        HOOK_ALL               = 0x7fffffff ^ HOOK_CURL,
+#else
         HOOK_ALL               = 0x7fffffff ^ HOOK_NATIVE_CURL,
+#endif
     };
 
     static const uint8_t MAX_EXEC_MSEC = 10;
@@ -119,7 +130,7 @@ class PHPCoroutine {
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(zend::Function *fci);
-
+    static void deadlock_check();
     static bool enable_hook(uint32_t flags);
     static bool disable_hook();
     static void disable_unsafe_function();
@@ -165,6 +176,10 @@ class PHPCoroutine {
         config.max_num = n;
     }
 
+    static inline void set_deadlock_check(bool value = true) {
+        config.enable_deadlock_check = value;
+    }
+
     static inline bool is_schedulable(PHPContext *task) {
         return task->enable_scheduler && (Timer::get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
     }
@@ -187,12 +202,18 @@ class PHPCoroutine {
         return false;
     }
 
-    static inline void set_hook_flags(uint32_t flags) {
-        config.hook_flags = flags;
+    static void set_hook_flags(uint32_t flags);
+
+    static inline uint32_t get_hook_flags() {
+        return config.hook_flags;
     }
 
     static inline void enable_preemptive_scheduler(bool value) {
         config.enable_preemptive_scheduler = value;
+    }
+
+    static inline bool is_activated() {
+        return active;
     }
 
   protected:

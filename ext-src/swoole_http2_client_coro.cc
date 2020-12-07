@@ -65,7 +65,7 @@ class Client {
   public:
     std::string host;
     int port;
-    bool ssl;
+    bool open_ssl;
     double timeout = network::Socket::default_read_timeout;
 
     Socket *client = nullptr;
@@ -88,7 +88,7 @@ class Client {
     Client(const char *_host, size_t _host_len, int _port, bool _ssl, zval *__zobject) {
         host = std::string(_host, _host_len);
         port = _port;
-        ssl = _ssl;
+        open_ssl = _ssl;
         _zobject = *__zobject;
         zobject = &_zobject;
         swHttp2_init_settings(&local_settings);
@@ -252,7 +252,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_construct, 0, 0, 1)
     ZEND_ARG_INFO(0, host)
     ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, ssl)
+    ZEND_ARG_INFO(0, open_ssl)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http2_client_coro_set, 0, 0, 1)
@@ -408,7 +408,9 @@ bool Client::connect() {
     }
     client->set_zero_copy(true);
 #ifdef SW_USE_OPENSSL
-    client->open_ssl = ssl;
+    if (open_ssl) {
+        client->enable_ssl_encrypt();
+    }
 #endif
     client->http2 = 1;
     client->open_length_check = 1;
@@ -991,7 +993,7 @@ ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
     } else {
         headers.add(ZEND_STRL(":path"), Z_STRVAL_P(zpath), Z_STRLEN_P(zpath));
     }
-    if (h2c->ssl) {
+    if (h2c->open_ssl) {
         headers.add(ZEND_STRL(":scheme"), ZEND_STRL("https"));
     } else {
         headers.add(ZEND_STRL(":scheme"), ZEND_STRL("http"));
@@ -1023,7 +1025,7 @@ ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
 #ifndef SW_USE_OPENSSL
         if (h2c->port != 80)
 #else
-        if (!h2c->ssl ? h2c->port != 80 : h2c->port != 443)
+        if (!h2c->open_ssl ? h2c->port != 80 : h2c->port != 443)
 #endif
         {
             _host = std_string::format("%s:%d", h2c->host.c_str(), h2c->port);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "test_core.h"
+#include "swoole_server.h"
 
 #define SERVER_THIS ((swoole::test::Server *) serv->private_data_2)
 

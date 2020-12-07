@@ -18,6 +18,7 @@
 
 #include "php_swoole.h"
 #include "php_swoole_coroutine.h"
+#include "swoole_util.h"
 
 #include <string>
 
@@ -78,6 +79,8 @@ extern zend_string **sw_zend_known_strings;
 #define SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(module)                                                              \
     module##_ce->create_object = [](zend_class_entry *ce) { return sw_zend_create_object(ce, &module##_handlers); }
 
+
+SW_API bool php_swoole_is_enable_coroutine();
 SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocket_type type);
 SW_API bool php_swoole_export_socket(zval *zobject, swoole::coroutine::Socket *_socket);
 SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type);
@@ -94,6 +97,21 @@ SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *pr
 // timer
 SW_API bool php_swoole_timer_clear(swoole::TimerNode *tnode);
 SW_API bool php_swoole_timer_clear_all();
+
+static inline bool php_swoole_is_fatal_error() {
+    if (PG(last_error_message)) {
+        switch (PG(last_error_type)) {
+        case E_ERROR:
+        case E_CORE_ERROR:
+        case E_USER_ERROR:
+        case E_COMPILE_ERROR:
+            return true;
+        default:
+            break;
+        }
+    }
+    return false;
+}
 
 ssize_t php_swoole_length_func(swoole::Protocol *protocol, swoole::network::Socket *_socket, const char *data, uint32_t length);
 
@@ -186,6 +204,10 @@ class String {
 
     inline zend_string *get() {
         return str;
+    }
+
+    void rtrim() {
+        ZSTR_LEN(str) = swoole::rtrim(val(), len());
     }
 
     inline const std::string to_std_string() {

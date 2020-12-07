@@ -317,6 +317,7 @@ struct Socket {
 
     void clean();
     ssize_t send_blocking(const void *__data, size_t __len);
+    ssize_t send_async(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
     ssize_t send_to_pipe_blocking(struct iovec *iov, size_t iovcnt);
@@ -341,7 +342,7 @@ struct Socket {
         ssl_want_read = 0;
         ssl_want_write = 0;
     }
-    int ssl_create(SSL_CTX *_ssl_context, int _flags);
+    int ssl_create(SSLContext *_ssl_context, int _flags);
     int ssl_connect();
     enum swReturn_code ssl_accept();
     ssize_t ssl_recv(void *__buf, size_t __n);

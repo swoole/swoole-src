@@ -262,44 +262,36 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
 
 #ifdef SW_USE_OPENSSL
 int Client::enable_ssl_encrypt() {
-    ssl_context = swSSL_get_context(&ssl_option);
-    if (ssl_context == nullptr) {
+    if (ssl_context) {
         return SW_ERR;
     }
-
-    if (ssl_option.verify_peer) {
-        if (swSSL_set_capath(&ssl_option, ssl_context) < 0) {
-            return SW_ERR;
-        }
-    }
-
-    socket->ssl_send_ = 1;
-#if defined(SW_USE_HTTP2) && defined(SW_USE_OPENSSL) && OPENSSL_VERSION_NUMBER >= 0x10002000L
-    if (http2) {
-        if (SSL_CTX_set_alpn_protos(ssl_context, (const unsigned char *) "\x02h2", 3) < 0) {
-            return SW_ERR;
-        }
-    }
-#endif
+    ssl_context.reset(new swoole::SSLContext());
+    open_ssl = true;
     return SW_OK;
 }
 
 int Client::ssl_handshake() {
-    if (!socket->ssl) {
-        if (socket->ssl_create(ssl_context, SW_SSL_CLIENT) < 0) {
-            return SW_ERR;
-        }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name) {
-            SSL_set_tlsext_host_name(socket->ssl, ssl_option.tls_host_name);
-        }
-#endif
+    if (socket->ssl) {
+        return SW_ERR;
     }
+    ssl_context->http_v2 = http2;
+    if (!ssl_context->create()) {
+        return SW_ERR;
+    }
+    socket->ssl_send_ = 1;
+    if (socket->ssl_create(ssl_context.get(), SW_SSL_CLIENT) < 0) {
+        return SW_ERR;
+    }
+#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
+    if (!ssl_context->tls_host_name.empty()) {
+        SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
+    }
+#endif
     if (socket->ssl_connect() < 0) {
         return SW_ERR;
     }
-    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_option.verify_peer) {
-        if (ssl_verify(ssl_option.allow_self_signed) < 0) {
+    if (socket->ssl_state == SW_SSL_STATE_READY && ssl_context->verify_peer) {
+        if (ssl_verify(ssl_context->allow_self_signed) < 0) {
             return SW_ERR;
         }
     }
@@ -311,7 +303,7 @@ int Client::ssl_verify(int allow_self_signed) {
         return SW_ERR;
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (ssl_option.tls_host_name && !socket->ssl_check_host(ssl_option.tls_host_name)) {
+    if (!ssl_context->tls_host_name.empty() && !socket->ssl_check_host(ssl_context->tls_host_name.c_str())) {
         return SW_ERR;
     }
 #endif
@@ -403,32 +395,6 @@ Client::~Client() {
     if (!closed) {
         close();
     }
-
-#ifdef SW_USE_OPENSSL
-    if (open_ssl && ssl_context) {
-        swSSL_free_context(ssl_context);
-        if (ssl_option.cert_file) {
-            sw_free(ssl_option.cert_file);
-        }
-        if (ssl_option.key_file) {
-            sw_free(ssl_option.key_file);
-        }
-        if (ssl_option.passphrase) {
-            sw_free(ssl_option.passphrase);
-        }
-#ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-        if (ssl_option.tls_host_name) {
-            sw_free(ssl_option.tls_host_name);
-        }
-#endif
-        if (ssl_option.cafile) {
-            sw_free(ssl_option.cafile);
-        }
-        if (ssl_option.capath) {
-            sw_free(ssl_option.capath);
-        }
-    }
-#endif
     // clear buffer
     if (buffer) {
         delete buffer;
@@ -599,9 +565,6 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
 
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-                return SW_ERR;
-            }
             if (cli->ssl_handshake() < 0) {
                 return SW_ERR;
             }
@@ -838,7 +801,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
 #ifdef SW_SUPPORT_DTLS
     {
         udp_connect = 1;
-        cli->ssl_option.protocols = SW_SSL_DTLS;
+        cli->ssl_context->protocols = SW_SSL_DTLS;
         cli->socket->dtls = 1;
         cli->socket->chunk_size = SW_SSL_BUFFER_SIZE;
         cli->send = Client_tcp_send_sync;
@@ -870,13 +833,8 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
             execute_onConnect(cli);
         }
 #ifdef SW_USE_OPENSSL
-        if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-                return SW_ERR;
-            }
-            if (cli->ssl_handshake() < 0) {
-                return SW_ERR;
-            }
+        if (cli->open_ssl && cli->ssl_handshake() < 0) {
+            return SW_ERR;
         }
 #endif
         return SW_OK;
@@ -993,14 +951,10 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
                 cli->http_proxy->state = SW_HTTP_PROXY_STATE_READY;
                 cli->buffer->clear();
             }
-            if (cli->enable_ssl_encrypt() < 0) {
+            if (cli->ssl_handshake() < 0) {
                 goto _connect_fail;
             } else {
-                if (cli->ssl_handshake() < 0) {
-                    goto _connect_fail;
-                } else {
-                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
-                }
+                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
                 return swoole_event_set(event->socket, SW_EVENT_WRITE);
             }
             if (cli->onConnect) {
@@ -1023,19 +977,14 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-            _connect_fail:
-                cli->active = 0;
+            if (cli->ssl_handshake() < 0) {
+                _connect_fail: cli->active = 0;
                 cli->close();
                 if (cli->onError) {
                     cli->onError(cli);
                 }
             } else {
-                if (cli->ssl_handshake() < 0) {
-                    goto _connect_fail;
-                } else {
-                    cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
-                }
+                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
                 return swoole_event_set(event->socket, SW_EVENT_WRITE);
             }
         } else
@@ -1251,9 +1200,6 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         }
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
-            if (cli->enable_ssl_encrypt() < 0) {
-                goto _connect_fail;
-            }
             if (cli->ssl_handshake() < 0) {
                 goto _connect_fail;
             } else {

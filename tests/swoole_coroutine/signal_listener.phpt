@@ -9,6 +9,8 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Coroutine;
 use Swoole\Process;
 
+ini_set('swoole.enable_coroutine', 'off');
+
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     for ($n = 3; $n--;) {

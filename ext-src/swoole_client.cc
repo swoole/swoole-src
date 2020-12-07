@@ -267,57 +267,54 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
     zval *ztmp;
 
     if (php_swoole_array_get_value(vht, "ssl_protocols", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
-        cli->ssl_option.protocols = v;
+        cli->ssl_context->set_protocols(zval_get_long(ztmp));
     }
     if (php_swoole_array_get_value(vht, "ssl_compress", ztmp)) {
-        cli->ssl_option.disable_compress = !zval_is_true(ztmp);
+        cli->ssl_context->disable_compress = !zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_cert_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (access(str_v.val(), R_OK) < 0) {
+        if (!cli->ssl_context->set_cert_file(str_v.to_std_string())) {
             php_swoole_fatal_error(E_ERROR, "ssl cert file[%s] not found", str_v.val());
             return;
         }
-        cli->ssl_option.cert_file = sw_strdup(str_v.val());
     }
     if (php_swoole_array_get_value(vht, "ssl_key_file", ztmp)) {
         zend::String str_v(ztmp);
-        if (access(str_v.val(), R_OK) < 0) {
+        if (!cli->ssl_context->set_key_file(str_v.to_std_string())) {
             php_swoole_fatal_error(E_ERROR, "ssl key file[%s] not found", str_v.val());
             return;
         }
-        cli->ssl_option.key_file = sw_strdup(str_v.val());
     }
     if (php_swoole_array_get_value(vht, "ssl_passphrase", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.passphrase = sw_strdup(str_v.val());
+        cli->ssl_context->passphrase = str_v.to_std_string();
     }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
     if (php_swoole_array_get_value(vht, "ssl_host_name", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.tls_host_name = sw_strdup(str_v.val());
+        cli->ssl_context->tls_host_name = str_v.to_std_string();
     }
 #endif
     if (php_swoole_array_get_value(vht, "ssl_verify_peer", ztmp)) {
-        cli->ssl_option.verify_peer = zval_is_true(ztmp);
+        cli->ssl_context->verify_peer = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_allow_self_signed", ztmp)) {
-        cli->ssl_option.allow_self_signed = zval_is_true(ztmp);
+        cli->ssl_context->allow_self_signed = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "ssl_cafile", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.cafile = sw_strdup(str_v.val());
+        cli->ssl_context->cafile = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_capath", ztmp)) {
         zend::String str_v(ztmp);
-        cli->ssl_option.capath = sw_strdup(str_v.val());
+        cli->ssl_context->capath = str_v.to_std_string();
     }
     if (php_swoole_array_get_value(vht, "ssl_verify_depth", ztmp)) {
         zend_long v = zval_get_long(ztmp);
-        cli->ssl_option.verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+        cli->ssl_context->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
-    if (cli->ssl_option.cert_file && !cli->ssl_option.key_file) {
+    if (!cli->ssl_context->cert_file.empty() && cli->ssl_context->key_file.empty()) {
         php_swoole_fatal_error(E_ERROR, "ssl require key file");
         return;
     }
@@ -684,7 +681,7 @@ static Client *php_swoole_client_new(zval *zobject, char *host, int host_len, in
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        cli->open_ssl = 1;
+        cli->enable_ssl_encrypt();
     }
 #endif
 
@@ -1313,13 +1310,10 @@ static PHP_METHOD(swoole_client, enableSSL) {
         php_swoole_fatal_error(E_WARNING, "SSL has been enabled");
         RETURN_FALSE;
     }
-    cli->open_ssl = 1;
+    cli->enable_ssl_encrypt();
     zval *zset = sw_zend_read_property_ex(swoole_client_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (ZVAL_IS_ARRAY(zset)) {
         php_swoole_client_check_ssl_setting(cli, zset);
-    }
-    if (cli->enable_ssl_encrypt() < 0) {
-        RETURN_FALSE;
     }
     if (cli->ssl_handshake() < 0) {
         RETURN_FALSE;
@@ -1401,7 +1395,10 @@ PHP_FUNCTION(swoole_client_select) {
         RETURN_FALSE;
     }
 
-    retval = poll(fds, maxevents, (int) (timeout * 1000));
+    do {
+        retval = poll(fds, maxevents, (int) (timeout * 1000));
+    } while (retval < 0 && errno == EINTR);
+
     if (retval == -1) {
         efree(fds);
         php_swoole_sys_error(E_WARNING, "unable to poll()");

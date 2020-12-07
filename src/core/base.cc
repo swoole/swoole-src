@@ -123,7 +123,6 @@ void swoole_init(void) {
 
     SwooleG.running = 1;
     SwooleG.init = 1;
-    SwooleG.enable_coroutine = 1;
     SwooleG.std_allocator = { malloc, calloc, realloc, free };
     SwooleG.fatal_error = swoole_fatal_error;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
@@ -529,24 +528,6 @@ int swoole_version_compare(const char *version1, const char *version2) {
         }
     }
     return result;
-}
-
-void swoole_rtrim(char *str, int len) {
-    int i;
-    for (i = len; i > 0;) {
-        switch (str[--i]) {
-        case ' ':
-        case '\0':
-        case '\n':
-        case '\r':
-        case '\t':
-        case '\v':
-            str[i] = 0;
-            break;
-        default:
-            return;
-        }
-    }
 }
 
 /**

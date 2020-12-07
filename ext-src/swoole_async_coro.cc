@@ -45,6 +45,27 @@ void php_swoole_async_coro_rshutdown() {
     }
 }
 
+void php_swoole_set_aio_option(HashTable *vht) {
+    zval *ztmp;
+    /* AIO */
+   if (php_swoole_array_get_value(vht, "aio_core_worker_num", ztmp)) {
+       zend_long v = zval_get_long(ztmp);
+       v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+       SwooleG.aio_core_worker_num = v;
+   }
+   if (php_swoole_array_get_value(vht, "aio_worker_num", ztmp)) {
+       zend_long v = zval_get_long(ztmp);
+       v = SW_MAX(1, SW_MIN(v, UINT32_MAX));
+       SwooleG.aio_worker_num = v;
+   }
+   if (php_swoole_array_get_value(vht, "aio_max_wait_time", ztmp)) {
+       SwooleG.aio_max_wait_time = zval_get_double(ztmp);
+   }
+   if (php_swoole_array_get_value(vht, "aio_max_idle_time", ztmp)) {
+       SwooleG.aio_max_idle_time = zval_get_double(ztmp);
+   }
+}
+
 PHP_FUNCTION(swoole_async_set) {
     if (sw_reactor()) {
         php_swoole_fatal_error(E_ERROR, "eventLoop has already been created. unable to change settings");
@@ -62,6 +83,7 @@ PHP_FUNCTION(swoole_async_set) {
     vht = Z_ARRVAL_P(zset);
 
     php_swoole_set_global_option(vht);
+    php_swoole_set_aio_option(vht);
 
     if (php_swoole_array_get_value(vht, "enable_signalfd", ztmp)) {
         SwooleG.enable_signalfd = zval_is_true(ztmp);
@@ -93,7 +115,7 @@ PHP_FUNCTION(swoole_async_set) {
         SwooleG.use_async_resolver = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
-        SwooleG.enable_coroutine = zval_is_true(ztmp);
+        SWOOLE_G(enable_coroutine) = zval_is_true(ztmp);
     }
 }
 

@@ -23,6 +23,7 @@
 
 using swoole::network::Address;
 using swoole::network::Socket;
+using swoole::SSLContext;
 
 #if OPENSSL_VERSION_NUMBER < 0x10000000L
 #error "require openssl version 1.0 or later"
@@ -30,26 +31,15 @@ using swoole::network::Socket;
 
 static int openssl_init = 0;
 static int ssl_connection_index = 0;
+static int ssl_port_index = 0;
 static pthread_mutex_t *lock_array;
 
-static const SSL_METHOD *swSSL_get_method(swSSL_option *option);
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
 #ifndef OPENSSL_NO_RSA
 static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length);
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
 static int swSSL_set_default_dhparam(SSL_CTX *ssl_context);
-#endif
-static int swSSL_set_dhparam(SSL_CTX *ssl_context, const char *file);
-static int swSSL_set_ecdh_curve(SSL_CTX *ssl_context, const char *ecdh_curve);
-
-#ifdef TLSEXT_TYPE_next_proto_neg
-static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg);
-#endif
-
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-static int swSSL_alpn_advertised(
-    SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg);
 #endif
 
 #ifdef SW_SUPPORT_DTLS
@@ -64,15 +54,6 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 #endif
 
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
-
-static const SSL_METHOD *swSSL_get_method(swSSL_option *option) {
-#ifdef SW_SUPPORT_DTLS
-    if (option->protocols & SW_SSL_DTLS) {
-        return DTLS_method();
-    }
-#endif
-    return SSLv23_method();
-}
 
 void swSSL_init(void) {
     if (openssl_init) {
@@ -94,11 +75,21 @@ void swSSL_init(void) {
         return;
     }
 
+    ssl_port_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
+    if (ssl_port_index < 0) {
+        swError("SSL_get_ex_new_index() failed");
+        return;
+    }
+
     openssl_init = 1;
 }
 
 int swSSL_get_ex_connection_index() {
     return ssl_connection_index;
+}
+
+int swSSL_get_ex_port_index() {
+    return ssl_port_index;
 }
 
 void swSSL_destroy() {
@@ -169,67 +160,6 @@ void swSSL_init_thread_safety() {
     CRYPTO_set_locking_callback(swSSL_lock_callback);
 }
 
-void swSSL_server_http_advise(SSL_CTX *ssl_context, swSSL_config *cfg) {
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-    SSL_CTX_set_alpn_select_cb(ssl_context, swSSL_alpn_advertised, cfg);
-#endif
-
-#ifdef TLSEXT_TYPE_next_proto_neg
-    SSL_CTX_set_next_protos_advertised_cb(ssl_context, swSSL_npn_advertised, cfg);
-#endif
-
-    if (cfg->http) {
-        SSL_CTX_set_session_id_context(ssl_context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
-        SSL_CTX_set_session_cache_mode(ssl_context, SSL_SESS_CACHE_SERVER);
-        SSL_CTX_sess_set_cache_size(ssl_context, 1);
-    }
-}
-
-int swSSL_server_set_cipher(SSL_CTX *ssl_context, swSSL_config *cfg) {
-#ifndef TLS1_2_VERSION
-    return SW_OK;
-#endif
-
-    if (cfg->ciphers && strlen(cfg->ciphers) > 0) {
-        if (SSL_CTX_set_cipher_list(ssl_context, cfg->ciphers) == 0) {
-            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", cfg->ciphers);
-            return SW_ERR;
-        }
-        if (cfg->prefer_server_ciphers) {
-            SSL_CTX_set_options(ssl_context, SSL_OP_CIPHER_SERVER_PREFERENCE);
-        }
-    }
-
-#ifndef OPENSSL_NO_RSA
-    SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa_key_callback);
-#endif
-
-    if (cfg->dhparam && strlen(cfg->dhparam) > 0) {
-        swSSL_set_dhparam(ssl_context, cfg->dhparam);
-    }
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-    else {
-        swSSL_set_default_dhparam(ssl_context);
-    }
-#endif
-    if (cfg->ecdh_curve && strlen(cfg->ecdh_curve) > 0) {
-        swSSL_set_ecdh_curve(ssl_context, cfg->ecdh_curve);
-    }
-    return SW_OK;
-}
-
-static int swSSL_passwd_callback(char *buf, int num, int verify, void *data) {
-    swSSL_option *option = (swSSL_option *) data;
-    if (option->passphrase) {
-        int len = strlen(option->passphrase);
-        if (len < num - 1) {
-            memcpy(buf, option->passphrase, len + 1);
-            return (int) len;
-        }
-    }
-    return 0;
-}
-
 static void swSSL_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;
     swSocket *sock;
@@ -269,161 +199,468 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret) {
     }
 }
 
-SSL_CTX *swSSL_get_context(swSSL_option *option) {
+namespace swoole {
+
+#ifndef OPENSSL_NO_NEXTPROTONEG
+
+const std::string HTTP2_H2_ALPN("\x2h2");
+const std::string HTTP2_H2_16_ALPN("\x5h2-16");
+const std::string HTTP2_H2_14_ALPN("\x5h2-14");
+const std::string HTTP1_NPN("\x08http/1.1");
+
+static bool ssl_select_proto(const uchar **out, uchar *outlen, const uchar *in, uint inlen, const std::string &key) {
+    for (auto p = in, end = in + inlen; p + key.size() <= end; p += *p + 1) {
+        if (std::equal(std::begin(key), std::end(key), p)) {
+            *out = p + 1;
+            *outlen = *p;
+            return true;
+        }
+    }
+    return false;
+}
+
+static bool ssl_select_h2(const uchar **out, uchar *outlen, const uchar *in, uint inlen) {
+    return ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_ALPN) ||
+           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_16_ALPN) ||
+           ssl_select_proto(out, outlen, in, inlen, HTTP2_H2_14_ALPN);
+}
+
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+static int ssl_alpn_advertised(
+    SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
+    unsigned int srvlen;
+    unsigned char *srv;
+
+    std::string value;
+    SSLContext *cfg = (SSLContext*) arg;
+    if (cfg->http_v2) {
+        value = HTTP2_H2_ALPN + HTTP1_NPN;
+    } else {
+        value = HTTP1_NPN;
+    }
+
+    srv = (unsigned char *) value.c_str();
+    srvlen = value.length();
+    if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
+        return SSL_TLSEXT_ERR_NOACK;
+    }
+    return SSL_TLSEXT_ERR_OK;
+}
+#endif
+
+static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const uchar *in, uint inlen, void *arg) {
+#ifdef SW_LOG_TRACE_OPEN
+    std::string info("[NPN] server offers:\n");
+    for (unsigned int i = 0; i < inlen; i += in[i] + 1) {
+        info += "        * " + std::string(reinterpret_cast<const char *>(&in[i + 1]), in[i]);
+    }
+    swTraceLog(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
+#endif
+    SSLContext *ctx = (SSLContext *) arg;
+    if (ctx->http_v2 && !ssl_select_h2(const_cast<const unsigned char**>(out), outlen, in, inlen)) {
+        swWarn("HTTP/2 protocol was not selected, expects [h2]");
+        return SSL_TLSEXT_ERR_NOACK;
+    } else if (ctx->http) {
+        *out = (uchar*) HTTP1_NPN.c_str();
+        *outlen = HTTP1_NPN.length();
+    }
+    return SSL_TLSEXT_ERR_OK;
+}
+#endif
+
+static int ssl_passwd_callback(char *buf, int num, int verify, void *data) {
+    SSLContext *ctx = (SSLContext*) data;
+    if (!ctx->passphrase.empty()) {
+        int len = ctx->passphrase.length();
+        if (len < num - 1) {
+            memcpy(buf, ctx->passphrase.c_str(), len);
+            buf[len] = '\0';
+            return (int) len;
+        }
+    }
+    return 0;
+}
+
+bool SSLContext::create() {
     if (!openssl_init) {
         swSSL_init();
     }
 
-    uint32_t protocols = (0 == option->protocols ? SW_SSL_ALL : option->protocols);
-    SSL_CTX *ssl_context = SSL_CTX_new(swSSL_get_method(option));
-    if (ssl_context == nullptr) {
+    const SSL_METHOD *method;
+#ifdef SW_SUPPORT_DTLS
+    if (protocols & SW_SSL_DTLS) {
+        method = DTLS_method();
+    } else
+#endif
+    {
+        method = SSLv23_method();
+    }
+    if (protocols == 0) {
+        protocols = SW_SSL_ALL;
+    }
+    context = SSL_CTX_new(method);
+    if (context == nullptr) {
         int error = ERR_get_error();
         swWarn("SSL_CTX_new() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-        return nullptr;
+        return false;
     }
 
 #ifdef SSL_OP_MICROSOFT_SESS_ID_BUG
-    SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_SESS_ID_BUG);
+    SSL_CTX_set_options(context, SSL_OP_MICROSOFT_SESS_ID_BUG);
 #endif
 
 #ifdef SSL_OP_NETSCAPE_CHALLENGE_BUG
-    SSL_CTX_set_options(ssl_context, SSL_OP_NETSCAPE_CHALLENGE_BUG);
+    SSL_CTX_set_options(context, SSL_OP_NETSCAPE_CHALLENGE_BUG);
 #endif
 
     /* server side options */
 #ifdef SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG
-    SSL_CTX_set_options(ssl_context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
+    SSL_CTX_set_options(context, SSL_OP_SSLREF2_REUSE_CERT_TYPE_BUG);
 #endif
 
 #ifdef SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER
-    SSL_CTX_set_options(ssl_context, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
+    SSL_CTX_set_options(context, SSL_OP_MICROSOFT_BIG_SSLV3_BUFFER);
 #endif
 
 #ifdef SSL_OP_MSIE_SSLV2_RSA_PADDING
     /* this option allow a potential SSL 2.0 rollback (CAN-2005-2969) */
-    SSL_CTX_set_options(ssl_context, SSL_OP_MSIE_SSLV2_RSA_PADDING);
+    SSL_CTX_set_options(context, SSL_OP_MSIE_SSLV2_RSA_PADDING);
 #endif
 
 #ifdef SSL_OP_SSLEAY_080_CLIENT_DH_BUG
-    SSL_CTX_set_options(ssl_context, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
+    SSL_CTX_set_options(context, SSL_OP_SSLEAY_080_CLIENT_DH_BUG);
 #endif
 
 #ifdef SSL_OP_TLS_D5_BUG
-    SSL_CTX_set_options(ssl_context, SSL_OP_TLS_D5_BUG);
+    SSL_CTX_set_options(context, SSL_OP_TLS_D5_BUG);
 #endif
 
 #ifdef SSL_OP_TLS_BLOCK_PADDING_BUG
-    SSL_CTX_set_options(ssl_context, SSL_OP_TLS_BLOCK_PADDING_BUG);
+    SSL_CTX_set_options(context, SSL_OP_TLS_BLOCK_PADDING_BUG);
 #endif
 
 #ifdef SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
-    SSL_CTX_set_options(ssl_context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
+    SSL_CTX_set_options(context, SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS);
 #endif
 
 #if OPENSSL_VERSION_NUMBER >= 0x009080dfL
     /* only in 0.9.8m+ */
-    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
+    SSL_CTX_clear_options(context, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1);
 #endif
 
 #ifdef SSL_OP_NO_SSLv2
     if (!(protocols & SW_SSL_SSLv2)) {
-        SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv2);
+        SSL_CTX_set_options(context, SSL_OP_NO_SSLv2);
     }
 #endif
 #ifdef SSL_OP_NO_SSLv3
     if (!(protocols & SW_SSL_SSLv3)) {
-        SSL_CTX_set_options(ssl_context, SSL_OP_NO_SSLv3);
+        SSL_CTX_set_options(context, SSL_OP_NO_SSLv3);
     }
 #endif
 #ifdef SSL_OP_NO_TLSv1
     if (!(protocols & SW_SSL_TLSv1)) {
-        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1);
+        SSL_CTX_set_options(context, SSL_OP_NO_TLSv1);
     }
 #endif
 #ifdef SSL_OP_NO_TLSv1_1
-    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_1);
+    SSL_CTX_clear_options(context, SSL_OP_NO_TLSv1_1);
     if (!(protocols & SW_SSL_TLSv1_1)) {
-        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_1);
+        SSL_CTX_set_options(context, SSL_OP_NO_TLSv1_1);
     }
 #endif
 #ifdef SSL_OP_NO_TLSv1_2
-    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_2);
+    SSL_CTX_clear_options(context, SSL_OP_NO_TLSv1_2);
     if (!(protocols & SW_SSL_TLSv1_2) && !(protocols & SW_SSL_DTLS)) {
-        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_2);
+        SSL_CTX_set_options(context, SSL_OP_NO_TLSv1_2);
     }
 #endif
 #ifdef SSL_OP_NO_TLSv1_3
-    SSL_CTX_clear_options(ssl_context, SSL_OP_NO_TLSv1_3);
+    SSL_CTX_clear_options(context, SSL_OP_NO_TLSv1_3);
     if (!(protocols & SW_SSL_TLSv1_3)) {
-        SSL_CTX_set_options(ssl_context, SSL_OP_NO_TLSv1_3);
+        SSL_CTX_set_options(context, SSL_OP_NO_TLSv1_3);
     }
 #endif
 
 #ifdef SSL_OP_NO_COMPRESSION
-    if (option->disable_compress) {
-        SSL_CTX_set_options(ssl_context, SSL_OP_NO_COMPRESSION);
+    if (disable_compress) {
+        SSL_CTX_set_options(context, SSL_OP_NO_COMPRESSION);
     }
 #endif
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
-    SSL_CTX_set_mode(ssl_context, SSL_MODE_RELEASE_BUFFERS);
+    SSL_CTX_set_mode(context, SSL_MODE_RELEASE_BUFFERS);
 #endif
 
 #ifdef SSL_MODE_NO_AUTO_CHAIN
-    SSL_CTX_set_mode(ssl_context, SSL_MODE_NO_AUTO_CHAIN);
+    SSL_CTX_set_mode(context, SSL_MODE_NO_AUTO_CHAIN);
 #endif
 
-    SSL_CTX_set_read_ahead(ssl_context, 1);
-    SSL_CTX_set_info_callback(ssl_context, swSSL_info_callback);
+    SSL_CTX_set_read_ahead(context, 1);
+    SSL_CTX_set_info_callback(context, swSSL_info_callback);
 
-    if (option->passphrase) {
-        SSL_CTX_set_default_passwd_cb_userdata(ssl_context, option);
-        SSL_CTX_set_default_passwd_cb(ssl_context, swSSL_passwd_callback);
+    if (!passphrase.empty()) {
+        SSL_CTX_set_default_passwd_cb_userdata(context, this);
+        SSL_CTX_set_default_passwd_cb(context, ssl_passwd_callback);
     }
 
-    if (option->cert_file) {
+    if (!cert_file.empty()) {
         /*
          * set the local certificate from CertFile
          */
-        if (SSL_CTX_use_certificate_file(ssl_context, option->cert_file, SSL_FILETYPE_PEM) <= 0) {
+        if (SSL_CTX_use_certificate_file(context, cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_certificate_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-            return nullptr;
+            return true;
         }
         /*
          * if the crt file have many certificate entry ,means certificate chain
          * we need call this function
          */
-        if (SSL_CTX_use_certificate_chain_file(ssl_context, option->cert_file) <= 0) {
+        if (SSL_CTX_use_certificate_chain_file(context, cert_file.c_str()) <= 0) {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_certificate_chain_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-            return nullptr;
+            return false;
         }
         /*
          * set the private key from KeyFile (may be the same as CertFile)
          */
-        if (SSL_CTX_use_PrivateKey_file(ssl_context, option->key_file, SSL_FILETYPE_PEM) <= 0) {
+        if (SSL_CTX_use_PrivateKey_file(context, key_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
             swWarn("SSL_CTX_use_PrivateKey_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
-            return nullptr;
+            return false;
         }
         /*
          * verify private key
          */
-        if (!SSL_CTX_check_private_key(ssl_context)) {
+        if (!SSL_CTX_check_private_key(context)) {
             swWarn("Private key does not match the public certificate");
-            return nullptr;
+            return false;
         }
     }
 
 #ifdef SW_SUPPORT_DTLS
     if (protocols & SW_SSL_DTLS) {
-        SSL_CTX_set_cookie_generate_cb(ssl_context, swSSL_generate_cookie);
-        SSL_CTX_set_cookie_verify_cb(ssl_context, swSSL_verify_cookie);
+        SSL_CTX_set_cookie_generate_cb(context, swSSL_generate_cookie);
+        SSL_CTX_set_cookie_verify_cb(context, swSSL_verify_cookie);
     }
 #endif
 
-    return ssl_context;
+    if (verify_peer && !set_capath()) {
+        return false;
+    }
+
+#if OPENSSL_VERSION_NUMBER >= 0x10002000L
+    if (http || http_v2) {
+        std::string value;
+        if (http_v2) {
+            value = HTTP2_H2_ALPN + HTTP1_NPN;
+        } else {
+            value = HTTP1_NPN;
+        }
+#ifndef OPENSSL_NO_NEXTPROTONEG
+        SSL_CTX_set_next_proto_select_cb(context, ssl_select_next_proto_cb, nullptr);
+#endif
+        if (SSL_CTX_set_alpn_protos(context, (const unsigned char *) value.c_str(), value.length()) < 0) {
+            return false;
+        }
+
+#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
+        SSL_CTX_set_alpn_select_cb(context, ssl_alpn_advertised, (void *) this);
+#endif
+
+        SSL_CTX_set_session_id_context(context, (const unsigned char *) "HTTP", sizeof("HTTP") - 1);
+        SSL_CTX_set_session_cache_mode(context, SSL_SESS_CACHE_SERVER);
+        SSL_CTX_sess_set_cache_size(context, 1);
+    }
+#endif
+
+    if (!client_cert_file.empty() && !set_client_certificate()) {
+        swWarn("set_client_certificate() error");
+        return false;
+    }
+
+    if (!set_ciphers()) {
+        swWarn("set_cipher() error");
+        return false;
+    }
+
+    return true;
+}
+
+bool SSLContext::set_capath() {
+    if (!cafile.empty() || !capath.empty()) {
+        if (!SSL_CTX_load_verify_locations(context, cafile.c_str(), capath.c_str())) {
+            return false;
+        }
+    } else {
+        if (!SSL_CTX_set_default_verify_paths(context)) {
+            swWarn("Unable to set default verify locations and no CA settings specified");
+            return false;
+        }
+    }
+
+    if (verify_depth > 0) {
+        SSL_CTX_set_verify_depth(context, verify_depth);
+    }
+
+    return true;
+}
+
+bool SSLContext::set_ciphers() {
+#ifndef TLS1_2_VERSION
+    return true;
+#endif
+
+    if (!ciphers.empty()) {
+        if (SSL_CTX_set_cipher_list(context, ciphers.c_str()) == 0) {
+            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", ciphers.c_str());
+            return false;
+        }
+        if (prefer_server_ciphers) {
+            SSL_CTX_set_options(context, SSL_OP_CIPHER_SERVER_PREFERENCE);
+        }
+    }
+
+#ifndef OPENSSL_NO_RSA
+    SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa_key_callback);
+#endif
+
+    if (!dhparam.empty() && !set_dhparam()) {
+        return false;
+    }
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+    else {
+        swSSL_set_default_dhparam(context);
+    }
+#endif
+    if (!ecdh_curve.empty() && !set_ecdh_curve()) {
+        return false;
+    }
+    return true;
+}
+
+bool SSLContext::set_client_certificate() {
+    STACK_OF(X509_NAME) * list;
+
+    const char *cert_file = client_cert_file.c_str();
+    int depth = verify_depth;
+
+    SSL_CTX_set_verify(context, SSL_VERIFY_PEER, swSSL_verify_callback);
+    SSL_CTX_set_verify_depth(context, depth);
+
+    if (SSL_CTX_load_verify_locations(context, cert_file, nullptr) == 0) {
+        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
+        return false;
+    }
+
+    ERR_clear_error();
+    list = SSL_load_client_CA_file(cert_file);
+    if (list == nullptr) {
+        swWarn("SSL_load_client_CA_file(\"%s\") failed", cert_file);
+        return false;
+    }
+
+    ERR_clear_error();
+    SSL_CTX_set_client_CA_list(context, list);
+
+    return true;
+}
+
+bool SSLContext::set_ecdh_curve() {
+#ifndef OPENSSL_NO_ECDH
+    /*
+     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
+     * from RFC 4492 section 5.1.1, or explicitly described curves over
+     * binary fields.  OpenSSL only supports the "named curves", which provide
+     * maximum interoperability.
+     */
+#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
+    /*
+     * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
+     * curve previously supported.  By default an internal list is used,
+     * with prime256v1 being preferred by server in OpenSSL 1.0.2b+
+     * and X25519 in OpenSSL 1.1.0+.
+     *
+     * By default a curve preferred by the client will be used for
+     * key exchange.  The SSL_OP_CIPHER_SERVER_PREFERENCE option can
+     * be used to prefer server curves instead, similar to what it
+     * does for ciphers.
+     */
+    SSL_CTX_set_options(context, SSL_OP_SINGLE_ECDH_USE);
+#if SSL_CTRL_SET_ECDH_AUTO
+    /* not needed in OpenSSL 1.1.0+ */
+    SSL_CTX_set_ecdh_auto(context, 1);
+#endif
+    if (strcmp(ecdh_curve.c_str(), "auto") == 0) {
+        return true;
+    }
+    if (SSL_CTX_set1_curves_list(context, ecdh_curve.c_str()) == 0) {
+        swWarn("SSL_CTX_set1_curves_list(\"%s\") failed", ecdh_curve.c_str());
+        return false;
+    }
+#else
+    EC_KEY *ecdh;
+    /*
+     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
+     * from RFC 4492 section 5.1.1, or explicitly described curves over
+     * binary fields. OpenSSL only supports the "named curves", which provide
+     * maximum interoperability.
+     */
+    int nid = OBJ_sn2nid(ecdh_curve.c_str());
+    if (nid == 0) {
+        swWarn("Unknown curve name \"%s\"", ecdh_curve.c_str());
+        return false;
+    }
+
+    ecdh = EC_KEY_new_by_curve_name(nid);
+    if (ecdh == nullptr) {
+        swWarn("Unable to create curve \"%s\"", ecdh_curve.c_str());
+        return false;
+    }
+
+    SSL_CTX_set_options(context, SSL_OP_SINGLE_ECDH_USE);
+    SSL_CTX_set_tmp_ecdh(context, ecdh);
+
+    EC_KEY_free(ecdh);
+#endif
+#endif
+
+    return true;
+}
+
+bool SSLContext::set_dhparam() {
+    DH *dh;
+    BIO *bio;
+
+    const char *file = dhparam.c_str();
+
+    bio = BIO_new_file(file, "r");
+    if (bio == nullptr) {
+        swWarn("BIO_new_file(%s) failed", file);
+        return false;
+    }
+
+    dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
+    if (dh == nullptr) {
+        swWarn("PEM_read_bio_DHparams(%s) failed", file);
+        BIO_free(bio);
+        return false;
+    }
+
+    SSL_CTX_set_tmp_dh(context, dh);
+
+    DH_free(dh);
+    BIO_free(bio);
+
+    return true;
+}
+
+SSLContext::~SSLContext() {
+    SSL_CTX_free(context);
+}
+
 }
 
 static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store) {
@@ -457,48 +694,7 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store) {
     return 1;
 }
 
-int swSSL_set_client_certificate(SSL_CTX *ctx, const char *cert_file, int depth) {
-    STACK_OF(X509_NAME) * list;
 
-    SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, swSSL_verify_callback);
-    SSL_CTX_set_verify_depth(ctx, depth);
-
-    if (SSL_CTX_load_verify_locations(ctx, cert_file, nullptr) == 0) {
-        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
-        return SW_ERR;
-    }
-
-    ERR_clear_error();
-    list = SSL_load_client_CA_file(cert_file);
-    if (list == nullptr) {
-        swWarn("SSL_load_client_CA_file(\"%s\") failed", cert_file);
-        return SW_ERR;
-    }
-
-    ERR_clear_error();
-    SSL_CTX_set_client_CA_list(ctx, list);
-
-    return SW_OK;
-}
-
-int swSSL_set_capath(swSSL_option *cfg, SSL_CTX *ctx) {
-    if (cfg->cafile || cfg->capath) {
-        if (!SSL_CTX_load_verify_locations(ctx, cfg->cafile, cfg->capath)) {
-            return SW_ERR;
-        }
-    } else {
-        if (!SSL_CTX_set_default_verify_paths(ctx)) {
-            swWarn("Unable to set default verify locations and no CA settings specified");
-            return SW_ERR;
-        }
-    }
-
-    if (cfg->verify_depth > 0) {
-        SSL_CTX_set_verify_depth(ctx, cfg->verify_depth);
-    }
-
-    return SW_OK;
-}
 
 #ifdef SW_SUPPORT_DTLS
 
@@ -579,10 +775,6 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len) {
 }
 #endif
 
-void swSSL_free_context(SSL_CTX *ssl_context) {
-    SSL_CTX_free(ssl_context);
-}
-
 #ifndef OPENSSL_NO_RSA
 static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length) {
     static RSA *rsa_tmp = nullptr;
@@ -637,137 +829,6 @@ static int swSSL_set_default_dhparam(SSL_CTX *ssl_context) {
     SSL_CTX_set_tmp_dh(ssl_context, dh);
     DH_free(dh);
     return SW_OK;
-}
-#endif
-
-static int swSSL_set_ecdh_curve(SSL_CTX *ssl_context, const char *ecdh_curve) {
-#ifndef OPENSSL_NO_ECDH
-    /*
-     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
-     * from RFC 4492 section 5.1.1, or explicitly described curves over
-     * binary fields.  OpenSSL only supports the "named curves", which provide
-     * maximum interoperability.
-     */
-#if (defined SSL_CTX_set1_curves_list || defined SSL_CTRL_SET_CURVES_LIST)
-    /*
-     * OpenSSL 1.0.2+ allows configuring a curve list instead of a single
-     * curve previously supported.  By default an internal list is used,
-     * with prime256v1 being preferred by server in OpenSSL 1.0.2b+
-     * and X25519 in OpenSSL 1.1.0+.
-     *
-     * By default a curve preferred by the client will be used for
-     * key exchange.  The SSL_OP_CIPHER_SERVER_PREFERENCE option can
-     * be used to prefer server curves instead, similar to what it
-     * does for ciphers.
-     */
-    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_ECDH_USE);
-#if SSL_CTRL_SET_ECDH_AUTO
-    /* not needed in OpenSSL 1.1.0+ */
-    SSL_CTX_set_ecdh_auto(ssl_context, 1);
-#endif
-    if (strcmp(ecdh_curve, "auto") == 0) {
-        return SW_OK;
-    }
-    if (SSL_CTX_set1_curves_list(ssl_context, ecdh_curve) == 0) {
-        swWarn("SSL_CTX_set1_curves_list(\"%s\") failed", ecdh_curve);
-        return SW_ERR;
-    }
-#else
-
-    EC_KEY *ecdh;
-    /*
-     * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
-     * from RFC 4492 section 5.1.1, or explicitly described curves over
-     * binary fields. OpenSSL only supports the "named curves", which provide
-     * maximum interoperability.
-     */
-    int nid = OBJ_sn2nid(ecdh_curve);
-    if (nid == 0) {
-        swWarn("Unknown curve name \"%s\"", ecdh_curve);
-        return SW_ERR;
-    }
-
-    ecdh = EC_KEY_new_by_curve_name(nid);
-    if (ecdh == nullptr) {
-        swWarn("Unable to create curve \"%s\"", ecdh_curve);
-        return SW_ERR;
-    }
-
-    SSL_CTX_set_options(ssl_context, SSL_OP_SINGLE_ECDH_USE);
-    SSL_CTX_set_tmp_ecdh(ssl_context, ecdh);
-
-    EC_KEY_free(ecdh);
-#endif
-#endif
-
-    return SW_OK;
-}
-
-static int swSSL_set_dhparam(SSL_CTX *ssl_context, const char *file) {
-    DH *dh;
-    BIO *bio;
-
-    bio = BIO_new_file((char *) file, "r");
-    if (bio == nullptr) {
-        swWarn("BIO_new_file(%s) failed", file);
-        return SW_ERR;
-    }
-
-    dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
-    if (dh == nullptr) {
-        swWarn("PEM_read_bio_DHparams(%s) failed", file);
-        BIO_free(bio);
-        return SW_ERR;
-    }
-
-    SSL_CTX_set_tmp_dh(ssl_context, dh);
-
-    DH_free(dh);
-    BIO_free(bio);
-
-    return SW_OK;
-}
-
-#ifdef TLSEXT_TYPE_application_layer_protocol_negotiation
-
-static int swSSL_alpn_advertised(
-    SSL *ssl, const uchar **out, uchar *outlen, const uchar *in, uint32_t inlen, void *arg) {
-    unsigned int srvlen;
-    unsigned char *srv;
-
-#ifdef SW_USE_HTTP2
-    swSSL_config *cfg = (swSSL_config *) arg;
-    if (cfg->http_v2) {
-        srv = (unsigned char *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
-    } else
-#endif
-    {
-        srv = (unsigned char *) SW_SSL_NPN_ADVERTISE;
-        srvlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
-    }
-    if (SSL_select_next_proto((unsigned char **) out, outlen, srv, srvlen, in, inlen) != OPENSSL_NPN_NEGOTIATED) {
-        return SSL_TLSEXT_ERR_NOACK;
-    }
-    return SSL_TLSEXT_ERR_OK;
-}
-#endif
-
-#ifdef TLSEXT_TYPE_next_proto_neg
-
-static int swSSL_npn_advertised(SSL *ssl, const uchar **out, uint32_t *outlen, void *arg) {
-#ifdef SW_USE_HTTP2
-    swSSL_config *cfg = (swSSL_config *) arg;
-    if (cfg->http_v2) {
-        *out = (uchar *) SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE;
-        *outlen = sizeof(SW_SSL_HTTP2_NPN_ADVERTISE SW_SSL_NPN_ADVERTISE) - 1;
-    } else
-#endif
-    {
-        *out = (uchar *) SW_SSL_NPN_ADVERTISE;
-        *outlen = sizeof(SW_SSL_NPN_ADVERTISE) - 1;
-    }
-    return SSL_TLSEXT_ERR_OK;
 }
 #endif
 
