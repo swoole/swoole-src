@@ -202,9 +202,7 @@ class PHPCoroutine {
         return false;
     }
 
-    static inline void set_hook_flags(uint32_t flags) {
-        config.hook_flags = flags;
-    }
+    static void set_hook_flags(uint32_t flags);
 
     static inline uint32_t get_hook_flags() {
         return config.hook_flags;

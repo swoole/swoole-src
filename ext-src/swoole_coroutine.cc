@@ -519,6 +519,21 @@ inline void PHPCoroutine::restore_og(PHPContext *task) {
     }
 }
 
+void PHPCoroutine::set_hook_flags(uint32_t flags) {
+    zval options;
+    array_init(&options);
+    add_assoc_long(&options, "hook_flags", flags);
+
+    if (PHPCoroutine::options) {
+        zend_hash_merge(PHPCoroutine::options, Z_ARRVAL(options), nullptr, true);
+        zval_ptr_dtor(&options);
+    } else {
+        PHPCoroutine::options = Z_ARRVAL(options);
+    }
+
+    config.hook_flags = flags;
+}
+
 void PHPCoroutine::save_task(PHPContext *task) {
     save_vm_stack(task);
     save_og(task);
