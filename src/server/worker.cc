@@ -607,9 +607,9 @@ ssize_t Server::send_to_reactor_thread(EventData *ev_data, size_t sendn, Session
 ssize_t Server::send_to_reactor_thread(DataHead *head, struct iovec *iov, size_t iovcnt, SessionId session_id) {
     Socket *pipe_sock = get_reactor_thread_pipe(session_id, head->reactor_id);
     if (SwooleTG.reactor) {
-        return swoole_event_writev_to_pipe(pipe_sock, iov, iovcnt);
+        return swoole_event_writev(pipe_sock, iov, iovcnt);
     } else {
-        return pipe_sock->send_to_pipe_blocking(iov, iovcnt);
+        return pipe_sock->writev_blocking(iov, iovcnt);
     }
 }
 
@@ -670,7 +670,7 @@ _read_from_pipe:
              */
             if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT) {
                 swTraceLog(SW_TRACE_WORKER,
-                           "worker process[%lu] receives the chunk data to the maximum[%d], return to event loop",
+                           "worker process[%u] receives the chunk data to the maximum[%d], return to event loop",
                            SwooleG.process_id,
                            recv_chunk_count);
                 return SW_OK;
