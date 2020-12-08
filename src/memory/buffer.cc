@@ -106,6 +106,10 @@ void Buffer::append(struct iovec *iov, size_t iovcnt) {
         
         size_t _n = std::min(iov_remain_len, chunk_remain_len);
         memcpy(chunk->value.ptr + chunk->length, pos,  _n);
+        total_length += _n;
+
+        swTraceLog(SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", count(), _n, chunk->length, chunk);
+
         chunk->length += _n;
         iov_remain_len -= _n;
 
@@ -120,9 +124,5 @@ void Buffer::append(struct iovec *iov, size_t iovcnt) {
             pos += _n;
         }
     }
-
-    total_length += _length;
-
-    swTraceLog(SW_TRACE_BUFFER, "chunk_n=%d|size=%d|chunk_len=%d|chunk=%p", count(), _n, chunk->length, chunk);
 }
 }  // namespace swoole
