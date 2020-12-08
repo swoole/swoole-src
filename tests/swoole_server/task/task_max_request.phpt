@@ -22,8 +22,7 @@ $process = new Swoole\Process(function() {
         "worker_num" => 1,
         'task_max_request' => 200,
         'task_worker_num' => 4,
-        'trace_flags' => SWOOLE_TRACE_BUFFER,
-        //'log_file' => TEST_LOG_FILE,
+        'log_file' => TEST_LOG_FILE,
     ]);
 
     $serv->on("WorkerStart", function (Server $serv, $worker_id)
