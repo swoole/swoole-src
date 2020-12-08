@@ -122,14 +122,9 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
     return SW_OK;
 }
 
-ssize_t Socket::send_to_pipe_blocking(struct iovec *iov, size_t iovcnt) {
-    ssize_t n = 0;
-    ssize_t written = 0;
-
-    assert(iovcnt == 2);
-
-    while (written < (ssize_t) iov[1].iov_len) {
-        n = ::writev(fd, iov, iovcnt);
+ssize_t Socket::writev_blocking(struct iovec *iov, size_t iovcnt) {
+    while (1) {
+        ssize_t n = ::writev(fd, iov, iovcnt);
         if (n < 0) {
             if (errno == EINTR) {
                 continue;
@@ -140,11 +135,11 @@ ssize_t Socket::send_to_pipe_blocking(struct iovec *iov, size_t iovcnt) {
                 swSysWarn("send %lu bytes failed", iov[1].iov_len);
                 return SW_ERR;
             }
+        } else {
+            return n;
         }
-        written += n;
     }
-
-    return written;
+    return -1;
 }
 
 /**
@@ -557,7 +552,7 @@ int Socket::handle_sendfile() {
         ret = ::swoole_sendfile(fd, task->file.get_fd(), &task->offset, sendn);
     }
 
-    swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, (long) task->offset, sendn, task->length);
+    swTrace("ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->offset, sendn, task->length);
 
     if (ret <= 0) {
         switch (catch_error(errno)) {
@@ -776,6 +771,7 @@ ssize_t Socket::readv(IOVector *io_vector) {
 
     return retval;
 }
+
 ssize_t Socket::writev(IOVector *io_vector) {
     ssize_t retval;
 
@@ -793,10 +789,6 @@ ssize_t Socket::writev(IOVector *io_vector) {
     } while (retval < 0 && errno == EINTR);
 
     return retval;
-}
-
-ssize_t Socket::writev(struct iovec *iov, size_t iovcnt) {
-    return ::writev(fd, iov, iovcnt);
 }
 
 ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
@@ -1147,7 +1139,7 @@ int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
         } else {
             *_offset += ret;
         }
-        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%d, n=%d, ret=%d", fd, readn, n, ret);
+        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
         return ret;
     } else {
         swSysWarn("pread() failed");
