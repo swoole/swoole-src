@@ -50,10 +50,9 @@ TEST(buffer, append_iov) {
     memset(v[2].iov_base, 'C', v[2].iov_len);
     memset(v[3].iov_base, 'D', v[3].iov_len);
 
-    buf.append(v, iovcnt);
+    buf.append(v, iovcnt, 0);
 
     ASSERT_EQ(buf.length(), v[0].iov_len + v[1].iov_len + v[2].iov_len+ v[3].iov_len);
-
 
     String str(buf.length());
     
