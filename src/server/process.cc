@@ -247,7 +247,7 @@ _ipc_use_chunk:
         iov[1].iov_base = (void *) (data + offset);
         iov[1].iov_len = copy_n;
 
-        swTrace("finish, type=%d|len=%d", buf->info.type, copy_n);
+        swTrace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
         if (_send(serv, &resp->info, iov, 2, private_data) < 0) {
 #ifdef __linux__
@@ -344,7 +344,7 @@ bool ProcessFactory::finish(SendData *resp) {
     task.info.reactor_id = conn->reactor_id;
     task.info.server_fd = SwooleG.process_id;
 
-    swTrace("worker_id=%d, type=%d", SwooleG.process_id, buf->info.type);
+    swTrace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
     return process_send_packet(server_, &task, process_sendto_reactor, conn);
 }
