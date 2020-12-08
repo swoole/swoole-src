@@ -160,6 +160,9 @@ class String {
     }
 
     String *substr(size_t offset, size_t len) {
+        if (offset + len > length) {
+            return nullptr;
+        }
         auto _substr = new String(len);
         _substr->append(str + offset, len);
         return _substr;

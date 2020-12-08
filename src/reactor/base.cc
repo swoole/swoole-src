@@ -304,7 +304,8 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
         return send_bytes;
     };
     auto append_fn = [&send_bytes, socket, buf, n](Buffer *buffer) {
-        buffer->append((const char *) buf + send_bytes, n - send_bytes);
+        ssize_t offset = send_bytes > 0 ? send_bytes : 0;
+        buffer->append((const char *) buf + offset, n - offset);
     };
     return write_func(reactor, socket, n, send_fn, append_fn);
 }
@@ -326,7 +327,10 @@ int Reactor::_writev(Reactor *reactor, network::Socket *socket, struct iovec *io
         send_bytes = socket->writev(iov, iovcnt);
         return send_bytes;
     };
-    auto append_fn = [&send_bytes, socket, iov, iovcnt](Buffer *buffer) { buffer->append(iov, iovcnt, send_bytes); };
+    auto append_fn = [&send_bytes, socket, iov, iovcnt](Buffer *buffer) {
+        ssize_t offset = send_bytes > 0 ? send_bytes : 0;
+        buffer->append(iov, iovcnt, offset);
+    };
     return write_func(reactor, socket, n, send_fn, append_fn);
 }
 
