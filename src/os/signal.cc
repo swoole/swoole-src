@@ -282,8 +282,12 @@ static int swSignalfd_onSignal(Reactor *reactor, swEvent *event) {
         return SW_OK;
     }
     if (signals[siginfo.ssi_signo].activated) {
-        if (signals[siginfo.ssi_signo].handler) {
-            signals[siginfo.ssi_signo].handler(siginfo.ssi_signo);
+        swSignalHandler handler = signals[siginfo.ssi_signo].handler;
+        if (handler == SIG_IGN) {
+            return SW_OK;
+        }
+        else if (handler) {
+            handler(siginfo.ssi_signo);
         } else {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_UNREGISTERED_SIGNAL,

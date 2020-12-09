@@ -159,7 +159,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
         Coroutine::set_stack_size(zval_get_long(ztmp));
     }
     if (PHPCoroutine::options) {
-        zend_hash_merge(PHPCoroutine::options, vht, nullptr, true);
+        zend_hash_merge(PHPCoroutine::options, vht, zval_add_ref, true);
     } else {
         PHPCoroutine::options = zend_array_dup(vht);
     }
