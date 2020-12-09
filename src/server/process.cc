@@ -377,7 +377,14 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
     Worker *worker;
     DataHead ev = {};
 
+    /**
+     * Only active shutdown needs to determine whether it is in the process of connection binding
+     */
     if (conn->close_actively) {
+        /**
+         * The worker process is not currently bound to this connection,
+         * and needs to be forwarded to the correct worker process
+         */
         if (server_->is_hash_dispatch_mode()) {
             int worker_id = server_->schedule_worker(conn->fd, nullptr);
             if (worker_id != (int) SwooleG.process_id) {
