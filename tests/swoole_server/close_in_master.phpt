@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: close in onConnect callback
+swoole_server: close in master process
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

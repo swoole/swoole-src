@@ -89,7 +89,7 @@ bool BaseFactory::notify(DataHead *info) {
     return server_->accept_task((EventData *) info) == SW_OK;
 }
 
-bool BaseFactory::end(SessionId session_id, bool reset) {
+bool BaseFactory::end(SessionId session_id, int flags) {
     SendData _send{};
     _send.info.fd = session_id;
     _send.info.len = 0;
@@ -118,8 +118,12 @@ bool BaseFactory::end(SessionId session_id, bool reset) {
         return false;
     } 
     // Reset send buffer, Immediately close the connection.
-    if (reset) {
+    if (flags & Server::CLOSE_RESET) {
         conn->close_reset = 1;
+    }
+    // Server is initiative to close the connection
+    if (flags & Server::CLOSE_ACTIVELY) {
+        conn->close_actively = 1;
     }
     if (conn->close_force) {
         goto _do_close;

@@ -1335,7 +1335,7 @@ void Server::call_hook(HookType type, void *arg) {
  * [Worker]
  */
 bool Server::close(SessionId session_id, bool reset) {
-    return factory->end(session_id, reset);
+    return factory->end(session_id, reset ? CLOSE_ACTIVELY | CLOSE_RESET: CLOSE_ACTIVELY);
 }
 
 void Server::init_signal_handler() {
