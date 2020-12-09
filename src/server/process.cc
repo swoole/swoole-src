@@ -350,7 +350,7 @@ bool ProcessFactory::finish(SendData *resp) {
     return process_send_packet(server_, buf, resp, process_sendto_reactor, conn);
 }
 
-bool ProcessFactory::end(SessionId session_id) {
+bool ProcessFactory::end(SessionId session_id, int flags) {
     SendData _send{};
     DataHead info{};
 
@@ -358,7 +358,52 @@ bool ProcessFactory::end(SessionId session_id) {
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
 
-    Connection *conn = server_->get_connection_by_session_id(session_id);
+    Connection *conn = server_->get_connection_verify_no_ssl(session_id);
+    if (!conn) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
+        return false;
+    }
+    // Reset send buffer, Immediately close the connection.
+    if (flags & Server::CLOSE_RESET) {
+        conn->close_reset = 1;
+    }
+    // Server is initiative to close the connection
+    if (flags & Server::CLOSE_ACTIVELY) {
+        conn->close_actively = 1;
+    }
+
+    swTraceLog(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
+
+    Worker *worker;
+    DataHead ev = {};
+
+    /**
+     * Only active shutdown needs to determine whether it is in the process of connection binding
+     */
+    if (conn->close_actively) {
+        /**
+         * The worker process is not currently bound to this connection,
+         * and needs to be forwarded to the correct worker process
+         */
+        if (server_->is_hash_dispatch_mode()) {
+            int worker_id = server_->schedule_worker(conn->fd, nullptr);
+            if (worker_id != (int) SwooleG.process_id) {
+                worker = server_->get_worker(worker_id);
+                goto _notify;
+            } else {
+                goto _close;
+            }
+        } else if (!server_->is_worker()) {
+            worker = server_->get_worker(conn->fd % server_->worker_num);
+        _notify:
+            ev.type = SW_SERVER_EVENT_CLOSE;
+            ev.fd = session_id;
+            ev.reactor_id = conn->reactor_id;
+            return server_->send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
+        }
+    }
+
+    _close:
     if (conn == nullptr || conn->active == 0) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;

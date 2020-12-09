@@ -89,17 +89,43 @@ bool BaseFactory::notify(DataHead *info) {
     return server_->accept_task((EventData *) info) == SW_OK;
 }
 
-bool BaseFactory::end(SessionId session_id) {
+bool BaseFactory::end(SessionId session_id, int flags) {
     SendData _send{};
     _send.info.fd = session_id;
     _send.info.len = 0;
     _send.info.type = SW_SERVER_EVENT_CLOSE;
+    _send.info.reactor_id = SwooleG.process_id;
 
-    Connection *conn = server_->get_connection_by_session_id(session_id);
+    Session *session = server_->get_session(session_id);
+    if (!session->fd) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST,
+                            "failed to close connection, session#%ld does not exist", session_id);
+        return false;
+    }
+
+    if (session->reactor_id != SwooleG.process_id) {
+        Worker *worker = server_->get_worker(session->reactor_id);
+        if (worker->pipe_master->send_async((const char*) &_send.info, sizeof(_send.info)) < 0) {
+            swSysWarn("failed to send %lu bytes to pipe_master", sizeof(_send.info));
+            return false;
+        }
+        return true;
+    }
+
+    Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (conn == nullptr || conn->active == 0) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
-    } else if (conn->close_force) {
+    } 
+    // Reset send buffer, Immediately close the connection.
+    if (flags & Server::CLOSE_RESET) {
+        conn->close_reset = 1;
+    }
+    // Server is initiative to close the connection
+    if (flags & Server::CLOSE_ACTIVELY) {
+        conn->close_actively = 1;
+    }
+    if (conn->close_force) {
         goto _do_close;
     } else if (conn->closing) {
         swWarn("session#%ld is closing", session_id);
