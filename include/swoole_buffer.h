@@ -62,7 +62,7 @@ class Buffer {
 
     void pop();
     void append(const void *data, uint32_t size);
-    void append(struct iovec *iov, size_t iovcnt, off_t offset);
+    void append(const struct iovec *iov, size_t iovcnt, off_t offset);
 
     uint32_t length() {
         return total_length;

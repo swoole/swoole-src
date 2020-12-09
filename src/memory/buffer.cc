@@ -79,7 +79,7 @@ void Buffer::append(const void *data, uint32_t size) {
     }
 }
 
-void Buffer::append(struct iovec *iov, size_t iovcnt, off_t offset) {
+void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
     size_t _length = 0;
 
     SW_LOOP_N(iovcnt) {

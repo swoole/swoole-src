@@ -307,7 +307,7 @@ struct Socket {
     ssize_t readv(IOVector *io_vector);
     ssize_t writev(IOVector *io_vector);
 
-    ssize_t writev(struct iovec *iov, size_t iovcnt) {
+    ssize_t writev(const struct iovec *iov, size_t iovcnt) {
         return ::writev(fd, iov, iovcnt);
     }
 
@@ -324,7 +324,7 @@ struct Socket {
     ssize_t send_async(const void *__data, size_t __len);
     ssize_t recv_blocking(void *__data, size_t __len, int flags);
     int sendfile_blocking(const char *filename, off_t offset, size_t length, double timeout);
-    ssize_t writev_blocking(struct iovec *iov, size_t iovcnt);
+    ssize_t writev_blocking(const struct iovec *iov, size_t iovcnt);
 
     inline int connect(const Address &sa) {
         return ::connect(fd, &sa.addr.ss, sa.len);

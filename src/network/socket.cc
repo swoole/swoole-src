@@ -122,9 +122,9 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
     return SW_OK;
 }
 
-ssize_t Socket::writev_blocking(struct iovec *iov, size_t iovcnt) {
+ssize_t Socket::writev_blocking(const struct iovec *iov, size_t iovcnt) {
     while (1) {
-        ssize_t n = ::writev(fd, iov, iovcnt);
+        ssize_t n = writev(iov, iovcnt);
         if (n < 0) {
             if (errno == EINTR) {
                 continue;

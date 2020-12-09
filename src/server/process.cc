@@ -22,11 +22,11 @@ namespace swoole {
 
 using network::Socket;
 
-typedef int (*send_func_t)(Server *serv, DataHead *head, struct iovec *iov, size_t iovcnt, void *private_data);
+typedef int (*SendFunc)(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
 
-static bool process_send_packet(Server *serv, SendData *resp, send_func_t _send, void *private_data);
-static int process_sendto_worker(Server *serv, DataHead *head, struct iovec *iov, size_t iovcnt, void *private_data);
-static int process_sendto_reactor(Server *serv, DataHead *head, struct iovec *iov, size_t iovcnt, void *private_data);
+static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data);
+static int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
+static int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
 
 ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
     send_buffer = nullptr;
@@ -52,18 +52,20 @@ bool ProcessFactory::shutdown() {
 }
 
 ProcessFactory::~ProcessFactory() {
-    SW_LOOP_N(server_->reactor_num) {
-        sw_free(server_->pipe_buffers[i]);
+    if (server_->pipe_buffers) {
+        SW_LOOP_N(server_->reactor_num) {
+            sw_free(server_->pipe_buffers[i]);
+        }
+        sw_free(server_->pipe_buffers);
     }
-    sw_free(server_->pipe_buffers);
-
     if (server_->stream_socket_file) {
         unlink(server_->stream_socket_file);
         sw_free(server_->stream_socket_file);
         server_->stream_socket->free();
     }
-
-    sw_free(send_buffer);
+    if (send_buffer) {
+        sw_free(send_buffer);
+    }
 }
 
 bool ProcessFactory::start() {
@@ -135,11 +137,11 @@ bool ProcessFactory::notify(DataHead *ev) {
     return dispatch(&task);
 }
 
-static inline int process_sendto_worker(Server *serv, DataHead *head, struct iovec *iov, size_t iovcnt, void *private_data) {
+static inline int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
     return serv->send_to_worker_from_master((Worker *) private_data, iov, iovcnt);
 }
 
-static inline int process_sendto_reactor(Server *serv, DataHead *head, struct iovec *iov, size_t iovcnt, void *private_data) {
+static inline int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
     return serv->send_to_reactor_thread(head, iov, iovcnt, ((Connection *) private_data)->session_id);
 }
 
@@ -199,7 +201,7 @@ bool ProcessFactory::dispatch(SendData *task) {
  *  If the data sent is larger than Server::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
  * @return: send success returns SW_OK, send failure returns SW_ERR.
  */
-static bool process_send_packet(Server *serv, SendData *resp, send_func_t _send, void *private_data) {
+static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data) {
     const char *data = resp->data;
     uint32_t send_n = resp->info.len;
     off_t offset = 0;

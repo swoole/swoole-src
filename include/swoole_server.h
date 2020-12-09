@@ -1180,10 +1180,10 @@ class Server {
     static int dispatch_task(Protocol *proto, network::Socket *_socket, const char *data, uint32_t length);
 
     int send_to_connection(SendData *);
-    ssize_t send_to_worker_from_master(Worker *worker, struct iovec *iov, size_t iovcnt);
+    ssize_t send_to_worker_from_master(Worker *worker, const iovec *iov, size_t iovcnt);
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
-    ssize_t send_to_reactor_thread(EventData *ev_data, size_t sendn, SessionId session_id);
-    ssize_t send_to_reactor_thread(DataHead *head, struct iovec *iov, size_t iovcnt, SessionId session_id);
+    ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
+    ssize_t send_to_reactor_thread(const DataHead *head, const iovec *iov, size_t iovcnt, SessionId session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
     bool send(SessionId session_id, const void *data, uint32_t length);

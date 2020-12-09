@@ -310,7 +310,7 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
     return write_func(reactor, socket, n, send_fn, append_fn);
 }
 
-int Reactor::_writev(Reactor *reactor, network::Socket *socket, struct iovec *iov, size_t iovcnt) {
+int Reactor::_writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) {
 #ifdef SW_USE_OPENSSL
     if (socket->ssl) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "does not support SSL");
