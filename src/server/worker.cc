@@ -45,7 +45,7 @@ void Server::worker_signal_init(void) {
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
     swSignal_set(SIGHUP, nullptr);
-    swSignal_set(SIGPIPE, nullptr);
+    swSignal_set(SIGPIPE, SIG_IGN);
     swSignal_set(SIGUSR1, nullptr);
     swSignal_set(SIGUSR2, nullptr);
     // swSignal_set(SIGINT, Server::worker_signal_handler);
