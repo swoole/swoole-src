@@ -17,6 +17,7 @@ use Swoole\Atomic;
 use Swoole\Client;
 
 $max = file_get_contents('/proc/sys/net/core/wmem_max');
+$max = min(8 * 1024 * 1024, $max);
 
 $size = intval($max) * 2 - 32 - 4;
 

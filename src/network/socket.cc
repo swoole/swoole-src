@@ -122,6 +122,26 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
     return SW_OK;
 }
 
+ssize_t Socket::writev_blocking(const struct iovec *iov, size_t iovcnt) {
+    while (1) {
+        ssize_t n = writev(iov, iovcnt);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            } else if (catch_error(errno) == SW_WAIT &&
+                       wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
+                continue;
+            } else {
+                swSysWarn("send %lu bytes failed", iov[1].iov_len);
+                return SW_ERR;
+            }
+        } else {
+            return n;
+        }
+    }
+    return -1;
+}
+
 /**
  * clear socket buffer.
  */
@@ -532,7 +552,7 @@ int Socket::handle_sendfile() {
         ret = ::swoole_sendfile(fd, task->file.get_fd(), &task->offset, sendn);
     }
 
-    swTrace("ret=%d|task->offset=%ld|sendn=%d|filesize=%ld", ret, (long) task->offset, sendn, task->length);
+    swTrace("ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->offset, sendn, task->length);
 
     if (ret <= 0) {
         switch (catch_error(errno)) {
@@ -751,6 +771,7 @@ ssize_t Socket::readv(IOVector *io_vector) {
 
     return retval;
 }
+
 ssize_t Socket::writev(IOVector *io_vector) {
     ssize_t retval;
 
@@ -1118,7 +1139,7 @@ int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
         } else {
             *_offset += ret;
         }
-        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%d, n=%d, ret=%d", fd, readn, n, ret);
+        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
         return ret;
     } else {
         swSysWarn("pread() failed");

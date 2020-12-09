@@ -22,9 +22,9 @@
 #define SWOOLE_MINOR_VERSION 6
 #define SWOOLE_RELEASE_VERSION 0
 #define SWOOLE_EXTRA_VERSION "alpha"
-#define SWOOLE_VERSION "4.5.6"
+#define SWOOLE_VERSION "4.6.0-alpha"
 #define SWOOLE_VERSION_ID 40600
-#define SWOOLE_API_VERSION_ID 0x202011b
+#define SWOOLE_API_VERSION_ID 0x202012a
 
 #define SWOOLE_BUG_REPORT                                                                                              \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"                                                \
