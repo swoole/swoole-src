@@ -443,7 +443,7 @@ class Factory {
     virtual bool dispatch(SendData *) = 0;
     virtual bool finish(SendData *) = 0;
     virtual bool notify(DataHead *) = 0;
-    virtual bool end(SessionId sesion_id) = 0;
+    virtual bool end(SessionId sesion_id, bool reset) = 0;
 };
 
 class BaseFactory : public Factory {
@@ -455,7 +455,7 @@ class BaseFactory : public Factory {
     bool dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
-    bool end(SessionId sesion_id) override;
+    bool end(SessionId sesion_id, bool reset) override;
 };
 
 class ProcessFactory : public Factory {
@@ -471,7 +471,7 @@ class ProcessFactory : public Factory {
     bool dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
-    bool end(SessionId sesion_id) override;
+    bool end(SessionId sesion_id, bool reset) override;
 };
 
 enum ServerEventType {

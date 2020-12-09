@@ -1335,72 +1335,7 @@ void Server::call_hook(HookType type, void *arg) {
  * [Worker]
  */
 bool Server::close(SessionId session_id, bool reset) {
-    if (sw_unlikely(is_master())) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "cannot close session#%ld in master process", session_id);
-        return false;
-    }
-
-    if (is_base_mode()) {
-        Session *session = get_session(session_id);
-        if (!session->fd) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST,
-                             "failed to close connection, session#%ld does not exist", session_id);
-            return false;
-        }
-        if (session->reactor_id != SwooleG.process_id) {
-            swWarn("session->reactor_id=%u,  != SwooleG.process_id=%u", session->reactor_id , SwooleG.process_id);
-
-            Worker *worker = get_worker(session->reactor_id);
-            DataHead ev{};
-            ev.fd = session_id;
-            ev.reactor_id = SwooleG.process_id;
-            ev.type = SW_SERVER_EVENT_CLOSE;
-            if (worker->pipe_master->send_async((const char*) &ev, sizeof(ev)) < 0) {
-                swSysWarn("failed to send %lu bytes to pipe_master", sizeof(ev));
-                return false;
-            }
-            return true;
-        } else {
-            return factory->end(session_id);
-        }
-    }
-
-    Connection *conn = get_connection_verify_no_ssl(session_id);
-    if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
-        return false;
-    }
-    // Reset send buffer, Immediately close the connection.
-    if (reset) {
-        conn->close_reset = 1;
-    }
-    // server is initiative to close the connection
-    conn->close_actively = 1;
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
-
-    Worker *worker;
-    DataHead ev = {};
-
-    if (is_hash_dispatch_mode()) {
-        int worker_id = schedule_worker(conn->fd, nullptr);
-        if (worker_id != (int) SwooleG.process_id) {
-            worker = get_worker(worker_id);
-            goto _notify;
-        } else {
-            goto _close;
-        }
-    } else if (!is_worker()) {
-        worker = get_worker(conn->fd % worker_num);
-    _notify:
-        ev.type = SW_SERVER_EVENT_CLOSE;
-        ev.fd = session_id;
-        ev.reactor_id = conn->reactor_id;
-        return send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
-    } else {
-    _close:
-        return factory->end(session_id);
-    }
+    return factory->end(session_id, reset);
 }
 
 void Server::init_signal_handler() {

@@ -3003,12 +3003,7 @@ static PHP_METHOD(swoole_server, close) {
         php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
-
-    if (serv->is_master()) {
-        php_swoole_fatal_error(E_WARNING, "can't close the connections in master process");
-        RETURN_FALSE;
-    }
-
+    
     zend_long fd;
     zend_bool reset = false;
 
