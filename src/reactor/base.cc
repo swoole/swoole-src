@@ -53,8 +53,11 @@ ReactorImpl *make_reactor_select(Reactor *_reactor);
 
 void ReactorImpl::after_removal_failure(network::Socket *_socket) {
     if (!_socket->silent_remove) {
-        swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]", _socket->fd, reactor_->id,
-                  _socket->fd_type, _socket->events);
+        swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]",
+                  _socket->fd,
+                  reactor_->id,
+                  _socket->fd_type,
+                  _socket->events);
     }
 }
 
@@ -105,6 +108,7 @@ Reactor::Reactor(int max_event, Type _type) {
     future_task = {};
 
     write = _write;
+    writev = _writev;
     close = _close;
 
     default_write_handler = _writable_callback;
@@ -217,10 +221,13 @@ int Reactor::_close(Reactor *reactor, Socket *socket) {
     return SW_OK;
 }
 
-int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n) {
+using SendFunc = std::function<ssize_t(void)>;
+using AppendFunc = std::function<void(Buffer *buffer)>;
+
+static int write_func(
+    Reactor *reactor, Socket *socket, const size_t __len, const SendFunc &send_fn, const AppendFunc &append_fn) {
     ssize_t retval;
     Buffer *buffer = socket->out_buffer;
-    const char *ptr = (const char *) buf;
     int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
@@ -231,7 +238,7 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
         socket->set_fd_option(1, -1);
     }
 
-    if ((uint32_t) n > socket->buffer_size) {
+    if ((uint32_t) __len > socket->buffer_size) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
                          "data packet is too large, cannot exceed the buffer size");
@@ -245,14 +252,12 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
         }
 #endif
     _do_send:
-        retval = socket->send(ptr, n, 0);
+        retval = send_fn();
 
         if (retval > 0) {
-            if ((ssize_t) n == retval) {
+            if ((ssize_t) __len == retval) {
                 return retval;
             } else {
-                ptr += retval;
-                n -= retval;
                 goto _alloc_buffer;
             }
         } else if (socket->catch_error(errno) == SW_WAIT) {
@@ -287,9 +292,46 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
                 socket->wait_event(SW_SOCKET_OVERFLOW_WAIT, SW_EVENT_WRITE);
             }
         }
-        buffer->append(ptr, n);
+        append_fn(buffer);
     }
     return SW_OK;
+}
+
+int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n) {
+    ssize_t send_bytes = 0;
+    auto send_fn = [&send_bytes, socket, buf, n]() -> ssize_t {
+        send_bytes = socket->send(buf, n, 0);
+        return send_bytes;
+    };
+    auto append_fn = [&send_bytes, socket, buf, n](Buffer *buffer) {
+        ssize_t offset = send_bytes > 0 ? send_bytes : 0;
+        buffer->append((const char *) buf + offset, n - offset);
+    };
+    return write_func(reactor, socket, n, send_fn, append_fn);
+}
+
+int Reactor::_writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) {
+#ifdef SW_USE_OPENSSL
+    if (socket->ssl) {
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "does not support SSL");
+        return SW_ERR;
+    }
+#endif
+
+    ssize_t send_bytes = 0;
+    size_t n = 0;
+    SW_LOOP_N(iovcnt) {
+        n += iov[i].iov_len;
+    }
+    auto send_fn = [&send_bytes, socket, iov, iovcnt]() -> ssize_t {
+        send_bytes = socket->writev(iov, iovcnt);
+        return send_bytes;
+    };
+    auto append_fn = [&send_bytes, socket, iov, iovcnt](Buffer *buffer) {
+        ssize_t offset = send_bytes > 0 ? send_bytes : 0;
+        buffer->append(iov, iovcnt, offset);
+    };
+    return write_func(reactor, socket, n, send_fn, append_fn);
 }
 
 int Reactor::_writable_callback(Reactor *reactor, Event *ev) {

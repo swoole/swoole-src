@@ -919,7 +919,7 @@ int Client::parse_header(Stream *stream, int flags, char *in, size_t inlen) {
         inlen -= (size_t) rv;
 
         swTraceLog(SW_TRACE_HTTP2,
-                   "[" SW_ECHO_GREEN "] %.*s[%d]: %.*s[%d]",
+                   "[" SW_ECHO_GREEN "] %.*s[%lu]: %.*s[%lu]",
                    "HEADER",
                    (int) nv.namelen,
                    nv.name,
@@ -1297,7 +1297,7 @@ bool Client::send_goaway_frame(zend_long error_code, const char *debug_data, siz
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     }
     swTraceLog(SW_TRACE_HTTP2,
-               "[" SW_ECHO_GREEN "] Send: last-sid=%d, error-code=%d",
+               "[" SW_ECHO_GREEN "] Send: last-sid=%u, error-code=%ld",
                swHttp2_get_type(SW_HTTP2_TYPE_GOAWAY),
                last_stream_id,
                error_code);

@@ -70,7 +70,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
     php_swoole_get_recv_data(serv, zdata, req);
 
     swTraceLog(SW_TRACE_SERVER,
-               "http request from %d with %d bytes: <<EOF\n%.*s\nEOF",
+               "http request from %ld with %d bytes: <<EOF\n%.*s\nEOF",
                session_id,
                (int) Z_STRLEN_P(zdata),
                (int) Z_STRLEN_P(zdata),

@@ -26,13 +26,14 @@ $pm->childFunc = function () use ($pm) {
     run(function () use ($pm) {
         $socket = new Swoole\Coroutine\Socket(AF_INET, SOCK_DGRAM, 0);
         $socket->bind('127.0.0.1', $pm->getFreePort());
+        $pm->wakeup();
         $peer = null;
         $ret = $socket->recvfrom($peer);
-        Assert::eq($ret, 'hello');
+        Assert::eq($ret, 'hello', 'packet-1');
         $ret = $socket->recvfrom($peer);
-        Assert::eq($ret, 'hello');
+        Assert::eq($ret, 'hello', 'packet-2');
         $ret = $socket->recvfrom($peer);
-        Assert::eq($ret, 'hello');
+        Assert::eq($ret, 'hello', 'packet-3');
     });
 };
 $pm->childFirst();
