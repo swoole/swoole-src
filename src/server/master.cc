@@ -941,71 +941,70 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) {
 }
 
 int Server::schedule_worker(int fd, SendData *data) {
-       uint32_t key = 0;
+    uint32_t key = 0;
 
-       if (dispatch_func) {
-           int id = dispatch_func(this, get_connection(fd), data);
-           if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK) {
-               return id;
-           }
-       }
+    if (dispatch_func) {
+        int id = dispatch_func(this, get_connection(fd), data);
+        if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK) {
+            return id;
+        }
+    }
 
-       // polling mode
-       if (dispatch_mode == SW_DISPATCH_ROUND) {
-           key = sw_atomic_fetch_add(&worker_round_id, 1);
-       }
-       // Using the FD touch access to hash
-       else if (dispatch_mode == SW_DISPATCH_FDMOD) {
-           key = fd;
-       }
-       // Using the IP touch access to hash
-       else if (dispatch_mode == SW_DISPATCH_IPMOD) {
-           Connection *conn = get_connection(fd);
-           // UDP
-           if (conn == nullptr) {
-               key = fd;
-           }
-           // IPv4
-           else if (conn->socket_type == SW_SOCK_TCP) {
-               key = conn->info.addr.inet_v4.sin_addr.s_addr;
-           }
-           // IPv6
-           else {
+    // polling mode
+    if (dispatch_mode == SW_DISPATCH_ROUND) {
+        key = sw_atomic_fetch_add(&worker_round_id, 1);
+    }
+    // Using the FD touch access to hash
+    else if (dispatch_mode == SW_DISPATCH_FDMOD) {
+        key = fd;
+    }
+    // Using the IP touch access to hash
+    else if (dispatch_mode == SW_DISPATCH_IPMOD) {
+        Connection *conn = get_connection(fd);
+        // UDP
+        if (conn == nullptr) {
+            key = fd;
+        }
+        // IPv4
+        else if (conn->socket_type == SW_SOCK_TCP) {
+            key = conn->info.addr.inet_v4.sin_addr.s_addr;
+        }
+        // IPv6
+        else {
 #ifdef HAVE_KQUEUE
-               key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
+            key = *(((uint32_t*) &conn->info.addr.inet_v6.sin6_addr) + 3);
 #elif defined(_WIN32)
                key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
 #else
                key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
-           }
-       } else if (dispatch_mode == SW_DISPATCH_UIDMOD) {
-           Connection *conn = get_connection(fd);
-           if (conn == nullptr || conn->uid == 0) {
-               key = fd;
-           } else {
-               key = conn->uid;
-           }
-       }
-       // Preemptive distribution
-       else {
-           uint32_t i;
-           bool found = false;
-           for (i = 0; i < worker_num + 1; i++) {
-               key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
-               if (workers[key].status == SW_WORKER_IDLE) {
-                   found = true;
-                   break;
-               }
-           }
-           if (sw_unlikely(!found)) {
-               scheduler_warning = true;
-           }
-           swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
-           return key;
-       }
-       return key % worker_num;
-   }
+        }
+    } else if (dispatch_mode == SW_DISPATCH_UIDMOD) {
+        Connection *conn = get_connection(fd);
+        if (conn == nullptr || conn->uid == 0) {
+            key = fd;
+        } else {
+            key = conn->uid;
+        }
+    }
+    // Preemptive distribution
+    else {
+        uint32_t i;
+        bool found = false;
+        for (i = 0; i < worker_num + 1; i++) {
+            key = sw_atomic_fetch_add(&worker_round_id, 1) % worker_num;
+            if (workers[key].status == SW_WORKER_IDLE) {
+                found = true;
+                break;
+            }
+        }
+        if (sw_unlikely(!found)) {
+            scheduler_warning = true;
+        } swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
+        return key;
+    }
+    return key % worker_num;
+}
 
 /**
  * [Master] send to client or append to out_buffer
@@ -1335,72 +1334,7 @@ void Server::call_hook(HookType type, void *arg) {
  * [Worker]
  */
 bool Server::close(SessionId session_id, bool reset) {
-    if (sw_unlikely(is_master())) {
-        swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_SEND_IN_MASTER, "cannot close session#%ld in master process", session_id);
-        return false;
-    }
-
-    if (is_base_mode()) {
-        Session *session = get_session(session_id);
-        if (!session->fd) {
-            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST,
-                             "failed to close connection, session#%ld does not exist", session_id);
-            return false;
-        }
-        if (session->reactor_id != SwooleG.process_id) {
-            swWarn("session->reactor_id=%u,  != SwooleG.process_id=%u", session->reactor_id , SwooleG.process_id);
-
-            Worker *worker = get_worker(session->reactor_id);
-            DataHead ev{};
-            ev.fd = session_id;
-            ev.reactor_id = SwooleG.process_id;
-            ev.type = SW_SERVER_EVENT_CLOSE;
-            if (worker->pipe_master->send_async((const char*) &ev, sizeof(ev)) < 0) {
-                swSysWarn("failed to send %lu bytes to pipe_master", sizeof(ev));
-                return false;
-            }
-            return true;
-        } else {
-            return factory->end(session_id);
-        }
-    }
-
-    Connection *conn = get_connection_verify_no_ssl(session_id);
-    if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
-        return false;
-    }
-    // Reset send buffer, Immediately close the connection.
-    if (reset) {
-        conn->close_reset = 1;
-    }
-    // server is initiative to close the connection
-    conn->close_actively = 1;
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
-
-    Worker *worker;
-    DataHead ev = {};
-
-    if (is_hash_dispatch_mode()) {
-        int worker_id = schedule_worker(conn->fd, nullptr);
-        if (worker_id != (int) SwooleG.process_id) {
-            worker = get_worker(worker_id);
-            goto _notify;
-        } else {
-            goto _close;
-        }
-    } else if (!is_worker()) {
-        worker = get_worker(conn->fd % worker_num);
-    _notify:
-        ev.type = SW_SERVER_EVENT_CLOSE;
-        ev.fd = session_id;
-        ev.reactor_id = conn->reactor_id;
-        return send_to_worker_from_worker(worker, &ev, sizeof(ev), SW_PIPE_MASTER) > 0;
-    } else {
-    _close:
-        return factory->end(session_id);
-    }
+    return factory->end(session_id, reset ? CLOSE_ACTIVELY | CLOSE_RESET: CLOSE_ACTIVELY);
 }
 
 void Server::init_signal_handler() {

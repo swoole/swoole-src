@@ -39,12 +39,12 @@ $pm->childFunc = function () use ($pm) {
     $server->set([
         'worker_num' => rand(4, 8),
         'log_file' => '/dev/null',
+        'reactor_num' => 1,
         'dispatch_func' => 'dispatch_packet',
         'trace_flags' => SWOOLE_TRACE_EVENT,
         'log_level' => 0,
     ]);
-    $server->on("WorkerStart", function (Server $serv)  use ($pm)
-    {
+    $server->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
     $server->on('receive', function (Server $server, $data, $client) {

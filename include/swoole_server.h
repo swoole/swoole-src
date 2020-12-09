@@ -443,7 +443,7 @@ class Factory {
     virtual bool dispatch(SendData *) = 0;
     virtual bool finish(SendData *) = 0;
     virtual bool notify(DataHead *) = 0;
-    virtual bool end(SessionId sesion_id) = 0;
+    virtual bool end(SessionId sesion_id, int flags) = 0;
 };
 
 class BaseFactory : public Factory {
@@ -455,7 +455,7 @@ class BaseFactory : public Factory {
     bool dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
-    bool end(SessionId sesion_id) override;
+    bool end(SessionId sesion_id, int flags) override;
 };
 
 class ProcessFactory : public Factory {
@@ -471,7 +471,7 @@ class ProcessFactory : public Factory {
     bool dispatch(SendData *) override;
     bool finish(SendData *) override;
     bool notify(DataHead *) override;
-    bool end(SessionId sesion_id) override;
+    bool end(SessionId sesion_id, int flags) override;
 };
 
 enum ServerEventType {
@@ -528,6 +528,11 @@ class Server {
         HOOK_MANAGER_START,
         HOOK_MANAGER_TIMER,
         HOOK_PROCESS_TIMER,
+    };
+
+    enum CloseFlag {
+        CLOSE_RESET = 1u << 1,
+        CLOSE_ACTIVELY = 1u << 2,
     };
 
     /**
