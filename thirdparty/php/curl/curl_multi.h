@@ -29,19 +29,10 @@ SW_EXTERN_C_BEGIN
 
 SW_EXTERN_C_END
 
-
-#define CALL_FN_BEGIN    std::function<bool(void)> fn = [&]() -> bool {
-#define CALL_FN_END      return true;\
-            };\
-            zval result; \
-            ZVAL_NULL(&result); \
-            ch->callback = &fn; \
-            PHPCoroutine::resume_m(ch->context, &result); \
-            break;
-
-using swoole::network::Socket;
-
 namespace swoole {
+
+using network::Socket;
+
 class cURLMulti {
     CURLM *handle;
     TimerNode *timer = nullptr;
@@ -117,6 +108,8 @@ class cURLMulti {
     }
 
     CURLcode exec(php_curl *ch) {
+        Coroutine::get_current_safe();
+
         if (!add(ch->cp)) {
             return CURLE_FAILED_INIT;
         }
@@ -129,11 +122,7 @@ class cURLMulti {
             efree(context);
         };
         ch->context = context;
-
-        do {
-            PHPCoroutine::yield_m(return_value, context);
-        } while(ZVAL_IS_NULL(return_value) && ch->callback && (*ch->callback)());
-
+        PHPCoroutine::yield_m(return_value, context);
         ch->context = nullptr;
 
         return (CURLcode) Z_LVAL_P(return_value);

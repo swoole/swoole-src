@@ -322,7 +322,6 @@ void cURLMulti::read_info() {
             curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &ch);
             zval result;
             ZVAL_LONG(&result, message->data.result);
-            ch->callback = nullptr;
             PHPCoroutine::resume_m(ch->context, &result);
             break;
         default:
@@ -531,19 +530,18 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx)
             }
             break;
         case PHP_CURL_USER: {
-            CALL_FN_BEGIN
             zval argv[2];
             zval retval;
             int  error;
             zend_fcall_info fci;
 
-            #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
             GC_ADDREF(&ch->std);
             ZVAL_OBJ(&argv[0], &ch->std);
-            #else
+#else
             GC_ADDREF(ch->res);
             ZVAL_RES(&argv[0], ch->res);
-            #endif
+#endif
             ZVAL_STRINGL(&argv[1], data, length);
 
             fci.size = sizeof(fci);
@@ -552,12 +550,11 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx)
             fci.retval = &retval;
             fci.param_count = 2;
             fci.params = argv;
-            #if PHP_VERSION_ID >= 80000
-                fci.named_params = NULL;
-            #else
-                fci.no_separation = 0;
-            #endif
-
+#if PHP_VERSION_ID >= 80000
+            fci.named_params = NULL;
+#else
+            fci.no_separation = 0;
+#endif
             ch->in_callback = 1;
             error = zend_call_function(&fci, &t->fci_cache);
             ch->in_callback = 0;
@@ -571,7 +568,7 @@ static size_t fn_write(char *data, size_t size, size_t nmemb, void *ctx)
 
             zval_ptr_dtor(&argv[0]);
             zval_ptr_dtor(&argv[1]);
-            CALL_FN_END
+            break;
         }
     }
 
@@ -589,19 +586,18 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string)
     int rval = CURL_FNMATCHFUNC_FAIL;
     switch (t->method) {
         case PHP_CURL_USER: {
-            CALL_FN_BEGIN
             zval argv[3];
             zval retval;
             int error;
             zend_fcall_info fci;
 
-            #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
             GC_ADDREF(&ch->std);
             ZVAL_OBJ(&argv[0], &ch->std);
-            #else
+#else
             GC_ADDREF(ch->res);
             ZVAL_RES(&argv[0], ch->res);
-            #endif
+#endif
             ZVAL_STRING(&argv[1], pattern);
             ZVAL_STRING(&argv[2], string);
 
@@ -629,7 +625,7 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string)
             zval_ptr_dtor(&argv[0]);
             zval_ptr_dtor(&argv[1]);
             zval_ptr_dtor(&argv[2]);
-            CALL_FN_END
+            break;
         }
     }
     return rval;
@@ -652,7 +648,6 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
 
     switch (t->method) {
         case PHP_CURL_USER: {
-            CALL_FN_BEGIN
             zval argv[5];
             zval retval;
             int  error;
@@ -694,7 +689,6 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
                 }
             }
             zval_ptr_dtor(&argv[0]);
-            CALL_FN_END
         }
     }
     return rval;
@@ -703,8 +697,7 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
 
 /* {{{ curl_read
  */
-static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx)
-{
+static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx) {
     php_curl *ch = (php_curl *)ctx;
     php_curl_read *t = ch->handlers->read;
     int length = 0;
@@ -716,19 +709,18 @@ static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx)
             }
             break;
         case PHP_CURL_USER: {
-            CALL_FN_BEGIN
             zval argv[3];
             zval retval;
             int error;
             zend_fcall_info fci;
 
-            #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
             GC_ADDREF(&ch->std);
             ZVAL_OBJ(&argv[0], &ch->std);
-            #else
+#else
             GC_ADDREF(ch->res);
             ZVAL_RES(&argv[0], ch->res);
-            #endif
+#endif
             if (t->res) {
                 GC_ADDREF(t->res);
                 ZVAL_RES(&argv[1], t->res);
@@ -743,12 +735,11 @@ static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx)
             fci.retval = &retval;
             fci.param_count = 3;
             fci.params = argv;
-            #if PHP_VERSION_ID >= 80000
-                fci.named_params = NULL;
-            #else
-                fci.no_separation = 0;
-            #endif
-
+#if PHP_VERSION_ID >= 80000
+            fci.named_params = NULL;
+#else
+            fci.no_separation = 0;
+#endif
             ch->in_callback = 1;
             error = zend_call_function(&fci, &t->fci_cache);
             ch->in_callback = 0;
@@ -766,8 +757,10 @@ static size_t fn_read(char *data, size_t size, size_t nmemb, void *ctx)
 
             zval_ptr_dtor(&argv[0]);
             zval_ptr_dtor(&argv[1]);
-            CALL_FN_END
+            break;
         }
+        default:
+            break;
     }
 
     return length;
@@ -794,16 +787,15 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx)
         case PHP_CURL_FILE:
             return fwrite(data, size, nmemb, t->fp);
         case PHP_CURL_USER: {
-            CALL_FN_BEGIN
             zval argv[2];
             zval retval;
             int  error;
             zend_fcall_info fci;
 
-            #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
             GC_ADDREF(&ch->std);
             ZVAL_OBJ(&argv[0], &ch->std);
-            #else
+#else
             ZVAL_RES(&argv[0], ch->res);
             Z_ADDREF(argv[0]);
             #endif
@@ -816,11 +808,11 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx)
             fci.retval = &retval;
             fci.param_count = 2;
             fci.params = argv;
-            #if PHP_VERSION_ID >= 80000
-                fci.named_params = NULL;
-            #else
-                fci.no_separation = 0;
-            #endif
+#if PHP_VERSION_ID >= 80000
+            fci.named_params = NULL;
+#else
+            fci.no_separation = 0;
+#endif
 
             ch->in_callback = 1;
             error = zend_call_function(&fci, &t->fci_cache);
@@ -834,7 +826,7 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx)
             }
             zval_ptr_dtor(&argv[0]);
             zval_ptr_dtor(&argv[1]);
-            CALL_FN_END
+            break;
         }
 
         case PHP_CURL_IGNORE:
@@ -966,7 +958,6 @@ static php_curl *alloc_curl_handle()
 /* }}} */
 
 static php_curl *get_curl_handle(zval *zid, bool exclusive) {
-    Coroutine::get_current_safe();
     php_curl *ch;
 #if PHP_VERSION_ID >= 80000
     ch = Z_CURL_P(zid);

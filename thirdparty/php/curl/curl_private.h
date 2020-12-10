@@ -99,6 +99,8 @@ struct _php_curl_free {
 	HashTable *slist;
 };
 
+using CurlCallback = std::function<bool(void)>;
+
 typedef struct {
 	CURL                         *cp;
 	php_curl_handlers            *handlers;
@@ -116,7 +118,6 @@ typedef struct {
 	struct _php_curlsh *share;
 #endif
     swoole::FutureTask *context;
-    std::function<bool(void)> *callback;
 #if PHP_VERSION_ID >= 80000
 	zend_object                   std;
 #endif
