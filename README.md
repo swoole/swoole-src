@@ -514,6 +514,7 @@ Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 + __中文文档__: <https://wiki.swoole.com>
 + __Documentation__: <https://www.swoole.co.uk/docs>
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
++ __Debug Tool__: <https://github.com/swoole/yasd>
 + __中文社区__: <https://wiki.swoole.com/#/other/discussion>
 + __Twitter__: <https://twitter.com/php_swoole>
 + __Slack Group__: <https://swoole.slack.com>
