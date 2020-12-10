@@ -239,7 +239,7 @@ static ssize_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t c
 
     if (data->fd >= 0) {
         if (file_can_poll(&data->sb)) {
-            if (!swoole_coroutine_socket_exists() && swoole_coroutine_socket_create(data->fd) < 0) {
+            if (!swoole_coroutine_socket_exists(data->fd) && swoole_coroutine_socket_create(data->fd) < 0) {
                 stream->eof = 1;
                 return -1;
             }
@@ -276,7 +276,7 @@ static ssize_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count)
     if (data->fd >= 0)
     {
         if (file_can_poll(&data->sb)) {
-            if (!swoole_coroutine_socket_exists() && swoole_coroutine_socket_create(data->fd) < 0) {
+            if (!swoole_coroutine_socket_exists(data->fd) && swoole_coroutine_socket_create(data->fd) < 0) {
                 stream->eof = 1;
                 return -1;
             }
