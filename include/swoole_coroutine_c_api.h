@@ -43,6 +43,7 @@ void swoole_coroutine_usleep(int usec);
  */
 int swoole_coroutine_access(const char *pathname, int mode);
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode);
+int swoole_coroutine_create_socket(int fd);
 ssize_t swoole_coroutine_read(int fd, void *buf, size_t count);
 ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count);
 off_t swoole_coroutine_lseek(int fd, off_t offset, int whence);

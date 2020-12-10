@@ -162,6 +162,7 @@ static const zend_function_entry swoole_runtime_methods[] =
 // clang-format on
 
 static php_stream_wrapper ori_php_plain_files_wrapper;
+static php_stream_ops ori_php_stream_stdio_ops;
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler = nullptr, zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
@@ -197,6 +198,7 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_NATIVE_CURL", PHPCoroutine::HOOK_NATIVE_CURL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_BLOCKING_FUNCTION", PHPCoroutine::HOOK_BLOCKING_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STDIO", PHPCoroutine::HOOK_STDIO);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
     swoole_native_curl_init(module_number);
@@ -1022,6 +1024,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
 
         // file
         memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
 
         tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
         zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
@@ -1122,6 +1125,15 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
             memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    }
+    if (flags & PHPCoroutine::HOOK_STDIO) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
+            memcpy((void *) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
+            memcpy((void *) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     }
     // sleep
