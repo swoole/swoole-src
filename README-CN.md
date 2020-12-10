@@ -499,6 +499,7 @@ make && sudo make install
 + __中文文档__: <https://wiki.swoole.com>
 + __Document__: <https://www.swoole.co.uk/docs>
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
++ __调试工具__: <https://github.com/swoole/yasd>
 + __中文社区及QQ群__: <https://wiki.swoole.com/#/other/discussion>
 + __Twitter__: <https://twitter.com/php_swoole>
 + __Slack Group__: <https://swoole.slack.com>
