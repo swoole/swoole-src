@@ -46,7 +46,7 @@ $pm->parentFunc = function () use ($pm) {
         if ($output === false) {
             echo "CURL Error:" . curl_error($ch);
         }
-        Assert::true(curl_close($ch));
+        curl_close($ch);
         echo "close [2]\n";
     });
     Assert::lessThan(microtime(true) - $s, 0.5);
