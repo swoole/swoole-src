@@ -191,7 +191,7 @@ int swoole_coroutine_open(const char *pathname, int flags, mode_t mode) {
     return ret;
 }
 
-int swoole_coroutine_create_socket(int fd) {
+int swoole_coroutine_socket_create(int fd) {
     if (sw_unlikely(is_no_coro())) {
         return -1;
     }
@@ -204,6 +204,10 @@ int swoole_coroutine_create_socket(int fd) {
         socket_map[fd] = socket;
     }
     return 0;
+}
+
+uint8_t swoole_coroutine_socket_exists(int fd) {
+    return socket_map.find(fd) != socket_map.end();
 }
 
 ssize_t swoole_coroutine_read(int sockfd, void *buf, size_t count) {

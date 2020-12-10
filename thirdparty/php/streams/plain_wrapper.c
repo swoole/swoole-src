@@ -77,6 +77,10 @@ static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char
 static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 
+static inline zend_bool file_can_poll(zend_stat_t *_stat) {
+    return S_ISCHR(_stat->st_mode) || S_ISSOCK(_stat->st_mode) || S_ISFIFO(_stat->st_mode);
+}
+
 static int sw_php_stream_parse_fopen_modes(const char *mode, int *open_flags)
 {
     int flags;
@@ -233,21 +237,27 @@ static ssize_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t c
 
     assert(data != NULL);
 
-    if (data->fd >= 0)
-    {
-        int bytes_written = write(data->fd, buf, count);
+    if (data->fd >= 0) {
+        if (file_can_poll(&data->sb)) {
+            if (!swoole_coroutine_socket_exists() && swoole_coroutine_socket_create(data->fd) < 0) {
+                stream->eof = 1;
+                return -1;
+            }
+            return swoole_coroutine_write(data->fd, buf, count);
+        } else {
+            int bytes_written = write(data->fd, buf, count);
 #if PHP_VERSION_ID < 70400
-        if (bytes_written < 0)
-        {
-            return 0;
-        }
-        return (size_t) bytes_written;
+            if (bytes_written < 0)
+            {
+                return 0;
+            }
+            return (size_t) bytes_written;
 #else
-        return bytes_written;
+            return bytes_written;
 #endif
-    }
-    else
-    {
+        }
+
+    } else {
         return fwrite(buf, 1, count, data->file);
     }
 }
@@ -265,8 +275,8 @@ static ssize_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count)
 
     if (data->fd >= 0)
     {
-        if (S_ISCHR(data->sb.st_mode) || S_ISSOCK(data->sb.st_mode) || S_ISFIFO(data->sb.st_mode)) {
-            if (swoole_coroutine_create_socket(data->fd) < 0) {
+        if (file_can_poll(&data->sb)) {
+            if (!swoole_coroutine_socket_exists() && swoole_coroutine_socket_create(data->fd) < 0) {
                 stream->eof = 1;
                 return -1;
             }

@@ -43,7 +43,6 @@ void swoole_coroutine_usleep(int usec);
  */
 int swoole_coroutine_access(const char *pathname, int mode);
 int swoole_coroutine_open(const char *pathname, int flags, mode_t mode);
-int swoole_coroutine_create_socket(int fd);
 ssize_t swoole_coroutine_read(int fd, void *buf, size_t count);
 ssize_t swoole_coroutine_write(int fd, const void *buf, size_t count);
 off_t swoole_coroutine_lseek(int fd, off_t offset, int whence);
@@ -66,6 +65,8 @@ int swoole_coroutine_closedir(DIR *dirp);
  * socket
  */
 int swoole_coroutine_socket(int domain, int type, int protocol);
+int swoole_coroutine_socket_create(int fd);
+uint8_t swoole_coroutine_socket_exists(int fd);
 ssize_t swoole_coroutine_send(int sockfd, const void *buf, size_t len, int flags);
 ssize_t swoole_coroutine_sendmsg(int sockfd, const struct msghdr *msg, int flags);
 ssize_t swoole_coroutine_recv(int sockfd, void *buf, size_t len, int flags);
