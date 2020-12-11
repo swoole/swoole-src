@@ -187,12 +187,11 @@ class Coroutine {
     }
 
     inline long run() {
-        long cid = this->cid;
         origin = current;
         current = this;
         ctx.swap_in();
         check_end();
-        return cid;
+        return this->cid;
     }
 
     inline void check_end() {
