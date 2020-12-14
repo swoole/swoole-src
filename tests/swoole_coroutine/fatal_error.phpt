@@ -17,20 +17,8 @@ Co\run(function () {
 echo "DONE\n";
 ?>
 --EXPECTF--
-===================================================================
- [FATAL ERROR]: all coroutines (count: 2) are asleep - deadlock!
-===================================================================
+Fatal error: Uncaught Error: Call to undefined function test_not_found() in %s:%d
+Stack trace:
+#0 {main}
+  thrown in %s on line %d
 
- [Coroutine-3]
---------------------------------------------------------------------
-#0  Swoole\Coroutine::yield() called at [%s:%d]
-#1  test2() called at [%s:%d]
-
-
- [Coroutine-2]
---------------------------------------------------------------------
-#0  Swoole\Coroutine::yield() called at [%s:%d]
-#1  {closure}() called at [%s:%d]
-#2  test1() called at [%s:%d]
-
-DONE
