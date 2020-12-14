@@ -331,7 +331,10 @@ void PHPCoroutine::activate() {
                 /* update the last coroutine's info */
                 save_task(get_context());
             }
+            bool _ori_value = config.enable_deadlock_check;
+            config.enable_deadlock_check = false;
             swoole_event_free();
+            config.enable_deadlock_check = _ori_value;
         }
         if (sw_likely(orig_error_function)) {
             orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
