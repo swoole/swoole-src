@@ -33,7 +33,7 @@ Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
 void Coroutine::yield() {
     SW_ASSERT(current == this || on_bailout != nullptr);
     state = STATE_WAITING;
-    if (sw_likely(on_yield)) {
+    if (sw_likely(on_yield && task)) {
         on_yield(task);
     }
     current = origin;
@@ -46,7 +46,7 @@ void Coroutine::resume() {
         return;
     }
     state = STATE_RUNNING;
-    if (sw_likely(on_resume)) {
+    if (sw_likely(on_resume && task)) {
         on_resume(task);
     }
     origin = current;
@@ -77,7 +77,7 @@ void Coroutine::resume_naked() {
 void Coroutine::close() {
     SW_ASSERT(current == this);
     state = STATE_END;
-    if (on_close) {
+    if (on_close && task) {
         on_close(task);
     }
 #if !defined(SW_USE_THREAD_CONTEXT) && defined(SW_CONTEXT_DETECT_STACK_USAGE)
