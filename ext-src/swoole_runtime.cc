@@ -14,6 +14,7 @@
   +----------------------------------------------------------------------+
  */
 #include "php_swoole_cxx.h"
+#include "swoole_socket.h"
 #include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
@@ -658,6 +659,85 @@ static int socket_setup_crypto(php_stream *stream, Socket *sock, php_stream_xpor
     return 0;
 }
 
+static int socket_xport_crypto_setup(php_stream *stream) {
+    php_stream_xport_crypto_param param;
+    int ret;
+
+    memset(&param, 0, sizeof(param));
+    param.op = (decltype(param.op)) STREAM_XPORT_CRYPTO_OP_SETUP;
+    param.inputs.method = (php_stream_xport_crypt_method_t) 0;
+    param.inputs.session = NULL;
+
+    ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
+
+    if (ret == PHP_STREAM_OPTION_RETURN_OK) {
+        return param.outputs.returncode;
+    }
+
+    php_error_docref("streams.crypto", E_WARNING, "this stream does not support SSL/crypto");
+
+    return ret;
+}
+
+static int socket_xport_crypto_enable(php_stream *stream, int activate) {
+    php_stream_xport_crypto_param param;
+    int ret;
+
+    memset(&param, 0, sizeof(param));
+    param.op = (decltype(param.op)) STREAM_XPORT_CRYPTO_OP_ENABLE;
+    param.inputs.activate = activate;
+
+    ret = php_stream_set_option(stream, PHP_STREAM_OPTION_CRYPTO_API, 0, &param);
+
+    if (ret == PHP_STREAM_OPTION_RETURN_OK) {
+        return param.outputs.returncode;
+    }
+
+    php_error_docref("streams.crypto", E_WARNING, "this stream does not support SSL/crypto");
+
+    return ret;
+}
+
+static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) {
+    zval *val;
+
+    std::string peer_cert = sslsock->ssl_get_peer_cert();
+    if (peer_cert.empty()) {
+        return false;
+    }
+
+    zval argv[1];
+    ZVAL_STRINGL(&argv[0], peer_cert.c_str(), peer_cert.length());
+    zend::function::ReturnValue retval = zend::function::call("openssl_x509_read", 1, argv);
+    php_stream_context_set_option(PHP_STREAM_CONTEXT(stream), "ssl", "peer_certificate", &retval.value);
+    zval_dtor(&argv[0]);
+
+    if (NULL != (val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", "capture_peer_cert_chain"))
+            && zend_is_true(val)) {
+        zval arr;
+        auto chain = sslsock->get_socket()->ssl_get_peer_cert_chain(INT_MAX);
+
+        if (!chain.empty()) {
+            array_init(&arr);
+            for (auto &cert : chain) {
+                zval argv[1];
+                ZVAL_STRINGL(&argv[0], cert.c_str(), cert.length());
+                zend::function::ReturnValue retval = zend::function::call("openssl_x509_read", 1, argv);
+                zval_add_ref(&retval.value);
+                add_next_index_zval(&arr, &retval.value);
+                zval_dtor(&argv[0]);
+            }
+        } else {
+            ZVAL_NULL(&arr);
+        }
+
+        php_stream_context_set_option(PHP_STREAM_CONTEXT(stream), "ssl", "peer_certificate_chain", &arr);
+        zval_ptr_dtor(&arr);
+    }
+
+    return true;
+}
+
 static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
     if (cparam->inputs.activate && !sock->ssl_is_available()) {
         sock->enable_ssl_encrypt();
@@ -671,7 +751,13 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
     } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
         return sock->ssl_shutdown() ? 0 : -1;
     }
-    return -1;
+
+    zval *val = php_stream_context_get_option(PHP_STREAM_CONTEXT(stream), "ssl", "capture_peer_cert");
+    if (val && zend_is_true(val)) {
+        return php_openssl_capture_peer_certs(stream, sock) ? 0 : -1;
+    }
+
+    return 0;
 }
 #endif
 
@@ -686,6 +772,12 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     case STREAM_XPORT_OP_CONNECT:
     case STREAM_XPORT_OP_CONNECT_ASYNC:
         xparam->outputs.returncode = socket_connect(stream, sock, xparam);
+#ifdef SW_USE_OPENSSL
+        if (sock->ssl_is_enable()
+                && (socket_xport_crypto_setup(stream) < 0 || socket_xport_crypto_enable(stream, 1) < 0)) {
+            xparam->outputs.returncode = -1;
+        }
+#endif
         break;
     case STREAM_XPORT_OP_BIND: {
         if (sock->get_sock_domain() != AF_UNIX) {

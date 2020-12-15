@@ -973,6 +973,56 @@ X509 *Socket::ssl_get_peer_certificate() {
     return SSL_get_peer_certificate(ssl);
 }
 
+STACK_OF(X509) *Socket::ssl_get_peer_cert_chain() {
+    if (!ssl) {
+        return NULL;
+    }
+    return SSL_get_peer_cert_chain(ssl);
+}
+
+static int _ssl_read_x509_file(X509 *cert, char *buffer, size_t length) {
+    long len;
+    BIO *bio = BIO_new(BIO_s_mem());
+    ON_SCOPE_EXIT {
+        BIO_free(bio);
+    };
+
+    if (bio == nullptr) {
+        swWarn("BIO_new() failed");
+        return -1;
+    }
+
+    if (PEM_write_bio_X509(bio, cert) == 0) {
+        swWarn("PEM_write_bio_X509() failed");
+        return -1;
+    }
+
+    len = BIO_pending(bio);
+    if (len < 0 && len > (long) length) {
+        swWarn("certificate length[%ld] is too big", len);
+        return -1;
+    }
+    return BIO_read(bio, buffer, len);
+}
+
+std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) {
+    std::vector<std::string> list;
+    STACK_OF(X509) *chain = ssl_get_peer_cert_chain();
+    if (chain == nullptr) {
+        return list;
+    }
+    auto n = sk_X509_num(chain);
+    n = std::min(n, limit);
+    SW_LOOP_N(n) {
+        X509 *cert = sk_X509_value(chain, i);
+        auto n = _ssl_read_x509_file(cert, sw_tg_buffer()->str, sw_tg_buffer()->size);
+        if (n > 0) {
+            list.emplace_back(sw_tg_buffer()->str, n);
+        }
+    }
+    return list;
+}
+
 bool Socket::ssl_get_peer_certificate(String *buf) {
     int n = ssl_get_peer_certificate(buf->str, buf->size);
     if (n < 0) {
@@ -984,47 +1034,16 @@ bool Socket::ssl_get_peer_certificate(String *buf) {
 }
 
 int Socket::ssl_get_peer_certificate(char *buffer, size_t length) {
-    long len;
-    BIO *bio;
-    X509 *cert;
-    int n;
-
-    cert = ssl_get_peer_certificate();
+    X509 *cert = ssl_get_peer_certificate();
     if (cert == nullptr) {
         return SW_ERR;
     }
-
-    bio = BIO_new(BIO_s_mem());
-    if (bio == nullptr) {
-        swWarn("BIO_new() failed");
-        X509_free(cert);
-        return SW_ERR;
-    }
-
-    if (PEM_write_bio_X509(bio, cert) == 0) {
-        swWarn("PEM_write_bio_X509() failed");
-        goto _failed;
-    }
-
-    len = BIO_pending(bio);
-    if (len < 0 && len > (long) length) {
-        swWarn("certificate length[%ld] is too big", len);
-        goto _failed;
-    }
-
-    n = BIO_read(bio, buffer, len);
-
-    BIO_free(bio);
-    X509_free(cert);
-
-    return n;
-
-_failed:
-
-    BIO_free(bio);
-    X509_free(cert);
-
-    return SW_ERR;
+    ON_SCOPE_EXIT {
+        if (cert) {
+            X509_free(cert);
+        }
+    };
+    return _ssl_read_x509_file(cert, buffer, length);
 }
 
 enum swReturn_code Socket::ssl_accept() {
