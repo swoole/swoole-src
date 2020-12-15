@@ -56,6 +56,8 @@ PHPContext PHPCoroutine::main_task {};
 std::thread PHPCoroutine::interrupt_thread;
 bool PHPCoroutine::interrupt_thread_running = false;
 
+extern void php_swoole_load_library();
+
 static zend_bool *zend_vm_interrupt = nullptr;
 static user_opcode_handler_t ori_exit_handler = nullptr;
 static user_opcode_handler_t ori_begin_silence_handler = nullptr;
@@ -314,6 +316,11 @@ void PHPCoroutine::activate() {
         php_swoole_fatal_error(
             E_WARNING,
             "Using Xdebug in coroutines is extremely dangerous, please notice that it may lead to coredump!");
+    }
+
+    zval *enable_library = zend_get_constant_str(ZEND_STRL("SWOOLE_LIBRARY"));
+    if (enable_library == NULL || !zval_is_true(enable_library)) {
+        php_swoole_load_library();
     }
 
     /* init reactor and register event wait */
