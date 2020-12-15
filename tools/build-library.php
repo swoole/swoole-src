@@ -144,7 +144,7 @@ $content = <<<C
 
 {$source_str}
 
-static void php_swoole_load_library()
+void php_swoole_load_library()
 {
 {$eval_str}
 }
