@@ -6,7 +6,7 @@ cd "${__DIR__}"
 
 if [ "$1" = "cmake" ] ;then
   phpize
-  ./configure --enable-openssl --enable-swoole-json --enable-sockets --enable-mysqlnd --enable-http2
+  ./configure --enable-openssl --enable-swoole-json --enable-swoole-curl --enable-sockets --enable-mysqlnd --enable-http2
   cmake .
   make -j 8
   exit 0
