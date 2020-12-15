@@ -302,6 +302,8 @@ void PHPCoroutine::deactivate(void *ptr) {
         deadlock_check();
     }
 
+    enable_unsafe_function();
+
     active = false;
 }
 
