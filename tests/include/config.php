@@ -21,6 +21,7 @@ define('DEV_NULL', '/dev/null');
 
 /** ============== Files ============== */
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
+define('TESTS_ROOT_PATH', __DIR__ . '/../');
 define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_LINK_IMAGE', __DIR__ . '/../../examples/test_link.jpg');

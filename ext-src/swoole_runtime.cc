@@ -1891,6 +1891,10 @@ php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, i
     return stream;
 }
 
+php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops() {
+    return &ori_php_stream_stdio_ops;
+}
+
 static PHP_FUNCTION(swoole_stream_socket_pair) {
     zend_long domain, type, protocol;
     php_stream *s1, *s2;
