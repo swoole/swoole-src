@@ -992,6 +992,8 @@ PHP_RINIT_FUNCTION(swoole) {
     SIGG(check) = 0;
 #endif
 
+    php_swoole_runtime_rinit();
+
     SWOOLE_G(req_status) = PHP_SWOOLE_RINIT_END;
 
     return SUCCESS;
