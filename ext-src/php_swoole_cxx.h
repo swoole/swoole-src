@@ -92,6 +92,7 @@ SW_API bool php_swoole_socket_set_ssl(swoole::coroutine::Socket *sock, zval *zse
 SW_API bool php_swoole_socket_set_protocol(swoole::coroutine::Socket *sock, zval *zset);
 SW_API bool php_swoole_client_set(swoole::coroutine::Socket *cli, zval *zset);
 SW_API php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC);
+SW_API php_stream_ops *php_swoole_get_ori_php_stream_stdio_ops();
 SW_API void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data);
 
 // timer

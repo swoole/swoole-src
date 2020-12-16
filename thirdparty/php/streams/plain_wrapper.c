@@ -67,11 +67,11 @@ static ssize_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t c
 static ssize_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count);
 #endif
 static int sw_php_stdiop_close(php_stream *stream, int close_handle);
-static int php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb);
-static int php_stdiop_flush(php_stream *stream);
-static int php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset);
-static int php_stdiop_set_option(php_stream *stream, int option, int value, void *ptrparam);
-static int php_stdiop_cast(php_stream *stream, int castas, void **ret);
+static int sw_php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb);
+static int sw_php_stdiop_flush(php_stream *stream);
+static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset);
+static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, void *ptrparam);
+static int sw_php_stdiop_cast(php_stream *stream, int castas, void **ret);
 
 static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result);
 static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, const char *persistent_id STREAMS_DC);
@@ -191,12 +191,12 @@ static php_stream_ops sw_php_stream_stdio_ops = {
     sw_php_stdiop_write,
     sw_php_stdiop_read,
     sw_php_stdiop_close,
-    php_stdiop_flush,
+    sw_php_stdiop_flush,
     "STDIO/coroutine",
-    php_stdiop_seek,
-    php_stdiop_cast,
-    php_stdiop_stat,
-    php_stdiop_set_option
+    sw_php_stdiop_seek,
+    sw_php_stdiop_cast,
+    sw_php_stdiop_stat,
+    sw_php_stdiop_set_option,
 };
 
 static int do_fstat(php_stdio_stream_data *d, int force)
@@ -372,7 +372,7 @@ static int sw_php_stdiop_close(php_stream *stream, int close_handle)
     return ret;
 }
 
-static int php_stdiop_flush(php_stream *stream)
+static int sw_php_stdiop_flush(php_stream *stream)
 {
     php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
 
@@ -390,7 +390,7 @@ static int php_stdiop_flush(php_stream *stream)
     return 0;
 }
 
-static int php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset)
+static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset)
 {
     php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
     int ret;
@@ -423,7 +423,7 @@ static int php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, ze
     }
 }
 
-static int php_stdiop_cast(php_stream *stream, int castas, void **ret)
+static int sw_php_stdiop_cast(php_stream *stream, int castas, void **ret)
 {
     php_socket_t fd;
     php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
@@ -489,7 +489,7 @@ static int php_stdiop_cast(php_stream *stream, int castas, void **ret)
     }
 }
 
-static int php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb)
+static int sw_php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb)
 {
 	int ret;
 	php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
@@ -502,7 +502,7 @@ static int php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb)
 	return ret;
 }
 
-static int php_stdiop_set_option(php_stream *stream, int option, int value, void *ptrparam)
+static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, void *ptrparam)
 {
 	php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
 	size_t size;
@@ -959,39 +959,32 @@ static php_stream *stream_fopen_rel(const char *filename, const char *mode, zend
 	return NULL;
 }
 
-static php_stream *stream_opener(php_stream_wrapper *wrapper, const char *path, const char *mode, int options,
-        zend_string **opened_path, php_stream_context *context STREAMS_DC)
-{
-    if (((options & STREAM_DISABLE_OPEN_BASEDIR) == 0) && php_check_open_basedir(path))
-    {
+static php_stream* stream_opener(php_stream_wrapper *wrapper, const char *path, const char *mode, int options,
+                                 zend_string **opened_path, php_stream_context *context STREAMS_DC) {
+    if (((options & STREAM_DISABLE_OPEN_BASEDIR) == 0) && php_check_open_basedir(path)) {
         return NULL;
     }
 
+    php_stream *stream;
     /** phar_open_archive_fp, cannot use async-io */
-    if (
-        EG(current_execute_data) &&
-        EG(current_execute_data)->func &&
-        ZEND_USER_CODE(EG(current_execute_data)->func->type)
-    )
-    {
-        const zend_op* opline = EG(current_execute_data)->opline;
-        if (
-            opline && opline->opcode == ZEND_INCLUDE_OR_EVAL &&
-            (opline->extended_value & (ZEND_INCLUDE | ZEND_INCLUDE_ONCE | ZEND_REQUIRE | ZEND_REQUIRE_ONCE))
-        )
-        {
+    if (EG(current_execute_data) &&EG(current_execute_data)->func &&
+            ZEND_USER_CODE(EG(current_execute_data)->func->type)) {
+        const zend_op *opline = EG(current_execute_data)->opline;
+        if (opline && opline->opcode == ZEND_INCLUDE_OR_EVAL
+                && (opline->extended_value & (ZEND_INCLUDE | ZEND_INCLUDE_ONCE | ZEND_REQUIRE | ZEND_REQUIRE_ONCE))) {
             size_t path_len = strlen(path);
             size_t phar_len = sizeof(".phar") - 1;
-            if (path_len > phar_len && memcmp(path + path_len - phar_len, ".phar", phar_len) == 0)
-            {
-                return php_stream_fopen_rel(path, mode, opened_path, options);
+            if (path_len > phar_len && memcmp(path + path_len - phar_len, ".phar", phar_len) == 0) {
+                goto _open_for_include;
             }
         }
     }
     /** include file, cannot use async-io */
-    if (options & STREAM_OPEN_FOR_INCLUDE)
-    {
-        return php_stream_fopen_rel(path, mode, opened_path, options);
+    if (options & STREAM_OPEN_FOR_INCLUDE) {
+        _open_for_include:
+        stream = php_stream_fopen_rel(path, mode, opened_path, options);
+        stream->ops = php_swoole_get_ori_php_stream_stdio_ops();
+        return stream;
     }
 
     return stream_fopen_rel(path, mode, opened_path, options STREAMS_REL_CC);
