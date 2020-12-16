@@ -760,7 +760,7 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
         return php_openssl_capture_peer_certs(stream, sock) ? 0 : -1;
     }
 
-    return -1;
+    return 0;
 }
 #endif
 
@@ -775,9 +775,12 @@ static inline int socket_xport_api(php_stream *stream, Socket *sock, php_stream_
     case STREAM_XPORT_OP_CONNECT:
     case STREAM_XPORT_OP_CONNECT_ASYNC:
         xparam->outputs.returncode = socket_connect(stream, sock, xparam);
-        if (sock->ssl_is_enable() && (socket_xport_crypto_setup(stream) < 0 || socket_xport_crypto_enable(stream, 1) < 0)) {
+#ifdef SW_USE_OPENSSL
+        if (sock->ssl_is_enable()
+                && (socket_xport_crypto_setup(stream) < 0 || socket_xport_crypto_enable(stream, 1) < 0)) {
             xparam->outputs.returncode = -1;
         }
+#endif
         break;
     case STREAM_XPORT_OP_BIND: {
         if (sock->get_sock_domain() != AF_UNIX) {

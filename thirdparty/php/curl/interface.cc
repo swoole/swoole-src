@@ -350,7 +350,7 @@ void swoole_native_curl_init(int module_number)
                         "Swoole\\Coroutine\\Curl\\Handle",
                         nullptr,
                         "Co\\Curl\\Handle",
-                        swoole_coroutine_curl_handle_methods);
+                        nullptr);
     SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_curl_handle, zend_class_serialize_deny, zend_class_unserialize_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_coroutine_curl_handle,
                                curl_create_object,
