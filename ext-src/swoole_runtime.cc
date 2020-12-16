@@ -210,17 +210,19 @@ void php_swoole_runtime_minit(int module_number) {
 struct real_func {
     zend_function *function;
     zif_handler ori_handler;
+    zend_internal_arg_info *ori_arg_info;
+    uint32_t ori_fn_flags;
+    uint32_t ori_num_args;
     zend_fcall_info_cache *fci_cache;
     zval name;
 };
 
+void php_swoole_runtime_rinit() {
+    tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
+    zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
+}
+
 void php_swoole_runtime_rshutdown() {
-    if (!runtime_hook_init) {
-        return;
-    }
-
-    runtime_hook_init = false;
-
     void *ptr;
     ZEND_HASH_FOREACH_PTR(tmp_function_table, ptr) {
         real_func *rf = reinterpret_cast<real_func *>(ptr);
@@ -1093,13 +1095,62 @@ static php_stream *socket_create(const char *proto,
     return stream;
 }
 
+static ZEND_FUNCTION(swoole_display_disabled_function) {
+    zend_error(E_WARNING, "%s() has been disabled for security reasons", get_active_function_name());
+}
+
+static bool disable_func(const char *name, size_t l_name) {
+    real_func *rf = (real_func*) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    if (rf) {
+        rf->function->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
+        return true;
+    }
+
+    zend_function *zf = (zend_function*) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    if (zf == nullptr) {
+        return false;
+    }
+
+    rf = (real_func*) emalloc(sizeof(real_func));
+    sw_memset_zero(rf, sizeof(*rf));
+    rf->function = zf;
+    rf->ori_handler = zf->internal_function.handler;
+    rf->ori_arg_info = zf->internal_function.arg_info;
+    rf->ori_fn_flags = zf->internal_function.fn_flags;
+    rf->ori_num_args = zf->internal_function.num_args;
+
+    zf->internal_function.handler = ZEND_FN(swoole_display_disabled_function);
+    zf->internal_function.arg_info = nullptr;
+    zf->internal_function.fn_flags &= ~(ZEND_ACC_VARIADIC | ZEND_ACC_HAS_TYPE_HINTS | ZEND_ACC_HAS_RETURN_TYPE);
+    zf->internal_function.num_args = 0;
+
+    zend_hash_add_ptr(tmp_function_table, zf->common.function_name, rf);
+    return true;
+}
+
+static bool enable_func(const char *name, size_t l_name) {
+    real_func *rf = (real_func*) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
+    if (!rf) {
+        return false;
+    }
+
+    rf->function->internal_function.handler = rf->ori_handler;
+    rf->function->internal_function.arg_info = rf->ori_arg_info;
+    rf->function->internal_function.fn_flags = rf->ori_fn_flags;
+    rf->function->internal_function.num_args = rf->ori_num_args;
+
+    return true;
+}
+
 void PHPCoroutine::disable_unsafe_function() {
     for (auto &f : unsafe_functions) {
-#if PHP_VERSION_ID < 80000
-        zend_disable_function((char *) f.c_str(), f.length());
-#else
-        zend_disable_functions(f.c_str());
-#endif
+        disable_func(f.c_str(), f.length());
+    }
+}
+
+void PHPCoroutine::enable_unsafe_function() {
+    for (auto &f : unsafe_functions) {
+        enable_func(f.c_str(), f.length());
     }
 }
 
@@ -1117,9 +1168,6 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         // file
         memcpy((void *) &ori_php_plain_files_wrapper, &php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
         memcpy((void *) &ori_php_stream_stdio_ops, &php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
-
-        tmp_function_table = (zend_array *) emalloc(sizeof(zend_array));
-        zend_hash_init(tmp_function_table, 8, nullptr, nullptr, 0);
 
         runtime_hook_init = true;
     }
