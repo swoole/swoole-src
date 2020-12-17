@@ -35,6 +35,9 @@ Assert::eq($req->parse($data2), strlen($data2));
 Assert::false($req->isCompleted());
 Assert::eq($req->parse("\r\n"), 2);
 
+Assert::true($req->isCompleted());
+Assert::false($req->parse('error data'));
+
 Assert::greaterThan(count($req->header), 4);
 Assert::eq(count($req->cookie), 3);
 
