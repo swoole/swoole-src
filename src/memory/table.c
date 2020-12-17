@@ -106,41 +106,20 @@ int swTableColumn_add(swTable *table, const char *name, int len, int type, int s
     switch(type)
     {
     case SW_TABLE_INT:
-        switch(size)
-        {
-        case 1:
-            col->size = 1;
-            col->type = SW_TABLE_INT8;
-            break;
-        case 2:
-            col->size = 2;
-            col->type = SW_TABLE_INT16;
-            break;
-#ifdef __x86_64__
-        case 8:
-            col->size = 8;
-            col->type = SW_TABLE_INT64;
-            break;
-#endif
-        default:
-            col->size = 4;
-            col->type = SW_TABLE_INT32;
-            break;
-        }
+        col->size = sizeof(long);
         break;
     case SW_TABLE_FLOAT:
         col->size = sizeof(double);
-        col->type = SW_TABLE_FLOAT;
         break;
     case SW_TABLE_STRING:
         col->size = size + sizeof(swTable_string_length_t);
-        col->type = SW_TABLE_STRING;
         break;
     default:
         swWarn("unkown column type");
         swTableColumn_free(col);
         return SW_ERR;
     }
+    col->type = type;
     col->index = table->item_size;
     table->item_size += col->size;
     ++table->column_num;
@@ -369,6 +348,8 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
                 }
                 //add row_num
                 bzero(new_row, sizeof(swTableRow));
+                bzero((char *)new_row + sizeof(swTableRow), table->item_size);
+
                 sw_atomic_fetch_add(&(table->row_num), 1);
                 row->next = new_row;
                 row = new_row;
@@ -389,6 +370,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
         insert_count ++;
 #endif
         sw_atomic_fetch_add(&(table->row_num), 1);
+        bzero((char *)row + sizeof(swTableRow), table->item_size);
     }
 
     memcpy(row->key, key, keylen);
@@ -400,8 +382,7 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
 
 static inline void swTable_clear_row(swTable *table, swTableRow *row)
 {
-    sw_memset_zero((char*) &row->lock_pid, sizeof(*row) - offsetof(swTableRow, lock_pid));
-    bzero(row + sizeof(swTableRow), table->item_size);
+    bzero((char*) &row->lock_pid, sizeof(*row) - offsetof(swTableRow, lock_pid));
 }
 
 int swTableRow_del(swTable *table, char *key, int keylen)
@@ -423,7 +404,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     {
         if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
-            swTable_clear_row(row);
+            swTable_clear_row(table, row);
             goto _delete_element;
         }
         else
@@ -468,7 +449,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
-        swTable_clear_row(tmp);
+        swTable_clear_row(table, tmp);
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }

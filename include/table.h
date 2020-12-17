@@ -87,12 +87,6 @@ typedef struct
 enum swoole_table_type
 {
     SW_TABLE_INT = 1,
-    SW_TABLE_INT8,
-    SW_TABLE_INT16,
-    SW_TABLE_INT32,
-#ifdef __x86_64__
-    SW_TABLE_INT64,
-#endif
     SW_TABLE_FLOAT,
     SW_TABLE_STRING,
 };
@@ -169,32 +163,12 @@ typedef uint32_t swTable_string_length_t;
 
 static sw_inline void swTableRow_set_value(swTableRow *row, swTableColumn * col, void *value, size_t vlen)
 {
-    int8_t _i8;
-    int16_t _i16;
-    int32_t _i32;
-#ifdef __x86_64__
-    int64_t _i64;
-#endif
+
     switch(col->type)
     {
-    case SW_TABLE_INT8:
-        _i8 = *(int8_t *) value;
-        memcpy(row->data + col->index, &_i8, 1);
+    case SW_TABLE_INT:
+        memcpy(row->data + col->index, value, sizeof(long));
         break;
-    case SW_TABLE_INT16:
-        _i16 =  *(int16_t *) value;
-        memcpy(row->data + col->index, &_i16, 2);
-        break;
-    case SW_TABLE_INT32:
-        _i32 =  *(int32_t *) value;
-        memcpy(row->data + col->index, &_i32, 4);
-        break;
-#ifdef __x86_64__
-    case SW_TABLE_INT64:
-        _i64 =  *(int64_t *) value;
-        memcpy(row->data + col->index, &_i64, 8);
-        break;
-#endif
     case SW_TABLE_FLOAT:
         memcpy(row->data + col->index, value, sizeof(double));
         break;

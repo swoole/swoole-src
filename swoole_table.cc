@@ -24,8 +24,6 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
 
     swTableColumn *col = NULL;
     swTable_string_length_t vlen = 0;
-    double dval = 0;
-    int64_t lval = 0;
     char *k;
 
     swHashMap_rewind(table->columns);
@@ -43,30 +41,15 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
         }
         else if (col->type == SW_TABLE_FLOAT)
         {
+            double dval = 0;
             memcpy(&dval, row->data + col->index, sizeof(dval));
             add_assoc_double_ex(return_value, col->name->str, col->name->length, dval);
         }
         else
         {
-            switch (col->type)
-            {
-            case SW_TABLE_INT8:
-                memcpy(&lval, row->data + col->index, 1);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, (int8_t) lval);
-                break;
-            case SW_TABLE_INT16:
-                memcpy(&lval, row->data + col->index, 2);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, (int16_t) lval);
-                break;
-            case SW_TABLE_INT32:
-                memcpy(&lval, row->data + col->index, 4);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, (int32_t) lval);
-                break;
-            default:
-                memcpy(&lval, row->data + col->index, 8);
-                add_assoc_long_ex(return_value, col->name->str, col->name->length, lval);
-                break;
-            }
+            long lval = 0;
+            memcpy(&lval, row->data + col->index, sizeof(lval));
+            add_assoc_long_ex(return_value, col->name->str, col->name->length, lval);
         }
     }
 }
@@ -74,8 +57,8 @@ static inline void php_swoole_table_row2array(swTable *table, swTableRow *row, z
 static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *row, zval *return_value, char *field, uint16_t field_len)
 {
     swTable_string_length_t vlen = 0;
-    double dval = 0;
-    int64_t lval = 0;
+
+
 
     swTableColumn *col = (swTableColumn *) swHashMap_find(table->columns, field, field_len);
     if (!col)
@@ -90,30 +73,15 @@ static inline void php_swoole_table_get_field_value(swTable *table, swTableRow *
     }
     else if (col->type == SW_TABLE_FLOAT)
     {
+        double dval = 0;
         memcpy(&dval, row->data + col->index, sizeof(dval));
         ZVAL_DOUBLE(return_value, dval);
     }
     else
     {
-        switch (col->type)
-        {
-        case SW_TABLE_INT8:
-            memcpy(&lval, row->data + col->index, 1);
-            ZVAL_LONG(return_value, (int8_t) lval);
-            break;
-        case SW_TABLE_INT16:
-            memcpy(&lval, row->data + col->index, 2);
-            ZVAL_LONG(return_value, (int16_t) lval);
-            break;
-        case SW_TABLE_INT32:
-            memcpy(&lval, row->data + col->index, 4);
-            ZVAL_LONG(return_value, (int32_t) lval);
-            break;
-        default:
-            memcpy(&lval, row->data + col->index, 8);
-            ZVAL_LONG(return_value, lval);
-            break;
-        }
+        int64_t lval = 0;
+        memcpy(&lval, row->data + col->index, sizeof(lval));
+        ZVAL_LONG(return_value, lval);
     }
 }
 
