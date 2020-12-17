@@ -21,8 +21,9 @@
 #include "swoole_signal.h"
 
 using namespace swoole;
+using swoole::network::Socket;
 
-static std::unordered_map<int, swSocket *> event_socket_map;
+static std::unordered_map<int, Socket *> event_socket_map;
 
 zend_class_entry *swoole_event_ce;
 static zend_object_handlers swoole_event_handlers;
@@ -33,9 +34,9 @@ struct EventObject {
     zend_fcall_info_cache fci_cache_write;
 };
 
-static int event_readable_callback(Reactor *reactor, swEvent *event);
-static int event_writable_callback(Reactor *reactor, swEvent *event);
-static int event_error_callback(Reactor *reactor, swEvent *event);
+static int event_readable_callback(Reactor *reactor, Event *event);
+static int event_writable_callback(Reactor *reactor, Event *event);
+static int event_error_callback(Reactor *reactor, Event *event);
 static void event_defer_callback(void *data);
 static void event_end_callback(void *data);
 
@@ -432,7 +433,7 @@ static void event_check_reactor() {
     }
 }
 
-static swSocket *event_get_socket(int socket_fd) {
+static Socket *event_get_socket(int socket_fd) {
     auto i = event_socket_map.find(socket_fd);
     if (i == event_socket_map.end()) {
         return nullptr;
@@ -495,7 +496,7 @@ static PHP_FUNCTION(swoole_event_add) {
 
     event_check_reactor();
 
-    swSocket *socket = swoole::make_socket(socket_fd, SW_FD_USER);
+    Socket *socket = swoole::make_socket(socket_fd, SW_FD_USER);
     if (!socket) {
         RETURN_FALSE;
     }
@@ -535,7 +536,7 @@ static PHP_FUNCTION(swoole_event_write) {
         RETURN_FALSE;
     }
 
-    swSocket *socket = event_get_socket(socket_fd);
+    Socket *socket = event_get_socket(socket_fd);
     if (socket == nullptr) {
         php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
         RETURN_FALSE;
@@ -576,7 +577,7 @@ static PHP_FUNCTION(swoole_event_set) {
         RETURN_FALSE;
     }
 
-    swSocket *socket = event_get_socket(socket_fd);
+    Socket *socket = event_get_socket(socket_fd);
     if (socket == nullptr) {
         php_swoole_fatal_error(E_WARNING, "socket[%d] is not found in the reactor", socket_fd);
         RETURN_FALSE;
@@ -632,7 +633,7 @@ static PHP_FUNCTION(swoole_event_del) {
         RETURN_FALSE;
     }
 
-    swSocket *socket = event_get_socket(socket_fd);
+    Socket *socket = event_get_socket(socket_fd);
     if (!socket) {
         RETURN_FALSE;
     }
@@ -770,7 +771,7 @@ static PHP_FUNCTION(swoole_event_isset) {
         RETURN_FALSE;
     }
 
-    swSocket *_socket = event_get_socket(socket_fd);
+    Socket *_socket = event_get_socket(socket_fd);
     if (_socket == nullptr || _socket->removed) {
         RETURN_FALSE;
     }
