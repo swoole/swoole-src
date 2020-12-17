@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: sleep
+swoole_server: sleep
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

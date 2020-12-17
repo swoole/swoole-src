@@ -76,4 +76,3 @@ Stack trace:
 #0 %s(%d): curl_close(%s)
 #1 {main}
   thrown in %s on line %d
-

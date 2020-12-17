@@ -21,4 +21,3 @@ Fatal error: Uncaught Error: Call to undefined function test_not_found() in %s:%
 Stack trace:
 #0 {main}
   thrown in %s on line %d
-
