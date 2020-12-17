@@ -19,7 +19,7 @@ Co\run(function () {
     });
     swoole_test_kernel_coroutine(N, T);
 });
-
+Assert::eq(Co::stats()['coroutine_peak_num'], 3);
 echo "Done\n";
 
 ?>
