@@ -57,8 +57,7 @@ void Channel::yield(enum opcode type)
 void* Channel::pop(double timeout)
 {
     Coroutine *current_co = Coroutine::get_current_safe();
-    if (closed)
-    {
+    if (closed && is_empty()) {
         return nullptr;
     }
     if (is_empty() || !consumer_queue.empty())
@@ -81,8 +80,7 @@ void* Channel::pop(double timeout)
         {
             swoole_timer_del(msg.timer);
         }
-        if (msg.error || closed)
-        {
+        if (msg.error || (closed && is_empty())) {
             return nullptr;
         }
     }

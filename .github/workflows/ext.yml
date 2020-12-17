@@ -9,6 +9,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v1
+    - name: install php
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '7.4'
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
     - name: make
