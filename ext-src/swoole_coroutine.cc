@@ -1058,7 +1058,6 @@ PHP_FUNCTION(swoole_test_kernel_coroutine) {
     Coroutine::create([=](void *ptr) {
         SW_LOOP_N(count) {
             System::sleep(sleep_time);
-            printf("kernel coroutine [%ld]\n", i);
         }
     });
 }
