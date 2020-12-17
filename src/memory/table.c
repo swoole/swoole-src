@@ -398,6 +398,12 @@ swTableRow* swTableRow_set(swTable *table, const char *key, int keylen, swTableR
     return row;
 }
 
+static inline void swTable_clear_row(swTable *table, swTableRow *row)
+{
+    sw_memset_zero((char*) &row->lock_pid, sizeof(*row) - offsetof(swTableRow, lock_pid));
+    bzero(row + sizeof(swTableRow), table->item_size);
+}
+
 int swTableRow_del(swTable *table, char *key, int keylen)
 {
     if (keylen > SW_TABLE_KEY_SIZE)
@@ -417,7 +423,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
     {
         if (sw_mem_equal(row->key, row->key_len, key, keylen))
         {
-            bzero(row, sizeof(swTableRow) + table->item_size);
+            swTable_clear_row(row);
             goto _delete_element;
         }
         else
@@ -462,7 +468,7 @@ int swTableRow_del(swTable *table, char *key, int keylen)
             prev->next = tmp->next;
         }
         table->lock.lock(&table->lock);
-        bzero(tmp, sizeof(swTableRow) + table->item_size);
+        swTable_clear_row(tmp);
         table->pool->free(table->pool, tmp);
         table->lock.unlock(&table->lock);
     }
