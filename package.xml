@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-10-27</date>
-    <time>18:00:00</time>
+    <date>2020-12-17</date>
+    <time>16:00:00</time>
     <version>
-        <release>4.4.22</release>
+        <release>4.4.23</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,11 +56,10 @@
     <notes>
         Fixed
         ---
-        * Fixed systemd fds bugs
-        * Fixed onPacket callback or UDP Server with IPv6 return wrong port
-        * Fixed swMutex_lockwait invalid
-        * Fixed PDO context data confusion
-        * Fixed HTTP2 client over HTTP proxy is not working
+        * Fixed table bugs
+        * Fixed sync client error info (#3784)
+        * Fixed memory overread when parse form-data boundary (#3858)
+        * Fixed the bug of the channel, the data that has enqueue cannot be popped after the close
     </notes>
     <contents>
         <dir name="/">
@@ -753,6 +752,7 @@
             <file role="test" name="tests/swoole_channel_coro/hybird_chan3.phpt" />
             <file role="test" name="tests/swoole_channel_coro/lock.phpt" />
             <file role="test" name="tests/swoole_channel_coro/pool.phpt" />
+            <file role="test" name="tests/swoole_channel_coro/pop_after_close.phpt" />
             <file role="test" name="tests/swoole_channel_coro/pop_close1.phpt" />
             <file role="test" name="tests/swoole_channel_coro/pop_timeout1.phpt" />
             <file role="test" name="tests/swoole_channel_coro/pop_timeout2.phpt" />
@@ -1784,6 +1784,7 @@
             <file role="src" name="travis/pecl-install.sh" />
             <file role="src" name="travis/route.sh" />
             <file role="src" name="travis/run-tests.sh" />
+            <file role="src" name="travis/simple-compile-on-github.sh" />
             <file role="src" name="travis/simple-compile.sh" />
         </dir>
     </contents>
