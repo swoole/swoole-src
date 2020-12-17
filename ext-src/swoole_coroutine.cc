@@ -615,6 +615,9 @@ void PHPCoroutine::main_func(void *arg) {
         EG(error_handling) = EH_NORMAL;
         EG(exception_class) = nullptr;
         EG(exception) = nullptr;
+#if PHP_VERSION_ID >= 80000
+        EG(jit_trace_num) = 0;
+#endif
 
         task->output_ptr = nullptr;
 #if PHP_VERSION_ID < 80100
