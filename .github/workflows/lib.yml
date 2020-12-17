@@ -19,6 +19,10 @@ jobs:
            sudo make install &&
            cd - &&
            sudo rm -rf /usr/src/googletest/googletest/build
+    - name: install php
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '7.4'
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2
     - name: make
