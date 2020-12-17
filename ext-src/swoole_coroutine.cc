@@ -1041,6 +1041,27 @@ PHP_METHOD(swoole_coroutine, yield) {
     RETURN_TRUE;
 }
 
+PHP_FUNCTION(swoole_test_kernel_coroutine) {
+    if (!PHPCoroutine::is_activated()) {
+        RETURN_FALSE;
+    }
+
+    zend_long count = 100;
+    double sleep_time = 1.0;
+
+    ZEND_PARSE_PARAMETERS_START(0, 2)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(count)
+    Z_PARAM_DOUBLE(sleep_time)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    Coroutine::create([=](void *ptr) {
+        SW_LOOP_N(count) {
+            System::sleep(sleep_time);
+        }
+    });
+}
+
 PHP_METHOD(swoole_coroutine, getBackTrace) {
     zend_long cid = 0;
     zend_long options = DEBUG_BACKTRACE_PROVIDE_OBJECT;

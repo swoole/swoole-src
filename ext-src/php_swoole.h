@@ -188,6 +188,7 @@ PHP_FUNCTION(swoole_coroutine_exec);
 PHP_FUNCTION(swoole_coroutine_gethostbyname);
 PHP_FUNCTION(swoole_coroutine_defer);
 PHP_FUNCTION(swoole_coroutine_socketpair);
+PHP_FUNCTION(swoole_test_kernel_coroutine); // for tests
 //---------------------------------------------------------
 //                  event
 //---------------------------------------------------------

@@ -107,9 +107,14 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_defer, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_socketpair, 0, 0, 3)
-    ZEND_ARG_INFO(1, domain)
-    ZEND_ARG_INFO(1, type)
-    ZEND_ARG_INFO(1, protocol)
+    ZEND_ARG_INFO(0, domain)
+    ZEND_ARG_INFO(0, type)
+    ZEND_ARG_INFO(0, protocol)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_test_kernel_coroutine, 0, 0, 0)
+    ZEND_ARG_INFO(0, count)
+    ZEND_ARG_INFO(0, sleep_time)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_client_select, 0, 0, 3)
@@ -183,6 +188,7 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_coroutine_create, arginfo_swoole_coroutine_create)
     PHP_FE(swoole_coroutine_defer, arginfo_swoole_coroutine_defer)
     PHP_FE(swoole_coroutine_socketpair, arginfo_swoole_coroutine_socketpair)
+    PHP_FE(swoole_test_kernel_coroutine, arginfo_swoole_test_kernel_coroutine)
     /*------other-----*/
     PHP_FE(swoole_client_select, arginfo_swoole_client_select)
     PHP_FALIAS(swoole_select, swoole_client_select, arginfo_swoole_client_select)
