@@ -117,7 +117,6 @@ class PHPCoroutine {
         HOOK_NATIVE_CURL       = 1u << 12,
         HOOK_BLOCKING_FUNCTION = 1u << 13,
         HOOK_SOCKETS           = 1u << 14,
-        HOOK_STDIO             = 1u << 15,
 #ifdef SW_USE_CURL
         HOOK_ALL               = 0x7fffffff ^ HOOK_CURL,
 #else
