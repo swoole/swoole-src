@@ -258,7 +258,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                 goto _continue;
             }
         } else if (n == 0) {
-            reactor_->execute_end_callbacks(true);
+            reactor_->execute_end_callbacks();
             SW_REACTOR_CONTINUE;
         }
 
@@ -312,7 +312,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
         }
 
     _continue:
-        reactor_->execute_end_callbacks(false);
+        reactor_->execute_end_callbacks();
         SW_REACTOR_CONTINUE;
     }
     return 0;
