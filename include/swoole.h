@@ -529,7 +529,7 @@ int swoole_set_cpu_affinity(cpu_set_t *set);
 #ifdef HAVE_CLOCK_GETTIME
 #define swoole_clock_gettime     clock_gettime
 #else
-int swoole_clock_gettime(clock_id_t which_clock, struct timespec *t);
+int swoole_clock_gettime(int which_clock, struct timespec *t);
 #endif
 
 static inline struct timespec swoole_time_until(int milliseconds) {
