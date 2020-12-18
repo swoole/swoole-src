@@ -952,7 +952,7 @@ static PHP_METHOD(swoole_http_request, getData) {
 }
 
 static PHP_METHOD(swoole_http_request, create) {
-    zval *zoptions;
+    zval *zoptions = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
@@ -983,8 +983,6 @@ static PHP_METHOD(swoole_http_request, create) {
 
         SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zoptions), key, keylen, keytype, zvalue) {
             if (SW_STRCASEEQ(key, keylen, "parse_cookie")) {
-                ctx->parse_cookie = zval_is_true(zvalue);
-            } else if (SW_STRCASEEQ(key, keylen, "parse_cookie")) {
                 ctx->parse_cookie = zval_is_true(zvalue);
             } else if (SW_STRCASEEQ(key, keylen, "parse_body")) {
                 ctx->parse_body = zval_is_true(zvalue);

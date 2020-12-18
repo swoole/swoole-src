@@ -42,5 +42,10 @@ Assert::greaterThan(count($req->header), 4);
 Assert::eq(count($req->cookie), 3);
 
 Assert::eq($req->getData(), $data."\r\n");
+
+$req2 = Request::create(['parse_cookie' => false]);
+Assert::eq($req2->parse($data . "\r\n"), strlen($data) + 2);
+Assert::null($req2->cookie);
+
 ?>
 --EXPECT--
