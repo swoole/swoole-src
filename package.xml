@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-11-26</date>
-    <time>00:00:00</time>
+    <date>2020-12-22</date>
+    <time>09:00:00</time>
     <version>
-        <release>4.5.9</release>
+        <release>4.5.10</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,13 +54,11 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Enhancement
-        ---
-        + Added SWOOLE_HTTP_CLIENT_ESTATUS_SEND_FAILED constant for Coroutine\\Http\\Client (#3873) (@sy-records)
-
         Fixed
         ---
-        * Fixed PHP8 compatibility (#3868) (#3869) (#3872) (@twose) (@huanghantao) (@doubaokun)
+        * Fixed #3906, sync master (93901dc0) (@matyhtf)
+        * Fixed PHP8 compatibility (f0dc6d32) (@matyhtf)
+        * Fixed connection_list error (#3948) (@sy-records)
     </notes>
     <contents>
         <dir name="/">
@@ -1515,6 +1513,7 @@
             <file role="test" name="tests/swoole_server/close_in_connect_callback.phpt" />
             <file role="test" name="tests/swoole_server/close_in_non_current_worker.phpt" />
             <file role="test" name="tests/swoole_server/close_in_task_worker.phpt" />
+            <file role="test" name="tests/swoole_server/close_max_fd.phpt" />
             <file role="test" name="tests/swoole_server/close_queued.phpt" />
             <file role="test" name="tests/swoole_server/connections.phpt" />
             <file role="test" name="tests/swoole_server/discard_timeout_packet.phpt" />
@@ -1907,6 +1906,7 @@
             <file role="src" name="travis/pecl-install.sh" />
             <file role="src" name="travis/route.sh" />
             <file role="src" name="travis/run-tests.sh" />
+            <file role="src" name="travis/simple-compile-on-github.sh" />
             <file role="src" name="travis/simple-compile.sh" />
         </dir>
     </contents>
