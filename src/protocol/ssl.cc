@@ -449,6 +449,8 @@ bool SSLContext::create() {
 
     if (verify_peer && !set_capath()) {
         return false;
+    } else {
+        SSL_CTX_set_verify(context, SSL_VERIFY_NONE, nullptr);
     }
 
 #if OPENSSL_VERSION_NUMBER >= 0x10002000L
@@ -491,7 +493,9 @@ bool SSLContext::create() {
 
 bool SSLContext::set_capath() {
     if (!cafile.empty() || !capath.empty()) {
-        if (!SSL_CTX_load_verify_locations(context, cafile.c_str(), capath.c_str())) {
+        const char *_cafile = cafile.empty() ? nullptr : cafile.c_str();
+        const char *_capath = capath.empty() ? nullptr : capath.c_str();
+        if (!SSL_CTX_load_verify_locations(context, _cafile, _capath)) {
             return false;
         }
     } else {
