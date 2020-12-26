@@ -175,7 +175,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                 goto _continue;
             }
         } else if (ret == 0) {
-            reactor_->execute_end_callbacks(true);
+            reactor_->execute_end_callbacks();
             SW_REACTOR_CONTINUE;
         } else {
             for (uint32_t i = 0; i < reactor_->event_num; i++) {
@@ -223,7 +223,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
             }
         }
     _continue:
-        reactor_->execute_end_callbacks(false);
+        reactor_->execute_end_callbacks();
         SW_REACTOR_CONTINUE;
     }
     return SW_OK;
