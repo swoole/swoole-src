@@ -184,7 +184,7 @@ class Reactor {
     void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, int &)> &fn);
     bool set_handler(int _fdtype, ReactorHandler handler);
     void add_destroy_callback(Callback cb, void *data = nullptr);
-    void execute_end_callbacks();
+    void execute_end_callbacks(bool timedout = false);
     void drain_write_buffer(network::Socket *socket);
 
     bool ready() {

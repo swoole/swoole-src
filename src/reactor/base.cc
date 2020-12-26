@@ -409,7 +409,7 @@ void Reactor::defer(Callback cb, void *data) {
     defer_tasks->append(cb, data);
 }
 
-void Reactor::execute_end_callbacks() {
+void Reactor::execute_end_callbacks(bool timedout) {
     for (auto &kv : end_callbacks) {
         kv.second(this);
     }
