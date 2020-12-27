@@ -150,3 +150,15 @@ TEST(coroutine_base, get_peak_num) {
     Coroutine::create(
         [](void *_arg) { Coroutine::create([](void *_arg) { ASSERT_GE(Coroutine::get_peak_num(), 2); }); });
 }
+
+TEST(coroutine_base, get_elapsed) {
+    long elapsed_time;
+    Coroutine::create(
+        [](void *arg) {
+            auto co = Coroutine::get_current();
+            *(long *) arg = Coroutine::get_elapsed(co->get_cid());
+        },
+        &elapsed_time);
+    ASSERT_GE(elapsed_time, 0);
+}
+
