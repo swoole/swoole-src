@@ -165,6 +165,7 @@ static PHP_METHOD(swoole_http_response, cookie);
 static PHP_METHOD(swoole_http_response, rawcookie);
 static PHP_METHOD(swoole_http_response, header);
 static PHP_METHOD(swoole_http_response, initHeader);
+static PHP_METHOD(swoole_http_response, isWritable);
 static PHP_METHOD(swoole_http_response, detach);
 static PHP_METHOD(swoole_http_response, create);
 /**
@@ -251,6 +252,7 @@ ZEND_END_ARG_INFO()
 const zend_function_entry swoole_http_response_methods[] =
 {
     PHP_ME(swoole_http_response, initHeader, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, isWritable, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_http_response, setCookie, cookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, rawcookie, arginfo_swoole_http_response_cookie, ZEND_ACC_PUBLIC)
@@ -698,6 +700,14 @@ static PHP_METHOD(swoole_http_response, initHeader) {
         swoole_http_response_ce, zresponse_object, &ctx->response.zcookie, ZEND_STRL("cookie"));
     swoole_http_init_and_read_property(
         swoole_http_response_ce, zresponse_object, &ctx->response.ztrailer, ZEND_STRL("trailer"));
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_http_response, isWritable) {
+    http_context *ctx = php_swoole_http_response_get_context(ZEND_THIS);
+    if (!ctx || (ctx->end || ctx->detached)) {
+        RETURN_FALSE;
+    }
     RETURN_TRUE;
 }
 
