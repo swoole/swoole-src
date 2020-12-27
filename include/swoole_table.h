@@ -67,6 +67,9 @@ struct TableRow {
     }
 
     void set_value(TableColumn *col, void *value, size_t vlen);
+    void get_value(TableColumn *col, double *dval);
+    void get_value(TableColumn *col, long *lval);
+    void get_value(TableColumn *col, char **strval, TableStringLength *strlen);
 };
 
 struct TableIterator {
@@ -213,6 +216,12 @@ class Table {
     void check_key_length(uint16_t *keylen) {
         if (*keylen >= SW_TABLE_KEY_SIZE) {
             *keylen = SW_TABLE_KEY_SIZE - 1;
+        }
+    }
+
+    void clear_row(TableRow *row) {
+        for (auto i = column_list->begin(); i != column_list->end(); i++) {
+            (*i)->clear(row);
         }
     }
 
