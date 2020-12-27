@@ -512,9 +512,7 @@ static PHP_METHOD(swoole_table, incr) {
     }
 
     if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
-        for (auto i = table->column_list->begin(); i != table->column_list->end(); i++) {
-            (*i)->clear(row);
-        }
+        table->clear_row(row);
     }
 
     if (column->type == TableColumn::TYPE_STRING) {
@@ -574,9 +572,7 @@ static PHP_METHOD(swoole_table, decr) {
     }
 
     if (out_flags & SW_TABLE_FLAG_NEW_ROW) {
-        for (auto i = table->column_list->begin(); i != table->column_list->end(); i++) {
-            (*i)->clear(row);
-        }
+        table->clear_row(row);
     }
 
     if (column->type == TableColumn::TYPE_STRING) {

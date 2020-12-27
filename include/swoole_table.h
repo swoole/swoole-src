@@ -219,6 +219,12 @@ class Table {
         }
     }
 
+    void clear_row(TableRow *row) {
+        for (auto i = column_list->begin(); i != column_list->end(); i++) {
+            (*i)->clear(row);
+        }
+    }
+
     void init_row(TableRow *new_row, const char *key, int keylen) {
         sw_memset_zero(new_row, sizeof(TableRow));
         memcpy(new_row->key, key, keylen);
