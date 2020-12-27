@@ -67,6 +67,9 @@ struct TableRow {
     }
 
     void set_value(TableColumn *col, void *value, size_t vlen);
+    void get_value(TableColumn *col, double *dval);
+    void get_value(TableColumn *col, long *lval);
+    void get_value(TableColumn *col, char **strval, TableStringLength *strlen);
 };
 
 struct TableIterator {

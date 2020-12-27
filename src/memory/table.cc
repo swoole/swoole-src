@@ -419,4 +419,17 @@ void TableRow::set_value(TableColumn *col, void *value, size_t vlen) {
     }
 }
 
+void TableRow::get_value(TableColumn *col, double *dval) {
+    memcpy(&dval, data + col->index, sizeof(*dval));
+}
+
+void TableRow::get_value(TableColumn *col, long *lval) {
+    memcpy(&lval, data + col->index, sizeof(*lval));
+}
+
+void TableRow::get_value(TableColumn *col, char **value, TableStringLength *len) {
+    memcpy(len, data + col->index, sizeof(*len));
+    *value = data + col->index + sizeof(*len);
+}
+
 }  // namespace swoole
