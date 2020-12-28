@@ -856,6 +856,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #else
     php_info_print_table_row(2, "openssl", "enabled");
 #endif
+#ifdef SW_SUPPORT_DTLS
+    php_info_print_table_row(2, "dtls", "enabled");
+#endif
 #endif
 #ifdef SW_USE_HTTP2
     php_info_print_table_row(2, "http2", "enabled");

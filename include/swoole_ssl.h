@@ -38,6 +38,10 @@
 #define SW_SUPPORT_DTLS
 #endif
 
+#if defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x3000000fL
+#undef SW_SUPPORT_DTLS
+#endif
+
 enum swSSL_create_flag {
     SW_SSL_SERVER = 1,
     SW_SSL_CLIENT = 2,
