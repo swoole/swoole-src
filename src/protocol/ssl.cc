@@ -528,7 +528,7 @@ bool SSLContext::set_ciphers() {
     }
 
 #ifndef OPENSSL_NO_RSA
-    SSL_CTX_set_tmp_rsa_callback(ssl_context, swSSL_rsa_key_callback);
+    SSL_CTX_set_tmp_rsa_callback(context, swSSL_rsa_key_callback);
 #endif
 
     if (!dhparam.empty() && !set_dhparam()) {
@@ -697,8 +697,6 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store) {
 
     return 1;
 }
-
-
 
 #ifdef SW_SUPPORT_DTLS
 

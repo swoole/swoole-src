@@ -24,18 +24,6 @@
 #include <initializer_list>
 
 /* openssl */
-#ifndef OPENSSL_NO_TLS1_METHOD
-#define HAVE_TLS1 1
-#endif
-#ifndef OPENSSL_NO_TLS1_1_METHOD
-#define HAVE_TLS11 1
-#endif
-#ifndef OPENSSL_NO_TLS1_2_METHOD
-#define HAVE_TLS12 1
-#endif
-#if OPENSSL_VERSION_NUMBER >= 0x10101000 && !defined(OPENSSL_NO_TLS1_3)
-#define HAVE_TLS13 1
-#endif
 #ifndef OPENSSL_NO_ECDH
 #define HAVE_ECDH 1
 #endif
@@ -911,17 +899,17 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
 
             array_init(&tmp);
             switch (SSL_version(ssl)) {
-#ifdef HAVE_TLS13
+#ifdef TLS1_3_VERSION
             case TLS1_3_VERSION:
                 proto_str = "TLSv1.3";
                 break;
 #endif
-#ifdef HAVE_TLS12
+#ifdef TLS1_2_VERSION
             case TLS1_2_VERSION:
                 proto_str = "TLSv1.2";
                 break;
 #endif
-#ifdef HAVE_TLS11
+#ifdef TLS1_1_VERSION
             case TLS1_1_VERSION:
                 proto_str = "TLSv1.1";
                 break;
@@ -929,7 +917,7 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             case TLS1_VERSION:
                 proto_str = "TLSv1";
                 break;
-#ifdef HAVE_SSL3
+#ifdef SSL3_VERSION
             case SSL3_VERSION:
                 proto_str = "SSLv3";
                 break;
