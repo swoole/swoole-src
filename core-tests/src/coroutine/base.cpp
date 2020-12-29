@@ -23,6 +23,15 @@ TEST(coroutine_base, get_current) {
     ASSERT_EQ(cid, _cid);
 }
 
+TEST(coroutine_base, get_init_msec) {
+    Coroutine::create([](void *arg) {
+        auto co = Coroutine::get_current();
+        long init_msec = co->get_init_msec();
+
+        ASSERT_GT(init_msec, 0);
+    });
+}
+
 TEST(coroutine_base, yield_resume) {
     long _cid;
     long cid = Coroutine::create(
@@ -162,4 +171,3 @@ TEST(coroutine_base, get_elapsed) {
         &elapsed_time);
     ASSERT_GE(elapsed_time, 2);
 }
-
