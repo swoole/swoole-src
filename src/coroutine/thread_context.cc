@@ -30,20 +30,18 @@ static String *g_buffer = nullptr;
 static AsyncThreads *g_async_threads = nullptr;
 static std::mutex *current_lock = nullptr;
 
-static void empty_timer(Timer *timer, TimerNode *tnode) {
-    // do nothing
-}
-
 Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
     : fn_(fn), private_data_(private_data) {
     if (sw_unlikely(current_lock == nullptr)) {
         current_lock = &g_lock;
         if (SwooleTG.timer == nullptr) {
-            swoole_timer_add(1, false, empty_timer, nullptr);
+            swoole_timer_add(1, false, [](Timer *timer, TimerNode *tnode) {
+                // do nothing
+            }, nullptr);
         }
-//        if (SwooleTG.async_threads == nullptr) {
-//            SwooleTG.async_threads = new AsyncThreads();
-//        }
+        if (SwooleTG.async_threads == nullptr) {
+            SwooleTG.async_threads = new AsyncThreads();
+        }
         g_reactor = SwooleTG.reactor;
         g_buffer = SwooleTG.buffer_stack;
         g_timer = SwooleTG.timer;
@@ -84,7 +82,8 @@ void Context::context_func(void *arg) {
     _this->lock_.lock();
     _this->fn_(_this->private_data_);
     _this->end_ = true;
-    _this->swap_out();
+    current_lock = _this->swap_lock_;
+    _this->swap_lock_->unlock();
 }
 }  // namespace coroutine
 }  // namespace swoole
