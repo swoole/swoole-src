@@ -19,16 +19,9 @@
 #include "swoole.h"
 
 namespace swoole {
-
-class Exception {
-  public:
-    int code;
-    const char *msg;
-
-    Exception(int code) : code(code) {
-        msg = swoole_strerror(code);
-    }
-};
+Exception::Exception(int code) : code(code) {
+    msg = swoole_strerror(code);
+}
 }  // namespace swoole
 
 const char *swoole_strerror(int code) {

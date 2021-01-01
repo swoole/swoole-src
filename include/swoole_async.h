@@ -20,17 +20,19 @@
 
 #include <vector>
 #include <string>
+#include <mutex>
+#include <atomic>
 
 #ifndef O_DIRECT
 #define O_DIRECT 040000
 #endif
 
-enum flag {
+namespace swoole {
+
+enum AsyncFlags {
     SW_AIO_WRITE_FSYNC = 1u << 1,
     SW_AIO_EOF = 1u << 2,
 };
-
-namespace swoole {
 
 struct AsyncEvent {
     int fd;
@@ -60,18 +62,31 @@ struct AsyncEvent {
     void (*callback)(AsyncEvent *event);
 };
 
+class AsyncThreads {
+  public:
+    bool schedule = false;
+    uint32_t task_num = 0;
+    Pipe *pipe = nullptr;
+    async::ThreadPool *pool = nullptr;
+    network::Socket *read_socket = nullptr;
+    network::Socket *write_socket = nullptr;
+
+    AsyncThreads();
+    ~AsyncThreads();
+
+    size_t thread_count();
+    void notify_one();
+
+    static int callback(Reactor *reactor, Event *event);
+  private:
+    std::mutex init_lock;
+};
+
 namespace async {
 
 typedef void (*Handler)(AsyncEvent *event);
 
 AsyncEvent *dispatch(const AsyncEvent *request);
-int cancel(int task_id);
-int callback(Reactor *reactor, swEvent *_event);
-size_t thread_count();
-
-#ifdef SW_DEBUG
-void notify_one();
-#endif
 
 void handler_gethostbyname(AsyncEvent *event);
 void handler_getaddrinfo(AsyncEvent *event);

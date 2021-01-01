@@ -813,15 +813,18 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "Version", SWOOLE_VERSION);
     snprintf(buf, sizeof(buf), "%s %s", __DATE__, __TIME__);
     php_info_print_table_row(2, "Built", buf);
-    php_info_print_table_row(2, "coroutine", "enabled");
+#if defined(SW_USE_THREAD_CONTEXT)
+    php_info_print_table_row(2, "coroutine", "enabled with thread context");
+#elif defined(SW_USE_ASM_CONTEXT)
+    php_info_print_table_row(2, "coroutine", "enabled with boost asm context");
+#else
+    php_info_print_table_row(2, "coroutine", "enabled with ucontext");
+#endif
 #ifdef SW_DEBUG
     php_info_print_table_row(2, "debug", "enabled");
 #endif
 #ifdef SW_LOG_TRACE_OPEN
     php_info_print_table_row(2, "trace_log", "enabled");
-#endif
-#ifdef SW_NO_USE_ASM_CONTEXT
-    php_info_print_table_row(2, "ucontext", "enabled");
 #endif
 #ifdef HAVE_EPOLL
     php_info_print_table_row(2, "epoll", "enabled");

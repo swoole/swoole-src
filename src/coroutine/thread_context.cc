@@ -15,6 +15,7 @@
 */
 
 #include "swoole_api.h"
+#include "swoole_async.h"
 #include "swoole_coroutine_context.h"
 
 #ifdef SW_USE_THREAD_CONTEXT
@@ -22,9 +23,11 @@
 namespace swoole {
 namespace coroutine {
 
-static std::mutex global_lock;
+static std::mutex g_lock;
 static Reactor *g_reactor = nullptr;
 static Timer *g_timer = nullptr;
+static String *g_buffer = nullptr;
+static AsyncThreads *g_async_threads = nullptr;
 static std::mutex *current_lock = nullptr;
 
 static void empty_timer(Timer *timer, TimerNode *tnode) {
@@ -34,13 +37,18 @@ static void empty_timer(Timer *timer, TimerNode *tnode) {
 Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
     : fn_(fn), private_data_(private_data) {
     if (sw_unlikely(current_lock == nullptr)) {
-        current_lock = &global_lock;
-        g_reactor = SwooleTG.reactor;
+        current_lock = &g_lock;
         if (SwooleTG.timer == nullptr) {
-            swoole_timer_add(1, 0, empty_timer, nullptr);
+            swoole_timer_add(1, false, empty_timer, nullptr);
         }
+//        if (SwooleTG.async_threads == nullptr) {
+//            SwooleTG.async_threads = new AsyncThreads();
+//        }
+        g_reactor = SwooleTG.reactor;
+        g_buffer = SwooleTG.buffer_stack;
         g_timer = SwooleTG.timer;
-        global_lock.lock();
+        g_async_threads = SwooleTG.async_threads;
+        g_lock.lock();
     }
     end_ = false;
     lock_.lock();
@@ -71,11 +79,12 @@ void Context::context_func(void *arg) {
     Context *_this = (Context *) arg;
     SwooleTG.reactor = g_reactor;
     SwooleTG.timer = g_timer;
+    SwooleTG.buffer_stack = g_buffer;
+    SwooleTG.async_threads = g_async_threads;
     _this->lock_.lock();
     _this->fn_(_this->private_data_);
-    _this->lock_.unlock();
-    _this->swap_lock_->unlock();
     _this->end_ = true;
+    _this->swap_out();
 }
 }  // namespace coroutine
 }  // namespace swoole
