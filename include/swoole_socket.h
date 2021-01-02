@@ -474,9 +474,7 @@ struct Socket {
             return SW_ERROR;
         case EBADF:
         case ECONNRESET:
-#ifdef __CYGWIN__
         case ECONNABORTED:
-#endif
         case EPIPE:
         case ENOTCONN:
         case ETIMEDOUT:
@@ -489,6 +487,9 @@ struct Socket {
         case SW_ERROR_SSL_RESET:
             return SW_CLOSE;
         case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+        case EWOULDBLOCK:
+#endif
 #ifdef HAVE_KQUEUE
         case ENOBUFS:
 #endif
