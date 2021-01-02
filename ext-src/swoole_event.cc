@@ -281,7 +281,7 @@ void php_swoole_event_wait() {
         swSignalfd_setup(sw_reactor());
     }
 #endif
-    if (!sw_reactor()->if_exit()) {
+    if (!sw_reactor()->if_exit() && !sw_reactor()->bailout) {
         // Don't disable object slot reuse while running shutdown functions:
         // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
 #if defined(EG_FLAGS_IN_SHUTDOWN) && !defined(EG_FLAGS_OBJECT_STORE_NO_REUSE)

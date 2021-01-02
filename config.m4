@@ -674,7 +674,6 @@ if test "$PHP_SWOOLE" != "no"; then
     else
         SW_USE_ASM_CONTEXT="no"
     fi
-    
         
     if test "$PHP_THREAD_CONTEXT" != "no"; then
 		AC_DEFINE(SW_USE_THREAD_CONTEXT, 1, [do we enable thread context])

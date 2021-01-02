@@ -340,10 +340,10 @@ void PHPCoroutine::activate() {
                 /* update the last coroutine's info */
                 save_task(get_context());
             }
-            bool _ori_value = config.enable_deadlock_check;
-            config.enable_deadlock_check = false;
-            swoole_event_free();
-            config.enable_deadlock_check = _ori_value;
+            if (sw_reactor()) {
+                sw_reactor()->running = false;
+                sw_reactor()->bailout = true;
+            }
         }
         if (sw_likely(orig_error_function)) {
             orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
@@ -381,7 +381,7 @@ void PHPCoroutine::deadlock_check() {
     if (Coroutine::count() == 0) {
         return;
     }
-    if (php_swoole_is_fatal_error()) {
+    if (php_swoole_is_fatal_error() || (sw_reactor() && sw_reactor()->bailout)) {
         return;
     }
     if (SWOOLE_G(enable_library)) {
@@ -769,7 +769,10 @@ void PHPCoroutine::main_func(void *arg) {
     }
     zend_catch {
         Coroutine::bailout([]() {
-            swoole_event_free();
+            if (sw_reactor()) {
+                sw_reactor()->running = false;
+                sw_reactor()->bailout = true;
+            }
             sw_zend_bailout();
         });
     }
