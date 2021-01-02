@@ -178,7 +178,10 @@ class ThreadPool {
             return;
         } else {
             std::thread *_thread = i->second;
-            swTraceLog(SW_TRACE_AIO, "release idle thread#%s, we have %zu now", get_thread_id(tid), threads.size() - 1);
+            swTraceLog(SW_TRACE_AIO,
+                       "release idle thread#%s, we have %zu now",
+                       get_thread_id(tid).c_str(),
+                       threads.size() - 1);
             if (_thread->joinable()) {
                 _thread->join();
             }
