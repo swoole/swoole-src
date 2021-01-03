@@ -14,7 +14,7 @@ Co\run(function () {
         $errorCode,
         $errorMessage,
         1,
-        STREAM_CLIENT_CONNECT,
+        STREAM_CLIENT_CONNECT
     );
     stream_set_timeout($socket, 5);
     stream_set_blocking($socket, false);
