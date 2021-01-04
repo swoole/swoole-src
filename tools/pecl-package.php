@@ -113,7 +113,8 @@ $package_release_ver = $matches['release_v'];
 $package_api_ver = $matches['api_v'];
 $package_release_stable = $matches['release_s'];
 $package_api_stable = $matches['api_s'];
-if (round((float)$package_release_ver, 0, PHP_ROUND_HALF_DOWN) != $package_api_ver) {
+$major_version = explode(".", $package_release_ver)[0];
+if ((int) $major_version != $package_api_ver) {
     swoole_error("Wrong api version [{$package_api_ver}] with release version [{$package_release_ver}]");
 }
 if ($package_release_stable . $package_api_stable !== 'stable' . 'stable') {
