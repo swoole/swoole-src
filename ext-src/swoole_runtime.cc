@@ -92,8 +92,7 @@ ZEND_END_ARG_INFO()
 
 static zend_class_entry *swoole_runtime_ce;
 
-static php_stream_ops socket_ops
-{
+static php_stream_ops socket_ops {
     socket_write,
     socket_read,
     socket_close,
@@ -105,20 +104,16 @@ static php_stream_ops socket_ops
     socket_set_option,
 };
 
-struct php_swoole_netstream_data_t
-{
+struct php_swoole_netstream_data_t {
     php_netstream_data_t stream;
     Socket *socket;
     bool blocking;
-    double read_timeout;
-    double write_timeout;
 };
 
 static bool runtime_hook_init = false;
 static int runtime_hook_flags = 0;
 
-static struct
-{
+static struct {
     php_stream_transport_factory tcp;
     php_stream_transport_factory udp;
     php_stream_transport_factory _unix;
@@ -270,8 +265,7 @@ static inline char *parse_ip_address_ex(const char *str, size_t str_len, int *po
     return host;
 }
 
-static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count)
-{
+static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_t count) {
     php_swoole_netstream_data_t *abstract;
     Socket *sock;
     ssize_t didwrite = -1;
@@ -286,7 +280,12 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
         goto _exit;
     }
 
-    didwrite = sock->send_all(buf, count);
+    if (abstract->blocking) {
+        didwrite = sock->send_all(buf, count);
+    } else {
+        didwrite = sock->get_socket()->send(buf, count, 0);
+        sock->set_err(errno);
+    }
 
     if (didwrite < 0 || (size_t) didwrite != count) {
         /* we do not expect the outer layer to continue to call the send syscall in a loop
@@ -301,6 +300,16 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
                          sock->errMsg);
     } else {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), didwrite, 0);
+    }
+
+    if (didwrite < 0) {
+        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
+            didwrite = 0;
+        } else {
+            stream->eof = 1;
+        }
+    } else if (didwrite == 0) {
+        stream->eof = 1;
     }
 
 _exit:
@@ -328,15 +337,25 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
         goto _exit;
     }
 
-    nr_bytes = sock->recv(buf, count);
+    if (abstract->blocking) {
+        nr_bytes =  sock->recv(buf, count);
+    } else {
+        nr_bytes = sock->get_socket()->recv(buf, count, 0);
+        sock->set_err(errno);
+    }
 
-    /**
-     * sock->errCode != ETIMEDOUT : Compatible with sync blocking IO
-     */
-    stream->eof = (nr_bytes == 0 || (nr_bytes == -1 && sock->errCode != ETIMEDOUT &&
-                                     sock->get_socket()->catch_error(sock->errCode) == SW_CLOSE));
     if (nr_bytes > 0) {
         php_stream_notify_progress_increment(PHP_STREAM_CONTEXT(stream), nr_bytes, 0);
+    }
+
+    if (nr_bytes < 0) {
+        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
+            nr_bytes = 0;
+        } else {
+            stream->eof = 1;
+        }
+    } else if (nr_bytes == 0) {
+        stream->eof = 1;
     }
 
 _exit:
@@ -877,14 +896,6 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
             break;
         }
         abstract->blocking = (bool) value;
-        if (abstract->blocking) {
-            sock->set_timeout(abstract->read_timeout, Socket::TIMEOUT_READ);
-            sock->set_timeout(abstract->write_timeout, Socket::TIMEOUT_WRITE);
-        } else {
-            abstract->read_timeout = sock->get_timeout(Socket::TIMEOUT_READ);
-            abstract->write_timeout = sock->get_timeout(Socket::TIMEOUT_WRITE);
-            sock->set_timeout(0.001, Socket::TIMEOUT_READ | Socket::TIMEOUT_WRITE);
-        }
         break;
     case PHP_STREAM_OPTION_XPORT_API: {
         return socket_xport_api(stream, sock, (php_stream_xport_param *) ptrparam STREAMS_CC);
