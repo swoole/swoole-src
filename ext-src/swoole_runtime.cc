@@ -303,7 +303,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     }
 
     if (didwrite < 0) {
-        if (sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
+        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
             didwrite = 0;
         } else {
             stream->eof = 1;
@@ -349,7 +349,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
     }
 
     if (nr_bytes < 0) {
-        if (sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
+        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
             nr_bytes = 0;
         } else {
             stream->eof = 1;

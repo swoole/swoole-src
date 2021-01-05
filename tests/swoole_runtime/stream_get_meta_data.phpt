@@ -6,6 +6,9 @@ swoole_runtime: stream_get_meta_data
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Server;
+use Swoole\Runtime;
+
 function test($port) {
     $fp = stream_socket_client("tcp://127.0.0.1:".$port, $errno, $errstr, 2);
     if (!$fp) {
@@ -26,32 +29,26 @@ function test($port) {
 }
 
 $pm = new ProcessManager;
-$pm->parentFunc = function ($pid) use ($pm)
-{
+$pm->parentFunc = function ($pid) use ($pm) {
     $port = $pm->getFreePort();
     test($port);
-    swoole_runtime::enableCoroutine();
-    go(function() use($port) {
+    Runtime::setHookFlags(SWOOLE_HOOK_ALL);
+    Co\run(function () use ($port) {
         test($port);
     });
-    swoole_event_wait();
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm)
-{
-    $serv = new \swoole_server(TCP_SERVER_HOST, $pm->getFreePort(), SWOOLE_BASE);
-    $socket = $serv->getSocket();
+$pm->childFunc = function () use ($pm) {
+    $serv = new Server(TCP_SERVER_HOST, $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null',
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
-    {
+    $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on("Receive", function (\swoole_server $serv, $fd, $rid, $data) use ($socket)
-    {
+    $serv->on("Receive", function (\swoole_server $serv, $fd, $rid, $data) {
         //donot send any
     });
     $serv->start();

@@ -50,6 +50,7 @@ class ProcessManager
     protected $childStatus = 255;
     protected $expectExitSignal = [0, SIGTERM];
     protected $parentFirst = false;
+    protected $killed = false;
     /**
      * @var Process
      */
@@ -238,7 +239,8 @@ class ProcessManager
         if (!defined('PCNTL_ESRCH')) {
             define('PCNTL_ESRCH', 3);
         }
-        if (!$this->alone && $this->childPid) {
+        if (!$this->alone and !$this->killed and $this->childPid) {
+            $this->killed = true;
             if ($force || (!@Process::kill($this->childPid) && swoole_errno() !== PCNTL_ESRCH)) {
                 if (!@Process::kill($this->childPid, SIGKILL) && swoole_errno() !== PCNTL_ESRCH) {
                     exit('KILL CHILD PROCESS ERROR');
