@@ -42,8 +42,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-01-04</date>
-    <time>10:00:00</time>
+    <date>2021-01-06</date>
+    <time>15:00:00</time>
     <version>
         <release>4.6.0</release>
         <api>4.0</api>
@@ -1537,6 +1537,7 @@
             <file role="test" name="tests/swoole_runtime/hook_enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_runtime/hook_set_flags.phpt" />
             <file role="test" name="tests/swoole_runtime/library.phpt" />
+            <file role="test" name="tests/swoole_runtime/nonblock.phpt" />
             <file role="test" name="tests/swoole_runtime/pdo.phpt" />
             <file role="test" name="tests/swoole_runtime/persistent.phpt" />
             <file role="test" name="tests/swoole_runtime/proc/1.phpt" />
@@ -2039,5 +2040,7 @@
         <configureoption default="no" name="enable-openssl" prompt="enable openssl support?" />
         <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
         <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?" />
+        <configureoption default="no" name="enable-swoole-json" prompt="enable json support?" />
+        <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?" />
     </extsrcrelease>
 </package>
