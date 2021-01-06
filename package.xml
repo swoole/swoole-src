@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-12-17</date>
-    <time>15:00:00</time>
+    <date>2021-01-04</date>
+    <time>10:00:00</time>
     <version>
-        <release>4.5.8</release>
+        <release>4.6.0</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,33 +54,58 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
+        Backward compatibility Break
+        ---
+        * Removed the maximum limit of session id, never repeat (#3879) (@matyhtf)
+        * Disabled unsafe function when use Coroutine, including pcntl_fork/pcntl_wait/pcntl_waitpid/pcntl_sigtimedwait (#3880) (@matyhtf)
+        * Enabled coroutine hook by default (#3903) (@matyhtf)
+
+        Remove
+        ---
+        - No longer support PHP-7.1 (swoole/swoole-src@4a963df) (swoole/swoole-src@9de8d9e) (@matyhtf)
+
+        Deprecated
+        ---
+        - Marked the Event::rshutdown() as deprecated, please use Coroutine::run instead (#3881) (@matyhtf)
+
         New APIs
         ---
-        + Added swoole_error_log function (swoole/swoole-src@67d2bff) (@matyhtf)
-        + Supported SSL for readVector and writeVector (#3857) (@huanghantao)
+        + Supported setPriority/getPriority (#3876) (@matyhtf)
+        + Supported native-curl hook (#3863) (@matyhtf) (@huanghantao)
+        + Supported object style callback parameters for Server, off by default (#3888) (@matyhtf)
+        + Supported ext-sockets hook (#3898) (@matyhtf)
+        + Supported duplicate header (#3905) (@matyhtf)
+        + Supported SSL sni (#3908) (@matyhtf)
+        + Supported hook stdio (#3924) (@matyhtf)
+        + Supported capture_peer_cert option for stream_socket (#3930) (@matyhtf)
+        + Added Http\Request::create/parse/isCompleted (#3938) (@matyhtf)
+        + Added Http\Response::isWritable (swoole/swoole-src@db56827) (@matyhtf)
 
         Enhancement
         ---
-        + Did not wait when the child process does not exist (#3832) (@matyhtf)
-        + Supported DTLS 16k record (#3849) (@matyhtf)
-        + Supported priority for cookie (#3854) (@matyhtf)
-        + Supported more CURL options (swoole/library#71) (@sy-records)
-        + Handled CURL header names in case insensitive manner (swoole/library#76) (@filakhtov) (@twose) (@sy-records)
+        + All time accuracy of Server changed from int to double (#3882) (@matyhtf)
+        + Added poll EINTR check for swoole_client_select (#3909) (@shiguangqi)
+        + Added coroutine deadlock detect (#3911) (@matyhtf)
+        + Supported closing the connection in another process with server base mode (#3916) (@matyhtf)
+        + Optimized send to worker from master, reduced memory copy (#3910) (@huanghantao) (@matyhtf)
 
         Fixed
         ---
-        * Fixed readv_all and writev_all when trigger EAGAIN errno (#3830) (@huanghantao)
-        * Fixed warning for PHP8 (swoole/swoole-src@03f3fb0) (@matyhtf)
-        * Fixed binary security of swoole table keys (#3842) (@twose)
-        * Fixed System::writeFile append file issue when using FILE_APPEND (swoole/swoole-src@a71956d) (@matyhtf)
-        * Fixed CURLOPT_WRITEFUNCTION (swoole/library#74) (@sy-records)
-        * Fixed memory overread when parse form-data boundary (#3858) (@twose)
-        * Fixed is_callable() can not access internal private callable on PHP8 (#3859) (@twose)
+        * Pop Coroutine::Channel data when channel is closed (swoole/swoole-src@960431d) (@matyhtf)
+        * Fixed memory error when use JIT (#3907) (@twose)
+        * Fixed port->set() dtls compile error (#3947) (@Yurunsoft)
+        * Fixed connection_list error (#3948) (@sy-records)
+        * Fixed ssl verify (#3954) (@matyhtf)
+        * Clear all columns when incr and decr (#3956) (@matyhtf) (@sy-records)
+        * Fixed failed to compile with LibreSSL 2.7.5 (#3962) (@matyhtf)
+        * Fixed undefined constant CURLOPT_HEADEROPT and CURLOPT_PROXYHEADER
 
         Kernel
         ---
-        * Refactored memory allocation function, replace macro with SwooleG.std_allocator (#3853) (@matyhtf)
-        * Refactored pipe (#3841) (@matyhtf)
+        * Ignored SIGPIPE signal by default (swoole/swoole-src@9647678) (@matyhtf)
+        * Supported running php and c coroutines at same time (swoole/swoole-src@c94bfd8) (@matyhtf)
+        * Added TEST(coroutine_base, get_elapsed) (#3961) (@luolaifa000)
+        * Added TEST(coroutine_base, get_init_msec) (#3964) (@luffluo)
     </notes>
     <contents>
         <dir name="/">
@@ -754,6 +779,7 @@
             <file role="test" name="tests/include/ssl_certs/client.csr" />
             <file role="test" name="tests/include/ssl_certs/client.key" />
             <file role="test" name="tests/include/ssl_certs/client.pem" />
+            <file role="test" name="tests/include/ssl_certs/mosquitto.org.crt" />
             <file role="test" name="tests/include/ssl_certs/server.crt" />
             <file role="test" name="tests/include/ssl_certs/server.csr" />
             <file role="test" name="tests/include/ssl_certs/server.key" />
@@ -857,6 +883,7 @@
             <file role="test" name="tests/swoole_client_coro/sendfile.phpt" />
             <file role="test" name="tests/swoole_client_coro/sendto.phpt" />
             <file role="test" name="tests/swoole_client_coro/ssl.phpt" />
+            <file role="test" name="tests/swoole_client_coro/ssl_verify.phpt" />
             <file role="test" name="tests/swoole_client_coro/tcp_client.phpt" />
             <file role="test" name="tests/swoole_client_coro/tcp_nodelay.phpt" />
             <file role="test" name="tests/swoole_client_coro/timeout.phpt" />
@@ -1171,6 +1198,7 @@
             <file role="test" name="tests/swoole_http_client_coro/websocket/ssl_1.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/ssl_2.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/websocket/timeout.phpt" />
+            <file role="test" name="tests/swoole_http_server/0.phpt" />
             <file role="test" name="tests/swoole_http_server/buffer_output_size.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2368.phpt" />
             <file role="test" name="tests/swoole_http_server/bug_2444.phpt" />
@@ -1195,6 +1223,7 @@
             <file role="test" name="tests/swoole_http_server/cookie_samesite.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_vs_rawcookie.phpt" />
             <file role="test" name="tests/swoole_http_server/cookies.phpt" />
+            <file role="test" name="tests/swoole_http_server/create_request.phpt" />
             <file role="test" name="tests/swoole_http_server/data_parse.phpt" />
             <file role="test" name="tests/swoole_http_server/disable_coroutine.phpt" />
             <file role="test" name="tests/swoole_http_server/dispatch_mode_7.phpt" />
@@ -1584,6 +1613,7 @@
             <file role="test" name="tests/swoole_server/close_in_non_current_worker.phpt" />
             <file role="test" name="tests/swoole_server/close_in_other_worker_with_base.phpt" />
             <file role="test" name="tests/swoole_server/close_in_task_worker.phpt" />
+            <file role="test" name="tests/swoole_server/close_max_fd.phpt" />
             <file role="test" name="tests/swoole_server/close_queued.phpt" />
             <file role="test" name="tests/swoole_server/connections.phpt" />
             <file role="test" name="tests/swoole_server/discard_timeout_packet.phpt" />
@@ -1804,6 +1834,7 @@
             <file role="test" name="tests/swoole_table/big_size.phpt" />
             <file role="test" name="tests/swoole_table/bug_2263.phpt" />
             <file role="test" name="tests/swoole_table/bug_2290.phpt" />
+            <file role="test" name="tests/swoole_table/del.phpt" />
             <file role="test" name="tests/swoole_table/foreach.phpt" />
             <file role="test" name="tests/swoole_table/get_after_destroy.phpt" />
             <file role="test" name="tests/swoole_table/get_before_create.phpt" />
