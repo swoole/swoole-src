@@ -3,8 +3,10 @@
 # Swoole
 
 [![Latest Version](https://img.shields.io/github/release/swoole/swoole-src.svg)](https://github.com/swoole/swoole-src/releases)
-[![Build Status](https://api.travis-ci.org/swoole/swoole-src.svg)](https://travis-ci.org/swoole/swoole-src)
 [![License](https://img.shields.io/badge/license-apache2-blue.svg)](LICENSE)
+[![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
+[![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
+[![run-swoole-test](https://github.com/swoole/swoole-src/workflows/run-swoole-test/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Arun-swoole-test)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
 [![codecov](https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg)](https://codecov.io/gh/swoole/swoole-src)
 
@@ -475,6 +477,8 @@ make && sudo make install
 + `--enable-sockets`
 + `--enable-http2`
 + `--enable-mysqlnd` (需要 mysqlnd, 只是为了支持`mysql->escape`方法)
++ `--enable-swoole-json`
++ `--enable-swoole-curl`
 
 ### 升级
 
