@@ -29,7 +29,8 @@ using swoole::SSLContext;
 #error "require openssl version 1.0 or later"
 #endif
 
-static int openssl_init = 0;
+static bool openssl_init = false;
+static bool openssl_thread_safety_init = false;
 static int ssl_connection_index = 0;
 static int ssl_port_index = 0;
 static pthread_mutex_t *lock_array;
@@ -81,7 +82,7 @@ void swSSL_init(void) {
         return;
     }
 
-    openssl_init = 1;
+    openssl_init = true;
 }
 
 int swSSL_get_ex_connection_index() {
@@ -97,18 +98,20 @@ void swSSL_destroy() {
         return;
     }
 
-    CRYPTO_set_locking_callback(nullptr);
-    int i;
-    for (i = 0; i < CRYPTO_num_locks(); i++) {
+    SW_LOOP_N(CRYPTO_num_locks()) {
         pthread_mutex_destroy(&(lock_array[i]));
     }
-    openssl_init = 0;
+
+    OPENSSL_free(lock_array);
+
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
     (void) CRYPTO_THREADID_set_callback(nullptr);
 #else
     CRYPTO_set_id_callback(nullptr);
 #endif
     CRYPTO_set_locking_callback(nullptr);
+    openssl_init = false;
+    openssl_thread_safety_init = false;
 }
 
 static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line) {
@@ -145,9 +148,13 @@ void swSSL_init_thread_safety() {
     if (!openssl_init) {
         return;
     }
-    int i;
+
+    if (openssl_thread_safety_init) {
+        return;
+    }
+
     lock_array = (pthread_mutex_t *) OPENSSL_malloc(CRYPTO_num_locks() * sizeof(pthread_mutex_t));
-    for (i = 0; i < CRYPTO_num_locks(); i++) {
+    SW_LOOP_N(CRYPTO_num_locks()) {
         pthread_mutex_init(&(lock_array[i]), nullptr);
     }
 
@@ -158,6 +165,11 @@ void swSSL_init_thread_safety() {
 #endif
 
     CRYPTO_set_locking_callback(swSSL_lock_callback);
+    openssl_thread_safety_init = true;
+}
+
+bool swSSL_is_thread_safety() {
+    return openssl_thread_safety_init;
 }
 
 static void swSSL_info_callback(const SSL *ssl, int where, int ret) {
@@ -411,7 +423,8 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_file(context, cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_certificate_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
+            swWarn("SSL_CTX_use_certificate_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
+                   ERR_reason_error_string(error), error);
             return true;
         }
         /*
@@ -420,7 +433,8 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_chain_file(context, cert_file.c_str()) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_certificate_chain_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
+            swWarn("SSL_CTX_use_certificate_chain_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
+                   ERR_reason_error_string(error), error);
             return false;
         }
         /*
@@ -428,7 +442,8 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_PrivateKey_file(context, key_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_PrivateKey_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
+            swWarn("SSL_CTX_use_PrivateKey_file(%s) failed, Error: %s[%d]", key_file.c_str(),
+                   ERR_reason_error_string(error), error);
             return false;
         }
         /*
