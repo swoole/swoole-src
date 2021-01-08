@@ -141,7 +141,7 @@ TEST(server, process) {
     delete lock;
 }
 
-
+#ifdef SW_USE_OPENSSL
 TEST(server, ssl) {
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 1;
@@ -204,6 +204,7 @@ TEST(server, ssl) {
 
     delete lock;
 }
+#endif
 
 TEST(server, task_worker) {
     swServer serv;

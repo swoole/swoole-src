@@ -192,6 +192,7 @@ class SyncClient {
         return true;
     }
 
+#ifdef SW_USE_OPENSSL
     bool enable_ssl_encrypt() {
         if (client.enable_ssl_encrypt() < 0 || client.ssl_handshake() < 0) {
             return false;
@@ -199,6 +200,7 @@ class SyncClient {
             return true;
         }
     }
+#endif
 
     ssize_t send(const std::string &data) {
         return client.send(&client, data.c_str(), data.length(), 0);
