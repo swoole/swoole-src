@@ -102,6 +102,9 @@ enum swoole_http_method
   };
 
 
+
+
+
 enum swoole_http_parser_type { PHP_HTTP_REQUEST, PHP_HTTP_RESPONSE, PHP_HTTP_BOTH };
 
 enum state
@@ -187,7 +190,7 @@ struct swoole_http_parser {
   unsigned short http_major;
   unsigned short http_minor;
   unsigned short status_code; /* responses only */
-  unsigned char method;    /* requests only */
+  enum swoole_http_method method;    /* requests only */
 
   /* 1 = Upgrade header was present and the parser has exited because of that.
    * 0 = No upgrade header present.

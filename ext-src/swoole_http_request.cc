@@ -40,6 +40,7 @@ SW_EXTERN_C_END
 #include <brotli/encode.h>
 #endif
 
+
 enum http_upload_errno {
     HTTP_UPLOAD_ERR_OK = 0,
     HTTP_UPLOAD_ERR_INI_SIZE,
@@ -102,68 +103,7 @@ static inline char *http_trim_double_quote(char *ptr, int *len) {
     return tmp;
 }
 
-static sw_inline const char *http_get_method_name(int method) {
-    switch (method) {
-    case PHP_HTTP_GET:
-        return "GET";
-    case PHP_HTTP_POST:
-        return "POST";
-    case PHP_HTTP_HEAD:
-        return "HEAD";
-    case PHP_HTTP_PUT:
-        return "PUT";
-    case PHP_HTTP_DELETE:
-        return "DELETE";
-    case PHP_HTTP_PATCH:
-        return "PATCH";
-    case PHP_HTTP_CONNECT:
-        return "CONNECT";
-    case PHP_HTTP_OPTIONS:
-        return "OPTIONS";
-    case PHP_HTTP_TRACE:
-        return "TRACE";
-    case PHP_HTTP_COPY:
-        return "COPY";
-    case PHP_HTTP_LOCK:
-        return "LOCK";
-    case PHP_HTTP_MKCOL:
-        return "MKCOL";
-    case PHP_HTTP_MOVE:
-        return "MOVE";
-    case PHP_HTTP_PROPFIND:
-        return "PROPFIND";
-    case PHP_HTTP_PROPPATCH:
-        return "PROPPATCH";
-    case PHP_HTTP_UNLOCK:
-        return "UNLOCK";
-        /* subversion */
-    case PHP_HTTP_REPORT:
-        return "REPORT";
-    case PHP_HTTP_MKACTIVITY:
-        return "MKACTIVITY";
-    case PHP_HTTP_CHECKOUT:
-        return "CHECKOUT";
-    case PHP_HTTP_MERGE:
-        return "MERGE";
-        /* upnp */
-    case PHP_HTTP_MSEARCH:
-        return "MSEARCH";
-    case PHP_HTTP_NOTIFY:
-        return "NOTIFY";
-    case PHP_HTTP_SUBSCRIBE:
-        return "SUBSCRIBE";
-    case PHP_HTTP_UNSUBSCRIBE:
-        return "UNSUBSCRIBE";
-        /* proxy */
-    case PHP_HTTP_PURGE:
-        return "PURGE";
-        /* unknown */
-    case PHP_HTTP_NOT_IMPLEMENTED:
-        return "UNKNOWN";
-    default:
-        return nullptr;
-    }
-}
+
 
 // clang-format off
 static const swoole_http_parser_settings http_parser_settings =
@@ -257,6 +197,7 @@ static PHP_METHOD(swoole_http_request, getData);
 static PHP_METHOD(swoole_http_request, create);
 static PHP_METHOD(swoole_http_request, parse);
 static PHP_METHOD(swoole_http_request, isCompleted);
+static PHP_METHOD(swoole_http_request, getMethod);
 static PHP_METHOD(swoole_http_request, rawContent);
 static PHP_METHOD(swoole_http_request, __destruct);
 SW_EXTERN_C_END
@@ -281,6 +222,7 @@ const zend_function_entry swoole_http_request_methods[] =
     PHP_ME(swoole_http_request, create, arginfo_swoole_http_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_http_request, parse, arginfo_swoole_http_parse, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, isCompleted, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getMethod, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
@@ -531,7 +473,7 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
 
     ctx->keepalive = swoole_http_should_keep_alive(parser);
 
-    add_assoc_string(zserver, "request_method", (char *) http_get_method_name(parser->method));
+    add_assoc_string(zserver, "request_method", (char *) swoole_http_method_str(parser->method));
     add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), ctx->request.path, ctx->request.path_len);
     // path_info should be decoded
     zend_string *zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
@@ -1038,6 +980,15 @@ static PHP_METHOD(swoole_http_request, parse) {
     }
 
     RETURN_LONG(swoole_http_requset_parse(ctx, str, l_str));
+}
+
+static PHP_METHOD(swoole_http_request, getMethod) {
+    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+    if (UNEXPECTED(!ctx)) {
+        RETURN_FALSE;
+    }
+    char *method = (char *) swoole_http_method_str((ctx->parser).method);
+    RETURN_STRING(method);
 }
 
 static PHP_METHOD(swoole_http_request, isCompleted) {
