@@ -1170,9 +1170,6 @@ bool Socket::ssl_check_context() {
         return false;
 #endif
     }
-    if (!ssl_context) {
-        ssl_context = std::make_shared<SSLContext>();
-    }
     ssl_context->http_v2 = http2;
     if (!ssl_context->create()) {
         swWarn("swSSL_get_context() error");

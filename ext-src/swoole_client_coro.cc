@@ -884,6 +884,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL) {
     if (php_swoole_array_length_safe(zset) > 0) {
         php_swoole_socket_set_ssl(cli, zset);
     }
+    cli->enable_ssl_encrypt();
     RETURN_BOOL(cli->ssl_handshake());
 }
 
