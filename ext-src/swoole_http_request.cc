@@ -40,7 +40,6 @@ SW_EXTERN_C_END
 #include <brotli/encode.h>
 #endif
 
-
 enum http_upload_errno {
     HTTP_UPLOAD_ERR_OK = 0,
     HTTP_UPLOAD_ERR_INI_SIZE,
@@ -103,7 +102,9 @@ static inline char *http_trim_double_quote(char *ptr, int *len) {
     return tmp;
 }
 
-
+static sw_inline const char *http_get_method_name(enum swoole_http_method method) {
+    return swoole_http_method_str(method);
+}
 
 // clang-format off
 static const swoole_http_parser_settings http_parser_settings =
@@ -473,7 +474,7 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
 
     ctx->keepalive = swoole_http_should_keep_alive(parser);
 
-    add_assoc_string(zserver, "request_method", (char *) swoole_http_method_str(parser->method));
+    add_assoc_string(zserver, "request_method", (char *) http_get_method_name(parser->method));
     add_assoc_stringl_ex(zserver, ZEND_STRL("request_uri"), ctx->request.path, ctx->request.path_len);
     // path_info should be decoded
     zend_string *zstr_path = zend_string_init(ctx->request.path, ctx->request.path_len, 0);
@@ -987,7 +988,7 @@ static PHP_METHOD(swoole_http_request, getMethod) {
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
-    char *method = (char *) swoole_http_method_str((ctx->parser).method);
+    const char *method = (char *) http_get_method_name((ctx->parser).method);
     RETURN_STRING(method);
 }
 

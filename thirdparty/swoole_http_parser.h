@@ -102,9 +102,6 @@ enum swoole_http_method
   };
 
 
-
-
-
 enum swoole_http_parser_type { PHP_HTTP_REQUEST, PHP_HTTP_RESPONSE, PHP_HTTP_BOTH };
 
 enum state

@@ -49,9 +49,6 @@ $req2 = Request::create(['parse_cookie' => false]);
 Assert::eq($req2->parse($data . "\r\n"), strlen($data) + 2);
 Assert::null($req2->cookie);
 
-
-
-
 $data = "POST /index.html?hello=world&test=2123 HTTP/1.1\r\n";
 $data .= "Host: 127.0.0.1\r\n";
 $data .= "Connection: keep-alive\r\n";
