@@ -867,9 +867,14 @@ static PHP_METHOD(swoole_client_coro, close) {
 #ifdef SW_USE_OPENSSL
 static PHP_METHOD(swoole_client_coro, enableSSL) {
     Socket *cli = client_get_ptr(ZEND_THIS);
+
     if (!cli) {
-        RETURN_FALSE;
+        cli = client_coro_new(ZEND_THIS);
+        if (!cli) {
+            RETURN_FALSE;
+        }
     }
+
     if (cli->get_type() != SW_SOCK_TCP && cli->get_type() != SW_SOCK_TCP6) {
         php_swoole_fatal_error(E_WARNING, "cannot use enableSSL");
         RETURN_FALSE;
