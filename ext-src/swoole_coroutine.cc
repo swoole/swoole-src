@@ -340,10 +340,10 @@ void PHPCoroutine::activate() {
                 /* update the last coroutine's info */
                 save_task(get_context());
             }
-            bool _ori_value = config.enable_deadlock_check;
-            config.enable_deadlock_check = false;
-            swoole_event_free();
-            config.enable_deadlock_check = _ori_value;
+            if (sw_reactor()) {
+                sw_reactor()->running = false;
+                sw_reactor()->bailout = true;
+            }
         }
         if (sw_likely(orig_error_function)) {
             orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
@@ -381,7 +381,7 @@ void PHPCoroutine::deadlock_check() {
     if (Coroutine::count() == 0) {
         return;
     }
-    if (php_swoole_is_fatal_error()) {
+    if (php_swoole_is_fatal_error() || (sw_reactor() && sw_reactor()->bailout)) {
         return;
     }
     if (SWOOLE_G(enable_library)) {
@@ -769,7 +769,10 @@ void PHPCoroutine::main_func(void *arg) {
     }
     zend_catch {
         Coroutine::bailout([]() {
-            swoole_event_free();
+            if (sw_reactor()) {
+                sw_reactor()->running = false;
+                sw_reactor()->bailout = true;
+            }
             sw_zend_bailout();
         });
     }
@@ -938,8 +941,14 @@ PHP_METHOD(swoole_coroutine, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleTG.reactor ? SwooleTG.reactor->event_num : 0);
     add_assoc_long_ex(
         return_value, ZEND_STRL("signal_listener_num"), SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.aio_task_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), swoole::async::thread_count());
+
+    if (SwooleTG.async_threads) {
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), SwooleTG.async_threads->task_num);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), SwooleTG.async_threads->thread_count());
+    } else {
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_task_num"), 0);
+        add_assoc_long_ex(return_value, ZEND_STRL("aio_worker_num"), 0);
+    }
     add_assoc_long_ex(return_value, ZEND_STRL("c_stack_size"), Coroutine::get_stack_size());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_peak_num"), Coroutine::get_peak_num());

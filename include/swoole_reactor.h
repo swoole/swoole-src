@@ -118,6 +118,7 @@ class Reactor {
     bool once = false;
     bool wait_exit = false;
     bool destroyed = false;
+    bool bailout = false;
     /**
      * callback signal
      */

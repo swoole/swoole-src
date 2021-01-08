@@ -58,6 +58,9 @@ PHP_ARG_ENABLE(swoole-json, whether to enable Swoole JSON build flags,
 PHP_ARG_ENABLE(swoole-curl, whether to enable Swoole CURL build flags,
 [  --enable-swoole-curl      Enable cURL support], no, no)
 
+PHP_ARG_ENABLE(thread-context, whether to enable thread context,
+[  --enable-thread-context      Use thread context], no, no)
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -670,6 +673,11 @@ if test "$PHP_SWOOLE" != "no"; then
         fi
     else
         SW_USE_ASM_CONTEXT="no"
+    fi
+        
+    if test "$PHP_THREAD_CONTEXT" != "no"; then
+		AC_DEFINE(SW_USE_THREAD_CONTEXT, 1, [do we enable thread context])
+		SW_USE_ASM_CONTEXT="no"
     fi
 
     if test "$SW_USE_ASM_CONTEXT" = "yes"; then

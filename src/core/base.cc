@@ -258,11 +258,8 @@ pid_t swoole_fork(int flags) {
         if (swoole_coroutine_is_in()) {
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
         }
-        if (SwooleTG.aio_init) {
-            printf("aio_init=%d, aio_task_num=%d, reactor=%p\n",
-                   SwooleTG.aio_init,
-                   SwooleTG.aio_task_num,
-                   SwooleTG.reactor);
+        if (SwooleTG.async_threads) {
+            swTrace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, SwooleTG.reactor);
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
         }
     }

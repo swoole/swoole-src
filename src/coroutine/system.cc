@@ -593,7 +593,7 @@ void System::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
     reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
 
-    reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, async::callback);
+    reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, AsyncThreads::callback);
 }
 
 static void async_task_completed(AsyncEvent *event) {

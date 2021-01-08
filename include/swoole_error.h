@@ -167,3 +167,13 @@ enum swErrorCode {
 
     SW_ERROR_END
 };
+
+namespace swoole {
+class Exception {
+  public:
+    int code;
+    const char *msg;
+
+    Exception(int code);
+};
+}

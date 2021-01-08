@@ -100,6 +100,10 @@ extern zend_module_entry swoole_module_entry;
 #error "require PHP version 7.2 or later"
 #endif
 
+#if defined(ZTS) && defined(SW_USE_THREAD_CONTEXT)
+#error "thread context cannot be used with ZTS"
+#endif
+
 //--------------------------------------------------------
 #define SW_MAX_FIND_COUNT                   100    //for swoole_server::connection_list
 #define SW_PHP_CLIENT_BUFFER_SIZE           65535

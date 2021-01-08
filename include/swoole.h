@@ -179,6 +179,10 @@ namespace network {
 struct Socket;
 struct Address;
 }  // namespace network
+class AsyncThreads;
+namespace async {
+class ThreadPool;
+}
 struct Protocol;
 struct EventData;
 struct DataHead;
@@ -588,12 +592,7 @@ struct ThreadGlobal {
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;
-    uint8_t aio_init;
-    uint8_t aio_schedule;
-    uint32_t aio_task_num;
-    Pipe *aio_pipe;
-    network::Socket *aio_read_socket;
-    network::Socket *aio_write_socket;
+    AsyncThreads *async_threads;
     uint32_t signal_listener_num;
     uint32_t co_signal_listener_num;
     int error;
