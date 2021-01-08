@@ -869,10 +869,7 @@ static PHP_METHOD(swoole_client_coro, enableSSL) {
     Socket *cli = client_get_ptr(ZEND_THIS);
 
     if (!cli) {
-        cli = client_coro_new(ZEND_THIS);
-        if (!cli) {
-            RETURN_FALSE;
-        }
+        RETURN_FALSE;
     }
 
     if (cli->get_type() != SW_SOCK_TCP && cli->get_type() != SW_SOCK_TCP6) {
