@@ -433,7 +433,8 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_chain_file(context, cert_file.c_str()) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_certificate_chain_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
+            swWarn("SSL_CTX_use_certificate_chain_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
+                   ERR_reason_error_string(error), error);
             return false;
         }
         /*
@@ -441,7 +442,8 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_PrivateKey_file(context, key_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_PrivateKey_file() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
+            swWarn("SSL_CTX_use_PrivateKey_file(%s) failed, Error: %s[%d]", key_file.c_str(),
+                   ERR_reason_error_string(error), error);
             return false;
         }
         /*
