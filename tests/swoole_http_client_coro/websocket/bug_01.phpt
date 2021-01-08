@@ -4,7 +4,7 @@ swoole_http_client_coro/websocket: handshake + frame
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include//bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 $pm = new ProcessManager;
 

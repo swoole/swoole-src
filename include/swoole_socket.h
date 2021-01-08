@@ -445,7 +445,7 @@ struct Socket {
     ssize_t sendto_blocking(const Address &dst_addr, const void *__buf, size_t __n, int flags = 0);
     ssize_t recvfrom_blocking(char *__buf, size_t __len, int flags, Address *sa);
 
-    inline ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) {
+    inline ssize_t sendto(const char *dst_host, int dst_port, const void *data, size_t len, int flags = 0) const {
         Address addr = {};
         if (!addr.assign(socket_type, dst_host, dst_port)) {
             return SW_ERR;
@@ -453,20 +453,18 @@ struct Socket {
         return sendto(addr, data, len, flags);
     }
 
-    inline ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) {
+    inline ssize_t sendto(const Address &dst_addr, const void *data, size_t len, int flags) const {
         return ::sendto(fd, data, len, flags, &dst_addr.addr.ss, dst_addr.len);
     }
 
-    inline int catch_error(int err) {
+    inline int catch_error(int err) const {
         switch (err) {
         case EFAULT:
             abort();
             return SW_ERROR;
         case EBADF:
         case ECONNRESET:
-#ifdef __CYGWIN__
         case ECONNABORTED:
-#endif
         case EPIPE:
         case ENOTCONN:
         case ETIMEDOUT:
@@ -479,6 +477,9 @@ struct Socket {
         case SW_ERROR_SSL_RESET:
             return SW_CLOSE;
         case EAGAIN:
+#if EAGAIN != EWOULDBLOCK
+        case EWOULDBLOCK:
+#endif
 #ifdef HAVE_KQUEUE
         case ENOBUFS:
 #endif

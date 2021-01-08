@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2020-12-22</date>
-    <time>09:00:00</time>
+    <date>2021-01-08</date>
+    <time>14:00:00</time>
     <version>
-        <release>4.5.10</release>
+        <release>4.5.11</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,11 +54,19 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
+        Enhancement
+        ---
+        * Optimize table (#3959) (@matyhtf)
+        * Enhancement CURLOPT_PROXY (swoole/library#87) (@sy-records)
+
         Fixed
         ---
-        * Fixed #3906, sync master (93901dc0) (@matyhtf)
-        * Fixed PHP8 compatibility (f0dc6d32) (@matyhtf)
-        * Fixed connection_list error (#3948) (@sy-records)
+        * Clear all columns when incr and decr (#3956) (@matyhtf)
+        * Fixed compile error (49fea171) (@matyhtf)
+        * Fixed fread bugs (#3972) (@matyhtf)
+        * Fixed openssl thread safety issue (7ee2c1a0) (@matyhtf)
+        * Fixed Invalid argument supplied for foreach (swoole/library#80) (@sy-records)
+        * Fix trigger_error param error (swoole/library#86) (@sy-records)
     </notes>
     <contents>
         <dir name="/">
@@ -1450,6 +1458,7 @@
             <file role="test" name="tests/swoole_runtime/hook_enable_coroutine.phpt" />
             <file role="test" name="tests/swoole_runtime/hook_set_flags.phpt" />
             <file role="test" name="tests/swoole_runtime/library.phpt" />
+            <file role="test" name="tests/swoole_runtime/nonblock.phpt" />
             <file role="test" name="tests/swoole_runtime/pdo.phpt" />
             <file role="test" name="tests/swoole_runtime/persistent.phpt" />
             <file role="test" name="tests/swoole_runtime/proc/1.phpt" />
@@ -1727,6 +1736,7 @@
             <file role="test" name="tests/swoole_table/big_size.phpt" />
             <file role="test" name="tests/swoole_table/bug_2263.phpt" />
             <file role="test" name="tests/swoole_table/bug_2290.phpt" />
+            <file role="test" name="tests/swoole_table/del.phpt" />
             <file role="test" name="tests/swoole_table/foreach.phpt" />
             <file role="test" name="tests/swoole_table/get_after_destroy.phpt" />
             <file role="test" name="tests/swoole_table/get_before_create.phpt" />
