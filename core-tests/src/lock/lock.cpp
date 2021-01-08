@@ -26,7 +26,9 @@
 using swLock = swoole::Lock;
 
 using swoole::RWLock;
+#ifdef HAVE_SPINLOCK
 using swoole::SpinLock;
+#endif
 using swoole::Mutex;
 
 static void test_func(swLock &lock) {

@@ -192,6 +192,14 @@ class SyncClient {
         return true;
     }
 
+    bool enable_ssl_encrypt() {
+        if (client.enable_ssl_encrypt() < 0 || client.ssl_handshake() < 0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
     ssize_t send(const std::string &data) {
         return client.send(&client, data.c_str(), data.length(), 0);
     }

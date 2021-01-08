@@ -160,6 +160,7 @@ struct SSLContext {
 
 void swSSL_init(void);
 void swSSL_init_thread_safety();
+bool swSSL_is_thread_safety();
 void swSSL_server_http_advise(swoole::SSLContext &);
 const char *swSSL_get_error();
 int swSSL_get_ex_connection_index();
