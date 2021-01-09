@@ -880,11 +880,13 @@ static PHP_METHOD(swoole_client_coro, enableSSL) {
         php_swoole_fatal_error(E_WARNING, "SSL has been enabled");
         RETURN_FALSE;
     }
+
+    cli->enable_ssl_encrypt();
+
     zval *zset = sw_zend_read_property_ex(swoole_client_coro_ce, ZEND_THIS, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
     if (php_swoole_array_length_safe(zset) > 0) {
         php_swoole_socket_set_ssl(cli, zset);
     }
-    cli->enable_ssl_encrypt();
     RETURN_BOOL(cli->ssl_handshake());
 }
 
