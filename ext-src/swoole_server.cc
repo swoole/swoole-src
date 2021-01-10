@@ -3751,10 +3751,10 @@ static PHP_METHOD(swoole_server, getClientList) {
         RETURN_FALSE;
     }
 
-    zend_long start_fd = 0;
+    zend_long start_session_id = 0;
     zend_long find_count = 10;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ll", &start_fd, &find_count) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|ll", &start_session_id, &find_count) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -3766,12 +3766,13 @@ static PHP_METHOD(swoole_server, getClientList) {
 
     // copy it out to avoid being overwritten by other processes
     int serv_max_fd = serv->get_maxfd();
+    int start_fd;
 
-    if (start_fd == 0) {
+    if (start_session_id == 0) {
         start_fd = serv->get_minfd();
     } else {
-        Connection *conn = serv->get_connection_verify(start_fd);
-        if (!conn) {
+        Connection *conn = serv->get_connection_verify(start_session_id);
+        if (!serv->is_valid_connection(conn)) {
             RETURN_FALSE;
         }
         start_fd = conn->fd;
@@ -3786,7 +3787,7 @@ static PHP_METHOD(swoole_server, getClientList) {
     Connection *conn;
 
     for (; fd <= serv_max_fd; fd++) {
-        swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
+        swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_session_id);
         conn = serv->get_connection(fd);
 
         if (serv->is_valid_connection(conn)) {
