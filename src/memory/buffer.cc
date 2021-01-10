@@ -84,6 +84,8 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
     size_t _length = 0;
 
     SW_LOOP_N(iovcnt) {
+        assert(iov[i].iov_len > 0);
+        assert(iov[i].iov_base != nullptr);
         _length += iov[i].iov_len;
     }
 
