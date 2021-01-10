@@ -62,6 +62,8 @@ void Buffer::append(const void *data, uint32_t size) {
     char *_pos = (char *) data;
     uint32_t _n;
 
+    assert(size > 0);
+
     // buffer enQueue
     while (_length > 0) {
         _n = _length >= chunk_size ? chunk_size : _length;
