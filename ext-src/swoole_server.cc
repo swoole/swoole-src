@@ -3645,8 +3645,8 @@ static PHP_METHOD(swoole_server, bind) {
         RETURN_FALSE;
     }
 
-    Connection *conn = serv->get_connection_by_session_id(fd);
-    if (conn == nullptr || conn->active == 0) {
+    Connection *conn = serv->get_connection_verify(fd);
+    if (conn == nullptr) {
         RETURN_FALSE;
     }
 
@@ -3770,7 +3770,7 @@ static PHP_METHOD(swoole_server, getClientList) {
     if (start_fd == 0) {
         start_fd = serv->get_minfd();
     } else {
-        Connection *conn = serv->get_connection_by_session_id(start_fd);
+        Connection *conn = serv->get_connection_verify(start_fd);
         if (!conn) {
             RETURN_FALSE;
         }
@@ -3789,7 +3789,7 @@ static PHP_METHOD(swoole_server, getClientList) {
         swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_fd);
         conn = serv->get_connection(fd);
 
-        if (conn->active && !conn->closed) {
+        if (serv->is_valid_connection(conn)) {
 #ifdef SW_USE_OPENSSL
             if (conn->ssl && !conn->ssl_ready) {
                 continue;
@@ -3842,18 +3842,14 @@ static PHP_METHOD(swoole_server, exists) {
         RETURN_FALSE;
     }
 
-    zend_long fd;
+    zend_long session_id;
 
     ZEND_PARSE_PARAMETERS_START(1, 1)
-    Z_PARAM_LONG(fd)
+    Z_PARAM_LONG(session_id)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    Connection *conn = serv->get_connection_by_session_id(fd);
-    if (!conn) {
-        RETURN_FALSE;
-    }
-    // connection is closed
-    if (conn->active == 0 || conn->closed) {
+    Connection *conn = serv->get_connection_verify(session_id);
+    if (!conn || conn->closed) {
         RETURN_FALSE;
     } else {
         RETURN_TRUE;
@@ -3867,19 +3863,15 @@ static PHP_METHOD(swoole_server, protect) {
         RETURN_FALSE;
     }
 
-    zend_long fd;
+    zend_long session_id;
     zend_bool value = 1;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|b", &fd, &value) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|b", &session_id, &value) == FAILURE) {
         RETURN_FALSE;
     }
 
-    Connection *conn = serv->get_connection_by_session_id(fd);
-    if (!conn) {
-        RETURN_FALSE;
-    }
-    // connection is closed
-    if (conn->active == 0 || conn->closed) {
+    Connection *conn = serv->get_connection_verify(session_id);
+    if (!conn || conn->closed) {
         RETURN_FALSE;
     } else {
         conn->protect = value;
