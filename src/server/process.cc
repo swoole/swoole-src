@@ -204,6 +204,7 @@ bool ProcessFactory::dispatch(SendData *task) {
 static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data) {
     const char *data = resp->data;
     uint32_t send_n = resp->info.len;
+    size_t iovcnt = resp->data ? 2 : 1;
     off_t offset = 0;
     uint32_t copy_n;
 
@@ -220,7 +221,7 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
         iov[1].iov_base = (void *) resp->data;
         iov[1].iov_len = send_n;
 
-        int retval = _send(serv, &resp->info, iov, 2, private_data);
+        int retval = _send(serv, &resp->info, iov, iovcnt, private_data);
 #ifdef __linux__
         if (retval < 0 && errno == ENOBUFS) {
             max_length = SW_IPC_BUFFER_SIZE;
@@ -251,7 +252,7 @@ _ipc_use_chunk:
 
         swTrace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
-        if (_send(serv, &resp->info, iov, 2, private_data) < 0) {
+        if (_send(serv, &resp->info, iov, iovcnt, private_data) < 0) {
 #ifdef __linux__
             if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
                 max_length = SW_IPC_BUFFER_SIZE;
