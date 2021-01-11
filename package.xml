@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-01-06</date>
-    <time>15:00:00</time>
+    <date>2021-01-11</date>
+    <time>18:00:00</time>
     <version>
-        <release>4.6.0</release>
+        <release>4.6.1</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,58 +54,22 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        Backward compatibility Break
-        ---
-        * Removed the maximum limit of session id, never repeat (#3879) (@matyhtf)
-        * Disabled unsafe function when use Coroutine, including pcntl_fork/pcntl_wait/pcntl_waitpid/pcntl_sigtimedwait (#3880) (@matyhtf)
-        * Enabled coroutine hook by default (#3903) (@matyhtf)
-
-        Remove
-        ---
-        - No longer support PHP-7.1 (swoole/swoole-src@4a963df) (swoole/swoole-src@9de8d9e) (@matyhtf)
-
-        Deprecated
-        ---
-        - Marked the Event::rshutdown() as deprecated, please use Coroutine::run instead (#3881) (@matyhtf)
-
-        New APIs
-        ---
-        + Supported setPriority/getPriority (#3876) (@matyhtf)
-        + Supported native-curl hook (#3863) (@matyhtf) (@huanghantao)
-        + Supported object style callback parameters for Server, off by default (#3888) (@matyhtf)
-        + Supported ext-sockets hook (#3898) (@matyhtf)
-        + Supported duplicate header (#3905) (@matyhtf)
-        + Supported SSL sni (#3908) (@matyhtf)
-        + Supported hook stdio (#3924) (@matyhtf)
-        + Supported capture_peer_cert option for stream_socket (#3930) (@matyhtf)
-        + Added Http\Request::create/parse/isCompleted (#3938) (@matyhtf)
-        + Added Http\Response::isWritable (swoole/swoole-src@db56827) (@matyhtf)
-
         Enhancement
         ---
-        + All time accuracy of Server changed from int to double (#3882) (@matyhtf)
-        + Added poll EINTR check for swoole_client_select (#3909) (@shiguangqi)
-        + Added coroutine deadlock detect (#3911) (@matyhtf)
-        + Supported closing the connection in another process with server base mode (#3916) (@matyhtf)
-        + Optimized send to worker from master, reduced memory copy (#3910) (@huanghantao) (@matyhtf)
+        + Added --enable-thread-context option (#3970) (@matyhtf)
+        + Strict session_id, check the connection activity (#3993) (@matyhtf)
+        * Optimized CURLOPT_PROXY, support user, pass and scheme (swoole/library#87) (sy-records)
 
         Fixed
         ---
-        * Pop Coroutine::Channel data when channel is closed (swoole/swoole-src@960431d) (@matyhtf)
-        * Fixed memory error when use JIT (#3907) (@twose)
-        * Fixed port->set() dtls compile error (#3947) (@Yurunsoft)
-        * Fixed connection_list error (#3948) (@sy-records)
-        * Fixed ssl verify (#3954) (@matyhtf)
-        * Clear all columns when incr and decr (#3956) (@matyhtf) (@sy-records)
-        * Fixed failed to compile with LibreSSL 2.7.5 (#3962) (@matyhtf)
-        * Fixed undefined constant CURLOPT_HEADEROPT and CURLOPT_PROXYHEADER
+        * Fixed minimal PHP version (#3979) (@remicollet)
+        * Fixed pecl install missing enable-swoole-json and enable-swoole-curl options (#3980) (@sy-records)
+        * Fixed openssl thread safety issue (swoole/swoole-src@b516d69) (@matyhtf)
+        * Fixed enableSSL coredump (#3990) (@huanghantao)
 
         Kernel
         ---
-        * Ignored SIGPIPE signal by default (swoole/swoole-src@9647678) (@matyhtf)
-        * Supported running php and c coroutines at same time (swoole/swoole-src@c94bfd8) (@matyhtf)
-        * Added TEST(coroutine_base, get_elapsed) (#3961) (@luolaifa000)
-        * Added TEST(coroutine_base, get_init_msec) (#3964) (@luffluo)
+        * Optimized ipc writev, avoid coredump how event data is null (#3994) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -856,6 +820,7 @@
             <file role="test" name="tests/swoole_client_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_client_coro/connect_with_dns.phpt" />
             <file role="test" name="tests/swoole_client_coro/dtls.phpt" />
+            <file role="test" name="tests/swoole_client_coro/enableSSL.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof_02.phpt" />
             <file role="test" name="tests/swoole_client_coro/eof_03.phpt" />
@@ -1715,6 +1680,7 @@
             <file role="test" name="tests/swoole_server/sigint_with_process.phpt" />
             <file role="test" name="tests/swoole_server/sleep.phpt" />
             <file role="test" name="tests/swoole_server/slow_client.phpt" />
+            <file role="test" name="tests/swoole_server/slow_worker.phpt" />
             <file role="test" name="tests/swoole_server/ssl/00.phpt" />
             <file role="test" name="tests/swoole_server/ssl/bad_client.phpt" />
             <file role="test" name="tests/swoole_server/ssl/code/client.go" />
