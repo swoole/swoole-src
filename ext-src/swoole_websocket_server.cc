@@ -907,15 +907,15 @@ static PHP_METHOD(swoole_websocket_server, isEstablished) {
         RETURN_FALSE;
     }
 
-    zend_long fd;
+    zend_long session_id;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &fd) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &session_id) == FAILURE) {
         RETURN_FALSE;
     }
 
-    Connection *conn = serv->get_connection_by_session_id(fd);
+    Connection *conn = serv->get_connection_verify(session_id);
     // not isEstablished
-    if (!conn || conn->active == 0 || conn->closed || conn->websocket_status < WEBSOCKET_STATUS_ACTIVE) {
+    if (!conn || conn->closed || conn->websocket_status < WEBSOCKET_STATUS_ACTIVE) {
         RETURN_FALSE;
     } else {
         RETURN_TRUE;

@@ -39,6 +39,8 @@ extern "C" {
 #endif
 
 using swoole::coroutine::Socket;
+using swoole::Server;
+using swoole::Connection;
 using swoole::substr_len;
 using http_response = swoole::http::Response;
 using http_context = swoole::http::Context;
@@ -843,8 +845,8 @@ void swoole_http_response_end(http_context *ctx, zval *zdata, zval *return_value
 _skip_copy:
 #endif
     if (ctx->upgrade && !ctx->co_socket) {
-        swServer *serv = (swServer *) ctx->private_data;
-        swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
+        Server *serv = (Server *) ctx->private_data;
+        Connection *conn = serv->get_connection_verify(ctx->fd);
         if (conn && conn->websocket_status == WEBSOCKET_STATUS_HANDSHAKE) {
             if (ctx->response.status == 101) {
                 conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
