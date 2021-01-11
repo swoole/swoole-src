@@ -62,6 +62,8 @@ void Buffer::append(const void *data, uint32_t size) {
     char *_pos = (char *) data;
     uint32_t _n;
 
+    assert(size > 0);
+
     // buffer enQueue
     while (_length > 0) {
         _n = _length >= chunk_size ? chunk_size : _length;
@@ -84,6 +86,8 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
     size_t _length = 0;
 
     SW_LOOP_N(iovcnt) {
+        assert(iov[i].iov_len > 0);
+        assert(iov[i].iov_base != nullptr);
         _length += iov[i].iov_len;
     }
 

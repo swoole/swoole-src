@@ -215,12 +215,19 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
         resp->info.flags = 0;
         resp->info.len = send_n;
 
+        size_t iovcnt;
         iov[0].iov_base = &resp->info;
         iov[0].iov_len = sizeof(resp->info);
-        iov[1].iov_base = (void *) resp->data;
-        iov[1].iov_len = send_n;
 
-        int retval = _send(serv, &resp->info, iov, 2, private_data);
+        if (resp->data) {
+            iov[1].iov_base = (void *) resp->data;
+            iov[1].iov_len = send_n;
+            iovcnt = 2;
+        } else {
+            iovcnt = 1;
+        }
+
+        int retval = _send(serv, &resp->info, iov, iovcnt, private_data);
 #ifdef __linux__
         if (retval < 0 && errno == ENOBUFS) {
             max_length = SW_IPC_BUFFER_SIZE;
