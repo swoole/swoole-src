@@ -645,7 +645,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     }
 
     char file_path[SW_HTTP_UPLOAD_TMPDIR_SIZE];
-    sw_snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir);
+    sw_snprintf(file_path, SW_HTTP_UPLOAD_TMPDIR_SIZE, "%s/swoole.upfile.XXXXXX", ctx->upload_tmp_dir.c_str());
     int tmpfile = swoole_tmpfile(file_path);
     if (tmpfile < 0) {
         return 0;
@@ -902,7 +902,7 @@ static PHP_METHOD(swoole_http_request, create) {
     Z_PARAM_ARRAY(zoptions)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
+    http_context *ctx = new http_context();
     object_init_ex(return_value, swoole_http_request_ce);
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -915,6 +915,7 @@ static PHP_METHOD(swoole_http_request, create) {
 #ifdef SW_HAVE_COMPRESSION
     ctx->enable_compression = 1;
     ctx->compression_level = SW_Z_BEST_SPEED;
+    ctx->websocket_compression = 0;
 #endif
     ctx->upload_tmp_dir = "/tmp";
 
@@ -932,14 +933,20 @@ static PHP_METHOD(swoole_http_request, create) {
             } else if (SW_STRCASEEQ(key, keylen, "parse_files")) {
                 ctx->parse_files = zval_is_true(zvalue);
             }
-    #ifdef SW_HAVE_COMPRESSION
+#ifdef SW_HAVE_COMPRESSION
             else if (SW_STRCASEEQ(key, keylen, "enable_compression")) {
                 ctx->enable_compression = zval_is_true(zvalue);
             } else if (SW_STRCASEEQ(key, keylen, "compression_level")) {
                 ctx->compression_level = zval_get_long(zvalue);
             }
-    #endif
-            (void)keytype;
+            else if (SW_STRCASEEQ(key, keylen, "websocket_compression")) {
+                ctx->websocket_compression = zval_is_true(zvalue);
+            }
+#endif
+            else if (SW_STRCASEEQ(key, keylen, "upload_tmp_dir")) {
+                ctx->upload_tmp_dir = zend::String(zvalue).to_std_string();
+            }
+            (void) keytype;
         }
         SW_HASHTABLE_FOREACH_END();
     }

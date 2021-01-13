@@ -135,8 +135,8 @@ static void php_swoole_http_response_free_object(zend_object *object) {
                 if (ctx->co_socket) {
                     swoole_http_response_end(ctx, nullptr, &ztmp);
                 } else {
-                    swServer *serv = (swServer *) ctx->private_data;
-                    swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
+                    Server *serv = (Server *) ctx->private_data;
+                    Connection *conn = serv->get_connection_by_session_id(ctx->fd);
                     if (conn && !conn->closed && !conn->peer_closed) {
                         swoole_http_response_end(ctx, nullptr, &ztmp);
                     }
@@ -1315,9 +1315,11 @@ static PHP_METHOD(swoole_http_response, detach) {
 
 static PHP_METHOD(swoole_http_response, create) {
     zval *zobject = nullptr;
+    zval *zrequest = nullptr;
     zend_long fd = -1;
     Server *serv = nullptr;
     Socket *sock = nullptr;
+    http_context *ctx = nullptr;
 
     ZEND_PARSE_PARAMETERS_START(1, 2)
     Z_PARAM_ZVAL(zobject)
@@ -1326,6 +1328,7 @@ static PHP_METHOD(swoole_http_response, create) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (ZVAL_IS_OBJECT(zobject)) {
+        _type_detect:
         if (instanceof_function(Z_OBJCE_P(zobject), swoole_server_ce)) {
             serv = php_swoole_server_get_and_check_server(zobject);
             if (serv->get_connection_verify(fd) == nullptr) {
@@ -1336,36 +1339,55 @@ static PHP_METHOD(swoole_http_response, create) {
             sock = php_swoole_get_socket(zobject);
             fd = sock->get_fd();
         } else {
+            _bad_type:
             php_swoole_fatal_error(E_WARNING, "parameter $1 must be instanceof Server or Coroutine\\Socket");
             RETURN_FALSE;
+        }
+    } else if (ZVAL_IS_ARRAY(zobject))  {
+        zrequest = zend_hash_index_find(Z_ARR_P(zobject), 1);
+        zobject = zend_hash_index_find(Z_ARR_P(zobject), 0);
+        if (!ZVAL_IS_OBJECT(zobject))  {
+            goto _bad_type;
+        } else {
+            ctx = php_swoole_http_request_get_context(zrequest);
+            goto _type_detect;
         }
     } else {
         fd = zval_get_long(zobject);
         serv = sw_server();
     }
 
-    http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
-    if (!ctx) {
+    if (serv && !serv->is_started()) {
+        php_swoole_fatal_error(E_WARNING, "server is not running");
         RETURN_FALSE;
     }
-    if (sw_unlikely(swoole_http_buffer == nullptr)) {
-        php_swoole_http_server_init_global_variant();
-    }
 
-    ctx->fd = fd;
-    ctx->keepalive = 1;
+    if (!ctx) {
+        ctx = new http_context();
+        ctx->fd = fd;
+        ctx->keepalive = 1;
 
-    if (serv) {
-        if (!serv->is_started()) {
-            php_swoole_fatal_error(E_WARNING, "server is not running");
+        if (serv) {
+            swoole_http_server_init_context(serv, ctx);
+        } else if (sock) {
+            swoole_co_http_server_init_context(sock, ctx);
+        } else {
+            assert(0);
             RETURN_FALSE;
         }
-        swoole_http_server_init_context(serv, ctx);
-    } else if (sock) {
-        swoole_http_server_init_context_with_co_socket(sock, ctx);
     } else {
-        assert(0);
-        RETURN_FALSE;
+        if (serv) {
+            swoole_http_server_init_context(serv, ctx);
+        } else if (sock) {
+            swoole_co_http_server_set_context_method(sock, ctx);
+        } else {
+            assert(0);
+            RETURN_FALSE;
+        }
+    }
+
+    if (sw_unlikely(swoole_http_buffer == nullptr)) {
+        php_swoole_http_server_init_global_variant();
     }
 
     object_init_ex(return_value, swoole_http_response_ce);

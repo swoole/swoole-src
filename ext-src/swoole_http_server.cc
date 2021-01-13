@@ -164,7 +164,7 @@ void php_swoole_http_server_minit(int module_number) {
 }
 
 http_context *swoole_http_context_new(SessionId fd) {
-    http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
+    http_context *ctx = new http_context();
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -201,7 +201,18 @@ void swoole_http_server_init_context(Server *serv, http_context *ctx) {
     ctx->compression_level = serv->http_compression_level;
 #endif
     ctx->private_data = serv;
-    ctx->upload_tmp_dir = serv->upload_tmp_dir.c_str();
+    ctx->upload_tmp_dir = serv->upload_tmp_dir;
+    ctx->send = http_context_send_data;
+    ctx->sendfile = http_context_sendfile;
+    ctx->close = http_context_disconnect;
+}
+
+void swoole_http_server_set_context_method(Server *serv, http_context *ctx) {
+#ifdef SW_HAVE_COMPRESSION
+    ctx->enable_compression = serv->http_compression;
+    ctx->compression_level = serv->http_compression_level;
+#endif
+    ctx->private_data = serv;
     ctx->send = http_context_send_data;
     ctx->sendfile = http_context_sendfile;
     ctx->close = http_context_disconnect;
@@ -252,7 +263,7 @@ void swoole_http_context_free(http_context *ctx) {
     if (res->reason) {
         efree(res->reason);
     }
-    efree(ctx);
+    delete ctx;
 }
 
 void php_swoole_http_server_init_global_variant() {

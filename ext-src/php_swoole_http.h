@@ -165,7 +165,7 @@ struct Context {
     size_t current_form_data_name_len;
     zval *current_multipart_header;
 
-    const char *upload_tmp_dir;
+    std::string upload_tmp_dir;
 
     void *private_data;
     bool (*send)(Context *ctx, const char *data, size_t length);

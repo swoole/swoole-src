@@ -273,7 +273,7 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
     zend_object_std_dtor(&hsc->std);
 }
 
-void swoole_http_server_init_context_with_co_socket(Socket *sock, http_context *ctx) {
+void swoole_co_http_server_init_context(Socket *sock, http_context *ctx) {
     ctx->parse_cookie = 1;
     ctx->parse_body = 1;
     ctx->parse_files = 1;
@@ -294,6 +294,14 @@ void swoole_http_server_init_context_with_co_socket(Socket *sock, http_context *
     swoole_http_parser *parser = &ctx->parser;
     parser->data = ctx;
     swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+}
+
+void swoole_co_http_server_set_context_method(Socket *sock, http_context *ctx) {
+    ctx->private_data = sock;
+    ctx->co_socket = 1;
+    ctx->send = http_context_send_data;
+    ctx->sendfile = http_context_sendfile;
+    ctx->close = http_context_disconnect;
 }
 
 void php_swoole_http_server_coro_minit(int module_number) {
