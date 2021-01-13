@@ -208,10 +208,6 @@ void swoole_http_server_init_context(Server *serv, http_context *ctx) {
 }
 
 void swoole_http_server_set_context_method(Server *serv, http_context *ctx) {
-#ifdef SW_HAVE_COMPRESSION
-    ctx->enable_compression = serv->http_compression;
-    ctx->compression_level = serv->http_compression_level;
-#endif
     ctx->private_data = serv;
     ctx->send = http_context_send_data;
     ctx->sendfile = http_context_sendfile;

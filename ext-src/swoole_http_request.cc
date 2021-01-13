@@ -918,7 +918,6 @@ static PHP_METHOD(swoole_http_request, create) {
 #ifdef SW_HAVE_COMPRESSION
     ctx->enable_compression = 1;
     ctx->compression_level = SW_Z_BEST_SPEED;
-    ctx->websocket_compression = 0;
 #endif
     ctx->upload_tmp_dir = "/tmp";
 

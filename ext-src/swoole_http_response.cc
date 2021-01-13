@@ -1381,7 +1381,7 @@ static PHP_METHOD(swoole_http_response, create) {
         }
     } else {
         if (serv) {
-            swoole_http_server_init_context(serv, ctx);
+            swoole_http_server_set_context_method(serv, ctx);
         } else if (sock) {
             swoole_co_http_server_set_context_method(sock, ctx);
         } else {
