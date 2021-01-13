@@ -52,6 +52,9 @@ enum http_upload_errno {
 
 using http_request = swoole::http::Request;
 using http_context = swoole::http::Context;
+using swoole::Server;
+using swoole::Connection;
+using swoole::ListenPort;
 using swoole::microtime;
 
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
@@ -388,14 +391,14 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         if (ctx->co_socket) {
             goto _add_header;
         }
-        swServer *serv = (swServer *) ctx->private_data;
-        swConnection *conn = serv->get_connection_by_session_id(ctx->fd);
+        Server *serv = (Server *) ctx->private_data;
+        Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
             efree(header_name);
             return -1;
         }
-        swListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
+        ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port->open_websocket_protocol) {
             conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
         }
@@ -939,6 +942,8 @@ static PHP_METHOD(swoole_http_request, create) {
             } else if (SW_STRCASEEQ(key, keylen, "compression_level")) {
                 ctx->compression_level = zval_get_long(zvalue);
             }
+#endif
+#ifdef SW_HAVE_ZLIB
             else if (SW_STRCASEEQ(key, keylen, "websocket_compression")) {
                 ctx->websocket_compression = zval_is_true(zvalue);
             }
