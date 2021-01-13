@@ -273,6 +273,29 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
     zend_object_std_dtor(&hsc->std);
 }
 
+void swoole_http_server_init_context_with_co_socket(Socket *sock, http_context *ctx) {
+    ctx->parse_cookie = 1;
+    ctx->parse_body = 1;
+    ctx->parse_files = 1;
+#ifdef SW_HAVE_COMPRESSION
+    ctx->enable_compression = 1;
+    ctx->compression_level = SW_Z_BEST_SPEED;
+#endif
+#ifdef SW_HAVE_ZLIB
+    ctx->websocket_compression = 0;
+#endif
+    ctx->private_data = sock;
+    ctx->co_socket = 1;
+    ctx->send = http_context_send_data;
+    ctx->sendfile = http_context_sendfile;
+    ctx->close = http_context_disconnect;
+    ctx->upload_tmp_dir = "/tmp";
+
+    swoole_http_parser *parser = &ctx->parser;
+    parser->data = ctx;
+    swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+}
+
 void php_swoole_http_server_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_http_server_coro,
                         "Swoole\\Coroutine\\Http\\Server",

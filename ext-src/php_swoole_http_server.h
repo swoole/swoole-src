@@ -36,6 +36,7 @@ void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
 void swoole_http_server_init_context(swoole::Server *serv, swoole::http::Context *ctx);
+void swoole_http_server_init_context_with_co_socket(swoole::coroutine::Socket *sock, swoole::http::Context *ctx);
 
 #ifdef SW_USE_HTTP2
 

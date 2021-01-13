@@ -1314,50 +1314,68 @@ static PHP_METHOD(swoole_http_response, detach) {
 }
 
 static PHP_METHOD(swoole_http_response, create) {
-    zval *zserver = nullptr;
-    zend_long fd;
-    swServer *serv;
+    zval *zobject = nullptr;
+    zend_long fd = -1;
+    Server *serv = nullptr;
+    Socket *sock = nullptr;
 
-    if (ZEND_NUM_ARGS() == 1) {
-        ZEND_PARSE_PARAMETERS_START(1, 1)
-        Z_PARAM_LONG(fd)
-        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ZVAL(zobject)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(fd)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-        serv = sw_server();
+    if (ZVAL_IS_OBJECT(zobject)) {
+        if (instanceof_function(Z_OBJCE_P(zobject), swoole_server_ce)) {
+            serv = php_swoole_server_get_and_check_server(zobject);
+            if (serv->get_connection_verify(fd) == nullptr) {
+                php_swoole_fatal_error(E_WARNING, "parameter $2 must be valid connection session id");
+                RETURN_FALSE;
+            }
+        } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_socket_coro_ce)) {
+            sock = php_swoole_get_socket(zobject);
+            fd = sock->get_fd();
+        } else {
+            php_swoole_fatal_error(E_WARNING, "parameter $1 must be instanceof Server or Coroutine\\Socket");
+            RETURN_FALSE;
+        }
     } else {
-        ZEND_PARSE_PARAMETERS_START(2, 2)
-        Z_PARAM_OBJECT_OF_CLASS(zserver, swoole_server_ce)
-        Z_PARAM_LONG(fd)
-        ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
-
-        serv = php_swoole_server_get_and_check_server(zserver);
-    }
-
-    if (serv == nullptr || !serv->is_started()) {
-        php_swoole_fatal_error(E_WARNING, "server is not running");
-        RETURN_FALSE;
+        fd = zval_get_long(zobject);
+        serv = sw_server();
     }
 
     http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
     if (!ctx) {
         RETURN_FALSE;
     }
+    if (sw_unlikely(swoole_http_buffer == nullptr)) {
+        php_swoole_http_server_init_global_variant();
+    }
 
     ctx->fd = fd;
     ctx->keepalive = 1;
 
-    swoole_http_server_init_context(sw_server(), ctx);
-
-    if (sw_unlikely(swoole_http_buffer == nullptr)) {
-        php_swoole_http_server_init_global_variant();
+    if (serv) {
+        if (!serv->is_started()) {
+            php_swoole_fatal_error(E_WARNING, "server is not running");
+            RETURN_FALSE;
+        }
+        swoole_http_server_init_context(serv, ctx);
+    } else if (sock) {
+        swoole_http_server_init_context_with_co_socket(sock, ctx);
+    } else {
+        assert(0);
+        RETURN_FALSE;
     }
 
     object_init_ex(return_value, swoole_http_response_ce);
     php_swoole_http_response_set_context(return_value, ctx);
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
-
     zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), fd);
+    if (ctx->co_socket) {
+        zend_update_property(swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), ZEND_STRL("socket"), zobject);
+    }
 }
 
 static PHP_METHOD(swoole_http_response, redirect) {
