@@ -87,7 +87,7 @@ Http2Session::~Session() {
         nghttp2_hd_deflate_del(deflater);
     }
     if (default_ctx) {
-        efree(default_ctx);
+        delete default_ctx;
     }
     http2_sessions.erase(fd);
 }
