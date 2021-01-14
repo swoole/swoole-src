@@ -89,7 +89,7 @@ static inline bool http_has_crlf(const char *value, size_t length) {
 
 String *http_context::get_write_buffer() {
     if (co_socket) {
-        String *buffer = ((coroutine::Socket *) private_data)->get_write_buffer();
+        String *buffer = ((Socket *) private_data)->get_write_buffer();
         if (buffer != nullptr) {
             return buffer;
         }

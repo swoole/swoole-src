@@ -276,15 +276,13 @@ static int http_request_on_header_field(swoole_http_parser *parser, const char *
 }
 
 bool http_context::parse_form_data(const char *boundary_str, int boundary_len) {
-    multipart_parser *mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
+    mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser) {
         php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
         return false;
     }
 
-    mt_parser = mt_parser;
     mt_parser->data = this;
-
     return true;
 }
 
