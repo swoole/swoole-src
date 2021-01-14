@@ -125,12 +125,9 @@ class http_server {
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
 #endif
-        ctx->private_data = conn;
-        ctx->co_socket = 1;
-        ctx->send = http_context_send_data;
-        ctx->sendfile = http_context_sendfile;
-        ctx->close = http_context_disconnect;
         ctx->upload_tmp_dir = upload_tmp_dir;
+
+        ctx->bind(conn);
 
         swoole_http_parser *parser = &ctx->parser;
         parser->data = ctx;
@@ -273,35 +270,27 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
     zend_object_std_dtor(&hsc->std);
 }
 
-void swoole_co_http_server_init_context(Socket *sock, http_context *ctx) {
-    ctx->parse_cookie = 1;
-    ctx->parse_body = 1;
-    ctx->parse_files = 1;
+void http_context::init(Socket *sock) {
+    parse_cookie = 1;
+    parse_body = 1;
+    parse_files = 1;
 #ifdef SW_HAVE_COMPRESSION
-    ctx->enable_compression = 1;
-    ctx->compression_level = SW_Z_BEST_SPEED;
+    enable_compression = 1;
+    compression_level = SW_Z_BEST_SPEED;
 #endif
 #ifdef SW_HAVE_ZLIB
-    ctx->websocket_compression = 0;
+    websocket_compression = 0;
 #endif
-    ctx->private_data = sock;
-    ctx->co_socket = 1;
-    ctx->send = http_context_send_data;
-    ctx->sendfile = http_context_sendfile;
-    ctx->close = http_context_disconnect;
-    ctx->upload_tmp_dir = "/tmp";
-
-    swoole_http_parser *parser = &ctx->parser;
-    parser->data = ctx;
-    swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
+    upload_tmp_dir = "/tmp";
+    bind(sock);
 }
 
-void swoole_co_http_server_set_context_method(Socket *sock, http_context *ctx) {
-    ctx->private_data = sock;
-    ctx->co_socket = 1;
-    ctx->send = http_context_send_data;
-    ctx->sendfile = http_context_sendfile;
-    ctx->close = http_context_disconnect;
+void http_context::bind(Socket *sock) {
+    private_data = sock;
+    co_socket = 1;
+    send = http_context_send_data;
+    sendfile = http_context_sendfile;
+    close = http_context_disconnect;
 }
 
 void php_swoole_http_server_coro_minit(int module_number) {

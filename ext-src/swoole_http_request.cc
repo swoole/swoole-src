@@ -182,7 +182,7 @@ static void php_swoole_http_request_free_object(zend_object *object) {
     }
     if (ctx) {
         ctx->request.zobject = nullptr;
-        swoole_http_context_free(ctx);
+        ctx->free();
     }
 
     zend_object_std_dtor(&request->std);

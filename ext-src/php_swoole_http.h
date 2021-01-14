@@ -54,7 +54,7 @@ enum http_compress_method {
 };
 
 namespace swoole {
-
+class Server;
 #ifdef SW_USE_HTTP2
 class Coroutine;
 namespace http2 {
@@ -171,6 +171,13 @@ struct Context {
     bool (*send)(Context *ctx, const char *data, size_t length);
     bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool (*close)(Context *ctx);
+
+    void init(Server *server);
+    void init(coroutine::Socket *socket);
+    void bind(Server *server);
+    void bind(coroutine::Socket *socket);
+    void copy(Context *ctx);
+    void free();
 };
 
 }  // namespace http
@@ -241,7 +248,6 @@ swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
 void swoole_http_context_free(swoole::http::Context *ctx);
-void swoole_http_context_copy(swoole::http::Context *src, swoole::http::Context *dst);
 
 static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {

@@ -64,7 +64,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
 #endif
 
     http_context *ctx = swoole_http_context_new(session_id);
-    swoole_http_server_init_context(serv, ctx);
+    ctx->init(serv);
 
     zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req);
@@ -192,56 +192,54 @@ http_context *swoole_http_context_new(SessionId fd) {
     return ctx;
 }
 
-void swoole_http_server_init_context(Server *serv, http_context *ctx) {
-    ctx->parse_cookie = serv->http_parse_cookie;
-    ctx->parse_body = serv->http_parse_post;
-    ctx->parse_files = serv->http_parse_files;
+void http_context::init(Server *serv) {
+    parse_cookie = serv->http_parse_cookie;
+    parse_body = serv->http_parse_post;
+    parse_files = serv->http_parse_files;
 #ifdef SW_HAVE_COMPRESSION
-    ctx->enable_compression = serv->http_compression;
-    ctx->compression_level = serv->http_compression_level;
+    enable_compression = serv->http_compression;
+    compression_level = serv->http_compression_level;
 #endif
-    ctx->private_data = serv;
-    ctx->upload_tmp_dir = serv->upload_tmp_dir;
-    ctx->send = http_context_send_data;
-    ctx->sendfile = http_context_sendfile;
-    ctx->close = http_context_disconnect;
+    upload_tmp_dir = serv->upload_tmp_dir;
+    bind(serv);
 }
 
-void swoole_http_server_set_context_method(Server *serv, http_context *ctx) {
-    ctx->private_data = serv;
-    ctx->send = http_context_send_data;
-    ctx->sendfile = http_context_sendfile;
-    ctx->close = http_context_disconnect;
+void http_context::bind(Server *serv) {
+    private_data = serv;
+    send = http_context_send_data;
+    sendfile = http_context_sendfile;
+    close = http_context_disconnect;
 }
 
-void swoole_http_context_copy(http_context *src, http_context *dst) {
-    dst->parse_cookie = src->parse_cookie;
-    dst->parse_body = src->parse_body;
-    dst->parse_files = src->parse_files;
+void http_context::copy(http_context *ctx) {
+    parse_cookie = ctx->parse_cookie;
+    parse_body = ctx->parse_body;
+    parse_files = ctx->parse_files;
 #ifdef SW_HAVE_COMPRESSION
-    dst->enable_compression = src->enable_compression;
-    dst->compression_level = src->compression_level;
+    enable_compression = ctx->enable_compression;
+    compression_level = ctx->compression_level;
 #endif
-    dst->private_data = src->private_data;
-    dst->upload_tmp_dir = src->upload_tmp_dir;
-    dst->send = src->send;
-    dst->sendfile = src->sendfile;
-    dst->close = src->close;
+    co_socket = ctx->co_socket;
+    private_data = ctx->private_data;
+    upload_tmp_dir = ctx->upload_tmp_dir;
+    send = ctx->send;
+    sendfile = ctx->sendfile;
+    close = ctx->close;
 }
 
-void swoole_http_context_free(http_context *ctx) {
+void http_context::free() {
     /* http context can only be free'd after request and response were free'd */
-    if (ctx->request.zobject || ctx->response.zobject) {
+    if (request.zobject || response.zobject) {
         return;
     }
 #ifdef SW_USE_HTTP2
-    if (ctx->stream) {
+    if (stream) {
         return;
     }
 #endif
 
-    http_request *req = &ctx->request;
-    http_response *res = &ctx->response;
+    http_request *req = &request;
+    http_response *res = &response;
     if (req->path) {
         efree(req->path);
     }
@@ -259,7 +257,7 @@ void swoole_http_context_free(http_context *ctx) {
     if (res->reason) {
         efree(res->reason);
     }
-    delete ctx;
+    delete this;
 }
 
 void php_swoole_http_server_init_global_variant() {

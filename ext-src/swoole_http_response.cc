@@ -144,7 +144,7 @@ static void php_swoole_http_response_free_object(zend_object *object) {
             }
         }
         ctx->response.zobject = nullptr;
-        swoole_http_context_free(ctx);
+        ctx->free();
     }
 
     zend_object_std_dtor(&response->std);
@@ -1372,18 +1372,20 @@ static PHP_METHOD(swoole_http_response, create) {
         ctx->keepalive = 1;
 
         if (serv) {
-            swoole_http_server_init_context(serv, ctx);
+            ctx->init(serv);
         } else if (sock) {
-            swoole_co_http_server_init_context(sock, ctx);
+            ctx->init(sock);
+            ctx->parser.data = ctx;
+            swoole_http_parser_init(&ctx->parser, PHP_HTTP_REQUEST);
         } else {
             assert(0);
             RETURN_FALSE;
         }
     } else {
         if (serv) {
-            swoole_http_server_set_context_method(serv, ctx);
+            ctx->bind(serv);
         } else if (sock) {
-            swoole_co_http_server_set_context_method(sock, ctx);
+            ctx->bind(sock);
         } else {
             assert(0);
             RETURN_FALSE;

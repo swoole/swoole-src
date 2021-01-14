@@ -35,11 +35,6 @@ void swoole_websocket_onOpen(swoole::http::Context *ctx);
 void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
-void swoole_http_server_init_context(swoole::Server *serv, swoole::http::Context *ctx);
-void swoole_co_http_server_init_context(swoole::coroutine::Socket *sock, swoole::http::Context *ctx);
-void swoole_http_server_set_context_method(swoole::Server *serv, swoole::http::Context *ctx);
-void swoole_co_http_server_set_context_method(swoole::coroutine::Socket *sock, swoole::http::Context *ctx);
-
 #ifdef SW_USE_HTTP2
 
 int swoole_http2_server_onFrame(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);

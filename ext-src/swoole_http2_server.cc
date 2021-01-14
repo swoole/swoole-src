@@ -40,7 +40,7 @@ static bool swoole_http2_server_respond(http_context *ctx, String *body);
 
 Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
-    swoole_http_context_copy(client->default_ctx, ctx);
+    ctx->copy(client->default_ctx);
     ctx->http2 = true;
     ctx->stream = this;
     ctx->keepalive = true;
@@ -996,8 +996,8 @@ int swoole_http2_server_onFrame(Server *serv, Connection *conn, RecvData *req) {
 
     client->handle = swoole_http2_onRequest;
     if (!client->default_ctx) {
-        client->default_ctx = (http_context *) ecalloc(1, sizeof(http_context));
-        swoole_http_server_init_context(serv, client->default_ctx);
+        client->default_ctx = new http_context();
+        client->default_ctx->init(serv);
         client->default_ctx->fd = session_id;
         client->default_ctx->http2 = true;
         client->default_ctx->stream = (Http2Stream *) -1;
