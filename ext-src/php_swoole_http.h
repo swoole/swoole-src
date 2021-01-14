@@ -247,7 +247,6 @@ extern swoole::String *swoole_zlib_buffer;
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
-void swoole_http_context_free(swoole::http::Context *ctx);
 
 static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {
