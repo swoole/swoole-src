@@ -30,13 +30,13 @@ SW_EXTERN_C_END
 #include "swoole_base64.h"
 #include "thirdparty/swoole_http_parser.h"
 
-using swoole::Server;
 using swoole::Connection;
 using swoole::ListenPort;
-using swoole::String;
 using swoole::RecvData;
-using swoole::coroutine::Socket;
+using swoole::Server;
 using swoole::SessionId;
+using swoole::String;
+using swoole::coroutine::Socket;
 
 using http_request = swoole::http::Request;
 using http_response = swoole::http::Response;
@@ -312,7 +312,7 @@ void swoole_websocket_onRequest(http_context *ctx) {
                               "<html><body><h2>HTTP 400 Bad Request</h2><hr><i>Powered by Swoole</i></body></html>";
 
     ctx->send(ctx, (char *) bad_request, strlen(bad_request));
-    ctx->end = 1;
+    ctx->end_ = 1;
     ctx->close(ctx);
 }
 
@@ -333,7 +333,7 @@ bool swoole_websocket_handshake(http_context *ctx) {
     if (!(pData = zend_hash_str_find(ht, ZEND_STRL("sec-websocket-key")))) {
     _bad_request:
         ctx->response.status = SW_HTTP_BAD_REQUEST;
-        swoole_http_response_end(ctx, nullptr, &retval);
+        ctx->end(nullptr, &retval);
         return false;
     }
 
@@ -352,10 +352,10 @@ bool swoole_websocket_handshake(http_context *ctx) {
     // base64 encode
     int sec_len = swoole::base64_encode((unsigned char *) sha1_str, sizeof(sha1_str), sec_buf);
 
-    swoole_http_response_set_header(ctx, ZEND_STRL("Upgrade"), ZEND_STRL("websocket"), false);
-    swoole_http_response_set_header(ctx, ZEND_STRL("Connection"), ZEND_STRL("Upgrade"), false);
-    swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Accept"), sec_buf, sec_len, false);
-    swoole_http_response_set_header(ctx, ZEND_STRL("Sec-WebSocket-Version"), ZEND_STRL(SW_WEBSOCKET_VERSION), false);
+    ctx->set_header(ZEND_STRL("Upgrade"), ZEND_STRL("websocket"), false);
+    ctx->set_header(ZEND_STRL("Connection"), ZEND_STRL("Upgrade"), false);
+    ctx->set_header(ZEND_STRL("Sec-WebSocket-Accept"), sec_buf, sec_len, false);
+    ctx->set_header(ZEND_STRL("Sec-WebSocket-Version"), ZEND_STRL(SW_WEBSOCKET_VERSION), false);
 
 #ifdef SW_HAVE_ZLIB
     bool enable_websocket_compression = true;
@@ -387,8 +387,7 @@ bool swoole_websocket_handshake(http_context *ctx) {
         std::string value(Z_STRVAL_P(pData), Z_STRLEN_P(pData));
         if (value.substr(0, value.find_first_of(';')) == "permessage-deflate") {
             websocket_compression = true;
-            swoole_http_response_set_header(
-                ctx, ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
+            ctx->set_header(ZEND_STRL("Sec-Websocket-Extensions"), ZEND_STRL(SW_WEBSOCKET_EXTENSION_DEFLATE), false);
         }
     }
 #endif
@@ -397,11 +396,10 @@ bool swoole_websocket_handshake(http_context *ctx) {
         conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port && !port->websocket_subprotocol.empty()) {
-            swoole_http_response_set_header(ctx,
-                                            ZEND_STRL("Sec-WebSocket-Protocol"),
-                                            port->websocket_subprotocol.c_str(),
-                                            port->websocket_subprotocol.length(),
-                                            false);
+            ctx->set_header(ZEND_STRL("Sec-WebSocket-Protocol"),
+                            port->websocket_subprotocol.c_str(),
+                            port->websocket_subprotocol.length(),
+                            false);
         }
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = conn->websocket_compression = websocket_compression;
@@ -421,7 +419,7 @@ bool swoole_websocket_handshake(http_context *ctx) {
     ctx->response.status = SW_HTTP_SWITCHING_PROTOCOLS;
     ctx->upgrade = 1;
 
-    swoole_http_response_end(ctx, nullptr, &retval);
+    ctx->end(nullptr, &retval);
     return Z_TYPE(retval) == IS_TRUE;
 }
 
@@ -553,7 +551,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
     SessionId fd = req->info.fd;
     uchar flags = 0;
     zend_long opcode = 0;
-    auto port        = serv->get_port_by_session_id(fd);
+    auto port = serv->get_port_by_session_id(fd);
     if (!port) {
         return SW_ERR;
     }
@@ -574,7 +572,7 @@ int swoole_websocket_onMessage(Server *serv, RecvData *req) {
         if (opcode == WEBSOCKET_OPCODE_PING) {
             String send_frame = {};
             char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
-            send_frame.str  = buf;
+            send_frame.str = buf;
             send_frame.size = sizeof(buf);
             swWebSocket_encode(&send_frame, req->data, req->info.len, WEBSOCKET_OPCODE_PONG, SW_WEBSOCKET_FLAG_FIN);
             serv->send(fd, send_frame.str, send_frame.length);

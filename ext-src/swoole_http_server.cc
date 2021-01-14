@@ -84,7 +84,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
     parser->data = ctx;
     swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-    size_t parsed_n = swoole_http_requset_parse(ctx, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+    size_t parsed_n = ctx->parse(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (ctx->parser.state == s_dead) {
 #ifdef SW_HTTP_BAD_REQUEST_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
@@ -280,7 +280,7 @@ http_context *php_swoole_http_request_get_and_check_context(zval *zobject) {
 
 http_context *php_swoole_http_response_get_and_check_context(zval *zobject) {
     http_context *ctx = php_swoole_http_response_get_context(zobject);
-    if (!ctx || (ctx->end || ctx->detached)) {
+    if (!ctx || (ctx->end_ || ctx->detached)) {
         php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return nullptr;
     }

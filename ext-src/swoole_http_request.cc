@@ -136,8 +136,8 @@ static const multipart_parser_settings mt_parser_settings =
 };
 // clang-format on
 
-size_t swoole_http_requset_parse(http_context *ctx, const char *data, size_t length) {
-    return swoole_http_parser_execute(&ctx->parser, &http_parser_settings, data, length);
+size_t http_context::parse(const char *data, size_t length) {
+    return swoole_http_parser_execute(&parser, &http_parser_settings, data, length);
 }
 
 zend_class_entry *swoole_http_request_ce;
@@ -275,17 +275,17 @@ static int http_request_on_header_field(swoole_http_parser *parser, const char *
     return 0;
 }
 
-int swoole_http_parse_form_data(http_context *ctx, const char *boundary_str, int boundary_len) {
+bool http_context::parse_form_data(const char *boundary_str, int boundary_len) {
     multipart_parser *mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser) {
         php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
-        return SW_ERR;
+        return false;
     }
 
-    ctx->mt_parser = mt_parser;
-    mt_parser->data = ctx;
+    mt_parser = mt_parser;
+    mt_parser->data = this;
 
-    return SW_OK;
+    return true;
 }
 
 void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
@@ -437,12 +437,12 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 boundary_len -= 2;
             }
             swTraceLog(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
-            swoole_http_parse_form_data(ctx, boundary_str, boundary_len);
+            ctx->parse_form_data(boundary_str, boundary_len);
         }
     }
 #ifdef SW_HAVE_COMPRESSION
     else if (ctx->enable_compression && SW_STREQ(header_name, header_len, "accept-encoding")) {
-        swoole_http_get_compression_method(ctx, at, length);
+        ctx->get_compression_method(at, length);
     }
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked")) {
@@ -820,32 +820,32 @@ static int http_request_message_complete(swoole_http_parser *parser) {
 }
 
 #ifdef SW_HAVE_COMPRESSION
-void swoole_http_get_compression_method(http_context *ctx, const char *accept_encoding, size_t length) {
+void http_context::get_compression_method(const char *accept_encoding, size_t length) {
 #ifdef SW_HAVE_BROTLI
     if (swoole_strnpos(accept_encoding, length, ZEND_STRL("br")) >= 0) {
-        ctx->accept_compression = 1;
-        ctx->compression_method = HTTP_COMPRESS_BR;
+        accept_compression = 1;
+        compression_method = HTTP_COMPRESS_BR;
     } else
 #endif
         if (swoole_strnpos(accept_encoding, length, ZEND_STRL("gzip")) >= 0) {
-        ctx->accept_compression = 1;
-        ctx->compression_method = HTTP_COMPRESS_GZIP;
+        accept_compression = 1;
+        compression_method = HTTP_COMPRESS_GZIP;
     } else if (swoole_strnpos(accept_encoding, length, ZEND_STRL("deflate")) >= 0) {
-        ctx->accept_compression = 1;
-        ctx->compression_method = HTTP_COMPRESS_DEFLATE;
+        accept_compression = 1;
+        compression_method = HTTP_COMPRESS_DEFLATE;
     } else {
-        ctx->accept_compression = 0;
+        accept_compression = 0;
     }
 }
 
-const char *swoole_http_get_content_encoding(http_context *ctx) {
-    if (ctx->compression_method == HTTP_COMPRESS_GZIP) {
+const char *http_context::get_content_encoding() {
+    if (compression_method == HTTP_COMPRESS_GZIP) {
         return "gzip";
-    } else if (ctx->compression_method == HTTP_COMPRESS_DEFLATE) {
+    } else if (compression_method == HTTP_COMPRESS_DEFLATE) {
         return "deflate";
     }
 #ifdef SW_HAVE_BROTLI
-    else if (ctx->compression_method == HTTP_COMPRESS_BR) {
+    else if (compression_method == HTTP_COMPRESS_BR) {
         return "br";
     }
 #endif
@@ -991,7 +991,7 @@ static PHP_METHOD(swoole_http_request, parse) {
         ZVAL_STR(&ctx->request.zdata, new_str);
     }
 
-    RETURN_LONG(swoole_http_requset_parse(ctx, str, l_str));
+    RETURN_LONG(ctx->parse(str, l_str));
 }
 
 static PHP_METHOD(swoole_http_request, getMethod) {

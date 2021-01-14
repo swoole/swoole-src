@@ -582,7 +582,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
         }
 
-        size_t parsed_n = swoole_http_requset_parse(ctx, buffer->str + buffer->offset, buffer->length - buffer->offset);
+        size_t parsed_n = ctx->parse(buffer->str + buffer->offset, buffer->length - buffer->offset);
         buffer->offset += parsed_n;
 
         swTraceLog(SW_TRACE_CO_HTTP_SERVER,
