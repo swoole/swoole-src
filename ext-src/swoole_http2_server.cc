@@ -52,7 +52,7 @@ Http2Stream::Stream(Http2Session *client, uint32_t _id) {
 Http2Stream::~Stream() {
     ctx->stream = nullptr;
     ctx->end = true;
-    swoole_http_context_free(ctx);
+    ctx->free();
 }
 
 void Http2Stream::reset(uint32_t error_code) {
