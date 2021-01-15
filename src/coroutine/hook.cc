@@ -400,6 +400,16 @@ int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout) {
     }
 }
 
+int swoole_coroutine_socket_set_async_write(int sockfd, int value) {
+    Socket *socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == NULL)) {
+        errno = EINVAL;
+        return -1;
+    }
+    socket->async_write = value;
+    return 0;
+}
+
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     Socket *socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == NULL)) {

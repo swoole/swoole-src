@@ -66,6 +66,17 @@ int swoole_event_add(Socket *socket, int events) {
     return SwooleTG.reactor->add(socket, events);
 }
 
+int swoole_event_add_or_update(swoole::network::Socket *_socket, int event) {
+    if (event == SW_EVENT_READ) {
+        return SwooleTG.reactor->add_read_event(_socket);
+    } else if (event == SW_EVENT_WRITE) {
+        return SwooleTG.reactor->add_write_event(_socket);
+    } else {
+        assert(0);
+        return SW_ERR;
+    }
+}
+
 int swoole_event_set(Socket *socket, int events) {
     return SwooleTG.reactor->set(socket, events);
 }

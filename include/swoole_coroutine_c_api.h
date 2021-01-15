@@ -75,6 +75,7 @@ int swoole_coroutine_close(int fd);
 int swoole_coroutine_connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 int swoole_coroutine_poll(struct pollfd *fds, nfds_t nfds, int timeout);
 int swoole_coroutine_socket_set_timeout(int fd, int which, double timeout);
+int swoole_coroutine_socket_set_async_write(int fd, int value);
 int swoole_coroutine_socket_wait_event(int fd, int event, double timeout);
 int swoole_coroutine_getaddrinfo(const char *name,
                                  const char *service,

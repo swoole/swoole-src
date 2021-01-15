@@ -69,6 +69,9 @@ int Socket::readable_event_callback(Reactor *reactor, Event *event) {
 
 int Socket::writable_event_callback(Reactor *reactor, Event *event) {
     Socket *socket = (Socket *) event->socket->object;
+    if (socket->async_write && socket->write_co == nullptr) {
+        return reactor->default_write_handler(reactor, event);
+    }
     socket->set_err(0);
 #ifdef SW_USE_OPENSSL
     if (sw_unlikely(socket->want_event != SW_EVENT_NULL)) {
@@ -791,6 +794,9 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
+    if (async_write) {
+        return swoole_event_write(socket, __buf, __n);
+    }
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
@@ -853,6 +859,9 @@ ssize_t Socket::recv_with_buffer(void *__buf, size_t __n) {
 ssize_t Socket::write(const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
+    }
+    if (async_write) {
+        return swoole_event_write(socket, __buf, __n);
     }
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
@@ -930,6 +939,9 @@ ssize_t Socket::writev(network::IOVector *io_vector) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
     }
+    if (async_write) {
+        return swoole_event_writev(socket, io_vector->iov, io_vector->count);
+    }
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
@@ -943,6 +955,9 @@ ssize_t Socket::writev(network::IOVector *io_vector) {
 ssize_t Socket::writev_all(network::IOVector *io_vector) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
+    }
+    if (async_write) {
+        return swoole_event_writev(socket, io_vector->iov, io_vector->count);
     }
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
@@ -1026,6 +1041,9 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
 ssize_t Socket::send_all(const void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return -1;
+    }
+    if (async_write) {
+        return swoole_event_write(socket, __buf, __n);
     }
     ssize_t retval = 0;
     size_t total_bytes = 0;
@@ -1276,6 +1294,10 @@ std::string Socket::ssl_get_peer_cert() {
 bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return false;
+    }
+    if (async_write) {
+        return !(socket->sendfile(filename, offset, length) < 0
+                || swoole_event_add_or_update(socket, SW_EVENT_WRITE) < 0);
     }
 
     File file(filename, O_RDONLY);

@@ -40,6 +40,7 @@ SW_API int swoole_timer_select();
 SW_API int swoole_event_init(int flags);
 SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
 SW_API int swoole_event_set(swoole::network::Socket *socket, int events);
+SW_API int swoole_event_add_or_update(swoole::network::Socket *socket, int event);
 SW_API int swoole_event_del(swoole::network::Socket *socket);
 SW_API void swoole_event_defer(swoole::Callback cb, void *private_data);
 SW_API ssize_t swoole_event_write(swoole::network::Socket *socket, const void *data, size_t len);
