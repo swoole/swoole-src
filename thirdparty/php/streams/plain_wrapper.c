@@ -244,7 +244,7 @@ static ssize_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t c
                     stream->eof = 1;
                     return -1;
                 }
-                swoole_coroutine_socket_set_async_write(data->fd);
+                swoole_coroutine_socket_set_async_write(data->fd, 1);
             }
             return swoole_coroutine_write(data->fd, buf, count);
         } else {
