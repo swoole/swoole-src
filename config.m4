@@ -448,7 +448,15 @@ if test "$PHP_SWOOLE" != "no"; then
             PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
             PHP_ADD_LIBRARY_WITH_PATH(ssl, "${PHP_OPENSSL_DIR}/${PHP_LIBDIR}")
         else
-            AC_CHECK_LIB(ssl, SSL_connect, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
+            PKG_CHECK_MODULES([OPENSSL], [openssl >= 1.0.2], [found_openssl=yes])
+
+            if test "$found_openssl" = "yes"; then
+                AC_DEFINE(HAVE_OPENSSL, 1, [have openssl])
+                PHP_EVAL_INCLINE($OPENSSL_CFLAGS)
+                PHP_EVAL_LIBLINE($OPENSSL_LIBS, SWOOLE_SHARED_LIBADD)
+            else
+                AC_CHECK_LIB(ssl, SSL_connect, AC_DEFINE(HAVE_OPENSSL, 1, [have openssl]))
+            fi
         fi
 
         AC_DEFINE(SW_USE_OPENSSL, 1, [enable openssl support])
