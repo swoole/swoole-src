@@ -179,10 +179,6 @@ http_context *swoole_http_context_new(SessionId fd) {
     zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), ZEND_STRL("fd"), fd);
     zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(zresponse_object), ZEND_STRL("fd"), fd);
 
-#if PHP_MEMORY_DEBUG
-    php_vmstat.new_http_request++;
-#endif
-
     swoole_http_init_and_read_property(
         swoole_http_request_ce, zrequest_object, &ctx->request.zserver, ZEND_STRL("server"));
     swoole_http_init_and_read_property(

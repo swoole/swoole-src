@@ -395,7 +395,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     int n;
     char *date_str;
 
-    assert(ctx->send_header == 0);
+    assert(ctx->send_header_ == 0);
 
     /**
      * http status line

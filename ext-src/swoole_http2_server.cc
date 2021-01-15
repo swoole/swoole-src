@@ -244,7 +244,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
     char intbuf[2][16];
     int ret;
 
-    assert(ctx->send_header == 0);
+    assert(ctx->send_header_ == 0);
 
     // status code
     if (ctx->response.status == 0) {
