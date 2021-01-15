@@ -186,7 +186,7 @@ struct Context {
     String *get_write_buffer();
 
 #ifdef SW_HAVE_COMPRESSION
-    void get_compression_method(const char *accept_encoding, size_t length);
+    void set_compression_method(const char *accept_encoding, size_t length);
     const char *get_content_encoding();
 #endif
 

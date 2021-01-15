@@ -738,7 +738,7 @@ static int http2_parse_header(Http2Session *client, http_context *ctx, int flags
                 }
 #ifdef SW_HAVE_COMPRESSION
                 else if (ctx->enable_compression && SW_STRCASEEQ((char *) nv.name, nv.namelen, "accept-encoding")) {
-                    ctx->get_compression_method((char *) nv.value, nv.valuelen);
+                    ctx->set_compression_method((char *) nv.value, nv.valuelen);
                 }
 #endif
                 add_assoc_stringl_ex(zheader, (char *) nv.name, nv.namelen, (char *) nv.value, nv.valuelen);

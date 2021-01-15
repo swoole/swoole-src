@@ -440,7 +440,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
     }
 #ifdef SW_HAVE_COMPRESSION
     else if (ctx->enable_compression && SW_STREQ(header_name, header_len, "accept-encoding")) {
-        ctx->get_compression_method(at, length);
+        ctx->set_compression_method(at, length);
     }
 #endif
     else if (SW_STREQ(header_name, header_len, "transfer-encoding") && SW_STRCASECT(at, length, "chunked")) {
@@ -818,7 +818,7 @@ static int http_request_message_complete(swoole_http_parser *parser) {
 }
 
 #ifdef SW_HAVE_COMPRESSION
-void http_context::get_compression_method(const char *accept_encoding, size_t length) {
+void http_context::set_compression_method(const char *accept_encoding, size_t length) {
 #ifdef SW_HAVE_BROTLI
     if (swoole_strnpos(accept_encoding, length, ZEND_STRL("br")) >= 0) {
         accept_compression = 1;
