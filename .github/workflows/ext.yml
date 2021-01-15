@@ -37,7 +37,7 @@ jobs:
     - if: startsWith(runner.os, 'macOS')
       name: Install dependencies on macOS
       run: |
-        brew install openssl && brew link openssl && brew install curl && brew link curl
+        brew install pkg-config && openssl && brew link openssl && brew install curl && brew link curl
         cp /usr/local/opt/openssl@1.1/lib/pkgconfig/* /usr/local/lib/pkgconfig/
     - name: phpize
       run: phpize
