@@ -231,7 +231,7 @@ static int write_func(
     int fd = socket->fd;
 
     if (socket->buffer_size == 0) {
-        socket->buffer_size = Socket::default_buffer_size;
+        socket->set_memory_buffer_size(Socket::default_buffer_size);
     }
 
     if (socket->nonblock == 0) {
