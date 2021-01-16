@@ -679,7 +679,7 @@ TEST(coroutine_socket, async_write) {
         String recv_buf(size);
         auto ret_n = conn->recv_all(recv_buf.str, size);
         ASSERT_EQ(ret_n, size);
-        ASSERT_STREQ(recv_buf.str, buf.str);
+        ASSERT_MEMEQ(recv_buf.str, buf.str, size);
         conn->get_socket()->set_tcp_nodelay();
         conn->send(resp_str, strlen(resp_str));
         delete conn;
@@ -698,7 +698,7 @@ TEST(coroutine_socket, async_write) {
 
         char recv_buf[1024];
         auto n = sock.recv(recv_buf, sizeof(recv_buf));
-        ASSERT_STREQ(recv_buf, resp_str);
+        ASSERT_MEMEQ(recv_buf, resp_str, n);
         ASSERT_EQ(n, strlen(resp_str));
     }});
 }
