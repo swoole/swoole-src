@@ -406,6 +406,10 @@ int swoole_coroutine_socket_set_async_write(int sockfd, int value) {
         errno = EINVAL;
         return -1;
     }
+    if (value == 0 && !socket->get_socket()->out_buffer->empty()) {
+        swWarn("socket->out_buffer is not empty and async writing cannot disable");
+        return -1;
+    }
     socket->async_write = value;
     return 0;
 }

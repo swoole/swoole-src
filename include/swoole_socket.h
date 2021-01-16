@@ -122,6 +122,14 @@ struct IOVector {
         return iov_iterator;
     }
 
+    size_t length() {
+        size_t len = 0;
+        SW_LOOP_N(count) {
+            len += iov[i].iov_len;
+        }
+        return len;
+    }
+
     inline int get_remain_count() {
         return remain_count;
     }

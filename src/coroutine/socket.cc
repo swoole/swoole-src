@@ -795,7 +795,7 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
         return -1;
     }
     if (async_write) {
-        return swoole_event_write(socket, __buf, __n);
+        return swoole_event_write(socket, __buf, __n) == SW_OK ? __n : -1;
     }
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
@@ -861,7 +861,7 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
         return -1;
     }
     if (async_write) {
-        return swoole_event_write(socket, __buf, __n);
+        return swoole_event_write(socket, __buf, __n) == SW_OK ? __n : -1;
     }
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
@@ -940,7 +940,7 @@ ssize_t Socket::writev(network::IOVector *io_vector) {
         return -1;
     }
     if (async_write) {
-        return swoole_event_writev(socket, io_vector->iov, io_vector->count);
+        return swoole_event_writev(socket, io_vector->iov, io_vector->count) == SW_OK ? io_vector->length() : -1;
     }
     ssize_t retval;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
@@ -957,7 +957,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
         return -1;
     }
     if (async_write) {
-        return swoole_event_writev(socket, io_vector->iov, io_vector->count);
+        return swoole_event_writev(socket, io_vector->iov, io_vector->count) == SW_OK ? io_vector->length() : -1;
     }
     ssize_t retval, total_bytes = 0;
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
@@ -1043,7 +1043,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
         return -1;
     }
     if (async_write) {
-        return swoole_event_write(socket, __buf, __n);
+        return swoole_event_write(socket, __buf, __n) == SW_OK ? __n : -1;
     }
     ssize_t retval = 0;
     size_t total_bytes = 0;

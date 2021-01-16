@@ -191,4 +191,6 @@ TEST(reactor, add_or_update) {
     ASSERT_EQ(ret, SW_OK);
     ASSERT_TRUE(p.get_socket(false)->events & SW_EVENT_READ);
     ASSERT_TRUE(p.get_socket(false)->events & SW_EVENT_WRITE);
+
+    swoole_event_free();
 }
