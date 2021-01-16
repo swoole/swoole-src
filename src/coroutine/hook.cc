@@ -400,29 +400,6 @@ int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout) {
     }
 }
 
-int swoole_coroutine_socket_set_async_write(int fd, int value) {
-    Socket *socket = get_socket_ex(fd);
-    if (sw_unlikely(socket == NULL)) {
-        errno = EINVAL;
-        return -1;
-    }
-    if (value == 0 && !socket->get_socket()->out_buffer->empty()) {
-        swWarn("socket->out_buffer is not empty and async writing cannot disable");
-        return -1;
-    }
-    socket->async_write = value;
-    return 0;
-}
-
-int swoole_coroutine_socket_set_memory_buffer_size(int fd, uint32_t buffer_size) {
-    Socket *socket = get_socket_ex(fd);
-    if (sw_unlikely(socket == NULL)) {
-        errno = EINVAL;
-        return -1;
-    }
-    socket->get_socket()->set_memory_buffer_size(buffer_size);
-}
-
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     Socket *socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == NULL)) {

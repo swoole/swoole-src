@@ -42,7 +42,6 @@ class Socket {
     bool open_length_check = false;
     bool open_eof_check = false;
     bool http2 = false;
-    bool async_write = false;
 
     Protocol protocol = {};
     Socks5Proxy *socks5_proxy = nullptr;
