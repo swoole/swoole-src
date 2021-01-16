@@ -1277,7 +1277,7 @@ bool Socket::sendfile(const char *filename, off_t offset, size_t length) {
     if (sw_unlikely(!is_available(SW_EVENT_WRITE))) {
         return false;
     }
-    
+
     File file(filename, O_RDONLY);
     if (!file.ready()) {
         set_err(errno, std_string::format("open(%s) failed, %s", filename, strerror(errno)));

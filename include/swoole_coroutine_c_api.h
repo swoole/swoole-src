@@ -55,6 +55,9 @@ int swoole_coroutine_rename(const char *oldpath, const char *newpath);
 int swoole_coroutine_flock(int fd, int operation);
 int swoole_coroutine_flock_ex(const char *filename, int fd, int operation);
 int swoole_coroutine_statvfs(const char *path, struct statvfs *buf);
+size_t swoole_coroutine_fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+size_t swoole_coroutine_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream);
+int swoole_coroutine_feof(FILE *stream);
 /**
  * dir
  */

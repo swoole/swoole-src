@@ -31,6 +31,10 @@
 #define rmdir(pathname) swoole_coroutine_rmdir(pathname)
 #define rename(oldpath, newpath) swoole_coroutine_rename(oldpath, newpath)
 
+#define fread(ptr, size, nmemb, stream)  swoole_coroutine_fread(ptr, size, nmemb, stream)
+#define fwrite(ptr, size, nmemb, stream)  swoole_coroutine_fwrite(ptr, size, nmemb, stream)
+#define feof(stream)  swoole_coroutine_feof(stream)
+
 #define opendir(name) swoole_coroutine_opendir(name)
 #define readdir(dir) swoole_coroutine_readdir(dir)
 #define closedir(dir) swoole_coroutine_closedir(dir)

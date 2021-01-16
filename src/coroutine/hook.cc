@@ -330,6 +330,36 @@ int swoole_coroutine_access(const char *pathname, int mode) {
     return retval;
 }
 
+size_t swoole_coroutine_fread(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    if (sw_unlikely(is_no_coro())) {
+        return fread(ptr, size, nmemb, stream);
+    }
+
+    size_t retval = 0;
+    swoole::coroutine::async([&]() { retval = fread(ptr, size, nmemb, stream); });
+    return retval;
+}
+
+size_t swoole_coroutine_fwrite(const void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    if (sw_unlikely(is_no_coro())) {
+        return fwrite(ptr, size, nmemb, stream);
+    }
+
+    size_t retval = 0;
+    swoole::coroutine::async([&]() { retval = fwrite(ptr, size, nmemb, stream); });
+    return retval;
+}
+
+int swoole_coroutine_feof(FILE *stream) {
+    if (sw_unlikely(is_no_coro())) {
+        return feof(stream);
+    }
+
+    int retval = -1;
+    swoole::coroutine::async([&]() { retval = feof(stream); });
+    return retval;
+}
+
 int swoole_coroutine_flock(int fd, int operation) {
     if (sw_unlikely(is_no_coro())) {
         return flock(fd, operation);
