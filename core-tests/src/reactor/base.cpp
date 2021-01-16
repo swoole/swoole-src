@@ -173,3 +173,22 @@ TEST(reactor, select) {
     reactor.wait_exit = true;
     reactor_test_func(&reactor);
 }
+
+TEST(reactor, add_or_update) {
+    int ret;
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
+
+    ret = swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+    ASSERT_EQ(ret, SW_OK);
+    ASSERT_NE(SwooleTG.reactor, nullptr);
+
+    ret = swoole_event_add_or_update(p.get_socket(false), SW_EVENT_READ);
+    ASSERT_EQ(ret, SW_OK);
+    ASSERT_TRUE(p.get_socket(false)->events & SW_EVENT_READ);
+
+    ret = swoole_event_add_or_update(p.get_socket(false), SW_EVENT_WRITE);
+    ASSERT_EQ(ret, SW_OK);
+    ASSERT_TRUE(p.get_socket(false)->events & SW_EVENT_READ);
+    ASSERT_TRUE(p.get_socket(false)->events & SW_EVENT_WRITE);
+}
