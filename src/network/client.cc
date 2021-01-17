@@ -718,12 +718,8 @@ static int Client_tcp_sendfile_async(Client *cli, const char *filename, off_t of
         swoole_set_last_error(errno);
         return SW_ERR;
     }
-    if (!(cli->socket->events & SW_EVENT_WRITE)) {
-        if (cli->socket->events & SW_EVENT_READ) {
-            return swoole_event_set(cli->socket, SW_EVENT_READ | SW_EVENT_WRITE);
-        } else {
-            return swoole_event_add(cli->socket, SW_EVENT_WRITE);
-        }
+    if (swoole_event_add_or_update(cli->socket, SW_EVENT_WRITE) == SW_ERR) {
+        return SW_ERR;
     }
     return SW_OK;
 }

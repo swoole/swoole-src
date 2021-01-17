@@ -22,6 +22,7 @@
 #include "swoole_util.h"
 
 using swoole::Coroutine;
+using swoole::String;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 
@@ -214,7 +215,7 @@ TEST(coroutine_hook, flock) {
 }
 
 TEST(coroutine_hook, read_dir) {
-    coroutine::run([](void *arg) {
+    auto fn = []() {
         auto fp = swoole_coroutine_opendir("/tmp");
         ASSERT_NE(fp, nullptr);
         struct dirent *entry;
@@ -228,11 +229,16 @@ TEST(coroutine_hook, read_dir) {
         ASSERT_STREQ(entry->d_name, "..");
 
         swoole_coroutine_closedir(fp);
+    };
+    
+    coroutine::run([&](void *arg) {
+        fn();
     });
+    fn();
 }
 
 TEST(coroutine_hook, readlink) {
-    coroutine::run([](void *arg) {
+    auto fn = []() {
         char buf1[1024] = {};
         char buf2[1024] = {};
 
@@ -241,6 +247,67 @@ TEST(coroutine_hook, readlink) {
 
         getcwd(buf2, sizeof(buf2));
         ASSERT_STREQ(buf1, buf2);
+    };
+
+    coroutine::run([&](void *arg) {
+        fn();
     });
+    fn();
 }
 
+TEST(coroutine_hook, stdio_1) {
+    auto fn = []() {
+        FILE *fp1 = swoole_coroutine_fopen(test_file, "w+");
+        const char *str = "hello world";
+        int n = swoole_coroutine_fputs(str, fp1);
+        ASSERT_TRUE(n);
+        swoole_coroutine_fclose(fp1);
+
+        FILE *fp2 = swoole_coroutine_fopen(test_file, "r+");
+        char buf[1024];
+        char *str2 = swoole_coroutine_fgets(buf, sizeof(buf), fp2);
+
+        ASSERT_STREQ(str2, str);
+        swoole_coroutine_fclose(fp2);
+
+        unlink(test_file);
+    };
+
+    coroutine::run([&](void *arg) {
+        fn();
+    });
+    fn();
+}
+
+TEST(coroutine_hook, stdio_2) {
+    auto fn = []() {
+        size_t size = 1024;
+
+        FILE *fp1 = swoole_coroutine_fopen(test_file, "w+");
+        String str(size);
+        str.append_random_bytes(size);
+        size_t n = swoole_coroutine_fwrite(str.str, 1, size, fp1);
+        ASSERT_EQ(n, size);
+        swoole_coroutine_fclose(fp1);
+
+        FILE *fp2 = swoole_coroutine_fopen(test_file, "r+");
+        char buf[size];
+        size_t len = swoole_coroutine_fread(buf, 1, size, fp2);
+        ASSERT_EQ(len, size);
+
+        len = swoole_coroutine_fread(buf, 1, size, fp2);
+        ASSERT_EQ(len, 0);
+
+        ASSERT_TRUE(swoole_coroutine_feof(fp2));
+
+        ASSERT_MEMEQ(buf, str.str, size);
+        swoole_coroutine_fclose(fp2);
+
+        unlink(test_file);
+    };
+
+    coroutine::run([&](void *arg) {
+        fn();
+    });
+    fn();
+}

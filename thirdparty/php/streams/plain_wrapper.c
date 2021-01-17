@@ -59,13 +59,8 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 # define PLAIN_WRAP_BUF_SIZE(st) (st)
 #endif
 
-#if PHP_VERSION_ID < 70400
-static size_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count);
-static size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count);
-#else
-static ssize_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count);
-static ssize_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count);
-#endif
+static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count);
+static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count);
 static int sw_php_stdiop_close(php_stream *stream, int close_handle);
 static int sw_php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int sw_php_stdiop_flush(php_stream *stream);
@@ -227,81 +222,54 @@ static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, co
     return php_stream_alloc_rel(&sw_php_stream_stdio_ops, self, persistent_id, mode);
 }
 
-#if PHP_VERSION_ID < 70400
-static size_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count)
-#else
-static ssize_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count)
-#endif
-{
+static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count) {
     php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
 
     assert(data != NULL);
 
     if (data->fd >= 0) {
-        if (file_can_poll(&data->sb)) {
-            if (!swoole_coroutine_socket_exists(data->fd) && swoole_coroutine_socket_create(data->fd) < 0) {
-                stream->eof = 1;
-                return -1;
-            }
-            return swoole_coroutine_write(data->fd, buf, count);
-        } else {
-            int bytes_written = write(data->fd, buf, count);
+		ssize_t bytes_written = write(data->fd, buf, count);
 #if PHP_VERSION_ID < 70400
-            if (bytes_written < 0)
-            {
-                return 0;
-            }
-            return (size_t) bytes_written;
+		if (bytes_written < 0) {
+			return 0;
+		}
+		return (size_t) bytes_written;
 #else
-            return bytes_written;
+        return bytes_written;
 #endif
-        }
-
     } else {
         return fwrite(buf, 1, count, data->file);
     }
 }
 
-#if PHP_VERSION_ID < 70400
-static size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count)
-#else
-static ssize_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count)
-#endif
-{
+static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count) {
     php_stdio_stream_data *data = (php_stdio_stream_data*) stream->abstract;
-    size_t ret;
 
     assert(data != NULL);
 
-    if (data->fd >= 0)
-    {
-        if (file_can_poll(&data->sb)) {
-            if (!swoole_coroutine_socket_exists(data->fd) && swoole_coroutine_socket_create(data->fd) < 0) {
-                stream->eof = 1;
-                return -1;
-            }
-            return swoole_coroutine_read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
-        }
-        // file
-        else {
-            ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
-
-            if (ret == (size_t) -1 && errno == EINTR) {
-                /* Read was interrupted, retry once,
-                 If read still fails, giveup with feof==0
-                 so script can retry if desired */
-                ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
-            }
-            stream->eof =
-                    (ret == 0 || (ret == (size_t) -1 && errno != EWOULDBLOCK && errno != EINTR && errno != EBADF));
-        }
+    if (data->fd >= 0) {
+		ssize_t ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
+		if (ret == -1 && errno == EINTR) {
+			/* Read was interrupted, retry once,
+				If read still fails, giveup with feof==0
+				so script can retry if desired */
+			ret = read(data->fd, buf, PLAIN_WRAP_BUF_SIZE(count));
+		}
+		stream->eof = (ret == 0 || (ret == -1 && errno != EWOULDBLOCK && errno != EINTR && errno != EBADF));
+#if PHP_VERSION_ID < 70400
+		if (ret < 0) {
+			return 0;
+		}
+		return (size_t) ret;
+#else
+		return ret;
+#endif
     }
-    else
-    {
-        ret = fread(buf, 1, count, data->file);
+    else {
+        size_t ret = fread(buf, 1, count, data->file);
         stream->eof = feof(data->file);
+		return ret;
     }
-    return ret;
 }
 
 static int sw_php_stdiop_close(php_stream *stream, int close_handle)
