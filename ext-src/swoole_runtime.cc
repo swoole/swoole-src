@@ -176,6 +176,7 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_FUNCTION", PHPCoroutine::HOOK_STREAM_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT", PHPCoroutine::HOOK_STREAM_FUNCTION);  // backward compatibility
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_FILE", PHPCoroutine::HOOK_FILE);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STDIO", PHPCoroutine::HOOK_STDIO);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", PHPCoroutine::HOOK_SLEEP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_PROC", PHPCoroutine::HOOK_PROC);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_CURL", PHPCoroutine::HOOK_CURL);
@@ -1259,11 +1260,19 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     if (flags & PHPCoroutine::HOOK_FILE) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_FILE)) {
             memcpy((void *) &php_plain_files_wrapper, &sw_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
-            memcpy((void *) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_FILE) {
             memcpy((void *) &php_plain_files_wrapper, &ori_php_plain_files_wrapper, sizeof(php_plain_files_wrapper));
+        }
+    }
+    // stdio
+    if (flags & PHPCoroutine::HOOK_STDIO) {
+        if (!(runtime_hook_flags & PHPCoroutine::HOOK_STDIO)) {
+            memcpy((void *) &php_stream_stdio_ops, &sw_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
+        }
+    } else {
+        if (runtime_hook_flags & PHPCoroutine::HOOK_STDIO) {
             memcpy((void *) &php_stream_stdio_ops, &ori_php_stream_stdio_ops, sizeof(php_stream_stdio_ops));
         }
     }

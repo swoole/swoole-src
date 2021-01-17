@@ -737,8 +737,16 @@ void PHPCoroutine::main_func(void *arg) {
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
                 tasks->pop();
+#if PHP_VERSION_ID < 80000
                 defer_fci->fci.param_count = 1;
                 defer_fci->fci.params = retval;
+#else
+                if (Z_TYPE_P(retval) != IS_UNDEF) {
+                    defer_fci->fci.param_count = 1;
+                    defer_fci->fci.params = retval;
+                }
+#endif
+
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
                 }

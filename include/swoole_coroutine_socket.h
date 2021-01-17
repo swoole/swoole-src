@@ -192,8 +192,6 @@ class Socket {
         return socket->info.get_port();
     }
 
-
-
     inline bool has_bound(const enum swEvent_type event = SW_EVENT_RDWR) {
         return get_bound_co(event) != nullptr;
     }

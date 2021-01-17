@@ -22,6 +22,8 @@
 #define TEST_JPG_FILE "/examples/test.jpg"
 #define TEST_JPG_MD5SUM  "64a42b4c0f3c65a14c23b60d3880a917"
 
+#define ASSERT_MEMEQ(x,y,n)   ASSERT_EQ(memcmp((x), (y), n), 0)
+
 namespace swoole { namespace test {
 const std::string &get_root_path();
 std::string get_jpg_file();

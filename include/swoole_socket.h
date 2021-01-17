@@ -122,6 +122,14 @@ struct IOVector {
         return iov_iterator;
     }
 
+    size_t length() {
+        size_t len = 0;
+        SW_LOOP_N(count) {
+            len += iov[i].iov_len;
+        }
+        return len;
+    }
+
     inline int get_remain_count() {
         return remain_count;
     }
@@ -173,9 +181,7 @@ struct Socket {
     uchar recv_wait : 1;
     uchar event_hup : 1;
 
-    /**
-     * memory buffer size;
-     */
+    // memory buffer size [user space]
     uint32_t buffer_size;
     uint32_t chunk_size;
 
@@ -203,14 +209,14 @@ struct Socket {
     size_t total_recv_bytes;
     size_t total_send_bytes;
 
-    /**
-     * for reactor
-     */
+    // for reactor
     int handle_send();
     int handle_sendfile();
-    /**
-     * socket option
-     */
+    // user space memory buffer
+    void set_memory_buffer_size(uint32_t _buffer_size) {
+        buffer_size = _buffer_size;
+    }
+    // socket option [kernel buffer]
     bool set_buffer_size(uint32_t _buffer_size);
     bool set_recv_buffer_size(uint32_t _buffer_size);
     bool set_send_buffer_size(uint32_t _buffer_size);
