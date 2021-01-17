@@ -54,7 +54,7 @@ enum http_compress_method {
 };
 
 namespace swoole {
-
+class Server;
 #ifdef SW_USE_HTTP2
 class Coroutine;
 namespace http2 {
@@ -119,15 +119,15 @@ struct Response {
 struct Context {
     SessionId fd;
     uchar completed : 1;
-    uchar end : 1;
-    uchar send_header : 1;
+    uchar end_ : 1;
+    uchar send_header_ : 1;
 #ifdef SW_HAVE_COMPRESSION
     uchar enable_compression : 1;
     uchar accept_compression : 1;
 #endif
     uchar send_chunked : 1;
     uchar recv_chunked : 1;
-    uchar send_trailer : 1;
+    uchar send_trailer_ : 1;
     uchar keepalive : 1;
     uchar websocket : 1;
 #ifdef SW_HAVE_ZLIB
@@ -165,12 +165,36 @@ struct Context {
     size_t current_form_data_name_len;
     zval *current_multipart_header;
 
-    const char *upload_tmp_dir;
+    std::string upload_tmp_dir;
 
     void *private_data;
     bool (*send)(Context *ctx, const char *data, size_t length);
     bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool (*close)(Context *ctx);
+
+    void init(Server *server);
+    void init(coroutine::Socket *socket);
+    void bind(Server *server);
+    void bind(coroutine::Socket *socket);
+    void copy(Context *ctx);
+    bool parse_form_data(const char *boundary_str, int boundary_len);
+    size_t parse(const char *data, size_t length);
+    bool set_header(const char *, size_t, zval *, bool);
+    bool set_header(const char *, size_t, const char *, size_t, bool);
+    void end(zval *zdata, zval *return_value);
+    void send_trailer(zval *return_value);
+    String *get_write_buffer();
+
+#ifdef SW_HAVE_COMPRESSION
+    void set_compression_method(const char *accept_encoding, size_t length);
+    const char *get_content_encoding();
+#endif
+
+#ifdef SW_USE_HTTP2
+    void http2_end(zval *zdata, zval *return_value);
+#endif
+
+    void free();
 };
 
 }  // namespace http
@@ -191,7 +215,7 @@ class Stream {
     ~Stream();
 
     bool send_header(size_t body_length, bool end_stream);
-    bool send_body(swString *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
+    bool send_body(String *body, bool end_stream, size_t max_frame_size, off_t offset = 0, size_t length = 0);
     bool send_trailer();
 
     void reset(uint32_t error_code);
@@ -240,8 +264,6 @@ extern swoole::String *swoole_zlib_buffer;
 swoole::http::Context *swoole_http_context_new(swoole::SessionId fd);
 swoole::http::Context *php_swoole_http_request_get_and_check_context(zval *zobject);
 swoole::http::Context *php_swoole_http_response_get_and_check_context(zval *zobject);
-void swoole_http_context_free(swoole::http::Context *ctx);
-void swoole_http_context_copy(swoole::http::Context *src, swoole::http::Context *dst);
 
 static sw_inline zval *swoole_http_init_and_read_property(
     zend_class_entry *ce, zval *zobject, zval **zproperty_store_pp, const char *name, size_t name_len) {
@@ -254,25 +276,16 @@ static sw_inline zval *swoole_http_init_and_read_property(
     }
     return *zproperty_store_pp;
 }
-int swoole_http_parse_form_data(swoole::http::Context *ctx, const char *boundary_str, int boundary_len);
+
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 
 swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
 void php_swoole_http_request_set_context(zval *zobject, swoole::http::Context *context);
 swoole::http::Context *php_swoole_http_response_get_context(zval *zobject);
 void php_swoole_http_response_set_context(zval *zobject, swoole::http::Context *context);
-size_t swoole_http_requset_parse(swoole::http::Context *ctx, const char *data, size_t length);
-
-bool swoole_http_response_set_header(swoole::http::Context *, const char *, size_t, zval *, bool);
-bool swoole_http_response_set_header(swoole::http::Context *, const char *, size_t, const char *, size_t, bool);
-
-void swoole_http_response_end(swoole::http::Context *ctx, zval *zdata, zval *return_value);
-void swoole_http_response_send_trailer(swoole::http::Context *ctx, zval *return_value);
 
 #ifdef SW_HAVE_COMPRESSION
 int swoole_http_response_compress(const char *data, size_t length, int method, int level);
-void swoole_http_get_compression_method(swoole::http::Context *ctx, const char *accept_encoding, size_t length);
-const char *swoole_http_get_content_encoding(swoole::http::Context *ctx);
 #endif
 
 #ifdef SW_HAVE_ZLIB
@@ -295,8 +308,6 @@ static sw_inline nghttp2_mem *php_nghttp2_mem() {
                               [](void *ptr, size_t size, void *mem_user_data) { return erealloc(ptr, size); }};
     return &mem;
 }
-
-void swoole_http2_response_end(swoole::http::Context *ctx, zval *zdata, zval *return_value);
 
 namespace swoole {
 namespace http2 {

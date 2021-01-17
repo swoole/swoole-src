@@ -125,12 +125,9 @@ class http_server {
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
 #endif
-        ctx->private_data = conn;
-        ctx->co_socket = 1;
-        ctx->send = http_context_send_data;
-        ctx->sendfile = http_context_sendfile;
-        ctx->close = http_context_disconnect;
         ctx->upload_tmp_dir = upload_tmp_dir;
+
+        ctx->bind(conn);
 
         swoole_http_parser *parser = &ctx->parser;
         parser->data = ctx;
@@ -271,6 +268,29 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
         delete hs;
     }
     zend_object_std_dtor(&hsc->std);
+}
+
+void http_context::init(Socket *sock) {
+    parse_cookie = 1;
+    parse_body = 1;
+    parse_files = 1;
+#ifdef SW_HAVE_COMPRESSION
+    enable_compression = 1;
+    compression_level = SW_Z_BEST_SPEED;
+#endif
+#ifdef SW_HAVE_ZLIB
+    websocket_compression = 0;
+#endif
+    upload_tmp_dir = "/tmp";
+    bind(sock);
+}
+
+void http_context::bind(Socket *sock) {
+    private_data = sock;
+    co_socket = 1;
+    send = http_context_send_data;
+    sendfile = http_context_sendfile;
+    close = http_context_disconnect;
 }
 
 void php_swoole_http_server_coro_minit(int module_number) {
@@ -562,7 +582,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
             }
         }
 
-        size_t parsed_n = swoole_http_requset_parse(ctx, buffer->str + buffer->offset, buffer->length - buffer->offset);
+        size_t parsed_n = ctx->parse(buffer->str + buffer->offset, buffer->length - buffer->offset);
         buffer->offset += parsed_n;
 
         swTraceLog(SW_TRACE_CO_HTTP_SERVER,

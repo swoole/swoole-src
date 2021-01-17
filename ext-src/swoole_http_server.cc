@@ -64,7 +64,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
 #endif
 
     http_context *ctx = swoole_http_context_new(session_id);
-    swoole_http_server_init_context(serv, ctx);
+    ctx->init(serv);
 
     zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req);
@@ -84,7 +84,7 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
     parser->data = ctx;
     swoole_http_parser_init(parser, PHP_HTTP_REQUEST);
 
-    size_t parsed_n = swoole_http_requset_parse(ctx, Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
+    size_t parsed_n = ctx->parse(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (ctx->parser.state == s_dead) {
 #ifdef SW_HTTP_BAD_REQUEST_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
@@ -164,7 +164,7 @@ void php_swoole_http_server_minit(int module_number) {
 }
 
 http_context *swoole_http_context_new(SessionId fd) {
-    http_context *ctx = (http_context *) ecalloc(1, sizeof(http_context));
+    http_context *ctx = new http_context();
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -179,10 +179,6 @@ http_context *swoole_http_context_new(SessionId fd) {
     zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(zrequest_object), ZEND_STRL("fd"), fd);
     zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(zresponse_object), ZEND_STRL("fd"), fd);
 
-#if PHP_MEMORY_DEBUG
-    php_vmstat.new_http_request++;
-#endif
-
     swoole_http_init_and_read_property(
         swoole_http_request_ce, zrequest_object, &ctx->request.zserver, ZEND_STRL("server"));
     swoole_http_init_and_read_property(
@@ -192,49 +188,54 @@ http_context *swoole_http_context_new(SessionId fd) {
     return ctx;
 }
 
-void swoole_http_server_init_context(Server *serv, http_context *ctx) {
-    ctx->parse_cookie = serv->http_parse_cookie;
-    ctx->parse_body = serv->http_parse_post;
-    ctx->parse_files = serv->http_parse_files;
+void http_context::init(Server *serv) {
+    parse_cookie = serv->http_parse_cookie;
+    parse_body = serv->http_parse_post;
+    parse_files = serv->http_parse_files;
 #ifdef SW_HAVE_COMPRESSION
-    ctx->enable_compression = serv->http_compression;
-    ctx->compression_level = serv->http_compression_level;
+    enable_compression = serv->http_compression;
+    compression_level = serv->http_compression_level;
 #endif
-    ctx->private_data = serv;
-    ctx->upload_tmp_dir = serv->upload_tmp_dir.c_str();
-    ctx->send = http_context_send_data;
-    ctx->sendfile = http_context_sendfile;
-    ctx->close = http_context_disconnect;
+    upload_tmp_dir = serv->upload_tmp_dir;
+    bind(serv);
 }
 
-void swoole_http_context_copy(http_context *src, http_context *dst) {
-    dst->parse_cookie = src->parse_cookie;
-    dst->parse_body = src->parse_body;
-    dst->parse_files = src->parse_files;
-#ifdef SW_HAVE_COMPRESSION
-    dst->enable_compression = src->enable_compression;
-    dst->compression_level = src->compression_level;
-#endif
-    dst->private_data = src->private_data;
-    dst->upload_tmp_dir = src->upload_tmp_dir;
-    dst->send = src->send;
-    dst->sendfile = src->sendfile;
-    dst->close = src->close;
+void http_context::bind(Server *serv) {
+    private_data = serv;
+    send = http_context_send_data;
+    sendfile = http_context_sendfile;
+    close = http_context_disconnect;
 }
 
-void swoole_http_context_free(http_context *ctx) {
+void http_context::copy(http_context *ctx) {
+    parse_cookie = ctx->parse_cookie;
+    parse_body = ctx->parse_body;
+    parse_files = ctx->parse_files;
+#ifdef SW_HAVE_COMPRESSION
+    enable_compression = ctx->enable_compression;
+    compression_level = ctx->compression_level;
+#endif
+    co_socket = ctx->co_socket;
+    private_data = ctx->private_data;
+    upload_tmp_dir = ctx->upload_tmp_dir;
+    send = ctx->send;
+    sendfile = ctx->sendfile;
+    close = ctx->close;
+}
+
+void http_context::free() {
     /* http context can only be free'd after request and response were free'd */
-    if (ctx->request.zobject || ctx->response.zobject) {
+    if (request.zobject || response.zobject) {
         return;
     }
 #ifdef SW_USE_HTTP2
-    if (ctx->stream) {
+    if (stream) {
         return;
     }
 #endif
 
-    http_request *req = &ctx->request;
-    http_response *res = &ctx->response;
+    http_request *req = &request;
+    http_response *res = &response;
     if (req->path) {
         efree(req->path);
     }
@@ -252,7 +253,7 @@ void swoole_http_context_free(http_context *ctx) {
     if (res->reason) {
         efree(res->reason);
     }
-    efree(ctx);
+    delete this;
 }
 
 void php_swoole_http_server_init_global_variant() {
@@ -275,7 +276,7 @@ http_context *php_swoole_http_request_get_and_check_context(zval *zobject) {
 
 http_context *php_swoole_http_response_get_and_check_context(zval *zobject) {
     http_context *ctx = php_swoole_http_response_get_context(zobject);
-    if (!ctx || (ctx->end || ctx->detached)) {
+    if (!ctx || (ctx->end_ || ctx->detached)) {
         php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return nullptr;
     }

@@ -20,6 +20,8 @@
 enum swHttp_version {
     SW_HTTP_VERSION_10 = 1,
     SW_HTTP_VERSION_11,
+    SW_HTTP_VERSION_2,
+    SW_HTTP_VERSION_3,
 };
 
 enum swHttp_method {

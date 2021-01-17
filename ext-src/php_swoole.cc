@@ -217,10 +217,6 @@ const zend_function_entry swoole_functions[] =
 };
 // clang-format on
 
-#if PHP_MEMORY_DEBUG
-php_vmstat_t php_vmstat;
-#endif
-
 zend_class_entry *swoole_exception_ce;
 zend_object_handlers swoole_exception_handlers;
 
