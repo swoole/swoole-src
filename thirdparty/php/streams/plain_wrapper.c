@@ -235,7 +235,7 @@ static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf
 		}
 		return (size_t) bytes_written;
 #else
-		return bytes_written;
+        return bytes_written;
 #endif
     } else {
         return fwrite(buf, 1, count, data->file);

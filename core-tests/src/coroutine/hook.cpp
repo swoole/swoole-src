@@ -215,7 +215,7 @@ TEST(coroutine_hook, flock) {
 }
 
 TEST(coroutine_hook, read_dir) {
-    coroutine::run([](void *arg) {
+    auto fn = []() {
         auto fp = swoole_coroutine_opendir("/tmp");
         ASSERT_NE(fp, nullptr);
         struct dirent *entry;
@@ -229,11 +229,16 @@ TEST(coroutine_hook, read_dir) {
         ASSERT_STREQ(entry->d_name, "..");
 
         swoole_coroutine_closedir(fp);
+    };
+    
+    coroutine::run([&](void *arg) {
+        fn();
     });
+    fn();
 }
 
 TEST(coroutine_hook, readlink) {
-    coroutine::run([](void *arg) {
+    auto fn = []() {
         char buf1[1024] = {};
         char buf2[1024] = {};
 
@@ -242,11 +247,16 @@ TEST(coroutine_hook, readlink) {
 
         getcwd(buf2, sizeof(buf2));
         ASSERT_STREQ(buf1, buf2);
+    };
+
+    coroutine::run([&](void *arg) {
+        fn();
     });
+    fn();
 }
 
 TEST(coroutine_hook, stdio_1) {
-    coroutine::run([](void *arg) {
+    auto fn = []() {
         FILE *fp1 = swoole_coroutine_fopen(test_file, "w+");
         const char *str = "hello world";
         int n = swoole_coroutine_fputs(str, fp1);
@@ -261,11 +271,16 @@ TEST(coroutine_hook, stdio_1) {
         swoole_coroutine_fclose(fp2);
 
         unlink(test_file);
+    };
+
+    coroutine::run([&](void *arg) {
+        fn();
     });
+    fn();
 }
 
 TEST(coroutine_hook, stdio_2) {
-    coroutine::run([](void *arg) {
+    auto fn = []() {
         size_t size = 1024;
 
         FILE *fp1 = swoole_coroutine_fopen(test_file, "w+");
@@ -289,5 +304,10 @@ TEST(coroutine_hook, stdio_2) {
         swoole_coroutine_fclose(fp2);
 
         unlink(test_file);
+    };
+
+    coroutine::run([&](void *arg) {
+        fn();
     });
+    fn();
 }
