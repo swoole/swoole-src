@@ -758,7 +758,7 @@ bool Socket::check_liveness() {
 
 ssize_t Socket::peek(void *__buf, size_t __n) {
     ssize_t retval = socket->peek(__buf, __n, 0);
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 
@@ -783,7 +783,7 @@ ssize_t Socket::recv(void *__buf, size_t __n) {
     do {
         retval = socket->recv(__buf, __n, 0);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 
@@ -797,7 +797,7 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
         retval = socket->send(__buf, __n, 0);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 
@@ -810,7 +810,7 @@ ssize_t Socket::read(void *__buf, size_t __n) {
     do {
         retval = socket->read(__buf, __n);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 
@@ -860,7 +860,7 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
         retval = socket->write((void *) __buf, __n);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 
@@ -873,7 +873,7 @@ ssize_t Socket::readv(network::IOVector *io_vector) {
     do {
         retval = socket->readv(io_vector);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
 
     return retval;
 }
@@ -919,7 +919,7 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
 
     recv_barrier = &barrier;
     if (timer.start() && wait_event(SW_EVENT_READ)) {
-        set_err(retval < 0 ? errno : 0);
+        check_return_value(retval);
     }
     recv_barrier = nullptr;
 
@@ -935,7 +935,7 @@ ssize_t Socket::writev(network::IOVector *io_vector) {
     do {
         retval = socket->writev(io_vector);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
 
     return retval;
 }
@@ -981,7 +981,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
 
     send_barrier = &barrier;
     if (timer.start() && wait_event(SW_EVENT_WRITE)) {
-        set_err(retval < 0 ? errno : 0);
+        check_return_value(retval);
     }
     send_barrier = nullptr;
 
@@ -1016,7 +1016,7 @@ ssize_t Socket::recv_all(void *__buf, size_t __n) {
 
     recv_barrier = &barrier;
     if (timer.start() && wait_event(SW_EVENT_READ)) {
-        set_err(retval < 0 ? errno : 0);
+        check_return_value(retval);
     }
     recv_barrier = nullptr;
 
@@ -1051,7 +1051,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
 
     send_barrier = &barrier;
     if (timer.start() && wait_event(SW_EVENT_WRITE)) {
-        set_err(retval < 0 ? errno : 0);
+        check_return_value(retval);
     }
     send_barrier = nullptr;
 
@@ -1067,7 +1067,7 @@ ssize_t Socket::recvmsg(struct msghdr *msg, int flags) {
     do {
         retval = ::recvmsg(sock_fd, msg, flags);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 
@@ -1083,7 +1083,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
     do {
         retval = ::sendmsg(sock_fd, msg, flags);
     } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 
@@ -1391,7 +1391,7 @@ ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, siz
             swTraceLog(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
         } while (retval < 0 && (errno == EINTR || (socket->catch_error(errno) == SW_WAIT && timer.start() &&
                                                    wait_event(SW_EVENT_WRITE, &__buf, __n))));
-        set_err(retval < 0 ? errno : 0);
+        check_return_value(retval);
     }
 
     return retval;
@@ -1416,7 +1416,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, sockle
         swTraceLog(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);
     } while (retval < 0 && ((errno == EINTR) ||
                             (socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ))));
-    set_err(retval < 0 ? errno : 0);
+    check_return_value(retval);
     return retval;
 }
 

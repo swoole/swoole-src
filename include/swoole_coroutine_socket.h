@@ -430,6 +430,14 @@ class Socket {
     inline bool init_sock();
     bool init_reactor_socket(int fd);
 
+    void check_return_value(ssize_t retval) {
+        if (retval >= 0) {
+            set_err(0);
+        } else if (errCode == 0) {
+            set_err(errno);
+        }
+    }
+
     inline void init_options() {
         if (type == SW_SOCK_TCP || type == SW_SOCK_TCP6) {
             set_option(IPPROTO_TCP, TCP_NODELAY, 1);
