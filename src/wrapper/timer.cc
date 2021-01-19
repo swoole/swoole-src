@@ -30,7 +30,7 @@ bool swoole_timer_is_available() {
 }
 
 TimerNode *swoole_timer_add(long ms, bool persistent, const TimerCallback &callback, void *private_data) {
-    if (sw_unlikely(swoole_timer_is_available())) {
+    if (sw_unlikely(!swoole_timer_is_available())) {
         SwooleTG.timer = new Timer();
         if (sw_unlikely(!SwooleTG.timer->init())) {
             delete SwooleTG.timer;
