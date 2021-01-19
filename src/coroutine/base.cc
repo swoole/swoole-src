@@ -176,8 +176,10 @@ bool run(const coroutine_func_t &fn, void *arg) {
     if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
         return false;
     }
+    Coroutine::activate();
     long cid = Coroutine::create(fn, arg);
     swoole_event_wait();
+    Coroutine::deactivate();
     return cid > 0;
 }
 }  // namespace coroutine

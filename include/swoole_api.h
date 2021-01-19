@@ -36,6 +36,7 @@ SW_API swoole::TimerNode *swoole_timer_get(long timer_id);
 SW_API bool swoole_timer_clear(long timer_id);
 SW_API void swoole_timer_free();
 SW_API int swoole_timer_select();
+SW_API bool swoole_timer_is_available();
 
 SW_API int swoole_event_init(int flags);
 SW_API int swoole_event_add(swoole::network::Socket *socket, int events);
