@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: create response
+swoole_http_server_coro: create response
 --SKIPIF--
 <?php
 

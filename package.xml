@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-01-11</date>
-    <time>18:00:00</time>
+    <date>2021-01-19</date>
+    <time>19:00:00</time>
     <version>
-        <release>4.6.1</release>
+        <release>4.6.2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -1245,6 +1245,8 @@
             <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_cookie_crlf.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_http_header_crlf.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/create_response.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/create_response_2.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_413.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/handle.phpt" />
@@ -1423,6 +1425,7 @@
             <file role="test" name="tests/swoole_redis_coro/auto_reconnect_ex.phpt" />
             <file role="test" name="tests/swoole_redis_coro/basic.phpt" />
             <file role="test" name="tests/swoole_redis_coro/bug_lock.phpt" />
+            <file role="test" name="tests/swoole_redis_coro/compatibility_mode/hExists.phpt" />
             <file role="test" name="tests/swoole_redis_coro/connect_timeout.phpt" />
             <file role="test" name="tests/swoole_redis_coro/connect_to_wrong.phpt" />
             <file role="test" name="tests/swoole_redis_coro/connect_twice-2.phpt" />
@@ -1680,6 +1683,7 @@
             <file role="test" name="tests/swoole_server/sigint_with_process.phpt" />
             <file role="test" name="tests/swoole_server/sleep.phpt" />
             <file role="test" name="tests/swoole_server/slow_client.phpt" />
+            <file role="test" name="tests/swoole_server/slow_master.phpt" />
             <file role="test" name="tests/swoole_server/slow_worker.phpt" />
             <file role="test" name="tests/swoole_server/ssl/00.phpt" />
             <file role="test" name="tests/swoole_server/ssl/bad_client.phpt" />
