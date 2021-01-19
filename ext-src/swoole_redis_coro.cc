@@ -3886,7 +3886,7 @@ static PHP_METHOD(swoole_redis_coro, hExists) {
 
     RedisClient *redis = php_swoole_get_redis_client(ZEND_THIS);
     if (redis->compatibility_mode && ZVAL_IS_LONG(return_value)) {
-        RETURN_BOOL(zval_get_long(return_value) );
+        RETURN_BOOL(zval_get_long(return_value));
     }
 }
 
