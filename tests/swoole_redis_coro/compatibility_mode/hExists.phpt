@@ -1,5 +1,5 @@
 --TEST--
-swoole_redis_coro: hExists
+swoole_redis_coro/compatibility_mode: hExists
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
