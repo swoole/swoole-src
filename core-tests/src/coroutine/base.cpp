@@ -171,3 +171,10 @@ TEST(coroutine_base, get_elapsed) {
         &elapsed_time);
     ASSERT_GE(elapsed_time, 2);
 }
+
+TEST(coroutine_base, run) {
+    long cid = coroutine::run([](void *ptr){
+
+    });
+    ASSERT_GE(cid, 1);
+}

@@ -37,7 +37,7 @@ function read_sql_file(string $file)
 
 require __DIR__ . '/include/config.php';
 
-go(function () {
+Swoole\Coroutine\run(function () {
     echo "[DB-init] initialization MySQL database...\n";
     $mysql = new Swoole\Coroutine\MySQL();
     $connected = $mysql->connect([

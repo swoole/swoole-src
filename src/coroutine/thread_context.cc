@@ -30,24 +30,34 @@ static String *g_buffer = nullptr;
 static AsyncThreads *g_async_threads = nullptr;
 static std::mutex *current_lock = nullptr;
 
+void thread_context_init() {
+    if (!swoole_timer_is_available()) {
+        swoole_timer_add(1, false, [](Timer *timer, TimerNode *tnode) {
+            // do nothing
+        }, nullptr);
+    }
+    if (SwooleTG.async_threads == nullptr) {
+        SwooleTG.async_threads = new AsyncThreads();
+    }
+    g_reactor = SwooleTG.reactor;
+    g_buffer = SwooleTG.buffer_stack;
+    g_timer = SwooleTG.timer;
+    g_async_threads = SwooleTG.async_threads;
+    current_lock = &g_lock;
+    g_lock.lock();
+}
+
+void thread_context_clean() {
+    g_reactor = nullptr;
+    g_buffer = nullptr;
+    g_timer = nullptr;
+    g_async_threads = nullptr;
+    current_lock = nullptr;
+    g_lock.unlock();
+}
+
 Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
     : fn_(fn), private_data_(private_data) {
-    if (sw_unlikely(current_lock == nullptr)) {
-        current_lock = &g_lock;
-        if (SwooleTG.timer == nullptr) {
-            swoole_timer_add(1, false, [](Timer *timer, TimerNode *tnode) {
-                // do nothing
-            }, nullptr);
-        }
-        if (SwooleTG.async_threads == nullptr) {
-            SwooleTG.async_threads = new AsyncThreads();
-        }
-        g_reactor = SwooleTG.reactor;
-        g_buffer = SwooleTG.buffer_stack;
-        g_timer = SwooleTG.timer;
-        g_async_threads = SwooleTG.async_threads;
-        g_lock.lock();
-    }
     end_ = false;
     lock_.lock();
     swap_lock_ = nullptr;

@@ -105,6 +105,9 @@ class Coroutine {
         return (new Coroutine(fn, args))->run();
     }
 
+    static void activate();
+    static void deactivate();
+
     static inline Coroutine *get_current() {
         return current;
     }
@@ -170,6 +173,7 @@ class Coroutine {
     static SwapCallback on_resume;  /* before resume */
     static SwapCallback on_close;   /* before close */
     static BailoutCallback on_bailout; /* when bailout */
+    static bool activated;
 
     enum State state = STATE_INIT;
     long cid;
