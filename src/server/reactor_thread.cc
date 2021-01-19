@@ -822,7 +822,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
     reactor->close = Server::close_connection;
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_DEFAULT, [thread](Reactor *reactor, int &event_num) -> bool {
-        return event_num == thread->pipe_num;
+        return event_num == (int) thread->pipe_num;
     });
 
     reactor->default_error_handler = ReactorThread_onClose;

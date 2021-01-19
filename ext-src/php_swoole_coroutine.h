@@ -127,7 +127,6 @@ class PHPCoroutine {
 
     static const uint8_t MAX_EXEC_MSEC = 10;
     static void init();
-    static void deactivate(void *ptr);
     static void shutdown();
     static long create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval *argv);
     static void defer(zend::Function *fci);
@@ -144,7 +143,7 @@ class PHPCoroutine {
     static void resume_m(FutureTask *task, zval *retval);
 
     static inline long get_cid() {
-        return sw_likely(active) ? Coroutine::get_current_cid() : -1;
+        return sw_likely(activated) ? Coroutine::get_current_cid() : -1;
     }
 
     static inline long get_pcid(long cid = 0) {
@@ -153,7 +152,7 @@ class PHPCoroutine {
     }
 
     static inline long get_elapsed(long cid = 0) {
-        return sw_likely(active) ? Coroutine::get_elapsed(cid) : -1;
+        return sw_likely(activated) ? Coroutine::get_elapsed(cid) : -1;
     }
 
     static inline PHPContext *get_context() {
@@ -215,11 +214,11 @@ class PHPCoroutine {
     }
 
     static inline bool is_activated() {
-        return active;
+        return activated;
     }
 
   protected:
-    static bool active;
+    static bool activated;
     static PHPContext main_task;
     static Config config;
 
@@ -227,6 +226,7 @@ class PHPCoroutine {
     static std::thread interrupt_thread;
 
     static void activate();
+    static void deactivate(void *ptr);
 
     static inline void vm_stack_init(void);
     static inline void vm_stack_destroy(void);

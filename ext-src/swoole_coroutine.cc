@@ -42,7 +42,7 @@ using swoole::coroutine::System;
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
-bool PHPCoroutine::active = false;
+bool PHPCoroutine::activated = false;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config {
@@ -290,27 +290,8 @@ void PHPCoroutine::init() {
     Coroutine::set_on_close(on_close);
 }
 
-void PHPCoroutine::deactivate(void *ptr) {
-    interrupt_thread_stop();
-    /**
-     * reset runtime hook
-     */
-    disable_hook();
-
-    zend_interrupt_function = orig_interrupt_function;
-    zend_error_cb = orig_error_function;
-
-    if (config.enable_deadlock_check) {
-        deadlock_check();
-    }
-
-    enable_unsafe_function();
-
-    active = false;
-}
-
 void PHPCoroutine::activate() {
-    if (sw_unlikely(active)) {
+    if (sw_unlikely(activated)) {
         return;
     }
 
@@ -336,7 +317,7 @@ void PHPCoroutine::activate() {
     orig_error_function = zend_error_cb;
     zend_error_cb = [](int type, const char *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) {
         if (sw_unlikely(type & E_FATAL_ERRORS)) {
-            if (active) {
+            if (activated) {
                 /* update the last coroutine's info */
                 save_task(get_context());
             }
@@ -365,7 +346,27 @@ void PHPCoroutine::activate() {
      * deactivate when reactor free.
      */
     SwooleTG.reactor->add_destroy_callback(deactivate, nullptr);
-    active = true;
+    Coroutine::activate();
+    activated = true;
+}
+
+void PHPCoroutine::deactivate(void *ptr) {
+    interrupt_thread_stop();
+    /**
+     * reset runtime hook
+     */
+    disable_hook();
+
+    zend_interrupt_function = orig_interrupt_function;
+    zend_error_cb = orig_error_function;
+
+    if (config.enable_deadlock_check) {
+        deadlock_check();
+    }
+
+    enable_unsafe_function();
+    Coroutine::deactivate();
+    activated = false;
 }
 
 void PHPCoroutine::shutdown() {
@@ -803,7 +804,7 @@ long PHPCoroutine::create(zend_fcall_info_cache *fci_cache, uint32_t argc, zval 
         return Coroutine::ERR_INVALID;
     }
 
-    if (sw_unlikely(!active)) {
+    if (sw_unlikely(!activated)) {
         activate();
     }
 

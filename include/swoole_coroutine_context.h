@@ -58,8 +58,6 @@ class Context {
     inline bool is_end() {
         return end_;
     }
-    static void context_func(void *arg);
-
   protected:
     coroutine_func_t fn_;
 #ifdef SW_USE_THREAD_CONTEXT
@@ -77,6 +75,8 @@ class Context {
 #endif
     void *private_data_;
     bool end_;
+
+    static void context_func(void *arg);
 };
 
 }  // namespace coroutine
