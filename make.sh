@@ -3,13 +3,22 @@ __DIR__=$(cd "$(dirname "$0")";pwd)
 __EXT_DIR__=$(php-config --extension-dir)
 COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-json --enable-swoole-curl"
 
+if [ "$(uname | grep -i darwin)"x != ""x ]; then
+  CPU_COUNT="$(sysctl -n machdep.cpu.core_count)"
+else
+  CPU_COUNT="$(/usr/bin/nproc)"
+fi
+if [ -z ${CPU_COUNT} ]; then
+  CPU_COUNT=4
+fi
+
 cd "${__DIR__}"
 
 if [ "$1" = "cmake" ] ;then
   phpize
   ./configure ${COMPILE_PARAMS}
   cmake .
-  make -j 8
+  make -j ${CPU_COUNT}
   exit 0
 fi
 
@@ -46,7 +55,7 @@ if [ "$1" = "library" ] ;then
   if [ "$2" = "dev" ] ;then
     /usr/bin/env php tools/build-library.php dev
   else
-     /usr/bin/env php tools/build-library.php
+    /usr/bin/env php tools/build-library.php
   fi
 
   echo "remake..."
@@ -73,5 +82,10 @@ else
   ./configure ${COMPILE_PARAMS}
 fi
 make clean
-make -j 8
-make install
+make -j ${CPU_COUNT}
+
+if [ "$(whoami)" == "root" ];then
+    make install
+else
+    sudo make install
+fi
