@@ -1,12 +1,13 @@
 #!/bin/sh -e
 __DIR__=$(cd "$(dirname "$0")";pwd)
 __EXT_DIR__=$(php-config --extension-dir)
+COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-json --enable-swoole-curl"
 
 cd "${__DIR__}"
 
 if [ "$1" = "cmake" ] ;then
   phpize
-  ./configure --enable-openssl --enable-swoole-json --enable-swoole-curl --enable-sockets --enable-mysqlnd --enable-http2
+  ./configure ${COMPILE_PARAMS}
   cmake .
   make -j 8
   exit 0
@@ -26,7 +27,7 @@ if [ "$1" = "install-module" ] ;then
 fi
 
 if [ "$1" = "sync-module" ] ;then
-  # thirtparty
+  # thirdparty
   git submodule init
   git submodule update
   exit 0
@@ -60,16 +61,16 @@ if [ "$1" = "help" ] ;then
   echo "./make.sh sync-module"
   echo "./make.sh clean"
   echo "./make.sh debug"
+  echo "./make.sh library [dev]"
   echo "./make.sh"
-   echo "./make.sh library"
   exit 0
 fi
 
 phpize
 if [ "$1" = "debug" ] ;then
-  ./configure --enable-openssl --enable-swoole-json --enable-swoole-curl --enable-sockets --enable-mysqlnd --enable-http2 --enable-debug-log
+  ./configure ${COMPILE_PARAMS} --enable-debug-log
 else
-  ./configure --enable-openssl --enable-swoole-json --enable-swoole-curl --enable-sockets --enable-mysqlnd --enable-http2
+  ./configure ${COMPILE_PARAMS}
 fi
 make clean
 make -j 8
