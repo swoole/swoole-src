@@ -439,7 +439,7 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 ### Compiling requirements
 
 + Linux, OS X or Cygwin, WSL
-+ PHP 7.0.0 or later (The higher the version, the better the performance.)
++ PHP 7.2.0 or later (The higher the version, the better the performance.)
 + GCC 4.8 or later
 
 ### 1. Install via PECL (beginners)
@@ -454,8 +454,7 @@ Please download the source packages from [Releases](https://github.com/swoole/sw
 
 ```shell
 git clone https://github.com/swoole/swoole-src.git && \
-cd swoole-src && \
-git checkout v4.x.x
+cd swoole-src
 ```
 
 Compile and install at the source folder:
@@ -486,7 +485,7 @@ After compiling and installing to the system successfully, you have to add a new
 >  ⚠️ If you upgrade from source, don't forget to `make clean` before you upgrade your swoole
 
 1. `pecl upgrade swoole`
-2. `git pull && cd swoole-src && make clean && make && sudo make install`
+2. `cd swoole-src && git pull && make clean && make && sudo make install`
 3. if you change your PHP version, please re-run `phpize clean && phpize` then try to compile
 
 ### Major change since version 4.3.0

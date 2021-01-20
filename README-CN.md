@@ -445,7 +445,7 @@ echo 'use ' . (microtime(true) - $s) . ' s';
 ### 编译需求
 
 + Linux, OS X 系统 或 CygWin, WSL
-+ PHP 7.0.0 或以上版本 (版本越高性能越好)
++ PHP 7.2.0 或以上版本 (版本越高性能越好)
 + GCC 4.8 及以上
 
 ### 1. 使用PHP官方的PECL工具安装 (初学者)
@@ -485,7 +485,7 @@ make && sudo make install
 >  ⚠️ 如果你要从源码升级, 别忘记在源码目录执行 `make clean`
 
 1. `pecl upgrade swoole`
-2. `git pull && cd swoole-src && make clean && make && sudo make install`
+2. `cd swoole-src && git pull && make clean && make && sudo make install`
 3. 如果你改变了PHP版本, 请重新执行 `phpize clean && phpize`后重新编译
 
 ## 💎 框架 & 组件
