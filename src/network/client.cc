@@ -776,7 +776,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         return SW_ERR;
     }
 
-    if (!cli->onReceive) {
+    if (cli->async && !cli->onReceive) {
         swWarn("onReceive callback have not set");
         return SW_ERR;
     }
