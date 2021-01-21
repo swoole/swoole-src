@@ -58,6 +58,7 @@ static PHP_METHOD(swoole_socket_coro, sendFile);
 static PHP_METHOD(swoole_socket_coro, recvAll);
 static PHP_METHOD(swoole_socket_coro, sendAll);
 static PHP_METHOD(swoole_socket_coro, recvPacket);
+static PHP_METHOD(swoole_socket_coro, recvLine);
 static PHP_METHOD(swoole_socket_coro, recvfrom);
 static PHP_METHOD(swoole_socket_coro, sendto);
 static PHP_METHOD(swoole_socket_coro, getOption);
@@ -194,6 +195,8 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, checkLiveness, arginfo_swoole_socket_coro_checkLiveness, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, peek,          arginfo_swoole_socket_coro_peek,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recv,          arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvAll,       arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvLine,      arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvPacket,    arginfo_swoole_socket_coro_recvPacket,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send,          arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, readVector,    arginfo_swoole_socket_coro_readVector,    ZEND_ACC_PUBLIC)
@@ -201,7 +204,6 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, writeVector,   arginfo_swoole_socket_coro_writeVector,   ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, writeVectorAll,arginfo_swoole_socket_coro_writeVectorAll,ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendFile,      arginfo_swoole_socket_coro_sendFile,      ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_socket_coro, recvAll,       arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendAll,       arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvfrom,      arginfo_swoole_socket_coro_recvfrom,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, sendto,        arginfo_swoole_socket_coro_sendto,        ZEND_ACC_PUBLIC)
@@ -1246,7 +1248,13 @@ static PHP_METHOD(swoole_socket_coro, peek) {
     }
 }
 
-static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, const bool all) {
+enum RecvType {
+    SOCKET_RECV,
+    SOCKET_RECV_ALL,
+    SOCKET_RECV_LINE,
+};
+
+static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, RecvType type) {
     zend_long length = SW_BUFFER_SIZE_BIG;
     double timeout = 0;
 
@@ -1264,7 +1272,21 @@ static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, const b
 
     zend_string *buf = zend_string_alloc(length, 0);
     Socket::TimeoutSetter ts(sock->socket, timeout, Socket::TIMEOUT_READ);
-    ssize_t bytes = all ? sock->socket->recv_all(ZSTR_VAL(buf), length) : sock->socket->recv(ZSTR_VAL(buf), length);
+    ssize_t bytes = -1;
+    switch (type) {
+    case SOCKET_RECV:
+        bytes = sock->socket->recv(ZSTR_VAL(buf), length);
+        break;
+    case SOCKET_RECV_ALL:
+        bytes = sock->socket->recv_all(ZSTR_VAL(buf), length);
+        break;
+    case SOCKET_RECV_LINE:
+        bytes = sock->socket->recv_line(ZSTR_VAL(buf), length);
+        break;
+    default:
+        assert(0);
+        break;
+    }
     swoole_socket_coro_sync_properties(ZEND_THIS, sock);
     if (UNEXPECTED(bytes < 0)) {
         zend_string_free(buf);
@@ -1278,11 +1300,15 @@ static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, const b
 }
 
 static PHP_METHOD(swoole_socket_coro, recv) {
-    swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, false);
+    swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, SOCKET_RECV);
 }
 
 static PHP_METHOD(swoole_socket_coro, recvAll) {
-    swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, true);
+    swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, SOCKET_RECV_ALL);
+}
+
+static PHP_METHOD(swoole_socket_coro, recvLine) {
+    swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, SOCKET_RECV_LINE);
 }
 
 static PHP_METHOD(swoole_socket_coro, recvPacket) {

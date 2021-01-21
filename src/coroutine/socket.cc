@@ -814,6 +814,32 @@ ssize_t Socket::read(void *__buf, size_t __n) {
     return retval;
 }
 
+ssize_t Socket::recv_line(void *__buf, size_t maxlen) {
+    size_t n = 0;
+    ssize_t m = 0;
+    char *t = (char *) __buf;
+
+    *t = '\0';
+    while (*t != '\n' && *t != '\r' && n < maxlen) {
+        if (m > 0) {
+            t++;
+            n++;
+        }
+        if (n < maxlen) {
+            m = recv_with_buffer((void *) t, 1);
+            if (m < 0) {
+                return -1;
+            } else if (m == 0) {
+                return n > 0 ? n : 0;
+            }
+        }
+    }
+    if (n < maxlen) {
+        n++;
+    }
+    return n;
+}
+
 ssize_t Socket::recv_with_buffer(void *__buf, size_t __n) {
     if (sw_unlikely(!is_available(SW_EVENT_READ))) {
         return -1;
