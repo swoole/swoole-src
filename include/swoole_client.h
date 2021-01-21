@@ -104,12 +104,12 @@ class Client {
     std::shared_ptr<SSLContext> ssl_context = nullptr;
 #endif
 
-    void (*onConnect)(Client *cli) = nullptr;
-    void (*onError)(Client *cli) = nullptr;
-    void (*onReceive)(Client *cli, const char *data, uint32_t length) = nullptr;
-    void (*onClose)(Client *cli) = nullptr;
-    void (*onBufferFull)(Client *cli) = nullptr;
-    void (*onBufferEmpty)(Client *cli) = nullptr;
+    std::function<void (Client *cli)> onConnect = nullptr;
+    std::function<void (Client *cli)> onError = nullptr;
+    std::function<void (Client *cli, const char *, size_t)> onReceive = nullptr;
+    std::function<void (Client *cli)> onClose = nullptr;
+    std::function<void (Client *cli)> onBufferFull = nullptr;
+    std::function<void (Client *cli)> onBufferEmpty = nullptr;
 
     int (*connect)(Client *cli, const char *host, int port, double _timeout, int sock_flag) = nullptr;
     ssize_t (*send)(Client *cli, const char *data, size_t length, int flags) = nullptr;
@@ -119,6 +119,12 @@ class Client {
     static void init_reactor(Reactor *reactor);
     Client(enum swSocket_type type, bool async);
     ~Client();
+
+    void set_http_proxy(const std::string &host, int port) {
+        http_proxy = new swoole::HttpProxy;
+        http_proxy->proxy_host = host;
+        http_proxy->proxy_port = port;
+    }
 
     int sleep();
     int wakeup();
@@ -235,7 +241,7 @@ class AsyncClient : public SyncClient {
     std::function<void(AsyncClient *)> _onConnect = nullptr;
     std::function<void(AsyncClient *)> _onError = nullptr;
     std::function<void(AsyncClient *)> _onClose = nullptr;
-    std::function<void(AsyncClient *, const char *data, uint32_t length)> _onReceive = nullptr;
+    std::function<void(AsyncClient *, const char *data, size_t length)> _onReceive = nullptr;
 
   public:
     AsyncClient(enum swSocket_type _type) : SyncClient(_type, true) {}
@@ -254,7 +260,7 @@ class AsyncClient : public SyncClient {
             AsyncClient *ac = (AsyncClient *) cli->object;
             ac->_onClose(ac);
         };
-        client.onReceive = [](Client *cli, const char *data, uint32_t length) {
+        client.onReceive = [](Client *cli, const char *data, size_t length) {
             AsyncClient *ac = (AsyncClient *) cli->object;
             ac->_onReceive(ac, data, length);
         };

@@ -126,6 +126,10 @@ struct SSLContext {
         return context;
     }
 
+    bool ready() {
+        return context != nullptr;
+    }
+
     void set_protocols(uint32_t _protocols) {
         protocols = _protocols;
     }

@@ -580,10 +580,12 @@ static PHP_METHOD(swoole_server_port, set) {
                 SSLContext *context = new SSLContext();
                 *context = *port->ssl_context;
                 if (!php_swoole_server_set_ssl_option(Z_ARRVAL_P(current), context)) {
+                    delete context;
                     RETURN_FALSE;
                 }
                 if (!port->ssl_add_sni_cert(std::string(key->val, key->len), context)) {
                     php_swoole_fatal_error(E_ERROR, "ssl_add_sni_cert() failed");
+                    delete context;
                     RETURN_FALSE;
                 }
             } ZEND_HASH_FOREACH_END();
