@@ -93,6 +93,7 @@ class Socket {
     ssize_t recv_all(void *__buf, size_t __n);
     ssize_t send_all(const void *__buf, size_t __n);
     ssize_t recv_packet(double timeout = 0);
+    ssize_t recv_line(void *__buf, size_t maxlen);
     ssize_t recv_with_buffer(void *__buf, size_t __n);
 
     inline char *pop_packet() {
