@@ -662,3 +662,54 @@ TEST(coroutine_socket, event_hup) {
         ASSERT_EQ(n, 0);
     }});
 }
+
+TEST(coroutine_socket, recv_line) {
+    coroutine::run({[](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.bind("127.0.0.1", 9909);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.listen(128), true);
+
+        Socket *conn = sock.accept();
+        conn->send("hello world\n");
+        conn->send("\r");
+        char buf[256];
+        memset(buf, 'A', 128);
+        memset(buf + 128, 'B', 125);
+        conn->send(buf, 253);
+        delete conn;
+    },
+
+    [](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.connect("127.0.0.1", 9909, -1);
+        ASSERT_EQ(retval, true);
+        ASSERT_EQ(sock.errCode, 0);
+
+        size_t n;
+        auto buf = sock.get_read_buffer();
+
+        n = sock.recv_line(buf->str, 128);
+        ASSERT_EQ(n, 12);
+        ASSERT_MEMEQ(buf->str, "hello world\n", 12);
+
+        n = sock.recv_line(buf->str, 128);
+        ASSERT_EQ(n, 1);
+        ASSERT_MEMEQ(buf->str, "\r", 1);
+
+        char buf_2[256];
+        memset(buf_2, 'A', 128);
+        memset(buf_2 + 128, 'B', 125);
+
+        n = sock.recv_line(buf->str, 128);
+        ASSERT_EQ(n, 128);
+        ASSERT_MEMEQ(buf->str, buf_2, 128);
+
+        n = sock.recv_line(buf->str, 128);
+        ASSERT_EQ(n, 125);
+        ASSERT_MEMEQ(buf->str, buf_2 + 128, 125);
+
+        n = sock.recv_line(buf->str, 128);
+        ASSERT_EQ(n, 0);
+    }});
+}
