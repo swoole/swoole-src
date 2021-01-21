@@ -458,7 +458,7 @@ int Client::close() {
             timer = nullptr;
         }
         // onClose callback
-        if (active && onClose) {
+        if (active) {
             active = 0;
             onClose(this);
         }
@@ -588,8 +588,8 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
         cli->buffer = new String(cli->input_buffer_size);
     }
 
-    if (!(cli->onConnect && cli->onError && cli->onClose)) {
-        swWarn("onConnect/onError/onClose callback have not set");
+    if (!(cli->onConnect && cli->onError && cli->onClose && cli->onReceive)) {
+        swWarn("onConnect/onError/onReceive/onClose callback have not set");
         return SW_ERR;
     }
 
@@ -776,6 +776,11 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         return SW_ERR;
     }
 
+    if (!cli->onReceive) {
+        swWarn("onReceive callback have not set");
+        return SW_ERR;
+    }
+
     cli->active = 1;
     cli->timeout = timeout;
     int bufsize = Socket::default_buffer_size;
@@ -954,11 +959,12 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
             if (cli->ssl_handshake() < 0) {
                 goto _connect_fail;
             } else {
-                cli->socket->ssl_state = SW_SSL_STATE_WAIT_STREAM;
-                return swoole_event_set(event->socket, SW_EVENT_WRITE);
-            }
-            if (cli->onConnect) {
-                execute_onConnect(cli);
+                if (cli->socket->ssl_state == SW_SSL_STATE_READY) {
+                    execute_onConnect(cli);
+                }
+                else if (cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM && cli->socket->ssl_want_write) {
+                    swoole_event_set(event->socket, SW_EVENT_WRITE);
+                }
             }
             return SW_OK;
         }
@@ -990,9 +996,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         } else
 #endif
         {
-            if (cli->onConnect) {
-                execute_onConnect(cli);
-            }
+            execute_onConnect(cli);
         }
         return SW_OK;
     }
@@ -1005,8 +1009,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         if (cli->socket->ssl_state != SW_SSL_STATE_READY) {
             return SW_OK;
         }
-        // ssl handshake sucess
-        else if (cli->onConnect) {
+        else {
             execute_onConnect(cli);
             return SW_OK;
         }
@@ -1210,18 +1213,14 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
         }
     _connect_success:
 #endif
-        if (cli->onConnect) {
-            execute_onConnect(cli);
-        }
+        execute_onConnect(cli);
     } else {
 #ifdef SW_USE_OPENSSL
     _connect_fail:
 #endif
         cli->active = 0;
         cli->close();
-        if (cli->onError) {
-            cli->onError(cli);
-        }
+        cli->onError(cli);
     }
 
     return SW_OK;

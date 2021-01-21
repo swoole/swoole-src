@@ -206,6 +206,7 @@ TEST(client, shutdown_all) {
     ASSERT_EQ(retval, 0);
 }
 
+#ifdef SW_USE_OPENSSL
 TEST(client, ssl_1) {
     int ret;
 
@@ -283,3 +284,5 @@ TEST(client, http_proxy) {
     ASSERT_TRUE(closed);
     ASSERT_TRUE(buf.contains("Baidu"));
 }
+#endif
+
