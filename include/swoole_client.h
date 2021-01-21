@@ -120,6 +120,12 @@ class Client {
     Client(enum swSocket_type type, bool async);
     ~Client();
 
+    void set_http_proxy(const std::string &host, int port) {
+        http_proxy = new swoole::HttpProxy;
+        http_proxy->proxy_host = host;
+        http_proxy->proxy_port = port;
+    }
+
     int sleep();
     int wakeup();
     int shutdown(int __how);

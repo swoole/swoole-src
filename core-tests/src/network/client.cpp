@@ -243,3 +243,43 @@ TEST(client, ssl_1) {
     ASSERT_TRUE(closed);
     ASSERT_TRUE(buf.contains("Baidu"));
 }
+
+TEST(client, http_proxy) {
+    int ret;
+
+    bool connected = false;
+    bool closed = false;
+    swoole::String buf(65536);
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    Client client(SW_SOCK_TCP, true);
+    client.enable_ssl_encrypt();
+    client.set_http_proxy(TEST_HTTP_PROXY_HOST, TEST_HTTP_PROXY_PORT);
+
+    client.onConnect = [&connected](Client *cli) {
+        connected = true;
+        cli->send(cli, SW_STRL("GET / HTTP/1.1\r\n"
+                "Host: www.baidu.com\r\n"
+                "Connection: close\r\n"
+                "User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36"
+                "\r\n\r\n"), 0);
+    };
+
+    client.onError = [](Client *cli) {
+    };
+    client.onClose = [&closed](Client *cli) {
+        closed = true;
+    };
+    client.onReceive = [&buf](Client *cli, const char *data, size_t length) {
+        buf.append(data, length);
+    };
+    ret = client.connect(&client, "www.baidu.com", 443, -1, 0);
+    ASSERT_EQ(ret, 0);
+
+    swoole_event_wait();
+
+    ASSERT_TRUE(connected);
+    ASSERT_TRUE(closed);
+    ASSERT_TRUE(buf.contains("Baidu"));
+}
