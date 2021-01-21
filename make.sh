@@ -1,6 +1,5 @@
 #!/bin/sh -e
 __DIR__=$(cd "$(dirname "$0")";pwd)
-__EXT_DIR__=$(php-config --extension-dir)
 COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-json --enable-swoole-curl"
 
 if [ "$(uname | grep -i darwin)"x != ""x ]; then
@@ -30,15 +29,9 @@ fi
 
 if [ "$1" = "install-module" ] ;then
   make ext-swoole
+  __EXT_DIR__=$(php-config --extension-dir)
   cp lib/swoole.so "${__EXT_DIR__}"
   echo "cp lib/swoole.so ${__EXT_DIR__}"
-  exit 0
-fi
-
-if [ "$1" = "sync-module" ] ;then
-  # thirdparty
-  git submodule init
-  git submodule update
   exit 0
 fi
 
@@ -67,7 +60,6 @@ fi
 if [ "$1" = "help" ] ;then
   echo "./make.sh cmake"
   echo "./make.sh install-module"
-  echo "./make.sh sync-module"
   echo "./make.sh clean"
   echo "./make.sh debug"
   echo "./make.sh library [dev]"
