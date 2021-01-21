@@ -271,22 +271,26 @@ int Client::enable_ssl_encrypt() {
 }
 
 int Client::ssl_handshake() {
-    if (socket->ssl) {
+    if (socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_ERR;
     }
-    ssl_context->http_v2 = http2;
-    if (!ssl_context->create()) {
-        return SW_ERR;
+    if (!ssl_context->ready()) {
+        ssl_context->http_v2 = http2;
+        if (!ssl_context->create()) {
+            return SW_ERR;
+        }
     }
-    socket->ssl_send_ = 1;
-    if (socket->ssl_create(ssl_context.get(), SW_SSL_CLIENT) < 0) {
-        return SW_ERR;
-    }
+    if (!socket->ssl) {
+        socket->ssl_send_ = 1;
+        if (socket->ssl_create(ssl_context.get(), SW_SSL_CLIENT) < 0) {
+            return SW_ERR;
+        }
 #ifdef SSL_CTRL_SET_TLSEXT_HOSTNAME
-    if (!ssl_context->tls_host_name.empty()) {
-        SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
-    }
+        if (!ssl_context->tls_host_name.empty()) {
+            SSL_set_tlsext_host_name(socket->ssl, ssl_context->tls_host_name.c_str());
+        }
 #endif
+    }
     if (socket->ssl_connect() < 0) {
         return SW_ERR;
     }
@@ -1004,6 +1008,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         // ssl handshake sucess
         else if (cli->onConnect) {
             execute_onConnect(cli);
+            return SW_OK;
         }
     }
 #endif
