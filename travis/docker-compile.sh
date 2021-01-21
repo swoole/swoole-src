@@ -9,8 +9,8 @@ fi
 
 #-----------compile------------
 #-------print error only-------
-apt update -y
-apt install -y libcurl4-openssl-dev
+apt-get update -y
+apt-get install -y libcurl4-openssl-dev
 cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \
@@ -20,7 +20,6 @@ phpize > /dev/null && \
 --enable-http2 \
 --enable-sockets \
 --enable-mysqlnd \
---enable-gconv \
 --enable-swoole-json \
 --enable-swoole-curl \
 > /dev/null && \
