@@ -20,6 +20,7 @@
 #include "swoole.h"
 
 #include <signal.h>
+#include <unordered_map>
 
 #include "swoole_lock.h"
 #include "swoole_pipe.h"
