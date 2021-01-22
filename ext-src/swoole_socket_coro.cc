@@ -59,6 +59,7 @@ static PHP_METHOD(swoole_socket_coro, recvAll);
 static PHP_METHOD(swoole_socket_coro, sendAll);
 static PHP_METHOD(swoole_socket_coro, recvPacket);
 static PHP_METHOD(swoole_socket_coro, recvLine);
+static PHP_METHOD(swoole_socket_coro, recvWithBuffer);
 static PHP_METHOD(swoole_socket_coro, recvfrom);
 static PHP_METHOD(swoole_socket_coro, sendto);
 static PHP_METHOD(swoole_socket_coro, getOption);
@@ -197,6 +198,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, recv,          arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvAll,       arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvLine,      arginfo_swoole_socket_coro_recv,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, recvWithBuffer, arginfo_swoole_socket_coro_recv,         ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, recvPacket,    arginfo_swoole_socket_coro_recvPacket,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, send,          arginfo_swoole_socket_coro_send,          ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, readVector,    arginfo_swoole_socket_coro_readVector,    ZEND_ACC_PUBLIC)
@@ -1248,13 +1250,14 @@ static PHP_METHOD(swoole_socket_coro, peek) {
     }
 }
 
-enum RecvType {
+enum RecvMode {
     SOCKET_RECV,
     SOCKET_RECV_ALL,
     SOCKET_RECV_LINE,
+    SOCKET_RECV_WITH_BUFFER,
 };
 
-static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, RecvType type) {
+static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, RecvMode type) {
     zend_long length = SW_BUFFER_SIZE_BIG;
     double timeout = 0;
 
@@ -1283,6 +1286,9 @@ static inline void swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAMETERS, RecvTyp
     case SOCKET_RECV_LINE:
         bytes = sock->socket->recv_line(ZSTR_VAL(buf), length);
         break;
+    case SOCKET_RECV_WITH_BUFFER:
+        bytes = sock->socket->recv_with_buffer(ZSTR_VAL(buf), length);
+        break;
     default:
         assert(0);
         break;
@@ -1309,6 +1315,10 @@ static PHP_METHOD(swoole_socket_coro, recvAll) {
 
 static PHP_METHOD(swoole_socket_coro, recvLine) {
     swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, SOCKET_RECV_LINE);
+}
+
+static PHP_METHOD(swoole_socket_coro, recvWithBuffer) {
+    swoole_socket_coro_recv(INTERNAL_FUNCTION_PARAM_PASSTHRU, SOCKET_RECV_WITH_BUFFER);
 }
 
 static PHP_METHOD(swoole_socket_coro, recvPacket) {
