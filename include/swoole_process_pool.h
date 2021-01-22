@@ -73,12 +73,14 @@ class ExitStatus {
 
 static ExitStatus wait_process() {
     int status = 0;
-    return ExitStatus(::wait(&status), status);
+    pid_t pid = ::wait(&status);
+    return ExitStatus(pid, status);
 }
 
 static ExitStatus wait_process(pid_t _pid, int options) {
     int status = 0;
-    return ExitStatus(::waitpid(_pid, &status, options), status);
+    pid_t pid = ::waitpid(_pid, &status, options);
+    return ExitStatus(pid, status);
 }
 
 struct ProcessPool;
