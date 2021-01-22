@@ -1,0 +1,58 @@
+name: coverity-scan
+
+on:
+  push:
+    branches:
+      - coverity_scan
+
+env:
+  COVERITY_SCAN_TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
+  COVERITY_SCAN_EMAIL: team@swoole.com
+  COVERITY_PROJECT: ${{ github.repository }}
+  COV_TOOLS_DIR: ${{ github.workspace }}/cov-analysis-linux64
+  COV_BUILD_DIR: ${{ github.workspace }}
+  COV_RESULTS_DIR: cov-int
+  COV_RESULTS_FILE: analysis-results.tgz
+
+jobs:
+  coverity-scan:
+    if: github.repository_owner == 'swoole'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "7.4"
+
+      - name: Download and install Coverity Build Tool
+        run: |
+          wget -q https://scan.coverity.com/download/linux64 \
+                --post-data "token=${COVERITY_SCAN_TOKEN}&project=${COVERITY_PROJECT}" \
+                -O cov-analysis-linux64.tar.gz
+          mkdir ${COV_TOOLS_DIR}
+          tar xzf cov-analysis-linux64.tar.gz --strip 1 -C ${COV_TOOLS_DIR}
+          ls -la ${COV_TOOLS_DIR}/bin
+
+      - name: Run build steps
+        run: |
+          sudo phpize && ./configure
+
+      - name: Run Coverity Scan Analysis Tool
+        run: |
+          export PATH=${COV_TOOLS_DIR}/bin:$PATH
+          cd ${COV_BUILD_DIR}
+          cov-build --dir ${COV_RESULTS_DIR} make -j 4
+
+      - name: Upload Coverity Scan Analysis results
+        run: |
+          cd ${COV_BUILD_DIR}
+          tar czf ${COV_RESULTS_FILE} ${COV_RESULTS_DIR}
+          curl \
+            --form project=${COVERITY_PROJECT} \
+            --form token=${COVERITY_SCAN_TOKEN} \
+            --form email=${COVERITY_SCAN_EMAIL} \
+            --form file=@${COV_RESULTS_FILE} \
+            --form version=${GITHUB_SHA} \
+            --form description="GitHub Actions" \
+              https://scan.coverity.com/builds?project=${COVERITY_PROJECT}
