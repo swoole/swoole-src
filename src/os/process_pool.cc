@@ -22,6 +22,7 @@
 #include "swoole_msg_queue.h"
 #include "swoole_pipe.h"
 #include "swoole_server.h"
+#include "swoole_util.h"
 #include "swoole_process_pool.h"
 #include "swoole_client.h"
 
@@ -595,24 +596,23 @@ int ProcessPool_add_worker(ProcessPool *pool, Worker *worker) {
 }
 
 int ProcessPool::wait() {
-    int pid, new_pid;
-    pid_t reload_worker_pid = 0;
+    pid_t new_pid, reload_worker_pid = 0;
     int ret;
-    int status;
 
-    reload_workers = (Worker *) sw_calloc(worker_num, sizeof(Worker));
-    if (reload_workers == nullptr) {
-        swError("malloc[reload_workers] failed");
-        return SW_ERR;
-    }
+    reload_workers = new Worker[worker_num]();
+    ON_SCOPE_EXIT {
+        delete[] reload_workers;
+        reload_workers = nullptr;
+    };
 
     while (running) {
-        pid = ::wait(&status);
+        ExitStatus exit_status = wait_process();
+
         if (SwooleG.signal_alarm && SwooleTG.timer) {
             SwooleG.signal_alarm = false;
             SwooleTG.timer->select();
         }
-        if (pid < 0) {
+        if (exit_status.get_pid() < 0) {
             if (!running) {
                 break;
             }
@@ -635,33 +635,32 @@ int ProcessPool::wait() {
         }
 
         if (running) {
-            auto iter = map_->find(pid);
+            auto iter = map_->find(exit_status.get_pid());
             if (iter == map_->end()) {
                 if (onWorkerNotFound) {
-                    onWorkerNotFound(this, pid, status);
+                    onWorkerNotFound(this, exit_status);
                 } else {
-                    swWarn("[Manager]unknow worker[pid=%d]", pid);
+                    swWarn("[Manager]unknow worker[pid=%d]", exit_status.get_pid());
                 }
                 continue;
             }
 
             Worker *exit_worker = iter->second;
-            if (!WIFEXITED(status)) {
+            if (!exit_status.is_normal_exit()) {
                 swWarn("worker#%d abnormal exit, status=%d, signal=%d"
                        "%s",
                        exit_worker->id,
-                       WEXITSTATUS(status),
-                       WTERMSIG(status),
-                       WTERMSIG(status) == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : "");
+                       exit_status.get_code(),
+                       exit_status.get_signal(),
+                       exit_status.get_signal() == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : "");
             }
             new_pid = spawn(exit_worker);
             if (new_pid < 0) {
                 swSysWarn("Fork worker process failed");
-                sw_free(reload_workers);
                 return SW_ERR;
             }
-            map_->erase(pid);
-            if (pid == reload_worker_pid) {
+            map_->erase(exit_status.get_pid());
+            if (exit_status.get_pid() == reload_worker_pid) {
                 reload_worker_i++;
             }
         }
@@ -686,8 +685,6 @@ int ProcessPool::wait() {
             }
         }
     }
-    sw_free(reload_workers);
-    reload_workers = nullptr;
     return SW_OK;
 }
 

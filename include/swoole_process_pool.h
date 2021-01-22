@@ -40,6 +40,46 @@ enum swIPC_type {
 
 namespace swoole {
 
+class ExitStatus {
+  private:
+    pid_t pid_;
+    int status_;
+  public:
+    ExitStatus(pid_t _pid, int _status) : pid_(_pid), status_(_status) {
+
+    }
+
+    pid_t get_pid() const {
+        return pid_;
+    }
+
+    int get_status() const {
+        return status_;
+    }
+
+    int get_code() const {
+        return WEXITSTATUS(status_);
+    }
+
+    int get_signal() const {
+        return WTERMSIG(status_);
+    }
+
+    bool is_normal_exit() {
+        return WIFEXITED(status_);
+    }
+};
+
+static ExitStatus wait_process() {
+    int status = 0;
+    return ExitStatus(::wait(&status), status);
+}
+
+static ExitStatus wait_process(pid_t _pid, int options) {
+    int status = 0;
+    return ExitStatus(::waitpid(_pid, &status, options), status);
+}
+
 struct ProcessPool;
 struct Worker;
 
@@ -181,7 +221,7 @@ struct ProcessPool {
     void (*onWorkerStop)(ProcessPool *pool, int worker_id);
 
     int (*main_loop)(ProcessPool *pool, Worker *worker);
-    int (*onWorkerNotFound)(ProcessPool *pool, pid_t pid, int status);
+    int (*onWorkerNotFound)(ProcessPool *pool, const ExitStatus &exit_status);
 
     sw_atomic_t round_id;
 
@@ -234,9 +274,6 @@ struct ProcessPool {
     static int create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
 };
 };  // namespace swoole
-
-typedef swoole::ProcessPool swProcessPool;
-typedef swoole::Worker swWorker;
 
 static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options) {
     int ret;

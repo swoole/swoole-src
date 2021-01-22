@@ -15,7 +15,7 @@
 */
 #include "swoole.h"
 #include "swoole_api.h"
-
+#include "swoole_process_pool.h"
 #include "swoole_coroutine.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_signal.h"
@@ -39,29 +39,29 @@ static std::unordered_map<int, int> child_processes;
 bool signal_ready = false;
 
 static void signal_handler(int signo) {
-    if (signo == SIGCHLD) {
-        int __stat_loc;
+    if (signo != SIGCHLD) {
+        return;
+    }
 
-        while (true) {
-            pid_t __pid = waitpid(-1, &__stat_loc, WNOHANG);
-            if (__pid <= 0) {
-                break;
-            }
+    while (true) {
+        auto exit_status = swoole::wait_process(-1, WNOHANG);
+        if (exit_status.get_pid() <= 0) {
+            break;
+        }
 
-            WaitTask *task = nullptr;
-            if (waitpid_map.find(__pid) != waitpid_map.end()) {
-                task = waitpid_map[__pid];
-            } else if (!wait_list.empty()) {
-                task = wait_list.front();
-            } else {
-                child_processes[__pid] = __stat_loc;
-            }
+        WaitTask *task = nullptr;
+        if (waitpid_map.find(exit_status.get_pid()) != waitpid_map.end()) {
+            task = waitpid_map[exit_status.get_pid()];
+        } else if (!wait_list.empty()) {
+            task = wait_list.front();
+        } else {
+            child_processes[exit_status.get_pid()] = exit_status.get_status();
+        }
 
-            if (task) {
-                task->status = __stat_loc;
-                task->pid = __pid;
-                task->co->resume();
-            }
+        if (task) {
+            task->status = exit_status.get_status();
+            task->pid = exit_status.get_pid();
+            task->co->resume();
         }
     }
 }

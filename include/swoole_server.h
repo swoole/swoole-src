@@ -834,7 +834,7 @@ class Server {
      */
     std::function<void(Server *)> onManagerStart;
     std::function<void(Server *)> onManagerStop;
-    std::function<void(Server *, int, pid_t, int)> onWorkerError;
+    std::function<void(Server *, int, const ExitStatus &)> onWorkerError;
     std::function<void(Server *)> onBeforeReload;
     std::function<void(Server *)> onAfterReload;
     /**
@@ -1240,11 +1240,11 @@ class Server {
     void kill_event_workers();
     void kill_task_workers();
 
-    static int wait_other_worker(ProcessPool *pool, pid_t pid, int status);
+    static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
 
     void drain_worker_pipe();
 
-    void check_worker_exit_status(int worker_id, pid_t pid, int status);
+    void check_worker_exit_status(int worker_id, const ExitStatus &exit_status);
 
     /**
      * [Worker]

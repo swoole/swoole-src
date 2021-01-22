@@ -417,24 +417,18 @@ static PHP_METHOD(swoole_process, __construct) {
 static PHP_METHOD(swoole_process, __destruct) {}
 
 static PHP_METHOD(swoole_process, wait) {
-    int status;
     zend_bool blocking = 1;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "|b", &blocking) == FAILURE) {
         RETURN_FALSE;
     }
 
-    int options = 0;
-    if (!blocking) {
-        options |= WNOHANG;
-    }
-
-    pid_t pid = swoole_waitpid(-1, &status, options);
-    if (pid > 0) {
+    auto exit_status = swoole::wait_process(-1, blocking ? 0 : WNOHANG);
+    if (exit_status.get_pid() > 0) {
         array_init(return_value);
-        add_assoc_long(return_value, "pid", pid);
-        add_assoc_long(return_value, "code", WEXITSTATUS(status));
-        add_assoc_long(return_value, "signal", WTERMSIG(status));
+        add_assoc_long(return_value, "pid", exit_status.get_pid());
+        add_assoc_long(return_value, "code", exit_status.get_code());
+        add_assoc_long(return_value, "signal", exit_status.get_signal());
     } else {
         RETURN_FALSE;
     }
