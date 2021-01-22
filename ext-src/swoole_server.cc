@@ -102,7 +102,7 @@ static void php_swoole_onWorkerExit(Server *serv, int worker_id);
 static void php_swoole_onUserWorkerStart(Server *serv, Worker *worker);
 static int php_swoole_onTask(Server *, EventData *task);
 static int php_swoole_onFinish(Server *, EventData *task);
-static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_pid, int status);
+static void php_swoole_onWorkerError(Server *serv, int worker_id, const ExitStatus &exit_status);
 static void php_swoole_onManagerStart(Server *serv);
 static void php_swoole_onManagerStop(Server *serv);
 
@@ -1764,7 +1764,7 @@ static void php_swoole_onUserWorkerStart(Server *serv, Worker *worker) {
     php_swoole_process_start(worker, object);
 }
 
-static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_pid, int status) {
+static void php_swoole_onWorkerError(Server *serv, int worker_id, const ExitStatus &exit_status) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerError];
@@ -1777,16 +1777,16 @@ static void php_swoole_onWorkerError(Server *serv, int worker_id, pid_t worker_p
         zval *object = &args[1];
         object_init_ex(object, swoole_server_status_info_ce);
         zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_id"), worker_id);
-        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_pid"), worker_pid);
-        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("status"), status);
-        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("exit_code"), WEXITSTATUS(status));
-        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("signal"), WTERMSIG(status));
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("worker_pid"), exit_status.get_pid());
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("status"), exit_status.get_status());
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("exit_code"), exit_status.get_code());
+        zend_update_property_long(swoole_server_status_info_ce, SW_Z8_OBJ_P(object), ZEND_STRL("signal"), exit_status.get_signal());
         argc = 2;
     } else {
         ZVAL_LONG(&args[1], worker_id);
-        ZVAL_LONG(&args[2], worker_pid);
-        ZVAL_LONG(&args[3], WEXITSTATUS(status));
-        ZVAL_LONG(&args[4], WTERMSIG(status));
+        ZVAL_LONG(&args[2], exit_status.get_pid());
+        ZVAL_LONG(&args[3], exit_status.get_code());
+        ZVAL_LONG(&args[4], exit_status.get_signal());
         argc = 5;
     }
 

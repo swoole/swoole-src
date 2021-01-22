@@ -554,7 +554,7 @@ int Server::start() {
     gs->start_time = ::time(nullptr);
 
     /**
-     * store to swProcessPool object
+     * store to ProcessPool object
      */
     gs->event_workers.ptr = this;
     gs->event_workers.workers = workers;
