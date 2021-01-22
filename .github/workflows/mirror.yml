@@ -1,13 +1,13 @@
-name: Mirror to Gitee Repo
+name: mirror
 
 on: [ push, delete, create ]
 
 jobs:
-  git-mirror:
+  gitee:
+    if: github.repository_owner == 'swoole'
     runs-on: ubuntu-latest
     steps:
       - name: Configure Private Key
-        if: github.repository_owner == 'swoole'
         env:
           SSH_PRIVATE_KEY: ${{ secrets.GITEE_PRIVATE_KEY }}
         run: |
@@ -17,7 +17,6 @@ jobs:
           echo "StrictHostKeyChecking no" >> ~/.ssh/config
 
       - name: Push Mirror
-        if: github.repository_owner == 'swoole'
         env:
           SOURCE_REPO: 'https://github.com/swoole/swoole-src.git'
           DESTINATION_REPO: 'git@gitee.com:swoole/swoole.git'
