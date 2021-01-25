@@ -42,8 +42,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-01-19</date>
-    <time>19:00:00</time>
+    <date>2021-01-25</date>
+    <time>17:00:00</time>
     <version>
         <release>4.6.2</release>
         <api>4.0</api>
@@ -54,22 +54,30 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
+        New APIs
+        ---
+        + Added Http::Request::getMethod() (#3987) (@luolaifa000)
+        + Added Coroutine::Socket:recvLine() (#4014) (@matyhtf)
+
         Enhancement
         ---
-        + Added --enable-thread-context option (#3970) (@matyhtf)
-        + Strict session_id, check the connection activity (#3993) (@matyhtf)
-        * Optimized CURLOPT_PROXY, support user, pass and scheme (swoole/library#87) (sy-records)
+        + Improved Response::create() (#3998) (@matyhtf)
+        + Supported Coroutine\Redis::hExists return bool with compatibility_mode (swoole/swoole-src@b8cce7c) (@matyhtf)
+        + Supported PHP_NORMAL_READ for Coroutine::Socket::read (swoole/swoole-src@b1a0dcc) (@matyhtf)
 
         Fixed
         ---
-        * Fixed minimal PHP version (#3979) (@remicollet)
-        * Fixed pecl install missing enable-swoole-json and enable-swoole-curl options (#3980) (@sy-records)
-        * Fixed openssl thread safety issue (swoole/swoole-src@b516d69) (@matyhtf)
-        * Fixed enableSSL coredump (#3990) (@huanghantao)
+        * Fixed Coroutine::defer coredump in PHP8 (#3997) (@huanghantao)
+        * Fixed Coroutine::Socket::errCode is not set correctly when using thread context (swoole/swoole-src@004d08a) (@matyhtf)
+        * Fixed build Swoole error on latest macos (#4007) (@matyhtf)
+        * Fixed php stream context is nullptr when use md5_file with url (#4016) (@ZhiyangLeeCN)
 
         Kernel
         ---
-        * Optimized ipc writev, avoid coredump how event data is null (#3994) (@matyhtf)
+        * Used AIO thread hook stdio instead of coroutine socket (#4002) (@matyhtf)
+        * Refactor HttpContext (#3998) (@matyhtf)
+        * Fixed Github action (#4013) (#4020) (@sy-records)
+        * Refactor Process::wait() (#4019) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -1533,6 +1541,7 @@
             <file role="test" name="tests/swoole_runtime/ssl_server.phpt" />
             <file role="test" name="tests/swoole_runtime/stdin.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_context.phpt" />
+            <file role="test" name="tests/swoole_runtime/stream_context_pass_null.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_get_meta_data.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_select/base.phpt" />
             <file role="test" name="tests/swoole_runtime/stream_select/blocked.phpt" />
@@ -1779,7 +1788,9 @@
             <file role="test" name="tests/swoole_socket_coro/recvAll.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recvAll_timeout.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_bad_packet.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/recv_line.phpt" />
             <file role="test" name="tests/swoole_socket_coro/recv_timeout.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/recv_with_buffer.phpt" />
             <file role="test" name="tests/swoole_socket_coro/reuse.phpt" />
             <file role="test" name="tests/swoole_socket_coro/reuse_2.phpt" />
             <file role="test" name="tests/swoole_socket_coro/sendfile.phpt" />
