@@ -37,12 +37,6 @@
 #define HAVE_SEC_LEVEL 1
 #endif
 
-#if PHP_VERSION_ID < 70400
-typedef size_t php_stream_size_t;
-#else
-typedef ssize_t php_stream_size_t;
-#endif
-
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;

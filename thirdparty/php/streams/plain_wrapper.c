@@ -18,14 +18,12 @@
 
 /* $Id$ */
 
-#include "php.h"
-#include "php_globals.h"
-#include "php_network.h"
+#include "php_swoole.h"
 #include "php_open_temporary_file.h"
 #include "ext/standard/file.h"
 #include "ext/standard/flock_compat.h"
 #include "ext/standard/php_filestat.h"
-#include <stddef.h>
+
 #include <fcntl.h>
 #if HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -36,15 +34,8 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-#include "SAPI.h"
 
 #include "thirdparty/php/streams/php_streams_int.h"
-#ifdef PHP_WIN32
-#include "win32/winutil.h"
-#include "win32/time.h"
-#include "win32/ioutil.h"
-#include "win32/readdir.h"
-#endif
 
 #include "swoole_file_hook.h"
 
@@ -891,6 +882,9 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper,
     if (options & STREAM_OPEN_FOR_INCLUDE) {
     _open_for_include:
         stream = php_stream_fopen_rel(path, mode, opened_path, options);
+        if (stream == NULL) {
+            return NULL;
+        }
         stream->ops = php_swoole_get_ori_php_stream_stdio_ops();
         return stream;
     }

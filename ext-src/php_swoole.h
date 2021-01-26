@@ -425,6 +425,12 @@ extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
 #endif
 /*}}}*/
 
+#if PHP_VERSION_ID < 70400
+typedef size_t php_stream_size_t;
+#else
+typedef ssize_t php_stream_size_t;
+#endif
+
 /* PHP 7 wrapper functions / macros */
 
 //----------------------------------Zval API------------------------------------
