@@ -149,6 +149,7 @@ AC_DEFUN([AC_SWOOLE_HAVE_UCONTEXT],
 [
     AC_MSG_CHECKING([for ucontext])
     AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+        #define _XOPEN_SOURCE
         #include <stdio.h>
         #include <ucontext.h>
         #include <unistd.h>
