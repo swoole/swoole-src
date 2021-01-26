@@ -1,9 +1,9 @@
-name: run-swoole-test
+name: test-linux
 
 on: [push, pull_request]
 
 jobs:
-  run-swoole-test:
+  test-linux:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
