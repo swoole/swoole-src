@@ -27,6 +27,16 @@ Please answer these questions before submitting your issue. Thanks!
 ```
 The most important thing is to provide a simple script for reproducing the error, otherwise, you must provide as much information as possible.
 
+## Memory detection (recommended)
+
+In addition to using `gdb` analysis, you can use the `valgrind` tool to check if the program is working properly.
+
+```shell
+USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php xxx.php
+```
+
+* After the program is executed to the wrong location, `ctrl+c` is interrupted, and upload the `/tmp/valgrind.log` file.
+
 ## CoreDump
 
 Besides, In a special case, you can use debugging tools to help developers locate problems
@@ -60,16 +70,7 @@ Use the f command in gdb to view the code segment corresponding to the ID.
 ```
 
 If there is no function call stack information, it may be that the compiler has removed the debug information. Please manually modify the `Makefile` file in the swoole source directory and modify CFLAGS to
+
 ```shell
 CFLAGS = -Wall -pthread -g -O0
 ```
-
-#### Memory detection (recommended)
-
-In addition to using `gdb` analysis, you can use the `valgrind` tool to check if the program is working properly.
-
-```shell
-USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php xxx.php
-```
-
-* After the program is executed to the wrong location, `ctrl+c` is interrupted, and upload the `/tmp/valgrind.log` file.
