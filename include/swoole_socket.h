@@ -168,6 +168,7 @@ struct Socket {
     uchar ssl_renegotiation : 1;
     uchar ssl_handshake_buffer_set : 1;
     uchar ssl_quiet_shutdown : 1;
+    uchar ssl_closed_ : 1;
 #ifdef SW_SUPPORT_DTLS
     uchar dtls : 1;
 #endif
@@ -368,7 +369,9 @@ struct Socket {
     bool ssl_verify(bool allow_self_signed);
     bool ssl_check_host(const char *tls_host_name);
     void ssl_catch_error();
+    bool ssl_shutdown();
     void ssl_close();
+    const char *ssl_get_error_reason(int *reason);
 #endif
 
     inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {

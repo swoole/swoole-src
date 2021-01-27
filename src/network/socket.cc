@@ -1046,6 +1046,12 @@ int Socket::ssl_get_peer_certificate(char *buffer, size_t length) {
     return _ssl_read_x509_file(cert, buffer, length);
 }
 
+const char *Socket::ssl_get_error_reason(int *reason) {
+    int error = ERR_get_error();
+    *reason = ERR_GET_REASON(error);
+    return ERR_reason_error_string(error);
+}
+
 enum swReturn_code Socket::ssl_accept() {
     ssl_clear_error();
 
@@ -1081,9 +1087,8 @@ enum swReturn_code Socket::ssl_accept() {
         ssl_want_write = 1;
         return SW_WAIT;
     } else if (err == SSL_ERROR_SSL) {
-        int error = ERR_get_error();
-        int reason = ERR_GET_REASON(error);
-        const char *error_string = ERR_reason_error_string(error);
+        int reason;
+        const char *error_string = ssl_get_error_reason(&reason);
         swWarn(
             "bad SSL client[%s:%d], reason=%d, error_string=%s", info.get_ip(), info.get_port(), reason, error_string);
         return SW_ERROR;
@@ -1139,7 +1144,8 @@ int Socket::ssl_connect() {
 
     long err_code = ERR_get_error();
     char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
-    swWarn("SSL_connect(fd=%d) failed. Error: %s[%ld|%d]", fd, msg, err, ERR_GET_REASON(err_code));
+    swNotice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]", fd, info.get_ip(), info.get_port(), msg,
+           err, ERR_GET_REASON(err_code));
 
     return SW_ERR;
 }
@@ -1166,20 +1172,13 @@ int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
     }
 }
 
-void Socket::ssl_close() {
-    int n, sslerr, err;
-
-    if (SSL_in_init(ssl)) {
-        /*
-         * OpenSSL 1.0.2f complains if SSL_shutdown() is called during
-         * an SSL handshake, while previous versions always return 0.
-         * Avoid calling SSL_shutdown() if handshake wasn't completed.
-         */
-        SSL_free(ssl);
-        ssl = nullptr;
-        return;
+bool Socket::ssl_shutdown() {
+    if (ssl_closed_) {
+        return false;
     }
-
+    if (SSL_in_init(ssl)) {
+        return false;
+    }
     /**
      * If the peer close first, local should be set to quiet mode and do not send any data,
      * otherwise the peer will send RST segment.
@@ -1189,15 +1188,13 @@ void Socket::ssl_close() {
     }
 
     int mode = SSL_get_shutdown(ssl);
-
     SSL_set_shutdown(ssl, mode | SSL_RECEIVED_SHUTDOWN | SSL_SENT_SHUTDOWN);
 
-    n = SSL_shutdown(ssl);
-
+    int n = SSL_shutdown(ssl);
+    ssl_closed_ = 1;
     swTrace("SSL_shutdown: %d", n);
 
-    sslerr = 0;
-
+    int sslerr = 0;
     /* before 0.9.8m SSL_shutdown() returned 0 instead of -1 on errors */
     if (n != 1 && ERR_peek_error()) {
         sslerr = SSL_get_error(ssl, n);
@@ -1205,10 +1202,24 @@ void Socket::ssl_close() {
     }
 
     if (!(n == 1 || sslerr == 0 || sslerr == SSL_ERROR_ZERO_RETURN)) {
-        err = (sslerr == SSL_ERROR_SYSCALL) ? errno : 0;
-        swWarn("SSL_shutdown() failed. Error: %d:%d", sslerr, err);
+        int reason;
+        const char *error_string = ssl_get_error_reason(&reason);
+        swWarn("SSL_shutdown() failed, reason=%d, error_string=%s", reason, error_string);
+        return false;
     }
 
+    return true;
+}
+
+void Socket::ssl_close() {
+    /*
+     * OpenSSL 1.0.2f complains if SSL_shutdown() is called during
+     * an SSL handshake, while previous versions always return 0.
+     * Avoid calling SSL_shutdown() if handshake wasn't completed.
+     */
+    if (!ssl_closed_) {
+        ssl_shutdown();
+    }
     SSL_free(ssl);
     ssl = nullptr;
 }

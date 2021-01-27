@@ -1623,8 +1623,7 @@ bool Socket::shutdown(int __how) {
     } else {
 #ifdef SW_USE_OPENSSL
         if (socket->ssl) {
-            SSL_set_quiet_shutdown(socket->ssl, 0);
-            SSL_shutdown(socket->ssl);
+            socket->ssl_shutdown();
         }
 #endif
         if (::shutdown(sock_fd, __how) == 0 || errno == ENOTCONN) {

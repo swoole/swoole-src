@@ -246,6 +246,11 @@ TEST(client, ssl_1) {
 }
 
 TEST(client, http_proxy) {
+    // skip in github action
+    if (swoole::test::is_github_ci()) {
+        return;
+    }
+
     int ret;
 
     bool connected = false;
