@@ -12,8 +12,12 @@ jobs:
     services:
       goproxy:
         image: "vimagick/tinyproxy"
+        ports:
+          - 8888:8888
       socks5:
         image: "xkuma/socks5"
+        ports:
+          - 1080:1080
 
     steps:
     - uses: actions/checkout@v1
