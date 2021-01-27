@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     services:
-      goproxy:
+      tinyproxy:
         image: "vimagick/tinyproxy"
         ports:
           - 8888:8888

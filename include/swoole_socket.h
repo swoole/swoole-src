@@ -371,6 +371,7 @@ struct Socket {
     void ssl_catch_error();
     bool ssl_shutdown();
     void ssl_close();
+    const char *ssl_get_error_reason(int *reason);
 #endif
 
     inline ssize_t recvfrom(char *__buf, size_t __len, int flags, Address *sa) {

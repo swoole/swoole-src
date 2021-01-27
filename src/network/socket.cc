@@ -1046,6 +1046,12 @@ int Socket::ssl_get_peer_certificate(char *buffer, size_t length) {
     return _ssl_read_x509_file(cert, buffer, length);
 }
 
+const char *Socket::ssl_get_error_reason(int *reason) {
+    int error = ERR_get_error();
+    *reason = ERR_GET_REASON(error);
+    return ERR_reason_error_string(error);
+}
+
 enum swReturn_code Socket::ssl_accept() {
     ssl_clear_error();
 
@@ -1081,9 +1087,8 @@ enum swReturn_code Socket::ssl_accept() {
         ssl_want_write = 1;
         return SW_WAIT;
     } else if (err == SSL_ERROR_SSL) {
-        int error = ERR_get_error();
-        int reason = ERR_GET_REASON(error);
-        const char *error_string = ERR_reason_error_string(error);
+        int reason;
+        const char *error_string = ssl_get_error_reason(&reason);
         swWarn(
             "bad SSL client[%s:%d], reason=%d, error_string=%s", info.get_ip(), info.get_port(), reason, error_string);
         return SW_ERROR;
@@ -1171,6 +1176,9 @@ bool Socket::ssl_shutdown() {
     if (ssl_closed_) {
         return false;
     }
+    if (SSL_in_init(ssl)) {
+        return false;
+    }
     /**
      * If the peer close first, local should be set to quiet mode and do not send any data,
      * otherwise the peer will send RST segment.
@@ -1194,8 +1202,9 @@ bool Socket::ssl_shutdown() {
     }
 
     if (!(n == 1 || sslerr == 0 || sslerr == SSL_ERROR_ZERO_RETURN)) {
-        int err = (sslerr == SSL_ERROR_SYSCALL) ? errno : 0;
-        swWarn("SSL_shutdown() failed. Error: %d:%d", sslerr, err);
+        int reason;
+        const char *error_string = ssl_get_error_reason(&reason);
+        swWarn("SSL_shutdown() failed, reason=%d, error_string=%s", reason, error_string);
         return false;
     }
 
@@ -1208,7 +1217,7 @@ void Socket::ssl_close() {
      * an SSL handshake, while previous versions always return 0.
      * Avoid calling SSL_shutdown() if handshake wasn't completed.
      */
-    if (!SSL_in_init(ssl) && !ssl_closed_) {
+    if (!ssl_closed_) {
         ssl_shutdown();
     }
     SSL_free(ssl);
