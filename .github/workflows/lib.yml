@@ -7,8 +7,13 @@ env:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
+
+    services:
+      goproxy:
+        image: "vimagick/tinyproxy"
+      socks5:
+        image: "xkuma/socks5"
 
     steps:
     - uses: actions/checkout@v1
