@@ -252,6 +252,7 @@ void php_swoole_redis_server_minit(int module_number);
  * RINIT
  * ==============================================================
  */
+void php_swoole_coroutine_rinit();
 void php_swoole_runtime_rinit();
 
 /**
