@@ -665,7 +665,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
 }
 
 static ssize_t Client_tcp_send_async(Client *cli, const char *data, size_t length, int flags) {
-    int n = length;
+    ssize_t n = length;
     if (swoole_event_write(cli->socket, data, length) < 0) {
         if (swoole_get_last_error() == SW_ERROR_OUTPUT_BUFFER_OVERFLOW) {
             n = -1;
