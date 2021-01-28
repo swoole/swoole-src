@@ -48,7 +48,7 @@ Fatal error: Uncaught Swoole\Error: API must be called in the coroutine in %s:%d
 Stack trace:
 #0 %s(%d): Swoole\Coroutine::sleep(0.1)
 #1 [internal function]: {closure}(Resource id #%d, 'HTTP/1.1 200 OK...')
-#2 @swoole-src/library/alias_ns.php(%d): Swoole\Coroutine\Scheduler->start()
+#2 @swoole-src/library/core/Coroutine/functions.php(%d): Swoole\Coroutine\Scheduler->start()
 #3 %s(%d): Swoole\Coroutine\run(Object(Closure))
 #4 {main}
   thrown in %s on line %d

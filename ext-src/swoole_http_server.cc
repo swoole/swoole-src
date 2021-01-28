@@ -298,10 +298,10 @@ bool http_context_send_data(http_context *ctx, const char *data, size_t length) 
 
 static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
     Server *serv = (Server *) ctx->private_data;
-    return serv->sendfile(ctx->fd, file, l_file, offset, length) == SW_OK;
+    return serv->sendfile(ctx->fd, file, l_file, offset, length);
 }
 
 static bool http_context_disconnect(http_context *ctx) {
     Server *serv = (Server *) ctx->private_data;
-    return serv->close(ctx->fd, 0) == SW_OK;
+    return serv->close(ctx->fd, 0);
 }

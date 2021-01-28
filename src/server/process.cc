@@ -341,7 +341,7 @@ bool ProcessFactory::finish(SendData *resp) {
         if (swoole_event_write(server_->last_stream_socket, &resp->info, sizeof(resp->info)) < 0) {
             return false;
         }
-        if (swoole_event_write(server_->last_stream_socket, resp->data, _len) < 0) {
+        if (_len > 0 && swoole_event_write(server_->last_stream_socket, resp->data, _len) < 0) {
             return false;
         }
         return true;
