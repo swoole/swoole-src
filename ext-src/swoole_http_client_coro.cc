@@ -1034,13 +1034,18 @@ bool HttpClient::send() {
                 header_flag |= HTTP_HEADER_CONTENT_LENGTH;
                 // ignore custom Content-Length value
                 continue;
-            } else if (SW_STRCASEEQ(key, keylen, "Connection")) {
-                header_flag |= HTTP_HEADER_CONNECTION;
-            } else if (SW_STRCASEEQ(key, keylen, "Accept-Encoding")) {
-                header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
             }
             zend::String str_value(zvalue);
             add_headers(buffer, key, keylen, str_value.val(), str_value.len());
+
+            if (SW_STRCASEEQ(key, keylen, "Connection")) {
+                header_flag |= HTTP_HEADER_CONNECTION;
+                if (SW_STRCASEEQ(str_value.val(), str_value.len(), "close")) {
+                    keep_alive = 0;
+                }
+            } else if (SW_STRCASEEQ(key, keylen, "Accept-Encoding")) {
+                header_flag |= HTTP_HEADER_ACCEPT_ENCODING;
+            }
         }
         SW_HASHTABLE_FOREACH_END();
     }
