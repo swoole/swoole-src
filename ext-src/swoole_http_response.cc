@@ -784,7 +784,7 @@ void http_context::end(zval *zdata, zval *return_value) {
         http_buffer->clear();
 #ifdef SW_HAVE_COMPRESSION
         if (accept_compression) {
-            if (http_body.length < compression_min_length ||
+            if (http_body.length == 0 || http_body.length < compression_min_length ||
                 swoole_http_response_compress(http_body.str, http_body.length, compression_method, compression_level) !=
                     SW_OK) {
                 accept_compression = 0;
