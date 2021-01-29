@@ -37,7 +37,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         Assert::same($request->server['request_method'], 'POST');
         Assert::same($request->rawContent(), $pm->getRandomData());
-        $response->end('OK');
+        $response->end(str_repeat('OK', 16));
     });
     $http->start();
 };

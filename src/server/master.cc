@@ -645,6 +645,7 @@ Server::Server(enum Mode _mode) {
 #ifdef SW_HAVE_COMPRESSION
     http_compression = 1;
     http_compression_level = SW_Z_BEST_SPEED;
+    compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 
 #ifdef __linux__

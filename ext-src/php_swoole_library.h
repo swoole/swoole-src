@@ -6718,6 +6718,7 @@ static const char* swoole_library_source_core_server_helper =
     "        'http_parse_files' => true,\n"
     "        'http_compression' => true,\n"
     "        'http_compression_level' => true,\n"
+    "        'compression_min_length' => true,\n"
     "        'http_gzip_level' => true,\n"
     "        'websocket_compression' => true,\n"
     "        'upload_tmp_dir' => true,\n"

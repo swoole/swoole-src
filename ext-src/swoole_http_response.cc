@@ -38,11 +38,11 @@ extern "C" {
 #include <brotli/encode.h>
 #endif
 
-using swoole::coroutine::Socket;
-using swoole::Server;
 using swoole::Connection;
+using swoole::Server;
 using swoole::String;
 using swoole::substr_len;
+using swoole::coroutine::Socket;
 using http_response = swoole::http::Response;
 using http_context = swoole::http::Context;
 
@@ -784,9 +784,9 @@ void http_context::end(zval *zdata, zval *return_value) {
         http_buffer->clear();
 #ifdef SW_HAVE_COMPRESSION
         if (accept_compression) {
-            if (http_body.length == 0 ||
-                swoole_http_response_compress(
-                    http_body.str, http_body.length, compression_method, compression_level) != SW_OK) {
+            if (http_body.length == 0 || http_body.length < compression_min_length ||
+                swoole_http_response_compress(http_body.str, http_body.length, compression_method, compression_level) !=
+                    SW_OK) {
                 accept_compression = 0;
             }
         }
@@ -1329,7 +1329,7 @@ static PHP_METHOD(swoole_http_response, create) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (ZVAL_IS_OBJECT(zobject)) {
-        _type_detect:
+    _type_detect:
         if (instanceof_function(Z_OBJCE_P(zobject), swoole_server_ce)) {
             serv = php_swoole_server_get_and_check_server(zobject);
             if (serv->get_connection_verify(fd) == nullptr) {
@@ -1340,18 +1340,18 @@ static PHP_METHOD(swoole_http_response, create) {
             sock = php_swoole_get_socket(zobject);
             fd = sock->get_fd();
         } else {
-            _bad_type:
+        _bad_type:
             php_swoole_fatal_error(E_WARNING, "parameter $1 must be instanceof Server or Coroutine\\Socket");
             RETURN_FALSE;
         }
-    } else if (ZVAL_IS_ARRAY(zobject))  {
+    } else if (ZVAL_IS_ARRAY(zobject)) {
         zrequest = zend_hash_index_find(Z_ARR_P(zobject), 1);
         if (!ZVAL_IS_OBJECT(zrequest) || !instanceof_function(Z_OBJCE_P(zrequest), swoole_http_request_ce)) {
             php_swoole_fatal_error(E_WARNING, "parameter $1.second must be instanceof Http\\Request");
             RETURN_FALSE;
         }
         zobject = zend_hash_index_find(Z_ARR_P(zobject), 0);
-        if (!ZVAL_IS_OBJECT(zobject))  {
+        if (!ZVAL_IS_OBJECT(zobject)) {
             goto _bad_type;
         } else {
             ctx = php_swoole_http_request_get_context(zrequest);
