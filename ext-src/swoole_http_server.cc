@@ -195,6 +195,7 @@ void http_context::init(Server *serv) {
 #ifdef SW_HAVE_COMPRESSION
     enable_compression = serv->http_compression;
     compression_level = serv->http_compression_level;
+    gzip_min_length = serv->gzip_min_length;
 #endif
     upload_tmp_dir = serv->upload_tmp_dir;
     bind(serv);

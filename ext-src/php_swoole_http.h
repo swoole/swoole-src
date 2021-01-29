@@ -148,6 +148,7 @@ struct Context {
 #ifdef SW_HAVE_COMPRESSION
     int8_t compression_level;
     int8_t compression_method;
+    uint32_t gzip_min_length;
 #endif
 
     Request request;

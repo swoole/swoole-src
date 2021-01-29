@@ -194,6 +194,7 @@
 #define SW_DNS_DEFAULT_SERVER "8.8.8.8"
 
 #define SW_Z_BEST_SPEED 1
+#define SW_GZIP_MIN_LENGTH_DEFAULT  20
 
 #ifndef IOV_MAX
 #define IOV_MAX   16
