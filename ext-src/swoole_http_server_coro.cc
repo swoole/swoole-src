@@ -67,7 +67,7 @@ class http_server {
     char *upload_tmp_dir;
 #ifdef SW_HAVE_COMPRESSION
     uint8_t http_compression_level;
-    uint32_t gzip_min_length;
+    uint32_t compression_min_length;
 #endif
 
     http_server(enum swSocket_type type) {
@@ -82,7 +82,7 @@ class http_server {
 #ifdef SW_HAVE_COMPRESSION
         http_compression = true;
         http_compression_level = SW_Z_BEST_SPEED;
-        gzip_min_length = SW_GZIP_MIN_LENGTH_DEFAULT;
+        compression_min_length = SW_COMPRESSION_MIN_LENGTH_DEFAULT;
 #endif
 #ifdef SW_HAVE_ZLIB
         websocket_compression = false;
@@ -123,7 +123,7 @@ class http_server {
 #ifdef SW_HAVE_COMPRESSION
         ctx->enable_compression = http_compression;
         ctx->compression_level = http_compression_level;
-        ctx->gzip_min_length = gzip_min_length;
+        ctx->compression_min_length = compression_min_length;
 #endif
 #ifdef SW_HAVE_ZLIB
         ctx->websocket_compression = websocket_compression;
@@ -475,8 +475,8 @@ static PHP_METHOD(swoole_http_server_coro, start) {
         }
         hs->http_compression_level = level;
     }
-    if (php_swoole_array_get_value(vht, "gzip_min_length", ztmp)) {
-        hs->gzip_min_length = zval_get_long(ztmp);
+    if (php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
+        hs->compression_min_length = zval_get_long(ztmp);
     }
 #endif
 #ifdef SW_HAVE_ZLIB

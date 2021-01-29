@@ -2527,8 +2527,8 @@ static PHP_METHOD(swoole_server, set) {
         }
         serv->http_compression_level = level;
     }
-    if (php_swoole_array_get_value(vht, "gzip_min_length", ztmp)) {
-        serv->gzip_min_length = zval_get_long(ztmp);
+    if (php_swoole_array_get_value(vht, "compression_min_length", ztmp)) {
+        serv->compression_min_length = zval_get_long(ztmp);
     }
 #endif
 
