@@ -44,7 +44,7 @@ struct Manager {
 
     std::vector<pid_t> kill_workers;
 
-    int start(Server *_server);
+    void start(Server *_server);
     void add_timeout_killer(Worker *workers, int n);
 
     static void signal_handler(int sig);
@@ -186,7 +186,8 @@ int Server::start_manager_process() {
         SwooleG.process_type = SW_PROCESS_MANAGER;
         SwooleG.pid = getpid();
         Manager manager{};
-        exit(manager.start(this));
+        manager.start(this);
+        exit(0);
         break;
     }
     // master process
@@ -215,7 +216,7 @@ void Server::check_worker_exit_status(int worker_id, const ExitStatus &exit_stat
     }
 }
 
-int Manager::start(Server *_server) {
+void Manager::start(Server *_server) {
     server_ = _server;
     server_->manager = this;
 
@@ -226,6 +227,7 @@ int Manager::start(Server *_server) {
     ON_SCOPE_EXIT {
         delete[] reload_workers;
         reload_workers = nullptr;
+        server_->manager = nullptr;
     };
 
     // for reload
@@ -449,13 +451,11 @@ int Manager::start(Server *_server) {
     if (_server->onManagerStop) {
         _server->onManagerStop(_server);
     }
-
-    return SW_OK;
 }
 
 void Manager::signal_handler(int sig) {
     Server *_server = sw_server();
-    if (!_server) {
+    if (!_server || !_server->manager) {
         return;
     }
     Manager *manager = _server->manager;
