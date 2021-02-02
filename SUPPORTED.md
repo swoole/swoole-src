@@ -1,14 +1,15 @@
 Supported Versions
 ---
+
 | Branch                                                     | Initialization | Active Support Until | Security Support Until |
 | ---------------------------------------------------------- | -------------- | -------------------- | ---------------------- |
 | [v4.4.x](https://github.com/swoole/swoole-src/tree/v4.4.x) | 2019-4-15      | 2020-4-30            | 2020-7-31              |
-| [v4.5.x](https://github.com/swoole/swoole-src/tree/master) | 2019-12-20     | 2020-12-31           | 2021-3-31              |
+| [v4.5.x](https://github.com/swoole/swoole-src/tree/v4.5.x) | 2019-12-20     | 2020-12-31           | 2021-3-31              |
+| [v4.6.x](https://github.com/swoole/swoole-src/tree/master) | 2021-01-06     | 2022-01-31           | 2023-01-31             |
 
 | Active support      | A release that is being actively supported. Reported bugs and security issues are fixed and regular point releases are made. |
 | ------------------- | ------------------------------------------------------------ |
 | Security fixes only | A release that is supported for critical security issues only. Releases are only made on an as-needed basis. |
-
 
 Unsupported Branches
 ---
