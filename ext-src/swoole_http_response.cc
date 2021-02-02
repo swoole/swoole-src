@@ -1369,7 +1369,6 @@ static PHP_METHOD(swoole_http_response, create) {
 
     if (!ctx) {
         ctx = new http_context();
-        ctx->fd = fd;
         ctx->keepalive = 1;
 
         if (serv) {
@@ -1399,11 +1398,15 @@ static PHP_METHOD(swoole_http_response, create) {
 
     object_init_ex(return_value, swoole_http_response_ce);
     php_swoole_http_response_set_context(return_value, ctx);
+    ctx->fd = fd;
     ctx->response.zobject = return_value;
     sw_copy_to_stack(ctx->response.zobject, ctx->response._zobject);
     zend_update_property_long(swoole_http_response_ce, SW_Z8_OBJ_P(return_value), ZEND_STRL("fd"), fd);
     if (ctx->co_socket) {
         zend_update_property(swoole_http_response_ce, SW_Z8_OBJ_P(ctx->response.zobject), ZEND_STRL("socket"), zobject);
+    }
+    if (zrequest) {
+        zend_update_property_long(swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("fd"), fd);
     }
 }
 
