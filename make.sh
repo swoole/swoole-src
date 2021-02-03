@@ -76,8 +76,8 @@ fi
 make clean
 make -j ${CPU_COUNT}
 
-if [ "$(whoami)" == "root" ];then
-    make install
+if [ "$(whoami)" = "root" ]; then
+  make install
 else
-    sudo make install
+  sudo make install
 fi
