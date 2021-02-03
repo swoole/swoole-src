@@ -379,8 +379,8 @@ static bool parse_header_flags(http_context *ctx, const char *key, size_t keylen
         header_flags |= HTTP_HEADER_CONNECTION;
     } else if (SW_STRCASEEQ(key, keylen, "Date")) {
         header_flags |= HTTP_HEADER_DATE;
-    } else if (SW_STRCASEEQ(key, keylen, "Content-Length") && ctx->parser.method != PHP_HTTP_HEAD) {
-        return false;
+    } else if (SW_STRCASEEQ(key, keylen, "Content-Length")) {
+        header_flags |= HTTP_HEADER_CONTENT_LENGTH;
     } else if (SW_STRCASEEQ(key, keylen, "Content-Type")) {
         header_flags |= HTTP_HEADER_CONTENT_TYPE;
     } else if (SW_STRCASEEQ(key, keylen, "Transfer-Encoding")) {
@@ -514,8 +514,10 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
             body_length = swoole_zlib_buffer->length;
         }
 #endif
-        n = sw_snprintf(buf, l_buf, "Content-Length: %zu\r\n", body_length);
-        response->append(buf, n);
+        if (!(header_flags & HTTP_HEADER_CONTENT_LENGTH)) {
+            n = sw_snprintf(buf, l_buf, "Content-Length: %zu\r\n", body_length);
+            response->append(buf, n);
+        }
     }
 #ifdef SW_HAVE_COMPRESSION
     // http compress
