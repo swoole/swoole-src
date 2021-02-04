@@ -95,7 +95,7 @@ class cURLMulti {
     }
 
     void del_timer() {
-        if (timer && swoole_event_is_available()) {
+        if (timer) {
             swoole_timer_del(timer);
         }
     }
