@@ -493,8 +493,8 @@ After compiling and installing to the system successfully, you have to add a new
 Async clients and API are moved to a separate PHP extension `swoole_async` since version 4.3.0, install `swoole_async`:
 
 ```shell
-git clone https://github.com/swoole/async-ext.git
-cd async-src
+git clone https://github.com/swoole/ext-async.git
+cd ext-async
 phpize
 ./configure
 make -j 4
