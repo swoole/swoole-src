@@ -18,7 +18,6 @@
 #include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
-#include "thirdparty/php/curl/curl_arginfo.h"
 
 #include <unordered_map>
 #include <initializer_list>
@@ -58,6 +57,21 @@ static PHP_FUNCTION(swoole_user_func_handler);
 #ifdef SW_USE_CURL
 void swoole_native_curl_init(int module_number);
 void swoole_native_curl_shutdown();
+
+PHP_FUNCTION(swoole_native_curl_close);
+PHP_FUNCTION(swoole_native_curl_copy_handle);
+PHP_FUNCTION(swoole_native_curl_errno);
+PHP_FUNCTION(swoole_native_curl_error);
+PHP_FUNCTION(swoole_native_curl_exec);
+PHP_FUNCTION(swoole_native_curl_getinfo);
+PHP_FUNCTION(swoole_native_curl_init);
+PHP_FUNCTION(swoole_native_curl_setopt);
+PHP_FUNCTION(swoole_native_curl_setopt_array);
+PHP_FUNCTION(swoole_native_curl_reset);
+PHP_FUNCTION(swoole_native_curl_escape);
+PHP_FUNCTION(swoole_native_curl_unescape);
+PHP_FUNCTION(swoole_native_curl_pause);
+
 #endif
 
 SW_EXTERN_C_END
@@ -144,10 +158,18 @@ static php_stream_ops ori_php_stream_stdio_ops;
 
 static void hook_func(const char *name, size_t l_name, zif_handler handler = nullptr, zend_internal_arg_info *arg_info = nullptr);
 static void unhook_func(const char *name, size_t l_name);
-static bool hook_internal_functions(const zend_function_entry *fes);
+
+static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
+    zend_function *zf = (zend_function *) zend_hash_str_find_ptr(EG(function_table), name, l_name);
+    if (zf == nullptr) {
+        return nullptr;
+    }
+    return zf->internal_function.arg_info;
+}
 
 #define SW_HOOK_FUNC(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_##f))
 #define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
+#define SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_native_##f), get_arginfo(ZEND_STRL("swoole_native_" #f)))
 
 static zend_array *tmp_function_table = nullptr;
 
@@ -1384,23 +1406,19 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             flags ^= PHPCoroutine::HOOK_CURL;
         }
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL)) {
-#if PHP_VERSION_ID >= 80000
-            hook_internal_functions(swoole_native_curl_functions);
-#else
-            hook_func(ZEND_STRL("curl_close"), PHP_FN(swoole_native_curl_close));
-            hook_func(ZEND_STRL("curl_copy_handle"), PHP_FN(swoole_native_curl_copy_handle));
-            hook_func(ZEND_STRL("curl_errno"), PHP_FN(swoole_native_curl_errno));
-            hook_func(ZEND_STRL("curl_error"), PHP_FN(swoole_native_curl_error));
-            hook_func(ZEND_STRL("curl_exec"), PHP_FN(swoole_native_curl_exec));
-            hook_func(ZEND_STRL("curl_getinfo"), PHP_FN(swoole_native_curl_getinfo));
-            hook_func(ZEND_STRL("curl_init"), PHP_FN(swoole_native_curl_init));
-            hook_func(ZEND_STRL("curl_setopt"), PHP_FN(swoole_native_curl_setopt));
-            hook_func(ZEND_STRL("curl_setopt_array"), PHP_FN(swoole_native_curl_setopt_array));
-            hook_func(ZEND_STRL("curl_reset"), PHP_FN(swoole_native_curl_reset));
-            hook_func(ZEND_STRL("curl_pause"), PHP_FN(swoole_native_curl_pause));
-            hook_func(ZEND_STRL("curl_escape"), PHP_FN(swoole_native_curl_escape));
-            hook_func(ZEND_STRL("curl_unescape"), PHP_FN(swoole_native_curl_unescape));
-            #endif
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_close);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_copy_handle);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_errno);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_error);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_exec);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_getinfo);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_init);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_setopt);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_setopt_array);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_reset);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_pause);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_escape);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_unescape);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
@@ -1804,11 +1822,6 @@ static PHP_FUNCTION(swoole_stream_select) {
     RETURN_LONG(retval);
 }
 
-bool hook_internal_functions(const zend_function_entry *fes) {
-    zend_unregister_functions(fes, -1, CG(function_table));
-    return zend_register_functions(NULL, fes, NULL, MODULE_PERSISTENT) == SUCCESS;
-}
-
 static void hook_func(const char *name, size_t l_name, zif_handler handler, zend_internal_arg_info *arg_info) {
     real_func *rf = (real_func *) zend_hash_str_find_ptr(tmp_function_table, name, l_name);
     bool use_php_func = false;
@@ -1821,6 +1834,7 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
     if (rf) {
         rf->function->internal_function.handler = handler;
+        rf->function->internal_function.arg_info = arg_info;
         return;
     }
 
@@ -1834,6 +1848,10 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     rf->function = zf;
     rf->ori_handler = zf->internal_function.handler;
     zf->internal_function.handler = handler;
+    if (arg_info) {
+        rf->ori_arg_info = zf->internal_function.arg_info;
+        zf->internal_function.arg_info = arg_info;
+    }
 
     if (use_php_func) {
         char func[128];
@@ -1861,6 +1879,9 @@ static void unhook_func(const char *name, size_t l_name) {
         return;
     }
     rf->function->internal_function.handler = rf->ori_handler;
+    if (rf->ori_arg_info) {
+        rf->function->internal_function.arg_info = rf->ori_arg_info;
+    }
 }
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {

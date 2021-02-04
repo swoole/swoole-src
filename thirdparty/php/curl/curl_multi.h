@@ -85,7 +85,7 @@ class cURLMulti {
     }
 
     void add_timer(long timeout_ms) {
-        if (timer) {
+        if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
         }
 
@@ -95,7 +95,7 @@ class cURLMulti {
     }
 
     void del_timer() {
-        if (timer) {
+        if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
         }
     }
