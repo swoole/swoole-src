@@ -861,7 +861,7 @@ static sw_inline int php_swoole_check_task_param(Server *serv, zend_long dst_wor
         php_swoole_fatal_error(E_WARNING, "task method can't be executed without task worker");
         return SW_ERR;
     }
-    if (UNEXPECTED(dst_worker_id >= serv->task_worker_num)) {
+    if (UNEXPECTED(dst_worker_id > 0 && dst_worker_id >= serv->task_worker_num)) {
         php_swoole_fatal_error(E_WARNING, "worker_id must be less than task_worker_num[%u]", serv->task_worker_num);
         return SW_ERR;
     }
