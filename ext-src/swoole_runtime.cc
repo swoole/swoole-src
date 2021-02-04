@@ -1834,7 +1834,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     }
     if (rf) {
         rf->function->internal_function.handler = handler;
-        rf->function->internal_function.arg_info = arg_info;
+        if (arg_info) {
+            rf->function->internal_function.arg_info = arg_info;
+        }
         return;
     }
 
@@ -1847,9 +1849,9 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     sw_memset_zero(rf, sizeof(*rf));
     rf->function = zf;
     rf->ori_handler = zf->internal_function.handler;
+    rf->ori_arg_info = zf->internal_function.arg_info;
     zf->internal_function.handler = handler;
     if (arg_info) {
-        rf->ori_arg_info = zf->internal_function.arg_info;
         zf->internal_function.arg_info = arg_info;
     }
 
@@ -1879,9 +1881,7 @@ static void unhook_func(const char *name, size_t l_name) {
         return;
     }
     rf->function->internal_function.handler = rf->ori_handler;
-    if (rf->ori_arg_info) {
-        rf->function->internal_function.arg_info = rf->ori_arg_info;
-    }
+    rf->function->internal_function.arg_info = rf->ori_arg_info;
 }
 
 php_stream *php_swoole_create_stream_from_socket(php_socket_t _fd, int domain, int type, int protocol STREAMS_DC) {
