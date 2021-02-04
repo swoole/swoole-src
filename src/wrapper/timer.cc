@@ -43,6 +43,7 @@ TimerNode *swoole_timer_add(long ms, bool persistent, const TimerCallback &callb
 
 bool swoole_timer_del(TimerNode *tnode) {
     if (!swoole_timer_is_available()) {
+        swWarn("timer is not available");
         return false;
     }
     return SwooleTG.timer->remove(tnode);
@@ -50,6 +51,7 @@ bool swoole_timer_del(TimerNode *tnode) {
 
 void swoole_timer_delay(TimerNode *tnode, long delay_ms) {
     if (!swoole_timer_is_available()) {
+        swWarn("timer is not available");
         return;
     }
     return SwooleTG.timer->delay(tnode, delay_ms);
@@ -83,7 +85,7 @@ long swoole_timer_tick(long ms, const TimerCallback &callback, void *private_dat
 
 bool swoole_timer_exists(long timer_id) {
     if (!swoole_timer_is_available()) {
-        swWarn("timer[%ld] is not exists", timer_id);
+        swWarn("timer is not available");
         return false;
     }
     TimerNode *tnode = SwooleTG.timer->get(timer_id);
@@ -92,7 +94,7 @@ bool swoole_timer_exists(long timer_id) {
 
 bool swoole_timer_clear(long timer_id) {
     if (!swoole_timer_is_available()) {
-        swWarn("timer[%ld] is not exists", timer_id);
+        swWarn("timer is not available");
         return false;
     }
     return SwooleTG.timer->remove(SwooleTG.timer->get(timer_id));
@@ -100,7 +102,7 @@ bool swoole_timer_clear(long timer_id) {
 
 TimerNode *swoole_timer_get(long timer_id) {
     if (!swoole_timer_is_available()) {
-        swWarn("timer[%ld] is not exists", timer_id);
+        swWarn("timer is not available");
         return nullptr;
     }
     return SwooleTG.timer->get(timer_id);
@@ -108,6 +110,7 @@ TimerNode *swoole_timer_get(long timer_id) {
 
 void swoole_timer_free() {
     if (!swoole_timer_is_available()) {
+        swWarn("timer is not available");
         return;
     }
     delete SwooleTG.timer;
@@ -117,6 +120,7 @@ void swoole_timer_free() {
 
 int swoole_timer_select() {
     if (!swoole_timer_is_available()) {
+        swWarn("timer is not available");
         return SW_ERR;
     }
     return SwooleTG.timer->select();
