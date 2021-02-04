@@ -42,10 +42,16 @@ TimerNode *swoole_timer_add(long ms, bool persistent, const TimerCallback &callb
 }
 
 bool swoole_timer_del(TimerNode *tnode) {
+    if (!swoole_timer_is_available()) {
+        return false;
+    }
     return SwooleTG.timer->remove(tnode);
 }
 
 void swoole_timer_delay(TimerNode *tnode, long delay_ms) {
+    if (!swoole_timer_is_available()) {
+        return;
+    }
     return SwooleTG.timer->delay(tnode, delay_ms);
 }
 
@@ -85,6 +91,10 @@ bool swoole_timer_exists(long timer_id) {
 }
 
 bool swoole_timer_clear(long timer_id) {
+    if (!swoole_timer_is_available()) {
+        swWarn("timer[%ld] is not exists", timer_id);
+        return false;
+    }
     return SwooleTG.timer->remove(SwooleTG.timer->get(timer_id));
 }
 
