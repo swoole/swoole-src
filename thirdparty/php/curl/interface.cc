@@ -344,7 +344,7 @@ int cURLMulti::handle_timeout(CURLM *multi, long timeout_ms, void *userp) {
     return 0;
 }
 
-void swoole_native_curl_init(int module_number)
+void swoole_native_curl_minit(int module_number)
 {
 #if PHP_VERSION_ID >= 80000
     SW_INIT_CLASS_ENTRY(swoole_coroutine_curl_handle,
@@ -487,7 +487,7 @@ int curl_cast_object(zend_object *obj, zval *result, int type)
 }
 #endif
 
-void swoole_native_curl_shutdown() {
+void swoole_native_curl_mshutdown() {
     delete g_curl_multi;
     g_curl_multi = nullptr;
 }

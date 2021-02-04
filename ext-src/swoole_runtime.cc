@@ -55,8 +55,8 @@ static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
 
 #ifdef SW_USE_CURL
-void swoole_native_curl_init(int module_number);
-void swoole_native_curl_shutdown();
+void swoole_native_curl_minit(int module_number);
+void swoole_native_curl_mshutdown();
 
 PHP_FUNCTION(swoole_native_curl_close);
 PHP_FUNCTION(swoole_native_curl_copy_handle);
@@ -71,7 +71,6 @@ PHP_FUNCTION(swoole_native_curl_reset);
 PHP_FUNCTION(swoole_native_curl_escape);
 PHP_FUNCTION(swoole_native_curl_unescape);
 PHP_FUNCTION(swoole_native_curl_pause);
-
 #endif
 
 SW_EXTERN_C_END
@@ -201,7 +200,7 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SOCKETS", PHPCoroutine::HOOK_SOCKETS);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_ALL", PHPCoroutine::HOOK_ALL);
 #ifdef SW_USE_CURL
-    swoole_native_curl_init(module_number);
+    swoole_native_curl_minit(module_number);
 #endif
     swoole_proc_open_init(module_number);
 }
@@ -243,7 +242,7 @@ void php_swoole_runtime_rshutdown() {
 
 void php_swoole_runtime_mshutdown() {
 #ifdef SW_USE_CURL
-    swoole_native_curl_shutdown();
+    swoole_native_curl_mshutdown();
 #endif
 }
 
