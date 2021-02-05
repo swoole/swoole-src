@@ -18,6 +18,9 @@
 #include "swoole_util.h"
 
 #include "thirdparty/php/standard/proc_open.h"
+#ifdef SW_USE_CURL
+#include "thirdparty/php/curl/curl_interface.h"
+#endif
 
 #include <unordered_map>
 #include <initializer_list>
@@ -53,26 +56,6 @@ static PHP_FUNCTION(swoole_time_sleep_until);
 static PHP_FUNCTION(swoole_stream_select);
 static PHP_FUNCTION(swoole_stream_socket_pair);
 static PHP_FUNCTION(swoole_user_func_handler);
-
-#ifdef SW_USE_CURL
-void swoole_native_curl_minit(int module_number);
-void swoole_native_curl_mshutdown();
-
-PHP_FUNCTION(swoole_native_curl_close);
-PHP_FUNCTION(swoole_native_curl_copy_handle);
-PHP_FUNCTION(swoole_native_curl_errno);
-PHP_FUNCTION(swoole_native_curl_error);
-PHP_FUNCTION(swoole_native_curl_exec);
-PHP_FUNCTION(swoole_native_curl_getinfo);
-PHP_FUNCTION(swoole_native_curl_init);
-PHP_FUNCTION(swoole_native_curl_setopt);
-PHP_FUNCTION(swoole_native_curl_setopt_array);
-PHP_FUNCTION(swoole_native_curl_reset);
-PHP_FUNCTION(swoole_native_curl_escape);
-PHP_FUNCTION(swoole_native_curl_unescape);
-PHP_FUNCTION(swoole_native_curl_pause);
-#endif
-
 SW_EXTERN_C_END
 
 static int socket_set_option(php_stream *stream, int option, int value, void *ptrparam);

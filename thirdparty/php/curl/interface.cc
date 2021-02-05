@@ -20,6 +20,7 @@
 
 #ifdef SW_USE_CURL
 #include "curl_multi.h"
+#include "curl_interface.h"
 #include "curl_arginfo.h"
 
 using namespace swoole;

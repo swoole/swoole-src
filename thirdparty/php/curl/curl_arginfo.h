@@ -3,35 +3,7 @@
 
 #ifdef SW_USE_CURL
 
-#include "zend_API.h"
-
-#include <curl/curl.h>
-#include <curl/multi.h>
-
-SW_EXTERN_C_BEGIN
-PHP_FUNCTION(swoole_native_curl_close);
-PHP_FUNCTION(swoole_native_curl_copy_handle);
-PHP_FUNCTION(swoole_native_curl_errno);
-PHP_FUNCTION(swoole_native_curl_error);
-PHP_FUNCTION(swoole_native_curl_exec);
-PHP_FUNCTION(swoole_native_curl_getinfo);
-PHP_FUNCTION(swoole_native_curl_init);
-PHP_FUNCTION(swoole_native_curl_setopt);
-PHP_FUNCTION(swoole_native_curl_setopt_array);
-
-#if LIBCURL_VERSION_NUM >= 0x070c01 /* 7.12.1 */
-PHP_FUNCTION(swoole_native_curl_reset);
-#endif
-
-#if LIBCURL_VERSION_NUM >= 0x070f04 /* 7.15.4 */
-PHP_FUNCTION(swoole_native_curl_escape);
-PHP_FUNCTION(swoole_native_curl_unescape);
-#endif
-
-#if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
-PHP_FUNCTION(swoole_native_curl_pause);
-#endif
-SW_EXTERN_C_END
+#include "curl_interface.h"
 
 #if PHP_VERSION_ID >= 80000
 
