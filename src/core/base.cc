@@ -276,7 +276,7 @@ pid_t swoole_fork(int flags) {
         /**
          * [!!!] All timers and event loops must be cleaned up after fork
          */
-        if (SwooleTG.timer) {
+        if (swoole_timer_is_available()) {
             swoole_timer_free();
         }
         if (SwooleG.memory_pool) {
@@ -288,7 +288,7 @@ pid_t swoole_fork(int flags) {
             // reopen log file
             sw_logger()->reopen();
             // reset eventLoop
-            if (SwooleTG.reactor) {
+            if (swoole_event_is_available()) {
                 swoole_event_free();
                 swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");
             }

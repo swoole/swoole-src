@@ -47,8 +47,7 @@ int swoole_clock_gettime(int which_clock, struct timespec *t) {
 
 namespace swoole {
 
-Timer::Timer()
-        : heap(1024, Heap::MIN_HEAP) {
+Timer::Timer() : heap(1024, Heap::MIN_HEAP) {
     _current_id = -1;
     next_msec_ = -1;
     _next_id = 1;
@@ -80,7 +79,11 @@ bool Timer::init_reactor(Reactor *reactor) {
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
                                 [this](Reactor *reactor, int &event_num) -> bool { return count() == 0; });
 
-    reactor->add_destroy_callback([](void *) { swoole_timer_free(); });
+    reactor->add_destroy_callback([](void *) {
+        if (swoole_timer_is_available()) {
+            swoole_timer_free();
+        }
+    });
 
     return true;
 }
