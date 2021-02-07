@@ -29,7 +29,8 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
-        $response->header("content-length", "10000 ");
+        $msg = "hello world";
+        $response->header("content-length", strlen($msg) . " ");
         $response->header("Test-Value", [
             "a\r\n",
             "b1234 ",
@@ -39,7 +40,7 @@ $pm->childFunc = function () use ($pm) {
             5678,
             3.1415926,
         ]);
-        $response->end("hello world");
+        $response->end($msg);
     });
     $http->start();
 };
@@ -49,6 +50,7 @@ $pm->run();
 ?>
 --EXPECTF--
 HTTP/1.1 200 OK
+Content-Length: 11
 Test-Value: a
 Test-Value: b1234
 Test-Value: d5678
@@ -59,6 +61,5 @@ Server: swoole-http-server
 Connection: keep-alive
 Content-Type: text/html
 Date: %s
-Content-Length: 11
 
 hello world
