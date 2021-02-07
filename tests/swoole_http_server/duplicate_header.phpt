@@ -50,6 +50,7 @@ $pm->run();
 ?>
 --EXPECTF--
 HTTP/1.1 200 OK
+Content-Length: 11
 Test-Value: a
 Test-Value: b1234
 Test-Value: d5678
@@ -60,6 +61,5 @@ Server: swoole-http-server
 Connection: keep-alive
 Content-Type: text/html
 Date: %s
-Content-Length: 11
 
 hello world
