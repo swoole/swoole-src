@@ -20,12 +20,12 @@
 
 #ifdef SW_USE_CURL
 #include "curl_multi.h"
-#include "curl_interface.h"
-#include "curl_arginfo.h"
 
 using namespace swoole;
 
 SW_EXTERN_C_BEGIN
+#include "curl_interface.h"
+#include "curl_arginfo.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -271,6 +271,7 @@ static cURLMulti *g_curl_multi = nullptr;
 static inline cURLMulti *sw_curl_multi() {
     return g_curl_multi;
 }
+SW_EXTERN_C_END
 
 int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
     sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_IN);
@@ -3113,6 +3114,4 @@ PHP_FUNCTION(swoole_native_curl_pause)
 }
 /* }}} */
 #endif
-
-SW_EXTERN_C_END
 #endif

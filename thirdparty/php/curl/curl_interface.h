@@ -3,13 +3,14 @@
 #include "php_swoole_cxx.h"
 
 #ifdef SW_USE_CURL
+SW_EXTERN_C_BEGIN
+
 #include <curl/curl.h>
 #include <curl/multi.h>
 
 void swoole_native_curl_minit(int module_number);
 void swoole_native_curl_mshutdown();
 
-SW_EXTERN_C_BEGIN
 PHP_FUNCTION(swoole_native_curl_close);
 PHP_FUNCTION(swoole_native_curl_copy_handle);
 PHP_FUNCTION(swoole_native_curl_errno);
