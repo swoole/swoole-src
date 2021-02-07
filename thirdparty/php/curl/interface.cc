@@ -24,6 +24,8 @@
 using namespace swoole;
 
 SW_EXTERN_C_BEGIN
+#include "curl_interface.h"
+#include "curl_arginfo.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -113,9 +115,9 @@ static int php_curl_option_str(php_curl *ch, zend_long option, const char *str, 
     long error = CURLE_OK;
 
     if (strlen(str) != len) {
-        #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
         zend_value_error("%s(): cURL option must not contain any null bytes", get_active_function_name());
-        #else
+#else
         php_error_docref(NULL, E_WARNING, "Curl option contains invalid characters (\\0)");
         #endif
         return FAILURE;
@@ -269,6 +271,7 @@ static cURLMulti *g_curl_multi = nullptr;
 static inline cURLMulti *sw_curl_multi() {
     return g_curl_multi;
 }
+SW_EXTERN_C_END
 
 int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
     sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_IN);
@@ -343,7 +346,7 @@ int cURLMulti::handle_timeout(CURLM *multi, long timeout_ms, void *userp) {
     return 0;
 }
 
-void swoole_native_curl_init(int module_number)
+void swoole_native_curl_minit(int module_number)
 {
 #if PHP_VERSION_ID >= 80000
     SW_INIT_CLASS_ENTRY(swoole_coroutine_curl_handle,
@@ -362,6 +365,10 @@ void swoole_native_curl_init(int module_number)
     swoole_coroutine_curl_handle_handlers.get_constructor = curl_get_constructor;
 	swoole_coroutine_curl_handle_handlers.clone_obj = curl_clone_obj;
 	swoole_coroutine_curl_handle_handlers.cast_object = curl_cast_object;
+
+    zend_unregister_functions(swoole_native_curl_functions, -1, CG(function_table));
+    zend_register_functions(NULL, swoole_native_curl_functions, NULL, MODULE_PERSISTENT);
+
 #else
     le_curl = zend_register_list_destructors_ex(_php_curl_close, NULL, le_curl_name, module_number);
 #endif
@@ -482,7 +489,7 @@ int curl_cast_object(zend_object *obj, zval *result, int type)
 }
 #endif
 
-void swoole_native_curl_shutdown() {
+void swoole_native_curl_mshutdown() {
     delete g_curl_multi;
     g_curl_multi = nullptr;
 }
@@ -607,11 +614,11 @@ static int fn_fnmatch(void *ctx, const char *pattern, const char *string)
             fci.retval = &retval;
             fci.param_count = 3;
             fci.params = argv;
-            #if PHP_VERSION_ID >= 80000
-                fci.named_params = NULL;
-            #else
+#if PHP_VERSION_ID >= 80000
+            fci.named_params = NULL;
+#else
                 fci.no_separation = 0;
-            #endif
+#endif
 
             ch->in_callback = 1;
             error = zend_call_function(&fci, &t->fci_cache);
@@ -653,13 +660,13 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
             int  error;
             zend_fcall_info fci;
 
-            #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
             GC_ADDREF(&ch->std);
             ZVAL_OBJ(&argv[0], &ch->std);
-            #else
+#else
             GC_ADDREF(ch->res);
             ZVAL_RES(&argv[0], ch->res);
-            #endif
+#endif
             ZVAL_LONG(&argv[1], (zend_long)dltotal);
             ZVAL_LONG(&argv[2], (zend_long)dlnow);
             ZVAL_LONG(&argv[3], (zend_long)ultotal);
@@ -671,11 +678,11 @@ static size_t fn_progress(void *clientp, double dltotal, double dlnow, double ul
             fci.retval = &retval;
             fci.param_count = 5;
             fci.params = argv;
-            #if PHP_VERSION_ID >= 80000
-                fci.named_params = NULL;
-            #else
-                fci.no_separation = 0;
-            #endif
+#if PHP_VERSION_ID >= 80000
+            fci.named_params = NULL;
+#else
+            fci.no_separation = 0;
+#endif
 
             ch->in_callback = 1;
             error = zend_call_function(&fci, &t->fci_cache);
@@ -798,7 +805,7 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx)
 #else
             ZVAL_RES(&argv[0], ch->res);
             Z_ADDREF(argv[0]);
-            #endif
+#endif
 
             ZVAL_STRINGL(&argv[1], data, length);
 
@@ -813,7 +820,6 @@ static size_t fn_write_header(char *data, size_t size, size_t nmemb, void *ctx)
 #else
             fci.no_separation = 0;
 #endif
-
             ch->in_callback = 1;
             error = zend_call_function(&fci, &t->fci_cache);
             ch->in_callback = 0;
@@ -1068,9 +1074,9 @@ PHP_FUNCTION(swoole_native_curl_init)
     }
 
 #if PHP_VERSION_ID >= 80000
-        ch = init_curl_handle_into_zval(return_value);
+    ch = init_curl_handle_into_zval(return_value);
 #else
-        ch = alloc_curl_handle();
+    ch = alloc_curl_handle();
 #endif
 
     ch->cp = cp;
@@ -1224,11 +1230,7 @@ static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields
 {
     CURLcode error = CURLE_OK;
     zval *current;
-    #if PHP_VERSION_ID >= 80000
-    HashTable *postfields = Z_ARRVAL_P(zpostfields);
-    #else
-    HashTable *postfields;
-    #endif
+    HashTable *postfields = HASH_OF(zpostfields);
     zend_string *string_key;
     zend_ulong num_key;
 #if LIBCURL_VERSION_NUM >= 0x073800 /* 7.56.0 */
@@ -1241,13 +1243,10 @@ static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields
     CURLFORMcode form_error;
 #endif
 
-    #if PHP_VERSION_ID < 80000
-    postfields = HASH_OF(zpostfields);
     if (!postfields) {
         php_error_docref(NULL, E_WARNING, "Couldn't get HashTable in CURLOPT_POSTFIELDS");
         return FAILURE;
     }
-    #endif
 
 #if LIBCURL_VERSION_NUM >= 0x073800 /* 7.56.0 */
     if (zend_hash_num_elements(postfields) > 0) {
@@ -1882,11 +1881,11 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
                         ch->handlers->write->method = PHP_CURL_FILE;
                         ZVAL_COPY(&ch->handlers->write->stream, zvalue);
                     } else {
-                        #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
                         zend_value_error("%s(): The provided file handle must be writable", get_active_function_name());
-                        #else
+#else
                         php_error_docref(NULL, E_WARNING, "the provided file handle is not writable");
-                        #endif
+#endif
                         return FAILURE;
                     }
                     break;
@@ -1904,11 +1903,11 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
                         ch->handlers->write_header->method = PHP_CURL_FILE;
                         ZVAL_COPY(&ch->handlers->write_header->stream, zvalue);
                     } else {
-                        #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
                         zend_value_error("%s(): The provided file handle must be writable", get_active_function_name());
-                        #else
+#else
                         php_error_docref(NULL, E_WARNING, "the provided file handle is not writable");
-                        #endif
+#endif
                         return FAILURE;
                     }
                     break;
@@ -1937,11 +1936,11 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
                         zval_ptr_dtor(&ch->handlers->std_err);
                         ZVAL_COPY(&ch->handlers->std_err, zvalue);
                     } else {
-                        #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
                         zend_value_error("%s(): The provided file handle must be writable", get_active_function_name());
-                        #else
+#else
                         php_error_docref(NULL, E_WARNING, "the provided file handle is not writable");
-                        #endif
+#endif
                         return FAILURE;
                     }
                     /* break omitted intentionally */
@@ -1977,12 +1976,8 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
             zend_string *val;
             struct curl_slist *slist = NULL;
 
-            #if PHP_VERSION_ID >= 80000
-            if (Z_TYPE_P(zvalue) != IS_ARRAY) {
-            #else
             ph = HASH_OF(zvalue);
             if (!ph) {
-            #endif
                 const char *name = NULL;
                 switch (option) {
                     case CURLOPT_HTTPHEADER:
@@ -2024,11 +2019,11 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
                         break;
 #endif
                 }
-                #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
                 zend_type_error("%s(): The %s option must have an array value", get_active_function_name(), name);
-                #else
+#else
                 php_error_docref(NULL, E_WARNING, "You must pass either an object or an array with the %s argument", name);
-                #endif
+#endif
                 return FAILURE;
             }
 
@@ -2081,11 +2076,11 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
             break;
 
         case CURLOPT_POSTFIELDS:
-            #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
             if (Z_TYPE_P(zvalue) == IS_ARRAY) {
-            #else
+#else
             if (Z_TYPE_P(zvalue) == IS_ARRAY || Z_TYPE_P(zvalue) == IS_OBJECT) {
-            #endif
+#endif
                 return build_mime_structure_from_hash(ch, zvalue);
             } else {
 #if LIBCURL_VERSION_NUM >= 0x071101
@@ -2211,21 +2206,7 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
 
         case CURLOPT_SHARE:
             {
-                #if PHP_VERSION_ID >= 80000
-                if (Z_TYPE_P(zvalue) == IS_OBJECT && Z_OBJCE_P(zvalue) == curl_share_ce) {
-					php_curlsh *sh = Z_CURL_SHARE_P(zvalue);
-					curl_easy_setopt(ch->cp, CURLOPT_SHARE, sh->share);
-
-					if (ch->share) {
-						OBJ_RELEASE(&ch->share->std);
-					}
-					GC_ADDREF(&sh->std);
-					ch->share = sh;
-				}
-                #else
                 php_error_docref(NULL, E_WARNING, "CURLOPT_SHARE option is not supported");
-                return FAILURE;
-                #endif
             }
             break;
 
@@ -2328,11 +2309,11 @@ PHP_FUNCTION(swoole_native_curl_setopt_array)
             RETURN_FALSE;
         }
         ZVAL_DEREF(entry);
-        #if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80000
 		if (_php_curl_setopt(ch, (zend_long) option, entry, 1) == FAILURE) {
-        #else
+#else
         if (_php_curl_setopt(ch, (zend_long) option, entry) == FAILURE) {
-        #endif
+#endif
             RETURN_FALSE;
         }
     } ZEND_HASH_FOREACH_END();
@@ -3133,6 +3114,4 @@ PHP_FUNCTION(swoole_native_curl_pause)
 }
 /* }}} */
 #endif
-
-SW_EXTERN_C_END
 #endif

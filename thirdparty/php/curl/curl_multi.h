@@ -13,10 +13,9 @@
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
+#pragma once
 
 #ifdef SW_USE_CURL
-
-#pragma once
 
 #include "php_swoole_cxx.h"
 #include "swoole_util.h"
@@ -85,7 +84,7 @@ class cURLMulti {
     }
 
     void add_timer(long timeout_ms) {
-        if (timer) {
+        if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
         }
 
@@ -95,7 +94,7 @@ class cURLMulti {
     }
 
     void del_timer() {
-        if (timer) {
+        if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
         }
     }
