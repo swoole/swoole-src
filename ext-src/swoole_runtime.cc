@@ -1068,8 +1068,8 @@ static php_stream *socket_create(const char *proto,
             auto add_alias = [&zalias, options](const char *name, const char *alias) {
                 zval *ztmp;
                 if (php_swoole_array_get_value_ex(options, name, ztmp)) {
-                    Z_ADDREF_P(ztmp);
                     add_assoc_zval_ex(&zalias, alias, strlen(alias), ztmp);
+                    zval_add_ref(ztmp);
                 }
             };
 
