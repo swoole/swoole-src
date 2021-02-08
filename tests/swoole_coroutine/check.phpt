@@ -5,6 +5,9 @@ swoole_coroutine: check if is in the coroutine
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
+
+define('RUN_IN_CHILD', true);
+
 $map = [
     function () {
         Co::sleep(0.001);
@@ -54,9 +57,9 @@ $map = [
         Co::getaddrinfo('www.swoole.com');
         Assert::assert(0); // never here
     },
-    // function () {
-    // Co::statvfs(__DIR__); // can use outside the coroutine
-    // },
+//    function () {
+//        Co::statvfs(__DIR__);
+//    },
     function () {
         Co::exec('echo');
         Assert::assert(0); // never here
@@ -112,6 +115,10 @@ if (class_exists(Co\Http2\Client::class)) {
 $info_list = [];
 foreach ($map as $i => $f) {
     $GLOBALS['f'] = $f;
+    if (RUN_IN_CHILD == false) {
+        $f();
+        continue;
+    }
     $process = new Swoole\Process(function () {
         function a()
         {

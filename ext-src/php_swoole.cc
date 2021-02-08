@@ -398,6 +398,9 @@ SW_API bool php_swoole_is_enable_coroutine() {
 static void fatal_error(int code, const char *format, ...) {
     va_list args;
     zend_object *exception;
+    if (sw_reactor()) {
+        sw_reactor()->bailout = true;
+    }
     va_start(args, format);
     exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);

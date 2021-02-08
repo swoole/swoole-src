@@ -1069,6 +1069,7 @@ static php_stream *socket_create(const char *proto,
                 zval *ztmp;
                 if (php_swoole_array_get_value_ex(options, name, ztmp)) {
                     add_assoc_zval_ex(&zalias, alias, strlen(alias), ztmp);
+                    zval_add_ref(ztmp);
                 }
             };
 
@@ -1087,7 +1088,7 @@ static php_stream *socket_create(const char *proto,
             if (!sock->ssl_check_context()) {
                 goto _failed;
             }
-            zend_array_destroy(Z_ARRVAL(zalias));
+            zval_dtor(&zalias);
         }
 #endif
     }

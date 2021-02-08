@@ -15,11 +15,11 @@ $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
     $cli = new Client(SWOOLE_SOCK_UDP);
 
-    $cli->sendto('127.0.0.1', $pm->getFreePort(), "hello");
-    $cli->sendto('localhost', $pm->getFreePort(), "hello");
+    $cli->sendto('127.0.0.1', $pm->getFreePort(), "packet-1");
+    $cli->sendto('localhost', $pm->getFreePort(), "packet-2");
     Assert::false($cli->sendto('error_domain', $pm->getFreePort(), "hello"));
     Assert::assert($cli->errCode, SWOOLE_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-    $cli->sendto('localhost', $pm->getFreePort(), "hello");
+    $cli->sendto('localhost', $pm->getFreePort(), "packet-3");
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
@@ -29,11 +29,11 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
         $peer = null;
         $ret = $socket->recvfrom($peer);
-        Assert::eq($ret, 'hello', 'packet-1');
+        Assert::eq($ret, 'packet-1');
         $ret = $socket->recvfrom($peer);
-        Assert::eq($ret, 'hello', 'packet-2');
+        Assert::eq($ret, 'packet-2');
         $ret = $socket->recvfrom($peer);
-        Assert::eq($ret, 'hello', 'packet-3');
+        Assert::eq($ret, 'packet-3');
     });
 };
 $pm->childFirst();
