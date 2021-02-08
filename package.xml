@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-01-25</date>
-    <time>17:00:00</time>
+    <date>2021-02-08</date>
+    <time>09:00:00</time>
     <version>
-        <release>4.6.2</release>
+        <release>4.6.3</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,28 +56,26 @@
     <notes>
         New APIs
         ---
-        + Added Http::Request::getMethod() (#3987) (@luolaifa000)
-        + Added Coroutine::Socket:recvLine() (#4014) (@matyhtf)
+        + Added Swoole\Coroutine\go function (swoole/library@92fd0de) (@matyhtf)
 
         Enhancement
         ---
-        + Improved Response::create() (#3998) (@matyhtf)
-        + Supported Coroutine\Redis::hExists return bool with compatibility_mode (swoole/swoole-src@b8cce7c) (@matyhtf)
-        + Supported PHP_NORMAL_READ for Coroutine::Socket::read (swoole/swoole-src@b1a0dcc) (@matyhtf)
+        + Added option compression_min_length for HTTP Server (#4033) (@matyhtf)
+        + Allowed setting content-length HTTP header in application layer (#4041) (@doubaokun)
 
         Fixed
         ---
-        * Fixed Coroutine::defer coredump in PHP8 (#3997) (@huanghantao)
-        * Fixed Coroutine::Socket::errCode is not set correctly when using thread context (swoole/swoole-src@004d08a) (@matyhtf)
-        * Fixed build Swoole error on latest macos (#4007) (@matyhtf)
-        * Fixed php stream context is nullptr when use md5_file with url (#4016) (@ZhiyangLeeCN)
+        * Fixed coredump when program reach file open limitation (swoole/swoole-src@709813f) (@matyhtf)
+        * Fixed JIT being disabled (#4029) (@twose)
+        * Fixed Response::create() bug (swoole/swoole-src@a630b5b) (@matyhtf)
+        * Fixed task process id false positives (#4040) (@doubaokun)
+        * Fixed coredump with native curl hook (#4042) (@Yurunsoft)
+        * Fixed README (#4046) (@asheroto)
+        * Fixed native-curl crash on PHP8 (#4045) (@matyhtf)
 
         Kernel
         ---
-        * Used AIO thread hook stdio instead of coroutine socket (#4002) (@matyhtf)
-        * Refactor HttpContext (#3998) (@matyhtf)
-        * Fixed Github action (#4013) (#4020) (@sy-records)
-        * Refactor Process::wait() (#4019) (@matyhtf)
+        * Optimized ssl_connect/ssl_shutdown (#4030) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -1036,6 +1034,7 @@
             <file role="test" name="tests/swoole_event/defer_with_sleep.phpt" />
             <file role="test" name="tests/swoole_event/defer_without_io.phpt" />
             <file role="test" name="tests/swoole_event/del_after_close.phpt" />
+            <file role="test" name="tests/swoole_event/deprecated_event_wait.phpt" />
             <file role="test" name="tests/swoole_event/dispatch.phpt" />
             <file role="test" name="tests/swoole_event/rshutdown.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event.phpt" />
@@ -1192,6 +1191,7 @@
             <file role="test" name="tests/swoole_http_server/chunked_pipeline_request.phpt" />
             <file role="test" name="tests/swoole_http_server/co_switching.phpt" />
             <file role="test" name="tests/swoole_http_server/compression.phpt" />
+            <file role="test" name="tests/swoole_http_server/compression_min_length.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_delete.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_samesite.phpt" />
             <file role="test" name="tests/swoole_http_server/cookie_vs_rawcookie.phpt" />
@@ -1226,6 +1226,10 @@
             <file role="test" name="tests/swoole_http_server/send_empty_file.phpt" />
             <file role="test" name="tests/swoole_http_server/send_yield.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile.phpt" />
+            <file role="test" name="tests/swoole_http_server/sendfile_no_keepalive.phpt" />
+            <file role="test" name="tests/swoole_http_server/sendfile_with_dispatch_mode_7.phpt" />
+            <file role="test" name="tests/swoole_http_server/sendfile_with_ssl.phpt" />
+            <file role="test" name="tests/swoole_http_server/set_content_length.phpt" />
             <file role="test" name="tests/swoole_http_server/sni/server.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/locations.phpt" />
@@ -1253,6 +1257,7 @@
             <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_cookie_crlf.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_http_header_crlf.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/compression_min_length.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/create_response.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/create_response_2.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/error_404.phpt" />
@@ -1488,6 +1493,7 @@
             <file role="test" name="tests/swoole_runtime/curl_native/https.phpt" />
             <file role="test" name="tests/swoole_runtime/curl_native/non_exclusive.phpt" />
             <file role="test" name="tests/swoole_runtime/curl_native/sleep.phpt" />
+            <file role="test" name="tests/swoole_runtime/curl_native/timer_coredump.phpt" />
             <file role="test" name="tests/swoole_runtime/curl_native/yield_in_callback.phpt" />
             <file role="test" name="tests/swoole_runtime/destruct.phpt" />
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
@@ -1627,6 +1633,7 @@
             <file role="test" name="tests/swoole_server/heartbeat.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat_true.phpt" />
             <file role="test" name="tests/swoole_server/heartbeat_with_base.phpt" />
+            <file role="test" name="tests/swoole_server/http_protocol.phpt" />
             <file role="test" name="tests/swoole_server/idle_worekr_num.phpt" />
             <file role="test" name="tests/swoole_server/invalid_fd.phpt" />
             <file role="test" name="tests/swoole_server/invalid_option.phpt" />
@@ -1804,6 +1811,8 @@
             <file role="test" name="tests/swoole_socket_coro/setopt/recvtimeo.phpt" />
             <file role="test" name="tests/swoole_socket_coro/setopt/reuse.phpt" />
             <file role="test" name="tests/swoole_socket_coro/shutdown.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/ssl.phpt" />
+            <file role="test" name="tests/swoole_socket_coro/ssl_bad_server.phpt" />
             <file role="test" name="tests/swoole_socket_coro/tcp-c10k.phpt" />
             <file role="test" name="tests/swoole_socket_coro/ulimit.phpt" />
             <file role="test" name="tests/swoole_socket_coro/unix_dgram.phpt" />
@@ -1957,6 +1966,7 @@
             <file role="src" name="thirdparty/nghttp2/nghttp2_rcbuf.c" />
             <file role="src" name="thirdparty/nghttp2/nghttp2_rcbuf.h" />
             <file role="src" name="thirdparty/php/curl/curl_arginfo.h" />
+            <file role="src" name="thirdparty/php/curl/curl_interface.h" />
             <file role="src" name="thirdparty/php/curl/curl_multi.h" />
             <file role="src" name="thirdparty/php/curl/curl_private.h" />
             <file role="src" name="thirdparty/php/curl/interface.cc" />
