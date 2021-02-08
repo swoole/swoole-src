@@ -112,7 +112,6 @@ if (class_exists(Co\Http2\Client::class)) {
         Assert::assert(0); // never here
     };
 }
-
 $info_list = [];
 foreach ($map as $i => $f) {
     $GLOBALS['f'] = $f;
@@ -145,7 +144,6 @@ foreach ($map as $i => $f) {
     $process->start();
     $info = $process->read(8192);
     $process::wait();
-
     if (Assert::contains($info, 'Swoole\\Error')) {
         $_info = trim($info);
         $_info = preg_replace('/(\#0.+?: )[^\n]+/', '$1%s', $_info, 1);
