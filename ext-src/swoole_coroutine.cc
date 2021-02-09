@@ -321,13 +321,11 @@ void PHPCoroutine::activate() {
                 /* update the last coroutine's info */
                 save_task(get_context());
             }
-            JMP_BUF __bailout;
-            EG(bailout) = &__bailout;
-            if (SETJMP(__bailout) == 0) {
+            zend_try {
                 orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-            } else {
+            } zend_catch {
                 exit(255);
-            }
+            } zend_end_try();
         }
         if (sw_likely(orig_error_function)) {
             orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);

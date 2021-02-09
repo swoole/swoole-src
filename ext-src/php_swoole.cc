@@ -401,13 +401,11 @@ static void fatal_error(int code, const char *format, ...) {
     zend_object *exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
 
-    JMP_BUF __bailout;
-    EG(bailout) = &__bailout;
-    if (SETJMP(__bailout) == 0) {
+    zend_try {
         zend_exception_error(exception, E_ERROR);
-    } else {
+    } zend_catch {
         exit(255);
-    }
+    } zend_end_try();
 }
 
 /* {{{ PHP_MINIT_FUNCTION
