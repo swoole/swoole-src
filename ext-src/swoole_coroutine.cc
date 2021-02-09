@@ -972,11 +972,12 @@ PHP_METHOD(swoole_coroutine, getCid) {
 
 PHP_METHOD(swoole_coroutine, getPcid) {
     zend_long cid = 0;
+    zend_bool cidnull;
     zend_long ret;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(cid)
+    Z_PARAM_LONG_EX(cid, cidnull, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     ret = PHPCoroutine::get_pcid(cid);
@@ -989,10 +990,11 @@ PHP_METHOD(swoole_coroutine, getPcid) {
 
 PHP_METHOD(swoole_coroutine, getContext) {
     zend_long cid = 0;
+    zend_bool cidnull;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(cid)
+    Z_PARAM_LONG_EX(cid, cidnull, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     PHPContext *task =
@@ -1015,11 +1017,12 @@ PHP_METHOD(swoole_coroutine, getContext) {
 
 PHP_METHOD(swoole_coroutine, getElapsed) {
     zend_long cid = 0;
+    zend_bool cidnull;
     zend_long ret;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
-    Z_PARAM_LONG(cid)
+    Z_PARAM_LONG_EX(cid, cidnull, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     ret = PHPCoroutine::get_elapsed(cid);
