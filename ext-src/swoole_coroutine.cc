@@ -325,6 +325,13 @@ void PHPCoroutine::activate() {
                 sw_reactor()->running = false;
                 sw_reactor()->bailout = true;
             }
+#ifdef SW_EXIT_WHEN_OCCURS_FATAL_ERROR
+            zend_try {
+                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+            } zend_catch {
+                exit(255);
+            } zend_end_try();
+#endif
         }
         if (sw_likely(orig_error_function)) {
             orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);

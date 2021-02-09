@@ -174,6 +174,7 @@ extern zend_class_entry *swoole_websocket_frame_ce;
 extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
+extern zend_class_entry *swoole_error_ce;;
 
 PHP_MINIT_FUNCTION(swoole);
 PHP_MSHUTDOWN_FUNCTION(swoole);
