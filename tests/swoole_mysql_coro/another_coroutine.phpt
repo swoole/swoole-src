@@ -63,4 +63,3 @@ Stack trace:
 #3 %s(%d): {closure}()
 #4 {main}
   thrown in %s on line %d
-DONE
