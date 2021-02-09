@@ -18,12 +18,12 @@
 #ifndef SWOOLE_VERSION_H_
 #define SWOOLE_VERSION_H_
 
-#define SWOOLE_MAJOR_VERSION 4
-#define SWOOLE_MINOR_VERSION 6
-#define SWOOLE_RELEASE_VERSION 4
-#define SWOOLE_EXTRA_VERSION "dev"
-#define SWOOLE_VERSION "4.6.4-dev"
-#define SWOOLE_VERSION_ID 40604
+#define SWOOLE_MAJOR_VERSION <?=$next->major."\n" ?>
+#define SWOOLE_MINOR_VERSION <?=$next->minor."\n" ?>
+#define SWOOLE_RELEASE_VERSION <?=$next->release."\n" ?>
+#define SWOOLE_EXTRA_VERSION "<?=$next->extra ?>"
+#define SWOOLE_VERSION "<?=$next->getVersion() ?>"
+#define SWOOLE_VERSION_ID <?=$next->getVersionId()."\n" ?>
 #define SWOOLE_API_VERSION_ID 0x202012a
 
 #define SWOOLE_BUG_REPORT                                                                                              \
