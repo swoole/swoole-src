@@ -397,15 +397,17 @@ SW_API bool php_swoole_is_enable_coroutine() {
 
 static void fatal_error(int code, const char *format, ...) {
     va_list args;
-    zend_object *exception;
-    if (sw_reactor()) {
-        sw_reactor()->bailout = true;
-    }
     va_start(args, format);
-    exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
+    zend_object *exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
-    zend_exception_error(exception, E_ERROR);
-    exit(255);
+
+    JMP_BUF __bailout;
+    EG(bailout) = &__bailout;
+    if (SETJMP(__bailout) == 0) {
+        zend_exception_error(exception, E_ERROR);
+    } else {
+        exit(255);
+    }
 }
 
 /* {{{ PHP_MINIT_FUNCTION

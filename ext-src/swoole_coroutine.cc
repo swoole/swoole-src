@@ -321,9 +321,12 @@ void PHPCoroutine::activate() {
                 /* update the last coroutine's info */
                 save_task(get_context());
             }
-            if (sw_reactor()) {
-                sw_reactor()->running = false;
-                sw_reactor()->bailout = true;
+            JMP_BUF __bailout;
+            EG(bailout) = &__bailout;
+            if (SETJMP(__bailout) == 0) {
+                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+            } else {
+                exit(255);
             }
         }
         if (sw_likely(orig_error_function)) {
