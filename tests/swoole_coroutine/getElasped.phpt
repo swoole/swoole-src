@@ -11,10 +11,12 @@ Co\run(function () {
     var_dump(Co::getElapsed(-1));
     co::sleep(.001);
     var_dump(Co::getElapsed() === Co::getElapsed(Co::getCid()));
+    var_dump(Co::getElapsed(null) === Co::getElapsed(Co::getCid()));
 });
 
 ?>
 --EXPECT--
 int(-1)
 int(-1)
+bool(true)
 bool(true)

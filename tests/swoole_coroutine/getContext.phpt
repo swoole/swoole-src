@@ -46,6 +46,8 @@ Assert::assert(Co::getContext() === null);
 func(function () {
     $context = Co::getContext();
     Assert::assert($context instanceof Co\Context);
+    $context2 = Co::getContext(null);
+    Assert::assert($context === $context2);
     $context['resource1'] = new Resource;
     $context->resource2 = new Resource;
     func(function () {

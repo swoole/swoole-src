@@ -11,6 +11,7 @@ go(function () {
     var_dump(Co::getPcid());
     go(function () {
         var_dump(Co::getPcid());
+        var_dump(Co::getPcid(null));
         go(function () {
             var_dump(Co::getPcid());
             go(function () {
@@ -32,6 +33,7 @@ var_dump(Co::getPcid());
 --EXPECT--
 bool(false)
 int(-1)
+int(1)
 int(1)
 int(2)
 int(3)
