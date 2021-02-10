@@ -22,7 +22,8 @@ class Version
         return $versoin;
     }
 
-    function getVersionId() {
+    function getVersionId()
+    {
         return intval(sprintf('%d%02d%02d', $this->major, $this->minor, $this->release));
     }
 }
@@ -63,10 +64,14 @@ if ($type == 'release') {
     $next->minor = 0;
     $next->release = 0;
     $next->extra = 'dev';
+} else {
+    exit("wrong version type");
 }
 
 ob_start();
-include __DIR__.'/templates/version.tpl.h';
+include __DIR__ . '/templates/version.tpl.h';
 file_put_contents($kernel_version_file, ob_get_clean());
 
-file_put_contents($cmake_file, preg_replace('#set\(SWOOLE_VERSION\s+[0-9\.\-a-z]+\)#i', 'set(SWOOLE_VERSION '.$next->getVersion().')', file_get_contents($cmake_file)));
+file_put_contents($cmake_file,
+    preg_replace('#set\(SWOOLE_VERSION\s+[0-9\.\-a-z]+\)#i', 'set(SWOOLE_VERSION ' . $next->getVersion() . ')',
+        file_get_contents($cmake_file)));

@@ -260,22 +260,9 @@ int php_swoole_reactor_init() {
 }
 
 void php_swoole_event_wait() {
-    if (PG(last_error_message)) {
-        switch (PG(last_error_type)) {
-        case E_ERROR:
-        case E_CORE_ERROR:
-        case E_USER_ERROR:
-        case E_COMPILE_ERROR:
-            return;
-        default:
-            break;
-        }
-    }
-
-    if (!sw_reactor()) {
+    if (php_swoole_is_fatal_error() || !sw_reactor()) {
         return;
     }
-
 #ifdef HAVE_SIGNALFD
     if (sw_reactor()->check_signalfd) {
         swSignalfd_setup(sw_reactor());
