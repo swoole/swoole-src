@@ -996,10 +996,10 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     /* linked */
     port->ptr = property;
 
-    zend_update_property_string(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("host"), port->host.c_str());
-    zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("port"), port->port);
-    zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("type"), port->type);
-    zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("sock"), port->socket->fd);
+    zend_update_property_string(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("host"), port->get_host());
+    zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("port"), port->get_port());
+    zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("type"), port->get_type());
+    zend_update_property_long(swoole_server_port_ce, SW_Z8_OBJ_P(zport), ZEND_STRL("sock"), port->get_fd());
 
     do {
         zval *zserv = (zval *) serv->private_data_2;
@@ -3674,7 +3674,7 @@ static PHP_METHOD(swoole_server, getSocket) {
     }
 
     ListenPort *lp = serv->get_port(port);
-    php_socket *socket_object = php_swoole_convert_to_socket(lp->socket->fd);
+    php_socket *socket_object = php_swoole_convert_to_socket(lp->get_fd());
 
     if (!socket_object) {
         RETURN_FALSE;
@@ -4023,8 +4023,7 @@ static PHP_METHOD(swoole_connection_iterator, valid) {
                 continue;
             }
 #endif
-            if (iterator->port &&
-                (iterator->port->socket_fd < 0 || conn->server_fd != iterator->port->socket_fd)) {
+            if (iterator->port && (iterator->port->get_fd() < 0 || conn->server_fd != iterator->port->get_fd())) {
                 continue;
             }
             iterator->session_id = conn->session_id;

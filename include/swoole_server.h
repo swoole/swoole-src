@@ -277,7 +277,6 @@ struct ListenPort {
     uint8_t ssl = 0;
     std::string host;
     int port = 0;
-    int socket_fd = 0;
     network::Socket *socket = nullptr;
     pthread_t thread_id = 0;
 
@@ -406,6 +405,18 @@ struct ListenPort {
     void clear_protocol();
     inline network::Socket *get_socket() {
         return socket;
+    }
+    int get_port() {
+        return port;
+    }
+    const char *get_host() {
+        return host.c_str();
+    }
+    enum swSocket_type get_type() {
+        return type;
+    }
+    int get_fd() {
+        return socket ? socket->fd : -1;
     }
 };
 
