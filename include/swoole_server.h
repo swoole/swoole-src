@@ -409,6 +409,12 @@ struct ListenPort {
     int get_port() {
         return port;
     }
+    const char *get_host() {
+        return host.c_str();
+    }
+    enum swSocket_type get_type() {
+        return type;
+    }
     int get_fd() {
         return socket ? socket->fd : -1;
     }

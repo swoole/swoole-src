@@ -148,7 +148,6 @@ int Server::start_manager_process() {
             swError("master process is not running");
             return SW_ERR;
         }
-        close_port(true);
 
         pid_t pid;
 
@@ -637,10 +636,6 @@ pid_t Server::spawn_user_worker(Worker *worker) {
         SwooleG.process_id = worker->id;
         SwooleWG.worker = worker;
         worker->pid = getpid();
-        // close tcp listen socket
-        if (is_base_mode()) {
-            close_port(true);
-        }
         onUserWorkerStart(this, worker);
         exit(0);
     }

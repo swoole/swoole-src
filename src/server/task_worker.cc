@@ -134,10 +134,6 @@ static void TaskWorker_onStart(ProcessPool *pool, int worker_id) {
     Server *serv = (Server *) pool->ptr;
     SwooleG.process_id = worker_id;
 
-    if (serv->is_base_mode()) {
-        serv->close_port(true);
-    }
-
     /**
      * Make the task worker support asynchronous
      */
