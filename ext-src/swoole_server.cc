@@ -1143,6 +1143,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         php_swoole_http_server_init_global_variant();
     } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
         serv->onReceive = php_swoole_redis_server_onReceive;
+        serv->get_primary_port()->open_redis_protocol = 1;
     } else {
         if ((port->open_http_protocol && server_object->isset_callback(port, SW_SERVER_CB_onRequest)) ||
             (port->open_websocket_protocol && server_object->isset_callback(port, SW_SERVER_CB_onMessage))) {
