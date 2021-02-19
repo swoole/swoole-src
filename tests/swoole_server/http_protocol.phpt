@@ -40,6 +40,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',
+        'open_http_protocol' => true,
     ]);
     $serv->on("Start", function ($serv) use ($pm) {
         $pm->wakeup();

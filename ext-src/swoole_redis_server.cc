@@ -24,9 +24,12 @@ BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
 END_EXTERN_C()
 
+using swoole::Server;
+using swoole::RecvData;
+using swoole::ListenPort;
 
-static zend_class_entry *swoole_redis_server_ce;
-static zend_object_handlers swoole_redis_server_handlers;
+zend_class_entry *swoole_redis_server_ce;
+zend_object_handlers swoole_redis_server_handlers;
 
 static std::unordered_map<std::string, zend_fcall_info_cache> redis_handlers;
 
@@ -38,9 +41,6 @@ static PHP_METHOD(swoole_redis_server, format);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_start, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_setHandler, 0, 0, 2)
     ZEND_ARG_INFO(0, command)
     ZEND_ARG_CALLABLE_INFO(0, callback, 0)
@@ -57,7 +57,6 @@ ZEND_END_ARG_INFO()
 
 const zend_function_entry swoole_redis_server_methods[] =
 {
-    PHP_ME(swoole_redis_server, start, arginfo_swoole_redis_server_start, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_server, setHandler, arginfo_swoole_redis_server_setHandler, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_server, getHandler, arginfo_swoole_redis_server_getHandler, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_redis_server, format, arginfo_swoole_redis_server_format, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -92,7 +91,7 @@ void php_swoole_redis_server_rshutdown() {
     redis_handlers.clear();
 }
 
-static int redis_onReceive(swServer *serv, swRecvData *req) {
+int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     int fd = req->info.fd;
     swConnection *conn = serv->get_connection_by_session_id(fd);
     if (!conn) {
@@ -100,10 +99,10 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
         return SW_ERR;
     }
 
-    swListenPort *port = serv->get_port_by_fd(conn->fd);
+    ListenPort *port = serv->get_port_by_fd(conn->fd);
     // other server port
     if (!port->open_redis_protocol) {
-        return php_swoole_onReceive(serv, req);
+        return php_swoole_server_onReceive(serv, req);
     }
 
     zval zdata;
@@ -204,44 +203,6 @@ static int redis_onReceive(swServer *serv, swRecvData *req) {
     zval_ptr_dtor(&zparams);
 
     return SW_OK;
-}
-
-static PHP_METHOD(swoole_redis_server, start) {
-    swServer *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    zval *zserv = ZEND_THIS;
-
-    if (serv->is_started()) {
-        php_swoole_error(E_WARNING, "server is running, unable to execute %s->start", SW_Z_OBJCE_NAME_VAL_P(zserv));
-        RETURN_FALSE;
-    }
-
-    php_swoole_server_register_callbacks(serv);
-
-    serv->onReceive = redis_onReceive;
-
-    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, zserv, ZEND_STRL("setting"), 0);
-
-    add_assoc_bool(zsetting, "open_http_protocol", 0);
-    add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
-    add_assoc_bool(zsetting, "open_eof_check", 0);
-    add_assoc_bool(zsetting, "open_length_check", 0);
-    add_assoc_bool(zsetting, "open_redis_protocol", 0);
-
-    auto primary_port = serv->get_primary_port();
-
-    primary_port->open_http_protocol = 0;
-    primary_port->open_mqtt_protocol = 0;
-    primary_port->open_eof_check = 0;
-    primary_port->open_length_check = 0;
-    primary_port->open_redis_protocol = 1;
-
-    php_swoole_server_before_start(serv, zserv);
-
-    if (serv->start() < 0) {
-        php_swoole_fatal_error(E_ERROR, "server failed to start. Error: %s", sw_error);
-    }
-
-    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_redis_server, setHandler) {

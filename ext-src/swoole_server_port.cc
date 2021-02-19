@@ -675,7 +675,7 @@ static PHP_METHOD(swoole_server_port, on) {
         property->caches[i] = fci_cache;
 
         if (i == SW_SERVER_CB_onConnect && !serv->onConnect) {
-            serv->onConnect = php_swoole_onConnect;
+            serv->onConnect = php_swoole_server_onConnect;
         } else if (i == SW_SERVER_CB_onPacket && !serv->onPacket) {
             serv->onPacket = php_swoole_onPacket;
         } else if (i == SW_SERVER_CB_onClose && !serv->onClose) {
@@ -685,7 +685,7 @@ static PHP_METHOD(swoole_server_port, on) {
         } else if (i == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty) {
             serv->onBufferEmpty = php_swoole_onBufferEmpty;
         } else if (i == SW_SERVER_CB_onMessage || i == SW_SERVER_CB_onRequest) {
-            serv->onReceive = php_swoole_http_onReceive;
+            serv->onReceive = php_swoole_http_server_onReceive;
         }
         break;
     }
