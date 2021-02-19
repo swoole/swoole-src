@@ -684,8 +684,6 @@ static PHP_METHOD(swoole_server_port, on) {
             serv->onBufferFull = php_swoole_onBufferFull;
         } else if (i == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty) {
             serv->onBufferEmpty = php_swoole_onBufferEmpty;
-        } else if (i == SW_SERVER_CB_onMessage || i == SW_SERVER_CB_onRequest) {
-            serv->onReceive = php_swoole_http_server_onReceive;
         }
         break;
     }

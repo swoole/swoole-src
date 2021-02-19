@@ -47,6 +47,11 @@ struct ServerObject {
     Server *serv;
     ServerProperty *property;
     zend_object std;
+
+    bool isset_callback(ListenPort *port, int event_type) {
+        php_swoole_server_port_property *port_property = (php_swoole_server_port_property *) port->ptr;
+        return (port_property->callbacks[event_type] || property->primary_port->callbacks[event_type]);
+    }
 };
 
 struct ConnectionIterator {
@@ -122,17 +127,6 @@ static size_t php_swoole_server_worker_get_buffer_len(Server *serv, DataHead *in
 static void php_swoole_server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len);
 static void php_swoole_server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
 static size_t php_swoole_server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
-
-static inline zend_bool php_swoole_server_isset_callback(ServerObject *server_object,
-                                                         ListenPort *port,
-                                                         int event_type) {
-    php_swoole_server_port_property *property = (php_swoole_server_port_property *) port->ptr;
-    if (property->callbacks[event_type] || server_object->property->primary_port->callbacks[event_type]) {
-        return true;
-    } else {
-        return false;
-    }
-}
 
 void php_swoole_server_rshutdown() {
     if (!sw_server()) {
@@ -1107,8 +1101,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         zport = server_object->property->ports.at(i);
         port = php_swoole_server_port_get_and_check_ptr(zport);
 
-        if (serv->if_require_packet_callback(
-                port, php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onPacket))) {
+        if (serv->if_require_packet_callback(port, server_object->isset_callback(port, SW_SERVER_CB_onPacket))) {
             php_swoole_fatal_error(E_ERROR, "require onPacket callback");
             return;
         }
@@ -1135,11 +1128,11 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
 
     if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
         if (instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_ce) &&
-            !php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onMessage)) {
+            !server_object->isset_callback(port, SW_SERVER_CB_onMessage)) {
             php_swoole_fatal_error(E_ERROR, "require onMessage callback");
             return;
         }
-        if (!php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onRequest)) {
+        if (!server_object->isset_callback(port, SW_SERVER_CB_onRequest)) {
             php_swoole_fatal_error(E_ERROR, "require onRequest callback");
             return;
         }
@@ -1149,21 +1142,22 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         }
         php_swoole_http_server_init_global_variant();
     } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
-        if (!php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onReceive)) {
-            php_swoole_fatal_error(E_ERROR, "require onReceive callback");
-            return;
-        }
         serv->onReceive = php_swoole_redis_server_onReceive;
     } else {
-        if (serv->have_dgram_sock && !php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onPacket)) {
-            php_swoole_fatal_error(E_ERROR, "require onPacket callback");
-            return;
+        if ((port->open_http_protocol && server_object->isset_callback(port, SW_SERVER_CB_onRequest)) ||
+            (port->open_websocket_protocol && server_object->isset_callback(port, SW_SERVER_CB_onMessage))) {
+            serv->onReceive = php_swoole_http_server_onReceive;
+            php_swoole_error(
+                E_WARNING,
+                "use %s class and open http related protocols may lead to some errors (inconsistent class type)",
+                SW_Z_OBJCE_NAME_VAL_P(zobject));
+        } else {
+            if (serv->if_require_receive_callback(port, server_object->isset_callback(port, SW_SERVER_CB_onReceive))) {
+                php_swoole_fatal_error(E_ERROR, "require onReceive callback");
+                return;
+            }
+            serv->onReceive = php_swoole_server_onReceive;
         }
-        if (serv->have_stream_sock && !php_swoole_server_isset_callback(server_object, port, SW_SERVER_CB_onReceive)) {
-            php_swoole_fatal_error(E_ERROR, "require onReceive callback");
-            return;
-        }
-        serv->onReceive = php_swoole_server_onReceive;
     }
 }
 
