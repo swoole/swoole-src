@@ -20,12 +20,12 @@
 typedef volatile int32_t sw_atomic_int32_t;
 typedef volatile uint32_t sw_atomic_uint32_t;
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__aarch64__)
 typedef volatile int64_t sw_atomic_int64_t;
 typedef volatile uint64_t sw_atomic_uint64_t;
 #endif
 
-#ifdef __x86_64__
+#if defined(__x86_64__) || defined(__aarch64__)
 typedef sw_atomic_int64_t sw_atomic_long_t;
 typedef sw_atomic_uint64_t sw_atomic_ulong_t;
 #else
@@ -46,6 +46,8 @@ typedef sw_atomic_uint32_t sw_atomic_t;
 #define sw_atomic_cpu_pause() __asm__ __volatile__("NOP");
 #elif defined(__x86_64__)
 #define sw_atomic_cpu_pause() __asm__ __volatile__("pause")
+#elif defined(__aarch64__)
+#define sw_atomic_cpu_pause() __asm__ __volatile__("yield")
 #else
 #define sw_atomic_cpu_pause()
 #endif
