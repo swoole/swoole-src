@@ -717,7 +717,7 @@ int Server::create() {
     // Max Connections
     uint32_t minimum_connection = (worker_num + task_worker_num) * 2 + 32;
     if (ports.size() > 0) {
-        minimum_connection += ports.back()->socket_fd;
+        minimum_connection += ports.back()->get_fd();
     }
     if (max_connection < minimum_connection) {
         max_connection = SwooleG.max_sockets;
@@ -1536,7 +1536,6 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
     ls->socket->info.assign(ls->type, ls->host, ls->port);
     check_port_type(ls);
     ptr.release();
-    ls->socket_fd = ls->socket->fd;
     ports.push_back(ls);
     return ls;
 }

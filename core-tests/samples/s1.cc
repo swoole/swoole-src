@@ -1,10 +1,10 @@
 #include "swoole.h"
 #include "swoole_api.h"
-#include "client.h"
+#include "swoole_client.h"
 #include "swoole_server.h"
-#include "coroutine.h"
-#include "coroutine_socket.h"
-#include "coroutine_system.h"
+#include "swoole_coroutine.h"
+#include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 
 #include <iostream>
 

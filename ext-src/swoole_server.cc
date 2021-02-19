@@ -4023,8 +4023,7 @@ static PHP_METHOD(swoole_connection_iterator, valid) {
                 continue;
             }
 #endif
-            if (iterator->port &&
-                (iterator->port->socket_fd < 0 || conn->server_fd != iterator->port->socket_fd)) {
+            if (iterator->port && (iterator->port->get_fd() < 0 || conn->server_fd != iterator->port->get_fd())) {
                 continue;
             }
             iterator->session_id = conn->session_id;
