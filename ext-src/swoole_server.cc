@@ -195,6 +195,11 @@ Server *php_swoole_server_get_and_check_server(zval *zobject) {
     return serv;
 }
 
+bool php_swoole_server_isset_callback(Server *serv, ListenPort *port, int event_type) {
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
+    return server_object->isset_callback(port, event_type);
+}
+
 static sw_inline void server_set_ptr(zval *zobject, Server *serv) {
     server_fetch_object(Z_OBJ_P(zobject))->serv = serv;
 }
@@ -1042,7 +1047,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
 
     if (serv->send_yield) {
         if (serv->onClose == nullptr && serv->is_support_unsafe_events()) {
-            serv->onClose = php_swoole_onClose;
+            serv->onClose = php_swoole_server_onClose;
         }
     }
 
@@ -1080,26 +1085,27 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection"))) {
         add_assoc_long(zsetting, "max_connection", serv->get_max_connection());
     }
+    if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
+        add_assoc_bool(zsetting, "open_redis_protocol", true);
+    }
 
     uint32_t i;
-    zval *zport;
-    zval *zport_setting;
-    ListenPort *port;
+    bool find_http_port = false;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zobject));
 
     for (i = 1; i < server_object->property->ports.size(); i++) {
-        zport = server_object->property->ports.at(i);
-        zport_setting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
+        zval *zport = server_object->property->ports.at(i);
+        zval *zsetting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
-        if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting)) {
+        if (zsetting == nullptr || ZVAL_IS_NULL(zsetting)) {
             Z_TRY_ADDREF_P(zport);
             sw_zend_call_method_with_1_params(zport, swoole_server_port_ce, nullptr, "set", nullptr, zsetting);
         }
     }
 
     for (i = 0; i < server_object->property->ports.size(); i++) {
-        zport = server_object->property->ports.at(i);
-        port = php_swoole_server_port_get_and_check_ptr(zport);
+        zval *zport = server_object->property->ports.at(i);
+        ListenPort *port = php_swoole_server_port_get_and_check_ptr(zport);
 
         if (serv->if_require_packet_callback(port, server_object->isset_callback(port, SW_SERVER_CB_onPacket))) {
             php_swoole_fatal_error(E_ERROR, "require onPacket callback");
@@ -1124,41 +1130,44 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         if (!port->open_http_protocol) {
             port->open_http_protocol = port->open_websocket_protocol || port->open_http2_protocol;
         }
+        if (port->open_http_protocol) {
+            find_http_port = true;
+            if (port->open_websocket_protocol) {
+                if (!server_object->isset_callback(port, SW_SERVER_CB_onMessage)) {
+                    php_swoole_fatal_error(E_ERROR, "require onMessage callback");
+                    return;
+                }
+            } else if (port->open_http_protocol && !server_object->isset_callback(port, SW_SERVER_CB_onRequest)) {
+                php_swoole_fatal_error(E_ERROR, "require onRequest callback");
+                return;
+            }
+        } else if (!port->open_redis_protocol) {
+            // redis server does not require to set receive callback
+            if (port->is_stream() && !server_object->isset_callback(port, SW_SERVER_CB_onReceive)) {
+                php_swoole_fatal_error(E_ERROR, "require onReceive callback");
+                return;
+            }
+        }
     }
 
-    if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
-        if (instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_ce) &&
-            !server_object->isset_callback(port, SW_SERVER_CB_onMessage)) {
-            php_swoole_fatal_error(E_ERROR, "require onMessage callback");
-            return;
-        }
-        if (!server_object->isset_callback(port, SW_SERVER_CB_onRequest)) {
-            php_swoole_fatal_error(E_ERROR, "require onRequest callback");
-            return;
-        }
+    if (find_http_port) {
         serv->onReceive = php_swoole_http_server_onReceive;
         if (serv->is_support_unsafe_events()) {
-            serv->onClose = php_swoole_http_onClose;
+            serv->onClose = php_swoole_http_server_onClose;
         }
-        php_swoole_http_server_init_global_variant();
-    } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
-        serv->onReceive = php_swoole_redis_server_onReceive;
-        serv->get_primary_port()->open_redis_protocol = 1;
-    } else {
-        if ((port->open_http_protocol && server_object->isset_callback(port, SW_SERVER_CB_onRequest)) ||
-            (port->open_websocket_protocol && server_object->isset_callback(port, SW_SERVER_CB_onMessage))) {
-            serv->onReceive = php_swoole_http_server_onReceive;
+        if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
             php_swoole_error(
                 E_WARNING,
                 "use %s class and open http related protocols may lead to some errors (inconsistent class type)",
                 SW_Z_OBJCE_NAME_VAL_P(zobject));
-        } else {
-            if (serv->if_require_receive_callback(port, server_object->isset_callback(port, SW_SERVER_CB_onReceive))) {
-                php_swoole_fatal_error(E_ERROR, "require onReceive callback");
-                return;
-            }
-            serv->onReceive = php_swoole_server_onReceive;
         }
+        php_swoole_http_server_init_global_variant();
+    }
+
+    if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
+        serv->onReceive = php_swoole_redis_server_onReceive;
+        serv->get_primary_port()->clear_protocol();
+        serv->get_primary_port()->open_redis_protocol = 1;
     }
 }
 
@@ -1208,7 +1217,7 @@ void php_swoole_server_register_callbacks(Server *serv) {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
     if (serv->send_yield && serv->is_support_unsafe_events()) {
-        serv->onBufferEmpty = php_swoole_onBufferEmpty;
+        serv->onBufferEmpty = php_swoole_server_onBufferEmpty;
     }
 }
 
@@ -1337,7 +1346,7 @@ int php_swoole_server_onReceive(Server *serv, RecvData *req) {
     return SW_OK;
 }
 
-int php_swoole_onPacket(Server *serv, RecvData *req) {
+int php_swoole_server_onPacket(Server *serv, RecvData *req) {
     zval *zserv = (zval *) serv->private_data_2;
     zval args[3];
     int argc;
@@ -1842,7 +1851,7 @@ void php_swoole_server_onConnect(Server *serv, DataHead *info) {
     }
 }
 
-void php_swoole_onClose(Server *serv, DataHead *info) {
+void php_swoole_server_onClose(Server *serv, DataHead *info) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
 
@@ -1896,7 +1905,7 @@ void php_swoole_onClose(Server *serv, DataHead *info) {
     }
 }
 
-void php_swoole_onBufferFull(Server *serv, DataHead *info) {
+void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
     zval *zserv = (zval *) serv->private_data_2;
     zend_fcall_info_cache *fci_cache =
         php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferFull);
@@ -2044,7 +2053,7 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
     return worker_id;
 }
 
-void php_swoole_onBufferEmpty(Server *serv, DataHead *info) {
+void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     zend_fcall_info_cache *fci_cache;

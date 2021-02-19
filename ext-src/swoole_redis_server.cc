@@ -27,6 +27,7 @@ END_EXTERN_C()
 using swoole::Server;
 using swoole::RecvData;
 using swoole::ListenPort;
+using swoole::Connection;
 
 zend_class_entry *swoole_redis_server_ce;
 zend_object_handlers swoole_redis_server_handlers;
@@ -93,7 +94,7 @@ void php_swoole_redis_server_rshutdown() {
 
 int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     int fd = req->info.fd;
-    swConnection *conn = serv->get_connection_by_session_id(fd);
+    Connection *conn = serv->get_connection_by_session_id(fd);
     if (!conn) {
         swWarn("connection[%d] is closed", fd);
         return SW_ERR;

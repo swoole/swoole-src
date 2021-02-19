@@ -50,7 +50,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
     // other server port
-    if (!port->open_http_protocol) {
+    if (!port->open_http_protocol || !php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onRequest)) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
@@ -142,12 +142,12 @@ _dtor_and_return:
     return SW_OK;
 }
 
-void php_swoole_http_onClose(Server *serv, DataHead *ev) {
+void php_swoole_http_server_onClose(Server *serv, DataHead *ev) {
     Connection *conn = serv->get_connection_by_session_id(ev->fd);
     if (!conn) {
         return;
     }
-    php_swoole_onClose(serv, ev);
+    php_swoole_server_onClose(serv, ev);
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
         swoole_http2_server_session_free(conn);

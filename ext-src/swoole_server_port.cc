@@ -677,13 +677,13 @@ static PHP_METHOD(swoole_server_port, on) {
         if (i == SW_SERVER_CB_onConnect && !serv->onConnect) {
             serv->onConnect = php_swoole_server_onConnect;
         } else if (i == SW_SERVER_CB_onPacket && !serv->onPacket) {
-            serv->onPacket = php_swoole_onPacket;
+            serv->onPacket = php_swoole_server_onPacket;
         } else if (i == SW_SERVER_CB_onClose && !serv->onClose) {
-            serv->onClose = php_swoole_onClose;
+            serv->onClose = php_swoole_server_onClose;
         } else if (i == SW_SERVER_CB_onBufferFull && !serv->onBufferFull) {
-            serv->onBufferFull = php_swoole_onBufferFull;
+            serv->onBufferFull = php_swoole_server_onBufferFull;
         } else if (i == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty) {
-            serv->onBufferEmpty = php_swoole_onBufferEmpty;
+            serv->onBufferEmpty = php_swoole_server_onBufferEmpty;
         }
         break;
     }
