@@ -23,7 +23,7 @@ jobs:
     - uses: actions/checkout@v1
 
     - name: install dependencies
-      run: sudo apt update -y && sudo apt install -y googletest libgtest-dev redis-server libboost-stacktrace-dev 
+      run: sudo apt update -y && sudo apt install -y googletest libgtest-dev redis-server libboost-stacktrace-dev libbrotli-dev
 
     - name: configure
       run: phpize && ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl
