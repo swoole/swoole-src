@@ -28,7 +28,7 @@ jobs:
            sudo mkdir build &&
            cd build &&
            sudo cmake .. &&
-           sudo make -j$(sysctl -n hw.ncpu) &&
+           sudo make -j &&
            sudo make install &&
            cd - &&
            sudo rm -rf /usr/src/googletest/googletest/build
