@@ -1108,7 +1108,8 @@ void ServerObject::on_before_start() {
 
     for (size_t i = 1; i < property->ports.size(); i++) {
         zval *zport = property->ports.at(i);
-        zval *zport_setting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
+        zval *zport_setting =
+            sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
         if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting)) {
             Z_TRY_ADDREF_P(zport);
@@ -1155,6 +1156,12 @@ void ServerObject::on_before_start() {
                 php_swoole_fatal_error(E_ERROR, "require onRequest callback");
                 return;
             }
+            if (!is_http_server() && isset_callback(port, SW_SERVER_CB_onRequest)) {
+                php_swoole_error(
+                    E_WARNING,
+                    "use %s class and open http related protocols may lead to some errors (inconsistent class type)",
+                    SW_Z_OBJCE_NAME_VAL_P(zobject));
+            }
         } else if (!port->open_redis_protocol) {
             // redis server does not require to set receive callback
             if (port->is_stream() && !isset_callback(port, SW_SERVER_CB_onReceive)) {
@@ -1168,12 +1175,6 @@ void ServerObject::on_before_start() {
         serv->onReceive = php_swoole_http_server_onReceive;
         if (serv->is_support_unsafe_events()) {
             serv->onClose = php_swoole_http_server_onClose;
-        }
-        if (!is_http_server()) {
-            php_swoole_error(
-                E_WARNING,
-                "use %s class and open http related protocols may lead to some errors (inconsistent class type)",
-                SW_Z_OBJCE_NAME_VAL_P(zobject));
         }
         php_swoole_http_server_init_global_variant();
     }
