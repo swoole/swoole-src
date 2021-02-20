@@ -1035,9 +1035,9 @@ void ServerObject::on_before_start() {
     /**
      * Master Process ID
      */
-    zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
+    zend_update_property_long(get_ce(), SW_Z8_OBJ_P(zobject), ZEND_STRL("master_pid"), getpid());
 
-    zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, zobject, ZEND_STRL("setting"), 0);
+    zval *zsetting = sw_zend_read_and_convert_property_array(get_ce(), zobject, ZEND_STRL("setting"), 0);
 
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("worker_num"))) {
         add_assoc_long(zsetting, "worker_num", serv->worker_num);
@@ -1063,9 +1063,11 @@ void ServerObject::on_before_start() {
         primary_port->open_redis_protocol = 1;
         serv->onReceive = php_swoole_redis_server_onReceive;
     } else if (is_http_server()) {
-        if (is_websocket_server() && !isset_callback(primary_port, SW_SERVER_CB_onMessage)) {
-            php_swoole_fatal_error(E_ERROR, "require onMessage callback");
-            return;
+        if (is_websocket_server()) {
+            if (!isset_callback(primary_port, SW_SERVER_CB_onMessage)) {
+                php_swoole_fatal_error(E_ERROR, "require onMessage callback");
+                return;
+            }
         } else if (!isset_callback(primary_port, SW_SERVER_CB_onRequest)) {
             php_swoole_fatal_error(E_ERROR, "require onRequest callback");
             return;
@@ -1106,9 +1108,9 @@ void ServerObject::on_before_start() {
 
     for (size_t i = 1; i < property->ports.size(); i++) {
         zval *zport = property->ports.at(i);
-        zval *zsetting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
+        zval *zport_setting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
-        if (zsetting == nullptr || ZVAL_IS_NULL(zsetting)) {
+        if (zport_setting == nullptr || ZVAL_IS_NULL(zport_setting)) {
             Z_TRY_ADDREF_P(zport);
             sw_zend_call_method_with_1_params(zport, swoole_server_port_ce, nullptr, "set", nullptr, zsetting);
         }
@@ -1167,7 +1169,7 @@ void ServerObject::on_before_start() {
         if (serv->is_support_unsafe_events()) {
             serv->onClose = php_swoole_http_server_onClose;
         }
-        if (!instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
+        if (!is_http_server()) {
             php_swoole_error(
                 E_WARNING,
                 "use %s class and open http related protocols may lead to some errors (inconsistent class type)",
