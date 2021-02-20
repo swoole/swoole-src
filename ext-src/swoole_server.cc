@@ -986,7 +986,7 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     return zport;
 }
 
-void php_swoole_server_before_start(Server *serv, zval *zobject) {
+void ServerObject::on_before_start() {
     /**
      * create swoole server
      */
@@ -995,7 +995,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         return;
     }
 
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zobject));
+    zval *zobject = get_object();
     auto primary_port = serv->get_primary_port();
 
 #ifdef SW_LOG_TRACE_OPEN
@@ -1053,8 +1053,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     }
 
     bool find_http_port = false;
-    if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
-        serv->onReceive = php_swoole_redis_server_onReceive;
+    if (is_redis_server()) {
         add_assoc_bool(zsetting, "open_redis_protocol", 1);
         add_assoc_bool(zsetting, "open_http_protocol", 0);
         add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
@@ -1062,52 +1061,51 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         add_assoc_bool(zsetting, "open_length_check", 0);
         primary_port->clear_protocol();
         primary_port->open_redis_protocol = 1;
-    } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_ce)) {
-        if (!server_object->isset_callback(primary_port, SW_SERVER_CB_onMessage)) {
+        serv->onReceive = php_swoole_redis_server_onReceive;
+    } else if (is_http_server()) {
+        if (is_websocket_server() && !isset_callback(primary_port, SW_SERVER_CB_onMessage)) {
             php_swoole_fatal_error(E_ERROR, "require onMessage callback");
             return;
-        }
-        serv->onReceive = php_swoole_http_server_onReceive;
-        add_assoc_bool(zsetting, "open_redis_protocol", 0);
-        add_assoc_bool(zsetting, "open_http_protocol", 1);
-        add_assoc_bool(zsetting, "open_websocket_protocol", 1);
-        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
-        add_assoc_bool(zsetting, "open_eof_check", 0);
-        add_assoc_bool(zsetting, "open_length_check", 0);
-        primary_port->clear_protocol();
-        primary_port->open_http_protocol = 1;
-        primary_port->open_websocket_protocol = 1;
-        find_http_port = true;
-    } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
-        if (!server_object->isset_callback(primary_port, SW_SERVER_CB_onRequest)) {
+        } else if (!isset_callback(primary_port, SW_SERVER_CB_onRequest)) {
             php_swoole_fatal_error(E_ERROR, "require onRequest callback");
             return;
         }
-        serv->onReceive = php_swoole_http_server_onReceive;
-        add_assoc_bool(zsetting, "open_redis_protocol", 0);
+
         add_assoc_bool(zsetting, "open_http_protocol", 1);
         add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
         add_assoc_bool(zsetting, "open_eof_check", 0);
         add_assoc_bool(zsetting, "open_length_check", 0);
+
+        enum protocol_flags { SW_HTTP2_PROTOCOL = 1u << 1, SW_WEBSOCKET_PROTOCOL = 1u << 2 };
+        uint8_t protocol_flag = 0;
+        if (primary_port->open_http2_protocol) {
+            add_assoc_bool(zsetting, "open_http2_protocol", 1);
+            protocol_flag |= SW_HTTP2_PROTOCOL;
+        }
+        if (primary_port->open_websocket_protocol || is_websocket_server()) {
+            add_assoc_bool(zsetting, "open_websocket_protocol", 1);
+            protocol_flag |= SW_WEBSOCKET_PROTOCOL;
+        }
         primary_port->clear_protocol();
         primary_port->open_http_protocol = 1;
+        primary_port->open_http2_protocol = !!(protocol_flag & SW_HTTP2_PROTOCOL);
+        primary_port->open_websocket_protocol = !!(protocol_flag & SW_WEBSOCKET_PROTOCOL);
         find_http_port = true;
+        serv->onReceive = php_swoole_http_server_onReceive;
     } else {
-        if (serv->if_require_packet_callback(primary_port,
-                                             server_object->isset_callback(primary_port, SW_SERVER_CB_onPacket))) {
+        if (serv->if_require_packet_callback(primary_port, isset_callback(primary_port, SW_SERVER_CB_onPacket))) {
             php_swoole_fatal_error(E_ERROR, "require onPacket callback");
             return;
         }
-        if (serv->if_require_receive_callback(primary_port,
-                                              server_object->isset_callback(primary_port, SW_SERVER_CB_onReceive))) {
+        if (serv->if_require_receive_callback(primary_port, isset_callback(primary_port, SW_SERVER_CB_onReceive))) {
             php_swoole_fatal_error(E_ERROR, "require onReceive callback");
             return;
         }
         serv->onReceive = php_swoole_server_onReceive;
     }
 
-    for (size_t i = 1; i < server_object->property->ports.size(); i++) {
-        zval *zport = server_object->property->ports.at(i);
+    for (size_t i = 1; i < property->ports.size(); i++) {
+        zval *zport = property->ports.at(i);
         zval *zsetting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
         if (zsetting == nullptr || ZVAL_IS_NULL(zsetting)) {
@@ -1116,11 +1114,11 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         }
     }
 
-    for (size_t i = 0; i < server_object->property->ports.size(); i++) {
-        zval *zport = server_object->property->ports.at(i);
+    for (size_t i = 0; i < property->ports.size(); i++) {
+        zval *zport = property->ports.at(i);
         ListenPort *port = php_swoole_server_port_get_and_check_ptr(zport);
 
-        if (serv->if_require_packet_callback(port, server_object->isset_callback(port, SW_SERVER_CB_onPacket))) {
+        if (serv->if_require_packet_callback(port, isset_callback(port, SW_SERVER_CB_onPacket))) {
             php_swoole_fatal_error(E_ERROR, "require onPacket callback");
             return;
         }
@@ -1146,19 +1144,18 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         if (port->open_http_protocol) {
             find_http_port = true;
             if (port->open_websocket_protocol) {
-                if (!server_object->isset_callback(port, SW_SERVER_CB_onMessage) &&
-                    !server_object->isset_callback(port, SW_SERVER_CB_onReceive)) {
+                if (!isset_callback(port, SW_SERVER_CB_onMessage) && !isset_callback(port, SW_SERVER_CB_onReceive)) {
                     php_swoole_fatal_error(E_ERROR, "require onMessage callback");
                     return;
                 }
-            } else if (port->open_http_protocol && !server_object->isset_callback(port, SW_SERVER_CB_onRequest) &&
-                       !server_object->isset_callback(port, SW_SERVER_CB_onReceive)) {
+            } else if (port->open_http_protocol && !isset_callback(port, SW_SERVER_CB_onRequest) &&
+                       !isset_callback(port, SW_SERVER_CB_onReceive)) {
                 php_swoole_fatal_error(E_ERROR, "require onRequest callback");
                 return;
             }
         } else if (!port->open_redis_protocol) {
             // redis server does not require to set receive callback
-            if (port->is_stream() && !server_object->isset_callback(port, SW_SERVER_CB_onReceive)) {
+            if (port->is_stream() && !isset_callback(port, SW_SERVER_CB_onReceive)) {
                 php_swoole_fatal_error(E_ERROR, "require onReceive callback");
                 return;
             }
@@ -1180,12 +1177,11 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     }
 }
 
-void php_swoole_server_register_callbacks(Server *serv) {
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
+void ServerObject::register_callback() {
     /*
      * optional callback
      */
-    if (server_object->property->callbacks[SW_SERVER_CB_onStart] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onStart] != nullptr) {
         serv->onStart = php_swoole_onStart;
     }
     serv->onShutdown = php_swoole_onShutdown;
@@ -1194,35 +1190,35 @@ void php_swoole_server_register_callbacks(Server *serv) {
      */
     serv->onWorkerStart = php_swoole_server_onWorkerStart;
 
-    if (server_object->property->callbacks[SW_SERVER_CB_onBeforeReload] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onBeforeReload] != nullptr) {
         serv->onBeforeReload = php_swoole_server_onBeforeReload;
     }
 
-    if (server_object->property->callbacks[SW_SERVER_CB_onAfterReload] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onAfterReload] != nullptr) {
         serv->onAfterReload = php_swoole_server_onAfterReload;
     }
 
-    if (server_object->property->callbacks[SW_SERVER_CB_onWorkerStop] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onWorkerStop] != nullptr) {
         serv->onWorkerStop = php_swoole_server_onWorkerStop;
     }
     serv->onWorkerExit = php_swoole_server_onWorkerExit;
     /**
      * Task Worker
      */
-    if (server_object->property->callbacks[SW_SERVER_CB_onTask] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onTask] != nullptr) {
         serv->onTask = php_swoole_server_onTask;
         serv->onFinish = php_swoole_server_onFinish;
     }
-    if (server_object->property->callbacks[SW_SERVER_CB_onWorkerError] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onWorkerError] != nullptr) {
         serv->onWorkerError = php_swoole_server_onWorkerError;
     }
-    if (server_object->property->callbacks[SW_SERVER_CB_onManagerStart] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onManagerStart] != nullptr) {
         serv->onManagerStart = php_swoole_server_onManagerStart;
     }
-    if (server_object->property->callbacks[SW_SERVER_CB_onManagerStop] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onManagerStop] != nullptr) {
         serv->onManagerStop = php_swoole_server_onManagerStop;
     }
-    if (server_object->property->callbacks[SW_SERVER_CB_onPipeMessage] != nullptr) {
+    if (property->callbacks[SW_SERVER_CB_onPipeMessage] != nullptr) {
         serv->onPipeMessage = php_swoole_onPipeMessage;
     }
     if (serv->send_yield && serv->is_support_unsafe_events()) {
@@ -2812,14 +2808,6 @@ static PHP_METHOD(swoole_server, addProcess) {
     RETURN_LONG(id);
 }
 
-static inline zend_bool is_websocket_server(zval *zobject) {
-    return instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_ce);
-}
-
-static inline zend_bool is_http_server(zval *zobject) {
-    return instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce);
-}
-
 static PHP_METHOD(swoole_server, start) {
     zval *zserv = ZEND_THIS;
     Server *serv = php_swoole_server_get_and_check_server(zserv);
@@ -2841,35 +2829,9 @@ static PHP_METHOD(swoole_server, start) {
         RETURN_FALSE;
     }
 
-    php_swoole_server_register_callbacks(serv);
-
-    serv->onReceive = php_swoole_server_onReceive;
-
-    if (is_websocket_server(zserv) || is_http_server(zserv)) {
-        zval *zsetting = sw_zend_read_and_convert_property_array(swoole_server_ce, ZEND_THIS, ZEND_STRL("setting"), 0);
-        add_assoc_bool(zsetting, "open_http_protocol", 1);
-        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
-        add_assoc_bool(zsetting, "open_eof_check", 0);
-        add_assoc_bool(zsetting, "open_length_check", 0);
-
-        enum protocol_flags { SW_HTTP2_PROTOCOL = 1u << 1, SW_WEBSOCKET_PROTOCOL = 1u << 2 };
-        uint8_t protocol_flag = 0;
-        auto primary_port = serv->get_primary_port();
-        if (primary_port->open_http2_protocol) {
-            add_assoc_bool(zsetting, "open_http2_protocol", 1);
-            protocol_flag |= SW_HTTP2_PROTOCOL;
-        }
-        if (primary_port->open_websocket_protocol || is_websocket_server(zserv)) {
-            add_assoc_bool(zsetting, "open_websocket_protocol", 1);
-            protocol_flag |= SW_WEBSOCKET_PROTOCOL;
-        }
-        primary_port->clear_protocol();
-        primary_port->open_http_protocol = 1;
-        primary_port->open_http2_protocol = !!(protocol_flag & SW_HTTP2_PROTOCOL);
-        primary_port->open_websocket_protocol = !!(protocol_flag & SW_WEBSOCKET_PROTOCOL);
-    }
-
-    php_swoole_server_before_start(serv, zserv);
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
+    server_object->register_callback();
+    server_object->on_before_start();
 
     if (serv->start() < 0) {
         php_swoole_fatal_error(E_ERROR, "failed to start server. Error: %s", sw_error);

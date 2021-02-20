@@ -85,10 +85,33 @@ struct ServerObject {
     ServerProperty *property;
     zend_object std;
 
+    zend_class_entry *get_ce() {
+        return Z_OBJCE_P(get_object());
+    }
+
+    zval *get_object() {
+        return (zval *) serv->private_data_2;
+    }
+
     bool isset_callback(ListenPort *port, int event_type) {
         ServerPortProperty *port_property = (ServerPortProperty *) port->ptr;
         return (port_property->callbacks[event_type] || property->primary_port->callbacks[event_type]);
     }
+
+    zend_bool is_websocket_server() {
+        return instanceof_function(get_ce(), swoole_websocket_server_ce);
+    }
+
+    zend_bool is_http_server() {
+        return instanceof_function(get_ce(), swoole_http_server_ce);
+    }
+
+    zend_bool is_redis_server() {
+        return instanceof_function(get_ce(), swoole_redis_server_ce);
+    }
+
+    void register_callback();
+    void on_before_start();
 };
 
 struct TaskCo {
