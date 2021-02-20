@@ -25,34 +25,7 @@
 #include <zlib.h>
 #endif
 
-#include <unordered_map>
-#include <list>
-#include <vector>
-
 using namespace swoole;
-
-struct TaskCo;
-
-struct ServerProperty {
-    std::vector<zval *> ports;
-    std::vector<zval *> user_processes;
-    php_swoole_server_port_property *primary_port;
-    zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
-    std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
-    std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
-    std::unordered_map<SessionId, std::list<FutureTask *> *> send_coroutine_map;
-};
-
-struct ServerObject {
-    Server *serv;
-    ServerProperty *property;
-    zend_object std;
-
-    bool isset_callback(ListenPort *port, int event_type) {
-        php_swoole_server_port_property *port_property = (php_swoole_server_port_property *) port->ptr;
-        return (port_property->callbacks[event_type] || property->primary_port->callbacks[event_type]);
-    }
-};
 
 struct ConnectionIterator {
     int current_fd;
@@ -60,15 +33,6 @@ struct ConnectionIterator {
     Server *serv;
     ListenPort *port;
     int index;
-};
-
-struct TaskCo {
-    FutureTask context;
-    int *list;
-    uint32_t count;
-    zval *result;
-    TimerNode *timer;
-    ServerObject *server_object;
 };
 
 struct ServerEvent {
@@ -775,14 +739,14 @@ void php_swoole_server_minit(int module_number) {
 
 zend_fcall_info_cache *php_swoole_server_get_fci_cache(Server *serv, int server_fd, int event_type) {
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
-    php_swoole_server_port_property *property;
+    ServerPortProperty *property;
     zend_fcall_info_cache *fci_cache;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
 
     if (sw_unlikely(!port)) {
         return nullptr;
     }
-    if ((property = (php_swoole_server_port_property *) port->ptr) && (fci_cache = property->caches[event_type])) {
+    if ((property = (ServerPortProperty *) port->ptr) && (fci_cache = property->caches[event_type])) {
         return fci_cache;
     } else {
         return server_object->property->primary_port->caches[event_type];
@@ -973,7 +937,7 @@ static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode) {
 
 extern ListenPort *php_swoole_server_port_get_and_check_ptr(zval *zobject);
 extern void php_swoole_server_port_set_ptr(zval *zobject, ListenPort *port);
-extern php_swoole_server_port_property *php_swoole_server_port_get_property(zval *zobject);
+extern ServerPortProperty *php_swoole_server_port_get_property(zval *zobject);
 
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port) {
     /* port */
@@ -988,7 +952,7 @@ static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort 
     php_swoole_server_port_set_ptr(zport, port);
 
     /* port property */
-    php_swoole_server_port_property *property = php_swoole_server_port_get_property(zport);
+    ServerPortProperty *property = php_swoole_server_port_get_property(zport);
     property->serv = serv;
     property->port = port;
 
@@ -1085,13 +1049,63 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection"))) {
         add_assoc_long(zsetting, "max_connection", serv->get_max_connection());
     }
+
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zobject));
+    auto primary_port = serv->get_primary_port();
+
     if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
-        add_assoc_bool(zsetting, "open_redis_protocol", true);
+        serv->onReceive = php_swoole_redis_server_onReceive;
+        add_assoc_bool(zsetting, "open_redis_protocol", 1);
+        add_assoc_bool(zsetting, "open_http_protocol", 0);
+        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
+        add_assoc_bool(zsetting, "open_eof_check", 0);
+        add_assoc_bool(zsetting, "open_length_check", 0);
+        primary_port->clear_protocol();
+        primary_port->open_redis_protocol = 1;
+    } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
+        if (!server_object->isset_callback(primary_port, SW_SERVER_CB_onRequest)) {
+            php_swoole_fatal_error(E_ERROR, "require onRequest callback");
+            return;
+        }
+        serv->onReceive = php_swoole_http_server_onReceive;
+        add_assoc_bool(zsetting, "open_redis_protocol", 0);
+        add_assoc_bool(zsetting, "open_http_protocol", 1);
+        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
+        add_assoc_bool(zsetting, "open_eof_check", 0);
+        add_assoc_bool(zsetting, "open_length_check", 0);
+        primary_port->clear_protocol();
+        primary_port->open_http_protocol = 1;
+    } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_ce)) {
+        if (!server_object->isset_callback(primary_port, SW_SERVER_CB_onMessage)) {
+            php_swoole_fatal_error(E_ERROR, "require onMessage callback");
+            return;
+        }
+        serv->onReceive = php_swoole_http_server_onReceive;
+        add_assoc_bool(zsetting, "open_redis_protocol", 0);
+        add_assoc_bool(zsetting, "open_http_protocol", 1);
+        add_assoc_bool(zsetting, "open_websocket_protocol", 1);
+        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
+        add_assoc_bool(zsetting, "open_eof_check", 0);
+        add_assoc_bool(zsetting, "open_length_check", 0);
+        primary_port->clear_protocol();
+        primary_port->open_http_protocol = 1;
+        primary_port->open_websocket_protocol = 1;
+    } else {
+        if (serv->if_require_packet_callback(primary_port,
+                                             server_object->isset_callback(primary_port, SW_SERVER_CB_onPacket))) {
+            php_swoole_fatal_error(E_ERROR, "require onPacket callback");
+            return;
+        }
+        if (serv->if_require_receive_callback(primary_port,
+                                              server_object->isset_callback(primary_port, SW_SERVER_CB_onReceive))) {
+            php_swoole_fatal_error(E_ERROR, "require onReceive callback");
+            return;
+        }
+        serv->onReceive = php_swoole_server_onReceive;
     }
 
     uint32_t i;
     bool find_http_port = false;
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zobject));
 
     for (i = 1; i < server_object->property->ports.size(); i++) {
         zval *zport = server_object->property->ports.at(i);
@@ -1133,11 +1147,13 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         if (port->open_http_protocol) {
             find_http_port = true;
             if (port->open_websocket_protocol) {
-                if (!server_object->isset_callback(port, SW_SERVER_CB_onMessage)) {
+                if (!server_object->isset_callback(port, SW_SERVER_CB_onMessage) &&
+                    !server_object->isset_callback(port, SW_SERVER_CB_onReceive)) {
                     php_swoole_fatal_error(E_ERROR, "require onMessage callback");
                     return;
                 }
-            } else if (port->open_http_protocol && !server_object->isset_callback(port, SW_SERVER_CB_onRequest)) {
+            } else if (port->open_http_protocol && !server_object->isset_callback(port, SW_SERVER_CB_onRequest) &&
+                       !server_object->isset_callback(port, SW_SERVER_CB_onReceive)) {
                 php_swoole_fatal_error(E_ERROR, "require onRequest callback");
                 return;
             }
@@ -1162,12 +1178,6 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
                 SW_Z_OBJCE_NAME_VAL_P(zobject));
         }
         php_swoole_http_server_init_global_variant();
-    }
-
-    if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
-        serv->onReceive = php_swoole_redis_server_onReceive;
-        serv->get_primary_port()->clear_protocol();
-        serv->get_primary_port()->open_redis_protocol = 1;
     }
 }
 
@@ -2237,7 +2247,7 @@ static PHP_METHOD(swoole_server, __construct) {
             php_swoole_server_add_port(server_object, ls);
         }
 
-        server_object->property->primary_port = (php_swoole_server_port_property *) serv->get_primary_port()->ptr;
+        server_object->property->primary_port = (ServerPortProperty *) serv->get_primary_port()->ptr;
     } while (0);
 
     /* iterator */
