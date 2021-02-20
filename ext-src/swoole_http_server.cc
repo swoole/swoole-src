@@ -51,7 +51,13 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
     // other server port
     if (!port->open_http_protocol || !php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onRequest)) {
-        return php_swoole_server_onReceive(serv, req);
+        SW_LOOP {
+            if (port->open_websocket_protocol && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onMessage)) {
+                break;
+            } else {
+                return php_swoole_server_onReceive(serv, req);
+            }
+        }
     }
     // websocket client
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {

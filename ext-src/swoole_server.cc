@@ -1052,6 +1052,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         add_assoc_long(zsetting, "max_connection", serv->get_max_connection());
     }
 
+    bool find_http_port = false;
     if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
         serv->onReceive = php_swoole_redis_server_onReceive;
         add_assoc_bool(zsetting, "open_redis_protocol", 1);
@@ -1061,19 +1062,6 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         add_assoc_bool(zsetting, "open_length_check", 0);
         primary_port->clear_protocol();
         primary_port->open_redis_protocol = 1;
-    } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
-        if (!server_object->isset_callback(primary_port, SW_SERVER_CB_onRequest)) {
-            php_swoole_fatal_error(E_ERROR, "require onRequest callback");
-            return;
-        }
-        serv->onReceive = php_swoole_http_server_onReceive;
-        add_assoc_bool(zsetting, "open_redis_protocol", 0);
-        add_assoc_bool(zsetting, "open_http_protocol", 1);
-        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
-        add_assoc_bool(zsetting, "open_eof_check", 0);
-        add_assoc_bool(zsetting, "open_length_check", 0);
-        primary_port->clear_protocol();
-        primary_port->open_http_protocol = 1;
     } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_websocket_server_ce)) {
         if (!server_object->isset_callback(primary_port, SW_SERVER_CB_onMessage)) {
             php_swoole_fatal_error(E_ERROR, "require onMessage callback");
@@ -1089,6 +1077,21 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         primary_port->clear_protocol();
         primary_port->open_http_protocol = 1;
         primary_port->open_websocket_protocol = 1;
+        find_http_port = true;
+    } else if (instanceof_function(Z_OBJCE_P(zobject), swoole_http_server_ce)) {
+        if (!server_object->isset_callback(primary_port, SW_SERVER_CB_onRequest)) {
+            php_swoole_fatal_error(E_ERROR, "require onRequest callback");
+            return;
+        }
+        serv->onReceive = php_swoole_http_server_onReceive;
+        add_assoc_bool(zsetting, "open_redis_protocol", 0);
+        add_assoc_bool(zsetting, "open_http_protocol", 1);
+        add_assoc_bool(zsetting, "open_mqtt_protocol", 0);
+        add_assoc_bool(zsetting, "open_eof_check", 0);
+        add_assoc_bool(zsetting, "open_length_check", 0);
+        primary_port->clear_protocol();
+        primary_port->open_http_protocol = 1;
+        find_http_port = true;
     } else {
         if (serv->if_require_packet_callback(primary_port,
                                              server_object->isset_callback(primary_port, SW_SERVER_CB_onPacket))) {
@@ -1103,10 +1106,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         serv->onReceive = php_swoole_server_onReceive;
     }
 
-    uint32_t i;
-    bool find_http_port = false;
-
-    for (i = 1; i < server_object->property->ports.size(); i++) {
+    for (size_t i = 1; i < server_object->property->ports.size(); i++) {
         zval *zport = server_object->property->ports.at(i);
         zval *zsetting = sw_zend_read_property_ex(swoole_server_port_ce, zport, SW_ZSTR_KNOWN(SW_ZEND_STR_SETTING), 0);
         // use swoole_server->setting
@@ -1116,7 +1116,7 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         }
     }
 
-    for (i = 0; i < server_object->property->ports.size(); i++) {
+    for (size_t i = 0; i < server_object->property->ports.size(); i++) {
         zval *zport = server_object->property->ports.at(i);
         ListenPort *port = php_swoole_server_port_get_and_check_ptr(zport);
 
