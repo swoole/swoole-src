@@ -1309,8 +1309,7 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
 }
 
 int php_swoole_server_onReceive(Server *serv, RecvData *req) {
-    zend_fcall_info_cache *fci_cache =
-        php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onReceive);
+    auto fci_cache = php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onReceive);
 
     if (fci_cache) {
         zval *zserv = (zval *) serv->private_data_2;
@@ -1430,8 +1429,7 @@ int php_swoole_server_onPacket(Server *serv, RecvData *req) {
         argc = 3;
     }
 
-    zend_fcall_info_cache *fci_cache =
-        php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onPacket);
+    auto fci_cache = php_swoole_server_get_fci_cache(serv, req->info.server_fd, SW_SERVER_CB_onPacket);
     if (UNEXPECTED(!zend::function::call(fci_cache, argc, args, nullptr, serv->enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onPipeMessage handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
@@ -1628,7 +1626,7 @@ static void php_swoole_onStart(Server *serv) {
     serv->lock();
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onStart];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onStart];
 
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
@@ -1641,7 +1639,7 @@ static void php_swoole_onStart(Server *serv) {
 static void php_swoole_server_onManagerStart(Server *serv) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onManagerStart];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onManagerStart];
 
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
@@ -1654,7 +1652,7 @@ static void php_swoole_server_onManagerStart(Server *serv) {
 static void php_swoole_server_onManagerStop(Server *serv) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onManagerStop];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onManagerStop];
 
     if (UNEXPECTED(!zend::function::call(fci_cache, 1, zserv, nullptr, false))) {
         php_swoole_error(E_WARNING, "%s->onManagerStop handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
@@ -1665,7 +1663,7 @@ static void php_swoole_onShutdown(Server *serv) {
     serv->lock();
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onShutdown];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onShutdown];
 
     if (fci_cache != nullptr) {
         if (UNEXPECTED(!zend::function::call(fci_cache, 1, zserv, nullptr, false))) {
@@ -1678,7 +1676,7 @@ static void php_swoole_onShutdown(Server *serv) {
 static void php_swoole_server_onWorkerStart(Server *serv, int worker_id) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerStart];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerStart];
 
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
@@ -1708,7 +1706,7 @@ static void php_swoole_server_onWorkerStart(Server *serv, int worker_id) {
 static void php_swoole_server_onBeforeReload(Server *serv) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onBeforeReload];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onBeforeReload];
 
     if (fci_cache) {
         zval args[1];
@@ -1722,7 +1720,7 @@ static void php_swoole_server_onBeforeReload(Server *serv) {
 static void php_swoole_server_onAfterReload(Server *serv) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onAfterReload];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onAfterReload];
 
     if (fci_cache) {
         zval args[1];
@@ -1741,7 +1739,7 @@ static void php_swoole_server_onWorkerStop(Server *serv, int worker_id) {
 
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerStop];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerStop];
     zval args[2];
     args[0] = *zserv;
     ZVAL_LONG(&args[1], worker_id);
@@ -1758,7 +1756,7 @@ static void php_swoole_server_onWorkerStop(Server *serv, int worker_id) {
 static void php_swoole_server_onWorkerExit(Server *serv, int worker_id) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerExit];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerExit];
 
     zval args[2];
     args[0] = *zserv;
@@ -1789,7 +1787,7 @@ static void php_swoole_onUserWorkerStart(Server *serv, Worker *worker) {
 static void php_swoole_server_onWorkerError(Server *serv, int worker_id, const ExitStatus &exit_status) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerError];
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerError];
 
     zval args[5];
     int argc;
@@ -1826,7 +1824,7 @@ static void php_swoole_server_onWorkerError(Server *serv, int worker_id, const E
 }
 
 void php_swoole_server_onConnect(Server *serv, DataHead *info) {
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onConnect);
+    auto fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onConnect);
     if (fci_cache) {
         zval *zserv = (zval *) serv->private_data_2;
         zval args[3];
@@ -1880,7 +1878,7 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
         }
     }
 
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onClose);
+    auto fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onClose);
     if (fci_cache) {
         zval *zserv = (zval *) serv->private_data_2;
         zval args[3];
@@ -1915,8 +1913,7 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
 
 void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
     zval *zserv = (zval *) serv->private_data_2;
-    zend_fcall_info_cache *fci_cache =
-        php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferFull);
+    auto fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferFull);
 
     if (fci_cache) {
         zval args[2];
@@ -2023,7 +2020,7 @@ void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdat
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data) {
     serv->lock();
 
-    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) serv->private_data_3;
+    auto fci_cache = (zend_fcall_info_cache *) serv->private_data_3;
     zval args[4];
     zval *zserv = &args[0], *zfd = &args[1], *ztype = &args[2], *zdata = nullptr;
     zval retval;
