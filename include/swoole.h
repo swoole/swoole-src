@@ -126,6 +126,7 @@ typedef unsigned long ulong_t;
 #define SW_MAX(A, B) ((A) > (B) ? (A) : (B))
 #define SW_MIN(A, B) ((A) < (B) ? (A) : (B))
 #define SW_LOOP_N(n) for (decltype(n) i = 0; i < n; i++)
+#define SW_LOOP for (;;)
 
 #ifndef MAX
 #define MAX(A, B) SW_MAX(A, B)
@@ -655,7 +656,7 @@ std::string dirname(const std::string &file);
 int hook_add(void **hooks, int type, const Callback &func, int push_back);
 void hook_call(void **hooks, int type, void *arg);
 double microtime(void);
-}
+}  // namespace swoole
 
 extern swoole::Global SwooleG;                  // Local Global Variable
 extern __thread swoole::ThreadGlobal SwooleTG;  // Thread Global Variable
@@ -708,7 +709,7 @@ static sw_inline void sw_spinlock(sw_atomic_t *lock) {
 }
 
 static sw_inline swoole::String *sw_tg_buffer() {
-   return SwooleTG.buffer_stack;
+    return SwooleTG.buffer_stack;
 }
 
 static sw_inline swoole::MemoryPool *sw_mem_pool() {

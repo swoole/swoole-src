@@ -44,7 +44,7 @@ static zend_object_handlers swoole_server_port_handlers;
 
 struct server_port_t {
     ListenPort *port;
-    php_swoole_server_port_property property;
+    ServerPortProperty property;
     zend_object std;
 };
 
@@ -68,12 +68,12 @@ void php_swoole_server_port_set_ptr(zval *zobject, ListenPort *port) {
     php_swoole_server_port_fetch_object(Z_OBJ_P(zobject))->port = port;
 }
 
-php_swoole_server_port_property *php_swoole_server_port_get_property(zval *zobject) {
+ServerPortProperty *php_swoole_server_port_get_property(zval *zobject) {
     return &php_swoole_server_port_fetch_object(Z_OBJ_P(zobject))->property;
 }
 
-static php_swoole_server_port_property *php_swoole_server_port_get_and_check_property(zval *zobject) {
-    php_swoole_server_port_property *property = php_swoole_server_port_get_property(zobject);
+static ServerPortProperty *php_swoole_server_port_get_and_check_property(zval *zobject) {
+    ServerPortProperty *property = php_swoole_server_port_get_property(zobject);
     if (UNEXPECTED(!property->serv)) {
         php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
@@ -83,7 +83,7 @@ static php_swoole_server_port_property *php_swoole_server_port_get_and_check_pro
 // Dereference from server object
 void php_swoole_server_port_deref(zend_object *object) {
     server_port_t *server_port = php_swoole_server_port_fetch_object(object);
-    php_swoole_server_port_property *property = &server_port->property;
+    ServerPortProperty *property = &server_port->property;
     if (property->serv) {
         for (int j = 0; j < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; j++) {
             if (property->caches[j]) {
@@ -268,7 +268,7 @@ static PHP_METHOD(swoole_server_port, set) {
     vht = Z_ARRVAL_P(zset);
 
     ListenPort *port = php_swoole_server_port_get_and_check_ptr(ZEND_THIS);
-    php_swoole_server_port_property *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
+    ServerPortProperty *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
 
     if (port == nullptr || property == nullptr) {
         php_swoole_fatal_error(E_ERROR, "please use the swoole_server->listen method");
@@ -621,7 +621,7 @@ static PHP_METHOD(swoole_server_port, on) {
     size_t len, i;
     zval *cb;
 
-    php_swoole_server_port_property *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
+    ServerPortProperty *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
     Server *serv = property->serv;
     if (serv->is_started()) {
         php_swoole_fatal_error(E_WARNING, "can't register event callback function after server started");
@@ -675,17 +675,15 @@ static PHP_METHOD(swoole_server_port, on) {
         property->caches[i] = fci_cache;
 
         if (i == SW_SERVER_CB_onConnect && !serv->onConnect) {
-            serv->onConnect = php_swoole_onConnect;
+            serv->onConnect = php_swoole_server_onConnect;
         } else if (i == SW_SERVER_CB_onPacket && !serv->onPacket) {
-            serv->onPacket = php_swoole_onPacket;
+            serv->onPacket = php_swoole_server_onPacket;
         } else if (i == SW_SERVER_CB_onClose && !serv->onClose) {
-            serv->onClose = php_swoole_onClose;
+            serv->onClose = php_swoole_server_onClose;
         } else if (i == SW_SERVER_CB_onBufferFull && !serv->onBufferFull) {
-            serv->onBufferFull = php_swoole_onBufferFull;
+            serv->onBufferFull = php_swoole_server_onBufferFull;
         } else if (i == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty) {
-            serv->onBufferEmpty = php_swoole_onBufferEmpty;
-        } else if (i == SW_SERVER_CB_onMessage || i == SW_SERVER_CB_onRequest) {
-            serv->onReceive = php_swoole_http_onReceive;
+            serv->onBufferEmpty = php_swoole_server_onBufferEmpty;
         }
         break;
     }

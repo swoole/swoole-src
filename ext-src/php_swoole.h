@@ -171,6 +171,8 @@ extern zend_class_entry *swoole_socket_coro_ce;
 extern zend_class_entry *swoole_client_ce;
 extern zend_class_entry *swoole_server_ce;
 extern zend_object_handlers swoole_server_handlers;
+extern zend_class_entry *swoole_redis_server_ce;
+extern zend_object_handlers swoole_redis_server_handlers;
 extern zend_class_entry *swoole_connection_iterator_ce;
 extern zend_class_entry *swoole_process_ce;
 extern zend_class_entry *swoole_http_server_ce;

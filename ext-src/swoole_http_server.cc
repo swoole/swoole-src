@@ -38,7 +38,7 @@ static bool http_context_send_data(http_context *ctx, const char *data, size_t l
 static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(http_context *ctx);
 
-int php_swoole_http_onReceive(Server *serv, RecvData *req) {
+int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     SessionId session_id = req->info.fd;
     int server_fd = req->info.server_fd;
 
@@ -50,8 +50,14 @@ int php_swoole_http_onReceive(Server *serv, RecvData *req) {
 
     ListenPort *port = serv->get_port_by_server_fd(server_fd);
     // other server port
-    if (!port->open_http_protocol) {
-        return php_swoole_onReceive(serv, req);
+    if (!port->open_http_protocol || !php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onRequest)) {
+        SW_LOOP {
+            if (port->open_websocket_protocol && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onMessage)) {
+                break;
+            } else {
+                return php_swoole_server_onReceive(serv, req);
+            }
+        }
     }
     // websocket client
     if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
@@ -142,12 +148,12 @@ _dtor_and_return:
     return SW_OK;
 }
 
-void php_swoole_http_onClose(Server *serv, DataHead *ev) {
+void php_swoole_http_server_onClose(Server *serv, DataHead *ev) {
     Connection *conn = serv->get_connection_by_session_id(ev->fd);
     if (!conn) {
         return;
     }
-    php_swoole_onClose(serv, ev);
+    php_swoole_server_onClose(serv, ev);
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
         swoole_http2_server_session_free(conn);
