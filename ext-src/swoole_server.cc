@@ -995,8 +995,10 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
         return;
     }
 
-#ifdef SW_LOG_TRACE_OPEN
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zobject));
     auto primary_port = serv->get_primary_port();
+
+#ifdef SW_LOG_TRACE_OPEN
     swTraceLog(SW_TRACE_SERVER,
                "Create Server: host=%s, port=%d, mode=%d, type=%d",
                primary_port->host.c_str(),
@@ -1049,9 +1051,6 @@ void php_swoole_server_before_start(Server *serv, zval *zobject) {
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection"))) {
         add_assoc_long(zsetting, "max_connection", serv->get_max_connection());
     }
-
-    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zobject));
-    auto primary_port = serv->get_primary_port();
 
     if (instanceof_function(Z_OBJCE_P(zobject), swoole_redis_server_ce)) {
         serv->onReceive = php_swoole_redis_server_onReceive;
