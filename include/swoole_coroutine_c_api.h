@@ -27,6 +27,7 @@ extern "C" {
 #include <sys/wait.h>
 #include <sys/statvfs.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <netdb.h>
 #include <poll.h>
 #include <dirent.h>

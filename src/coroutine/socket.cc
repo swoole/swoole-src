@@ -31,7 +31,7 @@
 namespace swoole {
 namespace coroutine {
 
-enum Socket::TimeoutType Socket::timeout_type_list[4] = { TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE };
+enum Socket::TimeoutType Socket::timeout_type_list[4] = {TIMEOUT_DNS, TIMEOUT_CONNECT, TIMEOUT_READ, TIMEOUT_WRITE};
 
 void Socket::timer_callback(Timer *timer, TimerNode *tnode) {
     Socket *socket = (Socket *) tnode->data;
@@ -218,7 +218,8 @@ bool Socket::socks5_handshake() {
         return false;
     }
     if (method != ctx->method) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
+        swoole_error_log(
+            SW_LOG_NOTICE, SW_ERROR_SOCKS5_UNSUPPORT_METHOD, "SOCKS authentication method is not supported");
         return false;
     }
     // authentication
@@ -312,8 +313,10 @@ bool Socket::socks5_handshake() {
         ctx->state = SW_SOCKS5_STATE_READY;
         return true;
     } else {
-        swoole_error_log(
-            SW_LOG_NOTICE, SW_ERROR_SOCKS5_SERVER_ERROR, "Socks5 server error, reason: %s", Socks5Proxy::strerror(result));
+        swoole_error_log(SW_LOG_NOTICE,
+                         SW_ERROR_SOCKS5_SERVER_ERROR,
+                         "Socks5 server error, reason: %s",
+                         Socks5Proxy::strerror(result));
         return false;
     }
 }
@@ -342,16 +345,7 @@ bool Socket::http_proxy_handshake() {
     };
 
     if (!http_proxy->password.empty()) {
-        char auth_buf[256];
-        char encode_buf[512];
-        n = sw_snprintf(auth_buf,
-                        sizeof(auth_buf),
-                        "%.*s:%.*s",
-                        (int) http_proxy->username.length(),
-                        http_proxy->username.c_str(),
-                        (int) http_proxy->password.length(),
-                        http_proxy->password.c_str());
-        base64_encode((unsigned char *) auth_buf, n, encode_buf);
+        auto auth_str = http_proxy->get_auth_str();
         n = sw_snprintf(send_buffer->str,
                         send_buffer->size,
                         HTTP_PROXY_FMT "Proxy-Authorization: Basic %s\r\n\r\n",
@@ -361,7 +355,7 @@ bool Socket::http_proxy_handshake() {
                         host_len,
                         host,
                         http_proxy->target_port,
-                        encode_buf);
+                        auth_str.c_str());
     } else {
         n = sw_snprintf(send_buffer->str,
                         send_buffer->size,
@@ -442,8 +436,8 @@ bool Socket::http_proxy_handshake() {
 
     if (!ret) {
         set_err(SW_ERROR_HTTP_PROXY_BAD_RESPONSE,
-                std::string("wrong http_proxy response received, \n[Request]: ") + send_buffer->to_std_string() + "\n[Response]: "
-                        + std::string(buf, len));
+                std::string("wrong http_proxy response received, \n[Request]: ") + send_buffer->to_std_string() +
+                    "\n[Response]: " + std::string(buf, len));
     }
 
     return ret;
@@ -1762,4 +1756,19 @@ Socket::~Socket() {
 }
 
 }  // namespace coroutine
+
+std::string HttpProxy::get_auth_str() {
+    char auth_buf[256];
+    char encode_buf[512];
+    size_t n = sw_snprintf(auth_buf,
+                           sizeof(auth_buf),
+                           "%.*s:%.*s",
+                           (int) username.length(),
+                           username.c_str(),
+                           (int) password.length(),
+                           password.c_str());
+    base64_encode((unsigned char *) auth_buf, n, encode_buf);
+    return std::string(encode_buf);
+}
+
 }  // namespace swoole

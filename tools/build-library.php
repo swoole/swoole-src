@@ -39,6 +39,7 @@ $files = [
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
     'core/Coroutine/Barrier.php',
+    'core/Coroutine/Http/functions.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
     'core/Database/ObjectProxy.php',

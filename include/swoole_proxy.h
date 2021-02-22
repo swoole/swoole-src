@@ -37,6 +37,8 @@ struct HttpProxy {
     std::string target_host;
     int target_port;
     char buf[512];
+
+    std::string get_auth_str();
 };
 
 struct Socks5Proxy {
@@ -60,7 +62,7 @@ struct Socks5Proxy {
         buf[2] = method;
     }
 };
-}
+}  // namespace swoole
 
 enum swSocks5_state {
     SW_SOCKS5_STATE_WAIT = 0,
@@ -73,4 +75,3 @@ enum swSocks5_state {
 enum swSocks5_method {
     SW_SOCKS5_METHOD_AUTH = 0x02,
 };
-
