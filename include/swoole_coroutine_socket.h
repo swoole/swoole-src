@@ -69,7 +69,7 @@ class Socket {
     bool cancel(const enum swEvent_type event);
     bool close();
 
-    inline bool is_connect() {
+    inline bool is_connected() {
         return connected && !closed;
     }
 
@@ -289,9 +289,11 @@ class Socket {
             return connect_timeout;
         } else if (type == TIMEOUT_READ) {
             return read_timeout;
-        } else  // if (type == TIMEOUT_WRITE)
-        {
+        } else if (type == TIMEOUT_WRITE) {
             return write_timeout;
+        } else {
+            assert(0);
+            return -1;
         }
     }
 
@@ -480,10 +482,8 @@ class Socket {
                 if (timeout > 0) {
                     *timer_pp = swoole_timer_add((long) (timeout * 1000), false, callback, socket_);
                     return *timer_pp != nullptr;
-                } else  // if (timeout < 0)
-                {
-                    *timer_pp = (TimerNode *) -1;
                 }
+                *timer_pp = (TimerNode *) -1;
             }
             return true;
         }

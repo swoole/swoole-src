@@ -1378,7 +1378,7 @@ bool HttpClient::recv(double timeout) {
     if (!wait) {
         return false;
     }
-    if (!socket || !socket->is_connect()) {
+    if (!socket || !socket->is_connected()) {
         swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
         zend_update_property_long(
             swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
@@ -1426,7 +1426,7 @@ bool HttpClient::recv(double timeout) {
 void HttpClient::recv(zval *zframe, double timeout) {
     SW_ASSERT(websocket);
     ZVAL_FALSE(zframe);
-    if (!socket || !socket->is_connect()) {
+    if (!socket || !socket->is_connected()) {
         swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
         zend_update_property_long(
             swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
@@ -1580,7 +1580,7 @@ bool HttpClient::push(zval *zdata, zend_long opcode, uint8_t flags) {
                                   HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
         return false;
     }
-    if (!socket || !socket->is_connect()) {
+    if (!socket || !socket->is_connected()) {
         swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
         zend_update_property_long(
             swoole_http_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
