@@ -596,6 +596,92 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
+bool Socket::try_connect(ResolveContext &ctx) {
+    struct sockaddr *_target_addr = nullptr;
+
+    auto name_resolve_fn = [&](int type) -> bool {
+        ctx.type = type;
+#ifdef SW_USE_OPENSSL
+        if (!ctx.set_ssl_host_name && ssl_context && !(socks5_proxy || http_proxy)) {
+            ssl_host_name = connect_host;
+            ctx.set_ssl_host_name = true;
+        }
+#endif
+        std::string addr = sw_name_resolver()->resolve(connect_host, ctx);
+        if (connect_host.empty()) {
+            set_err(swoole_get_last_error());
+            return false;
+        }
+        if (ctx.with_port) {
+            char delimiter = type == AF_INET6 ? '@' : ':';
+            auto port_pos = addr.find_first_of(delimiter);
+            if (port_pos != addr.npos) {
+                connect_port = std::stoi(addr.substr(port_pos + 1));
+                connect_host = addr.substr(0, port_pos);
+            }
+        }
+        return true;
+    };
+
+    /* locked like wait_event */
+    read_co = write_co = Coroutine::get_current_safe();
+    ON_SCOPE_EXIT {
+        read_co = write_co = nullptr;
+    };
+
+    for (int i = 0; i < 2; i++) {
+        if (sock_domain == AF_INET) {
+            socket->info.addr.inet_v4.sin_family = AF_INET;
+            socket->info.addr.inet_v4.sin_port = htons(connect_port);
+
+            if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr)) {
+                if (!name_resolve_fn(AF_INET)) {
+                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
+                    return false;
+                }
+                continue;
+            } else {
+                socket->info.len = sizeof(socket->info.addr.inet_v4);
+                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
+                break;
+            }
+        } else if (sock_domain == AF_INET6) {
+            socket->info.addr.inet_v6.sin6_family = AF_INET6;
+            socket->info.addr.inet_v6.sin6_port = htons(connect_port);
+
+            if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr)) {
+                if (!name_resolve_fn(AF_INET6)) {
+                    set_err(swoole_get_last_error());
+                    return false;
+                }
+                continue;
+            } else {
+                socket->info.len = sizeof(socket->info.addr.inet_v6);
+                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v6;
+                break;
+            }
+        } else if (sock_domain == AF_UNIX) {
+            if (connect_host.size() >= sizeof(socket->info.addr.un.sun_path)) {
+                set_err(EINVAL, "unix socket file is too large");
+                return false;
+            }
+            socket->info.addr.un.sun_family = AF_UNIX;
+            memcpy(&socket->info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
+            socket->info.len = (socklen_t)(offsetof(struct sockaddr_un, sun_path) + connect_host.size());
+            _target_addr = (struct sockaddr *) &socket->info.addr.un;
+            break;
+        } else {
+            set_err(EINVAL, "unknow protocol[%d]");
+            return false;
+        }
+    }
+    if (_target_addr == nullptr) {
+        set_err(EINVAL, "bad target host");
+        return false;
+    }
+    return connect(_target_addr, socket->info.len);
+}
+
 bool Socket::connect(std::string _host, int _port, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
@@ -644,76 +730,18 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     connect_host = _host;
     connect_port = _port;
 
-    struct sockaddr *_target_addr = nullptr;
+    ResolveContext ctx{};
+    if (_port == SW_SOCKET_MAGIC_PORT_NUMBER) {
+        ctx.with_port = true;
+    }
+    ctx.timeout = dns_timeout;
 
-    for (int i = 0; i < 2; i++) {
-        if (sock_domain == AF_INET) {
-            socket->info.addr.inet_v4.sin_family = AF_INET;
-            socket->info.addr.inet_v4.sin_port = htons(_port);
-
-            if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr)) {
-#ifdef SW_USE_OPENSSL
-                if (ssl_context && !(socks5_proxy || http_proxy)) {
-                    ssl_host_name = connect_host;
-                }
-#endif
-                /* locked like wait_event */
-                read_co = write_co = Coroutine::get_current_safe();
-                connect_host = System::gethostbyname(connect_host, AF_INET, dns_timeout);
-                read_co = write_co = nullptr;
-                if (connect_host.empty()) {
-                    set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
-                    return false;
-                }
-                continue;
-            } else {
-                socket->info.len = sizeof(socket->info.addr.inet_v4);
-                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v4;
-                break;
-            }
-        } else if (sock_domain == AF_INET6) {
-            socket->info.addr.inet_v6.sin6_family = AF_INET6;
-            socket->info.addr.inet_v6.sin6_port = htons(_port);
-
-            if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr)) {
-#ifdef SW_USE_OPENSSL
-                if (ssl_context && !(socks5_proxy || http_proxy)) {
-                    ssl_host_name = connect_host;
-                }
-#endif
-                connect_host = System::gethostbyname(connect_host, AF_INET6, dns_timeout);
-                if (connect_host.empty()) {
-                    set_err(swoole_get_last_error());
-                    return false;
-                }
-                continue;
-            } else {
-                socket->info.len = sizeof(socket->info.addr.inet_v6);
-                _target_addr = (struct sockaddr *) &socket->info.addr.inet_v6;
-                break;
-            }
-        } else if (sock_domain == AF_UNIX) {
-            if (connect_host.size() >= sizeof(socket->info.addr.un.sun_path)) {
-                set_err(EINVAL, "unix socket file is too large");
-                return false;
-            }
-            socket->info.addr.un.sun_family = AF_UNIX;
-            memcpy(&socket->info.addr.un.sun_path, connect_host.c_str(), connect_host.size());
-            socket->info.len = (socklen_t)(offsetof(struct sockaddr_un, sun_path) + connect_host.size());
-            _target_addr = (struct sockaddr *) &socket->info.addr.un;
+    SW_LOOP_N(max_retries) {
+        if (try_connect(ctx) || !ctx.cluster || errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED) {
             break;
-        } else {
-            set_err(EINVAL, "unknow protocol[%d]");
-            return false;
         }
     }
-    if (_target_addr == nullptr) {
-        set_err(EINVAL, "bad target host");
-        return false;
-    }
-    if (connect(_target_addr, socket->info.len) == false) {
-        return false;
-    }
+
     // socks5 proxy
     if (socks5_proxy && socks5_handshake() == false) {
         if (errCode == 0) {

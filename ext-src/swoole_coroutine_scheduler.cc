@@ -20,6 +20,7 @@
 
 #include <queue>
 
+using swoole::ResolveContext;
 using swoole::Reactor;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
@@ -139,6 +140,59 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, int &event_n
     return !(Z_TYPE_P(&retval) == IS_FALSE);
 }
 
+static swoole::NameResolver ori_name_resolver;
+static zval zname_resolver_list{};
+
+static void php_swoole_reset_name_resolver() {
+    zval_dtor(&zname_resolver_list);
+    ZVAL_UNDEF(&zname_resolver_list);
+}
+
+void php_swoole_coroutine_scheduler_rshutdown() {
+    if (Z_TYPE(zname_resolver_list) == IS_ARRAY) {
+        php_swoole_reset_name_resolver();
+    }
+}
+
+static std::string php_swoole_name_resolve(const std::string &name, ResolveContext &ctx)  {
+    zval *zcluster_object;
+    if (!ctx.private_data) {
+        ctx.private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
+        ctx.dtor = [](ResolveContext *ctx) {
+            zval *_zcluster_object = (zval *) ctx->private_data;
+            zval_dtor(_zcluster_object);
+            efree(_zcluster_object);
+        };
+        zval zname;
+        ZVAL_STRINGL(&zname, name.c_str(), name.length());
+        zval params[2] = {
+            zname,
+            zname_resolver_list,
+        };
+        auto retval = zend::function::call("\\Swoole\\Coroutine\\Helper::nameResolve", 2, params);
+        zval_dtor(&zname);
+        if (Z_TYPE(retval.value) != IS_OBJECT) {
+            return ori_name_resolver.resolve(name, ctx);
+        }
+        *zcluster_object = retval.value;
+        ctx.cluster = true;
+        zval_add_ref(zcluster_object);
+    } else {
+        zcluster_object = (zval *) ctx.private_data;
+    }
+
+    zval cluster_retval;
+    zval with_port;
+    ZVAL_BOOL(&with_port, ctx.with_port);
+    sw_zend_call_method_with_1_params(zcluster_object, NULL, NULL, "pop", &cluster_retval, &with_port);
+    if (Z_TYPE(cluster_retval) != IS_STRING) {
+        return "";
+    }
+    auto result = std::string(Z_STRVAL(cluster_retval), Z_STRLEN(cluster_retval));
+    zval_ptr_dtor(&cluster_retval);
+    return result;
+}
+
 void php_swoole_set_coroutine_option(zend_array *vht) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) ||
@@ -157,6 +211,19 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
         Coroutine::set_stack_size(zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "name_resolver", ztmp)) {
+        if (Z_TYPE(zname_resolver_list) == IS_ARRAY && ZVAL_IS_NULL(ztmp)) {
+            php_swoole_reset_name_resolver();
+            return;
+        }
+        if (Z_TYPE_P(&zname_resolver_list) != IS_UNDEF || !ZVAL_IS_ARRAY(ztmp)) {
+            return;
+        }
+        zname_resolver_list = *ztmp;
+        zval_add_ref(&zname_resolver_list);
+        ori_name_resolver = SwooleG.name_resolver;
+        SwooleG.name_resolver = { php_swoole_name_resolve };
     }
     if (PHPCoroutine::options) {
         zend_hash_merge(PHPCoroutine::options, vht, zval_add_ref, true);

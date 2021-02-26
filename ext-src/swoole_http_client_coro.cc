@@ -1779,7 +1779,7 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
     HttpClientObject *hcc = php_swoole_http_client_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     char *host;
     size_t host_len;
-    zend_long port = 80;
+    zend_long port = 0;
     zend_bool ssl = 0;
 
     ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
@@ -1807,6 +1807,9 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         RETURN_FALSE;
     }
 #endif
+    if (port == 0) {
+        port = ssl ? 443 : 80;
+    }
     hcc->phc = new HttpClient(ZEND_THIS, std::string(host, host_len), port, ssl);
 }
 

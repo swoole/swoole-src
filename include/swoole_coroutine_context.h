@@ -24,7 +24,9 @@
 #include <mutex>
 #elif !defined(SW_USE_ASM_CONTEXT)
 #define USE_UCONTEXT 1
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE
+#endif
 #include <ucontext.h>
 #else
 #define USE_ASM_CONTEXT 1

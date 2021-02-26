@@ -606,6 +606,26 @@ struct Allocator {
     void (*free)(void *ptr);
 };
 
+struct ResolveContext {
+    int type;
+    double timeout;
+    void *private_data;
+    bool cluster;
+    bool with_port;
+    bool set_ssl_host_name;
+    std::function<void(ResolveContext *ctx)> dtor;
+
+    ~ResolveContext() {
+        if (private_data && dtor) {
+            dtor(this);
+        }
+    }
+};
+
+struct NameResolver {
+    std::function<std::string(const std::string &name, ResolveContext &ctx)> resolve;
+};
+
 struct Global {
     uchar init : 1;
     uchar running : 1;
@@ -615,6 +635,7 @@ struct Global {
     uchar socket_dontwait : 1;
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
+    uchar use_name_resolver : 1;
 
     int process_type;
     uint32_t process_id;
@@ -641,6 +662,7 @@ struct Global {
     char *dns_server_v4;
     char *dns_server_v6;
     double dns_cache_refresh_time;
+    NameResolver name_resolver;
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
@@ -719,3 +741,8 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
 }
+
+static sw_inline const swoole::NameResolver *sw_name_resolver() {
+    return &SwooleG.name_resolver;
+}
+

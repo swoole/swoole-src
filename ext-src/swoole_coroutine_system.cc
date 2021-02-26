@@ -14,6 +14,7 @@ using swoole::Event;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::String;
+using swoole::ResolveContext;
 
 struct TmpSocket {
     FutureTask context;
@@ -443,7 +444,12 @@ PHP_FUNCTION(swoole_coroutine_gethostbyname) {
         RETURN_FALSE;
     }
 
-    std::string address = System::gethostbyname(std::string(domain_name, l_domain_name), family, timeout);
+    ResolveContext ctx{};
+    ctx.type = family;
+    ctx.timeout = timeout;
+    ctx.with_port = false;
+
+    std::string address = sw_name_resolver()->resolve(std::string(domain_name, l_domain_name), ctx);
     if (address.empty()) {
         RETURN_FALSE;
     } else {

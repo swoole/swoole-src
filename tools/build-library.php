@@ -39,6 +39,7 @@ $files = [
     'core/Coroutine/Server.php',
     'core/Coroutine/Server/Connection.php',
     'core/Coroutine/Barrier.php',
+    'core/Coroutine/Helper.php',
     'core/Coroutine/Http/functions.php',
     # <core for connection pool> #
     'core/ConnectionPool.php',
@@ -86,6 +87,10 @@ $files = [
     'core/Process/Manager.php',
     # <core for Server> #
     'core/Server/Helper.php',
+    # <core for NameService> #
+    'core/NameService/BaseObject.php',
+    'core/NameService/Redis.php',
+    'core/NameService/Cluster.php',
     # <core for functions> #
     'core/Coroutine/functions.php',
     # <ext> #

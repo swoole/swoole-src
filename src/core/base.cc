@@ -49,8 +49,10 @@
 #include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_system.h"
 
 using swoole::String;
+using swoole::coroutine::System;
 
 #ifdef HAVE_GETRANDOM
 #include <sys/random.h>
@@ -123,7 +125,7 @@ void swoole_init(void) {
 
     SwooleG.running = 1;
     SwooleG.init = 1;
-    SwooleG.std_allocator = { malloc, calloc, realloc, free };
+    SwooleG.std_allocator = {malloc, calloc, realloc, free};
     SwooleG.fatal_error = swoole_fatal_error;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
@@ -157,9 +159,24 @@ void swoole_init(void) {
 
     SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
 
-    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR) ) {
+    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR)) {
         exit(4);
     }
+
+    SwooleG.name_resolver = {
+        [](const std::string &name, swoole::ResolveContext &ctx) -> std::string {
+            if (swoole_coroutine_is_in()) {
+                return System::gethostbyname(name, ctx.type, ctx.timeout);
+            } else {
+                char addr[SW_IP_MAX_LENGTH];
+                if (swoole::network::gethostbyname(ctx.type, name.c_str(), addr) < 0) {
+                    swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+                    return "";
+                }
+                return std::string(addr);
+            }
+        },
+    };
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
@@ -756,9 +773,7 @@ void swoole_print_backtrace(void) {
     free(stacktrace);
 }
 #else
-void swoole_print_backtrace(void) {
-
-}
+void swoole_print_backtrace(void) {}
 #endif
 
 static void swoole_fatal_error(int code, const char *format, ...) {

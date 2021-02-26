@@ -386,6 +386,7 @@ class Socket {
 
     std::string connect_host;
     int connect_port = 0;
+    int max_retries = 2;
 
     std::string bind_address;
     int bind_port = 0;
@@ -454,6 +455,7 @@ class Socket {
 
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
+    bool try_connect(ResolveContext &ctx);
 
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
