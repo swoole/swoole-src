@@ -596,37 +596,94 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
-bool Socket::try_connect(ResolveContext &ctx) {
-    struct sockaddr *_target_addr = nullptr;
+bool Socket::connect(std::string _host, int _port, int flags) {
+    if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
+        return false;
+    }
 
-    auto name_resolve_fn = [&](int type) -> bool {
-        ctx.type = type;
 #ifdef SW_USE_OPENSSL
-        if (!ctx.set_ssl_host_name && ssl_context && !(socks5_proxy || http_proxy)) {
-            ssl_host_name = connect_host;
-            ctx.set_ssl_host_name = true;
+    if (ssl_context && (socks5_proxy || http_proxy)) {
+        /* If the proxy is enabled, the host will be replaced with the proxy ip,
+         * so we have to handle the host first,
+         * if the host is not a ip, assign it to ssl_host_name
+         */
+        union {
+            struct in_addr sin;
+            struct in6_addr sin6;
+        } addr;
+        if ((sock_domain == AF_INET && !inet_pton(AF_INET, _host.c_str(), &addr.sin)) ||
+            (sock_domain == AF_INET6 && !inet_pton(AF_INET6, _host.c_str(), &addr.sin6))) {
+            ssl_host_name = _host;
         }
+    }
 #endif
+    if (socks5_proxy) {
+        socks5_proxy->target_host = _host;
+        socks5_proxy->target_port = _port;
+
+        _host = socks5_proxy->host;
+        _port = socks5_proxy->port;
+    } else if (http_proxy) {
+        http_proxy->target_host = _host;
+        http_proxy->target_port = _port;
+
+        _host = http_proxy->proxy_host;
+        _port = http_proxy->proxy_port;
+    }
+
+    if (sock_domain == AF_INET6 || sock_domain == AF_INET) {
+        if (_port == -1) {
+            set_err(EINVAL, "Socket of type AF_INET/AF_INET6 requires port argument");
+            return false;
+        } else if (_port == 0 || _port >= 65536) {
+            set_err(EINVAL, std_string::format("Invalid port [%d]", _port));
+            return false;
+        }
+    }
+
+    connect_host = _host;
+    connect_port = _port;
+
+    struct sockaddr *_target_addr = nullptr;
+    ResolveContext *ctx = get_resolve_context();
+
+    ResolveContext _ctx{};
+    if (ctx == nullptr) {
+        ctx = &_ctx;
+    }
+    ctx->timeout = dns_timeout;
+
+    std::once_flag oc;
+    auto name_resolve_fn = [ctx, &oc, this](int type) -> bool {
+        ctx->type = type;
+#ifdef SW_USE_OPENSSL
+        std::call_once(oc, [this]() {
+            if (ssl_context && !(socks5_proxy || http_proxy)) {
+                ssl_host_name = connect_host;
+            }
+        });
+#endif
+        /* locked like wait_event */
+        read_co = write_co = Coroutine::get_current_safe();
+        ON_SCOPE_EXIT {
+            read_co = write_co = nullptr;
+        };
         std::string addr = sw_name_resolver()->resolve(connect_host, ctx);
-        if (connect_host.empty()) {
+        if (addr.empty()) {
             set_err(swoole_get_last_error());
             return false;
         }
-        if (ctx.with_port) {
+        if (ctx->with_port) {
             char delimiter = type == AF_INET6 ? '@' : ':';
             auto port_pos = addr.find_first_of(delimiter);
             if (port_pos != addr.npos) {
                 connect_port = std::stoi(addr.substr(port_pos + 1));
                 connect_host = addr.substr(0, port_pos);
+                return true;
             }
         }
+        connect_host = addr;
         return true;
-    };
-
-    /* locked like wait_event */
-    read_co = write_co = Coroutine::get_current_safe();
-    ON_SCOPE_EXIT {
-        read_co = write_co = nullptr;
     };
 
     for (int i = 0; i < 2; i++) {
@@ -679,67 +736,8 @@ bool Socket::try_connect(ResolveContext &ctx) {
         set_err(EINVAL, "bad target host");
         return false;
     }
-    return connect(_target_addr, socket->info.len);
-}
-
-bool Socket::connect(std::string _host, int _port, int flags) {
-    if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
+    if (connect(_target_addr, socket->info.len) == false) {
         return false;
-    }
-
-#ifdef SW_USE_OPENSSL
-    if (ssl_context && (socks5_proxy || http_proxy)) {
-        /* If the proxy is enabled, the host will be replaced with the proxy ip,
-         * so we have to handle the host first,
-         * if the host is not a ip, assign it to ssl_host_name
-         */
-        union {
-            struct in_addr sin;
-            struct in6_addr sin6;
-        } addr;
-        if ((sock_domain == AF_INET && !inet_pton(AF_INET, _host.c_str(), &addr.sin)) ||
-            (sock_domain == AF_INET6 && !inet_pton(AF_INET6, _host.c_str(), &addr.sin6))) {
-            ssl_host_name = _host;
-        }
-    }
-#endif
-    if (socks5_proxy) {
-        socks5_proxy->target_host = _host;
-        socks5_proxy->target_port = _port;
-
-        _host = socks5_proxy->host;
-        _port = socks5_proxy->port;
-    } else if (http_proxy) {
-        http_proxy->target_host = _host;
-        http_proxy->target_port = _port;
-
-        _host = http_proxy->proxy_host;
-        _port = http_proxy->proxy_port;
-    }
-
-    if (sock_domain == AF_INET6 || sock_domain == AF_INET) {
-        if (_port == -1) {
-            set_err(EINVAL, "Socket of type AF_INET/AF_INET6 requires port argument");
-            return false;
-        } else if (_port == 0 || _port >= 65536) {
-            set_err(EINVAL, std_string::format("Invalid port [%d]", _port));
-            return false;
-        }
-    }
-
-    connect_host = _host;
-    connect_port = _port;
-
-    ResolveContext ctx{};
-    if (_port == SW_SOCKET_MAGIC_PORT_NUMBER) {
-        ctx.with_port = true;
-    }
-    ctx.timeout = dns_timeout;
-
-    SW_LOOP_N(max_retries) {
-        if (try_connect(ctx) || !ctx.cluster || errCode == SW_ERROR_DNSLOOKUP_RESOLVE_FAILED) {
-            break;
-        }
     }
 
     // socks5 proxy

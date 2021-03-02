@@ -164,12 +164,12 @@ void swoole_init(void) {
     }
 
     SwooleG.name_resolver = {
-        [](const std::string &name, swoole::ResolveContext &ctx) -> std::string {
+        [](const std::string &name, swoole::ResolveContext *ctx) -> std::string {
             if (swoole_coroutine_is_in()) {
-                return System::gethostbyname(name, ctx.type, ctx.timeout);
+                return System::gethostbyname(name, ctx->type, ctx->timeout);
             } else {
                 char addr[SW_IP_MAX_LENGTH];
-                if (swoole::network::gethostbyname(ctx.type, name.c_str(), addr) < 0) {
+                if (swoole::network::gethostbyname(ctx->type, name.c_str(), addr) < 0) {
                     swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
                     return "";
                 }

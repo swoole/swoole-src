@@ -154,11 +154,11 @@ void php_swoole_coroutine_scheduler_rshutdown() {
     }
 }
 
-static std::string php_swoole_name_resolve(const std::string &name, ResolveContext &ctx)  {
+static std::string php_swoole_name_resolve(const std::string &name, ResolveContext *ctx)  {
     zval *zcluster_object;
-    if (!ctx.private_data) {
-        ctx.private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
-        ctx.dtor = [](ResolveContext *ctx) {
+    if (!ctx->private_data) {
+        ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
+        ctx->dtor = [](ResolveContext *ctx) {
             zval *_zcluster_object = (zval *) ctx->private_data;
             zval_dtor(_zcluster_object);
             efree(_zcluster_object);
@@ -175,21 +175,21 @@ static std::string php_swoole_name_resolve(const std::string &name, ResolveConte
             return ori_name_resolver.resolve(name, ctx);
         }
         *zcluster_object = retval.value;
-        ctx.cluster = true;
+        ctx->cluster = true;
         zval_add_ref(zcluster_object);
     } else {
-        zcluster_object = (zval *) ctx.private_data;
+        zcluster_object = (zval *) ctx->private_data;
     }
 
-    zval cluster_retval;
+    zval cluster_pop_retval;
     zval with_port;
-    ZVAL_BOOL(&with_port, ctx.with_port);
-    sw_zend_call_method_with_1_params(zcluster_object, NULL, NULL, "pop", &cluster_retval, &with_port);
-    if (Z_TYPE(cluster_retval) != IS_STRING) {
+    ZVAL_BOOL(&with_port, ctx->with_port);
+    sw_zend_call_method_with_1_params(zcluster_object, NULL, NULL, "pop", &cluster_pop_retval, &with_port);
+    if (Z_TYPE(cluster_pop_retval) != IS_STRING) {
         return "";
     }
-    auto result = std::string(Z_STRVAL(cluster_retval), Z_STRLEN(cluster_retval));
-    zval_ptr_dtor(&cluster_retval);
+    auto result = std::string(Z_STRVAL(cluster_pop_retval), Z_STRLEN(cluster_pop_retval));
+    zval_ptr_dtor(&cluster_pop_retval);
     return result;
 }
 

@@ -612,7 +612,6 @@ struct ResolveContext {
     void *private_data;
     bool cluster;
     bool with_port;
-    bool set_ssl_host_name;
     std::function<void(ResolveContext *ctx)> dtor;
 
     ~ResolveContext() {
@@ -623,7 +622,7 @@ struct ResolveContext {
 };
 
 struct NameResolver {
-    std::function<std::string(const std::string &name, ResolveContext &ctx)> resolve;
+    std::function<std::string(const std::string &name, ResolveContext *ctx)> resolve;
 };
 
 struct Global {

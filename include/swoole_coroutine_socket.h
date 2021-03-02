@@ -325,6 +325,14 @@ class Socket {
         return write_buffer;
     }
 
+    ResolveContext *get_resolve_context() {
+        return resolve_context_;
+    }
+
+    void set_resolve_context(ResolveContext *ctx) {
+        resolve_context_ = ctx;
+    }
+
     inline String *pop_read_buffer() {
         if (sw_unlikely(!read_buffer)) {
             return nullptr;
@@ -386,7 +394,6 @@ class Socket {
 
     std::string connect_host;
     int connect_port = 0;
-    int max_retries = 2;
 
     std::string bind_address;
     int bind_port = 0;
@@ -455,10 +462,12 @@ class Socket {
 
     bool add_event(const enum swEvent_type event);
     bool wait_event(const enum swEvent_type event, const void **__buf = nullptr, size_t __n = 0);
-    bool try_connect(ResolveContext &ctx);
+    bool try_connect();
 
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
+
+    ResolveContext *resolve_context_ = nullptr;
 
     inline bool is_available(const enum swEvent_type event) {
         if (event != SW_EVENT_NULL) {
