@@ -104,7 +104,7 @@ void *GlobalMemory::alloc(uint32_t size) {
         }
     }
 
-    block = (MemoryBlock *) impl->pages.back() + impl->alloc_offset;
+    block = (MemoryBlock *) (impl->pages.back() + impl->alloc_offset);
     impl->alloc_offset += alloc_size;
 
     block->size = size;
