@@ -40,8 +40,6 @@ static int signal_fd = 0;
 static swoole::network::Socket *signal_socket = nullptr;
 #elif HAVE_KQUEUE
 static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
-#else
-static swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask);
 #endif
 
 static void swSignal_async_handler(int signo);
