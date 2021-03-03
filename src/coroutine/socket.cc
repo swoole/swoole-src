@@ -124,6 +124,9 @@ bool Socket::add_event(const enum swEvent_type event) {
 bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n) {
     enum swEvent_type added_event = event;
     Coroutine *co = Coroutine::get_current_safe();
+    if (!co) {
+        return false;
+    }
 
     // clear the last errCode
     set_err(0);
@@ -156,8 +159,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         read_co = co;
         read_co->yield();
         read_co = nullptr;
-    } else  // if (event == SW_EVENT_WRITE)
-    {
+    } else if (event == SW_EVENT_WRITE) {
         if (sw_unlikely(!zero_copy && __n > 0 && *__buf != get_write_buffer()->str)) {
             write_buffer->clear();
             if (write_buffer->append((const char *) *__buf, __n) != SW_OK) {
@@ -169,6 +171,9 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         write_co = co;
         write_co->yield();
         write_co = nullptr;
+    } else {
+        assert(0);
+        return false;
     }
 _failed:
 #ifdef SW_USE_OPENSSL
@@ -709,6 +714,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     if (connect(_target_addr, socket->info.len) == false) {
         return false;
     }
+
     // socks5 proxy
     if (socks5_proxy && socks5_handshake() == false) {
         if (errCode == 0) {
@@ -1612,7 +1618,7 @@ ssize_t Socket::recv_packet(double timeout) {
 
 bool Socket::shutdown(int __how) {
     set_err(0);
-    if (!is_connect() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write)) {
+    if (!is_connected() || (__how == SHUT_RD && shutdown_read) || (__how == SHUT_WR && shutdown_write)) {
         errno = ENOTCONN;
     } else {
 #ifdef SW_USE_OPENSSL

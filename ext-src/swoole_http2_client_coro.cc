@@ -119,7 +119,7 @@ class Client {
     }
 
     inline bool is_available() {
-        if (sw_unlikely(!client || !client->is_connect())) {
+        if (sw_unlikely(!client || !client->is_connected())) {
             swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
             zend_update_property_long(
                 swoole_http2_client_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);

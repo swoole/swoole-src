@@ -789,7 +789,7 @@ static PHP_METHOD(swoole_client_coro, peek) {
 
 static PHP_METHOD(swoole_client_coro, isConnected) {
     Socket *cli = php_swoole_get_sock(ZEND_THIS);
-    if (cli && cli->is_connect()) {
+    if (cli && cli->is_connected()) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
