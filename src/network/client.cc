@@ -267,6 +267,20 @@ int Client::enable_ssl_encrypt() {
     }
     ssl_context.reset(new swoole::SSLContext());
     open_ssl = true;
+#ifdef SW_SUPPORT_DTLS
+    if (socket->is_dgram()) {
+        ssl_context->protocols = SW_SSL_DTLS;
+        socket->dtls = 1;
+        socket->chunk_size = SW_SSL_BUFFER_SIZE;
+        send = Client_tcp_send_sync;
+        recv = Client_tcp_recv_no_buffer;
+    }
+#else
+    {
+        swWarn("DTLS support require openssl-1.1 or later");
+        return SW_ERR;
+    }
+#endif
     return SW_OK;
 }
 
@@ -961,8 +975,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
             } else {
                 if (cli->socket->ssl_state == SW_SSL_STATE_READY) {
                     execute_onConnect(cli);
-                }
-                else if (cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM && cli->socket->ssl_want_write) {
+                } else if (cli->socket->ssl_state == SW_SSL_STATE_WAIT_STREAM && cli->socket->ssl_want_write) {
                     swoole_event_set(event->socket, SW_EVENT_WRITE);
                 }
             }
@@ -984,7 +997,8 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
 #ifdef SW_USE_OPENSSL
         if (cli->open_ssl) {
             if (cli->ssl_handshake() < 0) {
-                _connect_fail: cli->active = 0;
+            _connect_fail:
+                cli->active = 0;
                 cli->close();
                 if (cli->onError) {
                     cli->onError(cli);
@@ -1008,8 +1022,7 @@ static int Client_onStreamRead(Reactor *reactor, Event *event) {
         }
         if (cli->socket->ssl_state != SW_SSL_STATE_READY) {
             return SW_OK;
-        }
-        else {
+        } else {
             execute_onConnect(cli);
             return SW_OK;
         }

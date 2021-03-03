@@ -191,7 +191,7 @@ class SyncClient {
         if (connected || !created) {
             return false;
         }
-        if (client.connect(&client, host, port, timeout, 0) < 0) {
+        if (client.connect(&client, host, port, timeout, client.socket->is_dgram()) < 0) {
             return false;
         }
         connected = true;

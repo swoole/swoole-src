@@ -204,6 +204,68 @@ TEST(server, ssl) {
 
     delete lock;
 }
+
+TEST(server, dtls) {
+    Server serv(Server::MODE_BASE);
+    serv.worker_num = 1;
+
+    SwooleG.running = 1;
+
+    sw_logger()->set_level(SW_LOG_WARNING);
+
+    Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
+    lock->lock();
+
+    ListenPort *port = serv.add_port((enum swSocket_type )(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
+    if (!port) {
+        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    port->ssl_set_cert_file(test::get_root_path() + "/tests/include/ssl_certs/server.crt");
+    port->ssl_set_key_file(test::get_root_path() + "/tests/include/ssl_certs/server.key");
+    port->ssl_init();
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.onStart = [&lock](Server *serv) {
+        thread t1([=]() {
+            swSignal_none();
+
+            lock->lock();
+
+            ListenPort *port = serv->get_primary_port();
+
+            EXPECT_EQ(port->ssl, 1);
+
+            swoole::network::SyncClient c(SW_SOCK_UDP);
+            c.connect(TEST_HOST, port->port);
+            c.enable_ssl_encrypt();
+            c.send(packet, strlen(packet));
+            char buf[1024];
+            c.recv(buf, sizeof(buf));
+            c.close();
+
+            kill(serv->gs->master_pid, SIGTERM);
+        });
+        t1.detach();
+    };
+
+    serv.onWorkerStart = [&lock](Server *serv, int worker_id) { lock->unlock(); };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
+
+        string resp = string("Server: ") + string(packet);
+        serv->send(req->info.fd, resp.c_str(), resp.length());
+
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+
+    delete lock;
+}
 #endif
 
 TEST(server, task_worker) {
