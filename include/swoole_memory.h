@@ -76,6 +76,7 @@ class GlobalMemory : public MemoryPool {
     void *alloc(uint32_t size);
     void free(void *ptr);
     void destroy();
+    size_t capacity();
 };
 }  // namespace swoole
 

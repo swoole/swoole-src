@@ -121,6 +121,10 @@ void GlobalMemory::destroy() {
     }
 }
 
+size_t GlobalMemory::capacity() {
+    return impl->pagesize - impl->alloc_offset;
+}
+
 GlobalMemory::~GlobalMemory() {
     delete impl;
 }
