@@ -261,6 +261,16 @@ int Client::socks5_handshake(const char *recv_data, size_t length) {
 }
 
 #ifdef SW_USE_OPENSSL
+#ifdef SW_SUPPORT_DTLS
+void Client::enable_dtls() {
+    ssl_context->protocols = SW_SSL_DTLS;
+    socket->dtls = 1;
+    socket->chunk_size = SW_SSL_BUFFER_SIZE;
+    send = Client_tcp_send_sync;
+    recv = Client_tcp_recv_no_buffer;
+}
+#endif
+
 int Client::enable_ssl_encrypt() {
     if (ssl_context) {
         return SW_ERR;
@@ -269,11 +279,7 @@ int Client::enable_ssl_encrypt() {
     open_ssl = true;
 #ifdef SW_SUPPORT_DTLS
     if (socket->is_dgram()) {
-        ssl_context->protocols = SW_SSL_DTLS;
-        socket->dtls = 1;
-        socket->chunk_size = SW_SSL_BUFFER_SIZE;
-        send = Client_tcp_send_sync;
-        recv = Client_tcp_recv_no_buffer;
+        enable_dtls();
     }
 #else
     {
@@ -820,11 +826,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
 #ifdef SW_SUPPORT_DTLS
     {
         udp_connect = 1;
-        cli->ssl_context->protocols = SW_SSL_DTLS;
-        cli->socket->dtls = 1;
-        cli->socket->chunk_size = SW_SSL_BUFFER_SIZE;
-        cli->send = Client_tcp_send_sync;
-        cli->recv = Client_tcp_recv_no_buffer;
+        cli->enable_dtls();
     }
 #else
     {
