@@ -6,6 +6,9 @@ swoole_table: key-value operate
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+const PI =  3.1415926;
+const NAME = 'rango';
+
 $table = new swoole_table(65536);
 
 $table->column('id', swoole_table::TYPE_INT);
@@ -16,7 +19,7 @@ if (!$table->create())
 {
     echo __LINE__." error";
 }
-if (!$table->set('test_key', array('id' => 1, 'name' => 'rango', 'num' => 3.1415926)))
+if (!$table->set('test_key', array('id' => 1, 'name' => NAME, 'num' =>PI)))
 {
     echo __LINE__." error";
 }
@@ -32,6 +35,13 @@ if (!($ret and $ret == 1))
 {
     echo __LINE__." error";
 }
+
+Assert::eq($table->get('test_key', 'name'), NAME);
+Assert::eq($table->get('test_key', 'num'), PI);
+
+// field not exists
+Assert::false($table->get('test_key', 'id_no_exists'));
+Assert::false($table->get('test_key_no_exists', 'id_no_exists'));
 
 $ret = $table->exist('test_key');
 if (!($ret))
@@ -82,7 +92,7 @@ if ($table->exist('test_key'))
 {
     echo __LINE__." error";
 }
-echo "SUCCESS";
+echo "SUCCESS\n";
 ?>
 --EXPECT--
 SUCCESS

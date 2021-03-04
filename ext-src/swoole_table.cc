@@ -59,7 +59,6 @@ static inline void php_swoole_table_get_field_value(
     } else if (col->type == TableColumn::TYPE_FLOAT) {
         double dval = 0;
         row->get_value(col, &dval);
-        add_assoc_double_ex(return_value, col->name.c_str(), col->name.length(), dval);
         ZVAL_DOUBLE(return_value, dval);
     } else if (col->type == TableColumn::TYPE_INT) {
         long lval = 0;
