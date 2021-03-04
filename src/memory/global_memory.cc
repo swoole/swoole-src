@@ -104,7 +104,7 @@ void *GlobalMemory::alloc(uint32_t size) {
         }
     }
 
-    block = (MemoryBlock *) impl->pages.back() + impl->alloc_offset;
+    block = (MemoryBlock *) (impl->pages.back() + impl->alloc_offset);
     impl->alloc_offset += alloc_size;
 
     block->size = size;
@@ -119,6 +119,10 @@ void GlobalMemory::destroy() {
     for (auto page : impl->pages) {
         impl->shared ? ::sw_shm_free(page) : ::sw_free(page);
     }
+}
+
+size_t GlobalMemory::capacity() {
+    return impl->pagesize - impl->alloc_offset;
 }
 
 GlobalMemory::~GlobalMemory() {

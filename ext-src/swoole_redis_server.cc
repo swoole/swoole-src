@@ -35,7 +35,6 @@ zend_object_handlers swoole_redis_server_handlers;
 static std::unordered_map<std::string, zend_fcall_info_cache> redis_handlers;
 
 SW_EXTERN_C_BEGIN
-static PHP_METHOD(swoole_redis_server, start);
 static PHP_METHOD(swoole_redis_server, setHandler);
 static PHP_METHOD(swoole_redis_server, getHandler);
 static PHP_METHOD(swoole_redis_server, format);

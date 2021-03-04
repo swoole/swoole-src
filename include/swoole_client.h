@@ -134,6 +134,9 @@ class Client {
     int socks5_handshake(const char *recv_data, size_t length);
 #ifdef SW_USE_OPENSSL
     int enable_ssl_encrypt();
+#ifdef SW_SUPPORT_DTLS
+    void enable_dtls();
+#endif
     int ssl_handshake();
     int ssl_verify(int allow_self_signed);
 #endif
@@ -191,7 +194,7 @@ class SyncClient {
         if (connected || !created) {
             return false;
         }
-        if (client.connect(&client, host, port, timeout, 0) < 0) {
+        if (client.connect(&client, host, port, timeout, client.socket->is_dgram()) < 0) {
             return false;
         }
         connected = true;
