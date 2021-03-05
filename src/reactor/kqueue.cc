@@ -99,11 +99,17 @@ int ReactorKqueue::add(Socket *socket, int events) {
     int fd = socket->fd;
     int fflags = 0;
 
+#ifndef __NetBSD__
+    auto sobj = socket;
+#else
+    auto sobj = reinterpret_cast<intptr_t>(socket);
+#endif
+
     if (Reactor::isset_read_event(events)) {
 #ifdef NOTE_EOF
         fflags = NOTE_EOF;
 #endif
-        EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, socket);
+        EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn(
@@ -113,7 +119,7 @@ int ReactorKqueue::add(Socket *socket, int events) {
     }
 
     if (Reactor::isset_write_event(events)) {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
+        EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn(
@@ -135,18 +141,24 @@ int ReactorKqueue::set(Socket *socket, int events) {
     int fd = socket->fd;
     int fflags = 0;
 
+#ifndef __NetBSD__
+    auto sobj = socket;
+#else
+    auto sobj = reinterpret_cast<intptr_t>(socket);
+#endif
+
     if (Reactor::isset_read_event(events)) {
 #ifdef NOTE_EOF
         fflags = NOTE_EOF;
 #endif
-        EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, socket);
+        EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->set(%d, SW_EVENT_READ) failed", fd);
             return SW_ERR;
         }
     } else {
-        EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, socket);
+        EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
@@ -155,14 +167,14 @@ int ReactorKqueue::set(Socket *socket, int events) {
     }
 
     if (Reactor::isset_write_event(events)) {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, socket);
+        EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
             return SW_ERR;
         }
     } else {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, socket);
+        EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
@@ -181,6 +193,13 @@ int ReactorKqueue::del(Socket *socket) {
     int ret;
     int fd = socket->fd;
 
+#ifndef __NetBSD__
+    auto sobj = socket;
+#else
+    auto sobj = reinterpret_cast<intptr_t>(socket);
+#endif
+
+
     if (socket->removed) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, "failed to delete event[%d], has been removed", socket->fd);
@@ -188,7 +207,7 @@ int ReactorKqueue::del(Socket *socket) {
     }
 
     if (socket->events & SW_EVENT_READ) {
-        EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, socket);
+        EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
@@ -199,7 +218,7 @@ int ReactorKqueue::del(Socket *socket) {
     }
 
     if (socket->events & SW_EVENT_WRITE) {
-        EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, socket);
+        EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
             after_removal_failure(socket);

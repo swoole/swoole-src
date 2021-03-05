@@ -35,10 +35,15 @@
 #define _GNU_SOURCE
 #endif
 
+#ifndef _PTHREAD_PSHARED
+#define _PTHREAD_PSHARED
+#endif
+
 /*--- C standard library ---*/
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
