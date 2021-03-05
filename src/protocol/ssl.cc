@@ -437,6 +437,8 @@ bool SSLContext::create() {
                    ERR_reason_error_string(error), error);
             return false;
         }
+    }
+    if (!key_file.empty()) {
         /*
          * set the private key from KeyFile (may be the same as CertFile)
          */
