@@ -109,6 +109,10 @@ static void inline php_swoole_table_set_ptr(zval *zobject, Table *ptr) {
 }
 
 static inline void php_swoole_table_free_object(zend_object *object) {
+    Table *table = php_swoole_table_fetch_object(object)->ptr;
+    if (table) {
+        table->free();
+    }
     zend_object_std_dtor(object);
 }
 
