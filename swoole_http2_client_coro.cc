@@ -115,12 +115,10 @@ public:
         update_error_properties(code, cpp_string::format("%s with error: %s", msg, nghttp2_strerror(code)).c_str());
     }
 
-    inline bool is_available()
-    {
-        if (sw_unlikely(!client))
-        {
+    inline bool is_available() {
+        if (sw_unlikely(!client || !client->is_connect() || !connected)) {
             SwooleG.error = SW_ERROR_CLIENT_NO_CONNECTION;
-            zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), ECONNRESET);
+            zend_update_property_long(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errCode"), SW_ERROR_CLIENT_NO_CONNECTION);
             zend_update_property_string(swoole_http2_client_coro_ce, zobject, ZEND_STRL("errMsg"), "client is not connected to server");
             return false;
         }
@@ -160,6 +158,8 @@ public:
         close();
     }
 private:
+    bool connected = false;
+
     bool send_setting();
     int parse_header(http2_client_stream *stream , int flags, char *in, size_t inlen);
 
@@ -430,6 +430,7 @@ bool http2_client::connect()
         return false;
     }
 
+    connected = true;
     zend_update_property_bool(swoole_http2_client_coro_ce, zobject, ZEND_STRL("connected"), 1);
 
     return true;
@@ -444,6 +445,7 @@ bool http2_client::close()
     {
         return false;
     }
+    connected = false;
     zend_update_property_bool(swoole_http2_client_coro_ce, zobject, ZEND_STRL("connected"), 0);
     if (!_client->has_bound())
     {

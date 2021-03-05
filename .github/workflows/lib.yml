@@ -10,15 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: gtest_install
-      run: sudo apt install -y googletest libgtest-dev &&
-           cd /usr/src/googletest/googletest &&
-           sudo mkdir build &&
-           cd build &&
-           sudo cmake .. &&
-           sudo make &&
-           sudo make install &&
-           cd - &&
-           sudo rm -rf /usr/src/googletest/googletest/build
+      run: sudo apt install -y googletest libgtest-dev libbrotli-dev
     - name: install php
       uses: shivammathur/setup-php@v2
       with:
