@@ -11,9 +11,9 @@ go(function () {
     Assert::false($cli->connect());
     Assert::same($cli->errCode, SOCKET_ETIMEDOUT);
     Assert::false($cli->send(new Swoole\Http2\Request));
-    Assert::same($cli->errCode, SOCKET_ECONNRESET);
+    Assert::same($cli->errCode, SWOOLE_ERROR_CLIENT_NO_CONNECTION);
     Assert::false($cli->recv(1));
-    Assert::same($cli->errCode, SOCKET_ECONNRESET);
+    Assert::same($cli->errCode, SWOOLE_ERROR_CLIENT_NO_CONNECTION);
 });
 Swoole\Event::wait();
 ?>
