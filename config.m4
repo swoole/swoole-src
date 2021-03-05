@@ -427,6 +427,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [cygwin*], [SW_OS="CYGWIN"],
       [mingw*], [SW_OS="MINGW"],
       [linux*], [SW_OS="LINUX"],
+      [*bsd*], [SW_OS="BSD"],
       []
     )
 
@@ -611,6 +612,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     AS_CASE([$host_cpu],
       [x86_64*], [SW_CPU="x86_64"],
+      [amd64*], [SW_CPU="x86_64"],
       [x86*], [SW_CPU="x86"],
       [i?86*], [SW_CPU="x86"],
       [arm*], [SW_CPU="arm"],
@@ -625,25 +627,25 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$SW_OS" = "MAC"; then
         SW_CONTEXT_ASM_FILE="combined_sysv_macho_gas.S"
     elif test "$SW_CPU" = "x86_64"; then
-        if test "$SW_OS" = "LINUX"; then
+        if test "$SW_OS" = "LINUX" || test "$SW_OS" = "BSD"; then
             SW_CONTEXT_ASM_FILE="x86_64_sysv_elf_gas.S"
         else
             SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "x86"; then
-        if test "$SW_OS" = "LINUX"; then
+        if test "$SW_OS" = "LINUX" || test "$SW_OS" = "BSD"; then
             SW_CONTEXT_ASM_FILE="i386_sysv_elf_gas.S"
         else
             SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "arm"; then
-        if test "$SW_OS" = "LINUX"; then
+        if test "$SW_OS" = "LINUX" || test "$SW_OS" = "BSD"; then
             SW_CONTEXT_ASM_FILE="arm_aapcs_elf_gas.S"
         else
             SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "arm64"; then
-        if test "$SW_OS" = "LINUX"; then
+        if test "$SW_OS" = "LINUX" || test "$SW_OS" = "BSD"; then
             SW_CONTEXT_ASM_FILE="arm64_aapcs_elf_gas.S"
         else
             SW_USE_ASM_CONTEXT="no"
@@ -655,7 +657,7 @@ if test "$PHP_SWOOLE" != "no"; then
             SW_USE_ASM_CONTEXT="no"
         fi
     elif test "$SW_CPU" = "ppc64"; then
-        if test "$SW_OS" = "LINUX"; then
+        if test "$SW_OS" = "LINUX" || test "$SW_OS" = "BSD"; then
             SW_CONTEXT_ASM_FILE="ppc64_sysv_elf_gas.S"
         else
             SW_USE_ASM_CONTEXT="no"

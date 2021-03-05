@@ -127,5 +127,7 @@ jump_fcontext:
 
     ret x4
 .size   jump_fcontext,.-jump_fcontext
+#ifndef __NetBSD__
 # Mark that we don't need executable stack.
 .section .note.GNU-stack,"",%progbits
+#endif
