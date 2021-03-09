@@ -82,7 +82,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_swoole_native_curl_multi_init, 0, 0, Swoole\\Coroutine\\Curl\\MultiHandle, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_curl_multi_remove_handle arginfo_curl_multi_add_handle
+#define arginfo_swoole_native_curl_multi_remove_handle arginfo_swoole_native_curl_multi_add_handle
 
 #if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_pause, 0, 2, IS_LONG, 0)
@@ -132,6 +132,8 @@ static const zend_function_entry swoole_native_curl_functions[] = {
     PHP_FE(swoole_native_curl_multi_getcontent, arginfo_swoole_native_curl_multi_getcontent)
     PHP_FE(swoole_native_curl_multi_info_read, arginfo_swoole_native_curl_multi_info_read)
     PHP_FE(swoole_native_curl_multi_init, arginfo_swoole_native_curl_multi_init)
+    PHP_FE(swoole_native_curl_multi_remove_handle, arginfo_swoole_native_curl_multi_remove_handle)
+
 
     PHP_FE_END
 };

@@ -147,8 +147,8 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle)
 	CURLMcode error = CURLM_OK;
 
 	ZEND_PARSE_PARAMETERS_START(2,2)
-		Z_PARAM_OBJECT_OF_CLASS(z_mh, curl_multi_ce)
-		Z_PARAM_OBJECT_OF_CLASS(z_ch, curl_ce)
+		Z_PARAM_OBJECT_OF_CLASS(z_mh, swoole_coroutine_curl_multi_handle_ce)
+		Z_PARAM_OBJECT_OF_CLASS(z_ch, swoole_coroutine_curl_handle_ce)
 	ZEND_PARSE_PARAMETERS_END();
 
 	mh = Z_CURL_MULTI_P(z_mh);
@@ -308,7 +308,7 @@ PHP_FUNCTION(swoole_native_curl_multi_close)
 	zval *pz_ch;
 
 	ZEND_PARSE_PARAMETERS_START(1,1)
-		Z_PARAM_OBJECT_OF_CLASS(z_mh, curl_multi_ce)
+		Z_PARAM_OBJECT_OF_CLASS(z_mh, swoole_coroutine_curl_multi_handle_ce)
 	ZEND_PARSE_PARAMETERS_END();
 
 	mh = Z_CURL_MULTI_P(z_mh);
