@@ -16,6 +16,7 @@
    +----------------------------------------------------------------------+
 */
 
+#include "config.h"
 #include "php_swoole_cxx.h"
 
 #ifdef SW_USE_CURL
@@ -365,6 +366,8 @@ void swoole_native_curl_minit(int module_number)
     swoole_coroutine_curl_handle_handlers.get_constructor = curl_get_constructor;
 	swoole_coroutine_curl_handle_handlers.clone_obj = curl_clone_obj;
 	swoole_coroutine_curl_handle_handlers.cast_object = curl_cast_object;
+
+	curl_multi_register_class(nullptr);
 
     zend_unregister_functions(swoole_native_curl_functions, -1, CG(function_table));
     zend_register_functions(NULL, swoole_native_curl_functions, NULL, MODULE_PERSISTENT);
