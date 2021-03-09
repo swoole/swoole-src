@@ -23,6 +23,7 @@
 SW_EXTERN_C_BEGIN
 
 #include <curl/curl.h>
+#include <curl/multi.h>
 
 #include "curl_private.h"
 

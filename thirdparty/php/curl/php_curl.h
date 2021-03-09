@@ -62,6 +62,7 @@
 PHP_CURL_API extern zend_class_entry *curl_ce;
 PHP_CURL_API extern zend_class_entry *curl_share_ce;
 PHP_CURL_API extern zend_class_entry *curl_multi_ce;
+PHP_CURL_API extern zend_class_entry *swoole_coroutine_curl_handle_ce;
 #endif
 
 PHP_CURL_API extern zend_class_entry *curl_CURLFile_class;

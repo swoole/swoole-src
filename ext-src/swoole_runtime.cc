@@ -1404,6 +1404,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_unescape);
 
             SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_init);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_add_handle);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
@@ -1422,6 +1423,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(curl_unescape);
 
             SW_UNHOOK_FUNC(curl_multi_init);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_add_handle);
         }
     }
 #endif
