@@ -17,14 +17,13 @@
 #include "config.h"
 #include "php_swoole_cxx.h"
 
+#include "curl_multi.h"
+
 using namespace swoole;
 
 SW_EXTERN_C_BEGIN
 
 #include "curl_private.h"
-
-#include <curl/curl.h>
-#include <curl/multi.h>
 
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
@@ -63,7 +62,7 @@ PHP_FUNCTION(swoole_native_curl_multi_init)
 
 	object_init_ex(return_value, swoole_coroutine_curl_multi_handle_ce);
 	mh = Z_CURL_MULTI_P(return_value);
-	mh->multi = curl_multi_init();
+	mh->multi = sw_curl_multi()->get_multi_handle();
 	mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
 
 	zend_llist_init(&mh->easyh, sizeof(zval), _php_curl_multi_cleanup_list, 0);
@@ -201,7 +200,7 @@ PHP_FUNCTION(swoole_native_curl_multi_exec)
 	CURLMcode error = CURLM_OK;
 
 	ZEND_PARSE_PARAMETERS_START(2, 2)
-		Z_PARAM_OBJECT_OF_CLASS(z_mh, curl_multi_ce)
+		Z_PARAM_OBJECT_OF_CLASS(z_mh, swoole_coroutine_curl_multi_handle_ce)
 		Z_PARAM_ZVAL(z_still_running)
 	ZEND_PARSE_PARAMETERS_END();
 
@@ -221,7 +220,7 @@ PHP_FUNCTION(swoole_native_curl_multi_exec)
 	}
 
 	still_running = zval_get_long(z_still_running);
-	error = curl_multi_perform(mh->multi, &still_running);
+	error = sw_curl_multi()->exec(mh);
 	ZEND_TRY_ASSIGN_REF_LONG(z_still_running, still_running);
 
 	SAVE_CURLM_ERROR(mh, error);

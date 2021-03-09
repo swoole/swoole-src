@@ -107,6 +107,10 @@ class cURLMulti {
         curl_multi_setopt(handle, CURLMOPT_TIMERFUNCTION, handle_timeout);
     }
 
+    CURLM *get_multi_handle() {
+        return handle;
+    }
+
     CURLcode exec(php_curl *ch) {
         Coroutine::get_current_safe();
 
@@ -128,6 +132,27 @@ class cURLMulti {
         return (CURLcode) Z_LVAL_P(return_value);
     }
 
+    CURLMcode exec(php_curlm *mh) {
+        Coroutine::get_current_safe();
+
+        zval _return_value;
+        zval *return_value = &_return_value;
+        zend_llist_element *element;
+
+        for (element = mh->easyh.head; element; element=element->next) {
+            zval *z_ch = (zval *) element->data;
+	        php_curl *ch = curl_from_obj(Z_OBJ_P(z_ch));
+            FutureTask *context = (FutureTask*) emalloc(sizeof(FutureTask));
+            ch->context = context;
+
+            PHPCoroutine::yield_m(return_value, ch->context);
+            efree(ch->context);
+            ch->context = nullptr;
+        }
+
+        return (CURLMcode) Z_LVAL_P(return_value);
+    }
+
     void socket_action(int fd, int event_bitmask) {
         int running_handles;
         curl_multi_socket_action(handle, fd, event_bitmask, &running_handles);
@@ -141,5 +166,7 @@ class cURLMulti {
     static int handle_timeout(CURLM *multi, long timeout_ms, void *userp);
 };
 }
+
+inline swoole::cURLMulti *sw_curl_multi();
 
 #endif

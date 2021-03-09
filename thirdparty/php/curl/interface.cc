@@ -267,12 +267,13 @@ php_curl *init_curl_handle_into_zval(zval *curl);
 
 static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields);
 
+SW_EXTERN_C_END
+
 static cURLMulti *g_curl_multi = nullptr;
 
-static inline cURLMulti *sw_curl_multi() {
+inline cURLMulti *sw_curl_multi() {
     return g_curl_multi;
 }
-SW_EXTERN_C_END
 
 int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
     sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_IN);
