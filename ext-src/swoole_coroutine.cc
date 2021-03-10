@@ -419,8 +419,8 @@ void PHPCoroutine::interrupt_thread_start() {
     interrupt_thread = std::thread([]() {
         swSignal_none();
         while (interrupt_thread_running) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC));
             *zend_vm_interrupt = 1;
-            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
         }
     });
 }
@@ -580,7 +580,6 @@ void PHPCoroutine::on_resume(void *arg) {
     save_task(current_task);
     restore_task(task);
     incr_task_round(task);
-    set_task_exec_msec(task);
     swTraceLog(SW_TRACE_COROUTINE,
                "php_coro_resume from cid=%ld to cid=%ld",
                Coroutine::get_current_cid(),
@@ -716,8 +715,6 @@ void PHPCoroutine::main_func(void *arg) {
         task->yield_round = 0;
 
         save_vm_stack(task);
-
-        set_task_exec_msec(task);
 
         swTraceLog(SW_TRACE_COROUTINE,
                    "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
