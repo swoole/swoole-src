@@ -82,6 +82,8 @@ struct PHPContext {
     long pcid;
     zend_object *context;
     int64_t last_msec;
+    uint64_t round;
+    uint64_t yield_round;
 };
 
 class PHPCoroutine {
@@ -182,7 +184,8 @@ class PHPCoroutine {
     }
 
     static inline bool is_schedulable(PHPContext *task) {
-        return task->enable_scheduler && (Timer::get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
+        return task->enable_scheduler && task->round == task->yield_round &&
+               (Timer::get_absolute_msec() - task->last_msec > MAX_EXEC_MSEC);
     }
 
     static inline bool enable_scheduler() {
@@ -242,9 +245,21 @@ class PHPCoroutine {
     static void main_func(void *arg);
 
     static void interrupt_thread_start();
-    static inline void record_last_msec(PHPContext *task) {
+    static inline void set_task_exec_msec(PHPContext *task) {
         if (interrupt_thread_running) {
             task->last_msec = Timer::get_absolute_msec();
+        }
+    }
+
+    static inline void incr_task_round(PHPContext *task) {
+        if (interrupt_thread_running) {
+            task->round ++;
+        }
+    }
+
+    static inline void incr_yield_round(PHPContext *task) {
+        if (interrupt_thread_running) {
+            task->yield_round ++;
         }
     }
 };

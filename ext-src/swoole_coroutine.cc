@@ -571,6 +571,7 @@ void PHPCoroutine::on_yield(void *arg) {
         SW_TRACE_COROUTINE, "php_coro_yield from cid=%ld to cid=%ld", task->co->get_cid(), task->co->get_origin_cid());
     save_task(task);
     restore_task(origin_task);
+    incr_yield_round(task);
 }
 
 void PHPCoroutine::on_resume(void *arg) {
@@ -578,7 +579,8 @@ void PHPCoroutine::on_resume(void *arg) {
     PHPContext *current_task = get_context();
     save_task(current_task);
     restore_task(task);
-    record_last_msec(task);
+    incr_task_round(task);
+    set_task_exec_msec(task);
     swTraceLog(SW_TRACE_COROUTINE,
                "php_coro_resume from cid=%ld to cid=%ld",
                Coroutine::get_current_cid(),
@@ -710,9 +712,12 @@ void PHPCoroutine::main_func(void *arg) {
         task->pcid = task->co->get_origin_cid();
         task->context = nullptr;
         task->enable_scheduler = true;
+        task->round = 0;
+        task->yield_round = 0;
 
         save_vm_stack(task);
-        record_last_msec(task);
+
+        set_task_exec_msec(task);
 
         swTraceLog(SW_TRACE_COROUTINE,
                    "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
