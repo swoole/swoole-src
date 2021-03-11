@@ -151,7 +151,7 @@ class cURLMulti {
             for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
                 zval *z_ch = (zval *) element->data;
                 php_curl *ch;
-                if ((ch = _php_curl_get_handle(z_ch)) == NULL) {
+                if ((ch = _php_curl_get_handle(z_ch, false)) == NULL) {
                     continue;
                 }
                 ch->context = ctx;
