@@ -14,9 +14,9 @@
    +----------------------------------------------------------------------+
 */
 
-#include "config.h"
 #include "php_swoole_cxx.h"
 
+#ifdef SW_USE_CURL
 #include "curl_multi.h"
 
 using namespace swoole;
@@ -668,4 +668,5 @@ void _php_curl_multi_close(zend_resource *rsrc) /* {{{ */
     }
 }
 /* }}} */
+#endif
 #endif

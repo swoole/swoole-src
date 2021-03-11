@@ -16,7 +16,6 @@
    +----------------------------------------------------------------------+
 */
 
-#include "config.h"
 #include "php_swoole_cxx.h"
 
 #ifdef SW_USE_CURL

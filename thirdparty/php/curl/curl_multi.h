@@ -13,9 +13,8 @@
  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
  +----------------------------------------------------------------------+
  */
-#pragma once
 
-#ifdef SW_USE_CURL
+#pragma once
 
 #include "php_swoole_cxx.h"
 #include "swoole_util.h"
@@ -195,5 +194,3 @@ class cURLMulti {
     static int handle_timeout(CURLM *multi, long timeout_ms, void *userp);
 };
 }  // namespace swoole
-
-#endif
