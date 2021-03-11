@@ -143,13 +143,12 @@ class cURLMulti {
 
         zval _return_value;
         zval *return_value = &_return_value;
-        zend_llist_element *element;
 
         MultiSelector task{};
         selector = &task;
 
-        auto set_context_fn = [](void *ctx) {
-            for (element = mh->easyh.head; element; element = element->next) {
+        auto set_context_fn = [mh](FutureTask *ctx) {
+            for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
                 zval *z_ch = (zval *) element->data;
                 php_curl *ch;
                 if ((ch = _php_curl_get_handle(z_ch)) == NULL) {
