@@ -166,6 +166,17 @@ int ListenPort::listen() {
     }
 #endif
 
+#ifdef SO_ACCEPTFILTER
+    if (tcp_defer_accept) {
+        struct accept_filter_arg a;
+        memset(&a, 0, sizeof(a));
+        strcpy(a.af_name, "httpready");
+        if (socket->set_option(SOL_SOCKET, SO_ACCEPTFILTER, &a, sizeof(a)) != 0) {
+            swSysWarn("setsockopt(SO_ACCEPTFILTER) failed");
+        }
+    }
+#endif
+
 #ifdef TCP_FASTOPEN
     if (tcp_fastopen) {
         if (socket->set_option(IPPROTO_TCP, TCP_FASTOPEN, tcp_fastopen) != 0) {
