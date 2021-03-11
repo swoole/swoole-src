@@ -54,6 +54,7 @@ class cURLMulti {
         Socket *socket = new Socket();
         socket->fd = sockfd;
         socket->removed = 1;
+        socket->object = this;
         socket->fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_CURL;
         curl_multi_assign(handle, sockfd, (void *) socket);
         return socket;
@@ -110,6 +111,8 @@ class cURLMulti {
         handle = curl_multi_init();
         curl_multi_setopt(handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
         curl_multi_setopt(handle, CURLMOPT_TIMERFUNCTION, handle_timeout);
+        curl_multi_setopt(handle, CURLMOPT_SOCKETDATA, this);
+        curl_multi_setopt(handle, CURLMOPT_TIMERDATA, this);
     }
 
     CURLM *get_multi_handle() {

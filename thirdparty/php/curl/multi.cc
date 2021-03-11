@@ -20,7 +20,6 @@
 #include "curl_multi.h"
 
 using namespace swoole;
-extern cURLMulti *sw_curl_multi();
 
 SW_EXTERN_C_BEGIN
 #include "curl_interface.h"
@@ -51,6 +50,8 @@ static inline php_curlm *Z_CURL_MULTI_P(zval *zv) {
 }
 #endif
 
+static void _php_curl_multi_free(php_curlm *mh);
+
 SW_EXTERN_C_END
 
 /* {{{ Returns a new cURL multi handle */
@@ -62,15 +63,15 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
 #if PHP_VERSION_ID >= 80000
     object_init_ex(return_value, swoole_coroutine_curl_multi_handle_ce);
     mh = Z_CURL_MULTI_P(return_value);
-    mh->multi = sw_curl_multi()->get_multi_handle();
+    mh->multi_object = new cURLMulti();
+    mh->multi = mh->multi_object->get_multi_handle();
     mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
-
     zend_llist_init(&mh->easyh, sizeof(zval), _php_curl_multi_cleanup_list, 0);
 #else
     mh = (php_curlm *) ecalloc(1, sizeof(php_curlm));
-    mh->multi = sw_curl_multi()->get_multi_handle();
+    mh->multi_object = new cURLMulti();
+    mh->multi = mh->multi_object->get_multi_handle();
     mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
-
     zend_llist_init(&mh->easyh, sizeof(zval), _php_curl_multi_cleanup_list, 0);
     RETURN_RES(zend_register_resource(mh, _php_curl_get_le_curl_multi()));
 #endif
@@ -193,7 +194,7 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
     ZEND_PARSE_PARAMETERS_END();
 
     mh = Z_CURL_MULTI_P(z_mh);
-    RETURN_LONG(sw_curl_multi()->select(mh));
+    RETURN_LONG(mh->multi_object->select(mh));
 }
 /* }}} */
 
@@ -576,24 +577,7 @@ void curl_multi_free_obj(zend_object *object) {
         return;
     }
 
-    for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
-         pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
-        if (!(OBJ_FLAGS(Z_OBJ_P(pz_ch)) & IS_OBJ_FREE_CALLED)) {
-            ch = Z_CURL_P(pz_ch);
-            _php_curl_verify_handlers(ch, 0);
-        }
-    }
-
-    curl_multi_cleanup(mh->multi);
-    zend_llist_clean(&mh->easyh);
-    if (mh->handlers->server_push) {
-        zval_ptr_dtor(&mh->handlers->server_push->func_name);
-        efree(mh->handlers->server_push);
-    }
-    if (mh->handlers) {
-        efree(mh->handlers);
-    }
-
+    _php_curl_multi_free(mh);
     zend_object_std_dtor(&mh->std);
 }
 
@@ -640,33 +624,41 @@ void _php_curl_multi_close(zend_resource *rsrc) /* {{{ */
 {
     php_curlm *mh = (php_curlm *) rsrc->ptr;
     if (mh) {
-        zend_llist_position pos;
-        php_curl *ch;
-        zval *pz_ch;
-
-        for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
-             pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
-            /* ptr is NULL means it already be freed */
-            if (Z_RES_P(pz_ch)->ptr) {
-                if ((ch = (php_curl *) zend_fetch_resource(Z_RES_P(pz_ch), le_curl_name, _php_curl_get_le_curl()))) {
-                    _php_curl_verify_handlers(ch, 0);
-                }
-            }
-        }
-
-        curl_multi_cleanup(mh->multi);
-        zend_llist_clean(&mh->easyh);
-        if (mh->handlers->server_push) {
-            zval_ptr_dtor(&mh->handlers->server_push->func_name);
-            efree(mh->handlers->server_push);
-        }
-        if (mh->handlers) {
-            efree(mh->handlers);
-        }
-        efree(mh);
+        _php_curl_multi_free(mh);
         rsrc->ptr = NULL;
+        efree(mh);
     }
 }
 /* }}} */
 #endif
+
+void _php_curl_multi_free(php_curlm *mh) {
+    zend_llist_position pos;
+    php_curl *ch;
+    zval *pz_ch;
+
+    for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
+         pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
+        /* ptr is NULL means it already be freed */
+        if (Z_RES_P(pz_ch)->ptr) {
+            if ((ch = _php_curl_get_handle(pz_ch, false))) {
+                _php_curl_verify_handlers(ch, 0);
+            }
+        }
+    }
+
+    curl_multi_cleanup(mh->multi);
+    zend_llist_clean(&mh->easyh);
+    if (mh->handlers->server_push) {
+        zval_ptr_dtor(&mh->handlers->server_push->func_name);
+        efree(mh->handlers->server_push);
+    }
+    if (mh->handlers) {
+        efree(mh->handlers);
+    }
+    if (mh->multi_object) {
+        delete mh->multi_object;
+    }
+}
+
 #endif

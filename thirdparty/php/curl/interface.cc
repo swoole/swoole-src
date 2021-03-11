@@ -294,30 +294,34 @@ cURLMulti *sw_curl_multi() {
 }
 
 int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
-    sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_IN);
+    cURLMulti *multi = (cURLMulti *) event->socket->object;
+    multi->socket_action(event->fd, CURL_CSELECT_IN);
     return 0;
 }
 
 int cURLMulti::cb_writable(Reactor *reactor, Event *event) {
-    sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_OUT);
+    cURLMulti *multi = (cURLMulti *) event->socket->object;
+    multi->socket_action(event->fd, CURL_CSELECT_OUT);
     return 0;
 }
 
 int cURLMulti::cb_error(Reactor *reactor, Event *event) {
-    sw_curl_multi()->socket_action(event->fd, CURL_CSELECT_ERR);
+    cURLMulti *multi = (cURLMulti *) event->socket->object;
+    multi->socket_action(event->fd, CURL_CSELECT_ERR);
     return 0;
 }
 
 int cURLMulti::handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp) {
+    cURLMulti *multi = (cURLMulti *) userp;
     switch (action) {
     case CURL_POLL_IN:
     case CURL_POLL_OUT:
     case CURL_POLL_INOUT:
-        sw_curl_multi()->set_event(socketp, s, action);
+        multi->set_event(socketp, s, action);
         break;
     case CURL_POLL_REMOVE:
         if (socketp) {
-            sw_curl_multi()->del_event(socketp, s);
+            multi->del_event(socketp, s);
         }
         break;
     default:
@@ -354,14 +358,15 @@ void cURLMulti::read_info() {
     }
 }
 
-int cURLMulti::handle_timeout(CURLM *multi, long timeout_ms, void *userp) {
+int cURLMulti::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
+    cURLMulti *multi = (cURLMulti *) userp;
     if (timeout_ms < 0) {
-        sw_curl_multi()->del_timer();
+        multi->del_timer();
     } else {
         if (timeout_ms == 0) {
             timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */
         }
-        sw_curl_multi()->add_timer(timeout_ms);
+        multi->add_timer(timeout_ms);
     }
     return 0;
 }
