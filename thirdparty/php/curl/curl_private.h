@@ -175,5 +175,14 @@ int curl_cast_object(zend_object *obj, zval *result, int type);
 
 php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true);
 
+SW_EXTERN_C_BEGIN
+#if PHP_VERSION_ID < 80000
+void _php_curl_close_ex(php_curl *ch);
+void _php_curl_close(zend_resource *rsrc);
+void _php_curl_multi_close(zend_resource *rsrc);
+php_curl *alloc_curl_handle();
+#endif
+SW_EXTERN_C_END
+
 #endif  /* _PHP_CURL_PRIVATE_H */
 #endif

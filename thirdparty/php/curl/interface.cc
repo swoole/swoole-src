@@ -99,13 +99,6 @@ int _php_curl_get_le_curl_multi() {
 
 #endif
 
-#if PHP_VERSION_ID < 80000
-static void _php_curl_close_ex(php_curl *ch);
-static void _php_curl_close(zend_resource *rsrc);
-void _php_curl_multi_close(zend_resource *rsrc);
-static php_curl *alloc_curl_handle();
-#endif
-
 #define CAAL(s, v) add_assoc_long_ex(return_value, s, sizeof(s) - 1, (zend_long) v);
 #define CAAD(s, v) add_assoc_double_ex(return_value, s, sizeof(s) - 1, (double) v);
 #define CAAS(s, v) add_assoc_string_ex(return_value, s, sizeof(s) - 1, (char *) (v ? v : ""));
@@ -957,7 +950,7 @@ php_curl *init_curl_handle_into_zval(zval *curl)
 #if PHP_VERSION_ID >= 80000
 void init_curl_handle(php_curl *ch)
 #else
-static php_curl *alloc_curl_handle()
+php_curl *alloc_curl_handle()
 #endif
 {
 #if PHP_VERSION_ID < 80000
@@ -2859,11 +2852,10 @@ static void curl_free_obj(zend_object *object)
 }
 #endif
 
+#if PHP_VERSION_ID < 80000
 /* {{{ _php_curl_close_ex()
    List destructor for curl handles */
-#if PHP_VERSION_ID < 80000
-static void _php_curl_close_ex(php_curl *ch)
-{
+void _php_curl_close_ex(php_curl *ch) {
 #if PHP_CURL_DEBUG
     fprintf(stderr, "DTOR CALLED, ch = %x\n", ch);
 #endif
@@ -2934,14 +2926,11 @@ static void _php_curl_close_ex(php_curl *ch)
 #endif
     efree(ch);
 }
-#endif
 /* }}} */
 
 /* {{{ _php_curl_close()
    List destructor for curl handles */
-#if PHP_VERSION_ID < 80000
-static void _php_curl_close(zend_resource *rsrc)
-{
+void _php_curl_close(zend_resource *rsrc) {
     php_curl *ch = (php_curl *) rsrc->ptr;
     _php_curl_close_ex(ch);
 }
