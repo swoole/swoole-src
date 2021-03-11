@@ -33,9 +33,16 @@ namespace swoole {
 
 using network::Socket;
 
+struct MultiSelector {
+    bool defer_callback = false;
+    int event_count = 0;
+    FutureTask context;
+};
+
 class cURLMulti {
     CURLM *handle;
     TimerNode *timer = nullptr;
+    MultiSelector *selector = nullptr;
 
     void read_info();
 
@@ -49,7 +56,7 @@ class cURLMulti {
         socket->fd = sockfd;
         socket->removed = 1;
         socket->fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_CURL;
-        curl_multi_assign(handle, sockfd, (void*) socket);
+        curl_multi_assign(handle, sockfd, (void *) socket);
         return socket;
     }
 
@@ -58,7 +65,7 @@ class cURLMulti {
     }
 
     void set_event(void *socket_ptr, curl_socket_t sockfd, int action) {
-        Socket *socket = socket_ptr ? (Socket*) socket_ptr : create_socket(sockfd);
+        Socket *socket = socket_ptr ? (Socket *) socket_ptr : create_socket(sockfd);
         int events = 0;
         if (action != CURL_POLL_IN) {
             events |= SW_EVENT_WRITE;
@@ -74,7 +81,7 @@ class cURLMulti {
     }
 
     void del_event(void *socket_ptr, curl_socket_t sockfd) {
-        Socket *socket = (Socket*) socket_ptr;
+        Socket *socket = (Socket *) socket_ptr;
         socket->silent_remove = 1;
         if (socket->events && swoole_event_is_available()) {
             swoole_event_del(socket);
@@ -89,9 +96,8 @@ class cURLMulti {
             swoole_timer_del(timer);
         }
 
-        timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
-            socket_action(CURL_SOCKET_TIMEOUT, 0);
-        });
+        timer = swoole_timer_add(
+            timeout_ms, false, [this](Timer *timer, TimerNode *tnode) { socket_action(CURL_SOCKET_TIMEOUT, 0); });
     }
 
     void del_timer() {
@@ -100,7 +106,7 @@ class cURLMulti {
         }
     }
 
- public:
+  public:
     cURLMulti() {
         handle = curl_multi_init();
         curl_multi_setopt(handle, CURLMOPT_SOCKETFUNCTION, handle_socket);
@@ -121,7 +127,7 @@ class cURLMulti {
         zval _return_value;
         zval *return_value = &_return_value;
 
-        FutureTask *context = (FutureTask*) emalloc(sizeof(FutureTask));
+        FutureTask *context = (FutureTask *) emalloc(sizeof(FutureTask));
         ON_SCOPE_EXIT {
             efree(context);
         };
@@ -132,23 +138,31 @@ class cURLMulti {
         return (CURLcode) Z_LVAL_P(return_value);
     }
 
-    CURLMcode exec(php_curlm *mh) {
+    CURLMcode select(php_curlm *mh) {
         Coroutine::get_current_safe();
 
         zval _return_value;
         zval *return_value = &_return_value;
         zend_llist_element *element;
 
-        for (element = mh->easyh.head; element; element=element->next) {
-            zval *z_ch = (zval *) element->data;
-	        php_curl *ch = curl_from_obj(Z_OBJ_P(z_ch));
-            FutureTask *context = (FutureTask*) emalloc(sizeof(FutureTask));
-            ch->context = context;
+        MultiSelector task{};
+        selector = &task;
 
-            PHPCoroutine::yield_m(return_value, ch->context);
-            efree(ch->context);
-            ch->context = nullptr;
-        }
+        auto set_context_fn = [](void *ctx) {
+            for (element = mh->easyh.head; element; element = element->next) {
+                zval *z_ch = (zval *) element->data;
+                php_curl *ch;
+                if ((ch = _php_curl_get_handle(z_ch)) == NULL) {
+                    continue;
+                }
+                ch->context = ctx;
+            }
+        };
+
+        set_context_fn(&task.context);
+        PHPCoroutine::yield_m(return_value, &task.context);
+        set_context_fn(nullptr);
+        selector = nullptr;
 
         return (CURLMcode) Z_LVAL_P(return_value);
     }
@@ -156,7 +170,23 @@ class cURLMulti {
     void socket_action(int fd, int event_bitmask) {
         int running_handles;
         curl_multi_socket_action(handle, fd, event_bitmask, &running_handles);
-        read_info();
+
+        // for curl_multi_select
+        if (selector) {
+            selector->event_count++;
+            if (!selector->defer_callback) {
+                selector->defer_callback = true;
+                swoole_event_defer(
+                    [this](void *data) {
+                        zval result;
+                        ZVAL_LONG(&result, selector->event_count);
+                        PHPCoroutine::resume_m(&selector->context, &result);
+                    },
+                    nullptr);
+            }
+        } else {
+            read_info();
+        }
     }
 
     static int cb_readable(Reactor *reactor, Event *event);
@@ -165,8 +195,6 @@ class cURLMulti {
     static int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp);
     static int handle_timeout(CURLM *multi, long timeout_ms, void *userp);
 };
-}
-
-inline swoole::cURLMulti *sw_curl_multi();
+}  // namespace swoole
 
 #endif

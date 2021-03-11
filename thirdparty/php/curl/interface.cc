@@ -88,13 +88,22 @@ static zend_object_handlers swoole_native_curl_exception_handlers;
 
 #if PHP_VERSION_ID < 80000
 static int le_curl;
-#endif
+static int le_curl_multi_handle;
 
-static php_curl *get_curl_handle(zval *zid, bool exclusive = true);
+int _php_curl_get_le_curl() {
+    return le_curl;
+}
+
+int _php_curl_get_le_curl_multi() {
+    return le_curl_multi_handle;
+}
+
+#endif
 
 #if PHP_VERSION_ID < 80000
 static void _php_curl_close_ex(php_curl *ch);
 static void _php_curl_close(zend_resource *rsrc);
+void _php_curl_multi_close(zend_resource *rsrc);
 static php_curl *alloc_curl_handle();
 #endif
 
@@ -110,6 +119,23 @@ static php_curl *alloc_curl_handle();
 #else
 # define php_curl_ret(__ret) RETVAL_FALSE; return;
 #endif
+
+php_curl *_php_curl_get_handle(zval *zid, bool exclusive) {
+    php_curl *ch;
+#if PHP_VERSION_ID >= 80000
+    ch = Z_CURL_P(zid);
+#else
+    if ((ch = (php_curl*) zend_fetch_resource(Z_RES_P(zid), le_curl_name, le_curl)) == NULL) {
+        swFatalError(SW_ERROR_INVALID_PARAMS, "The cURL client is executing, this handle cannot be operated");
+        return nullptr;
+    }
+#endif
+    if (exclusive && ch->context) {
+        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "The cURL client is executing, this handle cannot be operated");
+        return nullptr;
+    }
+    return ch;
+}
 
 static int php_curl_option_str(php_curl *ch, zend_long option, const char *str, const size_t len, zend_bool make_copy)
 {
@@ -271,7 +297,7 @@ SW_EXTERN_C_END
 
 static cURLMulti *g_curl_multi = nullptr;
 
-inline cURLMulti *sw_curl_multi() {
+cURLMulti *sw_curl_multi() {
     return g_curl_multi;
 }
 
@@ -375,6 +401,7 @@ void swoole_native_curl_minit(int module_number)
 
 #else
     le_curl = zend_register_list_destructors_ex(_php_curl_close, NULL, le_curl_name, module_number);
+    le_curl_multi_handle = zend_register_list_destructors_ex(_php_curl_multi_close, NULL, le_curl_multi_handle_name, module_number);
 #endif
 
 
@@ -967,23 +994,6 @@ static php_curl *alloc_curl_handle()
 }
 /* }}} */
 
-static php_curl *get_curl_handle(zval *zid, bool exclusive) {
-    php_curl *ch;
-#if PHP_VERSION_ID >= 80000
-    ch = Z_CURL_P(zid);
-#else
-    if ((ch = (php_curl*) zend_fetch_resource(Z_RES_P(zid), le_curl_name, le_curl)) == NULL) {
-        swFatalError(SW_ERROR_INVALID_PARAMS, "The cURL client is executing, this handle cannot be operated");
-        return nullptr;
-    }
-#endif
-    if (exclusive && ch->context) {
-        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "The cURL client is executing, this handle cannot be operated");
-        return nullptr;
-    }
-    return ch;
-}
-
 #if LIBCURL_VERSION_NUM >= 0x071301 /* Available since 7.19.1 */
 /* {{{ create_certinfo
  */
@@ -1062,7 +1072,7 @@ PHP_FUNCTION(swoole_native_curl_init)
     CURL 	 *cp;
     zend_string *url = NULL;
 
-    ZEND_PARSE_PARAMETERS_START(0,1)
+    ZEND_PARSE_PARAMETERS_START(0, 1)
         Z_PARAM_OPTIONAL
 #if PHP_VERSION_ID >= 80000
         Z_PARAM_STR_OR_NULL(url)
@@ -1427,7 +1437,7 @@ PHP_FUNCTION(swoole_native_curl_copy_handle)
 #endif
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2268,7 +2278,7 @@ PHP_FUNCTION(swoole_native_curl_setopt)
         Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2302,7 +2312,7 @@ PHP_FUNCTION(swoole_native_curl_setopt_array)
         Z_PARAM_ARRAY(arr)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2357,7 +2367,7 @@ PHP_FUNCTION(swoole_native_curl_exec)
 #endif
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2429,7 +2439,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo)
 #endif
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid, false)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid, false)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2702,7 +2712,7 @@ PHP_FUNCTION(swoole_native_curl_error)
 #endif
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid, false)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid, false)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2730,7 +2740,7 @@ PHP_FUNCTION(swoole_native_curl_errno)
 #endif
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid, false)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid, false)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2753,7 +2763,7 @@ PHP_FUNCTION(swoole_native_curl_close)
 #endif
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -3002,7 +3012,7 @@ PHP_FUNCTION(swoole_native_curl_reset)
 #endif
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -3035,7 +3045,7 @@ PHP_FUNCTION(swoole_native_curl_escape)
         Z_PARAM_STR(str)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -3110,7 +3120,7 @@ PHP_FUNCTION(swoole_native_curl_pause)
         Z_PARAM_LONG(bitmask)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = get_curl_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid)) == NULL) {
         RETURN_FALSE;
     }
 

@@ -37,6 +37,7 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle);
 PHP_FUNCTION(swoole_native_curl_multi_close);
 PHP_FUNCTION(swoole_native_curl_multi_errno);
 PHP_FUNCTION(swoole_native_curl_multi_exec);
+PHP_FUNCTION(swoole_native_curl_multi_select);
 PHP_FUNCTION(swoole_native_curl_multi_remove_handle);
 PHP_FUNCTION(swoole_native_curl_multi_getcontent);
 PHP_FUNCTION(swoole_native_curl_multi_info_read);

@@ -169,7 +169,11 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 #define Z_CURL_SHARE_P(zv) curl_share_from_obj(Z_OBJ_P(zv))
 void curl_multi_register_class(const zend_function_entry *method_entries);
 int curl_cast_object(zend_object *obj, zval *result, int type);
-#endif
+#else
+#define Z_CURL_P(zv)     _php_curl_get_handle(zv)
+#endif /* PHP8 end */
+
+php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true);
 
 #endif  /* _PHP_CURL_PRIVATE_H */
 #endif
