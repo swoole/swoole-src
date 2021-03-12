@@ -1,4 +1,4 @@
-#ifdef __linux__
+#if defined(__linux__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
     #if defined(__i386__)
         #include "make_i386_sysv_elf_gas.S"
         #include "jump_i386_sysv_elf_gas.S"
