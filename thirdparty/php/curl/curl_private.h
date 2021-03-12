@@ -135,8 +135,7 @@ class cURLMulti;
 
 typedef struct {
 	int         still_running;
-	CURLM      *multi;
-	swoole::cURLMulti *multi_object;
+	swoole::cURLMulti *multi;
 	zend_llist  easyh;
 	php_curlm_handlers	*handlers;
 	struct {
