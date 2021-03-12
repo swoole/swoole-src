@@ -56,6 +56,10 @@ using swoole::String;
 #include <sys/random.h>
 #else
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
+#ifdef HAVE_ARC4RANDOM
+    arc4random_buf(buffer, size);
+    return size;
+#else
     int fd = open("/dev/urandom", O_RDONLY);
     if (fd < 0) {
         return -1;
@@ -73,6 +77,7 @@ static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
     close(fd);
 
     return read_bytes;
+#endif
 }
 #endif
 
