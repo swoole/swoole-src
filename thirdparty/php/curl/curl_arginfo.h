@@ -71,7 +71,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_exec, 0
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_getcontent, 0, 1, IS_STRING, 1)
-	ZEND_ARG_OBJ_INFO(0, handle, Swoole\\Coroutine\\Curl\\MultiHandle, 0)
+	ZEND_ARG_OBJ_INFO(0, handle, Swoole\\Coroutine\\Curl\\Handle, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_native_curl_multi_info_read, 0, 1, MAY_BE_ARRAY|MAY_BE_FALSE)
@@ -85,7 +85,7 @@ ZEND_END_ARG_INFO()
 #define arginfo_swoole_native_curl_multi_remove_handle arginfo_swoole_native_curl_multi_add_handle
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_select, 0, 1, IS_LONG, 0)
-    ZEND_ARG_OBJ_INFO(0, multi_handle, CurlMultiHandle, 0)
+    ZEND_ARG_OBJ_INFO(0, multi_handle, Swoole\\Coroutine\\Curl\\MultiHandle, 0)
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "1.0")
 ZEND_END_ARG_INFO()
 
