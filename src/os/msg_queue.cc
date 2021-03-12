@@ -96,7 +96,11 @@ bool MsgQueue::stat(size_t *queue_num, size_t *queue_bytes) {
     struct msqid_ds __stat;
     if (msgctl(msg_id_, IPC_STAT, &__stat) == 0) {
         *queue_num = __stat.msg_qnum;
+#ifndef __NetBSD__
         *queue_bytes = __stat.msg_cbytes;
+#else
+        *queue_bytes = __stat._msg_cbytes;
+#endif
         return true;
     } else {
         return false;

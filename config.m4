@@ -266,6 +266,19 @@ AC_DEFUN([AC_SWOOLE_CHECK_SOCKETS], [
     if test "$ac_cv_gai_ai_idn" = yes; then
         AC_DEFINE(HAVE_AI_IDN,1,[Whether you have AI_IDN])
     fi
+
+    AC_CACHE_CHECK([if gethostbyname2_r is supported],[ac_cv_gethostbyname2_r],
+    [
+	AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
+#include <sys/socket.h>
+#include <netdb.h>
+    ]], [[struct hostent s, *res; char ptr[256]; int err; gethostbyname2_r("example.com", AF_INET, &s, ptr, sizeof(ptr), &res, &err);]])],
+	    [ac_cv_gethostbyname2_r=yes], [ac_cv_gethostbyname2_r=no])
+    ])
+
+    if test "$ac_cv_gethostbyname2_r" = yes; then
+        AC_DEFINE(HAVE_GETHOSTBYNAME2_R,1,[Whether you have gethostbyname2_r])
+    fi
 ])
 
 AC_MSG_CHECKING([if compiling with clang])
@@ -300,7 +313,6 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(c, inotify_init, AC_DEFINE(HAVE_INOTIFY, 1, [have inotify]))
     AC_CHECK_LIB(c, malloc_trim, AC_DEFINE(HAVE_MALLOC_TRIM, 1, [have malloc_trim]))
     AC_CHECK_LIB(c, inotify_init1, AC_DEFINE(HAVE_INOTIFY_INIT1, 1, [have inotify_init1]))
-    AC_CHECK_LIB(c, gethostbyname2_r, AC_DEFINE(HAVE_GETHOSTBYNAME2_R, 1, [have gethostbyname2_r]))
     AC_CHECK_LIB(c, ptrace, AC_DEFINE(HAVE_PTRACE, 1, [have ptrace]))
     AC_CHECK_LIB(c, getrandom, AC_DEFINE(HAVE_GETRANDOM, 1, [have getrandom]))
     AC_CHECK_LIB(pthread, pthread_rwlock_init, AC_DEFINE(HAVE_RWLOCK, 1, [have pthread_rwlock_init]))
