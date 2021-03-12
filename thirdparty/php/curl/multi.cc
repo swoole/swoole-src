@@ -58,7 +58,9 @@ SW_EXTERN_C_END
 PHP_FUNCTION(swoole_native_curl_multi_init) {
     php_curlm *mh;
 
+#ifdef ZEND_PARSE_PARAMETERS_NONE
     ZEND_PARSE_PARAMETERS_NONE();
+#endif
 
 #if PHP_VERSION_ID >= 80000
     object_init_ex(return_value, swoole_coroutine_curl_multi_handle_ce);
