@@ -215,6 +215,7 @@ void php_swoole_runtime_rshutdown() {
             efree(rf->fci_cache);
         }
         rf->function->internal_function.handler = rf->ori_handler;
+        rf->function->internal_function.arg_info = rf->ori_arg_info;
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
