@@ -129,9 +129,13 @@ typedef struct {
 	php_curlm_server_push	*server_push;
 } php_curlm_handlers;
 
+namespace swoole {
+class cURLMulti;
+}
+
 typedef struct {
 	int         still_running;
-	CURLM      *multi;
+	swoole::cURLMulti *multi;
 	zend_llist  easyh;
 	php_curlm_handlers	*handlers;
 	struct {
@@ -167,8 +171,22 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 }
 
 #define Z_CURL_SHARE_P(zv) curl_share_from_obj(Z_OBJ_P(zv))
+void curl_multi_register_class(const zend_function_entry *method_entries);
 int curl_cast_object(zend_object *obj, zval *result, int type);
+#else
+#define Z_CURL_P(zv)     _php_curl_get_handle(zv)
+#endif /* PHP8 end */
+
+php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true);
+
+SW_EXTERN_C_BEGIN
+#if PHP_VERSION_ID < 80000
+void _php_curl_close_ex(php_curl *ch);
+void _php_curl_close(zend_resource *rsrc);
+void _php_curl_multi_close(zend_resource *rsrc);
+php_curl *alloc_curl_handle();
 #endif
+SW_EXTERN_C_END
 
 #endif  /* _PHP_CURL_PRIVATE_H */
 #endif

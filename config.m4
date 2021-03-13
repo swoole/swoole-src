@@ -594,6 +594,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     swoole_source_file="$swoole_source_file \
         thirdparty/php/curl/interface.cc \
+        thirdparty/php/curl/multi.cc \
         thirdparty/php/sockets/multicast.cc \
         thirdparty/php/sockets/sendrecvmsg.cc \
         thirdparty/php/sockets/conversions.cc \
