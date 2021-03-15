@@ -70,16 +70,14 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
 #if PHP_VERSION_ID >= 80000
     object_init_ex(return_value, swoole_coroutine_curl_multi_handle_ce);
     mh = Z_CURL_MULTI_P(return_value);
-    mh->multi = new cURLMulti();
-    mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
-    zend_llist_init(&mh->easyh, sizeof(zval), _php_curl_multi_cleanup_list, 0);
 #else
     mh = (php_curlm *) ecalloc(1, sizeof(php_curlm));
+    RETVAL_RES(zend_register_resource(mh, _php_curl_get_le_curl_multi()));
+#endif
     mh->multi = new cURLMulti();
+    mh->multi->set_selector(new MultiSelector());
     mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
     zend_llist_init(&mh->easyh, sizeof(zval), _php_curl_multi_cleanup_list, 0);
-    RETURN_RES(zend_register_resource(mh, _php_curl_get_le_curl_multi()));
-#endif
 }
 /* }}} */
 
