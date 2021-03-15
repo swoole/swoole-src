@@ -215,6 +215,7 @@ void php_swoole_runtime_rshutdown() {
             efree(rf->fci_cache);
         }
         rf->function->internal_function.handler = rf->ori_handler;
+        rf->function->internal_function.arg_info = rf->ori_arg_info;
         efree(rf);
     }
     ZEND_HASH_FOREACH_END();
@@ -1402,6 +1403,14 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_pause);
             SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_escape);
             SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_unescape);
+
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_init);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_add_handle);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_exec);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_select);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_getcontent);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_remove_handle);
+            SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(curl_multi_close);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_NATIVE_CURL) {
@@ -1418,6 +1427,12 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(curl_pause);
             SW_UNHOOK_FUNC(curl_escape);
             SW_UNHOOK_FUNC(curl_unescape);
+
+            SW_UNHOOK_FUNC(curl_multi_init);
+            SW_UNHOOK_FUNC(curl_multi_add_handle);
+            SW_UNHOOK_FUNC(curl_multi_exec);
+            SW_UNHOOK_FUNC(curl_multi_remove_handle);
+            SW_UNHOOK_FUNC(curl_multi_close);
         }
     }
 #endif

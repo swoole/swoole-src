@@ -67,5 +67,7 @@ finish:
     bl  _exit@PLT
 .size make_fcontext,.-make_fcontext
 
+#ifndef __NetBSD__
 @ Mark that we don't need executable stack.
 .section .note.GNU-stack,"",%progbits
+#endif

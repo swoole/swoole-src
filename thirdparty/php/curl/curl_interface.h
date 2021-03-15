@@ -33,5 +33,14 @@ PHP_FUNCTION(swoole_native_curl_unescape);
 #if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
 PHP_FUNCTION(swoole_native_curl_pause);
 #endif
+PHP_FUNCTION(swoole_native_curl_multi_add_handle);
+PHP_FUNCTION(swoole_native_curl_multi_close);
+PHP_FUNCTION(swoole_native_curl_multi_errno);
+PHP_FUNCTION(swoole_native_curl_multi_exec);
+PHP_FUNCTION(swoole_native_curl_multi_select);
+PHP_FUNCTION(swoole_native_curl_multi_remove_handle);
+PHP_FUNCTION(swoole_native_curl_multi_getcontent);
+PHP_FUNCTION(swoole_native_curl_multi_info_read);
+PHP_FUNCTION(swoole_native_curl_multi_init);
 SW_EXTERN_C_END
 #endif

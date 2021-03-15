@@ -311,7 +311,7 @@ static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
     if (handler == nullptr) {
         signal(signo, SIG_DFL);
         sw_memset_zero(&signals[signo], sizeof(swSignal));
-        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, nullptr);
+        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
     }
     // add/update signal
     else {
@@ -320,8 +320,13 @@ static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
         signals[signo].handler = handler;
         signals[signo].signo = signo;
         signals[signo].activated = true;
+#ifndef __NetBSD__
+        auto sigptr = &signals[signo];
+#else
+        auto sigptr = reinterpret_cast<intptr_t>(&signals[signo]);
+#endif
         // save swSignal* as udata
-        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, &signals[signo]);
+        EV_SET(&ev, signo, EVFILT_SIGNAL, EV_ADD, 0, 0, sigptr);
     }
     int n = kevent(reactor->native_handle, &ev, 1, nullptr, 0, nullptr);
     if (n < 0 && sw_unlikely(handler)) {
