@@ -118,12 +118,12 @@ php_curl *_php_curl_get_handle(zval *zid, bool exclusive) {
     ch = Z_CURL_P(zid);
 #else
     if ((ch = (php_curl *) zend_fetch_resource(Z_RES_P(zid), le_curl_name, le_curl)) == NULL) {
-        swFatalError(SW_ERROR_INVALID_PARAMS, "The cURL client is executing, this handle cannot be operated");
+        swFatalError(SW_ERROR_INVALID_PARAMS, "cURL is executing, cannot be operated");
         return nullptr;
     }
 #endif
     if (exclusive && ch->context) {
-        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "The cURL client is executing, this handle cannot be operated");
+        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is executing, cannot be operated");
         return nullptr;
     }
     return ch;

@@ -143,6 +143,11 @@ class cURLMulti {
     CURLMcode select(php_curlm *mh) {
         Coroutine::get_current_safe();
 
+        if (selector) {
+            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is already waiting, cannot be operated");
+            return CURLM_RECURSIVE_API_CALL;
+        }
+
         zval _return_value;
         zval *return_value = &_return_value;
 
