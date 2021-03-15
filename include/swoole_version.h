@@ -20,10 +20,10 @@
 
 #define SWOOLE_MAJOR_VERSION 4
 #define SWOOLE_MINOR_VERSION 6
-#define SWOOLE_RELEASE_VERSION 4
-#define SWOOLE_EXTRA_VERSION ""
-#define SWOOLE_VERSION "4.6.4"
-#define SWOOLE_VERSION_ID 40604
+#define SWOOLE_RELEASE_VERSION 5
+#define SWOOLE_EXTRA_VERSION "dev"
+#define SWOOLE_VERSION "4.6.5-dev"
+#define SWOOLE_VERSION_ID 40605
 #define SWOOLE_API_VERSION_ID 0x202012a
 
 #define SWOOLE_BUG_REPORT                                                                                              \
