@@ -159,7 +159,7 @@ class cURLMulti {
         zval _return_value;
         zval *return_value = &_return_value;
 
-        FutureTask context;
+        FutureTask context{};
 
         auto set_context_fn = [this, mh](FutureTask *ctx) {
             for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {

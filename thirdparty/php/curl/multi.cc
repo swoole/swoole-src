@@ -47,8 +47,10 @@ extern int _php_curl_get_le_curl();
 extern int _php_curl_get_le_curl_multi();
 static inline php_curlm *Z_CURL_MULTI_P(zval *zv) {
     php_curlm *cm;
-    if ((cm = (php_curlm *) zend_fetch_resource(Z_RES_P(zv), le_curl_multi_handle_name, _php_curl_get_le_curl_multi())) == NULL) {
-        swFatalError(SW_ERROR_INVALID_PARAMS, "supplied resource is not a valid " le_curl_multi_handle_name "Handle resource ");
+    if ((cm = (php_curlm *) zend_fetch_resource(
+             Z_RES_P(zv), le_curl_multi_handle_name, _php_curl_get_le_curl_multi())) == NULL) {
+        swFatalError(SW_ERROR_INVALID_PARAMS,
+                     "supplied resource is not a valid " le_curl_multi_handle_name "Handle resource ");
         return nullptr;
     }
     return cm;
