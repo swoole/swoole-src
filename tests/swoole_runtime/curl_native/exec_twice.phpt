@@ -67,7 +67,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-Fatal error: Uncaught Swoole\Error: The cURL client is executing, this handle cannot be operated in %s:%d
+Fatal error: Uncaught Swoole\Error: cURL is executing, cannot be operated in %s:%d
 Stack trace:
 #0 %s(%d): curl_exec(%s)
 #1 {main}
