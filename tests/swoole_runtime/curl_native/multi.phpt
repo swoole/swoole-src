@@ -46,6 +46,14 @@ run(function () {
         }
     }
 
+    $info1 = curl_multi_info_read($mh);
+    $info2 = curl_multi_info_read($mh);
+    $info3 = curl_multi_info_read($mh);
+
+    Assert::eq($info1['msg'], CURLMSG_DONE);
+    Assert::eq($info2['msg'], CURLMSG_DONE);
+    Assert::eq($info3, false);
+
     Assert::contains(curl_multi_getcontent($ch1), 'baidu.com');
     Assert::contains(curl_multi_getcontent($ch2), '中央人民政府门户网站');
 
