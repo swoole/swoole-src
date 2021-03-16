@@ -103,6 +103,7 @@ class cURLMulti {
     void del_timer() {
         if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
+            timer = nullptr;
         }
     }
 
@@ -153,7 +154,9 @@ class cURLMulti {
         }
 
         if (selector->active_handles.size() > 0) {
-            return selector->active_handles.size();
+            auto count = selector->active_handles.size();
+            selector->active_handles.clear();
+            return count;
         }
 
         zval _return_value;
@@ -195,6 +198,7 @@ class cURLMulti {
                 [this](void *data) {
                     zval result;
                     ZVAL_LONG(&result, selector->active_handles.size());
+                    selector->active_handles.clear();
                     PHPCoroutine::resume_m(selector->context, &result);
                 },
                 nullptr);
