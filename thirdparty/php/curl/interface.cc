@@ -411,11 +411,13 @@ long cURLMulti::select(php_curlm *mh) {
 }
 
 void cURLMulti::socket_action(int fd, int event_bitmask) {
-    curl_multi_socket_action(handle, fd, event_bitmask, &selector->running_handles);
+    int running_handles = 0;
+    curl_multi_socket_action(handle, fd, event_bitmask, &running_handles);
 
     // for curl_multi_select
     if (selector) {
         selector->active_handles.insert(fd);
+        selector->running_handles = running_handles;
         if (!selector->context || selector->defer_callback) {
             return;
         }
