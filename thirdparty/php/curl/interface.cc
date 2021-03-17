@@ -282,7 +282,6 @@ static void curl_free_obj(zend_object *object);
 static HashTable *curl_get_gc(zend_object *object, zval **table, int *n);
 static zend_function *curl_get_constructor(zend_object *object);
 static zend_object *curl_clone_obj(zend_object *object);
-php_curl *init_curl_handle_into_zval(zval *curl);
 #endif
 
 static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields);

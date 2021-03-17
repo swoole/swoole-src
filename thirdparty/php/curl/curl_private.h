@@ -185,6 +185,8 @@ void _php_curl_close_ex(php_curl *ch);
 void _php_curl_close(zend_resource *rsrc);
 void _php_curl_multi_close(zend_resource *rsrc);
 php_curl *alloc_curl_handle();
+int _php_curl_get_le_curl();
+int _php_curl_get_le_curl_multi();
 #endif
 SW_EXTERN_C_END
 

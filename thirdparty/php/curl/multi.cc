@@ -43,8 +43,6 @@ static inline php_curlm *curl_multi_from_obj(zend_object *obj) {
 }
 #define Z_CURL_MULTI_P(zv) curl_multi_from_obj(Z_OBJ_P(zv))
 #else
-extern int _php_curl_get_le_curl();
-extern int _php_curl_get_le_curl_multi();
 static inline php_curlm *Z_CURL_MULTI_P(zval *zv) {
     php_curlm *cm;
     if ((cm = (php_curlm *) zend_fetch_resource(
@@ -401,6 +399,75 @@ PHP_FUNCTION(swoole_native_curl_multi_strerror) {
 
 #if LIBCURL_VERSION_NUM >= 0x072C00 /* Available since 7.44.0 */
 
+#if PHP_VERSION_ID < 80000
+static int _php_server_push_callback(
+    CURL *parent_ch, CURL *easy, size_t num_headers, struct curl_pushheaders *push_headers, void *userp) /* {{{ */
+{
+    php_curl *ch;
+    php_curl *parent;
+    php_curlm *mh = (php_curlm *) userp;
+    size_t rval = CURL_PUSH_DENY;
+    php_curlm_server_push *t = mh->handlers->server_push;
+    zval *pz_parent_ch = NULL;
+    zval pz_ch;
+    zval headers;
+    zval retval;
+    zend_resource *res;
+    char *header;
+    int error;
+    zend_fcall_info fci = empty_fcall_info;
+
+    pz_parent_ch = _php_curl_multi_find_easy_handle(mh, parent_ch);
+    if (pz_parent_ch == NULL) {
+        return rval;
+    }
+
+    parent = (php_curl *) zend_fetch_resource(Z_RES_P(pz_parent_ch), le_curl_name, _php_curl_get_le_curl());
+
+    ch = alloc_curl_handle();
+    ch->cp = easy;
+    _php_setup_easy_copy_handlers(ch, parent);
+
+    Z_ADDREF_P(pz_parent_ch);
+
+    res = zend_register_resource(ch, _php_curl_get_le_curl());
+    ch->res = res;
+    ZVAL_RES(&pz_ch, res);
+
+    size_t i;
+    array_init(&headers);
+    for (i = 0; i < num_headers; i++) {
+        header = curl_pushheader_bynum(push_headers, i);
+        add_next_index_string(&headers, header);
+    }
+
+    zend_fcall_info_init(&t->func_name, 0, &fci, &t->fci_cache, NULL, NULL);
+
+    zend_fcall_info_argn(&fci, 3, pz_parent_ch, &pz_ch, &headers);
+
+    fci.retval = &retval;
+
+    error = zend_call_function(&fci, &t->fci_cache);
+    zend_fcall_info_args_clear(&fci, 1);
+    zval_ptr_dtor_nogc(&headers);
+
+    if (error == FAILURE) {
+        php_error_docref(NULL, E_WARNING, "Cannot call the CURLMOPT_PUSHFUNCTION");
+    } else if (!Z_ISUNDEF(retval)) {
+        if (CURL_PUSH_DENY != zval_get_long(&retval)) {
+            rval = CURL_PUSH_OK;
+            GC_ADDREF(Z_RES(pz_ch));
+            zend_llist_add_element(&mh->easyh, &pz_ch);
+        } else {
+            /* libcurl will free this easy handle, avoid double free */
+            ch->cp = NULL;
+        }
+    }
+
+    return rval;
+}
+/* }}} */
+#else
 static int _php_server_push_callback(
     CURL *parent_ch, CURL *easy, size_t num_headers, struct curl_pushheaders *push_headers, void *userp) /* {{{ */
 {
@@ -460,7 +527,7 @@ static int _php_server_push_callback(
     return rval;
 }
 /* }}} */
-
+#endif
 #endif
 
 static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue, zval *return_value) /* {{{ */
