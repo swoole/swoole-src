@@ -239,7 +239,8 @@ PHP_FUNCTION(swoole_native_curl_multi_exec) {
         }
     }
 
-    error = curl_multi_perform(mh->multi->get_multi_handle(), &still_running);
+    error = mh->multi->perform();
+    still_running = mh->multi->get_running_handles();
 #if PHP_VERSION_ID >= 70400
     ZEND_TRY_ASSIGN_REF_LONG(z_still_running, still_running);
 #else

@@ -35,6 +35,7 @@ using network::Socket;
 struct MultiSelector {
     bool defer_callback = false;
     std::set<int> active_handles;
+    int running_handles;
     FutureTask *context;
 };
 
@@ -120,6 +121,10 @@ class cURLMulti {
         return handle;
     }
 
+    int get_running_handles() {
+        return selector ? selector->running_handles : -1;
+    }
+
     void set_selector(MultiSelector *_selector) {
         selector.reset(_selector);
     }
@@ -145,67 +150,15 @@ class cURLMulti {
         return (CURLcode) Z_LVAL_P(return_value);
     }
 
-    long select(php_curlm *mh) {
-        Coroutine::get_current_safe();
-
-        if (selector->context) {
-            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is already waiting, cannot be operated");
-            return -1;
-        }
-
-        if (selector->active_handles.size() > 0) {
-            auto count = selector->active_handles.size();
-            selector->active_handles.clear();
-            return count;
-        }
-
-        zval _return_value;
-        zval *return_value = &_return_value;
-
-        FutureTask context{};
-
-        auto set_context_fn = [this, mh](FutureTask *ctx) {
-            for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
-                zval *z_ch = (zval *) element->data;
-                php_curl *ch;
-                if ((ch = _php_curl_get_handle(z_ch, false)) == NULL) {
-                    continue;
-                }
-                ch->context = ctx;
-            }
-            selector->context = ctx;
-        };
-
-        set_context_fn(&context);
-        PHPCoroutine::yield_m(return_value, &context);
-        set_context_fn(nullptr);
-
-        return Z_LVAL_P(return_value);
+    CURLMcode perform() {
+        int running_handles = 0;
+        auto retval = curl_multi_perform(get_multi_handle(), &running_handles);
+        selector ? selector->running_handles = running_handles : 0;
+        return retval;
     }
 
-    void socket_action(int fd, int event_bitmask) {
-        int running_handles;
-        curl_multi_socket_action(handle, fd, event_bitmask, &running_handles);
-
-        // for curl_multi_select
-        if (selector) {
-            selector->active_handles.insert(fd);
-            if (!selector->context || selector->defer_callback) {
-                return;
-            }
-            selector->defer_callback = true;
-            swoole_event_defer(
-                [this](void *data) {
-                    zval result;
-                    ZVAL_LONG(&result, selector->active_handles.size());
-                    selector->active_handles.clear();
-                    PHPCoroutine::resume_m(selector->context, &result);
-                },
-                nullptr);
-        } else {
-            read_info();
-        }
-    }
+    long select(php_curlm *mh);
+    void socket_action(int fd, int event_bitmask);
 
     static int cb_readable(Reactor *reactor, Event *event);
     static int cb_writable(Reactor *reactor, Event *event);

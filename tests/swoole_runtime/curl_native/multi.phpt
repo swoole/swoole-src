@@ -61,8 +61,8 @@ run(function () {
     curl_multi_remove_handle($mh, $ch2);
 
     curl_multi_close($mh);
+    echo "Done\n";
 });
-echo "Done\n";
 ?>
 --EXPECT--
 Done
