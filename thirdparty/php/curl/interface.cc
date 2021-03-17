@@ -282,7 +282,6 @@ static void curl_free_obj(zend_object *object);
 static HashTable *curl_get_gc(zend_object *object, zval **table, int *n);
 static zend_function *curl_get_constructor(zend_object *object);
 static zend_object *curl_clone_obj(zend_object *object);
-php_curl *init_curl_handle_into_zval(zval *curl);
 #endif
 
 static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields);
@@ -371,6 +370,70 @@ int cURLMulti::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
         multi->add_timer(timeout_ms);
     }
     return 0;
+}
+
+long cURLMulti::select(php_curlm *mh) {
+    Coroutine::get_current_safe();
+
+    if (selector->context) {
+        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is already waiting, cannot be operated");
+        return -1;
+    }
+
+    if (selector->active_handles.size() > 0) {
+        auto count = selector->active_handles.size();
+        selector->active_handles.clear();
+        return count;
+    }
+
+    zval _return_value;
+    zval *return_value = &_return_value;
+
+    FutureTask context{};
+
+    auto set_context_fn = [this, mh](FutureTask *ctx) {
+        for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
+            zval *z_ch = (zval *) element->data;
+            php_curl *ch;
+            if ((ch = _php_curl_get_handle(z_ch, false)) == NULL) {
+                continue;
+            }
+            ch->context = ctx;
+        }
+        selector->context = ctx;
+    };
+
+    set_context_fn(&context);
+    PHPCoroutine::yield_m(return_value, &context);
+    set_context_fn(nullptr);
+
+    return Z_LVAL_P(return_value);
+}
+
+void cURLMulti::socket_action(int fd, int event_bitmask) {
+    int running_handles = 0;
+    curl_multi_socket_action(handle, fd, event_bitmask, &running_handles);
+
+    // for curl_multi_select
+    if (selector) {
+        selector->active_handles.insert(fd);
+        selector->running_handles = running_handles;
+        if (!selector->context || selector->defer_callback) {
+            return;
+        }
+        selector->defer_callback = true;
+        swoole_event_defer(
+            [this](void *data) {
+                zval result;
+                ZVAL_LONG(&result, selector->active_handles.size());
+                selector->active_handles.clear();
+                selector->defer_callback = false;
+                PHPCoroutine::resume_m(selector->context, &result);
+            },
+            nullptr);
+    } else {
+        read_info();
+    }
 }
 
 void swoole_native_curl_minit(int module_number) {
