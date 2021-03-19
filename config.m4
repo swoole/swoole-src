@@ -500,6 +500,7 @@ if test "$PHP_SWOOLE" != "no"; then
         ext-src/swoole_coroutine.cc \
         ext-src/swoole_coroutine_scheduler.cc \
         ext-src/swoole_coroutine_system.cc \
+        ext-src/swoole_curl.cc \
         ext-src/swoole_event.cc \
         ext-src/swoole_http2_client_coro.cc \
         ext-src/swoole_http2_server.cc \

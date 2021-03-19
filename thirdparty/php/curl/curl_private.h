@@ -117,7 +117,7 @@ typedef struct {
 #if PHP_VERSION_ID >= 80000
 	struct _php_curlsh *share;
 #endif
-    swoole::FutureTask *context;
+    swoole::Coroutine *co;
 #if PHP_VERSION_ID >= 80000
 	zend_object                   std;
 #endif
@@ -129,13 +129,15 @@ typedef struct {
 	php_curlm_server_push	*server_push;
 } php_curlm_handlers;
 
-namespace swoole {
-class cURLMulti;
-}
+namespace swoole  { namespace curl {
+class Multi;
+}}
+
+using swoole::curl::Multi;
 
 typedef struct {
 	int         still_running;
-	swoole::cURLMulti *multi;
+	Multi *multi;
 	zend_llist  easyh;
 	php_curlm_handlers	*handlers;
 	struct {

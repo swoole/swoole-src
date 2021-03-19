@@ -17,9 +17,10 @@
 #include "php_swoole_cxx.h"
 
 #ifdef SW_USE_CURL
-#include "curl_multi.h"
+#include "php_swoole_curl.h"
 
-using namespace swoole;
+using swoole::curl::Multi;
+using swoole::curl::Selector;
 
 SW_EXTERN_C_BEGIN
 #include "curl_interface.h"
@@ -74,8 +75,8 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
     mh = (php_curlm *) ecalloc(1, sizeof(php_curlm));
     RETVAL_RES(zend_register_resource(mh, _php_curl_get_le_curl_multi()));
 #endif
-    mh->multi = new cURLMulti();
-    mh->multi->set_selector(new MultiSelector());
+    mh->multi = new Multi();
+    mh->multi->set_selector(new Selector());
     mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
     zend_llist_init(&mh->easyh, sizeof(zval), _php_curl_multi_cleanup_list, 0);
 }
@@ -109,7 +110,7 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
     Z_ADDREF_P(z_ch);
     zend_llist_add_element(&mh->easyh, z_ch);
 
-    error = curl_multi_add_handle(mh->multi->get_multi_handle(), ch->cp);
+    error = mh->multi->add_handle(ch->cp);
     SAVE_CURLM_ERROR(mh, error);
 
     RETURN_LONG((zend_long) error);
@@ -172,7 +173,7 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
     mh = Z_CURL_MULTI_P(z_mh);
     ch = Z_CURL_P(z_ch);
 
-    error = curl_multi_remove_handle(mh->multi->get_multi_handle(), ch->cp);
+    error = mh->multi->remove_handle(ch->cp);
     SAVE_CURLM_ERROR(mh, error);
 
     RETVAL_LONG((zend_long) error);
@@ -354,7 +355,7 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
          pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
         php_curl *ch = Z_CURL_P(pz_ch);
         _php_curl_verify_handlers(ch, 1);
-        curl_multi_remove_handle(mh->multi->get_multi_handle(), ch->cp);
+        mh->multi->remove_handle(ch->cp);
     }
     zend_llist_clean(&mh->easyh);
 }

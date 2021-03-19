@@ -19,7 +19,7 @@
 #include "php_swoole_cxx.h"
 
 #ifdef SW_USE_CURL
-#include "curl_multi.h"
+#include "php_swoole_curl.h"
 
 using namespace swoole;
 
@@ -122,7 +122,7 @@ php_curl *_php_curl_get_handle(zval *zid, bool exclusive) {
         return nullptr;
     }
 #endif
-    if (exclusive && ch->context) {
+    if (exclusive && ch->co) {
         swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is executing, cannot be operated");
         return nullptr;
     }
@@ -288,154 +288,6 @@ static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields
 
 SW_EXTERN_C_END
 
-static cURLMulti *g_curl_multi = nullptr;
-
-cURLMulti *sw_curl_multi() {
-    return g_curl_multi;
-}
-
-int cURLMulti::cb_readable(Reactor *reactor, Event *event) {
-    cURLMulti *multi = (cURLMulti *) event->socket->object;
-    multi->socket_action(event->fd, CURL_CSELECT_IN);
-    return 0;
-}
-
-int cURLMulti::cb_writable(Reactor *reactor, Event *event) {
-    cURLMulti *multi = (cURLMulti *) event->socket->object;
-    multi->socket_action(event->fd, CURL_CSELECT_OUT);
-    return 0;
-}
-
-int cURLMulti::cb_error(Reactor *reactor, Event *event) {
-    cURLMulti *multi = (cURLMulti *) event->socket->object;
-    multi->socket_action(event->fd, CURL_CSELECT_ERR);
-    return 0;
-}
-
-int cURLMulti::handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp) {
-    cURLMulti *multi = (cURLMulti *) userp;
-    switch (action) {
-    case CURL_POLL_IN:
-    case CURL_POLL_OUT:
-    case CURL_POLL_INOUT:
-        multi->set_event(socketp, s, action);
-        break;
-    case CURL_POLL_REMOVE:
-        if (socketp) {
-            multi->del_event(socketp, s);
-        }
-        break;
-    default:
-        abort();
-    }
-    return 0;
-}
-
-void cURLMulti::read_info() {
-    CURLMsg *message;
-    int pending;
-    CURL *easy_handle;
-
-    while ((message = curl_multi_info_read(handle, &pending))) {
-        switch (message->msg) {
-        case CURLMSG_DONE:
-            /* Do not use message data after calling curl_multi_remove_handle() and
-             curl_easy_cleanup(). As per curl_multi_info_read() docs:
-             "WARNING: The data the returned pointer points to will not survive
-             calling curl_multi_cleanup, curl_multi_remove_handle or
-             curl_easy_cleanup." */
-            easy_handle = message->easy_handle;
-            curl_multi_remove_handle(handle, easy_handle);
-            php_curl *ch;
-            curl_easy_getinfo(easy_handle, CURLINFO_PRIVATE, &ch);
-            zval result;
-            ZVAL_LONG(&result, message->data.result);
-            PHPCoroutine::resume_m(ch->context, &result);
-            break;
-        default:
-            swWarn("CURLMSG default");
-            break;
-        }
-    }
-}
-
-int cURLMulti::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
-    cURLMulti *multi = (cURLMulti *) userp;
-    if (timeout_ms < 0) {
-        multi->del_timer();
-    } else {
-        if (timeout_ms == 0) {
-            timeout_ms = 1; /* 0 means directly call socket_action, but we'll do it in a bit */
-        }
-        multi->add_timer(timeout_ms);
-    }
-    return 0;
-}
-
-long cURLMulti::select(php_curlm *mh) {
-    Coroutine::get_current_safe();
-
-    if (selector->context) {
-        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is already waiting, cannot be operated");
-        return -1;
-    }
-
-    if (selector->active_handles.size() > 0) {
-        auto count = selector->active_handles.size();
-        selector->active_handles.clear();
-        return count;
-    }
-
-    zval _return_value;
-    zval *return_value = &_return_value;
-
-    FutureTask context{};
-
-    auto set_context_fn = [this, mh](FutureTask *ctx) {
-        for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
-            zval *z_ch = (zval *) element->data;
-            php_curl *ch;
-            if ((ch = _php_curl_get_handle(z_ch, false)) == NULL) {
-                continue;
-            }
-            ch->context = ctx;
-        }
-        selector->context = ctx;
-    };
-
-    set_context_fn(&context);
-    PHPCoroutine::yield_m(return_value, &context);
-    set_context_fn(nullptr);
-
-    return Z_LVAL_P(return_value);
-}
-
-void cURLMulti::socket_action(int fd, int event_bitmask) {
-    int running_handles = 0;
-    curl_multi_socket_action(handle, fd, event_bitmask, &running_handles);
-
-    // for curl_multi_select
-    if (selector) {
-        selector->active_handles.insert(fd);
-        selector->running_handles = running_handles;
-        if (!selector->context || selector->defer_callback) {
-            return;
-        }
-        selector->defer_callback = true;
-        swoole_event_defer(
-            [this](void *data) {
-                zval result;
-                ZVAL_LONG(&result, selector->active_handles.size());
-                selector->active_handles.clear();
-                selector->defer_callback = false;
-                PHPCoroutine::resume_m(selector->context, &result);
-            },
-            nullptr);
-    } else {
-        read_info();
-    }
-}
-
 void swoole_native_curl_minit(int module_number) {
 #if PHP_VERSION_ID >= 80000
     SW_INIT_CLASS_ENTRY(
@@ -465,8 +317,6 @@ void swoole_native_curl_minit(int module_number) {
                            "Co\\Coroutine\\Curl\\Exception",
                            nullptr,
                            swoole_exception);
-
-    g_curl_multi = new cURLMulti();
 }
 
 /* CurlHandle class */
@@ -572,8 +422,6 @@ int curl_cast_object(zend_object *obj, zval *result, int type) {
 #endif
 
 void swoole_native_curl_mshutdown() {
-    delete g_curl_multi;
-    g_curl_multi = nullptr;
 }
 
 /* {{{ curl_write_nothing
@@ -1089,7 +937,6 @@ static void _php_curl_set_default_options(php_curl *ch) {
     curl_easy_setopt(ch->cp, CURLOPT_INFILE, (void *) ch);
     curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION, fn_write_header);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEHEADER, (void *) ch);
-    curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, ch);
 
 #if !defined(ZTS)
     curl_easy_setopt(ch->cp, CURLOPT_DNS_USE_GLOBAL_CACHE, 1);
@@ -1137,6 +984,7 @@ PHP_FUNCTION(swoole_native_curl_init) {
 #endif
 
     ch->cp = cp;
+    ch->co = nullptr;
 
     ch->handlers->write->method = PHP_CURL_STDOUT;
     ch->handlers->read->method = PHP_CURL_DIRECT;
@@ -2428,7 +2276,8 @@ PHP_FUNCTION(swoole_native_curl_exec) {
 
     _php_curl_cleanup_handle(ch);
 
-    error = sw_curl_multi()->exec(ch);
+    Multi multi{};
+    error = multi.exec(ch);
     SAVE_CURL_ERROR(ch, error);
 
     if (error != CURLE_OK) {
