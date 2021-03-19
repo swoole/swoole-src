@@ -141,12 +141,17 @@ CURLcode Multi::exec(php_curl *ch) {
                 del_event(handle->cp, handle->socket, handle->fd);
             }
         }
+        double tmp_timeout_ms = timeout_ms_;
+        del_timer();
         curl_multi_socket_action(multi_handle_, sockfd, bitmask, &running_handles_);
         if (running_handles_ == 0) {
             break;
         }
+        if (tmp_timeout_ms > 0) {
+            add_timer(tmp_timeout_ms);
+        }
         if (sockfd >= 0 && !handle->listening) {
-            set_event(handle->cp, nullptr, handle->fd, handle->action);
+            set_event(handle->cp, handle->socket, handle->fd, handle->action);
         }
     }
 
@@ -213,6 +218,10 @@ long Multi::select(php_curlm *mh) {
                 del_event(ch->cp, handle->socket, handle->fd);
             }
         }
+        double tmp_timeout_ms = timeout_ms_;
+        if (tmp_timeout_ms > 0) {
+            del_timer();
+        }
         for (auto iter = selector->active_handles.begin(); iter != selector->active_handles.end(); iter++) {
             int sockfd = *iter;
             int bitmask = 0;
@@ -225,6 +234,9 @@ long Multi::select(php_curlm *mh) {
         selector->active_handles.clear();
         if (running_handles_ == 0) {
             return count;
+        }
+        if (tmp_timeout_ms > 0) {
+            add_timer(tmp_timeout_ms);
         }
         for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
             zval *z_ch = (zval *) element->data;

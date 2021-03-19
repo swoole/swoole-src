@@ -51,6 +51,7 @@ class Multi {
     CURLM *multi_handle_;
     TimerNode *timer = nullptr;
     bool timedout = false;
+    long timeout_ms_ = 0;
     Coroutine *co = nullptr;
     int running_handles_ = 0;
     int last_sockfd;
@@ -82,17 +83,18 @@ class Multi {
         if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
         }
-
+        timeout_ms_ = timeout_ms;
         timer = swoole_timer_add(
             timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
-            callback(nullptr, 0);
             this->timer = nullptr;
+            callback(nullptr, 0);
         });
     }
 
     void del_timer() {
         if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
+            timeout_ms_ = -1;
             timer = nullptr;
         }
     }
