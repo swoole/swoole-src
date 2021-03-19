@@ -17,6 +17,8 @@
 #pragma once
 
 #include "php_swoole_cxx.h"
+
+#ifdef SW_USE_CURL
 #include "swoole_util.h"
 
 SW_EXTERN_C_BEGIN
@@ -149,3 +151,4 @@ class Multi {
 };
 };
 }  // namespace swoole
+#endif

@@ -16,6 +16,8 @@
 
 #include "php_swoole_curl.h"
 
+#ifdef SW_USE_CURL
+
 namespace swoole {
 namespace curl {
 int Multi::cb_readable(Reactor *reactor, Event *event) {
@@ -273,3 +275,4 @@ void Multi::callback(Socket *sock, int event_bitmask) {
 }
 }  // namespace curl
 }  // namespace swoole
+#endif
