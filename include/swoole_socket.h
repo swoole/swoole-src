@@ -39,6 +39,12 @@
 #define SOCK_NONBLOCK O_NONBLOCK
 #endif
 
+#ifdef __sun
+#define s6_addr8 _S6_un._S6_u8
+#define s6_addr16 _S6_un._S6_u16
+#define s6_addr32 _S6_un._S6_u32
+#endif
+
 // OS Feature
 #if defined(HAVE_KQUEUE) || !defined(HAVE_SENDFILE)
 int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size);
