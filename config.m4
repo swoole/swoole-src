@@ -16,50 +16,80 @@ dnl  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 dnl  | Author: Twosee  <twose@qq.com>                                       |
 dnl  +----------------------------------------------------------------------+
 
-PHP_ARG_ENABLE(debug-log, enable debug log,
-[  --enable-debug-log        Enable swoole debug log], no, no)
+PHP_ARG_ENABLE([debug-log],
+  [enable debug log],
+  [AS_HELP_STRING([--enable-debug-log],
+    [Enable swoole debug log])], [no], [no])
 
-PHP_ARG_ENABLE(trace-log, enable trace log,
-[  --enable-trace-log        Enable swoole trace log], no, no)
+PHP_ARG_ENABLE([trace-log],
+  [enable trace log],
+  [AS_HELP_STRING([--enable-trace-log],
+    [Enable swoole trace log])], [no], [no])
 
-PHP_ARG_ENABLE(sockets, enable sockets support,
-[  --enable-sockets          Do you have sockets extension?], no, no)
+PHP_ARG_ENABLE([sockets],
+  [enable sockets support],
+  [AS_HELP_STRING([--enable-sockets],
+    [Do you have sockets extension?])], [no], [no])
 
-PHP_ARG_ENABLE(openssl, enable openssl support,
-[  --enable-openssl          Use openssl], no, no)
+PHP_ARG_ENABLE([openssl],
+  [enable openssl support],
+  [AS_HELP_STRING([--enable-openssl],
+    [Use openssl])], [no], [no])
 
-PHP_ARG_ENABLE(http2, enable http2.0 support,
-[  --enable-http2            Use http2.0], no, no)
+PHP_ARG_ENABLE([http2],
+  [enable http2.0 support],
+  [AS_HELP_STRING([--enable-http2],
+    [Use http2.0])], [no], [no])
 
-PHP_ARG_ENABLE(swoole, swoole support,
-[  --enable-swoole           Enable swoole support], [enable_swoole="yes"])
+PHP_ARG_ENABLE([swoole],
+  [swoole support],
+  [AS_HELP_STRING([--enable-swoole],
+    [Enable swoole support])], [enable_swoole="yes"])
 
-PHP_ARG_ENABLE(mysqlnd, enable mysqlnd support,
-[  --enable-mysqlnd          Enable mysqlnd], no, no)
+PHP_ARG_ENABLE([mysqlnd],
+  [enable mysqlnd support],
+  [AS_HELP_STRING([--enable-mysqlnd],
+    [Enable mysqlnd])], [no], [no])
 
-PHP_ARG_WITH(openssl_dir, dir of openssl,
-[  --with-openssl-dir[=DIR]    Include OpenSSL support (requires OpenSSL >= 1.0.2)], no, no)
+PHP_ARG_WITH([openssl_dir],
+  [dir of openssl],
+  [AS_HELP_STRING([[--with-openssl-dir[=DIR]]],
+    [Include OpenSSL support (requires OpenSSL >= 1.0.2)])], [no], [no])
 
-PHP_ARG_WITH(jemalloc_dir, dir of jemalloc,
-[  --with-jemalloc-dir[=DIR]   Include jemalloc support], no, no)
+PHP_ARG_WITH([jemalloc_dir],
+  [dir of jemalloc],
+  [AS_HELP_STRING([[--with-jemalloc-dir[=DIR]]],
+    [Include jemalloc support])], [no], [no])
 
-PHP_ARG_ENABLE(asan, enable asan,
-[  --enable-asan             Enable asan], no, no)
+PHP_ARG_ENABLE([asan],
+  [enable asan],
+  [AS_HELP_STRING([--enable-asan],
+    [Enable asan])], [no], [no])
 
-PHP_ARG_ENABLE(swoole-coverage,      whether to enable swoole coverage support,
-[  --enable-swoole-coverage  Enable swoole coverage support], no, no)
+PHP_ARG_ENABLE([swoole-coverage],
+  [whether to enable swoole coverage support],
+  [AS_HELP_STRING([--enable-swoole-coverage],
+    [Enable swoole coverage support])], [no], [no])
 
-PHP_ARG_ENABLE(swoole-dev, whether to enable Swoole developer build flags,
-[  --enable-swoole-dev       Enable developer flags], no, no)
+PHP_ARG_ENABLE([swoole-dev],
+  [whether to enable Swoole developer build flags],
+  [AS_HELP_STRING([--enable-swoole-dev],
+    [Enable developer flags])], [no], [no])
 
-PHP_ARG_ENABLE(swoole-json, whether to enable Swoole JSON build flags,
-[  --enable-swoole-json      Enable JSON support], no, no)
+PHP_ARG_ENABLE([swoole-json],
+  [whether to enable Swoole JSON build flags],
+  [AS_HELP_STRING([--enable-swoole-json],
+    [Enable JSON support])], [no], [no])
 
-PHP_ARG_ENABLE(swoole-curl, whether to enable Swoole CURL build flags,
-[  --enable-swoole-curl      Enable cURL support], no, no)
+PHP_ARG_ENABLE([swoole-curl],
+  [whether to enable Swoole CURL build flags],
+  [AS_HELP_STRING([--enable-swoole-curl],
+    [Enable cURL support])], [no], [no])
 
-PHP_ARG_ENABLE(thread-context, whether to enable thread context,
-[  --enable-thread-context      Use thread context], no, no)
+PHP_ARG_ENABLE([thread-context],
+  [whether to enable thread context],
+  [AS_HELP_STRING([--enable-thread-context],
+    [Use thread context])], [no], [no])
 
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
@@ -685,7 +715,7 @@ if test "$PHP_SWOOLE" != "no"; then
     else
         SW_USE_ASM_CONTEXT="no"
     fi
-        
+
     if test "$PHP_THREAD_CONTEXT" != "no"; then
 		AC_DEFINE(SW_USE_THREAD_CONTEXT, 1, [do we enable thread context])
 		SW_USE_ASM_CONTEXT="no"
