@@ -33,18 +33,20 @@ using network::Socket;
 
 namespace curl {
 
+class Multi;
+
 struct Handle {
     CURL *cp;
     Socket *socket;
-    int fd;
+    Multi *multi;
     int bitmask;
     int action;
-    bool listening;
+    bool removed;
 };
 
 struct Selector {
     bool defer_callback = false;
-    std::set<int> active_handles;
+    std::set<Handle *> active_handles;
 };
 
 class Multi {
@@ -56,24 +58,15 @@ class Multi {
     int running_handles_ = 0;
     int last_sockfd;
     std::unique_ptr<Selector> selector;
-    std::unordered_map<int, Handle *> handles;
 
     CURLcode read_info();
 
     Socket *create_socket(CURL *cp, curl_socket_t sockfd);
 
     Handle *get_handle(CURL *cp) {
-        Handle *handle;
+        Handle *handle = nullptr;
         curl_easy_getinfo(cp, CURLINFO_PRIVATE, &handle);
         return handle;
-    }
-
-    Handle *get_handle(int fd) {
-        auto iter = handles.find(fd);
-        if (iter == handles.end()) {
-            return nullptr;
-        }
-        return iter->second;
     }
 
     void set_event(CURL *easy, void *socket_ptr, curl_socket_t sockfd, int action);
@@ -126,6 +119,7 @@ class Multi {
         if (retval == CURLM_OK) {
             auto handle = new Handle{};
             handle->cp = cp;
+            handle->multi = this;
             curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
         }
         return retval;
@@ -144,9 +138,13 @@ class Multi {
         return retval;
     }
 
+    int get_event(int action) {
+        return action == CURL_POLL_IN ? SW_EVENT_READ : SW_EVENT_WRITE;
+    }
+
     CURLcode exec(php_curl *ch);
     long select(php_curlm *mh);
-    void callback(Socket *sock, int event_bitmask);
+    void callback(Handle *handle, int event_bitmask);
 
     static int cb_readable(Reactor *reactor, Event *event);
     static int cb_writable(Reactor *reactor, Event *event);
