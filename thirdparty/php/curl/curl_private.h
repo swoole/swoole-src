@@ -117,7 +117,6 @@ typedef struct {
 #if PHP_VERSION_ID >= 80000
 	struct _php_curlsh *share;
 #endif
-    swoole::Coroutine *co;
 #if PHP_VERSION_ID >= 80000
 	zend_object                   std;
 #endif

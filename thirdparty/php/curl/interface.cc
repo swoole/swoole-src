@@ -122,9 +122,13 @@ php_curl *_php_curl_get_handle(zval *zid, bool exclusive) {
         return nullptr;
     }
 #endif
-    if (exclusive && ch->co) {
-        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is executing, cannot be operated");
-        return nullptr;
+    if (exclusive) {
+        swoole::curl::Handle *handle = nullptr;
+        curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
+        if (handle) {
+            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is executing, cannot be operated");
+            return nullptr;
+        }
     }
     return ch;
 }
@@ -984,7 +988,6 @@ PHP_FUNCTION(swoole_native_curl_init) {
 #endif
 
     ch->cp = cp;
-    ch->co = nullptr;
 
     ch->handlers->write->method = PHP_CURL_STDOUT;
     ch->handlers->read->method = PHP_CURL_DIRECT;
