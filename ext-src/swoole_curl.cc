@@ -148,9 +148,7 @@ CURLcode Multi::exec(php_curl *ch) {
         if (running_handles_ == 0) {
             break;
         }
-        long _timeout_ms = 0;
-        curl_multi_timeout(multi_handle_, &_timeout_ms);
-        add_timer(_timeout_ms == 0 ? 1: _timeout_ms);
+        set_timer();
         if (sockfd >= 0 && handle->socket && handle->removed) {
             swoole_event_add(handle->socket, get_event(handle->action));
             handle->removed = false;
@@ -207,10 +205,6 @@ long Multi::select(php_curlm *mh) {
         co = nullptr;
     };
 
-    long _timeout_ms = 0;
-    curl_multi_timeout(multi_handle_, &_timeout_ms);
-    add_timer(_timeout_ms == 0 ? 1: _timeout_ms);
-
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
         php_curl *ch;
@@ -224,6 +218,7 @@ long Multi::select(php_curlm *mh) {
             swTraceLog(SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
         }
     }
+    set_timer();
 
     co->yield();
     auto count = selector->active_handles.size();

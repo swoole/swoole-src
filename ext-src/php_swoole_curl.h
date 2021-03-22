@@ -92,6 +92,12 @@ class Multi {
         }
     }
 
+    void set_timer() {
+        long _timeout_ms = 0;
+        curl_multi_timeout(multi_handle_, &_timeout_ms);
+        handle_timeout(multi_handle_, _timeout_ms, this);
+    }
+
   public:
     Multi() {
         multi_handle_ = curl_multi_init();
