@@ -122,10 +122,13 @@ class Multi {
     }
 
     CURLMcode add_handle(CURL *cp) {
-        auto handle = new Handle{};
-        handle->cp = cp;
-        curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
-        return curl_multi_add_handle(multi_handle_, cp);
+        auto retval = curl_multi_add_handle(multi_handle_, cp);
+        if (retval == CURLM_OK) {
+            auto handle = new Handle{};
+            handle->cp = cp;
+            curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
+        }
+        return retval;
     }
 
     CURLMcode remove_handle(CURL *cp) {

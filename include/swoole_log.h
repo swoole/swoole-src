@@ -161,7 +161,7 @@ swoole::Logger *sw_logger();
 #define swFatalError(code, str, ...)                                                                                   \
     do {                                                                                                               \
         SwooleG.fatal_error(code, str, ##__VA_ARGS__);                                                                 \
-        abort();                                                                                                       \
+        exit(255);                                                                                                       \
     } while (0)
 
 #define swoole_error_log(level, __errno, str, ...)                                                                     \
