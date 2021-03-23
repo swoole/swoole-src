@@ -23,6 +23,16 @@ function swoole_test_curl_multi($options = []) {
         $mrc = curl_multi_exec($mh, $active);
     } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
+    if (isset($options['select_twice'])) {
+        if (isset($options['sleep'])) {
+            unset($options['sleep']);
+        }
+        go(function() use($mh) {
+            Co::sleep(0.005);
+            curl_multi_select($mh);
+        });
+    }
+
     if (isset($options['sleep'])) {
         Co::sleep($options['sleep']);
     }

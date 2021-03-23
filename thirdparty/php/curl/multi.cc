@@ -640,17 +640,11 @@ static zend_function *curl_multi_get_constructor(zend_object *object) {
 
 void curl_multi_free_obj(zend_object *object) {
     php_curlm *mh = (php_curlm *) curl_multi_from_obj(object);
-
-    zend_llist_position pos;
-    php_curl *ch;
-    zval *pz_ch;
-
     if (!mh->multi) {
         /* Can happen if constructor throws. */
         zend_object_std_dtor(&mh->std);
         return;
     }
-
     _php_curl_multi_free(mh);
     zend_object_std_dtor(&mh->std);
 }
@@ -706,21 +700,15 @@ void _php_curl_multi_close(zend_resource *rsrc) /* {{{ */
 /* }}} */
 #endif
 
-void _php_curl_multi_free(php_curlm *mh) {
-    zend_llist_position pos;
-    php_curl *ch;
-    zval *pz_ch;
-
-    for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
-         pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
-        /* ptr is NULL means it already be freed */
-        if (Z_RES_P(pz_ch)->ptr) {
-            if ((ch = _php_curl_get_handle(pz_ch, false))) {
-                _php_curl_verify_handlers(ch, 0);
-            }
+static void _php_curl_multi_free(php_curlm *mh) {
+    for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
+        zval *z_ch = (zval *) element->data;
+        php_curl *ch;
+        if ((ch = _php_curl_get_handle(z_ch, false))) {
+            _php_curl_verify_handlers(ch, 0);
+            mh->multi->remove_handle(ch->cp);
         }
     }
-
     curl_multi_cleanup(mh->multi->get_multi_handle());
     zend_llist_clean(&mh->easyh);
     if (mh->handlers->server_push) {

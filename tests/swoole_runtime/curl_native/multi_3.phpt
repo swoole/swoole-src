@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: multi
+swoole_runtime/curl_native: multi 3
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -15,9 +15,17 @@ use function Swoole\Coroutine\run;
 
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 run(function () {
-    swoole_test_curl_multi(['sleep' => 0.2]);
-    echo "Done\n";
+    $n = 4;
+    while ($n--) {
+        go(function () {
+            swoole_test_curl_multi();
+            echo "Done\n";
+        });
+    }
 });
 ?>
 --EXPECT--
+Done
+Done
+Done
 Done

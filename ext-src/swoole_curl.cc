@@ -118,12 +118,7 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
 }
 
 CURLcode Multi::exec(php_curl *ch) {
-    if (co) {
-        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is already waiting, cannot be operated");
-        return CURLE_FAILED_INIT;
-    }
-
-    co = Coroutine::get_current_safe();
+    co = check_bound_co();
     ON_SCOPE_EXIT {
         co = nullptr;
     };
@@ -195,12 +190,7 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
 }
 
 long Multi::select(php_curlm *mh) {
-    if (co) {
-        swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is already waiting, cannot be operated");
-        return CURLE_FAILED_INIT;
-    }
-
-    co = Coroutine::get_current_safe();
+    co = check_bound_co();
     ON_SCOPE_EXIT {
         co = nullptr;
     };

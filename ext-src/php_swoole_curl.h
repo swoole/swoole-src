@@ -133,9 +133,11 @@ class Multi {
 
     CURLMcode remove_handle(CURL *cp) {
         auto retval = curl_multi_remove_handle(multi_handle_, cp);
-        auto handle = get_handle(cp);
-        delete handle;
-        curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
+        if (retval == CURLM_OK) {
+            auto handle = get_handle(cp);
+            delete handle;
+            curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
+        }
         return retval;
     }
 
@@ -146,6 +148,14 @@ class Multi {
 
     int get_event(int action) {
         return action == CURL_POLL_IN ? SW_EVENT_READ : SW_EVENT_WRITE;
+    }
+
+    Coroutine *check_bound_co() {
+        if (co) {
+            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND, "cURL is executing, cannot be operated");
+            return nullptr;
+        }
+        return Coroutine::get_current_safe();
     }
 
     CURLcode exec(php_curl *ch);

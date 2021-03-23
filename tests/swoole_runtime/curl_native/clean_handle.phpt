@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: multi
+swoole_runtime/curl_native: clean handle
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -15,9 +15,20 @@ use function Swoole\Coroutine\run;
 
 Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 run(function () {
-    swoole_test_curl_multi();
+    $ch1 = curl_init();
+    curl_setopt($ch1, CURLOPT_URL, "http://www.baidu.com/");
+    curl_setopt($ch1, CURLOPT_HEADER, 0);
+    curl_setopt($ch1, CURLOPT_RETURNTRANSFER, 1);
+
+    $mh = curl_multi_init();
+    curl_multi_add_handle($mh, $ch1);
+    curl_multi_close($mh);
+
     echo "Done\n";
 });
 ?>
 --EXPECT--
+Done
+Done
+Done
 Done
