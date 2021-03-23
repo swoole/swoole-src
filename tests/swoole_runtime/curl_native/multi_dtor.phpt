@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: clean handle
+swoole_runtime/curl_native: multi dtor
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -22,13 +22,8 @@ run(function () {
 
     $mh = curl_multi_init();
     curl_multi_add_handle($mh, $ch1);
-    curl_multi_close($mh);
-
     echo "Done\n";
 });
 ?>
 --EXPECT--
-Done
-Done
-Done
 Done
