@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: close before resume
+swoole_runtime/curl_native: exec twice
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -34,9 +34,11 @@ $pm->parentFunc = function () use ($pm) {
 
         go(function() use ($ch) {
             Co::sleep(0.1);
-            var_dump(curl_exec($ch));
+            echo "co 2 exec\n";
+            var_dump(curl_exec($ch), curl_errno($ch));
         });
 
+        echo "co 1 exec\n";
         $output = curl_exec($ch);
         Assert::eq($output, "Hello World\n".$code);
         if ($output === false) {
@@ -67,6 +69,9 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
+co 1 exec
+co 2 exec
+
 Fatal error: Uncaught Swoole\Error: cURL is executing, cannot be operated in %s:%d
 Stack trace:
 #0 %s(%d): curl_exec(%s)

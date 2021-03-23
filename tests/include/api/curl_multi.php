@@ -1,19 +1,5 @@
---TEST--
-swoole_runtime/curl_native: multi
---SKIPIF--
 <?php
-require __DIR__ . '/../../include/skipif.inc';
-?>
---FILE--
-<?php
-require __DIR__ . '/../../include/bootstrap.php';
-
-use Swoole\Runtime;
-
-use function Swoole\Coroutine\run;
-
-Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
-run(function () {
+function swoole_test_curl_multi($options = []) {
     $ch1 = curl_init();
     $ch2 = curl_init();
 
@@ -37,7 +23,19 @@ run(function () {
         $mrc = curl_multi_exec($mh, $active);
     } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
-    sleep(0.1);
+    if (isset($options['select_twice'])) {
+        if (isset($options['sleep'])) {
+            unset($options['sleep']);
+        }
+        go(function() use($mh) {
+            Co::sleep(0.005);
+            curl_multi_select($mh);
+        });
+    }
+
+    if (isset($options['sleep'])) {
+        Co::sleep($options['sleep']);
+    }
 
     while ($active && $mrc == CURLM_OK) {
         $n = curl_multi_select($mh);
@@ -63,8 +61,4 @@ run(function () {
     curl_multi_remove_handle($mh, $ch2);
 
     curl_multi_close($mh);
-    echo "Done\n";
-});
-?>
---EXPECT--
-Done
+}

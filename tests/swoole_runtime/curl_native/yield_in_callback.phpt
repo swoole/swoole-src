@@ -27,28 +27,25 @@ run(function () use ($pm) {
     curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($ch, $strHeader) use (&$header_count) {
         Assert::eq(curl_getinfo($ch, CURLINFO_HTTP_CODE), 200);
         Assert::eq(md5_file(__FILE__), md5(file_get_contents(__FILE__)));
+        Co::sleep(0.05);
         $header_count++;
-        Co::sleep(0.1);
         return strlen($strHeader);
     });
 
+    echo "exec\n";
     $output = curl_exec($ch);
-    Assert::eq($output, "Hello World\n".$code);
+    Assert::contains($output, "baidu.com");
     if ($output === false) {
         echo "CURL Error:" . curl_error($ch);
     }
+    echo "exec end\n";
     Assert::greaterThan($header_count, 1);
     curl_close($ch);
     echo "Close\n";
 });
 
 ?>
---EXPECTF--
-Fatal error: Uncaught Swoole\Error: API must be called in the coroutine in %s:%d
-Stack trace:
-#0 %s(%d): Swoole\Coroutine::sleep(0.1)
-#1 [internal function]: {closure}(Resource id #%d, 'HTTP/1.1 200 OK...')
-#2 @swoole-src/library/core/Coroutine/functions.php(%d): Swoole\Coroutine\Scheduler->start()
-#3 %s(%d): Swoole\Coroutine\run(Object(Closure))
-#4 {main}
-  thrown in %s on line %d
+--EXPECT--
+exec
+exec end
+Close
