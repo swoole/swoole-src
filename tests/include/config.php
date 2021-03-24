@@ -23,6 +23,7 @@ define('DEV_NULL', '/dev/null');
 define('SOURCE_ROOT_PATH', __DIR__ . '/../../');
 define('TESTS_ROOT_PATH', __DIR__ . '/../');
 define('TESTS_API_PATH', TESTS_ROOT_PATH.'/include/api');
+define('TESTS_LIB_PATH', TESTS_ROOT_PATH.'/include/lib');
 define('TRAVIS_DIR_PATH', __DIR__ . '/../../travis/');
 define('TEST_IMAGE', __DIR__ . '/../../examples/test.jpg');
 define('TEST_LINK_IMAGE', __DIR__ . '/../../examples/test_link.jpg');

@@ -105,3 +105,4 @@ core-tests/samples/CMakeFiles/
 *.gcda
 *.info
 /html
+/tests/include/lib/vendor/

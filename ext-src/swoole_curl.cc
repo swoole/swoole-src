@@ -21,22 +21,24 @@
 namespace swoole {
 namespace curl {
 
-int Multi::cb_readable(Reactor *reactor, Event *event) {
+static int execute_callback(Event *event, int bitmask) {
     Handle *handle = (Handle *) event->socket->object;
-    handle->multi->callback(handle, CURL_CSELECT_IN);
+    handle->event_bitmask = bitmask;
+    handle->event_fd = event->fd;
+    handle->multi->callback(handle, bitmask);
     return 0;
+}
+
+int Multi::cb_readable(Reactor *reactor, Event *event) {
+    return execute_callback(event, CURL_CSELECT_IN);
 }
 
 int Multi::cb_writable(Reactor *reactor, Event *event) {
-    Handle *handle = (Handle *) event->socket->object;
-    handle->multi->callback(handle, CURL_CSELECT_OUT);
-    return 0;
+    return execute_callback(event, CURL_CSELECT_OUT);
 }
 
 int Multi::cb_error(Reactor *reactor, Event *event) {
-    Handle *handle = (Handle *) event->socket->object;
-    handle->multi->callback(handle, CURL_CSELECT_ERR);
-    return 0;
+    return execute_callback(event, CURL_CSELECT_ERR);
 }
 
 int Multi::handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp) {
@@ -134,7 +136,7 @@ CURLcode Multi::exec(php_curl *ch) {
         int sockfd = last_sockfd;
         int bitmask = 0;
         if (sockfd >= 0) {
-            bitmask = handle->bitmask;
+            bitmask = handle->event_bitmask;
             swoole_event_del(handle->socket);
             handle->removed = true;
         }
@@ -233,8 +235,8 @@ long Multi::select(php_curlm *mh) {
         int bitmask = 0;
         int sockfd = -1;
         if (handle) {
-            bitmask = handle->bitmask;
-            sockfd = handle->socket->fd;
+            bitmask = handle->event_bitmask;
+            sockfd = handle->event_fd;
         }
         curl_multi_socket_action(multi_handle_, sockfd, bitmask, &running_handles_);
         swTraceLog(SW_TRACE_CO_CURL, "socket_action, running_handles=%d", running_handles_);
@@ -246,8 +248,7 @@ long Multi::select(php_curlm *mh) {
 
 void Multi::callback(Handle *handle, int event_bitmask) {
     if (handle) {
-        last_sockfd = handle->socket->fd;
-        handle->bitmask = event_bitmask;
+        last_sockfd = handle->event_fd;
     } else {
         last_sockfd = -1;
     }
