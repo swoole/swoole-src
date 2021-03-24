@@ -2395,7 +2395,7 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "enable_delay_receive", ztmp)) {
         serv->enable_delay_receive = zval_is_true(ztmp);
     }
-#if defined(__linux__) and defined(HAVE_REUSEPORT)
+#if defined(HAVE_REUSEPORT)
     if (php_swoole_array_get_value(vht, "enable_reuse_port", ztmp)) {
         serv->enable_reuse_port = zval_is_true(ztmp);
     }
