@@ -39,7 +39,8 @@ struct Handle {
     CURL *cp;
     Socket *socket;
     Multi *multi;
-    int bitmask;
+    int event_bitmask;
+    int event_fd;
     int action;
     bool removed;
 };
