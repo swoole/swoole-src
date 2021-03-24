@@ -40,7 +40,7 @@ Mutex::Mutex(int flags) : Lock() {
     pthread_mutexattr_init(&impl->attr_);
 
     if (flags & PROCESS_SHARED) {
-#ifdef HAVE_PTHREAD_MUTEXATTR_SETROBUST
+#ifdef HAVE_PTHREAD_MUTEXATTR_SETPSHARED
         pthread_mutexattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
 #else
         swWarn("PTHREAD_MUTEX_PSHARED is not supported");
