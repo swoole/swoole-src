@@ -354,15 +354,16 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
     for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
          pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
 #if PHP_VERSION_ID < 80000
-        if (Z_RES_P(pz_ch)->ptr)
-#endif
-        {
-            php_curl *ch = Z_CURL_P(pz_ch);
-            if (ch) {
-                _php_curl_verify_handlers(ch, 1);
-                mh->multi->remove_handle(ch->cp);
-            }
+        if (!Z_RES_P(pz_ch)->ptr) {
+            continue;
         }
+#endif
+        php_curl *ch = Z_CURL_P(pz_ch);
+        if (!ch) {
+            continue;
+        }
+        _php_curl_verify_handlers(ch, 1);
+        mh->multi->remove_handle(ch->cp);
     }
     zend_llist_clean(&mh->easyh);
 }

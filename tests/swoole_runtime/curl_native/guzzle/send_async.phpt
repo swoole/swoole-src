@@ -21,8 +21,8 @@ run(function () {
     $client = new Client();
     $response = $client->request('GET', 'https://api.github.com/repos/swoole/swoole-src');
 
-    echo $response->getStatusCode(); // 200
-    echo $response->getHeaderLine('content-type'); // 'application/json; charset=utf8'
+    echo $response->getStatusCode(), PHP_EOL; // 200
+    echo $response->getHeaderLine('content-type'), PHP_EOL; // 'application/json; charset=utf8'
 
     // Send an asynchronous request.
     $request = new Request('GET', 'http://httpbin.org');
@@ -36,6 +36,6 @@ run(function () {
 ?>
 --EXPECT--
 200
-application/json; charset=utf8
+application/json; charset=utf-8
 I completed! 200
 Done
