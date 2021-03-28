@@ -113,7 +113,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     }
 
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
-    if (conn == nullptr || conn->active == 0) {
+    if (conn == nullptr) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
     } 

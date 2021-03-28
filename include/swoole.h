@@ -571,6 +571,7 @@ struct Event {
 
 typedef long SessionId;
 typedef long TaskId;
+typedef uint8_t ReactorId;
 
 struct DataHead {
     SessionId fd;
