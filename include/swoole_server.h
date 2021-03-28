@@ -89,14 +89,10 @@ struct Session {
 };
 
 struct Connection {
-    /**
-     * file descript
-     */
-    int fd;
-    /**
-     * session id
-     */
+    // It must be in the header. When set to 0, it means that connection does not exist.
+    // One-write and multiple-read operation is thread-safe
     SessionId session_id;
+    int fd;
     /**
      * socket type, SW_SOCK_TCP or SW_SOCK_UDP
      */
@@ -143,7 +139,7 @@ struct Connection {
     /**
      * ReactorThread id
      */
-    uint16_t reactor_id;
+    ReactorId reactor_id;
     /**
      * close error code
      */
@@ -1135,7 +1131,7 @@ class Server {
         Session *session = get_session(session_id);
         int fd = session->fd;
         Connection *conn = get_connection(fd);
-        if (!conn || conn->active == 0) {
+        if (!conn || conn->session_id == 0) {
             return nullptr;
         }
         if (session->id != session_id || conn->session_id != session_id) {

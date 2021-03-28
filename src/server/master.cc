@@ -166,7 +166,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = conn->session_id;
             ev.reactor_id = conn->reactor_id;
-            if (serv->send_to_reactor_thread((EventData*) &ev, sizeof(ev), conn->session_id) < 0) {
+            if (serv->send_to_reactor_thread((EventData *) &ev, sizeof(ev), conn->session_id) < 0) {
                 reactor->close(reactor, sock);
                 return SW_OK;
             }
@@ -908,7 +908,7 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     _send.info.reactor_id = conn->reactor_id;
 
     if (is_process_mode()) {
-        return send_to_reactor_thread((EventData*) &_send.info, sizeof(_send.info), conn->session_id) > 0;
+        return send_to_reactor_thread((EventData *) &_send.info, sizeof(_send.info), conn->session_id) > 0;
     } else {
         return send_to_connection(&_send) == SW_OK;
     }
@@ -936,7 +936,7 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) {
     SendData _send{};
     _send.info.fd = session_id;
     _send.info.type = SW_SERVER_EVENT_RECV_DATA;
-    _send.data = (char*) data;
+    _send.data = (char *) data;
     _send.info.len = length;
     return factory->finish(&_send);
 }
@@ -973,11 +973,11 @@ int Server::schedule_worker(int fd, SendData *data) {
         // IPv6
         else {
 #ifdef HAVE_KQUEUE
-            key = *(((uint32_t*) &conn->info.addr.inet_v6.sin6_addr) + 3);
+            key = *(((uint32_t *) &conn->info.addr.inet_v6.sin6_addr) + 3);
 #elif defined(_WIN32)
-               key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
+            key = conn->info.addr.inet_v6.sin6_addr.u.Word[3];
 #else
-               key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
+            key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
         }
     } else if (dispatch_mode == SW_DISPATCH_UIDMOD) {
@@ -1001,7 +1001,8 @@ int Server::schedule_worker(int fd, SendData *data) {
         }
         if (sw_unlikely(!found)) {
             scheduler_warning = true;
-        } swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
+        }
+        swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
         return key;
     }
     return key % worker_num;
@@ -1335,7 +1336,7 @@ void Server::call_hook(HookType type, void *arg) {
  * [Worker]
  */
 bool Server::close(SessionId session_id, bool reset) {
-    return factory->end(session_id, reset ? CLOSE_ACTIVELY | CLOSE_RESET: CLOSE_ACTIVELY);
+    return factory->end(session_id, reset ? CLOSE_ACTIVELY | CLOSE_RESET : CLOSE_ACTIVELY);
 }
 
 void Server::init_signal_handler() {
@@ -1638,7 +1639,31 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     unlock();
 
     Connection *connection = &(connection_list[fd]);
+    ReactorId reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
     *connection = {};
+
+    sw_spinlock(&gs->spinlock);
+    SessionId session_id = gs->session_round;
+    // get session id
+    SW_LOOP_N(max_connection) {
+        Session *session = get_session(++session_id);
+        // available slot
+        if (session->fd == 0) {
+            session->fd = fd;
+            session->id = session_id;
+            session->reactor_id = reactor_id;
+            goto _find_available_slot;
+        }
+    }
+    sw_spinlock_release(&gs->spinlock);
+    swoole_error_log(SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "no available session slot, fd=%d", fd);
+    return nullptr;
+
+_find_available_slot:
+    sw_spinlock_release(&gs->spinlock);
+    gs->session_round = session_id;
+    connection->session_id = session_id;
+
     _socket->object = connection;
     _socket->removed = 1;
     _socket->buffer_size = ls->socket_buffer_size;
@@ -1667,7 +1692,7 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     }
 
     connection->fd = fd;
-    connection->reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
+    connection->reactor_id = reactor_id;
     connection->server_fd = (sw_atomic_t) server_fd;
     connection->last_recv_time = connection->connect_time = microtime();
     connection->active = 1;
@@ -1681,23 +1706,6 @@ Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_f
     if (!ls->ssl) {
         _socket->direct_send = 1;
     }
-
-    sw_spinlock(&gs->spinlock);
-    SessionId session_id = gs->session_round;
-    // get session id
-    SW_LOOP_N(max_connection) {
-        Session *session = get_session(++session_id);
-        // available slot
-        if (session->fd == 0) {
-            session->fd = fd;
-            session->id = session_id;
-            session->reactor_id = connection->reactor_id;
-            break;
-        }
-    }
-    gs->session_round = session_id;
-    sw_spinlock_release(&gs->spinlock);
-    connection->session_id = session_id;
 
     return connection;
 }
