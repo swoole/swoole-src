@@ -480,7 +480,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         BufferChunk *chunk = buffer->front();
         EventData *send_data = (EventData *) chunk->value.ptr;
 
-        // server active close, discard data.
+        // server actively closed connection, should discard the data
         if (Server::is_stream_event(send_data->info.type)) {
             // send_data->info.fd is session_id
             Connection *conn = serv->get_connection_verify(send_data->info.fd);

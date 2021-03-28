@@ -89,28 +89,22 @@ struct Session {
 };
 
 struct Connection {
-    // It must be in the header. When set to 0, it means that connection does not exist.
-    // One-write and multiple-read operation is thread-safe
-    SessionId session_id;
-    int fd;
     /**
-     * socket type, SW_SOCK_TCP or SW_SOCK_UDP
-     */
-    enum swSocket_type socket_type;
-    //--------------------------------------------------------------
-    /**
-     * is active
+     * It must be in the header. When set to 0, it means that connection does not exist.
+     * One-write and multiple-read operation is thread-safe
      * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
+    enum swSocket_type socket_type;
+    int fd;
+    SessionId session_id;
+    //--------------------------------------------------------------
 #ifdef SW_USE_OPENSSL
     uint8_t ssl;
     uint8_t ssl_ready;
 #endif
-    //--------------------------------------------------------------
     uint8_t overflow;
     uint8_t high_watermark;
-    //--------------------------------------------------------------
     uint8_t http_upgrade;
 #ifdef SW_USE_HTTP2
     uint8_t http2_stream;
@@ -118,35 +112,19 @@ struct Connection {
 #ifdef SW_HAVE_ZLIB
     uint8_t websocket_compression;
 #endif
-    //--------------------------------------------------------------
-    /**
-     * server is actively close the connection
-     */
+    // If it is equal to 1, it means server actively closed the connection
     uint8_t close_actively;
     uint8_t closed;
     uint8_t close_queued;
     uint8_t closing;
     uint8_t close_reset;
     uint8_t peer_closed;
-    /**
-     * protected connection, do not close connection when receiving/sending timeout
-     */
+    // protected connection, do not close connection when receiving/sending timeout
     uint8_t protect;
-    //--------------------------------------------------------------
     uint8_t close_notify;
     uint8_t close_force;
-    //--------------------------------------------------------------
-    /**
-     * ReactorThread id
-     */
     ReactorId reactor_id;
-    /**
-     * close error code
-     */
     uint16_t close_errno;
-    /**
-     * from which socket fd
-     */
     int server_fd;
     sw_atomic_t recv_queued_bytes;
     uint32_t send_queued_bytes;
@@ -1131,7 +1109,7 @@ class Server {
         Session *session = get_session(session_id);
         int fd = session->fd;
         Connection *conn = get_connection(fd);
-        if (!conn || conn->session_id == 0) {
+        if (!conn || conn->active == 0) {
             return nullptr;
         }
         if (session->id != session_id || conn->session_id != session_id) {
