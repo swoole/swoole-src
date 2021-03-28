@@ -63,32 +63,28 @@ void Server::worker_signal_handler(int signo) {
     }
     switch (signo) {
     case SIGTERM:
-        /**
-         * Event worker
-         */
-        if (SwooleTG.reactor) {
+        // Event worker
+        if (swoole_event_is_available()) {
             sw_server()->stop_async_worker(SwooleWG.worker);
         }
-        /**
-         * Task worker
-         */
+        // Task worker
         else {
             SwooleWG.shutdown = true;
         }
         break;
-    /**
-     * for test
-     */
+    // for test
     case SIGVTALRM:
         swWarn("SIGVTALRM coming");
         break;
     case SIGUSR1:
     case SIGUSR2:
-        sw_logger()->reopen();
+        if (sw_logger()) {
+            sw_logger()->reopen();
+        }
         break;
     default:
 #ifdef SIGRTMIN
-        if (signo == SIGRTMIN) {
+        if (signo == SIGRTMIN && sw_logger()) {
             sw_logger()->reopen();
         }
 #endif
@@ -630,32 +626,36 @@ static int Worker_onPipeReceive(Reactor *reactor, Event *event) {
     void *buffer;
     struct iovec buffers[2];
     int recv_chunk_count = 0;
+    DataHead *info = &pipe_buffer->info;
 
 _read_from_pipe:
-    recv_n = recv(event->fd, &pipe_buffer->info, sizeof(pipe_buffer->info), MSG_PEEK);
+    recv_n = recv(event->fd, info, sizeof(pipe_buffer->info), MSG_PEEK);
     if (recv_n < 0) {
-        if (errno == EAGAIN) {
+        if (event->socket->catch_error(errno) == SW_WAIT) {
             return SW_OK;
         }
         return SW_ERR;
     }
 
     if (pipe_buffer->info.flags & SW_EVENT_DATA_CHUNK) {
-        buffer = serv->get_buffer(serv, &pipe_buffer->info);
-        size_t remain_len = pipe_buffer->info.len - serv->get_buffer_len(serv, &pipe_buffer->info);
+        buffer = serv->get_buffer(serv, info);
+        size_t remain_len = pipe_buffer->info.len - serv->get_buffer_len(serv, info);
 
-        buffers[0].iov_base = &pipe_buffer->info;
+        buffers[0].iov_base = info;
         buffers[0].iov_len = sizeof(pipe_buffer->info);
         buffers[1].iov_base = buffer;
         buffers[1].iov_len = SW_MIN(serv->ipc_max_size - sizeof(pipe_buffer->info), remain_len);
 
         recv_n = readv(event->fd, buffers, 2);
-        assert(recv_n != 0);
-        if (recv_n < 0 && errno == EAGAIN) {
+        if (recv_n == 0) {
+            swWarn("abnormal pipeline data, pipe_fd=%d, reactor_id=%d", event->fd, info->reactor_id);
+            return SW_ERR;
+        }
+        if (recv_n < 0 && event->socket->catch_error(errno) == SW_WAIT) {
             return SW_OK;
         }
         if (recv_n > 0) {
-            serv->add_buffer_len(serv, &pipe_buffer->info, recv_n - sizeof(pipe_buffer->info));
+            serv->add_buffer_len(serv, info, recv_n - sizeof(pipe_buffer->info));
         }
 
         recv_chunk_count++;
