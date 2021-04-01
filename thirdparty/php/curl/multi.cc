@@ -49,7 +49,7 @@ static inline php_curlm *Z_CURL_MULTI_P(zval *zv) {
     if ((cm = (php_curlm *) zend_fetch_resource(
              Z_RES_P(zv), le_curl_multi_handle_name, _php_curl_get_le_curl_multi())) == NULL) {
         swFatalError(SW_ERROR_INVALID_PARAMS,
-                     "supplied resource is not a valid " le_curl_multi_handle_name "Handle resource ");
+                     "supplied resource is not a valid " le_curl_multi_handle_name " resource");
         return nullptr;
     }
     return cm;
@@ -107,8 +107,6 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
 
     _php_curl_cleanup_handle(ch);
 
-    printf("[add]ch=%p\n", z_ch);
-
     Z_ADDREF_P(z_ch);
     zend_llist_add_element(&mh->easyh, z_ch);
 
@@ -143,6 +141,11 @@ static zval *_php_curl_multi_find_easy_handle(php_curlm *mh, CURL *easy) /* {{{ 
 
     for (pz_ch_temp = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch_temp;
         pz_ch_temp = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
+#if PHP_VERSION_ID < 80000
+        if (!Z_RES_P(pz_ch_temp)->ptr) {
+            continue;
+        }
+#endif
         tmp_ch = _php_curl_get_handle(pz_ch_temp, false, false);
         if (tmp_ch && tmp_ch->cp == easy) {
             return pz_ch_temp;
@@ -173,8 +176,6 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
 
     mh = Z_CURL_MULTI_P(z_mh);
     ch = Z_CURL_P(z_ch);
-
-    printf("[remove]ch=%p\n", z_ch);
 
     error = mh->multi->remove_handle(ch->cp);
     SAVE_CURLM_ERROR(mh, error);
@@ -720,7 +721,12 @@ static void _php_curl_multi_free(php_curlm *mh) {
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
         php_curl *ch;
-        if ((ch = _php_curl_get_handle(z_ch, false))) {
+#if PHP_VERSION_ID < 80000
+        if (!Z_RES_P(z_ch)->ptr) {
+            continue;
+        }
+#endif
+        if ((ch = _php_curl_get_handle(z_ch, true, false))) {
             _php_curl_verify_handlers(ch, 0);
             mh->multi->remove_handle(ch->cp);
         }

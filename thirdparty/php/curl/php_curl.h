@@ -53,9 +53,9 @@
 #define PHP_CURL_IGNORE 7
 
 #if PHP_VERSION_ID < 80000
-#define le_curl_name "Swoole-Coroutine-cURL Handle"
-#define le_curl_multi_handle_name "Swoole-Coroutine-cURL Multi Handle"
-#define le_curl_share_handle_name "Swoole-Coroutine-cURL Share Handle"
+#define le_curl_name "Swoole-Coroutine-cURL-Handle"
+#define le_curl_multi_handle_name "Swoole-Coroutine-cURL-Multi-Handle"
+#define le_curl_share_handle_name "Swoole-Coroutine-cURL-Share-Handle"
 #endif
 
 #if PHP_VERSION_ID >= 80000

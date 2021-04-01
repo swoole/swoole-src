@@ -74,10 +74,7 @@ class Multi {
     void del_event(CURL *easy, void *socket_ptr, curl_socket_t sockfd);
 
     void add_timer(long timeout_ms) {
-        if (!swoole_timer_is_available()) {
-            return;
-        }
-        if (timer) {
+        if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
         }
         timeout_ms_ = timeout_ms;
@@ -89,10 +86,7 @@ class Multi {
     }
 
     void del_timer() {
-        if (!swoole_timer_is_available()) {
-            return;
-        }
-        if (timer) {
+        if (timer && swoole_timer_is_available()) {
             swoole_timer_del(timer);
             timeout_ms_ = -1;
             timer = nullptr;
