@@ -64,9 +64,7 @@ _make_fcontext:
     ; compute abs address of label finish
     ; 0x0c = 3 instructions * size (4) before label 'finish'
 
-    ; TODO: Numeric offset since llvm still does not support labels in ADR. Fix:
-    ;       http://lists.cs.uiuc.edu/pipermail/llvm-commits/Week-of-Mon-20140407/212336.html
-    adr  x1, 0x0c
+    adr  x1, finish
 
     ; save address of finish as return-address for context-function
     ; will be entered after context-function returns (LR register)
