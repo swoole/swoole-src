@@ -123,7 +123,7 @@ class Multi {
 
     CURLMcode add_handle(CURL *cp) {
         auto retval = curl_multi_add_handle(multi_handle_, cp);
-        if (retval == CURLM_OK) {
+        if (retval == CURLM_OK && get_handle(cp) == nullptr) {
             auto handle = new Handle{};
             handle->cp = cp;
             handle->multi = this;
