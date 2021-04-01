@@ -193,6 +193,9 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
 
 long Multi::select(php_curlm *mh) {
     co = check_bound_co();
+    if (zend_llist_count(&mh->easyh) == 0) {
+        return 0;
+    }
     ON_SCOPE_EXIT {
         co = nullptr;
     };

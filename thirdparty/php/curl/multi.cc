@@ -107,6 +107,8 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
 
     _php_curl_cleanup_handle(ch);
 
+    printf("[add]ch=%p\n", z_ch);
+
     Z_ADDREF_P(z_ch);
     zend_llist_add_element(&mh->easyh, z_ch);
 
@@ -140,10 +142,9 @@ static zval *_php_curl_multi_find_easy_handle(php_curlm *mh, CURL *easy) /* {{{ 
     zval *pz_ch_temp;
 
     for (pz_ch_temp = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch_temp;
-         pz_ch_temp = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
-        tmp_ch = Z_CURL_P(pz_ch_temp);
-
-        if (tmp_ch->cp == easy) {
+        pz_ch_temp = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
+        tmp_ch = _php_curl_get_handle(pz_ch_temp, false, false);
+        if (tmp_ch && tmp_ch->cp == easy) {
             return pz_ch_temp;
         }
     }
@@ -172,6 +173,8 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
 
     mh = Z_CURL_MULTI_P(z_mh);
     ch = Z_CURL_P(z_ch);
+
+    printf("[remove]ch=%p\n", z_ch);
 
     error = mh->multi->remove_handle(ch->cp);
     SAVE_CURLM_ERROR(mh, error);
@@ -232,8 +235,12 @@ PHP_FUNCTION(swoole_native_curl_multi_exec) {
 
         for (pz_ch = (zval *) zend_llist_get_first_ex(&mh->easyh, &pos); pz_ch;
              pz_ch = (zval *) zend_llist_get_next_ex(&mh->easyh, &pos)) {
+#if PHP_VERSION_ID < 80000
+            if (!Z_RES_P(pz_ch)->ptr) {
+                continue;
+            }
+#endif
             ch = Z_CURL_P(pz_ch);
-
             _php_curl_verify_handlers(ch, 1);
         }
     }
@@ -323,9 +330,10 @@ PHP_FUNCTION(swoole_native_curl_multi_info_read) {
         zval *pz_ch = _php_curl_multi_find_easy_handle(mh, tmp_msg->easy_handle);
         if (pz_ch != NULL) {
             /* we must save result to be able to read error message */
-            ch = Z_CURL_P(pz_ch);
-            SAVE_CURL_ERROR(ch, tmp_msg->data.result);
-
+            ch = _php_curl_get_handle(pz_ch, false, false);
+            if (ch) {
+                SAVE_CURL_ERROR(ch, tmp_msg->data.result);
+            }
             Z_ADDREF_P(pz_ch);
             add_assoc_zval(return_value, "handle", pz_ch);
         }

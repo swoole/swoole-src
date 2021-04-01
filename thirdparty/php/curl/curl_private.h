@@ -44,10 +44,6 @@
 #define SAVE_CURL_ERROR(__handle, __err) \
     do { (__handle)->err.no = (int) __err; } while (0)
 
-PHP_MINIT_FUNCTION(curl);
-PHP_MSHUTDOWN_FUNCTION(curl);
-PHP_MINFO_FUNCTION(curl);
-
 typedef struct {
 	zval                  func_name;
 	zend_fcall_info_cache fci_cache;
@@ -178,7 +174,7 @@ int curl_cast_object(zend_object *obj, zval *result, int type);
 #define Z_CURL_P(zv)     _php_curl_get_handle(zv)
 #endif /* PHP8 end */
 
-php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true);
+php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 
 SW_EXTERN_C_BEGIN
 #if PHP_VERSION_ID < 80000
