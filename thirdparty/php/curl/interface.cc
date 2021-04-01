@@ -127,7 +127,7 @@ php_curl *_php_curl_get_handle(zval *zid, bool exclusive, bool required) {
     if (exclusive) {
         swoole::curl::Handle *handle = nullptr;
         curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
-        if (handle && handle->multi->check_bound_co() == nullptr) {
+        if (handle && handle->multi && handle->multi->check_bound_co() == nullptr) {
             return nullptr;
         }
     }

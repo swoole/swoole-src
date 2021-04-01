@@ -119,6 +119,31 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
     swTraceLog(SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p, fd=%d, events=%d", "[ADD]", handle, cp, sockfd, events);
 }
 
+CURLMcode Multi::add_handle(CURL *cp) {
+    auto retval = curl_multi_add_handle(multi_handle_, cp);
+    if (retval == CURLM_OK) {
+        auto handle = get_handle(cp);
+        if (handle == nullptr) {
+            handle = new Handle{};
+            handle->cp = cp;
+            curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
+        }
+        handle->multi = this;
+    }
+    return retval;
+}
+
+CURLMcode Multi::remove_handle(CURL *cp) {
+    auto retval = curl_multi_remove_handle(multi_handle_, cp);
+    if (retval == CURLM_OK) {
+        auto handle = get_handle(cp);
+        if (handle) {
+            handle->multi = nullptr;
+        }
+    }
+    return retval;
+}
+
 CURLcode Multi::exec(php_curl *ch) {
     co = check_bound_co();
     ON_SCOPE_EXIT {
