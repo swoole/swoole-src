@@ -10,7 +10,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 
 use SwooleTest\CurlManager;
 
-$cm = new CurlManager(true);
+$cm = new CurlManager();
 $cm->run(function ($host) {
     //CURL_MULTI_GETCONTENT TEST
 

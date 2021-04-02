@@ -11,8 +11,8 @@ class CurlManager
     protected $port;
     protected $nativeCurl = false;
 
-    function __construct($nativeCurl = false) {
-        $this->nativeCurl = $nativeCurl;
+    function __construct() {
+        $this->nativeCurl = defined('SWOOLE_HOOK_NATIVE_CURL');
     }
 
     function getUrlBase()

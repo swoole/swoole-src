@@ -57,7 +57,7 @@ function checkForClosedFilePointer($target_url, $curl_option, $description) {
     echo "Ok for $description\n";
 }
 
-$cm = new CurlManager(true);
+$cm = new CurlManager();
 $cm->run(function ($host) {
     $url = "{$host}/";
 

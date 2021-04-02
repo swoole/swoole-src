@@ -6,7 +6,7 @@ curl_copy_handle() allows to post CURLFile multiple times with curl_multi_exec()
 require __DIR__ . '/../../include/bootstrap.php';
 
 use SwooleTest\CurlManager;
-$cm = new CurlManager(true);
+$cm = new CurlManager();
 $cm->run(function ($host) {
     $ch1 = curl_init();
     curl_setopt($ch1, CURLOPT_SAFE_UPLOAD, 1);

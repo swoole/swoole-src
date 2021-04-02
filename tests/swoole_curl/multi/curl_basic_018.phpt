@@ -8,7 +8,7 @@ TestFest 2009 - AFUP - Thomas Rabaix <thomas.rabaix@gmail.com>
 require __DIR__ . '/../../include/bootstrap.php';
 
 use SwooleTest\CurlManager;
-$cm = new CurlManager(true);
+$cm = new CurlManager();
 $cm->run(function ($host) {
     // start testing
     echo "*** Testing curl_exec() : basic functionality ***\n";
