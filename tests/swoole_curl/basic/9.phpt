@@ -10,6 +10,7 @@ TestFest 2009 - AFUP - Perrick Penet <perrick@noparking.net>
 require __DIR__ . '/../../include/bootstrap.php';
 
 $cm = new \SwooleTest\CurlManager();
+$cm->disableNativeCurl();
 $cm->run(function ($host) {
     $url = uniqid()."://www.".uniqid().".".uniqid();
     $ch = curl_init();

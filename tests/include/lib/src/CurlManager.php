@@ -15,6 +15,10 @@ class CurlManager
         $this->nativeCurl = defined('SWOOLE_HOOK_NATIVE_CURL');
     }
 
+    function disableNativeCurl() {
+        $this->nativeCurl = false;
+    }
+
     function getUrlBase()
     {
         return "http://127.0.0.1:{$this->port}";

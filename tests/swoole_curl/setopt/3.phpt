@@ -11,6 +11,7 @@ Paul Sohier
 require __DIR__ . '/../../include/bootstrap.php';
 
 $cm = new \SwooleTest\CurlManager();
+$cm->disableNativeCurl();
 $cm->run(function ($host) {
     // start testing
     echo "*** curl_setopt() call with CURLOPT_HTTPHEADER\n";

@@ -2,7 +2,7 @@
    +----------------------------------------------------------------------+
    | PHP Version 7                                                        |
    +----------------------------------------------------------------------+
-   | Copyright (c) 1997-2018 The PHP Group                                |
+   | Copyright (c) The PHP Group                                          |
    +----------------------------------------------------------------------+
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
@@ -24,6 +24,13 @@ using swoole::Coroutine;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 
+#if HAVE_SYS_STAT_H
+#include <sys/stat.h>
+#endif
+#if HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+
 static int le_proc_open;
 static const char *le_proc_name = "process/coroutine";
 
@@ -34,7 +41,7 @@ static proc_co_env_t _php_array_to_envp(zval *environment) {
     zend_string *key, *str;
     char **ep;
     char *p;
-    size_t cnt, l, sizeenv = 0;
+    size_t cnt, sizeenv = 0;
     HashTable *env_hash;
 
     memset(&env, 0, sizeof(env));
@@ -71,35 +78,35 @@ static proc_co_env_t _php_array_to_envp(zval *environment) {
         } else {
             zend_hash_next_index_insert_ptr(env_hash, str);
         }
-    }
-    ZEND_HASH_FOREACH_END();
+    } ZEND_HASH_FOREACH_END();
 
     ep = env.envarray = (char **) ecalloc(cnt + 1, sizeof(char *));
     p = env.envp = (char *) ecalloc(sizeenv + 4, 1);
 
-    void *_v1, *_v2;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(env_hash, _v1, _v2) {
-        key = (zend_string *) _v1;
-        str = (zend_string *) _v2;
+#if PHP_VERSION_ID >= 70400
+    ZEND_HASH_FOREACH_STR_KEY_PTR(env_hash, key, str) {
+#else
+    void *_key, *_str;
+    ZEND_HASH_FOREACH_STR_KEY_PTR(env_hash, _key, _str) {
+        key = (zend_string *) _key;
+        str = (zend_string *) _str;
+#endif
+#ifndef PHP_WIN32
+        *ep = p;
+        ++ep;
+#endif
 
         if (key) {
-            l = ZSTR_LEN(key) + ZSTR_LEN(str) + 2;
             memcpy(p, ZSTR_VAL(key), ZSTR_LEN(key));
-            strcat(p, "=");
-            strncat(p, ZSTR_VAL(str), ZSTR_LEN(str));
-
-            *ep = p;
-            ++ep;
-            p += l;
-        } else {
-            memcpy(p, ZSTR_VAL(str), ZSTR_LEN(str));
-            *ep = p;
-            ++ep;
-            p += ZSTR_LEN(str) + 1;
+            p += ZSTR_LEN(key);
+            *p++ = '=';
         }
-        zend_string_release(str);
-    }
-    ZEND_HASH_FOREACH_END();
+
+        memcpy(p, ZSTR_VAL(str), ZSTR_LEN(str));
+        p += ZSTR_LEN(str);
+        *p++ = '\0';
+        zend_string_release_ex(str, 0);
+    } ZEND_HASH_FOREACH_END();
 
     assert((uint32_t)(p - env.envp) <= sizeenv);
 
@@ -276,12 +283,12 @@ static zend_string *get_valid_arg_string(zval *zv, int elem_num) {
     return str;
 }
 
-/* {{{ proto resource proc_open(string command, array descriptorspec, array &pipes [, string cwd [, array env [, array
+/* {{{ proto resource proc_open(string|array command, array descriptorspec, array &pipes [, string cwd [, array env [, array
    other_options]]]) Run a process with more control over it's file descriptors */
 PHP_FUNCTION(swoole_proc_open) {
     zval *command_zv;
-    char *command, *cwd = NULL;
-    size_t command_len, cwd_len = 0;
+    char *command = NULL, *cwd = NULL;
+    size_t cwd_len = 0;
     zval *descriptorspec;
     zval *pipes;
     zval *environment = NULL;
@@ -371,8 +378,6 @@ PHP_FUNCTION(swoole_proc_open) {
     Coroutine::get_current_safe();
 
     command = estrdup(command);
-
-    command_len = strlen(command);
 
     if (environment) {
         env = _php_array_to_envp(environment);
@@ -654,6 +659,16 @@ PHP_FUNCTION(swoole_proc_open) {
 
     /* we forked/spawned and this is the parent */
 
+#if PHP_VERSION_ID >= 70400
+    pipes = zend_try_array_init(pipes);
+    if (!pipes) {
+        goto exit_fail;
+    }
+#else
+    zval_ptr_dtor(pipes);
+    array_init(pipes);
+#endif
+
     proc = (proc_co_t *) pemalloc(sizeof(proc_co_t), is_persistent);
     proc->is_persistent = is_persistent;
     proc->wstatus = nullptr;
@@ -669,16 +684,6 @@ PHP_FUNCTION(swoole_proc_open) {
         close(dev_ptmx);
         close(slave_pty);
     }
-#endif
-
-#if PHP_VERSION_ID >= 70400
-    pipes = zend_try_array_init(pipes);
-    if (!pipes) {
-        goto exit_fail;
-    }
-#else
-    zval_ptr_dtor(pipes);
-    array_init(pipes);
 #endif
 
     /* clean up all the child ends and then open streams on the parent
@@ -733,6 +738,14 @@ exit_fail:
     _php_free_envp(env, is_persistent);
     if (command) {
         pefree(command, is_persistent);
+    }
+    if (argv) {
+        char **arg = argv;
+        while (*arg != NULL) {
+            efree(*arg);
+            arg++;
+        }
+        efree(argv);
     }
 #if PHP_CAN_DO_PTS
     if (dev_ptmx >= 0) {

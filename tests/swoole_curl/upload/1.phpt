@@ -75,7 +75,7 @@ string(%d) "curl_testdata1.txt|text/plain|6"
 string(%d) "foo.txt"
 string(%d) "foo.txt|application/octet-stream|6"
 
-Warning: swoole_curl_setopt(): Disabling safe uploads is no longer supported in %s on line %d
+Warning: %s(): Disabling safe uploads is no longer supported in %s on line %d
 string(0) ""
 string(0) ""
 string(%d) "array(1) {
