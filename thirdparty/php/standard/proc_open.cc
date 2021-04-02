@@ -84,18 +84,12 @@ static proc_co_env_t _php_array_to_envp(zval *environment) {
     ep = env.envarray = (char **) ecalloc(cnt + 1, sizeof(char *));
     p = env.envp = (char *) ecalloc(sizeenv + 4, 1);
 
-#if PHP_VERSION_ID >= 80000
-    ZEND_HASH_FOREACH_STR_KEY_PTR(env_hash, key, str) {
-#else
-    void *_key, *_str;
-    ZEND_HASH_FOREACH_STR_KEY_PTR(env_hash, _key, _str) {
-        key = (zend_string *) _key;
-        str = (zend_string *) _str;
-#endif
-#ifndef PHP_WIN32
+    void *v1, *v2;
+    ZEND_HASH_FOREACH_STR_KEY_PTR(env_hash, v1, v2) {
+        key = (zend_string *) v1;
+        str = (zend_string *) v2;
         *ep = p;
         ++ep;
-#endif
 
         if (key) {
             memcpy(p, ZSTR_VAL(key), ZSTR_LEN(key));
