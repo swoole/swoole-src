@@ -65,15 +65,15 @@ function testcurl($ch, $name, $mime = '', $postname = '')
 }
 ?>
 --EXPECTF--
-string(%d) "curl_testdata1.txt|application/octet-stream"
-string(%d) "curl_testdata1.txt|text/plain"
-string(%d) "foo.txt|application/octet-stream"
-string(%d) "foo.txt|text/plain"
+string(%d) "curl_testdata1.txt|application/octet-stream|6"
+string(%d) "curl_testdata1.txt|text/plain|6"
+string(%d) "foo.txt|application/octet-stream|6"
+string(%d) "foo.txt|text/plain|6"
 string(%d) "text/plain"
 string(%d) "%s/curl_testdata1.txt"
-string(%d) "curl_testdata1.txt|text/plain"
+string(%d) "curl_testdata1.txt|text/plain|6"
 string(%d) "foo.txt"
-string(%d) "foo.txt|application/octet-stream"
+string(%d) "foo.txt|application/octet-stream|6"
 
 Warning: swoole_curl_setopt(): Disabling safe uploads is no longer supported in %s on line %d
 string(0) ""
