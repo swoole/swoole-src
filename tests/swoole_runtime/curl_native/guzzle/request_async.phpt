@@ -30,8 +30,10 @@ run(function () {
             echo $e->getRequest()->getMethod() . PHP_EOL;
         }
     );
+    $promise->wait();
     echo 'Done' . PHP_EOL;
 });
 ?>
 --EXPECT--
+200
 Done

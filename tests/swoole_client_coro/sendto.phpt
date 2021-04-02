@@ -2,7 +2,6 @@
 swoole_client_coro: sendto
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
-skip('fixme');
 ?>
 --FILE--
 <?php
