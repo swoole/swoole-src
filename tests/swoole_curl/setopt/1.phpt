@@ -4,7 +4,7 @@ swoole_library/curl/setopt: curl_setopt_array() function - tests setting multipl
 Mattijs Hoitink mattijshoitink@gmail.com
 #Testfest Utrecht 2009
 --SKIPIF--
-<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 /*
@@ -14,7 +14,7 @@ Mattijs Hoitink mattijshoitink@gmail.com
  * Documentation: http://wiki.php.net/qa/temp/ext/curl
  */
 
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {

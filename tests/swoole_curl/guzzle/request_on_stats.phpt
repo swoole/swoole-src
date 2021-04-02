@@ -2,11 +2,11 @@
 swoole_runtime/curl_native/guzzle: request on_stats
 --SKIPIF--
 <?php
-require __DIR__ . '/../../../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 require_once TESTS_LIB_PATH . '/vendor/autoload.php';
 
 use Swoole\Runtime;

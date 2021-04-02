@@ -7,7 +7,7 @@ Mark van der Velden
 <?php if (!extension_loaded("curl")) print "skip"; ?>
 --FILE--
 <?php
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;

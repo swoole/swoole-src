@@ -5,12 +5,12 @@ WHITE new media architects - Jeroen Vermeulen
 #testfest Utrecht 2009
 --SKIPIF--
 <?php
-require __DIR__ . '/../../../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 skip_unsupported();
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 function custom_readfunction($oCurl, $hReadHandle, $iMaxOut)
 {

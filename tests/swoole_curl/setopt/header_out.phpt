@@ -1,7 +1,7 @@
 --TEST--
 swoole_library/curl/setopt: CURLINFO_HEADER_OUT
 --SKIPIF--
-<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 /*
@@ -11,7 +11,7 @@ swoole_library/curl/setopt: CURLINFO_HEADER_OUT
  * Documentation: http://wiki.php.net/qa/temp/ext/curl
  */
 
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {

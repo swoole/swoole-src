@@ -2,11 +2,11 @@
 swoole_runtime/curl_native: suspend in callback
 --SKIPIF--
 <?php
-require __DIR__ . '/../../include/skipif.inc';
+require __DIR__ . '/../include/skipif.inc';
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Runtime;
 

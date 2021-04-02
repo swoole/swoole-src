@@ -4,7 +4,7 @@ swoole_library/curl/basic: Test curl_multi_getcontent() function
 Sebastian Deutsch <sebastian.deutsch@9elements.com>
 TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--
-<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 /* Prototype  : bool curl_setopt(resource ch, int option, mixed value)
@@ -12,7 +12,7 @@ TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>
  * Source code: ext/curl/interface.c
  * Alias to functions:
  */
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {
     // start testing

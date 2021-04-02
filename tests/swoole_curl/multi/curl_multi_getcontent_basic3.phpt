@@ -6,7 +6,7 @@ Rein Velt (rein@velt.org)
 --SKIPIF--
 --FILE--
 <?php
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 use SwooleTest\CurlManager;
 

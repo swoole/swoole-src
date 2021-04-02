@@ -4,7 +4,7 @@ swoole_library/curl/basic: Test curl_error() & curl_errno() function with proble
 TestFest 2009 - AFUP - Perrick Penet <perrick@noparking.net>
 --SKIPIF--
 <?php
-require __DIR__ . '/../../../include/skipif.inc';
+require __DIR__ . '/../../include/skipif.inc';
 skip_if_extension_not_exist('curl');
 $addr = "www." . uniqid() . "." . uniqid();
 if (gethostbyname($addr) != $addr) {
@@ -13,7 +13,7 @@ if (gethostbyname($addr) != $addr) {
 ?>
 --FILE--
 <?php
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {
     $url = "http://www." . uniqid() . "." . uniqid();

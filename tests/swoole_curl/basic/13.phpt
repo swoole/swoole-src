@@ -3,7 +3,7 @@ swoole_library/curl/basic: Test curl_opt() function with CURLOPT_HTTP_VERSION/CU
 --CREDITS--
 TestFest 2009 - AFUP - Xavier Gorse <xgorse@elao.com>
 --SKIPIF--
-<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 /* Prototype  : bool curl_setopt(resource ch, int option, mixed value)
@@ -11,7 +11,7 @@ TestFest 2009 - AFUP - Xavier Gorse <xgorse@elao.com>
  * Source code: ext/curl/interface.c
  * Alias to functions:
  */
-require __DIR__ . '/../../../include/bootstrap.php';
+require __DIR__ . '/../../include/bootstrap.php';
 
 $cm = new \SwooleTest\CurlManager();
 $cm->run(function ($host) {
