@@ -19,11 +19,13 @@ class MyHttpClient
 
     public function sendRequest()
     {
+        echo __METHOD__.'[1]'.PHP_EOL;
         if (false === $this->mh = curl_multi_init()) {
             throw new \RuntimeException('Unable to create a new cURL multi handle');
         }
 
         $this->addServerPushCallback();
+        echo __METHOD__.'[2]'.PHP_EOL;
 
         $this->curl = curl_init();
         curl_setopt($this->curl, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
@@ -40,6 +42,7 @@ class MyHttpClient
             return \strlen($data);
         });
         curl_multi_add_handle($this->mh, $this->curl);
+        echo __METHOD__.'[3]'.PHP_EOL;
 
         $stillRunning = null;
         while (true) {
@@ -60,7 +63,7 @@ class MyHttpClient
 
     private function addServerPushCallback(): void
     {
-
+        echo __METHOD__.PHP_EOL;
         $callback = static function () {
             return CURL_PUSH_OK;
         };
@@ -82,5 +85,10 @@ run(function () {
 });
 ?>
 --EXPECT--
+MyHttpClient::sendRequest[1]
+MyHttpClient::addServerPushCallback
+MyHttpClient::sendRequest[2]
+MyHttpClient::sendRequest[3]
 Start handle request.
+
 
