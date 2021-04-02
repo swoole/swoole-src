@@ -27,6 +27,6 @@ make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && echo "" && \
 docker-php-ext-enable swoole && \
-php --ri curl \
+php --ri curl && \
 php --ri swoole
 
