@@ -78,7 +78,8 @@ static proc_co_env_t _php_array_to_envp(zval *environment) {
         } else {
             zend_hash_next_index_insert_ptr(env_hash, str);
         }
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
 
     ep = env.envarray = (char **) ecalloc(cnt + 1, sizeof(char *));
     p = env.envp = (char *) ecalloc(sizeenv + 4, 1);
@@ -106,7 +107,8 @@ static proc_co_env_t _php_array_to_envp(zval *environment) {
         p += ZSTR_LEN(str);
         *p++ = '\0';
         zend_string_release_ex(str, 0);
-    } ZEND_HASH_FOREACH_END();
+    }
+    ZEND_HASH_FOREACH_END();
 
     assert((uint32_t)(p - env.envp) <= sizeenv);
 
@@ -254,10 +256,10 @@ PHP_FUNCTION(swoole_proc_get_status) {
 }
 /* }}} */
 
-#define DESC_PIPE               1
-#define DESC_FILE               2
-#define DESC_REDIRECT   3
-#define DESC_PARENT_MODE_WRITE  8
+#define DESC_PIPE 1
+#define DESC_FILE 2
+#define DESC_REDIRECT 3
+#define DESC_PARENT_MODE_WRITE 8
 
 struct php_proc_open_descriptor_item {
     int index;               /* desired fd number in child process */
@@ -274,8 +276,7 @@ static zend_string *get_valid_arg_string(zval *zv, int elem_num) {
     }
 
     if (strlen(ZSTR_VAL(str)) != ZSTR_LEN(str)) {
-        php_error_docref(NULL, E_WARNING,
-            "Command array element %d contains a null byte", elem_num);
+        php_error_docref(NULL, E_WARNING, "Command array element %d contains a null byte", elem_num);
         zend_string_release(str);
         return NULL;
     }
@@ -283,8 +284,8 @@ static zend_string *get_valid_arg_string(zval *zv, int elem_num) {
     return str;
 }
 
-/* {{{ proto resource proc_open(string|array command, array descriptorspec, array &pipes [, string cwd [, array env [, array
-   other_options]]]) Run a process with more control over it's file descriptors */
+/* {{{ proto resource proc_open(string|array command, array descriptorspec, array &pipes [, string cwd [, array env [,
+   array other_options]]]) Run a process with more control over it's file descriptors */
 PHP_FUNCTION(swoole_proc_open) {
     zval *command_zv;
     char *command = NULL, *cwd = NULL;
@@ -307,10 +308,6 @@ PHP_FUNCTION(swoole_proc_open) {
     pid_t child;
     proc_co_t *proc;
     int is_persistent = 0; /* TODO: ensure that persistent procs will work */
-#if PHP_CAN_DO_PTS
-    php_file_descriptor_t dev_ptmx = -1;	/* master */
-    php_file_descriptor_t slave_pty = -1;
-#endif
 
     ZEND_PARSE_PARAMETERS_START(3, 6)
     Z_PARAM_ZVAL(command_zv)
@@ -336,13 +333,6 @@ PHP_FUNCTION(swoole_proc_open) {
             RETURN_FALSE;
         }
 
-#ifdef PHP_WIN32
-        bypass_shell = 1;
-        command = create_win_command_from_args(Z_ARRVAL_P(command_zv));
-        if (!command) {
-            RETURN_FALSE;
-        }
-#else
         argv = (char **) safe_emalloc(sizeof(char *), num_elems + 1, 0);
         i = 0;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(command_zv), arg_zv) {
@@ -358,12 +348,12 @@ PHP_FUNCTION(swoole_proc_open) {
 
             argv[i++] = estrdup(ZSTR_VAL(arg_str));
             zend_string_release(arg_str);
-        } ZEND_HASH_FOREACH_END();
+        }
+        ZEND_HASH_FOREACH_END();
         argv[i] = NULL;
 
         /* As the array is non-empty, we should have found a command. */
         ZEND_ASSERT(command);
-#endif
     } else {
         convert_to_string(command_zv);
         command = pestrdup(Z_STRVAL_P(command_zv), is_persistent);
@@ -533,8 +523,8 @@ PHP_FUNCTION(swoole_proc_open) {
                     childend = target->childend;
                 } else {
                     if (Z_LVAL_P(ztarget) < 0 || Z_LVAL_P(ztarget) > 2) {
-                        php_error_docref(NULL, E_WARNING,
-                            "Redirection target " ZEND_LONG_FMT " not found", Z_LVAL_P(ztarget));
+                        php_error_docref(
+                            NULL, E_WARNING, "Redirection target " ZEND_LONG_FMT " not found", Z_LVAL_P(ztarget));
                         goto exit_fail;
                     }
 
@@ -544,9 +534,15 @@ PHP_FUNCTION(swoole_proc_open) {
                     childend = Z_LVAL_P(ztarget);
 #else
                     switch (Z_LVAL_P(ztarget)) {
-                        case 0: childend = GetStdHandle(STD_INPUT_HANDLE); break;
-                        case 1: childend = GetStdHandle(STD_OUTPUT_HANDLE); break;
-                        case 2: childend = GetStdHandle(STD_ERROR_HANDLE); break;
+                    case 0:
+                        childend = GetStdHandle(STD_INPUT_HANDLE);
+                        break;
+                    case 1:
+                        childend = GetStdHandle(STD_OUTPUT_HANDLE);
+                        break;
+                    case 2:
+                        childend = GetStdHandle(STD_ERROR_HANDLE);
+                        break;
                         EMPTY_SWITCH_DEFAULT_CASE()
                     }
 #endif
@@ -555,16 +551,17 @@ PHP_FUNCTION(swoole_proc_open) {
 #ifdef PHP_WIN32
                 descriptors[ndesc].childend = dup_handle(childend, TRUE, FALSE);
                 if (descriptors[ndesc].childend == NULL) {
-                    php_error_docref(NULL, E_WARNING,
-                        "Failed to dup() for descriptor " ZEND_LONG_FMT, nindex);
+                    php_error_docref(NULL, E_WARNING, "Failed to dup() for descriptor " ZEND_LONG_FMT, nindex);
                     goto exit_fail;
                 }
 #else
                 descriptors[ndesc].childend = dup(childend);
                 if (descriptors[ndesc].childend < 0) {
-                    php_error_docref(NULL, E_WARNING,
-                        "Failed to dup() for descriptor " ZEND_LONG_FMT " - %s",
-                        nindex, strerror(errno));
+                    php_error_docref(NULL,
+                                     E_WARNING,
+                                     "Failed to dup() for descriptor " ZEND_LONG_FMT " - %s",
+                                     nindex,
+                                     strerror(errno));
                     goto exit_fail;
                 }
 #endif
@@ -573,14 +570,17 @@ PHP_FUNCTION(swoole_proc_open) {
 #ifndef PHP_WIN32
                 descriptors[ndesc].childend = open("/dev/null", O_RDWR);
                 if (descriptors[ndesc].childend < 0) {
-                    php_error_docref(NULL, E_WARNING,
-                        "Failed to open /dev/null - %s", strerror(errno));
+                    php_error_docref(NULL, E_WARNING, "Failed to open /dev/null - %s", strerror(errno));
                     goto exit_fail;
                 }
 #else
-                descriptors[ndesc].childend = CreateFileA(
-                    "nul", GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
-                    NULL, OPEN_EXISTING, 0, NULL);
+                descriptors[ndesc].childend = CreateFileA("nul",
+                                                          GENERIC_READ | GENERIC_WRITE,
+                                                          FILE_SHARE_READ | FILE_SHARE_WRITE,
+                                                          NULL,
+                                                          OPEN_EXISTING,
+                                                          0,
+                                                          NULL);
                 if (descriptors[ndesc].childend == NULL) {
                     php_error_docref(NULL, E_WARNING, "Failed to open nul");
                     goto exit_fail;
@@ -679,13 +679,6 @@ PHP_FUNCTION(swoole_proc_open) {
     proc->child = child;
     proc->env = env;
 
-#if PHP_CAN_DO_PTS
-    if (dev_ptmx >= 0) {
-        close(dev_ptmx);
-        close(slave_pty);
-    }
-#endif
-
     /* clean up all the child ends and then open streams on the parent
      * ends, where appropriate */
     for (i = 0; i < ndesc; i++) {
@@ -716,7 +709,6 @@ PHP_FUNCTION(swoole_proc_open) {
         }
     }
 
-#ifndef PHP_WIN32
     if (argv) {
         char **arg = argv;
         while (*arg != NULL) {
@@ -725,7 +717,6 @@ PHP_FUNCTION(swoole_proc_open) {
         }
         efree(argv);
     }
-#endif
 
     efree(descriptors);
     ZVAL_RES(return_value, zend_register_resource(proc, le_proc_open));
@@ -747,14 +738,6 @@ exit_fail:
         }
         efree(argv);
     }
-#if PHP_CAN_DO_PTS
-    if (dev_ptmx >= 0) {
-        close(dev_ptmx);
-    }
-    if (slave_pty >= 0) {
-        close(slave_pty);
-    }
-#endif
     RETURN_FALSE;
 }
 /* }}} */
