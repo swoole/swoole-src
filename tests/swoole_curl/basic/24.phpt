@@ -16,6 +16,7 @@ TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>
 require __DIR__ . '/../../include/bootstrap.php';
 
 $cm = new \SwooleTest\CurlManager();
+$cm->disableNativeCurl();
 $cm->run(function ($host) {
 
     // start testing
