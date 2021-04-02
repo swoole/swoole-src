@@ -84,7 +84,7 @@ static proc_co_env_t _php_array_to_envp(zval *environment) {
     ep = env.envarray = (char **) ecalloc(cnt + 1, sizeof(char *));
     p = env.envp = (char *) ecalloc(sizeenv + 4, 1);
 
-#if PHP_VERSION_ID >= 70400
+#if PHP_VERSION_ID >= 80000
     ZEND_HASH_FOREACH_STR_KEY_PTR(env_hash, key, str) {
 #else
     void *_key, *_str;
