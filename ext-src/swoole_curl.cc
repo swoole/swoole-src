@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole_curl.h"
+#include "swoole_socket.h"
 
 #ifdef SW_USE_CURL
 
@@ -205,6 +206,9 @@ CURLcode Multi::read_info() {
 
 int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     Multi *multi = (Multi *) userp;
+    if (!swoole_event_is_available()) {
+        return 0;
+    }
     if (timeout_ms < 0) {
         multi->del_timer();
     } else {
