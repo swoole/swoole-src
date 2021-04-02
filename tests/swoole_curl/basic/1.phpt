@@ -6,7 +6,7 @@ Sebastian Deutsch
 TestFest 2009 - AFUP - Jean-Marc Fontaine
 <jmf@durcommefaire.net>
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
