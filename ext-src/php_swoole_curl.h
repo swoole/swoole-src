@@ -42,7 +42,6 @@ struct Handle {
     int event_bitmask;
     int event_fd;
     int action;
-    bool removed;
 };
 
 struct Selector {

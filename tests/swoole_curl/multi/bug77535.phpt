@@ -64,7 +64,7 @@ class MyHttpClient
     private function addServerPushCallback(): void
     {
         echo __METHOD__.PHP_EOL;
-        $callback = static function () {
+        $callback = function () {
             return CURL_PUSH_OK;
         };
 
@@ -76,7 +76,7 @@ class MyHttpClient
 use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;
-Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
+//Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 
 run(function () {
     $buzz = new MyHttpClient();
