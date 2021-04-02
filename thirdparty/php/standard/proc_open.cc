@@ -100,7 +100,7 @@ static proc_co_env_t _php_array_to_envp(zval *environment) {
         memcpy(p, ZSTR_VAL(str), ZSTR_LEN(str));
         p += ZSTR_LEN(str);
         *p++ = '\0';
-        zend_string_release_ex(str, 0);
+        zend_string_release(str);
     }
     ZEND_HASH_FOREACH_END();
 
