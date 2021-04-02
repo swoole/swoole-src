@@ -8,6 +8,8 @@ PHP_FUNCTION(swoole_proc_get_status);
 PHP_FUNCTION(swoole_proc_terminate);
 }
 
+typedef int php_file_descriptor_t;
+
 void swoole_proc_open_init(int module_number);
 
 struct proc_co_env_t
@@ -24,5 +26,6 @@ struct proc_co_t
     int *wstatus;
     zend_resource **pipes;
     char *command;
+    int is_persistent;
     proc_co_env_t env;
 };

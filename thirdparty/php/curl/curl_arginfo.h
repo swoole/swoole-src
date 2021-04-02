@@ -89,6 +89,14 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_select,
     ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "1.0")
 ZEND_END_ARG_INFO()
 
+#if LIBCURL_VERSION_NUM >= 0x070f04 /* 7.15.4 */
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_multi_setopt, 0, 3, _IS_BOOL, 0)
+    ZEND_ARG_OBJ_INFO(0, multi_handle, Swoole\\Coroutine\\Curl\\MultiHandle, 0)
+    ZEND_ARG_TYPE_INFO(0, option, IS_LONG, 0)
+    ZEND_ARG_TYPE_INFO(0, value, IS_MIXED, 0)
+ZEND_END_ARG_INFO()
+#endif
+
 #if LIBCURL_VERSION_NUM >= 0x071200 /* 7.18.0 */
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_pause, 0, 2, IS_LONG, 0)
 	ZEND_ARG_OBJ_INFO(0, handle, Swoole\\Coroutine\\Curl\\Handle, 0)
@@ -135,11 +143,11 @@ static const zend_function_entry swoole_native_curl_functions[] = {
     PHP_FE(swoole_native_curl_multi_errno, arginfo_swoole_native_curl_multi_errno)
     PHP_FE(swoole_native_curl_multi_exec, arginfo_swoole_native_curl_multi_exec)
     PHP_FE(swoole_native_curl_multi_select, arginfo_swoole_native_curl_multi_select)
+    PHP_FE(swoole_native_curl_multi_setopt, arginfo_swoole_native_curl_multi_setopt)
     PHP_FE(swoole_native_curl_multi_getcontent, arginfo_swoole_native_curl_multi_getcontent)
     PHP_FE(swoole_native_curl_multi_info_read, arginfo_swoole_native_curl_multi_info_read)
     PHP_FE(swoole_native_curl_multi_init, arginfo_swoole_native_curl_multi_init)
     PHP_FE(swoole_native_curl_multi_remove_handle, arginfo_swoole_native_curl_multi_remove_handle)
-
 
     PHP_FE_END
 };

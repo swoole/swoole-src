@@ -1,0 +1,7 @@
+require __DIR__ . '/../../include/bootstrap.php';
+
+$cm = new \SwooleTest\CurlManager();
+$cm->run(function ($host) {
+
+
+});

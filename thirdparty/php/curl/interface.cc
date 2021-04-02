@@ -112,20 +112,22 @@ int _php_curl_get_le_curl_multi() {
     return;
 #endif
 
-php_curl *_php_curl_get_handle(zval *zid, bool exclusive) {
+php_curl *_php_curl_get_handle(zval *zid, bool exclusive, bool required) {
     php_curl *ch;
 #if PHP_VERSION_ID >= 80000
     ch = Z_CURL_P(zid);
 #else
     if ((ch = (php_curl *) zend_fetch_resource(Z_RES_P(zid), le_curl_name, le_curl)) == NULL) {
-        swFatalError(SW_ERROR_INVALID_PARAMS, "supplied resource is not a valid " le_curl_name "Handle resource ");
+        if (required) {
+            swFatalError(SW_ERROR_INVALID_PARAMS, "supplied resource is not a valid " le_curl_name " resource");
+        }
         return nullptr;
     }
 #endif
     if (exclusive) {
         swoole::curl::Handle *handle = nullptr;
         curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
-        if (handle && handle->multi->check_bound_co() == nullptr) {
+        if (handle && handle->multi && handle->multi->check_bound_co() == nullptr) {
             return nullptr;
         }
     }
@@ -2674,22 +2676,7 @@ PHP_FUNCTION(swoole_native_curl_close) {
 }
 /* }}} */
 
-#if PHP_VERSION_ID >= 80000
-static void curl_free_obj(zend_object *object) {
-    php_curl *ch = curl_from_obj(object);
-
-#if PHP_CURL_DEBUG
-    fprintf(stderr, "DTOR CALLED, ch = %x\n", ch);
-#endif
-
-    if (!ch->cp) {
-        /* Can happen if constructor throws. */
-        zend_object_std_dtor(&ch->std);
-        return;
-    }
-
-    _php_curl_verify_handlers(ch, 0);
-
+void _php_curl_free(php_curl *ch) {
     /*
      * Libcurl is doing connection caching. When easy handle is cleaned up,
      * if the handle was previously used by the curl_multi_api, the connection
@@ -2704,82 +2691,7 @@ static void curl_free_obj(zend_object *object) {
     curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION, curl_write_nothing);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEFUNCTION, curl_write_nothing);
 
-    curl_easy_cleanup(ch->cp);
-
-    /* cURL destructors should be invoked only by last curl handle */
-    if (--(*ch->clone) == 0) {
-        zend_llist_clean(&ch->to_free->str);
-        zend_llist_clean(&ch->to_free->post);
-        zend_llist_clean(&ch->to_free->stream);
-        zend_hash_destroy(ch->to_free->slist);
-        efree(ch->to_free->slist);
-        efree(ch->to_free);
-        efree(ch->clone);
-    }
-
-    smart_str_free(&ch->handlers->write->buf);
-    zval_ptr_dtor(&ch->handlers->write->func_name);
-    zval_ptr_dtor(&ch->handlers->read->func_name);
-    zval_ptr_dtor(&ch->handlers->write_header->func_name);
-    zval_ptr_dtor(&ch->handlers->std_err);
-    if (ch->header.str) {
-        zend_string_release_ex(ch->header.str, 0);
-    }
-
-    zval_ptr_dtor(&ch->handlers->write_header->stream);
-    zval_ptr_dtor(&ch->handlers->write->stream);
-    zval_ptr_dtor(&ch->handlers->read->stream);
-
-    efree(ch->handlers->write);
-    efree(ch->handlers->write_header);
-    efree(ch->handlers->read);
-
-    if (ch->handlers->progress) {
-        zval_ptr_dtor(&ch->handlers->progress->func_name);
-        efree(ch->handlers->progress);
-    }
-
-    if (ch->handlers->fnmatch) {
-        zval_ptr_dtor(&ch->handlers->fnmatch->func_name);
-        efree(ch->handlers->fnmatch);
-    }
-
-    efree(ch->handlers);
-    zval_ptr_dtor(&ch->postfields);
-
-    if (ch->share) {
-        OBJ_RELEASE(&ch->share->std);
-    }
-
-    zend_object_std_dtor(&ch->std);
-}
-#endif
-
-#if PHP_VERSION_ID < 80000
-/* {{{ _php_curl_close_ex()
-   List destructor for curl handles */
-void _php_curl_close_ex(php_curl *ch) {
-#if PHP_CURL_DEBUG
-    fprintf(stderr, "DTOR CALLED, ch = %x\n", ch);
-#endif
-
-    _php_curl_verify_handlers(ch, 0);
-
-    /*
-     * Libcurl is doing connection caching. When easy handle is cleaned up,
-     * if the handle was previously used by the curl_multi_api, the connection
-     * remains open un the curl multi handle is cleaned up. Some protocols are
-     * sending content like the FTP one, and libcurl try to use the
-     * WRITEFUNCTION or the HEADERFUNCTION. Since structures used in those
-     * callback are freed, we need to use an other callback to which avoid
-     * segfaults.
-     *
-     * Libcurl commit d021f2e8a00 fix this issue and should be part of 7.28.2
-     */
     if (ch->cp != NULL) {
-        curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION, fn_write_nothing);
-        curl_easy_setopt(ch->cp, CURLOPT_WRITEFUNCTION, fn_write_nothing);
-
         curl_easy_cleanup(ch->cp);
     }
 
@@ -2792,6 +2704,11 @@ void _php_curl_close_ex(php_curl *ch) {
         efree(ch->to_free->slist);
         efree(ch->to_free);
         efree(ch->clone);
+
+        swoole::curl::Handle *handle = nullptr;
+        curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
+        delete handle;
+        curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, nullptr);
     }
 
     smart_str_free(&ch->handlers->write->buf);
@@ -2816,17 +2733,52 @@ void _php_curl_close_ex(php_curl *ch) {
         efree(ch->handlers->progress);
     }
 
-#if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
     if (ch->handlers->fnmatch) {
         zval_ptr_dtor(&ch->handlers->fnmatch->func_name);
         efree(ch->handlers->fnmatch);
     }
-#endif
 
     efree(ch->handlers);
-#if LIBCURL_VERSION_NUM >= 0x073800 /* 7.56.0 */
     zval_ptr_dtor(&ch->postfields);
+
+#if PHP_VERSION_ID >= 80000
+    if (ch->share) {
+        OBJ_RELEASE(&ch->share->std);
+    }
 #endif
+}
+
+#if PHP_VERSION_ID >= 80000
+static void curl_free_obj(zend_object *object) {
+    php_curl *ch = curl_from_obj(object);
+
+#if PHP_CURL_DEBUG
+    fprintf(stderr, "DTOR CALLED, ch = %x\n", ch);
+#endif
+
+    if (!ch->cp) {
+        /* Can happen if constructor throws. */
+        zend_object_std_dtor(&ch->std);
+        return;
+    }
+
+    _php_curl_verify_handlers(ch, 0);
+    _php_curl_free(ch);
+
+    zend_object_std_dtor(&ch->std);
+}
+#endif
+
+#if PHP_VERSION_ID < 80000
+/* {{{ _php_curl_close_ex()
+   List destructor for curl handles */
+void _php_curl_close_ex(php_curl *ch) {
+#if PHP_CURL_DEBUG
+    fprintf(stderr, "DTOR CALLED, ch = %x\n", ch);
+#endif
+
+    _php_curl_verify_handlers(ch, 0);
+    _php_curl_free(ch);
     efree(ch);
 }
 /* }}} */

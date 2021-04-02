@@ -417,7 +417,6 @@ struct Function {
     }
 };
 
-bool include(const std::string &file);
 bool eval(const std::string &code, const std::string &filename = "");
 void known_strings_init(void);
 void known_strings_dtor(void);

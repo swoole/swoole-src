@@ -42,7 +42,6 @@ struct Handle {
     int event_bitmask;
     int event_fd;
     int action;
-    bool removed;
 };
 
 struct Selector {
@@ -121,30 +120,11 @@ class Multi {
         selector.reset(_selector);
     }
 
-    CURLMcode add_handle(CURL *cp) {
-        auto retval = curl_multi_add_handle(multi_handle_, cp);
-        if (retval == CURLM_OK) {
-            auto handle = new Handle{};
-            handle->cp = cp;
-            handle->multi = this;
-            curl_easy_setopt(cp, CURLOPT_PRIVATE, handle);
-        }
-        return retval;
-    }
-
-    CURLMcode remove_handle(CURL *cp) {
-        auto retval = curl_multi_remove_handle(multi_handle_, cp);
-        if (retval == CURLM_OK) {
-            auto handle = get_handle(cp);
-            delete handle;
-            curl_easy_setopt(cp, CURLOPT_PRIVATE, nullptr);
-        }
-        return retval;
-    }
+    CURLMcode add_handle(CURL *cp);
+    CURLMcode remove_handle(CURL *cp);
 
     CURLMcode perform() {
-        auto retval = curl_multi_perform(multi_handle_, &running_handles_);
-        return retval;
+        return curl_multi_perform(multi_handle_, &running_handles_);
     }
 
     int get_event(int action) {

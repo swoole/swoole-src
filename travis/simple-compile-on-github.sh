@@ -15,4 +15,5 @@ phpize > /dev/null && \
 make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && \
+php --ri curl && \
 php -d extension=swoole.so --ri swoole
