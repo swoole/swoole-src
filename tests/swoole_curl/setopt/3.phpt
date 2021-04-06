@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/setopt: curl_setopt() call with CURLOPT_HTTPHEADER
+swoole_curl/setopt: curl_setopt() call with CURLOPT_HTTPHEADER
 --CREDITS--
 Paul Sohier
 #phptestfest utrecht

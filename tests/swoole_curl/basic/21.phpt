@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/basic: Test curl_getinfo() function with CURLINFO_CONTENT_TYPE parameter
+swoole_curl/basic: Test curl_getinfo() function with CURLINFO_CONTENT_TYPE parameter
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--

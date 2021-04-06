@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/ssl: Test SSL_VERSION option
+swoole_curl/ssl: Test SSL_VERSION option
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php if (!extension_loaded("curl")) print "skip"; ?>

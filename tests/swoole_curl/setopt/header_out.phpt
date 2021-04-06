@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/setopt: CURLINFO_HEADER_OUT
+swoole_curl/setopt: CURLINFO_HEADER_OUT
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

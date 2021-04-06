@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/basic: Test curl_multi_getcontent() function
+swoole_curl/basic: Test curl_multi_getcontent() function
 --CREDITS--
 Sebastian Deutsch <sebastian.deutsch@9elements.com>
 TestFest 2009 - AFUP - Jean-Marc Fontaine <jmf@durcommefaire.net>

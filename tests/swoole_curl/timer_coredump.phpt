@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: timer coredump
+swoole_curl: timer coredump
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

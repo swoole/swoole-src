@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native/guzzle: request on_stats
+swoole_curl/guzzle: request on_stats
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

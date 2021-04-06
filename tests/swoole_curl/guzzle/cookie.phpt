@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native/guzzle: cookie
+swoole_curl/guzzle: cookie
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

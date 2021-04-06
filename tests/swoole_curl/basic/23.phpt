@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/basic: Test curl_setopt() function with CURLOPT_HEADER parameter set to 1
+swoole_curl/basic: Test curl_setopt() function with CURLOPT_HEADER parameter set to 1
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--

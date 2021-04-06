@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: suspend in callback
+swoole_curl: suspend in callback
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

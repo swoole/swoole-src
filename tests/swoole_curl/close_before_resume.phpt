@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: close before resume
+swoole_curl: close before resume
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

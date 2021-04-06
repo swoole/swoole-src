@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/basic: Test curl_setopt() function with CURLOPT_FOLLOWLOCATION parameter
+swoole_curl/basic: Test curl_setopt() function with CURLOPT_FOLLOWLOCATION parameter
 --CREDITS--
 Jean-Marc Fontaine <jmf@durcommefaire.net>
 --SKIPIF--

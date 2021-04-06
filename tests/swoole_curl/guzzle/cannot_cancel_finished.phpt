@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native/guzzle: cannot_cancel_finished
+swoole_curl/guzzle: cannot_cancel_finished
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
