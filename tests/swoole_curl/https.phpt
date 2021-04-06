@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: https
+swoole_curl: https
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

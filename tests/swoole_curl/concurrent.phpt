@@ -1,5 +1,5 @@
 --TEST--
-swoole_runtime/curl_native: Concurrent request
+swoole_curl: Concurrent request
 --SKIPIF--
 <?php
 require __DIR__ . '/../include/skipif.inc';

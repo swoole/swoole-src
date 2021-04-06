@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/setopt: CURLOPT_FILETIME [return -1]
+swoole_curl/setopt: CURLOPT_FILETIME [return -1]
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

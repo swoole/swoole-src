@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/setopt: CURLOPT_NOBODY
+swoole_curl/setopt: CURLOPT_NOBODY
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
