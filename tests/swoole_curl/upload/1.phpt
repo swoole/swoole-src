@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/curl/upload: CURL file uploading
+swoole_curl/upload: CURL file uploading
 --INI--
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>

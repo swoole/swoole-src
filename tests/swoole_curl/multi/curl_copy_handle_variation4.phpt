@@ -1,6 +1,7 @@
 --TEST--
-curl_copy_handle() allows to post CURLFile multiple times with curl_multi_exec()
+swoole_curl/multi: curl_copy_handle() allows to post CURLFile multiple times with curl_multi_exec()
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: heartbeat with bad client
+swoole_server/ssl: heartbeat with bad client
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

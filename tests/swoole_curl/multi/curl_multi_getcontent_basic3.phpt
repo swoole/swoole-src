@@ -1,9 +1,10 @@
 --TEST--
-Curl_multi_getcontent() basic test with different sources (local file/http)
+swoole_curl/multi: Curl_multi_getcontent() basic test with different sources (local file/http)
 --CREDITS--
 Rein Velt (rein@velt.org)
 #TestFest Utrecht 20090509
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

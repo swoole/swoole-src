@@ -1,6 +1,7 @@
 --TEST--
-curl_multi_close return false when supplied resource not valid cURL multi handle
+swoole_curl/multi: curl_multi_close return false when supplied resource not valid cURL multi handle
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('curl')) print 'skip';
 ?>
