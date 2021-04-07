@@ -33,11 +33,11 @@ run(function () {
     // You can access each result using the key provided to the unwrap
     // function.
     echo json_decode($results['a']->getBody()->getContents())->data . PHP_EOL;
-    echo $results['b']->getHeaderLine('Content-Length') . PHP_EOL;
+    echo $results['b']->getHeaderLine('Content-Type') . PHP_EOL;
     echo 'Done' . PHP_EOL;
 });
 ?>
 --EXPECT--
 {"data":"hello test1!"}
-422
+application/json
 Done
