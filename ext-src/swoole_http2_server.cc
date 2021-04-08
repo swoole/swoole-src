@@ -234,12 +234,29 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     zval_ptr_dtor(&args[1]);
 }
 
+static inline bool http_has_crlf(const char *value, size_t length) {
+    /* new line/NUL character safety check */
+    for (size_t i = 0; i < length; i++) {
+        /* RFC 7230 ch. 3.2.4 deprecates folding support */
+        if (value[i] == '\n' || value[i] == '\r') {
+            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
+            return true;
+        }
+        if (value[i] == '\0') {
+            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_length) {
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *zcookie =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
-    http2::HeaderSet headers(8 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
+    http2::HeaderSet headers(32 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
     char *date_str = nullptr;
     char intbuf[2][16];
     int ret;
@@ -253,47 +270,63 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
     ret = swoole_itoa(intbuf[0], ctx->response.status);
     headers.add(ZEND_STRL(":status"), intbuf[0], ret);
 
+    uint32_t header_flags = 0x0;
+
     // headers
     if (ZVAL_IS_ARRAY(zheader)) {
-        uint32_t header_flag = 0x0;
-        zend_string *key;
+        const char *key;
+        uint32_t keylen;
         zval *zvalue;
+        int type;
 
-        ZEND_HASH_FOREACH_STR_KEY_VAL(Z_ARRVAL_P(zheader), key, zvalue) {
+        auto add_header = [](http2::HeaderSet &headers, const char *key, size_t l_key, zval *value, uint32_t &header_flags) {
+            if (ZVAL_IS_NULL(value)) {
+                return;
+            }
+            zend::String str_value(value);
+            str_value.rtrim();
+            if (http_has_crlf(str_value.val(), str_value.len())) {
+                return;
+            }
+            if (SW_STREQ(key, l_key, "server")) {
+                header_flags |= HTTP_HEADER_SERVER;
+            } else if (SW_STREQ(key, l_key, "content-length")) {
+                return;  // ignore
+            } else if (SW_STREQ(key, l_key, "date")) {
+                header_flags |= HTTP_HEADER_DATE;
+            } else if (SW_STREQ(key, l_key, "content-type")) {
+                header_flags |= HTTP_HEADER_CONTENT_TYPE;
+            }
+            headers.add(key, l_key, str_value.val(), str_value.len());
+        };
+
+        SW_HASHTABLE_FOREACH_START2(Z_ARRVAL_P(zheader), key, keylen, type, zvalue) {
             if (UNEXPECTED(!key || ZVAL_IS_NULL(zvalue))) {
                 continue;
             }
-            zend::String str_value(zvalue);
-            char *c_key = ZSTR_VAL(key);
-            size_t c_keylen = ZSTR_LEN(key);
-            if (SW_STREQ(c_key, c_keylen, "server")) {
-                header_flag |= HTTP_HEADER_SERVER;
-            } else if (SW_STREQ(c_key, c_keylen, "content-length")) {
-                continue;  // ignore
-            } else if (SW_STREQ(c_key, c_keylen, "date")) {
-                header_flag |= HTTP_HEADER_DATE;
-            } else if (SW_STREQ(c_key, c_keylen, "content-type")) {
-                header_flag |= HTTP_HEADER_CONTENT_TYPE;
+            if (ZVAL_IS_ARRAY(zvalue)) {
+                zval *zvalue_2;
+                SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(zvalue), zvalue_2) {
+                    add_header(headers, key, keylen, zvalue_2, header_flags);
+                }
+                SW_HASHTABLE_FOREACH_END();
+            } else {
+                add_header(headers, key, keylen, zvalue, header_flags);
             }
-            headers.add(c_key, c_keylen, str_value.val(), str_value.len());
         }
-        ZEND_HASH_FOREACH_END();
+        SW_HASHTABLE_FOREACH_END();
+        (void) type;
+    }
 
-        if (!(header_flag & HTTP_HEADER_SERVER)) {
-            headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
-        }
-        if (!(header_flag & HTTP_HEADER_DATE)) {
-            date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
-            headers.add(ZEND_STRL("date"), date_str, strlen(date_str));
-        }
-        if (!(header_flag & HTTP_HEADER_CONTENT_TYPE)) {
-            headers.add(ZEND_STRL("content-type"), ZEND_STRL("text/html"));
-        }
-    } else {
+    if (!(header_flags & HTTP_HEADER_SERVER)) {
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
-        headers.add(ZEND_STRL("content-type"), ZEND_STRL("text/html"));
+    }
+    if (!(header_flags & HTTP_HEADER_DATE)) {
         date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
         headers.add(ZEND_STRL("date"), date_str, strlen(date_str));
+    }
+    if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
+        headers.add(ZEND_STRL("content-type"), ZEND_STRL("text/html"));
     }
     if (date_str) {
         efree(date_str);
