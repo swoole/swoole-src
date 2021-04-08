@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-03-09</date>
-    <time>20:00:00</time>
+    <date>2021-04-08</date>
+    <time>10:00:00</time>
     <version>
-        <release>4.4.24</release>
+        <release>4.4.25</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,7 +56,7 @@
     <notes>
         Fixed
         ---
-        * Fix crash when http2 client connects concurrently
+        * Fix httpclient proxy with host and port
     </notes>
     <contents>
         <dir name="/">
@@ -1052,6 +1052,7 @@
             <file role="test" name="tests/swoole_http_client_coro/host.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_proxy_443.phpt" />
+            <file role="test" name="tests/swoole_http_client_coro/http_proxy_with_host_port.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/http_upload_big.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/https.phpt" />
             <file role="test" name="tests/swoole_http_client_coro/https_upload_big.phpt" />
