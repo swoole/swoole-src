@@ -38,7 +38,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-HTTP/2 200
+HTTP/2 200 
 test-value: a
 test-value: d5678
 test-value: e
