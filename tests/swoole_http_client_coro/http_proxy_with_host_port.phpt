@@ -11,33 +11,31 @@ require __DIR__.'/../include/bootstrap.php';
 
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    Co\Run(function () use ($pm) {
-        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
+    Co\run(function () use ($pm) {
+        $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', 1234);
         $cli->set([
             'timeout' => 30,
-            'http_proxy_host' => HTTP_PROXY_HOST,
-            'http_proxy_port' => HTTP_PROXY_PORT,
+            'http_proxy_host' => '127.0.0.1',
+            'http_proxy_port' => $pm->getFreePort(),
         ]);
         $cli->setHeaders([
-            'Host' => '127.0.0.1:'.$pm->getFreePort(),
+            'Host' => '127.0.0.1:1234',
         ]);
-        $result = $cli->get('/');
-        Assert::assert($result);
-        Assert::assert('Swoole' === $cli->body);
-        $cli->close();
+        $cli->get('/');
         $pm->kill();
-        echo "DONE\n";
     });
 };
 
 $pm->childFunc = function () use ($pm) {
-    $server = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
-    $server->set(['log_file' => '/dev/null']);
-    $server->on('workerStart', function () use ($pm) {
-        $pm->wakeup();
-    });
-    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
-        $response->end('Swoole');
+    $server = new Swoole\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
+    $server->set([
+        'log_file'       => '/dev/null',
+        'open_eof_check' => true,
+        'package_eof'    => "\r\n\r\n",
+    ]);
+    $server->on('Receive', function ($server, $fd, $reactor_id, $data) {
+        echo $data;
+        $server->close($fd);
     });
     $server->start();
 };
@@ -47,4 +45,8 @@ $pm->run();
 
 ?>
 --EXPECT--
-DONE
+GET http://127.0.0.1:1234/ HTTP/1.1
+Host: 127.0.0.1:1234
+Connection: keep-alive
+Accept-Encoding: gzip, deflate
+
