@@ -3,7 +3,6 @@ swoole_http_client_coro: http client with http_proxy and host and port
 --SKIPIF--
 <?php
 require __DIR__.'/../include/skipif.inc';
-skip_if_no_http_proxy();
 ?>
 --FILE--
 <?php
@@ -49,4 +48,3 @@ GET http://127.0.0.1:1234/ HTTP/1.1
 Host: 127.0.0.1:1234
 Connection: keep-alive
 Accept-Encoding: gzip, deflate
-
