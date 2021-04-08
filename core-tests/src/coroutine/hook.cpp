@@ -215,18 +215,23 @@ TEST(coroutine_hook, flock) {
 }
 
 TEST(coroutine_hook, read_dir) {
-    auto fn = []() {
+    auto fp = opendir("/tmp");
+    std::string dir1(readdir(fp)->d_name);
+    std::string dir2(readdir(fp)->d_name);
+    closedir(fp);
+
+    auto fn = [&]() {
         auto fp = swoole_coroutine_opendir("/tmp");
         ASSERT_NE(fp, nullptr);
         struct dirent *entry;
 
         entry = swoole_coroutine_readdir(fp);
         ASSERT_NE(entry, nullptr);
-        ASSERT_STREQ(entry->d_name, ".");
+        ASSERT_STREQ(entry->d_name, dir1.c_str());
 
         entry = swoole_coroutine_readdir(fp);
         ASSERT_NE(entry, nullptr);
-        ASSERT_STREQ(entry->d_name, "..");
+        ASSERT_STREQ(entry->d_name, dir2.c_str());
 
         swoole_coroutine_closedir(fp);
     };
