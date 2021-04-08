@@ -961,7 +961,11 @@ bool http_client::send()
         }
         size_t proxy_uri_len = path.length() + _host_len + strlen(pre) + 10;
         char *proxy_uri = (char*) emalloc(proxy_uri_len);
-        proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, path.c_str());
+        if (nullptr == memchr(_host, ':', _host_len)) {
+            proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s:%u%s", pre, _host, port, path.c_str());
+        } else {
+            proxy_uri_len = sw_snprintf(proxy_uri, proxy_uri_len, "%s%s%s", pre, _host, path.c_str());
+        }
         swString_append_ptr(buffer, proxy_uri, proxy_uri_len);
         efree(proxy_uri);
     }
