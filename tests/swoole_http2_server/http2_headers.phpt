@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
             5678,
             3.1415926,
         ]);
-        $response->end($request->rawcontent());
+        $response->end("<h1>Hello Swoole.</h1>");
     });
     $http->start();
 };
