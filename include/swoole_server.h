@@ -139,7 +139,7 @@ struct Connection {
      */
     void *object;
     /**
-     * socket info
+     * socket, only operated in the main process
      */
     network::Socket *socket;
     /**
@@ -1073,6 +1073,7 @@ class Server {
         return gs->shutdown;
     }
 
+    // can only be used in the main process
     inline bool is_valid_connection(Connection *conn) {
         return (conn && conn->socket && conn->active && conn->socket->fd_type == SW_FD_SESSION);
     }
@@ -1133,6 +1134,19 @@ class Server {
             return nullptr;
         }
         return &connection_list[fd];
+    }
+
+    inline Connection *get_connection_for_iterator(int fd) {
+        Connection *conn = get_connection(fd);
+        if (conn && conn->active && !conn->closed && conn->session_id > 0) {
+#ifdef SW_USE_OPENSSL
+            if (conn->ssl && !conn->ssl_ready) {
+                return nullptr;
+            }
+#endif
+            return conn;
+        }
+        return nullptr;
     }
 
     inline Connection *get_connection_by_session_id(SessionId session_id) {
