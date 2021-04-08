@@ -112,7 +112,7 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     int ret;
     int length = 0;
 
-    zval zparams;
+    zval zparams{};
     array_init(&zparams);
 
     int state = SW_REDIS_RECEIVE_TOTAL_LINE;

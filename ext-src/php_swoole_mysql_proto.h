@@ -786,9 +786,9 @@ protected:
 class row_data_text
 {
 public:
-    uint64_t length;
-    bool nul;
-    const char *body;
+    uint64_t length = 0;
+    bool nul = false;
+    const char *body = nullptr;
     row_data_text(const char **pp)
     {
         body = *pp + read_lcb(*pp, &length, &nul);
