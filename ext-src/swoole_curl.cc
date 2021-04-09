@@ -175,6 +175,9 @@ CURLcode Multi::exec(php_curl *ch) {
         if (sockfd >= 0 && handle->socket && handle->socket->removed) {
             swoole_event_add(handle->socket, get_event(handle->action));
         }
+        if (!timer && handle->socket->removed) {
+            break;
+        }
     }
 
     CURLcode retval = read_info();
@@ -228,6 +231,7 @@ long Multi::select(php_curlm *mh) {
         co = nullptr;
     };
 
+    int event_count = 0;
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
         php_curl *ch;
@@ -236,12 +240,18 @@ long Multi::select(php_curlm *mh) {
         }
         Handle *handle = get_handle(ch->cp);
         if (handle && handle->socket && handle->socket->removed) {
-            swoole_event_add(handle->socket, get_event(handle->action));
+            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
+                event_count++;
+            }
             swTraceLog(SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
         }
     }
     set_timer();
 
+    // no events and timers, should not be suspended
+    if (!timer && event_count == 0) {
+        return 0;
+    }
     co->yield();
     auto count = selector->active_handles.size();
 
