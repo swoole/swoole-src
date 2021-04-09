@@ -2091,6 +2091,10 @@
                 <name>json</name>
                 <channel>pecl.php.net</channel>
             </package>
+            <package>
+                <name>sockets</name>
+                <channel>pecl.php.net</channel>
+            </package>
         </optional>
     </dependencies>
     <providesextension>swoole</providesextension>
