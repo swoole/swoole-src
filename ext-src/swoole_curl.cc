@@ -240,17 +240,18 @@ long Multi::select(php_curlm *mh) {
         }
         Handle *handle = get_handle(ch->cp);
         if (handle && handle->socket && handle->socket->removed) {
-            swoole_event_add(handle->socket, get_event(handle->action));
-            event_count++;
+            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
+                event_count++;
+            }
             swTraceLog(SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
         }
     }
     set_timer();
 
+    // no events and timers, should not be suspended
     if (!timer && event_count == 0) {
         return 0;
     }
-
     co->yield();
     auto count = selector->active_handles.size();
 
