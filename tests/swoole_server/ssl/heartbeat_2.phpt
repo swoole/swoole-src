@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: heartbeat normal
+swoole_server/ssl: heartbeat normal
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

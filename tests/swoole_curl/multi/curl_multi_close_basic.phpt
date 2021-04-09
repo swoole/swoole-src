@@ -1,9 +1,10 @@
 --TEST--
-curl_multi_close
+swoole_curl/multi: curl_multi_close
 --CREDITS--
 Stefan Koopmanschap <stefan@php.net>
 #testfest Utrecht 2009
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('curl')) print 'skip';
 ?>

@@ -1,6 +1,7 @@
 --TEST--
-Bug #67643 (curl_multi_getcontent returns '' when RETURNTRANSFER isn't set)
+swoole_curl/multi: Bug #67643 (curl_multi_getcontent returns '' when RETURNTRANSFER isn't set)
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('curl')) print 'skip';
 ?>

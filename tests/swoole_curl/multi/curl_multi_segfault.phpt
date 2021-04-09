@@ -1,6 +1,7 @@
 --TEST--
-Segfault due to libcurl connection caching
+swoole_curl/multi: Segfault due to libcurl connection caching
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded("curl")) exit("skip curl extension not loaded");
 if (false === getenv('PHP_CURL_FTP_REMOTE_SERVER'))  exit("skip PHP_CURL_FTP_REMOTE_SERVER env variable is not defined");

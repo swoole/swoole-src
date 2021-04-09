@@ -1,8 +1,9 @@
 --TEST--
-Test curl_setopt() with curl_multi function with basic functionality
+swoole_curl/multi: Test curl_setopt() with curl_multi function with basic functionality
 --CREDITS--
 TestFest 2009 - AFUP - Thomas Rabaix <thomas.rabaix@gmail.com>
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';

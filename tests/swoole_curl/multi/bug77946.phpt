@@ -1,6 +1,7 @@
 --TEST--
-Bug #77946 (Errored cURL resources returned by curl_multi_info_read() must be compatible with curl_errno() and curl_error())
+swoole_curl/multi: Bug #77946 (Errored cURL resources returned by curl_multi_info_read() must be compatible with curl_errno() and curl_error())
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
 
 if (!extension_loaded('curl')) {

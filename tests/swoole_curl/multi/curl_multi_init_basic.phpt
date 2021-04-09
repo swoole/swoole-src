@@ -1,9 +1,10 @@
 --TEST--
-Test curl_multi_init()
+swoole_curl/multi: Test curl_multi_init()
 --CREDITS--
 Mark van der Velden
 #testfest Utrecht 2009
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php if (!extension_loaded("curl")) print "skip"; ?>
 --FILE--
 <?php

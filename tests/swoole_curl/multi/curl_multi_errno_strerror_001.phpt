@@ -1,6 +1,7 @@
 --TEST--
-curl_multi_errno and curl_multi_strerror basic test
+swoole_curl/multi: curl_multi_errno and curl_multi_strerror basic test
 --SKIPIF--
+<?php require __DIR__ . '/../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded("curl")) {
         exit("skip curl extension not loaded");
