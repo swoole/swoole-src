@@ -70,23 +70,6 @@ static inline void http_header_key_format(char *key, int length) {
     }
 }
 
-static inline bool http_has_crlf(const char *value, size_t length) {
-    /* new line/NUL character safety check */
-    for (size_t i = 0; i < length; i++) {
-        /* RFC 7230 ch. 3.2.4 deprecates folding support */
-        if (value[i] == '\n' || value[i] == '\r') {
-            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
-            return true;
-        }
-        if (value[i] == '\0') {
-            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
-            return true;
-        }
-    }
-
-    return false;
-}
-
 String *http_context::get_write_buffer() {
     if (co_socket) {
         String *buffer = ((Socket *) private_data)->get_write_buffer();
@@ -426,7 +409,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
             }
             zend::String str_value(value);
             str_value.rtrim();
-            if (http_has_crlf(str_value.val(), str_value.len())) {
+            if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
                 return;
             }
             response->append(key, l_key);
@@ -881,7 +864,7 @@ bool http_context::set_header(const char *k, size_t klen, zval *zvalue, bool for
         return false;
     }
 
-    if (http_has_crlf(k, klen)) {
+    if (swoole_http_has_crlf(k, klen)) {
         Z_TRY_DELREF_P(zvalue);
         return false;
     }
@@ -1020,7 +1003,7 @@ static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const 
         RETURN_FALSE;
     }
 
-    if (!url_encode && http_has_crlf(value, value_len)) {
+    if (!url_encode && swoole_http_has_crlf(value, value_len)) {
         RETURN_FALSE;
     }
 
