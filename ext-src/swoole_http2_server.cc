@@ -234,23 +234,6 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     zval_ptr_dtor(&args[1]);
 }
 
-static inline bool http_has_crlf(const char *value, size_t length) {
-    /* new line/NUL character safety check */
-    for (size_t i = 0; i < length; i++) {
-        /* RFC 7230 ch. 3.2.4 deprecates folding support */
-        if (value[i] == '\n' || value[i] == '\r') {
-            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
-            return true;
-        }
-        if (value[i] == '\0') {
-            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
-            return true;
-        }
-    }
-
-    return false;
-}
-
 static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_length) {
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
@@ -285,7 +268,7 @@ static ssize_t http2_build_header(http_context *ctx, uchar *buffer, size_t body_
             }
             zend::String str_value(value);
             str_value.rtrim();
-            if (http_has_crlf(str_value.val(), str_value.len())) {
+            if (swoole_http_has_crlf(str_value.val(), str_value.len())) {
                 return;
             }
             if (SW_STREQ(key, l_key, "server")) {

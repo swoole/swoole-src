@@ -278,6 +278,23 @@ static sw_inline zval *swoole_http_init_and_read_property(
     return *zproperty_store_pp;
 }
 
+static inline bool swoole_http_has_crlf(const char *value, size_t length) {
+    /* new line/NUL character safety check */
+    for (size_t i = 0; i < length; i++) {
+        /* RFC 7230 ch. 3.2.4 deprecates folding support */
+        if (value[i] == '\n' || value[i] == '\r') {
+            php_swoole_error(E_WARNING, "Header may not contain more than a single header, new line detected");
+            return true;
+        }
+        if (value[i] == '\0') {
+            php_swoole_error(E_WARNING, "Header may not contain NUL bytes");
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
 
 swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
