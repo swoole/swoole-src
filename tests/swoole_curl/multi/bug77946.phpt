@@ -11,7 +11,7 @@ if (!extension_loaded('curl')) {
 ?>
 --FILE--
 <?php
-
+require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;

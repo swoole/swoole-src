@@ -8,6 +8,7 @@ Ivo Jansch <ivo@ibuildings.com>
 <?php if (!extension_loaded("curl")) print "skip"; ?>
 --FILE--
 <?php
+require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;

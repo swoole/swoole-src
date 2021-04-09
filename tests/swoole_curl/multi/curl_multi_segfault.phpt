@@ -10,7 +10,7 @@ if (false === getenv('PHP_CURL_FTP_REMOTE_PASSWD'))  exit("skip PHP_CURL_FTP_REM
 ?>
 --FILE--
 <?php
-
+require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;

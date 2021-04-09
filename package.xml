@@ -42,8 +42,8 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-04-07</date>
-    <time>11:00:00</time>
+    <date>2021-04-09</date>
+    <time>19:00:00</time>
     <version>
         <release>4.6.5</release>
         <api>4.0</api>
@@ -60,7 +60,8 @@
 
         Enhancement
         ---
-        * Supported native curl multi (#4093) (#4099) (#4101) (#4105) (#4113) (#4121) (swoole/swoole-src@cd7f51c) (@matyhtf) (@sy-records) (@huanghantao)
+        * Supported native curl multi (#4093) (#4099) (#4101) (#4105) (#4113) (#4121) (swoole/swoole-src@cd7f51c) (#4147) (@matyhtf) (@sy-records) (@huanghantao)
+        * Allow array HTTP/2 headers, Bug fixed for #4133 (#4140)
 
         Fixed
         ---
@@ -1187,6 +1188,7 @@
             <file role="test" name="tests/swoole_http2_server/big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/goaway.phpt" />
+            <file role="test" name="tests/swoole_http2_server/http2_headers.phpt" />
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/ping.phpt" />

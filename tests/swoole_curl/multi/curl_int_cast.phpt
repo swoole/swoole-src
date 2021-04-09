@@ -4,6 +4,7 @@ swoole_curl/multi: Casting CurlHandle to int returns object ID
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
 <?php
+require __DIR__ . '/../../include/bootstrap.php';
 use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;
