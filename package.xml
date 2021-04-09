@@ -2078,6 +2078,20 @@
                 <min>1.4.0</min>
             </pearinstaller>
         </required>
+        <optional>
+            <package>
+                <name>curl</name>
+                <channel>pecl.php.net</channel>
+            </package>
+            <package>
+                <name>mysqlnd</name>
+                <channel>pecl.php.net</channel>
+            </package>
+            <package>
+                <name>json</name>
+                <channel>pecl.php.net</channel>
+            </package>
+        </optional>
     </dependencies>
     <providesextension>swoole</providesextension>
     <extsrcrelease>
