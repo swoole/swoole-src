@@ -550,8 +550,7 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
         if (ret < 0) {
             if (errno == EINTR) {
                 continue;
-            }
-            if (EINPROGRESS) {
+            } else if (errno == EINPROGRESS) {
                 if (nonblock) {
                     cli->async_connect = true;
                 } else {
