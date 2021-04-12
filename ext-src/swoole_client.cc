@@ -139,15 +139,26 @@ static int client_select_wait(zval *sock_array, fd_set *fds);
 
 static sw_inline Client *client_get_ptr(zval *zobject) {
     Client *cli = php_swoole_client_get_cli(zobject);
-    if (cli && cli->socket && cli->active == 1) {
-        return cli;
-    } else {
-        swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
-        zend_update_property_long(
-            swoole_client_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
-        php_swoole_error(E_WARNING, "client is not connected to server");
-        return nullptr;
+    if (cli && cli->socket) {
+        if (cli->active) {
+            return cli;
+        }
+        if (cli->async_connect) {
+            cli->async_connect = false;
+            int error = -1;
+            cli->get_socket()->get_option(SOL_SOCKET, SO_ERROR, &error);
+            if (error == 0) {
+                cli->active = 1;
+                return cli;
+            }
+            php_swoole_client_free(zobject, cli);
+        }
     }
+    swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
+    zend_update_property_long(
+        swoole_client_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
+    php_swoole_error(E_WARNING, "client is not connected to server");
+    return nullptr;
 }
 
 // clang-format off
@@ -809,16 +820,19 @@ static PHP_METHOD(swoole_client, connect) {
         }
     }
 
-    // nonblock async
     if (cli->connect(cli, host, port, timeout, sock_flag) < 0) {
+        zend_update_property_long(
+            swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
+        // async connect
+        if (cli->async_connect) {
+            RETURN_TRUE;
+        }
         php_swoole_error(E_WARNING,
                          "connect to server[%s:%d] failed. Error: %s[%d]",
                          host,
                          (int) port,
                          swoole_strerror(swoole_get_last_error()),
                          swoole_get_last_error());
-        zend_update_property_long(
-            swoole_client_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), swoole_get_last_error());
         php_swoole_client_free(ZEND_THIS, cli);
         RETURN_FALSE;
     }

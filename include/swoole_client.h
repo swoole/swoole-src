@@ -49,6 +49,7 @@ class Client {
     bool remove_delay = false;
     bool closed = false;
     bool high_watermark = false;
+    bool async_connect = false;
 
     /**
      * one package: length check
@@ -124,6 +125,10 @@ class Client {
         http_proxy = new swoole::HttpProxy;
         http_proxy->proxy_host = host;
         http_proxy->proxy_port = port;
+    }
+
+    Socket *get_socket() {
+        return socket;
     }
 
     int sleep();
