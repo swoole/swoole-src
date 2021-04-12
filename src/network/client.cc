@@ -551,8 +551,12 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
             if (errno == EINTR) {
                 continue;
             }
-            if (nonblock && errno == EINPROGRESS) {
-                cli->async_connect = true;
+            if (EINPROGRESS) {
+                if (nonblock) {
+                    cli->async_connect = true;
+                } else {
+                    errno = ETIMEDOUT;
+                }
             }
             swoole_set_last_error(errno);
         }
