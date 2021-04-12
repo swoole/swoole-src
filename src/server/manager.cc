@@ -21,8 +21,10 @@
 #include <vector>
 
 #include <sys/wait.h>
-#ifdef __linux__
+#if defined(__linux__)
 #include <sys/prctl.h>
+#elif defined(__FreeBSD__)
+#include <sys/procctl.h>
 #endif
 
 namespace swoole {
@@ -241,8 +243,11 @@ void Manager::start(Server *_server) {
     swSignal_set(SIGRTMIN, signal_handler);
 #endif
     // swSignal_set(SIGINT, signal_handler);
-#ifdef __linux__
+#if defined(__linux__)
     prctl(PR_SET_PDEATHSIG, SIGTERM);
+#elif defined(__FreeBSD__)
+    int sigid = SIGTERM;
+    procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
 #endif
 
     if (_server->hooks[Server::HOOK_MANAGER_START]) {
