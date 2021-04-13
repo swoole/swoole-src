@@ -17,10 +17,12 @@
 
 #pragma once
 
-#if defined(HAVE_CONFIG_H) && !defined(COMPILE_DL_SWOOLE)
+#ifdef ENABLE_PHP_SWOOLE
+#ifdef HAVE_CONFIG_H
 #include "config.h"
-#elif defined(PHP_ATOM_INC) || defined(ZEND_SIGNALS)
+#else
 #include "php_config.h"
+#endif
 #endif
 
 #ifdef __cplusplus
