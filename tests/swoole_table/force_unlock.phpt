@@ -22,16 +22,20 @@ $data = [
 ];
 $table->set('test', $data);
 
-(new Process(function () use ($table) {
-    $str = str_repeat('A', 4 * 1024 * 1024);
+$proc = new Process(function () use ($table) {
+    $str = str_repeat('A', 5 * 1024 * 1024);
     // Fatal error: memory exhausted
     $data = $table->get('test');
     var_dump(strlen($data['string']));
     var_dump(strlen($str));
     var_dump(memory_get_usage());
-}))->start();
+}, true, SOCK_STREAM);
 
-Process::wait();
+$proc->start();
+
+$exit_status = Process::wait();
+Assert::eq($exit_status['code'], 255);
+Assert::contains($proc->read(), 'Fatal error: Allowed memory');
 
 $data = $table->get('test');
 Assert::eq(strlen($data['string']), $str_size);
@@ -39,6 +43,5 @@ Assert::eq($data['string'], $str_value);
 echo "Done\n";
 ?>
 --EXPECTF--
-Fatal error: Allowed memory size of %d bytes exhausted at %s (tried to allocate %d bytes) in %s on line %d
 [%s]	WARNING	lock: lock process[%d] not exists, force unlock
 Done
