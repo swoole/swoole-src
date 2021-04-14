@@ -17,12 +17,10 @@
 
 #pragma once
 
-#ifdef ENABLE_PHP_SWOOLE
 #ifdef HAVE_CONFIG_H
 #include "config.h"
-#else
+#elif defined(ENABLE_PHP_SWOOLE)
 #include "php_config.h"
-#endif
 #endif
 
 #ifdef __cplusplus
