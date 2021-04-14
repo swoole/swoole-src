@@ -14,30 +14,15 @@
   +----------------------------------------------------------------------+
 */
 
-#ifndef PHP_SWOOLE_H
-#define PHP_SWOOLE_H
+#ifndef PHP_SWOOLE_PRIVATE_H
+#define PHP_SWOOLE_PRIVATE_H
 
 // C++ build format macros must defined earlier
 #ifdef __cplusplus
 #define __STDC_FORMAT_MACROS
 #endif
 
-#include "php.h"
-#include "php_ini.h"
-#include "php_globals.h"
-#include "php_main.h"
-
-#include "php_streams.h"
-#include "php_network.h"
-
-#include "zend_variables.h"
-#include "zend_interfaces.h"
-#include "zend_closures.h"
-#include "zend_exceptions.h"
-
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include "php_swoole.h"
 
 #define SW_HAVE_COUNTABLE 1
 
@@ -61,8 +46,6 @@ BEGIN_EXTERN_C()
 #define PHP_SWOOLE_CLIENT_USE_POLL
 
 extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
-
-extern zend_module_entry swoole_module_entry;
 
 #ifdef PHP_WIN32
 #define PHP_SWOOLE_API __declspec(dllexport)
@@ -152,13 +135,13 @@ enum php_swoole_fd_type {
     PHP_SWOOLE_FD_CO_CURL,
 };
 //---------------------------------------------------------
-typedef enum {
+enum php_swoole_req_status {
     PHP_SWOOLE_RINIT_BEGIN,
     PHP_SWOOLE_RINIT_END,
     PHP_SWOOLE_CALL_USER_SHUTDOWNFUNC_BEGIN,
     PHP_SWOOLE_RSHUTDOWN_BEGIN,
     PHP_SWOOLE_RSHUTDOWN_END,
-} php_swoole_req_status;
+};
 //---------------------------------------------------------
 
 static sw_inline enum swSocket_type php_swoole_socktype(long type) {
@@ -183,12 +166,6 @@ extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 extern zend_class_entry *swoole_error_ce;
-
-PHP_MINIT_FUNCTION(swoole);
-PHP_MSHUTDOWN_FUNCTION(swoole);
-PHP_RINIT_FUNCTION(swoole);
-PHP_RSHUTDOWN_FUNCTION(swoole);
-PHP_MINFO_FUNCTION(swoole);
 
 PHP_FUNCTION(swoole_clear_dns_cache);
 PHP_FUNCTION(swoole_last_error);
@@ -312,27 +289,6 @@ php_socket *php_swoole_convert_to_socket(int sock);
 #endif
 
 zend_bool php_swoole_signal_isset_handler(int signo);
-
-// clang-format off
-ZEND_BEGIN_MODULE_GLOBALS(swoole)
-    zend_bool display_errors;
-    zend_bool cli;
-    zend_bool use_shortname;
-    zend_bool enable_coroutine;
-    zend_bool enable_preemptive_scheduler;
-    zend_bool enable_library;
-    long socket_buffer_size;
-    php_swoole_req_status req_status;
-ZEND_END_MODULE_GLOBALS(swoole)
-// clang-format on
-
-extern ZEND_DECLARE_MODULE_GLOBALS(swoole);
-
-#ifdef ZTS
-#define SWOOLE_G(v) TSRMG(swoole_globals_id, zend_swoole_globals *, v)
-#else
-#define SWOOLE_G(v) (swoole_globals.v)
-#endif
 
 /* PHP 7 compatibility patches */
 #define sw_zend_bailout() zend_bailout()
@@ -1126,4 +1082,4 @@ static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, 
 
 END_EXTERN_C()
 
-#endif /* PHP_SWOOLE_H */
+#endif /* PHP_SWOOLE_PRIVATE_H */

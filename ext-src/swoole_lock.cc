@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
 */
 
-#include "php_swoole.h"
+#include "php_swoole_private.h"
 #include "swoole_memory.h"
 #include "swoole_lock.h"
 

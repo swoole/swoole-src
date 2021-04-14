@@ -4,8 +4,7 @@ BEGIN_EXTERN_C()
 #include "ext/standard/php_var.h"
 #ifdef SW_USE_JSON
 #include "ext/json/php_json.h"
-
-PHP_JSON_API zend_class_entry *php_json_exception_ce;
+extern PHP_JSON_API zend_class_entry *php_json_exception_ce;
 #endif
 END_EXTERN_C()
 
