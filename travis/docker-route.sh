@@ -1,9 +1,9 @@
 #!/bin/sh -e
-__CURRENT__=`pwd`
+__CURRENT__=$(pwd)
 __DIR__=$(cd "$(dirname "$0")";pwd)
 
 # enter the dir
-cd ${__DIR__}
+cd "${__DIR__}"
 
 # show system info
 date && echo ""

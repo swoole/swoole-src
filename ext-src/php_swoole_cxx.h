@@ -16,7 +16,7 @@
 
 #pragma once
 
-#include "php_swoole.h"
+#include "php_swoole_private.h"
 #include "php_swoole_coroutine.h"
 #include "swoole_util.h"
 
@@ -417,7 +417,6 @@ struct Function {
     }
 };
 
-bool include(const std::string &file);
 bool eval(const std::string &code, const std::string &filename = "");
 void known_strings_init(void);
 void known_strings_dtor(void);

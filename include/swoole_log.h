@@ -161,7 +161,7 @@ swoole::Logger *sw_logger();
 #define swFatalError(code, str, ...)                                                                                   \
     do {                                                                                                               \
         SwooleG.fatal_error(code, str, ##__VA_ARGS__);                                                                 \
-        abort();                                                                                                       \
+        exit(255);                                                                                                       \
     } while (0)
 
 #define swoole_error_log(level, __errno, str, ...)                                                                     \
@@ -242,6 +242,7 @@ enum swTrace_type {
     SW_TRACE_CONTEXT = 1u << 26,
     SW_TRACE_CO_HTTP_SERVER = 1u << 27,
     SW_TRACE_TABLE = 1u << 28,
+    SW_TRACE_CO_CURL = 1u << 29,
 
     SW_TRACE_ALL = 0xffffffff
 };

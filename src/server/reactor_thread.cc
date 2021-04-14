@@ -411,7 +411,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                     ReactorThread_shutdown(reactor);
                 } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
                     SessionId session_id = resp->info.fd;
-                    Connection *conn = serv->get_connection_verify(session_id);
+                    Connection *conn = serv->get_connection_verify_no_ssl(session_id);
 
                     if (!conn) {
                         swoole_error_log(SW_LOG_NOTICE,
@@ -424,6 +424,16 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                     if (serv->disable_notify || conn->close_force) {
                         return Server::close_connection(reactor, conn->socket);
                     }
+
+#ifdef SW_USE_OPENSSL
+                    /**
+                     * SSL connections that have not completed the handshake,
+                     * do not need to notify the workers, just close
+                     */
+                    if (conn->ssl && !conn->ssl_ready) {
+                        return Server::close_connection(reactor, conn->socket);
+                    }
+#endif
 
                     conn->close_force = 1;
                     Event _ev = {};
@@ -470,7 +480,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
         BufferChunk *chunk = buffer->front();
         EventData *send_data = (EventData *) chunk->value.ptr;
 
-        // server active close, discard data.
+        // server actively closed connection, should discard the data
         if (Server::is_stream_event(send_data->info.type)) {
             // send_data->info.fd is session_id
             Connection *conn = serv->get_connection_verify(send_data->info.fd);

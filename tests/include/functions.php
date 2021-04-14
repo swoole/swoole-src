@@ -762,3 +762,12 @@ function dump_to_file($file, $data)
     }
     fclose($fp);
 }
+
+function curl_type_assert($ch, $resource_type, $class_type)
+{
+    if (PHP_VERSION_ID >= 80000) {
+        Assert::isInstanceOf($ch, $class_type);
+    } else {
+        Assert::eq(get_resource_type($ch), $resource_type);
+    }
+}

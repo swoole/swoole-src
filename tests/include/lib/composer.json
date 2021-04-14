@@ -1,0 +1,18 @@
+{
+  "name": "swoole_tests/lib",
+  "description": "for swoole tests",
+  "authors": [
+    {
+      "name": "tianfeng.han",
+      "email": "rango@swoole.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "SwooleTest\\": "src"
+    }
+  },
+  "require": {
+    "guzzlehttp/guzzle": "^7.3"
+  }
+}

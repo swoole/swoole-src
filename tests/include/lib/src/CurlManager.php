@@ -9,6 +9,15 @@ use function Swoole\Coroutine\run as run;
 class CurlManager
 {
     protected $port;
+    protected $nativeCurl = false;
+
+    function __construct() {
+        $this->nativeCurl = defined('SWOOLE_HOOK_NATIVE_CURL');
+    }
+
+    function disableNativeCurl() {
+        $this->nativeCurl = false;
+    }
 
     function getUrlBase()
     {
@@ -43,7 +52,8 @@ class CurlManager
 
         global $argc, $argv;
         if (!($argc > 1 and $argv[1] == 'ori')) {
-            Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_CURL);
+            $flags = $this->nativeCurl ? SWOOLE_HOOK_NATIVE_CURL : SWOOLE_HOOK_CURL;
+            Swoole\Runtime::enableCoroutine($flags);
         }
 
         run(function () use ($fn, $proc) {

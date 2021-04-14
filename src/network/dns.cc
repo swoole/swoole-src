@@ -363,7 +363,7 @@ int gethostbyname(int flags, const char *name, char *addr) {
     union {
         char v4[INET_ADDRSTRLEN];
         char v6[INET6_ADDRSTRLEN];
-    } addr_list[SW_DNS_HOST_BUFFER_SIZE];
+    } addr_list[SW_DNS_HOST_BUFFER_SIZE] {};
 
     int i = 0;
     for (i = 0; i < SW_DNS_HOST_BUFFER_SIZE; i++) {

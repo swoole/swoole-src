@@ -1,7 +1,8 @@
 --TEST--
 swoole_client_coro: sendto
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

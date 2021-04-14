@@ -3766,7 +3766,7 @@ static PHP_METHOD(swoole_server, getClientList) {
         start_fd = serv->get_minfd();
     } else {
         Connection *conn = serv->get_connection_verify(start_session_id);
-        if (!serv->is_valid_connection(conn)) {
+        if (!conn) {
             RETURN_FALSE;
         }
         start_fd = conn->fd;
@@ -3778,18 +3778,11 @@ static PHP_METHOD(swoole_server, getClientList) {
 
     array_init(return_value);
     int fd = start_fd + 1;
-    Connection *conn;
 
     for (; fd <= serv_max_fd; fd++) {
         swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_session_id);
-        conn = serv->get_connection(fd);
-
-        if (serv->is_valid_connection(conn)) {
-#ifdef SW_USE_OPENSSL
-            if (conn->ssl && !conn->ssl_ready) {
-                continue;
-            }
-#endif
+        Connection *conn = serv->get_connection_for_iterator(fd);
+        if (conn) {
             add_next_index_long(return_value, conn->session_id);
             find_count--;
         }
@@ -4001,27 +3994,20 @@ static PHP_METHOD(swoole_connection_iterator, rewind) {
 static PHP_METHOD(swoole_connection_iterator, valid) {
     ConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     int fd = iterator->current_fd;
-    Connection *conn;
-
     int max_fd = iterator->serv->get_maxfd();
 
     for (; fd <= max_fd; fd++) {
-        conn = iterator->serv->get_connection(fd);
-
-        if (conn->active && !conn->closed) {
-#ifdef SW_USE_OPENSSL
-            if (conn->ssl && !conn->ssl_ready) {
-                continue;
-            }
-#endif
-            if (iterator->port && (iterator->port->get_fd() < 0 || conn->server_fd != iterator->port->get_fd())) {
-                continue;
-            }
-            iterator->session_id = conn->session_id;
-            iterator->current_fd = fd;
-            iterator->index++;
-            RETURN_TRUE;
+        Connection *conn = iterator->serv->get_connection_for_iterator(fd);
+        if (!conn) {
+            continue;
         }
+        if (iterator->port && (iterator->port->get_fd() < 0 || conn->server_fd != iterator->port->get_fd())) {
+            continue;
+        }
+        iterator->session_id = conn->session_id;
+        iterator->current_fd = fd;
+        iterator->index++;
+        RETURN_TRUE;
     }
 
     RETURN_FALSE;

@@ -10,6 +10,9 @@ cd ${__DIR__} && cd ../tests/
 # initialization
 echo "" && echo "⭐️ Initialization for tests..." && echo ""
 ./init
+cd ./include/lib
+composer update
+cd -
 echo ""
 
 # debug

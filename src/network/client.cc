@@ -546,13 +546,16 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
         }
 #else
         ret = cli->socket->connect(cli->server_addr);
-        if (ret < 0 && errno == EINPROGRESS) {
-            errno = ETIMEDOUT;
-        }
 #endif
         if (ret < 0) {
             if (errno == EINTR) {
                 continue;
+            } else if (errno == EINPROGRESS) {
+                if (nonblock) {
+                    cli->async_connect = true;
+                } else {
+                    errno = ETIMEDOUT;
+                }
             }
             swoole_set_last_error(errno);
         }
@@ -575,12 +578,11 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
                 if (n > 0) {
                     if (cli->socks5_handshake(buf, n) < 0) {
                         return SW_ERR;
+                    }
+                    if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY) {
+                        break;
                     } else {
-                        if (cli->socks5_proxy->state == SW_SOCKS5_STATE_READY) {
-                            break;
-                        } else {
-                            continue;
-                        }
+                        continue;
                     }
                 }
                 return SW_ERR;
@@ -588,10 +590,8 @@ static int Client_tcp_connect_sync(Client *cli, const char *host, int port, doub
         }
 
 #ifdef SW_USE_OPENSSL
-        if (cli->open_ssl) {
-            if (cli->ssl_handshake() < 0) {
-                return SW_ERR;
-            }
+        if (cli->open_ssl && cli->ssl_handshake() < 0) {
+            return SW_ERR;
         }
 #endif
     }

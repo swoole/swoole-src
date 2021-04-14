@@ -44,10 +44,6 @@
 #define SAVE_CURL_ERROR(__handle, __err) \
     do { (__handle)->err.no = (int) __err; } while (0)
 
-PHP_MINIT_FUNCTION(curl);
-PHP_MSHUTDOWN_FUNCTION(curl);
-PHP_MINFO_FUNCTION(curl);
-
 typedef struct {
 	zval                  func_name;
 	zend_fcall_info_cache fci_cache;
@@ -117,7 +113,6 @@ typedef struct {
 #if PHP_VERSION_ID >= 80000
 	struct _php_curlsh *share;
 #endif
-    swoole::FutureTask *context;
 #if PHP_VERSION_ID >= 80000
 	zend_object                   std;
 #endif
@@ -129,13 +124,15 @@ typedef struct {
 	php_curlm_server_push	*server_push;
 } php_curlm_handlers;
 
-namespace swoole {
-class cURLMulti;
-}
+namespace swoole  { namespace curl {
+class Multi;
+}}
+
+using swoole::curl::Multi;
 
 typedef struct {
 	int         still_running;
-	swoole::cURLMulti *multi;
+	Multi *multi;
 	zend_llist  easyh;
 	php_curlm_handlers	*handlers;
 	struct {
@@ -177,7 +174,7 @@ int curl_cast_object(zend_object *obj, zval *result, int type);
 #define Z_CURL_P(zv)     _php_curl_get_handle(zv)
 #endif /* PHP8 end */
 
-php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true);
+php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 
 SW_EXTERN_C_BEGIN
 #if PHP_VERSION_ID < 80000
@@ -185,6 +182,8 @@ void _php_curl_close_ex(php_curl *ch);
 void _php_curl_close(zend_resource *rsrc);
 void _php_curl_multi_close(zend_resource *rsrc);
 php_curl *alloc_curl_handle();
+int _php_curl_get_le_curl();
+int _php_curl_get_le_curl_multi();
 #endif
 SW_EXTERN_C_END
 

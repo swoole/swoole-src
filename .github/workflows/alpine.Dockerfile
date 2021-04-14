@@ -1,4 +1,7 @@
-FROM hyperf/hyperf:7.4-alpine-v3.11-dev
+ARG PHP_VERSION
+ARG ALPINE_VERSION
+
+FROM hyperf/hyperf:${PHP_VERSION}-alpine-v${ALPINE_VERSION}-dev
 
 LABEL maintainer="Swoole Team <team@swoole.com>" version="1.0" license="MIT"
 
@@ -7,10 +10,8 @@ COPY . /opt/www
 WORKDIR /opt/www
 
 RUN set -ex \
-    && ln -sf /usr/bin/phpize7 /usr/local/bin/phpize \
-    && ln -sf /usr/bin/php-config7 /usr/local/bin/php-config \
     && phpize \
-    && ./configure --enable-mysqlnd --enable-openssl --enable-http2 \
+    && ./configure --enable-openssl --enable-http2 --enable-swoole-curl --enable-swoole-json \
     && make -s -j$(nproc) && make install \
     && echo "extension=swoole.so" > /etc/php7/conf.d/50_swoole.ini \
     # check
