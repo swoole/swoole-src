@@ -759,6 +759,7 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
         if (!sock->ssl_handshake()) {
             return -1;
         }
+        return 0;
     } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
         return sock->ssl_shutdown() ? 0 : -1;
     }
