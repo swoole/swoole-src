@@ -731,7 +731,6 @@ static void _php_curl_multi_free(php_curlm *mh) {
             mh->multi->remove_handle(ch->cp);
         }
     }
-    curl_multi_cleanup(mh->multi->get_multi_handle());
     zend_llist_clean(&mh->easyh);
     if (mh->handlers->server_push) {
         zval_ptr_dtor(&mh->handlers->server_push->func_name);

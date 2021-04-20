@@ -2691,6 +2691,13 @@ void _php_curl_free(php_curl *ch) {
     curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION, curl_write_nothing);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEFUNCTION, curl_write_nothing);
 
+    swoole::curl::Handle *handle = nullptr;
+    curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
+
+    if (handle && handle->multi) {
+        handle->multi->remove_handle(ch);
+    }
+
     /* cURL destructors should be invoked only by last curl handle */
     if (--(*ch->clone) == 0) {
         zend_llist_clean(&ch->to_free->str);
@@ -2701,8 +2708,6 @@ void _php_curl_free(php_curl *ch) {
         efree(ch->to_free);
         efree(ch->clone);
 
-        swoole::curl::Handle *handle = nullptr;
-        curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
         delete handle;
         curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, nullptr);
     }
