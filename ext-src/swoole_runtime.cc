@@ -65,7 +65,7 @@ static int socket_flush(php_stream *stream);
 static int socket_close(php_stream *stream, int close_handle);
 static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
-
+static bool socket_ssl_set_options(Socket *sock, php_stream_context *context);
 // clang-format off
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
@@ -752,10 +752,6 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
         if (!sock->ssl_check_context()) {
             return -1;
         }
-        if (!sock->ssl_handshake()) {
-            return -1;
-        }
-        return 0;
     } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
         return sock->ssl_shutdown() ? 0 : -1;
     }
@@ -763,11 +759,16 @@ static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xpo
     php_stream_context *context = PHP_STREAM_CONTEXT(stream);
     if (context) {
         zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
-        if (val && zend_is_true(val)) {
-            return php_openssl_capture_peer_certs(stream, sock) ? 0 : -1;
+        if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
+            return -1;
+        }
+        if (!socket_ssl_set_options(sock, context)) {
+            return -1;
         }
     }
-
+    if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
+        return -1;
+    }
     return 0;
 }
 #endif
@@ -993,6 +994,49 @@ static int socket_set_option(php_stream *stream, int option, int value, void *pt
     return PHP_STREAM_OPTION_RETURN_OK;
 }
 
+static bool socket_ssl_set_options(Socket *sock, php_stream_context *context) {
+    if (context && ZVAL_IS_ARRAY(&context->options)) {
+#ifdef SW_USE_OPENSSL
+        zval *ztmp;
+
+        if (sock->ssl_is_enable() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
+            ZVAL_IS_ARRAY(ztmp)) {
+
+            zval zalias;
+            array_init(&zalias);
+            zend_array *options = Z_ARRVAL_P(ztmp);
+
+            auto add_alias = [&zalias, options](const char *name, const char *alias) {
+                zval *ztmp;
+                if (php_swoole_array_get_value_ex(options, name, ztmp)) {
+                    add_assoc_zval_ex(&zalias, alias, strlen(alias), ztmp);
+                    zval_add_ref(ztmp);
+                }
+            };
+
+            add_alias("peer_name", "ssl_host_name");
+            add_alias("verify_peer", "ssl_verify_peer");
+            add_alias("allow_self_signed", "ssl_allow_self_signed");
+            add_alias("cafile", "ssl_cafile");
+            add_alias("capath", "ssl_capath");
+            add_alias("local_cert", "ssl_cert_file");
+            add_alias("local_pk", "ssl_key_file");
+            add_alias("passphrase", "ssl_passphrase");
+            add_alias("verify_depth", "ssl_verify_depth");
+            add_alias("disable_compression", "ssl_disable_compression");
+
+            php_swoole_socket_set_ssl(sock, &zalias);
+            if (!sock->ssl_check_context()) {
+                return false;
+            }
+            zval_dtor(&zalias);
+        }
+#endif
+    }
+
+    return true;
+}
+
 static php_stream *socket_create(const char *proto,
                                  size_t protolen,
                                  const char *resourcename,
@@ -1055,43 +1099,8 @@ static php_stream *socket_create(const char *proto,
         goto _failed;
     }
 
-    if (context && ZVAL_IS_ARRAY(&context->options)) {
-#ifdef SW_USE_OPENSSL
-        zval *ztmp;
-
-        if (sock->ssl_is_enable() && php_swoole_array_get_value(Z_ARRVAL_P(&context->options), "ssl", ztmp) &&
-            ZVAL_IS_ARRAY(ztmp)) {
-
-            zval zalias;
-            array_init(&zalias);
-            zend_array *options = Z_ARRVAL_P(ztmp);
-
-            auto add_alias = [&zalias, options](const char *name, const char *alias) {
-                zval *ztmp;
-                if (php_swoole_array_get_value_ex(options, name, ztmp)) {
-                    add_assoc_zval_ex(&zalias, alias, strlen(alias), ztmp);
-                    zval_add_ref(ztmp);
-                }
-            };
-
-            add_alias("peer_name", "ssl_host_name");
-            add_alias("verify_peer", "ssl_verify_peer");
-            add_alias("allow_self_signed", "ssl_allow_self_signed");
-            add_alias("cafile", "ssl_cafile");
-            add_alias("capath", "ssl_capath");
-            add_alias("local_cert", "ssl_cert_file");
-            add_alias("local_pk", "ssl_key_file");
-            add_alias("passphrase", "ssl_passphrase");
-            add_alias("verify_depth", "ssl_verify_depth");
-            add_alias("disable_compression", "ssl_disable_compression");
-
-            php_swoole_socket_set_ssl(sock, &zalias);
-            if (!sock->ssl_check_context()) {
-                goto _failed;
-            }
-            zval_dtor(&zalias);
-        }
-#endif
+    if (!socket_ssl_set_options(sock, context)) {
+        goto _failed;
     }
 
     return stream;
