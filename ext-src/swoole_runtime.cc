@@ -747,28 +747,29 @@ static bool php_openssl_capture_peer_certs(php_stream *stream, Socket *sslsock) 
 }
 
 static int socket_enable_crypto(php_stream *stream, Socket *sock, php_stream_xport_crypto_param *cparam STREAMS_DC) {
+    php_stream_context *context = PHP_STREAM_CONTEXT(stream);
     if (cparam->inputs.activate && !sock->ssl_is_available()) {
         sock->enable_ssl_encrypt();
         if (!sock->ssl_check_context()) {
+            return -1;
+        }
+        if (!socket_ssl_set_options(sock, context)) {
+            return -1;
+        }
+        if (!sock->ssl_handshake()) {
             return -1;
         }
     } else if (!cparam->inputs.activate && sock->ssl_is_available()) {
         return sock->ssl_shutdown() ? 0 : -1;
     }
 
-    php_stream_context *context = PHP_STREAM_CONTEXT(stream);
     if (context) {
         zval *val = php_stream_context_get_option(context, "ssl", "capture_peer_cert");
         if (val && zend_is_true(val) && !php_openssl_capture_peer_certs(stream, sock)) {
             return -1;
         }
-        if (!socket_ssl_set_options(sock, context)) {
-            return -1;
-        }
     }
-    if (sock->ssl_is_enable() && !sock->ssl_handshake()) {
-        return -1;
-    }
+
     return 0;
 }
 #endif
