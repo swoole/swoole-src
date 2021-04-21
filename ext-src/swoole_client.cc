@@ -1057,7 +1057,7 @@ static PHP_METHOD(swoole_client, recv) {
                     buffer->length = 0;
                 }
 
-                sw_set_zend_string(return_value, buffer->str, eof);
+                zend::assign_zend_string_by_val(return_value, buffer->str, eof);
                 buffer->str = nullptr;
                 delete buffer;
 

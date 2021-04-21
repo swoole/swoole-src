@@ -453,9 +453,10 @@ enum swEventData_flag {
     SW_EVENT_DATA_NORMAL,
     SW_EVENT_DATA_PTR     = 1u << 1,
     SW_EVENT_DATA_CHUNK   = 1u << 2,
-    SW_EVENT_DATA_END     = 1u << 3,
-    SW_EVENT_DATA_OBJ_PTR = 1u << 4,
-    SW_EVENT_DATA_POP_PTR = 1u << 5,
+    SW_EVENT_DATA_BEGIN   = 1u << 3,
+    SW_EVENT_DATA_END     = 1u << 4,
+    SW_EVENT_DATA_OBJ_PTR = 1u << 5,
+    SW_EVENT_DATA_POP_PTR = 1u << 6,
 };
 
 #define swTask_type(task) ((task)->info.server_fd)
@@ -575,6 +576,7 @@ typedef uint8_t ReactorId;
 
 struct DataHead {
     SessionId fd;
+    uint64_t msg_id;
     uint32_t len;
     int16_t reactor_id;
     uint8_t type;

@@ -947,7 +947,7 @@ static void *_sw_zend_string_calloc(size_t nmemb, size_t size) {
 }
 
 static void *_sw_zend_string_realloc(void *address, size_t size) {
-    zend_string *str = zend_string_realloc(sw_get_zend_string(address), size, 0);
+    zend_string *str = zend_string_realloc(zend::fetch_zend_string_by_val(address), size, 0);
     if (str == nullptr) {
         return nullptr;
     }
@@ -955,7 +955,7 @@ static void *_sw_zend_string_realloc(void *address, size_t size) {
 }
 
 static void _sw_zend_string_free(void *address) {
-    zend_string_free((zend_string *) (sw_get_zend_string(address)));
+    zend_string_free(zend::fetch_zend_string_by_val(address));
 }
 
 static swoole::Allocator php_allocator {

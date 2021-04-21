@@ -17,9 +17,12 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
 #include "swoole_util.h"
 #include "swoole_protocol.h"
 #include "swoole_mqtt.h"
+
 #include "thirdparty/php/sockets/php_sockets_cxx.h"
 
 #include <string>
@@ -1343,7 +1346,7 @@ static PHP_METHOD(swoole_socket_coro, recvPacket) {
             sock->socket->set_err(ENOMEM);
             RETURN_FALSE;
         } else {
-            sw_set_zend_string(return_value, strval, retval);
+            zend::assign_zend_string_by_val(return_value, strval, retval);
         }
     }
 }

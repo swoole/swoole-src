@@ -421,8 +421,20 @@ bool eval(const std::string &code, const std::string &filename = "");
 void known_strings_init(void);
 void known_strings_dtor(void);
 void unserialize(zval *return_value, const char *buf, size_t buf_len, HashTable *options);
+#ifdef SW_USE_JSON
 void json_decode(zval *return_value, const char *str, size_t str_len, zend_long options, zend_long zend_long);
-zend_string *fetch_zend_string_by_val(char *val);
+#endif
+
+static inline zend_string *fetch_zend_string_by_val(void *val) {
+    return (zend_string *) ((char *) val - XtOffsetOf(zend_string, val));
+}
+
+static inline void assign_zend_string_by_val(zval *zdata, char *addr, size_t length) {
+    zend_string *zstr = fetch_zend_string_by_val(addr);
+    addr[length] = 0;
+    zstr->len = length;
+    ZVAL_STR(zdata, zstr);
+}
 
 #if PHP_VERSION_ID < 80000
 #define ZEND_STR_CONST
@@ -432,3 +444,5 @@ zend_string *fetch_zend_string_by_val(char *val);
 
 //-----------------------------------namespace end--------------------------------------------
 }  // namespace zend
+
+
