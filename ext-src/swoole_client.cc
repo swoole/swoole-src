@@ -146,10 +146,11 @@ static sw_inline Client *client_get_ptr(zval *zobject) {
         if (cli->async_connect) {
             cli->async_connect = false;
             int error = -1;
-            cli->get_socket()->get_option(SOL_SOCKET, SO_ERROR, &error);
-            if (error == 0) {
-                cli->active = 1;
-                return cli;
+            if (cli->get_socket()->get_option(SOL_SOCKET, SO_ERROR, &error) == 0) {
+                if (error == 0) {
+                    cli->active = 1;
+                    return cli;
+                }
             }
             php_swoole_client_free(zobject, cli);
         }
