@@ -42,10 +42,16 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-04-09</date>
-    <time>19:00:00</time>
+    <developer>
+        <name>Lu Fei</name>
+        <user>lufei</user>
+        <email>lufei@php.net</email>
+        <active>yes</active>
+    </developer>
+    <date>2021-04-22</date>
+    <time>17:00:00</time>
     <version>
-        <release>4.6.5</release>
+        <release>4.6.6</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -54,33 +60,16 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New APIs
-        ---
-        * Add count method to WaitGroup (swoole/library#100) (@sy-records) (@deminy)
-
         Enhancement
         ---
-        * Supported native curl multi (#4093) (#4099) (#4101) (#4105) (#4113) (#4121) (swoole/swoole-src@cd7f51c) (#4147) (@matyhtf) (@sy-records) (@huanghantao)
-        * Allow array HTTP/2 headers, Bug fixed for #4133 (#4140)
+        * Sended SIGTERM to the parent process on FreeBSD (#4150) (@devnexen)
+        * Supported static compilation with PHP (#4153) (@matyhtf)
+        * Supported SNI for File Wrapper over HTTP proxy (#4158) (@matyhtf)
 
         Fixed
         ---
-        * Fixed NetBSD build (#4080) (@devnexen)
-        * Fixed OpenBSD build. (#4108) (@devnexen)
-        * Fixed illumos/solaris build, member aliases only (#4109) (@devnexen)
-        * Fixed heartbeat detection of SSL connection does not take effect when handshake is not completed (#4114) (@matyhtf)
-        * Fixed httpclient proxy with host and port (#4124) (@Yurunsoft)
-        * Fixed Swoole\Coroutine\Http::request, correct array to the client setting (swoole/library#103) (@leocavalcante) (@deminy)
-
-        Kernel
-        ---
-        * Supported asm context on BSD (#4082) (@devnexen)
-        * Used arc4random_buf to implement getrandom under FreeBSD (#4096) (@devnexen)
-        * Make context darwin arm64: removes workaround and uses the label (#4127) (@devnexen)
-
-        Test
-        ---
-        * Added build job for alpine (#4104) (@limingxinleo)
+        * Fixed sync-client async connect bugs (#4152) (@matyhtf)
+        * Fixed native curl multi mem leak (swoole/swoole-src@91bf243) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -508,7 +497,6 @@
             <file role="doc" name="examples/www/index.html" />
             <file role="doc" name="examples/www/index.txt" />
             <file role="src" name="ext-src/php_swoole.cc" />
-            <file role="src" name="ext-src/php_swoole.h" />
             <file role="src" name="ext-src/php_swoole_client.h" />
             <file role="src" name="ext-src/php_swoole_coroutine.h" />
             <file role="src" name="ext-src/php_swoole_coroutine_system.h" />
@@ -519,6 +507,7 @@
             <file role="src" name="ext-src/php_swoole_http_server.h" />
             <file role="src" name="ext-src/php_swoole_library.h" />
             <file role="src" name="ext-src/php_swoole_mysql_proto.h" />
+            <file role="src" name="ext-src/php_swoole_private.h" />
             <file role="src" name="ext-src/php_swoole_process.h" />
             <file role="src" name="ext-src/php_swoole_server.h" />
             <file role="src" name="ext-src/swoole_async_coro.cc" />
@@ -608,6 +597,7 @@
             <file role="src" name="include/swoole_wheel_timer.h" />
             <file role="src" name="make.sh" />
             <file role="src" name="mascot.png" />
+            <file role="src" name="php_swoole.h" />
             <file role="src" name="src/core/base.cc" />
             <file role="src" name="src/core/channel.cc" />
             <file role="src" name="src/core/crc32.cc" />
@@ -1131,6 +1121,8 @@
             <file role="test" name="tests/swoole_event/swoole_event_set.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event_wait.phpt" />
             <file role="test" name="tests/swoole_event/swoole_event_write.phpt" />
+            <file role="test" name="tests/swoole_event/sync_client_1.phpt" />
+            <file role="test" name="tests/swoole_event/sync_client_2.phpt" />
             <file role="test" name="tests/swoole_feature/cross_close/client.phpt" />
             <file role="test" name="tests/swoole_feature/cross_close/client_by_server.phpt" />
             <file role="test" name="tests/swoole_feature/cross_close/full_duplex.phpt" />
@@ -1880,6 +1872,7 @@
             <file role="test" name="tests/swoole_table/bug_2290.phpt" />
             <file role="test" name="tests/swoole_table/create_10k_object.phpt" />
             <file role="test" name="tests/swoole_table/del.phpt" />
+            <file role="test" name="tests/swoole_table/force_unlock.phpt" />
             <file role="test" name="tests/swoole_table/foreach.phpt" />
             <file role="test" name="tests/swoole_table/get_after_destroy.phpt" />
             <file role="test" name="tests/swoole_table/get_before_create.phpt" />
@@ -2080,24 +2073,6 @@
                 <min>1.4.0</min>
             </pearinstaller>
         </required>
-        <optional>
-            <package>
-                <name>curl</name>
-                <channel>pecl.php.net</channel>
-            </package>
-            <package>
-                <name>mysqlnd</name>
-                <channel>pecl.php.net</channel>
-            </package>
-            <package>
-                <name>json</name>
-                <channel>pecl.php.net</channel>
-            </package>
-            <package>
-                <name>sockets</name>
-                <channel>pecl.php.net</channel>
-            </package>
-        </optional>
     </dependencies>
     <providesextension>swoole</providesextension>
     <extsrcrelease>
