@@ -869,11 +869,9 @@ class Server {
     void pop_worker_buffer(DataHead *info) {
         uint64_t msg_id = info->msg_id;
         auto iter = worker_buffers.find(msg_id);
-        if (iter == worker_buffers.end()) {
-            return;
+        if (iter != worker_buffers.end()) {
+            iter->second.get()->str = nullptr;
         }
-        iter->second.get()->str = nullptr;
-        worker_buffers.erase(iter);
     }
 
     /**

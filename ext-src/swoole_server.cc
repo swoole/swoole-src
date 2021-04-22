@@ -797,9 +797,7 @@ void php_swoole_get_recv_data(Server *serv, zval *zdata, RecvData *req) {
         ZVAL_EMPTY_STRING(zdata);
     } else {
         if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
-            zend_string *worker_buffer = zend::fetch_zend_string_by_val((char *) data);
-            worker_buffer->len = length;
-            ZVAL_STR(zdata, worker_buffer);
+            zend::assign_zend_string_by_val(zdata, (char *) data, length);
             serv->pop_worker_buffer(&req->info);
         } else if (req->info.flags & SW_EVENT_DATA_POP_PTR) {
             String *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
