@@ -81,17 +81,6 @@ static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
 
-/**
- * Worker Buffer
- */
-static void **php_swoole_server_worker_create_buffers(Server *serv, uint buffer_num);
-static void php_swoole_server_worker_free_buffers(Server *serv, uint buffer_num, void **buffers);
-static void *php_swoole_server_worker_get_buffer(Server *serv, DataHead *info);
-static size_t php_swoole_server_worker_get_buffer_len(Server *serv, DataHead *info);
-static void php_swoole_server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len);
-static void php_swoole_server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
-static size_t php_swoole_server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
-
 void php_swoole_server_rshutdown() {
     if (!sw_server()) {
         return;
@@ -808,11 +797,11 @@ void php_swoole_get_recv_data(Server *serv, zval *zdata, RecvData *req) {
         ZVAL_EMPTY_STRING(zdata);
     } else {
         if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
-            zend_string *worker_buffer = zend::fetch_zend_string_by_val((char *) data);
-            ZVAL_STR(zdata, worker_buffer);
+            zend::assign_zend_string_by_val(zdata, (char *) data, length);
+            serv->pop_worker_buffer(&req->info);
         } else if (req->info.flags & SW_EVENT_DATA_POP_PTR) {
             String *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
-            sw_set_zend_string(zdata, recv_buffer->pop(serv->recv_buffer_size), length);
+            zend::assign_zend_string_by_val(zdata, recv_buffer->pop(serv->recv_buffer_size), length);
         } else {
             ZVAL_STRINGL(zdata, data, length);
         }
@@ -1020,13 +1009,7 @@ void ServerObject::on_before_start() {
     /**
      * init method
      */
-    serv->create_buffers = php_swoole_server_worker_create_buffers;
-    serv->free_buffers = php_swoole_server_worker_free_buffers;
-    serv->get_buffer = php_swoole_server_worker_get_buffer;
-    serv->get_buffer_len = php_swoole_server_worker_get_buffer_len;
-    serv->add_buffer_len = php_swoole_server_worker_add_buffer_len;
-    serv->move_buffer = php_swoole_server_worker_move_buffer;
-    serv->get_packet = php_swoole_server_worker_get_packet;
+    serv->worker_buffer_allocator = sw_zend_string_allocator();
 
     if (serv->is_base_mode()) {
         serv->buffer_allocator = sw_zend_string_allocator();
@@ -2091,81 +2074,6 @@ void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
             php_swoole_error(E_WARNING, "%s->onBufferEmpty handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
     }
-}
-
-static void **php_swoole_server_worker_create_buffers(Server *serv, uint buffer_num) {
-    zend_string **buffers = (zend_string **) sw_calloc(buffer_num, sizeof(zend_string *));
-    if (buffers == nullptr) {
-        swError("malloc for worker input_buffers failed");
-    }
-    return (void **) buffers;
-}
-
-static void php_swoole_server_worker_free_buffers(Server *serv, uint buffer_num, void **buffers) {
-    sw_free(buffers);
-}
-
-static sw_inline zend_string *php_swoole_server_worker_get_input_buffer(Server *serv, int reactor_id) {
-    zend_string **buffers = (zend_string **) serv->worker_input_buffers;
-    if (serv->is_base_mode()) {
-        return buffers[0];
-    } else {
-        return buffers[reactor_id];
-    }
-}
-
-static sw_inline void php_swoole_server_worker_set_buffer(Server *serv, DataHead *info, zend_string *addr) {
-    zend_string **buffers = (zend_string **) serv->worker_input_buffers;
-    buffers[info->reactor_id] = addr;
-}
-
-static void *php_swoole_server_worker_get_buffer(Server *serv, DataHead *info) {
-    zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, info->reactor_id);
-
-    if (worker_buffer == nullptr) {
-        worker_buffer = zend_string_alloc(info->len, 0);
-        worker_buffer->len = 0;
-        php_swoole_server_worker_set_buffer(serv, info, worker_buffer);
-    }
-
-    return worker_buffer->val + worker_buffer->len;
-}
-
-static size_t php_swoole_server_worker_get_buffer_len(Server *serv, DataHead *info) {
-    zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, info->reactor_id);
-
-    return worker_buffer == nullptr ? 0 : worker_buffer->len;
-}
-
-static void php_swoole_server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len) {
-    zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, info->reactor_id);
-    worker_buffer->len += len;
-}
-
-static void php_swoole_server_worker_move_buffer(Server *serv, PipeBuffer *buffer) {
-    zend_string *worker_buffer = php_swoole_server_worker_get_input_buffer(serv, buffer->info.reactor_id);
-    memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
-    worker_buffer->val[worker_buffer->len] = '\0';
-    php_swoole_server_worker_set_buffer(serv, &buffer->info, nullptr);
-}
-
-static size_t php_swoole_server_worker_get_packet(Server *serv, EventData *req, char **data_ptr) {
-    size_t length;
-    if (req->info.flags & SW_EVENT_DATA_PTR) {
-        PacketPtr *task = (PacketPtr *) req;
-        *data_ptr = task->data.str;
-        length = task->data.length;
-    } else if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
-        zend_string *worker_buffer;
-        memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
-        *data_ptr = worker_buffer->val;
-        length = worker_buffer->len;
-    } else {
-        *data_ptr = req->data;
-        length = req->info.len;
-    }
-
-    return length;
 }
 
 static PHP_METHOD(swoole_server, __construct) {

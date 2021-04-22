@@ -9,21 +9,21 @@ require __DIR__ . '/../../include/bootstrap.php';
 $port = get_one_free_port();
 
 $size = 8 * 1024 * 1024;
+$_g_data = random_bytes($size);
 
 use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
-$pm->parentFunc = function ($pid) use ($port, $pm, $size) {
+$pm->parentFunc = function ($pid) use ($port, $pm, $size, $_g_data) {
     $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->connect(TCP_SERVER_HOST, $port, 1);
-    $data = str_repeat('A', $size);
-    $cli->send(pack('N', strlen($data)) . $data);
+    $cli->send(pack('N', strlen($_g_data)) . $_g_data);
     $recv_data = $cli->recv();
     echo $recv_data;
     $pm->kill();
 };
 
-$pm->childFunc = function () use ($pm, $port, $size) {
+$pm->childFunc = function () use ($pm, $port, $size, $_g_data) {
     $serv = new Server(TCP_SERVER_HOST, $port);
     $serv->set([
         "worker_num" => 1,
@@ -37,8 +37,9 @@ $pm->childFunc = function () use ($pm, $port, $size) {
     $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on("receive", function ($serv, $fd, $rid, $data) use ($size) {
-        Assert::assert(strlen($data) == $size + 4);
+    $serv->on("receive", function ($serv, $fd, $rid, $data) use ($size, $_g_data) {
+        Assert::eq(strlen($data), $size + 4);
+        Assert::eq($_g_data, substr($data, 4));
         $serv->send($fd, "OK\n");
     });
     $serv->start();

@@ -210,6 +210,7 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
     struct iovec iov[2];
 
     uint32_t max_length = serv->ipc_max_size - sizeof(resp->info);
+    resp->info.msg_id = serv->worker_msg_id.fetch_add(1);
 
     if (send_n <= max_length) {
         resp->info.flags = 0;
@@ -240,7 +241,7 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
 #ifdef __linux__
 _ipc_use_chunk:
 #endif
-    resp->info.flags = SW_EVENT_DATA_CHUNK;
+    resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
     resp->info.len = send_n;
 
     while (send_n > 0) {
@@ -266,6 +267,10 @@ _ipc_use_chunk:
             }
 #endif
             return false;
+        }
+
+        if (resp->info.flags & SW_EVENT_DATA_BEGIN) {
+            resp->info.flags &= ~SW_EVENT_DATA_BEGIN;
         }
 
         send_n -= copy_n;
