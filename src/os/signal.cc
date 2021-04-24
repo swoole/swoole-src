@@ -239,6 +239,9 @@ int swSignalfd_setup(Reactor *reactor) {
         event_num--;
         return true;
     });
+    reactor->add_destroy_callback([](void *) {
+        swSignalfd_clear();
+    });
 
     SwooleG.signal_fd = signal_fd;
 
