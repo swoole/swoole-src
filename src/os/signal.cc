@@ -210,10 +210,10 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
         swSignalfd_create();
     } else {
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
-        signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);    
+        signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
 
-    if (sw_reactor() && signal_socket->removed) {
+    if (sw_reactor()) {
         swSignalfd_setup(sw_reactor());
     }
 
@@ -239,7 +239,7 @@ bool swSignalfd_create() {
         signal_fd = 0;
         return false;
     }
-    
+
     SwooleG.signal_fd = signal_fd;
     return true;
 }
@@ -250,19 +250,19 @@ bool swSignalfd_setup(Reactor *reactor) {
     }
     if (!swoole_event_isset_handler(SW_FD_SIGNAL)) {
         swoole_event_set_handler(SW_FD_SIGNAL, swSignalfd_onSignal);
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, int &event_num) -> bool {
+            event_num--;
+            return true;
+        });
+        reactor->add_destroy_callback([](void *) {
+            if (signal_socket) {
+                swoole_event_del(signal_socket);
+            }
+        });
     }
-    if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0) {
+    if (!(signal_socket->events & SW_EVENT_READ) && swoole_event_add(signal_socket, SW_EVENT_READ) < 0) {
         return false;
     }
-    reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, int &event_num) -> bool {
-        event_num--;
-        return true;
-    });
-    reactor->add_destroy_callback([](void *) {
-        if (signal_socket) {
-            signal_socket->removed = 1;
-        }
-    });
     return true;
 }
 
@@ -296,8 +296,7 @@ static int swSignalfd_onSignal(Reactor *reactor, swEvent *event) {
         swSignalHandler handler = signals[siginfo.ssi_signo].handler;
         if (handler == SIG_IGN) {
             return SW_OK;
-        }
-        else if (handler) {
+        } else if (handler) {
             handler(siginfo.ssi_signo);
         } else {
             swoole_error_log(SW_LOG_WARNING,
