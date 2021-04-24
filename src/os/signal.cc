@@ -206,54 +206,64 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
         signals[signo].signo = signo;
         signals[signo].activated = true;
     }
-    if (signal_fd > 0) {
+    if (signal_fd == 0) {
+        swSignalfd_create();
+    } else {
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
-        signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
-    } else if (sw_reactor()) {
+        signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);    
+    }
+
+    if (sw_reactor() && signal_socket->removed) {
         swSignalfd_setup(sw_reactor());
     }
 
     return origin_handler;
 }
 
-int swSignalfd_setup(Reactor *reactor) {
+bool swSignalfd_create() {
     if (signal_fd != 0) {
-        return SW_OK;
+        return false;
     }
 
     signal_fd = signalfd(-1, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     if (signal_fd < 0) {
         swSysWarn("signalfd() failed");
-        return SW_ERR;
+        return false;
     }
     signal_socket = swoole::make_socket(signal_fd, SW_FD_SIGNAL);
     if (sigprocmask(SIG_BLOCK, &signalfd_mask, nullptr) == -1) {
         swSysWarn("sigprocmask() failed");
-        goto _error;
+        signal_socket->fd = -1;
+        signal_socket->free();
+        close(signal_fd);
+        signal_fd = 0;
+        return false;
     }
-    swoole_event_set_handler(SW_FD_SIGNAL, swSignalfd_onSignal);
+    
+    SwooleG.signal_fd = signal_fd;
+    return true;
+}
+
+bool swSignalfd_setup(Reactor *reactor) {
+    if (signal_fd == 0) {
+        swSignalfd_create();
+    }
+    if (!swoole_event_isset_handler(SW_FD_SIGNAL)) {
+        swoole_event_set_handler(SW_FD_SIGNAL, swSignalfd_onSignal);
+    }
     if (swoole_event_add(signal_socket, SW_EVENT_READ) < 0) {
-        goto _error;
+        return false;
     }
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, int &event_num) -> bool {
         event_num--;
         return true;
     });
     reactor->add_destroy_callback([](void *) {
-        swSignalfd_clear();
+        if (signal_socket) {
+            signal_socket->removed = 1;
+        }
     });
-
-    SwooleG.signal_fd = signal_fd;
-
-    return SW_OK;
-
-_error:
-    signal_socket->fd = -1;
-    signal_socket->free();
-    close(signal_fd);
-    signal_fd = 0;
-
-    return SW_ERR;
+    return true;
 }
 
 static void swSignalfd_clear() {
