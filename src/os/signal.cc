@@ -206,14 +206,14 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
         signals[signo].signo = signo;
         signals[signo].activated = true;
     }
-    if (signal_fd == 0) {
-        swSignalfd_create();
-    } else {
-        sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
-        signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
-    }
 
     if (sw_reactor()) {
+        if (signal_fd == 0) {
+            swSignalfd_create();
+        } else {
+            sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
+            signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
+        }
         swSignalfd_setup(sw_reactor());
     }
 
