@@ -62,7 +62,7 @@
     <notes>
         Enhancement
         ---
-        * Sended SIGTERM to the parent process on FreeBSD (#4150) (@devnexen)
+        * Sent SIGTERM to the manager process on FreeBSD when master process is dead (#4150) (@devnexen)
         * Supported static compilation with PHP (#4153) (@matyhtf)
         * Supported SNI for File Wrapper over HTTP proxy (#4158) (@matyhtf)
 
