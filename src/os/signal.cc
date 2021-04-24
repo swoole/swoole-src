@@ -35,10 +35,10 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler);
 static bool swSignalfd_create();
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(Reactor *reactor, swEvent *event);
-static void swSignal_async_handler(int signo);
 #elif HAVE_KQUEUE
 static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
 #endif
+static void swSignal_async_handler(int signo);
 
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
