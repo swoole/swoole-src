@@ -256,6 +256,7 @@ bool swSignalfd_setup(Reactor *reactor) {
             return true;
         });
         reactor->add_destroy_callback([](void *) {
+            // child process removes signal socket, parent process will not be able to trigger signal
             if (signal_socket && signalfd_create_pid == getpid()) {
                 swoole_event_del(signal_socket);
             }

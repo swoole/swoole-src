@@ -8,18 +8,21 @@ require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Process;
 use function Swoole\Coroutine\run;
 
+const N = 2;
+
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    Process::kill($pid, SIGUSR1);
-    $pm->wait();
-    Process::kill($pid, SIGUSR1);
-    $pm->wait();
+    $n = N;
+    while($n--) {
+        Process::kill($pid, SIGUSR1);
+        $pm->wait();
+    }
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $n = 2;
+    $n = N;
     while($n--) {
         run(static function () use($n, $pm){
             $running = true;
