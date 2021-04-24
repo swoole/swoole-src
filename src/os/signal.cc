@@ -32,18 +32,18 @@ using swoole::Reactor;
 
 #ifdef HAVE_SIGNALFD
 static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler);
+static bool swSignalfd_create();
 static void swSignalfd_clear();
 static int swSignalfd_onSignal(Reactor *reactor, swEvent *event);
-
-static sigset_t signalfd_mask;
-static int signal_fd = 0;
-static swoole::network::Socket *signal_socket = nullptr;
+static void swSignal_async_handler(int signo);
 #elif HAVE_KQUEUE
 static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
 #endif
 
-static void swSignal_async_handler(int signo);
-
+static sigset_t signalfd_mask;
+static int signal_fd = 0;
+static pid_t signalfd_create_pid;
+static swoole::network::Socket *signal_socket = nullptr;
 static swSignal signals[SW_SIGNO_MAX];
 static int _lock = 0;
 
@@ -220,7 +220,7 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
     return origin_handler;
 }
 
-bool swSignalfd_create() {
+static bool swSignalfd_create() {
     if (signal_fd != 0) {
         return false;
     }
@@ -239,14 +239,15 @@ bool swSignalfd_create() {
         signal_fd = 0;
         return false;
     }
-
+    signalfd_create_pid = getpid();
     SwooleG.signal_fd = signal_fd;
+
     return true;
 }
 
 bool swSignalfd_setup(Reactor *reactor) {
-    if (signal_fd == 0) {
-        swSignalfd_create();
+    if (signal_fd == 0 && !swSignalfd_create()) {
+        return false;
     }
     if (!swoole_event_isset_handler(SW_FD_SIGNAL)) {
         swoole_event_set_handler(SW_FD_SIGNAL, swSignalfd_onSignal);
@@ -255,7 +256,7 @@ bool swSignalfd_setup(Reactor *reactor) {
             return true;
         });
         reactor->add_destroy_callback([](void *) {
-            if (signal_socket) {
+            if (signal_socket && signalfd_create_pid == getpid()) {
                 swoole_event_del(signal_socket);
             }
         });
@@ -277,13 +278,12 @@ static void swSignalfd_clear() {
         }
         sw_memset_zero(&signalfd_mask, sizeof(signalfd_mask));
     }
-    signal_fd = 0;
+    SwooleG.signal_fd = signal_fd = 0;
 }
 
 static int swSignalfd_onSignal(Reactor *reactor, swEvent *event) {
-    int n;
     struct signalfd_siginfo siginfo;
-    n = read(event->fd, &siginfo, sizeof(siginfo));
+    ssize_t n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0) {
         swSysWarn("read from signalfd failed");
         return SW_OK;
