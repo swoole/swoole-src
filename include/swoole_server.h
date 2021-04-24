@@ -858,7 +858,7 @@ class Server {
         if (iter == worker_buffers.end()) {
             if (info->flags & SW_EVENT_DATA_BEGIN) {
                 auto buffer = make_string(info->len, worker_buffer_allocator);
-                worker_buffers.emplace(info->msg_id, buffer);
+                worker_buffers.emplace(info->msg_id, std::shared_ptr<String>(buffer));
                 return buffer;
             }
             return nullptr;
