@@ -20,27 +20,24 @@
 #include "test_core.h"
 #include "swoole_util.h"
 
-static int timer1_count = 0;
-static int timer2_count = 0;
-static int timer_running = false;
-
 using swoole::Timer;
 using swoole::TimerNode;
 
 TEST(timer, sys) {
     SwooleG.use_signalfd = 0;
-    timer_running = true;
-    timer1_count = timer2_count = 0;
+    int timer1_count = 0;
+    int timer2_count = 0;
+    int timer_running = true;
 
     uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
 
     swoole_timer_add(
-        20, false, [](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+        20, false, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
 
     swoole_timer_add(
         100,
         true,
-        [](Timer *, TimerNode *tnode) {
+        [&](Timer *, TimerNode *tnode) {
             timer2_count++;
             if (timer2_count == 5) {
                 swoole_timer_del(tnode);
@@ -63,22 +60,24 @@ TEST(timer, sys) {
 
     swoole_timer_free();
 
-    ASSERT_LE(ms2 - ms1, 505);
+    ASSERT_LE(ms2 - ms1, 510);
+    ASSERT_EQ(timer1_count, 1);
+    ASSERT_EQ(timer2_count, 5);
 }
 
 TEST(timer, async) {
-    timer_running = true;
-
-    uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
+    int timer1_count = 0;
+    int timer2_count = 0;
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
-
+    
+    uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
     swoole_timer_after(
-        20, [](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+        20, [&](Timer *, TimerNode *) { timer1_count++; }, nullptr);
 
     swoole_timer_tick(
         100,
-        [](Timer *, TimerNode *tnode) {
+        [&](Timer *, TimerNode *tnode) {
             timer2_count++;
             if (timer2_count == 5) {
                 swoole_timer_del(tnode);
@@ -87,10 +86,8 @@ TEST(timer, async) {
         nullptr);
 
     swoole_event_wait();
-
     uint64_t ms2 = swoole::time<std::chrono::milliseconds>();
-
-    swoole_timer_free();
-
     ASSERT_LE(ms2 - ms1, 510);
+    ASSERT_EQ(timer1_count, 1);
+    ASSERT_EQ(timer2_count, 5);
 }
