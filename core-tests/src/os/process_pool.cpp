@@ -36,3 +36,35 @@ TEST(process_pool, unix_sock) {
 
     test_func(pool);
 }
+
+TEST(process_pool, msgqueue) { 
+    ProcessPool pool{};
+    ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
+
+    test_func(pool);
+}
+
+constexpr int magic_number = 99900011;
+
+TEST(process_pool, shutdown) { 
+    ProcessPool pool{};
+    int *shm_value = (int *) sw_mem_pool()->alloc(sizeof(int));    
+    ASSERT_EQ(pool.create(1, 0x9501, SW_IPC_MSGQUEUE), SW_OK);
+
+    // init 
+    pool.set_protocol(1, 8192);
+    pool.ptr = shm_value;
+    pool.onWorkerStart = [](ProcessPool *pool, int worker_id) {
+        int *shm_value = (int *) pool->ptr;
+        *shm_value = magic_number;
+    };
+
+    // start
+    ASSERT_EQ(pool.start(), SW_OK);
+
+    usleep(100000);
+    
+    // shutdown
+    pool.shutdown();
+    ASSERT_EQ(*shm_value, magic_number);
+}

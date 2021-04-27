@@ -276,6 +276,7 @@ int ProcessPool::dispatch_blocking(const char *data, uint32_t len) {
 
 /**
  * dispatch data to worker
+ * @return SW_OK/SW_ERR
  */
 int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
     int ret = 0;
@@ -299,7 +300,7 @@ int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
         sw_atomic_fetch_add(&worker->tasking_num, 1);
     }
 
-    return ret;
+    return ret > 0 ? SW_OK : SW_ERR;
 }
 
 void ProcessPool::shutdown() {

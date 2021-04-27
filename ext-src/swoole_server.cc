@@ -3120,7 +3120,7 @@ static PHP_METHOD(swoole_server, taskwait) {
 
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
 
-    if (serv->gs->task_workers.dispatch_blocking(&buf, &_dst_worker_id) >= 0) {
+    if (serv->gs->task_workers.dispatch_blocking(&buf, &_dst_worker_id) == SW_OK) {
         while (1) {
             if (task_notify_socket->wait_event((int) (timeout * 1000), SW_EVENT_READ) != SW_OK) {
                 break;
