@@ -163,6 +163,7 @@ struct StreamInfo {
     network::Socket *socket;
     network::Socket *last_connection;
     char *socket_file;
+    int socket_port;
     String *response_buffer;
 };
 
@@ -218,7 +219,7 @@ struct ProcessPool {
     uint8_t scheduler_warning;
     time_t warning_time;
 
-    int (*onTask)(ProcessPool *pool, swEventData *task);
+    int (*onTask)(ProcessPool *pool, EventData *task);
     void (*onWorkerStart)(ProcessPool *pool, int worker_id);
     void (*onMessage)(ProcessPool *pool, const char *data, uint32_t length);
     void (*onWorkerStop)(ProcessPool *pool, int worker_id);
@@ -266,15 +267,15 @@ struct ProcessPool {
     pid_t spawn(Worker *worker);
     int dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
-    int dispatch_blocking(swEventData *data, int *dst_worker_id);
+    int dispatch_blocking(EventData *data, int *dst_worker_id);
+    int dispatch_blocking(const char *data, uint32_t len);
     int add_worker(Worker *worker);
     int del_worker(Worker *worker);
     void destroy();
+    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPC_type ipc_mode = SW_IPC_NONE);
     int create_unix_socket(const char *socket_file, int blacklog);
     int create_tcp_socket(const char *host, int port, int blacklog);
     int schedule();
-
-    static int create(ProcessPool *pool, uint32_t worker_num, key_t msgqueue_key, int ipc_mode);
 };
 };  // namespace swoole
 

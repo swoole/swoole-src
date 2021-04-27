@@ -65,3 +65,32 @@ TEST(timer, sys) {
 
     ASSERT_LE(ms2 - ms1, 505);
 }
+
+TEST(timer, async) {
+    timer_running = true;
+
+    uint64_t ms1 = swoole::time<std::chrono::milliseconds>();
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    swoole_timer_after(
+        20, [](Timer *, TimerNode *) { timer1_count++; }, nullptr);
+
+    swoole_timer_tick(
+        100,
+        [](Timer *, TimerNode *tnode) {
+            timer2_count++;
+            if (timer2_count == 5) {
+                swoole_timer_del(tnode);
+            }
+        },
+        nullptr);
+
+    swoole_event_wait();
+
+    uint64_t ms2 = swoole::time<std::chrono::milliseconds>();
+
+    swoole_timer_free();
+
+    ASSERT_LE(ms2 - ms1, 510);
+}

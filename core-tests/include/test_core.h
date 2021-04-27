@@ -25,6 +25,7 @@
 #define TEST_HTTP_PROXY_HOST "127.0.0.1"
 
 #define ASSERT_MEMEQ(x,y,n)   ASSERT_EQ(memcmp((x), (y), n), 0)
+#define EXPECT_MEMEQ(x,y,n)   EXPECT_EQ(memcmp((x), (y), n), 0)
 
 namespace swoole { namespace test {
 const std::string &get_root_path();

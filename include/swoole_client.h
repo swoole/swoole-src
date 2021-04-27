@@ -174,7 +174,7 @@ class Stream {
         }
     }
     ~Stream();
-    static int recv_blocking(Socket *sock, void *__buf, size_t __len);
+    static ssize_t recv_blocking(Socket *sock, void *__buf, size_t __len);
     static void set_protocol(Protocol *protocol);
 
   private:
