@@ -453,6 +453,42 @@ static int swReactorThread_onPipeRead(swReactor *reactor, swEvent *ev)
                 {
                     swReactorThread_shutdown(reactor);
                 }
+                else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE)
+                {
+                    int session_id = resp->info.fd;
+                    swConnection *conn = swServer_connection_verify_no_ssl(serv, session_id);
+
+                    if (!conn)
+                    {
+                        swoole_error_log(SW_LOG_NOTICE,
+                                         SW_ERROR_SESSION_NOT_EXIST,
+                                         "force close connection failed, session#%ld does not exist",
+                                         session_id);
+                        return SW_ERR;
+                    }
+
+                    if (serv->disable_notify || conn->close_force)
+                    {
+                        return swReactorThread_close(reactor, conn->fd);
+                    }
+
+#ifdef SW_USE_OPENSSL
+                    /**
+                     * SSL connections that have not completed the handshake,
+                     * do not need to notify the workers, just close
+                     */
+                    if (conn->ssl && !conn->ssl_ready)
+                    {
+                        return swReactorThread_close(reactor, conn->fd);
+                    }
+#endif
+
+                    conn->close_force = 1;
+                    swEvent _ev = {};
+                    _ev.fd = conn->fd;
+                    _ev.socket = conn->socket;
+                    swReactor_trigger_close_event(reactor, &_ev);
+                }
                 else
                 {
                     _send.info = resp->info;
@@ -1301,7 +1337,6 @@ static void swHeartbeatThread_loop(swThreadParam *param)
     swSignal_none();
 
     swServer *serv = (swServer *) param->object;
-    swReactor *reactor;
 
     int fd;
     int serv_max_fd;
@@ -1329,25 +1364,21 @@ static void swHeartbeatThread_loop(swThreadParam *param)
                     continue;
                 }
 
-                conn->close_force = 1;
                 conn->close_notify = 1;
 
-                if (serv->single_thread)
-                {
-                    reactor = SwooleTG.reactor;
-                }
-                else
-                {
-                    reactor = &serv->reactor_threads[conn->reactor_id].reactor;
-                }
                 //notify to reactor thread
-                if (conn->peer_closed)
+                if (conn->peer_closed || serv->single_thread)
                 {
                     serv->notify(serv, conn, SW_SERVER_EVENT_CLOSE);
                 }
                 else
                 {
-                    reactor->set(reactor, fd, SW_FD_SESSION | SW_EVENT_WRITE);
+                    swDataHead ev{};
+                    ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
+                    // convert fd to session_id, in order to verify the connection before the force close connection
+                    ev.fd = conn->session_id;
+                    int _pipe_fd = swServer_get_send_pipe(serv, conn->session_id, conn->reactor_id);
+                    swSocket_write_blocking(_pipe_fd, (void *) &ev, sizeof(ev));
                 }
             }
         }
