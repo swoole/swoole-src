@@ -24,7 +24,7 @@ static void test_func(ProcessPool &pool) {
 TEST(process_pool, tcp) { 
     ProcessPool pool{};
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
-    ASSERT_EQ(pool.create_tcp_socket(TEST_HOST, TEST_PORT, 128), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
     
     test_func(pool);
 }
@@ -33,7 +33,7 @@ TEST(process_pool, unix_sock) {
     ProcessPool pool{};
     signal(SIGPIPE, SIG_IGN);
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
-    ASSERT_EQ(pool.create_unix_socket(TEST_TMP_FILE, 128), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_TMP_FILE, 128), SW_OK);
 
     test_func(pool);
 }
@@ -42,7 +42,7 @@ TEST(process_pool, tcp_raw) {
     ProcessPool pool{};
     constexpr int size = 2*1024*1024;
     ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
-    ASSERT_EQ(pool.create_tcp_socket(TEST_HOST, TEST_PORT, 128), SW_OK);
+    ASSERT_EQ(pool.listen(TEST_HOST, TEST_PORT, 128), SW_OK);
     pool.set_protocol(0, size);
 
     String data(size);

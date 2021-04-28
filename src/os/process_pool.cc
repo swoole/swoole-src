@@ -122,7 +122,7 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPC_type _i
     return SW_OK;
 }
 
-int ProcessPool::create_unix_socket(const char *socket_file, int blacklog) {
+int ProcessPool::listen(const char *socket_file, int blacklog) {
     if (ipc_mode != SW_IPC_SOCKET) {
         swWarn("ipc_mode is not SW_IPC_SOCKET");
         return SW_ERR;
@@ -139,7 +139,7 @@ int ProcessPool::create_unix_socket(const char *socket_file, int blacklog) {
     return SW_OK;
 }
 
-int ProcessPool::create_tcp_socket(const char *host, int port, int blacklog) {
+int ProcessPool::listen(const char *host, int port, int blacklog) {
     if (ipc_mode != SW_IPC_SOCKET) {
         swWarn("ipc_mode is not SW_IPC_SOCKET");
         return SW_ERR;

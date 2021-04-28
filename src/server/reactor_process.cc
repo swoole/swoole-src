@@ -77,6 +77,7 @@ int Server::start_reactor_processes() {
     }
 
     ProcessPool *pool = &gs->event_workers;
+    *pool = {};
     if (pool->create(worker_num, 0, SW_IPC_UNIXSOCK) < 0) {
         return SW_ERR;
     }

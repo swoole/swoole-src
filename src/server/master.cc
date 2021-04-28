@@ -374,6 +374,7 @@ int Server::create_task_workers() {
     }
 
     ProcessPool *pool = &gs->task_workers;
+    *pool = {};
     if (pool->create(task_worker_num, key, ipc_mode) < 0) {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
@@ -386,7 +387,7 @@ int Server::create_task_workers() {
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
-        if (gs->task_workers.create_unix_socket(sockfile, 2048) < 0) {
+        if (gs->task_workers.listen(sockfile, 2048) < 0) {
             return SW_ERR;
         }
     }

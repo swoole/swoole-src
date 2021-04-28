@@ -45,10 +45,9 @@ class ExitStatus {
   private:
     pid_t pid_;
     int status_;
-  public:
-    ExitStatus(pid_t _pid, int _status) : pid_(_pid), status_(_status) {
 
-    }
+  public:
+    ExitStatus(pid_t _pid, int _status) : pid_(_pid), status_(_status) {}
 
     pid_t get_pid() const {
         return pid_;
@@ -220,13 +219,12 @@ struct ProcessPool {
     uint8_t scheduler_warning;
     time_t warning_time;
 
-    int (*onTask)(ProcessPool *pool, EventData *task);
-    void (*onWorkerStart)(ProcessPool *pool, int worker_id);
-    void (*onMessage)(ProcessPool *pool, const char *data, uint32_t length);
-    void (*onWorkerStop)(ProcessPool *pool, int worker_id);
-
-    int (*main_loop)(ProcessPool *pool, Worker *worker);
-    int (*onWorkerNotFound)(ProcessPool *pool, const ExitStatus &exit_status);
+    std::function<int(ProcessPool *, EventData *)> onTask;
+    std::function<void(ProcessPool *, int)> onWorkerStart;
+    std::function<void(ProcessPool *, const char *, uint32_t)> onMessage;
+    std::function<void(ProcessPool *, int)> onWorkerStop;
+    std::function<int(ProcessPool *, const ExitStatus &)> onWorkerNotFound;
+    std::function<int(ProcessPool *, Worker *)> main_loop;
 
     sw_atomic_t round_id;
 
@@ -274,8 +272,8 @@ struct ProcessPool {
     int del_worker(Worker *worker);
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPC_type ipc_mode = SW_IPC_NONE);
-    int create_unix_socket(const char *socket_file, int blacklog);
-    int create_tcp_socket(const char *host, int port, int blacklog);
+    int listen(const char *socket_file, int blacklog);
+    int listen(const char *host, int port, int blacklog);
     int schedule();
 };
 };  // namespace swoole
