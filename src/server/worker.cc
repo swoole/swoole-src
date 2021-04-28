@@ -14,18 +14,15 @@
   +----------------------------------------------------------------------+
 */
 
-#include <assert.h>
 #include <pwd.h>
 #include <grp.h>
 #include <sys/uio.h>
 #include <sys/mman.h>
 
 #include "swoole_server.h"
-#include "swoole_util.h"
 #include "swoole_memory.h"
 #include "swoole_msg_queue.h"
 #include "swoole_client.h"
-#include "swoole_async.h"
 
 swoole::WorkerGlobal SwooleWG = {};
 

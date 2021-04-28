@@ -16,19 +16,11 @@
 
 #include "php_swoole_http_server.h"
 
-#include <iostream>
-
 SW_EXTERN_C_BEGIN
-#include "ext/standard/url.h"
 #include "ext/standard/sha1.h"
-#include "ext/standard/php_var.h"
-#include "ext/standard/php_string.h"
-#include "ext/date/php_date.h"
-#include "main/php_variables.h"
 SW_EXTERN_C_END
 
 #include "swoole_base64.h"
-#include "thirdparty/swoole_http_parser.h"
 
 using swoole::Connection;
 using swoole::ListenPort;

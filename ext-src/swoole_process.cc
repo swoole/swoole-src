@@ -15,10 +15,8 @@
 */
 
 #include "php_swoole_cxx.h"
-#include "php_streams.h"
-#include "php_network.h"
-
 #include "php_swoole_process.h"
+
 #include "swoole_server.h"
 #include "swoole_msg_queue.h"
 #include "swoole_signal.h"

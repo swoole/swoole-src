@@ -16,7 +16,6 @@
 
 #include "swoole_socket.h"
 
-#include <assert.h>
 #include <memory>
 
 #include "swoole_api.h"

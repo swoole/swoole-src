@@ -15,15 +15,12 @@
 */
 
 #include <sys/file.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/statvfs.h>
 #include <netdb.h>
 #include <poll.h>
 #include <dirent.h>
 
-#include <string>
-#include <iostream>
 #include <mutex>
 #include <unordered_map>
 

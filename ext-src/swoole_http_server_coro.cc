@@ -18,7 +18,6 @@
 
 #include <string>
 #include <map>
-#include <algorithm>
 
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;

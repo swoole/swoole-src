@@ -97,7 +97,7 @@ int my_onReceive(swServer *serv, swRecvData *req) {
 
     g_receive_count++;
 
-    swConnection *conn = serv->get_connection_by_session_id(req->info.fd);
+    Connection *conn = serv->get_connection_by_session_id(req->info.fd);
 
     memcpy(req_data, req->data, req->info.len);
     swoole::rtrim(req_data, req->info.len);

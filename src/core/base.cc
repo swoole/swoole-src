@@ -22,23 +22,15 @@
 
 #include <sys/stat.h>
 #include <sys/resource.h>
-#include <sys/ioctl.h>
-
-#ifdef HAVE_EXECINFO
-#include <execinfo.h>
-#endif
 
 #ifdef __MACH__
 #include <sys/syslimits.h>
 #endif
 
-#include <regex>
 #include <algorithm>
 #include <list>
 #include <set>
 #include <unordered_map>
-#include <thread>
-#include <sstream>
 
 #include "swoole_api.h"
 #include "swoole_string.h"
@@ -46,7 +38,6 @@
 #include "swoole_memory.h"
 #include "swoole_protocol.h"
 #include "swoole_util.h"
-#include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
 
@@ -748,6 +739,7 @@ void swoole_print_backtrace(void) {
     std::cout << boost::stacktrace::stacktrace();
 }
 #elif defined(HAVE_EXECINFO)
+#include <execinfo.h>
 void swoole_print_backtrace(void) {
     int size = 16;
     void *array[16];

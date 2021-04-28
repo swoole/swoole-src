@@ -23,7 +23,6 @@
 #endif
 
 #include <unordered_map>
-#include <initializer_list>
 
 /* openssl */
 #ifndef OPENSSL_NO_ECDH

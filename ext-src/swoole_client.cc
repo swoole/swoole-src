@@ -29,8 +29,6 @@ using swoole::Socks5Proxy;
 using swoole::HttpProxy;
 using swoole::String;
 
-#include "ext/standard/basic_functions.h"
-
 struct ClientCallback {
     zend_fcall_info_cache cache_onConnect;
     zend_fcall_info_cache cache_onReceive;

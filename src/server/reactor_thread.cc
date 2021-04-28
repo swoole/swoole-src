@@ -17,10 +17,8 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_hash.h"
-#include "swoole_http.h"
 #include "swoole_client.h"
 #include "swoole_util.h"
-#include "swoole_websocket.h"
 
 #include <assert.h>
 
