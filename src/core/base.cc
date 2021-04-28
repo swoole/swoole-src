@@ -38,6 +38,7 @@
 #include "swoole_memory.h"
 #include "swoole_protocol.h"
 #include "swoole_util.h"
+#include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
 
@@ -255,7 +256,7 @@ pid_t swoole_fork(int flags) {
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
         }
         if (SwooleTG.async_threads) {
-            swTrace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, SwooleTG.reactor);
+            swTrace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
         }
     }
