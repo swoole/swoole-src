@@ -20,7 +20,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include <sys/wait.h>
 #if defined(__linux__)
 #include <sys/prctl.h>
 #elif defined(__FreeBSD__)

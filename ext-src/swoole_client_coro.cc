@@ -19,9 +19,6 @@
 #include "swoole_socket.h"
 #include "swoole_protocol.h"
 #include "swoole_proxy.h"
-#include "swoole_mqtt.h"
-
-#include "ext/standard/basic_functions.h"
 
 using swoole::coroutine::Socket;
 using swoole::network::Address;

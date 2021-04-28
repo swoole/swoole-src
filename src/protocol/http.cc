@@ -17,9 +17,6 @@
 #include "swoole_http.h"
 #include "swoole_server.h"
 
-#include <assert.h>
-#include <stddef.h>
-
 #include <string>
 
 #include "swoole_util.h"

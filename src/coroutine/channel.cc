@@ -16,8 +16,6 @@
 
 #include "swoole_coroutine_channel.h"
 
-#include <unordered_map>
-
 namespace swoole {
 namespace coroutine {
 

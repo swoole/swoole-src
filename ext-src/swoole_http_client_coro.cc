@@ -21,6 +21,7 @@
 #include "php_swoole_http.h"
 
 #include "swoole_string.h"
+#include "swoole_protocol.h"
 #include "swoole_file.h"
 #include "swoole_util.h"
 #include "swoole_websocket.h"
@@ -32,8 +33,6 @@ SW_EXTERN_C_BEGIN
 
 #include "thirdparty/swoole_http_parser.h"
 
-#include "ext/standard/basic_functions.h"
-#include "ext/standard/php_http.h"
 #include "ext/standard/base64.h"
 
 #ifdef SW_HAVE_ZLIB

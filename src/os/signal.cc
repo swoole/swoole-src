@@ -19,7 +19,6 @@
 #include "swoole_signal.h"
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
-#include "swoole_string.h"
 
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>

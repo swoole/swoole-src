@@ -16,8 +16,6 @@
 
 #include "php_swoole_http_server.h"
 
-#include "main/rfc1867.h"
-
 using namespace swoole;
 using swoole::coroutine::Socket;
 using http_request = swoole::http::Request;

@@ -16,15 +16,13 @@
 
 #include "swoole.h"
 #include "swoole_memory.h"
+
 #include <vector>
-#include <list>
 #include <mutex>
 
 #define SW_MIN_PAGE_SIZE 4096
 
 namespace swoole {
-
-struct MemoryBlock;
 
 struct GlobalMemoryImpl {
     bool shared;

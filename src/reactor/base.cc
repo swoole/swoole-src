@@ -18,11 +18,8 @@
 #include "swoole_socket.h"
 #include "swoole_signal.h"
 #include "swoole_reactor.h"
-#include "swoole_timer.h"
 #include "swoole_api.h"
 #include "swoole_c_api.h"
-
-#include <system_error>
 
 namespace swoole {
 using network::Socket;

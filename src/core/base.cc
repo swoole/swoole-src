@@ -22,23 +22,15 @@
 
 #include <sys/stat.h>
 #include <sys/resource.h>
-#include <sys/ioctl.h>
-
-#ifdef HAVE_EXECINFO
-#include <execinfo.h>
-#endif
 
 #ifdef __MACH__
 #include <sys/syslimits.h>
 #endif
 
-#include <regex>
 #include <algorithm>
 #include <list>
 #include <set>
 #include <unordered_map>
-#include <thread>
-#include <sstream>
 
 #include "swoole_api.h"
 #include "swoole_string.h"
@@ -264,7 +256,7 @@ pid_t swoole_fork(int flags) {
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
         }
         if (SwooleTG.async_threads) {
-            swTrace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, SwooleTG.reactor);
+            swTrace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
             swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
         }
     }
@@ -748,6 +740,7 @@ void swoole_print_backtrace(void) {
     std::cout << boost::stacktrace::stacktrace();
 }
 #elif defined(HAVE_EXECINFO)
+#include <execinfo.h>
 void swoole_print_backtrace(void) {
     int size = 16;
     void *array[16];

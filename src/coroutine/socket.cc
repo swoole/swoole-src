@@ -20,7 +20,6 @@
 #include "swoole_coroutine_socket.h"
 
 #include <string>
-#include <iostream>
 
 #include "swoole_util.h"
 #include "swoole_socket.h"

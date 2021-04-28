@@ -22,8 +22,6 @@
 
 #include "main/php_variables.h"
 
-#include <vector>
-
 using namespace swoole;
 using std::string;
 using swoole::coroutine::System;
@@ -954,7 +952,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
             client->send_window += value;
         } else if (client->streams.find(stream_id) != client->streams.end()) {
             stream = client->streams[stream_id];
-            Server *serv = (swServer *) stream->ctx->private_data;
+            Server *serv = (Server *) stream->ctx->private_data;
 
             stream->send_window += value;
             if (serv->send_yield && stream->waiting_coroutine) {
