@@ -177,6 +177,7 @@ struct ProcessPool {
     bool started;
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
+    pid_t master_pid;
     uint32_t reload_worker_i;
     uint32_t max_wait_time;
     Worker *reload_workers;

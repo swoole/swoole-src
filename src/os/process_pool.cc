@@ -167,6 +167,7 @@ int ProcessPool::start() {
 
     uint32_t i;
     running = started = true;
+    master_pid = getpid();
 
     for (i = 0; i < worker_num; i++) {
         workers[i].pool = this;
