@@ -362,7 +362,7 @@ void Server::store_listen_socket() {
  */
 int Server::create_task_workers() {
     key_t key = 0;
-    int ipc_mode;
+    swIPC_type ipc_mode;
 
     if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
         key = message_queue_key;
@@ -374,7 +374,8 @@ int Server::create_task_workers() {
     }
 
     ProcessPool *pool = &gs->task_workers;
-    if (ProcessPool::create(pool, task_worker_num, key, ipc_mode) < 0) {
+    *pool = {};
+    if (pool->create(task_worker_num, key, ipc_mode) < 0) {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
@@ -386,7 +387,7 @@ int Server::create_task_workers() {
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
-        if (gs->task_workers.create_unix_socket(sockfile, 2048) < 0) {
+        if (gs->task_workers.listen(sockfile, 2048) < 0) {
             return SW_ERR;
         }
     }

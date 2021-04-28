@@ -128,26 +128,17 @@ int Stream::send(const char *data, size_t length) {
     return SW_OK;
 }
 
-int Stream::recv_blocking(Socket *sock, void *__buf, size_t __len) {
+ssize_t Stream::recv_blocking(Socket *sock, void *__buf, size_t __len) {
     int tmp = 0;
     ssize_t ret = sock->recv_blocking(&tmp, sizeof(tmp), MSG_WAITALL);
-
     if (ret <= 0) {
-        return SW_CLOSE;
+        return SW_ERR;
     }
     int length = (int) ntohl(tmp);
-    if (length <= 0) {
-        return SW_CLOSE;
-    } else if (length > (int) __len) {
-        return SW_CLOSE;
+    if (length <= 0 || length > (int) __len) {
+        return SW_ERR;
     }
-
-    ret = sock->recv_blocking(__buf, length, MSG_WAITALL);
-    if (ret <= 0) {
-        return SW_CLOSE;
-    } else {
-        return SW_READY;
-    }
+    return sock->recv_blocking(__buf, length, MSG_WAITALL);
 }
 
 }  // namespace network

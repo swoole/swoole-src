@@ -307,7 +307,8 @@ static PHP_METHOD(swoole_process_pool, __construct) {
     }
 
     ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));
-    if (ProcessPool::create(pool, worker_num, (key_t) msgq_key, ipc_type) < 0) {
+    *pool = {};
+    if (pool->create(worker_num, (key_t) msgq_key, (swIPC_type) ipc_type) < 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
         efree(pool);
         RETURN_FALSE;
@@ -450,9 +451,9 @@ static PHP_METHOD(swoole_process_pool, listen) {
     int ret;
     // unix socket
     if (SW_STRCASECT(host, l_host, "unix:/")) {
-        ret = pool->create_unix_socket(host + 5, backlog);
+        ret = pool->listen(host + 5, backlog);
     } else {
-        ret = pool->create_tcp_socket(host, port, backlog);
+        ret = pool->listen(host, port, backlog);
     }
     pool->stream_info_->socket->set_fd_option(0, 1);
 
