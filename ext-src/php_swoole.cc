@@ -38,7 +38,7 @@ END_EXTERN_C()
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
-#if __MACH__
+#if defined(__MACH__) || defined(__FreeBSD__)
 #include <net/if_dl.h>
 #endif
 
