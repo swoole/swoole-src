@@ -1,5 +1,5 @@
 --TEST--
-swoole_process: signal
+swoole_process: signal in manager
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
