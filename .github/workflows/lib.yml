@@ -3,7 +3,7 @@ name: lib-swoole
 on: [push, pull_request]
 
 env:
-  CODECOV_TOKEN: "50513381-198e-43d3-a8b1-e36b95038927" # from: https://codecov.io/gh/swoole/swoole-src
+  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
 
 jobs:
   build:
@@ -41,6 +41,11 @@ jobs:
       run: sudo apt-get install lcov &&
           sudo lcov --directory . --capture --output-file coverage.info &&
           sudo lcov --remove coverage.info "${{runner.workspace}}/swoole-src/include/*" '/usr/*' --output-file coverage.info &&
-          sudo lcov --list coverage.info &&
-          sudo curl -s https://codecov.io/bash -o codecov.sh &&
-          sudo chmod +x codecov.sh && sudo ./codecov.sh -f coverage.info -t ${CODECOV_TOKEN}
+          sudo lcov --list coverage.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.info
+        fail_ci_if_error: true
