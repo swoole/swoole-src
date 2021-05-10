@@ -1080,6 +1080,15 @@ class Server {
         return SwooleG.process_type == SW_PROCESS_USERWORKER;
     }
 
+    bool is_sync_process() {
+        if (is_manager()) {
+            return true;
+        }
+        if (is_task_worker() && !task_enable_coroutine) {
+            return true;
+        }
+        return false;
+    }
     inline bool is_shutdown() {
         return gs->shutdown;
     }

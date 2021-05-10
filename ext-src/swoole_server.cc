@@ -3777,7 +3777,7 @@ static PHP_METHOD(swoole_server, protect) {
 
 static PHP_METHOD(swoole_server, getWorkerId) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (!serv->is_worker()) {
+    if (!serv->is_worker() && !serv->is_task_worker()) {
         RETURN_FALSE;
     } else {
         RETURN_LONG(SwooleG.process_id);
@@ -3812,7 +3812,7 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
 
 static PHP_METHOD(swoole_server, getWorkerPid) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (!serv->is_worker()) {
+    if (!serv->is_worker() && !serv->is_task_worker()) {
         zend_long worker_id = -1;
         if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &worker_id) == FAILURE) {
             RETURN_FALSE;
