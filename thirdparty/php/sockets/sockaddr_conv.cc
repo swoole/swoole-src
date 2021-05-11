@@ -77,7 +77,7 @@ int php_set_inet_addr(struct sockaddr_in *sin, char *string, Socket *php_sock) /
 	struct in_addr tmp;
 	struct hostent *host_entry;
 
-	if (inet_aton(string, &tmp)) {
+	if (inet_pton(AF_INET, string, &tmp)) {
 		sin->sin_addr.s_addr = tmp.s_addr;
 	} else {
 #if PHP_VERSION_ID >= 70006
