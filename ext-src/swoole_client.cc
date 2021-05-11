@@ -1210,7 +1210,12 @@ static PHP_METHOD(swoole_client, getsockname) {
         }
     } else {
         add_assoc_long(return_value, "port", ntohs(cli->socket->info.addr.inet_v4.sin_port));
-        add_assoc_string(return_value, "host", inet_ntoa(cli->socket->info.addr.inet_v4.sin_addr));
+        char tmp[INET_ADDRSTRLEN];
+        if (inet_ntop(AF_INET, &cli->socket->info.addr.inet_v4.sin_addr, tmp, sizeof(tmp))) {
+            add_assoc_string(return_value, "host", tmp);
+        } else {
+            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
+        }
     }
 }
 
@@ -1248,7 +1253,13 @@ static PHP_METHOD(swoole_client, getpeername) {
     if (cli->socket->socket_type == SW_SOCK_UDP) {
         array_init(return_value);
         add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v4.sin_port));
-        add_assoc_string(return_value, "host", inet_ntoa(cli->remote_addr.addr.inet_v4.sin_addr));
+        char tmp[INET_ADDRSTRLEN];
+
+        if (inet_ntop(AF_INET, &cli->remote_addr.addr.inet_v4.sin_addr, tmp, sizeof(tmp))) {
+            add_assoc_string(return_value, "host", tmp);
+        } else {
+            php_swoole_fatal_error(E_WARNING, "inet_ntop() failed");
+        }
     } else if (cli->socket->socket_type == SW_SOCK_UDP6) {
         array_init(return_value);
         add_assoc_long(return_value, "port", ntohs(cli->remote_addr.addr.inet_v6.sin6_port));
