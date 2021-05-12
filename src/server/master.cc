@@ -1150,9 +1150,8 @@ int Server::send_to_connection(SendData *_send) {
         _socket->send_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
     }
 
-    // listen EPOLLOUT event
-    if (reactor->set(_socket, SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT)) {
-        goto _close_fd;
+    if (!_socket->isset_writable_event()) {
+        reactor->add_write_event(_socket);
     }
 
     return SW_OK;

@@ -420,6 +420,14 @@ struct Socket {
         return true;
     }
 
+    bool isset_readable_event() {
+        return events & SW_EVENT_READ;
+    }
+
+    bool isset_writable_event() {
+        return events & SW_EVENT_READ;
+    }
+
     int wait_event(int timeout_ms, int events);
     void free();
 
@@ -488,6 +496,8 @@ struct Socket {
             abort();
             return SW_ERROR;
         case EBADF:
+        case ENOENT:
+            return SW_INVALID;
         case ECONNRESET:
         case ECONNABORTED:
         case EPIPE:
