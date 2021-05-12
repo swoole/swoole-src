@@ -425,7 +425,7 @@ struct Socket {
     }
 
     bool isset_writable_event() {
-        return events & SW_EVENT_READ;
+        return events & SW_EVENT_WRITE;
     }
 
     int wait_event(int timeout_ms, int events);
