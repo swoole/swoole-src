@@ -23,7 +23,9 @@ static thread_local char tmp_address[INET6_ADDRSTRLEN];
 
 const char *Address::get_addr() {
     if (type == SW_SOCK_TCP || type == SW_SOCK_UDP) {
-        return inet_ntoa(addr.inet_v4.sin_addr);
+        if (inet_ntop(AF_INET, &addr.inet_v4.sin_addr, tmp_address, sizeof(tmp_address))) {
+            return tmp_address;
+        }
     } else if (type == SW_SOCK_TCP6 || type == SW_SOCK_UDP6) {
         if (inet_ntop(AF_INET6, &addr.inet_v6.sin6_addr, tmp_address, sizeof(tmp_address))) {
             return tmp_address;
