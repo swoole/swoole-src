@@ -23,13 +23,19 @@ run(function () {
     $httpClient = new SymfonyHttplugClient(
         SymfonyHttpClient::create(['max_duration' => 5])
     );
+    $uid = uniqid();
     $req = Psr17FactoryDiscovery::findRequestFactory()
-        ->createRequest('POST', 'http://www.qq.com')
+        ->createRequest('POST', 'http://www.httpbin.org/post')
         ->withHeader('Content-Type', 'application/json')
-        ->withBody(Psr17FactoryDiscovery::findStreamFactory()->createStream('test'));
+        ->withBody(Psr17FactoryDiscovery::findStreamFactory()->createStream(json_encode(['key' => $uid])));
 
     $res = (new PluginClient($httpClient))->sendAsyncRequest($req)->wait();
-    Assert::contains($res->getHeaders()['server'], 'nginx');
+
+    $json = $res->getBody()->getContents();
+    Assert::notEmpty($json);
+    $data_1 = json_decode($json);
+    $data_2 = json_decode($data_1->data);
+    Assert::eq($data_2->key, $uid);
     echo 'Done' . PHP_EOL;
 });
 
