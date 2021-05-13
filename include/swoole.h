@@ -353,6 +353,7 @@ enum swReturn_code {
     SW_CLOSE    = 3,
     SW_ERROR    = 4,
     SW_READY    = 5,
+    SW_INVALID  = 6,
 };
 
 enum swFd_type {

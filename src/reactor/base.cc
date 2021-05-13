@@ -267,8 +267,9 @@ static int write_func(
                 }
                 socket->out_buffer = buffer;
             }
-
-            reactor->add_write_event(socket);
+            if (!socket->isset_writable_event()) {
+                reactor->add_write_event(socket);
+            }
             goto _append_buffer;
         } else if (errno == EINTR) {
             goto _do_send;
@@ -340,9 +341,7 @@ int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
     while (!Buffer::empty(buffer)) {
         BufferChunk *chunk = buffer->front();
         if (chunk->type == BufferChunk::TYPE_CLOSE) {
-        _close_fd:
-            reactor->close(reactor, ev->socket);
-            return SW_OK;
+            return reactor->close(reactor, ev->socket);
         } else if (chunk->type == BufferChunk::TYPE_SENDFILE) {
             ret = socket->handle_sendfile();
         } else {
@@ -351,7 +350,7 @@ int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
 
         if (ret < 0) {
             if (socket->close_wait) {
-                goto _close_fd;
+                return reactor->trigger_close_event(ev);
             } else if (socket->send_wait) {
                 return SW_OK;
             }

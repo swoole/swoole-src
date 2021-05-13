@@ -30,10 +30,6 @@
 using swoole::Reactor;
 
 #ifdef HAVE_SIGNALFD
-static sigset_t signalfd_mask;
-static int signal_fd = 0;
-static pid_t signalfd_create_pid;
-static swoole::network::Socket *signal_socket = nullptr;
 static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler);
 static bool swSignalfd_create();
 static void swSignalfd_clear();
@@ -43,6 +39,12 @@ static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
 #endif
 static void swSignal_async_handler(int signo);
 
+#ifdef HAVE_SIGNALFD
+static sigset_t signalfd_mask;
+static int signal_fd = 0;
+static pid_t signalfd_create_pid;
+static swoole::network::Socket *signal_socket = nullptr;
+#endif
 static swSignal signals[SW_SIGNO_MAX];
 static int _lock = 0;
 

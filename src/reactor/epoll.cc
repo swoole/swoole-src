@@ -60,7 +60,6 @@ class ReactorEpoll : public ReactorImpl {
             events |= EPOLLONESHOT;
         }
         if (Reactor::isset_error_event(fdtype)) {
-            // flag |= (EPOLLRDHUP);
             events |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
         }
         return events;
