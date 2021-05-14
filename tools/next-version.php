@@ -15,11 +15,11 @@ class Version
 
     function getVersion()
     {
-        $versoin = implode('.', [$this->major, $this->minor, $this->release]);
+        $version = implode('.', [$this->major, $this->minor, $this->release]);
         if ($this->extra) {
-            $versoin .= '-' . $this->extra;
+            $version .= '-' . $this->extra;
         }
-        return $versoin;
+        return $version;
     }
 
     function getVersionId()
@@ -31,6 +31,7 @@ class Version
 $type = empty($argv[1]) ? 'release' : trim($argv[1]);
 $kernel_version_file = dirname(__DIR__) . '/include/swoole_version.h';
 $cmake_file = dirname(__DIR__) . '/CMakeLists.txt';
+$package_file = dirname(__DIR__) . '/package.xml';
 
 $versionInfo = file_get_contents($kernel_version_file);
 
@@ -66,6 +67,15 @@ if ($type == 'release') {
     $next->extra = 'dev';
 } else {
     exit("wrong version type");
+}
+
+if (empty($next->extra)) {
+    $doc = new DOMDocument();
+    $doc->load($package_file);
+    $versions = $doc->getElementsByTagName("version");
+    $versions[0]->getElementsByTagName('release')->item(0)->nodeValue = $next->getVersion();
+    $versions[0]->getElementsByTagName('api')->item(0)->nodeValue = $next->major . '.0';
+    $doc->save($package_file);
 }
 
 ob_start();
