@@ -693,7 +693,7 @@ class Server {
     TimerNode *heartbeat_timer = nullptr;
 
     /* buffer output/input setting*/
-    uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
+    uint32_t output_buffer_size = UINT_MAX;
     uint32_t input_buffer_size = SW_INPUT_BUFFER_SIZE;
     uint32_t max_queued_bytes = 0;
 
