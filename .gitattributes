@@ -2,4 +2,4 @@
 /benchmark/ export-ignore
 /core-tests/ export-ignore
 /.travis.yml export-ignore
-*.h linguist-language=C++
+*.h linguist-language=cpp
