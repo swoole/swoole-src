@@ -748,7 +748,6 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
         chunk = swBuffer_get_chunk(conn->socket->out_buffer);
         if (chunk->type == SW_CHUNK_CLOSE)
         {
-            _close_fd:
             reactor->close(reactor, fd);
             return SW_OK;
         }
@@ -766,7 +765,7 @@ static int swReactorThread_onWrite(swReactor *reactor, swEvent *ev)
             if (conn->socket->close_wait)
             {
                 conn->close_errno = errno;
-                goto _close_fd;
+                return swReactor_trigger_close_event(reactor, ev);
             }
             else if (conn->socket->send_wait)
             {
