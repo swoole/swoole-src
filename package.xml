@@ -42,10 +42,10 @@
         <email>shenzhe163@gmail.com</email>
         <active>yes</active>
     </developer>
-    <date>2021-04-08</date>
-    <time>10:00:00</time>
+    <date>2021-05-15</date>
+    <time>19:00:00</time>
     <version>
-        <release>4.4.25</release>
+        <release>4.4.26</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -56,7 +56,7 @@
     <notes>
         Fixed
         ---
-        * Fix httpclient proxy with host and port
+        * Fixed special case OnClose event missing while listening for writable events
     </notes>
     <contents>
         <dir name="/">
