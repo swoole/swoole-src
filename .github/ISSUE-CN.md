@@ -47,7 +47,7 @@ Please answer these questions before submitting your issue. Thanks!
 更多时候, Valgrind比gdb更能发现内存问题, 通过以下指令运行你的程序, 直到触发BUG
 
 ```shell
-USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php xxx.php
+USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php your_file.php
 ```
 
 * 当程序发生错误时, 可以通过键入 `ctrl+c` 退出, 然后上传 `/tmp/valgrind.log` 文件以便于开发组定位BUG.

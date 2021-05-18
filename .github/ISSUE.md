@@ -32,7 +32,7 @@ The most important thing is to provide a simple script for reproducing the error
 In addition to using `gdb` analysis, you can use the `valgrind` tool to check if the program is working properly.
 
 ```shell
-USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php xxx.php
+USE_ZEND_ALLOC=0 valgrind --log-file=/tmp/valgrind.log php your_file.php
 ```
 
 * After the program is executed to the wrong location, `ctrl+c` is interrupted, and upload the `/tmp/valgrind.log` file.
