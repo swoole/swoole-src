@@ -76,6 +76,11 @@ int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPC_type _i
         return SW_ERR;
     }
 
+    message_box = Channel::make(65536, sizeof(WorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
+    if (message_box == nullptr) {
+        return SW_ERR;
+    }
+
     if (_ipc_mode == SW_IPC_MSGQUEUE) {
         use_msgqueue = 1;
         msgqueue_key = _msgqueue_key;
@@ -605,6 +610,21 @@ int ProcessPool_add_worker(ProcessPool *pool, Worker *worker) {
     return SW_OK;
 }
 
+bool ProcessPool::detach() {
+    WorkerStopMessage msg;
+    msg.pid = getpid();
+    msg.worker_id = SwooleG.process_id;
+
+    if (message_box && message_box->push(&msg, sizeof(msg)) < 0) {
+        return false;
+    }
+    if (swoole_kill(master_pid, SIGIO) < 0) {
+        return false;
+    }
+    running = false;
+    return true;
+}
+
 int ProcessPool::wait() {
     pid_t new_pid, reload_worker_pid = 0;
     int ret;
@@ -621,6 +641,25 @@ int ProcessPool::wait() {
         if (SwooleG.signal_alarm && SwooleTG.timer) {
             SwooleG.signal_alarm = false;
             SwooleTG.timer->select();
+        }
+        if (read_message) {
+            WorkerStopMessage msg;
+            while (message_box->pop(&msg, sizeof(msg)) > 0) {
+                if (!running) {
+                    continue;
+                }
+                Worker *exit_worker = get_worker_by_pid(msg.pid);
+                if (exit_worker == nullptr) {
+                    continue;
+                }
+                pid_t new_pid = spawn(exit_worker);
+                if (new_pid < 0) {
+                    swSysWarn("Fork worker process failed");
+                    return SW_ERR;
+                }
+                map_->erase(msg.pid);
+            }
+            read_message = false;
         }
         if (exit_status.get_pid() < 0) {
             if (!running) {
@@ -645,8 +684,8 @@ int ProcessPool::wait() {
         }
 
         if (running) {
-            auto iter = map_->find(exit_status.get_pid());
-            if (iter == map_->end()) {
+            Worker *exit_worker = get_worker_by_pid(exit_status.get_pid());
+            if (exit_worker == nullptr) {
                 if (onWorkerNotFound) {
                     onWorkerNotFound(this, exit_status);
                 } else {
@@ -655,7 +694,6 @@ int ProcessPool::wait() {
                 continue;
             }
 
-            Worker *exit_worker = iter->second;
             if (!exit_status.is_normal_exit()) {
                 swWarn("worker#%d abnormal exit, status=%d, signal=%d"
                        "%s",
@@ -730,6 +768,10 @@ void ProcessPool::destroy() {
 
     if (map_) {
         delete map_;
+    }
+
+    if (message_box) {
+        message_box->destroy();
     }
 
     sw_mem_pool()->free(workers);

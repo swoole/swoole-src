@@ -24,6 +24,7 @@
 
 #include "swoole_lock.h"
 #include "swoole_pipe.h"
+#include "swoole_channel.h"
 #include "swoole_msg_queue.h"
 
 enum swWorker_status {
@@ -173,6 +174,7 @@ struct ProcessPool {
     bool reloading;
     bool running;
     bool reload_init;
+    bool read_message;
     bool started;
     uint8_t dispatch_mode;
     uint8_t ipc_mode;
@@ -234,6 +236,7 @@ struct ProcessPool {
     Reactor *reactor;
     MsgQueue *queue;
     StreamInfo *stream_info_;
+    Channel *message_box = nullptr;
 
     void *ptr;
 
@@ -257,9 +260,18 @@ struct ProcessPool {
         return &(workers[worker_id - start_id]);
     }
 
+    Worker *get_worker_by_pid(pid_t pid) {
+        auto iter = map_->find(pid);
+        if (iter == map_->end()) {
+            return nullptr;
+        }
+        return iter->second;
+    }
+
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
     int get_max_request();
     int set_protocol(int task_protocol, uint32_t max_packet_size);
+    bool detach();
     int wait();
     int start();
     void shutdown();
