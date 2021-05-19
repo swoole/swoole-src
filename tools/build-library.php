@@ -70,6 +70,17 @@ foreach ($files as $file) {
     }
 }
 
+$diff_files = array_diff(swoole_library_files(), $files);
+if (!empty($diff_files)) {
+    swoole_error('Some files are not loaded: ', ...$diff_files);
+}
+
+foreach ($files as $file) {
+    if (!file_exists(LIBRARY_SRC_DIR . '/' . $file)) {
+        swoole_error("Unable to find source file [{$file}]");
+    }
+}
+
 $source_str = $eval_str = '';
 foreach ($files as $file) {
     $php_file = LIBRARY_SRC_DIR . '/' . $file;

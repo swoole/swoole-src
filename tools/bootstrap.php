@@ -152,3 +152,19 @@ function swoole_source_list(array $ext_list = [], array $excepts = []): array
 
     return $source_list;
 }
+
+function swoole_library_files()
+{
+    $files = [];
+
+    $file_spl_objects = new \RecursiveIteratorIterator(
+        new \RecursiveDirectoryIterator(LIBRARY_SRC_DIR, \RecursiveDirectoryIterator::SKIP_DOTS),
+        \RecursiveIteratorIterator::LEAVES_ONLY
+    );
+
+    foreach ($file_spl_objects as $full_file_name => $file_spl_object) {
+        $files[] = str_replace(LIBRARY_SRC_DIR . '/', '', $full_file_name);
+    }
+
+    return $files;
+}
