@@ -19,6 +19,10 @@ function clear_php()
     `ps -A | grep php | grep -v phpstorm | grep -v 'run-tests' | awk '{print $1}' | xargs kill -9 > /dev/null 2>&1`;
 }
 
+function puts($msg) {
+    echo $msg."\n";
+}
+
 function top(int $pid)
 {
     static $available;
