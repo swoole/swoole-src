@@ -141,19 +141,6 @@ _dtor_and_return:
     return SW_OK;
 }
 
-void php_swoole_http_server_onClose(Server *serv, DataHead *ev) {
-    Connection *conn = serv->get_connection_by_session_id(ev->fd);
-    if (!conn) {
-        return;
-    }
-    php_swoole_server_onClose(serv, ev);
-#ifdef SW_USE_HTTP2
-    if (conn->http2_stream) {
-        swoole_http2_server_session_free(conn);
-    }
-#endif
-}
-
 void php_swoole_http_server_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_EX(
         swoole_http_server, "Swoole\\Http\\Server", "swoole_http_server", nullptr, nullptr, swoole_server);

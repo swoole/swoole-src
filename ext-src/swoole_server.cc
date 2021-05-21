@@ -15,6 +15,7 @@
  */
 
 #include "php_swoole_server.h"
+#include "php_swoole_http_server.h"
 #include "php_swoole_process.h"
 #include "swoole_msg_queue.h"
 
@@ -1156,9 +1157,6 @@ void ServerObject::on_before_start() {
 
     if (find_http_port) {
         serv->onReceive = php_swoole_http_server_onReceive;
-        if (serv->is_support_unsafe_events()) {
-            serv->onClose = php_swoole_http_server_onClose;
-        }
         php_swoole_http_server_init_global_variant();
     }
 }
@@ -1843,25 +1841,37 @@ void php_swoole_server_onConnect(Server *serv, DataHead *info) {
 void php_swoole_server_onClose(Server *serv, DataHead *info) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
+    SessionId session_id = info->fd;
 
     if (serv->enable_coroutine && serv->send_yield) {
-        auto _i_coros_list = server_object->property->send_coroutine_map.find(info->fd);
+        auto _i_coros_list = server_object->property->send_coroutine_map.find(session_id);
         if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
             auto coros_list = _i_coros_list->second;
-            server_object->property->send_coroutine_map.erase(info->fd);
+            server_object->property->send_coroutine_map.erase(session_id);
             while (!coros_list->empty()) {
                 FutureTask *context = coros_list->front();
                 coros_list->pop_front();
                 swoole_set_last_error(ECONNRESET);
                 zval_ptr_dtor(&context->coro_params);
                 ZVAL_NULL(&context->coro_params);
-                php_swoole_server_send_resume(serv, context, info->fd);
+                php_swoole_server_send_resume(serv, context, session_id);
             }
             delete coros_list;
         }
     }
 
-    auto fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onClose);
+    auto *fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onClose);
+    Connection *conn = serv->get_connection_by_session_id(session_id);
+    if (!conn) {
+        return;
+    }
+    if (conn->websocket_status != WEBSOCKET_STATUS_ACTIVE) {
+        ListenPort *port = serv->get_port_by_server_fd(info->server_fd);
+        if (port && port->open_websocket_protocol
+                && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {
+            fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onDisconnect);
+        }
+    }
     if (fci_cache) {
         zval *zserv = (zval *) serv->private_data_2;
         zval args[3];
@@ -1872,14 +1882,14 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             zval *object = &args[1];
             object_init_ex(object, swoole_server_event_ce);
             zend_update_property_long(
-                swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("fd"), (zend_long) info->fd);
+                swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("fd"), (zend_long) session_id);
             zend_update_property_long(
                 swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("reactor_id"), (zend_long) info->reactor_id);
             zend_update_property_double(
                 swoole_server_event_ce, SW_Z8_OBJ_P(object), ZEND_STRL("dispatch_time"), info->time);
             argc = 2;
         } else {
-            ZVAL_LONG(&args[1], info->fd);
+            ZVAL_LONG(&args[1], session_id);
             ZVAL_LONG(&args[2], info->reactor_id);
             argc = 3;
         }
@@ -1892,6 +1902,12 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             zval_ptr_dtor(&args[1]);
         }
     }
+
+#ifdef SW_USE_HTTP2
+    if (conn->http2_stream) {
+        swoole_http2_server_session_free(conn);
+    }
+#endif
 }
 
 void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
