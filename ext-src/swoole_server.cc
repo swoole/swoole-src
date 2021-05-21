@@ -3452,7 +3452,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }
-    if (worker_id >= serv->worker_num + serv->task_worker_num) {
+    if (worker_id < 0 && worker_id >= serv->worker_num + serv->task_worker_num) {
         php_swoole_fatal_error(E_WARNING, "worker_id[%d] is invalid", (int) worker_id);
         RETURN_FALSE;
     }

@@ -611,6 +611,10 @@ int ProcessPool_add_worker(ProcessPool *pool, Worker *worker) {
 }
 
 bool ProcessPool::detach() {
+    if (!running) {
+        return false;
+    }
+
     WorkerStopMessage msg;
     msg.pid = getpid();
     msg.worker_id = SwooleG.process_id;
@@ -622,6 +626,7 @@ bool ProcessPool::detach() {
         return false;
     }
     running = false;
+
     return true;
 }
 
