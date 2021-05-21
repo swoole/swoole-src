@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         if (!$cli->connect('127.0.0.1', $pm->getFreePort(0), 0.5))
         {
             fail:
-            echo "ERROR\n";
+            echo "ERROR 1\n";
             return;
         }
         //no eof, should be timeout here
@@ -36,14 +36,13 @@ $pm->parentFunc = function ($pid) use ($pm)
         echo "OK\n";
     });
 
-    go(function () use ($pm)
-    {
+    go(function () use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort(1));
-        if ( $cli->get("/") ) {
+        if ($cli->get("/")) {
             echo $cli->body;
             Assert::same($cli->statusCode, 200);
         } else {
-            echo "ERROR\n";
+            echo "ERROR 2\n";
         }
     });
 
@@ -68,21 +67,18 @@ $pm->childFunc = function () use ($pm)
 
     $port2 = $server->listen('127.0.0.1', $pm->getFreePort(1), SWOOLE_SOCK_TCP);
     $port2->set(['open_http_protocol' => true,]);
-    $port2->on("request", function ($req, $resp)
-    {
+    $port2->on("request", function ($req, $resp) {
         $resp->end("hello swooler\n");
     });
 
-    $server->on("WorkerStart", function (\swoole_server $serv)
-    {
+    $server->on("WorkerStart", function (\swoole_server $serv) {
         /**
          * @var $pm ProcessManager
          */
         global $pm;
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response)
-    {
+    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
         $response->end("OK\n");
     });
     $server->start();
