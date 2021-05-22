@@ -1,0 +1,2 @@
+ignore:
+  - "src/core/error.cc"
