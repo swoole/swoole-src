@@ -26,49 +26,45 @@ foreach ($matches as $option) {
     $result .= space(4) . sprintf("public const OPTION_%s = '%s';\n\n", strtoupper($option), $option);
 }
 
+$event_file = [
+    "{$root_dir}/ext-src/swoole_server.cc",
+    "{$root_dir}/ext-src/swoole_server_port.cc"
+];
+
+$server_event_content = '';
+foreach ($event_file as $file) {
+    $server_event_content .= file_get_contents($file);
+}
+preg_match_all('/vent\(SW_SERVER_CB_on(.+?),/', $server_event_content, $server_event);
+$server_events = array_unique($server_event[1]);
+
+$event_result = '';
+foreach ($server_events as $event) {
+    $event_result .= space(4) . sprintf("public const EVENT_%s = '%s';\n\n", strtoupper(unCamelize($event)), lcfirst($event));
+}
+
 $constant_php_content = file_get_contents($constant_php);
-$constant_php_content = preg_replace(
-    '/(\/\* \{\{\{ OPTION \*\/\n)([\s\S]*)(\/\* \}\}\} OPTION \*\/)/',
-    '${1}' . $result . space(4) . '${3}',
-    $constant_php_content,
-    1,
-    $replaced
-);
 
-if (!$replaced || !file_put_contents($constant_php, $constant_php_content)) {
-    swoole_error('Update constant option failed');
-}
+$event_pattern = '/(\/\* \{\{\{ EVENT \*\/\n)([\s\S]*)(\/\* \}\}\} EVENT \*\/)/';
+$option_pattern = '/(\/\* \{\{\{ OPTION \*\/\n)([\s\S]*)(\/\* \}\}\} OPTION \*\/)/';
 
-$server_events = [];
-$server_event_file = "{$root_dir}/ext-src/swoole_server.cc";
-if (file_exists($server_event_file)) {
-    $server_event_content = file_get_contents($server_event_file);
-    preg_match_all('/ServerEvent\(SW_SERVER_CB_on(.+?),/', $server_event_content, $server_event);
-    $server_events = array_merge($server_events, array_unique($server_event[1]));
-}
-$server_port_event_file = "{$root_dir}/ext-src/swoole_server_port.cc";
-if (file_exists($server_port_event_file)) {
-    $server_port_event_content = file_get_contents($server_port_event_file);
-    preg_match_all('/server_port_event\(SW_SERVER_CB_on(.+?),/', $server_port_event_content, $server_event);
-    $server_events = array_merge($server_events, array_unique($server_event[1]));
-}
-if (!empty($server_events)) {
-    $result = '';
-    foreach ($server_events as $event) {
-        $result .= space(4) . sprintf("public const EVENT_%s = '%s';\n\n", strtoupper(unCamelize($event)), lcfirst($event));
-    }
-
-    $constant_php_content = file_get_contents($constant_php);
-    $constant_php_content = preg_replace(
-        '/(\/\* \{\{\{ EVENT \*\/\n)([\s\S]*)(\/\* \}\}\} EVENT \*\/)/',
+function replaceConstantContent($pattern, $result, &$content) {
+    $content = preg_replace(
+        $pattern,
         '${1}' . $result . space(4) . '${3}',
-        $constant_php_content,
+        $content,
         1,
         $replaced
     );
-    if (!$replaced || !file_put_contents($constant_php, $constant_php_content)) {
-        swoole_error('Update constant event failed');
-    }
+
+    return $replaced;
+}
+
+$event_replaced = replaceConstantContent($event_pattern, $event_result, $constant_php_content);
+$option_replaced = replaceConstantContent($option_pattern, $result, $constant_php_content);
+
+if (!$event_replaced || !$option_replaced || !file_put_contents($constant_php, $constant_php_content)) {
+    swoole_error('Update constant failed');
 }
 
 swoole_success('Constant generator successfully done!');
