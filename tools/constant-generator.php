@@ -55,7 +55,7 @@ if (file_exists($server_port_event_file)) {
 if (!empty($server_events)) {
     $result = '';
     foreach ($server_events as $event) {
-        $result .= space(4) . sprintf("public const EVENT_%s = '%s';\n\n", strtoupper($event), lcfirst($event));
+        $result .= space(4) . sprintf("public const EVENT_%s = '%s';\n\n", strtoupper(unCamelize($event)), lcfirst($event));
     }
 
     $constant_php_content = file_get_contents($constant_php);
