@@ -41,7 +41,7 @@ static sw_inline ProcessObject *php_swoole_process_fetch_object(zend_object *obj
     return (ProcessObject *) ((char *) obj - swoole_process_handlers.offset);
 }
 
-static sw_inline Worker *php_swoole_process_get_worker(zval *zobject) {
+Worker *php_swoole_process_get_worker(zval *zobject) {
     return php_swoole_process_fetch_object(Z_OBJ_P(zobject))->worker;
 }
 
@@ -506,7 +506,7 @@ static PHP_METHOD(swoole_process, kill) {
     int ret = swoole_kill((int) pid, (int) sig);
     if (ret < 0) {
         if (!(sig == 0 && errno == ESRCH)) {
-            php_swoole_sys_error(E_WARNING, "swKill(%d, %d) failed", (int) pid, (int) sig);
+            php_swoole_sys_error(E_WARNING, "kill(%d, %d) failed", (int) pid, (int) sig);
         }
         RETURN_FALSE;
     }

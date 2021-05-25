@@ -87,18 +87,9 @@ struct ProcessPool;
 struct Worker;
 
 struct WorkerGlobal {
-    /**
-     * Always run
-     */
     bool run_always;
     bool shutdown;
-    /**
-     * pipe_worker
-     */
-    int pipe_used;
-
     uint32_t max_request;
-
     String **output_buffer;
     Worker *worker;
     time_t exit_time;
@@ -299,9 +290,6 @@ static sw_inline int swoole_waitpid(pid_t __pid, int *__stat_loc, int __options)
 }
 
 static sw_inline int swoole_kill(pid_t __pid, int __sig) {
-    if (__pid <= 0) {
-        return -1;
-    }
     return kill(__pid, __sig);
 }
 
