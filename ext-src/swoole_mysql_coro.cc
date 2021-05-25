@@ -1246,19 +1246,37 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params) {
         zend_ulong index = 0;
         zval *value;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(params), value) {
-            if (ZVAL_IS_NULL(value)) {
-                *((buffer->str + null_start_offset) + (index / 8)) |= (1UL << (index % 8));
-                sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_NULL);
-            } else {
-                zend::String str_value(value);
-                uint8_t lcb_size = mysql::write_lcb(stack_buffer, str_value.len());
-                sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
-                if (buffer->append(stack_buffer, lcb_size) < 0) {
-                    RETURN_FALSE;
-                }
-                if (buffer->append(str_value.val(), str_value.len()) < 0) {
-                    RETURN_FALSE;
-                }
+            switch (Z_TYPE_P(value)) {
+                case IS_NULL:
+                    *((buffer->str + null_start_offset) + (index / 8)) |= (1UL << (index % 8));
+                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_NULL);
+                    break;
+                case IS_TRUE:
+                case IS_FALSE:
+                case IS_LONG:
+                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_LONGLONG);
+                    sw_mysql_int8store(stack_buffer, zval_get_long(value));
+                    if (buffer->append(stack_buffer, mysql::get_static_type_size(SW_MYSQL_TYPE_LONGLONG)) < 0) {
+                        RETURN_FALSE;
+                    }
+                    break;
+                case IS_DOUBLE:
+                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_DOUBLE);
+                    sw_mysql_doublestore(stack_buffer, zval_get_double(value));
+                    if (buffer->append(stack_buffer, mysql::get_static_type_size(SW_MYSQL_TYPE_DOUBLE)) < 0) {
+                        RETURN_FALSE;
+                    }
+                    break;
+                default:
+                    zend::String str_value(value);
+                    uint8_t lcb_size = mysql::write_lcb(stack_buffer, str_value.len());
+                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
+                    if (buffer->append(stack_buffer, lcb_size) < 0) {
+                        RETURN_FALSE;
+                    }
+                    if (buffer->append(str_value.val(), str_value.len()) < 0) {
+                        RETURN_FALSE;
+                    }
             }
             index++;
         }
