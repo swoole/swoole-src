@@ -23,8 +23,19 @@ go(function () {
             $statement = $mysql->recv();
             Assert::isInstanceOf($statement, Swoole\Coroutine\MySQL\Statement::class);
         }
+        // int
         $a = mt_rand(0, 65535);
         $b = mt_rand(0, 65535);
+        /** @var $statement Swoole\Coroutine\MySQL\Statement */
+        Assert::true($statement->execute([$a, $b]));
+        Assert::true($statement->recv());
+        $result = $statement->fetchAll();
+        if (Assert::isArray($result)) {
+            Assert::same(reset($result[0]), $a + $b);
+        }
+        // float
+        $a = (float) $a;
+        $b = (float) $b;
         /** @var $statement Swoole\Coroutine\MySQL\Statement */
         Assert::true($statement->execute([$a, $b]));
         Assert::true($statement->recv());

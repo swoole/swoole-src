@@ -1,10 +1,10 @@
 --TEST--
 swoole_mysql_coro: mysql prepare field type
 --SKIPIF--
-<?php require __DIR__.'/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
 <?php
-require __DIR__.'/../include/bootstrap.php';
+require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine as Co;
 
@@ -38,7 +38,9 @@ Co::create(function () {
 
         return;
     }
-    Assert::same($ret3, ['a' => 123, 'b' => 3.14, 'c' => 1, 'd' => 0]);
+    if (Assert::isArray($ret3)) {
+        Assert::same(reset($ret3), ['a' => 123, 'b' => 3.14, 'c' => 1, 'd' => 0]);
+    }
 });
 
 ?>
