@@ -144,7 +144,7 @@ static sw_inline Server *server_get_ptr(zval *zobject) {
 Server *php_swoole_server_get_and_check_server(zval *zobject) {
     Server *serv = server_get_ptr(zobject);
     if (UNEXPECTED(!serv)) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return serv;
 }
@@ -221,7 +221,7 @@ static sw_inline ConnectionIterator *php_swoole_connection_iterator_get_ptr(zval
 ConnectionIterator *php_swoole_connection_iterator_get_and_check_ptr(zval *zobject) {
     ConnectionIterator *iterator = php_swoole_connection_iterator_get_ptr(zobject);
     if (UNEXPECTED(!iterator->serv)) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return iterator;
 }
@@ -252,7 +252,7 @@ static sw_inline ServerTaskObject *php_swoole_server_task_fetch_object(zend_obje
 static sw_inline Server *php_swoole_server_task_get_server(zval *zobject) {
     Server *serv = php_swoole_server_task_fetch_object(Z_OBJ_P(zobject))->serv;
     if (!serv) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return serv;
 }
@@ -264,7 +264,7 @@ static sw_inline void php_swoole_server_task_set_server(zval *zobject, Server *s
 static sw_inline DataHead *php_swoole_server_task_get_info(zval *zobject) {
     ServerTaskObject *task = php_swoole_server_task_fetch_object(Z_OBJ_P(zobject));
     if (!task->serv) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return &task->info;
 }

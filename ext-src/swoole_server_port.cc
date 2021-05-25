@@ -60,7 +60,7 @@ static sw_inline ListenPort *php_swoole_server_port_get_ptr(zval *zobject) {
 ListenPort *php_swoole_server_port_get_and_check_ptr(zval *zobject) {
     ListenPort *port = php_swoole_server_port_get_ptr(zobject);
     if (UNEXPECTED(!port)) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return port;
 }
@@ -76,7 +76,7 @@ ServerPortProperty *php_swoole_server_port_get_property(zval *zobject) {
 static ServerPortProperty *php_swoole_server_port_get_and_check_property(zval *zobject) {
     ServerPortProperty *property = php_swoole_server_port_get_property(zobject);
     if (UNEXPECTED(!property->serv)) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return property;
 }
@@ -433,7 +433,7 @@ static PHP_METHOD(swoole_server_port, set) {
         port->protocol.package_length_type = str_v.val()[0];
         port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
         if (port->protocol.package_length_size == 0) {
-            php_swoole_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+            php_swoole_fatal_error(E_ERROR, "unknown package_length_type, see pack(). Link: http://php.net/pack");
             RETURN_FALSE;
         }
     }

@@ -694,7 +694,7 @@ int ProcessPool::wait() {
                 if (onWorkerNotFound) {
                     onWorkerNotFound(this, exit_status);
                 } else {
-                    swWarn("[Manager]unknow worker[pid=%d]", exit_status.get_pid());
+                    swWarn("[Manager]unknown worker[pid=%d]", exit_status.get_pid());
                 }
                 continue;
             }
