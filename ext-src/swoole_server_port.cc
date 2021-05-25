@@ -433,7 +433,7 @@ static PHP_METHOD(swoole_server_port, set) {
         port->protocol.package_length_type = str_v.val()[0];
         port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
         if (port->protocol.package_length_size == 0) {
-            php_swoole_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+            php_swoole_fatal_error(E_ERROR, "unknown package_length_type, see pack(). Link: http://php.net/pack");
             RETURN_FALSE;
         }
     }

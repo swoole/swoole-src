@@ -702,7 +702,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
             _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         } else {
-            set_err(EINVAL, "unknow protocol[%d]");
+            set_err(EINVAL, "unknown protocol[%d]");
             return false;
         }
     }

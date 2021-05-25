@@ -174,7 +174,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     } else if (Reactor::isset_error_event(_fdtype)) {
         error_handler[fdtype] = handler;
     } else {
-        swWarn("unknow fdtype");
+        swWarn("unknown fdtype");
         return false;
     }
 
