@@ -1246,7 +1246,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params) {
         zend_ulong index = 0;
         zval *value;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(params), value) {
-            switch (Z_TYPE_P(value)) {
+            switch (client->strict_type ? Z_TYPE_P(value) : IS_STRING) {
                 case IS_NULL:
                     *((buffer->str + null_start_offset) + (index / 8)) |= (1UL << (index % 8));
                     sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_NULL);
