@@ -2390,7 +2390,8 @@ static PHP_METHOD(swoole_server, set) {
             php_swoole_fatal_error(E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval");
             serv->heartbeat_check_interval = serv->heartbeat_idle_time / 2;
         }
-    } else if (serv->heartbeat_check_interval > 0) {
+    }
+    if (serv->heartbeat_idle_time == 0 && serv->heartbeat_check_interval > 0) {
         serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
     }
     // max_request
