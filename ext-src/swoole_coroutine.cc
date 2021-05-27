@@ -1005,6 +1005,7 @@ PHP_METHOD(swoole_coroutine, getContext) {
     PHPContext *task =
         (PHPContext *) (EXPECTED(cid == 0) ? Coroutine::get_current_task() : Coroutine::get_task_by_cid(cid));
     if (UNEXPECTED(!task)) {
+        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
         RETURN_NULL();
     }
     if (UNEXPECTED(task->context == (zend_object *) ~0)) {
@@ -1057,15 +1058,41 @@ PHP_METHOD(swoole_coroutine, resume) {
 
     Coroutine *co = coroutine_iterator->second;
     user_yield_coros.erase(cid);
+    co->set_cancel_fn(nullptr);
     co->resume();
+
     RETURN_TRUE;
 }
 
 PHP_METHOD(swoole_coroutine, yield) {
     Coroutine *co = Coroutine::get_current_safe();
     user_yield_coros[co->get_cid()] = co;
+
+    Coroutine::CancelFunc cancel_fn = [](Coroutine *co){
+        user_yield_coros.erase(co->get_cid());
+        co->set_cancel_fn(nullptr);
+        co->resume();
+        return true;
+    };
+
+    co->set_cancel_fn(&cancel_fn);
     co->yield();
+
     RETURN_TRUE;
+}
+
+PHP_METHOD(swoole_coroutine, cancel) {
+    long cid;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &cid) == FAILURE) {
+        RETURN_FALSE;
+    }
+
+    Coroutine *co = swoole_coroutine_get(cid);
+    if (!co) {
+        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+        RETURN_FALSE;
+    }
+    RETURN_BOOL(co->cancel());
 }
 
 PHP_FUNCTION(swoole_test_kernel_coroutine) {
@@ -1106,6 +1133,7 @@ PHP_METHOD(swoole_coroutine, getBackTrace) {
     } else {
         PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!task)) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             RETURN_FALSE;
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
@@ -1136,6 +1164,7 @@ PHP_METHOD(swoole_coroutine, printBackTrace) {
     } else {
         PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
         if (UNEXPECTED(!task)) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             RETURN_FALSE;
         }
         zend_execute_data *ex_backup = EG(current_execute_data);
