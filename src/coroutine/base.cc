@@ -96,6 +96,14 @@ void Coroutine::resume_naked() {
     check_end();
 }
 
+bool Coroutine::cancel() {
+    if (!cancel_fn_) {
+        swoole_set_last_error(SW_ERROR_CO_CANNOT_CANCEL);
+        return false;
+    }
+    return (*cancel_fn_)(this);
+}
+
 void Coroutine::close() {
     SW_ASSERT(current == this);
     state = STATE_END;
@@ -193,6 +201,19 @@ long swoole_coroutine_get_current_id() {
     return swoole::Coroutine::get_current_cid();
 }
 
+swoole::Coroutine *swoole_coroutine_get(long cid) {
+    auto i = swoole::Coroutine::coroutines.find(cid);
+    if (i == swoole::Coroutine::coroutines.end()) {
+        return nullptr;
+    } else {
+        return i->second;
+    }
+}
+
+size_t swoole_coroutine_count() {
+    return swoole::Coroutine::coroutines.size();
+}
+
 /**
  * for gdb
  */
@@ -210,17 +231,4 @@ swoole::Coroutine *swoole_coro_iterator_each() {
         _gdb_iterator++;
         return co;
     }
-}
-
-swoole::Coroutine *swoole_coro_get(long cid) {
-    auto i = swoole::Coroutine::coroutines.find(cid);
-    if (i == swoole::Coroutine::coroutines.end()) {
-        return nullptr;
-    } else {
-        return i->second;
-    }
-}
-
-size_t swoole_coro_count() {
-    return swoole::Coroutine::coroutines.size();
 }

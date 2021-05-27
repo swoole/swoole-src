@@ -154,6 +154,16 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
                                      : socket->ssl_want_write ? "SSL WRITE" :
 #endif
                                                               event == SW_EVENT_READ ? "READ" : "WRITE");
+
+    Coroutine::CancelFunc cancel_fn = [this, event](Coroutine *co){
+        return cancel(event);
+    };
+
+    co->set_cancel_fn(&cancel_fn);
+    ON_SCOPE_EXIT {
+        co->set_cancel_fn(nullptr);
+    };
+
     if (sw_likely(event == SW_EVENT_READ)) {
         read_co = co;
         read_co->yield();

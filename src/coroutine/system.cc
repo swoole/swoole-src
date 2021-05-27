@@ -46,7 +46,7 @@ void System::clear_dns_cache() {
     }
 }
 
-static void aio_onDNSCompleted(AsyncEvent *event) {
+static void dns_completed(AsyncEvent *event) {
     if (event->canceled) {
         return;
     }
@@ -56,7 +56,7 @@ static void aio_onDNSCompleted(AsyncEvent *event) {
     ((Coroutine *) task->co)->resume();
 }
 
-static void aio_onDNSTimeout(Timer *timer, TimerNode *tnode) {
+static void dns_timeout(Timer *timer, TimerNode *tnode) {
     AsyncEvent *event = (AsyncEvent *) tnode->data;
     event->canceled = 1;
     AsyncTask *task = (AsyncTask *) event->object;
@@ -65,16 +65,36 @@ static void aio_onDNSTimeout(Timer *timer, TimerNode *tnode) {
     ((Coroutine *) task->co)->resume();
 }
 
-static void sleep_timeout(Timer *timer, TimerNode *tnode) {
-    ((Coroutine *) tnode->data)->resume();
+static void sleep_callback(Coroutine *co, bool *cancelled) {
+    bool _cancelled = *cancelled;
+    delete cancelled;
+    if (_cancelled) {
+        return;
+    }
+    co->resume();
 }
 
 int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
+
+    bool *cancelled = new bool(false);
+    Coroutine::CancelFunc cancel_fn = [cancelled](Coroutine *co) {
+        *cancelled = true;
+        co->set_cancel_fn(nullptr);
+        return true;
+    };
+
+    co->set_cancel_fn(&cancel_fn);
+
     if (sec < SW_TIMER_MIN_SEC) {
-        swoole_event_defer([co](void *data) { co->resume(); }, nullptr);
-    } else if (swoole_timer_add((long) (sec * 1000), false, sleep_timeout, co) == nullptr) {
-        return -1;
+        swoole_event_defer([co, cancelled](void *data) { sleep_callback(co, cancelled); }, nullptr);
+    } else {
+        auto fn = [cancelled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, cancelled); };
+        auto tnode = swoole_timer_add((long) (sec * 1000), false, fn, co);
+        if (tnode == nullptr) {
+            delete cancelled;
+            return -1;
+        }
     }
     co->yield();
     return 0;
@@ -171,14 +191,14 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     ev.flags = domain;
     ev.object = (void *) &task;
     ev.handler = async::handler_gethostbyname;
-    ev.callback = aio_onDNSCompleted;
+    ev.callback = dns_completed;
     /* TODO: find a better way */
     ev.ret = 1;
 
     AsyncEvent *event = async::dispatch(&ev);
     TimerNode *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
+        timer = swoole_timer_add((long) (timeout * 1000), false, dns_timeout, event);
     }
     task.co->yield();
     if (ev.ret == 1) {
@@ -221,7 +241,7 @@ std::vector<std::string> System::getaddrinfo(
 
     ev.object = &task;
     ev.handler = async::handler_getaddrinfo;
-    ev.callback = aio_onDNSCompleted;
+    ev.callback = dns_completed;
     ev.req = &req;
 
     struct sockaddr_in6 result_buffer[SW_DNS_HOST_BUFFER_SIZE];
@@ -236,7 +256,7 @@ std::vector<std::string> System::getaddrinfo(
     AsyncEvent *event = async::dispatch(&ev);
     TimerNode *timer = nullptr;
     if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, aio_onDNSTimeout, event);
+        timer = swoole_timer_add((long) (timeout * 1000), false, dns_timeout, event);
     }
     task.co->yield();
     if (timer) {

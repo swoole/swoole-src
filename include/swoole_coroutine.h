@@ -37,6 +37,7 @@ class Coroutine {
   public:
     void resume();
     void yield();
+    bool cancel();
 
     void resume_naked();
     void yield_naked();
@@ -61,6 +62,7 @@ class Coroutine {
 
     typedef void (*SwapCallback)(void *);
     typedef void (*BailoutCallback)();
+    typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
 
     inline enum State get_state() {
         return state;
@@ -92,6 +94,10 @@ class Coroutine {
 
     inline void set_task(void *_task) {
         task = _task;
+    }
+
+    void set_cancel_fn(CancelFunc *cancel_fn) {
+        cancel_fn_ = cancel_fn;
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -191,6 +197,7 @@ class Coroutine {
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
+    CancelFunc *cancel_fn_;
 
     Coroutine(const coroutine_func_t &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
@@ -236,5 +243,5 @@ bool run(const coroutine_func_t &fn, void *arg = nullptr);
  */
 swoole::Coroutine *swoole_coro_iterator_each();
 void swoole_coro_iterator_reset();
-swoole::Coroutine *swoole_coro_get(long cid);
-size_t swoole_coro_count();
+swoole::Coroutine *swoole_coroutine_get(long cid);
+size_t swoole_coroutine_count();
