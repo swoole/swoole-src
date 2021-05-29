@@ -652,15 +652,24 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     if (timeout > 0) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
-    task.co->yield();
-    if (event.error == SW_ERROR_AIO_TIMEOUT) {
-        return false;
-    } else {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
+
+    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
+        _ev->canceled = false;
+        _ev->error = SW_ERROR_AIO_CANCELED;
+        co->resume();
         return true;
+    };
+    task.co->set_cancel_fn(&cancel_fn);
+    task.co->yield();
+    task.co->set_cancel_fn(nullptr);
+
+    if (event.catch_error()) {
+        return false;
     }
+    if (timer) {
+        swoole_timer_del(timer);
+    }
+    return true;
 }
 
 struct AsyncLambdaTask {
@@ -699,17 +708,26 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     if (timeout > 0) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
+
+    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
+        _ev->canceled = false;
+        _ev->error = SW_ERROR_AIO_CANCELED;
+        co->resume();
+        return true;
+    };
+    task.co->set_cancel_fn(&cancel_fn);
     task.co->yield();
+    task.co->set_cancel_fn(nullptr);
+
     errno = _ev->error;
     swoole_set_last_error(_ev->error);
-    if (_ev->error == SW_ERROR_AIO_TIMEOUT) {
+    if (_ev->catch_error()) {
         return false;
-    } else {
-        if (timer) {
-            swoole_timer_del(timer);
-        }
-        return true;
     }
+    if (timer) {
+        swoole_timer_del(timer);
+    }
+    return true;
 }
 
 }  // namespace coroutine
