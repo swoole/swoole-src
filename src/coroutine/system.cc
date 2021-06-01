@@ -78,25 +78,27 @@ int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
 
     bool *cancelled = new bool(false);
-    Coroutine::CancelFunc cancel_fn = [cancelled](Coroutine *co) {
-        *cancelled = true;
-        co->set_cancel_fn(nullptr);
-        return true;
-    };
-
-    co->set_cancel_fn(&cancel_fn);
+    TimerNode *tnode = nullptr;
 
     if (sec < SW_TIMER_MIN_SEC) {
         swoole_event_defer([co, cancelled](void *data) { sleep_callback(co, cancelled); }, nullptr);
     } else {
         auto fn = [cancelled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, cancelled); };
-        auto tnode = swoole_timer_add((long) (sec * 1000), false, fn, co);
+        tnode = swoole_timer_add((long) (sec * 1000), false, fn, co);
         if (tnode == nullptr) {
             delete cancelled;
             return -1;
         }
     }
-    co->yield();
+    Coroutine::CancelFunc cancel_fn = [cancelled, tnode](Coroutine *co) {
+        *cancelled = true;
+        if (tnode) {
+            swoole_timer_del(tnode);
+        }
+        co->resume();
+        return true;
+    };
+    co->yield(&cancel_fn);
     return 0;
 }
 
@@ -659,9 +661,7 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
         co->resume();
         return true;
     };
-    task.co->set_cancel_fn(&cancel_fn);
-    task.co->yield();
-    task.co->set_cancel_fn(nullptr);
+    task.co->yield(&cancel_fn);
 
     if (event.catch_error()) {
         return false;
@@ -715,9 +715,7 @@ bool async(const std::function<void(void)> &fn, double timeout) {
         co->resume();
         return true;
     };
-    task.co->set_cancel_fn(&cancel_fn);
-    task.co->yield();
-    task.co->set_cancel_fn(nullptr);
+    task.co->yield(&cancel_fn);
 
     errno = _ev->error;
     swoole_set_last_error(_ev->error);

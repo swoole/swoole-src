@@ -101,7 +101,9 @@ bool Coroutine::cancel() {
         swoole_set_last_error(SW_ERROR_CO_CANNOT_CANCEL);
         return false;
     }
-    return (*cancel_fn_)(this);
+    auto fn = *cancel_fn_;
+    set_cancel_fn(nullptr);
+    return fn(this);
 }
 
 void Coroutine::close() {
@@ -180,7 +182,7 @@ void Coroutine::bailout(BailoutCallback func) {
     exit(1);
 }
 namespace coroutine {
-bool run(const coroutine_func_t &fn, void *arg) {
+bool run(const CoroutineFunc &fn, void *arg) {
     if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
         return false;
     }

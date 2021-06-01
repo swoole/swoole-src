@@ -80,3 +80,14 @@ TEST(coroutine_system, flock) {
     swoole_event_wait();
     unlink(test_file);
 }
+
+TEST(coroutine_system, cancel_sleep) {
+    coroutine::run([](void *arg) {
+        auto co = Coroutine::get_current_safe();
+        Coroutine::create([co](void *){
+            System::sleep(0.002);
+            co->cancel();
+        });
+        System::sleep(1000);
+    });
+}

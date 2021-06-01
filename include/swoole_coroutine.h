@@ -64,6 +64,12 @@ class Coroutine {
     typedef void (*BailoutCallback)();
     typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
 
+    void yield(CancelFunc *cancel_fn) {
+        set_cancel_fn(cancel_fn);
+        yield();
+        set_cancel_fn(nullptr);
+    }
+
     inline enum State get_state() {
         return state;
     }
@@ -107,7 +113,7 @@ class Coroutine {
     static void set_on_close(SwapCallback func);
     static void bailout(BailoutCallback func);
 
-    static inline long create(const coroutine_func_t &fn, void *args = nullptr) {
+    static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
         try {
             return (new Coroutine(fn, args))->run();
@@ -199,7 +205,7 @@ class Coroutine {
     Coroutine *origin = nullptr;
     CancelFunc *cancel_fn_;
 
-    Coroutine(const coroutine_func_t &fn, void *private_data) : ctx(stack_size, fn, private_data) {
+    Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
         coroutines[cid] = this;
         if (sw_unlikely(count() > peak_num)) {
@@ -233,7 +239,7 @@ class Coroutine {
 namespace coroutine {
 bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
-bool run(const coroutine_func_t &fn, void *arg = nullptr);
+bool run(const CoroutineFunc &fn, void *arg = nullptr);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
 }  // namespace swoole

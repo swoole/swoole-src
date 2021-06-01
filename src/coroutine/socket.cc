@@ -159,14 +159,9 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         return cancel(event);
     };
 
-    co->set_cancel_fn(&cancel_fn);
-    ON_SCOPE_EXIT {
-        co->set_cancel_fn(nullptr);
-    };
-
     if (sw_likely(event == SW_EVENT_READ)) {
         read_co = co;
-        read_co->yield();
+        read_co->yield(&cancel_fn);
         read_co = nullptr;
     } else if (event == SW_EVENT_WRITE) {
         if (sw_unlikely(!zero_copy && __n > 0 && *__buf != get_write_buffer()->str)) {
@@ -178,7 +173,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
             *__buf = write_buffer->str;
         }
         write_co = co;
-        write_co->yield();
+        write_co->yield(&cancel_fn);
         write_co = nullptr;
     } else {
         assert(0);

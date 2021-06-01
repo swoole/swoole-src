@@ -44,14 +44,14 @@ typedef ucontext_t coroutine_context_t;
 typedef fcontext_t coroutine_context_t;
 #endif
 
-typedef std::function<void(void *)> coroutine_func_t;
+typedef std::function<void(void *)> CoroutineFunc;
 
 namespace swoole {
 namespace coroutine {
 
 class Context {
   public:
-    Context(size_t stack_size, const coroutine_func_t &fn, void *private_data);
+    Context(size_t stack_size, const CoroutineFunc &fn, void *private_data);
     ~Context();
     bool swap_in();
     bool swap_out();
@@ -62,7 +62,7 @@ class Context {
         return end_;
     }
   protected:
-    coroutine_func_t fn_;
+    CoroutineFunc fn_;
 #ifdef SW_USE_THREAD_CONTEXT
     std::thread thread_;
     std::mutex lock_;

@@ -13,7 +13,7 @@ namespace swoole { namespace test {
 class coroutine
 {
 public:
-    coroutine(const coroutine_func_t &_fn, void *_arg, int *_complete_num) :
+    coroutine(const CoroutineFunc &_fn, void *_arg, int *_complete_num) :
             fn(_fn), arg(_arg), complete_num(_complete_num) { }
 
     void start()
@@ -22,7 +22,7 @@ public:
         (*complete_num)++;
     }
 
-    inline static void create(const coroutine_func_t &fn, void *arg, int *complete_num)
+    inline static void create(const CoroutineFunc &fn, void *arg, int *complete_num)
     {
         auto test = new coroutine(fn, arg, complete_num);
 
@@ -34,7 +34,7 @@ public:
         ASSERT_GT(cid, 0);
     }
 
-    inline static void run(std::initializer_list<std::pair<coroutine_func_t, void*>> args)
+    inline static void run(std::initializer_list<std::pair<CoroutineFunc, void*>> args)
     {
         int complete_num = 0;
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
@@ -45,7 +45,7 @@ public:
         swoole_event_wait();
     }
 
-    inline static void run(std::initializer_list<coroutine_func_t> fns)
+    inline static void run(std::initializer_list<CoroutineFunc> fns)
     {
         int complete_num = 0;
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
@@ -56,7 +56,7 @@ public:
         swoole_event_wait();
     }
 
-    inline static void run(const coroutine_func_t &fn, void *arg = nullptr)
+    inline static void run(const CoroutineFunc &fn, void *arg = nullptr)
     {
         int complete_num = 0;
         swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
@@ -65,7 +65,7 @@ public:
     }
 
 private:
-    coroutine_func_t fn;
+    CoroutineFunc fn;
     void *arg;
     int *complete_num;
 };

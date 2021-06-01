@@ -1058,7 +1058,6 @@ PHP_METHOD(swoole_coroutine, resume) {
 
     Coroutine *co = coroutine_iterator->second;
     user_yield_coros.erase(cid);
-    co->set_cancel_fn(nullptr);
     co->resume();
 
     RETURN_TRUE;
@@ -1070,13 +1069,11 @@ PHP_METHOD(swoole_coroutine, yield) {
 
     Coroutine::CancelFunc cancel_fn = [](Coroutine *co){
         user_yield_coros.erase(co->get_cid());
-        co->set_cancel_fn(nullptr);
         co->resume();
         return true;
     };
 
-    co->set_cancel_fn(&cancel_fn);
-    co->yield();
+    co->yield(&cancel_fn);
 
     RETURN_TRUE;
 }
