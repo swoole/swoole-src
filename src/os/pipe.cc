@@ -17,8 +17,6 @@
 #include "swoole_pipe.h"
 #include "swoole_socket.h"
 
-#include <memory>
-
 namespace swoole {
 using network::Socket;
 

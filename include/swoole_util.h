@@ -64,6 +64,23 @@ static inline long time(bool steady = false) {
     }
 }
 
+class DeferTask {
+ private:
+    std::stack<Callback> list_;
+ public:
+    void add(Callback fn) {
+        list_.push(fn);
+    }
+
+    ~DeferTask() {
+        while(!list_.empty()) {
+            auto fn = list_.top();
+            fn(nullptr);
+            list_.pop();
+        }
+    }
+};
+
 template <typename Fun>
 class ScopeGuard {
   public:

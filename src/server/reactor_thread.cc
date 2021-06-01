@@ -17,10 +17,8 @@
 #include "swoole_server.h"
 #include "swoole_memory.h"
 #include "swoole_hash.h"
-#include "swoole_http.h"
 #include "swoole_client.h"
 #include "swoole_util.h"
-#include "swoole_websocket.h"
 
 #include <assert.h>
 
@@ -650,9 +648,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     while (!Buffer::empty(socket->out_buffer)) {
         BufferChunk *chunk = socket->out_buffer->front();
         if (chunk->type == BufferChunk::TYPE_CLOSE) {
-        _close_fd:
-            reactor->close(reactor, socket);
-            return SW_OK;
+            return reactor->close(reactor, socket);
         } else if (chunk->type == BufferChunk::TYPE_SENDFILE) {
             ret = socket->handle_sendfile();
         } else {
@@ -665,7 +661,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         if (ret < 0) {
             if (socket->close_wait) {
                 conn->close_errno = errno;
-                goto _close_fd;
+                return reactor->trigger_close_event(ev);
             } else if (socket->send_wait) {
                 break;
             }

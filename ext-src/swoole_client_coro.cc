@@ -15,10 +15,10 @@
 */
 
 #include "php_swoole_cxx.h"
+#include "swoole_string.h"
+#include "swoole_socket.h"
+#include "swoole_protocol.h"
 #include "swoole_proxy.h"
-#include "swoole_mqtt.h"
-
-#include "ext/standard/basic_functions.h"
 
 using swoole::coroutine::Socket;
 using swoole::network::Address;
@@ -734,7 +734,7 @@ static PHP_METHOD(swoole_client_coro, recv) {
                 retval = -1;
                 cli->set_err(ENOMEM);
             } else {
-                result = sw_get_zend_string(strval);
+                result = zend::fetch_zend_string_by_val(strval);
             }
         }
     } else {

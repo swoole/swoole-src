@@ -111,8 +111,9 @@ typedef struct {
 	zval                          postfields;
 	/* CurlShareHandle object set using CURLOPT_SHARE. */
 #if PHP_VERSION_ID >= 80000
-	struct _php_curlsh *share;
+	struct _php_curlsh            *share;
 #endif
+	const char                    *private_data;
 #if PHP_VERSION_ID >= 80000
 	zend_object                   std;
 #endif

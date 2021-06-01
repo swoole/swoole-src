@@ -144,6 +144,8 @@ enum swErrorCode {
      * Process exit timeout, forced to end.
      */
     SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+    SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
+    SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA,
 
     /**
      * Coroutine

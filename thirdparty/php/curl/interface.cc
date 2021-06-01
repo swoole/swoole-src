@@ -134,6 +134,24 @@ php_curl *_php_curl_get_handle(zval *zid, bool exclusive, bool required) {
     return ch;
 }
 
+static long php_curl_easy_setopt_str(php_curl *ch, CURLoption option, const char *str) {
+    if (option == CURLOPT_PRIVATE) {
+        ch->private_data = str;
+        return CURLE_OK;
+    } else {
+        return curl_easy_setopt(ch->cp, option, str);
+    }
+}
+
+static long php_curl_easy_getinfo_str(php_curl *ch, CURLINFO option, char **value) {
+    if (option == CURLINFO_PRIVATE) {
+        *value = (char *) ch->private_data;
+        return CURLE_OK;
+    } else {
+        return curl_easy_getinfo(ch->cp, option, value);
+    }
+}
+
 static int php_curl_option_str(php_curl *ch, zend_long option, const char *str, const size_t len, zend_bool make_copy) {
     long error = CURLE_OK;
 
@@ -153,11 +171,11 @@ static int php_curl_option_str(php_curl *ch, zend_long option, const char *str, 
 
         /* Strings passed to libcurl as 'char *' arguments, are copied by the library since 7.17.0 */
         copystr = estrndup(str, len);
-        error = curl_easy_setopt(ch->cp, (CURLoption) option, copystr);
+        php_curl_easy_setopt_str(ch, (CURLoption) option, copystr);
         zend_llist_add_element(&ch->to_free->str, &copystr);
 #if LIBCURL_VERSION_NUM >= 0x071100
     } else {
-        error = curl_easy_setopt(ch->cp, (CURLoption) option, str);
+        error = php_curl_easy_setopt_str(ch, (CURLoption) option, str);
     }
 #endif
 
@@ -2186,7 +2204,7 @@ PHP_FUNCTION(swoole_native_curl_setopt) {
     Z_PARAM_ZVAL(zvalue)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = _php_curl_get_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid, false)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2219,7 +2237,7 @@ PHP_FUNCTION(swoole_native_curl_setopt_array) {
     Z_PARAM_ARRAY(arr)
     ZEND_PARSE_PARAMETERS_END();
 
-    if ((ch = _php_curl_get_handle(zid)) == NULL) {
+    if ((ch = _php_curl_get_handle(zid, false)) == NULL) {
         RETURN_FALSE;
     }
 
@@ -2536,7 +2554,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
             case CURLINFO_STRING: {
                 char *s_code = NULL;
 
-                if (curl_easy_getinfo(ch->cp, (CURLINFO) option, &s_code) == CURLE_OK && s_code) {
+                if (php_curl_easy_getinfo_str(ch, (CURLINFO) option, &s_code) == CURLE_OK && s_code) {
                     RETURN_STRING(s_code);
                 } else {
                     RETURN_FALSE;
@@ -2691,6 +2709,13 @@ void _php_curl_free(php_curl *ch) {
     curl_easy_setopt(ch->cp, CURLOPT_HEADERFUNCTION, curl_write_nothing);
     curl_easy_setopt(ch->cp, CURLOPT_WRITEFUNCTION, curl_write_nothing);
 
+    swoole::curl::Handle *handle = nullptr;
+    curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
+
+    if (handle && handle->multi) {
+        handle->multi->remove_handle(ch);
+    }
+
     /* cURL destructors should be invoked only by last curl handle */
     if (--(*ch->clone) == 0) {
         zend_llist_clean(&ch->to_free->str);
@@ -2701,8 +2726,6 @@ void _php_curl_free(php_curl *ch) {
         efree(ch->to_free);
         efree(ch->clone);
 
-        swoole::curl::Handle *handle = nullptr;
-        curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
         delete handle;
         curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, nullptr);
     }

@@ -671,7 +671,7 @@ PHP_METHOD(swoole_coroutine_system, waitEvent) {
 
     int fd = php_swoole_convert_to_fd(zfd);
     if (fd < 0) {
-        php_swoole_fatal_error(E_WARNING, "unknow fd type");
+        php_swoole_fatal_error(E_WARNING, "unknown fd type");
         RETURN_FALSE;
     }
 

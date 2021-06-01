@@ -18,7 +18,6 @@
 
 #include <string>
 #include <map>
-#include <algorithm>
 
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
@@ -628,7 +627,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 #endif
 
         size_t total_length = buffer->offset;
-        sw_set_zend_string(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
+        zend::assign_zend_string_by_val(&ctx->request.zdata, buffer->pop(SW_BUFFER_SIZE_BIG), total_length);
 
         zval *zserver = ctx->request.zserver;
         add_assoc_long(zserver, "server_port", hs->socket->get_bind_port());

@@ -18,8 +18,6 @@
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 
-#include <unordered_map>
-
 #define EVENT_DEBUG 0
 
 #ifdef HAVE_EPOLL
@@ -62,7 +60,6 @@ class ReactorEpoll : public ReactorImpl {
             events |= EPOLLONESHOT;
         }
         if (Reactor::isset_error_event(fdtype)) {
-            // flag |= (EPOLLRDHUP);
             events |= (EPOLLRDHUP | EPOLLHUP | EPOLLERR);
         }
         return events;
@@ -70,6 +67,7 @@ class ReactorEpoll : public ReactorImpl {
 };
 
 #if EVENT_DEBUG
+#include <unordered_map>
 static thread_local std::unordered_map<int, Socket *> event_map;
 
 Socket *swoole_event_map_get(int sockfd) {

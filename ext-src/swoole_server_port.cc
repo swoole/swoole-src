@@ -36,6 +36,7 @@ static std::unordered_map<std::string, server_port_event> server_port_event_map(
     { "handshake",   server_port_event(SW_SERVER_CB_onHandShake,   "Handshake") },
     { "open",        server_port_event(SW_SERVER_CB_onOpen,        "Open") },
     { "message",     server_port_event(SW_SERVER_CB_onMessage,     "Message") },
+    { "disconnect",  server_port_event(SW_SERVER_CB_onDisconnect,  "Disconnect") },
 });
 // clang-format on
 
@@ -59,7 +60,7 @@ static sw_inline ListenPort *php_swoole_server_port_get_ptr(zval *zobject) {
 ListenPort *php_swoole_server_port_get_and_check_ptr(zval *zobject) {
     ListenPort *port = php_swoole_server_port_get_ptr(zobject);
     if (UNEXPECTED(!port)) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return port;
 }
@@ -75,7 +76,7 @@ ServerPortProperty *php_swoole_server_port_get_property(zval *zobject) {
 static ServerPortProperty *php_swoole_server_port_get_and_check_property(zval *zobject) {
     ServerPortProperty *property = php_swoole_server_port_get_property(zobject);
     if (UNEXPECTED(!property->serv)) {
-        php_swoole_fatal_error(E_ERROR, "Invaild instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        php_swoole_fatal_error(E_ERROR, "Invalid instance of %s", SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
     return property;
 }
@@ -184,6 +185,7 @@ void php_swoole_server_port_minit(int module_number) {
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onHandShake"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onOpen"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onMessage"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onDisconnect"), ZEND_ACC_PRIVATE);
 
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("host"), ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_port_ce, ZEND_STRL("port"), 0, ZEND_ACC_PUBLIC);
@@ -431,7 +433,7 @@ static PHP_METHOD(swoole_server_port, set) {
         port->protocol.package_length_type = str_v.val()[0];
         port->protocol.package_length_size = swoole_type_size(port->protocol.package_length_type);
         if (port->protocol.package_length_size == 0) {
-            php_swoole_fatal_error(E_ERROR, "unknow package_length_type, see pack(). Link: http://php.net/pack");
+            php_swoole_fatal_error(E_ERROR, "unknown package_length_type, see pack(). Link: http://php.net/pack");
             RETURN_FALSE;
         }
     }
@@ -618,7 +620,7 @@ static PHP_METHOD(swoole_server_port, set) {
 
 static PHP_METHOD(swoole_server_port, on) {
     char *name = nullptr;
-    size_t len, i;
+    size_t len;
     zval *cb;
 
     ServerPortProperty *property = php_swoole_server_port_get_and_check_property(ZEND_THIS);
@@ -640,55 +642,39 @@ static PHP_METHOD(swoole_server_port, on) {
     }
     efree(func_name);
 
-    const char *callback_name[PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM] = {
-        "Connect",
-        "Receive",
-        "Close",
-        "Packet",
-        "Request",
-        "HandShake",
-        "Open",
-        "Message",
-        "BufferFull",
-        "BufferEmpty",
-    };
-
-    char property_name[128];
-    int l_property_name = 0;
-    memcpy(property_name, "on", 2);
-
-    for (i = 0; i < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; i++) {
-        if (!swoole_strcaseeq(name, len, callback_name[i], strlen(callback_name[i]))) {
+    bool found = false;
+    for (auto i = server_port_event_map.begin(); i!= server_port_event_map.end(); i++) {
+        if (!swoole_strcaseeq(name, len, i->first.c_str(), i->first.length())) {
             continue;
         }
 
-        memcpy(property_name + 2, callback_name[i], len);
-        l_property_name = len + 2;
-        property_name[l_property_name] = '\0';
-        zend_update_property(swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name, l_property_name, cb);
-        property->callbacks[i] =
-            sw_zend_read_property(swoole_server_port_ce, ZEND_THIS, property_name, l_property_name, 0);
-        sw_copy_to_stack(property->callbacks[i], property->_callbacks[i]);
-        if (property->caches[i]) {
-            efree(property->caches[i]);
+        found = true;
+        int index = i->second.type;
+        std::string property_name = std::string("on") + i->second.name;
+        zend_update_property(swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
+        property->callbacks[index] =
+            sw_zend_read_property(swoole_server_port_ce, ZEND_THIS, property_name.c_str(), property_name.length(), 0);
+        sw_copy_to_stack(property->callbacks[index], property->_callbacks[index]);
+        if (property->caches[index]) {
+            efree(property->caches[index]);
         }
-        property->caches[i] = fci_cache;
+        property->caches[index] = fci_cache;
 
-        if (i == SW_SERVER_CB_onConnect && !serv->onConnect) {
+        if (index == SW_SERVER_CB_onConnect && !serv->onConnect) {
             serv->onConnect = php_swoole_server_onConnect;
-        } else if (i == SW_SERVER_CB_onPacket && !serv->onPacket) {
+        } else if (index == SW_SERVER_CB_onPacket && !serv->onPacket) {
             serv->onPacket = php_swoole_server_onPacket;
-        } else if (i == SW_SERVER_CB_onClose && !serv->onClose) {
+        } else if (index == SW_SERVER_CB_onClose && !serv->onClose) {
             serv->onClose = php_swoole_server_onClose;
-        } else if (i == SW_SERVER_CB_onBufferFull && !serv->onBufferFull) {
+        } else if (index == SW_SERVER_CB_onBufferFull && !serv->onBufferFull) {
             serv->onBufferFull = php_swoole_server_onBufferFull;
-        } else if (i == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty) {
+        } else if (index == SW_SERVER_CB_onBufferEmpty && !serv->onBufferEmpty) {
             serv->onBufferEmpty = php_swoole_server_onBufferEmpty;
         }
         break;
     }
 
-    if (l_property_name == 0) {
+    if (!found) {
         php_swoole_error(E_WARNING, "unknown event types[%s]", name);
         efree(fci_cache);
         RETURN_FALSE;

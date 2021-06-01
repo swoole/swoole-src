@@ -17,14 +17,10 @@
  */
 
 #include "swoole.h"
-#include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_async.h"
 
-#include <sys/file.h>
-#include <sys/stat.h>
 #include <arpa/inet.h>
-#include <mutex>
 
 #if __APPLE__
 int swoole_daemon(int nochdir, int noclose) {

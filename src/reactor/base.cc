@@ -18,11 +18,8 @@
 #include "swoole_socket.h"
 #include "swoole_signal.h"
 #include "swoole_reactor.h"
-#include "swoole_timer.h"
 #include "swoole_api.h"
 #include "swoole_c_api.h"
-
-#include <system_error>
 
 namespace swoole {
 using network::Socket;
@@ -177,7 +174,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     } else if (Reactor::isset_error_event(_fdtype)) {
         error_handler[fdtype] = handler;
     } else {
-        swWarn("unknow fdtype");
+        swWarn("unknown fdtype");
         return false;
     }
 
@@ -270,8 +267,9 @@ static int write_func(
                 }
                 socket->out_buffer = buffer;
             }
-
-            reactor->add_write_event(socket);
+            if (!socket->isset_writable_event()) {
+                reactor->add_write_event(socket);
+            }
             goto _append_buffer;
         } else if (errno == EINTR) {
             goto _do_send;
@@ -303,7 +301,7 @@ int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n)
         send_bytes = socket->send(buf, n, 0);
         return send_bytes;
     };
-    auto append_fn = [&send_bytes, socket, buf, n](Buffer *buffer) {
+    auto append_fn = [&send_bytes, buf, n](Buffer *buffer) {
         ssize_t offset = send_bytes > 0 ? send_bytes : 0;
         buffer->append((const char *) buf + offset, n - offset);
     };
@@ -327,7 +325,7 @@ int Reactor::_writev(Reactor *reactor, network::Socket *socket, const iovec *iov
         send_bytes = socket->writev(iov, iovcnt);
         return send_bytes;
     };
-    auto append_fn = [&send_bytes, socket, iov, iovcnt](Buffer *buffer) {
+    auto append_fn = [&send_bytes, iov, iovcnt](Buffer *buffer) {
         ssize_t offset = send_bytes > 0 ? send_bytes : 0;
         buffer->append(iov, iovcnt, offset);
     };
@@ -343,9 +341,7 @@ int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
     while (!Buffer::empty(buffer)) {
         BufferChunk *chunk = buffer->front();
         if (chunk->type == BufferChunk::TYPE_CLOSE) {
-        _close_fd:
-            reactor->close(reactor, ev->socket);
-            return SW_OK;
+            return reactor->close(reactor, ev->socket);
         } else if (chunk->type == BufferChunk::TYPE_SENDFILE) {
             ret = socket->handle_sendfile();
         } else {
@@ -354,7 +350,7 @@ int Reactor::_writable_callback(Reactor *reactor, Event *ev) {
 
         if (ret < 0) {
             if (socket->close_wait) {
-                goto _close_fd;
+                return reactor->trigger_close_event(ev);
             } else if (socket->send_wait) {
                 return SW_OK;
             }

@@ -16,8 +16,6 @@
 
 #include "php_swoole_http_server.h"
 
-#include "main/rfc1867.h"
-
 using namespace swoole;
 using swoole::coroutine::Socket;
 using http_request = swoole::http::Request;
@@ -141,19 +139,6 @@ _dtor_and_return:
     zval_ptr_dtor(zresponse_object);
 
     return SW_OK;
-}
-
-void php_swoole_http_server_onClose(Server *serv, DataHead *ev) {
-    Connection *conn = serv->get_connection_by_session_id(ev->fd);
-    if (!conn) {
-        return;
-    }
-    php_swoole_server_onClose(serv, ev);
-#ifdef SW_USE_HTTP2
-    if (conn->http2_stream) {
-        swoole_http2_server_session_free(conn);
-    }
-#endif
 }
 
 void php_swoole_http_server_minit(int module_number) {
@@ -293,9 +278,8 @@ bool http_context_send_data(http_context *ctx, const char *data, size_t length) 
         ZVAL_STRINGL(&yield_data, data, length);
         php_swoole_server_send_yield(serv, ctx->fd, &yield_data, &return_value);
         return Z_BVAL_P(&return_value);
-    } else {
-        return true;
     }
+    return retval;
 }
 
 static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {

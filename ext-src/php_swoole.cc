@@ -23,7 +23,6 @@
 #include "zend_exceptions.h"
 
 BEGIN_EXTERN_C()
-#include "ext/standard/php_var.h"
 #ifdef SW_USE_JSON
 #include "ext/json/php_json.h"
 #endif
@@ -31,7 +30,6 @@ END_EXTERN_C()
 
 #include "swoole_mime_type.h"
 #include "swoole_server.h"
-#include "swoole_client.h"
 #include "swoole_util.h"
 
 #include <netinet/in.h>
@@ -40,7 +38,7 @@ END_EXTERN_C()
 #include <ifaddrs.h>
 #include <sys/ioctl.h>
 
-#if __MACH__
+#if defined(__MACH__) || defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 #include <net/if_dl.h>
 #endif
 
@@ -643,6 +641,8 @@ PHP_MINIT_FUNCTION(swoole) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SERVER_INVALID_REQUEST", SW_ERROR_SERVER_INVALID_REQUEST);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SERVER_CONNECT_FAIL", SW_ERROR_SERVER_CONNECT_FAIL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SERVER_WORKER_EXIT_TIMEOUT", SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA", SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_SERVER_WORKER_UNPROCESSED_DATA", SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_CO_OUT_OF_COROUTINE", SW_ERROR_CO_OUT_OF_COROUTINE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_CO_HAS_BEEN_BOUND", SW_ERROR_CO_HAS_BEEN_BOUND);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_ERROR_CO_HAS_BEEN_DISCARDED", SW_ERROR_CO_HAS_BEEN_DISCARDED);
@@ -947,7 +947,7 @@ static void *_sw_zend_string_calloc(size_t nmemb, size_t size) {
 }
 
 static void *_sw_zend_string_realloc(void *address, size_t size) {
-    zend_string *str = zend_string_realloc(sw_get_zend_string(address), size, 0);
+    zend_string *str = zend_string_realloc(zend::fetch_zend_string_by_val(address), size, 0);
     if (str == nullptr) {
         return nullptr;
     }
@@ -955,7 +955,7 @@ static void *_sw_zend_string_realloc(void *address, size_t size) {
 }
 
 static void _sw_zend_string_free(void *address) {
-    zend_string_free((zend_string *) (sw_get_zend_string(address)));
+    zend_string_free(zend::fetch_zend_string_by_val(address));
 }
 
 static swoole::Allocator php_allocator {

@@ -20,7 +20,6 @@
 #include "swoole_coroutine_socket.h"
 
 #include <string>
-#include <iostream>
 
 #include "swoole_util.h"
 #include "swoole_socket.h"
@@ -728,7 +727,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
             _target_addr = (struct sockaddr *) &socket->info.addr.un;
             break;
         } else {
-            set_err(EINVAL, "unknow protocol[%d]");
+            set_err(EINVAL, "unknown protocol[%d]");
             return false;
         }
     }
@@ -1392,7 +1391,7 @@ ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, siz
 
     for (size_t i = 0; i < 2; i++) {
         if (type == SW_SOCK_UDP) {
-            if (::inet_aton(ip.c_str(), &addr.in.sin_addr) == 0) {
+            if (::inet_pton(AF_INET, ip.c_str(), &addr.in.sin_addr) == 0) {
                 read_co = write_co = Coroutine::get_current_safe();
                 ip = System::gethostbyname(host, sock_domain, dns_timeout);
                 read_co = write_co = nullptr;

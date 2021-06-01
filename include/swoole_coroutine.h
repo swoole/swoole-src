@@ -102,7 +102,17 @@ class Coroutine {
     static void bailout(BailoutCallback func);
 
     static inline long create(const coroutine_func_t &fn, void *args = nullptr) {
+#ifdef SW_USE_THREAD_CONTEXT
+        try {
+            return (new Coroutine(fn, args))->run();
+        } catch (const std::system_error& e) {
+            swoole_set_last_error(e.code().value());
+            swWarn("failed to create coroutine, Error: %s[%d]", e.what(), swoole_get_last_error());
+            return -1;
+        }
+#else
         return (new Coroutine(fn, args))->run();
+#endif
     }
 
     static void activate();

@@ -39,6 +39,7 @@
 #include <queue>
 #include <thread>
 #include <mutex>
+#include <atomic>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -551,7 +552,6 @@ class Server {
 
     int worker_uid = 0;
     int worker_groupid = 0;
-    void **worker_input_buffers = nullptr;
 
     /**
      * worker process max request
@@ -567,6 +567,9 @@ class Server {
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     /*----------------------------Reactor schedule--------------------------------*/
+    const Allocator *worker_buffer_allocator;
+    std::unordered_map<uint64_t, std::shared_ptr<String>> worker_buffers;
+    std::atomic<uint64_t> worker_msg_id;
     sw_atomic_t worker_round_id = 0;
 
     /**
@@ -690,7 +693,7 @@ class Server {
     TimerNode *heartbeat_timer = nullptr;
 
     /* buffer output/input setting*/
-    uint32_t output_buffer_size = SW_OUTPUT_BUFFER_SIZE;
+    uint32_t output_buffer_size = UINT_MAX;
     uint32_t input_buffer_size = SW_INPUT_BUFFER_SIZE;
     uint32_t max_queued_bytes = 0;
 
@@ -848,13 +851,29 @@ class Server {
     /**
      * Chunk control
      */
-    void **(*create_buffers)(Server *serv, uint32_t buffer_num) = nullptr;
-    void (*free_buffers)(Server *serv, uint32_t buffer_num, void **buffers) = nullptr;
-    void *(*get_buffer)(Server *serv, DataHead *info) = nullptr;
-    size_t (*get_buffer_len)(Server *serv, DataHead *info) = nullptr;
-    void (*add_buffer_len)(Server *serv, DataHead *info, size_t len) = nullptr;
-    void (*move_buffer)(Server *serv, PipeBuffer *buffer) = nullptr;
-    size_t (*get_packet)(Server *serv, EventData *req, char **data_ptr) = nullptr;
+    size_t get_packet(EventData *req, char **data_ptr);
+
+    String *get_worker_buffer(DataHead *info) {
+        auto iter = worker_buffers.find(info->msg_id);
+        if (iter == worker_buffers.end()) {
+            if (info->flags & SW_EVENT_DATA_BEGIN) {
+                auto buffer = make_string(info->len, worker_buffer_allocator);
+                worker_buffers.emplace(info->msg_id, std::shared_ptr<String>(buffer));
+                return buffer;
+            }
+            return nullptr;
+        }
+        return iter->second.get();
+    }
+
+    void pop_worker_buffer(DataHead *info) {
+        uint64_t msg_id = info->msg_id;
+        auto iter = worker_buffers.find(msg_id);
+        if (iter != worker_buffers.end()) {
+            iter->second.get()->str = nullptr;
+        }
+    }
+
     /**
      * Hook
      */
@@ -1033,14 +1052,6 @@ class Server {
         return worker_num + task_worker_num + user_worker_num;
     }
 
-    inline String *get_worker_input_buffer(int reactor_id) {
-        if (is_base_mode()) {
-            return (String *) worker_input_buffers[0];
-        } else {
-            return (String *) worker_input_buffers[reactor_id];
-        }
-    }
-
     inline ReactorThread *get_thread(int reactor_id) {
         return &reactor_threads[reactor_id];
     }
@@ -1069,6 +1080,15 @@ class Server {
         return SwooleG.process_type == SW_PROCESS_USERWORKER;
     }
 
+    bool is_sync_process() {
+        if (is_manager()) {
+            return true;
+        }
+        if (is_task_worker() && !task_enable_coroutine) {
+            return true;
+        }
+        return false;
+    }
     inline bool is_shutdown() {
         return gs->shutdown;
     }

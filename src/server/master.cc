@@ -16,7 +16,6 @@
 
 #include "swoole_server.h"
 #include "swoole_memory.h"
-#include "swoole_http.h"
 #include "swoole_lock.h"
 #include "swoole_util.h"
 
@@ -31,14 +30,6 @@ swoole::Server *g_server_instance = nullptr;
 namespace swoole {
 
 static void Server_signal_handler(int sig);
-
-static void **Server_worker_create_buffers(Server *serv, uint32_t buffer_num);
-static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void **buffers);
-static void *Server_worker_get_buffer(Server *serv, DataHead *info);
-static size_t Server_worker_get_buffer_len(Server *serv, DataHead *info);
-static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len);
-static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer);
-static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr);
 
 TimerCallback Server::get_timeout_callback(ListenPort *port, Reactor *reactor, Connection *conn) {
     return [this, port, conn, reactor](Timer *, TimerNode *) {
@@ -365,28 +356,12 @@ void Server::store_listen_socket() {
     }
 }
 
-static void **Server_worker_create_buffers(Server *serv, uint32_t buffer_num) {
-    String **buffers = new String *[buffer_num];
-    for (uint i = 0; i < buffer_num; i++) {
-        buffers[i] = new String(SW_BUFFER_SIZE_BIG);
-    }
-    return (void **) buffers;
-}
-
-static void Server_worker_free_buffers(Server *serv, uint32_t buffer_num, void **_buffers) {
-    String **buffers = (String **) _buffers;
-    for (uint i = 0; i < buffer_num; i++) {
-        delete buffers[i];
-    }
-    delete[] buffers;
-}
-
 /**
  * only the memory of the Worker structure is allocated, no process is fork
  */
 int Server::create_task_workers() {
     key_t key = 0;
-    int ipc_mode;
+    swIPC_type ipc_mode;
 
     if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
         key = message_queue_key;
@@ -398,7 +373,8 @@ int Server::create_task_workers() {
     }
 
     ProcessPool *pool = &gs->task_workers;
-    if (ProcessPool::create(pool, task_worker_num, key, ipc_mode) < 0) {
+    *pool = {};
+    if (pool->create(task_worker_num, key, ipc_mode) < 0) {
         swWarn("[Master] create task_workers failed");
         return SW_ERR;
     }
@@ -410,7 +386,7 @@ int Server::create_task_workers() {
     if (ipc_mode == SW_IPC_SOCKET) {
         char sockfile[sizeof(struct sockaddr_un)];
         snprintf(sockfile, sizeof(sockfile), "/tmp/swoole.task.%d.sock", gs->master_pid);
-        if (gs->task_workers.create_unix_socket(sockfile, 2048) < 0) {
+        if (gs->task_workers.listen(sockfile, 2048) < 0) {
             return SW_ERR;
         }
     }
@@ -477,11 +453,6 @@ void Server::init_worker(Worker *worker) {
 #endif
     // signal init
     worker_signal_init();
-
-    worker_input_buffers = (void **) create_buffers(this, get_worker_buffer_num());
-    if (!worker_input_buffers) {
-        swError("failed to create worker buffers");
-    }
 
     if (max_request < 1) {
         SwooleWG.run_always = true;
@@ -664,16 +635,9 @@ Server::Server(enum Mode _mode) {
     if (gs == nullptr) {
         swError("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
-    /**
-     * init method
-     */
-    create_buffers = Server_worker_create_buffers;
-    free_buffers = Server_worker_free_buffers;
-    get_buffer = Server_worker_get_buffer;
-    get_buffer_len = Server_worker_get_buffer_len;
-    add_buffer_len = Server_worker_add_buffer_len;
-    move_buffer = Server_worker_move_buffer;
-    get_packet = Server_worker_get_packet;
+
+    worker_msg_id = 1;
+    worker_buffer_allocator = sw_std_allocator();
 
     g_server_instance = this;
 }
@@ -1186,9 +1150,8 @@ int Server::send_to_connection(SendData *_send) {
         _socket->send_timer = swoole_timer_add(port->max_idle_time * 1000, true, timeout_callback);
     }
 
-    // listen EPOLLOUT event
-    if (reactor->set(_socket, SW_EVENT_WRITE | SW_EVENT_READ) < 0 && (errno == EBADF || errno == ENOENT)) {
-        goto _close_fd;
+    if (!_socket->isset_writable_event()) {
+        reactor->add_write_event(_socket);
     }
 
     return SW_OK;
@@ -1276,40 +1239,7 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     return conn->socket->send_blocking(data, length) == length;
 }
 
-static sw_inline void Server_worker_set_buffer(Server *serv, DataHead *info, String *addr) {
-    String **buffers = (String **) serv->worker_input_buffers;
-    buffers[info->reactor_id] = addr;
-}
-
-static void *Server_worker_get_buffer(Server *serv, DataHead *info) {
-    String *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
-
-    if (worker_buffer == nullptr) {
-        worker_buffer = new String(info->len);
-        Server_worker_set_buffer(serv, info, worker_buffer);
-    }
-
-    return worker_buffer->str + worker_buffer->length;
-}
-
-static size_t Server_worker_get_buffer_len(Server *serv, DataHead *info) {
-    String *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
-
-    return worker_buffer == nullptr ? 0 : worker_buffer->length;
-}
-
-static void Server_worker_add_buffer_len(Server *serv, DataHead *info, size_t len) {
-    String *worker_buffer = serv->get_worker_input_buffer(info->reactor_id);
-    worker_buffer->length += len;
-}
-
-static void Server_worker_move_buffer(Server *serv, PipeBuffer *buffer) {
-    String *worker_buffer = serv->get_worker_input_buffer(buffer->info.reactor_id);
-    memcpy(buffer->data, &worker_buffer, sizeof(worker_buffer));
-    Server_worker_set_buffer(serv, &buffer->info, nullptr);
-}
-
-static size_t Server_worker_get_packet(Server *serv, EventData *req, char **data_ptr) {
+size_t Server::get_packet(EventData *req, char **data_ptr) {
     size_t length;
     if (req->info.flags & SW_EVENT_DATA_PTR) {
         PacketPtr *task = (PacketPtr *) req;

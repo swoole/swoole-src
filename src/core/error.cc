@@ -14,8 +14,6 @@
  +----------------------------------------------------------------------+
  */
 
-#include <string>
-
 #include "swoole.h"
 
 namespace swoole {
@@ -185,6 +183,10 @@ const char *swoole_strerror(int code) {
         return "Server connect fail";
     case SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT:
         return "Server worker exit timeout";
+    case SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA:
+        return "Server worker abnormal pipe data";
+    case SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA:
+        return "Server worker unprocessed data";
     case SW_ERROR_CO_OUT_OF_COROUTINE:
         return "Coroutine out of coroutine";
     case SW_ERROR_CO_HAS_BEEN_BOUND:

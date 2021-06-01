@@ -108,6 +108,10 @@ class Multi {
         curl_multi_setopt(multi_handle_, CURLMOPT_TIMERDATA, this);
     }
 
+    ~Multi() {
+        curl_multi_cleanup(multi_handle_);
+    }
+
     CURLM *get_multi_handle() {
         return multi_handle_;
     }

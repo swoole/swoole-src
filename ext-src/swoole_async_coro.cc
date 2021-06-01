@@ -15,11 +15,7 @@
 */
 
 #include "php_swoole_cxx.h"
-#include "php_streams.h"
-#include "php_network.h"
-
-#include "ext/standard/file.h"
-#include "ext/standard/basic_functions.h"
+#include "swoole_socket.h"
 
 #include <string>
 #include <vector>
