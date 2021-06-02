@@ -386,7 +386,7 @@ void PHPCoroutine::shutdown() {
 }
 
 void PHPCoroutine::deadlock_check() {
-    if (Coroutine::count() == 0) {
+    if (Coroutine::count() == 0 || Coroutine::count() == SwooleTG.co_signal_listener_num) {
         return;
     }
     if (php_swoole_is_fatal_error() || (sw_reactor() && sw_reactor()->bailout)) {
