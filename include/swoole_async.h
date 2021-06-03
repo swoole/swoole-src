@@ -50,7 +50,7 @@ struct AsyncEvent {
     /**
      * output
      */
-    ssize_t ret;
+    ssize_t retval;
     int error;
     /**
      * internal use only

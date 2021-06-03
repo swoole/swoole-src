@@ -21,11 +21,6 @@
 namespace swoole {
 namespace coroutine {
 
-struct AsyncTask {
-    Coroutine *co;
-    AsyncEvent *original_event;
-};
-
 static size_t dns_cache_capacity = 1000;
 static time_t dns_cache_expire = 60;
 static LRUCache *dns_cache = nullptr;
@@ -172,11 +167,14 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     memcpy(ev.buf, hostname.c_str(), hostname.size());
     ((char *) ev.buf)[hostname.size()] = 0;
     ev.flags = domain;
-    ev.ret = 1;
+    ev.retval = 1;
 
-    async(async::handler_gethostbyname, ev, timeout);
+    coroutine::async(async::handler_gethostbyname, ev, timeout);
 
-    if (ev.ret == -1) {
+    if (ev.retval == -1) {
+        if (ev.error == SW_ERROR_AIO_TIMEOUT) {
+            ev.error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
+        }
         swoole_set_last_error(ev.error);
         return "";
     } else {
@@ -212,11 +210,14 @@ std::vector<std::string> System::getaddrinfo(
     req.service = service.empty() ? nullptr : service.c_str();
     req.result = result_buffer;
 
-    async(async::handler_getaddrinfo, ev, timeout);
+    coroutine::async(async::handler_getaddrinfo, ev, timeout);
 
     std::vector<std::string> retval;
 
-    if (ev.ret == -1 || req.error != 0) {
+    if (ev.retval == -1 || req.error != 0) {
+        if (ev.error == SW_ERROR_AIO_TIMEOUT) {
+            ev.error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
+        }
         swoole_set_last_error(ev.error);
     } else {
         req.parse_result(retval);
@@ -600,32 +601,27 @@ static void async_task_completed(AsyncEvent *event) {
     if (event->canceled) {
         return;
     }
-    AsyncTask *task = (AsyncTask *) event->object;
-    task->original_event->error = event->error;
-    task->original_event->ret = event->ret;
-    task->co->resume();
+    Coroutine *co = (Coroutine *) event->object;
+    co->resume();
 }
 
 static void async_task_timeout(Timer *timer, TimerNode *tnode) {
     AsyncEvent *event = (AsyncEvent *) tnode->data;
     event->canceled = 1;
-    AsyncTask *task = (AsyncTask *) event->object;
-    task->original_event->ret = -1;
-    task->original_event->error = SW_ERROR_AIO_TIMEOUT;
-    task->co->resume();
+    event->retval = -1;
+    event->error = SW_ERROR_AIO_TIMEOUT;
+    Coroutine *co = (Coroutine *) event->object;
+    co->resume();
 }
 
 /**
  * @error: swoole_get_last_error()
  */
 bool async(async::Handler handler, AsyncEvent &event, double timeout) {
-    AsyncTask task;
     TimerNode *timer = nullptr;
+    Coroutine *co = Coroutine::get_current_safe();
 
-    task.co = Coroutine::get_current_safe();
-    task.original_event = &event;
-
-    event.object = (void *) &task;
+    event.object = co;
     event.handler = handler;
     event.callback = async_task_completed;
 
@@ -637,18 +633,18 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
 
-    Coroutine::CancelFunc cancel_fn = [_ev, &event](Coroutine *co) {
+    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
         _ev->canceled = true;
         _ev->error = SW_ERROR_AIO_CANCELED;
-        _ev->ret = -1;
+        _ev->retval = -1;
         co->resume();
         return true;
     };
-    task.co->yield(&cancel_fn);
+    co->yield(&cancel_fn);
 
     event.canceled = _ev->canceled;
     event.error = _ev->error;
-    event.ret = _ev->ret;
+    event.retval = _ev->retval;
 
     errno = _ev->error;
     swoole_set_last_error(_ev->error);
@@ -671,7 +667,7 @@ static void async_lambda_handler(AsyncEvent *event) {
     AsyncLambdaTask *task = reinterpret_cast<AsyncLambdaTask *>(event->object);
     task->fn();
     event->error = errno;
-    event->ret = 0;
+    event->retval = 0;
 }
 
 static void async_lambda_callback(AsyncEvent *event) {
@@ -702,7 +698,7 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
         _ev->canceled = true;
         _ev->error = SW_ERROR_AIO_CANCELED;
-        _ev->ret = -1;
+        _ev->retval = -1;
         co->resume();
         return true;
     };

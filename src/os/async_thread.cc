@@ -243,18 +243,18 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                 if (event) {
                     if (sw_unlikely(event->handler == nullptr)) {
                         event->error = SW_ERROR_AIO_BAD_REQUEST;
-                        event->ret = -1;
+                        event->retval = -1;
                     } else if (sw_unlikely(event->canceled)) {
                         event->error = SW_ERROR_AIO_CANCELED;
-                        event->ret = -1;
+                        event->retval = -1;
                     } else {
                         event->handler(event);
                     }
 
                     swTraceLog(SW_TRACE_AIO,
                                "aio_thread %s. ret=%d, error=%d",
-                               event->ret > 0 ? "ok" : "failed",
-                               event->ret,
+                               event->retval > 0 ? "ok" : "failed",
+                               event->retval,
                                event->error);
 
                 _send_event:
