@@ -96,6 +96,17 @@ void Coroutine::resume_naked() {
     check_end();
 }
 
+bool Coroutine::cancel() {
+    if (!cancel_fn_) {
+        swoole_set_last_error(SW_ERROR_CO_CANNOT_CANCEL);
+        return false;
+    }
+    auto fn = *cancel_fn_;
+    set_cancel_fn(nullptr);
+    canceled_ = true;
+    return fn(this);
+}
+
 void Coroutine::close() {
     SW_ASSERT(current == this);
     state = STATE_END;
@@ -171,8 +182,9 @@ void Coroutine::bailout(BailoutCallback func) {
     // expect that never here
     exit(1);
 }
+
 namespace coroutine {
-bool run(const coroutine_func_t &fn, void *arg) {
+bool run(const CoroutineFunc &fn, void *arg) {
     if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
         return false;
     }
@@ -193,6 +205,19 @@ long swoole_coroutine_get_current_id() {
     return swoole::Coroutine::get_current_cid();
 }
 
+swoole::Coroutine *swoole_coroutine_get(long cid) {
+    auto i = swoole::Coroutine::coroutines.find(cid);
+    if (i == swoole::Coroutine::coroutines.end()) {
+        return nullptr;
+    } else {
+        return i->second;
+    }
+}
+
+size_t swoole_coroutine_count() {
+    return swoole::Coroutine::coroutines.size();
+}
+
 /**
  * for gdb
  */
@@ -210,17 +235,4 @@ swoole::Coroutine *swoole_coro_iterator_each() {
         _gdb_iterator++;
         return co;
     }
-}
-
-swoole::Coroutine *swoole_coro_get(long cid) {
-    auto i = swoole::Coroutine::coroutines.find(cid);
-    if (i == swoole::Coroutine::coroutines.end()) {
-        return nullptr;
-    } else {
-        return i->second;
-    }
-}
-
-size_t swoole_coro_count() {
-    return swoole::Coroutine::coroutines.size();
 }

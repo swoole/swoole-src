@@ -85,7 +85,7 @@ namespace async {
 
 void handler_gethostbyname(AsyncEvent *event) {
     char addr[SW_IP_MAX_LENGTH];
-    int ret = swoole::network::gethostbyname(event->flags, (char *) event->buf, addr);
+    int ret = network::gethostbyname(event->flags, (char *) event->buf, addr);
     sw_memset_zero(event->buf, event->nbytes);
 
     if (ret < 0) {
@@ -99,12 +99,12 @@ void handler_gethostbyname(AsyncEvent *event) {
             ret = 0;
         }
     }
-    event->ret = ret;
+    event->retval = ret;
 }
 
 void handler_getaddrinfo(AsyncEvent *event) {
-    swoole::network::GetaddrinfoRequest *req = (swoole::network::GetaddrinfoRequest *) event->req;
-    event->ret = swoole::network::getaddrinfo(req);
+    network::GetaddrinfoRequest *req = (network::GetaddrinfoRequest *) event->req;
+    event->retval = network::getaddrinfo(req);
     event->error = req->error;
 }
 

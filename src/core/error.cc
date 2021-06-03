@@ -215,6 +215,12 @@ const char *swoole_strerror(int code) {
         return "Coroutine std thread link error";
     case SW_ERROR_CO_DISABLED_MULTI_THREAD:
         return "Coroutine disabled multi thread";
+    case SW_ERROR_CO_CANNOT_CANCEL:
+        return "Coroutine cannot cancel";
+    case SW_ERROR_CO_NOT_EXISTS:
+        return "Coroutine not exists";
+    case SW_ERROR_CO_CANCELED:
+        return "Coroutine canceled";
     default:
         static char buffer[32];
 #ifndef __MACH__

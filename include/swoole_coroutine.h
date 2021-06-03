@@ -37,6 +37,7 @@ class Coroutine {
   public:
     void resume();
     void yield();
+    bool cancel();
 
     void resume_naked();
     void yield_naked();
@@ -61,6 +62,14 @@ class Coroutine {
 
     typedef void (*SwapCallback)(void *);
     typedef void (*BailoutCallback)();
+    typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
+
+    void yield(CancelFunc *cancel_fn) {
+        set_cancel_fn(cancel_fn);
+        canceled_ = false;
+        yield();
+        set_cancel_fn(nullptr);
+    }
 
     inline enum State get_state() {
         return state;
@@ -90,8 +99,16 @@ class Coroutine {
         return ctx.is_end();
     }
 
+    bool is_canceled() {
+        return canceled_;
+    }
+
     inline void set_task(void *_task) {
         task = _task;
+    }
+
+    void set_cancel_fn(CancelFunc *cancel_fn) {
+        cancel_fn_ = cancel_fn;
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -101,7 +118,7 @@ class Coroutine {
     static void set_on_close(SwapCallback func);
     static void bailout(BailoutCallback func);
 
-    static inline long create(const coroutine_func_t &fn, void *args = nullptr) {
+    static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
         try {
             return (new Coroutine(fn, args))->run();
@@ -191,8 +208,10 @@ class Coroutine {
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
-
-    Coroutine(const coroutine_func_t &fn, void *private_data) : ctx(stack_size, fn, private_data) {
+    CancelFunc *cancel_fn_ = nullptr;
+    bool canceled_ = false;
+    
+    Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
         coroutines[cid] = this;
         if (sw_unlikely(count() > peak_num)) {
@@ -226,7 +245,7 @@ class Coroutine {
 namespace coroutine {
 bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
-bool run(const coroutine_func_t &fn, void *arg = nullptr);
+bool run(const CoroutineFunc &fn, void *arg = nullptr);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
 }  // namespace swoole
@@ -236,5 +255,5 @@ bool run(const coroutine_func_t &fn, void *arg = nullptr);
  */
 swoole::Coroutine *swoole_coro_iterator_each();
 void swoole_coro_iterator_reset();
-swoole::Coroutine *swoole_coro_get(long cid);
-size_t swoole_coro_count();
+swoole::Coroutine *swoole_coroutine_get(long cid);
+size_t swoole_coroutine_count();

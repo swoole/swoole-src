@@ -50,7 +50,7 @@ struct AsyncEvent {
     /**
      * output
      */
-    ssize_t ret;
+    ssize_t retval;
     int error;
     /**
      * internal use only
@@ -60,6 +60,10 @@ struct AsyncEvent {
     void *object;
     void (*handler)(AsyncEvent *event);
     void (*callback)(AsyncEvent *event);
+
+    bool catch_error() {
+        return (error == SW_ERROR_AIO_TIMEOUT || error == SW_ERROR_AIO_CANCELED);
+    }
 };
 
 class AsyncThreads {

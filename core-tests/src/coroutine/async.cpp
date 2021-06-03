@@ -19,11 +19,11 @@ TEST(coroutine_async, usleep) {
         bool retval = swoole::coroutine::async(
             [](AsyncEvent *event) {
                 usleep(1000);
-                event->ret = magic_code;
+                event->retval = magic_code;
             },
             ev);
         ASSERT_EQ(retval, true);
-        ASSERT_EQ(ev.ret, magic_code);
+        ASSERT_EQ(ev.retval, magic_code);
     });
 }
 

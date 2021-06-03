@@ -30,7 +30,7 @@
 namespace swoole {
 namespace coroutine {
 
-Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
+Context::Context(size_t stack_size, const CoroutineFunc &fn, void *private_data)
     : fn_(fn), stack_size_(stack_size), private_data_(private_data) {
     end_ = false;
 
