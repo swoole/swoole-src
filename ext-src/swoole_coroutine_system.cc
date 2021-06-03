@@ -676,6 +676,9 @@ PHP_METHOD(swoole_coroutine_system, waitEvent) {
     }
 
     events = System::wait_event(fd, events, timeout);
+    if (events < 0) {
+        RETURN_FALSE;
+    }
 
     RETURN_LONG(events);
 }

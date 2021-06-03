@@ -15,7 +15,7 @@ use Swoole\Coroutine\System;
 run(function () {
     $cid = Coroutine::getCid();
     Event::defer(function () use ($cid) {
-        Coroutine::cancel($cid);
+        Assert::true(Coroutine::cancel($cid));
     });
     $retval = System::gethostbyname('www.baidu.com');
     echo "Done\n";

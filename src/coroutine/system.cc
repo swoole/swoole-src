@@ -76,7 +76,6 @@ int System::sleep(double sec) {
         if (tnode) {
             swoole_timer_del(tnode);
         }
-
         co->resume();
         return true;
     };
@@ -467,13 +466,23 @@ struct EventWaiter {
     TimerNode *timer;
     Coroutine *co;
     int revents;
+    int error_;
 
     EventWaiter(int fd, int events, double timeout) {
-        revents = 0;
+        error_ = revents = 0;
         socket = swoole::make_socket(fd, SW_FD_CORO_EVENT);
         socket->object = this;
         timer = nullptr;
-        co = nullptr;
+        co = Coroutine::get_current_safe();
+
+        Coroutine::CancelFunc cancel_fn = [this](Coroutine *) {
+            if (timer) {
+                swoole_timer_del(timer);
+            }
+            error_ = SW_ERROR_CO_CANCELED;
+            co->resume();
+            return true;
+        };
 
         if (swoole_event_add(socket, events) < 0) {
             swoole_set_last_error(errno);
@@ -486,18 +495,19 @@ struct EventWaiter {
                                      [](Timer *timer, TimerNode *tnode) {
                                          EventWaiter *waiter = (EventWaiter *) tnode->data;
                                          waiter->timer = nullptr;
+                                         waiter->error_ = ETIMEDOUT;
                                          waiter->co->resume();
                                      },
                                      this);
         }
 
-        co = Coroutine::get_current();
-        co->yield();
+        co->yield(&cancel_fn);
 
         if (timer != nullptr) {
             swoole_timer_del(timer);
-        } else if (timeout > 0) {
-            swoole_set_last_error(ETIMEDOUT);
+        }
+        if (error_) {
+            swoole_set_last_error(error_);
         }
         swoole_event_del(socket);
     _done:
@@ -528,6 +538,9 @@ static int event_waiter_error_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
+/**
+ * @errror: errno & swoole_get_last_error()
+ */
 int System::wait_event(int fd, int events, double timeout) {
     events &= SW_EVENT_READ | SW_EVENT_WRITE;
     if (events == 0) {
@@ -551,8 +564,13 @@ int System::wait_event(int fd, int events, double timeout) {
         return 0;
     }
 
-    int revents = EventWaiter(fd, events, timeout).revents;
+    EventWaiter waiter(fd, events, timeout);
+    if (waiter.error_) {
+        errno = swoole_get_last_error();
+        return SW_ERR;
+    }
 
+    int revents = waiter.revents;
     if (revents & SW_EVENT_ERROR) {
         revents ^= SW_EVENT_ERROR;
         if (events & SW_EVENT_READ) {

@@ -27,7 +27,7 @@ run(function() {
     
     // client
     co::sleep(0.1);
-    Coroutine::cancel($cid);
+    Assert::true(Coroutine::cancel($cid));
 });
 ?>
 --EXPECT--

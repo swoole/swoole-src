@@ -15,7 +15,7 @@ run(function () {
     $cid = Coroutine::getCid();
     go(function () use ($cid) {
         System::sleep(0.002);
-        Coroutine::cancel($cid);
+        Assert::true(Coroutine::cancel($cid));
     });
     $retval = System::wait();
     echo "Done\n";

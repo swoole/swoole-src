@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/cancel: suspend
+swoole_coroutine/cancel: waitEvent
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -17,7 +17,7 @@ run(function () {
         System::sleep(0.002);
         Assert::true(Coroutine::cancel($cid));
     });
-    $retval = Coroutine::suspend();
+    $retval = System::waitEvent(STDIN);
     echo "Done\n";
     Assert::eq($retval, false);
     Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_CANCELED);
