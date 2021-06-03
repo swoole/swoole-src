@@ -63,7 +63,7 @@ class Socket {
     Socket(enum swSocket_type type = SW_SOCK_TCP);
     Socket(int _fd, enum swSocket_type _type);
     ~Socket();
-    bool connect(std::string host, int port);
+    bool connect(std::string host, int port, int flags = 0);
     bool connect(const struct sockaddr *addr, socklen_t addrlen);
     bool shutdown(int how = SHUT_RDWR);
     bool cancel(const enum swEvent_type event);

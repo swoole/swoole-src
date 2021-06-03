@@ -600,7 +600,7 @@ bool Socket::connect(const struct sockaddr *addr, socklen_t addrlen) {
     return true;
 }
 
-bool Socket::connect(std::string _host, int _port) {
+bool Socket::connect(std::string _host, int _port, int flags) {
     if (sw_unlikely(!is_available(SW_EVENT_RDWR))) {
         return false;
     }

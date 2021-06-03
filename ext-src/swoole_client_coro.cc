@@ -526,6 +526,7 @@ static PHP_METHOD(swoole_client_coro, connect) {
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(port)
     Z_PARAM_DOUBLE(timeout)
+    Z_PARAM_LONG(sock_flag)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (host_len == 0) {
@@ -552,7 +553,7 @@ static PHP_METHOD(swoole_client_coro, connect) {
     }
 
     cli->set_timeout(timeout, Socket::TIMEOUT_CONNECT);
-    if (!cli->connect(host, port)) {
+    if (!cli->connect(host, port, sock_flag)) {
         zend_update_property_long(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), cli->errCode);
         zend_update_property_string(swoole_client_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errMsg"), cli->errMsg);
         client_coro_close(ZEND_THIS);
