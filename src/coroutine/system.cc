@@ -76,12 +76,16 @@ int System::sleep(double sec) {
         if (tnode) {
             swoole_timer_del(tnode);
         }
-        swoole_set_last_error(SW_ERROR_CO_CANCELED);
+
         co->resume();
         return true;
     };
     co->yield(&cancel_fn);
-    return co->is_canceled() ? SW_ERR : SW_OK;
+    if (co->is_canceled()) {
+        swoole_set_last_error(SW_ERROR_CO_CANCELED);
+        return SW_ERR;
+    }
+    return SW_OK;
 }
 
 std::shared_ptr<String> System::read_file(const char *file, bool lock) {
@@ -222,6 +226,9 @@ std::vector<std::string> System::getaddrinfo(
     return retval;
 }
 
+/**
+ * @error: swoole_get_last_error()
+ */
 bool System::wait_signal(int signo, double timeout) {
     static Coroutine *listeners[SW_SIGNO_MAX];
     Coroutine *co = Coroutine::get_current_safe();
@@ -263,7 +270,6 @@ bool System::wait_signal(int signo, double timeout) {
             0,
             [](Timer *timer, TimerNode *tnode) {
                 Coroutine *co = (Coroutine *) tnode->data;
-                swoole_set_last_error(ETIMEDOUT);
                 co->resume();
             },
             co);
@@ -273,7 +279,6 @@ bool System::wait_signal(int signo, double timeout) {
         if (timer) {
             swoole_timer_del(timer);
         }
-        swoole_set_last_error(SW_ERROR_CO_CANCELED);
         co->resume();
         return true;
     };
@@ -284,6 +289,7 @@ bool System::wait_signal(int signo, double timeout) {
 
     if (listeners[signo] != nullptr) {
         listeners[signo] = nullptr;
+        swoole_set_last_error(co->is_canceled() ? SW_ERROR_CO_CANCELED : ETIMEDOUT);
         return false;
     }
 
@@ -291,7 +297,7 @@ bool System::wait_signal(int signo, double timeout) {
         swoole_timer_del(timer);
     }
 
-    return co->is_canceled() ? false : true;
+    return !co->is_canceled();
 }
 
 struct CoroPollTask {
@@ -590,6 +596,9 @@ static void async_task_timeout(Timer *timer, TimerNode *tnode) {
     task->co->resume();
 }
 
+/**
+ * @error: swoole_get_last_error()
+ */
 bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     AsyncTask task;
     TimerNode *timer = nullptr;
@@ -617,6 +626,9 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
         return true;
     };
     task.co->yield(&cancel_fn);
+
+    errno = _ev->error;
+    swoole_set_last_error(_ev->error);
 
     if (event.catch_error()) {
         return false;

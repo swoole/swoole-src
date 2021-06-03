@@ -93,6 +93,9 @@ pid_t System::wait(int *__stat_loc, double timeout) {
     return System::waitpid(-1, __stat_loc, 0, timeout);
 }
 
+/**
+ * @error: errno & swoole_get_last_error()
+ */
 pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout) {
     if (__pid < 0) {
         if (!child_processes.empty()) {
@@ -148,7 +151,14 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
             task.co);
     }
 
-    task.co->yield();
+    Coroutine::CancelFunc cancel_fn = [timer](Coroutine *co) {
+        if (timer) {
+            swoole_timer_del(timer);
+        }
+        co->resume();
+        return true;
+    };
+    task.co->yield(&cancel_fn);
 
     /* dequeue */
     if (__pid < 0) {
@@ -169,7 +179,8 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
         }
         *__stat_loc = task.status;
     } else {
-        errno = ETIMEDOUT;
+        swoole_set_last_error(task.co->is_canceled() ? SW_ERROR_CO_CANCELED : ETIMEDOUT);
+        errno = swoole_get_last_error();
     }
 
     return task.pid;

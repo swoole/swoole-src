@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/cancel: sleep
+swoole_coroutine/cancel: gethostbyname
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

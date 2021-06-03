@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/cancel: waitSignal
+swoole_coroutine/cancel: wait/waitpid
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -17,7 +17,7 @@ run(function () {
         System::sleep(0.002);
         Coroutine::cancel($cid);
     });
-    $retval = System::waitSignal(SIGTERM);
+    $retval = System::wait();
     echo "Done\n";
     Assert::eq($retval, false);
     Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_CANCELED);
