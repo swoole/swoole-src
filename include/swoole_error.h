@@ -169,6 +169,7 @@ enum swErrorCode {
 
     SW_ERROR_CO_CANNOT_CANCEL,
     SW_ERROR_CO_NOT_EXISTS,
+    SW_ERROR_CO_CANCELED,
 
     SW_ERROR_END
 };

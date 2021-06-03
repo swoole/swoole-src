@@ -103,6 +103,7 @@ bool Coroutine::cancel() {
     }
     auto fn = *cancel_fn_;
     set_cancel_fn(nullptr);
+    canceled_ = true;
     return fn(this);
 }
 
@@ -181,6 +182,7 @@ void Coroutine::bailout(BailoutCallback func) {
     // expect that never here
     exit(1);
 }
+
 namespace coroutine {
 bool run(const CoroutineFunc &fn, void *arg) {
     if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {

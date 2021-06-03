@@ -46,29 +46,10 @@ void System::clear_dns_cache() {
     }
 }
 
-static void dns_completed(AsyncEvent *event) {
-    if (event->canceled) {
-        return;
-    }
-    AsyncTask *task = (AsyncTask *) event->object;
-    task->original_event->ret = event->ret;
-    task->original_event->error = event->error;
-    ((Coroutine *) task->co)->resume();
-}
-
-static void dns_timeout(Timer *timer, TimerNode *tnode) {
-    AsyncEvent *event = (AsyncEvent *) tnode->data;
-    event->canceled = 1;
-    AsyncTask *task = (AsyncTask *) event->object;
-    task->original_event->ret = -1;
-    task->original_event->error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
-    ((Coroutine *) task->co)->resume();
-}
-
-static void sleep_callback(Coroutine *co, bool *cancelled) {
-    bool _cancelled = *cancelled;
-    delete cancelled;
-    if (_cancelled) {
+static void sleep_callback(Coroutine *co, bool *canceled) {
+    bool _canceled = *canceled;
+    delete canceled;
+    if (_canceled) {
         return;
     }
     co->resume();
@@ -77,29 +58,30 @@ static void sleep_callback(Coroutine *co, bool *cancelled) {
 int System::sleep(double sec) {
     Coroutine *co = Coroutine::get_current_safe();
 
-    bool *cancelled = new bool(false);
+    bool *canceled = new bool(false);
     TimerNode *tnode = nullptr;
 
     if (sec < SW_TIMER_MIN_SEC) {
-        swoole_event_defer([co, cancelled](void *data) { sleep_callback(co, cancelled); }, nullptr);
+        swoole_event_defer([co, canceled](void *data) { sleep_callback(co, canceled); }, nullptr);
     } else {
-        auto fn = [cancelled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, cancelled); };
+        auto fn = [canceled](Timer *timer, TimerNode *tnode) { sleep_callback((Coroutine *) tnode->data, canceled); };
         tnode = swoole_timer_add((long) (sec * 1000), false, fn, co);
         if (tnode == nullptr) {
-            delete cancelled;
+            delete canceled;
             return -1;
         }
     }
-    Coroutine::CancelFunc cancel_fn = [cancelled, tnode](Coroutine *co) {
-        *cancelled = true;
+    Coroutine::CancelFunc cancel_fn = [canceled, tnode](Coroutine *co) {
+        *canceled = true;
         if (tnode) {
             swoole_timer_del(tnode);
         }
+        swoole_set_last_error(SW_ERROR_CO_CANCELED);
         co->resume();
         return true;
     };
     co->yield(&cancel_fn);
-    return 0;
+    return co->is_canceled() ? SW_ERR : SW_OK;
 }
 
 std::shared_ptr<String> System::read_file(const char *file, bool lock) {
@@ -172,16 +154,12 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     }
 
     AsyncEvent ev{};
-    AsyncTask task;
 
     if (hostname.size() < SW_IP_MAX_LENGTH) {
         ev.nbytes = SW_IP_MAX_LENGTH + 1;
     } else {
         ev.nbytes = hostname.size() + 1;
     }
-
-    task.co = Coroutine::get_current_safe();
-    task.original_event = &ev;
 
     ev.buf = sw_malloc(ev.nbytes);
     if (!ev.buf) {
@@ -191,28 +169,9 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     memcpy(ev.buf, hostname.c_str(), hostname.size());
     ((char *) ev.buf)[hostname.size()] = 0;
     ev.flags = domain;
-    ev.object = (void *) &task;
-    ev.handler = async::handler_gethostbyname;
-    ev.callback = dns_completed;
-    /* TODO: find a better way */
     ev.ret = 1;
 
-    AsyncEvent *event = async::dispatch(&ev);
-    TimerNode *timer = nullptr;
-    if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, dns_timeout, event);
-    }
-    task.co->yield();
-    if (ev.ret == 1) {
-        /* TODO: find a better way */
-        /* canceled */
-        event->canceled = 1;
-        ev.ret = -1;
-        ev.error = SW_ERROR_DNSLOOKUP_RESOLVE_FAILED;
-    }
-    if (timer) {
-        swoole_timer_del(timer);
-    }
+    swoole::coroutine::async(async::handler_gethostbyname, ev, timeout);
 
     if (ev.ret == -1) {
         swoole_set_last_error(ev.error);
@@ -239,11 +198,6 @@ std::vector<std::string> System::getaddrinfo(
     AsyncEvent ev{};
     network::GetaddrinfoRequest req{};
 
-    AsyncTask task{Coroutine::get_current_safe(), &ev};
-
-    ev.object = &task;
-    ev.handler = async::handler_getaddrinfo;
-    ev.callback = dns_completed;
     ev.req = &req;
 
     struct sockaddr_in6 result_buffer[SW_DNS_HOST_BUFFER_SIZE];
@@ -255,15 +209,7 @@ std::vector<std::string> System::getaddrinfo(
     req.service = service.empty() ? nullptr : service.c_str();
     req.result = result_buffer;
 
-    AsyncEvent *event = async::dispatch(&ev);
-    TimerNode *timer = nullptr;
-    if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, dns_timeout, event);
-    }
-    task.co->yield();
-    if (timer) {
-        swoole_timer_del(timer);
-    }
+    swoole::coroutine::async(async::handler_getaddrinfo, ev, timeout);
 
     std::vector<std::string> retval;
 
@@ -281,11 +227,11 @@ bool System::wait_signal(int signo, double timeout) {
     Coroutine *co = Coroutine::get_current_safe();
 
     if (SwooleTG.signal_listener_num > 0) {
-        errno = EBUSY;
+        swoole_set_last_error(EBUSY);
         return false;
     }
     if (signo < 0 || signo >= SW_SIGNO_MAX || signo == SIGCHLD) {
-        errno = EINVAL;
+        swoole_set_last_error(EINVAL);
         return false;
     }
 
@@ -317,19 +263,27 @@ bool System::wait_signal(int signo, double timeout) {
             0,
             [](Timer *timer, TimerNode *tnode) {
                 Coroutine *co = (Coroutine *) tnode->data;
+                swoole_set_last_error(ETIMEDOUT);
                 co->resume();
             },
             co);
     }
 
-    co->yield();
+    Coroutine::CancelFunc cancel_fn = [timer](Coroutine *co) {
+        if (timer) {
+            swoole_timer_del(timer);
+        }
+        swoole_set_last_error(SW_ERROR_CO_CANCELED);
+        co->resume();
+        return true;
+    };
+    co->yield(&cancel_fn);
 
     swSignal_set(signo, nullptr);
     SwooleTG.co_signal_listener_num--;
 
     if (listeners[signo] != nullptr) {
         listeners[signo] = nullptr;
-        errno = ETIMEDOUT;
         return false;
     }
 
@@ -337,7 +291,7 @@ bool System::wait_signal(int signo, double timeout) {
         swoole_timer_del(timer);
     }
 
-    return true;
+    return co->is_canceled() ? false : true;
 }
 
 struct CoroPollTask {
@@ -655,9 +609,10 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
         timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
     }
 
-    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
-        _ev->canceled = false;
-        _ev->error = SW_ERROR_AIO_CANCELED;
+    Coroutine::CancelFunc cancel_fn = [_ev, &event](Coroutine *co) {
+        event.canceled = _ev->canceled = true;
+        event.error = _ev->error = SW_ERROR_AIO_CANCELED;
+        event.ret = _ev->ret = -1;
         co->resume();
         return true;
     };
@@ -710,8 +665,9 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     }
 
     Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
-        _ev->canceled = false;
+        _ev->canceled = true;
         _ev->error = SW_ERROR_AIO_CANCELED;
+        _ev->ret = -1;
         co->resume();
         return true;
     };

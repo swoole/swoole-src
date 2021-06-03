@@ -645,12 +645,12 @@ PHP_METHOD(swoole_coroutine_system, waitSignal) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (!System::wait_signal(signo, timeout)) {
-        if (errno == EBUSY) {
+        if (swoole_get_last_error() == EBUSY) {
             php_swoole_fatal_error(E_WARNING, "Unable to wait signal, async signal listener has been registered");
-        } else if (errno == EINVAL) {
+        } else if (swoole_get_last_error() == EINVAL) {
             php_swoole_fatal_error(E_WARNING, "Invalid signal [" ZEND_LONG_FMT "]", signo);
         }
-        swoole_set_last_error(errno);
+        errno = swoole_get_last_error();
         RETURN_FALSE;
     }
 

@@ -66,6 +66,7 @@ class Coroutine {
 
     void yield(CancelFunc *cancel_fn) {
         set_cancel_fn(cancel_fn);
+        canceled_ = false;
         yield();
         set_cancel_fn(nullptr);
     }
@@ -96,6 +97,10 @@ class Coroutine {
 
     inline bool is_end() {
         return ctx.is_end();
+    }
+
+    bool is_canceled() {
+        return canceled_;
     }
 
     inline void set_task(void *_task) {
@@ -203,8 +208,9 @@ class Coroutine {
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
-    CancelFunc *cancel_fn_;
-
+    CancelFunc *cancel_fn_ = nullptr;
+    bool canceled_ = false;
+    
     Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
         coroutines[cid] = this;
