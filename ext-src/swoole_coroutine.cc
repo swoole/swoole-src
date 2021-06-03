@@ -360,7 +360,7 @@ void PHPCoroutine::activate() {
     /**
      * deactivate when reactor free.
      */
-    SwooleTG.reactor->add_destroy_callback(deactivate, nullptr);
+    sw_reactor()->add_destroy_callback(deactivate, nullptr);
     Coroutine::activate();
     activated = true;
 }
@@ -964,7 +964,7 @@ PHP_FUNCTION(swoole_coroutine_defer) {
 
 static PHP_METHOD(swoole_coroutine, stats) {
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), SwooleTG.reactor ? SwooleTG.reactor->event_num : 0);
+    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->event_num : 0);
     add_assoc_long_ex(
         return_value, ZEND_STRL("signal_listener_num"), SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
 
@@ -1077,14 +1077,16 @@ static PHP_METHOD(swoole_coroutine, yield) {
 
     Coroutine::CancelFunc cancel_fn = [](Coroutine *co){
         user_yield_coros.erase(co->get_cid());
-        swoole_set_last_error(SW_ERROR_CO_CANCELED);
         co->resume();
         return true;
     };
-
     co->yield(&cancel_fn);
+    if (co->is_canceled()) {
+        swoole_set_last_error(SW_ERROR_CO_CANCELED);
+        RETURN_FALSE;
+    }
 
-    RETURN_BOOL(!co->is_canceled());
+    RETURN_TRUE;
 }
 
 static PHP_METHOD(swoole_coroutine, cancel) {

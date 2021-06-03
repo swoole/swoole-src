@@ -89,7 +89,7 @@ int System::sleep(double sec) {
 
 std::shared_ptr<String> System::read_file(const char *file, bool lock) {
     std::shared_ptr<String> result;
-    swoole::coroutine::async([&result, file, lock]() {
+    async([&result, file, lock]() {
         File fp(file, O_RDONLY);
         if (!fp.ready()) {
             swSysWarn("open(%s, O_RDONLY) failed", file);
@@ -118,7 +118,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
 ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock, int flags) {
     ssize_t retval = -1;
     int file_flags = flags | O_CREAT | O_WRONLY;
-    swoole::coroutine::async([&]() {
+    async([&]() {
         File _file(file, file_flags, 0644);
         if (!_file.ready()) {
             swSysWarn("open(%s, %d) failed", file, file_flags);
@@ -174,7 +174,7 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
     ev.flags = domain;
     ev.ret = 1;
 
-    swoole::coroutine::async(async::handler_gethostbyname, ev, timeout);
+    async(async::handler_gethostbyname, ev, timeout);
 
     if (ev.ret == -1) {
         swoole_set_last_error(ev.error);
@@ -212,7 +212,7 @@ std::vector<std::string> System::getaddrinfo(
     req.service = service.empty() ? nullptr : service.c_str();
     req.result = result_buffer;
 
-    swoole::coroutine::async(async::handler_getaddrinfo, ev, timeout);
+    async(async::handler_getaddrinfo, ev, timeout);
 
     std::vector<std::string> retval;
 
@@ -610,6 +610,7 @@ static void async_task_timeout(Timer *timer, TimerNode *tnode) {
     AsyncEvent *event = (AsyncEvent *) tnode->data;
     event->canceled = 1;
     AsyncTask *task = (AsyncTask *) event->object;
+    task->original_event->ret = -1;
     task->original_event->error = SW_ERROR_AIO_TIMEOUT;
     task->co->resume();
 }
@@ -637,13 +638,17 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     }
 
     Coroutine::CancelFunc cancel_fn = [_ev, &event](Coroutine *co) {
-        event.canceled = _ev->canceled = true;
-        event.error = _ev->error = SW_ERROR_AIO_CANCELED;
-        event.ret = _ev->ret = -1;
+        _ev->canceled = true;
+        _ev->error = SW_ERROR_AIO_CANCELED;
+        _ev->ret = -1;
         co->resume();
         return true;
     };
     task.co->yield(&cancel_fn);
+
+    event.canceled = _ev->canceled;
+    event.error = _ev->error;
+    event.ret = _ev->ret;
 
     errno = _ev->error;
     swoole_set_last_error(_ev->error);
