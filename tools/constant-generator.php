@@ -40,6 +40,9 @@ $server_events = array_unique($server_event[1]);
 
 $event_result = '';
 foreach ($server_events as $event) {
+    if ($event === 'HandShake') {
+        $event = 'handshake';
+    }
     $event_result .= space(4) . sprintf("public const EVENT_%s = '%s';\n\n", strtoupper(unCamelize($event)), lcfirst($event));
 }
 
