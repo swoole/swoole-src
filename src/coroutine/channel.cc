@@ -57,6 +57,7 @@ void Channel::yield(enum opcode type) {
 void *Channel::pop(double timeout) {
     Coroutine *current_co = Coroutine::get_current_safe();
     if (closed && is_empty()) {
+        error_ = ERROR_CLOSED;
         return nullptr;
     }
     if (is_empty() || !consumer_queue.empty()) {
@@ -98,6 +99,7 @@ void *Channel::pop(double timeout) {
 bool Channel::push(void *data, double timeout) {
     Coroutine *current_co = Coroutine::get_current_safe();
     if (closed) {
+        error_ = ERROR_CLOSED;
         return false;
     }
     if (is_full() || !producer_queue.empty()) {
