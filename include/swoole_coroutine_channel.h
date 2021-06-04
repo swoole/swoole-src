@@ -37,6 +37,13 @@ class Channel {
         CONSUMER = 2,
     };
 
+    enum ErrorCode {
+        ERROR_OK = 0,
+        ERROR_TIMEOUT = -1,
+        ERROR_CLOSED = -2,
+        ERROR_CANCELED = -3,
+    };
+
     struct TimeoutMessage {
         Channel *chan;
         enum opcode type;
@@ -99,9 +106,14 @@ class Channel {
         return data;
     }
 
+    int get_error() {
+        return error_;
+    }
+
   protected:
     size_t capacity = 1;
     bool closed = false;
+    int error_ = 0;
     std::list<Coroutine *> producer_queue;
     std::list<Coroutine *> consumer_queue;
     std::queue<void *> data_queue;

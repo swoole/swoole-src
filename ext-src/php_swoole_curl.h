@@ -46,13 +46,13 @@ struct Handle {
 
 struct Selector {
     bool defer_callback = false;
+    bool timer_callback = false;
     std::set<Handle *> active_handles;
 };
 
 class Multi {
     CURLM *multi_handle_;
     TimerNode *timer = nullptr;
-    bool timedout = false;
     long timeout_ms_ = 0;
     Coroutine *co = nullptr;
     int running_handles_ = 0;
@@ -144,7 +144,7 @@ class Multi {
     }
 
     CURLcode exec(php_curl *ch);
-    long select(php_curlm *mh);
+    long select(php_curlm *mh, double timeout = -1);
     void callback(Handle *handle, int event_bitmask);
 
     static int cb_readable(Reactor *reactor, Event *event);

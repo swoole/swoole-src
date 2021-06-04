@@ -202,7 +202,7 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
     ZEND_PARSE_PARAMETERS_END();
 
     mh = Z_CURL_MULTI_P(z_mh);
-    RETURN_LONG(mh->multi->select(mh));
+    RETURN_LONG(mh->multi->select(mh, timeout));
 }
 /* }}} */
 

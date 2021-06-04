@@ -116,7 +116,8 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
     Handle *handle = get_handle(cp);
     handle->action = action;
 
-    swTraceLog(SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p, fd=%d, events=%d", "[ADD]", handle, cp, sockfd, events);
+    swTraceLog(
+        SW_TRACE_CO_CURL, SW_ECHO_GREEN " handle=%p, curl=%p, fd=%d, events=%d", "[ADD]", handle, cp, sockfd, events);
 }
 
 CURLMcode Multi::add_handle(CURL *cp) {
@@ -156,8 +157,17 @@ CURLcode Multi::exec(php_curl *ch) {
 
     Handle *handle = get_handle(ch->cp);
 
+    Coroutine::CancelFunc cancel_fn = [](Coroutine *co) {
+        co->resume();
+        return true;
+    };
+
     SW_LOOP {
-        co->yield();
+        co->yield(&cancel_fn);
+        if (co->is_canceled()) {
+            swoole_set_last_error(SW_ERROR_CO_CANCELED);
+            break;
+        }
         int sockfd = last_sockfd;
         int bitmask = 0;
         if (sockfd >= 0) {
@@ -222,7 +232,7 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
     return 0;
 }
 
-long Multi::select(php_curlm *mh) {
+long Multi::select(php_curlm *mh, double timeout) {
     co = check_bound_co();
     if (zend_llist_count(&mh->easyh) == 0) {
         return 0;
@@ -252,7 +262,9 @@ long Multi::select(php_curlm *mh) {
     if (!timer && event_count == 0) {
         return 0;
     }
-    co->yield();
+
+    co->yield_ex(timeout);
+
     auto count = selector->active_handles.size();
 
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
@@ -263,7 +275,8 @@ long Multi::select(php_curlm *mh) {
         }
         Handle *handle = get_handle(ch->cp);
         if (handle && handle->socket && !handle->socket->removed) {
-            swTraceLog(SW_TRACE_CO_CURL, "suspend, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
+            swTraceLog(
+                SW_TRACE_CO_CURL, "suspend, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
             swoole_event_del(handle->socket);
         }
     }
@@ -271,15 +284,16 @@ long Multi::select(php_curlm *mh) {
 
     for (auto iter = selector->active_handles.begin(); iter != selector->active_handles.end(); iter++) {
         Handle *handle = *iter;
-        int bitmask = 0;
-        int sockfd = -1;
-        if (handle) {
-            bitmask = handle->event_bitmask;
-            sockfd = handle->event_fd;
-        }
-        curl_multi_socket_action(multi_handle_, sockfd, bitmask, &running_handles_);
-        swTraceLog(SW_TRACE_CO_CURL, "socket_action, running_handles=%d", running_handles_);
+        curl_multi_socket_action(multi_handle_, handle->event_fd, handle->event_bitmask, &running_handles_);
+        swTraceLog(SW_TRACE_CO_CURL, "socket_action[socket], running_handles=%d", running_handles_);
     }
+
+    if (selector->timer_callback) {
+        selector->timer_callback = false;
+        curl_multi_socket_action(multi_handle_, -1, 0, &running_handles_);
+        swTraceLog(SW_TRACE_CO_CURL, "socket_action[timer], running_handles=%d", running_handles_);
+    }
+
     selector->active_handles.clear();
 
     return count;
@@ -293,6 +307,10 @@ void Multi::callback(Handle *handle, int event_bitmask) {
     }
     // for curl_multi_select
     if (selector.get()) {
+        // for timer
+        if (last_sockfd == -1) {
+            selector->timer_callback = true;
+        }
         if (!co) {
             if (handle) {
                 swoole_event_del(handle->socket);
@@ -301,7 +319,9 @@ void Multi::callback(Handle *handle, int event_bitmask) {
             }
             return;
         }
-        selector->active_handles.insert(handle);
+        if (handle) {
+            selector->active_handles.insert(handle);
+        }
         if (selector->defer_callback) {
             return;
         }

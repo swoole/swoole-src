@@ -21,8 +21,10 @@
 
 #include <string>
 
+#include "swoole_string.h"
 #include "swoole_util.h"
 #include "swoole_socket.h"
+#include "swoole_reactor.h"
 #include "swoole_coroutine_system.h"
 #include "swoole_buffer.h"
 #include "swoole_base64.h"
