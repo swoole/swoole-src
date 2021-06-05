@@ -29,7 +29,7 @@ run(function () {
     $output = curl_exec($ch);
     Assert::isEmpty($output);
     Assert::eq(curl_errno($ch), CURLE_COULDNT_CONNECT);
-
+    Assert::contains(curl_error($ch), 'Connection refused');
     $info = curl_getinfo($ch);
     Assert::isArray($info);
     Assert::eq($info['http_code'], 0);

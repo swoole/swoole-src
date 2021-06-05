@@ -196,7 +196,7 @@ CURLcode Multi::exec(php_curl *ch) {
 
     CURLcode retval = read_info();
     remove_handle(ch->cp);
-    return retval;
+    return co->is_canceled() ? CURLE_ABORTED_BY_CALLBACK : retval;
 }
 
 CURLcode Multi::read_info() {

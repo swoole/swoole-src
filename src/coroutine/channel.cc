@@ -23,7 +23,6 @@ void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
     TimeoutMessage *msg = (TimeoutMessage *) tnode->data;
     msg->error = true;
     msg->timer = nullptr;
-    msg->chan->error_ = ERROR_TIMEOUT;
     if (msg->type == CONSUMER) {
         msg->chan->consumer_remove(msg->co);
     } else {
@@ -42,7 +41,6 @@ void Channel::yield(enum opcode type) {
         swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
     }
     Coroutine::CancelFunc cancel_fn = [this, type](Coroutine *co) {
-        error_ = ERROR_CANCELED;
         if (type == CONSUMER) {
             consumer_remove(co);
         } else {
@@ -77,7 +75,16 @@ void *Channel::pop(double timeout) {
         if (msg.timer) {
             swoole_timer_del(msg.timer);
         }
-        if (current_co->is_canceled() || msg.error || (closed && is_empty())) {
+        if (current_co->is_canceled()) {
+            error_ = ERROR_CANCELED;
+            return nullptr;
+        }
+        if (msg.error) {
+            error_ = ERROR_TIMEOUT;
+            return nullptr;
+        }
+        if (closed && is_empty()) {
+            error_ = ERROR_CLOSED;
             return nullptr;
         }
     }
@@ -119,7 +126,16 @@ bool Channel::push(void *data, double timeout) {
         if (msg.timer) {
             swoole_timer_del(msg.timer);
         }
-        if (current_co->is_canceled() || msg.error || closed) {
+        if (current_co->is_canceled()) {
+            error_ = ERROR_CANCELED;
+            return false;
+        }
+        if (msg.error) {
+            error_ = ERROR_TIMEOUT;
+            return false;
+        }
+        if (closed) {
+            error_ = ERROR_CLOSED;
             return false;
         }
     }
