@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include "swoole.h"
-
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/uio.h>
@@ -31,6 +29,7 @@
 #include <string>
 #include <vector>
 
+#include "swoole.h"
 #include "swoole_ssl.h"
 #include "swoole_buffer.h"
 #include "swoole_file.h"

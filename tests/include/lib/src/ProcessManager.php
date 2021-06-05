@@ -31,6 +31,8 @@ class ProcessManager
      */
     protected $atomic;
     protected $alone = false;
+    protected $onlyChild = false;
+    protected $onlyParent = false;
     protected $freePorts = [];
     protected $randomFunc = 'get_safe_random';
     protected $randomData = [[]];
@@ -271,14 +273,23 @@ class ProcessManager
             $this->alone = true;
             $this->initFreePorts();
             if ($argv[1] == 'child') {
-                return $this->runChildFunc();
+                $this->onlyChild = true;
             } elseif ($argv[1] == 'parent') {
-                return $this->runParentFunc();
+                $this->onlyParent = true;
             } else {
                 throw new RuntimeException("bad parameter \$1\n");
             }
         }
         $this->initFreePorts();
+        if ($this->alone) {
+            if ($this->onlyChild) {
+                return $this->runChildFunc();
+            } elseif ($this->onlyParent) {
+                return $this->runParentFunc();
+            }
+            $this->alone = false;
+        }
+
         $this->childProcess = new Process(function () {
             if ($this->parentFirst) {
                 $this->wait();

@@ -444,8 +444,7 @@ int curl_cast_object(zend_object *obj, zval *result, int type) {
 }
 #endif
 
-void swoole_native_curl_mshutdown() {
-}
+void swoole_native_curl_mshutdown() {}
 
 /* {{{ curl_write_nothing
  * Used as a work around. See _php_curl_close_ex
@@ -2636,6 +2635,9 @@ PHP_FUNCTION(swoole_native_curl_error) {
 
     if (ch->err.no) {
         ch->err.str[CURL_ERROR_SIZE] = 0;
+        if (strlen(ch->err.str) == 0) {
+            RETURN_STRING(curl_easy_strerror((CURLcode) ch->err.no));
+        }
         RETURN_STRING(ch->err.str);
     } else {
         RETURN_EMPTY_STRING();

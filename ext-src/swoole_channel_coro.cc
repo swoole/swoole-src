@@ -73,12 +73,6 @@ static const zend_function_entry swoole_channel_coro_methods[] =
 };
 // clang-format on
 
-enum swChannelErrorCode {
-    SW_CHANNEL_OK = 0,
-    SW_CHANNEL_TIMEOUT = -1,
-    SW_CHANNEL_CLOSED = -2,
-};
-
 static sw_inline ChannelObject *php_swoole_channel_coro_fetch_object(zend_object *obj) {
     return (ChannelObject *) ((char *) obj - swoole_channel_coro_handlers.offset);
 }
@@ -142,9 +136,10 @@ void php_swoole_channel_coro_minit(int module_number) {
     zend_declare_property_long(swoole_channel_coro_ce, ZEND_STRL("capacity"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_channel_coro_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
 
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_OK", SW_CHANNEL_OK);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_TIMEOUT", SW_CHANNEL_TIMEOUT);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_CLOSED", SW_CHANNEL_CLOSED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_OK", Channel::ERROR_OK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_TIMEOUT", Channel::ERROR_TIMEOUT);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_CLOSED", Channel::ERROR_CLOSED);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_CHANNEL_CANCELED", Channel::ERROR_CANCELED);
 }
 
 static PHP_METHOD(swoole_channel_coro, __construct) {
@@ -178,13 +173,12 @@ static PHP_METHOD(swoole_channel_coro, push) {
     Z_TRY_ADDREF_P(zdata);
     zdata = sw_zval_dup(zdata);
     if (chan->push(zdata, timeout)) {
-        zend_update_property_long(swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SW_CHANNEL_OK);
+        zend_update_property_long(
+            swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), Channel::ERROR_OK);
         RETURN_TRUE;
     } else {
-        zend_update_property_long(swoole_channel_coro_ce,
-                                  SW_Z8_OBJ_P(ZEND_THIS),
-                                  ZEND_STRL("errCode"),
-                                  chan->is_closed() ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
+        zend_update_property_long(
+            swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), chan->get_error());
         Z_TRY_DELREF_P(zdata);
         efree(zdata);
         RETURN_FALSE;
@@ -204,12 +198,11 @@ static PHP_METHOD(swoole_channel_coro, pop) {
     if (zdata) {
         RETVAL_ZVAL(zdata, 0, 0);
         efree(zdata);
-        zend_update_property_long(swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), SW_CHANNEL_OK);
+        zend_update_property_long(
+            swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), Channel::ERROR_OK);
     } else {
-        zend_update_property_long(swoole_channel_coro_ce,
-                                  SW_Z8_OBJ_P(ZEND_THIS),
-                                  ZEND_STRL("errCode"),
-                                  chan->is_closed() ? SW_CHANNEL_CLOSED : SW_CHANNEL_TIMEOUT);
+        zend_update_property_long(
+            swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), chan->get_error());
         RETURN_FALSE;
     }
 }
@@ -241,4 +234,3 @@ static PHP_METHOD(swoole_channel_coro, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("producer_num"), chan->producer_num());
     add_assoc_long_ex(return_value, ZEND_STRL("queue_num"), chan->length());
 }
-

@@ -35,13 +35,6 @@
 namespace swoole {
 class Coroutine {
   public:
-    void resume();
-    void yield();
-    bool cancel();
-
-    void resume_naked();
-    void yield_naked();
-
     constexpr static int STACK_ALIGNED_SIZE = (4 * 1024);
     constexpr static int MIN_STACK_SIZE = (64 * 1024);
     constexpr static int MAX_STACK_SIZE = (16 * 1024 * 1024);
@@ -60,16 +53,24 @@ class Coroutine {
         ERR_INVALID = -2,
     };
 
+    enum ResumeCode {
+        RC_OK = 0,
+        RC_TIMEDOUT = -1,
+        RC_CANCELED = -2,
+    };
+
     typedef void (*SwapCallback)(void *);
     typedef void (*BailoutCallback)();
     typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
 
-    void yield(CancelFunc *cancel_fn) {
-        set_cancel_fn(cancel_fn);
-        canceled_ = false;
-        yield();
-        set_cancel_fn(nullptr);
-    }
+    void resume();
+    void yield();
+    void yield(CancelFunc *cancel_fn);
+    bool cancel();
+
+    void resume_naked();
+    void yield_naked();
+    bool yield_ex(double timeout = -1);
 
     inline enum State get_state() {
         return state;
@@ -100,7 +101,11 @@ class Coroutine {
     }
 
     bool is_canceled() {
-        return canceled_;
+        return resume_code_ == RC_CANCELED;
+    }
+
+    bool is_timedout() {
+        return resume_code_ == RC_TIMEDOUT;
     }
 
     inline void set_task(void *_task) {
@@ -203,13 +208,13 @@ class Coroutine {
     static bool activated;
 
     enum State state = STATE_INIT;
+    enum ResumeCode resume_code_ = RC_OK;
     long cid;
     long init_msec = Timer::get_absolute_msec();
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
     CancelFunc *cancel_fn_ = nullptr;
-    bool canceled_ = false;
     
     Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;

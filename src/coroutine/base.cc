@@ -35,7 +35,7 @@ Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
 namespace coroutine {
 void thread_context_init();
 void thread_context_clean();
-}
+}  // namespace coroutine
 #endif
 
 void Coroutine::activate() {
@@ -55,11 +55,50 @@ void Coroutine::deactivate() {
 void Coroutine::yield() {
     SW_ASSERT(current == this || on_bailout != nullptr);
     state = STATE_WAITING;
+    resume_code_ = RC_OK;
     if (sw_likely(on_yield && task)) {
         on_yield(task);
     }
     current = origin;
     ctx.swap_out();
+}
+
+void Coroutine::yield(CancelFunc *cancel_fn) {
+    set_cancel_fn(cancel_fn);
+    yield();
+    set_cancel_fn(nullptr);
+}
+
+bool Coroutine::yield_ex(double timeout) {
+    TimerNode *timer = nullptr;
+    TimerCallback timer_callback = [this](Timer *timer, TimerNode *tnode) {
+        resume_code_ = RC_TIMEDOUT;
+        resume();
+    };
+
+    if (timeout > 0) {
+        timer = swoole_timer_add((long) (timeout * 1000), false, timer_callback, nullptr);
+    }
+
+    CancelFunc cancel_fn = [](Coroutine *co) {
+        co->resume();
+        return true;
+    };
+
+    yield(&cancel_fn);
+
+    if (is_timedout()) {
+        swoole_set_last_error(SW_ERROR_CO_TIMEDOUT);
+        return false;
+    }
+    if (timer) {
+        swoole_timer_del(timer);
+    }
+    if (is_canceled()) {
+        swoole_set_last_error(SW_ERROR_CO_CANCELED);
+        return false;
+    }
+    return true;
 }
 
 void Coroutine::resume() {
@@ -103,7 +142,7 @@ bool Coroutine::cancel() {
     }
     auto fn = *cancel_fn_;
     set_cancel_fn(nullptr);
-    canceled_ = true;
+    resume_code_ = RC_CANCELED;
     return fn(this);
 }
 
