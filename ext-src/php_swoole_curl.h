@@ -57,6 +57,7 @@ class Multi {
     Coroutine *co = nullptr;
     int running_handles_ = 0;
     int last_sockfd;
+    int event_count_ = 0;
     std::unique_ptr<Selector> selector;
 
     CURLcode read_info();
