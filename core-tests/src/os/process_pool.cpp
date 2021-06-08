@@ -1,6 +1,12 @@
 #include "test_core.h"
 #include "swoole_process_pool.h"
 
+#include <signal.h>
+
+#ifdef __MACH__
+#define sysv_signal signal
+#endif
+
 using namespace swoole;
 
 static void test_func(ProcessPool &pool) {

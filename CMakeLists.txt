@@ -13,6 +13,8 @@ set(SWOOLE_LINK_LIBRARIES pthread dl)
 
 if (APPLE)
     set(CMAKE_SHARED_LINKER_FLAGS "-undefined dynamic_lookup")
+    include_directories(BEFORE /usr/local/include)
+    link_directories(BEFORE /usr/local/lib)
 else()
     list(APPEND SWOOLE_LINK_LIBRARIES rt crypt)
 endif()
@@ -80,6 +82,14 @@ endif()
 if (DEFINED brotli_dir)
     include_directories(BEFORE ${brotli_dir}/include)
     link_directories(${brotli_dir}/lib)
+endif()
+
+if (DEFINED enable_cares)
+	list(APPEND SWOOLE_LINK_LIBRARIES cares)
+endif()
+
+if (DEFINED enable_trace_log)
+	add_definitions(-DSW_LOG_TRACE_OPEN)
 endif()
 
 execute_process(COMMAND php-config --includes OUTPUT_VARIABLE PHP_INCLUDES OUTPUT_STRIP_TRAILING_WHITESPACE)

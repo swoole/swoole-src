@@ -82,7 +82,7 @@ TEST(coroutine_system, flock) {
 }
 
 TEST(coroutine_system, cancel_sleep) {
-    coroutine::run([](void *arg) {
+    test::coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
         Coroutine::create([co](void *){
             System::sleep(0.002);

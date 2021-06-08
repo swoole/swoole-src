@@ -592,6 +592,7 @@ class ProtocolSwitch {
 };
 
 std::vector<std::string> dns_lookup(const char *domain, double timeout = 2.0);
+std::vector<std::string> dns_lookup_ex(const char *domain, int family = AF_INET, double timeout = 2.0);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

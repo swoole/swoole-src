@@ -252,7 +252,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                     }
 
                     swTraceLog(SW_TRACE_AIO,
-                               "aio_thread %s. ret=%d, error=%d",
+                               "aio_thread %s. ret=%ld, error=%d",
                                event->retval > 0 ? "ok" : "failed",
                                event->retval,
                                event->error);

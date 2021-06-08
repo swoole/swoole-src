@@ -380,6 +380,7 @@ enum swFd_type {
      */
     SW_FD_SIGNAL,
     SW_FD_DNS_RESOLVER,
+    SW_FD_CARES,
     /**
      * SW_FD_USER or SW_FD_USER+n: for custom event
      */
@@ -633,7 +634,7 @@ struct Global {
     int signal_fd;
     bool signal_alarm;
 
-    uint32_t trace_flags;
+    long trace_flags;
 
     void (*fatal_error)(int code, const char *str, ...);
 
@@ -694,6 +695,11 @@ static inline int swoole_get_process_id() {
 
 SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
+SW_API void swoole_set_log_level(int level);
+
+static inline void swoole_set_trace_flags(int flags) {
+    SwooleG.trace_flags = flags;
+}
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {

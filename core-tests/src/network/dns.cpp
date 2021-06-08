@@ -51,3 +51,15 @@ TEST(dns, getaddrinfo) {
         ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
     }
 }
+
+#ifdef HAVE_CARES
+TEST(dns, gethostbyname_cares) {
+    swoole_set_trace_flags(SW_TRACE_CARES);
+    swoole_set_log_level(SW_LOG_TRACE);
+    test::coroutine::run([](void *arg) {
+        auto list = swoole::coroutine::dns_lookup_ex("www.baidu.com", AF_INET, 2);
+        swWarn("ip=%s", list[0].c_str());
+        ASSERT_GE(list.size(), 1);
+    });
+}
+#endif

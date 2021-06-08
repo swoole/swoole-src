@@ -23,6 +23,12 @@
 #include <string>
 #include <chrono>  // NOLINT [build/c++11]
 
+SW_API void swoole_set_log_level(int level) {
+    if (sw_logger()) {
+        sw_logger()->set_level(level);
+    }
+}
+
 namespace swoole {
 
 bool Logger::open(const char *_log_file) {
