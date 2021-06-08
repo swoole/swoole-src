@@ -30,7 +30,7 @@ enum swDNS_type {
 };
 
 enum swDNS_error {
-    SW_DNS_NOT_EXIST,  // Error: adress does not exist
+    SW_DNS_NOT_EXIST,  // Error: address does not exist
     SW_DNS_TIMEOUT,    // Lookup time expired
     SW_DNS_ERROR       // No memory or other error
 };
