@@ -416,7 +416,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                                          SW_ERROR_SESSION_NOT_EXIST,
                                          "force close connection failed, session#%ld does not exist",
                                          session_id);
-                        return SW_ERR;
+                        return SW_OK;
                     }
 
                     if (serv->disable_notify || conn->close_force) {

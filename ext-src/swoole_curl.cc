@@ -159,13 +159,8 @@ CURLcode Multi::exec(php_curl *ch) {
 
     Handle *handle = get_handle(ch->cp);
 
-    Coroutine::CancelFunc cancel_fn = [](Coroutine *co) {
-        co->resume();
-        return true;
-    };
-
     SW_LOOP {
-        co->yield(&cancel_fn);
+        co->yield_ex(-1);
         if (co->is_canceled()) {
             swoole_set_last_error(SW_ERROR_CO_CANCELED);
             break;
