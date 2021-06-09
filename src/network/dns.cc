@@ -543,6 +543,7 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
     ctx.co = co;
     char lookups[] = "fb";
     int res;
+    ctx.error = 0;
     ctx.ares_opts.lookups = lookups;
     ctx.ares_opts.timeout = timeout * 1000;
     ctx.ares_opts.tries = 1;
@@ -562,7 +563,6 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
         network::Socket *_socket = nullptr;
         if (ctx->sockets.find(fd) == ctx->sockets.end()) {
             if (events == 0) {
-                abort();
                 swWarn("error events, fd=%d", fd);
                 return;
             }
@@ -608,7 +608,7 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
             swTraceLog(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
 
             if (timeouts > 0) {
-                swWarn("lookup timeout");
+                ctx->error = SW_ERROR_CO_TIMEDOUT;
                 goto _resume;
             }
 
@@ -625,23 +625,34 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
                 }
             }
         _resume:
-            if (ctx->co) {
-                swoole_event_defer([](void *data){
-                    Coroutine *co = reinterpret_cast<Coroutine *>(data);
-                    co->resume();
-                }, ctx->co);
+            if (ctx->co && ctx->co->is_suspending()) {
+                swoole_event_defer(
+                    [](void *data) {
+                        Coroutine *co = reinterpret_cast<Coroutine *>(data);
+                        co->resume();
+                    },
+                    ctx->co);
                 ctx->co = nullptr;
             }
         },
         &ctx);
+
+    if (ctx.error) {
+        goto _destroy;
+    }
 
     co->yield_ex(timeout);
     if (co->is_canceled()) {
         ares_cancel(ctx.channel);
     } else if (co->is_timedout()) {
         ares_process_fd(ctx.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT);
     } else {
         swTraceLog(SW_TRACE_CARES, "lookup success, result_count=%lu", ctx.result.size());
+    }
+_destroy:
+    if (ctx.error) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     }
     ares_destroy(ctx.channel);
 _return:

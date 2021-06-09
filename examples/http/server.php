@@ -17,6 +17,7 @@ $http->set([
     //'open_cpu_affinity' => 1,
     //'task_worker_num' => 100,
     //'enable_port_reuse' => true,
+    // 'http_compression' => false,
     'worker_num' => 1,
     //'log_file' => __DIR__.'/swoole.log',
 //    'reactor_num' => 24,
@@ -88,6 +89,9 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
     } else if ($request->server['request_uri'] == '/favicon.ico') {
         $response->status(404);
         $response->end();
+        return;
+    } else if ($request->server['request_uri'] == '/big_response') {
+        var_dump($response->end(str_repeat('A', 16 * 1024 * 1024)));
         return;
     } else if ($request->server['request_uri'] == '/code') {
         $response->sendfile(__FILE__);

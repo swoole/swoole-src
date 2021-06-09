@@ -72,15 +72,15 @@ class Coroutine {
     void yield_naked();
     bool yield_ex(double timeout = -1);
 
-    inline enum State get_state() {
+    inline enum State get_state() const {
         return state;
     }
 
-    inline long get_init_msec() {
+    inline long get_init_msec() const  {
         return init_msec;
     }
 
-    inline long get_cid() {
+    inline long get_cid() const {
         return cid;
     }
 
@@ -100,12 +100,16 @@ class Coroutine {
         return ctx.is_end();
     }
 
-    bool is_canceled() {
+    bool is_canceled() const {
         return resume_code_ == RC_CANCELED;
     }
 
-    bool is_timedout() {
+    bool is_timedout() const {
         return resume_code_ == RC_TIMEDOUT;
+    }
+
+    bool is_suspending() const {
+        return state == STATE_WAITING;
     }
 
     inline void set_task(void *_task) {

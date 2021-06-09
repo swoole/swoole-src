@@ -62,9 +62,14 @@ TEST(dns, gethostbyname_cares) {
 
         auto list2 = swoole::coroutine::dns_lookup_ex("www.baidu.com-not-found", AF_INET, 2);
         ASSERT_EQ(list2.size(), 0);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
 
         auto list3 = swoole::coroutine::dns_lookup_ex("www.google.com", AF_INET6, 2);
         ASSERT_GE(list3.size(), 1);
+
+        auto list4 = swoole::coroutine::dns_lookup_ex("www.google.com", 9999, 2);
+        ASSERT_GE(list3.size(), 1);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     });
 }
 #endif
