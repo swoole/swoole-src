@@ -225,7 +225,21 @@ void swoole_clean(void) {
         delete g_logger_instance;
         g_logger_instance = nullptr;
     }
+    if (SwooleTG.buffer_stack) {
+        delete SwooleTG.buffer_stack;
+        SwooleTG.buffer_stack = nullptr;
+    }
     SwooleG = {};
+}
+
+SW_API void swoole_set_log_level(int level) {
+    if (sw_logger()) {
+        sw_logger()->set_level(level);
+    }
+}
+
+SW_API void swoole_set_trace_flags(int flags) {
+    SwooleG.trace_flags = flags;
 }
 
 bool swoole_set_task_tmpdir(const std::string &dir) {

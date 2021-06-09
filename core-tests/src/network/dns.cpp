@@ -54,12 +54,17 @@ TEST(dns, getaddrinfo) {
 
 #ifdef HAVE_CARES
 TEST(dns, gethostbyname_cares) {
-    swoole_set_trace_flags(SW_TRACE_CARES);
-    swoole_set_log_level(SW_LOG_TRACE);
+    // swoole_set_trace_flags(SW_TRACE_CARES);
+    // swoole_set_log_level(SW_LOG_TRACE);
     test::coroutine::run([](void *arg) {
-        auto list = swoole::coroutine::dns_lookup_ex("www.baidu.com", AF_INET, 2);
-        swWarn("ip=%s", list[0].c_str());
-        ASSERT_GE(list.size(), 1);
+        auto list1 = swoole::coroutine::dns_lookup_ex("www.baidu.com", AF_INET, 2);
+        ASSERT_GE(list1.size(), 1);
+
+        auto list2 = swoole::coroutine::dns_lookup_ex("www.baidu.com-not-found", AF_INET, 2);
+        ASSERT_EQ(list2.size(), 0);
+
+        auto list3 = swoole::coroutine::dns_lookup_ex("www.google.com", AF_INET6, 2);
+        ASSERT_GE(list3.size(), 1);
     });
 }
 #endif

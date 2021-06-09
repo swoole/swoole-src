@@ -180,7 +180,7 @@ ssize_t String::split(const char *delimiter, size_t delimiter_length, const Stri
 
     while (delimiter_addr) {
         size_t _length = delimiter_addr - start_addr + delimiter_length;
-        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%d", count, _length + offset);
+        swTraceLog(SW_TRACE_EOF_PROTOCOL, "#[4] count=%d, length=%lu", count, _length + offset);
         if (handler((char *) start_addr - _offset, _length + _offset) == false) {
             return -1;
         }

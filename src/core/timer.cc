@@ -158,7 +158,7 @@ bool Timer::remove(TimerNode *tnode) {
     if (sw_unlikely(_current_id > 0 && tnode->id == _current_id)) {
         tnode->removed = true;
         swTraceLog(SW_TRACE_TIMER,
-                   "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
+                   "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                    tnode->id,
                    tnode->exec_msec,
                    tnode->round,
@@ -175,7 +175,7 @@ bool Timer::remove(TimerNode *tnode) {
         tnode->destructor(tnode);
     }
     swTraceLog(SW_TRACE_TIMER,
-               "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
+               "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                tnode->id,
                tnode->exec_msec,
                tnode->round,
@@ -204,7 +204,7 @@ int Timer::select() {
         _current_id = tnode->id;
         if (!tnode->removed) {
             swTraceLog(SW_TRACE_TIMER,
-                       "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%u",
+                       "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                        tnode->id,
                        tnode->exec_msec,
                        tnode->round,

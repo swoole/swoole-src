@@ -526,13 +526,13 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
         ares_library_init(ARES_LIB_INIT_ALL);
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
             auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
-            swTraceLog(SW_TRACE_CARES, "readable event, fd=%d", event->socket->fd);
+            swTraceLog(SW_TRACE_CARES, "[event callback] readable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, event->fd, ARES_SOCKET_BAD);
             return SW_OK;
         });
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
             auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
-            swTraceLog(SW_TRACE_CARES, "writable event, fd=%d", event->socket->fd);
+            swTraceLog(SW_TRACE_CARES, "[event callback] writable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, event->fd);
             return SW_OK;
         });
@@ -557,11 +557,12 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
             events |= SW_EVENT_WRITE;
         }
 
-        swTraceLog(SW_TRACE_CARES, "socket callback, fd=%d, readable=%d, writable=%d", fd, readable, writable);
+        swTraceLog(SW_TRACE_CARES, "[sock_state_cb], fd=%d, readable=%d, writable=%d", fd, readable, writable);
 
         network::Socket *_socket = nullptr;
         if (ctx->sockets.find(fd) == ctx->sockets.end()) {
             if (events == 0) {
+                abort();
                 swWarn("error events, fd=%d", fd);
                 return;
             }
@@ -571,6 +572,7 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
         } else {
             _socket = ctx->sockets[fd];
             if (events == 0) {
+                swTraceLog(SW_TRACE_CARES, "[del event], fd=%d", fd);
                 swoole_event_del(_socket);
                 _socket->fd = -1;
                 _socket->free();
@@ -581,10 +583,10 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
 
         if (_socket->events) {
             swoole_event_set(_socket, events);
-            swTraceLog(SW_TRACE_CARES, "set event, fd=%d, events=%d", fd, events);
+            swTraceLog(SW_TRACE_CARES, "[set event] fd=%d, events=%d", fd, events);
         } else {
             swoole_event_add(_socket, events);
-            swTraceLog(SW_TRACE_CARES, "add event, fd=%d, events=%d", fd, events);
+            swTraceLog(SW_TRACE_CARES, "[add event] fd=%d, events=%d", fd, events);
         }
     };
 
@@ -603,7 +605,7 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
         [](void *data, int status, int timeouts, struct hostent *hostent) {
             auto ctx = reinterpret_cast<ResolvContext *>(data);
 
-            swTraceLog(SW_TRACE_CARES, "ares_host_callback(), status=%d, timeouts=%d", status, timeouts);
+            swTraceLog(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
 
             if (timeouts > 0) {
                 swWarn("lookup timeout");
@@ -624,23 +626,24 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
             }
         _resume:
             if (ctx->co) {
-                ctx->co->resume();
+                swoole_event_defer([](void *data){
+                    Coroutine *co = reinterpret_cast<Coroutine *>(data);
+                    co->resume();
+                }, ctx->co);
+                ctx->co = nullptr;
             }
         },
         &ctx);
 
     co->yield_ex(timeout);
-    ctx.co = nullptr;
     if (co->is_canceled()) {
         ares_cancel(ctx.channel);
     } else if (co->is_timedout()) {
         ares_process_fd(ctx.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
     } else {
-        swWarn("success");
+        swTraceLog(SW_TRACE_CARES, "lookup success, result_count=%lu", ctx.result.size());
     }
-//    ares_destroy(ctx.channel);
-    swWarn("destroy");
-
+    ares_destroy(ctx.channel);
 _return:
     return ctx.result;
 }

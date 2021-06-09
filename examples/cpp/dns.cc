@@ -57,6 +57,8 @@ int main(int argc, char **argv) {
         if (readable) events |= EV_READ;
         if (writable) events |= EV_WRITE;
 
+        printf("[sock_state_cb] fd=%d, events=%d\n", fd, events);
+
         if (events == 0) {
             event_del(&event);
             ctx->events.erase(fd);
@@ -73,12 +75,16 @@ int main(int argc, char **argv) {
                     auto ctx = reinterpret_cast<context *>(arg);
                     if (events & EV_READ) r = fd;
                     if (events & EV_WRITE) w = fd;
+
+                    printf("event callback, fd=%d, events=%d\n", fd, events);
                     ares_process_fd(ctx->channel, r, w);
                 },
                 ctx) != 0) {
             std::cout << "event_assign failed" << std::endl;
             return;
         }
+
+        printf("add event, fd=%d, events=%d\n", fd, events);
         if (event_add(&event, nullptr) != 0) {
             std::cout << "event_add failed" << std::endl;
         }
@@ -101,6 +107,7 @@ int main(int argc, char **argv) {
             (void) fd;
             (void) events;
             auto ctx = reinterpret_cast<context *>(arg);
+            printf("timeout callback, fd=%d, events=%d\n", fd, events);
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
         },
         &ctx);
@@ -111,6 +118,8 @@ int main(int argc, char **argv) {
         AF_INET,
         [](void *data, int status, int timeouts, struct hostent *hostent) {
             auto ctx = reinterpret_cast<context *>(data);
+
+            printf("callback, timeout=%d, status=%d\n", timeouts, status);
 
             if (timeouts > 0) {
                 std::cout << "loopkup timeout" << std::endl;
@@ -140,8 +149,9 @@ int main(int argc, char **argv) {
         std::cout << "event base loop failed: " << res << std::endl;
         return res;
     }
-
+    printf("destroy begin\n");
     ares_destroy(ctx.channel);
+    printf("destroy end\n");
     ares_library_cleanup();
     return 0;
 }
