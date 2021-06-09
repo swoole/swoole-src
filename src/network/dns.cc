@@ -488,24 +488,32 @@ void GetaddrinfoRequest::parse_result(std::vector<std::string> &retval) {
         }
     }
 }
-
 }  // namespace network
 
 #ifdef HAVE_CARES
 namespace coroutine {
+struct ResolvContext {
+    ares_channel channel;
+    ares_options ares_opts;
+    int ares_flags;
+    int error;
+    Coroutine *co;
+    std::unordered_map<int, network::Socket *> sockets;
+    std::vector<std::string> result;
+};
 
 std::string address_to_string(void *vaddr, int len) {
     auto addr = reinterpret_cast<unsigned char *>(vaddr);
     std::string addv;
     if (len == 4) {
         char buff[4 * 4 + 3 + 1];
-        sprintf(buff, "%u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
+        sw_snprintf(buff, sizeof(buff), "%u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
         return addv.assign(buff);
     } else if (len == 16) {
         for (int ii = 0; ii < 16; ii += 2) {
             if (ii > 0) addv.append(":");
             char buff[4 + 1];
-            sprintf(buff, "%02x%02x", addr[ii], addr[ii + 1]);
+            sw_snprintf(buff, sizeof(buff), "%02x%02x", addr[ii], addr[ii + 1]);
             addv.append(buff);
         }
     }
@@ -513,15 +521,6 @@ std::string address_to_string(void *vaddr, int len) {
 }
 
 std::vector<std::string> dns_lookup_ex(const char *domain, int family, double timeout) {
-    struct ResolvContext {
-        ares_channel channel;
-        ares_options ares_opts;
-        int error;
-        Coroutine *co;
-        std::unordered_map<int, network::Socket *> sockets;
-        std::vector<std::string> result;
-    };
-
     if (!swoole_event_isset_handler(SW_FD_CARES)) {
         ares_library_init(ARES_LIB_INIT_ALL);
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
@@ -589,11 +588,9 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
             swTraceLog(SW_TRACE_CARES, "[add event] fd=%d, events=%d", fd, events);
         }
     };
+    ctx.ares_flags = ARES_OPT_TIMEOUTMS | ARES_OPT_TRIES | ARES_OPT_SOCK_STATE_CB | ARES_OPT_LOOKUPS;
 
-    if ((res = ares_init_options(&ctx.channel,
-                                 &ctx.ares_opts,
-                                 ARES_OPT_TIMEOUTMS | ARES_OPT_TRIES | ARES_OPT_SOCK_STATE_CB | ARES_OPT_LOOKUPS)) !=
-        ARES_SUCCESS) {
+    if ((res = ares_init_options(&ctx.channel, &ctx.ares_opts, ctx.ares_flags)) != ARES_SUCCESS) {
         swWarn("ares_init_options() failed, Error: %s[%d]", ares_strerror(res), res);
         goto _return;
     }
@@ -608,7 +605,7 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
             swTraceLog(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
 
             if (timeouts > 0) {
-                ctx->error = SW_ERROR_CO_TIMEDOUT;
+                ctx->error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
                 goto _resume;
             }
 
