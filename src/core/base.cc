@@ -125,6 +125,10 @@ void swoole_init(void) {
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
 
+    // DNS options
+    SwooleG.dns_tries = 1;
+    SwooleG.dns_resolvconf_path = SW_DNS_RESOLV_CONF;
+
     // get system uname
     uname(&SwooleG.uname);
     // random seed

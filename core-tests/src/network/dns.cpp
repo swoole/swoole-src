@@ -22,6 +22,8 @@
 #include "swoole_socket.h"
 
 using namespace swoole;
+using swoole::coroutine::Socket;
+using swoole::coroutine::System;
 using namespace swoole::test;
 using namespace std;
 
@@ -70,6 +72,21 @@ TEST(dns, gethostbyname_cares) {
         auto list4 = swoole::coroutine::dns_lookup_ex("www.google.com", 9999, 2);
         ASSERT_GE(list3.size(), 1);
         ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    });
+}
+
+TEST(dns, gethostbyname_cares_cancel) {
+    // swoole_set_trace_flags(SW_TRACE_CARES);
+    // swoole_set_log_level(SW_LOG_TRACE);
+    test::coroutine::run([](void *arg) {
+        auto co = Coroutine::get_current_safe();
+        Coroutine::create([co](void *){
+            System::sleep(0.002);
+            co->cancel();
+        });
+        auto list1 = swoole::coroutine::dns_lookup_ex("www.baidu.com", AF_INET, 2);
+        ASSERT_EQ(list1.size(), 0);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_CO_CANCELED);
     });
 }
 #endif

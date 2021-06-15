@@ -652,7 +652,7 @@ struct Global {
     char *dns_server_v6;
     double dns_cache_refresh_time;
     int dns_tries;
-    char *dns_resolvconf_path;
+    const char *dns_resolvconf_path;
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;

@@ -25,7 +25,6 @@
 #include <ares.h>
 #endif
 
-#define SW_DNS_SERVER_CONF "/etc/resolv.conf"
 #define SW_DNS_SERVER_NUM 2
 
 enum swDNS_type {
@@ -82,8 +81,8 @@ static int get_dns_server() {
     char line[100];
     char buf[16] = {};
 
-    if ((fp = fopen(SW_DNS_SERVER_CONF, "rt")) == nullptr) {
-        swSysWarn("fopen(" SW_DNS_SERVER_CONF ") failed");
+    if ((fp = fopen(SwooleG.dns_resolvconf_path, "rt")) == nullptr) {
+        swSysWarn("fopen(%s) failed", SwooleG.dns_resolvconf_path);
         return SW_ERR;
     }
 
@@ -545,7 +544,7 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
     ctx.error = 0;
     ctx.ares_opts.lookups = lookups;
     ctx.ares_opts.timeout = timeout * 1000;
-    ctx.ares_opts.tries = 1;
+    ctx.ares_opts.tries = SwooleG.dns_tries;
     ctx.ares_opts.sock_state_cb_data = &ctx;
     ctx.ares_opts.sock_state_cb = [](void *arg, int fd, int readable, int writable) {
         auto ctx = reinterpret_cast<ResolvContext *>(arg);
@@ -649,7 +648,7 @@ std::vector<std::string> dns_lookup_ex(const char *domain, int family, double ti
     }
 _destroy:
     if (ctx.error) {
-        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        swoole_set_last_error(ctx.error == ARES_ECANCELLED ? SW_ERROR_CO_CANCELED : SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     }
     ares_destroy(ctx.channel);
 _return:

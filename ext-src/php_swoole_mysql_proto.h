@@ -689,7 +689,7 @@ public:
     {
         swMysqlPacketDump(header.length, header.number, data, "Protocol::LengthCodedBinary");
         bytes_length = read_lcb(data + SW_MYSQL_PACKET_HEADER_SIZE, &length, &nul);
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "binary_length=%" PRIu64 ", nul=%u", header.length, nul);
+        swTraceLog(SW_TRACE_MYSQL_CLIENT, "binary_length=%u, nul=%u", header.length, nul);
     }
     bool is_vaild()
     {
@@ -801,7 +801,7 @@ public:
         swTraceLog(
             SW_TRACE_MYSQL_CLIENT,
             "text[%" PRIu64 "]: %.*s%s",
-            length, SW_MIN(64, length), body,
+            length, (int) SW_MIN(64, length), body,
             nul ? "null" : ((length > 64 /*|| length > readable_length*/) ? "..." : "")
         );
     }
