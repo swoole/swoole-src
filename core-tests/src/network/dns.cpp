@@ -27,10 +27,45 @@ using swoole::coroutine::System;
 using namespace swoole::test;
 using namespace std;
 
-TEST(dns, lookup) {
+TEST(dns, lookup1) {
     test::coroutine::run([](void *arg) {
-        auto list = swoole::coroutine::dns_lookup("www.baidu.com", 10);
+        auto list = swoole::coroutine::dns_lookup("www.baidu.com", AF_INET, 10);
         ASSERT_GE(list.size(), 1);
+    });
+}
+
+TEST(dns, lookup2) {
+    // swoole_set_trace_flags(SW_TRACE_CARES);
+    // swoole_set_log_level(SW_LOG_TRACE);
+    test::coroutine::run([](void *arg) {
+        auto list1 = swoole::coroutine::dns_lookup("www.baidu.com", AF_INET, 2);
+        ASSERT_GE(list1.size(), 1);
+
+        auto list2 = swoole::coroutine::dns_lookup("www.baidu.com-not-found", AF_INET, 2);
+        ASSERT_EQ(list2.size(), 0);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+
+        auto list3 = swoole::coroutine::dns_lookup("www.google.com", AF_INET6, 2);
+        ASSERT_GE(list3.size(), 1);
+
+        auto list4 = swoole::coroutine::dns_lookup("www.google.com", 9999, 2);
+        ASSERT_GE(list3.size(), 1);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+    });
+}
+
+TEST(dns, lookup_cancel) {
+    // swoole_set_trace_flags(SW_TRACE_CARES);
+    // swoole_set_log_level(SW_LOG_TRACE);
+    test::coroutine::run([](void *arg) {
+        auto co = Coroutine::get_current_safe();
+        Coroutine::create([co](void *){
+            System::sleep(0.002);
+            co->cancel();
+        });
+        auto list1 = swoole::coroutine::dns_lookup("www.baidu.com", AF_INET, 2);
+        ASSERT_EQ(list1.size(), 0);
+        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_CO_CANCELED);
     });
 }
 
@@ -53,40 +88,3 @@ TEST(dns, getaddrinfo) {
         ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
     }
 }
-
-#ifdef HAVE_CARES
-TEST(dns, gethostbyname_cares) {
-    // swoole_set_trace_flags(SW_TRACE_CARES);
-    // swoole_set_log_level(SW_LOG_TRACE);
-    test::coroutine::run([](void *arg) {
-        auto list1 = swoole::coroutine::dns_lookup_ex("www.baidu.com", AF_INET, 2);
-        ASSERT_GE(list1.size(), 1);
-
-        auto list2 = swoole::coroutine::dns_lookup_ex("www.baidu.com-not-found", AF_INET, 2);
-        ASSERT_EQ(list2.size(), 0);
-        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-
-        auto list3 = swoole::coroutine::dns_lookup_ex("www.google.com", AF_INET6, 2);
-        ASSERT_GE(list3.size(), 1);
-
-        auto list4 = swoole::coroutine::dns_lookup_ex("www.google.com", 9999, 2);
-        ASSERT_GE(list3.size(), 1);
-        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-    });
-}
-
-TEST(dns, gethostbyname_cares_cancel) {
-    // swoole_set_trace_flags(SW_TRACE_CARES);
-    // swoole_set_log_level(SW_LOG_TRACE);
-    test::coroutine::run([](void *arg) {
-        auto co = Coroutine::get_current_safe();
-        Coroutine::create([co](void *){
-            System::sleep(0.002);
-            co->cancel();
-        });
-        auto list1 = swoole::coroutine::dns_lookup_ex("www.baidu.com", AF_INET, 2);
-        ASSERT_EQ(list1.size(), 0);
-        ASSERT_EQ(swoole_get_last_error(), SW_ERROR_CO_CANCELED);
-    });
-}
-#endif

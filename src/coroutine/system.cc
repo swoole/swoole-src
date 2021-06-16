@@ -135,6 +135,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
     return retval;
 }
 
+
 std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
     if (dns_cache == nullptr && dns_cache_capacity != 0) {
         dns_cache = new LRUCache(dns_cache_capacity);
@@ -150,6 +151,10 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
             return *(std::string *) cache.get();
         }
     }
+#ifdef HAVE_CARES
+
+#else
+#endif
 
     AsyncEvent ev{};
 
