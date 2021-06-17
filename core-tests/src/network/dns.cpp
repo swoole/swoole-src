@@ -34,9 +34,15 @@ TEST(dns, lookup1) {
     });
 }
 
+TEST(dns, lookup_ipv6) {
+    test::coroutine::run([](void *arg) {
+        auto list3 = swoole::coroutine::dns_lookup("www.google.com", AF_INET6, 2);
+        cout << list3[0] << endl;
+        ASSERT_GE(list3.size(), 1);
+    });
+}
+
 TEST(dns, lookup2) {
-    // swoole_set_trace_flags(SW_TRACE_CARES);
-    // swoole_set_log_level(SW_LOG_TRACE);
     test::coroutine::run([](void *arg) {
         auto list1 = swoole::coroutine::dns_lookup("www.baidu.com", AF_INET, 2);
         ASSERT_GE(list1.size(), 1);
@@ -45,11 +51,8 @@ TEST(dns, lookup2) {
         ASSERT_EQ(list2.size(), 0);
         ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
 
-        auto list3 = swoole::coroutine::dns_lookup("www.google.com", AF_INET6, 2);
-        ASSERT_GE(list3.size(), 1);
-
         auto list4 = swoole::coroutine::dns_lookup("www.google.com", 9999, 2);
-        ASSERT_GE(list3.size(), 1);
+        ASSERT_GE(list4.size(), 1);
         ASSERT_EQ(swoole_get_last_error(), SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     });
 }

@@ -119,8 +119,9 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
     Coroutine::get_current_safe();
 
     zval *domain;
+    long type = AF_INET;
     double timeout = swoole::network::Socket::default_dns_timeout;
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|d", &domain, &timeout) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|dl", &domain, &timeout, &type) == FAILURE) {
         RETURN_FALSE;
     }
 
@@ -147,7 +148,7 @@ PHP_FUNCTION(swoole_async_dns_lookup_coro) {
 
     php_swoole_check_reactor();
 
-    vector<string> result = swoole::coroutine::dns_lookup(Z_STRVAL_P(domain), timeout);
+    vector<string> result = swoole::coroutine::dns_lookup(Z_STRVAL_P(domain), type, timeout);
     if (result.empty()) {
         swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         RETURN_FALSE;

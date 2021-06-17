@@ -27,12 +27,8 @@
 
 #define SW_DNS_SERVER_NUM 2
 
-#define SW_USE_ASYNC_RESOLVER    0
-
 namespace swoole {
 namespace coroutine {
-
-#if SW_USE_ASYNC_RESOLVER
 
 enum swDNS_type {
     SW_DNS_A_RECORD = 0x01,     // Lookup IPv4 address
@@ -82,6 +78,7 @@ static uint16_t dns_request_id = 1;
 static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
 static int get_dns_server();
+static std::string parse_ip_address(void *vaddr, int type);
 
 static int get_dns_server() {
     FILE *fp;
@@ -111,7 +108,29 @@ static int get_dns_server() {
     return SW_OK;
 }
 
-std::vector<std::string> dns_lookup(const char *domain, int family, double timeout) {
+static std::string parse_ip_address(void *vaddr, int type) {
+    auto addr = reinterpret_cast<unsigned char *>(vaddr);
+    std::string ip_addr;
+    if (type == AF_INET) {
+        char buff[4 * 4 + 3 + 1];
+        sw_snprintf(buff, sizeof(buff), "%u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
+        return ip_addr.assign(buff);
+    } else if (type == AF_INET6) {
+        for (int i = 0; i < 16; i += 2) {
+            if (i > 0) {
+                ip_addr.append(":");
+            }
+            char buf[4 + 1];
+            size_t n = sw_snprintf(buf, sizeof(buf), "%02x%02x", addr[i], addr[i + 1]);
+            ip_addr.append(buf, n);
+        }
+    } else {
+        assert(0);
+    }
+    return ip_addr;
+}
+
+std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int family, double timeout) {
     char *_domain_name;
     Q_FLAGS *qflags = nullptr;
     char packet[SW_BUFFER_SIZE_STD];
@@ -119,13 +138,9 @@ std::vector<std::string> dns_lookup(const char *domain, int family, double timeo
     int steps = 0;
     std::vector<std::string> result;
 
-    if (family != AF_INET) {
-        swoole_set_last_error(SW_ERROR_DNSLOOKUP_UNSUPPORTED);
-        return result;
-    }
-
     if (SwooleG.dns_server_v4 == nullptr) {
         if (get_dns_server() < 0) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_NO_SERVER);
             return result;
         }
     }
@@ -159,7 +174,7 @@ std::vector<std::string> dns_lookup(const char *domain, int family, double timeo
     steps += (strlen((const char *) _domain_name) + 1);
 
     qflags = (Q_FLAGS *) &packet[steps];
-    qflags->qtype = htons(SW_DNS_A_RECORD);
+    qflags->qtype = htons(family == AF_INET6 ? SW_DNS_AAAA_RECORD : SW_DNS_A_RECORD);
     qflags->qclass = htons(0x0001);
     steps += sizeof(Q_FLAGS);
 
@@ -197,7 +212,7 @@ std::vector<std::string> dns_lookup(const char *domain, int family, double timeo
     char name[10][254];
     int i, j;
 
-    int ret = _sock.recv(packet, sizeof(packet) - 1);
+    auto ret = _sock.recv(packet, sizeof(packet) - 1);
     if (ret <= 0) {
         return result;
     }
@@ -244,11 +259,9 @@ std::vector<std::string> dns_lookup(const char *domain, int family, double timeo
         steps = steps + sizeof(RR_FLAGS) - 2;
 
         /* Parsing the IPv4 address in the RR */
-        if (ntohs(rrflags->type) == 1) {
-            for (j = 0; j < ntohs(rrflags->rdlength); ++j) {
-                rdata[i][j] = (uchar) packet[steps + j];
-            }
-            type[i] = ntohs(rrflags->type);
+        type[i] = ntohs(rrflags->type);
+        for (j = 0; j < ntohs(rrflags->rdlength); ++j) {
+            rdata[i][j] = (uchar) packet[steps + j];
         }
 
         /* Parsing the canonical name in the RR */
@@ -278,13 +291,10 @@ std::vector<std::string> dns_lookup(const char *domain, int family, double timeo
         return result;
     }
     for (i = 0; i < ancount; i++) {
-        if (type[i] != SW_DNS_A_RECORD) {
+        if (type[i] != SW_DNS_A_RECORD && type[i] != SW_DNS_AAAA_RECORD) {
             continue;
         }
-        char address[16];
-        size_t n =
-            sw_snprintf(address, sizeof(address), "%d.%d.%d.%d", rdata[i][0], rdata[i][1], rdata[i][2], rdata[i][3]);
-        result.push_back(std::string(address, n));
+        result.push_back(parse_ip_address(rdata[i], type[i] == SW_DNS_A_RECORD ? AF_INET : AF_INET6));
     }
     return result;
 }
@@ -334,7 +344,8 @@ static void domain_decode(char *str) {
     }
     str[i - 1] = '\0';
 }
-#elif defined(HAVE_CARES)
+
+#ifdef HAVE_CARES
 struct ResolvContext {
     ares_channel channel;
     ares_options ares_opts;
@@ -345,25 +356,7 @@ struct ResolvContext {
     std::vector<std::string> result;
 };
 
-std::string address_to_string(void *vaddr, int len) {
-    auto addr = reinterpret_cast<unsigned char *>(vaddr);
-    std::string addv;
-    if (len == 4) {
-        char buff[4 * 4 + 3 + 1];
-        sw_snprintf(buff, sizeof(buff), "%u.%u.%u.%u", addr[0], addr[1], addr[2], addr[3]);
-        return addv.assign(buff);
-    } else if (len == 16) {
-        for (int ii = 0; ii < 16; ii += 2) {
-            if (ii > 0) addv.append(":");
-            char buff[4 + 1];
-            sw_snprintf(buff, sizeof(buff), "%02x%02x", addr[ii], addr[ii + 1]);
-            addv.append(buff);
-        }
-    }
-    return addv;
-}
-
-std::vector<std::string> dns_lookup(const char *domain, int family, double timeout) {
+std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int family, double timeout) {
     if (!swoole_event_isset_handler(SW_FD_CARES)) {
         ares_library_init(ARES_LIB_INIT_ALL);
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
@@ -460,7 +453,7 @@ std::vector<std::string> dns_lookup(const char *domain, int family, double timeo
             if (hostent->h_addr_list) {
                 char **paddr = hostent->h_addr_list;
                 while (*paddr != nullptr) {
-                    ctx->result.emplace_back(address_to_string(*paddr, hostent->h_length));
+                    ctx->result.emplace_back(parse_ip_address(*paddr, hostent->h_addrtype));
                     paddr++;
                 }
             }
@@ -498,9 +491,16 @@ _destroy:
 _return:
     return ctx.result;
 }
-#else
-
 #endif
+
+std::vector<std::string> dns_lookup(const char *domain, int family, double timeout) {
+#ifdef HAVE_CARES
+    return dns_lookup_impl_with_cares(domain, family, timeout);
+#else
+    return dns_lookup_impl_with_socket(domain, family, timeout);
+#endif
+}
+
 }  // namespace coroutine
 
 /**

@@ -1250,7 +1250,7 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
     }
 
     swTraceLog(SW_TRACE_SERVER,
-               "PipeMessage: fd=%d|len=%d|src_worker_id=%d|data=%.*s\n",
+               "PipeMessage: fd=%ld|len=%d|src_worker_id=%d|data=%.*s\n",
                req->info.fd,
                req->info.len,
                req->info.reactor_id,
