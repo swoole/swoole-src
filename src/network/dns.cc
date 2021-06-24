@@ -21,7 +21,7 @@
 #include <iostream>
 #include <vector>
 
-#ifdef HAVE_CARES
+#ifdef SW_USE_CARES
 #include <ares.h>
 #endif
 
@@ -345,7 +345,7 @@ static void domain_decode(char *str) {
     str[i - 1] = '\0';
 }
 
-#ifdef HAVE_CARES
+#ifdef SW_USE_CARES
 struct ResolvContext {
     ares_channel channel;
     ares_options ares_opts;
@@ -494,7 +494,7 @@ _return:
 #endif
 
 std::vector<std::string> dns_lookup(const char *domain, int family, double timeout) {
-#ifdef HAVE_CARES
+#ifdef SW_USE_CARES
     return dns_lookup_impl_with_cares(domain, family, timeout);
 #else
     return dns_lookup_impl_with_socket(domain, family, timeout);

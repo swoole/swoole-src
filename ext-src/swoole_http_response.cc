@@ -37,8 +37,8 @@ using http_context = swoole::http::Context;
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
-static void http_build_header(http_context *ctx, swString *response, size_t body_length);
-static ssize_t http_build_trailer(http_context *ctx, swString *response);
+static void http_build_header(http_context *ctx, String *response, size_t body_length);
+static ssize_t http_build_trailer(http_context *ctx, String *response);
 
 static inline void http_header_key_format(char *key, int length) {
     int i, state = 0;
@@ -360,7 +360,7 @@ static bool parse_header_flags(http_context *ctx, const char *key, size_t keylen
     return true;
 }
 
-static void http_build_header(http_context *ctx, swString *response, size_t body_length) {
+static void http_build_header(http_context *ctx, String *response, size_t body_length) {
     char *buf = sw_tg_buffer()->str;
     size_t l_buf = sw_tg_buffer()->size;
     int n;
@@ -503,7 +503,7 @@ static void http_build_header(http_context *ctx, swString *response, size_t body
     ctx->send_header_ = 1;
 }
 
-static ssize_t http_build_trailer(http_context *ctx, swString *response) {
+static ssize_t http_build_trailer(http_context *ctx, String *response) {
     char *buf = sw_tg_buffer()->str;
     size_t l_buf = sw_tg_buffer()->size;
     int n;
@@ -1257,7 +1257,7 @@ static PHP_METHOD(swoole_http_response, recv) {
 
     Socket *sock = (Socket *) ctx->private_data;
     ssize_t retval = sock->recv_packet(timeout);
-    swString _tmp;
+    String _tmp;
 
     if (retval < 0) {
         swoole_set_last_error(sock->errCode);

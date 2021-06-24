@@ -404,6 +404,11 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
     fi
 
+    if test "$PHP_SWOOLE_CARES" = "yes"; then
+        AC_DEFINE(SW_USE_CARES, 1, [do we enable c-ares support])
+        PHP_ADD_LIBRARY(ares, 1, SWOOLE_SHARED_LIBADD)
+    fi
+
     AC_CHECK_LIB(z, gzgets, [
         AC_DEFINE(SW_HAVE_COMPRESSION, 1, [have compression])
         AC_DEFINE(SW_HAVE_ZLIB, 1, [have zlib])
