@@ -44,14 +44,14 @@
 
 #include "swoole_socket_hook.h"
 
+extern int redisContextUpdateConnectTimeout(redisContext *c, const struct timeval *timeout);
+extern int redisContextUpdateCommandTimeout(redisContext *c, const struct timeval *timeout);
+
 static redisContextFuncs redisContextDefaultFuncs = {
     .free_privctx = NULL,
     .read_ = redisNetRead,
     .write_ = redisNetWrite
 };
-
-extern int redisContextUpdateConnectTimeout(redisContext *c, const struct timeval *timeout);
-extern int redisContextUpdateCommandTimeout(redisContext *c, const struct timeval *timeout);
 
 static redisReply *createReplyObject(int type);
 static void *createStringObject(const redisReadTask *task, char *str, size_t len);

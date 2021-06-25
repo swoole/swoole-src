@@ -138,6 +138,7 @@ static int redisCreateSocket(redisContext *c, int type) {
 }
 
 static int redisSetBlocking(redisContext *c, int blocking) {
+#if 0
 #ifndef _WIN32
     int flags;
 
@@ -168,6 +169,7 @@ static int redisSetBlocking(redisContext *c, int blocking) {
         return REDIS_ERR;
     }
 #endif /* _WIN32 */
+#endif
     return REDIS_OK;
 }
 
