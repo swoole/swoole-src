@@ -72,11 +72,15 @@ ssize_t redisNetRead(redisContext *c, char *buf, size_t bufcap) {
         if ((errno == EWOULDBLOCK && !(c->flags & REDIS_BLOCK)) || (errno == EINTR)) {
             /* Try again later */
             return 0;
-        } else if(errno == ETIMEDOUT && (c->flags & REDIS_BLOCK)) {
+        }
+#if 0
+        else if(errno == ETIMEDOUT && (c->flags & REDIS_BLOCK)) {
             /* especially in windows */
             __redisSetError(c, REDIS_ERR_TIMEOUT, "recv timeout");
             return -1;
-        } else {
+        }
+#endif
+        else {
             __redisSetError(c, REDIS_ERR_IO, NULL);
             return -1;
         }
