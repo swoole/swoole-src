@@ -183,6 +183,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         _sock.set_timeout(timeout);
     }
     if (!_sock.sendto(SwooleG.dns_server_host, SwooleG.dns_server_port, (char *) packet, steps)) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
 
@@ -205,6 +206,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     auto ret = _sock.recv(packet, sizeof(packet) - 1);
     if (ret <= 0) {
+        swoole_set_last_error(_sock.errCode == ECANCELED ? SW_ERROR_CO_CANCELED: SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
 
@@ -279,6 +281,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     int request_id = ntohs(header->id);
     // bad response
     if (request_id != _request_id) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
     for (i = 0; i < ancount; i++) {
@@ -286,6 +289,9 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
             continue;
         }
         result.push_back(parse_ip_address(rdata[i], type[i] == SW_DNS_A_RECORD ? AF_INET : AF_INET6));
+    }
+    if (result.empty()) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
     }
     return result;
 }
