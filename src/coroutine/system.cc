@@ -15,6 +15,7 @@
 */
 
 #include "swoole_coroutine_system.h"
+#include "swoole_coroutine_socket.h"
 #include "swoole_lru_cache.h"
 #include "swoole_signal.h"
 
@@ -135,23 +136,7 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
     return retval;
 }
 
-
-std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
-    if (dns_cache == nullptr && dns_cache_capacity != 0) {
-        dns_cache = new LRUCache(dns_cache_capacity);
-    }
-
-    std::string cache_key;
-    if (dns_cache) {
-        cache_key.append(domain == AF_INET ? "4_" : "6_");
-        cache_key.append(hostname);
-        auto cache = dns_cache->get(cache_key);
-
-        if (cache) {
-            return *(std::string *) cache.get();
-        }
-    }
-
+std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout) {
     AsyncEvent ev{};
 
     if (hostname.size() < SW_IP_MAX_LENGTH) {
@@ -179,17 +164,46 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
         swoole_set_last_error(ev.error);
         return "";
     } else {
-        if (dns_cache) {
-            std::string *addr = new std::string((char *) ev.buf);
-            dns_cache->set(cache_key, std::shared_ptr<std::string>(addr), dns_cache_expire);
-            sw_free(ev.buf);
-            return *addr;
-        }
-
         std::string addr((char *) ev.buf);
         sw_free(ev.buf);
         return addr;
     }
+}
+
+std::string System::gethostbyname(const std::string &hostname, int domain, double timeout) {
+    if (dns_cache == nullptr && dns_cache_capacity != 0) {
+        dns_cache = new LRUCache(dns_cache_capacity);
+    }
+
+    std::string cache_key;
+    std::string result;
+
+    if (dns_cache) {
+        cache_key.append(domain == AF_INET ? "4_" : "6_");
+        cache_key.append(hostname);
+        auto cache = dns_cache->get(cache_key);
+
+        if (cache) {
+            return *(std::string *) cache.get();
+        }
+    }
+
+#ifdef SW_USE_CARES
+    auto result_list = dns_lookup_impl_with_cares(hostname.c_str(), domain, timeout);
+    if (SwooleG.dns_lookup_random) {
+        result = result_list[rand() % result_list.size()];
+    } else {
+        result = result_list[0];
+    }
+#else
+    result = gethostbyname_impl_with_async(hostname, domain, timeout, cache_key);
+#endif
+
+    if (dns_cache) {
+        dns_cache->set(cache_key, std::make_shared<std::string>(result), dns_cache_expire);
+    }
+
+    return result;
 }
 
 std::vector<std::string> System::getaddrinfo(

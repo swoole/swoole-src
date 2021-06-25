@@ -29,6 +29,13 @@ TEST(coroutine_gethostbyname, resolve_cache) {
     });
 }
 
+TEST(coroutine_gethostbyname, impl_async) {
+    coroutine::run([](void *arg) {
+        auto result = swoole::coroutine::gethostbyname_impl_with_async("www.baidu.com", AF_INET);
+        ASSERT_EQ(result.empty(), false);
+    });
+}
+
 TEST(coroutine_gethostbyname, resolve_cache_inet4_and_inet6) {
     coroutine::run([](void *arg) {
         System::set_dns_cache_capacity(10);

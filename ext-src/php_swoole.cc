@@ -50,6 +50,10 @@ END_EXTERN_C()
 #include <brotli/decode.h>
 #endif
 
+#ifdef SW_USE_CARES
+#include <ares.h>
+#endif
+
 using swoole::network::Socket;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
@@ -876,6 +880,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
+#endif
+#ifdef SW_USE_CARES
+    php_info_print_table_row(2, "c-ares", ares_version(nullptr));
 #endif
 #ifdef SW_HAVE_ZLIB
 #ifdef ZLIB_VERSION

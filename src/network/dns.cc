@@ -362,14 +362,14 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, event->fd);
             return SW_OK;
         });
+        sw_reactor()->add_destroy_callback([](void *_data) { ares_library_cleanup(); }, nullptr);
     }
 
-    ResolvContext ctx;
+    ResolvContext ctx{};
     Coroutine *co = Coroutine::get_current_safe();
     ctx.co = co;
     char lookups[] = "fb";
     int res;
-    ctx.error = 0;
     ctx.ares_opts.lookups = lookups;
     ctx.ares_opts.timeout = timeout * 1000;
     ctx.ares_opts.tries = SwooleG.dns_tries;
