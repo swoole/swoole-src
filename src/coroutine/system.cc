@@ -196,7 +196,7 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
         result = result_list[0];
     }
 #else
-    result = gethostbyname_impl_with_async(hostname, domain, timeout, cache_key);
+    result = gethostbyname_impl_with_async(hostname, domain, timeout);
 #endif
 
     if (dns_cache) {
