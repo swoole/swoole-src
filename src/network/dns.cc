@@ -85,8 +85,8 @@ static int get_dns_server() {
     char line[100];
     char buf[16] = {};
 
-    if ((fp = fopen(SwooleG.dns_resolvconf_path, "rt")) == nullptr) {
-        swSysWarn("fopen(%s) failed", SwooleG.dns_resolvconf_path);
+    if ((fp = fopen(SwooleG.dns_resolvconf_path.c_str(), "rt")) == nullptr) {
+        swSysWarn("fopen(%s) failed", SwooleG.dns_resolvconf_path.c_str());
         return SW_ERR;
     }
 
@@ -100,9 +100,9 @@ static int get_dns_server() {
     fclose(fp);
 
     if (strlen(buf) == 0) {
-        SwooleG.dns_server_v4 = sw_strdup(SW_DNS_DEFAULT_SERVER);
+        swoole_set_dns_server(SW_DNS_DEFAULT_SERVER);
     } else {
-        SwooleG.dns_server_v4 = sw_strdup(buf);
+        swoole_set_dns_server(buf);
     }
 
     return SW_OK;
@@ -138,7 +138,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     int steps = 0;
     std::vector<std::string> result;
 
-    if (SwooleG.dns_server_v4 == nullptr) {
+    if (SwooleG.dns_server_host.empty()) {
         if (get_dns_server() < 0) {
             swoole_set_last_error(SW_ERROR_DNSLOOKUP_NO_SERVER);
             return result;
@@ -182,16 +182,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     if (timeout > 0) {
         _sock.set_timeout(timeout);
     }
-
-    char *_port;
-    int dns_server_port = SW_DNS_SERVER_PORT;
-    char dns_server_host[32];
-    strcpy(dns_server_host, SwooleG.dns_server_v4);
-    if ((_port = strchr(SwooleG.dns_server_v4, ':'))) {
-        dns_server_port = atoi(_port + 1);
-        dns_server_host[_port - SwooleG.dns_server_v4] = '\0';
-    }
-    if (!_sock.sendto(dns_server_host, dns_server_port, (char *) packet, steps)) {
+    if (!_sock.sendto(SwooleG.dns_server_host, SwooleG.dns_server_port, (char *) packet, steps)) {
         return result;
     }
 
@@ -429,6 +420,16 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     if ((res = ares_init_options(&ctx.channel, &ctx.ares_opts, ctx.ares_flags)) != ARES_SUCCESS) {
         swWarn("ares_init_options() failed, Error: %s[%d]", ares_strerror(res), res);
         goto _return;
+    }
+
+    if (!SwooleG.dns_server_host.empty()) {
+        struct ares_addr_port_node servers;
+        servers.family = AF_INET;
+        servers.next = nullptr;
+        inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
+        servers.tcp_port = 0;
+        servers.udp_port = SwooleG.dns_server_port;
+        ares_set_servers_ports(ctx.channel, &servers);
     }
 
     ares_gethostbyname(

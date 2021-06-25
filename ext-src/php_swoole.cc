@@ -345,10 +345,7 @@ void php_swoole_set_global_option(HashTable *vht) {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "dns_server", ztmp)) {
-        if (SwooleG.dns_server_v4) {
-            sw_free(SwooleG.dns_server_v4);
-        }
-        SwooleG.dns_server_v4 = zend::String(ztmp).dup();
+        swoole_set_dns_server(zend::String(ztmp).to_std_string());
     }
 
     auto timeout_format = [](zval *v) -> double {

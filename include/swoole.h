@@ -648,20 +648,20 @@ struct Global {
     Allocator std_allocator;
     std::string task_tmpfile;
     //-----------------------[DNS]--------------------------
-    char *dns_server_v4;
-    char *dns_server_v6;
+    std::string dns_server_host;
+    int dns_server_port;
     double dns_cache_refresh_time;
     int dns_tries;
-    const char *dns_resolvconf_path;
+    std::string dns_resolvconf_path;
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
     double aio_max_wait_time;
     double aio_max_idle_time;
-    swoole::network::Socket *aio_default_socket;
+    network::Socket *aio_default_socket;
     //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
-    std::function<bool(swoole::Reactor *reactor, int &event_num)> user_exit_condition;
+    std::function<bool(Reactor *reactor, int &event_num)> user_exit_condition;
 };
 
 std::string dirname(const std::string &file);
@@ -699,6 +699,7 @@ SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_trace_flags(int flags);
+SW_API void swoole_set_dns_server(const std::string server);
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {
