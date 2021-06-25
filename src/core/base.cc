@@ -125,6 +125,10 @@ void swoole_init(void) {
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
 
+    // DNS options
+    SwooleG.dns_tries = 1;
+    SwooleG.dns_resolvconf_path = SW_DNS_RESOLV_CONF;
+
     // get system uname
     uname(&SwooleG.uname);
     // random seed
@@ -225,7 +229,37 @@ void swoole_clean(void) {
         delete g_logger_instance;
         g_logger_instance = nullptr;
     }
+    if (SwooleTG.buffer_stack) {
+        delete SwooleTG.buffer_stack;
+        SwooleTG.buffer_stack = nullptr;
+    }
     SwooleG = {};
+}
+
+SW_API void swoole_set_log_level(int level) {
+    if (sw_logger()) {
+        sw_logger()->set_level(level);
+    }
+}
+
+SW_API void swoole_set_trace_flags(int flags) {
+    SwooleG.trace_flags = flags;
+}
+
+SW_API void swoole_set_dns_server(const std::string server) {
+    char *_port;
+    int dns_server_port = SW_DNS_SERVER_PORT;
+    char dns_server_host[32];
+    strcpy(dns_server_host, server.c_str());
+    if ((_port = strchr((char *)server.c_str(), ':'))) {
+        dns_server_port = atoi(_port + 1);
+        if (dns_server_port <= 0 || dns_server_port > 65535) {
+            dns_server_port = SW_DNS_SERVER_PORT;
+        }
+        dns_server_host[_port - server.c_str()] = '\0';
+    }
+    SwooleG.dns_server_host = dns_server_host;
+    SwooleG.dns_server_port = dns_server_port;
 }
 
 bool swoole_set_task_tmpdir(const std::string &dir) {

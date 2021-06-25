@@ -84,6 +84,12 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #endif
 #endif
 
+#ifdef SW_USE_CARES
+#ifndef HAVE_CARES
+#error "Enable c-ares support, require c-ares library"
+#endif
+#endif
+
 #ifdef SW_SOCKETS
 #include "ext/sockets/php_sockets.h"
 #define SWOOLE_SOCKETS_SUPPORT

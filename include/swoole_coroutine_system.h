@@ -68,6 +68,7 @@ class System {
     /* event */
     static int wait_event(int fd, int events, double timeout);
 };
+std::string gethostbyname_impl_with_async(const std::string &hostname, int domain, double timeout = -1);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

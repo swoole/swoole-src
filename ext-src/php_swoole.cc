@@ -50,6 +50,10 @@ END_EXTERN_C()
 #include <brotli/decode.h>
 #endif
 
+#ifdef SW_USE_CARES
+#include <ares.h>
+#endif
+
 using swoole::network::Socket;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
@@ -93,6 +97,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_async_dns_lookup_coro, 0, 0, 1)
     ZEND_ARG_INFO(0, domain_name)
     ZEND_ARG_INFO(0, timeout)
+    ZEND_ARG_INFO(0, type)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_create, 0, 0, 1)
@@ -344,10 +349,7 @@ void php_swoole_set_global_option(HashTable *vht) {
         SWOOLE_G(display_errors) = zval_is_true(ztmp);
     }
     if (php_swoole_array_get_value(vht, "dns_server", ztmp)) {
-        if (SwooleG.dns_server_v4) {
-            sw_free(SwooleG.dns_server_v4);
-        }
-        SwooleG.dns_server_v4 = zend::String(ztmp).dup();
+        swoole_set_dns_server(zend::String(ztmp).to_std_string());
     }
 
     auto timeout_format = [](zval *v) -> double {
@@ -878,6 +880,9 @@ PHP_MINFO_FUNCTION(swoole) {
 #endif
 #ifdef HAVE_PCRE
     php_info_print_table_row(2, "pcre", "enabled");
+#endif
+#ifdef SW_USE_CARES
+    php_info_print_table_row(2, "c-ares", ares_version(nullptr));
 #endif
 #ifdef SW_HAVE_ZLIB
 #ifdef ZLIB_VERSION

@@ -365,7 +365,7 @@ eof_packet::eof_packet(const char *data) : server_packet(data) {
     data += 2;
     // int<2>   status_flags    Status Flags
     server_status = sw_mysql_uint2korr2korr(data);
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "EOF_Packet, warnings=%u, status_code=%u", warning_count, server_status);
+    swTraceLog(SW_TRACE_MYSQL_CLIENT, "EOF_Packet, warnings=%u, status_code=%u", warning_count, server_status.status);
 }
 
 ok_packet::ok_packet(const char *data) : server_packet(data) {
@@ -388,7 +388,7 @@ ok_packet::ok_packet(const char *data) : server_packet(data) {
                "OK_Packet, affected_rows=%" PRIu64 ", insert_id=%" PRIu64 ", status_flags=0x%08x, warnings=%u",
                affected_rows,
                last_insert_id,
-               server_status,
+               server_status.status,
                warning_count);
 }
 
@@ -494,7 +494,7 @@ greeting_packet::greeting_packet(const char *data) : server_packet(data) {
                server_version.c_str(),
                connection_id,
                capability_flags,
-               status_flags,
+               status_flags.status,
                auth_plugin_name.c_str(),
                auth_plugin_data_length,
                auth_plugin_data);

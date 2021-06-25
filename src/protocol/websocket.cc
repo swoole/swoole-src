@@ -92,7 +92,7 @@ ssize_t swWebSocket_get_package_length(Protocol *protocol, Socket *conn, const c
             return 0;
         }
     }
-    swTraceLog(SW_TRACE_LENGTH_PROTOCOL, "header_length=%zu, payload_length=%u", header_length, payload_length);
+    swTraceLog(SW_TRACE_LENGTH_PROTOCOL, "header_length=%zu, payload_length=%lu", header_length, payload_length);
     return header_length + payload_length;
 }
 
