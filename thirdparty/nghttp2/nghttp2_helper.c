@@ -103,6 +103,9 @@ const char *nghttp2_strerror(int error_code) {
     return "Internal error";
   case NGHTTP2_ERR_CANCEL:
     return "Cancel";
+  case NGHTTP2_ERR_SETTINGS_EXPECTED:
+    return "When a local endpoint expects to receive SETTINGS frame, it "
+           "receives an other type of frame";
   case NGHTTP2_ERR_NOMEM:
     return "Out of memory";
   case NGHTTP2_ERR_CALLBACK_FAILURE:
@@ -112,6 +115,8 @@ const char *nghttp2_strerror(int error_code) {
   case NGHTTP2_ERR_FLOODED:
     return "Flooding was detected in this HTTP/2 session, and it must be "
            "closed";
+  case NGHTTP2_ERR_TOO_MANY_SETTINGS:
+    return "SETTINGS frame contained more than the maximum allowed entries";
   default:
     return "Unknown error code";
   }

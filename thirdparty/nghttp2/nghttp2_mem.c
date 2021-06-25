@@ -28,14 +28,21 @@ static void *default_malloc(size_t size, void *mem_user_data) {
   return malloc(size);
 }
 
-static void default_free(void *ptr, void *mem_user_data) { free(ptr); }
+static void default_free(void *ptr, void *mem_user_data) {
+  (void)mem_user_data;
 
-static void *default_calloc(size_t nmemb, size_t size,
-                            void *mem_user_data) {
+  free(ptr);
+}
+
+static void *default_calloc(size_t nmemb, size_t size, void *mem_user_data) {
+  (void)mem_user_data;
+
   return calloc(nmemb, size);
 }
 
 static void *default_realloc(void *ptr, size_t size, void *mem_user_data) {
+  (void)mem_user_data;
+
   return realloc(ptr, size);
 }
 

@@ -106,6 +106,7 @@ typedef enum {
   NGHTTP2_TOKEN_KEEP_ALIVE,
   NGHTTP2_TOKEN_PROXY_CONNECTION,
   NGHTTP2_TOKEN_UPGRADE,
+  NGHTTP2_TOKEN__PROTOCOL,
 } nghttp2_token;
 
 struct nghttp2_hd_entry;
@@ -206,7 +207,9 @@ typedef struct {
 
 #define HD_MAP_SIZE 128
 
-typedef struct { nghttp2_hd_entry *table[HD_MAP_SIZE]; } nghttp2_hd_map;
+typedef struct {
+  nghttp2_hd_entry *table[HD_MAP_SIZE];
+} nghttp2_hd_map;
 
 struct nghttp2_hd_deflater {
   nghttp2_hd_context ctx;
@@ -308,7 +311,7 @@ void nghttp2_hd_deflate_free(nghttp2_hd_deflater *deflater);
  *
  * This function expands |bufs| as necessary to store the result. If
  * buffers is full and the process still requires more space, this
- * funtion fails and returns NGHTTP2_ERR_HEADER_COMP.
+ * function fails and returns NGHTTP2_ERR_HEADER_COMP.
  *
  * After this function returns, it is safe to delete the |nva|.
  *
@@ -421,5 +424,11 @@ void nghttp2_hd_huff_decode_context_init(nghttp2_hd_huff_decode_context *ctx);
 ssize_t nghttp2_hd_huff_decode(nghttp2_hd_huff_decode_context *ctx,
                                nghttp2_buf *buf, const uint8_t *src,
                                size_t srclen, int fin);
+
+/*
+ * nghttp2_hd_huff_decode_failure_state returns nonzero if |ctx|
+ * indicates that huffman decoding context is in failure state.
+ */
+int nghttp2_hd_huff_decode_failure_state(nghttp2_hd_huff_decode_context *ctx);
 
 #endif /* NGHTTP2_HD_H */
