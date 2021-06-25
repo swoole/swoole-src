@@ -329,6 +329,7 @@ int redisCheckSocketError(redisContext *c) {
 }
 
 int redisContextSetTimeout(redisContext *c, const struct timeval tv) {
+#if 0
     const void *to_ptr = &tv;
     size_t to_sz = sizeof(tv);
 
@@ -340,6 +341,18 @@ int redisContextSetTimeout(redisContext *c, const struct timeval tv) {
         __redisSetErrorFromErrno(c,REDIS_ERR_IO,"setsockopt(SO_SNDTIMEO)");
         return REDIS_ERR;
     }
+#else
+    double timeout = tv.tv_sec ;
+    timeout += (double) tv.tv_usec / 1000 / 1000;
+    if (swoole_coroutine_socket_set_timeout(c->fd, SO_RCVTIMEO, timeout) == -1) {
+        __redisSetErrorFromErrno(c,REDIS_ERR_IO,"setsockopt(SO_RCVTIMEO)");
+        return REDIS_ERR;
+    }
+    if (swoole_coroutine_socket_set_timeout(c->fd, SO_SNDTIMEO, timeout) == -1) {
+        __redisSetErrorFromErrno(c,REDIS_ERR_IO,"setsockopt(SO_RCVTIMEO)");
+        return REDIS_ERR;
+    }
+#endif
     return REDIS_OK;
 }
 
@@ -494,6 +507,12 @@ addrretry:
 
         memcpy(c->saddr, p->ai_addr, p->ai_addrlen);
         c->addrlen = p->ai_addrlen;
+
+        if (c->connect_timeout) {
+            double timeout = c->connect_timeout->tv_sec ;
+            timeout += (double) c->connect_timeout->tv_usec / 1000 / 1000;
+            swoole_coroutine_socket_set_connect_timeout(c->fd, timeout);
+        }
 
         if (connect(s,p->ai_addr,p->ai_addrlen) == -1) {
             if (errno == EHOSTUNREACH) {

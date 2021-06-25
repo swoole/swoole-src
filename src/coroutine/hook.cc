@@ -487,6 +487,16 @@ int swoole_coroutine_socket_set_timeout(int sockfd, int which, double timeout) {
     }
 }
 
+int swoole_coroutine_socket_set_connect_timeout(int sockfd, double timeout) {
+    Socket *socket = get_socket_ex(sockfd);
+    if (sw_unlikely(socket == NULL)) {
+        errno = EINVAL;
+        return -1;
+    }
+    socket->set_timeout(timeout, Socket::TIMEOUT_DNS | Socket::TIMEOUT_CONNECT);
+    return 0;
+}
+
 int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     Socket *socket = get_socket_ex(sockfd);
     if (sw_unlikely(socket == NULL)) {
