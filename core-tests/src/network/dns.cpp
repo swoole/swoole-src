@@ -65,7 +65,7 @@ TEST(dns, cancel) {
             System::sleep(0.002);
             co->cancel();
         });
-        auto list1 = swoole::coroutine::dns_lookup("www.baidu.com", AF_INET, 2);
+        auto list1 = swoole::coroutine::dns_lookup("www.baidu-not-found-for-cancel.com", AF_INET, 2);
         ASSERT_EQ(list1.size(), 0);
         ASSERT_EQ(swoole_get_last_error(), SW_ERROR_CO_CANCELED);
     });
