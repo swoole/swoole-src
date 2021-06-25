@@ -44,6 +44,7 @@ endif(CODE_COVERAGE)
 
 file(GLOB_RECURSE SRC_LIST FOLLOW_SYMLINKS src/*.c src/*.cc
             thirdparty/boost/asm/combined.S
+            thirdparty/hiredis/alloc.c
             thirdparty/hiredis/async.c
             thirdparty/hiredis/hiredis.c
             thirdparty/hiredis/net.c

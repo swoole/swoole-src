@@ -4413,6 +4413,14 @@ static void swoole_redis_coro_parse_result(RedisClient *redis, zval *return_valu
         ZVAL_LONG(return_value, reply->integer);
         break;
 
+    case REDIS_REPLY_DOUBLE:
+        ZVAL_DOUBLE(return_value, reply->dval);
+        break;
+
+    case REDIS_REPLY_BOOL:
+        ZVAL_BOOL(return_value, reply->integer);
+        break;
+
     case REDIS_REPLY_ERROR:
         ZVAL_FALSE(return_value);
         if (redis->context->err == 0) {

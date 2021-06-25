@@ -651,6 +651,7 @@ if test "$PHP_SWOOLE" != "no"; then
 
     swoole_source_file="$swoole_source_file \
         thirdparty/hiredis/hiredis.c \
+        thirdparty/hiredis/alloc.c \
         thirdparty/hiredis/net.c \
         thirdparty/hiredis/read.c \
         thirdparty/hiredis/sds.c"

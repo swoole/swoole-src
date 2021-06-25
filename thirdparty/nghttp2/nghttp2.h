@@ -28,7 +28,12 @@
 /* Define WIN32 when build target is Win32 API (borrowed from
    libcurl) */
 #if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#define WIN32
+#  define WIN32
+#endif
+
+/* Compatibility for non-Clang compilers */
+#ifndef __has_declspec_attribute
+#  define __has_declspec_attribute(x) 0
 #endif
 
 #ifdef __cplusplus
@@ -40,9 +45,9 @@ extern "C" {
 /* MSVC < 2013 does not have inttypes.h because it is not C99
    compliant.  See compiler macros and version number in
    https://sourceforge.net/p/predef/wiki/Compilers/ */
-#include <stdint.h>
+#  include <stdint.h>
 #else /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
-#include <inttypes.h>
+#  include <inttypes.h>
 #endif /* !defined(_MSC_VER) || (_MSC_VER >= 1800) */
 #include <sys/types.h>
 #include <stdarg.h>
@@ -66,20 +71,21 @@ static inline uint8_t *nghttp2_cpymem(uint8_t *dest, const void *src, size_t len
 const char *nghttp2_strerror(int error_code);
 
 #ifdef NGHTTP2_STATICLIB
-#define NGHTTP2_EXTERN
-#elif defined(WIN32)
-#ifdef BUILDING_NGHTTP2
-#define NGHTTP2_EXTERN __declspec(dllexport)
-#else /* !BUILDING_NGHTTP2 */
-#define NGHTTP2_EXTERN __declspec(dllimport)
-#endif /* !BUILDING_NGHTTP2 */
-#else  /* !defined(WIN32) */
-#ifdef BUILDING_NGHTTP2
-#define NGHTTP2_EXTERN __attribute__((visibility("default")))
-#else /* !BUILDING_NGHTTP2 */
-#define NGHTTP2_EXTERN
-#endif /* !BUILDING_NGHTTP2 */
-#endif /* !defined(WIN32) */
+#  define NGHTTP2_EXTERN
+#elif defined(WIN32) || (__has_declspec_attribute(dllexport) &&                \
+                         __has_declspec_attribute(dllimport))
+#  ifdef BUILDING_NGHTTP2
+#    define NGHTTP2_EXTERN __declspec(dllexport)
+#  else /* !BUILDING_NGHTTP2 */
+#    define NGHTTP2_EXTERN __declspec(dllimport)
+#  endif /* !BUILDING_NGHTTP2 */
+#else    /* !defined(WIN32) */
+#  ifdef BUILDING_NGHTTP2
+#    define NGHTTP2_EXTERN __attribute__((visibility("default")))
+#  else /* !BUILDING_NGHTTP2 */
+#    define NGHTTP2_EXTERN
+#  endif /* !BUILDING_NGHTTP2 */
+#endif   /* !defined(WIN32) */
 
 /**
  * @macro
@@ -228,6 +234,13 @@ typedef struct {
  * The length of :macro:`NGHTTP2_CLIENT_MAGIC`.
  */
 #define NGHTTP2_CLIENT_MAGIC_LEN 24
+
+/**
+ * @macro
+ *
+ * The default max number of settings per SETTINGS frame
+ */
+#define NGHTTP2_DEFAULT_MAX_SETTINGS 32
 
 /**
  * @enum
@@ -395,12 +408,22 @@ typedef enum {
    */
   NGHTTP2_ERR_CANCEL = -535,
   /**
-   * The errors < :enum:`NGHTTP2_ERR_FATAL` mean that the library is
-   * under unexpected condition and processing was terminated (e.g.,
-   * out of memory).  If application receives this error code, it must
-   * stop using that :type:`nghttp2_session` object and only allowed
-   * operation for that object is deallocate it using
-   * `nghttp2_session_del()`.
+   * When a local endpoint expects to receive SETTINGS frame, it
+   * receives an other type of frame.
+   */
+  NGHTTP2_ERR_SETTINGS_EXPECTED = -536,
+  /**
+   * When a local endpoint receives too many settings entries
+   * in a single SETTINGS frame.
+   */
+  NGHTTP2_ERR_TOO_MANY_SETTINGS = -537,
+  /**
+   * The errors < :enum:`nghttp2_error.NGHTTP2_ERR_FATAL` mean that
+   * the library is under unexpected condition and processing was
+   * terminated (e.g., out of memory).  If application receives this
+   * error code, it must stop using that :type:`nghttp2_session`
+   * object and only allowed operation for that object is deallocate
+   * it using `nghttp2_session_del()`.
    */
   NGHTTP2_ERR_FATAL = -900,
   /**
@@ -520,9 +543,9 @@ typedef struct {
    * :type:`nghttp2_on_frame_send_callback`, and
    * :type:`nghttp2_on_frame_not_send_callback`), it may not be
    * NULL-terminated if header field is passed from application with
-   * the flag :enum:`NGHTTP2_NV_FLAG_NO_COPY_NAME`).  When application
-   * is constructing this struct, |name| is not required to be
-   * NULL-terminated.
+   * the flag :enum:`nghttp2_nv_flag.NGHTTP2_NV_FLAG_NO_COPY_NAME`).
+   * When application is constructing this struct, |name| is not
+   * required to be NULL-terminated.
    */
   uint8_t *name;
   /**
@@ -533,9 +556,9 @@ typedef struct {
    * :type:`nghttp2_on_frame_send_callback`, and
    * :type:`nghttp2_on_frame_not_send_callback`), it may not be
    * NULL-terminated if header field is passed from application with
-   * the flag :enum:`NGHTTP2_NV_FLAG_NO_COPY_VALUE`).  When
-   * application is constructing this struct, |value| is not required
-   * to be NULL-terminated.
+   * the flag :enum:`nghttp2_nv_flag.NGHTTP2_NV_FLAG_NO_COPY_VALUE`).
+   * When application is constructing this struct, |value| is not
+   * required to be NULL-terminated.
    */
   uint8_t *value;
   /**
@@ -604,7 +627,12 @@ typedef enum {
    * The ALTSVC frame, which is defined in `RFC 7383
    * <https://tools.ietf.org/html/rfc7838#section-4>`_.
    */
-  NGHTTP2_ALTSVC = 0x0a
+  NGHTTP2_ALTSVC = 0x0a,
+  /**
+   * The ORIGIN frame, which is defined by `RFC 8336
+   * <https://tools.ietf.org/html/rfc8336>`_.
+   */
+  NGHTTP2_ORIGIN = 0x0c
 } nghttp2_frame_type;
 
 /**
@@ -668,7 +696,12 @@ typedef enum {
   /**
    * SETTINGS_MAX_HEADER_LIST_SIZE
    */
-  NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE = 0x06
+  NGHTTP2_SETTINGS_MAX_HEADER_LIST_SIZE = 0x06,
+  /**
+   * SETTINGS_ENABLE_CONNECT_PROTOCOL
+   * (`RFC 8441 <https://tools.ietf.org/html/rfc8441>`_)
+   */
+  NGHTTP2_SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x08
 } nghttp2_settings_id;
 /* Note: If we add SETTINGS, update the capacity of
    NGHTTP2_INBOUND_NUM_IV as well */
@@ -682,8 +715,8 @@ typedef enum {
  *
  * Default maximum number of incoming concurrent streams.  Use
  * `nghttp2_submit_settings()` with
- * :enum:`NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS` to change the
- * maximum number of incoming concurrent streams.
+ * :enum:`nghttp2_settings_id.NGHTTP2_SETTINGS_MAX_CONCURRENT_STREAMS`
+ * to change the maximum number of incoming concurrent streams.
  *
  * .. note::
  *
@@ -829,7 +862,6 @@ typedef enum {
   NGHTTP2_DATA_FLAG_NO_COPY = 0x04
 } nghttp2_data_flag;
 
-
 /**
  * @functypedef
  *
@@ -885,7 +917,6 @@ typedef struct {
    */
   nghttp2_realloc realloc;
 } nghttp2_mem;
-
 
 /**
  * @struct
@@ -1260,7 +1291,7 @@ typedef struct nghttp2_hd_deflater nghttp2_hd_deflater;
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
  */
 NGHTTP2_EXTERN int
@@ -1314,7 +1345,7 @@ NGHTTP2_EXTERN void nghttp2_hd_deflate_del(nghttp2_hd_deflater *deflater);
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
  */
 NGHTTP2_EXTERN int
@@ -1328,24 +1359,24 @@ nghttp2_hd_deflate_change_table_size(nghttp2_hd_deflater *deflater,
  * the |buf| of length |buflen|.
  *
  * If |buf| is not large enough to store the deflated header block,
- * this function fails with :enum:`NGHTTP2_ERR_INSUFF_BUFSIZE`.  The
- * caller should use `nghttp2_hd_deflate_bound()` to know the upper
- * bound of buffer size required to deflate given header name/value
- * pairs.
+ * this function fails with
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INSUFF_BUFSIZE`.  The caller
+ * should use `nghttp2_hd_deflate_bound()` to know the upper bound of
+ * buffer size required to deflate given header name/value pairs.
  *
  * Once this function fails, subsequent call of this function always
- * returns :enum:`NGHTTP2_ERR_HEADER_COMP`.
+ * returns :enum:`nghttp2_error.NGHTTP2_ERR_HEADER_COMP`.
  *
  * After this function returns, it is safe to delete the |nva|.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the number of bytes written to |buf| if it
+ * succeeds, or one of the following negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGHTTP2_ERR_HEADER_COMP`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_HEADER_COMP`
  *     Deflation process has failed.
- * :enum:`NGHTTP2_ERR_INSUFF_BUFSIZE`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INSUFF_BUFSIZE`
  *     The provided |buflen| size is too small to hold the output.
  */
 NGHTTP2_EXTERN ssize_t nghttp2_hd_deflate_hd(nghttp2_hd_deflater *deflater,
@@ -1361,23 +1392,24 @@ NGHTTP2_EXTERN ssize_t nghttp2_hd_deflate_hd(nghttp2_hd_deflater *deflater,
  * must be set in len field of :type:`nghttp2_vec`.  If and only if
  * one chunk is filled up completely, next chunk will be used.  If
  * |vec| is not large enough to store the deflated header block, this
- * function fails with :enum:`NGHTTP2_ERR_INSUFF_BUFSIZE`.  The caller
+ * function fails with
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INSUFF_BUFSIZE`.  The caller
  * should use `nghttp2_hd_deflate_bound()` to know the upper bound of
  * buffer size required to deflate given header name/value pairs.
  *
  * Once this function fails, subsequent call of this function always
- * returns :enum:`NGHTTP2_ERR_HEADER_COMP`.
+ * returns :enum:`nghttp2_error.NGHTTP2_ERR_HEADER_COMP`.
  *
  * After this function returns, it is safe to delete the |nva|.
  *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
+ * This function returns the number of bytes written to |vec| if it
+ * succeeds, or one of the following negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGHTTP2_ERR_HEADER_COMP`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_HEADER_COMP`
  *     Deflation process has failed.
- * :enum:`NGHTTP2_ERR_INSUFF_BUFSIZE`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INSUFF_BUFSIZE`
  *     The provided |buflen| size is too small to hold the output.
  */
 NGHTTP2_EXTERN ssize_t nghttp2_hd_deflate_hd_vec(nghttp2_hd_deflater *deflater,
@@ -1457,7 +1489,7 @@ typedef struct nghttp2_hd_inflater nghttp2_hd_inflater;
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
  */
 NGHTTP2_EXTERN int nghttp2_hd_inflate_new(nghttp2_hd_inflater **inflater_ptr);
@@ -1506,9 +1538,9 @@ NGHTTP2_EXTERN void nghttp2_hd_inflate_del(nghttp2_hd_inflater *inflater);
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGHTTP2_ERR_INVALID_STATE`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_STATE`
  *     The function is called while header block is being inflated.
  *     Probably, application missed to call
  *     `nghttp2_hd_inflate_end_headers()`.
@@ -1546,7 +1578,8 @@ typedef enum {
  *
  * Inflates name/value block stored in |in| with length |inlen|.  This
  * function performs decompression.  For each successful emission of
- * header name/value pair, :enum:`NGHTTP2_HD_INFLATE_EMIT` is set in
+ * header name/value pair,
+ * :enum:`nghttp2_hd_inflate_flag.NGHTTP2_HD_INFLATE_EMIT` is set in
  * |*inflate_flags| and name/value pair is assigned to the |nv_out|
  * and the function returns.  The caller must not free the members of
  * |nv_out|.
@@ -1569,11 +1602,11 @@ typedef enum {
  * This function returns the number of bytes processed if it succeeds,
  * or one of the following negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGHTTP2_ERR_HEADER_COMP`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_HEADER_COMP`
  *     Inflation process has failed.
- * :enum:`NGHTTP2_ERR_BUFFER_ERROR`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_BUFFER_ERROR`
  *     The header field name or value is too large.
  *
  * Example follows::
@@ -1628,7 +1661,8 @@ NGHTTP2_EXTERN ssize_t nghttp2_hd_inflate_hd(nghttp2_hd_inflater *inflater,
  *
  * Inflates name/value block stored in |in| with length |inlen|.  This
  * function performs decompression.  For each successful emission of
- * header name/value pair, :enum:`NGHTTP2_HD_INFLATE_EMIT` is set in
+ * header name/value pair,
+ * :enum:`nghttp2_hd_inflate_flag.NGHTTP2_HD_INFLATE_EMIT` is set in
  * |*inflate_flags| and name/value pair is assigned to the |nv_out|
  * and the function returns.  The caller must not free the members of
  * |nv_out|.
@@ -1644,8 +1678,9 @@ NGHTTP2_EXTERN ssize_t nghttp2_hd_inflate_hd(nghttp2_hd_inflater *inflater,
  * for the next header block input.
  *
  * In other words, if |in_final| is nonzero, and this function returns
- * |inlen|, you can assert that :enum:`NGHTTP2_HD_INFLATE_FINAL` is
- * set in |*inflate_flags|.
+ * |inlen|, you can assert that
+ * :enum:`nghttp2_hd_inflate_final.NGHTTP2_HD_INFLATE_FINAL` is set in
+ * |*inflate_flags|.
  *
  * The caller can feed complete compressed header block.  It also can
  * feed it in several chunks.  The caller must set |in_final| to
@@ -1655,11 +1690,11 @@ NGHTTP2_EXTERN ssize_t nghttp2_hd_inflate_hd(nghttp2_hd_inflater *inflater,
  * This function returns the number of bytes processed if it succeeds,
  * or one of the following negative error codes:
  *
- * :enum:`NGHTTP2_ERR_NOMEM`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_NOMEM`
  *     Out of memory.
- * :enum:`NGHTTP2_ERR_HEADER_COMP`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_HEADER_COMP`
  *     Inflation process has failed.
- * :enum:`NGHTTP2_ERR_BUFFER_ERROR`
+ * :enum:`nghttp2_error.NGHTTP2_ERR_BUFFER_ERROR`
  *     The header field name or value is too large.
  *
  * Example follows::
