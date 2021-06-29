@@ -443,7 +443,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         servers.next = nullptr;
         inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
         ares_set_servers(ctx.channel, &servers);
-        if (dns_server_port != SW_DNS_SERVER_PORT) {
+        if (SwooleG.dns_server_port != SW_DNS_SERVER_PORT) {
             swWarn("not support to set port of dns server");
         }
 #else
