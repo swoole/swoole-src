@@ -429,6 +429,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     }
 
     if (!SwooleG.dns_server_host.empty()) {
+#if (ARES_VERSION >= 0x010b00)
         struct ares_addr_port_node servers;
         servers.family = AF_INET;
         servers.next = nullptr;
@@ -436,6 +437,18 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         servers.tcp_port = 0;
         servers.udp_port = SwooleG.dns_server_port;
         ares_set_servers_ports(ctx.channel, &servers);
+#elif (ARES_VERSION >= 0x010701)
+        struct ares_addr_node servers;
+        servers.family = AF_INET;
+        servers.next = nullptr;
+        inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
+        ares_set_servers(ctx.channel, &servers);
+        if (dns_server_port != SW_DNS_SERVER_PORT) {
+            swWarn("not support to set port of dns server");
+        }
+#else
+        swWarn("not support to set dns server");
+#endif
     }
 
     ares_gethostbyname(

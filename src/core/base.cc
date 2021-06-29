@@ -805,7 +805,9 @@ static void swoole_fatal_error(int code, const char *format, ...) {
     exit(1);
 }
 
-size_t swDataHead::dump(char *_buf, size_t _len) {
+namespace swoole {
+//-------------------------------------------------------------------------------
+size_t DataHead::dump(char *_buf, size_t _len) {
     return sw_snprintf(_buf,
                        _len,
                        "swDataHead[%p]\n"
@@ -826,8 +828,6 @@ size_t swDataHead::dump(char *_buf, size_t _len) {
                        server_fd);
 }
 
-namespace swoole {
-//-------------------------------------------------------------------------------
 std::string dirname(const std::string &file) {
     size_t index = file.find_last_of('/');
     if (index == std::string::npos) {
