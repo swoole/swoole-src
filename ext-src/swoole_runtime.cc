@@ -1860,6 +1860,11 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     if (zf == nullptr) {
         return;
     }
+#if PHP_VERSION_ID < 80000
+    if (zf->internal_function.handler == ZEND_FN(display_disabled_function)) {
+        return;
+    }
+#endif
 
     rf = (real_func *) emalloc(sizeof(real_func));
     sw_memset_zero(rf, sizeof(*rf));
