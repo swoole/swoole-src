@@ -100,7 +100,12 @@ void php_swoole_server_rshutdown() {
 #else
                              PG(last_error_message)->val,
 #endif
+
+#if PHP_VERSION_ID >= 80100
+                             PG(last_error_file) ? PG(last_error_file)->val : "-",
+#else
                              PG(last_error_file) ? PG(last_error_file) : "-",
+#endif
                              PG(last_error_lineno));
         } else {
             swoole_error_log(
