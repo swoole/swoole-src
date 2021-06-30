@@ -320,7 +320,6 @@ void php_swoole_register_shutdown_function(const char *function) {
 #endif
     ZVAL_STRING(function_name, function);
     register_user_shutdown_function(Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), &shutdown_function_entry);
-    zval_ptr_dtor(function_name);
 #endif
 }
 
