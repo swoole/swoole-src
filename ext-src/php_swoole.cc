@@ -179,8 +179,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_read, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
-const zend_function_entry swoole_functions[] =
-{
+const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_version, arginfo_swoole_void)
     PHP_FE(swoole_cpu_num, arginfo_swoole_void)
     PHP_FE(swoole_last_error, arginfo_swoole_void)
@@ -218,32 +217,24 @@ const zend_function_entry swoole_functions[] =
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
-// clang-format on
-
-zend_class_entry *swoole_exception_ce;
-zend_object_handlers swoole_exception_handlers;
-
-zend_class_entry *swoole_error_ce;
-zend_object_handlers swoole_error_handlers;
 
 static const zend_module_dep swoole_deps[] = {
 #ifdef SW_USE_JSON
     ZEND_MOD_REQUIRED("json")
 #endif
 #ifdef SW_USE_MYSQLND
-        ZEND_MOD_REQUIRED("mysqlnd")
+    ZEND_MOD_REQUIRED("mysqlnd")
 #endif
 #ifdef SW_SOCKETS
-            ZEND_MOD_REQUIRED("sockets")
+    ZEND_MOD_REQUIRED("sockets")
 #endif
 #ifdef SW_USE_CURL
-                ZEND_MOD_REQUIRED("curl")
+    ZEND_MOD_REQUIRED("curl")
 #endif
-                    ZEND_MOD_END};
+    ZEND_MOD_END
+};
 
-// clang-format off
-zend_module_entry swoole_module_entry =
-{
+zend_module_entry swoole_module_entry = {
     STANDARD_MODULE_HEADER_EX,
     nullptr,
     swoole_deps,
@@ -258,6 +249,12 @@ zend_module_entry swoole_module_entry =
     STANDARD_MODULE_PROPERTIES
 };
 // clang-format on
+
+zend_class_entry *swoole_exception_ce;
+zend_object_handlers swoole_exception_handlers;
+
+zend_class_entry *swoole_error_ce;
+zend_object_handlers swoole_error_handlers;
 
 #ifdef COMPILE_DL_SWOOLE
 ZEND_GET_MODULE(swoole)
@@ -303,12 +300,16 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
 
 void php_swoole_register_shutdown_function(const char *function) {
     php_shutdown_function_entry shutdown_function_entry;
+#if PHP_VERSION_ID >= 80100
     zval function_name;
     ZVAL_STRING(&function_name, function);
-#if PHP_VERSION_ID >= 80100
     zend_fcall_info_init(
         &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, NULL, NULL);
-#elif PHP_VERSION_ID >= 80000
+    register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
+    zval_ptr_dtor(&function_name);
+#else
+    zval *function_name;
+#if PHP_VERSION_ID >= 80000
     shutdown_function_entry.arg_count = 0;
     shutdown_function_entry.arguments = NULL;
     function_name = &shutdown_function_entry.function_name;
@@ -317,8 +318,10 @@ void php_swoole_register_shutdown_function(const char *function) {
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     function_name = &shutdown_function_entry.arguments[0];
 #endif
-    register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
-    zval_ptr_dtor(&function_name);
+    ZVAL_STRING(function_name, function);
+    register_user_shutdown_function(Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), &shutdown_function_entry);
+    zval_ptr_dtor(function_name);
+#endif
 }
 
 void php_swoole_set_global_option(HashTable *vht) {
