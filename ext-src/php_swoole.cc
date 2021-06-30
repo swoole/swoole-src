@@ -228,19 +228,18 @@ zend_object_handlers swoole_error_handlers;
 
 static const zend_module_dep swoole_deps[] = {
 #ifdef SW_USE_JSON
-     ZEND_MOD_REQUIRED("json")
+    ZEND_MOD_REQUIRED("json")
 #endif
 #ifdef SW_USE_MYSQLND
-     ZEND_MOD_REQUIRED("mysqlnd")
+        ZEND_MOD_REQUIRED("mysqlnd")
 #endif
 #ifdef SW_SOCKETS
-     ZEND_MOD_REQUIRED("sockets")
+            ZEND_MOD_REQUIRED("sockets")
 #endif
 #ifdef SW_USE_CURL
-     ZEND_MOD_REQUIRED("curl")
+                ZEND_MOD_REQUIRED("curl")
 #endif
-     ZEND_MOD_END
-};
+                    ZEND_MOD_END};
 
 // clang-format off
 zend_module_entry swoole_module_entry =
@@ -304,8 +303,12 @@ static void php_swoole_init_globals(zend_swoole_globals *swoole_globals) {
 
 void php_swoole_register_shutdown_function(const char *function) {
     php_shutdown_function_entry shutdown_function_entry;
-    zval *function_name;
-#if PHP_VERSION_ID >= 80000
+    zval function_name;
+    ZVAL_STRING(&function_name, function);
+#if PHP_VERSION_ID >= 80100
+    zend_fcall_info_init(
+        &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, NULL, NULL);
+#elif PHP_VERSION_ID >= 80000
     shutdown_function_entry.arg_count = 0;
     shutdown_function_entry.arguments = NULL;
     function_name = &shutdown_function_entry.function_name;
@@ -314,9 +317,8 @@ void php_swoole_register_shutdown_function(const char *function) {
     shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
     function_name = &shutdown_function_entry.arguments[0];
 #endif
-    ZVAL_STRING(function_name, function);
-    register_user_shutdown_function(
-        Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), &shutdown_function_entry);
+    register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
+    zval_ptr_dtor(&function_name);
 }
 
 void php_swoole_set_global_option(HashTable *vht) {
@@ -398,14 +400,17 @@ SW_API bool php_swoole_is_enable_coroutine() {
 static void fatal_error(int code, const char *format, ...) {
     va_list args;
     va_start(args, format);
-    zend_object *exception = zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
+    zend_object *exception =
+        zend_throw_exception(swoole_error_ce, swoole::std_string::vformat(format, args).c_str(), code);
     va_end(args);
 
     zend_try {
         zend_exception_error(exception, E_ERROR);
-    } zend_catch {
+    }
+    zend_catch {
         exit(255);
-    } zend_end_try();
+    }
+    zend_end_try();
 }
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -967,14 +972,14 @@ static void _sw_zend_string_free(void *address) {
     zend_string_free(zend::fetch_zend_string_by_val(address));
 }
 
-static swoole::Allocator php_allocator {
+static swoole::Allocator php_allocator{
     _sw_emalloc,
     _sw_ecalloc,
     _sw_erealloc,
     _sw_efree,
 };
 
-static swoole::Allocator zend_string_allocator {
+static swoole::Allocator zend_string_allocator{
     _sw_zend_string_malloc,
     _sw_zend_string_calloc,
     _sw_zend_string_realloc,
@@ -1335,17 +1340,17 @@ static PHP_FUNCTION(swoole_internal_call_user_shutdown_begin) {
 
 static PHP_FUNCTION(swoole_substr_unserialize) {
     zend_long offset, length = 0;
-	char *buf = NULL;
-	size_t buf_len;
+    char *buf = NULL;
+    size_t buf_len;
     zval *options = NULL;
 
-	ZEND_PARSE_PARAMETERS_START(2, 4)
+    ZEND_PARSE_PARAMETERS_START(2, 4)
     Z_PARAM_STRING(buf, buf_len)
     Z_PARAM_LONG(offset)
     Z_PARAM_OPTIONAL
     Z_PARAM_LONG(length)
     Z_PARAM_ARRAY(options)
-	ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END();
 
     if (buf_len == 0) {
         RETURN_FALSE;
@@ -1366,13 +1371,13 @@ static PHP_FUNCTION(swoole_substr_unserialize) {
 static PHP_FUNCTION(swoole_substr_json_decode) {
     zend_long offset, length = 0;
     char *str;
-	size_t str_len;
-	zend_bool assoc = 0; /* return JS objects as PHP objects by default */
-	zend_bool assoc_null = 1;
-	zend_long depth = PHP_JSON_PARSER_DEFAULT_DEPTH;
-	zend_long options = 0;
+    size_t str_len;
+    zend_bool assoc = 0; /* return JS objects as PHP objects by default */
+    zend_bool assoc_null = 1;
+    zend_long depth = PHP_JSON_PARSER_DEFAULT_DEPTH;
+    zend_long options = 0;
 
-	ZEND_PARSE_PARAMETERS_START(2, 6)
+    ZEND_PARSE_PARAMETERS_START(2, 6)
     Z_PARAM_STRING(str, str_len)
     Z_PARAM_LONG(offset)
     Z_PARAM_OPTIONAL
@@ -1380,7 +1385,7 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     Z_PARAM_BOOL_EX(assoc, assoc_null, 1, 0)
     Z_PARAM_LONG(depth)
     Z_PARAM_LONG(options)
-	ZEND_PARSE_PARAMETERS_END();
+    ZEND_PARSE_PARAMETERS_END();
 
     if (str_len == 0) {
         RETURN_FALSE;
@@ -1397,7 +1402,7 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     /* For BC reasons, the bool $assoc overrides the long $options bit for PHP_JSON_OBJECT_AS_ARRAY */
     if (!assoc_null) {
         if (assoc) {
-            options |=  PHP_JSON_OBJECT_AS_ARRAY;
+            options |= PHP_JSON_OBJECT_AS_ARRAY;
         } else {
             options &= ~PHP_JSON_OBJECT_AS_ARRAY;
         }
@@ -1405,4 +1410,3 @@ static PHP_FUNCTION(swoole_substr_json_decode) {
     zend::json_decode(return_value, str + offset, length, options, depth);
 }
 #endif
-

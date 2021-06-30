@@ -36,8 +36,8 @@ using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-#define PHP_CORO_TASK_SLOT                                                                                          \
-    ((int) ((ZEND_MM_ALIGNED_SIZE(sizeof(PHPContext)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) /                   \
+#define PHP_CORO_TASK_SLOT                                                                                             \
+    ((int) ((ZEND_MM_ALIGNED_SIZE(sizeof(PHPContext)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) /                      \
             ZEND_MM_ALIGNED_SIZE(sizeof(zval))))
 
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
@@ -45,14 +45,14 @@ enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 }
 bool PHPCoroutine::activated = false;
 zend_array *PHPCoroutine::options = nullptr;
 
-PHPCoroutine::Config PHPCoroutine::config {
+PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
     0,
     false,
     true,
 };
 
-PHPContext PHPCoroutine::main_task {};
+PHPContext PHPCoroutine::main_task{};
 std::thread PHPCoroutine::interrupt_thread;
 bool PHPCoroutine::interrupt_thread_running = false;
 
@@ -72,9 +72,15 @@ static unordered_map<long, Coroutine *> user_yield_coros;
 #define ZEND_ERROR_CB_LAST_ARG_RELAY message
 #endif
 
+#if PHP_VERSION_ID < 80100
+typedef const char error_filename_t;
+#else
+typedef zend_string error_filename_t;
+#endif
+
 static void (*orig_interrupt_function)(zend_execute_data *execute_data) = nullptr;
 static void (*orig_error_function)(int type,
-                                   const char *error_filename,
+                                   error_filename_t *error_filename,
                                    const uint32_t error_lineno,
                                    ZEND_ERROR_CB_LAST_ARG_D) = nullptr;
 
@@ -323,28 +329,31 @@ void PHPCoroutine::activate() {
 
     /* replace the error function to save execute_data */
     orig_error_function = zend_error_cb;
-    zend_error_cb = [](int type, const char *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) {
-        if (sw_unlikely(type & E_FATAL_ERRORS)) {
-            if (activated) {
-                /* update the last coroutine's info */
-                save_task(get_context());
-            }
-            if (sw_reactor()) {
-                sw_reactor()->running = false;
-                sw_reactor()->bailout = true;
-            }
+    zend_error_cb =
+        [](int type, error_filename_t *error_filename, const uint32_t error_lineno, ZEND_ERROR_CB_LAST_ARG_D) {
+            if (sw_unlikely(type & E_FATAL_ERRORS)) {
+                if (activated) {
+                    /* update the last coroutine's info */
+                    save_task(get_context());
+                }
+                if (sw_reactor()) {
+                    sw_reactor()->running = false;
+                    sw_reactor()->bailout = true;
+                }
 #ifdef SW_EXIT_WHEN_OCCURS_FATAL_ERROR
-            zend_try {
-                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-            } zend_catch {
-                exit(255);
-            } zend_end_try();
+                zend_try {
+                    orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+                }
+                zend_catch {
+                    exit(255);
+                }
+                zend_end_try();
 #endif
-        }
-        if (sw_likely(orig_error_function)) {
-            orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
-        }
-    };
+            }
+            if (sw_likely(orig_error_function)) {
+                orig_error_function(type, error_filename, error_lineno, ZEND_ERROR_CB_LAST_ARG_RELAY);
+            }
+        };
 
     if (SWOOLE_G(enable_preemptive_scheduler) || config.enable_preemptive_scheduler) {
         /* create a thread to interrupt the coroutine that takes up too much time */
@@ -757,10 +766,10 @@ void PHPCoroutine::main_func(void *arg) {
                 defer_fci->fci.param_count = 1;
                 defer_fci->fci.params = retval;
 #else
-                if (Z_TYPE_P(retval) != IS_UNDEF) {
-                    defer_fci->fci.param_count = 1;
-                    defer_fci->fci.params = retval;
-                }
+            if (Z_TYPE_P(retval) != IS_UNDEF) {
+                defer_fci->fci.param_count = 1;
+                defer_fci->fci.params = retval;
+            }
 #endif
 
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
@@ -1075,7 +1084,7 @@ static PHP_METHOD(swoole_coroutine, yield) {
     Coroutine *co = Coroutine::get_current_safe();
     user_yield_coros[co->get_cid()] = co;
 
-    Coroutine::CancelFunc cancel_fn = [](Coroutine *co){
+    Coroutine::CancelFunc cancel_fn = [](Coroutine *co) {
         user_yield_coros.erase(co->get_cid());
         co->resume();
         return true;
