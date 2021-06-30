@@ -40,6 +40,38 @@ TEST(server, create_pipe_buffers) {
     }
 }
 
+TEST(server, schedule) {
+    int ret;
+    Server serv(Server::MODE_PROCESS);
+    serv.worker_num = 6;
+    serv.dispatch_mode = SW_DISPATCH_QUEUE;
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
+
+    for (uint32_t i = 0; i < serv.worker_num; i++) {
+        serv.workers[i].status = SW_WORKER_BUSY;
+    }
+
+    std::set<int> _worker_id_set;
+
+    for (uint32_t i = 0; i < serv.worker_num; i++) {
+        auto worker_id = serv.schedule_worker(i*13, nullptr);
+        _worker_id_set.insert(worker_id);
+    }
+    ASSERT_EQ(_worker_id_set.size(), serv.worker_num);
+   
+    for (uint32_t i = 1; i < serv.worker_num - 1; i++) {
+        serv.workers[i].status = SW_WORKER_IDLE;
+    }
+
+    _worker_id_set.clear();
+    for (uint32_t i = 0; i < serv.worker_num; i++) {
+        auto worker_id = serv.schedule_worker(i*13, nullptr);
+        _worker_id_set.insert(worker_id);
+    }
+    ASSERT_EQ(_worker_id_set.size(), serv.worker_num - 2);
+}
+
 static const char *packet = "hello world\n";
 
 TEST(server, base) {
