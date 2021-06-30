@@ -148,6 +148,18 @@ struct Worker {
     void *ptr2;
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
+
+    void set_status(enum swWorker_status _status) {
+        status = _status;
+    }
+
+    bool is_busy() {
+        return status == SW_WORKER_BUSY;
+    }
+
+    bool is_idle() {
+        return status == SW_WORKER_IDLE;
+    }
 };
 
 struct StreamInfo {
