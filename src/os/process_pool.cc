@@ -497,7 +497,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
     return SW_OK;
 }
 
-int ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
+void ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
     if (task_protocol) {
         main_loop = ProcessPool_worker_loop;
     } else {
@@ -508,8 +508,6 @@ int ProcessPool::set_protocol(int task_protocol, uint32_t max_packet_size) {
         max_packet_size_ = max_packet_size;
         main_loop = ProcessPool_worker_loop_ex;
     }
-
-    return SW_OK;
 }
 
 static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker) {

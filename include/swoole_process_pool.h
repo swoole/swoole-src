@@ -261,7 +261,7 @@ struct ProcessPool {
 
     void set_max_request(uint32_t _max_request, uint32_t _max_request_grace);
     int get_max_request();
-    int set_protocol(int task_protocol, uint32_t max_packet_size);
+    void set_protocol(int task_protocol, uint32_t max_packet_size);
     bool detach();
     int wait();
     int start();

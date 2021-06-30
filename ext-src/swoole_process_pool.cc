@@ -334,10 +334,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
         pool->main_loop = nullptr;
     } else {
         if (ipc_type > 0) {
-            if (pool->set_protocol(0, SW_INPUT_BUFFER_SIZE) < 0) {
-                zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
-                RETURN_FALSE;
-            }
+            pool->set_protocol(0, SW_INPUT_BUFFER_SIZE);
         }
     }
 
@@ -360,8 +357,17 @@ static PHP_METHOD(swoole_process_pool, set) {
 
     ProcessPoolProperty *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
 
+    php_swoole_set_global_option(vht);
+    php_swoole_set_coroutine_option(vht);
+    php_swoole_set_aio_option(vht);
+
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
         pp->enable_coroutine = zval_is_true(ztmp);
+    }
+
+    ProcessPool *pool = php_swoole_process_pool_get_and_check_pool(ZEND_THIS);
+    if (pp->enable_coroutine) {
+        pool->main_loop = nullptr;
     }
 }
 
