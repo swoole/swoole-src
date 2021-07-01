@@ -685,7 +685,6 @@ class Server {
     double send_timeout = 0;
 
     uint16_t heartbeat_check_interval = 0;
-    uint32_t heartbeat_check_lasttime = 0;
 
     time_t reload_time = 0;
     time_t warning_time = 0;

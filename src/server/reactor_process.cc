@@ -437,10 +437,6 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
     Event notify_ev{};
     double now = microtime();
 
-    if (now < serv->heartbeat_check_lasttime + 10) {
-        return;
-    }
-
     notify_ev.type = SW_FD_SESSION;
 
     serv->foreach_connection([serv, reactor, now, &notify_ev](Connection *conn) {

@@ -327,10 +327,13 @@ int Server::start_check() {
             swWarn("require onPacket callback");
             return SW_ERR;
         }
-        if (ls->heartbeat_idle_time > 0 && heartbeat_check_interval > ls->heartbeat_idle_time) {
-            heartbeat_check_interval = ls->heartbeat_idle_time / 2;
-            if (heartbeat_check_interval == 0) {
-                heartbeat_check_interval = 1;
+        if (ls->heartbeat_idle_time > 0) {
+            int expect_heartbeat_check_interval = ls->heartbeat_idle_time / 2;
+            if (expect_heartbeat_check_interval == 0) {
+                expect_heartbeat_check_interval = 1;
+            }
+            if (heartbeat_check_interval == 0 || heartbeat_check_interval > expect_heartbeat_check_interval) {
+                heartbeat_check_interval = expect_heartbeat_check_interval;
             }
         }
     }
