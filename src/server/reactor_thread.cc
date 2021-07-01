@@ -781,7 +781,6 @@ _init_master_thread:
      * heartbeat thread
      */
     if (heartbeat_check_interval >= 1) {
-        swTrace("hb timer start, time: %d live time:%d", heartbeat_check_interval, heartbeat_idle_time);
         start_heartbeat_thread();
     }
 
