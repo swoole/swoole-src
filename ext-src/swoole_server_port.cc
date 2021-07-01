@@ -309,6 +309,14 @@ static PHP_METHOD(swoole_server_port, set) {
             port->kernel_socket_send_buffer_size = INT_MAX;
         }
     }
+    // heartbeat idle time
+    if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        port->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
+    }
+    if (property->serv->heartbeat_check_interval > 0 && port->heartbeat_idle_time == 0) {
+        port->heartbeat_idle_time = property->serv->heartbeat_check_interval * 2;
+    }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         port->buffer_high_watermark = SW_MAX(0, SW_MIN(v, UINT32_MAX));

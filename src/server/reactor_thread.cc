@@ -780,7 +780,7 @@ _init_master_thread:
     /**
      * heartbeat thread
      */
-    if (heartbeat_check_interval >= 1 && heartbeat_check_interval <= heartbeat_idle_time) {
+    if (heartbeat_check_interval >= 1) {
         swTrace("hb timer start, time: %d live time:%d", heartbeat_check_interval, heartbeat_idle_time);
         start_heartbeat_thread();
     }
@@ -1086,13 +1086,13 @@ void Server::start_heartbeat_thread() {
         SwooleTG.id = reactor_num;
 
         while (running) {
-            double checktime = microtime() - heartbeat_idle_time;
-            foreach_connection([this, checktime](Connection *conn) {
-                if (conn->protect || conn->last_recv_time == 0 || conn->last_recv_time > checktime) {
-                    return;
-                }
+            double now = microtime();
+            foreach_connection([this, now](Connection *conn) {
                 SessionId session_id = conn->session_id;
                 if (session_id <= 0) {
+                    return;
+                }
+                if (is_healthy_connection(now, conn)) {
                     return;
                 }
                 DataHead ev{};

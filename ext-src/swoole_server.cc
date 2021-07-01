@@ -2386,19 +2386,6 @@ static PHP_METHOD(swoole_server, set) {
         zend_long v = zval_get_long(ztmp);
         serv->heartbeat_check_interval = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
-    // heartbeat idle time
-    if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
-        zend_long v = zval_get_long(ztmp);
-        serv->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
-
-        if (serv->heartbeat_check_interval > serv->heartbeat_idle_time) {
-            php_swoole_fatal_error(E_WARNING, "heartbeat_idle_time must be greater than heartbeat_check_interval");
-            serv->heartbeat_check_interval = serv->heartbeat_idle_time / 2;
-        }
-    }
-    if (serv->heartbeat_idle_time == 0 && serv->heartbeat_check_interval > 0) {
-        serv->heartbeat_idle_time = serv->heartbeat_check_interval * 2;
-    }
     // max_request
     if (php_swoole_array_get_value(vht, "max_request", ztmp)) {
         zend_long v = zval_get_long(ztmp);
@@ -3066,20 +3053,20 @@ static PHP_METHOD(swoole_server, heartbeat) {
         RETURN_FALSE;
     }
 
-    if (serv->heartbeat_idle_time < 1) {
+    if (serv->heartbeat_check_interval < 1) {
         RETURN_FALSE;
     }
 
     array_init(return_value);
-    double checktime = microtime() - serv->heartbeat_idle_time;
+    double now = microtime();
 
-    serv->foreach_connection([serv, checktime, close_connection, return_value](Connection *conn) {
-        swTrace("heartbeat check fd=%d", conn->fd);
-        if (conn->protect || conn->last_recv_time == 0 || conn->last_recv_time > checktime) {
-            return;
-        }
+    serv->foreach_connection([serv, now, close_connection, return_value](Connection *conn) {
         SessionId session_id = conn->session_id;
         if (session_id <= 0) {
+            return;
+        }
+        swTrace("heartbeat check fd=%d", conn->fd);
+        if (serv->is_healthy_connection(now, conn)) {
             return;
         }
         if (close_connection) {

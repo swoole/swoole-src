@@ -443,10 +443,8 @@ static void ReactorProcess_onTimeout(Timer *timer, TimerNode *tnode) {
 
     notify_ev.type = SW_FD_SESSION;
 
-    int checktime = now - serv->heartbeat_idle_time;
-
-    serv->foreach_connection([serv, checktime, reactor, &notify_ev](Connection *conn) {
-        if (conn->protect || conn->last_recv_time > checktime) {
+    serv->foreach_connection([serv, reactor, now, &notify_ev](Connection *conn) {
+        if (serv->is_healthy_connection(now, conn)) {
             return;
         }
 #ifdef SW_USE_OPENSSL

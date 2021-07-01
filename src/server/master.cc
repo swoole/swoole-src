@@ -327,6 +327,12 @@ int Server::start_check() {
             swWarn("require onPacket callback");
             return SW_ERR;
         }
+        if (ls->heartbeat_idle_time > 0 && heartbeat_check_interval > ls->heartbeat_idle_time) {
+            heartbeat_check_interval = ls->heartbeat_idle_time / 2;
+            if (heartbeat_check_interval == 0) {
+                heartbeat_check_interval = 1;
+            }
+        }
     }
 #ifdef SW_USE_OPENSSL
     /**
@@ -1343,6 +1349,20 @@ void Server::check_port_type(ListenPort *ls) {
     } else {
         have_stream_sock = 1;
     }
+}
+
+bool Server::is_healthy_connection(double now, Connection *conn) {
+    if (conn->protect || conn->last_recv_time == 0) {
+        return true;
+    }
+    auto lp = get_port_by_session_id(conn->session_id);
+    if (!lp) {
+        return true;
+    }
+    if (conn->last_recv_time > now - lp->heartbeat_idle_time) {
+        return true;
+    }
+    return false;
 }
 
 /**

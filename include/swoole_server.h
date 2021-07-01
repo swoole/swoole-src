@@ -255,6 +255,8 @@ struct ListenPort {
     network::Socket *socket = nullptr;
     pthread_t thread_id = 0;
 
+    uint16_t heartbeat_idle_time = 0;
+
     /**
      * check data eof
      */
@@ -682,7 +684,6 @@ class Server {
     PipeBuffer **pipe_buffers = nullptr;
     double send_timeout = 0;
 
-    uint16_t heartbeat_idle_time = 0;
     uint16_t heartbeat_check_interval = 0;
     uint32_t heartbeat_check_lasttime = 0;
 
@@ -1097,6 +1098,8 @@ class Server {
     inline bool is_valid_connection(Connection *conn) {
         return (conn && conn->socket && conn->active && conn->socket->fd_type == SW_FD_SESSION);
     }
+
+    bool is_healthy_connection(double now, Connection *conn);
 
     static int is_dgram_event(uint8_t type) {
         switch (type) {
