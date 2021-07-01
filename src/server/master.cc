@@ -336,6 +336,10 @@ int Server::start_check() {
                 heartbeat_check_interval = expect_heartbeat_check_interval;
             }
         }
+        if (heartbeat_check_interval > 0 && get_primary_port()->heartbeat_idle_time > 0 &&
+            ls->heartbeat_idle_time == 0) {
+            ls->heartbeat_idle_time = heartbeat_check_interval * 2;
+        }
     }
 #ifdef SW_USE_OPENSSL
     /**

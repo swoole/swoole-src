@@ -199,7 +199,10 @@ void php_swoole_server_port_minit(int module_number) {
 /**
  * [Master-Process]
  */
-static ssize_t php_swoole_server_length_func(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length) {
+static ssize_t php_swoole_server_length_func(Protocol *protocol,
+                                             network::Socket *conn,
+                                             const char *data,
+                                             uint32_t length) {
     Server *serv = (Server *) protocol->private_data_2;
     serv->lock();
 
@@ -313,9 +316,6 @@ static PHP_METHOD(swoole_server_port, set) {
     if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         port->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
-    }
-    if (property->serv->heartbeat_check_interval > 0 && port->heartbeat_idle_time == 0) {
-        port->heartbeat_idle_time = property->serv->heartbeat_check_interval * 2;
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
         zend_long v = zval_get_long(ztmp);
@@ -598,7 +598,8 @@ static PHP_METHOD(swoole_server_port, set) {
                     delete context;
                     RETURN_FALSE;
                 }
-            } ZEND_HASH_FOREACH_END();
+            }
+            ZEND_HASH_FOREACH_END();
         }
 
         if (!port->ssl_context->cert_file.empty() || port->sni_contexts.empty()) {
@@ -651,7 +652,7 @@ static PHP_METHOD(swoole_server_port, on) {
     efree(func_name);
 
     bool found = false;
-    for (auto i = server_port_event_map.begin(); i!= server_port_event_map.end(); i++) {
+    for (auto i = server_port_event_map.begin(); i != server_port_event_map.end(); i++) {
         if (!swoole_strcaseeq(name, len, i->first.c_str(), i->first.length())) {
             continue;
         }
@@ -659,7 +660,8 @@ static PHP_METHOD(swoole_server_port, on) {
         found = true;
         int index = i->second.type;
         std::string property_name = std::string("on") + i->second.name;
-        zend_update_property(swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
+        zend_update_property(
+            swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
         property->callbacks[index] =
             sw_zend_read_property(swoole_server_port_ce, ZEND_THIS, property_name.c_str(), property_name.length(), 0);
         sw_copy_to_stack(property->callbacks[index], property->_callbacks[index]);
