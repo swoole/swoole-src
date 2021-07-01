@@ -1091,11 +1091,15 @@ void Server::start_heartbeat_thread() {
                 if (conn->protect || conn->last_recv_time == 0 || conn->last_recv_time > checktime) {
                     return;
                 }
+                SessionId session_id = conn->session_id;
+                if (session_id <= 0) {
+                    return;
+                }
                 DataHead ev{};
                 ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                 // convert fd to session_id, in order to verify the connection before the force close connection
-                ev.fd = conn->session_id;
-                Socket *_pipe_sock = get_reactor_thread_pipe(conn->session_id, conn->reactor_id);
+                ev.fd = session_id;
+                Socket *_pipe_sock = get_reactor_thread_pipe(session_id, conn->reactor_id);
                 _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
             });
             sleep(heartbeat_check_interval);

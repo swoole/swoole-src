@@ -1872,8 +1872,8 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
     }
     if (conn->websocket_status != WEBSOCKET_STATUS_ACTIVE) {
         ListenPort *port = serv->get_port_by_server_fd(info->server_fd);
-        if (port && port->open_websocket_protocol
-                && php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {
+        if (port && port->open_websocket_protocol &&
+            php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {
             fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onDisconnect);
         }
     }
@@ -3078,11 +3078,15 @@ static PHP_METHOD(swoole_server, heartbeat) {
         if (conn->protect || conn->last_recv_time == 0 || conn->last_recv_time > checktime) {
             return;
         }
+        SessionId session_id = conn->session_id;
+        if (session_id <= 0) {
+            return;
+        }
         if (close_connection) {
             conn->close_force = 1;
-            serv->close(conn->fd, false);
+            serv->close(session_id, false);
         }
-        add_next_index_long(return_value, conn->session_id);
+        add_next_index_long(return_value, session_id);
     });
 }
 
@@ -3713,7 +3717,11 @@ static PHP_METHOD(swoole_server, getClientList) {
         swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_session_id);
         Connection *conn = serv->get_connection_for_iterator(fd);
         if (conn) {
-            add_next_index_long(return_value, conn->session_id);
+            SessionId session_id = conn->session_id;
+            if (session_id <= 0) {
+                continue;
+            }
+            add_next_index_long(return_value, session_id);
             find_count--;
         }
         // finish fetch
@@ -3931,10 +3939,12 @@ static PHP_METHOD(swoole_connection_iterator, valid) {
         if (!conn) {
             continue;
         }
-        if (iterator->port && (iterator->port->get_fd() < 0 || conn->server_fd != iterator->port->get_fd())) {
+        SessionId session_id = conn->session_id;
+        if (session_id <= 0 ||
+            (iterator->port && (iterator->port->get_fd() < 0 || conn->server_fd != iterator->port->get_fd()))) {
             continue;
         }
-        iterator->session_id = conn->session_id;
+        iterator->session_id = session_id;
         iterator->current_fd = fd;
         iterator->index++;
         RETURN_TRUE;

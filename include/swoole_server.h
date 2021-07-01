@@ -1158,7 +1158,7 @@ class Server {
 
     inline Connection *get_connection_for_iterator(int fd) {
         Connection *conn = get_connection(fd);
-        if (conn && conn->active && !conn->closed && conn->session_id > 0) {
+        if (conn && conn->active && !conn->closed) {
 #ifdef SW_USE_OPENSSL
             if (conn->ssl && !conn->ssl_ready) {
                 return nullptr;
