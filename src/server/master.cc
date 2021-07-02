@@ -315,6 +315,13 @@ int Server::start_check() {
     if (send_timeout > 0 && send_timeout < SW_TIMER_MIN_SEC) {
         send_timeout = SW_TIMER_MIN_SEC;
     }
+    if (heartbeat_check_interval > 0) {
+        for (auto ls : ports) {
+            if (ls->heartbeat_idle_time == 0) {
+                ls->heartbeat_idle_time = heartbeat_check_interval * 2;
+            }
+        }
+    }
     for (auto ls : ports) {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE) {
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
@@ -326,6 +333,12 @@ int Server::start_check() {
         if (if_require_packet_callback(ls, onPacket != nullptr)) {
             swWarn("require onPacket callback");
             return SW_ERR;
+        }
+        if (ls->heartbeat_idle_time > 0) {
+            int expect_heartbeat_check_interval = ls->heartbeat_idle_time > 2 ? ls->heartbeat_idle_time / 2 : 1;
+            if (heartbeat_check_interval == 0 || heartbeat_check_interval > expect_heartbeat_check_interval) {
+                heartbeat_check_interval = expect_heartbeat_check_interval;
+            }
         }
     }
 #ifdef SW_USE_OPENSSL
@@ -1343,6 +1356,20 @@ void Server::check_port_type(ListenPort *ls) {
     } else {
         have_stream_sock = 1;
     }
+}
+
+bool Server::is_healthy_connection(double now, Connection *conn) {
+    if (conn->protect || conn->last_recv_time == 0) {
+        return true;
+    }
+    auto lp = get_port_by_session_id(conn->session_id);
+    if (!lp) {
+        return true;
+    }
+    if (conn->last_recv_time > now - lp->heartbeat_idle_time) {
+        return true;
+    }
+    return false;
 }
 
 /**
