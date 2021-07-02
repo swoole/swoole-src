@@ -327,9 +327,7 @@ AC_COMPILE_IFELSE([
 )
 AC_MSG_RESULT([$CLANG])
 
-if test "$CLANG" = "yes"; then
-    CFLAGS="$CFLAGS -std=gnu89"
-fi
+AC_PROG_CC_C99
 
 AC_CANONICAL_HOST
 
