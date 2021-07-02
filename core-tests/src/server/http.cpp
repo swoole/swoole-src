@@ -117,11 +117,11 @@ static void test_run_server(function<void(swServer *)> fn) {
         SessionId session_id = req->info.fd;
         auto conn = serv->get_connection_by_session_id(session_id);
 
-        if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
+        if (conn->websocket_status == swoole::websocket::STATUS_ACTIVE) {
             sw_tg_buffer()->clear();
             std::string resp = "Swoole: " + string(req->data, req->info.len);
-            swWebSocket_encode(
-                sw_tg_buffer(), resp.c_str(), resp.length(), WEBSOCKET_OPCODE_TEXT, SW_WEBSOCKET_FLAG_FIN);
+            swoole::websocket::encode(
+                sw_tg_buffer(), resp.c_str(), resp.length(), swoole::websocket::OPCODE_TEXT, swoole::websocket::FLAG_FIN);
             serv->send(session_id, sw_tg_buffer()->str, sw_tg_buffer()->length);
             return SW_OK;
         }
@@ -151,7 +151,7 @@ static void test_run_server(function<void(swServer *)> fn) {
 
             ctx.response(SW_HTTP_SWITCHING_PROTOCOLS);
 
-            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+            conn->websocket_status = swoole::websocket::STATUS_ACTIVE;
 
             return SW_OK;
         }

@@ -147,7 +147,7 @@ bool decode(Frame *frame, char *data, size_t length);
 int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags);
 void print_frame(Frame *frame);
 
-inline bool decode(Frame *frame, String *str) {
+static inline bool decode(Frame *frame, String *str) {
     return decode(frame, str->str, str->length);
 }
 

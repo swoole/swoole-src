@@ -396,7 +396,7 @@ struct Response {
     std::function<void()> content_provider_resource_releaser_;
 };
 
-struct WebSocketFrame : public swWebSocket_frame {
+struct WebSocketFrame : public swoole::websocket::Frame {
     WebSocketFrame() = default;
     ~WebSocketFrame() {
         if (payload) {
@@ -544,10 +544,10 @@ class Client {
     std::shared_ptr<Response> Put(const char *path, const Headers &headers, const Params &params);
 
     // websocket
-    inline bool Push(const std::string &data, int opcode = WEBSOCKET_OPCODE_TEXT) {
-        return Push(data.c_str(), data.length(), WEBSOCKET_OPCODE_TEXT);
+    inline bool Push(const std::string &data, int opcode = swoole::websocket::OPCODE_TEXT) {
+        return Push(data.c_str(), data.length(), swoole::websocket::OPCODE_TEXT);
     }
-    bool Push(const char *data, size_t length, int opcode = WEBSOCKET_OPCODE_TEXT);
+    bool Push(const char *data, size_t length, int opcode = swoole::websocket::OPCODE_TEXT);
     std::shared_ptr<WebSocketFrame> Recv();
 
     std::shared_ptr<Response> Patch(const char *path, const std::string &body, const char *content_type);
