@@ -239,7 +239,7 @@ void Server::init_port_protocol(ListenPort *ls) {
             ls->protocol.onPackage = swHttpMix_dispatch_frame;
         } else if (ls->open_http2_protocol) {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-            ls->protocol.get_package_length = swHttp2_get_frame_length;
+            ls->protocol.get_package_length = http2::get_frame_length;
             ls->protocol.onPackage = Server::dispatch_task;
         } else
 #endif
@@ -487,7 +487,7 @@ _parse:
 #ifdef SW_USE_HTTP2
         }
         conn->http2_stream = 1;
-        swHttp2_send_setting_frame(protocol, _socket);
+        http2::send_setting_frame(protocol, _socket);
         if (buffer->length == sizeof(SW_HTTP2_PRI_STRING) - 1) {
             serv->destroy_http_request(conn);
             buffer->clear();

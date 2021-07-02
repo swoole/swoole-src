@@ -19,18 +19,19 @@
 #include <string>
 #include <map>
 
+using swoole::microtime;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::microtime;
 
 using http_request = swoole::http::Request;
 using http_response = swoole::http::Response;
 using http_context = swoole::http::Context;
 
 #ifdef SW_USE_HTTP2
-using Http2Stream = swoole::http2::Stream;
-using Http2Session = swoole::http2::Session;
+namespace http2 = swoole::http2;
+using Http2Stream = http2::Stream;
+using Http2Session = http2::Session;
 #endif
 
 static zend_class_entry *swoole_http_server_coro_ce;
@@ -143,13 +144,13 @@ class http_server {
 #ifdef SW_USE_HTTP2
     void recv_http2_frame(http_context *ctx) {
         Socket *sock = (Socket *) ctx->private_data;
-        swHttp2_send_setting_frame(&sock->protocol, sock->get_socket());
+        http2::send_setting_frame(&sock->protocol, sock->get_socket());
 
         sock->open_length_check = true;
         sock->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
-        sock->protocol.get_package_length = swHttp2_get_frame_length;
+        sock->protocol.get_package_length = http2::get_frame_length;
 
         Http2Session session(ctx->fd);
         session.default_ctx = ctx;
@@ -435,7 +436,8 @@ static PHP_METHOD(swoole_http_server_coro, start) {
     zend_fcall_info_cache fci_cache;
     zval zcallback;
     ZVAL_STRING(&zcallback, "onAccept");
-    if (!sw_zend_is_callable_at_frame(&zcallback, ZEND_THIS, execute_data, 0, &func_name, nullptr, &fci_cache, nullptr)) {
+    if (!sw_zend_is_callable_at_frame(
+            &zcallback, ZEND_THIS, execute_data, 0, &func_name, nullptr, &fci_cache, nullptr)) {
         php_swoole_fatal_error(E_CORE_ERROR, "function '%s' is not callable", func_name);
         return;
     }
@@ -560,21 +562,22 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 #endif
 
     while (true) {
-        _recv_request: {
-            ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
-            if (sw_unlikely(retval <= 0)) {
-                break;
-            }
-            buffer->length += retval;
+    _recv_request : {
+        ssize_t retval = sock->recv(buffer->str + buffer->length, buffer->size - buffer->length);
+        if (sw_unlikely(retval <= 0)) {
+            break;
         }
+        buffer->length += retval;
+    }
 
-        _parse_request:
+    _parse_request:
         if (!ctx) {
             ctx = hs->create_context(sock, zconn);
         }
 
         if (!header_completed) {
-            if (swoole_strnpos(buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n")) < 0) {
+            if (swoole_strnpos(
+                    buffer->str + header_crlf_offset, buffer->length - header_crlf_offset, ZEND_STRL("\r\n\r\n")) < 0) {
                 if (buffer->length == buffer->size) {
                     ctx->response.status = SW_HTTP_REQUEST_ENTITY_TOO_LARGE;
                     break;

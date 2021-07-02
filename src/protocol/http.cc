@@ -717,7 +717,7 @@ ssize_t swHttpMix_get_package_length(Protocol *protocol, Socket *socket, const c
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::get_package_length(protocol, socket, data, length);
     } else if (conn->http2_stream) {
-        return swHttp2_get_frame_length(protocol, socket, data, length);
+        return http2::get_frame_length(protocol, socket, data, length);
     } else {
         protocol_status_error(socket, conn);
         return SW_ERR;
