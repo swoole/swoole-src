@@ -23,7 +23,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             return $cli->recv(0.01);
         };
         go(function () use ($test_func) {
-            Assert::same($test_func(0, 2.3), false);
+            Assert::same($test_func(0, 3), false);
             echo "DONE 0\n";
         });
         go(function () use ($test_func) {
@@ -56,5 +56,5 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-DONE 0
 DONE 1
+DONE 0
