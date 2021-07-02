@@ -34,6 +34,8 @@ using swoole::coroutine::Socket;
 using http_response = swoole::http::Response;
 using http_context = swoole::http::Context;
 
+namespace websocket = swoole::websocket;
+
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
 
@@ -821,12 +823,12 @@ _skip_copy:
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);
-        if (conn && conn->websocket_status == swoole::websocket::STATUS_HANDSHAKE) {
+        if (conn && conn->websocket_status == websocket::STATUS_HANDSHAKE) {
             if (response.status == 101) {
-                conn->websocket_status = swoole::websocket::STATUS_ACTIVE;
+                conn->websocket_status = websocket::STATUS_ACTIVE;
             } else {
                 /* connection should be closed when handshake failed */
-                conn->websocket_status = swoole::websocket::STATUS_NONE;
+                conn->websocket_status = websocket::STATUS_NONE;
                 keepalive = 0;
             }
         }
@@ -1198,9 +1200,9 @@ static PHP_METHOD(swoole_http_response, push) {
     }
 
     zval *zdata;
-    zend_long opcode = swoole::websocket::OPCODE_TEXT;
+    zend_long opcode = websocket::OPCODE_TEXT;
     zval *zflags = nullptr;
-    zend_long flags = swoole::websocket::FLAG_FIN;
+    zend_long flags = websocket::FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ZVAL(zdata)
@@ -1221,7 +1223,7 @@ static PHP_METHOD(swoole_http_response, push) {
         }
     } else {
         if (php_swoole_websocket_frame_pack(
-                http_buffer, zdata, opcode, flags & swoole::websocket::FLAGS_ALL, 0, ctx->websocket_compression) < 0) {
+                http_buffer, zdata, opcode, flags & websocket::FLAGS_ALL, 0, ctx->websocket_compression) < 0) {
             RETURN_FALSE;
         }
     }

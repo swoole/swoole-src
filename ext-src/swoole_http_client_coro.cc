@@ -50,6 +50,8 @@ using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
 
+namespace websocket = swoole::websocket;
+
 enum http_client_error_status_code {
     HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
     HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
@@ -179,9 +181,7 @@ class HttpClient {
     void recv(zval *zframe, double timeout = 0);
     bool recv_http_response(double timeout = 0);
     bool upgrade(std::string path);
-    bool push(zval *zdata,
-              zend_long opcode = swoole::websocket::OPCODE_TEXT,
-              uint8_t flags = swoole::websocket::FLAG_FIN);
+    bool push(zval *zdata, zend_long opcode = websocket::OPCODE_TEXT, uint8_t flags = websocket::FLAG_FIN);
     bool close(const bool should_be_reset = true);
 
     void get_header_out(zval *return_value) {
@@ -1393,7 +1393,7 @@ bool HttpClient::recv(double timeout) {
         socket->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         socket->protocol.package_length_offset = 0;
         socket->protocol.package_body_offset = 0;
-        socket->protocol.get_package_length = swoole::websocket::get_package_length;
+        socket->protocol.get_package_length = websocket::get_package_length;
     }
     // handler keep alive
     if (!keep_alive && !websocket) {
@@ -2095,9 +2095,9 @@ static PHP_METHOD(swoole_http_client_coro, upgrade) {
 static PHP_METHOD(swoole_http_client_coro, push) {
     HttpClient *phc = php_swoole_get_phc(ZEND_THIS);
     zval *zdata;
-    zend_long opcode = swoole::websocket::OPCODE_TEXT;
+    zend_long opcode = websocket::OPCODE_TEXT;
     zval *zflags = nullptr;
-    zend_long flags = swoole::websocket::FLAG_FIN;
+    zend_long flags = websocket::FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ZVAL(zdata)
@@ -2110,7 +2110,7 @@ static PHP_METHOD(swoole_http_client_coro, push) {
         flags = zval_get_long(zflags);
     }
 
-    RETURN_BOOL(phc->push(zdata, opcode, flags & swoole::websocket::FLAGS_ALL));
+    RETURN_BOOL(phc->push(zdata, opcode, flags & websocket::FLAGS_ALL));
 }
 
 static PHP_METHOD(swoole_http_client_coro, recv) {
