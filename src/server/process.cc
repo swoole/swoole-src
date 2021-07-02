@@ -137,11 +137,13 @@ bool ProcessFactory::notify(DataHead *ev) {
     return dispatch(&task);
 }
 
-static inline int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
+static inline int process_sendto_worker(
+    Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
     return serv->send_to_worker_from_master((Worker *) private_data, iov, iovcnt);
 }
 
-static inline int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
+static inline int process_sendto_reactor(
+    Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
     return serv->send_to_reactor_thread(head, iov, iovcnt, ((Connection *) private_data)->session_id);
 }
 
@@ -203,7 +205,7 @@ bool ProcessFactory::dispatch(SendData *task) {
  */
 static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data) {
     const char *data = resp->data;
-    uint32_t send_n = resp->info.len;
+    uint32_t l_payload = resp->info.len;
     off_t offset = 0;
     uint32_t copy_n;
 
@@ -212,17 +214,17 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
     uint32_t max_length = serv->ipc_max_size - sizeof(resp->info);
     resp->info.msg_id = serv->worker_msg_id.fetch_add(1);
 
-    if (send_n <= max_length) {
+    if (l_payload <= max_length) {
         resp->info.flags = 0;
-        resp->info.len = send_n;
+        resp->info.len = l_payload;
 
         size_t iovcnt;
         iov[0].iov_base = &resp->info;
         iov[0].iov_len = sizeof(resp->info);
 
-        if (resp->data) {
+        if (resp->data && l_payload > 0) {
             iov[1].iov_base = (void *) resp->data;
-            iov[1].iov_len = send_n;
+            iov[1].iov_len = l_payload;
             iovcnt = 2;
         } else {
             iovcnt = 1;
@@ -242,14 +244,14 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
 _ipc_use_chunk:
 #endif
     resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
-    resp->info.len = send_n;
+    resp->info.len = l_payload;
 
-    while (send_n > 0) {
-        if (send_n > max_length) {
+    while (l_payload > 0) {
+        if (l_payload > max_length) {
             copy_n = max_length;
         } else {
             resp->info.flags |= SW_EVENT_DATA_END;
-            copy_n = send_n;
+            copy_n = l_payload;
         }
 
         iov[0].iov_base = &resp->info;
@@ -273,7 +275,7 @@ _ipc_use_chunk:
             resp->info.flags &= ~SW_EVENT_DATA_BEGIN;
         }
 
-        send_n -= copy_n;
+        l_payload -= copy_n;
         offset += copy_n;
     }
 
@@ -416,7 +418,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
         }
     }
 
-    _close:
+_close:
     if (conn == nullptr || conn->active == 0) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
