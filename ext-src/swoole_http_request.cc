@@ -42,10 +42,10 @@ enum http_upload_errno {
 
 using http_request = swoole::http::Request;
 using http_context = swoole::http::Context;
-using swoole::Server;
 using swoole::Connection;
 using swoole::ListenPort;
 using swoole::microtime;
+using swoole::Server;
 
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
@@ -388,7 +388,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         }
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port->open_websocket_protocol) {
-            conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
+            conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
     } else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT ||
                 parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH) &&

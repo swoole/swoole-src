@@ -53,7 +53,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
-    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
+    if (conn->websocket_status == swoole::websocket::STATUS_ACTIVE) {
         return swoole_websocket_onMessage(serv, req);
     }
 #ifdef SW_USE_HTTP2
@@ -108,13 +108,13 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     do {
         zend_fcall_info_cache *fci_cache = nullptr;
 
-        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
+        if (conn->websocket_status == swoole::websocket::STATUS_CONNECTION) {
             fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandShake);
             if (fci_cache == nullptr) {
                 swoole_websocket_onHandshake(serv, port, ctx);
                 goto _dtor_and_return;
             } else {
-                conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                conn->websocket_status = swoole::websocket::STATUS_HANDSHAKE;
                 ctx->upgrade = 1;
             }
         } else {

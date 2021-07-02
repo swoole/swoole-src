@@ -26,10 +26,10 @@
 
 using namespace swoole;
 using std::string;
-using swoole::network::Socket;
-using swoole::network::SendfileTask;
 using swoole::http_server::Request;
 using swoole::http_server::StaticHandler;
+using swoole::network::SendfileTask;
+using swoole::network::Socket;
 
 // clang-format off
 static const char *method_strings[] =
@@ -690,7 +690,7 @@ string Request::get_date_if_modified_since() {
     return string("");
 }
 //-----------------------------------------------------------------
-}  // namespace http
+}  // namespace http_server
 }  // namespace swoole
 
 void Server::destroy_http_request(Connection *conn) {
@@ -714,8 +714,8 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
 
 ssize_t swHttpMix_get_package_length(Protocol *protocol, Socket *socket, const char *data, uint32_t length) {
     Connection *conn = (Connection *) socket->object;
-    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
-        return swWebSocket_get_package_length(protocol, socket, data, length);
+    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
+        return websocket::get_package_length(protocol, socket, data, length);
     } else if (conn->http2_stream) {
         return swHttp2_get_frame_length(protocol, socket, data, length);
     } else {
@@ -726,7 +726,7 @@ ssize_t swHttpMix_get_package_length(Protocol *protocol, Socket *socket, const c
 
 uint8_t swHttpMix_get_package_length_size(Socket *socket) {
     Connection *conn = (Connection *) socket->object;
-    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
+    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
     } else if (conn->http2_stream) {
         return SW_HTTP2_FRAME_HEADER_SIZE;
@@ -738,8 +738,8 @@ uint8_t swHttpMix_get_package_length_size(Socket *socket) {
 
 int swHttpMix_dispatch_frame(Protocol *proto, Socket *socket, const char *data, uint32_t length) {
     Connection *conn = (Connection *) socket->object;
-    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
-        return swWebSocket_dispatch_frame(proto, socket, data, length);
+    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
+        return websocket::dispatch_frame(proto, socket, data, length);
     } else if (conn->http2_stream) {
         return Server::dispatch_task(proto, socket, data, length);
     } else {
