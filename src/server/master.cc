@@ -315,6 +315,13 @@ int Server::start_check() {
     if (send_timeout > 0 && send_timeout < SW_TIMER_MIN_SEC) {
         send_timeout = SW_TIMER_MIN_SEC;
     }
+    if (heartbeat_check_interval > 0) {
+        for (auto ls : ports) {
+            if (ls->heartbeat_idle_time == 0) {
+                ls->heartbeat_idle_time = heartbeat_check_interval * 2;
+            }
+        }
+    }
     for (auto ls : ports) {
         if (ls->protocol.package_max_length < SW_BUFFER_MIN_SIZE) {
             ls->protocol.package_max_length = SW_BUFFER_MIN_SIZE;
@@ -328,17 +335,10 @@ int Server::start_check() {
             return SW_ERR;
         }
         if (ls->heartbeat_idle_time > 0) {
-            int expect_heartbeat_check_interval = ls->heartbeat_idle_time / 2;
-            if (expect_heartbeat_check_interval == 0) {
-                expect_heartbeat_check_interval = 1;
-            }
+            int expect_heartbeat_check_interval = ls->heartbeat_idle_time > 2 ? ls->heartbeat_idle_time / 2 : 1;
             if (heartbeat_check_interval == 0 || heartbeat_check_interval > expect_heartbeat_check_interval) {
                 heartbeat_check_interval = expect_heartbeat_check_interval;
             }
-        }
-        if (heartbeat_check_interval > 0 && get_primary_port()->heartbeat_idle_time > 0 &&
-            ls->heartbeat_idle_time == 0) {
-            ls->heartbeat_idle_time = heartbeat_check_interval * 2;
         }
     }
 #ifdef SW_USE_OPENSSL
