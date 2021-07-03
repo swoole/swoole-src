@@ -543,15 +543,7 @@ static PHP_METHOD(swoole_table, exists) {
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s", &key, &keylen) == FAILURE) {
         RETURN_FALSE;
     }
-
-    TableRow *_rowlock = nullptr;
-    TableRow *row = table->get(key, keylen, &_rowlock);
-    _rowlock->unlock();
-    if (!row) {
-        RETURN_FALSE;
-    } else {
-        RETURN_TRUE;
-    }
+    RETURN_BOOL(table->exists(key, keylen));
 }
 
 static PHP_METHOD(swoole_table, del) {

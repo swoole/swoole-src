@@ -233,6 +233,13 @@ class Table {
         return row_num;
     }
 
+    bool exists(const char *key, uint16_t keylen) {
+        TableRow *_rowlock = nullptr;
+        const TableRow *row = get(key, keylen, &_rowlock);
+        _rowlock->unlock();
+        return row != nullptr;
+    }
+
     const std::string &current() {
         return iterator->current_key;
     }
