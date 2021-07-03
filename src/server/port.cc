@@ -22,8 +22,8 @@
 #include "swoole_redis.h"
 
 using swoole::http_server::Request;
-using swoole::network::Socket;
 using swoole::network::Address;
+using swoole::network::Socket;
 
 namespace swoole {
 
@@ -81,7 +81,7 @@ static bool ssl_matches_wildcard_name(const char *subjectname, const char *certn
          * 3) no . between prefix and suffix
          **/
         return strcasecmp(wildcard + 1, subjectname + subject_len - suffix_len) == 0 &&
-            memchr(subjectname + prefix_len, '.', subject_len - suffix_len - prefix_len) == NULL;
+               memchr(subjectname + prefix_len, '.', subject_len - suffix_len - prefix_len) == NULL;
     }
 
     return 0;
@@ -239,14 +239,14 @@ void Server::init_port_protocol(ListenPort *ls) {
             ls->protocol.onPackage = swHttpMix_dispatch_frame;
         } else if (ls->open_http2_protocol) {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
-            ls->protocol.get_package_length = swHttp2_get_frame_length;
+            ls->protocol.get_package_length = http2::get_frame_length;
             ls->protocol.onPackage = Server::dispatch_task;
         } else
 #endif
             if (ls->open_websocket_protocol) {
             ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
-            ls->protocol.get_package_length = swWebSocket_get_package_length;
-            ls->protocol.onPackage = swWebSocket_dispatch_frame;
+            ls->protocol.get_package_length = websocket::get_package_length;
+            ls->protocol.onPackage = websocket::dispatch_frame;
         }
         ls->protocol.package_length_offset = 0;
         ls->protocol.package_body_offset = 0;
@@ -271,7 +271,7 @@ bool ListenPort::import(int sock) {
 
     socket = new Socket();
     socket->fd = sock;
-    
+
     // get socket type
     if (socket->get_option(SOL_SOCKET, SO_TYPE, &_type) < 0) {
         swSysWarn("getsockopt(%d, SOL_SOCKET, SO_TYPE) failed", sock);
@@ -380,10 +380,10 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
     Connection *conn = (Connection *) _socket->object;
     Server *serv = (Server *) reactor->ptr;
 
-    if (conn->websocket_status >= WEBSOCKET_STATUS_HANDSHAKE) {
+    if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         if (conn->http_upgrade == 0) {
             serv->destroy_http_request(conn);
-            conn->websocket_status = WEBSOCKET_STATUS_ACTIVE;
+            conn->websocket_status = websocket::STATUS_ACTIVE;
             conn->http_upgrade = 1;
         }
         return Port_onRead_check_length(reactor, port, event);
@@ -487,7 +487,7 @@ _parse:
 #ifdef SW_USE_HTTP2
         }
         conn->http2_stream = 1;
-        swHttp2_send_setting_frame(protocol, _socket);
+        http2::send_setting_frame(protocol, _socket);
         if (buffer->length == sizeof(SW_HTTP2_PRI_STRING) - 1) {
             serv->destroy_http_request(conn);
             buffer->clear();
@@ -723,4 +723,4 @@ void ListenPort::close() {
     }
 }
 
-}
+}  // namespace swoole

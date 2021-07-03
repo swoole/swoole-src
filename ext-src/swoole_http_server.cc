@@ -18,9 +18,12 @@
 
 using namespace swoole;
 using swoole::coroutine::Socket;
-using http_request = swoole::http::Request;
-using http_response = swoole::http::Response;
-using http_context = swoole::http::Context;
+
+using HttpRequest = swoole::http::Request;
+using HttpResponse = swoole::http::Response;
+using HttpContext = swoole::http::Context;
+
+namespace WebSocket = swoole::websocket;
 
 String *swoole_http_buffer;
 #ifdef SW_HAVE_COMPRESSION
@@ -32,9 +35,9 @@ String *swoole_http_form_data_buffer;
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
-static bool http_context_send_data(http_context *ctx, const char *data, size_t length);
-static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
-static bool http_context_disconnect(http_context *ctx);
+static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
+static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_disconnect(HttpContext *ctx);
 
 int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     SessionId session_id = req->info.fd;
@@ -53,7 +56,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         return php_swoole_server_onReceive(serv, req);
     }
     // websocket client
-    if (conn->websocket_status == WEBSOCKET_STATUS_ACTIVE) {
+    if (conn->websocket_status == WebSocket::STATUS_ACTIVE) {
         return swoole_websocket_onMessage(serv, req);
     }
 #ifdef SW_USE_HTTP2
@@ -62,7 +65,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     }
 #endif
 
-    http_context *ctx = swoole_http_context_new(session_id);
+    HttpContext *ctx = swoole_http_context_new(session_id);
     ctx->init(serv);
 
     zval *zdata = &ctx->request.zdata;
@@ -108,13 +111,13 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     do {
         zend_fcall_info_cache *fci_cache = nullptr;
 
-        if (conn->websocket_status == WEBSOCKET_STATUS_CONNECTION) {
+        if (conn->websocket_status == WebSocket::STATUS_CONNECTION) {
             fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onHandShake);
             if (fci_cache == nullptr) {
                 swoole_websocket_onHandshake(serv, port, ctx);
                 goto _dtor_and_return;
             } else {
-                conn->websocket_status = WEBSOCKET_STATUS_HANDSHAKE;
+                conn->websocket_status = WebSocket::STATUS_HANDSHAKE;
                 ctx->upgrade = 1;
             }
         } else {
@@ -149,8 +152,8 @@ void php_swoole_http_server_minit(int module_number) {
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_server, sw_zend_class_unset_property_deny);
 }
 
-http_context *swoole_http_context_new(SessionId fd) {
-    http_context *ctx = new http_context();
+HttpContext *swoole_http_context_new(SessionId fd) {
+    HttpContext *ctx = new HttpContext();
 
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -174,7 +177,7 @@ http_context *swoole_http_context_new(SessionId fd) {
     return ctx;
 }
 
-void http_context::init(Server *serv) {
+void HttpContext::init(Server *serv) {
     parse_cookie = serv->http_parse_cookie;
     parse_body = serv->http_parse_post;
     parse_files = serv->http_parse_files;
@@ -187,14 +190,14 @@ void http_context::init(Server *serv) {
     bind(serv);
 }
 
-void http_context::bind(Server *serv) {
+void HttpContext::bind(Server *serv) {
     private_data = serv;
     send = http_context_send_data;
     sendfile = http_context_sendfile;
     close = http_context_disconnect;
 }
 
-void http_context::copy(http_context *ctx) {
+void HttpContext::copy(HttpContext *ctx) {
     parse_cookie = ctx->parse_cookie;
     parse_body = ctx->parse_body;
     parse_files = ctx->parse_files;
@@ -210,7 +213,7 @@ void http_context::copy(http_context *ctx) {
     close = ctx->close;
 }
 
-void http_context::free() {
+void HttpContext::free() {
     /* http context can only be free'd after request and response were free'd */
     if (request.zobject || response.zobject) {
         return;
@@ -221,8 +224,8 @@ void http_context::free() {
     }
 #endif
 
-    http_request *req = &request;
-    http_response *res = &response;
+    HttpRequest *req = &request;
+    HttpResponse *res = &response;
     if (req->path) {
         efree(req->path);
     }
@@ -253,16 +256,16 @@ void php_swoole_http_server_init_global_variant() {
     }
 }
 
-http_context *php_swoole_http_request_get_and_check_context(zval *zobject) {
-    http_context *ctx = php_swoole_http_request_get_context(zobject);
+HttpContext *php_swoole_http_request_get_and_check_context(zval *zobject) {
+    HttpContext *ctx = php_swoole_http_request_get_context(zobject);
     if (!ctx) {
         php_swoole_fatal_error(E_WARNING, "http request is unavailable (maybe it has been ended)");
     }
     return ctx;
 }
 
-http_context *php_swoole_http_response_get_and_check_context(zval *zobject) {
-    http_context *ctx = php_swoole_http_response_get_context(zobject);
+HttpContext *php_swoole_http_response_get_and_check_context(zval *zobject) {
+    HttpContext *ctx = php_swoole_http_response_get_context(zobject);
     if (!ctx || (ctx->end_ || ctx->detached)) {
         php_swoole_fatal_error(E_WARNING, "http response is unavailable (maybe it has been ended or detached)");
         return nullptr;
@@ -270,7 +273,7 @@ http_context *php_swoole_http_response_get_and_check_context(zval *zobject) {
     return ctx;
 }
 
-bool http_context_send_data(http_context *ctx, const char *data, size_t length) {
+bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     Server *serv = (Server *) ctx->private_data;
     bool retval = serv->send(ctx->fd, (void *) data, length);
     if (!retval && swoole_get_last_error() == SW_ERROR_OUTPUT_SEND_YIELD) {
@@ -282,12 +285,12 @@ bool http_context_send_data(http_context *ctx, const char *data, size_t length) 
     return retval;
 }
 
-static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
+static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
     Server *serv = (Server *) ctx->private_data;
     return serv->sendfile(ctx->fd, file, l_file, offset, length);
 }
 
-static bool http_context_disconnect(http_context *ctx) {
+static bool http_context_disconnect(HttpContext *ctx) {
     Server *serv = (Server *) ctx->private_data;
     return serv->close(ctx->fd, 0);
 }

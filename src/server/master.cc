@@ -1366,6 +1366,9 @@ bool Server::is_healthy_connection(double now, Connection *conn) {
     if (!lp) {
         return true;
     }
+    if (lp->heartbeat_idle_time == 0) {
+        return true;
+    }
     if (conn->last_recv_time > now - lp->heartbeat_idle_time) {
         return true;
     }

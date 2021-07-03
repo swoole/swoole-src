@@ -23,13 +23,16 @@
 using swoole::Protocol;
 using swoole::network::Socket;
 
-int swHttp2_send_setting_frame(Protocol *protocol, Socket *_socket) {
+namespace swoole {
+namespace http2 {
+
+int send_setting_frame(Protocol *protocol, Socket *_socket) {
     char setting_frame[SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_SETTING_OPTION_SIZE * 3];
     char *p = setting_frame;
     uint16_t id;
     uint32_t value;
 
-    swHttp2_set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_OPTION_SIZE * 3, 0, 0);
+    set_frame_header(p, SW_HTTP2_TYPE_SETTINGS, SW_HTTP2_SETTING_OPTION_SIZE * 3, 0, 0);
     p += SW_HTTP2_FRAME_HEADER_SIZE;
 
     id = htons(SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS);
@@ -63,14 +66,14 @@ int swHttp2_send_setting_frame(Protocol *protocol, Socket *_socket) {
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-ssize_t swHttp2_get_frame_length(Protocol *protocol, Socket *conn, const char *buf, uint32_t length) {
+ssize_t get_frame_length(Protocol *protocol, Socket *conn, const char *buf, uint32_t length) {
     if (length < SW_HTTP2_FRAME_HEADER_SIZE) {
         return 0;
     }
-    return swHttp2_get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
+    return get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
 }
 
-const char *swHttp2_get_type(int type) {
+const char *get_type(int type) {
     switch (type) {
     case SW_HTTP2_TYPE_DATA:
         return "DATA";
@@ -97,7 +100,7 @@ const char *swHttp2_get_type(int type) {
     }
 }
 
-int swHttp2_get_type_color(int type) {
+int get_type_color(int type) {
     switch (type) {
     case SW_HTTP2_TYPE_DATA:
     case SW_HTTP2_TYPE_WINDOW_UPDATE:
@@ -116,3 +119,6 @@ int swHttp2_get_type_color(int type) {
         return SW_COLOR_RED;
     }
 }
+
+}  // namespace http2
+}  // namespace swoole

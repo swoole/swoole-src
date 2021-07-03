@@ -1870,7 +1870,7 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
     if (!conn) {
         return;
     }
-    if (conn->websocket_status != WEBSOCKET_STATUS_ACTIVE) {
+    if (conn->websocket_status != swoole::websocket::STATUS_ACTIVE) {
         ListenPort *port = serv->get_port_by_server_fd(info->server_fd);
         if (port && port->open_websocket_protocol &&
             php_swoole_server_isset_callback(serv, port, SW_SERVER_CB_onDisconnect)) {

@@ -102,15 +102,18 @@ enum swHttp2_stream_flag {
                "%s"                                                                                                    \
                "\e[0m"                                                                                                 \
                "] frame <length=%jd, flags=%d, stream_id=%d> " str "%s%s%s%s%s",                                       \
-               swHttp2_get_type_color(type),                                                                           \
-               swHttp2_get_type(type),                                                                                 \
+               swoole::http2::get_type_color(type),                                                                    \
+               swoole::http2::get_type(type),                                                                          \
                length,                                                                                                 \
                flags,                                                                                                  \
                stream_id,                                                                                              \
                ##__VA_ARGS__,                                                                                          \
                swHttp2FrameTraceLogFlags);
 
-struct swHttp2_settings {
+namespace swoole {
+namespace http2 {
+
+struct Settings {
     uint32_t header_table_size;
     uint32_t window_size;
     uint32_t max_concurrent_streams;
@@ -129,7 +132,7 @@ struct swHttp2_settings {
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-struct swHttp2_frame {
+struct Frame {
     uint32_t length : 24;
     uint32_t type : 8;
     uint32_t flags : 8;
@@ -138,16 +141,16 @@ struct swHttp2_frame {
     char data[0];
 };
 
-static sw_inline ssize_t swHttp2_get_length(const char *buf) {
+static sw_inline ssize_t get_length(const char *buf) {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
-ssize_t swHttp2_get_frame_length(swProtocol *protocol, swSocket *conn, const char *buf, uint32_t length);
-int swHttp2_send_setting_frame(swProtocol *protocol, swSocket *conn);
-const char *swHttp2_get_type(int type);
-int swHttp2_get_type_color(int type);
+ssize_t get_frame_length(Protocol *protocol, network::Socket *conn, const char *buf, uint32_t length);
+int send_setting_frame(Protocol *protocol, network::Socket *conn);
+const char *get_type(int type);
+int get_type_color(int type);
 
-static sw_inline void swHttp2_init_settings(swHttp2_settings *settings) {
+static sw_inline void init_settings(Settings *settings) {
     settings->header_table_size = SW_HTTP2_DEFAULT_HEADER_TABLE_SIZE;
     settings->window_size = SW_HTTP2_DEFAULT_WINDOW_SIZE;
     settings->max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
@@ -166,8 +169,7 @@ static sw_inline void swHttp2_init_settings(swHttp2_settings *settings) {
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-static sw_inline void swHttp2_set_frame_header(
-    char *buffer, uint8_t type, uint32_t length, uint8_t flags, uint32_t stream_id) {
+static sw_inline void set_frame_header(char *buffer, uint8_t type, uint32_t length, uint8_t flags, uint32_t stream_id) {
     buffer[0] = length >> 16;
     buffer[1] = length >> 8;
     buffer[2] = length;
@@ -175,3 +177,6 @@ static sw_inline void swHttp2_set_frame_header(
     buffer[4] = flags;
     *(uint32_t *) (buffer + 5) = htonl(stream_id);
 }
+
+}  // namespace http2
+}  // namespace swoole
