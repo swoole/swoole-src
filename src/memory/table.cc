@@ -40,7 +40,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
         return nullptr;
     }
     table->mutex = new Mutex(Mutex::PROCESS_SHARED);
-    table->iterator = new TableIterator;
+    table->iterator = new TableIterator();
     table->column_map = new std::unordered_map<std::string, TableColumn *>;
     table->column_list = new std::vector<TableColumn *>;
     table->size = rows_size;
@@ -51,8 +51,6 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
 #else
     table->hash_func = swoole_hash_austin;
 #endif
-
-    sw_memset_zero(table->iterator, sizeof(TableIterator));
 
     return table;
 }
@@ -224,37 +222,48 @@ void TableRow::lock() {
 }
 
 void Table::forward() {
+    iterator->lock();
     for (; iterator->absolute_index < size; iterator->absolute_index++) {
         TableRow *row = get_by_index(iterator->absolute_index);
         if (row == nullptr) {
             continue;
-        } else if (row->next == nullptr) {
+        }
+        row->lock();
+        if (row->next == nullptr) {
             iterator->absolute_index++;
-            iterator->row = row;
+            iterator->current_key = std::string(row->key, (size_t) row->key_len);
+            row->unlock();
+            iterator->unlock();
             return;
         } else {
             uint32_t i = 0;
+            TableRow *tmp_row = row;
             for (;; i++) {
-                if (row == nullptr) {
+                if (tmp_row == nullptr) {
                     iterator->collision_index = 0;
                     break;
                 }
                 if (i == iterator->collision_index) {
                     iterator->collision_index++;
-                    iterator->row = row;
+                    iterator->current_key = std::string(tmp_row->key, (size_t) tmp_row->key_len);
+                    row->unlock();
+                    iterator->unlock();
                     return;
                 }
-                row = row->next;
+                tmp_row = tmp_row->next;
             }
         }
+        row->unlock();
     }
-    iterator->row = nullptr;
+    iterator->current_key = "";
+    iterator->unlock();
 }
 
 TableRow *Table::get(const char *key, uint16_t keylen, TableRow **rowlock) {
     check_key_length(&keylen);
 
     TableRow *row = hash(key, keylen);
+
     *rowlock = row;
     row->lock();
 
@@ -292,7 +301,7 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
             if (sw_mem_equal(row->key, row->key_len, key, keylen)) {
                 break;
             } else if (row->next == nullptr) {
-                mutex->lock();
+                lock();
                 TableRow *new_row = (TableRow *) pool->alloc(0);
 #ifdef SW_TABLE_DEBUG
                 conflict_count++;
@@ -300,7 +309,7 @@ TableRow *Table::set(const char *key, uint16_t keylen, TableRow **rowlock, int *
                     conflict_max_level = _conflict_level;
                 }
 #endif
-                mutex->unlock();
+                unlock();
                 if (!new_row) {
                     return nullptr;
                 }
@@ -377,10 +386,10 @@ bool Table::del(const char *key, uint16_t keylen) {
         if (prev) {
             prev->next = tmp->next;
         }
-        mutex->lock();
+        lock();
         tmp->clear();
         pool->free(tmp);
-        mutex->unlock();
+        unlock();
     }
 
 _delete_element:

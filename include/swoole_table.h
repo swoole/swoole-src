@@ -75,7 +75,31 @@ struct TableRow {
 struct TableIterator {
     uint32_t absolute_index;
     uint32_t collision_index;
-    TableRow *row;
+    std::string current_key;
+    Mutex *mutex_;
+
+    TableIterator() {
+        reset();
+        mutex_ = new Mutex(Mutex::PROCESS_SHARED);
+    }
+
+    void lock() {
+        mutex_->lock();
+    }
+
+    void unlock() {
+        mutex_->unlock();
+    }
+
+    void reset() {
+        absolute_index = 0;
+        collision_index = 0;
+        current_key = std::string("");
+    }
+
+    ~TableIterator() {
+        delete mutex_;
+    }
 };
 
 enum TableFlag {
@@ -183,6 +207,14 @@ class Table {
         return size;
     }
 
+    int lock() {
+        return mutex->lock();
+    }
+
+    int unlock() {
+        return mutex->unlock();
+    }
+
     TableRow *get_by_index(uint32_t index) {
         TableRow *row = rows[index];
         return row->active ? row : nullptr;
@@ -201,12 +233,14 @@ class Table {
         return row_num;
     }
 
-    TableRow *current() {
-        return iterator->row;
+    const std::string &current() {
+        return iterator->current_key;
     }
 
     void rewind() {
-        sw_memset_zero(iterator, sizeof(*iterator));
+        iterator->lock();
+        iterator->reset();
+        iterator->unlock();
     }
 
     TableRow *hash(const char *key, int keylen) {
