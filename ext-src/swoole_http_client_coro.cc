@@ -50,7 +50,7 @@ using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
 
-namespace websocket = swoole::websocket;
+namespace WebSocket = swoole::websocket;
 
 enum http_client_error_status_code {
     HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
@@ -2095,9 +2095,9 @@ static PHP_METHOD(swoole_http_client_coro, upgrade) {
 static PHP_METHOD(swoole_http_client_coro, push) {
     HttpClient *phc = php_swoole_get_phc(ZEND_THIS);
     zval *zdata;
-    zend_long opcode = websocket::OPCODE_TEXT;
+    zend_long opcode = WebSocket::OPCODE_TEXT;
     zval *zflags = nullptr;
-    zend_long flags = websocket::FLAG_FIN;
+    zend_long flags = WebSocket::FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ZVAL(zdata)
@@ -2110,7 +2110,7 @@ static PHP_METHOD(swoole_http_client_coro, push) {
         flags = zval_get_long(zflags);
     }
 
-    RETURN_BOOL(phc->push(zdata, opcode, flags & websocket::FLAGS_ALL));
+    RETURN_BOOL(phc->push(zdata, opcode, flags & WebSocket::FLAGS_ALL));
 }
 
 static PHP_METHOD(swoole_http_client_coro, recv) {

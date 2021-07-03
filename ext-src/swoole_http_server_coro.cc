@@ -24,9 +24,9 @@ using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
-using http_request = swoole::http::Request;
-using http_response = swoole::http::Response;
-using http_context = swoole::http::Context;
+using HttpRequest = swoole::http::Request;
+using HttpResponse = swoole::http::Response;
+using HttpContext = swoole::http::Context;
 
 #ifdef SW_USE_HTTP2
 namespace http2 = swoole::http2;
@@ -37,9 +37,9 @@ using Http2Session = http2::Session;
 static zend_class_entry *swoole_http_server_coro_ce;
 static zend_object_handlers swoole_http_server_coro_handlers;
 
-static bool http_context_send_data(http_context *ctx, const char *data, size_t length);
-static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
-static bool http_context_disconnect(http_context *ctx);
+static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
+static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
+static bool http_context_disconnect(HttpContext *ctx);
 
 #ifdef SW_USE_HTTP2
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream);
@@ -103,7 +103,7 @@ class http_server {
         add_assoc_zval_ex(&zcallbacks, pattern.c_str(), pattern.length(), zcallback);
     }
 
-    zend_fcall_info_cache *get_handler(http_context *ctx) {
+    zend_fcall_info_cache *get_handler(HttpContext *ctx) {
         for (auto i = handlers.begin(); i != handlers.end(); i++) {
             if (&i->second == default_handler) {
                 continue;
@@ -115,8 +115,8 @@ class http_server {
         return default_handler;
     }
 
-    http_context *create_context(Socket *conn, zval *zconn) {
-        http_context *ctx = swoole_http_context_new(conn->get_fd());
+    HttpContext *create_context(Socket *conn, zval *zconn) {
+        HttpContext *ctx = swoole_http_context_new(conn->get_fd());
         ctx->parse_body = http_parse_post;
         ctx->parse_cookie = http_parse_cookie;
         ctx->parse_files = http_parse_files;
@@ -142,7 +142,7 @@ class http_server {
     }
 
 #ifdef SW_USE_HTTP2
-    void recv_http2_frame(http_context *ctx) {
+    void recv_http2_frame(HttpContext *ctx) {
         Socket *sock = (Socket *) ctx->private_data;
         http2::send_setting_frame(&sock->protocol, sock->get_socket());
 
@@ -248,17 +248,17 @@ static inline void http_server_set_error(zval *zobject, Socket *sock) {
     zend_update_property_string(swoole_http_server_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errMsg"), sock->errMsg);
 }
 
-static bool http_context_send_data(http_context *ctx, const char *data, size_t length) {
+static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
     Socket *sock = (Socket *) ctx->private_data;
     return sock->send_all(data, length) == (ssize_t) length;
 }
 
-static bool http_context_sendfile(http_context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
+static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
     Socket *sock = (Socket *) ctx->private_data;
     return sock->sendfile(file, offset, length);
 }
 
-static bool http_context_disconnect(http_context *ctx) {
+static bool http_context_disconnect(HttpContext *ctx) {
     Socket *sock = (Socket *) ctx->private_data;
     return sock->close();
 }
@@ -273,7 +273,7 @@ static void php_swoole_http_server_coro_free_object(zend_object *object) {
     zend_object_std_dtor(&hsc->std);
 }
 
-void http_context::init(Socket *sock) {
+void HttpContext::init(Socket *sock) {
     parse_cookie = 1;
     parse_body = 1;
     parse_files = 1;
@@ -288,7 +288,7 @@ void http_context::init(Socket *sock) {
     bind(sock);
 }
 
-void http_context::bind(Socket *sock) {
+void HttpContext::bind(Socket *sock) {
     private_data = sock;
     co_socket = 1;
     send = http_context_send_data;
@@ -548,7 +548,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
     Socket *sock = php_swoole_get_socket(zconn);
     sock->set_buffer_allocator(sw_zend_string_allocator());
     swString *buffer = sock->get_read_buffer();
-    http_context *ctx = nullptr;
+    HttpContext *ctx = nullptr;
     bool header_completed = false;
     off_t header_crlf_offset = 0;
 
@@ -692,7 +692,7 @@ static PHP_METHOD(swoole_http_server_coro, shutdown) {
 
 #ifdef SW_USE_HTTP2
 static void http2_server_onRequest(Http2Session *session, Http2Stream *stream) {
-    http_context *ctx = stream->ctx;
+    HttpContext *ctx = stream->ctx;
     http_server *hs = (http_server *) session->private_data;
     Socket *sock = (Socket *) ctx->private_data;
     zval *zserver = ctx->request.zserver;
