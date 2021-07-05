@@ -117,6 +117,8 @@ class HttpClient {
     bool websocket = false;      // if upgrade successfully
     bool chunked = false;        // Transfer-Encoding: chunked
     bool websocket_mask = true;  // enable websocket mask
+    bool body_decompression = true;
+    bool http_compression = true;
 #ifdef SW_HAVE_ZLIB
     bool websocket_compression = false;  // allow to compress websocket messages
 #endif
@@ -541,7 +543,7 @@ static int http_parser_on_headers_complete(swoole_http_parser *parser) {
 static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_t length) {
     HttpClient *http = (HttpClient *) parser->data;
 #ifdef SW_HAVE_COMPRESSION
-    if (!http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
+    if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
         if (!http->decompress_response(at, length)) {
             http->compression_error = true;
             goto _append_raw;
@@ -773,6 +775,12 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
         }
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp)) {
             websocket_mask = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "http_compression", ztmp)) {
+            http_compression = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "body_decompression", ztmp)) {
+            body_decompression = zval_is_true(ztmp);
         }
 #ifdef SW_HAVE_ZLIB
         if (php_swoole_array_get_value(vht, "websocket_compression", ztmp)) {
@@ -1060,7 +1068,7 @@ bool HttpClient::send() {
         }
     }
 #ifdef SW_HAVE_COMPRESSION
-    if (!(header_flag & HTTP_HEADER_ACCEPT_ENCODING)) {
+    if (http_compression && !(header_flag & HTTP_HEADER_ACCEPT_ENCODING)) {
         add_headers(buffer,
                     ZEND_STRL("Accept-Encoding"),
 #if defined(SW_HAVE_ZLIB) && defined(SW_HAVE_BROTLI)
