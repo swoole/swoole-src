@@ -40,7 +40,7 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
         return nullptr;
     }
     table->mutex = new Mutex(Mutex::PROCESS_SHARED);
-    table->iterator = new TableIterator();
+    table->iterator = nullptr;
     table->column_map = new std::unordered_map<std::string, TableColumn *>;
     table->column_list = new std::vector<TableColumn *>;
     table->size = rows_size;
@@ -57,7 +57,9 @@ Table *Table::make(uint32_t rows_size, float conflict_proportion) {
 
 void Table::free() {
     delete mutex;
-    delete iterator;
+    if (iterator) {
+        delete iterator;
+    }
     delete column_map;
     delete column_list;
 }
@@ -139,6 +141,7 @@ bool Table::create() {
     _memory = (char *) _memory + _row_memory_size * size;
     _memory_size -= _row_memory_size * size;
     pool = new FixedPool(_row_memory_size, _memory, _memory_size, true);
+    iterator = new TableIterator(_row_memory_size);
     created = true;
 
     return true;
@@ -160,7 +163,9 @@ void Table::destroy() {
     }
     delete column_map;
     delete column_list;
-    delete iterator;
+    if (iterator) {
+        delete iterator;
+    }
     delete pool;
     if (memory) {
         sw_shm_free(memory);
@@ -231,7 +236,7 @@ void Table::forward() {
         row->lock();
         if (row->next == nullptr) {
             iterator->absolute_index++;
-            iterator->current_key = std::string(row->key, (size_t) row->key_len);
+            memcpy(iterator->current_, row, iterator->row_memory_size_);
             row->unlock();
             iterator->unlock();
             return;
@@ -245,7 +250,7 @@ void Table::forward() {
                 }
                 if (i == iterator->collision_index) {
                     iterator->collision_index++;
-                    iterator->current_key = std::string(tmp_row->key, (size_t) tmp_row->key_len);
+                    memcpy(iterator->current_, tmp_row, iterator->row_memory_size_);
                     row->unlock();
                     iterator->unlock();
                     return;
@@ -255,7 +260,7 @@ void Table::forward() {
         }
         row->unlock();
     }
-    iterator->current_key = "";
+    sw_memset_zero(iterator->current_, sizeof(TableRow));
     iterator->unlock();
 }
 

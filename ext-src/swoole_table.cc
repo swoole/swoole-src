@@ -605,35 +605,25 @@ static PHP_METHOD(swoole_table, rewind) {
 static PHP_METHOD(swoole_table, valid) {
     Table *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
     auto key = table->current();
-    RETURN_BOOL(!key.empty());
+    RETURN_BOOL(key->key_len != 0);
 }
 
 static PHP_METHOD(swoole_table, current) {
     Table *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
-    auto key = table->current();
-    if (key.empty()) {
+    auto row = table->current();
+    if (row->key_len == 0) {
         RETURN_NULL();
     }
-    zval zkey;
-    ZVAL_STRINGL(&zkey, key.c_str(), key.length());
-    TableRow *_rowlock = nullptr;
-    TableRow *row = table->get(Z_STRVAL(zkey), Z_STRLEN(zkey), &_rowlock);
-    if (!row) {
-        RETVAL_FALSE;
-    } else {
-        php_swoole_table_row2array(table, row, return_value);
-    }
-    _rowlock->unlock();
-    zval_dtor(&zkey);
+    php_swoole_table_row2array(table, row, return_value);
 }
 
 static PHP_METHOD(swoole_table, key) {
     Table *table = php_swoole_table_get_and_check_ptr2(ZEND_THIS);
-    auto key = table->current();
-    if (key.empty()) {
+    auto row = table->current();
+    if (row->key_len == 0) {
         RETURN_NULL();
     }
-    RETVAL_STRINGL(key.c_str(), key.length());
+    RETVAL_STRINGL(row->key, row->key_len);
 }
 
 static PHP_METHOD(swoole_table, next) {

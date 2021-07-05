@@ -73,14 +73,20 @@ struct TableRow {
 };
 
 struct TableIterator {
+    size_t row_memory_size_;
     uint32_t absolute_index;
     uint32_t collision_index;
-    std::string current_key;
+    TableRow *current_;
     Mutex *mutex_;
 
-    TableIterator() {
-        reset();
+    TableIterator(size_t row_size) {
+        current_ = (TableRow *) sw_malloc(row_size);
+        if (!current_) {
+            throw std::bad_alloc();
+        }
         mutex_ = new Mutex(Mutex::PROCESS_SHARED);
+        row_memory_size_ = row_size;
+        reset();
     }
 
     void lock() {
@@ -94,10 +100,13 @@ struct TableIterator {
     void reset() {
         absolute_index = 0;
         collision_index = 0;
-        current_key = std::string("");
+        sw_memset_zero(current_, row_memory_size_);
     }
 
     ~TableIterator() {
+        if (current_) {
+            sw_free(current_);
+        }
         delete mutex_;
     }
 };
@@ -240,8 +249,12 @@ class Table {
         return row != nullptr;
     }
 
-    const std::string &current() {
-        return iterator->current_key;
+    bool exists(const std::string &key) {
+        return exists(key.c_str(), key.length());
+    }
+
+    TableRow *current() {
+        return iterator->current_;
     }
 
     void rewind() {
