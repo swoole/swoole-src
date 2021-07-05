@@ -17,6 +17,10 @@
 #include "php_swoole_private.h"
 #include "swoole_memory.h"
 
+#define _SW_ADDR_ALIGN(type, addr, mod) (type)((((unsigned long long)(addr)) + mod) / mod * mod)
+// align address to SW_DEFAULT_ALIGNMENT bytes, ceiled.
+#define SW_ADDR_ALIGN(type, addr) _SW_ADDR_ALIGN(type, addr, SW_DEFAULT_ALIGNMENT)
+
 #ifdef HAVE_FUTEX
 #include <linux/futex.h>
 #include <syscall.h>
@@ -87,6 +91,7 @@ static zend_object_handlers swoole_atomic_long_handlers;
 
 struct AtomicObject {
     sw_atomic_t *ptr;
+    void *ptr_unaligned;
     zend_object std;
 };
 
@@ -98,12 +103,13 @@ static sw_atomic_t *php_swoole_atomic_get_ptr(zval *zobject) {
     return php_swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-void php_swoole_atomic_set_ptr(zval *zobject, sw_atomic_t *ptr) {
-    php_swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+void php_swoole_atomic_set_ptr(zval *zobject, void *ptr_unaligned) {
+    php_swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr_unaligned = ptr_unaligned;
+    php_swoole_atomic_fetch_object(Z_OBJ_P(zobject))->ptr = SW_ADDR_ALIGN(sw_atomic_t *, ptr_unaligned);
 }
 
 static void php_swoole_atomic_free_object(zend_object *object) {
-    sw_mem_pool()->free((void *) php_swoole_atomic_fetch_object(object)->ptr);
+    sw_mem_pool()->free((void *) php_swoole_atomic_fetch_object(object)->ptr_unaligned);
     zend_object_std_dtor(object);
 }
 
@@ -116,16 +122,18 @@ static zend_object *php_swoole_atomic_create_object(zend_class_entry *ce) {
     zend_object_std_init(&atomic->std, ce);
     object_properties_init(&atomic->std, ce);
     atomic->std.handlers = &swoole_atomic_handlers;
-    atomic->ptr = (sw_atomic_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_t));
-    if (atomic->ptr == nullptr) {
+    atomic->ptr_unaligned = (void *) sw_mem_pool()->alloc(sizeof(sw_atomic_t) + SW_DEFAULT_ALIGNMENT);
+    if (atomic->ptr_unaligned == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
     }
+    atomic->ptr = SW_ADDR_ALIGN(sw_atomic_t *, atomic->ptr_unaligned);
 
     return &atomic->std;
 }
 
 struct AtomicLongObject {
     sw_atomic_long_t *ptr;
+    void *ptr_unaligned;
     zend_object std;
 };
 
@@ -137,12 +145,13 @@ static sw_atomic_long_t *php_swoole_atomic_long_get_ptr(zval *zobject) {
     return php_swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr;
 }
 
-void php_swoole_atomic_long_set_ptr(zval *zobject, sw_atomic_long_t *ptr) {
-    php_swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr = ptr;
+void php_swoole_atomic_long_set_ptr(zval *zobject, void *ptr_unaligned) {
+    php_swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr_unaligned = ptr_unaligned;
+    php_swoole_atomic_long_fetch_object(Z_OBJ_P(zobject))->ptr = SW_ADDR_ALIGN(sw_atomic_long_t *, ptr_unaligned);
 }
 
 static void php_swoole_atomic_long_free_object(zend_object *object) {
-    sw_mem_pool()->free((void *) php_swoole_atomic_long_fetch_object(object)->ptr);
+    sw_mem_pool()->free((void *) php_swoole_atomic_long_fetch_object(object)->ptr_unaligned);
     zend_object_std_dtor(object);
 }
 
@@ -156,10 +165,11 @@ static zend_object *php_swoole_atomic_long_create_object(zend_class_entry *ce) {
     object_properties_init(&atomic_long->std, ce);
     atomic_long->std.handlers = &swoole_atomic_long_handlers;
 
-    atomic_long->ptr = (sw_atomic_long_t *) sw_mem_pool()->alloc(sizeof(sw_atomic_long_t));
-    if (atomic_long->ptr == nullptr) {
+    atomic_long->ptr_unaligned = (void *) sw_mem_pool()->alloc(sizeof(sw_atomic_long_t) + SW_DEFAULT_ALIGNMENT);
+    if (atomic_long->ptr_unaligned == nullptr) {
         zend_throw_exception(swoole_exception_ce, "global memory allocation failure", SW_ERROR_MALLOC_FAIL);
     }
+    atomic_long->ptr = SW_ADDR_ALIGN(sw_atomic_long_t *, atomic_long->ptr_unaligned);
 
     return &atomic_long->std;
 }
