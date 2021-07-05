@@ -23,6 +23,7 @@
 using namespace swoole;
 
 #include <exception>
+#include <map>
 
 struct exception_t : public std::exception {
     int code;
@@ -119,6 +120,10 @@ class table_t {
         return table->count();
     }
 
+    Table *ptr() {
+        return table;
+    }
+
     ~table_t() {
         if (table) {
             table->destroy();
@@ -143,4 +148,26 @@ TEST(table, create) {
     ASSERT_TRUE(table.exists("php"));
     ASSERT_TRUE(table.del("php"));
     ASSERT_FALSE(table.exists("php"));
+}
+
+TEST(table, iterator) {
+    table_t table(1024);
+
+    table.set("php", {"php", 1, 1.245});
+    table.set("java", {"java", 2, 3.1415926});
+    table.set("c++", {"c++", 3, 4.888});
+
+    auto _ptr = table.ptr();
+    _ptr->rewind();
+    auto count = 0;
+    while (true) {
+        _ptr->forward();
+        auto row = _ptr->current();
+        if (row->key_len == 0) {
+            break;
+        }
+        ASSERT_TRUE(_ptr->exists(row->key, row->key_len));
+        count++;
+    }
+    ASSERT_EQ(count, _ptr->count());
 }
