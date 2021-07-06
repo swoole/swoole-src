@@ -11,12 +11,13 @@ var_dump($lock->lock());
 
 
 $start = microtime(true);
-$ret = $lock->lockwait(1);
+$ret = $lock->lockwait(0.2);
 Assert::false($ret);
 $end = microtime(true);
 
-Assert::lessThan($end - $start, 2);
+Assert::eq($lock->errCode, SOCKET_ETIMEDOUT);
+Assert::lessThan($end - $start, 0.2);
 
 ?>
---EXPECTF--
+--EXPECT--
 bool(true)
