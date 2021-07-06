@@ -62,7 +62,7 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
         RETURN_TRUE;                                                                                                   \
     }
 #define SW_LOCK_CHECK_RETURN(s)																						   \
-	auto ___tmp_return_value = s; 																					   \
+    auto ___tmp_return_value = s; 																					   \
     if (___tmp_return_value == 0) {                                                                                    \
         RETURN_TRUE;                                                                                                   \
     } else {                                                                                                           \

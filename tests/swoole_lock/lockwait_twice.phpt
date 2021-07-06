@@ -11,10 +11,11 @@ var_dump($lock->lock());
 
 
 $start = microtime(true);
-$lock->lockwait(1);
+$ret = $lock->lockwait(1);
+Assert::false($ret);
 $end = microtime(true);
 
-assert($end - $start < 2);
+Assert::lessThan($end - $start, 2);
 
 ?>
 --EXPECTF--
