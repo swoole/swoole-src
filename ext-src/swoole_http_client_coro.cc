@@ -1443,7 +1443,7 @@ void HttpClient::recv(zval *zframe, double timeout) {
             close();
         }
     } else {
-        swString msg;
+        String msg;
         msg.length = retval;
         msg.str = socket->get_read_buffer()->str;
 #ifdef SW_HAVE_ZLIB
