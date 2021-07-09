@@ -58,10 +58,10 @@ define sw_hash_map_list
 end
 
 define co_list
-    call swoole_coro_iterator_reset()
+    call swoole_coroutine_iterator_reset()
     set $running = 1
     while $running
-        set $co = swoole_coro_iterator_each()
+        set $co = swoole_coroutine_iterator_each()
         if $co
             printf "coroutine %ld ", $co->cid
             if $co->state == 0
@@ -83,7 +83,7 @@ define co_list
 end
 
 define co_bt
-    if swoole_coro_count() == 0
+    if swoole_coroutine_count() == 0
         printf "no coroutine is running\n"
     end
     ____sw_executor_globals
@@ -111,7 +111,7 @@ end
 
 define __co_bt
     set $cid = (int)$arg0
-    set $co = swoole_coro_get($cid)
+    set $co = swoole_coroutine_get($cid)
     if $co
         set $task = ('swoole::PHPContext' *) $co->get_task()
         if $task
@@ -125,7 +125,7 @@ end
 define co_status
     printf "\t c_stack_size: %d\n",  'swoole::Coroutine::stack_size'
     printf "\t active: %d\n",  'swoole::PHPCoroutine::active'
-    printf "\t coro_num: %d\n",  swoole_coro_count()
+    printf "\t coro_num: %d\n",  swoole_coroutine_count()
     printf "\t peak_coro_num: %d\n",  'swoole::Coroutine::peak_num'
     printf "\t config: "
     print 'swoole::PHPCoroutine::config'

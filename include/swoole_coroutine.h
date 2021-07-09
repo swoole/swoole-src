@@ -262,7 +262,7 @@ bool run(const CoroutineFunc &fn, void *arg = nullptr);
 /**
  * for gdb
  */
-swoole::Coroutine *swoole_coro_iterator_each();
-void swoole_coro_iterator_reset();
+swoole::Coroutine *swoole_coroutine_iterator_each();
+void swoole_coroutine_iterator_reset();
 swoole::Coroutine *swoole_coroutine_get(long cid);
 size_t swoole_coroutine_count();

@@ -262,11 +262,11 @@ size_t swoole_coroutine_count() {
  */
 static std::unordered_map<long, swoole::Coroutine *>::iterator _gdb_iterator;
 
-void swoole_coro_iterator_reset() {
+void swoole_coroutine_iterator_reset() {
     _gdb_iterator = swoole::Coroutine::coroutines.begin();
 }
 
-swoole::Coroutine *swoole_coro_iterator_each() {
+swoole::Coroutine *swoole_coroutine_iterator_each() {
     if (_gdb_iterator == swoole::Coroutine::coroutines.end()) {
         return nullptr;
     } else {
