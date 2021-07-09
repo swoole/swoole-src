@@ -39,6 +39,7 @@ struct GlobalMemoryImpl {
 
 struct MemoryBlock {
     uint32_t size;
+    uint32_t reserved;
     char memory[0];
 };
 
