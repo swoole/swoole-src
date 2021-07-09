@@ -169,7 +169,7 @@ swoole::Logger *sw_logger();
         swoole_set_last_error(__errno);                                                                                \
         if (level >= sw_logger()->get_level()) {                                                                       \
             size_t _sw_error_len =                                                                                     \
-                sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERRNO %d): " str, __errno, ##__VA_ARGS__);                  \
+                sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERRNO %d) " str, __errno, ##__VA_ARGS__);                  \
             sw_logger()->put(level, sw_error, _sw_error_len);                                                          \
         }                                                                                                              \
     } while (0)

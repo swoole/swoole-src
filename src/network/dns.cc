@@ -348,6 +348,7 @@ struct ResolvContext {
     ares_options ares_opts;
     int ares_flags;
     int error;
+    bool completed;
     Coroutine *co;
     std::unordered_map<int, network::Socket *> sockets;
     std::vector<std::string> result;
@@ -374,6 +375,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     ResolvContext ctx{};
     Coroutine *co = Coroutine::get_current_safe();
     ctx.co = co;
+    ctx.completed = false;
     char lookups[] = "fb";
     int res;
     ctx.ares_opts.lookups = lookups;
@@ -486,11 +488,13 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
                     },
                     ctx->co);
                 ctx->co = nullptr;
+            } else {
+                ctx->completed = true;
             }
         },
         &ctx);
 
-    if (ctx.error) {
+    if (ctx.error || ctx.completed) {
         goto _destroy;
     }
 
