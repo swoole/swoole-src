@@ -380,6 +380,9 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             goto _add_header;
         }
         Server *serv = (Server *) ctx->private_data;
+        if (!serv) {
+            goto _add_header;
+        }
         Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
