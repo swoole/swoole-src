@@ -180,6 +180,12 @@ bool decode(Frame *frame, char *data, size_t length) {
         header_length += 8;
     }
 
+    swTraceLog(SW_TRACE_WEBSOCKET,
+               "decode frame, payload_length=%ld, mask=%d, opcode=%d",
+               payload_length,
+               frame->header.MASK,
+               frame->header.OPCODE);
+
     if (payload_length == 0) {
         frame->header_length = header_length;
         frame->payload_length = 0;

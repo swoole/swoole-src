@@ -1486,7 +1486,13 @@ _get_length:
         goto _recv_header;
     } else if (packet_len > protocol.package_max_length) {
         read_buffer->clear();
-        set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
+        swoole_error_log(SW_LOG_WARNING,
+                            SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                            "packet length is too big, remote_addr=%s:%d, length=%zu",
+                            socket->info.get_ip(),
+                            socket->info.get_port(),
+                            packet_len);
+        set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, sw_error);
         return -1;
     }
 

@@ -116,7 +116,7 @@ swoole::Logger *sw_logger();
 #define swWarn(str, ...)                                                                                               \
     do {                                                                                                               \
         if (SW_LOG_WARNING >= sw_logger()->get_level()) {                                                              \
-            size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s: " str, __func__, ##__VA_ARGS__);      \
+            size_t _sw_error_len = sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, str, ##__VA_ARGS__);                       \
             sw_logger()->put(SW_LOG_WARNING, sw_error, _sw_error_len);                                                 \
         }                                                                                                              \
     } while (0)
@@ -169,7 +169,7 @@ swoole::Logger *sw_logger();
         swoole_set_last_error(__errno);                                                                                \
         if (level >= sw_logger()->get_level()) {                                                                       \
             size_t _sw_error_len =                                                                                     \
-                sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s (ERRNO %d): " str, __func__, __errno, ##__VA_ARGS__);     \
+                sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "(ERRNO %d): " str, __errno, ##__VA_ARGS__);                  \
             sw_logger()->put(level, sw_error, _sw_error_len);                                                          \
         }                                                                                                              \
     } while (0)
@@ -222,7 +222,7 @@ enum swTrace_type {
     SW_TRACE_EOF_PROTOCOL = 1u << 12,
     SW_TRACE_LENGTH_PROTOCOL = 1u << 13,
     SW_TRACE_CLOSE = 1u << 14,
-    SW_TRACE_WEBSOCEKT = 1u << 15,
+    SW_TRACE_WEBSOCKET = 1u << 15,
     /**
      * Client
      */
