@@ -644,7 +644,7 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
         return false;
     } else {
         event.canceled = _ev->canceled;
-        event.error = _ev->error;
+        event.error =  errno = _ev->error;
         event.retval = _ev->retval;
         return true;
     }
@@ -687,9 +687,10 @@ bool async(const std::function<void(void)> &fn, double timeout) {
         _ev->canceled = true;
         errno = swoole_get_last_error();
         return false;
+    } else {
+        errno = _ev->error;
+        return true;
     }
-
-    return true;
 }
 
 }  // namespace coroutine
