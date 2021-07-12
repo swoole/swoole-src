@@ -622,20 +622,10 @@ static void async_task_completed(AsyncEvent *event) {
     co->resume();
 }
 
-static void async_task_timeout(Timer *timer, TimerNode *tnode) {
-    AsyncEvent *event = (AsyncEvent *) tnode->data;
-    event->canceled = 1;
-    event->retval = -1;
-    event->error = SW_ERROR_AIO_TIMEOUT;
-    Coroutine *co = (Coroutine *) event->object;
-    co->resume();
-}
-
 /**
  * @error: swoole_get_last_error()
  */
 bool async(async::Handler handler, AsyncEvent &event, double timeout) {
-    TimerNode *timer = nullptr;
     Coroutine *co = Coroutine::get_current_safe();
 
     event.object = co;
@@ -646,32 +636,13 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     if (_ev == nullptr) {
         return false;
     }
-    if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
-    }
 
-    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
+    if (!co->yield_ex(timeout)) {
         _ev->canceled = true;
-        _ev->error = SW_ERROR_AIO_CANCELED;
-        _ev->retval = -1;
-        co->resume();
-        return true;
-    };
-    co->yield(&cancel_fn);
-
-    event.canceled = _ev->canceled;
-    event.error = _ev->error;
-    event.retval = _ev->retval;
-
-    errno = _ev->error;
-    swoole_set_last_error(_ev->error);
-
-    if (event.catch_error()) {
+        errno = swoole_get_last_error();
         return false;
     }
-    if (timer) {
-        swoole_timer_del(timer);
-    }
+
     return true;
 }
 
@@ -696,7 +667,6 @@ static void async_lambda_callback(AsyncEvent *event) {
 }
 
 bool async(const std::function<void(void)> &fn, double timeout) {
-    TimerNode *timer = nullptr;
     AsyncEvent event{};
     AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
 
@@ -708,27 +678,13 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     if (_ev == nullptr) {
         return false;
     }
-    if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
-    }
 
-    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
+    if (!task.co->yield_ex(timeout)) {
         _ev->canceled = true;
-        _ev->error = SW_ERROR_AIO_CANCELED;
-        _ev->retval = -1;
-        co->resume();
-        return true;
-    };
-    task.co->yield(&cancel_fn);
-
-    errno = _ev->error;
-    swoole_set_last_error(_ev->error);
-    if (_ev->catch_error()) {
+        errno = swoole_get_last_error();
         return false;
     }
-    if (timer) {
-        swoole_timer_del(timer);
-    }
+
     return true;
 }
 
