@@ -638,12 +638,16 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     }
 
     if (!co->yield_ex(timeout)) {
-        _ev->canceled = true;
-        errno = swoole_get_last_error();
+        event.canceled = _ev->canceled = true;
+        event.retval = -1;
+        event.error = errno = swoole_get_last_error();
         return false;
+    } else {
+        event.canceled = _ev->canceled;
+        event.error = _ev->error;
+        event.retval = _ev->retval;
+        return true;
     }
-
-    return true;
 }
 
 struct AsyncLambdaTask {
