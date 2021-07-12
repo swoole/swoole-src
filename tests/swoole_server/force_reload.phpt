@@ -66,14 +66,14 @@ $pm->run();
 %d [%d] start
 %s start to reload
 [%s]	INFO	Server is reloading all workers now
-[%s]	WARNING	Manager::kill_timeout_process (ERRNO 9012): worker(pid=%d, id=%d) exit timeout, force kill the process
-[%s]	WARNING	Manager::kill_timeout_process (ERRNO 9012): worker(pid=%d, id=%d) exit timeout, force kill the process
-[%s]	WARNING	Manager::kill_timeout_process (ERRNO 9012): worker(pid=%d, id=%d) exit timeout, force kill the process
-[%s]	WARNING	Manager::kill_timeout_process (ERRNO 9012): worker(pid=%d, id=%d)exit timeout, force kill the process
-[%s]	WARNING	Server::check_worker_exit_status: worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-[%s]	WARNING	Server::check_worker_exit_status: worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-[%s]	WARNING	Server::check_worker_exit_status: worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-[%s]	WARNING	Server::check_worker_exit_status: worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9012): worker(pid=%d, id=%d) exit timeout, force kill the process
+[%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9012): worker(pid=%d, id=%d) exit timeout, force kill the process
+[%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9012): worker(pid=%d, id=%d) exit timeout, force kill the process
+[%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9012): worker(pid=%d, id=%d) exit timeout, force kill the process
+[%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
+[%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
 %d [%d] start
 %d [%d] start
 %d [%d] start
