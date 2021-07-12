@@ -1004,13 +1004,13 @@ int Server::send_to_connection(SendData *_send) {
         if (_send->info.type == SW_SERVER_EVENT_RECV_DATA) {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
-                             "Server::send(): send %d byte failed, session#%ld does not exist",
+                             "send %d byte failed, session#%ld does not exist",
                              _send_length,
                              session_id);
         } else {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
-                             "Server::send(): send event[%d] failed, session#%ld does not exist",
+                             "send event[%d] failed, session#%ld does not exist",
                              _send->info.type,
                              session_id);
         }

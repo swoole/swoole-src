@@ -503,13 +503,23 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         ares_cancel(ctx.channel);
     } else if (co->is_timedout()) {
         ares_process_fd(ctx.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
-        swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT);
+        ctx.error = ARES_ETIMEOUT;
     } else {
         swTraceLog(SW_TRACE_CARES, "lookup success, result_count=%lu", ctx.result.size());
     }
 _destroy:
     if (ctx.error) {
-        swoole_set_last_error(ctx.error == ARES_ECANCELLED ? SW_ERROR_CO_CANCELED : SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        switch (ctx.error) {
+        case ARES_ECANCELLED:
+            swoole_set_last_error(SW_ERROR_CO_CANCELED);
+            break;
+        case ARES_ETIMEOUT:
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT);
+            break;
+        default:
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            break;
+        }
     }
     ares_destroy(ctx.channel);
 _return:

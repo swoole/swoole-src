@@ -190,16 +190,18 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
 
 #ifdef SW_USE_CARES
     auto result_list = dns_lookup_impl_with_cares(hostname.c_str(), domain, timeout);
-    if (SwooleG.dns_lookup_random) {
-        result = result_list[rand() % result_list.size()];
-    } else {
-        result = result_list[0];
+    if (!result_list.empty()) {
+        if (SwooleG.dns_lookup_random) {
+            result = result_list[rand() % result_list.size()];
+        } else {
+            result = result_list[0];
+        }
     }
 #else
     result = gethostbyname_impl_with_async(hostname, domain, timeout);
 #endif
 
-    if (dns_cache) {
+    if (dns_cache && !result.empty()) {
         dns_cache->set(cache_key, std::make_shared<std::string>(result), dns_cache_expire);
     }
 
@@ -620,20 +622,10 @@ static void async_task_completed(AsyncEvent *event) {
     co->resume();
 }
 
-static void async_task_timeout(Timer *timer, TimerNode *tnode) {
-    AsyncEvent *event = (AsyncEvent *) tnode->data;
-    event->canceled = 1;
-    event->retval = -1;
-    event->error = SW_ERROR_AIO_TIMEOUT;
-    Coroutine *co = (Coroutine *) event->object;
-    co->resume();
-}
-
 /**
  * @error: swoole_get_last_error()
  */
 bool async(async::Handler handler, AsyncEvent &event, double timeout) {
-    TimerNode *timer = nullptr;
     Coroutine *co = Coroutine::get_current_safe();
 
     event.object = co;
@@ -644,33 +636,18 @@ bool async(async::Handler handler, AsyncEvent &event, double timeout) {
     if (_ev == nullptr) {
         return false;
     }
-    if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
-    }
 
-    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
-        _ev->canceled = true;
-        _ev->error = SW_ERROR_AIO_CANCELED;
-        _ev->retval = -1;
-        co->resume();
-        return true;
-    };
-    co->yield(&cancel_fn);
-
-    event.canceled = _ev->canceled;
-    event.error = _ev->error;
-    event.retval = _ev->retval;
-
-    errno = _ev->error;
-    swoole_set_last_error(_ev->error);
-
-    if (event.catch_error()) {
+    if (!co->yield_ex(timeout)) {
+        event.canceled = _ev->canceled = true;
+        event.retval = -1;
+        event.error = errno = swoole_get_last_error();
         return false;
+    } else {
+        event.canceled = _ev->canceled;
+        event.error =  errno = _ev->error;
+        event.retval = _ev->retval;
+        return true;
     }
-    if (timer) {
-        swoole_timer_del(timer);
-    }
-    return true;
 }
 
 struct AsyncLambdaTask {
@@ -694,7 +671,6 @@ static void async_lambda_callback(AsyncEvent *event) {
 }
 
 bool async(const std::function<void(void)> &fn, double timeout) {
-    TimerNode *timer = nullptr;
     AsyncEvent event{};
     AsyncLambdaTask task{Coroutine::get_current_safe(), fn};
 
@@ -706,28 +682,15 @@ bool async(const std::function<void(void)> &fn, double timeout) {
     if (_ev == nullptr) {
         return false;
     }
-    if (timeout > 0) {
-        timer = swoole_timer_add((long) (timeout * 1000), false, async_task_timeout, _ev);
-    }
 
-    Coroutine::CancelFunc cancel_fn = [_ev](Coroutine *co) {
+    if (!task.co->yield_ex(timeout)) {
         _ev->canceled = true;
-        _ev->error = SW_ERROR_AIO_CANCELED;
-        _ev->retval = -1;
-        co->resume();
-        return true;
-    };
-    task.co->yield(&cancel_fn);
-
-    errno = _ev->error;
-    swoole_set_last_error(_ev->error);
-    if (_ev->catch_error()) {
+        errno = swoole_get_last_error();
         return false;
+    } else {
+        errno = _ev->error;
+        return true;
     }
-    if (timer) {
-        swoole_timer_del(timer);
-    }
-    return true;
 }
 
 }  // namespace coroutine

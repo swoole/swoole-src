@@ -23,4 +23,4 @@ var_dump('scheduler end');
 --EXPECTF--
 string(12) "push success"
 string(13) "scheduler end"
-[%s]	WARNING	~Channel (ERRNO 10003): channel is destroyed, 1 producers will be discarded
+[%s]	WARNING	Channel::~Channel() (ERRNO 10003): channel is destroyed, 1 producers will be discarded

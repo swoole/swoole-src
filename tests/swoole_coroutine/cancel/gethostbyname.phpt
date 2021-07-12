@@ -20,7 +20,7 @@ run(function () {
     $retval = System::gethostbyname('www.baidu.com');
     echo "Done\n";
     Assert::eq($retval, false);
-    Assert::eq(swoole_last_error(), SWOOLE_ERROR_AIO_CANCELED);
+    Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_CANCELED);
 });
 
 ?>

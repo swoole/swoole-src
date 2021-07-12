@@ -226,18 +226,18 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     EventData buf;
     sw_memset_zero(&buf.info, sizeof(buf.info));
     if (task_worker_num < 1) {
-        swWarn("cannot use task/finish, because no set task_worker_num");
+        swWarn("cannot use Server::task()/Server::finish() method, because no set [task_worker_num]");
         return SW_ERR;
     }
     if (current_task == nullptr) {
         current_task = last_task;
     }
     if (current_task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
-        swWarn("task/finish is not supported in onPipeMessage callback");
+        swWarn("Server::task()/Server::finish() is not supported in onPipeMessage callback");
         return SW_ERR;
     }
     if (swTask_type(current_task) & SW_TASK_NOREPLY) {
-        swWarn("task->finish() can only be used in the worker process");
+        swWarn("Server::finish() can only be used in the worker process");
         return SW_ERR;
     }
 
@@ -337,9 +337,9 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     }
     if (ret < 0) {
         if (swoole_get_last_error() == EAGAIN || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
-            swWarn("TaskWorker: send result to worker timed out");
+            swWarn("send result to worker timed out");
         } else {
-            swSysWarn("TaskWorker: send result to worker failed");
+            swSysWarn("send result to worker failed");
         }
     }
     return ret;
