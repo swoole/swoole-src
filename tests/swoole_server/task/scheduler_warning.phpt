@@ -72,4 +72,4 @@ unlink(LOG_FILE);
 ?>
 --EXPECTF--
 DONE
-[%s]	WARNING	timer_callback (ERRNO %d): No idle task worker is available
+[%s]	WARNING	Server::timer_callback() (ERRNO %d): No idle task worker is available

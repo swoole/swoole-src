@@ -43,5 +43,5 @@ Assert::eq($data['string'], $str_value);
 echo "Done\n";
 ?>
 --EXPECTF--
-[%s]	WARNING	lock: lock process[%d] not exists, force unlock
+[%s]	WARNING	TableRow::lock(): lock process[%d] not exists, force unlock
 Done

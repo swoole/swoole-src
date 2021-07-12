@@ -76,7 +76,7 @@ class Logger {
     bool redirect_stdout_and_stderr(int enable);
     void set_date_with_microseconds(bool enable);
     std::string gen_real_file(const std::string &file);
-    static std::string get_pretty_name(const std::string &prettyFunction, bool strip = false);
+    static std::string get_pretty_name(const std::string &prettyFunction, bool strip = true);
 
     void display_backtrace() {
         display_backtrace_ = true;
@@ -85,7 +85,7 @@ class Logger {
 }  // namespace swoole
 
 swoole::Logger *sw_logger();
-#define __SW_FUNC__       (swoole::Logger::get_pretty_name(__PRETTY_FUNCTION__).c_str())
+#define __SW_FUNC__ (swoole::Logger::get_pretty_name(__PRETTY_FUNCTION__).c_str())
 
 #define swInfo(str, ...)                                                                                               \
     if (SW_LOG_INFO >= sw_logger()->get_level()) {                                                                     \
@@ -164,12 +164,12 @@ swoole::Logger *sw_logger();
         exit(255);                                                                                                     \
     } while (0)
 
-#define swoole_error_log(level, __errno, str, ...)                                                                     \
+#define swoole_error_log(level, error, str, ...)                                                                       \
     do {                                                                                                               \
-        swoole_set_last_error(__errno);                                                                                \
+        swoole_set_last_error(error);                                                                                  \
         if (level >= sw_logger()->get_level()) {                                                                       \
             size_t _sw_error_len =                                                                                     \
-                sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s() (ERRNO %d): " str, __SW_FUNC__, __errno, ##__VA_ARGS__);\
+                sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s() (ERRNO %d): " str, __SW_FUNC__, error, ##__VA_ARGS__);  \
             sw_logger()->put(level, sw_error, _sw_error_len);                                                          \
         }                                                                                                              \
     } while (0)
