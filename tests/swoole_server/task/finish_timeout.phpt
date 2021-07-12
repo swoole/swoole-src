@@ -64,4 +64,4 @@ unlink(TMP_LOG_FILE);
 ?>
 --EXPECTF--
 [%s]	WARNING	Socket::send_blocking(): send %d bytes failed, Error: Resource temporarily unavailable[11]
-[%s]	WARNING	Server::reply_task_result(): TaskWorker: send result to worker timed out
+[%s]	WARNING	Server::reply_task_result(): send result to worker timed out

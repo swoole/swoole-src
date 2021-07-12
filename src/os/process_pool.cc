@@ -39,7 +39,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker);
  */
 static int ProcessPool_worker_loop_ex(ProcessPool *pool, Worker *worker);
 
-static void ProcessPool_kill_timeout_worker(Timer *timer, TimerNode *tnode) {
+void ProcessPool::kill_timeout_worker(Timer *timer, TimerNode *tnode) {
     uint32_t i;
     pid_t reload_worker_pid = 0;
     ProcessPool *pool = (ProcessPool *) tnode->data;
@@ -52,9 +52,9 @@ static void ProcessPool_kill_timeout_worker(Timer *timer, TimerNode *tnode) {
                 continue;
             }
             if (swoole_kill(reload_worker_pid, SIGKILL) < 0) {
-                swSysWarn("swKill(%d, SIGKILL) [%d] failed", pool->reload_workers[i].pid, i);
+                swSysWarn("failed to force kill worker process(pid=%d, id=%d)", pool->reload_workers[i].pid, i);
             } else {
-                swWarn("swKill(%d, SIGKILL) [%d]", pool->reload_workers[i].pid, i);
+                swWarn("force kill worker process(pid=%d, id=%d)", pool->reload_workers[i].pid, i);
             }
         }
     }
@@ -657,7 +657,7 @@ int ProcessPool::wait() {
                 }
                 pid_t new_pid = spawn(exit_worker);
                 if (new_pid < 0) {
-                    swSysWarn("Fork worker process failed");
+                    swSysWarn("fork worker process failed");
                     return SW_ERR;
                 }
                 map_->erase(msg.pid);
@@ -679,7 +679,7 @@ int ProcessPool::wait() {
                     reload_init = true;
                     memcpy(reload_workers, workers, sizeof(Worker) * worker_num);
                     if (max_wait_time) {
-                        swoole_timer_add((long) (max_wait_time * 1000), false, ProcessPool_kill_timeout_worker, this);
+                        swoole_timer_add((long) (max_wait_time * 1000), false, kill_timeout_worker, this);
                     }
                 }
                 goto _kill_worker;

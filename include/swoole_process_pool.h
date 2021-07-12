@@ -290,6 +290,7 @@ struct ProcessPool {
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
     int schedule();
+    static void kill_timeout_worker(Timer *timer, TimerNode *tnode);
 };
 };  // namespace swoole
 

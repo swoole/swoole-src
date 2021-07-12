@@ -53,8 +53,8 @@ $pm->run();
 %s
 1 [%s] start to reload
 [%s]	INFO	reload workers
-[%s]	WARNING	ProcessPool_kill_timeout_worker(): swKill(%d, SIGKILL) [%d]
-[%s]	WARNING	ProcessPool_kill_timeout_worker(): swKill(%d, SIGKILL) [%d]
+[%s]	WARNING	ProcessPool::kill_timeout_worker(): force kill worker process(pid=%d, id=%d)
+[%s]	WARNING	ProcessPool::kill_timeout_worker(): force kill worker process(pid=%d, id=%d)
 [%s]	WARNING	ProcessPool::wait(): worker#%d abnormal exit, status=0, signal=9
 [%s]	WARNING	ProcessPool::wait(): worker#%d abnormal exit, status=0, signal=9
 %s
