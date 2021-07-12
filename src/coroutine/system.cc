@@ -190,16 +190,18 @@ std::string System::gethostbyname(const std::string &hostname, int domain, doubl
 
 #ifdef SW_USE_CARES
     auto result_list = dns_lookup_impl_with_cares(hostname.c_str(), domain, timeout);
-    if (SwooleG.dns_lookup_random) {
-        result = result_list[rand() % result_list.size()];
-    } else {
-        result = result_list[0];
+    if (!result_list.empty()) {
+        if (SwooleG.dns_lookup_random) {
+            result = result_list[rand() % result_list.size()];
+        } else {
+            result = result_list[0];
+        }
     }
 #else
     result = gethostbyname_impl_with_async(hostname, domain, timeout);
 #endif
 
-    if (dns_cache) {
+    if (dns_cache && !result.empty()) {
         dns_cache->set(cache_key, std::make_shared<std::string>(result), dns_cache_expire);
     }
 
