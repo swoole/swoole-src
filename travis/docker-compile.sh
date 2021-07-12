@@ -10,7 +10,7 @@ fi
 #-----------compile------------
 #-------print error only-------
 apt-get update -y
-apt-get install -y libcurl4-openssl-dev
+apt-get install -y libcurl4-openssl-dev libc-ares-dev
 cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \
@@ -22,6 +22,7 @@ phpize > /dev/null && \
 --enable-mysqlnd \
 --enable-swoole-json \
 --enable-swoole-curl \
+--enable-cares \
 > /dev/null && \
 make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
