@@ -10,6 +10,9 @@ if [ "${GITHUB_ACTIONS}" = true ]; then
   exit 255
 fi
 
+sudo apt-get update -y
+sudo apt-get install -y libcurl4-openssl-dev libc-ares-dev
+
 cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \
