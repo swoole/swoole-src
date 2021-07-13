@@ -262,6 +262,18 @@ SW_API void swoole_set_dns_server(const std::string server) {
     SwooleG.dns_server_port = dns_server_port;
 }
 
+SW_API std::pair<std::string, int> swoole_get_dns_server() {
+    std::pair<std::string, int> result;
+    if (SwooleG.dns_server_host.empty()) {
+        result.first = "";
+        result.second = 0;
+    } else {
+        result.first = SwooleG.dns_server_host;
+        result.second = SwooleG.dns_server_port;
+    }
+    return result;
+}
+
 bool swoole_set_task_tmpdir(const std::string &dir) {
     if (dir.at(0) != '/') {
         swWarn("wrong absolute path '%s'", dir.c_str());

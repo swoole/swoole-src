@@ -90,3 +90,10 @@ TEST(dns, getaddrinfo) {
         ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
     }
 }
+
+TEST(dns, load_resolv_conf) {
+    ASSERT_TRUE(swoole_load_resolv_conf());
+    auto dns_server = swoole_get_dns_server();
+    ASSERT_FALSE(dns_server.first.empty());
+    ASSERT_NE(dns_server.second, 0);
+}

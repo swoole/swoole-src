@@ -25,7 +25,31 @@
 #include <ares.h>
 #endif
 
-#define SW_DNS_SERVER_NUM 2
+bool swoole_load_resolv_conf() {
+    FILE *fp;
+    char line[100];
+    char buf[16] = {};
+
+    if ((fp = fopen(SwooleG.dns_resolvconf_path.c_str(), "rt")) == nullptr) {
+        swSysWarn("fopen(%s) failed", SwooleG.dns_resolvconf_path.c_str());
+        return false;
+    }
+
+    while (fgets(line, 100, fp)) {
+        if (strncmp(line, "nameserver", 10) == 0) {
+            strcpy(buf, strtok(line, " "));
+            strcpy(buf, strtok(nullptr, "\n"));
+            break;
+        }
+    }
+    fclose(fp);
+
+    if (strlen(buf) == 0) {
+        return false;
+    }
+    swoole_set_dns_server(buf);
+    return true;
+}
 
 namespace swoole {
 namespace coroutine {
@@ -77,36 +101,7 @@ static uint16_t dns_request_id = 1;
 
 static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
-static int get_dns_server();
 static std::string parse_ip_address(void *vaddr, int type);
-
-static int get_dns_server() {
-    FILE *fp;
-    char line[100];
-    char buf[16] = {};
-
-    if ((fp = fopen(SwooleG.dns_resolvconf_path.c_str(), "rt")) == nullptr) {
-        swSysWarn("fopen(%s) failed", SwooleG.dns_resolvconf_path.c_str());
-        return SW_ERR;
-    }
-
-    while (fgets(line, 100, fp)) {
-        if (strncmp(line, "nameserver", 10) == 0) {
-            strcpy(buf, strtok(line, " "));
-            strcpy(buf, strtok(nullptr, "\n"));
-            break;
-        }
-    }
-    fclose(fp);
-
-    if (strlen(buf) == 0) {
-        swoole_set_dns_server(SW_DNS_DEFAULT_SERVER);
-    } else {
-        swoole_set_dns_server(buf);
-    }
-
-    return SW_OK;
-}
 
 static std::string parse_ip_address(void *vaddr, int type) {
     auto addr = reinterpret_cast<unsigned char *>(vaddr);
@@ -138,11 +133,9 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
     int steps = 0;
     std::vector<std::string> result;
 
-    if (SwooleG.dns_server_host.empty()) {
-        if (get_dns_server() < 0) {
-            swoole_set_last_error(SW_ERROR_DNSLOOKUP_NO_SERVER);
-            return result;
-        }
+    if (SwooleG.dns_server_host.empty() && !swoole_load_resolv_conf()) {
+        swoole_set_last_error(SW_ERROR_DNSLOOKUP_NO_SERVER);
+        return result;
     }
 
     header = (RecordHeader *) packet;

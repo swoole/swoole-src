@@ -55,7 +55,7 @@ TEST(coroutine_async, gethostbyname) {
 
 TEST(coroutine_async, error) {
     coroutine::run([](void *arg) {
-        int retval;
+        int retval = 0x7009501;
         const char *test_file = "/tmp/swoole_core_test_file_not_exists";
         swoole::coroutine::async([&](void) { retval = open(test_file, O_RDONLY); }, -1);
         ASSERT_EQ(retval, -1);
