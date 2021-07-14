@@ -3628,6 +3628,9 @@ static PHP_METHOD(swoole_server, getClientInfo) {
         if (conn->uid > 0 || serv->dispatch_mode == SW_DISPATCH_UIDMOD) {
             add_assoc_long(return_value, "uid", conn->uid);
         }
+        if (conn->worker_id > 0 || serv->dispatch_mode == SW_DISPATCH_CO_CONN_LB) {
+            add_assoc_long(return_value, "worker_id", conn->worker_id);
+        }
 
         ListenPort *port = serv->get_port_by_fd(conn->fd);
         if (port && port->open_websocket_protocol) {

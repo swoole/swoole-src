@@ -23,6 +23,7 @@
 #include "swoole_memory.h"
 #include "swoole_msg_queue.h"
 #include "swoole_client.h"
+#include "swoole_coroutine.h"
 
 swoole::WorkerGlobal SwooleWG = {};
 
@@ -567,6 +568,9 @@ int Server::start_event_worker(Worker *worker) {
         stream_protocol.package_max_length = UINT_MAX;
         stream_protocol.onPackage = Worker_onStreamPackage;
         buffer_pool = new std::queue<String *>;
+    } else if (dispatch_mode == SW_DISPATCH_CO_CONN_LB || dispatch_mode == SW_DISPATCH_CO_REQ_LB) {
+        reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,
+                                  [worker](Reactor *) { worker->coroutine_num = Coroutine::count(); });
     }
 
     worker->status = SW_WORKER_IDLE;

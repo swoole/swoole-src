@@ -964,6 +964,24 @@ int Server::schedule_worker(int fd, SendData *data) {
         } else {
             key = conn->uid;
         }
+    } else if (dispatch_mode == SW_DISPATCH_CO_CONN_LB) {
+        Connection *conn = get_connection(fd);
+        if (conn == nullptr) {
+            return key % worker_num;
+        }
+        if (conn->worker_id < 0) {
+            conn->worker_id = get_lowest_load_worker_id();
+        }
+        return conn->worker_id;
+    } else if (dispatch_mode == SW_DISPATCH_CO_REQ_LB) {
+        return get_lowest_load_worker_id();
+    } else if (dispatch_mode == SW_DISPATCH_UIDMOD) {
+        Connection *conn = get_connection(fd);
+        if (conn == nullptr || conn->uid == 0) {
+            key = fd;
+        } else {
+            key = conn->uid;
+        }
     }
     // Preemptive distribution
     else {
@@ -982,6 +1000,7 @@ int Server::schedule_worker(int fd, SendData *data) {
         swTraceLog(SW_TRACE_SERVER, "schedule=%d, round=%d", key, worker_round_id);
         return key;
     }
+
     return key % worker_num;
 }
 
@@ -1659,6 +1678,7 @@ _find_available_slot:
     connection->server_fd = (sw_atomic_t) server_fd;
     connection->last_recv_time = connection->connect_time = microtime();
     connection->active = 1;
+    connection->worker_id = -1;
     connection->socket_type = ls->type;
     connection->socket = _socket;
 

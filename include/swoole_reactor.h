@@ -86,6 +86,7 @@ class Reactor {
         PRIORITY_SIGNAL_CALLBACK,
         PRIORITY_TRY_EXIT,
         PRIORITY_MALLOC_TRIM,
+        PRIORITY_WORKER_CALLBACK,
     };
 
     enum ExitCondition {
