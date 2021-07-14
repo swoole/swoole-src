@@ -243,7 +243,7 @@ long Multi::select(php_curlm *mh, double timeout) {
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
         php_curl *ch;
-        if ((ch = _php_curl_get_handle(z_ch, false)) == NULL) {
+        if ((ch = swoole_curl_get_handle(z_ch, false)) == NULL) {
             continue;
         }
         Handle *handle = get_handle(ch->cp);
@@ -268,7 +268,7 @@ long Multi::select(php_curlm *mh, double timeout) {
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
         php_curl *ch;
-        if ((ch = _php_curl_get_handle(z_ch, false)) == NULL) {
+        if ((ch = swoole_curl_get_handle(z_ch, false)) == NULL) {
             continue;
         }
         Handle *handle = get_handle(ch->cp);

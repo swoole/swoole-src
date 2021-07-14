@@ -22,8 +22,6 @@
 //-------------------memory manager-------------------------
 namespace swoole {
 
-#pragma pack(8)
-
 class MemoryPool {
   public:
     virtual ~MemoryPool(){};

@@ -150,12 +150,12 @@ typedef struct _php_curlsh {
 	zend_object std;
 } php_curlsh;
 
-php_curl *init_curl_handle_into_zval(zval *curl);
-void init_curl_handle(php_curl *ch);
-void _php_curl_cleanup_handle(php_curl *);
-void _php_curl_multi_cleanup_list(void *data);
-void _php_curl_verify_handlers(php_curl *ch, int reporterror);
-void _php_setup_easy_copy_handlers(php_curl *ch, php_curl *source);
+php_curl *swoole_curl_init_handle_into_zval(zval *curl);
+void swoole_curl_init_handle(php_curl *ch);
+void swoole_curl_cleanup_handle(php_curl *);
+void swoole_curl_multi_cleanup_list(void *data);
+void swoole_curl_verify_handlers(php_curl *ch, int reporterror);
+void swoole_setup_easy_copy_handlers(php_curl *ch, php_curl *source);
 
 #if PHP_VERSION_ID >= 80000
 static inline php_curl *curl_from_obj(zend_object *obj) {
@@ -172,19 +172,19 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 void curl_multi_register_class(const zend_function_entry *method_entries);
 int curl_cast_object(zend_object *obj, zval *result, int type);
 #else
-#define Z_CURL_P(zv)     _php_curl_get_handle(zv)
+#define Z_CURL_P(zv)     swoole_curl_get_handle(zv)
 #endif /* PHP8 end */
 
-php_curl *_php_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
+php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
 
 SW_EXTERN_C_BEGIN
 #if PHP_VERSION_ID < 80000
-void _php_curl_close_ex(php_curl *ch);
-void _php_curl_close(zend_resource *rsrc);
-void _php_curl_multi_close(zend_resource *rsrc);
-php_curl *alloc_curl_handle();
-int _php_curl_get_le_curl();
-int _php_curl_get_le_curl_multi();
+void swoole_curl_close_ex(php_curl *ch);
+void swoole_curl_close(zend_resource *rsrc);
+void swoole_curl_multi_close(zend_resource *rsrc);
+php_curl *swoole_curl_alloc_handle();
+int swoole_curl_get_le_curl();
+int swoole_curl_get_le_curl_multi();
 #endif
 SW_EXTERN_C_END
 

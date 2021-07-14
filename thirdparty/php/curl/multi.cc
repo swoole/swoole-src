@@ -47,7 +47,7 @@ static inline php_curlm *curl_multi_from_obj(zend_object *obj) {
 static inline php_curlm *Z_CURL_MULTI_P(zval *zv) {
     php_curlm *cm;
     if ((cm = (php_curlm *) zend_fetch_resource(
-             Z_RES_P(zv), le_curl_multi_handle_name, _php_curl_get_le_curl_multi())) == NULL) {
+             Z_RES_P(zv), le_curl_multi_handle_name, swoole_curl_get_le_curl_multi())) == NULL) {
         swFatalError(SW_ERROR_INVALID_PARAMS,
                      "supplied resource is not a valid " le_curl_multi_handle_name " resource");
         return nullptr;
@@ -73,12 +73,12 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
     mh = Z_CURL_MULTI_P(return_value);
 #else
     mh = (php_curlm *) ecalloc(1, sizeof(php_curlm));
-    RETVAL_RES(zend_register_resource(mh, _php_curl_get_le_curl_multi()));
+    RETVAL_RES(zend_register_resource(mh, swoole_curl_get_le_curl_multi()));
 #endif
     mh->multi = new Multi();
     mh->multi->set_selector(new Selector());
     mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
-    zend_llist_init(&mh->easyh, sizeof(zval), _php_curl_multi_cleanup_list, 0);
+    zend_llist_init(&mh->easyh, sizeof(zval), swoole_curl_multi_cleanup_list, 0);
 }
 /* }}} */
 
@@ -103,9 +103,9 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
     mh = Z_CURL_MULTI_P(z_mh);
     ch = Z_CURL_P(z_ch);
 
-    _php_curl_verify_handlers(ch, 1);
+    swoole_curl_verify_handlers(ch, 1);
 
-    _php_curl_cleanup_handle(ch);
+    swoole_curl_cleanup_handle(ch);
 
     Z_ADDREF_P(z_ch);
     zend_llist_add_element(&mh->easyh, z_ch);
@@ -117,7 +117,7 @@ PHP_FUNCTION(swoole_native_curl_multi_add_handle) {
 }
 /* }}} */
 
-void _php_curl_multi_cleanup_list(void *data) /* {{{ */
+void swoole_curl_multi_cleanup_list(void *data) /* {{{ */
 {
     zval *z_ch = (zval *) data;
 
@@ -146,7 +146,7 @@ static zval *_php_curl_multi_find_easy_handle(php_curlm *mh, CURL *easy) /* {{{ 
             continue;
         }
 #endif
-        tmp_ch = _php_curl_get_handle(pz_ch_temp, false, false);
+        tmp_ch = swoole_curl_get_handle(pz_ch_temp, false, false);
         if (tmp_ch && tmp_ch->cp == easy) {
             return pz_ch_temp;
         }
@@ -242,7 +242,7 @@ PHP_FUNCTION(swoole_native_curl_multi_exec) {
             }
 #endif
             ch = Z_CURL_P(pz_ch);
-            _php_curl_verify_handlers(ch, 1);
+            swoole_curl_verify_handlers(ch, 1);
         }
     }
 
@@ -331,7 +331,7 @@ PHP_FUNCTION(swoole_native_curl_multi_info_read) {
         zval *pz_ch = _php_curl_multi_find_easy_handle(mh, tmp_msg->easy_handle);
         if (pz_ch != NULL) {
             /* we must save result to be able to read error message */
-            ch = _php_curl_get_handle(pz_ch, false, false);
+            ch = swoole_curl_get_handle(pz_ch, false, false);
             if (ch) {
                 SAVE_CURL_ERROR(ch, tmp_msg->data.result);
             }
@@ -371,7 +371,7 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
         if (!ch) {
             continue;
         }
-        _php_curl_verify_handlers(ch, 1);
+        swoole_curl_verify_handlers(ch, 1);
         mh->multi->remove_handle(ch->cp);
     }
     zend_llist_clean(&mh->easyh);
@@ -440,15 +440,15 @@ static int _php_server_push_callback(
         return rval;
     }
 
-    parent = (php_curl *) zend_fetch_resource(Z_RES_P(pz_parent_ch), le_curl_name, _php_curl_get_le_curl());
+    parent = (php_curl *) zend_fetch_resource(Z_RES_P(pz_parent_ch), le_curl_name, swoole_curl_get_le_curl());
 
-    ch = alloc_curl_handle();
+    ch = swoole_curl_alloc_handle();
     ch->cp = easy;
-    _php_setup_easy_copy_handlers(ch, parent);
+    swoole_setup_easy_copy_handlers(ch, parent);
 
     Z_ADDREF_P(pz_parent_ch);
 
-    res = zend_register_resource(ch, _php_curl_get_le_curl());
+    res = zend_register_resource(ch, swoole_curl_get_le_curl());
     ch->res = res;
     ZVAL_RES(&pz_ch, res);
 
@@ -511,7 +511,7 @@ static int _php_server_push_callback(
 
     ch = init_curl_handle_into_zval(&pz_ch);
     ch->cp = easy;
-    _php_setup_easy_copy_handlers(ch, parent);
+    swoole_setup_easy_copy_handlers(ch, parent);
 
     size_t i;
     array_init(&headers);
@@ -705,7 +705,7 @@ void curl_multi_register_class(const zend_function_entry *method_entries) {
     swoole_coroutine_curl_multi_handle_handlers.cast_object = curl_cast_object;
 }
 #else
-void _php_curl_multi_close(zend_resource *rsrc) /* {{{ */
+void swoole_curl_multi_close(zend_resource *rsrc) /* {{{ */
 {
     php_curlm *mh = (php_curlm *) rsrc->ptr;
     if (mh) {
@@ -726,8 +726,8 @@ static void _php_curl_multi_free(php_curlm *mh) {
             continue;
         }
 #endif
-        if ((ch = _php_curl_get_handle(z_ch, true, false))) {
-            _php_curl_verify_handlers(ch, 0);
+        if ((ch = swoole_curl_get_handle(z_ch, true, false))) {
+            swoole_curl_verify_handlers(ch, 0);
             mh->multi->remove_handle(ch->cp);
         }
     }
