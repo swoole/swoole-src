@@ -369,7 +369,7 @@ static zend_object *curl_clone_obj(zend_object *object) {
 
     clone_object = curl_create_object(curl_ce);
     clone_ch = curl_from_obj(clone_object);
-    init_curl_handle(clone_ch);
+    swoole_curl_init_handle(clone_ch);
 
     ch = curl_from_obj(object);
     cp = curl_easy_duphandle(ch->cp);
@@ -863,7 +863,7 @@ php_curl *init_curl_handle_into_zval(zval *curl) {
     object_init_ex(curl, swoole_coroutine_curl_handle_ce);
     ch = Z_CURL_P(curl);
 
-    init_curl_handle(ch);
+    swoole_curl_init_handle(ch);
 
     return ch;
 }
