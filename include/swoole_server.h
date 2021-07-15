@@ -61,6 +61,8 @@ enum swFactory_dispatch_mode {
     SW_DISPATCH_UIDMOD = 5,
     SW_DISPATCH_USERFUNC = 6,
     SW_DISPATCH_STREAM = 7,
+    SW_DISPATCH_CO_CONN_LB,
+    SW_DISPATCH_CO_REQ_LB,
 };
 
 enum swFactory_dispatch_result {
@@ -98,6 +100,7 @@ struct Connection {
     uint8_t active;
     enum swSocket_type socket_type;
     int fd;
+    int worker_id;
     SessionId session_id;
     //--------------------------------------------------------------
 #ifdef SW_USE_OPENSSL
@@ -998,7 +1001,8 @@ class Server {
     }
 
     inline bool is_hash_dispatch_mode() {
-        return dispatch_mode == SW_DISPATCH_FDMOD || dispatch_mode == SW_DISPATCH_IPMOD;
+        return dispatch_mode == SW_DISPATCH_FDMOD || dispatch_mode == SW_DISPATCH_IPMOD ||
+               dispatch_mode == SW_DISPATCH_CO_CONN_LB;
     }
 
     inline bool is_support_send_yield() {
@@ -1040,6 +1044,19 @@ class Server {
         }
 
         return nullptr;
+    }
+
+    int get_lowest_load_worker_id() {
+        uint32_t lowest_load_worker_id = 0;
+        size_t min_coroutine = workers[0].coroutine_num;
+        for (uint32_t i = 1; i < worker_num; i++) {
+            if (workers[i].coroutine_num < min_coroutine) {
+                min_coroutine = workers[i].coroutine_num;
+                lowest_load_worker_id = i;
+                continue;
+            }
+        }
+        return lowest_load_worker_id;
     }
 
     void stop_async_worker(Worker *worker);

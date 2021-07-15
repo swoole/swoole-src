@@ -857,7 +857,7 @@ static void curl_free_slist(zval *el) {
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
-php_curl *init_curl_handle_into_zval(zval *curl) {
+php_curl *swoole_curl_init_handle_into_zval(zval *curl) {
     php_curl *ch;
 
     object_init_ex(curl, swoole_coroutine_curl_handle_ce);
@@ -872,7 +872,7 @@ php_curl *init_curl_handle_into_zval(zval *curl) {
 /* {{{ alloc_curl_handle
  */
 #if PHP_VERSION_ID >= 80000
-void init_curl_handle(php_curl *ch)
+void swoole_curl_init_handle(php_curl *ch)
 #else
 php_curl *swoole_curl_alloc_handle()
 #endif
@@ -1000,7 +1000,7 @@ PHP_FUNCTION(swoole_native_curl_init) {
     }
 
 #if PHP_VERSION_ID >= 80000
-    ch = init_curl_handle_into_zval(return_value);
+    ch = swoole_curl_init_handle_into_zval(return_value);
 #else
     ch = swoole_curl_alloc_handle();
 #endif
@@ -1371,7 +1371,7 @@ PHP_FUNCTION(swoole_native_curl_copy_handle) {
     }
 
 #if PHP_VERSION_ID >= 80000
-    dupch = init_curl_handle_into_zval(return_value);
+    dupch = swoole_curl_init_handle_into_zval(return_value);
 #else
     dupch = swoole_curl_alloc_handle();
 #endif
@@ -2696,7 +2696,7 @@ PHP_FUNCTION(swoole_native_curl_close) {
 }
 /* }}} */
 
-void _php_curl_free(php_curl *ch) {
+static void _php_curl_free(php_curl *ch) {
     /*
      * Libcurl is doing connection caching. When easy handle is cleaned up,
      * if the handle was previously used by the curl_multi_api, the connection

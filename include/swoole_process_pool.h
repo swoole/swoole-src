@@ -130,6 +130,7 @@ struct Worker {
 
     long dispatch_count;
     long request_count;
+    size_t coroutine_num;
 
     /**
      * worker id
