@@ -872,7 +872,7 @@ php_curl *swoole_curl_init_handle_into_zval(zval *curl) {
 /* {{{ alloc_curl_handle
  */
 #if PHP_VERSION_ID >= 80000
-void init_curl_handle(php_curl *ch)
+void swoole_curl_init_handle(php_curl *ch)
 #else
 php_curl *swoole_curl_alloc_handle()
 #endif
