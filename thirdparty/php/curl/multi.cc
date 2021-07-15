@@ -509,7 +509,7 @@ static int _php_server_push_callback(
 
     parent = Z_CURL_P(pz_parent_ch);
 
-    ch = init_curl_handle_into_zval(&pz_ch);
+    ch = swoole_curl_init_handle_into_zval(&pz_ch);
     ch->cp = easy;
     swoole_setup_easy_copy_handlers(ch, parent);
 
