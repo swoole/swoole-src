@@ -857,7 +857,7 @@ static void curl_free_slist(zval *el) {
 /* }}} */
 
 #if PHP_VERSION_ID >= 80000
-php_curl *init_curl_handle_into_zval(zval *curl) {
+php_curl *swoole_curl_init_handle_into_zval(zval *curl) {
     php_curl *ch;
 
     object_init_ex(curl, swoole_coroutine_curl_handle_ce);
@@ -2696,7 +2696,7 @@ PHP_FUNCTION(swoole_native_curl_close) {
 }
 /* }}} */
 
-void _php_curl_free(php_curl *ch) {
+static void _php_curl_free(php_curl *ch) {
     /*
      * Libcurl is doing connection caching. When easy handle is cleaned up,
      * if the handle was previously used by the curl_multi_api, the connection

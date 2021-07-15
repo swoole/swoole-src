@@ -975,13 +975,6 @@ int Server::schedule_worker(int fd, SendData *data) {
         return conn->worker_id;
     } else if (dispatch_mode == SW_DISPATCH_CO_REQ_LB) {
         return get_lowest_load_worker_id();
-    } else if (dispatch_mode == SW_DISPATCH_UIDMOD) {
-        Connection *conn = get_connection(fd);
-        if (conn == nullptr || conn->uid == 0) {
-            key = fd;
-        } else {
-            key = conn->uid;
-        }
     }
     // Preemptive distribution
     else {
