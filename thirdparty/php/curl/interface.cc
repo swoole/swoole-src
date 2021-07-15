@@ -1000,7 +1000,7 @@ PHP_FUNCTION(swoole_native_curl_init) {
     }
 
 #if PHP_VERSION_ID >= 80000
-    ch = init_curl_handle_into_zval(return_value);
+    ch = swoole_curl_init_handle_into_zval(return_value);
 #else
     ch = swoole_curl_alloc_handle();
 #endif
@@ -1371,7 +1371,7 @@ PHP_FUNCTION(swoole_native_curl_copy_handle) {
     }
 
 #if PHP_VERSION_ID >= 80000
-    dupch = init_curl_handle_into_zval(return_value);
+    dupch = swoole_curl_init_handle_into_zval(return_value);
 #else
     dupch = swoole_curl_alloc_handle();
 #endif
