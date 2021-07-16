@@ -59,6 +59,10 @@ const char *swoole_strerror(int code) {
         return "DNS Lookup resolve failed";
     case SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT:
         return "DNS Lookup resolve timeout";
+    case SW_ERROR_DNSLOOKUP_UNSUPPORTED:
+        return "DNS Lookup unsupported";
+    case SW_ERROR_DNSLOOKUP_NO_SERVER:
+        return "DNS Lookup no server";
     case SW_ERROR_BAD_IPV6_ADDRESS:
         return "Bad ipv6 address";
     case SW_ERROR_UNREGISTERED_SIGNAL:
