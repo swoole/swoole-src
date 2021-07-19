@@ -306,7 +306,6 @@ void php_swoole_register_shutdown_function(const char *function) {
     zend_fcall_info_init(
         &function_name, 0, &shutdown_function_entry.fci, &shutdown_function_entry.fci_cache, NULL, NULL);
     register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
-    zval_ptr_dtor(&function_name);
 #else
     zval *function_name;
 #if PHP_VERSION_ID >= 80000
