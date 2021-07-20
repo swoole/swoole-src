@@ -148,6 +148,7 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
+    SwooleG.max_concurrency = 0;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swSysWarn("getrlimit() failed");

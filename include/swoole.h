@@ -643,6 +643,7 @@ struct Global {
     uint32_t pagesize;
     struct utsname uname;
     uint32_t max_sockets;
+    uint32_t max_concurrency;
     //-----------------------[Memory]--------------------------
     MemoryPool *memory_pool;
     Allocator std_allocator;
