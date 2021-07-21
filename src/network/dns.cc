@@ -16,10 +16,13 @@
 
 #include "swoole.h"
 #include "swoole_coroutine_socket.h"
+#include "swoole_util.h"
 
 #include <string>
 #include <iostream>
 #include <vector>
+
+#define SW_PATH_HOSTS "/etc/hosts"
 
 #ifdef SW_USE_CARES
 #include <ares.h>
@@ -102,6 +105,162 @@ static uint16_t dns_request_id = 1;
 static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
 static std::string parse_ip_address(void *vaddr, int type);
+
+static int read_line(FILE *fp, char **buf, size_t *bufsize) {
+    char *newbuf;
+    size_t offset = 0;
+    size_t len;
+
+    if (*buf == NULL) {
+        *buf = (char *) malloc(128);
+        if (!*buf) {
+            return SW_ERR;
+        }
+        *bufsize = 128;
+    }
+
+    for (;;) {
+        int bytestoread = *bufsize - offset;
+        if (!fgets(*buf + offset, bytestoread, fp)) {
+            return SW_ERR;
+        }
+
+        len = offset + strlen(*buf + offset);
+        if ((*buf)[len - 1] == '\n') {
+            (*buf)[len - 1] = 0;
+            break;
+        }
+        offset = len;
+        if (len < *bufsize - 1) {
+            continue;
+        }
+        newbuf = (char *) realloc(*buf, *bufsize * 2);
+        if (!newbuf) {
+            free(*buf);
+            *buf = NULL;
+            return SW_ERR;
+        }
+        *buf = newbuf;
+        *bufsize *= 2;
+    }
+
+    return SW_OK;
+}
+
+static std::pair<std::string, std::string> get_hostent(FILE *fp) {
+    char *line = NULL, *p, *q;
+    char *txtaddr, *txthost, *txtalias;
+    int status;
+    size_t linesize, naliases;
+
+    std::pair<std::string, std::string> result{};
+
+    while ((status = read_line(fp, &line, &linesize)) == SW_OK) {
+        p = line;
+        while (*p && (*p != '#')) {
+            p++;
+        }
+        *p = '\0';
+
+        q = p - 1;
+        while ((q >= line) && isspace(*q)) {
+            q--;
+        }
+        *++q = '\0';
+
+        p = line;
+        while (*p && isspace(*q)) {
+            q--;
+        }
+        if (!*p) {
+            continue;
+        }
+
+        txtaddr = p;
+
+        while (*p && !isspace(*p)) {
+            p++;
+        }
+        if (!*p) {
+            continue;
+        }
+
+        *p = '\0';
+
+        p++;
+        while (*p && isspace(*p)) {
+            p++;
+        }
+        if (!*p) {
+            continue;
+        }
+
+        txthost = p;
+
+        while (*p && !isspace(*p)) {
+            p++;
+        }
+
+        txtalias = NULL;
+        if (*p) {
+            q = p + 1;
+            while (*q && isspace(*q)) {
+                q++;
+            }
+            if (*q) {
+                txtalias = q;
+            }
+        }
+
+        *p = '\0';
+
+        naliases = 0;
+        if (txtalias) {
+            p = txtalias;
+            while (*p) {
+                while (*p && !isspace(*p)) {
+                    p++;
+                }
+                while (*p && isspace(*p)) {
+                    p++;
+                }
+                naliases++;
+            }
+        }
+
+        result.first = txthost;
+        result.second = txtaddr;
+
+        free(line);
+
+        return result;
+    }
+
+    if (line) free(line);
+
+    return result;
+}
+
+std::string get_ip_by_hosts(std::string domain) {
+    std::unordered_map<std::string, std::string> _map;
+    auto fp = fopen(SW_PATH_HOSTS, "r");
+    if (fp == nullptr) {
+        return "";
+    }
+    ON_SCOPE_EXIT {
+        fclose(fp);
+    };
+    while (1) {
+        auto result = get_hostent(fp);
+        if (result.first == "") {
+            break;
+        }
+        if (result.first == domain) {
+            return result.second;
+        }
+    }
+    return "";
+}
 
 static std::string parse_ip_address(void *vaddr, int type) {
     auto addr = reinterpret_cast<unsigned char *>(vaddr);
@@ -199,7 +358,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     auto ret = _sock.recv(packet, sizeof(packet) - 1);
     if (ret <= 0) {
-        swoole_set_last_error(_sock.errCode == ECANCELED ? SW_ERROR_CO_CANCELED: SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+        swoole_set_last_error(_sock.errCode == ECANCELED ? SW_ERROR_CO_CANCELED : SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
         return result;
     }
 
