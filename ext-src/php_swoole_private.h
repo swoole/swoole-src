@@ -634,9 +634,14 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         }                                                                                                              \
     } while (0)
 
-#define SW_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize)                                                    \
-    module##_ce->serialize = _serialize;                                                                               \
-    module##_ce->unserialize = _unserialize
+#if PHP_VERSION_ID < 80100
+#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
+    module##_ce->serialize = zend_class_serialize_deny;                                                                               \
+    module##_ce->unserialize = zend_class_unserialize_deny;
+#else
+#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
+    module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#endif
 
 #define sw_zend_class_clone_deny NULL
 #define SW_SET_CLASS_CLONEABLE(module, _clone_obj) module##_handlers.clone_obj = _clone_obj

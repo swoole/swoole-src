@@ -628,7 +628,7 @@ void php_swoole_websocket_server_minit(int module_number) {
                            nullptr,
                            swoole_websocket_server_methods,
                            swoole_http_server);
-    SW_SET_CLASS_SERIALIZABLE(swoole_websocket_server, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_websocket_server);
     SW_SET_CLASS_CLONEABLE(swoole_websocket_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_websocket_server, sw_zend_class_unset_property_deny);
 
