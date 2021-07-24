@@ -15,13 +15,14 @@ require __DIR__.'/../../include/bootstrap.php';
 
 Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
 
-run(function () {
+function createDirectories()
+{
     $barrier = Barrier::make();
     $first   = "/".rand(0, 1000);
     $second  = "/".rand(0, 1000);
     $third   = "/".rand(0, 1000)."/";
 
-    for ($i = 0; $i < 10; $i++) {
+    for ($i = 0; $i < 5; $i++) {
         Coroutine::create(static function () use ($i, $first, $second, $third, $barrier) {
             if (mkdir($directory = $first.$second.$third.$i, 0755, true) && is_dir($directory)) {
                 rmdir($first.$second.$third.$i);
@@ -33,7 +34,15 @@ run(function () {
     rmdir($first.$second.$third);
     rmdir($first.$second);
     rmdir($first);
+}
+
+
+run(function () {
+    createDirectories();
 });
+
+Swoole\Runtime::enableCoroutine(false);
+createDirectories();
 ?>
 
 --EXPECT--
