@@ -17,18 +17,22 @@ Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
 
 run(function () {
     $barrier = Barrier::make();
-    $baseDir = __DIR__.DIRECTORY_SEPARATOR.rand(1000, 9999).DIRECTORY_SEPARATOR;
+    $first   = "/".rand(0, 1000);
+    $second  = "/".rand(0, 1000);
+    $third   = "/".rand(0, 1000)."/";
 
     for ($i = 0; $i < 10; $i++) {
-        Coroutine::create(static function () use ($i, $baseDir, $barrier) {
-            if (!mkdir($directory = $baseDir.$i, 0755, true) && !is_dir($directory)) {
-                rmdir($directory);
+        Coroutine::create(static function () use ($i, $first, $second, $third, $barrier) {
+            if (mkdir($directory = $first.$second.$third.$i, 0755, true) && is_dir($directory)) {
+                rmdir($first.$second.$third.$i);
                 echo "SUCCESS".PHP_EOL;
             }
         });
     }
     Barrier::wait($barrier);
-    rmdir($baseDir);
+    rmdir($first.$second.$third);
+    rmdir($first.$second);
+    rmdir($first);
 });
 ?>
 
@@ -43,4 +47,3 @@ SUCCESS
 SUCCESS
 SUCCESS
 SUCCESS
-

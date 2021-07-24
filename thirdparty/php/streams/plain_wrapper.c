@@ -25,6 +25,7 @@
 #include "ext/standard/php_filestat.h"
 
 #include <fcntl.h>
+
 #if HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
@@ -40,8 +41,11 @@
 #include "swoole_file_hook.h"
 
 #if !defined(WINDOWS) && !defined(NETWARE)
+
 extern int php_get_uid_by_name(const char *name, uid_t *uid);
+
 extern int php_get_gid_by_name(const char *name, gid_t *gid);
+
 #endif
 
 #if defined(PHP_WIN32)
@@ -51,16 +55,25 @@ extern int php_get_gid_by_name(const char *name, gid_t *gid);
 #endif
 
 static php_stream_size_t sw_php_stdiop_write(php_stream *stream, const char *buf, size_t count);
+
 static php_stream_size_t sw_php_stdiop_read(php_stream *stream, char *buf, size_t count);
+
 static int sw_php_stdiop_close(php_stream *stream, int close_handle);
+
 static int sw_php_stdiop_stat(php_stream *stream, php_stream_statbuf *ssb);
+
 static int sw_php_stdiop_flush(php_stream *stream);
+
 static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence, zend_off_t *newoffset);
+
 static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, void *ptrparam);
+
 static int sw_php_stdiop_cast(php_stream *stream, int castas, void **ret);
 
 static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result);
+
 static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, const char *persistent_id STREAMS_DC);
+
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 
 static inline zend_bool file_can_poll(zend_stat_t *_stat) {
@@ -71,24 +84,24 @@ static int sw_php_stream_parse_fopen_modes(const char *mode, int *open_flags) {
     int flags;
 
     switch (mode[0]) {
-    case 'r':
-        flags = 0;
-        break;
-    case 'w':
-        flags = O_TRUNC | O_CREAT;
-        break;
-    case 'a':
-        flags = O_CREAT | O_APPEND;
-        break;
-    case 'x':
-        flags = O_CREAT | O_EXCL;
-        break;
-    case 'c':
-        flags = O_CREAT;
-        break;
-    default:
-        /* unknown mode */
-        return FAILURE;
+        case 'r':
+            flags = 0;
+            break;
+        case 'w':
+            flags = O_TRUNC | O_CREAT;
+            break;
+        case 'a':
+            flags = O_CREAT | O_APPEND;
+            break;
+        case 'x':
+            flags = O_CREAT | O_EXCL;
+            break;
+        case 'c':
+            flags = O_CREAT;
+            break;
+        default:
+            /* unknown mode */
+            return FAILURE;
     }
 
     if (strchr(mode, '+')) {
@@ -135,13 +148,13 @@ static int sw_php_stream_parse_fopen_modes(const char *mode, int *open_flags) {
 typedef struct {
     FILE *file;
     int fd;                        /* underlying file descriptor */
-    unsigned is_process_pipe : 1;  /* use pclose instead of fclose */
-    unsigned is_pipe : 1;          /* stream is an actual pipe, currently Windows only*/
-    unsigned cached_fstat : 1;     /* sb is valid */
-    unsigned is_pipe_blocking : 1; /* allow blocking read() on pipes, currently Windows only */
-    unsigned no_forced_fstat : 1;  /* Use fstat cache even if forced */
-    unsigned is_seekable : 1;      /* don't try and seek, if not set */
-    unsigned _reserved : 26;
+    unsigned is_process_pipe: 1;  /* use pclose instead of fclose */
+    unsigned is_pipe: 1;          /* stream is an actual pipe, currently Windows only*/
+    unsigned cached_fstat: 1;     /* sb is valid */
+    unsigned is_pipe_blocking: 1; /* allow blocking read() on pipes, currently Windows only */
+    unsigned no_forced_fstat: 1;  /* Use fstat cache even if forced */
+    unsigned is_seekable: 1;      /* don't try and seek, if not set */
+    unsigned _reserved: 26;
 
     int lock_flag;          /* stores the lock state */
     zend_string *temp_name; /* if non-null, this is the path to a temporary file that
@@ -165,15 +178,15 @@ typedef struct {
 #define PHP_STDIOP_GET_FD(anfd, data) anfd = (data)->file ? fileno((data)->file) : (data)->fd
 
 static php_stream_ops sw_php_stream_stdio_ops = {
-    sw_php_stdiop_write,
-    sw_php_stdiop_read,
-    sw_php_stdiop_close,
-    sw_php_stdiop_flush,
-    "STDIO/coroutine",
-    sw_php_stdiop_seek,
-    sw_php_stdiop_cast,
-    sw_php_stdiop_stat,
-    sw_php_stdiop_set_option,
+        sw_php_stdiop_write,
+        sw_php_stdiop_read,
+        sw_php_stdiop_close,
+        sw_php_stdiop_flush,
+        "STDIO/coroutine",
+        sw_php_stdiop_seek,
+        sw_php_stdiop_cast,
+        sw_php_stdiop_stat,
+        sw_php_stdiop_set_option,
 };
 
 static int do_fstat(php_stdio_stream_data *d, int force) {
@@ -334,7 +347,7 @@ static int sw_php_stdiop_seek(php_stream *stream, zend_off_t offset, int whence,
         zend_off_t result;
 
         result = lseek(data->fd, offset, whence);
-        if (result == (zend_off_t) -1) return -1;
+        if (result == (zend_off_t) - 1) return -1;
 
         *newoffset = result;
         return 0;
@@ -356,49 +369,49 @@ static int sw_php_stdiop_cast(php_stream *stream, int castas, void **ret) {
      * so we need to stop using the fd directly in that case */
 
     switch (castas) {
-    case PHP_STREAM_AS_STDIO:
-        if (ret) {
-            if (data->file == NULL) {
-                /* we were opened as a plain file descriptor, so we
-                 * need fdopen now */
-                char fixed_mode[5];
-                php_stream_mode_sanitize_fdopen_fopencookie(stream, fixed_mode);
-                data->file = fdopen(data->fd, fixed_mode);
+        case PHP_STREAM_AS_STDIO:
+            if (ret) {
                 if (data->file == NULL) {
-                    return FAILURE;
+                    /* we were opened as a plain file descriptor, so we
+                     * need fdopen now */
+                    char fixed_mode[5];
+                    php_stream_mode_sanitize_fdopen_fopencookie(stream, fixed_mode);
+                    data->file = fdopen(data->fd, fixed_mode);
+                    if (data->file == NULL) {
+                        return FAILURE;
+                    }
                 }
+
+                *(FILE **) ret = data->file;
+                data->fd = SOCK_ERR;
             }
+            return SUCCESS;
 
-            *(FILE **) ret = data->file;
-            data->fd = SOCK_ERR;
-        }
-        return SUCCESS;
+        case PHP_STREAM_AS_FD_FOR_SELECT:
+            PHP_STDIOP_GET_FD(fd, data);
+            if (SOCK_ERR == fd) {
+                return FAILURE;
+            }
+            if (ret) {
+                *(php_socket_t *) ret = fd;
+            }
+            return SUCCESS;
 
-    case PHP_STREAM_AS_FD_FOR_SELECT:
-        PHP_STDIOP_GET_FD(fd, data);
-        if (SOCK_ERR == fd) {
+        case PHP_STREAM_AS_FD:
+            PHP_STDIOP_GET_FD(fd, data);
+
+            if (SOCK_ERR == fd) {
+                return FAILURE;
+            }
+            if (data->file) {
+                fflush(data->file);
+            }
+            if (ret) {
+                *(php_socket_t *) ret = fd;
+            }
+            return SUCCESS;
+        default:
             return FAILURE;
-        }
-        if (ret) {
-            *(php_socket_t *) ret = fd;
-        }
-        return SUCCESS;
-
-    case PHP_STREAM_AS_FD:
-        PHP_STDIOP_GET_FD(fd, data);
-
-        if (SOCK_ERR == fd) {
-            return FAILURE;
-        }
-        if (data->file) {
-            fflush(data->file);
-        }
-        if (ret) {
-            *(php_socket_t *) ret = fd;
-        }
-        return SUCCESS;
-    default:
-        return FAILURE;
     }
 }
 
@@ -427,257 +440,257 @@ static int sw_php_stdiop_set_option(php_stream *stream, int option, int value, v
     PHP_STDIOP_GET_FD(fd, data);
 
     switch (option) {
-    case PHP_STREAM_OPTION_BLOCKING:
-        if (fd == -1) return -1;
+        case PHP_STREAM_OPTION_BLOCKING:
+            if (fd == -1) return -1;
 #ifdef O_NONBLOCK
-        flags = fcntl(fd, F_GETFL, 0);
-        oldval = (flags & O_NONBLOCK) ? 0 : 1;
-        if (value)
-            flags &= ~O_NONBLOCK;
-        else
-            flags |= O_NONBLOCK;
+            flags = fcntl(fd, F_GETFL, 0);
+            oldval = (flags & O_NONBLOCK) ? 0 : 1;
+            if (value)
+                flags &= ~O_NONBLOCK;
+            else
+                flags |= O_NONBLOCK;
 
-        if (-1 == fcntl(fd, F_SETFL, flags)) return -1;
-        return oldval;
+            if (-1 == fcntl(fd, F_SETFL, flags)) return -1;
+            return oldval;
 #else
-        return -1; /* not yet implemented */
+            return -1; /* not yet implemented */
 #endif
 
-    case PHP_STREAM_OPTION_WRITE_BUFFER:
+        case PHP_STREAM_OPTION_WRITE_BUFFER:
 
-        if (data->file == NULL) {
-            return -1;
-        }
+            if (data->file == NULL) {
+                return -1;
+            }
 
-        if (ptrparam)
-            size = *(size_t *) ptrparam;
-        else
-            size = BUFSIZ;
+            if (ptrparam)
+                size = *(size_t *) ptrparam;
+            else
+                size = BUFSIZ;
 
-        switch (value) {
-        case PHP_STREAM_BUFFER_NONE:
-            return setvbuf(data->file, NULL, _IONBF, 0);
+            switch (value) {
+                case PHP_STREAM_BUFFER_NONE:
+                    return setvbuf(data->file, NULL, _IONBF, 0);
 
-        case PHP_STREAM_BUFFER_LINE:
-            return setvbuf(data->file, NULL, _IOLBF, size);
+                case PHP_STREAM_BUFFER_LINE:
+                    return setvbuf(data->file, NULL, _IOLBF, size);
 
-        case PHP_STREAM_BUFFER_FULL:
-            return setvbuf(data->file, NULL, _IOFBF, size);
+                case PHP_STREAM_BUFFER_FULL:
+                    return setvbuf(data->file, NULL, _IOFBF, size);
 
-        default:
-            return -1;
-        }
-        break;
+                default:
+                    return -1;
+            }
+            break;
 
-    case PHP_STREAM_OPTION_LOCKING:
-        if (fd == -1) {
-            return -1;
-        }
+        case PHP_STREAM_OPTION_LOCKING:
+            if (fd == -1) {
+                return -1;
+            }
 
-        if ((zend_uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
-            return 0;
-        }
+            if ((zend_uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
+                return 0;
+            }
 
-        if (!swoole_coroutine_flock_ex(stream->orig_path, fd, value)) {
-            data->lock_flag = value;
-            return 0;
-        } else {
-            return -1;
-        }
-        break;
+            if (!swoole_coroutine_flock_ex(stream->orig_path, fd, value)) {
+                data->lock_flag = value;
+                return 0;
+            } else {
+                return -1;
+            }
+            break;
 
-    case PHP_STREAM_OPTION_MMAP_API:
+        case PHP_STREAM_OPTION_MMAP_API:
 #if HAVE_MMAP
-    {
-        php_stream_mmap_range *range = (php_stream_mmap_range *) ptrparam;
-        int prot, flags;
+            {
+                php_stream_mmap_range *range = (php_stream_mmap_range *) ptrparam;
+                int prot, flags;
 
-        switch (value) {
-        case PHP_STREAM_MMAP_SUPPORTED:
-            return fd == -1 ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
+                switch (value) {
+                case PHP_STREAM_MMAP_SUPPORTED:
+                    return fd == -1 ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
 
-        case PHP_STREAM_MMAP_MAP_RANGE:
-            if (do_fstat(data, 1) != 0) {
-                return PHP_STREAM_OPTION_RETURN_ERR;
-            }
-            if (range->length == 0 && range->offset > 0 && range->offset < (size_t) data->sb.st_size) {
-                range->length = data->sb.st_size - range->offset;
-            }
-            if (range->length == 0 || range->length > (size_t) data->sb.st_size) {
-                range->length = data->sb.st_size;
-            }
-            if (range->offset >= (size_t) data->sb.st_size) {
-                range->offset = data->sb.st_size;
-                range->length = 0;
-            }
-            switch (range->mode) {
-            case PHP_STREAM_MAP_MODE_READONLY:
-                prot = PROT_READ;
-                flags = MAP_PRIVATE;
-                break;
-            case PHP_STREAM_MAP_MODE_READWRITE:
-                prot = PROT_READ | PROT_WRITE;
-                flags = MAP_PRIVATE;
-                break;
-            case PHP_STREAM_MAP_MODE_SHARED_READONLY:
-                prot = PROT_READ;
-                flags = MAP_SHARED;
-                break;
-            case PHP_STREAM_MAP_MODE_SHARED_READWRITE:
-                prot = PROT_READ | PROT_WRITE;
-                flags = MAP_SHARED;
-                break;
-            default:
-                return PHP_STREAM_OPTION_RETURN_ERR;
-            }
-            range->mapped = (char *) mmap(NULL, range->length, prot, flags, fd, range->offset);
-            if (range->mapped == (char *) MAP_FAILED) {
-                range->mapped = NULL;
-                return PHP_STREAM_OPTION_RETURN_ERR;
-            }
-            /* remember the mapping */
-            data->last_mapped_addr = range->mapped;
-            data->last_mapped_len = range->length;
-            return PHP_STREAM_OPTION_RETURN_OK;
+                case PHP_STREAM_MMAP_MAP_RANGE:
+                    if (do_fstat(data, 1) != 0) {
+                        return PHP_STREAM_OPTION_RETURN_ERR;
+                    }
+                    if (range->length == 0 && range->offset > 0 && range->offset < (size_t) data->sb.st_size) {
+                        range->length = data->sb.st_size - range->offset;
+                    }
+                    if (range->length == 0 || range->length > (size_t) data->sb.st_size) {
+                        range->length = data->sb.st_size;
+                    }
+                    if (range->offset >= (size_t) data->sb.st_size) {
+                        range->offset = data->sb.st_size;
+                        range->length = 0;
+                    }
+                    switch (range->mode) {
+                    case PHP_STREAM_MAP_MODE_READONLY:
+                        prot = PROT_READ;
+                        flags = MAP_PRIVATE;
+                        break;
+                    case PHP_STREAM_MAP_MODE_READWRITE:
+                        prot = PROT_READ | PROT_WRITE;
+                        flags = MAP_PRIVATE;
+                        break;
+                    case PHP_STREAM_MAP_MODE_SHARED_READONLY:
+                        prot = PROT_READ;
+                        flags = MAP_SHARED;
+                        break;
+                    case PHP_STREAM_MAP_MODE_SHARED_READWRITE:
+                        prot = PROT_READ | PROT_WRITE;
+                        flags = MAP_SHARED;
+                        break;
+                    default:
+                        return PHP_STREAM_OPTION_RETURN_ERR;
+                    }
+                    range->mapped = (char *) mmap(NULL, range->length, prot, flags, fd, range->offset);
+                    if (range->mapped == (char *) MAP_FAILED) {
+                        range->mapped = NULL;
+                        return PHP_STREAM_OPTION_RETURN_ERR;
+                    }
+                    /* remember the mapping */
+                    data->last_mapped_addr = range->mapped;
+                    data->last_mapped_len = range->length;
+                    return PHP_STREAM_OPTION_RETURN_OK;
 
-        case PHP_STREAM_MMAP_UNMAP:
-            if (data->last_mapped_addr) {
-                munmap(data->last_mapped_addr, data->last_mapped_len);
-                data->last_mapped_addr = NULL;
+                case PHP_STREAM_MMAP_UNMAP:
+                    if (data->last_mapped_addr) {
+                        munmap(data->last_mapped_addr, data->last_mapped_len);
+                        data->last_mapped_addr = NULL;
 
-                return PHP_STREAM_OPTION_RETURN_OK;
+                        return PHP_STREAM_OPTION_RETURN_OK;
+                    }
+                    return PHP_STREAM_OPTION_RETURN_ERR;
+                }
             }
-            return PHP_STREAM_OPTION_RETURN_ERR;
-        }
-    }
 #elif defined(PHP_WIN32)
-    {
-        php_stream_mmap_range *range = (php_stream_mmap_range *) ptrparam;
-        HANDLE hfile = (HANDLE) _get_osfhandle(fd);
-        DWORD prot, acc, loffs = 0, delta = 0;
+            {
+                php_stream_mmap_range *range = (php_stream_mmap_range *) ptrparam;
+                HANDLE hfile = (HANDLE) _get_osfhandle(fd);
+                DWORD prot, acc, loffs = 0, delta = 0;
 
-        switch (value) {
-        case PHP_STREAM_MMAP_SUPPORTED:
-            return hfile == INVALID_HANDLE_VALUE ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
+                switch (value) {
+                case PHP_STREAM_MMAP_SUPPORTED:
+                    return hfile == INVALID_HANDLE_VALUE ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
 
-        case PHP_STREAM_MMAP_MAP_RANGE:
-            switch (range->mode) {
-            case PHP_STREAM_MAP_MODE_READONLY:
-                prot = PAGE_READONLY;
-                acc = FILE_MAP_READ;
-                break;
-            case PHP_STREAM_MAP_MODE_READWRITE:
-                prot = PAGE_READWRITE;
-                acc = FILE_MAP_READ | FILE_MAP_WRITE;
-                break;
-            case PHP_STREAM_MAP_MODE_SHARED_READONLY:
-                prot = PAGE_READONLY;
-                acc = FILE_MAP_READ;
-                /* TODO: we should assign a name for the mapping */
-                break;
-            case PHP_STREAM_MAP_MODE_SHARED_READWRITE:
-                prot = PAGE_READWRITE;
-                acc = FILE_MAP_READ | FILE_MAP_WRITE;
-                /* TODO: we should assign a name for the mapping */
-                break;
-            default:
-                return PHP_STREAM_OPTION_RETURN_ERR;
+                case PHP_STREAM_MMAP_MAP_RANGE:
+                    switch (range->mode) {
+                    case PHP_STREAM_MAP_MODE_READONLY:
+                        prot = PAGE_READONLY;
+                        acc = FILE_MAP_READ;
+                        break;
+                    case PHP_STREAM_MAP_MODE_READWRITE:
+                        prot = PAGE_READWRITE;
+                        acc = FILE_MAP_READ | FILE_MAP_WRITE;
+                        break;
+                    case PHP_STREAM_MAP_MODE_SHARED_READONLY:
+                        prot = PAGE_READONLY;
+                        acc = FILE_MAP_READ;
+                        /* TODO: we should assign a name for the mapping */
+                        break;
+                    case PHP_STREAM_MAP_MODE_SHARED_READWRITE:
+                        prot = PAGE_READWRITE;
+                        acc = FILE_MAP_READ | FILE_MAP_WRITE;
+                        /* TODO: we should assign a name for the mapping */
+                        break;
+                    default:
+                        return PHP_STREAM_OPTION_RETURN_ERR;
+                    }
+
+                    /* create a mapping capable of viewing the whole file (this costs no real resources) */
+                    data->file_mapping = CreateFileMapping(hfile, NULL, prot, 0, 0, NULL);
+
+                    if (data->file_mapping == NULL) {
+                        return PHP_STREAM_OPTION_RETURN_ERR;
+                    }
+
+                    size = GetFileSize(hfile, NULL);
+                    if (range->length == 0 && range->offset > 0 && range->offset < size) {
+                        range->length = size - range->offset;
+                    }
+                    if (range->length == 0 || range->length > size) {
+                        range->length = size;
+                    }
+                    if (range->offset >= size) {
+                        range->offset = size;
+                        range->length = 0;
+                    }
+
+                    /* figure out how big a chunk to map to be able to view the part that we need */
+                    if (range->offset != 0) {
+                        SYSTEM_INFO info;
+                        DWORD gran;
+
+                        GetSystemInfo(&info);
+                        gran = info.dwAllocationGranularity;
+                        loffs = ((DWORD) range->offset / gran) * gran;
+                        delta = (DWORD) range->offset - loffs;
+                    }
+
+                    data->last_mapped_addr = MapViewOfFile(data->file_mapping, acc, 0, loffs, range->length + delta);
+
+                    if (data->last_mapped_addr) {
+                        /* give them back the address of the start offset they requested */
+                        range->mapped = data->last_mapped_addr + delta;
+                        return PHP_STREAM_OPTION_RETURN_OK;
+                    }
+
+                    CloseHandle(data->file_mapping);
+                    data->file_mapping = NULL;
+
+                    return PHP_STREAM_OPTION_RETURN_ERR;
+
+                case PHP_STREAM_MMAP_UNMAP:
+                    if (data->last_mapped_addr) {
+                        UnmapViewOfFile(data->last_mapped_addr);
+                        data->last_mapped_addr = NULL;
+                        CloseHandle(data->file_mapping);
+                        data->file_mapping = NULL;
+                        return PHP_STREAM_OPTION_RETURN_OK;
+                    }
+                    return PHP_STREAM_OPTION_RETURN_ERR;
+
+                default:
+                    return PHP_STREAM_OPTION_RETURN_ERR;
+                }
             }
-
-            /* create a mapping capable of viewing the whole file (this costs no real resources) */
-            data->file_mapping = CreateFileMapping(hfile, NULL, prot, 0, 0, NULL);
-
-            if (data->file_mapping == NULL) {
-                return PHP_STREAM_OPTION_RETURN_ERR;
-            }
-
-            size = GetFileSize(hfile, NULL);
-            if (range->length == 0 && range->offset > 0 && range->offset < size) {
-                range->length = size - range->offset;
-            }
-            if (range->length == 0 || range->length > size) {
-                range->length = size;
-            }
-            if (range->offset >= size) {
-                range->offset = size;
-                range->length = 0;
-            }
-
-            /* figure out how big a chunk to map to be able to view the part that we need */
-            if (range->offset != 0) {
-                SYSTEM_INFO info;
-                DWORD gran;
-
-                GetSystemInfo(&info);
-                gran = info.dwAllocationGranularity;
-                loffs = ((DWORD) range->offset / gran) * gran;
-                delta = (DWORD) range->offset - loffs;
-            }
-
-            data->last_mapped_addr = MapViewOfFile(data->file_mapping, acc, 0, loffs, range->length + delta);
-
-            if (data->last_mapped_addr) {
-                /* give them back the address of the start offset they requested */
-                range->mapped = data->last_mapped_addr + delta;
-                return PHP_STREAM_OPTION_RETURN_OK;
-            }
-
-            CloseHandle(data->file_mapping);
-            data->file_mapping = NULL;
-
-            return PHP_STREAM_OPTION_RETURN_ERR;
-
-        case PHP_STREAM_MMAP_UNMAP:
-            if (data->last_mapped_addr) {
-                UnmapViewOfFile(data->last_mapped_addr);
-                data->last_mapped_addr = NULL;
-                CloseHandle(data->file_mapping);
-                data->file_mapping = NULL;
-                return PHP_STREAM_OPTION_RETURN_OK;
-            }
-            return PHP_STREAM_OPTION_RETURN_ERR;
-
-        default:
-            return PHP_STREAM_OPTION_RETURN_ERR;
-        }
-    }
 
 #endif
-        return PHP_STREAM_OPTION_RETURN_NOTIMPL;
+            return PHP_STREAM_OPTION_RETURN_NOTIMPL;
 
-    case PHP_STREAM_OPTION_TRUNCATE_API:
-        switch (value) {
-        case PHP_STREAM_TRUNCATE_SUPPORTED:
-            return fd == -1 ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
+        case PHP_STREAM_OPTION_TRUNCATE_API:
+            switch (value) {
+                case PHP_STREAM_TRUNCATE_SUPPORTED:
+                    return fd == -1 ? PHP_STREAM_OPTION_RETURN_ERR : PHP_STREAM_OPTION_RETURN_OK;
 
-        case PHP_STREAM_TRUNCATE_SET_SIZE: {
-            ptrdiff_t new_size = *(ptrdiff_t *) ptrparam;
-            if (new_size < 0) {
-                return PHP_STREAM_OPTION_RETURN_ERR;
+                case PHP_STREAM_TRUNCATE_SET_SIZE: {
+                    ptrdiff_t new_size = *(ptrdiff_t *) ptrparam;
+                    if (new_size < 0) {
+                        return PHP_STREAM_OPTION_RETURN_ERR;
+                    }
+                    return ftruncate(fd, new_size) == 0 ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
+                }
             }
-            return ftruncate(fd, new_size) == 0 ? PHP_STREAM_OPTION_RETURN_OK : PHP_STREAM_OPTION_RETURN_ERR;
-        }
-        }
 
 #ifdef PHP_WIN32
-    case PHP_STREAM_OPTION_PIPE_BLOCKING:
-        data->is_pipe_blocking = value;
-        return PHP_STREAM_OPTION_RETURN_OK;
+            case PHP_STREAM_OPTION_PIPE_BLOCKING:
+                data->is_pipe_blocking = value;
+                return PHP_STREAM_OPTION_RETURN_OK;
 #endif
-    case PHP_STREAM_OPTION_META_DATA_API:
-        if (fd == -1) return -1;
+        case PHP_STREAM_OPTION_META_DATA_API:
+            if (fd == -1) return -1;
 #ifdef O_NONBLOCK
-        flags = fcntl(fd, F_GETFL, 0);
+            flags = fcntl(fd, F_GETFL, 0);
 
-        add_assoc_bool((zval *) ptrparam, "timed_out", 0);
-        add_assoc_bool((zval *) ptrparam, "blocked", (flags & O_NONBLOCK) ? 0 : 1);
-        add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
+            add_assoc_bool((zval *) ptrparam, "timed_out", 0);
+            add_assoc_bool((zval *) ptrparam, "blocked", (flags & O_NONBLOCK) ? 0 : 1);
+            add_assoc_bool((zval *) ptrparam, "eof", stream->eof);
 
-        return PHP_STREAM_OPTION_RETURN_OK;
+            return PHP_STREAM_OPTION_RETURN_OK;
 #endif
-        return -1;
-    default:
-        return PHP_STREAM_OPTION_RETURN_NOTIMPL;
+            return -1;
+        default:
+            return PHP_STREAM_OPTION_RETURN_NOTIMPL;
     }
 }
 /* }}} */
@@ -710,15 +723,15 @@ static int php_plain_files_dirstream_rewind(php_stream *stream, zend_off_t offse
 }
 
 static php_stream_ops php_plain_files_dirstream_ops = {
-    NULL,
-    php_plain_files_dirstream_read,
-    php_plain_files_dirstream_close,
-    NULL,
-    "dir",
-    php_plain_files_dirstream_rewind,
-    NULL, /* cast */
-    NULL, /* stat */
-    NULL  /* set_option */
+        NULL,
+        php_plain_files_dirstream_read,
+        php_plain_files_dirstream_close,
+        NULL,
+        "dir",
+        php_plain_files_dirstream_rewind,
+        NULL, /* cast */
+        NULL, /* stat */
+        NULL  /* set_option */
 };
 
 static php_stream *php_plain_files_dir_opener(php_stream_wrapper *wrapper,
@@ -760,6 +773,7 @@ static php_stream *php_plain_files_dir_opener(php_stream_wrapper *wrapper,
 
     return stream;
 }
+
 /* }}} */
 
 static php_stream *stream_fopen_rel(const char *filename,
@@ -791,16 +805,16 @@ static php_stream *stream_fopen_rel(const char *filename,
     if (persistent) {
         spprintf(&persistent_id, 0, "streams_stdio_%d_%s", open_flags, _realpath);
         switch (php_stream_from_persistent_id(persistent_id, &ret)) {
-        case PHP_STREAM_PERSISTENT_SUCCESS:
-            if (opened_path) {
-                // TODO: avoid reallocation???
-                *opened_path = zend_string_init(_realpath, strlen(_realpath), 0);
-            }
-            /* fall through */
+            case PHP_STREAM_PERSISTENT_SUCCESS:
+                if (opened_path) {
+                    // TODO: avoid reallocation???
+                    *opened_path = zend_string_init(_realpath, strlen(_realpath), 0);
+                }
+                /* fall through */
 
-        case PHP_STREAM_PERSISTENT_FAILURE:
-            efree(persistent_id);
-            return ret;
+            case PHP_STREAM_PERSISTENT_FAILURE:
+                efree(persistent_id);
+                return ret;
         }
     }
 #ifdef PHP_WIN32
@@ -880,7 +894,7 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper,
     }
     /** include file, cannot use async-io */
     if (options & STREAM_OPEN_FOR_INCLUDE) {
-    _open_for_include:
+        _open_for_include:
         stream = php_stream_fopen_rel(path, mode, opened_path, options);
         if (stream == NULL) {
             return NULL;
@@ -889,11 +903,12 @@ static php_stream *stream_opener(php_stream_wrapper *wrapper,
         return stream;
     }
 
-    return stream_fopen_rel(path, mode, opened_path, options STREAMS_REL_CC);
+    return stream_fopen_rel(path, mode, opened_path, options
+    STREAMS_REL_CC);
 }
 
 static int php_plain_files_url_stater(
-    php_stream_wrapper *wrapper, const char *url, int flags, php_stream_statbuf *ssb, php_stream_context *context) {
+        php_stream_wrapper *wrapper, const char *url, int flags, php_stream_statbuf *ssb, php_stream_context *context) {
     if (strncasecmp(url, "file://", sizeof("file://") - 1) == 0) {
         url += sizeof("file://") - 1;
     }
@@ -945,7 +960,8 @@ static int php_plain_files_unlink(php_stream_wrapper *wrapper,
 }
 
 static int php_plain_files_rename(
-    php_stream_wrapper *wrapper, const char *url_from, const char *url_to, int options, php_stream_context *context) {
+        php_stream_wrapper *wrapper, const char *url_from, const char *url_to, int options,
+        php_stream_context *context) {
     int ret;
 
     if (!url_from || !url_to) {
@@ -1029,7 +1045,7 @@ static int php_plain_files_rename(
 }
 
 static int php_plain_files_mkdir(
-    php_stream_wrapper *wrapper, const char *dir, int mode, int options, php_stream_context *context) {
+        php_stream_wrapper *wrapper, const char *dir, int mode, int options, php_stream_context *context) {
     int ret, recursive = options & PHP_STREAM_MKDIR_RECURSIVE;
     char *p;
 
@@ -1094,6 +1110,11 @@ static int php_plain_files_mkdir(
                 if (*p == '\0') {
                     *p = DEFAULT_SLASH;
                     if ((*(p + 1) != '\0') && (ret = mkdir(buf, (mode_t) mode)) < 0) {
+                        // parent directory is exists and has child directories
+                        if (EEXIST == errno && strlen(buf) < dir_len) {
+                            continue;
+                        }
+
                         if (options & REPORT_ERRORS) {
                             php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                         }
@@ -1143,7 +1164,7 @@ static int php_plain_files_rmdir(php_stream_wrapper *wrapper,
 }
 
 static int php_plain_files_metadata(
-    php_stream_wrapper *wrapper, const char *url, int option, void *value, php_stream_context *context) {
+        php_stream_wrapper *wrapper, const char *url, int option, void *value, php_stream_context *context) {
     struct utimbuf *newtime;
 #if !defined(WINDOWS) && !defined(NETWARE)
     uid_t uid;
@@ -1171,52 +1192,53 @@ static int php_plain_files_metadata(
     }
 
     switch (option) {
-    case PHP_STREAM_META_TOUCH:
-        newtime = (struct utimbuf *) value;
-        if (access(url, F_OK) != 0) {
-            int file = open(url, O_CREAT | O_WRONLY | O_TRUNC, 0666);
-            if (file == -1) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to create file %s because %s", url, strerror(errno));
-                return 0;
+        case PHP_STREAM_META_TOUCH:
+            newtime = (struct utimbuf *) value;
+            if (access(url, F_OK) != 0) {
+                int file = open(url, O_CREAT | O_WRONLY | O_TRUNC, 0666);
+                if (file == -1) {
+                    php_error_docref1(NULL, url, E_WARNING, "Unable to create file %s because %s", url,
+                                      strerror(errno));
+                    return 0;
+                }
+                close(file);
             }
-            close(file);
-        }
 
-        ret = utime(url, newtime);
-        break;
+            ret = utime(url, newtime);
+            break;
 #if !defined(WINDOWS) && !defined(NETWARE)
-    case PHP_STREAM_META_OWNER_NAME:
-    case PHP_STREAM_META_OWNER:
-        if (option == PHP_STREAM_META_OWNER_NAME) {
-            if (php_get_uid_by_name((char *) value, &uid) != SUCCESS) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to find uid for %s", (char *) value);
-                return 0;
+        case PHP_STREAM_META_OWNER_NAME:
+        case PHP_STREAM_META_OWNER:
+            if (option == PHP_STREAM_META_OWNER_NAME) {
+                if (php_get_uid_by_name((char *) value, &uid) != SUCCESS) {
+                    php_error_docref1(NULL, url, E_WARNING, "Unable to find uid for %s", (char *) value);
+                    return 0;
+                }
+            } else {
+                uid = (uid_t) *(long *) value;
             }
-        } else {
-            uid = (uid_t) * (long *) value;
-        }
-        ret = chown(url, uid, -1);
-        break;
-    case PHP_STREAM_META_GROUP:
-    case PHP_STREAM_META_GROUP_NAME:
-        if (option == PHP_STREAM_META_GROUP_NAME) {
-            if (php_get_gid_by_name((char *) value, &gid) != SUCCESS) {
-                php_error_docref1(NULL, url, E_WARNING, "Unable to find gid for %s", (char *) value);
-                return 0;
+            ret = chown(url, uid, -1);
+            break;
+        case PHP_STREAM_META_GROUP:
+        case PHP_STREAM_META_GROUP_NAME:
+            if (option == PHP_STREAM_META_GROUP_NAME) {
+                if (php_get_gid_by_name((char *) value, &gid) != SUCCESS) {
+                    php_error_docref1(NULL, url, E_WARNING, "Unable to find gid for %s", (char *) value);
+                    return 0;
+                }
+            } else {
+                gid = (gid_t) *(long *) value;
             }
-        } else {
-            gid = (gid_t) * (long *) value;
-        }
-        ret = chown(url, -1, gid);
-        break;
+            ret = chown(url, -1, gid);
+            break;
 #endif
-    case PHP_STREAM_META_ACCESS:
-        mode = (mode_t) * (zend_long *) value;
-        ret = chmod(url, mode);
-        break;
-    default:
-        php_error_docref1(NULL, url, E_WARNING, "Unknown option %d for stream_metadata", option);
-        return 0;
+        case PHP_STREAM_META_ACCESS:
+            mode = (mode_t) *(zend_long *) value;
+            ret = chmod(url, mode);
+            break;
+        default:
+            php_error_docref1(NULL, url, E_WARNING, "Unknown option %d for stream_metadata", option);
+            return 0;
     }
     if (ret == -1) {
         php_error_docref1(NULL, url, E_WARNING, "Operation failed: %s", strerror(errno));
@@ -1227,7 +1249,7 @@ static int php_plain_files_metadata(
 }
 
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC) {
-    php_stream *stream = sw_php_stream_fopen_from_fd_int_rel(fd, mode, persistent_id);
+    php_stream * stream = sw_php_stream_fopen_from_fd_int_rel(fd, mode, persistent_id);
 
     if (stream) {
         php_stdio_stream_data *self = (php_stdio_stream_data *) stream->abstract;
@@ -1242,7 +1264,7 @@ static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const 
         } else {
             stream->position = zend_lseek(self->fd, 0, SEEK_CUR);
 #ifdef ESPIPE
-            if (stream->position == (zend_off_t) -1 && errno == ESPIPE) {
+            if (stream->position == (zend_off_t) - 1 && errno == ESPIPE) {
                 stream->position = 0;
                 stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
                 self->is_pipe = 1;
@@ -1302,7 +1324,8 @@ static php_stream_wrapper_ops wrapper_ops = {stream_opener,
                                              php_plain_files_rmdir,
                                              php_plain_files_metadata};
 
-PHPAPI php_stream_wrapper sw_php_plain_files_wrapper = {&wrapper_ops, NULL, 0};
+PHPAPI php_stream_wrapper
+sw_php_plain_files_wrapper = {&wrapper_ops, NULL, 0};
 
 /*
  * Local variables:
