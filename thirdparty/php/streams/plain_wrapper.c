@@ -1094,8 +1094,8 @@ static int php_plain_files_mkdir(
                 if (*p == '\0') {
                     *p = DEFAULT_SLASH;
                     if ((*(p + 1) != '\0') && (ret = mkdir(buf, (mode_t) mode)) < 0) {
-                        // parent directory is exists and has child directories
-                        if (EEXIST == errno && strlen(buf) < dir_len) {
+                        // parent directory already exists and try to create child directories.
+                        if (EEXIST == errno && (int) strlen(buf) < dir_len) {
                             continue;
                         }
 
