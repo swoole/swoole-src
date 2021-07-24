@@ -24,12 +24,14 @@ function createDirectories($protocol = "")
 
     for ($i = 0; $i < 5; $i++) {
         Coroutine::create(static function () use ($i, $first, $second, $third, $barrier) {
-            if (mkdir($directory = $first.$second.$third.$i, 0755, true) && is_dir($directory)) {
-                rmdir($directory);
-                echo "SUCCESS".PHP_EOL;
+            if (!mkdir($directory = $first.$second.$third.$i, 0755, true) && !is_dir($directory)) {
+                throw new Exception("create directory failed");
             }
+            rmdir($directory);
         });
     }
+    echo "SUCCESS".PHP_EOL;
+
     Barrier::wait($barrier);
     rmdir($first.$second.$third);
     rmdir($first.$second);
@@ -52,20 +54,3 @@ SUCCESS
 SUCCESS
 SUCCESS
 SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-SUCCESS
-
