@@ -1085,7 +1085,7 @@ static int php_plain_files_mkdir(
 
         if (p == buf) {
             ret = mkdir(dir, mode);
-        } else if (!(ret = mkdir(buf, mode))) {
+        } else if ((ret = mkdir(buf, mode)) <= 0) {
             if (!p) {
                 p = buf;
             }
