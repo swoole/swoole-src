@@ -9,8 +9,6 @@ fi
 
 #-----------compile------------
 #-------print error only-------
-apt-get update -y
-apt-get install -y libcurl4-openssl-dev libc-ares-dev
 cd "${__DIR__}" && cd ../ && \
 ./clear.sh > /dev/null && \
 phpize --clean > /dev/null && \

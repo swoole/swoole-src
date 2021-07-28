@@ -8,7 +8,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: install-deps
-      run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl
+      run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
     - name: phpize
       run: phpize
     - name: build1
@@ -32,13 +32,17 @@ jobs:
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
         --enable-openssl --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
+    - name: build8
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
+        --enable-openssl --enable-cares --enable-debug-log &&
+        make clean && make -j$(sysctl -n hw.ncpu)
 
   build-ubuntu-old:
     runs-on: ubuntu-16.04
     steps:
     - uses: actions/checkout@v1
     - name: install-deps
-      run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl
+      run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
     - name: phpize
       run: phpize
     - name: build1
@@ -59,12 +63,16 @@ jobs:
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
         --enable-openssl --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
+    - name: build7
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
+        --enable-openssl --enable-cares --enable-debug-log &&
+        make clean && make -j$(sysctl -n hw.ncpu)
 
   build-macos-latest:
     runs-on: macos-latest
     steps:
     - name: install dependencies
-      run: brew install openssl && brew link openssl && brew install curl && brew link curl
+      run: brew install openssl && brew link openssl && brew install curl && brew link curl && brew install c-ares && brew link c-ares
     - uses: actions/checkout@v1
     - name: phpize
       run: phpize
@@ -86,6 +94,10 @@ jobs:
     - name: build6
       run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
         --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-debug-log &&
+        make clean && make -j$(sysctl -n hw.ncpu)
+    - name: build7
+      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
+        --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-cares --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
 
   build-alpine-latest:
