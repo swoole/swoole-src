@@ -111,7 +111,7 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
     size_t offset = 0;
     size_t len;
 
-    if (*buf == NULL) {
+    if (*buf == nullptr) {
         *buf = (char *) malloc(128);
         if (!*buf) {
             return SW_ERR;
@@ -137,7 +137,7 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
         newbuf = (char *) realloc(*buf, *bufsize * 2);
         if (!newbuf) {
             free(*buf);
-            *buf = NULL;
+            *buf = nullptr;
             return SW_ERR;
         }
         *buf = newbuf;
@@ -148,7 +148,7 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
 }
 
 static std::pair<std::string, std::string> get_hostent(FILE *fp) {
-    char *line = NULL, *p, *q;
+    char *line = nullptr, *p, *q;
     char *txtaddr, *txthost, *txtalias;
     int status;
     size_t linesize, naliases;
@@ -201,7 +201,7 @@ static std::pair<std::string, std::string> get_hostent(FILE *fp) {
             p++;
         }
 
-        txtalias = NULL;
+        txtalias = nullptr;
         if (*p) {
             q = p + 1;
             while (*q && isspace(*q)) {
