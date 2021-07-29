@@ -34,7 +34,8 @@ jobs:
            sudo make install
 
     - name: make test
-      run: cd core-tests && ./run.sh
+      run: 
+        cd core-tests && ./run.sh
 
     - name: run coverage
       shell: bash

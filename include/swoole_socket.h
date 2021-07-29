@@ -595,3 +595,4 @@ network::Socket *make_server_socket(enum swSocket_type socket_type,
                                     int backlog = SW_BACKLOG);
 bool verify_ip(int __af, const std::string &str);
 }  // namespace swoole
+

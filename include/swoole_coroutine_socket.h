@@ -596,6 +596,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 #ifdef SW_USE_CARES
 std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int family, double timeout);
 #endif
+std::string get_ip_by_hosts(std::string domain);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

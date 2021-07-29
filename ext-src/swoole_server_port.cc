@@ -166,7 +166,7 @@ const zend_function_entry swoole_server_port_methods[] =
 void php_swoole_server_port_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", nullptr, swoole_server_port_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_server_port);
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_server_port,

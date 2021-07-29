@@ -315,7 +315,7 @@ void swoole_native_curl_minit(int module_number) {
 #if PHP_VERSION_ID >= 80000
     SW_INIT_CLASS_ENTRY(
         swoole_coroutine_curl_handle, "Swoole\\Coroutine\\Curl\\Handle", nullptr, "Co\\Curl\\Handle", nullptr);
-    SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_curl_handle, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_coroutine_curl_handle);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_coroutine_curl_handle, curl_create_object, curl_free_obj, php_curl, std);
     swoole_coroutine_curl_handle_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
     swoole_coroutine_curl_handle_handlers.get_gc = curl_get_gc;

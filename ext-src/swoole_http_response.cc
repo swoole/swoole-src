@@ -263,7 +263,7 @@ const zend_function_entry swoole_http_response_methods[] =
 void php_swoole_http_response_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_http_response, "Swoole\\Http\\Response", "swoole_http_response", nullptr, swoole_http_response_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_http_response, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_response);
     SW_SET_CLASS_CLONEABLE(swoole_http_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_response, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_response,

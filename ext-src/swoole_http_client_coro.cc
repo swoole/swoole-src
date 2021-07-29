@@ -1712,7 +1712,7 @@ void php_swoole_http_client_coro_minit(int module_number) {
                         nullptr,
                         "Co\\Http\\Client",
                         swoole_http_client_coro_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_client_coro);
     SW_SET_CLASS_CLONEABLE(swoole_http_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_client_coro,

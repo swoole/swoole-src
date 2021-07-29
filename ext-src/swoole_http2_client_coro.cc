@@ -317,7 +317,7 @@ void php_swoole_http2_client_coro_minit(int module_number) {
                         nullptr,
                         "Co\\Http2\\Client",
                         swoole_http2_client_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_http2_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http2_client_coro);
     SW_SET_CLASS_CLONEABLE(swoole_http2_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_client_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http2_client_coro,
@@ -334,13 +334,13 @@ void php_swoole_http2_client_coro_minit(int module_number) {
                            swoole_exception);
 
     SW_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", "swoole_http2_request", nullptr, nullptr);
-    SW_SET_CLASS_SERIALIZABLE(swoole_http2_request, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http2_request);
     SW_SET_CLASS_CLONEABLE(swoole_http2_request, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_request, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http2_request);
 
     SW_INIT_CLASS_ENTRY(swoole_http2_response, "Swoole\\Http2\\Response", "swoole_http2_response", nullptr, nullptr);
-    SW_SET_CLASS_SERIALIZABLE(swoole_http2_response, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http2_response);
     SW_SET_CLASS_CLONEABLE(swoole_http2_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_response, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http2_response);
