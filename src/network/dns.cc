@@ -21,6 +21,9 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <unordered_map>
+#include <algorithm>
+#include <sstream>
 
 #define SW_PATH_HOSTS "/etc/hosts"
 
@@ -127,7 +130,7 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
 
         len = offset + strlen(*buf + offset);
         if ((*buf)[len - 1] == '\n') {
-            (*buf)[len - 1] = 0;
+            (*buf)[len - 1] = '\0';
             break;
         }
         offset = len;
@@ -147,89 +150,39 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
     return SW_OK;
 }
 
-static std::pair<std::string, std::string> get_hostent(FILE *fp) {
+static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
     char *line = nullptr, *p, *q;
-    char *txtaddr, *txthost, *txtalias;
     int status;
-    size_t linesize, naliases;
+    size_t linesize;
+    std::string txtaddr;
+    std::string domain;
+    std::vector<std::string> domains;
 
-    std::pair<std::string, std::string> result{};
-
+    std::unordered_map<std::string , std::string> result{};
     while ((status = read_line(fp, &line, &linesize)) == SW_OK) {
         p = line;
-        while (*p && (*p != '#')) {
-            p++;
+        if((q = (char *) memchr(p, '#', linesize))){
+            *q = '\0';
         }
-        *p = '\0';
 
-        q = p - 1;
-        while ((q >= line) && isspace(*q)) {
-            q--;
-        }
-        *++q = '\0';
-
-        p = line;
-        while (*p && isspace(*q)) {
-            q--;
-        }
-        if (!*p) {
+        if (*p == '\0' || *p == '\n') {
             continue;
         }
 
-        txtaddr = p;
-
-        while (*p && !isspace(*p)) {
-            p++;
+        std::stringstream stream(p);
+        while(stream >> domain){
+            domains.push_back(domain);
         }
-        if (!*p) {
+
+        if (domains.size() <= 1){
+            domains.clear();
             continue;
         }
 
-        *p = '\0';
-
-        p++;
-        while (*p && isspace(*p)) {
-            p++;
+        txtaddr = domains[0];
+        for(int i = 1; i < domains.size(); i++) {
+            result.insert(std::make_pair(domains[i], txtaddr));
         }
-        if (!*p) {
-            continue;
-        }
-
-        txthost = p;
-
-        while (*p && !isspace(*p)) {
-            p++;
-        }
-
-        txtalias = nullptr;
-        if (*p) {
-            q = p + 1;
-            while (*q && isspace(*q)) {
-                q++;
-            }
-            if (*q) {
-                txtalias = q;
-            }
-        }
-
-        *p = '\0';
-
-        naliases = 0;
-        if (txtalias) {
-            p = txtalias;
-            while (*p) {
-                while (*p && !isspace(*p)) {
-                    p++;
-                }
-                while (*p && isspace(*p)) {
-                    p++;
-                }
-                naliases++;
-            }
-        }
-
-        result.first = txthost;
-        result.second = txtaddr;
 
         free(line);
 
@@ -242,7 +195,6 @@ static std::pair<std::string, std::string> get_hostent(FILE *fp) {
 }
 
 std::string get_ip_by_hosts(std::string domain) {
-    std::unordered_map<std::string, std::string> _map;
     auto fp = fopen(SW_PATH_HOSTS, "r");
     if (fp == nullptr) {
         return "";
@@ -252,11 +204,13 @@ std::string get_ip_by_hosts(std::string domain) {
     };
     while (1) {
         auto result = get_hostent(fp);
-        if (result.first == "") {
+        if (result.empty()){
             break;
         }
-        if (result.first == domain) {
-            return result.second;
+
+        auto iter = result.find(domain);
+        if (iter != result.end()) {
+            return iter->second;
         }
     }
     return "";
