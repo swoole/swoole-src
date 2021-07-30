@@ -1085,7 +1085,7 @@ static int php_plain_files_mkdir(
 
         if (p == buf) {
             ret = mkdir(dir, mode);
-        } else if (!(ret = mkdir(buf, mode))) {
+        } else if (!(ret = mkdir(buf, mode)) || EEXIST == errno) {
             if (!p) {
                 p = buf;
             }
@@ -1094,6 +1094,11 @@ static int php_plain_files_mkdir(
                 if (*p == '\0') {
                     *p = DEFAULT_SLASH;
                     if ((*(p + 1) != '\0') && (ret = mkdir(buf, (mode_t) mode)) < 0) {
+                        // parent directory already exists and try to create child directories.
+                        if (EEXIST == errno && (int) strlen(buf) < dir_len) {
+                            continue;
+                        }
+
                         if (options & REPORT_ERRORS) {
                             php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
                         }
