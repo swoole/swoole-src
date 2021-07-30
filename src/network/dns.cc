@@ -22,7 +22,6 @@
 #include <iostream>
 #include <vector>
 #include <unordered_map>
-#include <algorithm>
 #include <sstream>
 
 #define SW_PATH_HOSTS "/etc/hosts"
@@ -161,12 +160,12 @@ static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
     std::unordered_map<std::string , std::string> result{};
     while ((status = read_line(fp, &line, &linesize)) == SW_OK) {
         p = line;
-        if((q = (char *) memchr(p, '#', linesize))){
-            *q = '\0';
+        if (*p == '\0') {
+            continue;
         }
 
-        if (*p == '\0' || *p == '\n') {
-            continue;
+        if((q = (char *) memchr(p, '#', linesize))){
+            *q = '\0';
         }
 
         std::stringstream stream(p);
