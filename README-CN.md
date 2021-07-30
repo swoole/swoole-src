@@ -14,7 +14,7 @@
 
 ## ⚙️ 快速启动
 
-你可以直接使用 [Docker](https://github.com/swoole/docker-swoole) 来执行Swoole的代码，例如：
+可以直接使用 [Docker](https://github.com/swoole/docker-swoole) 来执行Swoole的代码，例如：
 
 ```bash
 docker run --rm phpswoole/swoole "php --ri swoole"
@@ -22,7 +22,7 @@ docker run --rm phpswoole/swoole "php --ri swoole"
 
 具体的使用方式可以查看：[如何使用此镜像](https://github.com/swoole/docker-swoole#how-to-use-this-image) 。
 
-或者你可以在Swoole官网提供的 [在线编程页面](https://www.swoole.com/coding) 运行你的代码以及官网提供的示例代码。
+或者可以在Swoole官网提供的 [在线编程](https://www.swoole.com/coding) 页面运行代码以及官网提供的示例代码。
 
 ## ✨ 事件驱动
 
