@@ -151,24 +151,23 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
 
 static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
     char *line = nullptr, *p, *q;
-    int status;
     size_t linesize;
     std::string txtaddr;
     std::string domain;
     std::vector<std::string> domains;
 
     std::unordered_map<std::string , std::string> result{};
-    while ((status = read_line(fp, &line, &linesize)) == SW_OK) {
+    while (read_line(fp, &line, &linesize) == SW_OK) {
         p = line;
-        if (*p == '\0') {
-            continue;
-        }
-
         if((q = (char *) memchr(p, '#', linesize))){
             *q = '\0';
         }
 
-        std::stringstream stream(p);
+        if (*p == '\0') {
+            continue;
+        }
+
+        std::istringstream stream(p);
         while(stream >> domain){
             domains.push_back(domain);
         }
@@ -179,7 +178,7 @@ static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
         }
 
         txtaddr = domains[0];
-        for(int i = 1; i < domains.size(); i++) {
+        for(unsigned int i = 1; i < domains.size(); i++) {
             result.insert(std::make_pair(domains[i], txtaddr));
         }
 
