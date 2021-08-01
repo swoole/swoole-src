@@ -108,9 +108,6 @@ TEST(dns, gethosts) {
      * # 127.0.0.1 ddd.com
      */
 
-    ip = swoole::coroutine::get_ip_by_hosts("");
-    ASSERT_EQ(ip, "");
-
     std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
 
     ip = swoole::coroutine::get_ip_by_hosts("www.baidu.com");

@@ -157,7 +157,6 @@ static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
     std::vector<std::string> domains;
 
     std::unordered_map<std::string , std::string> result{};
-    printf("123\n");
     while (read_line(fp, &line, &linesize) == SW_OK) {
         p = line;
         if((q = (char *) memchr(p, '#', linesize))){
@@ -172,7 +171,7 @@ static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
         while(stream >> domain){
             domains.push_back(domain);
         }
-        printf("456\n");
+
         if (domains.empty() || domains.size() == 1){
             domains.clear();
             continue;
