@@ -99,7 +99,7 @@ TEST(dns, load_resolv_conf) {
 }
 
 TEST(dns, gethosts) {
-    ip = swoole::coroutine::get_ip_by_hosts("localhost");
+    std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
     ASSERT_EQ(ip, "127.0.0.1");
 
 
