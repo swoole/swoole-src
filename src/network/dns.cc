@@ -152,7 +152,7 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
 static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
     char *line = nullptr, *p, *q;
     size_t linesize;
-    std::string txtaddr = nullptr;
+    std::string txtaddr;
     std::string domain;
     std::vector<std::string> domains;
 
