@@ -104,15 +104,21 @@ TEST(dns, gethosts) {
      *
      * 127.0.0.1
      * 127.0.0.1 localhost                www.baidu.com
-     *                  127.0.0.1 aaa.com                       bbb.com  #ccc.com
+     *                  127.0.0.1                       bbb.com  #ccc.com
      *
-     * # 127.0.0.1 ddd.com
+     * # 127.0.0.1                         ddd.com
      */
+
+    std::string ip = swoole::coroutine::get_ip_by_hosts("");
+    ASSERT_EQ(ip, "");
 
     std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
     ASSERT_EQ(ip, "127.0.0.1");
 
     ip = swoole::coroutine::get_ip_by_hosts("www.baidu.com");
+    ASSERT_EQ(ip, "127.0.0.1");
+
+    ip = swoole::coroutine::get_ip_by_hosts("bbb.com");
     ASSERT_EQ(ip, "127.0.0.1");
 
     ip = swoole::coroutine::get_ip_by_hosts("ccc.com");
