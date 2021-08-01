@@ -100,7 +100,9 @@ TEST(dns, load_resolv_conf) {
 
 TEST(dns, gethosts) {
     /**
-     * the contents of /etc/hosts are as follow
+     * the contents of /etc/hosts file are as follow
+     *
+     * 127.0.0.1
      * 127.0.0.1 localhost www.baidu.com
      *                  127.0.0.1 aaa.com   bbb.com  #ccc.com
      * # 127.0.0.1 ddd.com
@@ -111,7 +113,6 @@ TEST(dns, gethosts) {
 
     ip = swoole::coroutine::get_ip_by_hosts("www.baidu.com");
     ASSERT_EQ(ip, "127.0.0.1");
-
 
     ip = swoole::coroutine::get_ip_by_hosts("ccc.com");
     ASSERT_EQ(ip, "");
