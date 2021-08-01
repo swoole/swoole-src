@@ -112,14 +112,14 @@ TEST(dns, gethosts) {
     std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
     ASSERT_EQ(ip, "127.0.0.1");
 
-    ip = swoole::coroutine::get_ip_by_hosts("www.baidu.com");
-    ASSERT_EQ(ip, "127.0.0.1");
-
-    ip = swoole::coroutine::get_ip_by_hosts("ccc.com");
-    ASSERT_EQ(ip, "");
-
-    ip = swoole::coroutine::get_ip_by_hosts("ddd.com");
-    ASSERT_EQ(ip, "");
+//    ip = swoole::coroutine::get_ip_by_hosts("www.baidu.com");
+//    ASSERT_EQ(ip, "127.0.0.1");
+//
+//    ip = swoole::coroutine::get_ip_by_hosts("ccc.com");
+//    ASSERT_EQ(ip, "");
+//
+//    ip = swoole::coroutine::get_ip_by_hosts("ddd.com");
+//    ASSERT_EQ(ip, "");
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
