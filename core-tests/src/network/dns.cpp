@@ -99,33 +99,9 @@ TEST(dns, load_resolv_conf) {
 }
 
 TEST(dns, gethosts) {
-    /**
-     * the contents of /etc/hosts file are as follow
-     *
-     * 127.0.0.1
-     * 127.0.0.1 localhost                www.baidu.com
-     *                  127.0.0.1                       bbb.com  #ccc.com
-     *
-     * # 127.0.0.1                         ddd.com
-     */
-
-    std::string ip = swoole::coroutine::get_ip_by_hosts("");
-    ASSERT_EQ(ip, "");
-
     ip = swoole::coroutine::get_ip_by_hosts("localhost");
     ASSERT_EQ(ip, "127.0.0.1");
 
-    ip = swoole::coroutine::get_ip_by_hosts("www.baidu.com");
-    ASSERT_EQ(ip, "127.0.0.1");
-
-    ip = swoole::coroutine::get_ip_by_hosts("bbb.com");
-    ASSERT_EQ(ip, "127.0.0.1");
-
-    ip = swoole::coroutine::get_ip_by_hosts("ccc.com");
-    ASSERT_EQ(ip, "");
-
-    ip = swoole::coroutine::get_ip_by_hosts("ddd.com");
-    ASSERT_EQ(ip, "");
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
