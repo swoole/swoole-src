@@ -493,7 +493,7 @@ class Server {
     enum DispatchMode {
         DISPATCH_ROUND = 1,
         DISPATCH_FDMOD = 2,
-        DISPATCH_QUEUE = 3,
+        DISPATCH_IDLE_WORKER = 3,
         DISPATCH_IPMOD = 4,
         DISPATCH_UIDMOD = 5,
         DISPATCH_USERFUNC = 6,
@@ -971,7 +971,7 @@ class Server {
     }
 
     inline bool is_support_unsafe_events() {
-        if (dispatch_mode != DISPATCH_ROUND && dispatch_mode != DISPATCH_QUEUE &&
+        if (dispatch_mode != DISPATCH_ROUND && dispatch_mode != DISPATCH_IDLE_WORKER &&
             dispatch_mode != DISPATCH_STREAM) {
             return true;
         } else {

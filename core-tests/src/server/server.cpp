@@ -44,7 +44,7 @@ TEST(server, schedule) {
     int ret;
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 6;
-    serv.dispatch_mode = SW_DISPATCH_QUEUE;
+    serv.dispatch_mode = Server::DISPATCH_IDLE_WORKER;
     ret = serv.create();
     ASSERT_EQ(SW_OK, ret);
 

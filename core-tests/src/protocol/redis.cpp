@@ -68,16 +68,16 @@ TEST(redis, server) {
 
     serv.onReceive = [](swServer *serv, swRecvData *req) -> int {
         int session_id = req->info.fd;
-        auto list = swRedis_parse(req->data, req->info.len);
+        auto list = redis::parse(req->data, req->info.len);
 
         String *buffer = sw_tg_buffer();
         buffer->clear();
 
         if (strcasecmp(list[0].c_str(), "GET") == 0) {
-            swRedis_format(buffer, SW_REDIS_REPLY_STRING, REDIS_TEST_VALUE);
+            redis::format(buffer, redis::REPLY_STRING, REDIS_TEST_VALUE);
             serv->send(session_id, buffer->str, buffer->length);
         } else if (strcasecmp(list[0].c_str(), "SET") == 0) {
-            swRedis_format(buffer, SW_REDIS_REPLY_STATUS, "OK");
+            redis::format(buffer, redis::REPLY_STATUS, "OK");
             serv->send(session_id, buffer->str, buffer->length);
         }
 

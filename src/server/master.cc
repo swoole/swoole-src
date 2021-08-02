@@ -974,7 +974,7 @@ int Server::schedule_worker(int fd, SendData *data) {
     } else if (dispatch_mode == DISPATCH_CO_REQ_LB) {
         return get_lowest_load_worker_id();
     }
-    // Preemptive distribution
+    // deliver tasks to idle worker processes
     else {
         uint32_t i;
         bool found = false;
