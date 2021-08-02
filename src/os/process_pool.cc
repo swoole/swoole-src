@@ -189,7 +189,8 @@ int ProcessPool::start() {
 }
 
 int ProcessPool::schedule() {
-    if (dispatch_mode == SW_DISPATCH_QUEUE) {
+    // schedule by system message queue
+    if (schedule_by_sysvmsg) {
         return 0;
     }
 
@@ -411,7 +412,7 @@ static int ProcessPool_worker_loop(ProcessPool *pool, Worker *worker) {
      */
     out.buf.info.server_fd = worker->id;
 
-    if (pool->dispatch_mode == SW_DISPATCH_QUEUE) {
+    if (pool->schedule_by_sysvmsg) {
         out.mtype = 0;
     } else {
         out.mtype = worker->id + 1;

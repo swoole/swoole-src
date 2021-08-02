@@ -714,9 +714,9 @@ void php_swoole_server_minit(int module_number) {
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("stats_timer"), ZEND_ACC_PUBLIC);
 
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_DISCARD_PACKET", SW_DISPATCH_RESULT_DISCARD_PACKET);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_CLOSE_CONNECTION", SW_DISPATCH_RESULT_CLOSE_CONNECTION);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK", SW_DISPATCH_RESULT_USERFUNC_FALLBACK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_DISCARD_PACKET", Server::DISPATCH_RESULT_DISCARD_PACKET);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_CLOSE_CONNECTION", Server::DISPATCH_RESULT_CLOSE_CONNECTION);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK", Server::DISPATCH_RESULT_USERFUNC_FALLBACK);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_TMPFILE", SW_TASK_TMPFILE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_SERIALIZE", SW_TASK_SERIALIZE);
@@ -1125,8 +1125,8 @@ void ServerObject::on_before_start() {
             php_swoole_fatal_error(
                 E_ERROR,
                 "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true",
-                SW_DISPATCH_FDMOD,
-                SW_DISPATCH_IPMOD);
+                Server::DISPATCH_FDMOD,
+                Server::DISPATCH_IPMOD);
             return;
         }
 
@@ -2273,7 +2273,7 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "send_yield", ztmp)) {
         serv->send_yield = zval_is_true(ztmp);
         if (serv->send_yield &&
-            !(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD)) {
+            !(serv->dispatch_mode == Server::DISPATCH_FDMOD || serv->dispatch_mode == Server::DISPATCH_IPMOD)) {
             php_swoole_error(E_WARNING, "'send_yield' option can only be set when using dispatch_mode=2/4");
             serv->send_yield = 0;
         }
@@ -2562,7 +2562,7 @@ static PHP_METHOD(swoole_server, set) {
     }
 
     if (serv->task_enable_coroutine &&
-        (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)) {
+        (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE)) {
         php_swoole_fatal_error(E_ERROR, "cannot use msgqueue when task_enable_coroutine is enable");
         RETURN_FALSE;
     }
@@ -3005,7 +3005,7 @@ static PHP_METHOD(swoole_server, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_dispatch_count"), SwooleWG.worker->dispatch_count);
     }
 
-    if (serv->task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
+    if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
         size_t queue_num = -1;
         size_t queue_bytes = -1;
         if (serv->gs->task_workers.queue->stat(&queue_num, &queue_bytes)) {
@@ -3625,10 +3625,10 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     } else {
         array_init(return_value);
 
-        if (conn->uid > 0 || serv->dispatch_mode == SW_DISPATCH_UIDMOD) {
+        if (conn->uid > 0 || serv->dispatch_mode == Server::DISPATCH_UIDMOD) {
             add_assoc_long(return_value, "uid", conn->uid);
         }
-        if (conn->worker_id > 0 || serv->dispatch_mode == SW_DISPATCH_CO_CONN_LB) {
+        if (conn->worker_id > 0 || serv->dispatch_mode == Server::DISPATCH_CO_CONN_LB) {
             add_assoc_long(return_value, "worker_id", conn->worker_id);
         }
 

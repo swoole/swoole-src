@@ -25,9 +25,9 @@ using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-namespace swoole {
+swoole::Server *g_server_instance = nullptr;
 
-Server *g_server_instance = nullptr;
+namespace swoole {
 
 static void Server_signal_handler(int sig);
 
@@ -376,10 +376,10 @@ int Server::create_task_workers() {
     key_t key = 0;
     swIPC_type ipc_mode;
 
-    if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
+    if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
         key = message_queue_key;
         ipc_mode = SW_IPC_MSGQUEUE;
-    } else if (task_ipc_mode == SW_TASK_IPC_STREAM) {
+    } else if (task_ipc_mode == TASK_IPC_STREAM) {
         ipc_mode = SW_IPC_SOCKET;
     } else {
         ipc_mode = SW_IPC_UNIXSOCK;
@@ -618,12 +618,10 @@ int Server::start() {
 Server::Server(enum Mode _mode) {
     swoole_init();
 
-    reactor_num = SW_REACTOR_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_REACTOR_NUM;
-
+    reactor_num = SW_CPU_NUM > SW_REACTOR_MAX_THREAD ? SW_REACTOR_MAX_THREAD : SW_CPU_NUM;
     worker_num = SW_CPU_NUM;
     max_connection = SW_MIN(SW_MAX_CONNECTION, SwooleG.max_sockets);
     mode_ = _mode;
-    factory = nullptr;
 
     // http server
 #ifdef SW_HAVE_COMPRESSION
@@ -923,21 +921,21 @@ int Server::schedule_worker(int fd, SendData *data) {
 
     if (dispatch_func) {
         int id = dispatch_func(this, get_connection(fd), data);
-        if (id != SW_DISPATCH_RESULT_USERFUNC_FALLBACK) {
+        if (id != DISPATCH_RESULT_USERFUNC_FALLBACK) {
             return id;
         }
     }
 
     // polling mode
-    if (dispatch_mode == SW_DISPATCH_ROUND) {
+    if (dispatch_mode == DISPATCH_ROUND) {
         key = sw_atomic_fetch_add(&worker_round_id, 1);
     }
     // Using the FD touch access to hash
-    else if (dispatch_mode == SW_DISPATCH_FDMOD) {
+    else if (dispatch_mode == DISPATCH_FDMOD) {
         key = fd;
     }
     // Using the IP touch access to hash
-    else if (dispatch_mode == SW_DISPATCH_IPMOD) {
+    else if (dispatch_mode == DISPATCH_IPMOD) {
         Connection *conn = get_connection(fd);
         // UDP
         if (conn == nullptr) {
@@ -957,14 +955,14 @@ int Server::schedule_worker(int fd, SendData *data) {
             key = conn->info.addr.inet_v6.sin6_addr.s6_addr32[3];
 #endif
         }
-    } else if (dispatch_mode == SW_DISPATCH_UIDMOD) {
+    } else if (dispatch_mode == DISPATCH_UIDMOD) {
         Connection *conn = get_connection(fd);
         if (conn == nullptr || conn->uid == 0) {
             key = fd;
         } else {
             key = conn->uid;
         }
-    } else if (dispatch_mode == SW_DISPATCH_CO_CONN_LB) {
+    } else if (dispatch_mode == DISPATCH_CO_CONN_LB) {
         Connection *conn = get_connection(fd);
         if (conn == nullptr) {
             return key % worker_num;
@@ -973,7 +971,7 @@ int Server::schedule_worker(int fd, SendData *data) {
             conn->worker_id = get_lowest_load_worker_id();
         }
         return conn->worker_id;
-    } else if (dispatch_mode == SW_DISPATCH_CO_REQ_LB) {
+    } else if (dispatch_mode == DISPATCH_CO_REQ_LB) {
         return get_lowest_load_worker_id();
     }
     // Preemptive distribution

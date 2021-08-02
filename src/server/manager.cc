@@ -114,7 +114,7 @@ int Server::start_manager_process() {
         SW_LOOP_N(task_worker_num) {
             worker = &gs->task_workers.workers[i];
             create_worker(worker);
-            if (task_ipc_mode == SW_TASK_IPC_UNIXSOCK) {
+            if (task_ipc_mode == TASK_IPC_UNIXSOCK) {
                 store_pipe_fd(worker->pipe_object);
             }
         }

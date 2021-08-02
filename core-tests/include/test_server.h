@@ -29,7 +29,7 @@ class Server
 {
 private:
     swoole::Server serv;
-    std::vector<swListenPort *> ports;
+    std::vector<ListenPort *> ports;
     std::unordered_map<std::string, void *> private_data;
     std::string host;
     int port;

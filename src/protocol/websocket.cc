@@ -253,7 +253,7 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
 
     String *frame_buffer;
     int frame_length;
-    swListenPort *port;
+    ListenPort *port;
 
     size_t offset;
     switch (ws.header.OPCODE) {

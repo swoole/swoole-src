@@ -39,14 +39,14 @@ void Server::init_task_workers() {
      * Make the task worker support asynchronous
      */
     if (task_enable_coroutine) {
-        if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
+        if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
             swError("cannot use msgqueue when task_enable_coroutine is enable");
             return;
         }
         pool->main_loop = TaskWorker_loop_async;
     }
-    if (task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
-        pool->dispatch_mode = SW_DISPATCH_QUEUE;
+    if (task_ipc_mode == TASK_IPC_PREEMPTIVE) {
+        pool->schedule_by_sysvmsg = true;
     }
 }
 

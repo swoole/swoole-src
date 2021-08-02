@@ -69,7 +69,7 @@ ProcessFactory::~ProcessFactory() {
 }
 
 bool ProcessFactory::start() {
-    if (server_->dispatch_mode == SW_DISPATCH_STREAM) {
+    if (server_->dispatch_mode == Server::DISPATCH_STREAM) {
         server_->stream_socket_file = swoole_string_format(64, "/tmp/swoole.%d.sock", server_->gs->master_pid);
         if (server_->stream_socket_file == nullptr) {
             return false;
@@ -156,9 +156,9 @@ bool ProcessFactory::dispatch(SendData *task) {
     int target_worker_id = server_->schedule_worker(fd, task);
     if (target_worker_id < 0) {
         switch (target_worker_id) {
-        case SW_DISPATCH_RESULT_DISCARD_PACKET:
+        case Server::DISPATCH_RESULT_DISCARD_PACKET:
             return false;
-        case SW_DISPATCH_RESULT_CLOSE_CONNECTION:
+        case Server::DISPATCH_RESULT_CLOSE_CONNECTION:
             // TODO: close connection
             return false;
         default:

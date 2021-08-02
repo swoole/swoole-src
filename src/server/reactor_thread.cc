@@ -532,7 +532,7 @@ void Server::init_reactor(Reactor *reactor) {
     // Read
     reactor->set_handler(SW_FD_SESSION | SW_EVENT_READ, ReactorThread_onRead);
 
-    if (dispatch_mode == SW_DISPATCH_STREAM) {
+    if (dispatch_mode == DISPATCH_STREAM) {
         Client::init_reactor(reactor);
     }
 
@@ -784,7 +784,7 @@ _init_master_thread:
         start_heartbeat_thread();
     }
 
-    SwooleTG.type = SW_THREAD_MASTER;
+    SwooleTG.type = THREAD_MASTER;
     SwooleTG.update_time = 1;
     SwooleTG.reactor = reactor;
 
@@ -901,7 +901,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
  */
 static void ReactorThread_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
-    SwooleTG.type = SW_THREAD_REACTOR;
+    SwooleTG.type = Server::THREAD_REACTOR;
 
     SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     ON_SCOPE_EXIT {
@@ -1081,7 +1081,7 @@ void Server::start_heartbeat_thread() {
     heartbeat_thread = std::thread([this]() {
         swSignal_none();
 
-        SwooleTG.type = SW_THREAD_HEARTBEAT;
+        SwooleTG.type = THREAD_HEARTBEAT;
         SwooleTG.id = reactor_num;
 
         while (running) {

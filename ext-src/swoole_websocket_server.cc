@@ -30,8 +30,6 @@ using swoole::SessionId;
 using swoole::String;
 using swoole::coroutine::Socket;
 
-using HttpRequest = swoole::http::Request;
-using HttpResponse = swoole::http::Response;
 using HttpContext = swoole::http::Context;
 
 namespace WebSocket = swoole::websocket;
