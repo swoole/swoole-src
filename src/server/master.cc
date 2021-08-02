@@ -25,9 +25,9 @@ using swoole::network::Address;
 using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
-swoole::Server *g_server_instance = nullptr;
-
 namespace swoole {
+
+Server *g_server_instance = nullptr;
 
 static void Server_signal_handler(int sig);
 
