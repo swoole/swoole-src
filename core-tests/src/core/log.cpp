@@ -130,13 +130,28 @@ void TestPrettyName::fun(bool strip, const char *expect_str) {
     ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
 }
 
-void test_pretty_name(bool strip, const char *expect_str) {
+static void test_pretty_name(bool strip, const char *expect_str) {
     ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
 }
+
+static void test_pretty_name_lambda(bool strip, const char *expect_str) {
+    auto fn = [](bool strip, const char *expect_str) {
+        ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+    };
+    fn(strip, expect_str);
+}
+
 }  // namespace TestA
 
-void test_pretty_name(bool strip, const char *expect_str) {
+static void test_pretty_name(bool strip, const char *expect_str) {
     ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+}
+
+static void test_pretty_name_lambda(bool strip, const char *expect_str) {
+    auto fn = [](bool strip, const char *expect_str) {
+        ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+    };
+    fn(strip, expect_str);
 }
 
 TEST(log, pretty_name) {
@@ -147,4 +162,12 @@ TEST(log, pretty_name) {
     TestA::TestPrettyName::fun(true, "TestPrettyName::fun");
     TestA::test_pretty_name(true, "test_pretty_name");
     test_pretty_name(true, "test_pretty_name");
+}
+
+TEST(log, pretty_name_lambda) {
+    TestA::test_pretty_name_lambda(true, "test_pretty_name_lambda");
+    test_pretty_name_lambda(true, "test_pretty_name_lambda");
+
+    TestA::test_pretty_name_lambda(false, "TestA::test_pretty_name_lambda");
+    test_pretty_name_lambda(false, "test_pretty_name_lambda");
 }
