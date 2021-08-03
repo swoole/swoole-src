@@ -231,7 +231,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                 SwooleTG.buffer_stack = nullptr;
             };
 
-            swSignal_none();
+            swoole_signal_block_all();
 
             while (running) {
                 event_mutex.lock();

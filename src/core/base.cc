@@ -164,7 +164,7 @@ void swoole_init(void) {
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
-    swSignalfd_init();
+    swoole_signalfd_init();
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
@@ -344,7 +344,7 @@ pid_t swoole_fork(int flags) {
         /**
          * reset signal handler
          */
-        swSignal_clear();
+        swoole_signal_clear();
     }
 
     return pid;

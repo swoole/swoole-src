@@ -265,7 +265,7 @@ void php_swoole_event_wait() {
     }
 #ifdef HAVE_SIGNALFD
     if (sw_reactor()->check_signalfd) {
-        swSignalfd_setup(sw_reactor());
+        swoole_signalfd_setup(sw_reactor());
     }
 #endif
     if (!sw_reactor()->if_exit() && !sw_reactor()->bailout) {
@@ -741,7 +741,7 @@ static PHP_FUNCTION(swoole_event_dispatch) {
 
 #ifdef HAVE_SIGNALFD
     if (sw_reactor()->check_signalfd) {
-        swSignalfd_setup(sw_reactor());
+        swoole_signalfd_setup(sw_reactor());
     }
 #endif
 

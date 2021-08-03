@@ -828,7 +828,7 @@ void Server::destroy() {
         ::close(null_fd);
         null_fd = -1;
     }
-    swSignal_clear();
+    swoole_signal_clear();
     /**
      * shutdown status
      */
@@ -1296,21 +1296,21 @@ bool Server::close(SessionId session_id, bool reset) {
 }
 
 void Server::init_signal_handler() {
-    swSignal_set(SIGPIPE, nullptr);
-    swSignal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGPIPE, nullptr);
+    swoole_signal_set(SIGHUP, nullptr);
     if (is_process_mode()) {
-        swSignal_set(SIGCHLD, Server_signal_handler);
+        swoole_signal_set(SIGCHLD, Server_signal_handler);
     } else {
-        swSignal_set(SIGIO, Server_signal_handler);
+        swoole_signal_set(SIGIO, Server_signal_handler);
     }
-    swSignal_set(SIGUSR1, Server_signal_handler);
-    swSignal_set(SIGUSR2, Server_signal_handler);
-    swSignal_set(SIGTERM, Server_signal_handler);
+    swoole_signal_set(SIGUSR1, Server_signal_handler);
+    swoole_signal_set(SIGUSR2, Server_signal_handler);
+    swoole_signal_set(SIGTERM, Server_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, Server_signal_handler);
+    swoole_signal_set(SIGRTMIN, Server_signal_handler);
 #endif
     // for test
-    swSignal_set(SIGVTALRM, Server_signal_handler);
+    swoole_signal_set(SIGVTALRM, Server_signal_handler);
 
     set_minfd(SwooleG.signal_fd);
 }
@@ -1515,7 +1515,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
 }
 
 static void Server_signal_handler(int sig) {
-    swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swSignal_str(sig), getpid());
+    swTraceLog(SW_TRACE_SERVER, "signal[%d] %s triggered in %d", sig, swoole_signal_to_str(sig), getpid());
 
     Server *serv = sw_server();
     if (!SwooleG.running or !serv) {
@@ -1539,7 +1539,7 @@ static void Server_signal_handler(int sig) {
         if (pid > 0 && pid == serv->gs->manager_pid) {
             swWarn("Fatal Error: manager process exit. status=%d, signal=[%s]",
                    WEXITSTATUS(status),
-                   swSignal_str(WTERMSIG(status)));
+                   swoole_signal_to_str(WTERMSIG(status)));
         }
         break;
         /**

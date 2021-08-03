@@ -231,15 +231,15 @@ void Manager::start(Server *_server) {
     };
 
     // for reload
-    swSignal_set(SIGHUP, nullptr);
-    swSignal_set(SIGCHLD, signal_handler);
-    swSignal_set(SIGTERM, signal_handler);
-    swSignal_set(SIGUSR1, signal_handler);
-    swSignal_set(SIGUSR2, signal_handler);
-    swSignal_set(SIGIO, signal_handler);
-    swSignal_set(SIGALRM, signal_handler);
+    swoole_signal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGCHLD, signal_handler);
+    swoole_signal_set(SIGTERM, signal_handler);
+    swoole_signal_set(SIGUSR1, signal_handler);
+    swoole_signal_set(SIGUSR2, signal_handler);
+    swoole_signal_set(SIGIO, signal_handler);
+    swoole_signal_set(SIGALRM, signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, signal_handler);
+    swoole_signal_set(SIGRTMIN, signal_handler);
 #endif
     // swSignal_set(SIGINT, signal_handler);
 #if defined(__linux__)

@@ -30,14 +30,14 @@
 using swoole::Reactor;
 
 #ifdef HAVE_SIGNALFD
-static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler);
-static bool swSignalfd_create();
-static void swSignalfd_clear();
-static int swSignalfd_onSignal(Reactor *reactor, swEvent *event);
+static swSignalHandler swoole_signalfd_set(int signo, swSignalHandler handler);
+static bool swoole_signalfd_create();
+static void swoole_signalfd_clear();
+static int swoole_signalfd_event_callback(Reactor *reactor, swEvent *event);
 #elif HAVE_KQUEUE
-static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler);
+static swSignalHandler swoole_signal_kqueue_set(int signo, swSignalHandler handler);
 #endif
-static void swSignal_async_handler(int signo);
+static void swoole_signal_async_handler(int signo);
 
 #ifdef HAVE_SIGNALFD
 static sigset_t signalfd_mask;
@@ -45,10 +45,10 @@ static int signal_fd = 0;
 static pid_t signalfd_create_pid;
 static swoole::network::Socket *signal_socket = nullptr;
 #endif
-static swSignal signals[SW_SIGNO_MAX];
+static swoole::Signal signals[SW_SIGNO_MAX];
 static int _lock = 0;
 
-char *swSignal_str(int sig) {
+char *swoole_signal_to_str(int sig) {
     static char buf[64];
     snprintf(buf, sizeof(buf), "%s", strsignal(sig));
     if (strchr(buf, ':') == 0) {
@@ -61,7 +61,7 @@ char *swSignal_str(int sig) {
 /**
  * block all singal
  */
-void swSignal_none(void) {
+void swoole_signal_block_all(void) {
     sigset_t mask;
     sigfillset(&mask);
     int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
@@ -73,7 +73,7 @@ void swSignal_none(void) {
 /**
  * set new signal handler and return origin signal handler
  */
-swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int mask) {
+swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, int mask) {
     // ignore
     if (func == nullptr) {
         func = SIG_IGN;
@@ -101,10 +101,10 @@ swSignalHandler swSignal_set(int signo, swSignalHandler func, int restart, int m
 /**
  * set new signal handler and return origin signal handler
  */
-swSignalHandler swSignal_set(int signo, swSignalHandler handler) {
+swSignalHandler swoole_signal_set(int signo, swSignalHandler handler) {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
-        return swSignalfd_set(signo, handler);
+        return swoole_signalfd_set(signo, handler);
     } else
 #endif
     {
@@ -120,12 +120,12 @@ swSignalHandler swSignal_set(int signo, swSignalHandler handler) {
             signals[signo].handler = handler;
             signals[signo].activated = true;
             signals[signo].signo = signo;
-            return swSignal_set(signo, swSignal_async_handler, 1, 0);
+            return swoole_signal_set(signo, swoole_signal_async_handler, 1, 0);
         }
     }
 }
 
-static void swSignal_async_handler(int signo) {
+static void swoole_signal_async_handler(int signo) {
     if (sw_reactor()) {
         sw_reactor()->singal_no = signo;
     } else {
@@ -134,25 +134,25 @@ static void swSignal_async_handler(int signo) {
             return;
         }
         _lock = 1;
-        swSignal_callback(signo);
+        swoole_signal_callback(signo);
         _lock = 0;
     }
 }
 
-void swSignal_callback(int signo) {
+void swoole_signal_callback(int signo) {
     if (signo >= SW_SIGNO_MAX) {
         swWarn("signal[%d] numberis invalid", signo);
         return;
     }
     swSignalHandler callback = signals[signo].handler;
     if (!callback) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swSignal_str(signo));
+        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swoole_signal_to_str(signo));
         return;
     }
     callback(signo);
 }
 
-swSignalHandler swSignal_get_handler(int signo) {
+swSignalHandler swoole_signal_get_handler(int signo) {
     if (signo >= SW_SIGNO_MAX) {
         swWarn("signal[%d] numberis invalid", signo);
         return nullptr;
@@ -161,10 +161,10 @@ swSignalHandler swSignal_get_handler(int signo) {
     }
 }
 
-void swSignal_clear(void) {
+void swoole_signal_clear(void) {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
-        swSignalfd_clear();
+        swoole_signalfd_clear();
     } else
 #endif
     {
@@ -177,7 +177,7 @@ void swSignal_clear(void) {
                 } else
 #endif
                 {
-                    swSignal_set(signals[i].signo, (swSignalHandler) -1, 1, 0);
+                    swoole_signal_set(signals[i].signo, (swSignalHandler) -1, 1, 0);
                 }
             }
         }
@@ -186,7 +186,7 @@ void swSignal_clear(void) {
 }
 
 #ifdef HAVE_SIGNALFD
-void swSignalfd_init() {
+void swoole_signalfd_init() {
     sigemptyset(&signalfd_mask);
     sw_memset_zero(&signals, sizeof(signals));
 }
@@ -194,7 +194,7 @@ void swSignalfd_init() {
 /**
  * set new signal handler and return origin signal handler
  */
-static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
+static swSignalHandler swoole_signalfd_set(int signo, swSignalHandler handler) {
     swSignalHandler origin_handler = nullptr;
 
     if (handler == nullptr && signals[signo].activated) {
@@ -210,18 +210,18 @@ static swSignalHandler swSignalfd_set(int signo, swSignalHandler handler) {
 
     if (sw_reactor()) {
         if (signal_fd == 0) {
-            swSignalfd_create();
+            swoole_signalfd_create();
         } else {
             sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
             signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
         }
-        swSignalfd_setup(sw_reactor());
+        swoole_signalfd_setup(sw_reactor());
     }
 
     return origin_handler;
 }
 
-static bool swSignalfd_create() {
+static bool swoole_signalfd_create() {
     if (signal_fd != 0) {
         return false;
     }
@@ -246,12 +246,12 @@ static bool swSignalfd_create() {
     return true;
 }
 
-bool swSignalfd_setup(Reactor *reactor) {
-    if (signal_fd == 0 && !swSignalfd_create()) {
+bool swoole_signalfd_setup(Reactor *reactor) {
+    if (signal_fd == 0 && !swoole_signalfd_create()) {
         return false;
     }
     if (!swoole_event_isset_handler(SW_FD_SIGNAL)) {
-        swoole_event_set_handler(SW_FD_SIGNAL, swSignalfd_onSignal);
+        swoole_event_set_handler(SW_FD_SIGNAL, swoole_signalfd_event_callback);
         reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, int &event_num) -> bool {
             event_num--;
             return true;
@@ -269,7 +269,7 @@ bool swSignalfd_setup(Reactor *reactor) {
     return true;
 }
 
-static void swSignalfd_clear() {
+static void swoole_signalfd_clear() {
     if (signal_fd) {
         if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, nullptr) < 0) {
             swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
@@ -283,7 +283,7 @@ static void swSignalfd_clear() {
     SwooleG.signal_fd = signal_fd = 0;
 }
 
-static int swSignalfd_onSignal(Reactor *reactor, swEvent *event) {
+static int swoole_signalfd_event_callback(Reactor *reactor, swEvent *event) {
     struct signalfd_siginfo siginfo;
     ssize_t n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0) {
@@ -304,7 +304,7 @@ static int swSignalfd_onSignal(Reactor *reactor, swEvent *event) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_UNREGISTERED_SIGNAL,
                              SW_UNREGISTERED_SIGNAL_FMT,
-                             swSignal_str(siginfo.ssi_signo));
+                             swoole_signal_to_str(siginfo.ssi_signo));
         }
     }
 
@@ -316,7 +316,7 @@ static int swSignalfd_onSignal(Reactor *reactor, swEvent *event) {
 /**
  * set new signal handler and return origin signal handler
  */
-static swSignalHandler swKqueueSignal_set(int signo, swSignalHandler handler) {
+static swSignalHandler swoole_signal_kqueue_set(int signo, swSignalHandler handler) {
     struct kevent ev;
     swSignalHandler origin_handler = nullptr;
     Reactor *reactor = sw_reactor();

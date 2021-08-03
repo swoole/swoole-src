@@ -316,7 +316,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
-        swSignalfd_setup(SwooleTG.reactor);
+        swoole_signalfd_setup(SwooleTG.reactor);
     }
 #endif
 

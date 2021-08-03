@@ -721,7 +721,7 @@ int Server::start_reactor_threads() {
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
-        swSignalfd_setup(reactor);
+        swoole_signalfd_setup(reactor);
     }
 #endif
 
@@ -934,7 +934,7 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
     }
 #endif
 
-    swSignal_none();
+    swoole_signal_block_all();
 
     if (ReactorThread_init(serv, reactor, reactor_id) < 0) {
         return;
@@ -1079,7 +1079,7 @@ void Server::destroy_reactor_threads() {
 
 void Server::start_heartbeat_thread() {
     heartbeat_thread = std::thread([this]() {
-        swSignal_none();
+        swoole_signal_block_all();
 
         SwooleTG.type = THREAD_HEARTBEAT;
         SwooleTG.id = reactor_num;

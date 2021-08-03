@@ -175,7 +175,7 @@ static void test_run_server(function<void(swServer *)> fn) {
 
 TEST(http_server, get) {
     test_run_server([](swServer *serv) {
-        swSignal_none();
+        swoole_signal_block_all();
 
         auto port = serv->get_primary_port();
 
@@ -190,7 +190,7 @@ TEST(http_server, get) {
 
 TEST(http_server, post) {
     test_run_server([](swServer *serv) {
-        swSignal_none();
+        swoole_signal_block_all();
 
         auto port = serv->get_primary_port();
 
@@ -208,7 +208,7 @@ TEST(http_server, post) {
 
 TEST(http_server, static_get) {
     test_run_server([](swServer *serv) {
-        swSignal_none();
+        swoole_signal_block_all();
 
         auto port = serv->get_primary_port();
 
@@ -241,7 +241,7 @@ static void websocket_test(int server_port, const char *data, size_t length) {
 
 TEST(http_server, websocket_small) {
     test_run_server([](swServer *serv) {
-        swSignal_none();
+        swoole_signal_block_all();
         websocket_test(serv->get_primary_port()->get_port(), SW_STRL("hello world, swoole is best!"));
         kill(getpid(), SIGTERM);
     });
@@ -249,7 +249,7 @@ TEST(http_server, websocket_small) {
 
 TEST(http_server, websocket_medium) {
     test_run_server([](swServer *serv) {
-        swSignal_none();
+        swoole_signal_block_all();
 
         swString str(8192);
         str.repeat("A", 1, 8192);
@@ -261,7 +261,7 @@ TEST(http_server, websocket_medium) {
 
 TEST(http_server, websocket_big) {
     test_run_server([](swServer *serv) {
-        swSignal_none();
+        swoole_signal_block_all();
 
         swString str(128 * 1024);
         str.repeat("A", 1, str.capacity() - 1);

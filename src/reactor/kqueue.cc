@@ -319,7 +319,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                         swoole_error_log(SW_LOG_WARNING,
                                          SW_ERROR_UNREGISTERED_SIGNAL,
                                          SW_UNREGISTERED_SIGNAL_FMT,
-                                         swSignal_str(sw_signal->signo));
+                                         swoole_signal_to_str(sw_signal->signo));
                     }
                 }
                 break;
