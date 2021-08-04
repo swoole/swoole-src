@@ -23,29 +23,41 @@
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
 #endif
+
 #ifdef HAVE_KQUEUE
+#ifdef USE_KQUEUE_IDE_HELPER
+#include "helper/kqueue.h"
+#else
 #include <sys/event.h>
 #endif
+#endif
 
+using swoole::Event;
 using swoole::Reactor;
+using swoole::Signal;
+using swoole::SignalHandler;
+using swoole::network::Socket;
 
 #ifdef HAVE_SIGNALFD
-static swSignalHandler swoole_signalfd_set(int signo, swSignalHandler handler);
+static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler);
 static bool swoole_signalfd_create();
 static void swoole_signalfd_clear();
-static int swoole_signalfd_event_callback(Reactor *reactor, swEvent *event);
-#elif HAVE_KQUEUE
-static swSignalHandler swoole_signal_kqueue_set(int signo, swSignalHandler handler);
+static int swoole_signalfd_event_callback(Reactor *reactor, Event *event);
 #endif
+
+#ifdef HAVE_KQUEUE
+static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler);
+#endif
+
 static void swoole_signal_async_handler(int signo);
 
 #ifdef HAVE_SIGNALFD
 static sigset_t signalfd_mask;
 static int signal_fd = 0;
 static pid_t signalfd_create_pid;
-static swoole::network::Socket *signal_socket = nullptr;
+static Socket *signal_socket = nullptr;
 #endif
-static swoole::Signal signals[SW_SIGNO_MAX];
+static Signal signals[SW_SIGNO_MAX];
 static int _lock = 0;
 
 char *swoole_signal_to_str(int sig) {
@@ -73,7 +85,7 @@ void swoole_signal_block_all(void) {
 /**
  * set new signal handler and return origin signal handler
  */
-swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, int mask) {
+SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int mask) {
     // ignore
     if (func == nullptr) {
         func = SIG_IGN;
@@ -101,7 +113,7 @@ swSignalHandler swoole_signal_set(int signo, swSignalHandler func, int restart, 
 /**
  * set new signal handler and return origin signal handler
  */
-swSignalHandler swoole_signal_set(int signo, swSignalHandler handler) {
+SignalHandler swoole_signal_set(int signo, SignalHandler handler) {
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
         return swoole_signalfd_set(signo, handler);
@@ -113,7 +125,7 @@ swSignalHandler swoole_signal_set(int signo, swSignalHandler handler) {
         // see https://www.freebsd.org/cgi/man.cgi?kqueue
         // if there's no main reactor, signals cannot be monitored either
         if (signo != SIGCHLD && sw_reactor()) {
-            return swKqueueSignal_set(signo, handler);
+            return swoole_signal_kqueue_set(signo, handler);
         } else
 #endif
         {
@@ -144,15 +156,16 @@ void swoole_signal_callback(int signo) {
         swWarn("signal[%d] numberis invalid", signo);
         return;
     }
-    swSignalHandler callback = signals[signo].handler;
+    SignalHandler callback = signals[signo].handler;
     if (!callback) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swoole_signal_to_str(signo));
+        swoole_error_log(
+            SW_LOG_WARNING, SW_ERROR_UNREGISTERED_SIGNAL, SW_UNREGISTERED_SIGNAL_FMT, swoole_signal_to_str(signo));
         return;
     }
     callback(signo);
 }
 
-swSignalHandler swoole_signal_get_handler(int signo) {
+SignalHandler swoole_signal_get_handler(int signo) {
     if (signo >= SW_SIGNO_MAX) {
         swWarn("signal[%d] numberis invalid", signo);
         return nullptr;
@@ -173,11 +186,11 @@ void swoole_signal_clear(void) {
             if (signals[i].activated) {
 #ifdef HAVE_KQUEUE
                 if (signals[i].signo != SIGCHLD && sw_reactor()) {
-                    swKqueueSignal_set(signals[i].signo, nullptr);
+                    swoole_signal_kqueue_set(signals[i].signo, nullptr);
                 } else
 #endif
                 {
-                    swoole_signal_set(signals[i].signo, (swSignalHandler) -1, 1, 0);
+                    swoole_signal_set(signals[i].signo, (SignalHandler) -1, 1, 0);
                 }
             }
         }
@@ -194,12 +207,12 @@ void swoole_signalfd_init() {
 /**
  * set new signal handler and return origin signal handler
  */
-static swSignalHandler swoole_signalfd_set(int signo, swSignalHandler handler) {
-    swSignalHandler origin_handler = nullptr;
+static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
+    SignalHandler origin_handler = nullptr;
 
     if (handler == nullptr && signals[signo].activated) {
         sigdelset(&signalfd_mask, signo);
-        sw_memset_zero(&signals[signo], sizeof(swSignal));
+        sw_memset_zero(&signals[signo], sizeof(Signal));
     } else {
         sigaddset(&signalfd_mask, signo);
         origin_handler = signals[signo].handler;
@@ -283,7 +296,7 @@ static void swoole_signalfd_clear() {
     SwooleG.signal_fd = signal_fd = 0;
 }
 
-static int swoole_signalfd_event_callback(Reactor *reactor, swEvent *event) {
+static int swoole_signalfd_event_callback(Reactor *reactor, Event *event) {
     struct signalfd_siginfo siginfo;
     ssize_t n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0) {
@@ -295,7 +308,7 @@ static int swoole_signalfd_event_callback(Reactor *reactor, swEvent *event) {
         return SW_OK;
     }
     if (signals[siginfo.ssi_signo].activated) {
-        swSignalHandler handler = signals[siginfo.ssi_signo].handler;
+        SignalHandler handler = signals[siginfo.ssi_signo].handler;
         if (handler == SIG_IGN) {
             return SW_OK;
         } else if (handler) {
@@ -316,15 +329,15 @@ static int swoole_signalfd_event_callback(Reactor *reactor, swEvent *event) {
 /**
  * set new signal handler and return origin signal handler
  */
-static swSignalHandler swoole_signal_kqueue_set(int signo, swSignalHandler handler) {
+static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) {
     struct kevent ev;
-    swSignalHandler origin_handler = nullptr;
+    SignalHandler origin_handler = nullptr;
     Reactor *reactor = sw_reactor();
 
     // clear signal
     if (handler == nullptr) {
         signal(signo, SIG_DFL);
-        sw_memset_zero(&signals[signo], sizeof(swSignal));
+        sw_memset_zero(&signals[signo], sizeof(Signal));
         EV_SET(&ev, signo, EVFILT_SIGNAL, EV_DELETE, 0, 0, NULL);
     }
     // add/update signal

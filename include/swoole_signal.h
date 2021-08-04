@@ -21,17 +21,16 @@
 #include <signal.h>
 
 namespace swoole {
-    typedef void (*SignalHandler)(int);
+typedef void (*SignalHandler)(int);
 
-    struct Signal {
-        SignalHandler handler;
-        uint16_t signo;
-        bool activated;
-    };
-}
+struct Signal {
+    SignalHandler handler;
+    uint16_t signo;
+    bool activated;
+};
+}  // namespace swoole
 
 typedef swoole::SignalHandler swSignalHandler;
-typedef swoole::Signal swSignal;
 
 #ifdef HAVE_SIGNALFD
 void swoole_signalfd_init();
