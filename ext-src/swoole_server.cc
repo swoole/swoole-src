@@ -77,7 +77,7 @@ static void php_swoole_server_onManagerStart(Server *serv);
 static void php_swoole_server_onManagerStop(Server *serv);
 static void php_swoole_server_onSendTimeout(Timer *timer, TimerNode *tnode);
 
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd);
+static enum swReturnCode php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd);
 static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
@@ -1965,7 +1965,7 @@ static void php_swoole_server_onSendTimeout(Timer *timer, TimerNode *tnode) {
     efree(context);
 }
 
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd) {
+static enum swReturnCode php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd) {
     char *data;
     zval *zdata = &context->coro_params;
     zval result;
@@ -2154,7 +2154,7 @@ static PHP_METHOD(swoole_server, __construct) {
                 RETURN_FALSE;
             }
         } else {
-            ListenPort *port = serv->add_port((enum swSocket_type) sock_type, host, serv_port);
+            ListenPort *port = serv->add_port((enum swSocketType) sock_type, host, serv_port);
             if (!port) {
                 zend_throw_exception_ex(swoole_exception_ce,
                                         errno,
@@ -2668,7 +2668,7 @@ static PHP_METHOD(swoole_server, listen) {
         RETURN_FALSE;
     }
 
-    ListenPort *ls = serv->add_port((enum swSocket_type) sock_type, host, (int) port);
+    ListenPort *ls = serv->add_port((enum swSocketType) sock_type, host, (int) port);
     if (!ls) {
         RETURN_FALSE;
     }
@@ -2828,7 +2828,7 @@ static PHP_METHOD(swoole_server, sendto) {
     char *data;
     size_t len;
     zend_long server_socket_fd = -1;
-    enum swSocket_type type;
+    enum swSocketType type;
 
     ZEND_PARSE_PARAMETERS_START(3, 4)
     Z_PARAM_STRING(addr, addr_len)

@@ -23,7 +23,7 @@
 using swoole::Protocol;
 using swoole::network::Socket;
 
-void swMqtt_print_package(swMqtt_packet *pkg) {
+void swMqtt_print_package(swMqttPacket *pkg) {
     printf("type=%d, length=%d\n", pkg->type, pkg->length);
 }
 

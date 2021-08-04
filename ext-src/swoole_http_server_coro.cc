@@ -70,7 +70,7 @@ class http_server {
     uint32_t compression_min_length;
 #endif
 
-    http_server(enum swSocket_type type) {
+    http_server(enum swSocketType type) {
         socket = new Socket(type);
         default_handler = nullptr;
         array_init(&zcallbacks);

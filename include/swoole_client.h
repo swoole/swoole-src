@@ -35,7 +35,7 @@ class Client {
     int _sock_type = 0;
     int _sock_domain = 0;
     int _protocol = 0;
-    enum swFd_type fd_type;
+    enum swFdType fd_type;
     bool active = false;
     bool async = false;
     bool keep = false;
@@ -118,7 +118,7 @@ class Client {
     ssize_t (*recv)(Client *cli, char *data, size_t length, int flags) = nullptr;
 
     static void init_reactor(Reactor *reactor);
-    Client(enum swSocket_type type, bool async);
+    Client(enum swSocketType type, bool async);
     ~Client();
 
     void set_http_proxy(const std::string &host, int port) {
@@ -164,7 +164,7 @@ class Stream {
     int send(const char *data, size_t length);
     void set_max_length(uint32_t max_length);
 
-    inline static Stream *create(const char *dst_host, int dst_port, enum swSocket_type type) {
+    inline static Stream *create(const char *dst_host, int dst_port, enum swSocketType type) {
         Stream *stream = new Stream(dst_host, dst_port, type);
         if (!stream->connected) {
             delete stream;
@@ -178,7 +178,7 @@ class Stream {
     static void set_protocol(Protocol *protocol);
 
   private:
-    Stream(const char *dst_host, int dst_port, enum swSocket_type type);
+    Stream(const char *dst_host, int dst_port, enum swSocketType type);
 };
 //----------------------------------------Stream End------------------------------------
 
@@ -188,10 +188,10 @@ class SyncClient {
     bool connected = false;
     bool created;
     bool async = false;
-    enum swSocket_type type;
+    enum swSocketType type;
 
   public:
-    SyncClient(enum swSocket_type _type, bool _async = false) : client(_type, _async), async(_async), type(_type) {
+    SyncClient(enum swSocketType _type, bool _async = false) : client(_type, _async), async(_async), type(_type) {
         created = client.socket != nullptr;
     }
 
@@ -252,7 +252,7 @@ class AsyncClient : public SyncClient {
     std::function<void(AsyncClient *, const char *data, size_t length)> _onReceive = nullptr;
 
   public:
-    AsyncClient(enum swSocket_type _type) : SyncClient(_type, true) {}
+    AsyncClient(enum swSocketType _type) : SyncClient(_type, true) {}
 
     bool connect(const char *host, int port, double timeout = -1) {
         client.object = this;

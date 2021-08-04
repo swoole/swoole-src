@@ -24,7 +24,7 @@
 #define SW_MQTT_MAX_LENGTH_SIZE 4
 #define SW_MQTT_MAX_PAYLOAD_SIZE 268435455
 
-enum swMqtt_opcode {
+enum swMqttOpcode {
     SW_MQTT_CONNECT = 0x10,
     SW_MQTT_CONNACK = 0x20,
     SW_MQTT_PUBLISH = 0x30,
@@ -41,7 +41,7 @@ enum swMqtt_opcode {
     SW_MQTT_DISCONNECT = 0xE0,
 };
 
-struct swMqtt_packet {
+struct swMqttPacket {
     uint8_t type : 4;
     uint8_t dup : 1;
     uint8_t qos : 2;

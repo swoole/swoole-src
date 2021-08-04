@@ -99,7 +99,7 @@ int Socket::error_event_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-bool Socket::add_event(const enum swEvent_type event) {
+bool Socket::add_event(const enum swEventType event) {
     bool ret = true;
     if (sw_likely(!(socket->events & event))) {
         if (socket->removed) {
@@ -119,8 +119,8 @@ bool Socket::add_event(const enum swEvent_type event) {
  * We only need to set the errCode for the socket operation when wait_event returns true,
  * which means that the exception's error code priority is greater than the current event error priority.
  */
-bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n) {
-    enum swEvent_type added_event = event;
+bool Socket::wait_event(const enum swEventType event, const void **__buf, size_t __n) {
+    enum swEventType added_event = event;
     Coroutine *co = Coroutine::get_current_safe();
     if (!co) {
         return false;
@@ -451,7 +451,7 @@ bool Socket::http_proxy_handshake() {
     return ret;
 }
 
-void Socket::init_sock_type(enum swSocket_type _sw_type) {
+void Socket::init_sock_type(enum swSocketType _sw_type) {
     type = _sw_type;
     network::Socket::get_domain_and_type(_sw_type, &sock_domain, &sock_type);
 }
@@ -487,7 +487,7 @@ Socket::Socket(int _domain, int _type, int _protocol)
     init_options();
 }
 
-Socket::Socket(enum swSocket_type _type) {
+Socket::Socket(enum swSocketType _type) {
     init_sock_type(_type);
     if (sw_unlikely(!init_sock())) {
         return;
@@ -495,7 +495,7 @@ Socket::Socket(enum swSocket_type _type) {
     init_options();
 }
 
-Socket::Socket(int _fd, enum swSocket_type _type) {
+Socket::Socket(int _fd, enum swSocketType _type) {
     init_sock_type(_type);
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
@@ -765,7 +765,7 @@ ssize_t Socket::peek(void *__buf, size_t __n) {
     return retval;
 }
 
-bool Socket::poll(enum swEvent_type type) {
+bool Socket::poll(enum swEventType type) {
     if (sw_unlikely(!is_available(type))) {
         return -1;
     }
@@ -1257,7 +1257,7 @@ bool Socket::ssl_handshake() {
             }
         }
     } else {
-        enum swReturn_code retval;
+        enum swReturnCode retval;
         TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
         do {
@@ -1670,7 +1670,7 @@ bool Socket::ssl_shutdown() {
 }
 #endif
 
-bool Socket::cancel(const enum swEvent_type event) {
+bool Socket::cancel(const enum swEventType event) {
     if (!has_bound(event)) {
         return false;
     }

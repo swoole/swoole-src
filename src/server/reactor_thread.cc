@@ -40,13 +40,13 @@ static void ReactorThread_shutdown(Reactor *reactor);
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
 
 #ifdef SW_USE_OPENSSL
-static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
+static inline enum swReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
     Server *serv = (Server *) reactor->ptr;
     if (!_socket->ssl || _socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_CONTINUE;
     }
 
-    enum swReturn_code code = _socket->ssl_accept();
+    enum swReturnCode code = _socket->ssl_accept();
     if (code != SW_READY) {
         return code;
     }
@@ -573,7 +573,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
         }
     }
 #endif
-    enum swReturn_code code = ReactorThread_verify_ssl_state(reactor, port, event->socket);
+    enum swReturnCode code = ReactorThread_verify_ssl_state(reactor, port, event->socket);
     switch (code) {
     case SW_ERROR:
         return Server::close_connection(reactor, event->socket);

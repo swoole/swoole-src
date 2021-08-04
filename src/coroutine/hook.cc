@@ -505,7 +505,7 @@ int swoole_coroutine_socket_wait_event(int sockfd, int event, double timeout) {
     }
     double ori_timeout = socket->get_timeout(event == SW_EVENT_READ ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
     socket->set_timeout(timeout);
-    bool retval = socket->poll((enum swEvent_type) event);
+    bool retval = socket->poll((enum swEventType) event);
     socket->set_timeout(ori_timeout);
     return retval ? SW_OK : SW_ERR;
 }

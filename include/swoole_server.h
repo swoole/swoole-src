@@ -64,7 +64,7 @@ struct Connection {
      * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
-    enum swSocket_type socket_type;
+    enum swSocketType socket_type;
     int fd;
     int worker_id;
     SessionId session_id;
@@ -168,7 +168,7 @@ struct PipeBuffer {
 };
 
 struct DgramPacket {
-    enum swSocket_type socket_type;
+    enum swSocketType socket_type;
     network::Address socket_addr;
     uint32_t length;
     char data[0];
@@ -217,7 +217,7 @@ struct ListenPort {
     uint32_t buffer_high_watermark = 0;
     uint32_t buffer_low_watermark = 0;
 
-    enum swSocket_type type = SW_SOCK_TCP;
+    enum swSocketType type = SW_SOCK_TCP;
     uint8_t ssl = 0;
     std::string host;
     int port = 0;
@@ -358,7 +358,7 @@ struct ListenPort {
     const char *get_host() {
         return host.c_str();
     }
-    enum swSocket_type get_type() {
+    enum swSocketType get_type() {
         return type;
     }
     int get_fd() {
@@ -908,7 +908,7 @@ class Server {
     void shutdown();
 
     int add_worker(Worker *worker);
-    ListenPort *add_port(enum swSocket_type type, const char *host, int port);
+    ListenPort *add_port(enum swSocketType type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);

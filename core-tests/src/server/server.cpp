@@ -185,7 +185,7 @@ TEST(server, ssl) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocket_type )(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port((enum swSocketType )(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -248,7 +248,7 @@ TEST(server, dtls) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocket_type )(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port((enum swSocketType )(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);

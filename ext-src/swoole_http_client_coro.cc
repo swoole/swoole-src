@@ -246,7 +246,7 @@ class HttpClient {
 
   private:
     Socket *socket = nullptr;
-    swSocket_type socket_type = SW_SOCK_TCP;
+    swSocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
     bool wait = false;
 };

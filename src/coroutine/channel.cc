@@ -31,7 +31,7 @@ void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
     msg->co->resume();
 }
 
-void Channel::yield(enum opcode type) {
+void Channel::yield(enum Opcode type) {
     Coroutine *co = Coroutine::get_current_safe();
     if (type == PRODUCER) {
         producer_queue.push_back(co);

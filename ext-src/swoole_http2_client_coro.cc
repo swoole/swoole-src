@@ -172,7 +172,7 @@ class Client {
     uint32_t send_request(zval *zrequest);
     bool write_data(uint32_t stream_id, zval *zdata, bool end);
     bool send_goaway_frame(zend_long error_code, const char *debug_data, size_t debug_data_len);
-    enum swReturn_code parse_frame(zval *return_value, bool pipeline_read = false);
+    enum swReturnCode parse_frame(zval *return_value, bool pipeline_read = false);
     bool close();
 
     ~Client() {
@@ -494,7 +494,7 @@ bool Client::close() {
     return true;
 }
 
-enum swReturn_code Client::parse_frame(zval *return_value, bool pipeline_read) {
+enum swReturnCode Client::parse_frame(zval *return_value, bool pipeline_read) {
     char *buf = client->get_read_buffer()->str;
     uint8_t type = buf[3];
     uint8_t flags = buf[4];
@@ -1350,7 +1350,7 @@ static void php_swoole_http2_client_coro_recv(INTERNAL_FUNCTION_PARAMETERS, bool
         if (!h2c->recv_packet(timeout)) {
             RETURN_FALSE;
         }
-        enum swReturn_code ret = h2c->parse_frame(return_value, pipeline_read);
+        enum swReturnCode ret = h2c->parse_frame(return_value, pipeline_read);
         if (ret == SW_CONTINUE) {
             continue;
         } else if (ret == SW_READY) {

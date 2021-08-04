@@ -340,12 +340,12 @@ static inline void swoole_strtolower(char *str, int length) {
 }
 
 /*--------------------------------Constants------------------------------------*/
-enum swResult_code {
+enum swResultCode {
     SW_OK  = 0,
     SW_ERR = -1,
 };
 
-enum swReturn_code {
+enum swReturnCode {
     SW_CONTINUE = 1,
     SW_WAIT     = 2,
     SW_CLOSE    = 3,
@@ -354,7 +354,7 @@ enum swReturn_code {
     SW_INVALID  = 6,
 };
 
-enum swFd_type {
+enum swFdType {
     SW_FD_SESSION,        // server stream session
     SW_FD_STREAM_SERVER,  // server stream port
     SW_FD_DGRAM_SERVER,   // server dgram port
@@ -387,13 +387,13 @@ enum swFd_type {
     SW_FD_DGRAM_CLIENT,
 };
 
-enum swSocket_flag {
+enum swSocketFlag {
     SW_SOCK_NONBLOCK = 1 << 2,
     SW_SOCK_CLOEXEC  = 1 << 3,
     SW_SOCK_SSL      = (1u << 9),
 };
 
-enum swSocket_type {
+enum swSocketType {
     SW_SOCK_TCP         = 1,
     SW_SOCK_UDP         = 2,
     SW_SOCK_TCP6        = 3,
@@ -403,7 +403,7 @@ enum swSocket_type {
     SW_SOCK_RAW         = 7,
 };
 
-enum swEvent_type {
+enum swEventType {
     SW_EVENT_NULL   = 0,
     SW_EVENT_DEAULT = 1u << 8,
     SW_EVENT_READ   = 1u << 9,
@@ -413,7 +413,7 @@ enum swEvent_type {
     SW_EVENT_ONCE   = 1u << 12,
 };
 
-enum swFork_type {
+enum swForkType {
     SW_FORK_SPAWN    = 0,
     SW_FORK_EXEC     = 1 << 1,
     SW_FORK_DAEMON   = 1 << 2,
@@ -449,7 +449,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
 }
 
 //------------------------------Base--------------------------------
-enum swEventData_flag {
+enum swEventDataFlag {
     SW_EVENT_DATA_NORMAL,
     SW_EVENT_DATA_PTR     = 1u << 1,
     SW_EVENT_DATA_CHUNK   = 1u << 2,
@@ -464,7 +464,7 @@ enum swEventData_flag {
 /**
  * use swDataHead->server_fd, 1 byte 8 bit
  */
-enum swTask_type {
+enum swTaskType {
     SW_TASK_TMPFILE   = 1,    // tmp file
     SW_TASK_SERIALIZE = 2,    // php serialize
     SW_TASK_NONBLOCK  = 4,    // task
@@ -475,7 +475,7 @@ enum swTask_type {
     SW_TASK_NOREPLY   = 128,  // don't reply
 };
 
-enum swDNSLookup_cache_type {
+enum swDNSLookupFlag {
     SW_DNS_LOOKUP_RANDOM = (1u << 11),
 };
 
@@ -486,7 +486,7 @@ char *sw_error_();
 extern __thread char sw_error[SW_ERROR_MSG_SIZE];
 #endif
 
-enum swProcess_type {
+enum swProcessType {
     SW_PROCESS_MASTER     = 1,
     SW_PROCESS_WORKER     = 2,
     SW_PROCESS_MANAGER    = 3,
@@ -566,7 +566,7 @@ namespace swoole {
 struct Event {
     int fd;
     int16_t reactor_id;
-    enum swFd_type type;
+    enum swFdType type;
     network::Socket *socket;
 };
 

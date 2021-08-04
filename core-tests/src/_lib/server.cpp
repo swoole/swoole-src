@@ -36,7 +36,7 @@ Server::Server(std::string _host, int _port, swoole::Server::Mode _mode, int _ty
     serv.dispatch_mode = 2;
     serv.private_data_2 = this;
 
-    if (!listen(host, port, (swSocket_type) type)) {
+    if (!listen(host, port, (swSocketType) type)) {
         swoole_warning("listen(%s:%d) fail[error=%d].", host.c_str(), port, errno);
         exit(0);
     }
@@ -75,7 +75,7 @@ bool Server::start() {
     return serv.start() == 0;
 }
 
-bool Server::listen(std::string host, int port, enum swSocket_type type) {
+bool Server::listen(std::string host, int port, enum swSocketType type) {
     ListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
     if (ls == nullptr) {
         return false;

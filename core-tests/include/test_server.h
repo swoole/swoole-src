@@ -43,7 +43,7 @@ public:
     ~Server();
     void on(std::string event, void *fn);
     bool start();
-    bool listen(std::string host, int port, enum swSocket_type type);
+    bool listen(std::string host, int port, enum swSocketType type);
     int send(int session_id, const void *data, uint32_t length);
     ssize_t sendto(const swoole::network::Address &address, const char *__buf, size_t __n, int server_socket = -1);
     int close(int session_id, int reset);

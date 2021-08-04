@@ -140,7 +140,7 @@ static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETER
     TmpSocket *sock = (TmpSocket *) ecalloc(1, sizeof(TmpSocket));
 
     sock->socket.fd = fd;
-    sock->socket.fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
+    sock->socket.fd_type = (enum swFdType) PHP_SWOOLE_FD_CO_UTIL;
     sock->socket.object = sock;
 
     if (swoole_event_add(&sock->socket, SW_EVENT_READ) < 0) {
@@ -172,7 +172,7 @@ _yield:
     sock = (TmpSocket *) ecalloc(1, sizeof(TmpSocket));
 
     sock->socket.fd = fd;
-    sock->socket.fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
+    sock->socket.fd_type = (enum swFdType) PHP_SWOOLE_FD_CO_UTIL;
     sock->socket.object = sock;
 
     if (swoole_event_add(&sock->socket, SW_EVENT_WRITE) < 0) {

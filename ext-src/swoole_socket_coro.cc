@@ -863,7 +863,7 @@ SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
     return true;
 }
 
-SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type) {
+SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type) {
     php_swoole_check_reactor();
     int new_fd = dup(fd);
     if (new_fd < 0) {
@@ -873,7 +873,7 @@ SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type) {
     return php_swoole_create_socket_from_fd(new_fd, type);
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocket_type type) {
+SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type) {
     zval zobject;
     zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);

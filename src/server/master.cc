@@ -1434,7 +1434,7 @@ int Server::add_systemd_socket() {
     return count;
 }
 
-ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port) {
+ListenPort *Server::add_port(enum swSocketType type, const char *host, int port) {
     if (session_list) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_WRONG_OPERATION, "must add port before server is created");
         return nullptr;
@@ -1468,7 +1468,7 @@ ListenPort *Server::add_port(enum swSocket_type type, const char *host, int port
 
 #ifdef SW_USE_OPENSSL
     if (type & SW_SOCK_SSL) {
-        type = (enum swSocket_type)(type & (~SW_SOCK_SSL));
+        type = (enum swSocketType)(type & (~SW_SOCK_SSL));
         ls->type = type;
         ls->ssl = 1;
         ls->ssl_context = new SSLContext();

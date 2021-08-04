@@ -205,14 +205,14 @@ class Reactor {
         return read_handler[fdtype] != nullptr;
     }
 
-    inline int add_event(network::Socket *_socket, enum swEvent_type event_type) {
+    inline int add_event(network::Socket *_socket, enum swEventType event_type) {
         if (!(_socket->events & event_type)) {
             return set(_socket, _socket->events | event_type);
         }
         return SW_OK;
     }
 
-    inline int del_event(network::Socket *_socket, enum swEvent_type event_type) {
+    inline int del_event(network::Socket *_socket, enum swEventType event_type) {
         if (_socket->events & event_type) {
             return set(_socket, _socket->events & (~event_type));
         }
@@ -263,7 +263,7 @@ class Reactor {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
 
-    inline ReactorHandler get_handler(enum swEvent_type event_type, enum swFd_type fd_type) {
+    inline ReactorHandler get_handler(enum swEventType event_type, enum swFdType fd_type) {
         switch (event_type) {
         case SW_EVENT_READ:
             return read_handler[fd_type];
@@ -278,7 +278,7 @@ class Reactor {
         return nullptr;
     }
 
-    inline ReactorHandler get_error_handler(enum swFd_type fd_type) {
+    inline ReactorHandler get_error_handler(enum swFdType fd_type) {
         ReactorHandler handler = get_handler(SW_EVENT_ERROR, fd_type);
         // error callback is not set, try to use readable or writable callback
         if (handler == nullptr) {
@@ -333,8 +333,8 @@ class Reactor {
 
     void activate_future_task();
 
-    static enum swFd_type get_fd_type(int flags) {
-        return (enum swFd_type)(flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
+    static enum swFdType get_fd_type(int flags) {
+        return (enum swFdType)(flags & (~SW_EVENT_READ) & (~SW_EVENT_WRITE) & (~SW_EVENT_ERROR) & (~SW_EVENT_ONCE));
     }
 
     static bool isset_read_event(int events) {
