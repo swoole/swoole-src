@@ -310,9 +310,9 @@ enum sw_mysql_server_status_flags
 #define swMysqlPacketDump(length, number, data, title) \
     if (SW_LOG_TRACE >= sw_logger()->get_level() && (SW_TRACE_MYSQL_CLIENT & SwooleG.trace_flags)) \
     { \
-        swDebug("+----------+------------+-------------------------------------------------------+"); \
-        swDebug("| P#%-6u | L%-9u | %-10u %42s |", number, SW_MYSQL_PACKET_HEADER_SIZE + length, length, title); \
-        swHexDump(data, length); \
+        swoole_debug("+----------+------------+-------------------------------------------------------+"); \
+        swoole_debug("| P#%-6u | L%-9u | %-10u %42s |", number, SW_MYSQL_PACKET_HEADER_SIZE + length, length, title); \
+        swoole_hex_dump(data, length); \
     }
 #else
 #define swMysqlPacketDump(length, number, data, title)
