@@ -414,6 +414,13 @@ static void fatal_error(int code, const char *format, ...) {
     zend_end_try();
 }
 
+static void bug_report_message_init() {
+    SwooleG.bug_report_message += swoole::std_string::format(
+        "PHP_VERSION : %s\n",
+        PHP_VERSION
+    );
+}
+
 /* {{{ PHP_MINIT_FUNCTION
  */
 PHP_MINIT_FUNCTION(swoole) {
@@ -741,6 +748,9 @@ PHP_MINIT_FUNCTION(swoole) {
     }
 
     swoole_init();
+
+    // init bug report message
+    bug_report_message_init();
     if (strcmp("cli", sapi_module.name) == 0 || strcmp("phpdbg", sapi_module.name) == 0) {
         SWOOLE_G(cli) = 1;
     }

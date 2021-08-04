@@ -1664,6 +1664,10 @@ static void php_swoole_server_onWorkerStart(Server *serv, int worker_id) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
     auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onWorkerStart];
 
+    void (*fun_ptr)(int) = nullptr;
+
+    fun_ptr(1);
+
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("master_pid"), serv->gs->master_pid);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("manager_pid"), serv->gs->manager_pid);
     zend_update_property_long(swoole_server_ce, SW_Z8_OBJ_P(zserv), ZEND_STRL("worker_id"), worker_id);
