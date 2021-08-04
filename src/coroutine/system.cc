@@ -271,7 +271,7 @@ bool System::wait_signal(int signo, double timeout) {
     }
     /* always enable signalfd */
     SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
-    swSignal_set(signo, [](int signo) {
+    swoole_signal_set(signo, [](int signo) {
         Coroutine *co = listeners[signo];
         if (co) {
             listeners[signo] = nullptr;
@@ -301,7 +301,7 @@ bool System::wait_signal(int signo, double timeout) {
     };
     co->yield(&cancel_fn);
 
-    swSignal_set(signo, nullptr);
+    swoole_signal_set(signo, nullptr);
     SwooleTG.co_signal_listener_num--;
 
     if (listeners[signo] != nullptr) {

@@ -43,16 +43,16 @@ void Server::worker_signal_init(void) {
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_set(SIGHUP, nullptr);
-    swSignal_set(SIGPIPE, SIG_IGN);
-    swSignal_set(SIGUSR1, nullptr);
-    swSignal_set(SIGUSR2, nullptr);
+    swoole_signal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGPIPE, SIG_IGN);
+    swoole_signal_set(SIGUSR1, nullptr);
+    swoole_signal_set(SIGUSR2, nullptr);
     // swSignal_set(SIGINT, Server::worker_signal_handler);
-    swSignal_set(SIGTERM, Server::worker_signal_handler);
+    swoole_signal_set(SIGTERM, Server::worker_signal_handler);
     // for test
-    swSignal_set(SIGVTALRM, Server::worker_signal_handler);
+    swoole_signal_set(SIGVTALRM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, Server::worker_signal_handler);
+    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
 #endif
 }
 
@@ -381,7 +381,7 @@ void Server::worker_start_callback() {
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd && SwooleTG.reactor && SwooleG.signal_fd == 0) {
-        swSignalfd_setup(SwooleTG.reactor);
+        swoole_signalfd_setup(SwooleTG.reactor);
     }
 #endif
 
@@ -559,7 +559,7 @@ int Server::start_event_worker(Worker *worker) {
     reactor->add(worker->pipe_worker, SW_EVENT_READ);
     reactor->set_handler(SW_FD_PIPE, Worker_onPipeReceive);
 
-    if (dispatch_mode == SW_DISPATCH_STREAM) {
+    if (dispatch_mode == DISPATCH_STREAM) {
         reactor->add(stream_socket, SW_EVENT_READ);
         reactor->set_handler(SW_FD_STREAM_SERVER, Worker_onStreamAccept);
         reactor->set_handler(SW_FD_STREAM, Worker_onStreamRead);
@@ -568,7 +568,7 @@ int Server::start_event_worker(Worker *worker) {
         stream_protocol.package_max_length = UINT_MAX;
         stream_protocol.onPackage = Worker_onStreamPackage;
         buffer_pool = new std::queue<String *>;
-    } else if (dispatch_mode == SW_DISPATCH_CO_CONN_LB || dispatch_mode == SW_DISPATCH_CO_REQ_LB) {
+    } else if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,
                                   [worker](Reactor *) { worker->coroutine_num = Coroutine::count(); });
     }

@@ -43,7 +43,7 @@ TEST(server, send_buffer) {
     lock.lock();
 
     std::thread t1([&]() {
-        swSignal_none();
+        swoole_signal_block_all();
 
         lock.lock();
 

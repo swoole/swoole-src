@@ -47,7 +47,7 @@ TEST(stream, send) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
-        swSignal_none();
+        swoole_signal_block_all();
 
         lock.lock();
 

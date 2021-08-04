@@ -434,7 +434,7 @@ void PHPCoroutine::interrupt_thread_start() {
     zend_vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running = true;
     interrupt_thread = std::thread([]() {
-        swSignal_none();
+        swoole_signal_block_all();
         while (interrupt_thread_running) {
             *zend_vm_interrupt = 1;
             std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));

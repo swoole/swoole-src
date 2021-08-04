@@ -534,7 +534,7 @@ static PHP_METHOD(swoole_process, signal) {
         RETURN_FALSE;
     }
 
-    swSignalHandler handler = swSignal_get_handler(signo);
+    swSignalHandler handler = swoole_signal_get_handler(signo);
     if (handler && handler != php_swoole_onSignal) {
         php_swoole_fatal_error(
             E_WARNING, "signal [" ZEND_LONG_FMT "] processor has been registered by the system", signo);
@@ -544,7 +544,7 @@ static PHP_METHOD(swoole_process, signal) {
     if (zcallback == nullptr) {
         fci_cache = signal_fci_caches[signo];
         if (fci_cache) {
-            swSignal_set(signo, nullptr);
+            swoole_signal_set(signo, nullptr);
             signal_fci_caches[signo] = nullptr;
             swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
             SwooleTG.signal_listener_num--;
@@ -576,7 +576,7 @@ static PHP_METHOD(swoole_process, signal) {
             SwooleTG.signal_listener_num++;
         }
         signal_fci_caches[signo] = fci_cache;
-        swSignal_set(signo, handler);
+        swoole_signal_set(signo, handler);
         RETURN_TRUE;
     }
 
@@ -601,7 +601,7 @@ static PHP_METHOD(swoole_process, signal) {
     // use user settings
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_set(signo, handler);
+    swoole_signal_set(signo, handler);
 
     RETURN_TRUE;
 }

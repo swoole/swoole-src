@@ -199,7 +199,6 @@ int ReactorKqueue::del(Socket *socket) {
     auto sobj = reinterpret_cast<intptr_t>(socket);
 #endif
 
-
     if (socket->removed) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, "failed to delete event[%d], has been removed", socket->fd);
@@ -305,21 +304,15 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                 break;
             }
             case EVFILT_SIGNAL: {
-                struct sw_signal {
-                    swSignalHandler handler;
-                    uint16_t signo;
-                    uint16_t active;
-                };
-                struct sw_signal *sw_signal = (struct sw_signal *) udata;
-
-                if (sw_signal->active) {
-                    if (sw_signal->handler) {
-                        sw_signal->handler(sw_signal->signo);
+                Signal *signal_data = (Signal *) udata;
+                if (signal_data->activated) {
+                    if (signal_data->handler) {
+                        signal_data->handler(signal_data->signo);
                     } else {
                         swoole_error_log(SW_LOG_WARNING,
                                          SW_ERROR_UNREGISTERED_SIGNAL,
                                          SW_UNREGISTERED_SIGNAL_FMT,
-                                         swSignal_str(sw_signal->signo));
+                                         swoole_signal_to_str(signal_data->signo));
                     }
                 }
                 break;

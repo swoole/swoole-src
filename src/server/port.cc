@@ -663,7 +663,7 @@ static int Port_onRead_redis(Reactor *reactor, ListenPort *port, Event *event) {
         return SW_ERR;
     }
 
-    if (swRedis_recv_packet(protocol, conn, buffer) < 0) {
+    if (redis::recv_packet(protocol, conn, buffer) < 0) {
         conn->close_errno = errno;
         reactor->trigger_close_event(event);
     }

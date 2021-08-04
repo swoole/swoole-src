@@ -39,14 +39,14 @@ void Server::init_task_workers() {
      * Make the task worker support asynchronous
      */
     if (task_enable_coroutine) {
-        if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
+        if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
             swError("cannot use msgqueue when task_enable_coroutine is enable");
             return;
         }
         pool->main_loop = TaskWorker_loop_async;
     }
-    if (task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
-        pool->dispatch_mode = SW_DISPATCH_QUEUE;
+    if (task_ipc_mode == TASK_IPC_PREEMPTIVE) {
+        pool->schedule_by_sysvmsg = true;
     }
 }
 
@@ -119,13 +119,13 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_set(SIGHUP, nullptr);
-    swSignal_set(SIGPIPE, nullptr);
-    swSignal_set(SIGUSR1, Server::worker_signal_handler);
-    swSignal_set(SIGUSR2, nullptr);
-    swSignal_set(SIGTERM, Server::worker_signal_handler);
+    swoole_signal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGPIPE, nullptr);
+    swoole_signal_set(SIGUSR1, Server::worker_signal_handler);
+    swoole_signal_set(SIGUSR2, nullptr);
+    swoole_signal_set(SIGTERM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, Server::worker_signal_handler);
+    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
 #endif
 }
 

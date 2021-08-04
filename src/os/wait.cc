@@ -69,10 +69,10 @@ static void signal_handler(int signo) {
 static void signal_init() {
     if (!signal_ready) {
         Reactor *reactor = SwooleTG.reactor;
-        swSignal_set(SIGCHLD, signal_handler);
+        swoole_signal_set(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
         if (SwooleG.use_signalfd && !reactor->isset_handler(SW_FD_SIGNAL)) {
-            swSignalfd_setup(reactor);
+            swoole_signalfd_setup(reactor);
         }
 #endif
 
@@ -82,7 +82,7 @@ static void signal_init() {
 
         reactor->add_destroy_callback([](void *) {
             signal_ready = false;
-            swSignal_clear();
+            swoole_signal_clear();
         });
 
         signal_ready = true;

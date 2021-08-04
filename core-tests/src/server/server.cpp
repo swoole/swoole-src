@@ -44,7 +44,7 @@ TEST(server, schedule) {
     int ret;
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 6;
-    serv.dispatch_mode = SW_DISPATCH_QUEUE;
+    serv.dispatch_mode = Server::DISPATCH_IDLE_WORKER;
     ret = serv.create();
     ASSERT_EQ(SW_OK, ret);
 
@@ -89,7 +89,7 @@ TEST(server, base) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
-        swSignal_none();
+        swoole_signal_block_all();
 
         lock.lock();
 
@@ -139,7 +139,7 @@ TEST(server, process) {
 
     serv.onStart = [&lock](swServer *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
@@ -199,7 +199,7 @@ TEST(server, ssl) {
 
     serv.onStart = [&lock](Server *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
@@ -262,7 +262,7 @@ TEST(server, dtls) {
 
     serv.onStart = [&lock](Server *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 

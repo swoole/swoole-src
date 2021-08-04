@@ -8,14 +8,14 @@
 
 using namespace swoole;
 
-int my_onPacket(swServer *serv, swRecvData *req);
-int my_onReceive(swServer *serv, swRecvData *req);
-void my_onStart(swServer *serv);
-void my_onShutdown(swServer *serv);
-void my_onConnect(swServer *serv, swDataHead *info);
-void my_onClose(swServer *serv, swDataHead *info);
-void my_onWorkerStart(swServer *serv, int worker_id);
-void my_onWorkerStop(swServer *serv, int worker_id);
+int my_onPacket(Server *serv, RecvData *req);
+int my_onReceive(Server *serv, RecvData *req);
+void my_onStart(Server *serv);
+void my_onShutdown(Server *serv);
+void my_onConnect(Server *serv, DataHead *info);
+void my_onClose(Server *serv, DataHead *info);
+void my_onWorkerStart(Server *serv, int worker_id);
+void my_onWorkerStop(Server *serv, int worker_id);
 
 static int g_receive_count = 0;
 
@@ -83,15 +83,15 @@ int main(int argc, char **argv) {
     return 0;
 }
 
-void my_onWorkerStart(swServer *serv, int worker_id) {
+void my_onWorkerStart(Server *serv, int worker_id) {
     swNotice("WorkerStart[%d]PID=%d", worker_id, getpid());
 }
 
-void my_onWorkerStop(swServer *serv, int worker_id) {
+void my_onWorkerStop(Server *serv, int worker_id) {
     swNotice("WorkerStop[%d]PID=%d", worker_id, getpid());
 }
 
-int my_onReceive(swServer *serv, swRecvData *req) {
+int my_onReceive(Server *serv, RecvData *req) {
     char req_data[SW_IPC_BUFFER_SIZE];
     char resp_data[SW_IPC_BUFFER_SIZE];
 
@@ -118,7 +118,7 @@ int my_onReceive(swServer *serv, swRecvData *req) {
     return SW_OK;
 }
 
-int my_onPacket(swServer *serv, swRecvData *req) {
+int my_onPacket(Server *serv, RecvData *req) {
     char address[256];
     int port = 0;
     int ret = 0;
@@ -158,18 +158,18 @@ int my_onPacket(swServer *serv, swRecvData *req) {
     return SW_OK;
 }
 
-void my_onStart(swServer *serv) {
+void my_onStart(Server *serv) {
     swNotice("Server is running");
 }
 
-void my_onShutdown(swServer *serv) {
+void my_onShutdown(Server *serv) {
     swNotice("Server is shutdown");
 }
 
-void my_onConnect(swServer *serv, swDataHead *info) {
+void my_onConnect(Server *serv, DataHead *info) {
     swNotice("PID=%d\tConnect fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }
 
-void my_onClose(swServer *serv, swDataHead *info) {
+void my_onClose(Server *serv, DataHead *info) {
     swNotice("PID=%d\tClose fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }

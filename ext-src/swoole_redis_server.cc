@@ -29,6 +29,8 @@ using swoole::RecvData;
 using swoole::ListenPort;
 using swoole::Connection;
 
+namespace Redis = swoole::redis;
+
 zend_class_entry *swoole_redis_server_ce;
 zend_object_handlers swoole_redis_server_handlers;
 
@@ -75,13 +77,13 @@ void php_swoole_redis_server_minit(int module_number) {
     SW_SET_CLASS_CLONEABLE(swoole_redis_server, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_redis_server, sw_zend_class_unset_property_deny);
 
-    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("NIL"), SW_REDIS_REPLY_NIL);
-    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("ERROR"), SW_REDIS_REPLY_ERROR);
-    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("STATUS"), SW_REDIS_REPLY_STATUS);
-    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("INT"), SW_REDIS_REPLY_INT);
-    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("STRING"), SW_REDIS_REPLY_STRING);
-    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("SET"), SW_REDIS_REPLY_SET);
-    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("MAP"), SW_REDIS_REPLY_MAP);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("NIL"), Redis::REPLY_NIL);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("ERROR"), Redis::REPLY_ERROR);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("STATUS"), Redis::REPLY_STATUS);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("INT"), Redis::REPLY_INT);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("STRING"), Redis::REPLY_STRING);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("SET"), Redis::REPLY_SET);
+    zend_declare_class_constant_long(swoole_redis_server_ce, ZEND_STRL("MAP"), Redis::REPLY_MAP);
 }
 
 void php_swoole_redis_server_rshutdown() {
@@ -115,38 +117,38 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     zval zparams{};
     array_init(&zparams);
 
-    int state = SW_REDIS_RECEIVE_TOTAL_LINE;
+    int state = Redis::STATE_RECEIVE_TOTAL_LINE;
     int add_param = 0;
     const char *command = nullptr;
     int command_len = 0;
 
     do {
         switch (state) {
-        case SW_REDIS_RECEIVE_TOTAL_LINE:
-            if (*p == '*' && (p = swRedis_get_number(p, &ret))) {
-                state = SW_REDIS_RECEIVE_LENGTH;
+        case Redis::STATE_RECEIVE_TOTAL_LINE:
+            if (*p == '*' && (p = Redis::get_number(p, &ret))) {
+                state = Redis::STATE_RECEIVE_LENGTH;
                 break;
             }
             /* no break */
 
-        case SW_REDIS_RECEIVE_LENGTH:
-            if (*p == '$' && (p = swRedis_get_number(p, &ret))) {
+        case Redis::STATE_RECEIVE_LENGTH:
+            if (*p == '$' && (p = Redis::get_number(p, &ret))) {
                 if (ret == -1) {
                     add_next_index_null(&zparams);
                     break;
                 }
                 length = ret;
-                state = SW_REDIS_RECEIVE_STRING;
+                state = Redis::STATE_RECEIVE_STRING;
                 break;
             }
             // integer
-            else if (*p == ':' && (p = swRedis_get_number(p, &ret))) {
+            else if (*p == ':' && (p = Redis::get_number(p, &ret))) {
                 add_next_index_long(&zparams, ret);
                 break;
             }
             /* no break */
 
-        case SW_REDIS_RECEIVE_STRING:
+        case Redis::STATE_RECEIVE_STRING:
             if (add_param == 0) {
                 command = p;
                 command_len = length;
@@ -155,7 +157,7 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
                 add_next_index_stringl(&zparams, p, length);
             }
             p += length + SW_CRLF_LEN;
-            state = SW_REDIS_RECEIVE_LENGTH;
+            state = Redis::STATE_RECEIVE_LENGTH;
             break;
 
         default:
@@ -275,9 +277,9 @@ static PHP_METHOD(swoole_redis_server, format) {
 
     swoole::String *format_buffer = sw_tg_buffer();
 
-    if (type == SW_REDIS_REPLY_NIL) {
+    if (type == Redis::REPLY_NIL) {
         RETURN_STRINGL(SW_REDIS_RETURN_NIL, sizeof(SW_REDIS_RETURN_NIL) - 1);
-    } else if (type == SW_REDIS_REPLY_STATUS) {
+    } else if (type == Redis::REPLY_STATUS) {
         if (value) {
             zend::String str_value(value);
             length = sw_snprintf(message, sizeof(message), "+%.*s\r\n", (int) str_value.len(), str_value.val());
@@ -285,7 +287,7 @@ static PHP_METHOD(swoole_redis_server, format) {
             length = sw_snprintf(message, sizeof(message), "+%s\r\n", "OK");
         }
         RETURN_STRINGL(message, length);
-    } else if (type == SW_REDIS_REPLY_ERROR) {
+    } else if (type == Redis::REPLY_ERROR) {
         if (value) {
             zend::String str_value(value);
             length = sw_snprintf(message, sizeof(message), "-%.*s\r\n", (int) str_value.len(), str_value.val());
@@ -293,13 +295,13 @@ static PHP_METHOD(swoole_redis_server, format) {
             length = sw_snprintf(message, sizeof(message), "-%s\r\n", "ERR");
         }
         RETURN_STRINGL(message, length);
-    } else if (type == SW_REDIS_REPLY_INT) {
+    } else if (type == Redis::REPLY_INT) {
         if (!value) {
             goto _no_value;
         }
         length = sw_snprintf(message, sizeof(message), ":" ZEND_LONG_FMT "\r\n", zval_get_long(value));
         RETURN_STRINGL(message, length);
-    } else if (type == SW_REDIS_REPLY_STRING) {
+    } else if (type == Redis::REPLY_STRING) {
         if (!value) {
         _no_value:
             php_swoole_fatal_error(E_WARNING, "require more parameters");
@@ -316,7 +318,7 @@ static PHP_METHOD(swoole_redis_server, format) {
         format_buffer->append(str_value.val(), str_value.len());
         format_buffer->append(SW_CRLF, SW_CRLF_LEN);
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
-    } else if (type == SW_REDIS_REPLY_SET) {
+    } else if (type == Redis::REPLY_SET) {
         if (!value) {
             goto _no_value;
         }
@@ -337,7 +339,7 @@ static PHP_METHOD(swoole_redis_server, format) {
         SW_HASHTABLE_FOREACH_END();
 
         RETURN_STRINGL(format_buffer->str, format_buffer->length);
-    } else if (type == SW_REDIS_REPLY_MAP) {
+    } else if (type == Redis::REPLY_MAP) {
         if (!value) {
             goto _no_value;
         }

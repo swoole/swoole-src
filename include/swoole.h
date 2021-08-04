@@ -205,8 +205,6 @@ typedef swoole::Protocol swProtocol;
 typedef swoole::EventData swEventData;
 typedef swoole::DataHead swDataHead;
 typedef swoole::Event swEvent;
-typedef swoole::Pipe swPipe;
-typedef swoole::Callback swCallback;
 
 /*----------------------------------String-------------------------------------*/
 

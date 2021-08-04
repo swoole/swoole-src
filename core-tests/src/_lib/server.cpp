@@ -76,7 +76,7 @@ bool Server::start() {
 }
 
 bool Server::listen(std::string host, int port, enum swSocket_type type) {
-    swListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
+    ListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
     if (ls == nullptr) {
         return false;
     }
