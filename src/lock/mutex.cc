@@ -43,7 +43,7 @@ Mutex::Mutex(int flags) : Lock() {
 #ifdef HAVE_PTHREAD_MUTEXATTR_SETPSHARED
         pthread_mutexattr_setpshared(&impl->attr_, PTHREAD_PROCESS_SHARED);
 #else
-        swWarn("PTHREAD_MUTEX_PSHARED is not supported");
+        swoole_warning("PTHREAD_MUTEX_PSHARED is not supported");
 #endif
     }
 
@@ -51,7 +51,7 @@ Mutex::Mutex(int flags) : Lock() {
 #ifdef HAVE_PTHREAD_MUTEXATTR_SETROBUST
         pthread_mutexattr_setrobust(&impl->attr_, PTHREAD_MUTEX_ROBUST);
 #else
-        swWarn("PTHREAD_MUTEX_ROBUST is not supported");
+        swoole_warning("PTHREAD_MUTEX_ROBUST is not supported");
 #endif
     }
 

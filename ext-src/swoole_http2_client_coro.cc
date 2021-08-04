@@ -562,7 +562,7 @@ enum swReturn_code Client::parse_frame(zval *return_value, bool pipeline_read) {
                 break;
             default:
                 // disable warning and ignore it because some websites are not following http2 protocol totally
-                // swWarn("unknown option[%d]: %d", id, value);
+                // swoole_warning("unknown option[%d]: %d", id, value);
                 break;
             }
             buf += sizeof(id) + sizeof(value);
