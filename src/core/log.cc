@@ -116,33 +116,33 @@ void Logger::set_rotation(int _rotation) {
 bool Logger::redirect_stdout_and_stderr(int enable) {
     if (enable) {
         if (!opened) {
-            swWarn("no log file opened");
+            swoole_warning("no log file opened");
             return false;
         }
         if (redirected) {
-            swWarn("has been redirected");
+            swoole_warning("has been redirected");
             return false;
         }
         if ((stdout_fd = dup(STDOUT_FILENO)) < 0) {
-            swSysWarn("dup(STDOUT_FILENO) failed");
+            swoole_sys_warning("dup(STDOUT_FILENO) failed");
             return false;
         }
         if ((stderr_fd = dup(STDERR_FILENO)) < 0) {
-            swSysWarn("dup(STDERR_FILENO) failed");
+            swoole_sys_warning("dup(STDERR_FILENO) failed");
             return false;
         }
         swoole_redirect_stdout(log_fd);
         redirected = true;
     } else {
         if (!redirected) {
-            swWarn("no redirected");
+            swoole_warning("no redirected");
             return false;
         }
         if (dup2(stdout_fd, STDOUT_FILENO) < 0) {
-            swSysWarn("dup2(STDOUT_FILENO) failed");
+            swoole_sys_warning("dup2(STDOUT_FILENO) failed");
         }
         if (dup2(stderr_fd, STDERR_FILENO) < 0) {
-            swSysWarn("dup2(STDERR_FILENO) failed");
+            swoole_sys_warning("dup2(STDERR_FILENO) failed");
         }
         ::close(stdout_fd);
         ::close(stderr_fd);

@@ -47,7 +47,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     }
 
     if (mem == nullptr) {
-        swWarn("alloc(%ld) failed", size);
+        swoole_warning("alloc(%ld) failed", size);
         return nullptr;
     }
 
@@ -71,7 +71,7 @@ Channel *Channel::make(size_t size, size_t maxlen, int flags) {
     if (flags & SW_CHAN_NOTIFY) {
         object->notify_pipe = new Pipe(true);
         if (!object->notify_pipe->ready()) {
-            swWarn("notify_fd init failed");
+            swoole_warning("notify_fd init failed");
             delete object->notify_pipe;
             return nullptr;
         }

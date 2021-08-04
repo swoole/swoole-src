@@ -608,7 +608,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
                                                  input_buffer,
                                                  &encoded_size,
                                                  encoded_buffer)) {
-            swWarn("BrotliEncoderCompress() failed");
+            swoole_warning("BrotliEncoderCompress() failed");
             return SW_ERR;
         } else {
             swoole_zlib_buffer->length = encoded_size;
@@ -617,7 +617,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
     }
 #endif
     else {
-        swWarn("Unknown compression method");
+        swoole_warning("Unknown compression method");
         return SW_ERR;
     }
 #ifdef SW_HAVE_ZLIB
@@ -644,7 +644,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
 
     status = deflateInit2(&zstream, level, Z_DEFLATED, encoding, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
     if (status != Z_OK) {
-        swWarn("deflateInit2() failed, Error: [%d]", status);
+        swoole_warning("deflateInit2() failed, Error: [%d]", status);
         return SW_ERR;
     }
 
@@ -656,7 +656,7 @@ int swoole_http_response_compress(const char *data, size_t length, int method, i
     status = deflate(&zstream, Z_FINISH);
     deflateEnd(&zstream);
     if (status != Z_STREAM_END) {
-        swWarn("deflate() failed, Error: [%d]", status);
+        swoole_warning("deflate() failed, Error: [%d]", status);
         return SW_ERR;
     }
 

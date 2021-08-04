@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, "127.0.0.1", 9501);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -72,23 +72,23 @@ int main(int argc, char **argv) {
     memcpy(port->protocol.package_eof, SW_STRL("\r\n\r\n"));
 
     if (serv.create()) {
-        swWarn("create server fail[error=%d]", swoole_get_last_error());
+        swoole_warning("create server fail[error=%d]", swoole_get_last_error());
         exit(1);
     }
 
     if (serv.start() < 0) {
-        swWarn("start server fail[error=%d]", swoole_get_last_error());
+        swoole_warning("start server fail[error=%d]", swoole_get_last_error());
         exit(3);
     }
     return 0;
 }
 
 void my_onWorkerStart(Server *serv, int worker_id) {
-    swNotice("WorkerStart[%d]PID=%d", worker_id, getpid());
+    swoole_notice("WorkerStart[%d]PID=%d", worker_id, getpid());
 }
 
 void my_onWorkerStop(Server *serv, int worker_id) {
-    swNotice("WorkerStop[%d]PID=%d", worker_id, getpid());
+    swoole_notice("WorkerStop[%d]PID=%d", worker_id, getpid());
 }
 
 int my_onReceive(Server *serv, RecvData *req) {
@@ -101,7 +101,7 @@ int my_onReceive(Server *serv, RecvData *req) {
 
     memcpy(req_data, req->data, req->info.len);
     swoole::rtrim(req_data, req->info.len);
-    swNotice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d",
+    swoole_notice("onReceive[%d]: ip=%s|port=%d Data=%s|Len=%d",
              g_receive_count,
              conn->info.get_ip(),
              conn->info.get_port(),
@@ -111,9 +111,9 @@ int my_onReceive(Server *serv, RecvData *req) {
     int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s\n", req->info.len, req_data);
 
     if (!serv->send(req->info.fd, resp_data, n)) {
-        swNotice("send to client fail. errno=%d", errno);
+        swoole_notice("send to client fail. errno=%d", errno);
     } else {
-        swNotice("send %d bytes to client success. data=%s", n, resp_data);
+        swoole_notice("send %d bytes to client success. data=%s", n, resp_data);
     }
     return SW_OK;
 }
@@ -142,7 +142,7 @@ int my_onPacket(Server *serv, RecvData *req) {
     char *data = packet->data;
     uint32_t length = packet->length;
 
-    swNotice("Packet[client=%s:%d, %d bytes]: data=%.*s", address, port, length, length, data);
+    swoole_notice("Packet[client=%s:%d, %d bytes]: data=%.*s", address, port, length, length, data);
 
     char resp_data[SW_IPC_BUFFER_SIZE];
     int n = sw_snprintf(resp_data, SW_IPC_BUFFER_SIZE, "Server: %.*s", length, data);
@@ -150,26 +150,26 @@ int my_onPacket(Server *serv, RecvData *req) {
     ret = serv_socket->sendto(address, port, resp_data, n);
 
     if (ret < 0) {
-        swNotice("send to client fail. errno=%d", errno);
+        swoole_notice("send to client fail. errno=%d", errno);
     } else {
-        swNotice("send %d bytes to client success. data=%s", n, resp_data);
+        swoole_notice("send %d bytes to client success. data=%s", n, resp_data);
     }
 
     return SW_OK;
 }
 
 void my_onStart(Server *serv) {
-    swNotice("Server is running");
+    swoole_notice("Server is running");
 }
 
 void my_onShutdown(Server *serv) {
-    swNotice("Server is shutdown");
+    swoole_notice("Server is shutdown");
 }
 
 void my_onConnect(Server *serv, DataHead *info) {
-    swNotice("PID=%d\tConnect fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
+    swoole_notice("PID=%d\tConnect fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }
 
 void my_onClose(Server *serv, DataHead *info) {
-    swNotice("PID=%d\tClose fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
+    swoole_notice("PID=%d\tClose fd=%ld|reactor_id=%d", getpid(), info->fd, info->reactor_id);
 }

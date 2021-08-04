@@ -37,12 +37,12 @@ Server::Server(std::string _host, int _port, swoole::Server::Mode _mode, int _ty
     serv.private_data_2 = this;
 
     if (!listen(host, port, (swSocket_type) type)) {
-        swWarn("listen(%s:%d) fail[error=%d].", host.c_str(), port, errno);
+        swoole_warning("listen(%s:%d) fail[error=%d].", host.c_str(), port, errno);
         exit(0);
     }
 
     if (serv.create() < 0) {
-        swWarn("create server fail[error=%d].", errno);
+        swoole_warning("create server fail[error=%d].", errno);
         exit(0);
     }
 }

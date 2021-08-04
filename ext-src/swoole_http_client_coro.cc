@@ -563,17 +563,17 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             char *download_file_name = http->download_file_name.val();
             std::unique_ptr<File> fp(new File(download_file_name, O_CREAT | O_WRONLY, 0664));
             if (!fp->ready()) {
-                swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
+                swoole_sys_warning("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
                 return false;
             }
             if (http->download_offset == 0) {
                 if (!fp->truncate(0)) {
-                    swSysWarn("ftruncate(%s) failed", download_file_name);
+                    swoole_sys_warning("ftruncate(%s) failed", download_file_name);
                     return false;
                 }
             } else {
                 if (!fp->set_offest(http->download_offset)) {
-                    swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
+                    swoole_sys_warning("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
                     return false;
                 }
             }
@@ -651,7 +651,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             // gzip_stream.total_out = 0;
             status = inflateInit2(&gzip_stream, encoding);
             if (status != Z_OK) {
-                swWarn("inflateInit2() failed by %s", zError(status));
+                swoole_warning("inflateInit2() failed by %s", zError(status));
                 return false;
             }
             gzip_stream_active = true;
@@ -692,7 +692,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             goto _retry;
         }
 
-        swWarn("HttpClient::decompress_response failed by %s", zError(status));
+        swoole_warning("HttpClient::decompress_response failed by %s", zError(status));
         body->length = reserved_body_length;
         return false;
     }
@@ -702,7 +702,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
         if (!brotli_decoder_state) {
             brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, nullptr);
             if (!brotli_decoder_state) {
-                swWarn("BrotliDecoderCreateInstance() failed");
+                swoole_warning("BrotliDecoderCreateInstance() failed");
                 return false;
             }
         }
@@ -726,11 +726,11 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
                 return true;
             } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
                 if (!body->extend()) {
-                    swWarn("BrotliDecoderDecompressStream() failed, no memory is available");
+                    swoole_warning("BrotliDecoderDecompressStream() failed, no memory is available");
                     break;
                 }
             } else {
-                swWarn("BrotliDecoderDecompressStream() failed, %s",
+                swoole_warning("BrotliDecoderDecompressStream() failed, %s",
                        BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
@@ -744,7 +744,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
         break;
     }
 
-    swWarn("HttpClient::decompress_response unknown compress method [%d]", compress_method);
+    swoole_warning("HttpClient::decompress_response unknown compress method [%d]", compress_method);
     return false;
 }
 #endif
@@ -1332,7 +1332,7 @@ bool HttpClient::send() {
         }
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT,
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
                host.c_str(),
                port,
@@ -1507,7 +1507,7 @@ bool HttpClient::recv_http_response(double timeout) {
 
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
-        swTraceLog(SW_TRACE_HTTP_CLIENT,
+        swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                    "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
                    parsed_n,
                    retval,

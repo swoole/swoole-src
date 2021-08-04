@@ -6,7 +6,7 @@ namespace dtls {
 //-------------------------------------------------------------------------------
 
 int BIO_write(BIO *b, const char *data, int dlen) {
-    swTraceLog(SW_TRACE_SSL, "BIO_write(%d)", dlen);
+    swoole_trace_log(SW_TRACE_SSL, "BIO_write(%d)", dlen);
 
     Session *session = (Session *) BIO_get_data(b);
     return session->socket->write(data, dlen);
@@ -20,7 +20,7 @@ int BIO_read(BIO *b, char *data, int len) {
     if (!session->rxqueue.empty()) {
         buffer = session->rxqueue.front();
 
-        swTrace("BIO_read(%d, peek=%d)=%d", len, session->peek_mode, buffer->length);
+        swoole_trace("BIO_read(%d, peek=%d)=%d", len, session->peek_mode, buffer->length);
 
         int n = (buffer->length <= len) ? buffer->length : len;
         memmove(data, buffer->data, n);
@@ -41,7 +41,7 @@ long BIO_ctrl(BIO *b, int cmd, long lval, void *ptrval) {
     long retval = 0;
     Session *session = (Session *) BIO_get_data(b);
 
-    swTraceLog(SW_TRACE_SSL, "BIO_ctrl(BIO[0x%016lX], cmd[%d], lval[%ld], ptrval[0x%016lX])", b, cmd, lval, ptrval);
+    swoole_trace_log(SW_TRACE_SSL, "BIO_ctrl(BIO[0x%016lX], cmd[%d], lval[%ld], ptrval[0x%016lX])", b, cmd, lval, ptrval);
 
     switch (cmd) {
     case BIO_CTRL_EOF:
@@ -88,7 +88,7 @@ long BIO_ctrl(BIO *b, int cmd, long lval, void *ptrval) {
         retval = 0;
         break;
     default:
-        swWarn("unknown cmd: %d", cmd);
+        swoole_warning("unknown cmd: %d", cmd);
         retval = 0;
         break;
     }
@@ -101,7 +101,7 @@ int BIO_create(BIO *b) {
 }
 
 int BIO_destroy(BIO *b) {
-    swTraceLog(SW_TRACE_SSL, "BIO_destroy(BIO[0x%016lX])\n", b);
+    swoole_trace_log(SW_TRACE_SSL, "BIO_destroy(BIO[0x%016lX])\n", b);
     return 1;
 }
 
@@ -170,7 +170,7 @@ bool Session::listen() {
         return true;
     } else if (retval < 0) {
         int reason = ERR_GET_REASON(ERR_peek_error());
-        swWarn("DTLSv1_listen() failed, client[%s:%d], reason=%d, error_string=%s",
+        swoole_warning("DTLSv1_listen() failed, client[%s:%d], reason=%d, error_string=%s",
                socket->info.get_ip(),
                socket->info.get_port(),
                reason,

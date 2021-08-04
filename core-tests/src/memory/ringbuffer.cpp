@@ -75,7 +75,7 @@ static void thread_write(void) {
         } while (yield_count < 100);
 
         if (!ptr) {
-            swWarn("alloc failed. index=%d, break", i);
+            swoole_warning("alloc failed. index=%d, break", i);
         }
         ASSERT_NE(ptr, nullptr);
 

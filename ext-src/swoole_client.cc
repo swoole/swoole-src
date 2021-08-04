@@ -488,7 +488,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     _open_tcp_nodelay:
         if (cli->socket->socket_type == SW_SOCK_TCP || cli->socket->socket_type == SW_SOCK_TCP6) {
             if (cli->socket->set_tcp_nodelay() < 0) {
-                swSysWarn("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
+                swoole_sys_warning("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
             }
         }
     }

@@ -97,7 +97,7 @@ int php_swoole_redis_server_onReceive(Server *serv, RecvData *req) {
     int fd = req->info.fd;
     Connection *conn = serv->get_connection_by_session_id(fd);
     if (!conn) {
-        swWarn("connection[%d] is closed", fd);
+        swoole_warning("connection[%d] is closed", fd);
         return SW_ERR;
     }
 

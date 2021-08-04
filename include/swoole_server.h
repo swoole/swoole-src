@@ -885,13 +885,13 @@ class Server {
 
     bool set_document_root(const std::string &path) {
         if (path.length() > PATH_MAX) {
-            swWarn("The length of document_root must be less than %d", PATH_MAX);
+            swoole_warning("The length of document_root must be less than %d", PATH_MAX);
             return false;
         }
 
         char _realpath[PATH_MAX];
         if (!realpath(path.c_str(), _realpath)) {
-            swWarn("document_root[%s] does not exist", path.c_str());
+            swoole_warning("document_root[%s] does not exist", path.c_str());
             return false;
         }
 

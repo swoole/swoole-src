@@ -34,7 +34,7 @@ bool swoole_load_resolv_conf() {
     char buf[16] = {};
 
     if ((fp = fopen(SwooleG.dns_resolvconf_path.c_str(), "rt")) == nullptr) {
-        swSysWarn("fopen(%s) failed", SwooleG.dns_resolvconf_path.c_str());
+        swoole_sys_warning("fopen(%s) failed", SwooleG.dns_resolvconf_path.c_str());
         return false;
     }
 
@@ -319,7 +319,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 
     int len = strlen(domain);
     if (domain_encode(domain, len, _domain_name) < 0) {
-        swWarn("invalid domain[%s]", domain);
+        swoole_warning("invalid domain[%s]", domain);
         return result;
     }
 
@@ -511,13 +511,13 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         ares_library_init(ARES_LIB_INIT_ALL);
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_READ, [](Reactor *reactor, Event *event) -> int {
             auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
-            swTraceLog(SW_TRACE_CARES, "[event callback] readable event, fd=%d", event->socket->fd);
+            swoole_trace_log(SW_TRACE_CARES, "[event callback] readable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, event->fd, ARES_SOCKET_BAD);
             return SW_OK;
         });
         swoole_event_set_handler(SW_FD_CARES | SW_EVENT_WRITE, [](Reactor *reactor, Event *event) -> int {
             auto ctx = reinterpret_cast<ResolvContext *>(event->socket->object);
-            swTraceLog(SW_TRACE_CARES, "[event callback] writable event, fd=%d", event->socket->fd);
+            swoole_trace_log(SW_TRACE_CARES, "[event callback] writable event, fd=%d", event->socket->fd);
             ares_process_fd(ctx->channel, ARES_SOCKET_BAD, event->fd);
             return SW_OK;
         });
@@ -544,12 +544,12 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
             events |= SW_EVENT_WRITE;
         }
 
-        swTraceLog(SW_TRACE_CARES, "[sock_state_cb], fd=%d, readable=%d, writable=%d", fd, readable, writable);
+        swoole_trace_log(SW_TRACE_CARES, "[sock_state_cb], fd=%d, readable=%d, writable=%d", fd, readable, writable);
 
         network::Socket *_socket = nullptr;
         if (ctx->sockets.find(fd) == ctx->sockets.end()) {
             if (events == 0) {
-                swWarn("error events, fd=%d", fd);
+                swoole_warning("error events, fd=%d", fd);
                 return;
             }
             _socket = make_socket(fd, SW_FD_CARES);
@@ -558,7 +558,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         } else {
             _socket = ctx->sockets[fd];
             if (events == 0) {
-                swTraceLog(SW_TRACE_CARES, "[del event], fd=%d", fd);
+                swoole_trace_log(SW_TRACE_CARES, "[del event], fd=%d", fd);
                 swoole_event_del(_socket);
                 _socket->fd = -1;
                 _socket->free();
@@ -569,16 +569,16 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
 
         if (_socket->events) {
             swoole_event_set(_socket, events);
-            swTraceLog(SW_TRACE_CARES, "[set event] fd=%d, events=%d", fd, events);
+            swoole_trace_log(SW_TRACE_CARES, "[set event] fd=%d, events=%d", fd, events);
         } else {
             swoole_event_add(_socket, events);
-            swTraceLog(SW_TRACE_CARES, "[add event] fd=%d, events=%d", fd, events);
+            swoole_trace_log(SW_TRACE_CARES, "[add event] fd=%d, events=%d", fd, events);
         }
     };
     ctx.ares_flags = ARES_OPT_TIMEOUTMS | ARES_OPT_TRIES | ARES_OPT_SOCK_STATE_CB | ARES_OPT_LOOKUPS;
 
     if ((res = ares_init_options(&ctx.channel, &ctx.ares_opts, ctx.ares_flags)) != ARES_SUCCESS) {
-        swWarn("ares_init_options() failed, Error: %s[%d]", ares_strerror(res), res);
+        swoole_warning("ares_init_options() failed, Error: %s[%d]", ares_strerror(res), res);
         goto _return;
     }
 
@@ -598,10 +598,10 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         inet_pton(AF_INET, SwooleG.dns_server_host.c_str(), &servers.addr.addr4);
         ares_set_servers(ctx.channel, &servers);
         if (SwooleG.dns_server_port != SW_DNS_SERVER_PORT) {
-            swWarn("not support to set port of dns server");
+            swoole_warning("not support to set port of dns server");
         }
 #else
-        swWarn("not support to set dns server");
+        swoole_warning("not support to set dns server");
 #endif
     }
 
@@ -612,7 +612,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         [](void *data, int status, int timeouts, struct hostent *hostent) {
             auto ctx = reinterpret_cast<ResolvContext *>(data);
 
-            swTraceLog(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
+            swoole_trace_log(SW_TRACE_CARES, "[cares callback] status=%d, timeouts=%d", status, timeouts);
 
             if (timeouts > 0) {
                 ctx->error = SW_ERROR_DNSLOOKUP_RESOLVE_TIMEOUT;
@@ -657,7 +657,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
         ares_process_fd(ctx.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
         ctx.error = ARES_ETIMEOUT;
     } else {
-        swTraceLog(SW_TRACE_CARES, "lookup success, result_count=%lu", ctx.result.size());
+        swoole_trace_log(SW_TRACE_CARES, "lookup success, result_count=%lu", ctx.result.size());
     }
 _destroy:
     if (ctx.error) {
@@ -818,7 +818,7 @@ int getaddrinfo(GetaddrinfoRequest *req) {
             memcpy((char *) buffer + (i * sizeof(struct sockaddr_in6)), ptr->ai_addr, sizeof(struct sockaddr_in6));
             break;
         default:
-            swWarn("unknown socket family[%d]", ptr->ai_family);
+            swoole_warning("unknown socket family[%d]", ptr->ai_family);
             break;
         }
         i++;

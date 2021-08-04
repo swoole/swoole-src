@@ -78,7 +78,7 @@ void swoole_signal_block_all(void) {
     sigfillset(&mask);
     int ret = pthread_sigmask(SIG_BLOCK, &mask, nullptr);
     if (ret < 0) {
-        swSysWarn("pthread_sigmask() failed");
+        swoole_sys_warning("pthread_sigmask() failed");
     }
 }
 
@@ -153,7 +153,7 @@ static void swoole_signal_async_handler(int signo) {
 
 void swoole_signal_callback(int signo) {
     if (signo >= SW_SIGNO_MAX) {
-        swWarn("signal[%d] numberis invalid", signo);
+        swoole_warning("signal[%d] numberis invalid", signo);
         return;
     }
     SignalHandler callback = signals[signo].handler;
@@ -167,7 +167,7 @@ void swoole_signal_callback(int signo) {
 
 SignalHandler swoole_signal_get_handler(int signo) {
     if (signo >= SW_SIGNO_MAX) {
-        swWarn("signal[%d] numberis invalid", signo);
+        swoole_warning("signal[%d] numberis invalid", signo);
         return nullptr;
     } else {
         return signals[signo].handler;
@@ -241,12 +241,12 @@ static bool swoole_signalfd_create() {
 
     signal_fd = signalfd(-1, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     if (signal_fd < 0) {
-        swSysWarn("signalfd() failed");
+        swoole_sys_warning("signalfd() failed");
         return false;
     }
     signal_socket = swoole::make_socket(signal_fd, SW_FD_SIGNAL);
     if (sigprocmask(SIG_BLOCK, &signalfd_mask, nullptr) == -1) {
-        swSysWarn("sigprocmask() failed");
+        swoole_sys_warning("sigprocmask() failed");
         signal_socket->fd = -1;
         signal_socket->free();
         close(signal_fd);
@@ -285,7 +285,7 @@ bool swoole_signalfd_setup(Reactor *reactor) {
 static void swoole_signalfd_clear() {
     if (signal_fd) {
         if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, nullptr) < 0) {
-            swSysWarn("sigprocmask(SIG_UNBLOCK) failed");
+            swoole_sys_warning("sigprocmask(SIG_UNBLOCK) failed");
         }
         if (signal_socket) {
             signal_socket->free();
@@ -300,11 +300,11 @@ static int swoole_signalfd_event_callback(Reactor *reactor, Event *event) {
     struct signalfd_siginfo siginfo;
     ssize_t n = read(event->fd, &siginfo, sizeof(siginfo));
     if (n < 0) {
-        swSysWarn("read from signalfd failed");
+        swoole_sys_warning("read from signalfd failed");
         return SW_OK;
     }
     if (siginfo.ssi_signo >= SW_SIGNO_MAX) {
-        swWarn("unknown signal[%d]", siginfo.ssi_signo);
+        swoole_warning("unknown signal[%d]", siginfo.ssi_signo);
         return SW_OK;
     }
     if (signals[siginfo.ssi_signo].activated) {
@@ -357,7 +357,7 @@ static SignalHandler swoole_signal_kqueue_set(int signo, SignalHandler handler) 
     }
     int n = kevent(reactor->native_handle, &ev, 1, nullptr, 0, nullptr);
     if (n < 0 && sw_unlikely(handler)) {
-        swSysWarn("kevent set signal[%d] error", signo);
+        swoole_sys_warning("kevent set signal[%d] error", signo);
     }
 
     return origin_handler;

@@ -133,7 +133,7 @@ class Coroutine {
             return (new Coroutine(fn, args))->run();
         } catch (const std::system_error& e) {
             swoole_set_last_error(e.code().value());
-            swWarn("failed to create coroutine, Error: %s[%d]", e.what(), swoole_get_last_error());
+            swoole_warning("failed to create coroutine, Error: %s[%d]", e.what(), swoole_get_last_error());
             return -1;
         }
 #else
@@ -150,7 +150,7 @@ class Coroutine {
 
     static inline Coroutine *get_current_safe() {
         if (sw_unlikely(!current)) {
-            swFatalError(SW_ERROR_CO_OUT_OF_COROUTINE, "API must be called in the coroutine");
+            swoole_fatal_error(SW_ERROR_CO_OUT_OF_COROUTINE, "API must be called in the coroutine");
         }
         return current;
     }

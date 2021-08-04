@@ -36,11 +36,11 @@ bool ProcessFactory::shutdown() {
     int status;
 
     if (swoole_kill(server_->gs->manager_pid, SIGTERM) < 0) {
-        swSysWarn("swKill(%d) failed", server_->gs->manager_pid);
+        swoole_sys_warning("swKill(%d) failed", server_->gs->manager_pid);
     }
 
     if (swoole_waitpid(server_->gs->manager_pid, &status, 0) < 0) {
-        swSysWarn("waitpid(%d) failed", server_->gs->manager_pid);
+        swoole_sys_warning("waitpid(%d) failed", server_->gs->manager_pid);
     }
 
     SW_LOOP_N(server_->worker_num) {
@@ -112,7 +112,7 @@ bool ProcessFactory::start() {
 
     send_buffer = (PipeBuffer *) sw_malloc(server_->ipc_max_size);
     if (send_buffer == nullptr) {
-        swSysError("malloc[send_buffer] failed");
+        swoole_sys_error("malloc[send_buffer] failed");
         return false;
     }
     sw_memset_zero(send_buffer, sizeof(DataHead));
@@ -121,7 +121,7 @@ bool ProcessFactory::start() {
      * The manager process must be started first, otherwise it will have a thread fork
      */
     if (server_->start_manager_process() < 0) {
-        swWarn("FactoryProcess_manager_start failed");
+        swoole_warning("FactoryProcess_manager_start failed");
         return false;
     }
     return true;
@@ -162,7 +162,7 @@ bool ProcessFactory::dispatch(SendData *task) {
             // TODO: close connection
             return false;
         default:
-            swWarn("invalid target worker id[%d]", target_worker_id);
+            swoole_warning("invalid target worker id[%d]", target_worker_id);
             return false;
         }
     }
@@ -170,7 +170,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     if (Server::is_stream_event(task->info.type)) {
         Connection *conn = server_->get_connection(fd);
         if (conn == nullptr || conn->active == 0) {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
+            swoole_warning("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
             return false;
         }
         // server active close, discard data.
@@ -259,7 +259,7 @@ _ipc_use_chunk:
         iov[1].iov_base = (void *) (data + offset);
         iov[1].iov_len = copy_n;
 
-        swTrace("finish, type=%d|len=%u", resp->info.type, copy_n);
+        swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
         if (_send(serv, &resp->info, iov, 2, private_data) < 0) {
 #ifdef __linux__
@@ -360,7 +360,7 @@ bool ProcessFactory::finish(SendData *resp) {
     task.info.reactor_id = conn->reactor_id;
     task.info.server_fd = SwooleG.process_id;
 
-    swTrace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
+    swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
     return process_send_packet(server_, &task, process_sendto_reactor, conn);
 }
@@ -387,7 +387,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
         conn->close_actively = 1;
     }
 
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
+    swoole_trace_log(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
 
     Worker *worker;
     DataHead ev = {};

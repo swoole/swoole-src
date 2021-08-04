@@ -27,20 +27,20 @@ int swoole_daemon(int nochdir, int noclose) {
     pid_t pid;
 
     if (!nochdir && chdir("/") != 0) {
-        swSysWarn("chdir() failed");
+        swoole_sys_warning("chdir() failed");
         return -1;
     }
 
     if (!noclose) {
         int fd = open("/dev/null", O_RDWR);
         if (fd < 0) {
-            swSysWarn("open() failed");
+            swoole_sys_warning("open() failed");
             return -1;
         }
 
         if (dup2(fd, 0) < 0 || dup2(fd, 1) < 0 || dup2(fd, 2) < 0) {
             close(fd);
-            swSysWarn("dup2() failed");
+            swoole_sys_warning("dup2() failed");
             return -1;
         }
 
@@ -49,14 +49,14 @@ int swoole_daemon(int nochdir, int noclose) {
 
     pid = swoole_fork(SW_FORK_DAEMON);
     if (pid < 0) {
-        swSysWarn("fork() failed");
+        swoole_sys_warning("fork() failed");
         return -1;
     }
     if (pid > 0) {
         _exit(0);
     }
     if (setsid() < 0) {
-        swSysWarn("setsid() failed");
+        swoole_sys_warning("setsid() failed");
         return -1;
     }
     return 0;

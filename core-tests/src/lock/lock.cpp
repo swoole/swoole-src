@@ -107,7 +107,7 @@ TEST(lock, shared) {
         int status;
         pid_t _pid = waitpid(pid, &status, 0);
         if (_pid != pid ) {
-            swWarn("error pid=%d", _pid);
+            swoole_warning("error pid=%d", _pid);
         }
         ASSERT_EQ(*_num, magic_num);
     }

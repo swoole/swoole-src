@@ -88,11 +88,11 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
     async([&result, file, lock]() {
         File fp(file, O_RDONLY);
         if (!fp.ready()) {
-            swSysWarn("open(%s, O_RDONLY) failed", file);
+            swoole_sys_warning("open(%s, O_RDONLY) failed", file);
             return;
         }
         if (lock && !fp.lock(LOCK_SH)) {
-            swSysWarn("flock(%s, LOCK_SH) failed", file);
+            swoole_sys_warning("flock(%s, LOCK_SH) failed", file);
             return;
         }
         ssize_t filesize = fp.get_size();
@@ -105,7 +105,7 @@ std::shared_ptr<String> System::read_file(const char *file, bool lock) {
             result = fp.read_content();
         }
         if (lock && !fp.unlock()) {
-            swSysWarn("flock(%s, LOCK_UN) failed", file);
+            swoole_sys_warning("flock(%s, LOCK_UN) failed", file);
         }
     });
     return result;
@@ -117,19 +117,19 @@ ssize_t System::write_file(const char *file, char *buf, size_t length, bool lock
     async([&]() {
         File _file(file, file_flags, 0644);
         if (!_file.ready()) {
-            swSysWarn("open(%s, %d) failed", file, file_flags);
+            swoole_sys_warning("open(%s, %d) failed", file, file_flags);
             return;
         }
         if (lock && !_file.lock(LOCK_EX)) {
-            swSysWarn("flock(%s, LOCK_EX) failed", file);
+            swoole_sys_warning("flock(%s, LOCK_EX) failed", file);
             return;
         }
         size_t bytes = _file.write_all(buf, length);
         if ((file_flags & SW_AIO_WRITE_FSYNC) && !_file.sync()) {
-            swSysWarn("fsync(%s) failed", file);
+            swoole_sys_warning("fsync(%s) failed", file);
         }
         if (lock && !_file.unlock()) {
-            swSysWarn("flock(%s, LOCK_UN) failed", file);
+            swoole_sys_warning("flock(%s, LOCK_UN) failed", file);
         }
         retval = bytes;
     });
@@ -431,7 +431,7 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     if (timeout == 0) {
         struct pollfd *event_list = (struct pollfd *) sw_calloc(fds.size(), sizeof(struct pollfd));
         if (!event_list) {
-            swWarn("calloc() failed");
+            swoole_warning("calloc() failed");
             return false;
         }
         int n = 0;

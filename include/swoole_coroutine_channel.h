@@ -135,12 +135,12 @@ class Channel {
         if (type == PRODUCER) {
             co = producer_queue.front();
             producer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
+            swoole_trace_log(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
         } else  // if (type == CONSUMER)
         {
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
+            swoole_trace_log(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
         }
         return co;
     }
