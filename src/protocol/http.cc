@@ -747,7 +747,6 @@ int dispatch_frame(Protocol *proto, Socket *socket, const char *data, uint32_t l
         return SW_ERR;
     }
 }
-
-}  // namespace http_server
 #endif
+}  // namespace http_server
 }  // namespace swoole
