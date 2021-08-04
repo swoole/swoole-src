@@ -25,7 +25,7 @@
 #define SW_LOG_DATE_STRLEN 128
 #define SW_LOG_DEFAULT_DATE_FORMAT "%F %T"
 
-enum swLog_level {
+enum swLogLevel {
     SW_LOG_DEBUG = 0,
     SW_LOG_TRACE,
     SW_LOG_INFO,
@@ -35,7 +35,7 @@ enum swLog_level {
     SW_LOG_NONE,
 };
 
-enum swLog_rotation_type {
+enum swLogRotationType {
     SW_LOG_ROTATION_SINGLE = 0,
     SW_LOG_ROTATION_MONTHLY,
     SW_LOG_ROTATION_DAILY,
