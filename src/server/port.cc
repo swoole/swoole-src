@@ -234,9 +234,9 @@ void Server::init_port_protocol(ListenPort *ls) {
     } else if (ls->open_http_protocol) {
 #ifdef SW_USE_HTTP2
         if (ls->open_http2_protocol && ls->open_websocket_protocol) {
-            ls->protocol.get_package_length = swHttpMix_get_package_length;
-            ls->protocol.get_package_length_size = swHttpMix_get_package_length_size;
-            ls->protocol.onPackage = swHttpMix_dispatch_frame;
+            ls->protocol.get_package_length = http_server::get_package_length;
+            ls->protocol.get_package_length_size = http_server::get_package_length_size;
+            ls->protocol.onPackage = http_server::dispatch_frame;
         } else if (ls->open_http2_protocol) {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.get_package_length = http2::get_frame_length;

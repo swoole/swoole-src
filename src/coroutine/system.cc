@@ -359,7 +359,7 @@ static void socket_poll_completed(void *data) {
     task->co->resume();
 }
 
-static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, int fd, enum swEventType event) {
+static inline void socket_poll_trigger_event(Reactor *reactor, CoroPollTask *task, int fd, EventType event) {
     auto i = task->fds->find(fd);
     if (event == SW_EVENT_ERROR && !(i->second.events & SW_EVENT_ERROR)) {
         if (i->second.events & SW_EVENT_READ) {
@@ -534,7 +534,7 @@ struct EventWaiter {
     }
 };
 
-static inline void event_waiter_callback(Reactor *reactor, EventWaiter *waiter, enum swEventType event) {
+static inline void event_waiter_callback(Reactor *reactor, EventWaiter *waiter, EventType event) {
     if (waiter->revents == 0) {
         reactor->defer([waiter](void *data) { waiter->co->resume(); });
     }

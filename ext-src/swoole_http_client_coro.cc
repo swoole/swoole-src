@@ -187,7 +187,7 @@ class HttpClient {
     bool close(const bool should_be_reset = true);
 
     void get_header_out(zval *return_value) {
-        swString *buffer = nullptr;
+        String *buffer = nullptr;
         if (socket == nullptr) {
             if (tmp_write_buffer) {
                 buffer = tmp_write_buffer;
@@ -913,7 +913,7 @@ bool HttpClient::send() {
     // clear errno
     swoole_set_last_error(0);
     // alloc buffer
-    swString *buffer = socket->get_write_buffer();
+    String *buffer = socket->get_write_buffer();
     buffer->clear();
     // clear body
     body->clear();
@@ -958,7 +958,7 @@ bool HttpClient::send() {
             method = zbody ? "POST" : "GET";
             method_len = strlen(method);
         }
-        this->method = swHttp_get_method(method, method_len);
+        this->method = http_server::get_method(method, method_len);
         buffer->append(method, method_len);
         buffer->append(ZEND_STRL(" "));
     }
@@ -1458,7 +1458,7 @@ void HttpClient::recv(zval *zframe, double timeout) {
 bool HttpClient::recv_http_response(double timeout) {
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
-    swString *buffer = socket->get_read_buffer();
+    String *buffer = socket->get_read_buffer();
     bool header_completed = false;
     off_t header_crlf_offset = 0;
 
@@ -1583,7 +1583,7 @@ bool HttpClient::push(zval *zdata, zend_long opcode, uint8_t flags) {
         return false;
     }
 
-    swString *buffer = socket->get_write_buffer();
+    String *buffer = socket->get_write_buffer();
     buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
         if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, websocket_compression) < 0) {

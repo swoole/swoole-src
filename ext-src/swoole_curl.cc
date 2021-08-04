@@ -70,7 +70,7 @@ Socket *Multi::create_socket(CURL *cp, curl_socket_t sockfd) {
     Socket *socket = new Socket();
     socket->fd = sockfd;
     socket->removed = 1;
-    socket->fd_type = (enum swFdType) PHP_SWOOLE_FD_CO_CURL;
+    socket->fd_type = (FdType) PHP_SWOOLE_FD_CO_CURL;
     curl_multi_assign(multi_handle_, sockfd, (void *) socket);
 
     Handle *handle = get_handle(cp);

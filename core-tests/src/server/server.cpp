@@ -330,7 +330,7 @@ TEST(server, task_worker) {
     swEventData buf;
     memset(&buf.info, 0, sizeof(buf.info));
 
-    swTask_type(&buf) |= SW_TASK_NOREPLY;
+    SW_TASK_TYPE(&buf) |= SW_TASK_NOREPLY;
     buf.info.len = strlen(packet);
     memcpy(buf.data, packet, strlen(packet));
 

@@ -68,7 +68,7 @@ void Client::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, Client_onError);
 }
 
-Client::Client(enum swSocketType _type, bool _async) : async(_async) {
+Client::Client(SocketType _type, bool _async) : async(_async) {
     fd_type = Socket::is_stream(_type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
     socket = swoole::make_socket(_type, fd_type, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {

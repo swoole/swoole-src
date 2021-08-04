@@ -241,7 +241,7 @@ class mysql_client {
             return false;
         } else {
             /* without unread data */
-            swString *buffer = socket->get_read_buffer();
+            String *buffer = socket->get_read_buffer();
             SW_ASSERT(buffer->length == (size_t) buffer->offset);
             buffer->clear();
             return true;
@@ -606,7 +606,7 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl) {
 const char *mysql_client::recv_length(size_t need_length, const bool try_to_recycle) {
     if (sw_likely(check_connection())) {
         ssize_t retval;
-        swString *buffer = socket->get_read_buffer();
+        String *buffer = socket->get_read_buffer();
         off_t offset = buffer->offset;                    // save offset instead of buffer point (due to realloc)
         size_t read_n = buffer->length - buffer->offset;  // readable bytes
         if (try_to_recycle && read_n == 0) {
@@ -1204,7 +1204,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params) {
         RETURN_FALSE;
     }
 
-    swString *buffer = client->socket->get_write_buffer();
+    String *buffer = client->socket->get_write_buffer();
     char *p = buffer->str;
 
     memset(p, 0, 5);

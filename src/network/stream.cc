@@ -74,7 +74,7 @@ static void Stream_onClose(Client *cli) {
         cli);
 }
 
-Stream::Stream(const char *dst_host, int dst_port, enum swSocketType type) : client(type, true) {
+Stream::Stream(const char *dst_host, int dst_port, SocketType type) : client(type, true) {
     if (client.socket == nullptr) {
         return;
     }

@@ -1430,7 +1430,7 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
 
 using network::Socket;
 
-Socket *make_socket(enum swSocketType type, enum swFdType fd_type, int flags) {
+Socket *make_socket(SocketType type, FdType fd_type, int flags) {
     int sock_domain;
     int sock_type;
 
@@ -1474,7 +1474,7 @@ Socket *make_socket(enum swSocketType type, enum swFdType fd_type, int flags) {
     return _socket;
 }
 
-Socket *make_server_socket(enum swSocketType type, const char *address, int port, int backlog) {
+Socket *make_server_socket(SocketType type, const char *address, int port, int backlog) {
     Socket *sock = swoole::make_socket(type, SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC);
     if (sock == nullptr) {
         swoole_sys_warning("socket() failed");
@@ -1492,7 +1492,7 @@ Socket *make_server_socket(enum swSocketType type, const char *address, int port
     return sock;
 }
 
-Socket *make_socket(int fd, enum swFdType fd_type) {
+Socket *make_socket(int fd, FdType fd_type) {
     Socket *socket = new Socket();
     socket->fd = fd;
     socket->fd_type = fd_type;

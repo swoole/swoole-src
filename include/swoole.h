@@ -459,11 +459,11 @@ enum swEventDataFlag {
     SW_EVENT_DATA_POP_PTR = 1u << 6,
 };
 
-#define swTask_type(task) ((task)->info.server_fd)
-
 /**
- * use swDataHead->server_fd, 1 byte 8 bit
+ * Use server_fd field to store flag of the server task
  */
+#define SW_TASK_TYPE(task) ((task)->info.server_fd)
+
 enum swTaskType {
     SW_TASK_TMPFILE   = 1,    // tmp file
     SW_TASK_SERIALIZE = 2,    // php serialize
@@ -494,7 +494,7 @@ enum swProcessType {
     SW_PROCESS_USERWORKER = 5,
 };
 
-enum swPipe_type {
+enum swPipeType {
     SW_PIPE_WORKER   = 0,
     SW_PIPE_MASTER   = 1,
     SW_PIPE_READ     = 0,
@@ -563,16 +563,20 @@ static inline struct timespec swoole_time_until(int milliseconds) {
 }
 
 namespace swoole {
-struct Event {
-    int fd;
-    int16_t reactor_id;
-    enum swFdType type;
-    network::Socket *socket;
-};
 
 typedef long SessionId;
 typedef long TaskId;
 typedef uint8_t ReactorId;
+typedef enum swEventType EventType;
+typedef enum swSocketType SocketType;
+typedef enum swFdType FdType;
+
+struct Event {
+    int fd;
+    int16_t reactor_id;
+    FdType type;
+    network::Socket *socket;
+};
 
 struct DataHead {
     SessionId fd;

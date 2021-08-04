@@ -37,13 +37,13 @@
 #endif
 
 enum http_header_flag {
-    HTTP_HEADER_SERVER            = 1u << 1,
-    HTTP_HEADER_CONNECTION        = 1u << 2,
-    HTTP_HEADER_CONTENT_LENGTH    = 1u << 3,
-    HTTP_HEADER_DATE              = 1u << 4,
-    HTTP_HEADER_CONTENT_TYPE      = 1u << 5,
+    HTTP_HEADER_SERVER = 1u << 1,
+    HTTP_HEADER_CONNECTION = 1u << 2,
+    HTTP_HEADER_CONTENT_LENGTH = 1u << 3,
+    HTTP_HEADER_DATE = 1u << 4,
+    HTTP_HEADER_CONTENT_TYPE = 1u << 5,
     HTTP_HEADER_TRANSFER_ENCODING = 1u << 6,
-    HTTP_HEADER_ACCEPT_ENCODING   = 1u << 7,
+    HTTP_HEADER_ACCEPT_ENCODING = 1u << 7,
 };
 
 enum http_compress_method {
@@ -75,9 +75,9 @@ struct Request {
 
     zval zdata;
     size_t body_length;
-    swString *chunked_body;
+    String *chunked_body;
 #ifdef SW_USE_HTTP2
-    swString *h2_data_buffer;
+    String *h2_data_buffer;
 #endif
 
     // Notice: Do not change the order
@@ -236,11 +236,11 @@ class Session {
     uint32_t max_concurrent_streams;
     uint32_t max_frame_size;
     uint32_t last_stream_id;
-    bool     shutting_down;
-    bool     is_coro;
+    bool shutting_down;
+    bool is_coro;
 
     http::Context *default_ctx = nullptr;
-    void *private_data   = nullptr;
+    void *private_data = nullptr;
 
     void (*handle)(Session *, Stream *) = nullptr;
 
@@ -272,7 +272,7 @@ static sw_inline zval *swoole_http_init_and_read_property(
         // Notice: swoole http server properties can not be unset anymore, so we can read it without checking
         zval rv, *property = zend_read_property(ce, SW_Z8_OBJ_P(zobject), name, name_len, 0, &rv);
         array_init(property);
-        *zproperty_store_pp  = (zval *) (zproperty_store_pp + 1);
+        *zproperty_store_pp = (zval *) (zproperty_store_pp + 1);
         **zproperty_store_pp = *property;
     }
     return *zproperty_store_pp;
@@ -356,21 +356,21 @@ class HeaderSet {
                     const uint8_t flags = NGHTTP2_NV_FLAG_NONE) {
         if (sw_likely(index < size || nvs[index].name == nullptr)) {
             nghttp2_nv *nv = &nvs[index];
-            name           = zend_str_tolower_dup(name, name_len);  // auto to lower
-            nv->name       = (uchar *) name;
-            nv->namelen    = name_len;
-            nv->value      = (uchar *) emalloc(value_len);
+            name = zend_str_tolower_dup(name, name_len);  // auto to lower
+            nv->name = (uchar *) name;
+            nv->namelen = name_len;
+            nv->value = (uchar *) emalloc(value_len);
             memcpy(nv->value, value, value_len);
             nv->valuelen = value_len;
-            nv->flags    = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
+            nv->flags = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
             swoole_trace_log(SW_TRACE_HTTP2,
-                       "name=(%zu)[%.*s], value=(%zu)[%.*s]",
-                       name_len,
-                       (int) name_len,
-                       name,
-                       value_len,
-                       (int) value_len,
-                       value);
+                             "name=(%zu)[%.*s], value=(%zu)[%.*s]",
+                             name_len,
+                             (int) name_len,
+                             name,
+                             value_len,
+                             (int) value_len,
+                             value);
         } else {
             php_swoole_fatal_error(
                 E_WARNING, "unexpect http2 header [%.*s] (duplicated or overflow)", (int) name_len, name);

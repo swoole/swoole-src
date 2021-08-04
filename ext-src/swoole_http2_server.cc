@@ -440,7 +440,7 @@ bool Http2Stream::send_header(size_t body_length, bool end_stream) {
     return true;
 }
 
-bool Http2Stream::send_body(swString *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
+bool Http2Stream::send_body(String *body, bool end_stream, size_t max_frame_size, off_t offset, size_t length) {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
     char *p = body->str + offset;
     size_t l = length == 0 ? body->length : length;
@@ -893,7 +893,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         zend_update_property_long(
             swoole_http_request_ce, SW_Z8_OBJ_P(ctx->request.zobject), ZEND_STRL("streamId"), stream_id);
 
-        swString *buffer = ctx->request.h2_data_buffer;
+        String *buffer = ctx->request.h2_data_buffer;
         if (!buffer) {
             buffer = new String(SW_HTTP2_DATA_BUFFER_SIZE);
             ctx->request.h2_data_buffer = buffer;

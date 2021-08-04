@@ -94,9 +94,9 @@ struct Address {
         struct sockaddr_un un;
     } addr;
     socklen_t len;
-    enum swSocketType type;
+    SocketType type;
 
-    bool assign(enum swSocketType _type, const std::string &_host, int _port);
+    bool assign(SocketType _type, const std::string &_host, int _port);
     const char *get_ip() {
         return get_addr();
     }
@@ -156,8 +156,8 @@ struct Socket {
     static uint32_t default_buffer_size;
 
     int fd;
-    enum swFdType fd_type;
-    enum swSocketType socket_type;
+    FdType fd_type;
+    SocketType socket_type;
     int events;
     bool enable_tcp_nodelay;
 
@@ -430,11 +430,11 @@ struct Socket {
     int wait_event(int timeout_ms, int events);
     void free();
 
-    static inline int is_dgram(swSocketType type) {
+    static inline int is_dgram(SocketType type) {
         return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
     }
 
-    static inline int is_stream(swSocketType type) {
+    static inline int is_stream(SocketType type) {
         return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
     }
 
@@ -524,7 +524,7 @@ struct Socket {
         }
     }
 
-    static inline enum swSocketType convert_to_type(int domain, int type, int protocol = 0) {
+    static inline SocketType convert_to_type(int domain, int type, int protocol = 0) {
         switch (domain) {
         case AF_INET:
             return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
@@ -537,7 +537,7 @@ struct Socket {
         }
     }
 
-    static inline enum swSocketType convert_to_type(std::string &host) {
+    static inline SocketType convert_to_type(std::string &host) {
         if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
             host = host.substr(sizeof("unix:") - 1);
             host.erase(0, host.find_first_not_of('/') - 1);
@@ -549,7 +549,7 @@ struct Socket {
         }
     }
 
-    static inline int get_domain_and_type(enum swSocketType type, int *sock_domain, int *sock_type) {
+    static inline int get_domain_and_type(SocketType type, int *sock_domain, int *sock_type) {
         switch (type) {
         case SW_SOCK_TCP6:
             *sock_domain = AF_INET6;
@@ -587,9 +587,9 @@ int gethostbyname(int type, const char *name, char *addr);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network
-network::Socket *make_socket(int fd, enum swFdType fd_type);
-network::Socket *make_socket(enum swSocketType socket_type, enum swFdType fd_type, int flags);
-network::Socket *make_server_socket(enum swSocketType socket_type,
+network::Socket *make_socket(int fd, FdType fd_type);
+network::Socket *make_socket(SocketType socket_type, FdType fd_type, int flags);
+network::Socket *make_server_socket(SocketType socket_type,
                                     const char *address,
                                     int port = 0,
                                     int backlog = SW_BACKLOG);
