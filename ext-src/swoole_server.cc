@@ -994,7 +994,7 @@ void ServerObject::on_before_start() {
     auto primary_port = serv->get_primary_port();
 
 #ifdef SW_LOG_TRACE_OPEN
-    swTraceLog(SW_TRACE_SERVER,
+    swoole_trace_log(SW_TRACE_SERVER,
                "Create Server: host=%s, port=%d, mode=%d, type=%d",
                primary_port->host.c_str(),
                (int) primary_port->port,
@@ -1254,7 +1254,7 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
         return;
     }
 
-    swTraceLog(SW_TRACE_SERVER,
+    swoole_trace_log(SW_TRACE_SERVER,
                "PipeMessage: fd=%ld|len=%d|src_worker_id=%d|data=%.*s\n",
                req->info.fd,
                req->info.len,
@@ -1954,7 +1954,7 @@ static void php_swoole_server_onSendTimeout(Timer *timer, TimerNode *tnode) {
             server_object->property->send_coroutine_map.erase(session_id);
         }
     } else {
-        swWarn("send coroutine[session#%ld] not exists", session_id);
+        swoole_warning("send coroutine[session#%ld] not exists", session_id);
         return;
     }
 
@@ -3068,7 +3068,7 @@ static PHP_METHOD(swoole_server, heartbeat) {
         if (session_id <= 0) {
             return;
         }
-        swTrace("heartbeat check fd=%d", conn->fd);
+        swoole_trace("heartbeat check fd=%d", conn->fd);
         if (serv->is_healthy_connection(now, conn)) {
             return;
         }
@@ -3707,7 +3707,7 @@ static PHP_METHOD(swoole_server, getClientList) {
     int fd = start_fd + 1;
 
     for (; fd <= serv_max_fd; fd++) {
-        swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_session_id);
+        swoole_trace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_session_id);
         Connection *conn = serv->get_connection_for_iterator(fd);
         if (conn) {
             SessionId session_id = conn->session_id;

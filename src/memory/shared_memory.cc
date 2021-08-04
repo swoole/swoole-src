@@ -62,7 +62,7 @@ void *SharedMemory::alloc(size_t size) {
     if (!mem)
 #endif
     {
-        swSysWarn("mmap(%lu) failed", size);
+        swoole_sys_warning("mmap(%lu) failed", size);
         return nullptr;
     } else {
         object.size_ = size;
@@ -75,7 +75,7 @@ void SharedMemory::free(void *ptr) {
     SharedMemory *object = SharedMemory::fetch_object(ptr);
     size_t size = object->size_;
     if (munmap(object, size) < 0) {
-        swSysWarn("munmap(%p, %lu) failed", object, size);
+        swoole_sys_warning("munmap(%p, %lu) failed", object, size);
     }
 }
 

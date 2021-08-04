@@ -45,14 +45,14 @@ ssize_t Protocol::default_length_func(Protocol *protocol, network::Socket *socke
     // Length error
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0) {
-        swWarn("invalid package (size=%d) from socket#%u<%s:%d>",
+        swoole_warning("invalid package (size=%d) from socket#%u<%s:%d>",
                size,
                socket->fd,
                socket->info.get_ip(),
                socket->info.get_port());
         return SW_ERR;
     }
-    swDebug("length=%d", protocol->package_body_offset + body_length);
+    swoole_debug("length=%d", protocol->package_body_offset + body_length);
 
     // total package length
     return protocol->package_body_offset + body_length;
@@ -136,7 +136,7 @@ _do_recv:
     if (recv_n < 0) {
         switch (socket->catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("recv(%d, %d) failed", socket->fd, recv_size);
+            swoole_sys_warning("recv(%d, %d) failed", socket->fd, recv_size);
             return SW_OK;
         case SW_CLOSE:
             return SW_ERR;
@@ -240,7 +240,7 @@ _recv_data:
     if (n < 0) {
         switch (socket->catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("recv from socket#%d failed", socket->fd);
+            swoole_sys_warning("recv from socket#%d failed", socket->fd);
             return SW_OK;
         case SW_CLOSE:
             return SW_ERR;
@@ -284,7 +284,7 @@ _recv_data:
 
         // over max length, will discard
         if (buffer->length == package_max_length) {
-            swWarn("Package is too big. package_length=%d", (int) buffer->length);
+            swoole_warning("Package is too big. package_length=%d", (int) buffer->length);
             return SW_ERR;
         }
 

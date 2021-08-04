@@ -50,7 +50,7 @@ int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
     if (conn->object == nullptr) {
         request = (Request *) sw_malloc(sizeof(Request));
         if (!request) {
-            swWarn("malloc(%ld) failed", sizeof(Request));
+            swoole_warning("malloc(%ld) failed", sizeof(Request));
             return SW_ERR;
         }
         sw_memset_zero(request, sizeof(Request));
@@ -67,7 +67,7 @@ _recv_data:
     if (n < 0) {
         switch (socket->catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("recv from socket#%d failed", conn->fd);
+            swoole_sys_warning("recv from socket#%d failed", conn->fd);
             return SW_OK;
         case SW_CLOSE:
             return SW_ERR;
@@ -90,7 +90,7 @@ _recv_data:
                 }
             } else if (buffer->length == buffer->size) {
             _package_too_big:
-                swWarn("Package is too big. package_length=%ld", buffer->length);
+                swoole_warning("Package is too big. package_length=%ld", buffer->length);
                 return SW_ERR;
             }
             goto _recv_data;
@@ -164,7 +164,7 @@ _recv_data:
         } while (p < pe);
     }
 _failed:
-    swWarn("redis protocol error");
+    swoole_warning("redis protocol error");
     return SW_ERR;
 }
 

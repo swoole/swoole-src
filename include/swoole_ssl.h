@@ -136,7 +136,7 @@ struct SSLContext {
 
     bool set_cert_file(const std::string &_cert_file) {
         if (access(_cert_file.c_str(), R_OK) < 0) {
-            swWarn("ssl cert file[%s] not found", _cert_file.c_str());
+            swoole_warning("ssl cert file[%s] not found", _cert_file.c_str());
             return false;
         }
         cert_file = _cert_file;
@@ -145,7 +145,7 @@ struct SSLContext {
 
     bool set_key_file(const std::string &_key_file) {
         if (access(_key_file.c_str(), R_OK) < 0) {
-            swWarn("ssl key file[%s] not found", _key_file.c_str());
+            swoole_warning("ssl key file[%s] not found", _key_file.c_str());
             return false;
         }
         key_file = _key_file;

@@ -72,13 +72,13 @@ void swSSL_init(void) {
 
     ssl_connection_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     if (ssl_connection_index < 0) {
-        swError("SSL_get_ex_new_index() failed");
+        swoole_error("SSL_get_ex_new_index() failed");
         return;
     }
 
     ssl_port_index = SSL_get_ex_new_index(0, nullptr, nullptr, nullptr, nullptr);
     if (ssl_port_index < 0) {
-        swError("SSL_get_ex_new_index() failed");
+        swoole_error("SSL_get_ex_new_index() failed");
         return;
     }
 
@@ -181,7 +181,7 @@ static void swSSL_info_callback(const SSL *ssl, int where, int ret) {
 
         if (sock->ssl_state == SW_SSL_STATE_READY) {
             sock->ssl_renegotiation = 1;
-            swDebug("SSL renegotiation");
+            swoole_debug("SSL renegotiation");
         }
     }
 
@@ -267,11 +267,11 @@ static int ssl_select_next_proto_cb(SSL *ssl, uchar **out, uchar *outlen, const 
     for (unsigned int i = 0; i < inlen; i += in[i] + 1) {
         info += "        * " + std::string(reinterpret_cast<const char *>(&in[i + 1]), in[i]);
     }
-    swTraceLog(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
+    swoole_trace_log(SW_TRACE_HTTP2, "[NPN] server offers: %s", info.c_str());
 #endif
     SSLContext *ctx = (SSLContext *) arg;
     if (ctx->http_v2 && !ssl_select_h2(const_cast<const unsigned char**>(out), outlen, in, inlen)) {
-        swWarn("HTTP/2 protocol was not selected, expects [h2]");
+        swoole_warning("HTTP/2 protocol was not selected, expects [h2]");
         return SSL_TLSEXT_ERR_NOACK;
     } else if (ctx->http) {
         *out = (uchar*) HTTP1_NPN.c_str();
@@ -314,7 +314,7 @@ bool SSLContext::create() {
     context = SSL_CTX_new(method);
     if (context == nullptr) {
         int error = ERR_get_error();
-        swWarn("SSL_CTX_new() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
+        swoole_warning("SSL_CTX_new() failed, Error: %s[%d]", ERR_reason_error_string(error), error);
         return false;
     }
 
@@ -423,7 +423,7 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_file(context, cert_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_certificate_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
+            swoole_warning("SSL_CTX_use_certificate_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
                    ERR_reason_error_string(error), error);
             return true;
         }
@@ -433,7 +433,7 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_certificate_chain_file(context, cert_file.c_str()) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_certificate_chain_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
+            swoole_warning("SSL_CTX_use_certificate_chain_file(%s) failed, Error: %s[%d]", cert_file.c_str(),
                    ERR_reason_error_string(error), error);
             return false;
         }
@@ -444,7 +444,7 @@ bool SSLContext::create() {
          */
         if (SSL_CTX_use_PrivateKey_file(context, key_file.c_str(), SSL_FILETYPE_PEM) <= 0) {
             int error = ERR_get_error();
-            swWarn("SSL_CTX_use_PrivateKey_file(%s) failed, Error: %s[%d]", key_file.c_str(),
+            swoole_warning("SSL_CTX_use_PrivateKey_file(%s) failed, Error: %s[%d]", key_file.c_str(),
                    ERR_reason_error_string(error), error);
             return false;
         }
@@ -452,7 +452,7 @@ bool SSLContext::create() {
          * verify private key
          */
         if (!SSL_CTX_check_private_key(context)) {
-            swWarn("Private key does not match the public certificate");
+            swoole_warning("Private key does not match the public certificate");
             return false;
         }
     }
@@ -496,12 +496,12 @@ bool SSLContext::create() {
 #endif
 
     if (!client_cert_file.empty() && !set_client_certificate()) {
-        swWarn("set_client_certificate() error");
+        swoole_warning("set_client_certificate() error");
         return false;
     }
 
     if (!set_ciphers()) {
-        swWarn("set_cipher() error");
+        swoole_warning("set_cipher() error");
         return false;
     }
 
@@ -517,7 +517,7 @@ bool SSLContext::set_capath() {
         }
     } else {
         if (!SSL_CTX_set_default_verify_paths(context)) {
-            swWarn("Unable to set default verify locations and no CA settings specified");
+            swoole_warning("Unable to set default verify locations and no CA settings specified");
             return false;
         }
     }
@@ -536,7 +536,7 @@ bool SSLContext::set_ciphers() {
 
     if (!ciphers.empty()) {
         if (SSL_CTX_set_cipher_list(context, ciphers.c_str()) == 0) {
-            swWarn("SSL_CTX_set_cipher_list(\"%s\") failed", ciphers.c_str());
+            swoole_warning("SSL_CTX_set_cipher_list(\"%s\") failed", ciphers.c_str());
             return false;
         }
         if (prefer_server_ciphers) {
@@ -572,14 +572,14 @@ bool SSLContext::set_client_certificate() {
     SSL_CTX_set_verify_depth(context, depth);
 
     if (SSL_CTX_load_verify_locations(context, cert_file, nullptr) == 0) {
-        swWarn("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
+        swoole_warning("SSL_CTX_load_verify_locations(\"%s\") failed", cert_file);
         return false;
     }
 
     ERR_clear_error();
     list = SSL_load_client_CA_file(cert_file);
     if (list == nullptr) {
-        swWarn("SSL_load_client_CA_file(\"%s\") failed", cert_file);
+        swoole_warning("SSL_load_client_CA_file(\"%s\") failed", cert_file);
         return false;
     }
 
@@ -618,7 +618,7 @@ bool SSLContext::set_ecdh_curve() {
         return true;
     }
     if (SSL_CTX_set1_curves_list(context, ecdh_curve.c_str()) == 0) {
-        swWarn("SSL_CTX_set1_curves_list(\"%s\") failed", ecdh_curve.c_str());
+        swoole_warning("SSL_CTX_set1_curves_list(\"%s\") failed", ecdh_curve.c_str());
         return false;
     }
 #else
@@ -631,13 +631,13 @@ bool SSLContext::set_ecdh_curve() {
      */
     int nid = OBJ_sn2nid(ecdh_curve.c_str());
     if (nid == 0) {
-        swWarn("Unknown curve name \"%s\"", ecdh_curve.c_str());
+        swoole_warning("Unknown curve name \"%s\"", ecdh_curve.c_str());
         return false;
     }
 
     ecdh = EC_KEY_new_by_curve_name(nid);
     if (ecdh == nullptr) {
-        swWarn("Unable to create curve \"%s\"", ecdh_curve.c_str());
+        swoole_warning("Unable to create curve \"%s\"", ecdh_curve.c_str());
         return false;
     }
 
@@ -659,13 +659,13 @@ bool SSLContext::set_dhparam() {
 
     bio = BIO_new_file(file, "r");
     if (bio == nullptr) {
-        swWarn("BIO_new_file(%s) failed", file);
+        swoole_warning("BIO_new_file(%s) failed", file);
         return false;
     }
 
     dh = PEM_read_bio_DHparams(bio, nullptr, nullptr, nullptr);
     if (dh == nullptr) {
-        swWarn("PEM_read_bio_DHparams(%s) failed", file);
+        swoole_warning("PEM_read_bio_DHparams(%s) failed", file);
         BIO_free(bio);
         return false;
     }
@@ -700,7 +700,7 @@ static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store) {
 
     iname = X509_get_issuer_name(cert);
     issuer = iname ? X509_NAME_oneline(iname, nullptr, 0) : "(none)";
-    swWarn("verify:%d, error:%d, depth:%d, subject:\"%s\", issuer:\"%s\"", ok, err, depth, subject, issuer);
+    swoole_warning("verify:%d, error:%d, depth:%d, subject:\"%s\", issuer:\"%s\"", ok, err, depth, subject, issuer);
 
     if (sname)
     {
@@ -757,7 +757,7 @@ static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len) {
     buffer = (uchar *) OPENSSL_malloc(length);
 
     if (buffer == nullptr) {
-        swSysWarn("out of memory");
+        swoole_sys_warning("out of memory");
         return 0;
     }
 
@@ -803,7 +803,7 @@ static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length) {
 
     BIGNUM *bn = BN_new();
     if (bn == nullptr) {
-        swWarn("allocation error generating RSA key");
+        swoole_warning("allocation error generating RSA key");
         return nullptr;
     }
 
@@ -835,7 +835,7 @@ static int swSSL_set_default_dhparam(SSL_CTX *ssl_context) {
     static unsigned char dh1024_g[] = {0x02};
     dh = DH_new();
     if (dh == nullptr) {
-        swWarn("DH_new() failed");
+        swoole_warning("DH_new() failed");
         return SW_ERR;
     }
 

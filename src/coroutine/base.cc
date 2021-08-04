@@ -153,7 +153,7 @@ void Coroutine::close() {
         on_close(task);
     }
 #if !defined(SW_USE_THREAD_CONTEXT) && defined(SW_CONTEXT_DETECT_STACK_USAGE)
-    swTraceLog(
+    swoole_trace_log(
         SW_TRACE_CONTEXT, "coroutine#%ld stack memory use less than %ld bytes", get_cid(), ctx.get_stack_usage());
 #endif
     current = origin;
@@ -205,7 +205,7 @@ void Coroutine::bailout(BailoutCallback func) {
         return;
     }
     if (!func) {
-        swError("bailout without bailout function");
+        swoole_error("bailout without bailout function");
     }
     if (!co->task) {
         // TODO: decoupling

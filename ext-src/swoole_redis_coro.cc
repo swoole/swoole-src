@@ -941,7 +941,7 @@ static sw_inline bool swoole_redis_coro_close(RedisClient *redis) {
     if (redis->context) {
         int sockfd = redis->context->fd;
         Socket *socket = swoole_redis_coro_get_socket(redis->context);
-        swTraceLog(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", sockfd);
+        swoole_trace_log(SW_TRACE_REDIS_CLIENT, "redis connection closed, fd=%d", sockfd);
         zend_update_property_bool(swoole_redis_coro_ce, SW_Z8_OBJ_P(redis->zobject), ZEND_STRL("connected"), 0);
         if (!(socket && socket->has_bound())) {
             redisFreeKeepFd(redis->context);

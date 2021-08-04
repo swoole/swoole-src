@@ -73,7 +73,7 @@ void Server::worker_signal_handler(int signo) {
         break;
     // for test
     case SIGVTALRM:
-        swWarn("SIGVTALRM coming");
+        swoole_warning("SIGVTALRM coming");
         break;
     case SIGUSR1:
     case SIGUSR2:
@@ -122,7 +122,7 @@ static int Worker_onStreamAccept(Reactor *reactor, Event *event) {
         case EAGAIN:
             return SW_OK;
         default:
-            swSysWarn("accept() failed");
+            swoole_sys_warning("accept() failed");
             return SW_OK;
         }
     }
@@ -228,7 +228,7 @@ int Server::accept_task(EventData *task) {
         if (conn) {
             if (task->info.len > 0) {
                 sw_atomic_fetch_sub(&conn->recv_queued_bytes, task->info.len);
-                swTraceLog(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->recv_queued_bytes);
+                swoole_trace_log(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", task->info.len, conn->recv_queued_bytes);
             }
             conn->last_dispatch_time = task->info.time;
         }
@@ -292,7 +292,7 @@ int Server::accept_task(EventData *task) {
         break;
     }
     default:
-        swWarn("[Worker] error event[type=%d]", (int) task->info.type);
+        swoole_warning("[Worker] error event[type=%d]", (int) task->info.type);
         break;
     }
 
@@ -322,32 +322,32 @@ void Server::worker_start_callback() {
         if (!group_.empty()) {
             _group = getgrnam(group_.c_str());
             if (!_group) {
-                swWarn("get group [%s] info failed", group_.c_str());
+                swoole_warning("get group [%s] info failed", group_.c_str());
             }
         }
         // get user info
         if (!user_.empty()) {
             _passwd = getpwnam(user_.c_str());
             if (!_passwd) {
-                swWarn("get user [%s] info failed", user_.c_str());
+                swoole_warning("get user [%s] info failed", user_.c_str());
             }
         }
         // set process group
         if (_group && setgid(_group->gr_gid) < 0) {
-            swSysWarn("setgid to [%s] failed", group_.c_str());
+            swoole_sys_warning("setgid to [%s] failed", group_.c_str());
         }
         // set process user
         if (_passwd && setuid(_passwd->pw_uid) < 0) {
-            swSysWarn("setuid to [%s] failed", user_.c_str());
+            swoole_sys_warning("setuid to [%s] failed", user_.c_str());
         }
         // chroot
         if (!chroot_.empty()) {
             if (::chroot(chroot_.c_str()) == 0) {
                 if (chdir("/") < 0) {
-                    swSysWarn("chdir(\"/\") failed");
+                    swoole_sys_warning("chdir(\"/\") failed");
                 }
             } else {
-                swSysWarn("chroot(\"%s\") failed", chroot_.c_str());
+                swoole_sys_warning("chroot(\"%s\") failed", chroot_.c_str());
             }
         }
     }
@@ -660,7 +660,7 @@ _read_from_pipe:
 
         recv_n = readv(event->fd, buffers, 2);
         if (recv_n == 0) {
-            swWarn("receive pipeline data error, pipe_fd=%d, reactor_id=%d", event->fd, info->reactor_id);
+            swoole_warning("receive pipeline data error, pipe_fd=%d, reactor_id=%d", event->fd, info->reactor_id);
             return SW_ERR;
         }
         if (recv_n < 0 && event->socket->catch_error(errno) == SW_WAIT) {
@@ -668,7 +668,7 @@ _read_from_pipe:
         }
         if (recv_n > 0) {
             worker_buffer->length += (recv_n - sizeof(pipe_buffer->info));
-            swTrace("append msgid=%ld, buffer=%p, n=%ld", pipe_buffer->info.msg_id, worker_buffer, recv_n);
+            swoole_trace("append msgid=%ld, buffer=%p, n=%ld", pipe_buffer->info.msg_id, worker_buffer, recv_n);
         }
 
         recv_chunk_count++;
@@ -682,7 +682,7 @@ _read_from_pipe:
              * the maximum number of consecutive chunks received by the worker is limited.
              */
             if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT) {
-                swTraceLog(SW_TRACE_WORKER,
+                swoole_trace_log(SW_TRACE_WORKER,
                            "worker process[%u] receives the chunk data to the maximum[%d], return to event loop",
                            SwooleG.process_id,
                            recv_chunk_count);
@@ -697,7 +697,7 @@ _read_from_pipe:
              */
             pipe_buffer->info.flags |= SW_EVENT_DATA_OBJ_PTR;
             memcpy(pipe_buffer->data, &worker_buffer, sizeof(worker_buffer));
-            swTrace("msg_id=%ld, len=%u", pipe_buffer->info.msg_id, pipe_buffer->info.len);
+            swoole_trace("msg_id=%ld, len=%u", pipe_buffer->info.msg_id, pipe_buffer->info.len);
         }
     } else {
         recv_n = event->socket->read(pipe_buffer, serv->ipc_max_size);

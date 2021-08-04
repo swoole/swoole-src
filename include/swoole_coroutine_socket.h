@@ -231,7 +231,7 @@ class Socket {
     inline void check_bound_co(const enum swEvent_type event) {
         long cid = get_bound_cid(event);
         if (sw_unlikely(cid)) {
-            swFatalError(SW_ERROR_CO_HAS_BEEN_BOUND,
+            swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
                          "Socket#%d has already been bound to another coroutine#%ld, "
                          "%s of the same socket in coroutine#%ld at the same time is not allowed",
                          sock_fd,
@@ -301,7 +301,7 @@ class Socket {
 
     inline bool set_option(int level, int optname, int optval) {
         if (socket->set_option(level, optname, optval) < 0) {
-            swSysWarn("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
+            swoole_sys_warning("setsockopt(%d, %d, %d, %d) failed", sock_fd, level, optname, optval);
             return false;
         }
         return true;

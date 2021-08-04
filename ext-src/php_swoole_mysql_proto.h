@@ -486,7 +486,7 @@ public:
     inline bool more_results_exists()
     {
         bool b = !!(status & SW_MYSQL_SERVER_MORE_RESULTS_EXISTS);
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "More results exist = %u", b);
+        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "More results exist = %u", b);
         return b;
     }
 };
@@ -689,7 +689,7 @@ public:
     {
         swMysqlPacketDump(header.length, header.number, data, "Protocol::LengthCodedBinary");
         bytes_length = read_lcb(data + SW_MYSQL_PACKET_HEADER_SIZE, &length, &nul);
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "binary_length=%u, nul=%u", header.length, nul);
+        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "binary_length=%u, nul=%u", header.length, nul);
     }
     bool is_vaild()
     {
@@ -798,7 +798,7 @@ public:
     {
         body = *pp + read_lcb(*pp, &length, &nul);
         *pp = body + length;
-        swTraceLog(
+        swoole_trace_log(
             SW_TRACE_MYSQL_CLIENT,
             "text[%" PRIu64 "]: %.*s%s",
             length, (int) SW_MIN(64, length), body,
@@ -970,7 +970,7 @@ public:
         data += 1;
         // warning_count (2) -- number of warnings
         warning_count = sw_mysql_uint2korr2korr(data);
-        swTraceLog(
+        swoole_trace_log(
             SW_TRACE_MYSQL_CLIENT, "statement_id=%u, field_count=%u, param_count=%u, warning_count=%u",
             id, field_count, param_count, warning_count
         );
@@ -989,7 +989,7 @@ public:
     {
         map = new char[size];
         memcpy(map, p, size);
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "null_count=%u", size);
+        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "null_count=%u", size);
     }
     inline bool is_null(size_t i)
     {

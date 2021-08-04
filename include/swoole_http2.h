@@ -94,7 +94,7 @@ enum swHttp2_stream_flag {
         ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY |" : "")
 
 #define swHttp2FrameTraceLog(recv, str, ...)                                                                           \
-    swTraceLog(SW_TRACE_HTTP2,                                                                                         \
+    swoole_trace_log(SW_TRACE_HTTP2,                                                                                         \
                "\nrecv ["                                                                                              \
                "\e[3"                                                                                                  \
                "%d"                                                                                                    \

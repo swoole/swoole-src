@@ -89,7 +89,7 @@ Stream::Stream(const char *dst_host, int dst_port, enum swSocket_type type) : cl
     set_protocol(&client.protocol);
 
     if (client.connect(&client, dst_host, dst_port, -1, 0) < 0) {
-        swSysWarn("failed to connect to [%s:%d]", dst_host, dst_port);
+        swoole_sys_warning("failed to connect to [%s:%d]", dst_host, dst_port);
         return;
     }
     connected = true;

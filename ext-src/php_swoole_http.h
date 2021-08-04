@@ -363,7 +363,7 @@ class HeaderSet {
             memcpy(nv->value, value, value_len);
             nv->valuelen = value_len;
             nv->flags    = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
-            swTraceLog(SW_TRACE_HTTP2,
+            swoole_trace_log(SW_TRACE_HTTP2,
                        "name=(%zu)[%.*s], value=(%zu)[%.*s]",
                        name_len,
                        (int) name_len,

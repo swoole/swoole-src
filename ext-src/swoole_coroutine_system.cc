@@ -233,7 +233,7 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     }
     buf[length] = 0;
     int ret = -1;
-    swTrace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {
@@ -297,7 +297,7 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
     }
 
     int ret = 0;
-    swTrace("fd=%d, length=%ld", fd, stream->readbuflen);
+    swoole_trace("fd=%d, length=%ld", fd, stream->readbuflen);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         char *data = fgets((char *) stream->readbuf, stream->readbuflen, file);
@@ -352,7 +352,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     }
 
     int ret = -1;
-    swTrace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {

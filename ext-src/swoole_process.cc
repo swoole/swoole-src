@@ -998,7 +998,7 @@ static PHP_METHOD(swoole_process, daemon) {
                 int new_fd = php_swoole_convert_to_fd(elem);
                 if (new_fd >= 0) {
                     if (dup2(new_fd, fd) < 0) {
-                        swSysWarn("dup2(%d, %d) failed", new_fd, fd);
+                        swoole_sys_warning("dup2(%d, %d) failed", new_fd, fd);
                     }
                 }
             }
