@@ -136,5 +136,5 @@ TEST(dns, gethosts) {
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
 
-//    rename(hosts_backup_file, hosts_file);
+    rename(hosts_backup_file, hosts_file);
 }
