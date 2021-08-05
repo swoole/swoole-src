@@ -99,8 +99,8 @@ TEST(dns, load_resolv_conf) {
 }
 
 TEST(dns, gethosts) {
-    string hosts_file = "/etc/hosts";
-    string hosts_backup_file = "/etc/hosts_bak";
+    char hosts_file[] = "/etc/hosts";
+    char hosts_backup_file[] = "/etc/hosts_bak";
     rename(hosts_file, hosts_backup_file);
 
     ofstream file(hosts_file);
