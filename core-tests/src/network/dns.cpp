@@ -128,7 +128,7 @@ TEST(dns, gethosts) {
     ASSERT_EQ(ip, "127.0.0.1");
 
     ip = swoole::coroutine::get_ip_by_hosts("ddd.com");
-    ASSERT_EQ(ip, "127.0.0.1");
+    ASSERT_EQ(ip, "");
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
