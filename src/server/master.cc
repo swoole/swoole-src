@@ -346,7 +346,7 @@ int Server::start_check() {
      * OpenSSL thread-safe
      */
     if (is_process_mode() && !single_thread) {
-        swSSL_init_thread_safety();
+        swoole_ssl_init_thread_safety();
     }
 #endif
 

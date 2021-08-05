@@ -1416,7 +1416,7 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
     } else if (_flags & SW_SSL_SERVER) {
         SSL_set_accept_state(ssl);
     }
-    if (SSL_set_ex_data(ssl, swSSL_get_ex_connection_index(), this) == 0) {
+    if (SSL_set_ex_data(ssl, swoole_ssl_get_ex_connection_index(), this) == 0) {
         swoole_warning("SSL_set_ex_data() failed");
         return SW_ERR;
     }

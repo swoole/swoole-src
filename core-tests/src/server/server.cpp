@@ -206,7 +206,7 @@ TEST(server, ssl) {
             ListenPort *port = serv->get_primary_port();
 
             EXPECT_EQ(port->ssl, 1);
-            EXPECT_EQ(swSSL_is_thread_safety(), true);
+            EXPECT_EQ(swoole_ssl_is_thread_safety(), true);
 
             swoole::network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
