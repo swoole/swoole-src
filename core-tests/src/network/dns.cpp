@@ -99,7 +99,33 @@ TEST(dns, load_resolv_conf) {
 }
 
 TEST(dns, gethosts) {
+    rename("/etc/hosts","/etc/hosts_bak");
+
+    ofstream file("etc/hosts", ofstream::out);
+    if (!file) {
+        throw "open /etc/hosts failed.";
+    }
+
+    file << "\n";
+    file << "127.0.0.1";
+    file << "127.0.0.1 localhost\n";
+    file << "# 127.0.0.1 aaa.com\n";
+    file << "127.0.0.1 bbb.com               ccc.com    #ddd.com\n";
+    file.close();
+
     std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
+    ASSERT_EQ(ip, "127.0.0.1");
+
+    ip = swoole::coroutine::get_ip_by_hosts("aaa.com");
+    ASSERT_EQ(ip, "");
+
+    ip = swoole::coroutine::get_ip_by_hosts("bbb.com");
+    ASSERT_EQ(ip, "127.0.0.1");
+
+    ip = swoole::coroutine::get_ip_by_hosts("ccc.com");
+    ASSERT_EQ(ip, "127.0.0.1");
+
+    ip = swoole::coroutine::get_ip_by_hosts("ddd.com");
     ASSERT_EQ(ip, "127.0.0.1");
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
