@@ -109,7 +109,7 @@ TEST(dns, gethosts) {
     }
 
     file << "\n";
-    file << "127.0.0.1";
+    file << "127.0.0.1\n";
     file << "127.0.0.1 localhost\n";
     file << "# 127.0.0.1 aaa.com\n";
     file << "       127.0.0.1 bbb.com               ccc.com    #ddd.com\n";
@@ -133,5 +133,5 @@ TEST(dns, gethosts) {
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
 
-    rename(hosts_backup_file, hosts_file);
+//    rename(hosts_backup_file, hosts_file);
 }
