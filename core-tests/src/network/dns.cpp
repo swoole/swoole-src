@@ -99,9 +99,11 @@ TEST(dns, load_resolv_conf) {
 }
 
 TEST(dns, gethosts) {
-    rename("/etc/hosts","/etc/hosts_bak");
+    string hosts_file = "/etc/hosts";
+    string hosts_backup_file = "/etc/hosts_bak";
+    rename(hosts_file, hosts_backup_file);
 
-    ofstream file("etc/hosts", ofstream::out);
+    ofstream file(hosts_file, ofstream::out);
     if (!file) {
         throw "open /etc/hosts failed.";
     }
@@ -131,5 +133,5 @@ TEST(dns, gethosts) {
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
 
-    rename("/etc/hosts_bak", "/etc/hosts");
+    rename(hosts_backup_file, hosts_file);
 }
