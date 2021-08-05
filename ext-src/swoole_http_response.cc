@@ -36,6 +36,7 @@ using HttpResponse = swoole::http::Response;
 using HttpContext = swoole::http::Context;
 
 namespace WebSocket = swoole::websocket;
+namespace HttpServer = swoole::http_server;
 
 zend_class_entry *swoole_http_response_ce;
 static zend_object_handlers swoole_http_response_handlers;
@@ -375,7 +376,7 @@ static void http_build_header(HttpContext *ctx, String *response, size_t body_le
      * http status line
      */
     if (!ctx->response.reason) {
-        n = sw_snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", swHttp_get_status_message(ctx->response.status));
+        n = sw_snprintf(buf, l_buf, "HTTP/1.1 %s\r\n", HttpServer::get_status_message(ctx->response.status));
     } else {
         n = sw_snprintf(buf, l_buf, "HTTP/1.1 %d %s\r\n", ctx->response.status, ctx->response.reason);
     }

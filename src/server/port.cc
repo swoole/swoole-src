@@ -93,7 +93,7 @@ static int ssl_server_sni_callback(SSL *ssl, int *al, void *arg) {
         return SSL_TLSEXT_ERR_NOACK;
     }
 
-    ListenPort *port = (ListenPort *) SSL_get_ex_data(ssl, swSSL_get_ex_port_index());
+    ListenPort *port = (ListenPort *) SSL_get_ex_data(ssl, swoole_ssl_get_ex_port_index());
 
     if (port->sni_contexts.empty()) {
         return SSL_TLSEXT_ERR_NOACK;
@@ -124,7 +124,7 @@ bool ListenPort::ssl_create(Connection *conn, Socket *sock) {
         return false;
     }
     conn->ssl = 1;
-    if (SSL_set_ex_data(sock->ssl, swSSL_get_ex_port_index(), this) == 0) {
+    if (SSL_set_ex_data(sock->ssl, swoole_ssl_get_ex_port_index(), this) == 0) {
         swoole_warning("SSL_set_ex_data() failed");
         return false;
     }
@@ -234,9 +234,9 @@ void Server::init_port_protocol(ListenPort *ls) {
     } else if (ls->open_http_protocol) {
 #ifdef SW_USE_HTTP2
         if (ls->open_http2_protocol && ls->open_websocket_protocol) {
-            ls->protocol.get_package_length = swHttpMix_get_package_length;
-            ls->protocol.get_package_length_size = swHttpMix_get_package_length_size;
-            ls->protocol.onPackage = swHttpMix_dispatch_frame;
+            ls->protocol.get_package_length = http_server::get_package_length;
+            ls->protocol.get_package_length_size = http_server::get_package_length_size;
+            ls->protocol.onPackage = http_server::dispatch_frame;
         } else if (ls->open_http2_protocol) {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.get_package_length = http2::get_frame_length;
@@ -252,7 +252,7 @@ void Server::init_port_protocol(ListenPort *ls) {
         ls->protocol.package_body_offset = 0;
         ls->onRead = Port_onRead_http;
     } else if (ls->open_mqtt_protocol) {
-        swMqtt_set_protocol(&ls->protocol);
+        mqtt::set_protocol(&ls->protocol);
         ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = Port_onRead_check_length;
     } else if (ls->open_redis_protocol) {

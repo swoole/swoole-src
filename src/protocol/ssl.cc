@@ -35,17 +35,17 @@ static int ssl_connection_index = 0;
 static int ssl_port_index = 0;
 static pthread_mutex_t *lock_array;
 
-static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store);
+static int swoole_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store);
 #ifndef OPENSSL_NO_RSA
-static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length);
+static RSA *swoole_ssl_rsa_key_callback(SSL *ssl, int is_export, int key_length);
 #endif
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-static int swSSL_set_default_dhparam(SSL_CTX *ssl_context);
+static int swoole_ssl_set_default_dhparam(SSL_CTX *ssl_context);
 #endif
 
 #ifdef SW_SUPPORT_DTLS
-static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
-static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
+static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len);
+static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 #endif
 
 #ifdef __GNUC__
@@ -54,9 +54,9 @@ static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len);
 #define MAYBE_UNUSED
 #endif
 
-static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line);
+static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
 
-void swSSL_init(void) {
+void swoole_ssl_init(void) {
     if (openssl_init) {
         return;
     }
@@ -85,15 +85,15 @@ void swSSL_init(void) {
     openssl_init = true;
 }
 
-int swSSL_get_ex_connection_index() {
+int swoole_ssl_get_ex_connection_index() {
     return ssl_connection_index;
 }
 
-int swSSL_get_ex_port_index() {
+int swoole_ssl_get_ex_port_index() {
     return ssl_port_index;
 }
 
-void swSSL_destroy() {
+void swoole_ssl_destroy() {
     if (!openssl_init) {
         return;
     }
@@ -114,7 +114,7 @@ void swSSL_destroy() {
     openssl_thread_safety_init = false;
 }
 
-static void MAYBE_UNUSED swSSL_lock_callback(int mode, int type, const char *file, int line) {
+static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line) {
     if (mode & CRYPTO_LOCK) {
         pthread_mutex_lock(&(lock_array[type]));
     } else {
@@ -128,23 +128,23 @@ static int ssl_error_cb(const char *str, size_t len, void *buf) {
     return 0;
 }
 
-const char *swSSL_get_error() {
+const char *swoole_ssl_get_error() {
     ERR_print_errors_cb(ssl_error_cb, sw_tg_buffer()->str);
 
     return sw_tg_buffer()->str;
 }
 
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-static void MAYBE_UNUSED swSSL_id_callback(CRYPTO_THREADID *id) {
+static void MAYBE_UNUSED swoole_ssl_id_callback(CRYPTO_THREADID *id) {
     CRYPTO_THREADID_set_numeric(id, (ulong_t) pthread_self());
 }
 #else
-static ulong_t swSSL_id_callback(void) {
+static ulong_t swoole_ssl_id_callback(void) {
     return (ulong_t) pthread_self();
 }
 #endif
 
-void swSSL_init_thread_safety() {
+void swoole_ssl_init_thread_safety() {
     if (!openssl_init) {
         return;
     }
@@ -159,20 +159,20 @@ void swSSL_init_thread_safety() {
     }
 
 #if OPENSSL_VERSION_NUMBER >= OPENSSL_VERSION_1_0_0
-    (void) CRYPTO_THREADID_set_callback(swSSL_id_callback);
+    (void) CRYPTO_THREADID_set_callback(swoole_ssl_id_callback);
 #else
-    CRYPTO_set_id_callback(swSSL_id_callback);
+    CRYPTO_set_id_callback(swoole_ssl_id_callback);
 #endif
 
-    CRYPTO_set_locking_callback(swSSL_lock_callback);
+    CRYPTO_set_locking_callback(swoole_ssl_lock_callback);
     openssl_thread_safety_init = true;
 }
 
-bool swSSL_is_thread_safety() {
+bool swoole_ssl_is_thread_safety() {
     return openssl_thread_safety_init;
 }
 
-static void swSSL_info_callback(const SSL *ssl, int where, int ret) {
+static void swoole_ssl_info_callback(const SSL *ssl, int where, int ret) {
     BIO *rbio, *wbio;
     swSocket *sock;
 
@@ -296,7 +296,7 @@ static int ssl_passwd_callback(char *buf, int num, int verify, void *data) {
 
 bool SSLContext::create() {
     if (!openssl_init) {
-        swSSL_init();
+        swoole_ssl_init();
     }
 
     const SSL_METHOD *method;
@@ -410,7 +410,7 @@ bool SSLContext::create() {
 #endif
 
     SSL_CTX_set_read_ahead(context, 1);
-    SSL_CTX_set_info_callback(context, swSSL_info_callback);
+    SSL_CTX_set_info_callback(context, swoole_ssl_info_callback);
 
     if (!passphrase.empty()) {
         SSL_CTX_set_default_passwd_cb_userdata(context, this);
@@ -459,8 +459,8 @@ bool SSLContext::create() {
 
 #ifdef SW_SUPPORT_DTLS
     if (protocols & SW_SSL_DTLS) {
-        SSL_CTX_set_cookie_generate_cb(context, swSSL_generate_cookie);
-        SSL_CTX_set_cookie_verify_cb(context, swSSL_verify_cookie);
+        SSL_CTX_set_cookie_generate_cb(context, swoole_ssl_generate_cookie);
+        SSL_CTX_set_cookie_verify_cb(context, swoole_ssl_verify_cookie);
     }
 #endif
 
@@ -545,7 +545,7 @@ bool SSLContext::set_ciphers() {
     }
 
 #ifndef OPENSSL_NO_RSA
-    SSL_CTX_set_tmp_rsa_callback(context, swSSL_rsa_key_callback);
+    SSL_CTX_set_tmp_rsa_callback(context, swoole_ssl_rsa_key_callback);
 #endif
 
     if (!dhparam.empty() && !set_dhparam()) {
@@ -553,7 +553,7 @@ bool SSLContext::set_ciphers() {
     }
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
     else {
-        swSSL_set_default_dhparam(context);
+        swoole_ssl_set_default_dhparam(context);
     }
 #endif
     if (!ecdh_curve.empty() && !set_ecdh_curve()) {
@@ -568,7 +568,7 @@ bool SSLContext::set_client_certificate() {
     const char *cert_file = client_cert_file.c_str();
     int depth = verify_depth;
 
-    SSL_CTX_set_verify(context, SSL_VERIFY_PEER, swSSL_verify_callback);
+    SSL_CTX_set_verify(context, SSL_VERIFY_PEER, swoole_ssl_verify_callback);
     SSL_CTX_set_verify_depth(context, depth);
 
     if (SSL_CTX_load_verify_locations(context, cert_file, nullptr) == 0) {
@@ -684,7 +684,7 @@ SSLContext::~SSLContext() {
 
 }
 
-static int swSSL_verify_callback(int ok, X509_STORE_CTX *x509_store) {
+static int swoole_ssl_verify_callback(int ok, X509_STORE_CTX *x509_store) {
 #if 0
     char *subject, *issuer;
     int err, depth;
@@ -729,7 +729,7 @@ static void calculate_cookie(SSL *ssl, uchar *cookie_secret, uint cookie_length)
     }
 }
 
-static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len) {
+static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len) {
     uchar *buffer, result[EVP_MAX_MD_SIZE];
     uint length = 0, result_len;
     Address sa{};
@@ -784,18 +784,18 @@ static int swSSL_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len) {
     return 1;
 }
 
-static int swSSL_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len) {
+static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_len) {
     uint result_len = 0;
     uchar result[COOKIE_SECRET_LENGTH];
 
-    swSSL_generate_cookie(ssl, result, &result_len);
+    swoole_ssl_generate_cookie(ssl, result, &result_len);
 
     return cookie_len == result_len && memcmp(result, cookie, result_len) == 0;
 }
 #endif
 
 #ifndef OPENSSL_NO_RSA
-static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length) {
+static RSA *swoole_ssl_rsa_key_callback(SSL *ssl, int is_export, int key_length) {
     static RSA *rsa_tmp = nullptr;
     if (rsa_tmp) {
         return rsa_tmp;
@@ -820,7 +820,7 @@ static RSA *swSSL_rsa_key_callback(SSL *ssl, int is_export, int key_length) {
 #endif
 
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
-static int swSSL_set_default_dhparam(SSL_CTX *ssl_context) {
+static int swoole_ssl_set_default_dhparam(SSL_CTX *ssl_context) {
     DH *dh;
     static unsigned char dh1024_p[] = {
         0xBB, 0xBC, 0x2D, 0xCA, 0xD8, 0x46, 0x74, 0x90, 0x7C, 0x43, 0xFC, 0xF5, 0x80, 0xE9, 0xCF, 0xDB,

@@ -980,7 +980,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
         sock->open_length_check = zval_is_true(ztmp);
         if (zval_is_true(ztmp)) {
-            swMqtt_set_protocol(&sock->protocol);
+            swoole::mqtt::set_protocol(&sock->protocol);
         }
     }
     // open length check

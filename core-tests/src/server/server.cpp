@@ -206,7 +206,7 @@ TEST(server, ssl) {
             ListenPort *port = serv->get_primary_port();
 
             EXPECT_EQ(port->ssl, 1);
-            EXPECT_EQ(swSSL_is_thread_safety(), true);
+            EXPECT_EQ(swoole_ssl_is_thread_safety(), true);
 
             swoole::network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
@@ -330,7 +330,7 @@ TEST(server, task_worker) {
     swEventData buf;
     memset(&buf.info, 0, sizeof(buf.info));
 
-    swTask_type(&buf) |= SW_TASK_NOREPLY;
+    SW_TASK_TYPE(&buf) |= SW_TASK_NOREPLY;
     buf.info.len = strlen(packet);
     memcpy(buf.data, packet, strlen(packet));
 

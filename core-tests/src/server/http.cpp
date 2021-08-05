@@ -41,7 +41,7 @@ struct http_context {
         response_headers[key] = value;
     }
 
-    void response(enum swHttp_status_code code, string body) {
+    void response(enum swHttpStatusCode code, string body) {
         response_headers["Content-Length"] = to_string(body.length());
         response(code);
         server->send(fd, body.c_str(), body.length());
@@ -49,7 +49,7 @@ struct http_context {
 
     void response(int code) {
         swString *buf = swoole::make_string(1024);
-        buf->length = sw_snprintf(buf->str, buf->size, "HTTP/1.1 %s\r\n", swHttp_get_status_message(code));
+        buf->length = sw_snprintf(buf->str, buf->size, "HTTP/1.1 %s\r\n", http_server::get_status_message(code));
         for (auto &kv : response_headers) {
             buf->append(kv.first.c_str(), kv.first.length());
             buf->append(SW_STRL(": "));

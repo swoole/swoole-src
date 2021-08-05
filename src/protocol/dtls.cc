@@ -174,7 +174,7 @@ bool Session::listen() {
                socket->info.get_ip(),
                socket->info.get_port(),
                reason,
-               swSSL_get_error());
+               swoole_ssl_get_error());
         return false;
     } else {
         listened = true;
