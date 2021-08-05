@@ -103,7 +103,7 @@ TEST(dns, gethosts) {
     string hosts_backup_file = "/etc/hosts_bak";
     rename(hosts_file, hosts_backup_file);
 
-    ofstream file(hosts_file, ofstream::out);
+    ofstream file(hosts_file);
     if (!file) {
         throw "open /etc/hosts failed.";
     }
