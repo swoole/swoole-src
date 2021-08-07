@@ -107,7 +107,7 @@ TEST(dns, gethosts) {
     ofstream file(hosts_file);
 
     ON_SCOPE_EXIT {
-        file.close()
+        file.close();
         if (!ret) {
             rename(hosts_backup_file, hosts_file);
         }
