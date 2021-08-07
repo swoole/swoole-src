@@ -124,6 +124,7 @@ TEST(dns, gethosts) {
         file.close();
     };
 
+
     file << "\n";
     file << "127.0.0.1\n";
     file << "127.0.0.1 localhost\n";
