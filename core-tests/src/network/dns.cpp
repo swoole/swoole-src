@@ -104,25 +104,25 @@ TEST(dns, gethosts) {
     char hosts_file[] = "/etc/hosts";
     char hosts_backup_file[] = "/etc/hosts_bak";
     int ret = rename(hosts_file, hosts_backup_file);
+    if (ret && ENOENT != errno) {
+        throw "rename /etc/hosts to /etc/hosts_bak failed.";
+    }
+
     ON_SCOPE_EXIT {
         if (!ret) {
             rename(hosts_backup_file, hosts_file);
         }
     };
 
-    if (ret && ENOENT != errno) {
-        throw "rename /etc/hosts to /etc/hosts_bak failed.";
-    }
-
 
     ofstream file(hosts_file);
-    ON_SCOPE_EXIT {
-        file.close();
-    };
-
     if (!file) {
         throw "open /etc/hosts failed.";
     }
+
+    ON_SCOPE_EXIT {
+        file.close();
+    };
 
     file << "\n";
     file << "127.0.0.1\n";
