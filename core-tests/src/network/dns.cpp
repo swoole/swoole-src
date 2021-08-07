@@ -21,6 +21,8 @@
 
 #include "swoole_socket.h"
 
+#include "swoole_util.h"
+
 using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
@@ -102,11 +104,19 @@ TEST(dns, gethosts) {
     char hosts_file[] = "/etc/hosts";
     char hosts_backup_file[] = "/etc/hosts_bak";
     int ret = rename(hosts_file, hosts_backup_file);
+    ofstream file(hosts_file);
+
+    ON_SCOPE_EXIT {
+        file.close()
+        if (!ret) {
+            rename(hosts_backup_file, hosts_file);
+        }
+    };
+
     if (ret && ENOENT != errno) {
         throw "rename /etc/hosts to /etc/hosts_bak failed.";
     }
 
-    ofstream file(hosts_file);
     if (!file) {
         throw "open /etc/hosts failed.";
     }
@@ -135,8 +145,4 @@ TEST(dns, gethosts) {
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
-
-    if (!ret) {
-        rename(hosts_backup_file, hosts_file);
-    }
 }
