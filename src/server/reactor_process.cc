@@ -38,7 +38,7 @@ int Server::create_reactor_processes() {
     reactor_num = worker_num;
     connection_list = (Connection *) sw_calloc(max_connection, sizeof(Connection));
     if (connection_list == nullptr) {
-        swSysWarn("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
+        swoole_sys_warning("calloc[2](%d) failed", (int) (max_connection * sizeof(Connection)));
         return SW_ERR;
     }
     return SW_OK;
@@ -60,7 +60,7 @@ int Server::start_reactor_processes() {
 #ifdef HAVE_REUSEPORT
             if (enable_reuse_port) {
                 if (::close(ls->socket->fd) < 0) {
-                    swSysWarn("close(%d) failed", ls->socket->fd);
+                    swoole_sys_warning("close(%d) failed", ls->socket->fd);
                 }
                 delete ls->socket;
                 ls->socket = nullptr;
@@ -127,7 +127,7 @@ int Server::start_reactor_processes() {
     if (user_worker_list) {
         user_workers = (Worker *) sw_shm_calloc(user_worker_num, sizeof(Worker));
         if (user_workers == nullptr) {
-            swSysWarn("gmalloc[server->user_workers] failed");
+            swoole_sys_warning("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
         for (auto worker : *user_worker_list) {
@@ -157,7 +157,7 @@ int Server::start_reactor_processes() {
     init_signal_handler();
 
     if (onStart) {
-        swWarn("The onStart event with SWOOLE_BASE is deprecated");
+        swoole_warning("The onStart event with SWOOLE_BASE is deprecated");
         onStart(this);
     }
 
@@ -192,7 +192,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     if (retval <= 0) {
         return SW_ERR;
     } else if ((size_t) retval != task.info.len + sizeof(_send.info)) {
-        swWarn("bad pipeline data");
+        swoole_warning("bad pipeline data");
         return SW_OK;
     }
 
@@ -211,7 +211,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
     case SW_SERVER_EVENT_PROXY_START:
     case SW_SERVER_EVENT_PROXY_END:
         if (task.info.reactor_id < 0 || task.info.reactor_id >= (int16_t) serv->get_all_worker_num()) {
-            swWarn("invalid worker_id=%d", task.info.reactor_id);
+            swoole_warning("invalid worker_id=%d", task.info.reactor_id);
             return SW_OK;
         }
         output_buffer = SwooleWG.output_buffer[task.info.reactor_id];
@@ -237,14 +237,14 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
 static int ReactorProcess_alloc_output_buffer(size_t n_buffer) {
     SwooleWG.output_buffer = (String **) sw_malloc(sizeof(String *) * n_buffer);
     if (SwooleWG.output_buffer == nullptr) {
-        swError("malloc for SwooleWG.output_buffer failed");
+        swoole_error("malloc for SwooleWG.output_buffer failed");
         return SW_ERR;
     }
 
     SW_LOOP_N(n_buffer) {
         SwooleWG.output_buffer[i] = new String(SW_BUFFER_SIZE_BIG);
         if (SwooleWG.output_buffer[i] == nullptr) {
-            swError("output_buffer init failed");
+            swoole_error("output_buffer init failed");
             return SW_ERR;
         }
     }
@@ -316,7 +316,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
-        swSignalfd_setup(SwooleTG.reactor);
+        swoole_signalfd_setup(SwooleTG.reactor);
     }
 #endif
 
@@ -347,7 +347,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
 
     // task workers
     if (serv->task_worker_num > 0) {
-        if (serv->task_ipc_mode == SW_TASK_IPC_UNIXSOCK) {
+        if (serv->task_ipc_mode == Server::TASK_IPC_UNIXSOCK) {
             for (uint32_t i = 0; i < serv->gs->task_workers.worker_num; i++) {
                 serv->gs->task_workers.workers[i].pipe_master->set_nonblock();
             }

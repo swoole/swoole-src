@@ -50,7 +50,7 @@ ReactorImpl *make_reactor_select(Reactor *_reactor);
 
 void ReactorImpl::after_removal_failure(network::Socket *_socket) {
     if (!_socket->silent_remove) {
-        swSysWarn("failed to delete events[fd=%d#%d, type=%d, events=%d]",
+        swoole_sys_warning("failed to delete events[fd=%d#%d, type=%d, events=%d]",
                   _socket->fd,
                   reactor_->id,
                   _socket->fd_type,
@@ -134,7 +134,7 @@ Reactor::Reactor(int max_event, Type _type) {
 
     set_end_callback(Reactor::PRIORITY_SIGNAL_CALLBACK, [](Reactor *reactor) {
         if (sw_unlikely(reactor->singal_no)) {
-            swSignal_callback(reactor->singal_no);
+            swoole_signal_callback(reactor->singal_no);
             reactor->singal_no = 0;
         }
     });
@@ -163,7 +163,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     int fdtype = get_fd_type(_fdtype);
 
     if (fdtype >= SW_MAX_FDTYPE) {
-        swWarn("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
+        swoole_warning("fdtype > SW_MAX_FDTYPE[%d]", SW_MAX_FDTYPE);
         return false;
     }
 
@@ -174,7 +174,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
     } else if (Reactor::isset_error_event(_fdtype)) {
         error_handler[fdtype] = handler;
     } else {
-        swWarn("unknown fdtype");
+        swoole_warning("unknown fdtype");
         return false;
     }
 
@@ -211,7 +211,7 @@ int Reactor::_close(Reactor *reactor, Socket *socket) {
         socket->in_buffer = nullptr;
     }
 
-    swTraceLog(SW_TRACE_CLOSE, "fd=%d", socket->fd);
+    swoole_trace_log(SW_TRACE_CLOSE, "fd=%d", socket->fd);
 
     socket->free();
 
@@ -262,7 +262,7 @@ static int write_func(
             if (!socket->out_buffer) {
                 buffer = new Buffer(socket->chunk_size);
                 if (!buffer) {
-                    swWarn("create worker buffer failed");
+                    swoole_warning("create worker buffer failed");
                     return SW_ERR;
                 }
                 socket->out_buffer = buffer;

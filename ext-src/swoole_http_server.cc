@@ -71,7 +71,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     zval *zdata = &ctx->request.zdata;
     php_swoole_get_recv_data(serv, zdata, req);
 
-    swTraceLog(SW_TRACE_SERVER,
+    swoole_trace_log(SW_TRACE_SERVER,
                "http request from %ld with %d bytes: <<EOF\n%.*s\nEOF",
                session_id,
                (int) Z_STRLEN_P(zdata),
@@ -92,7 +92,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
 #endif
         ctx->close(ctx);
-        swNotice("request is illegal and it has been discarded, %ld bytes unprocessed", Z_STRLEN_P(zdata) - parsed_n);
+        swoole_notice("request is illegal and it has been discarded, %ld bytes unprocessed", Z_STRLEN_P(zdata) - parsed_n);
         goto _dtor_and_return;
     }
 

@@ -29,7 +29,7 @@
 
 namespace swoole {
 
-enum AsyncFlags {
+enum AsyncFlag {
     SW_AIO_WRITE_FSYNC = 1u << 1,
     SW_AIO_EOF = 1u << 2,
 };

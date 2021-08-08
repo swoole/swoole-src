@@ -68,11 +68,11 @@ void Client::init_reactor(Reactor *reactor) {
     reactor->set_handler(SW_FD_STREAM_CLIENT | SW_EVENT_ERROR, Client_onError);
 }
 
-Client::Client(enum swSocket_type _type, bool _async) : async(_async) {
+Client::Client(SocketType _type, bool _async) : async(_async) {
     fd_type = Socket::is_stream(_type) ? SW_FD_STREAM_CLIENT : SW_FD_DGRAM_CLIENT;
     socket = swoole::make_socket(_type, fd_type, (async ? SW_SOCK_NONBLOCK : 0) | SW_SOCK_CLOEXEC);
     if (socket == nullptr) {
-        swSysWarn("socket() failed");
+        swoole_sys_warning("socket() failed");
         return;
     }
 
@@ -283,7 +283,7 @@ int Client::enable_ssl_encrypt() {
     }
 #else
     {
-        swWarn("DTLS support require openssl-1.1 or later");
+        swoole_warning("DTLS support require openssl-1.1 or later");
         return SW_ERR;
     }
 #endif
@@ -609,7 +609,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
     }
 
     if (!(cli->onConnect && cli->onError && cli->onClose && cli->onReceive)) {
-        swWarn("onConnect/onError/onReceive/onClose callback have not set");
+        swoole_warning("onConnect/onError/onReceive/onClose callback have not set");
         return SW_ERR;
     }
 
@@ -633,7 +633,7 @@ static int Client_tcp_connect_async(Client *cli, const char *host, int port, dou
 
         ev.buf = sw_malloc(ev.nbytes);
         if (!ev.buf) {
-            swWarn("malloc failed");
+            swoole_warning("malloc failed");
             return SW_ERR;
         }
 
@@ -797,7 +797,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     }
 
     if (cli->async && !cli->onReceive) {
-        swWarn("onReceive callback have not set");
+        swoole_warning("onReceive callback have not set");
         return SW_ERR;
     }
 
@@ -816,7 +816,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
         unlink(client_addr->sun_path);
 
         if (bind(cli->socket->fd, (struct sockaddr *) client_addr, sizeof(cli->socket->info.addr.un)) < 0) {
-            swSysWarn("bind(%s) failed", client_addr->sun_path);
+            swoole_sys_warning("bind(%s) failed", client_addr->sun_path);
             return SW_ERR;
         }
     }
@@ -830,7 +830,7 @@ static int Client_udp_connect(Client *cli, const char *host, int port, double ti
     }
 #else
     {
-        swWarn("DTLS support require openssl-1.1 or later");
+        swoole_warning("DTLS support require openssl-1.1 or later");
         return SW_ERR;
     }
 #endif
@@ -1062,7 +1062,7 @@ _recv_again:
     if (n < 0) {
         switch (event->socket->catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("Read from socket[%d] failed", event->fd);
+            swoole_sys_warning("Read from socket[%d] failed", event->fd);
             return SW_OK;
         case SW_CLOSE:
             goto __close;
@@ -1186,7 +1186,7 @@ static int Client_onWrite(Reactor *reactor, Event *event) {
     ret = _socket->get_option(SOL_SOCKET, SO_ERROR, &err);
     swoole_set_last_error(err);
     if (ret < 0) {
-        swSysWarn("getsockopt(%d) failed", event->fd);
+        swoole_sys_warning("getsockopt(%d) failed", event->fd);
         return SW_ERR;
     }
 

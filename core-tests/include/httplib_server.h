@@ -758,7 +758,7 @@ inline bool Server::listen_internal() {
         } else if (svr_sock_->errCode == ECANCELED) {
             break;
         } else {
-            swWarn("accept failed, Error: %s[%d]", svr_sock_->errMsg, svr_sock_->errCode);
+            swoole_warning("accept failed, Error: %s[%d]", svr_sock_->errMsg, svr_sock_->errCode);
             break;
         }
     }

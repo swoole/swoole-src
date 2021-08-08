@@ -187,7 +187,7 @@ class HttpClient {
     bool close(const bool should_be_reset = true);
 
     void get_header_out(zval *return_value) {
-        swString *buffer = nullptr;
+        String *buffer = nullptr;
         if (socket == nullptr) {
             if (tmp_write_buffer) {
                 buffer = tmp_write_buffer;
@@ -246,7 +246,7 @@ class HttpClient {
 
   private:
     Socket *socket = nullptr;
-    swSocket_type socket_type = SW_SOCK_TCP;
+    swSocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
     bool wait = false;
 };
@@ -563,17 +563,17 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             char *download_file_name = http->download_file_name.val();
             std::unique_ptr<File> fp(new File(download_file_name, O_CREAT | O_WRONLY, 0664));
             if (!fp->ready()) {
-                swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
+                swoole_sys_warning("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
                 return false;
             }
             if (http->download_offset == 0) {
                 if (!fp->truncate(0)) {
-                    swSysWarn("ftruncate(%s) failed", download_file_name);
+                    swoole_sys_warning("ftruncate(%s) failed", download_file_name);
                     return false;
                 }
             } else {
                 if (!fp->set_offest(http->download_offset)) {
-                    swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
+                    swoole_sys_warning("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
                     return false;
                 }
             }
@@ -651,7 +651,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             // gzip_stream.total_out = 0;
             status = inflateInit2(&gzip_stream, encoding);
             if (status != Z_OK) {
-                swWarn("inflateInit2() failed by %s", zError(status));
+                swoole_warning("inflateInit2() failed by %s", zError(status));
                 return false;
             }
             gzip_stream_active = true;
@@ -692,7 +692,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             goto _retry;
         }
 
-        swWarn("HttpClient::decompress_response failed by %s", zError(status));
+        swoole_warning("HttpClient::decompress_response failed by %s", zError(status));
         body->length = reserved_body_length;
         return false;
     }
@@ -702,7 +702,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
         if (!brotli_decoder_state) {
             brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, nullptr);
             if (!brotli_decoder_state) {
-                swWarn("BrotliDecoderCreateInstance() failed");
+                swoole_warning("BrotliDecoderCreateInstance() failed");
                 return false;
             }
         }
@@ -726,11 +726,11 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
                 return true;
             } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
                 if (!body->extend()) {
-                    swWarn("BrotliDecoderDecompressStream() failed, no memory is available");
+                    swoole_warning("BrotliDecoderDecompressStream() failed, no memory is available");
                     break;
                 }
             } else {
-                swWarn("BrotliDecoderDecompressStream() failed, %s",
+                swoole_warning("BrotliDecoderDecompressStream() failed, %s",
                        BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
@@ -744,7 +744,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
         break;
     }
 
-    swWarn("HttpClient::decompress_response unknown compress method [%d]", compress_method);
+    swoole_warning("HttpClient::decompress_response unknown compress method [%d]", compress_method);
     return false;
 }
 #endif
@@ -913,7 +913,7 @@ bool HttpClient::send() {
     // clear errno
     swoole_set_last_error(0);
     // alloc buffer
-    swString *buffer = socket->get_write_buffer();
+    String *buffer = socket->get_write_buffer();
     buffer->clear();
     // clear body
     body->clear();
@@ -958,7 +958,7 @@ bool HttpClient::send() {
             method = zbody ? "POST" : "GET";
             method_len = strlen(method);
         }
-        this->method = swHttp_get_method(method, method_len);
+        this->method = http_server::get_method(method, method_len);
         buffer->append(method, method_len);
         buffer->append(ZEND_STRL(" "));
     }
@@ -1332,7 +1332,7 @@ bool HttpClient::send() {
         }
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT,
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
                host.c_str(),
                port,
@@ -1458,7 +1458,7 @@ void HttpClient::recv(zval *zframe, double timeout) {
 bool HttpClient::recv_http_response(double timeout) {
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
-    swString *buffer = socket->get_read_buffer();
+    String *buffer = socket->get_read_buffer();
     bool header_completed = false;
     off_t header_crlf_offset = 0;
 
@@ -1507,7 +1507,7 @@ bool HttpClient::recv_http_response(double timeout) {
 
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
-        swTraceLog(SW_TRACE_HTTP_CLIENT,
+        swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                    "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
                    parsed_n,
                    retval,
@@ -1583,7 +1583,7 @@ bool HttpClient::push(zval *zdata, zend_long opcode, uint8_t flags) {
         return false;
     }
 
-    swString *buffer = socket->get_write_buffer();
+    String *buffer = socket->get_write_buffer();
     buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
         if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, websocket_compression) < 0) {

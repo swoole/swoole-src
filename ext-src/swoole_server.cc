@@ -77,7 +77,7 @@ static void php_swoole_server_onManagerStart(Server *serv);
 static void php_swoole_server_onManagerStop(Server *serv);
 static void php_swoole_server_onSendTimeout(Timer *timer, TimerNode *tnode);
 
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd);
+static enum swReturnCode php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd);
 static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
@@ -714,9 +714,9 @@ void php_swoole_server_minit(int module_number) {
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("stats_timer"), ZEND_ACC_PUBLIC);
 
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_DISCARD_PACKET", SW_DISPATCH_RESULT_DISCARD_PACKET);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_CLOSE_CONNECTION", SW_DISPATCH_RESULT_CLOSE_CONNECTION);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK", SW_DISPATCH_RESULT_USERFUNC_FALLBACK);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_DISCARD_PACKET", Server::DISPATCH_RESULT_DISCARD_PACKET);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_CLOSE_CONNECTION", Server::DISPATCH_RESULT_CLOSE_CONNECTION);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_DISPATCH_RESULT_USERFUNC_FALLBACK", Server::DISPATCH_RESULT_USERFUNC_FALLBACK);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_TMPFILE", SW_TASK_TMPFILE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_TASK_SERIALIZE", SW_TASK_SERIALIZE);
@@ -763,14 +763,14 @@ TaskId php_swoole_task_pack(EventData *task, zval *zdata) {
     task->info.fd = SwooleG.current_task_id++;
     task->info.reactor_id = SwooleG.process_id;
     task->info.time = swoole::microtime();
-    swTask_type(task) = 0;
+    SW_TASK_TYPE(task) = 0;
 
     char *task_data_str;
     size_t task_data_len = 0;
     // need serialize
     if (Z_TYPE_P(zdata) != IS_STRING) {
         // serialize
-        swTask_type(task) |= SW_TASK_SERIALIZE;
+        SW_TASK_TYPE(task) |= SW_TASK_SERIALIZE;
 
         PHP_VAR_SERIALIZE_INIT(var_hash);
         php_var_serialize(&serialized_data, zdata, &var_hash);
@@ -839,7 +839,7 @@ zval *php_swoole_task_unpack(EventData *task_result) {
     /**
      * Large result package
      */
-    if (swTask_type(task_result) & SW_TASK_TMPFILE) {
+    if (SW_TASK_TYPE(task_result) & SW_TASK_TMPFILE) {
         if (!task_result->unpack(sw_tg_buffer())) {
             return nullptr;
         }
@@ -850,7 +850,7 @@ zval *php_swoole_task_unpack(EventData *task_result) {
         result_data_len = task_result->info.len;
     }
 
-    if (swTask_type(task_result) & SW_TASK_SERIALIZE) {
+    if (SW_TASK_TYPE(task_result) & SW_TASK_SERIALIZE) {
         result_unserialized_data = sw_malloc_zval();
 
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
@@ -877,7 +877,7 @@ zval *php_swoole_task_unpack(EventData *task_result) {
 static void php_swoole_task_wait_co(
     Server *serv, EventData *req, double timeout, int dst_worker_id, INTERNAL_FUNCTION_PARAMETERS) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
-    swTask_type(req) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
+    SW_TASK_TYPE(req) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
 
     TaskCo *task_co = (TaskCo *) emalloc(sizeof(TaskCo));
     sw_memset_zero(task_co, sizeof(*task_co));
@@ -994,7 +994,7 @@ void ServerObject::on_before_start() {
     auto primary_port = serv->get_primary_port();
 
 #ifdef SW_LOG_TRACE_OPEN
-    swTraceLog(SW_TRACE_SERVER,
+    swoole_trace_log(SW_TRACE_SERVER,
                "Create Server: host=%s, port=%d, mode=%d, type=%d",
                primary_port->host.c_str(),
                (int) primary_port->port,
@@ -1125,8 +1125,8 @@ void ServerObject::on_before_start() {
             php_swoole_fatal_error(
                 E_ERROR,
                 "server dispatch mode should be FDMOD(%d) or IPMOD(%d) if open_http2_protocol is true",
-                SW_DISPATCH_FDMOD,
-                SW_DISPATCH_IPMOD);
+                Server::DISPATCH_FDMOD,
+                Server::DISPATCH_IPMOD);
             return;
         }
 
@@ -1254,7 +1254,7 @@ static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
         return;
     }
 
-    swTraceLog(SW_TRACE_SERVER,
+    swoole_trace_log(SW_TRACE_SERVER,
                "PipeMessage: fd=%ld|len=%d|src_worker_id=%d|data=%.*s\n",
                req->info.fd,
                req->info.len,
@@ -1439,7 +1439,7 @@ static sw_inline void php_swoole_create_task_object(zval *ztask, Server *serv, E
     zend_update_property(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("data"), zdata);
     zend_update_property_double(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("dispatch_time"), req->info.time);
     zend_update_property_long(
-        swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("flags"), (zend_long) swTask_type(req));
+        swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("flags"), (zend_long) SW_TASK_TYPE(req));
 }
 
 static int php_swoole_server_onTask(Server *serv, EventData *req) {
@@ -1499,7 +1499,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         return SW_ERR;
     }
 
-    if (swTask_type(req) & SW_TASK_COROUTINE) {
+    if (SW_TASK_TYPE(req) & SW_TASK_COROUTINE) {
         TaskId task_id = req->info.fd;
         auto task_co_iterator = server_object->property->task_coroutine_map.find(task_id);
 
@@ -1554,10 +1554,10 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     }
 
     zend_fcall_info_cache *fci_cache = nullptr;
-    if (swTask_type(req) & SW_TASK_CALLBACK) {
+    if (SW_TASK_TYPE(req) & SW_TASK_CALLBACK) {
         auto callback_iterator = server_object->property->task_callbacks.find(req->info.fd);
         if (callback_iterator == server_object->property->task_callbacks.end()) {
-            swTask_type(req) = swTask_type(req) & (~SW_TASK_CALLBACK);
+            SW_TASK_TYPE(req) = SW_TASK_TYPE(req) & (~SW_TASK_CALLBACK);
         } else {
             fci_cache = &callback_iterator->second;
         }
@@ -1596,7 +1596,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     if (UNEXPECTED(!zend::function::call(fci_cache, argc, args, nullptr, serv->enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onFinish handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
-    if (swTask_type(req) & SW_TASK_CALLBACK) {
+    if (SW_TASK_TYPE(req) & SW_TASK_CALLBACK) {
         sw_zend_fci_cache_discard(fci_cache);
         server_object->property->task_callbacks.erase(req->info.fd);
     }
@@ -1954,7 +1954,7 @@ static void php_swoole_server_onSendTimeout(Timer *timer, TimerNode *tnode) {
             server_object->property->send_coroutine_map.erase(session_id);
         }
     } else {
-        swWarn("send coroutine[session#%ld] not exists", session_id);
+        swoole_warning("send coroutine[session#%ld] not exists", session_id);
         return;
     }
 
@@ -1965,7 +1965,7 @@ static void php_swoole_server_onSendTimeout(Timer *timer, TimerNode *tnode) {
     efree(context);
 }
 
-static enum swReturn_code php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd) {
+static enum swReturnCode php_swoole_server_send_resume(Server *serv, FutureTask *context, SessionId fd) {
     char *data;
     zval *zdata = &context->coro_params;
     zval result;
@@ -2154,7 +2154,7 @@ static PHP_METHOD(swoole_server, __construct) {
                 RETURN_FALSE;
             }
         } else {
-            ListenPort *port = serv->add_port((enum swSocket_type) sock_type, host, serv_port);
+            ListenPort *port = serv->add_port((enum swSocketType) sock_type, host, serv_port);
             if (!port) {
                 zend_throw_exception_ex(swoole_exception_ce,
                                         errno,
@@ -2273,7 +2273,7 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "send_yield", ztmp)) {
         serv->send_yield = zval_is_true(ztmp);
         if (serv->send_yield &&
-            !(serv->dispatch_mode == SW_DISPATCH_FDMOD || serv->dispatch_mode == SW_DISPATCH_IPMOD)) {
+            !(serv->dispatch_mode == Server::DISPATCH_FDMOD || serv->dispatch_mode == Server::DISPATCH_IPMOD)) {
             php_swoole_error(E_WARNING, "'send_yield' option can only be set when using dispatch_mode=2/4");
             serv->send_yield = 0;
         }
@@ -2562,7 +2562,7 @@ static PHP_METHOD(swoole_server, set) {
     }
 
     if (serv->task_enable_coroutine &&
-        (serv->task_ipc_mode == SW_TASK_IPC_MSGQUEUE || serv->task_ipc_mode == SW_TASK_IPC_PREEMPTIVE)) {
+        (serv->task_ipc_mode == Server::TASK_IPC_MSGQUEUE || serv->task_ipc_mode == Server::TASK_IPC_PREEMPTIVE)) {
         php_swoole_fatal_error(E_ERROR, "cannot use msgqueue when task_enable_coroutine is enable");
         RETURN_FALSE;
     }
@@ -2668,7 +2668,7 @@ static PHP_METHOD(swoole_server, listen) {
         RETURN_FALSE;
     }
 
-    ListenPort *ls = serv->add_port((enum swSocket_type) sock_type, host, (int) port);
+    ListenPort *ls = serv->add_port((enum swSocketType) sock_type, host, (int) port);
     if (!ls) {
         RETURN_FALSE;
     }
@@ -2828,7 +2828,7 @@ static PHP_METHOD(swoole_server, sendto) {
     char *data;
     size_t len;
     zend_long server_socket_fd = -1;
-    enum swSocket_type type;
+    enum swSocketType type;
 
     ZEND_PARSE_PARAMETERS_START(3, 4)
     Z_PARAM_STRING(addr, addr_len)
@@ -3005,7 +3005,7 @@ static PHP_METHOD(swoole_server, stats) {
         add_assoc_long_ex(return_value, ZEND_STRL("worker_dispatch_count"), SwooleWG.worker->dispatch_count);
     }
 
-    if (serv->task_ipc_mode > SW_TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
+    if (serv->task_ipc_mode > Server::TASK_IPC_UNIXSOCK && serv->gs->task_workers.queue) {
         size_t queue_num = -1;
         size_t queue_bytes = -1;
         if (serv->gs->task_workers.queue->stat(&queue_num, &queue_bytes)) {
@@ -3068,7 +3068,7 @@ static PHP_METHOD(swoole_server, heartbeat) {
         if (session_id <= 0) {
             return;
         }
-        swTrace("heartbeat check fd=%d", conn->fd);
+        swoole_trace("heartbeat check fd=%d", conn->fd);
         if (serv->is_healthy_connection(now, conn)) {
             return;
         }
@@ -3234,7 +3234,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         php_swoole_fatal_error(E_WARNING, "task pack failed");
         goto _fail;
     }
-    swTask_type(&buf) |= SW_TASK_WAITALL;
+    SW_TASK_TYPE(&buf) |= SW_TASK_WAITALL;
     dst_worker_id = -1;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
     if (serv->gs->task_workers.dispatch_blocking(&buf, &dst_worker_id) < 0) {
@@ -3360,7 +3360,7 @@ static PHP_METHOD(swoole_server, taskCo) {
         php_swoole_fatal_error(E_WARNING, "failed to pack task");
         goto _fail;
     }
-    swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
+    SW_TASK_TYPE(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
     dst_worker_id = -1;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
     if (serv->gs->task_workers.dispatch(&buf, &dst_worker_id) < 0) {
@@ -3426,14 +3426,14 @@ static PHP_METHOD(swoole_server, task) {
     }
 
     if (!serv->is_worker()) {
-        swTask_type(&buf) |= SW_TASK_NOREPLY;
+        SW_TASK_TYPE(&buf) |= SW_TASK_NOREPLY;
     } else if (fci.size) {
-        swTask_type(&buf) |= SW_TASK_CALLBACK;
+        SW_TASK_TYPE(&buf) |= SW_TASK_CALLBACK;
         sw_zend_fci_cache_persist(&fci_cache);
         server_object->property->task_callbacks[buf.info.fd] = fci_cache;
     }
 
-    swTask_type(&buf) |= SW_TASK_NONBLOCK;
+    SW_TASK_TYPE(&buf) |= SW_TASK_NONBLOCK;
 
     int _dst_worker_id = (int) dst_worker_id;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
@@ -3539,7 +3539,7 @@ static PHP_METHOD(swoole_server_task, pack) {
     if (php_swoole_task_pack(&buf, zdata) < 0) {
         RETURN_FALSE;
     }
-    swTask_type(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_NOREPLY);
+    SW_TASK_TYPE(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_NOREPLY);
 
     RETURN_STRINGL((char *) &buf, sizeof(buf.info) + buf.info.len);
 }
@@ -3625,10 +3625,10 @@ static PHP_METHOD(swoole_server, getClientInfo) {
     } else {
         array_init(return_value);
 
-        if (conn->uid > 0 || serv->dispatch_mode == SW_DISPATCH_UIDMOD) {
+        if (conn->uid > 0 || serv->dispatch_mode == Server::DISPATCH_UIDMOD) {
             add_assoc_long(return_value, "uid", conn->uid);
         }
-        if (conn->worker_id > 0 || serv->dispatch_mode == SW_DISPATCH_CO_CONN_LB) {
+        if (conn->worker_id > 0 || serv->dispatch_mode == Server::DISPATCH_CO_CONN_LB) {
             add_assoc_long(return_value, "worker_id", conn->worker_id);
         }
 
@@ -3707,7 +3707,7 @@ static PHP_METHOD(swoole_server, getClientList) {
     int fd = start_fd + 1;
 
     for (; fd <= serv_max_fd; fd++) {
-        swTrace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_session_id);
+        swoole_trace("maxfd=%d, fd=%d, find_count=%ld, start_fd=%ld", serv_max_fd, fd, find_count, start_session_id);
         Connection *conn = serv->get_connection_for_iterator(fd);
         if (conn) {
             SessionId session_id = conn->session_id;

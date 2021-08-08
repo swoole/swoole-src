@@ -75,7 +75,7 @@ void Buffer::append(const void *data, uint32_t size) {
         memcpy(chunk->value.ptr, _pos, _n);
         chunk->length = _n;
 
-        swTraceLog(SW_TRACE_BUFFER, "chunk_n=%lu|size=%u|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
+        swoole_trace_log(SW_TRACE_BUFFER, "chunk_n=%lu|size=%u|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
 
         _pos += _n;
         _length -= _n;
@@ -125,7 +125,7 @@ void Buffer::append(const struct iovec *iov, size_t iovcnt, off_t offset) {
         total_length += _n;
         _length -= _n;
 
-        swTraceLog(SW_TRACE_BUFFER, "chunk_n=%lu|size=%lu|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
+        swoole_trace_log(SW_TRACE_BUFFER, "chunk_n=%lu|size=%lu|chunk_len=%u|chunk=%p", count(), _n, chunk->length, chunk);
 
         chunk->length += _n;
         iov_remain_len -= _n;

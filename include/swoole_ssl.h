@@ -42,18 +42,18 @@
 #undef SW_SUPPORT_DTLS
 #endif
 
-enum swSSL_create_flag {
+enum swSSLCreateFlag {
     SW_SSL_SERVER = 1,
     SW_SSL_CLIENT = 2,
 };
 
-enum swSSL_state {
+enum swSSLState {
     SW_SSL_STATE_HANDSHAKE = 0,
     SW_SSL_STATE_READY = 1,
     SW_SSL_STATE_WAIT_STREAM = 2,
 };
 
-enum swSSL_version {
+enum swSSLVersion {
     SW_SSL_SSLv2 = 1u << 1,
     SW_SSL_SSLv3 = 1u << 2,
     SW_SSL_TLSv1 = 1u << 3,
@@ -65,7 +65,7 @@ enum swSSL_version {
 
 #define SW_SSL_ALL (SW_SSL_SSLv2 | SW_SSL_SSLv3 | SW_SSL_TLSv1 | SW_SSL_TLSv1_1 | SW_SSL_TLSv1_2 | SW_SSL_TLSv1_3)
 
-enum swSSL_method {
+enum swSSLMethod {
     SW_SSLv23_METHOD = 0,
     SW_SSLv3_METHOD,
     SW_SSLv3_SERVER_METHOD,
@@ -136,7 +136,7 @@ struct SSLContext {
 
     bool set_cert_file(const std::string &_cert_file) {
         if (access(_cert_file.c_str(), R_OK) < 0) {
-            swWarn("ssl cert file[%s] not found", _cert_file.c_str());
+            swoole_warning("ssl cert file[%s] not found", _cert_file.c_str());
             return false;
         }
         cert_file = _cert_file;
@@ -145,7 +145,7 @@ struct SSLContext {
 
     bool set_key_file(const std::string &_key_file) {
         if (access(_key_file.c_str(), R_OK) < 0) {
-            swWarn("ssl key file[%s] not found", _key_file.c_str());
+            swoole_warning("ssl key file[%s] not found", _key_file.c_str());
             return false;
         }
         key_file = _key_file;
@@ -162,11 +162,12 @@ struct SSLContext {
 };
 }
 
-void swSSL_init(void);
-void swSSL_init_thread_safety();
-bool swSSL_is_thread_safety();
-void swSSL_server_http_advise(swoole::SSLContext &);
-const char *swSSL_get_error();
-int swSSL_get_ex_connection_index();
-int swSSL_get_ex_port_index();
+void swoole_ssl_init(void);
+void swoole_ssl_init_thread_safety();
+bool swoole_ssl_is_thread_safety();
+void swoole_ssl_server_http_advise(swoole::SSLContext &);
+const char *swoole_ssl_get_error();
+int swoole_ssl_get_ex_connection_index();
+int swoole_ssl_get_ex_port_index();
+
 #endif

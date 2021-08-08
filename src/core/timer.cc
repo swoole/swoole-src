@@ -141,7 +141,7 @@ TimerNode *Timer::add(long _msec, bool persistent, void *data, const TimerCallba
         return nullptr;
     }
     map.emplace(std::make_pair(tnode->id, tnode));
-    swTraceLog(SW_TRACE_TIMER,
+    swoole_trace_log(SW_TRACE_TIMER,
                "id=%ld, exec_msec=%" PRId64 ", msec=%ld, round=%" PRIu64 ", exist=%lu",
                tnode->id,
                tnode->exec_msec,
@@ -157,7 +157,7 @@ bool Timer::remove(TimerNode *tnode) {
     }
     if (sw_unlikely(_current_id > 0 && tnode->id == _current_id)) {
         tnode->removed = true;
-        swTraceLog(SW_TRACE_TIMER,
+        swoole_trace_log(SW_TRACE_TIMER,
                    "set-remove: id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                    tnode->id,
                    tnode->exec_msec,
@@ -174,7 +174,7 @@ bool Timer::remove(TimerNode *tnode) {
     if (tnode->destructor) {
         tnode->destructor(tnode);
     }
-    swTraceLog(SW_TRACE_TIMER,
+    swoole_trace_log(SW_TRACE_TIMER,
                "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                tnode->id,
                tnode->exec_msec,
@@ -193,7 +193,7 @@ int Timer::select() {
     TimerNode *tnode = nullptr;
     HeapNode *tmp;
 
-    swTraceLog(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, round);
+    swoole_trace_log(SW_TRACE_TIMER, "timer msec=%" PRId64 ", round=%" PRId64, now_msec, round);
 
     while ((tmp = heap.top())) {
         tnode = (TimerNode *) tmp->data;
@@ -203,7 +203,7 @@ int Timer::select() {
 
         _current_id = tnode->id;
         if (!tnode->removed) {
-            swTraceLog(SW_TRACE_TIMER,
+            swoole_trace_log(SW_TRACE_TIMER,
                        "id=%ld, exec_msec=%" PRId64 ", round=%" PRIu64 ", exist=%lu",
                        tnode->id,
                        tnode->exec_msec,
@@ -246,14 +246,14 @@ int Timer::select() {
 int Timer::now(struct timeval *time) {
     struct timespec _now;
     if (clock_gettime(CLOCK_MONOTONIC, &_now) < 0) {
-        swSysWarn("clock_gettime(CLOCK_MONOTONIC) failed");
+        swoole_sys_warning("clock_gettime(CLOCK_MONOTONIC) failed");
         return SW_ERR;
     }
     time->tv_sec = _now.tv_sec;
     time->tv_usec = _now.tv_nsec / 1000;
 #else
 if (gettimeofday(time, nullptr) < 0) {
-    swSysWarn("gettimeofday() failed");
+    swoole_sys_warning("gettimeofday() failed");
     return SW_ERR;
 }
 #endif

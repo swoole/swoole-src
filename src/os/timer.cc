@@ -26,7 +26,7 @@ static int SystemTimer_set(Timer *timer, long next_msec);
 bool Timer::init_system_timer() {
     set = SystemTimer_set;
     close = [](Timer *timer) { SystemTimer_set(timer, -1); };
-    swSignal_set(SIGALRM, [](int sig) { SwooleG.signal_alarm = true; });
+    swoole_signal_set(SIGALRM, [](int sig) { SwooleG.signal_alarm = true; });
     return true;
 }
 
@@ -37,7 +37,7 @@ static int SystemTimer_set(Timer *timer, long next_msec) {
     struct itimerval timer_set;
     struct timeval now;
     if (gettimeofday(&now, nullptr) < 0) {
-        swSysWarn("gettimeofday() failed");
+        swoole_sys_warning("gettimeofday() failed");
         return SW_ERR;
     }
 
@@ -58,7 +58,7 @@ static int SystemTimer_set(Timer *timer, long next_msec) {
     }
 
     if (setitimer(ITIMER_REAL, &timer_set, nullptr) < 0) {
-        swSysWarn("setitimer() failed");
+        swoole_sys_warning("setitimer() failed");
         return SW_ERR;
     }
     return SW_OK;

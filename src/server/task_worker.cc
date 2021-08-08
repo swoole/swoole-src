@@ -39,14 +39,14 @@ void Server::init_task_workers() {
      * Make the task worker support asynchronous
      */
     if (task_enable_coroutine) {
-        if (task_ipc_mode == SW_TASK_IPC_MSGQUEUE || task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
-            swError("cannot use msgqueue when task_enable_coroutine is enable");
+        if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
+            swoole_error("cannot use msgqueue when task_enable_coroutine is enable");
             return;
         }
         pool->main_loop = TaskWorker_loop_async;
     }
-    if (task_ipc_mode == SW_TASK_IPC_PREEMPTIVE) {
-        pool->dispatch_mode = SW_DISPATCH_QUEUE;
+    if (task_ipc_mode == TASK_IPC_PREEMPTIVE) {
+        pool->schedule_by_sysvmsg = true;
     }
 }
 
@@ -78,12 +78,12 @@ bool EventData::pack(const void *_data, size_t _length) {
     }
 
     if (file.write_all(_data, _length) != _length) {
-        swWarn("write to tmpfile failed");
+        swoole_warning("write to tmpfile failed");
         return false;
     }
 
     info.len = sizeof(pkg);
-    swTask_type(this) |= SW_TASK_TMPFILE;
+    SW_TASK_TYPE(this) |= SW_TASK_TMPFILE;
     swoole_strlcpy(pkg.tmpfile, file.get_path().c_str(), sizeof(pkg.tmpfile));
     pkg.length = _length;
     memcpy(data, &pkg, sizeof(pkg));
@@ -97,7 +97,7 @@ bool EventData::unpack(String *buffer) {
 
     File fp(_pkg.tmpfile, O_RDONLY);
     if (!fp.ready()) {
-        swSysWarn("open(%s) failed", _pkg.tmpfile);
+        swoole_sys_warning("open(%s) failed", _pkg.tmpfile);
         return false;
     }
     if (buffer->size < _pkg.length && !buffer->extend(_pkg.length)) {
@@ -106,7 +106,7 @@ bool EventData::unpack(String *buffer) {
     if (fp.read_all(buffer->str, _pkg.length) != _pkg.length) {
         return false;
     }
-    if (!(swTask_type(this) & SW_TASK_PEEK)) {
+    if (!(SW_TASK_TYPE(this) & SW_TASK_PEEK)) {
         unlink(_pkg.tmpfile);
     }
     buffer->length = _pkg.length;
@@ -119,13 +119,13 @@ static void TaskWorker_signal_init(ProcessPool *pool) {
      */
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_set(SIGHUP, nullptr);
-    swSignal_set(SIGPIPE, nullptr);
-    swSignal_set(SIGUSR1, Server::worker_signal_handler);
-    swSignal_set(SIGUSR2, nullptr);
-    swSignal_set(SIGTERM, Server::worker_signal_handler);
+    swoole_signal_set(SIGHUP, nullptr);
+    swoole_signal_set(SIGPIPE, nullptr);
+    swoole_signal_set(SIGUSR1, Server::worker_signal_handler);
+    swoole_signal_set(SIGUSR2, nullptr);
+    swoole_signal_set(SIGTERM, Server::worker_signal_handler);
 #ifdef SIGRTMIN
-    swSignal_set(SIGRTMIN, Server::worker_signal_handler);
+    swoole_signal_set(SIGRTMIN, Server::worker_signal_handler);
 #endif
 }
 
@@ -138,7 +138,7 @@ static void TaskWorker_onStart(ProcessPool *pool, int worker_id) {
      */
     if (serv->task_enable_coroutine) {
         if (swoole_event_init(0) < 0) {
-            swError("[TaskWorker] create reactor failed");
+            swoole_error("[TaskWorker] create reactor failed");
             return;
         }
         SwooleG.enable_signalfd = 1;
@@ -192,7 +192,7 @@ static int TaskWorker_onPipeReceive(Reactor *reactor, Event *event) {
         }
         return retval;
     } else {
-        swSysWarn("read(%d, %ld) failed", event->fd, sizeof(task));
+        swoole_sys_warning("read(%d, %ld) failed", event->fd, sizeof(task));
         return SW_ERR;
     }
 }
@@ -226,18 +226,18 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     EventData buf;
     sw_memset_zero(&buf.info, sizeof(buf.info));
     if (task_worker_num < 1) {
-        swWarn("cannot use Server::task()/Server::finish() method, because no set [task_worker_num]");
+        swoole_warning("cannot use Server::task()/Server::finish() method, because no set [task_worker_num]");
         return SW_ERR;
     }
     if (current_task == nullptr) {
         current_task = last_task;
     }
     if (current_task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
-        swWarn("Server::task()/Server::finish() is not supported in onPipeMessage callback");
+        swoole_warning("Server::task()/Server::finish() is not supported in onPipeMessage callback");
         return SW_ERR;
     }
-    if (swTask_type(current_task) & SW_TASK_NOREPLY) {
-        swWarn("Server::finish() can only be used in the worker process");
+    if (SW_TASK_TYPE(current_task) & SW_TASK_NOREPLY) {
+        swoole_warning("Server::finish() can only be used in the worker process");
         return SW_ERR;
     }
 
@@ -245,28 +245,28 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     Worker *worker = get_worker(source_worker_id);
 
     if (worker == nullptr) {
-        swWarn("invalid worker_id[%d]", source_worker_id);
+        swoole_warning("invalid worker_id[%d]", source_worker_id);
         return SW_ERR;
     }
 
     int ret;
     // for swoole_server_task
-    if (swTask_type(current_task) & SW_TASK_NONBLOCK) {
+    if (SW_TASK_TYPE(current_task) & SW_TASK_NONBLOCK) {
         buf.info.type = SW_SERVER_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;
         buf.info.time = microtime();
         buf.info.reactor_id = SwooleWG.worker->id;
         // callback function
-        if (swTask_type(current_task) & SW_TASK_CALLBACK) {
+        if (SW_TASK_TYPE(current_task) & SW_TASK_CALLBACK) {
             flags |= SW_TASK_CALLBACK;
-        } else if (swTask_type(current_task) & SW_TASK_COROUTINE) {
+        } else if (SW_TASK_TYPE(current_task) & SW_TASK_COROUTINE) {
             flags |= SW_TASK_COROUTINE;
         }
-        swTask_type(&buf) = flags;
+        SW_TASK_TYPE(&buf) = flags;
 
         // write to file
         if (!buf.pack(data, data_len)) {
-            swWarn("large task pack failed()");
+            swoole_warning("large task pack failed()");
             return SW_ERR;
         }
 
@@ -291,32 +291,32 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         // lock worker
         worker->lock->lock();
 
-        if (swTask_type(current_task) & SW_TASK_WAITALL) {
+        if (SW_TASK_TYPE(current_task) & SW_TASK_WAITALL) {
             sw_atomic_t *finish_count = (sw_atomic_t *) result->data;
             char *_tmpfile = result->data + 4;
             File file(_tmpfile, O_APPEND | O_WRONLY);
             if (file.ready()) {
                 buf.info.type = SW_SERVER_EVENT_FINISH;
                 buf.info.fd = current_task->info.fd;
-                swTask_type(&buf) = flags;
+                SW_TASK_TYPE(&buf) = flags;
                 if (!buf.pack(data, data_len)) {
-                    swWarn("large task pack failed()");
+                    swoole_warning("large task pack failed()");
                     buf.info.len = 0;
                 }
                 size_t bytes = sizeof(buf.info) + buf.info.len;
                 if (file.write_all(&buf, bytes) != bytes) {
-                    swSysWarn("write(%s, %ld) failed", _tmpfile, bytes);
+                    swoole_sys_warning("write(%s, %ld) failed", _tmpfile, bytes);
                 }
                 sw_atomic_fetch_add(finish_count, 1);
             }
         } else {
             result->info.type = SW_SERVER_EVENT_FINISH;
             result->info.fd = current_task->info.fd;
-            swTask_type(result) = flags;
+            SW_TASK_TYPE(result) = flags;
             if (!result->pack(data, data_len)) {
                 // unlock worker
                 worker->lock->unlock();
-                swWarn("large task pack failed()");
+                swoole_warning("large task pack failed()");
                 return SW_ERR;
             }
         }
@@ -337,9 +337,9 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
     }
     if (ret < 0) {
         if (swoole_get_last_error() == EAGAIN || swoole_get_last_error() == SW_ERROR_SOCKET_POLL_TIMEOUT) {
-            swWarn("send result to worker timed out");
+            swoole_warning("send result to worker timed out");
         } else {
-            swSysWarn("send result to worker failed");
+            swoole_sys_warning("send result to worker failed");
         }
     }
     return ret;

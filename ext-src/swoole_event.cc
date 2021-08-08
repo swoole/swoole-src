@@ -241,7 +241,7 @@ int php_swoole_reactor_init() {
         }
     }
     if (!sw_reactor()) {
-        swTraceLog(SW_TRACE_PHP, "init reactor");
+        swoole_trace_log(SW_TRACE_PHP, "init reactor");
 
         if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
             php_swoole_fatal_error(E_ERROR, "Unable to create event-loop reactor");
@@ -265,7 +265,7 @@ void php_swoole_event_wait() {
     }
 #ifdef HAVE_SIGNALFD
     if (sw_reactor()->check_signalfd) {
-        swSignalfd_setup(sw_reactor());
+        swoole_signalfd_setup(sw_reactor());
     }
 #endif
     if (!sw_reactor()->if_exit() && !sw_reactor()->bailout) {
@@ -741,7 +741,7 @@ static PHP_FUNCTION(swoole_event_dispatch) {
 
 #ifdef HAVE_SIGNALFD
     if (sw_reactor()->check_signalfd) {
-        swSignalfd_setup(sw_reactor());
+        swoole_signalfd_setup(sw_reactor());
     }
 #endif
 

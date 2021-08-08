@@ -84,7 +84,7 @@ void *GlobalMemory::alloc(uint32_t size) {
     std::unique_lock<std::mutex> lock(impl->lock);
 
     if (alloc_size > impl->pagesize) {
-        swWarn("failed to alloc %d bytes, exceed the maximum size[%d]", size, impl->pagesize);
+        swoole_warning("failed to alloc %d bytes, exceed the maximum size[%d]", size, impl->pagesize);
         return nullptr;
     }
 
@@ -93,12 +93,12 @@ void *GlobalMemory::alloc(uint32_t size) {
         impl = new GlobalMemoryImpl(old_impl->pagesize, old_impl->shared);
     }
 
-    swTrace("alloc_size=%u, size=%u", alloc_size, size);
+    swoole_trace("alloc_size=%u, size=%u", alloc_size, size);
 
     if (impl->alloc_offset + alloc_size > impl->pagesize) {
         char *page = impl->new_page();
         if (page == nullptr) {
-            swWarn("alloc memory error");
+            swoole_warning("alloc memory error");
             return nullptr;
         }
     }

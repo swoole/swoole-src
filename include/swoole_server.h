@@ -43,40 +43,6 @@
 #include <unordered_map>
 #include <unordered_set>
 
-#define SW_REACTOR_NUM SW_CPU_NUM
-#define SW_WORKER_NUM (SW_CPU_NUM * 2)
-
-enum swTask_ipc_mode {
-    SW_TASK_IPC_UNIXSOCK = 1,
-    SW_TASK_IPC_MSGQUEUE = 2,
-    SW_TASK_IPC_PREEMPTIVE = 3,
-    SW_TASK_IPC_STREAM = 4,
-};
-
-enum swFactory_dispatch_mode {
-    SW_DISPATCH_ROUND = 1,
-    SW_DISPATCH_FDMOD = 2,
-    SW_DISPATCH_QUEUE = 3,
-    SW_DISPATCH_IPMOD = 4,
-    SW_DISPATCH_UIDMOD = 5,
-    SW_DISPATCH_USERFUNC = 6,
-    SW_DISPATCH_STREAM = 7,
-    SW_DISPATCH_CO_CONN_LB,
-    SW_DISPATCH_CO_REQ_LB,
-};
-
-enum swFactory_dispatch_result {
-    SW_DISPATCH_RESULT_DISCARD_PACKET = -1,
-    SW_DISPATCH_RESULT_CLOSE_CONNECTION = -2,
-    SW_DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
-};
-
-enum swThread_type {
-    SW_THREAD_MASTER = 1,
-    SW_THREAD_REACTOR = 2,
-    SW_THREAD_HEARTBEAT = 3,
-};
-
 //------------------------------------Server-------------------------------------------
 namespace swoole {
 
@@ -98,7 +64,7 @@ struct Connection {
      * system fd must be 0. en: signalfd, listen socket
      */
     uint8_t active;
-    enum swSocket_type socket_type;
+    SocketType socket_type;
     int fd;
     int worker_id;
     SessionId session_id;
@@ -202,7 +168,7 @@ struct PipeBuffer {
 };
 
 struct DgramPacket {
-    enum swSocket_type socket_type;
+    SocketType socket_type;
     network::Address socket_addr;
     uint32_t length;
     char data[0];
@@ -251,7 +217,7 @@ struct ListenPort {
     uint32_t buffer_high_watermark = 0;
     uint32_t buffer_low_watermark = 0;
 
-    enum swSocket_type type = SW_SOCK_TCP;
+    SocketType type = SW_SOCK_TCP;
     uint8_t ssl = 0;
     std::string host;
     int port = 0;
@@ -392,7 +358,7 @@ struct ListenPort {
     const char *get_host() {
         return host.c_str();
     }
-    enum swSocket_type get_type() {
+    SocketType get_type() {
         return type;
     }
     int get_fd() {
@@ -511,6 +477,37 @@ class Server {
         MODE_PROCESS = 2,
     };
 
+    enum TaskIpcMode {
+        TASK_IPC_UNIXSOCK = 1,
+        TASK_IPC_MSGQUEUE = 2,
+        TASK_IPC_PREEMPTIVE = 3,
+        TASK_IPC_STREAM = 4,
+    };
+
+    enum ThreadType {
+        THREAD_MASTER = 1,
+        THREAD_REACTOR = 2,
+        THREAD_HEARTBEAT = 3,
+    };
+
+    enum DispatchMode {
+        DISPATCH_ROUND = 1,
+        DISPATCH_FDMOD = 2,
+        DISPATCH_IDLE_WORKER = 3,
+        DISPATCH_IPMOD = 4,
+        DISPATCH_UIDMOD = 5,
+        DISPATCH_USERFUNC = 6,
+        DISPATCH_STREAM = 7,
+        DISPATCH_CO_CONN_LB,
+        DISPATCH_CO_REQ_LB,
+    };
+
+    enum FactoryDispatchResult {
+        DISPATCH_RESULT_DISCARD_PACKET = -1,
+        DISPATCH_RESULT_CLOSE_CONNECTION = -2,
+        DISPATCH_RESULT_USERFUNC_FALLBACK = -3,
+    };
+
     enum HookType {
         HOOK_MASTER_START,
         HOOK_MASTER_TIMER,
@@ -548,7 +545,7 @@ class Server {
     /**
      * package dispatch mode
      */
-    uint8_t dispatch_mode = SW_DISPATCH_FDMOD;
+    uint8_t dispatch_mode = DISPATCH_FDMOD;
 
     /**
      * No idle work process is available.
@@ -753,7 +750,7 @@ class Server {
      *  task process
      */
     uint32_t task_worker_num = 0;
-    uint8_t task_ipc_mode = SW_TASK_IPC_UNIXSOCK;
+    uint8_t task_ipc_mode = TASK_IPC_UNIXSOCK;
     uint32_t task_max_request = 0;
     uint32_t task_max_request_grace = 0;
     std::vector<std::shared_ptr<Pipe>> task_notify_pipes;
@@ -888,13 +885,13 @@ class Server {
 
     bool set_document_root(const std::string &path) {
         if (path.length() > PATH_MAX) {
-            swWarn("The length of document_root must be less than %d", PATH_MAX);
+            swoole_warning("The length of document_root must be less than %d", PATH_MAX);
             return false;
         }
 
         char _realpath[PATH_MAX];
         if (!realpath(path.c_str(), _realpath)) {
-            swWarn("document_root[%s] does not exist", path.c_str());
+            swoole_warning("document_root[%s] does not exist", path.c_str());
             return false;
         }
 
@@ -911,7 +908,7 @@ class Server {
     void shutdown();
 
     int add_worker(Worker *worker);
-    ListenPort *add_port(enum swSocket_type type, const char *host, int port);
+    ListenPort *add_port(SocketType type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
@@ -974,8 +971,8 @@ class Server {
     }
 
     inline bool is_support_unsafe_events() {
-        if (dispatch_mode != SW_DISPATCH_ROUND && dispatch_mode != SW_DISPATCH_QUEUE &&
-            dispatch_mode != SW_DISPATCH_STREAM) {
+        if (dispatch_mode != DISPATCH_ROUND && dispatch_mode != DISPATCH_IDLE_WORKER &&
+            dispatch_mode != DISPATCH_STREAM) {
             return true;
         } else {
             return enable_unsafe_event;
@@ -1001,8 +998,8 @@ class Server {
     }
 
     inline bool is_hash_dispatch_mode() {
-        return dispatch_mode == SW_DISPATCH_FDMOD || dispatch_mode == SW_DISPATCH_IPMOD ||
-               dispatch_mode == SW_DISPATCH_CO_CONN_LB;
+        return dispatch_mode == DISPATCH_FDMOD || dispatch_mode == DISPATCH_IPMOD ||
+               dispatch_mode == DISPATCH_CO_CONN_LB;
     }
 
     inline bool is_support_send_yield() {
@@ -1331,7 +1328,6 @@ class Server {
 
 typedef swoole::Server swServer;
 typedef swoole::ListenPort swListenPort;
-typedef swoole::Connection swConnection;
 typedef swoole::RecvData swRecvData;
 
 extern swoole::Server *g_server_instance;

@@ -105,7 +105,7 @@ class File {
 
     bool stat(FileStatus *_stat) const {
         if (::fstat(fd_, _stat) < 0) {
-            swSysWarn("fstat() failed");
+            swoole_sys_warning("fstat() failed");
             return false;
         } else {
             return true;

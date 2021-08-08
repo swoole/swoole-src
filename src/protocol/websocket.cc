@@ -94,7 +94,7 @@ ssize_t get_package_length(Protocol *protocol, Socket *conn, const char *buf, ui
             return 0;
         }
     }
-    swTraceLog(SW_TRACE_LENGTH_PROTOCOL, "header_length=%zu, payload_length=%lu", header_length, payload_length);
+    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%zu, payload_length=%lu", header_length, payload_length);
     return header_length + payload_length;
 }
 
@@ -180,7 +180,7 @@ bool decode(Frame *frame, char *data, size_t length) {
         header_length += 8;
     }
 
-    swTraceLog(SW_TRACE_WEBSOCKET,
+    swoole_trace_log(SW_TRACE_WEBSOCKET,
                "decode frame, payload_length=%ld, mask=%d, opcode=%d",
                payload_length,
                frame->header.MASK,
@@ -209,7 +209,7 @@ bool decode(Frame *frame, char *data, size_t length) {
 
 int pack_close_frame(String *buffer, int code, char *reason, size_t length, uint8_t flags) {
     if (sw_unlikely(length > SW_WEBSOCKET_CLOSE_REASON_MAX_LEN)) {
-        swWarn("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
+        swoole_warning("the max length of close reason is %d", SW_WEBSOCKET_CLOSE_REASON_MAX_LEN);
         return SW_ERR;
     }
 
@@ -253,14 +253,14 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
 
     String *frame_buffer;
     int frame_length;
-    swListenPort *port;
+    ListenPort *port;
 
     size_t offset;
     switch (ws.header.OPCODE) {
     case OPCODE_CONTINUATION:
         frame_buffer = conn->websocket_buffer;
         if (frame_buffer == nullptr) {
-            swWarn("bad frame[opcode=0]. remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
+            swoole_warning("bad frame[opcode=0]. remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
             return SW_ERR;
         }
         offset = length - ws.payload_length;
@@ -268,7 +268,7 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
         port = serv->get_port_by_fd(conn->fd);
         // frame data overflow
         if (frame_buffer->length + frame_length > port->protocol.package_max_length) {
-            swWarn("websocket frame is too big, remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
+            swoole_warning("websocket frame is too big, remote_addr=%s:%d", conn->info.get_ip(), conn->info.get_port());
             return SW_ERR;
         }
         // merge incomplete data
@@ -290,7 +290,7 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
 
         if (!ws.header.FIN) {
             if (conn->websocket_buffer) {
-                swWarn("merging incomplete frame, bad request. remote_addr=%s:%d",
+                swoole_warning("merging incomplete frame, bad request. remote_addr=%s:%d",
                        conn->info.get_ip(),
                        conn->info.get_port());
                 return SW_ERR;
@@ -305,7 +305,7 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
     case OPCODE_PING:
     case OPCODE_PONG:
         if (length >= (sizeof(buf) - SW_WEBSOCKET_HEADER_LEN)) {
-            swWarn("%s frame application data is too big. remote_addr=%s:%d",
+            swoole_warning("%s frame application data is too big. remote_addr=%s:%d",
                    ws.header.OPCODE == OPCODE_PING ? "ping" : "pong",
                    conn->info.get_ip(),
                    conn->info.get_port());
@@ -349,7 +349,7 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
         return SW_ERR;
 
     default:
-        swWarn("unknown opcode [%d]", ws.header.OPCODE);
+        swoole_warning("unknown opcode [%d]", ws.header.OPCODE);
         break;
     }
     return SW_OK;

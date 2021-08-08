@@ -291,7 +291,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
         if (state <= 0 && *_c == '=') {
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-                swWarn("cookie[%.*s...] name length %d is exceed the max name len %d",
+                swoole_warning("cookie[%.*s...] name length %d is exceed the max name len %d",
                        8,
                        (char *) at + j,
                        klen,
@@ -306,7 +306,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
         } else if (state == 1 && *_c == ';') {
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-                swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
+                swoole_warning("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
                        keybuf,
                        8,
                        (char *) at + j,
@@ -337,13 +337,13 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
     if (j < (off_t) length) {
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-            swWarn(
+            swoole_warning(
                 "cookie[%.*s...] name length %d is exceed the max name len %d", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
             return;
         }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
+            swoole_warning("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
                    keybuf,
                    8,
                    (char *) at + j,
@@ -417,7 +417,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 }
             }
             if (boundary_len <= 0) {
-                swWarn("invalid multipart/form-data body fd:%ld", ctx->fd);
+                swoole_warning("invalid multipart/form-data body fd:%ld", ctx->fd);
                 /* make it same with protocol error */
                 ctx->parser.state = s_dead;
                 return -1;
@@ -427,7 +427,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 boundary_str++;
                 boundary_len -= 2;
             }
-            swTraceLog(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
+            swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
             ctx->parse_form_data(boundary_str, boundary_len);
         }
     }
@@ -526,7 +526,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         }
 
         if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN) {
-            swWarn("form_name[%s] is too large", Z_STRVAL_P(zform_name));
+            swoole_warning("form_name[%s] is too large", Z_STRVAL_P(zform_name));
             ret = -1;
             goto _end;
         }
@@ -544,7 +544,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         // upload file
         else {
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN) {
-                swWarn("filename[%s] is too large", Z_STRVAL_P(zfilename));
+                swoole_warning("filename[%s] is too large", Z_STRVAL_P(zfilename));
                 ret = -1;
                 goto _end;
             }
@@ -603,7 +603,7 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
         fclose((FILE *) p->fp);
         p->fp = nullptr;
 
-        swSysWarn("write upload file failed");
+        swoole_sys_warning("write upload file failed");
     }
     return 0;
 }
@@ -648,7 +648,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
-        swSysWarn("fopen(%s) failed", file_path);
+        swoole_sys_warning("fopen(%s) failed", file_path);
         return 0;
     }
 
@@ -805,7 +805,7 @@ static int http_request_message_complete(swoole_http_parser *parser) {
     }
     ctx->completed = 1;
 
-    swTraceLog(SW_TRACE_HTTP, "request body length=%ld", content_length);
+    swoole_trace_log(SW_TRACE_HTTP, "request body length=%ld", content_length);
 
     return 1; /* return from execute */
 }

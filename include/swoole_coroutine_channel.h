@@ -32,7 +32,7 @@ namespace coroutine {
 //-------------------------------------------------------------------------------
 class Channel {
   public:
-    enum opcode {
+    enum Opcode {
         PRODUCER = 1,
         CONSUMER = 2,
     };
@@ -46,7 +46,7 @@ class Channel {
 
     struct TimeoutMessage {
         Channel *chan;
-        enum opcode type;
+        Opcode type;
         Coroutine *co;
         bool error;
         TimerNode *timer;
@@ -120,7 +120,7 @@ class Channel {
 
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
-    void yield(enum opcode type);
+    void yield(enum Opcode type);
 
     inline void consumer_remove(Coroutine *co) {
         consumer_queue.remove(co);
@@ -130,17 +130,17 @@ class Channel {
         producer_queue.remove(co);
     }
 
-    inline Coroutine *pop_coroutine(enum opcode type) {
+    inline Coroutine *pop_coroutine(enum Opcode type) {
         Coroutine *co;
         if (type == PRODUCER) {
             co = producer_queue.front();
             producer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
+            swoole_trace_log(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
         } else  // if (type == CONSUMER)
         {
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
+            swoole_trace_log(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
         }
         return co;
     }

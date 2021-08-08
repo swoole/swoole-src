@@ -282,7 +282,7 @@ static int coro_end_silence_handler(zend_execute_data *execute_data) {
 static void coro_interrupt_resume(void *data) {
     Coroutine *co = (Coroutine *) data;
     if (co && !co->is_end()) {
-        swTraceLog(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
+        swoole_trace_log(SW_TRACE_COROUTINE, "interrupt_callback cid=%ld ", co->get_cid());
         co->resume();
     }
 }
@@ -434,7 +434,7 @@ void PHPCoroutine::interrupt_thread_start() {
     zend_vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running = true;
     interrupt_thread = std::thread([]() {
-        swSignal_none();
+        swoole_signal_block_all();
         while (interrupt_thread_running) {
             *zend_vm_interrupt = 1;
             std::this_thread::sleep_for(std::chrono::milliseconds(MAX_EXEC_MSEC / 2));
@@ -584,7 +584,7 @@ void PHPCoroutine::restore_task(PHPContext *task) {
 void PHPCoroutine::on_yield(void *arg) {
     PHPContext *task = (PHPContext *) arg;
     PHPContext *origin_task = get_origin_context(task);
-    swTraceLog(
+    swoole_trace_log(
         SW_TRACE_COROUTINE, "php_coro_yield from cid=%ld to cid=%ld", task->co->get_cid(), task->co->get_origin_cid());
     save_task(task);
     restore_task(origin_task);
@@ -596,7 +596,7 @@ void PHPCoroutine::on_resume(void *arg) {
     save_task(current_task);
     restore_task(task);
     record_last_msec(task);
-    swTraceLog(SW_TRACE_COROUTINE,
+    swoole_trace_log(SW_TRACE_COROUTINE,
                "php_coro_resume from cid=%ld to cid=%ld",
                Coroutine::get_current_cid(),
                task->co->get_cid());
@@ -634,7 +634,7 @@ void PHPCoroutine::on_close(void *arg) {
     vm_stack_destroy();
     restore_task(origin_task);
 
-    swTraceLog(SW_TRACE_COROUTINE,
+    swoole_trace_log(SW_TRACE_COROUTINE,
                "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
                cid,
                origin_cid,
@@ -731,7 +731,7 @@ void PHPCoroutine::main_func(void *arg) {
         save_vm_stack(task);
         record_last_msec(task);
 
-        swTraceLog(SW_TRACE_COROUTINE,
+        swoole_trace_log(SW_TRACE_COROUTINE,
                    "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
                    task->co->get_cid(),
                    task->co->get_origin_cid(),

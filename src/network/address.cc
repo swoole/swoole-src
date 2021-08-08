@@ -46,7 +46,7 @@ int Address::get_port() {
     }
 }
 
-bool Address::assign(enum swSocket_type _type, const std::string &_host, int _port) {
+bool Address::assign(SocketType _type, const std::string &_host, int _port) {
     type = _type;
     const char *host = _host.c_str();
     if (_type == SW_SOCK_TCP || _type == SW_SOCK_UDP) {

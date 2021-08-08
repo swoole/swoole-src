@@ -71,7 +71,7 @@ ReactorImpl *make_reactor_kqueue(Reactor *_reactor, int max_events) {
 ReactorKqueue::ReactorKqueue(Reactor *reactor, int max_events) : ReactorImpl(reactor) {
     epfd_ = kqueue();
     if (epfd_ < 0) {
-        swWarn("[swReactorKqueueCreate] kqueue_create[0] fail");
+        swoole_warning("[swReactorKqueueCreate] kqueue_create[0] fail");
         return;
     }
 
@@ -112,7 +112,7 @@ int ReactorKqueue::add(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn(
+            swoole_sys_warning(
                 "add events_[fd=%d, reactor_id=%d, type=%d, events=read] failed", fd, reactor_->id, socket->fd_type);
             return SW_ERR;
         }
@@ -122,14 +122,14 @@ int ReactorKqueue::add(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn(
+            swoole_sys_warning(
                 "add events_[fd=%d, reactor_id=%d, type=%d, events=write] failed", fd, reactor_->id, socket->fd_type);
             return SW_ERR;
         }
     }
 
     reactor_->_add(socket, events);
-    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d, events=%d", SwooleTG.id, epfd_, fd, socket->events);
+    swoole_trace_log(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d, events=%d", SwooleTG.id, epfd_, fd, socket->events);
 
     return SW_OK;
 }
@@ -154,14 +154,14 @@ int ReactorKqueue::set(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_READ, EV_ADD, fflags, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("kqueue->set(%d, SW_EVENT_READ) failed", fd);
+            swoole_sys_warning("kqueue->set(%d, SW_EVENT_READ) failed", fd);
             return SW_ERR;
         }
     } else {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            swoole_sys_warning("kqueue->del(%d, SW_EVENT_READ) failed", fd);
             return SW_ERR;
         }
     }
@@ -170,20 +170,20 @@ int ReactorKqueue::set(Socket *socket, int events) {
         EV_SET(&e, fd, EVFILT_WRITE, EV_ADD, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_sys_warning("kqueue->set(%d, SW_EVENT_WRITE) failed", fd);
             return SW_ERR;
         }
     } else {
         EV_SET(&e, fd, EVFILT_WRITE, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
+            swoole_sys_warning("kqueue->del(%d, SW_EVENT_WRITE) failed", fd);
             return SW_ERR;
         }
     }
 
     reactor_->_set(socket, events);
-    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d, events=%d", SwooleTG.id, epfd_, fd, socket->events);
+    swoole_trace_log(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d, events=%d", SwooleTG.id, epfd_, fd, socket->events);
 
     return SW_OK;
 }
@@ -199,7 +199,6 @@ int ReactorKqueue::del(Socket *socket) {
     auto sobj = reinterpret_cast<intptr_t>(socket);
 #endif
 
-
     if (socket->removed) {
         swoole_error_log(
             SW_LOG_WARNING, SW_ERROR_EVENT_SOCKET_REMOVED, "failed to delete event[%d], has been removed", socket->fd);
@@ -210,7 +209,7 @@ int ReactorKqueue::del(Socket *socket) {
         EV_SET(&e, fd, EVFILT_READ, EV_DELETE, 0, 0, sobj);
         ret = ::kevent(epfd_, &e, 1, nullptr, 0, nullptr);
         if (ret < 0) {
-            swSysWarn("kqueue->del(%d, SW_EVENT_READ) failed", fd);
+            swoole_sys_warning("kqueue->del(%d, SW_EVENT_READ) failed", fd);
             if (errno != EBADF && errno != ENOENT) {
                 return SW_ERR;
             }
@@ -229,7 +228,7 @@ int ReactorKqueue::del(Socket *socket) {
     }
 
     reactor_->_del(socket);
-    swTraceLog(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d", SwooleTG.id, epfd_, fd);
+    swoole_trace_log(SW_TRACE_EVENT, "[THREAD #%d]epfd=%d, fd=%d", SwooleTG.id, epfd_, fd);
 
     return SW_OK;
 }
@@ -271,7 +270,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
         n = ::kevent(epfd_, nullptr, 0, events_, event_max_, t_ptr);
         if (n < 0) {
             if (!reactor_->catch_error()) {
-                swWarn("kqueue[#%d], epfd=%d", reactor_->id, epfd_);
+                swoole_warning("kqueue[#%d], epfd=%d", reactor_->id, epfd_);
                 return SW_ERR;
             } else {
                 goto _continue;
@@ -281,7 +280,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
             SW_REACTOR_CONTINUE;
         }
 
-        swTraceLog(SW_TRACE_EVENT, "n %d events", n);
+        swoole_trace_log(SW_TRACE_EVENT, "n %d events", n);
 
         for (i = 0; i < n; i++) {
             struct kevent *kevent = &events_[i];
@@ -296,7 +295,7 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(kevent->filter == EVFILT_READ ? SW_EVENT_READ : SW_EVENT_WRITE,
                                                     event.type);
                     if (sw_unlikely(handler(reactor_, &event) < 0)) {
-                        swSysWarn("kqueue event %s socket#%d handler failed",
+                        swoole_sys_warning("kqueue event %s socket#%d handler failed",
                                   kevent->filter == EVFILT_READ ? "read" : "write",
                                   event.fd);
                     }
@@ -305,27 +304,21 @@ int ReactorKqueue::wait(struct timeval *timeo) {
                 break;
             }
             case EVFILT_SIGNAL: {
-                struct sw_signal {
-                    swSignalHandler handler;
-                    uint16_t signo;
-                    uint16_t active;
-                };
-                struct sw_signal *sw_signal = (struct sw_signal *) udata;
-
-                if (sw_signal->active) {
-                    if (sw_signal->handler) {
-                        sw_signal->handler(sw_signal->signo);
+                Signal *signal_data = (Signal *) udata;
+                if (signal_data->activated) {
+                    if (signal_data->handler) {
+                        signal_data->handler(signal_data->signo);
                     } else {
                         swoole_error_log(SW_LOG_WARNING,
                                          SW_ERROR_UNREGISTERED_SIGNAL,
                                          SW_UNREGISTERED_SIGNAL_FMT,
-                                         swSignal_str(sw_signal->signo));
+                                         swoole_signal_to_str(signal_data->signo));
                     }
                 }
                 break;
             }
             default:
-                swWarn("unknown event filter[%d]", kevent->filter);
+                swoole_warning("unknown event filter[%d]", kevent->filter);
                 break;
             }
         }
