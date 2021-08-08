@@ -45,7 +45,6 @@
  *                                                     *
  * *****************************************************/
 
-.file "make_mips64_n64_elf_gas.S"
 .text
 .globl make_fcontext
 .align 3

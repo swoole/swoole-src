@@ -5,6 +5,10 @@
           http://www.boost.org/LICENSE_1_0.txt)
 */
 
+/*
+    "backported" version of original jump_mips64_n64_elf_gas.S 
+*/
+
 /*******************************************************
  *                                                     *
  *  -------------------------------------------------  *
@@ -45,7 +49,6 @@
  *                                                     *
  * *****************************************************/
 
-.file "jump_mips64_n64_elf_gas.S"
 .text
 .globl jump_fcontext
 .align 3
@@ -68,6 +71,9 @@ jump_fcontext:
     sd  $ra, 152($sp) # save RA as PC
 
 #if defined(__mips_hard_float)
+    # test if fpu env should be preserved 
+    beqz    $a3,  1f
+
     s.d  $f24, 0($sp)   # save F24
     s.d  $f25, 8($sp)   # save F25
     s.d  $f26, 16($sp)  # save F26
@@ -76,15 +82,20 @@ jump_fcontext:
     s.d  $f29, 40($sp)  # save F29
     s.d  $f30, 48($sp)  # save F30
     s.d  $f31, 56($sp)  # save F31
+1:
 #endif
 
-    # store SP (pointing to old context-data) in v0 as return
-    move  $v0, $sp
+    # store SP (pointing to context-data) in A0
+    sd  $sp, ($a0)
 
-    # get SP (pointing to new context-data) from a0 param
-    move  $sp, $a0
+    # restore SP (pointing to context-data) from A1
+    move  $sp, $a1
 
 #if defined(__mips_hard_float)
+    # test if fpu env should be preserved 
+    beqz    $a3,  2f
+
+
     l.d  $f24, 0($sp)   # restore F24
     l.d  $f25, 8($sp)   # restore F25
     l.d  $f26, 16($sp)  # restore F26
@@ -93,6 +104,7 @@ jump_fcontext:
     l.d  $f29, 40($sp)  # restore F29
     l.d  $f30, 48($sp)  # restore F30
     l.d  $f31, 56($sp)  # restore F31
+2:
 #endif
 
     ld  $s0, 64($sp)  # restore S0
@@ -112,8 +124,10 @@ jump_fcontext:
     # adjust stack
     daddiu $sp, $sp, 160
 
-    move  $a0, $v0 # move old sp from v0 to a0 as param
-    move  $v1, $a1 # move *data from a1 to v1 as return
+    # use third arg as return value after jump
+    move  $v0, $a2
+    # use third arg as first arg in context function
+    move  $a0, $a2
 
     # jump to context
     jr  $t9
@@ -122,3 +136,4 @@ jump_fcontext:
 
 /* Mark that we don't need executable stack.  */
 .section .note.GNU-stack,"",%progbits
+
