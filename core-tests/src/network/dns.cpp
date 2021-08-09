@@ -149,4 +149,5 @@ TEST(dns, gethosts) {
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
+
 }

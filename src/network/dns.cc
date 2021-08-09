@@ -23,6 +23,7 @@
 #include <vector>
 #include <unordered_map>
 #include <sstream>
+#include <fstream>
 
 #define SW_PATH_HOSTS "/etc/hosts"
 
@@ -108,66 +109,33 @@ static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
 static std::string parse_ip_address(void *vaddr, int type);
 
-static int read_line(FILE *fp, char **buf, size_t *bufsize) {
-    char *newbuf;
-    size_t offset = 0;
-    size_t len;
-
-    if (*buf == nullptr) {
-        *buf = (char *) malloc(128);
-        if (!*buf) {
-            return SW_ERR;
-        }
-        *bufsize = 128;
+std::string get_ip_by_hosts(std::string search_domain) {
+    std::ifstream file(SW_PATH_HOSTS);
+    if (!file) {
+        return "";
     }
 
-    for (;;) {
-        int bytestoread = *bufsize - offset;
-        if (!fgets(*buf + offset, bytestoread, fp)) {
-            return SW_ERR;
-        }
+    ON_SCOPE_EXIT {
+        file.close();
+    };
 
-        len = offset + strlen(*buf + offset);
-        if ((*buf)[len - 1] == '\n') {
-            (*buf)[len - 1] = '\0';
-            break;
-        }
-        offset = len;
-        if (len < *bufsize - 1) {
-            continue;
-        }
-        newbuf = (char *) realloc(*buf, *bufsize * 2);
-        if (!newbuf) {
-            free(*buf);
-            *buf = nullptr;
-            return SW_ERR;
-        }
-        *buf = newbuf;
-        *bufsize *= 2;
-    }
-
-    return SW_OK;
-}
-
-static std::unordered_map<std::string, std::string> get_hostent(FILE *fp) {
-    char *line = nullptr, *p, *q;
-    size_t linesize;
-    std::string txtaddr;
+    std::string line;
     std::string domain;
+    std::string txtaddr;
     std::vector<std::string> domains;
-
     std::unordered_map<std::string, std::string> result{};
-    while (read_line(fp, &line, &linesize) == SW_OK) {
-        p = line;
-        if ((q = (char *) memchr(p, '#', linesize))) {
-            *q = '\0';
+
+    while (getline(file, line)) {
+        std::string::size_type ops = line.find_first_of('#');
+        if (ops != std::string::npos) {
+            line[ops] = '\0';
         }
 
-        if (*p == '\0') {
+        if (line[0] == '\n' || line[0] == '\0') {
             continue;
         }
 
-        std::istringstream stream(p);
+        std::istringstream stream(line);
         while (stream >> domain) {
             domains.push_back(domain);
         }
@@ -182,35 +150,15 @@ static std::unordered_map<std::string, std::string> get_hostent(FILE *fp) {
             result.insert(std::make_pair(domains[i], txtaddr));
         }
 
-        free(line);
-
-        return result;
-    }
-
-    if (line) free(line);
-
-    return result;
-}
-
-std::string get_ip_by_hosts(std::string domain) {
-    auto fp = fopen(SW_PATH_HOSTS, "r");
-    if (fp == nullptr) {
-        return "";
-    }
-    ON_SCOPE_EXIT {
-        fclose(fp);
-    };
-    while (1) {
-        auto result = get_hostent(fp);
-        if (result.empty()) {
-            break;
-        }
-
-        auto iter = result.find(domain);
+        auto iter = result.find(search_domain);
         if (iter != result.end()) {
             return iter->second;
+        } else {
+            result.clear();
+            continue;
         }
     }
+
     return "";
 }
 
