@@ -105,7 +105,8 @@ TEST(dns, gethosts) {
     char hosts_backup_file[] = "/etc/hosts_bak";
     int ret = rename(hosts_file, hosts_backup_file);
     if (ret && ENOENT != errno) {
-        throw "rename /etc/hosts to /etc/hosts_bak failed.";
+        std::cout << strerror(errno)  << std::endl;
+        throw strerror(errno);
     }
 
     ON_SCOPE_EXIT {
@@ -117,7 +118,8 @@ TEST(dns, gethosts) {
 
     ofstream file(hosts_file);
     if (!file) {
-        throw "open /etc/hosts failed.";
+        std::cout << strerror(errno)  << std::endl;
+        throw strerror(errno);
     }
 
     ON_SCOPE_EXIT {
