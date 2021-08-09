@@ -154,7 +154,15 @@ CURLcode Multi::exec(php_curl *ch) {
 
     Handle *handle = get_handle(ch->cp);
     bool is_canceled = false;
+
     SW_LOOP {
+        if (handle->socket && handle->socket->removed) {
+            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
+                event_count_++;
+            }
+            swoole_trace_log(SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
+        }
+
         co = check_bound_co();
         co->yield_ex(-1);
         is_canceled = co->is_canceled();
