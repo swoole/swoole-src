@@ -153,15 +153,18 @@ CURLcode Multi::exec(php_curl *ch) {
     }
 
     Handle *handle = get_handle(ch->cp);
-
+    bool is_canceled = false;
     SW_LOOP {
         co = check_bound_co();
         co->yield_ex(-1);
+        is_canceled = co->is_canceled();
         co = nullptr;
-        if (co->is_canceled()) {
+
+        if (is_canceled) {
             swoole_set_last_error(SW_ERROR_CO_CANCELED);
             break;
         }
+
         int sockfd = last_sockfd;
         int bitmask = 0;
         if (sockfd >= 0) {
@@ -188,7 +191,7 @@ CURLcode Multi::exec(php_curl *ch) {
 
     CURLcode retval = read_info();
     remove_handle(ch->cp);
-    return co->is_canceled() ? CURLE_ABORTED_BY_CALLBACK : retval;
+    return is_canceled ? CURLE_ABORTED_BY_CALLBACK : retval;
 }
 
 CURLcode Multi::read_info() {
