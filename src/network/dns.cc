@@ -155,6 +155,7 @@ std::string get_ip_by_hosts(std::string search_domain) {
             return iter->second;
         } else {
             result.clear();
+            domains.clear();
             continue;
         }
     }
