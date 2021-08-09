@@ -115,7 +115,6 @@ TEST(dns, gethosts) {
         }
     };
 
-
     ofstream file(hosts_file);
     if (!file) {
         std::cout << std::string("file open failed: ") + std::string(strerror(errno)) << std::endl;
