@@ -149,17 +149,17 @@ static int read_line(FILE *fp, char **buf, size_t *bufsize) {
     return SW_OK;
 }
 
-static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
+static std::unordered_map<std::string, std::string> get_hostent(FILE *fp) {
     char *line = nullptr, *p, *q;
     size_t linesize;
     std::string txtaddr;
     std::string domain;
     std::vector<std::string> domains;
 
-    std::unordered_map<std::string , std::string> result{};
+    std::unordered_map<std::string, std::string> result{};
     while (read_line(fp, &line, &linesize) == SW_OK) {
         p = line;
-        if((q = (char *) memchr(p, '#', linesize))){
+        if ((q = (char *) memchr(p, '#', linesize))) {
             *q = '\0';
         }
 
@@ -168,17 +168,17 @@ static std::unordered_map<std::string , std::string> get_hostent(FILE *fp) {
         }
 
         std::istringstream stream(p);
-        while(stream >> domain){
+        while (stream >> domain) {
             domains.push_back(domain);
         }
 
-        if (domains.empty() || domains.size() == 1){
+        if (domains.empty() || domains.size() == 1) {
             domains.clear();
             continue;
         }
 
         txtaddr = domains[0];
-        for(size_t i = 1; i < domains.size(); i++) {
+        for (size_t i = 1; i < domains.size(); i++) {
             result.insert(std::make_pair(domains[i], txtaddr));
         }
 
@@ -202,7 +202,7 @@ std::string get_ip_by_hosts(std::string domain) {
     };
     while (1) {
         auto result = get_hostent(fp);
-        if (result.empty()){
+        if (result.empty()) {
             break;
         }
 
@@ -337,7 +337,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
         temp = &packet[steps];
         j = 0;
         while (*temp != 0) {
-            if ((uchar)(*temp) == 0xc0) {
+            if ((uchar) (*temp) == 0xc0) {
                 ++temp;
                 temp = &packet[(uint8_t) *temp];
             } else {
@@ -366,7 +366,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
             temp = &packet[steps];
             j = 0;
             while (*temp != 0) {
-                if ((uchar)(*temp) == 0xc0) {
+                if ((uchar) (*temp) == 0xc0) {
                     ++temp;
                     temp = &packet[(uint8_t) *temp];
                 } else {

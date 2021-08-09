@@ -63,7 +63,7 @@ TEST(dns, cancel) {
     // swoole_set_log_level(SW_LOG_TRACE);
     test::coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
-        Coroutine::create([co](void *){
+        Coroutine::create([co](void *) {
             System::sleep(0.002);
             co->cancel();
         });
@@ -124,7 +124,6 @@ TEST(dns, gethosts) {
     ON_SCOPE_EXIT {
         file.close();
     };
-
 
     file << "\n";
     file << "127.0.0.1\n";
