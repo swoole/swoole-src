@@ -148,11 +148,6 @@ CURLMcode Multi::remove_handle(CURL *cp) {
 }
 
 CURLcode Multi::exec(php_curl *ch) {
-    co = check_bound_co();
-    ON_SCOPE_EXIT {
-        co = nullptr;
-    };
-
     if (add_handle(ch->cp) != CURLM_OK) {
         return CURLE_FAILED_INIT;
     }
@@ -160,7 +155,9 @@ CURLcode Multi::exec(php_curl *ch) {
     Handle *handle = get_handle(ch->cp);
 
     SW_LOOP {
+        co = check_bound_co();
         co->yield_ex(-1);
+        co = nullptr;
         if (co->is_canceled()) {
             swoole_set_last_error(SW_ERROR_CO_CANCELED);
             break;
@@ -232,13 +229,9 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
 }
 
 long Multi::select(php_curlm *mh, double timeout) {
-    co = check_bound_co();
     if (zend_llist_count(&mh->easyh) == 0) {
         return 0;
     }
-    ON_SCOPE_EXIT {
-        co = nullptr;
-    };
 
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
@@ -261,7 +254,9 @@ long Multi::select(php_curlm *mh, double timeout) {
         return 0;
     }
 
+    co = check_bound_co();
     co->yield_ex(timeout);
+    co = nullptr;
 
     auto count = selector->active_handles.size();
 
@@ -304,21 +299,23 @@ void Multi::callback(Handle *handle, int event_bitmask) {
     } else {
         last_sockfd = -1;
     }
-    // for curl_multi_select
     if (selector.get()) {
         if (!handle) {
             selector->timer_callback = true;
         }
-        if (!co) {
-            if (handle) {
-                if (swoole_event_del(handle->socket) == SW_OK) {
-                    event_count_--;
-                }
-            } else {
-                del_timer();
+
+    }
+    if (!co) {
+        if (handle) {
+            if (swoole_event_del(handle->socket) == SW_OK) {
+                event_count_--;
             }
-            return;
+        } else {
+            del_timer();
         }
+        return;
+    }
+    if (selector.get()) {
         if (handle) {
             selector->active_handles.insert(handle);
         }
