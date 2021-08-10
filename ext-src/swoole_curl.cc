@@ -148,23 +148,31 @@ CURLMcode Multi::remove_handle(CURL *cp) {
 }
 
 CURLcode Multi::exec(php_curl *ch) {
-    co = check_bound_co();
-    ON_SCOPE_EXIT {
-        co = nullptr;
-    };
-
     if (add_handle(ch->cp) != CURLM_OK) {
         return CURLE_FAILED_INIT;
     }
 
     Handle *handle = get_handle(ch->cp);
+    bool is_canceled = false;
 
     SW_LOOP {
+        if (handle->socket && handle->socket->removed) {
+            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
+                event_count_++;
+            }
+            swoole_trace_log(SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
+        }
+
+        co = check_bound_co();
         co->yield_ex(-1);
-        if (co->is_canceled()) {
+        is_canceled = co->is_canceled();
+        co = nullptr;
+
+        if (is_canceled) {
             swoole_set_last_error(SW_ERROR_CO_CANCELED);
             break;
         }
+
         int sockfd = last_sockfd;
         int bitmask = 0;
         if (sockfd >= 0) {
@@ -191,7 +199,7 @@ CURLcode Multi::exec(php_curl *ch) {
 
     CURLcode retval = read_info();
     remove_handle(ch->cp);
-    return co->is_canceled() ? CURLE_ABORTED_BY_CALLBACK : retval;
+    return is_canceled ? CURLE_ABORTED_BY_CALLBACK : retval;
 }
 
 CURLcode Multi::read_info() {
@@ -232,13 +240,9 @@ int Multi::handle_timeout(CURLM *mh, long timeout_ms, void *userp) {
 }
 
 long Multi::select(php_curlm *mh, double timeout) {
-    co = check_bound_co();
     if (zend_llist_count(&mh->easyh) == 0) {
         return 0;
     }
-    ON_SCOPE_EXIT {
-        co = nullptr;
-    };
 
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
@@ -261,7 +265,9 @@ long Multi::select(php_curlm *mh, double timeout) {
         return 0;
     }
 
+    co = check_bound_co();
     co->yield_ex(timeout);
+    co = nullptr;
 
     auto count = selector->active_handles.size();
 
@@ -304,21 +310,23 @@ void Multi::callback(Handle *handle, int event_bitmask) {
     } else {
         last_sockfd = -1;
     }
-    // for curl_multi_select
     if (selector.get()) {
         if (!handle) {
             selector->timer_callback = true;
         }
-        if (!co) {
-            if (handle) {
-                if (swoole_event_del(handle->socket) == SW_OK) {
-                    event_count_--;
-                }
-            } else {
-                del_timer();
+
+    }
+    if (!co) {
+        if (handle) {
+            if (swoole_event_del(handle->socket) == SW_OK) {
+                event_count_--;
             }
-            return;
+        } else {
+            del_timer();
         }
+        return;
+    }
+    if (selector.get()) {
         if (handle) {
             selector->active_handles.insert(handle);
         }
@@ -329,7 +337,9 @@ void Multi::callback(Handle *handle, int event_bitmask) {
         swoole_event_defer(
             [this](void *data) {
                 selector->defer_callback = false;
-                co->resume();
+                if (co) {
+                    co->resume();
+                }
             },
             nullptr);
     } else {
