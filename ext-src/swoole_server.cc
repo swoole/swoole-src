@@ -3238,7 +3238,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     TaskCo task_co;
     task_co.co = Coroutine::get_current_safe();
 
-    array_init(return_value);
+    array_init_size(return_value, n_task);
 
     SW_HASHTABLE_FOREACH_START(Z_ARRVAL_P(ztasks), ztask) {
         task_id = php_swoole_task_pack(&buf, ztask);
