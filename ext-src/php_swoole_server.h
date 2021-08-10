@@ -120,8 +120,6 @@ struct TaskCo {
     int *list;
     uint32_t count;
     zval *result;
-    TimerNode *timer;
-    ServerObject *server_object;
 };
 
 }  // namespace swoole

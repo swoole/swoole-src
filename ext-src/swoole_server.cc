@@ -60,7 +60,7 @@ static std::unordered_map<std::string, ServerEvent> server_event_map({
 });
 // clang-format on
 
-static int php_swoole_task_finish(Server *serv, zval *zdata, EventData *current_task);
+// server event callback
 static void php_swoole_onPipeMessage(Server *serv, EventData *req);
 static void php_swoole_onStart(Server *);
 static void php_swoole_onShutdown(Server *);
@@ -75,10 +75,8 @@ static int php_swoole_server_onFinish(Server *, EventData *task);
 static void php_swoole_server_onWorkerError(Server *serv, int worker_id, const ExitStatus &exit_status);
 static void php_swoole_server_onManagerStart(Server *serv);
 static void php_swoole_server_onManagerStop(Server *serv);
-static void php_swoole_server_onSendTimeout(Timer *timer, TimerNode *tnode);
 
-static enum swReturnCode php_swoole_server_send_resume(Server *serv, Coroutine *co, SessionId fd);
-static void php_swoole_task_onTimeout(Timer *timer, TimerNode *tnode);
+static int php_swoole_task_finish(Server *serv, zval *zdata, EventData *current_task);
 static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendData *data);
 static zval *php_swoole_server_add_port(ServerObject *server_object, ListenPort *port);
 
@@ -3011,7 +3009,6 @@ static PHP_METHOD(swoole_server, taskwait) {
         task_co.co = Coroutine::get_current_safe();
         task_co.count = 1;
         task_co.result = return_value;
-        task_co.server_object = server_object;
 
         sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
         if (serv->gs->task_workers.dispatch(&buf, &_dst_worker_id) < 0) {
@@ -3252,9 +3249,7 @@ static PHP_METHOD(swoole_server, taskCo) {
     }
 
     TaskCo task_co;
-
     task_co.co = Coroutine::get_current_safe();
-    task_co.server_object = server_object;
 
     array_init(return_value);
 
