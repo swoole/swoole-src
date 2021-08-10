@@ -337,7 +337,9 @@ void Multi::callback(Handle *handle, int event_bitmask) {
         swoole_event_defer(
             [this](void *data) {
                 selector->defer_callback = false;
-                co->resume();
+                if (co) {
+                    co->resume();
+                }
             },
             nullptr);
     } else {
