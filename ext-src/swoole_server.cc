@@ -154,6 +154,14 @@ Server *php_swoole_server_get_and_check_server(zval *zobject) {
     return serv;
 }
 
+zval *php_swoole_server_get_zval_object(Server *serv) {
+    return (zval *) serv->private_data_2;
+}
+
+ServerObject *php_swoole_server_get_zend_object(Server *serv) {
+    return server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
+}
+
 bool php_swoole_server_isset_callback(Server *serv, ListenPort *port, int event_type) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
     return server_object->isset_callback(port, event_type);

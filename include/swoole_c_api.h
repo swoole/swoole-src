@@ -22,6 +22,7 @@ extern "C" {
 #endif
 
 #include <stdint.h>
+#include <stdbool.h>
 
 enum swGlobal_hook_type {
     SW_GLOBAL_HOOK_BEFORE_SERVER_START,
@@ -31,6 +32,7 @@ enum swGlobal_hook_type {
     SW_GLOBAL_HOOK_ON_CORO_STOP,
     SW_GLOBAL_HOOK_ON_REACTOR_CREATE,
     SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN,
+    SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN,
     SW_GLOBAL_HOOK_BEFORE_WORKER_STOP,
     SW_GLOBAL_HOOK_ON_REACTOR_DESTROY,
     SW_GLOBAL_HOOK_END  = SW_MAX_HOOK_TYPE - 1,
@@ -40,8 +42,11 @@ typedef void (*swHookFunc)(void *data);
 
 int swoole_add_function(const char *name, void *func);
 void *swoole_get_function(const char *name, uint32_t length);
+
 int swoole_add_hook(enum swGlobal_hook_type type, swHookFunc cb, int push_back);
 void swoole_call_hook(enum swGlobal_hook_type type, void *arg);
+bool swoole_isset_hook(enum swGlobal_hook_type type);
+
 const char *swoole_version(void);
 int swoole_version_id(void);
 int swoole_api_version_id(void);

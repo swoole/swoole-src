@@ -145,3 +145,5 @@ void php_swoole_server_onBufferEmpty(swServer *, swDataHead *);
 
 swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
+swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
+zval *php_swoole_server_get_zval_object(swoole::Server *serv);

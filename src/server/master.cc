@@ -759,6 +759,7 @@ void Server::clear_timer() {
 }
 
 void Server::shutdown() {
+    swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
     if (getpid() != gs->master_pid) {
         kill(gs->master_pid, SIGTERM);
         return;
@@ -786,8 +787,8 @@ void Server::shutdown() {
 
 void Server::destroy() {
     swoole_trace_log(SW_TRACE_SERVER, "release service");
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN]) {
-        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+    if (SwooleG.hooks[SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN]) {
+        swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_SHUTDOWN, this);
     }
     /**
      * shutdown workers

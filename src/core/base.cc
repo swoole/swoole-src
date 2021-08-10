@@ -201,6 +201,10 @@ SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
     swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
+SW_API bool swoole_isset_hook(enum swGlobal_hook_type type) {
+    return SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN] != nullptr;
+}
+
 SW_API const char *swoole_version(void) {
     return SWOOLE_VERSION;
 }
