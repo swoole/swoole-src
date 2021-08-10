@@ -525,7 +525,7 @@ static bool swoole_http2_server_respond(HttpContext *ctx, String *body) {
     bool error = false;
 
     // If send_yield is not supported, ignore flow control
-    if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield) {
+    if (ctx->co_socket || !((Server *) ctx->private_data)->send_yield || !swoole_coroutine_is_in()) {
         if (body->length > client->send_window) {
             swoole_warning("The data sent exceeded send_window");
         }

@@ -2150,8 +2150,10 @@ static PHP_METHOD(swoole_server, set) {
         if (serv->send_yield &&
             !(serv->dispatch_mode == Server::DISPATCH_FDMOD || serv->dispatch_mode == Server::DISPATCH_IPMOD)) {
             php_swoole_error(E_WARNING, "'send_yield' option can only be set when using dispatch_mode=2/4");
-            serv->send_yield = 0;
+            serv->send_yield = false;
         }
+    } else {
+        serv->send_yield = serv->enable_coroutine;
     }
     if (php_swoole_array_get_value(vht, "dispatch_func", ztmp)) {
         Server::DispatchFunction c_dispatch_func = nullptr;
