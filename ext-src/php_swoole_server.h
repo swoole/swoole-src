@@ -78,7 +78,7 @@ struct ServerProperty {
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
     std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
     std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
-    std::unordered_map<SessionId, std::list<FutureTask *> *> send_coroutine_map;
+    std::unordered_map<SessionId, std::list<Coroutine *> *> send_coroutine_map;
 };
 
 struct ServerObject {
@@ -116,7 +116,7 @@ struct ServerObject {
 };
 
 struct TaskCo {
-    FutureTask context;
+    Coroutine *co;
     int *list;
     uint32_t count;
     zval *result;

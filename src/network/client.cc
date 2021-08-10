@@ -427,14 +427,6 @@ Client::~Client() {
     if (server_str) {
         ::sw_free((void *) server_str);
     }
-    if (socket->out_buffer) {
-        delete socket->out_buffer;
-        socket->out_buffer = nullptr;
-    }
-    if (socket->in_buffer) {
-        delete socket->in_buffer;
-        socket->in_buffer = nullptr;
-    }
     if (socks5_proxy) {
         delete socks5_proxy;
     }
