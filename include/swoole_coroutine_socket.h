@@ -360,6 +360,18 @@ class Socket {
         buffer_init_size = size;
     }
 
+    int move_fd() {
+        int sockfd = socket->fd;
+        socket->fd = -1;
+        return sockfd;
+    }
+
+    network::Socket *move_socket() {
+        network::Socket *_socket = socket;
+        socket = nullptr;
+        return _socket;
+    }
+
 #ifdef SW_USE_OPENSSL
     inline bool ssl_is_available() {
         return socket && ssl_handshaked;

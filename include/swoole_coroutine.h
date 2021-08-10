@@ -68,8 +68,6 @@ class Coroutine {
     void yield(CancelFunc *cancel_fn);
     bool cancel();
 
-    void resume_naked();
-    void yield_naked();
     bool yield_ex(double timeout = -1);
 
     inline enum State get_state() const {

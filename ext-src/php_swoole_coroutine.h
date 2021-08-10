@@ -44,16 +44,6 @@ struct Function;
 
 namespace swoole {
 
-struct PHPContext;
-
-struct FutureTask {
-    zval coro_params;
-    zval *current_coro_return_value_ptr;
-    void *private_data;
-    TimerNode *timer;
-    PHPContext *current_task;
-};
-
 struct PHPContext {
     JMP_BUF *bailout;
     zval *vm_stack_top;
@@ -137,10 +127,6 @@ class PHPCoroutine {
     static void enable_unsafe_function();
 
     static void interrupt_thread_stop();
-
-    // TODO: remove old coro APIs (Manual)
-    static void yield_m(zval *return_value, FutureTask *task);
-    static void resume_m(FutureTask *task, zval *retval);
 
     static inline long get_cid() {
         return sw_likely(activated) ? Coroutine::get_current_cid() : -1;
