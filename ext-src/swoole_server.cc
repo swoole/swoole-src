@@ -1870,8 +1870,14 @@ void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdat
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
     std::list<Coroutine *> *coros_list;
     Coroutine *co = Coroutine::get_current_safe();
-    auto coroutine_iterator = server_object->property->send_coroutine_map.find(session_id);
+    char *data;
+    size_t length = php_swoole_get_send_data(zdata, &data);
 
+    if (length == 0) {
+        RETURN_FALSE;
+    }
+
+    auto coroutine_iterator = server_object->property->send_coroutine_map.find(session_id);
     if (coroutine_iterator == server_object->property->send_coroutine_map.end()) {
         coros_list = new std::list<Coroutine *>;
         server_object->property->send_coroutine_map[session_id] = coros_list;
@@ -1879,26 +1885,9 @@ void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdat
         coros_list = coroutine_iterator->second;
     }
 
-    char *data;
-    size_t length = php_swoole_get_send_data(zdata, &data);
-    if (length == 0) {
-        RETURN_FALSE;
-    }
-
     SW_LOOP {
         coros_list->push_back(co);
         if (!co->yield_ex(serv->send_timeout)) {
-            auto _i_coros_list = server_object->property->send_coroutine_map.find(session_id);
-            if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
-                auto coros_list = _i_coros_list->second;
-                coros_list->remove(co);
-                if (coros_list->size() == 0) {
-                    delete coros_list;
-                    server_object->property->send_coroutine_map.erase(session_id);
-                }
-            } else {
-                swoole_warning("send coroutine[session#%ld] not exists", session_id);
-            }
             RETURN_FALSE;
         }
         bool ret = serv->send(session_id, data, length);
@@ -1960,13 +1949,11 @@ void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
         auto _i_coros_list = server_object->property->send_coroutine_map.find(info->fd);
         if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
             auto coros_list = _i_coros_list->second;
-            server_object->property->send_coroutine_map.erase(info->fd);
             while (!coros_list->empty()) {
                 Coroutine *co = coros_list->front();
                 coros_list->pop_front();
                 co->resume();
             }
-            delete coros_list;
         }
     }
 
