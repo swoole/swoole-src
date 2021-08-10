@@ -1949,11 +1949,13 @@ void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
         auto _i_coros_list = server_object->property->send_coroutine_map.find(info->fd);
         if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
             auto coros_list = _i_coros_list->second;
+            server_object->property->send_coroutine_map.erase(info->fd);
             while (!coros_list->empty()) {
                 Coroutine *co = coros_list->front();
                 coros_list->pop_front();
                 co->resume();
             }
+            delete coros_list;
         }
     }
 
