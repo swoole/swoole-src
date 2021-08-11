@@ -334,10 +334,8 @@ void Multi::callback(Handle *handle, int event_bitmask) {
         }
         return;
     }
-    if (selector.get()) {
-        if (handle) {
-            selector->active_handles.insert(handle);
-        }
+    if (selector.get() && handle) {
+        selector->active_handles.insert(handle);
     }
     if (defer_callback) {
         return;

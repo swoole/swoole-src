@@ -193,15 +193,15 @@ SW_API void *swoole_get_function(const char *name, uint32_t length) {
     }
 }
 
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swHookFunc func, int push_back) {
+SW_API int swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
     return swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
+SW_API void swoole_call_hook(enum swGlobalHookType type, void *arg) {
     swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
-SW_API bool swoole_isset_hook(enum swGlobal_hook_type type) {
+SW_API bool swoole_isset_hook(enum swGlobalHookType type) {
     return SwooleG.hooks[type] != nullptr;
 }
 
