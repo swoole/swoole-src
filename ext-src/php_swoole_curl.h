@@ -45,7 +45,6 @@ struct Handle {
 };
 
 struct Selector {
-    bool defer_callback = false;
     bool timer_callback = false;
     std::set<Handle *> active_handles;
 };
@@ -58,6 +57,7 @@ class Multi {
     int running_handles_ = 0;
     int last_sockfd;
     int event_count_ = 0;
+    bool defer_callback = false;
     std::unique_ptr<Selector> selector;
 
     CURLcode read_info();
@@ -78,8 +78,7 @@ class Multi {
             swoole_timer_del(timer);
         }
         timeout_ms_ = timeout_ms;
-        timer = swoole_timer_add(
-            timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
+        timer = swoole_timer_add(timeout_ms, false, [this](Timer *timer, TimerNode *tnode) {
             this->timer = nullptr;
             callback(nullptr, 0);
         });
@@ -154,6 +153,6 @@ class Multi {
     static int handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, void *socketp);
     static int handle_timeout(CURLM *multi, long timeout_ms, void *userp);
 };
-};
+};  // namespace curl
 }  // namespace swoole
 #endif

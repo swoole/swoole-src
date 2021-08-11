@@ -24,7 +24,7 @@ namespace curl {
 
 static int execute_callback(Event *event, int bitmask) {
     Handle *handle = (Handle *) event->socket->object;
-    handle->event_bitmask = bitmask;
+    handle->event_bitmask |= bitmask;
     handle->event_fd = event->fd;
     handle->multi->callback(handle, bitmask);
     return 0;
@@ -160,7 +160,8 @@ CURLcode Multi::exec(php_curl *ch) {
             if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
                 event_count_++;
             }
-            swoole_trace_log(SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
+            swoole_trace_log(
+                SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
         }
 
         co = check_bound_co();
@@ -182,7 +183,14 @@ CURLcode Multi::exec(php_curl *ch) {
             }
         }
         del_timer();
+
         curl_multi_socket_action(multi_handle_, sockfd, bitmask, &running_handles_);
+        swoole_trace_log(SW_TRACE_CO_CURL,
+                         "curl_multi_socket_action: handle=%p, sockfd=%d, bitmask=%d, running_handles_=%d",
+                         handle,
+                         sockfd,
+                         bitmask,
+                         running_handles_);
         if (running_handles_ == 0) {
             break;
         }
@@ -255,7 +263,8 @@ long Multi::select(php_curlm *mh, double timeout) {
             if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
                 event_count_++;
             }
-            swoole_trace_log(SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
+            swoole_trace_log(
+                SW_TRACE_CO_CURL, "resume, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
         }
     }
     set_timer();
@@ -304,7 +313,7 @@ long Multi::select(php_curlm *mh, double timeout) {
 }
 
 void Multi::callback(Handle *handle, int event_bitmask) {
-    swoole_trace_log(SW_TRACE_CO_CURL, "callback, handle=%p, event_bitmask=%d", handle, event_bitmask);
+    swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, event_bitmask=%d, co=%p", handle, event_bitmask, co);
     if (handle) {
         last_sockfd = handle->event_fd;
     } else {
@@ -314,7 +323,6 @@ void Multi::callback(Handle *handle, int event_bitmask) {
         if (!handle) {
             selector->timer_callback = true;
         }
-
     }
     if (!co) {
         if (handle) {
@@ -330,21 +338,19 @@ void Multi::callback(Handle *handle, int event_bitmask) {
         if (handle) {
             selector->active_handles.insert(handle);
         }
-        if (selector->defer_callback) {
-            return;
-        }
-        selector->defer_callback = true;
-        swoole_event_defer(
-            [this](void *data) {
-                selector->defer_callback = false;
-                if (co) {
-                    co->resume();
-                }
-            },
-            nullptr);
-    } else {
-        co->resume();
     }
+    if (defer_callback) {
+        return;
+    }
+    defer_callback = true;
+    swoole_event_defer(
+        [this](void *data) {
+            defer_callback = false;
+            if (co) {
+                co->resume();
+            }
+        },
+        nullptr);
 }
 }  // namespace curl
 }  // namespace swoole
