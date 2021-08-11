@@ -104,20 +104,17 @@ struct RR_FLAGS {
 };
 
 static uint16_t dns_request_id = 1;
+char *swoole_hosts = nullptr;
 
 static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
 static std::string parse_ip_address(void *vaddr, int type);
 
-std::string get_ip_by_hosts(std::string search_domain) {
-    std::ifstream file(SW_PATH_HOSTS);
-    if (!file) {
+std::string get_ip_by_hosts(const std::string &search_domain) {
+    std::ifstream file(swoole_hosts ? swoole_hosts : SW_PATH_HOSTS);
+    if (!file.is_open()) {
         return "";
     }
-
-    ON_SCOPE_EXIT {
-        file.close();
-    };
 
     std::string line;
     std::string domain;
@@ -131,7 +128,7 @@ std::string get_ip_by_hosts(std::string search_domain) {
             line[ops] = '\0';
         }
 
-        if (line[0] == '\n' || line[0] == '\0') {
+        if (line[0] == '\n' || line[0] == '\0' || line[0] == '\r') {
             continue;
         }
 
@@ -161,6 +158,10 @@ std::string get_ip_by_hosts(std::string search_domain) {
     }
 
     return "";
+}
+
+void swoole_set_hosts_path(char *hosts_file) {
+    swoole_hosts = hosts_file;
 }
 
 static std::string parse_ip_address(void *vaddr, int type) {

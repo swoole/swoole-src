@@ -101,28 +101,15 @@ TEST(dns, load_resolv_conf) {
 }
 
 TEST(dns, gethosts) {
-    char hosts_file[] = "/etc/hosts";
-    char hosts_backup_file[] = "/etc/hosts_bak";
-    int ret = rename(hosts_file, hosts_backup_file);
-    if (ret && ENOENT != errno) {
-        std::cout << std::string("rename file failed: ") + std::string(strerror(errno)) << std::endl;
-        throw strerror(errno);
-    }
-
-    ON_SCOPE_EXIT {
-        if (!ret) {
-            rename(hosts_backup_file, hosts_file);
-        }
-    };
-
+    char hosts_file[] = "/tmp/swoole_hosts";
     ofstream file(hosts_file);
-    if (!file) {
+    if (!file.is_open()) {
         std::cout << std::string("file open failed: ") + std::string(strerror(errno)) << std::endl;
         throw strerror(errno);
     }
 
     ON_SCOPE_EXIT {
-        file.close();
+        unlink(hosts_file);
     };
 
     file << "\n";
@@ -132,6 +119,7 @@ TEST(dns, gethosts) {
     file << "       127.0.0.1 bbb.com               ccc.com      #ddd.com\n";
     file.close();
 
+    swoole::coroutine::swoole_set_hosts_path(hosts_file);
     std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
     ASSERT_EQ(ip, "127.0.0.1");
 
@@ -149,5 +137,4 @@ TEST(dns, gethosts) {
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
-
 }
