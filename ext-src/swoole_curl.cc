@@ -184,11 +184,6 @@ CURLcode Multi::exec(php_curl *ch) {
         }
         del_timer();
 
-        if (bitmask == 2) {
-            usleep(1000000);
-            printf("sleep\n");
-        }
-
         curl_multi_socket_action(multi_handle_, sockfd, bitmask, &running_handles_);
         swoole_trace_log(SW_TRACE_CO_CURL,
                          "curl_multi_socket_action: handle=%p, sockfd=%d, bitmask=%d, running_handles_=%d",
