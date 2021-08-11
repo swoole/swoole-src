@@ -136,7 +136,6 @@ std::string get_ip_by_hosts(const std::string &search_domain) {
         while (stream >> domain) {
             domains.push_back(domain);
         }
-
         if (domains.empty() || domains.size() == 1) {
             domains.clear();
             continue;
