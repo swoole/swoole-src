@@ -69,7 +69,7 @@ RingBuffer::RingBuffer(uint32_t size, bool shared) {
     impl->shared = shared;
     impl->memory = mem;
 
-    swDebug("memory: ptr=%p", mem);
+    swoole_debug("memory: ptr=%p", mem);
 }
 
 void RingBufferImpl::collect() {
@@ -134,7 +134,7 @@ void *RingBuffer::alloc(uint32_t size) {
     impl->alloc_offset += alloc_size;
     impl->alloc_count++;
 
-    swDebug("alloc: ptr=%p", (void *) (item->data - (char *) impl->memory));
+    swoole_debug("alloc: ptr=%p", (void *) (item->data - (char *) impl->memory));
 
     return item->data;
 }
@@ -147,12 +147,12 @@ void RingBuffer::free(void *ptr) {
     assert(item->lock == 1);
 
     if (item->lock != 1) {
-        swDebug("invalid free: index=%d, ptr=%p", item->index, (void *) (item->data - (char *) impl->memory));
+        swoole_debug("invalid free: index=%d, ptr=%p", item->index, (void *) (item->data - (char *) impl->memory));
     } else {
         item->lock = 0;
     }
 
-    swDebug("free: ptr=%p", (void *) (item->data - (char *) impl->memory));
+    swoole_debug("free: ptr=%p", (void *) (item->data - (char *) impl->memory));
 
     sw_atomic_t *free_count = &impl->free_count;
     sw_atomic_fetch_add(free_count, 1);

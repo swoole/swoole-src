@@ -218,7 +218,7 @@ static void pool_onWorkerStart(ProcessPool *pool, int worker_id) {
         return;
     }
     if (!pp->enable_coroutine && pp->onMessage) {
-        swSignal_set(SIGTERM, pool_signal_handler);
+        swoole_signal_set(SIGTERM, pool_signal_handler);
     }
     zval args[2];
     args[0] = *zobject;
@@ -514,10 +514,10 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     std::unordered_map<int, swSignalHandler> ori_handlers;
 
-    ori_handlers[SIGTERM] = swSignal_set(SIGTERM, pool_signal_handler);
-    ori_handlers[SIGUSR1] = swSignal_set(SIGUSR1, pool_signal_handler);
-    ori_handlers[SIGUSR2] = swSignal_set(SIGUSR2, pool_signal_handler);
-    ori_handlers[SIGIO] = swSignal_set(SIGIO, pool_signal_handler);
+    ori_handlers[SIGTERM] = swoole_signal_set(SIGTERM, pool_signal_handler);
+    ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, pool_signal_handler);
+    ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, pool_signal_handler);
+    ori_handlers[SIGIO] = swoole_signal_set(SIGIO, pool_signal_handler);
 
     if (pool->ipc_mode == SW_IPC_NONE || pp->enable_coroutine) {
         if (pp->onWorkerStart == nullptr) {
@@ -557,7 +557,7 @@ static PHP_METHOD(swoole_process_pool, start) {
     current_pool = nullptr;
 
     for (auto iter = ori_handlers.begin(); iter != ori_handlers.end(); iter++) {
-        swSignal_set(iter->first, iter->second);
+        swoole_signal_set(iter->first, iter->second);
     }
 }
 

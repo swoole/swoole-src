@@ -21,7 +21,7 @@
 #include "swoole.h"
 #include "swoole_coroutine_c_api.h"
 
-enum swEvent_init_flags {
+enum swEventInitFlag {
     SW_EVENTLOOP_WAIT_EXIT = 1,
 };
 

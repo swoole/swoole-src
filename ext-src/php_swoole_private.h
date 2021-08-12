@@ -135,10 +135,6 @@ enum php_swoole_fd_type {
     PHP_SWOOLE_FD_REDIS_CORO,
     PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_SOCKET,
-    /**
-     * for Co::fread/Co::fwrite
-     */
-    PHP_SWOOLE_FD_CO_UTIL,
     PHP_SWOOLE_FD_CO_CURL,
 };
 //---------------------------------------------------------
@@ -151,8 +147,8 @@ enum php_swoole_req_status {
 };
 //---------------------------------------------------------
 
-static sw_inline enum swSocket_type php_swoole_socktype(long type) {
-    return (enum swSocket_type)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
+static sw_inline enum swSocketType php_swoole_socktype(long type) {
+    return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
 }
 
 extern zend_class_entry *swoole_event_ce;

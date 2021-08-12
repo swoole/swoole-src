@@ -31,14 +31,14 @@ void Channel::timer_callback(Timer *timer, TimerNode *tnode) {
     msg->co->resume();
 }
 
-void Channel::yield(enum opcode type) {
+void Channel::yield(enum Opcode type) {
     Coroutine *co = Coroutine::get_current_safe();
     if (type == PRODUCER) {
         producer_queue.push_back(co);
-        swTraceLog(SW_TRACE_CHANNEL, "producer cid=%ld", co->get_cid());
+        swoole_trace_log(SW_TRACE_CHANNEL, "producer cid=%ld", co->get_cid());
     } else {
         consumer_queue.push_back(co);
-        swTraceLog(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
+        swoole_trace_log(SW_TRACE_CHANNEL, "consumer cid=%ld", co->get_cid());
     }
     Coroutine::CancelFunc cancel_fn = [this, type](Coroutine *co) {
         if (type == CONSUMER) {
@@ -143,7 +143,7 @@ bool Channel::push(void *data, double timeout) {
      * push data
      */
     data_queue.push(data);
-    swTraceLog(SW_TRACE_CHANNEL, "push data to channel, count=%ld", length());
+    swoole_trace_log(SW_TRACE_CHANNEL, "push data to channel, count=%ld", length());
     /**
      * notify consumer
      */
@@ -158,7 +158,7 @@ bool Channel::close() {
     if (closed) {
         return false;
     }
-    swTraceLog(SW_TRACE_CHANNEL, "channel closed");
+    swoole_trace_log(SW_TRACE_CHANNEL, "channel closed");
     closed = true;
     while (!producer_queue.empty()) {
         Coroutine *co = pop_coroutine(PRODUCER);

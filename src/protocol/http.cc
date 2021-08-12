@@ -24,7 +24,6 @@
 #include "swoole_websocket.h"
 #include "swoole_static_handler.h"
 
-using namespace swoole;
 using std::string;
 using swoole::http_server::Request;
 using swoole::http_server::StaticHandler;
@@ -32,30 +31,14 @@ using swoole::network::SendfileTask;
 using swoole::network::Socket;
 
 // clang-format off
-static const char *method_strings[] =
-{
+static const char *method_strings[] = {
     "DELETE", "GET", "HEAD", "POST", "PUT", "PATCH", "CONNECT", "OPTIONS", "TRACE", "COPY", "LOCK", "MKCOL", "MOVE",
     "PROPFIND", "PROPPATCH", "UNLOCK", "REPORT", "MKACTIVITY", "CHECKOUT", "MERGE", "M-SEARCH", "NOTIFY",
     "SUBSCRIBE", "UNSUBSCRIBE", "PURGE", "PRI",
 };
 // clang-format on
 
-int swHttp_get_method(const char *method_str, size_t method_len) {
-    int i = 0;
-    for (; i < SW_HTTP_PRI; i++) {
-        if (swoole_strcaseeq(method_strings[i], strlen(method_strings[i]), method_str, method_len)) {
-            return i + 1;
-        }
-    }
-    return -1;
-}
-
-const char *swHttp_get_method_string(int method) {
-    if (method < 0 || method > SW_HTTP_PRI) {
-        return nullptr;
-    }
-    return method_strings[method - 1];
-}
+namespace swoole {
 
 bool Server::select_static_handler(http_server::Request *request, Connection *conn) {
     const char *url = request->buffer_->str + request->url_offset_;
@@ -78,7 +61,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
                                         "Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"
                                         "Content-Length: %zu\r\n"
                                         "\r\n%s",
-                                        swHttp_get_status_message(SW_HTTP_NOT_FOUND),
+                                        http_server::get_status_message(SW_HTTP_NOT_FOUND),
                                         sizeof(SW_HTTP_PAGE_404) - 1,
                                         SW_HTTP_PAGE_404);
         response.data = header_buffer;
@@ -203,7 +186,19 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     return true;
 }
 
-const char *swHttp_get_status_message(int code) {
+void Server::destroy_http_request(Connection *conn) {
+    auto request = reinterpret_cast<swoole::http_server::Request *>(conn->object);
+    if (!request) {
+        return;
+    }
+    delete request;
+    conn->object = nullptr;
+}
+
+namespace http_server {
+//-----------------------------------------------------------------
+
+const char *get_status_message(int code) {
     switch (code) {
     case 100:
         return "100 Continue";
@@ -323,7 +318,7 @@ const char *swHttp_get_status_message(int code) {
     }
 }
 
-static int sw_htoi(char *s) {
+static int url_htoi(char *s) {
     int value;
     int c;
 
@@ -343,7 +338,7 @@ static int sw_htoi(char *s) {
 }
 
 /* return value: length of decoded string */
-size_t swHttp_url_decode(char *str, size_t len) {
+size_t url_decode(char *str, size_t len) {
     char *dest = str;
     char *data = str;
 
@@ -351,7 +346,7 @@ size_t swHttp_url_decode(char *str, size_t len) {
         if (*data == '+') {
             *dest = ' ';
         } else if (*data == '%' && len >= 2 && isxdigit((int) *(data + 1)) && isxdigit((int) *(data + 2))) {
-            *dest = (char) sw_htoi(data + 1);
+            *dest = (char) url_htoi(data + 1);
             data += 2;
             len -= 2;
         } else {
@@ -365,7 +360,7 @@ size_t swHttp_url_decode(char *str, size_t len) {
     return dest - str;
 }
 
-char *swHttp_url_encode(char const *str, size_t len) {
+char *url_encode(char const *str, size_t len) {
     static uchar hexchars[] = "0123456789ABCDEF";
 
     size_t x, y;
@@ -395,9 +390,6 @@ char *swHttp_url_encode(char const *str, size_t len) {
     return ret;
 }
 
-namespace swoole {
-namespace http_server {
-//-----------------------------------------------------------------
 /**
  * only GET/POST
  */
@@ -689,20 +681,28 @@ string Request::get_date_if_modified_since() {
 
     return string("");
 }
-//-----------------------------------------------------------------
-}  // namespace http_server
-}  // namespace swoole
 
-void Server::destroy_http_request(Connection *conn) {
-    auto request = reinterpret_cast<swoole::http_server::Request *>(conn->object);
-    if (!request) {
-        return;
+int get_method(const char *method_str, size_t method_len) {
+    int i = 0;
+    for (; i < SW_HTTP_PRI; i++) {
+        if (swoole_strcaseeq(method_strings[i], strlen(method_strings[i]), method_str, method_len)) {
+            return i + 1;
+        }
     }
-    delete request;
-    conn->object = nullptr;
+    return -1;
 }
 
+const char *get_method_string(int method) {
+    if (method < 0 || method > SW_HTTP_PRI) {
+        return nullptr;
+    }
+    return method_strings[method - 1];
+}
+
+//-----------------------------------------------------------------
+
 #ifdef SW_USE_HTTP2
+
 static void protocol_status_error(Socket *socket, Connection *conn) {
     swoole_error_log(SW_LOG_WARNING,
                      SW_ERROR_PROTOCOL_ERROR,
@@ -712,7 +712,7 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
                      conn->info.get_port());
 }
 
-ssize_t swHttpMix_get_package_length(Protocol *protocol, Socket *socket, const char *data, uint32_t length) {
+ssize_t get_package_length(Protocol *protocol, Socket *socket, const char *data, uint32_t length) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::get_package_length(protocol, socket, data, length);
@@ -724,7 +724,7 @@ ssize_t swHttpMix_get_package_length(Protocol *protocol, Socket *socket, const c
     }
 }
 
-uint8_t swHttpMix_get_package_length_size(Socket *socket) {
+uint8_t get_package_length_size(Socket *socket) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
@@ -736,7 +736,7 @@ uint8_t swHttpMix_get_package_length_size(Socket *socket) {
     }
 }
 
-int swHttpMix_dispatch_frame(Protocol *proto, Socket *socket, const char *data, uint32_t length) {
+int dispatch_frame(Protocol *proto, Socket *socket, const char *data, uint32_t length) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         return websocket::dispatch_frame(proto, socket, data, length);
@@ -748,3 +748,5 @@ int swHttpMix_dispatch_frame(Protocol *proto, Socket *socket, const char *data, 
     }
 }
 #endif
+}  // namespace http_server
+}  // namespace swoole

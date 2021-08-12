@@ -44,7 +44,7 @@ TEST(server, schedule) {
     int ret;
     Server serv(Server::MODE_PROCESS);
     serv.worker_num = 6;
-    serv.dispatch_mode = SW_DISPATCH_QUEUE;
+    serv.dispatch_mode = Server::DISPATCH_IDLE_WORKER;
     ret = serv.create();
     ASSERT_EQ(SW_OK, ret);
 
@@ -89,7 +89,7 @@ TEST(server, base) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
-        swSignal_none();
+        swoole_signal_block_all();
 
         lock.lock();
 
@@ -131,7 +131,7 @@ TEST(server, process) {
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -139,7 +139,7 @@ TEST(server, process) {
 
     serv.onStart = [&lock](swServer *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
@@ -185,9 +185,9 @@ TEST(server, ssl) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocket_type )(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port((enum swSocketType )(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -199,14 +199,14 @@ TEST(server, ssl) {
 
     serv.onStart = [&lock](Server *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
             ListenPort *port = serv->get_primary_port();
 
             EXPECT_EQ(port->ssl, 1);
-            EXPECT_EQ(swSSL_is_thread_safety(), true);
+            EXPECT_EQ(swoole_ssl_is_thread_safety(), true);
 
             swoole::network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
@@ -248,9 +248,9 @@ TEST(server, dtls) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocket_type )(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port((enum swSocketType )(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -262,7 +262,7 @@ TEST(server, dtls) {
 
     serv.onStart = [&lock](Server *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
@@ -307,7 +307,7 @@ TEST(server, task_worker) {
 
     swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -330,7 +330,7 @@ TEST(server, task_worker) {
     swEventData buf;
     memset(&buf.info, 0, sizeof(buf.info));
 
-    swTask_type(&buf) |= SW_TASK_NOREPLY;
+    SW_TASK_TYPE(&buf) |= SW_TASK_NOREPLY;
     buf.info.len = strlen(packet);
     memcpy(buf.data, packet, strlen(packet));
 

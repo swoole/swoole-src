@@ -119,7 +119,7 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
 #else
     if ((ch = (php_curl *) zend_fetch_resource(Z_RES_P(zid), le_curl_name, le_curl)) == NULL) {
         if (required) {
-            swFatalError(SW_ERROR_INVALID_PARAMS, "supplied resource is not a valid " le_curl_name " resource");
+            swoole_fatal_error(SW_ERROR_INVALID_PARAMS, "supplied resource is not a valid " le_curl_name " resource");
         }
         return nullptr;
     }

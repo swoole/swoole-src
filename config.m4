@@ -674,6 +674,7 @@ if test "$PHP_SWOOLE" != "no"; then
       [arm*], [SW_CPU="arm"],
       [aarch64*], [SW_CPU="arm64"],
       [arm64*], [SW_CPU="arm64"],
+      [mips64*], [SW_CPU="mips64"],
       [mips*], [SW_CPU="mips32"],
       [
         SW_USE_ASM_CONTEXT="no"
@@ -715,6 +716,12 @@ if test "$PHP_SWOOLE" != "no"; then
     elif test "$SW_CPU" = "ppc64"; then
         if test "$SW_OS" = "LINUX" || test "$SW_OS" = "BSD"; then
             SW_CONTEXT_ASM_FILE="ppc64_sysv_elf_gas.S"
+        else
+            SW_USE_ASM_CONTEXT="no"
+        fi
+    elif test "$SW_CPU" = "mips64"; then
+        if test "$SW_OS" = "LINUX"; then
+           SW_CONTEXT_ASM_FILE="mips64_n64_elf_gas.S"
         else
             SW_USE_ASM_CONTEXT="no"
         fi

@@ -40,13 +40,13 @@ static void ReactorThread_shutdown(Reactor *reactor);
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode);
 
 #ifdef SW_USE_OPENSSL
-static inline enum swReturn_code ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
+static inline enum swReturnCode ReactorThread_verify_ssl_state(Reactor *reactor, ListenPort *port, Socket *_socket) {
     Server *serv = (Server *) reactor->ptr;
     if (!_socket->ssl || _socket->ssl_state == SW_SSL_STATE_READY) {
         return SW_CONTINUE;
     }
 
-    enum swReturn_code code = _socket->ssl_accept();
+    enum swReturnCode code = _socket->ssl_accept();
     if (code != SW_READY) {
         return code;
     }
@@ -141,7 +141,7 @@ _do_recvfrom:
         if (errno == EAGAIN) {
             return SW_OK;
         } else {
-            swSysWarn("recvfrom(%d) failed", fd);
+            swoole_sys_warning("recvfrom(%d) failed", fd);
             return SW_ERR;
         }
     }
@@ -218,7 +218,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     sw_atomic_fetch_add(&serv->gs->close_count, 1);
     sw_atomic_fetch_sub(&serv->gs->connection_num, 1);
 
-    swTrace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
+    swoole_trace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
 #ifdef SW_USE_OPENSSL
     if (socket->ssl) {
@@ -256,7 +256,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         linger.l_onoff = 1;
         linger.l_linger = 0;
         if (conn->socket->set_option(SOL_SOCKET, SO_LINGER, &linger, sizeof(struct linger)) != 0) {
-            swSysWarn("setsockopt(SO_LINGER) failed");
+            swoole_sys_warning("setsockopt(SO_LINGER) failed");
         }
     }
 #endif
@@ -271,7 +271,7 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     serv->lock();
     if (fd == serv->get_maxfd()) {
         int find_max_fd = fd - 1;
-        swTrace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
+        swoole_trace("set_maxfd=%d|close_fd=%d\n", find_max_fd, fd);
         // find the new max_fd
         for (; !serv->is_valid_connection(serv->get_connection(find_max_fd)) && find_max_fd > serv->get_minfd();
              find_max_fd--) {
@@ -301,7 +301,7 @@ static int ReactorThread_onClose(Reactor *reactor, Event *event) {
     notify_ev.fd = fd;
     notify_ev.type = SW_SERVER_EVENT_CLOSE;
 
-    swTraceLog(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
+    swoole_trace_log(SW_TRACE_CLOSE, "client[fd=%d] close the connection", fd);
 
     Connection *conn = serv->get_connection(fd);
     if (conn == nullptr || conn->active == 0) {
@@ -447,7 +447,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         } else if (errno == EAGAIN) {
             return SW_OK;
         } else {
-            swSysWarn("read(worker_pipe) failed");
+            swoole_sys_warning("read(worker_pipe) failed");
             return SW_ERR;
         }
     }
@@ -513,7 +513,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 
     if (Buffer::empty(buffer)) {
         if (reactor->remove_write_event(ev->socket) < 0) {
-            swSysWarn("reactor->set(%d) failed", ev->fd);
+            swoole_sys_warning("reactor->set(%d) failed", ev->fd);
         }
     }
 
@@ -532,7 +532,7 @@ void Server::init_reactor(Reactor *reactor) {
     // Read
     reactor->set_handler(SW_FD_SESSION | SW_EVENT_READ, ReactorThread_onRead);
 
-    if (dispatch_mode == SW_DISPATCH_STREAM) {
+    if (dispatch_mode == DISPATCH_STREAM) {
         Client::init_reactor(reactor);
     }
 
@@ -573,7 +573,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
         }
     }
 #endif
-    enum swReturn_code code = ReactorThread_verify_ssl_state(reactor, port, event->socket);
+    enum swReturnCode code = ReactorThread_verify_ssl_state(reactor, port, event->socket);
     switch (code) {
     case SW_ERROR:
         return Server::close_connection(reactor, event->socket);
@@ -625,7 +625,7 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
         return SW_ERR;
     }
 
-    swTraceLog(SW_TRACE_REACTOR,
+    swoole_trace_log(SW_TRACE_REACTOR,
                "fd=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
                fd,
                conn->close_notify,
@@ -702,7 +702,7 @@ int Server::create_reactor_threads() {
      */
     connection_list = (Connection *) sw_shm_calloc(max_connection, sizeof(Connection));
     if (connection_list == nullptr) {
-        swError("calloc[1] failed");
+        swoole_error("calloc[1] failed");
         return SW_ERR;
     }
     reactor_pipe_num = worker_num / reactor_num;
@@ -721,7 +721,7 @@ int Server::start_reactor_threads() {
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
-        swSignalfd_setup(reactor);
+        swoole_signalfd_setup(reactor);
     }
 #endif
 
@@ -784,7 +784,7 @@ _init_master_thread:
         start_heartbeat_thread();
     }
 
-    SwooleTG.type = SW_THREAD_MASTER;
+    SwooleTG.type = THREAD_MASTER;
     SwooleTG.update_time = 1;
     SwooleTG.reactor = reactor;
 
@@ -866,7 +866,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
     int max_pipe_fd = serv->get_worker(serv->worker_num - 1)->pipe_master->fd + 2;
     thread->pipe_sockets = (Socket *) sw_calloc(max_pipe_fd, sizeof(Socket));
     if (!thread->pipe_sockets) {
-        swSysError("calloc(%d, %ld) failed", max_pipe_fd, sizeof(Socket));
+        swoole_sys_error("calloc(%d, %ld) failed", max_pipe_fd, sizeof(Socket));
         return SW_ERR;
     }
 
@@ -901,7 +901,7 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
  */
 static void ReactorThread_loop(Server *serv, int reactor_id) {
     SwooleTG.id = reactor_id;
-    SwooleTG.type = SW_THREAD_REACTOR;
+    SwooleTG.type = Server::THREAD_REACTOR;
 
     SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
     ON_SCOPE_EXIT {
@@ -929,12 +929,12 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         }
 
         if (0 != pthread_setaffinity_np(pthread_self(), sizeof(cpu_set), &cpu_set)) {
-            swSysWarn("pthread_setaffinity_np() failed");
+            swoole_sys_warning("pthread_setaffinity_np() failed");
         }
     }
 #endif
 
-    swSignal_none();
+    swoole_signal_block_all();
 
     if (ReactorThread_init(serv, reactor, reactor_id) < 0) {
         return;
@@ -990,7 +990,7 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
     task.info.time = conn->last_recv_time;
 
-    swTrace("send string package, size=%ld bytes", (long) length);
+    swoole_trace("send string package, size=%ld bytes", (long) length);
 
     if (serv->stream_socket_file) {
         Stream *stream = Stream::create(serv->stream_socket_file, 0, SW_SOCK_UNIX_STREAM);
@@ -1025,7 +1025,7 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
         }
         if (length > 0) {
             sw_atomic_fetch_add(&conn->recv_queued_bytes, length);
-            swTraceLog(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->recv_queued_bytes);
+            swoole_trace_log(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->recv_queued_bytes);
         }
         return SW_OK;
     }
@@ -1040,9 +1040,9 @@ void Server::join_reactor_thread() {
      * Shutdown heartbeat thread
      */
     if (heartbeat_thread.joinable()) {
-        swTraceLog(SW_TRACE_SERVER, "terminate heartbeat thread");
+        swoole_trace_log(SW_TRACE_SERVER, "terminate heartbeat thread");
         if (pthread_cancel(heartbeat_thread.native_handle()) < 0) {
-            swSysWarn("pthread_cancel(%ld) failed", (ulong_t) heartbeat_thread.native_handle());
+            swoole_sys_warning("pthread_cancel(%ld) failed", (ulong_t) heartbeat_thread.native_handle());
         }
         // wait thread
         heartbeat_thread.join();
@@ -1061,7 +1061,7 @@ void Server::join_reactor_thread() {
         } else {
         _cancel:
             if (pthread_cancel(thread->thread.native_handle()) < 0) {
-                swSysWarn("pthread_cancel(%ld) failed", (long) thread->thread.native_handle());
+                swoole_sys_warning("pthread_cancel(%ld) failed", (long) thread->thread.native_handle());
             }
         }
         thread->thread.join();
@@ -1079,9 +1079,9 @@ void Server::destroy_reactor_threads() {
 
 void Server::start_heartbeat_thread() {
     heartbeat_thread = std::thread([this]() {
-        swSignal_none();
+        swoole_signal_block_all();
 
-        SwooleTG.type = SW_THREAD_HEARTBEAT;
+        SwooleTG.type = THREAD_HEARTBEAT;
         SwooleTG.id = reactor_num;
 
         while (running) {

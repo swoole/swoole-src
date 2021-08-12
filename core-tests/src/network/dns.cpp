@@ -21,6 +21,8 @@
 
 #include "swoole_socket.h"
 
+#include "swoole_util.h"
+
 using namespace swoole;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
@@ -61,7 +63,7 @@ TEST(dns, cancel) {
     // swoole_set_log_level(SW_LOG_TRACE);
     test::coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
-        Coroutine::create([co](void *){
+        Coroutine::create([co](void *) {
             System::sleep(0.002);
             co->cancel();
         });
@@ -99,8 +101,40 @@ TEST(dns, load_resolv_conf) {
 }
 
 TEST(dns, gethosts) {
+    char hosts_file[] = "/tmp/swoole_hosts";
+    ofstream file(hosts_file);
+    if (!file.is_open()) {
+        std::cout << std::string("file open failed: ") + std::string(strerror(errno)) << std::endl;
+        throw strerror(errno);
+    }
+
+    ON_SCOPE_EXIT {
+        unlink(hosts_file);
+    };
+
+    file << "\n";
+    file << "127.0.0.1\n";
+    file << "127.0.0.1 localhost\n";
+    file << "# 127.0.0.1 aaa.com\n";
+    file << "       127.0.0.1 bbb.com               ccc.com      #ddd.com\n";
+    file.close();
+
+    swoole::coroutine::swoole_set_hosts_path(hosts_file);
+
     std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
     ASSERT_EQ(ip, "127.0.0.1");
+
+    ip = swoole::coroutine::get_ip_by_hosts("aaa.com");
+    ASSERT_EQ(ip, "");
+
+    ip = swoole::coroutine::get_ip_by_hosts("bbb.com");
+    ASSERT_EQ(ip, "127.0.0.1");
+
+    ip = swoole::coroutine::get_ip_by_hosts("ccc.com");
+    ASSERT_EQ(ip, "127.0.0.1");
+
+    ip = swoole::coroutine::get_ip_by_hosts("ddd.com");
+    ASSERT_EQ(ip, "");
 
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");

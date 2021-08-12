@@ -17,17 +17,17 @@ TEST(os_signal, swSignalfd_set) {
     ret = sigismember(&curset, SIGUSR1);
     ASSERT_EQ(ret, 0);
 
-    swSignalfd_init();
-    swSignal_set(SIGUSR1, sig_usr1);
-    swSignalfd_setup(SwooleTG.reactor);
+    swoole_signalfd_init();
+    swoole_signal_set(SIGUSR1, sig_usr1);
+    swoole_signalfd_setup(SwooleTG.reactor);
 
     sigemptyset(&curset);
     sigprocmask(SIG_BLOCK, NULL, &curset);
     ret = sigismember(&curset, SIGUSR1);
     ASSERT_EQ(ret, 1);
 
-    swSignal_set(SIGUSR1, NULL);
-    swSignal_clear();
+    swoole_signal_set(SIGUSR1, NULL);
+    swoole_signal_clear();
 
     sigemptyset(&curset);
     sigprocmask(SIG_BLOCK, NULL, &curset);

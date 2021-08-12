@@ -180,7 +180,7 @@ struct ProcessPool {
     bool reload_init;
     bool read_message;
     bool started;
-    uint8_t dispatch_mode;
+    bool schedule_by_sysvmsg;
     uint8_t ipc_mode;
     pid_t master_pid;
     uint32_t reload_worker_i;

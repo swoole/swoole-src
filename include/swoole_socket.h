@@ -94,9 +94,9 @@ struct Address {
         struct sockaddr_un un;
     } addr;
     socklen_t len;
-    enum swSocket_type type;
+    SocketType type;
 
-    bool assign(enum swSocket_type _type, const std::string &_host, int _port);
+    bool assign(SocketType _type, const std::string &_host, int _port);
     const char *get_ip() {
         return get_addr();
     }
@@ -156,8 +156,8 @@ struct Socket {
     static uint32_t default_buffer_size;
 
     int fd;
-    enum swFd_type fd_type;
-    enum swSocket_type socket_type;
+    FdType fd_type;
+    SocketType socket_type;
     int events;
     bool enable_tcp_nodelay;
 
@@ -360,7 +360,7 @@ struct Socket {
     }
     int ssl_create(SSLContext *_ssl_context, int _flags);
     int ssl_connect();
-    enum swReturn_code ssl_accept();
+    enum swReturnCode ssl_accept();
     ssize_t ssl_recv(void *__buf, size_t __n);
     ssize_t ssl_send(const void *__buf, size_t __n);
     ssize_t ssl_readv(IOVector *io_vector);
@@ -390,13 +390,13 @@ struct Socket {
         }
 #ifdef TCP_CORK
         if (set_tcp_nopush(1) < 0) {
-            swSysWarn("set_tcp_nopush(fd=%d, ON) failed", fd);
+            swoole_sys_warning("set_tcp_nopush(fd=%d, ON) failed", fd);
             return false;
         }
 #endif
         // Need to turn off tcp nodelay when using nopush
         if (tcp_nodelay && set_tcp_nodelay(0) != 0) {
-            swSysWarn("set_tcp_nodelay(fd=%d, OFF) failed", fd);
+            swoole_sys_warning("set_tcp_nodelay(fd=%d, OFF) failed", fd);
         }
         return true;
     }
@@ -407,13 +407,13 @@ struct Socket {
         }
 #ifdef TCP_CORK
         if (set_tcp_nopush(0) < 0) {
-            swSysWarn("set_tcp_nopush(fd=%d, OFF) failed", fd);
+            swoole_sys_warning("set_tcp_nopush(fd=%d, OFF) failed", fd);
             return false;
         }
 #endif
         // Restore tcp_nodelay setting
         if (enable_tcp_nodelay && tcp_nodelay == 0 && set_tcp_nodelay(1) != 0) {
-            swSysWarn("set_tcp_nodelay(fd=%d, ON) failed", fd);
+            swoole_sys_warning("set_tcp_nodelay(fd=%d, ON) failed", fd);
             return false;
         }
         return true;
@@ -430,11 +430,11 @@ struct Socket {
     int wait_event(int timeout_ms, int events);
     void free();
 
-    static inline int is_dgram(swSocket_type type) {
+    static inline int is_dgram(SocketType type) {
         return (type == SW_SOCK_UDP || type == SW_SOCK_UDP6 || type == SW_SOCK_UNIX_DGRAM);
     }
 
-    static inline int is_stream(swSocket_type type) {
+    static inline int is_stream(SocketType type) {
         return (type == SW_SOCK_TCP || type == SW_SOCK_TCP6 || type == SW_SOCK_UNIX_STREAM);
     }
 
@@ -524,7 +524,7 @@ struct Socket {
         }
     }
 
-    static inline enum swSocket_type convert_to_type(int domain, int type, int protocol = 0) {
+    static inline SocketType convert_to_type(int domain, int type, int protocol = 0) {
         switch (domain) {
         case AF_INET:
             return type == SOCK_STREAM ? SW_SOCK_TCP : SW_SOCK_UDP;
@@ -537,7 +537,7 @@ struct Socket {
         }
     }
 
-    static inline enum swSocket_type convert_to_type(std::string &host) {
+    static inline SocketType convert_to_type(std::string &host) {
         if (host.compare(0, 6, "unix:/", 0, 6) == 0) {
             host = host.substr(sizeof("unix:") - 1);
             host.erase(0, host.find_first_not_of('/') - 1);
@@ -549,7 +549,7 @@ struct Socket {
         }
     }
 
-    static inline int get_domain_and_type(enum swSocket_type type, int *sock_domain, int *sock_type) {
+    static inline int get_domain_and_type(SocketType type, int *sock_domain, int *sock_type) {
         switch (type) {
         case SW_SOCK_TCP6:
             *sock_domain = AF_INET6;
@@ -587,9 +587,9 @@ int gethostbyname(int type, const char *name, char *addr);
 int getaddrinfo(GetaddrinfoRequest *req);
 
 }  // namespace network
-network::Socket *make_socket(int fd, enum swFd_type fd_type);
-network::Socket *make_socket(enum swSocket_type socket_type, enum swFd_type fd_type, int flags);
-network::Socket *make_server_socket(enum swSocket_type socket_type,
+network::Socket *make_socket(int fd, FdType fd_type);
+network::Socket *make_socket(SocketType socket_type, FdType fd_type, int flags);
+network::Socket *make_server_socket(SocketType socket_type,
                                     const char *address,
                                     int port = 0,
                                     int backlog = SW_BACKLOG);

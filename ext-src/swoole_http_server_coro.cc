@@ -21,6 +21,8 @@
 
 using swoole::microtime;
 using swoole::PHPCoroutine;
+using swoole::Server;
+using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
@@ -70,7 +72,7 @@ class http_server {
     uint32_t compression_min_length;
 #endif
 
-    http_server(enum swSocket_type type) {
+    http_server(enum swSocketType type) {
         socket = new Socket(type);
         default_handler = nullptr;
         array_init(&zcallbacks);
@@ -547,7 +549,7 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
 
     Socket *sock = php_swoole_get_socket(zconn);
     sock->set_buffer_allocator(sw_zend_string_allocator());
-    swString *buffer = sock->get_read_buffer();
+    String *buffer = sock->get_read_buffer();
     HttpContext *ctx = nullptr;
     bool header_completed = false;
     off_t header_crlf_offset = 0;
@@ -593,12 +595,12 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         size_t parsed_n = ctx->parse(buffer->str + buffer->offset, buffer->length - buffer->offset);
         buffer->offset += parsed_n;
 
-        swTraceLog(SW_TRACE_CO_HTTP_SERVER,
-                   "parsed_n=%ld, length=%ld, offset=%ld, completed=%d",
-                   parsed_n,
-                   buffer->length,
-                   buffer->offset,
-                   ctx->completed);
+        swoole_trace_log(SW_TRACE_CO_HTTP_SERVER,
+                         "parsed_n=%ld, length=%ld, offset=%ld, completed=%d",
+                         parsed_n,
+                         buffer->length,
+                         buffer->offset,
+                         ctx->completed);
 
         if (!ctx->completed) {
             if (ctx->parser.state == s_dead) {

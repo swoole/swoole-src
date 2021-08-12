@@ -66,7 +66,7 @@ void Table::free() {
 
 bool Table::add_column(const std::string &_name, enum TableColumn::Type _type, size_t _size) {
     if (_type < TableColumn::TYPE_INT || _type > TableColumn::TYPE_STRING) {
-        swWarn("unknown column type");
+        swoole_warning("unknown column type");
         return false;
     }
 
@@ -110,7 +110,7 @@ size_t Table::get_memory_size() {
 
     memory_size = _memory_size;
 
-    swTrace("_memory_size=%lu, _row_num=%lu, _row_memory_size=%lu", _memory_size, _row_num, _row_memory_size);
+    swoole_trace("_memory_size=%lu, _row_num=%lu, _row_memory_size=%lu", _memory_size, _row_num, _row_memory_size);
 
     return _memory_size;
 }
@@ -203,7 +203,7 @@ void TableRow::lock() {
          */
         if (kill(lock_pid, 0) < 0 && errno == ESRCH) {
             *lock = 1;
-            swWarn("lock process[%d] not exists, force unlock", lock_pid);
+            swoole_warning("lock process[%d] not exists, force unlock", lock_pid);
             goto _success;
         }
         /**
@@ -219,7 +219,7 @@ void TableRow::lock() {
          */
         else if ((swoole::time<std::chrono::milliseconds>(true) - t) > SW_TABLE_FORCE_UNLOCK_TIME) {
             *lock = 1;
-            swWarn("timeout, force unlock");
+            swoole_warning("timeout, force unlock");
             goto _success;
         }
         sw_yield();
@@ -426,7 +426,7 @@ void TableRow::set_value(TableColumn *col, void *value, size_t vlen) {
         break;
     default:
         if (vlen > (col->size - sizeof(TableStringLength))) {
-            swWarn("[key=%s,field=%s]string value is too long", key, col->name.c_str());
+            swoole_warning("[key=%s,field=%s]string value is too long", key, col->name.c_str());
             vlen = col->size - sizeof(TableStringLength);
         }
         if (value == nullptr) {

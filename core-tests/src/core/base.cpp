@@ -207,6 +207,7 @@ TEST(base, hook) {
         int *_count = (int *) data;
         *_count = 9999;
     }, 1);
+    ASSERT_TRUE(swoole_isset_hook(SW_GLOBAL_HOOK_END));
     swoole_call_hook(SW_GLOBAL_HOOK_END, &count);
     ASSERT_EQ(count, 9999);
 }

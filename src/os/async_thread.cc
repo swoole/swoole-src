@@ -128,7 +128,7 @@ class ThreadPool {
                 if (threads.size() + n > worker_num) {
                     n = worker_num - threads.size();
                 }
-                swTraceLog(SW_TRACE_AIO,
+                swoole_trace_log(SW_TRACE_AIO,
                            "Create %zu thread due to wait %fs, we will have %zu threads",
                            n,
                            _max_wait_time,
@@ -152,7 +152,7 @@ class ThreadPool {
         _queue.push(_event_copy);
         _cv.notify_one();
         event_mutex.unlock();
-        swDebug("push and notify one: %f", microtime());
+        swoole_debug("push and notify one: %f", microtime());
         return _event_copy;
     }
 
@@ -174,11 +174,11 @@ class ThreadPool {
     void release_thread(std::thread::id tid) {
         auto i = threads.find(tid);
         if (i == threads.end()) {
-            swWarn("AIO thread#%s is missing", get_thread_id(tid).c_str());
+            swoole_warning("AIO thread#%s is missing", get_thread_id(tid).c_str());
             return;
         } else {
             std::thread *_thread = i->second;
-            swTraceLog(SW_TRACE_AIO,
+            swoole_trace_log(SW_TRACE_AIO,
                        "release idle thread#%s, we have %zu now",
                        get_thread_id(tid).c_str(),
                        threads.size() - 1);
@@ -231,14 +231,14 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                 SwooleTG.buffer_stack = nullptr;
             };
 
-            swSignal_none();
+            swoole_signal_block_all();
 
             while (running) {
                 event_mutex.lock();
                 AsyncEvent *event = _queue.pop();
                 event_mutex.unlock();
 
-                swDebug("%s: %f", event ? "pop 1 event" : "no event", microtime());
+                swoole_debug("%s: %f", event ? "pop 1 event" : "no event", microtime());
 
                 if (event) {
                     if (sw_unlikely(event->handler == nullptr)) {
@@ -251,7 +251,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                         event->handler(event);
                     }
 
-                    swTraceLog(SW_TRACE_AIO,
+                    swoole_trace_log(SW_TRACE_AIO,
                                "aio_thread %s. ret=%ld, error=%d",
                                event->retval > 0 ? "ok" : "failed",
                                event->retval,
@@ -268,7 +268,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
                                 continue;
                             } else {
                                 delete event;
-                                swSysWarn("sendto swoole_aio_pipe_write failed");
+                                swoole_sys_warning("sendto swoole_aio_pipe_write failed");
                             }
                         }
                         break;
@@ -319,7 +319,7 @@ void ThreadPool::create_thread(const bool is_core_worker) {
         });
         threads[_thread->get_id()] = _thread;
     } catch (const std::system_error &e) {
-        swSysNotice("create aio thread failed, please check your system configuration or adjust aio_worker_num");
+        swoole_sys_notice("create aio thread failed, please check your system configuration or adjust aio_worker_num");
         return;
     }
 }
@@ -346,7 +346,7 @@ int AsyncThreads::callback(Reactor *reactor, Event *event) {
     AsyncEvent *events[SW_AIO_EVENT_NUM];
     ssize_t n = event->socket->read(events, sizeof(AsyncEvent *) * SW_AIO_EVENT_NUM);
     if (n < 0) {
-        swSysWarn("read() aio events failed");
+        swoole_sys_warning("read() aio events failed");
         return SW_ERR;
     }
     for (size_t i = 0; i < n / sizeof(AsyncEvent *); i++) {
@@ -373,7 +373,7 @@ void AsyncThreads::notify_one() {
 
 AsyncThreads::AsyncThreads() {
     if (!SwooleTG.reactor) {
-        swWarn("no event loop, cannot initialized");
+        swoole_warning("no event loop, cannot initialized");
         throw swoole::Exception(SW_ERROR_WRONG_OPERATION);
     }
 

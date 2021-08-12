@@ -215,7 +215,7 @@ class String {
         return SW_OK;
     }
 
-    inline void write(off_t _offset, swString *write_str) {
+    inline void write(off_t _offset, String *write_str) {
         size_t new_length = _offset + write_str->length;
         if (new_length > size) {
             reserve(swoole_size_align(new_length * 2, SwooleG.pagesize));

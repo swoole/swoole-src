@@ -30,8 +30,6 @@ using swoole::SessionId;
 using swoole::String;
 using swoole::coroutine::Socket;
 
-using http_request = swoole::http::Request;
-using http_response = swoole::http::Response;
 using HttpContext = swoole::http::Context;
 
 namespace WebSocket = swoole::websocket;
@@ -429,7 +427,7 @@ static bool websocket_message_uncompress(String *buffer, const char *in, size_t 
     // gzip_stream.total_out = 0;
     status = inflateInit2(&zstream, SW_ZLIB_ENCODING_RAW);
     if (status != Z_OK) {
-        swWarn("inflateInit2() failed by %s", zError(status));
+        swoole_warning("inflateInit2() failed by %s", zError(status));
         return false;
     }
 
@@ -461,7 +459,7 @@ static bool websocket_message_uncompress(String *buffer, const char *in, size_t 
     inflateEnd(&zstream);
 
     if (!ret) {
-        swWarn("inflate() failed, Error: %s[%d]", zError(status), status);
+        swoole_warning("inflate() failed, Error: %s[%d]", zError(status), status);
         return false;
     }
     return true;
@@ -483,7 +481,7 @@ static bool websocket_message_compress(String *buffer, const char *data, size_t 
 
     status = deflateInit2(&zstream, level, Z_DEFLATED, SW_ZLIB_ENCODING_RAW, MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
     if (status != Z_OK) {
-        swWarn("deflateInit2() failed, Error: [%d]", status);
+        swoole_warning("deflateInit2() failed, Error: [%d]", status);
         return false;
     }
 
@@ -526,12 +524,12 @@ static bool websocket_message_compress(String *buffer, const char *data, size_t 
     deflateEnd(&zstream);
 
     if (result != Z_BUF_ERROR || bytes_written < 4) {
-        swWarn("Failed to compress outgoing frame");
+        swoole_warning("Failed to compress outgoing frame");
         return false;
     }
 
     if (status != Z_OK) {
-        swWarn("deflate() failed, Error: [%d]", status);
+        swoole_warning("deflate() failed, Error: [%d]", status);
         return false;
     }
 

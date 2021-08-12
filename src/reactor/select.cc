@@ -67,7 +67,7 @@ ReactorSelect::ReactorSelect(Reactor *reactor) : ReactorImpl(reactor) {
 int ReactorSelect::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (fd > FD_SETSIZE) {
-        swWarn("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
+        swoole_warning("max fd value is FD_SETSIZE(%d).\n", FD_SETSIZE);
         return SW_ERR;
     }
 
@@ -90,7 +90,7 @@ int ReactorSelect::del(Socket *socket) {
     }
     int fd = socket->fd;
     if (fds.erase(fd) == 0) {
-        swWarn("swReactorSelect: fd[%d] not found", fd);
+        swoole_warning("swReactorSelect: fd[%d] not found", fd);
         return SW_ERR;
     }
     SW_FD_CLR(fd, &rfds);
@@ -103,7 +103,7 @@ int ReactorSelect::del(Socket *socket) {
 int ReactorSelect::set(Socket *socket, int events) {
     auto i = fds.find(socket->fd);
     if (i == fds.end()) {
-        swWarn("swReactorSelect: sock[%d] not found", socket->fd);
+        swoole_warning("swReactorSelect: sock[%d] not found", socket->fd);
         return SW_ERR;
     }
     reactor_->_set(socket, events);
@@ -163,7 +163,7 @@ int ReactorSelect::wait(struct timeval *timeo) {
         ret = select(maxfd + 1, &(rfds), &(wfds), &(efds), &timeout);
         if (ret < 0) {
             if (!reactor_->catch_error()) {
-                swSysWarn("select error");
+                swoole_sys_warning("select error");
                 break;
             } else {
                 goto _continue;
@@ -187,7 +187,7 @@ int ReactorSelect::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_READ, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swSysWarn("[Reactor#%d] select event[type=READ, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_sys_warning("[Reactor#%d] select event[type=READ, fd=%d] handler fail", reactor_->id, event.fd);
                     }
                 }
                 // write
@@ -195,7 +195,7 @@ int ReactorSelect::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_WRITE, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swSysWarn("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_sys_warning("[Reactor#%d] select event[type=WRITE, fd=%d] handler fail", reactor_->id, event.fd);
                     }
                 }
                 // error
@@ -203,7 +203,7 @@ int ReactorSelect::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_ERROR, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swSysWarn("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail", reactor_->id, event.fd);
+                        swoole_sys_warning("[Reactor#%d] select event[type=ERROR, fd=%d] handler fail", reactor_->id, event.fd);
                     }
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE)) {

@@ -8,20 +8,11 @@
 using swoole::TimerNode;
 using swoole::Coroutine;
 using swoole::PHPCoroutine;
-using swoole::FutureTask;
 using swoole::Reactor;
 using swoole::Event;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::String;
-
-struct TmpSocket {
-    FutureTask context;
-    swSocket socket;
-    zend_string *buf;
-    uint32_t nbytes;
-    TimerNode *timer;
-};
 
 static zend_class_entry *swoole_coroutine_system_ce;
 
@@ -74,116 +65,39 @@ PHP_METHOD(swoole_coroutine_system, sleep) {
     RETURN_BOOL(System::sleep(seconds) == 0);
 }
 
-static int co_socket_onReadable(Reactor *reactor, Event *event) {
-    TmpSocket *sock = (TmpSocket *) event->socket->object;
-    FutureTask *context = &sock->context;
-
-    zval result;
-
-    swoole_event_del(event->socket);
-
-    if (sock->timer) {
-        swoole_timer_del(sock->timer);
-        sock->timer = nullptr;
-    }
-
-    ssize_t n = event->socket->read(ZSTR_VAL(sock->buf), sock->nbytes);
-    if (n < 0) {
-        ZVAL_FALSE(&result);
-        zend_string_free(sock->buf);
-    } else if (n == 0) {
-        ZVAL_EMPTY_STRING(&result);
-        zend_string_free(sock->buf);
-    } else {
-        ZSTR_VAL(sock->buf)[n] = 0;
-        ZSTR_LEN(sock->buf) = n;
-        ZVAL_STR(&result, sock->buf);
-    }
-    PHPCoroutine::resume_m(context, &result);
-    zval_ptr_dtor(&result);
-    efree(sock);
-    return SW_OK;
-}
-
-static int co_socket_onWritable(Reactor *reactor, Event *event) {
-    TmpSocket *sock = (TmpSocket *) event->socket->object;
-    FutureTask *context = &sock->context;
-
-    zval result;
-
-    swoole_event_del(event->socket);
-
-    if (sock->timer) {
-        swoole_timer_del(sock->timer);
-        sock->timer = nullptr;
-    }
-
-    ssize_t n = event->socket->write(context->private_data, sock->nbytes);
-    if (n < 0) {
-        swoole_set_last_error(errno);
-        ZVAL_FALSE(&result);
-    } else {
-        ZVAL_LONG(&result, n);
-    }
-    PHPCoroutine::resume_m(context, &result);
-    efree(sock);
-    return SW_OK;
-}
-
 static void co_socket_read(int fd, zend_long length, INTERNAL_FUNCTION_PARAMETERS) {
     php_swoole_check_reactor();
-    if (!swoole_event_isset_handler(PHP_SWOOLE_FD_SOCKET)) {
-        swoole_event_set_handler(PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_READ, co_socket_onReadable);
-        swoole_event_set_handler(PHP_SWOOLE_FD_CO_UTIL | SW_EVENT_WRITE, co_socket_onWritable);
+    Socket _socket(fd, SW_SOCK_RAW);
+
+    zend_string *buf = zend_string_alloc(length + 1, 0);
+    size_t nbytes = length <= 0 ? SW_BUFFER_SIZE_STD : length;
+    ssize_t n = _socket.read(ZSTR_VAL(buf), nbytes);
+    if (n < 0) {
+        ZVAL_FALSE(return_value);
+        zend_string_free(buf);
+    } else if (n == 0) {
+        ZVAL_EMPTY_STRING(return_value);
+        zend_string_free(buf);
+    } else {
+        ZSTR_VAL(buf)[n] = 0;
+        ZSTR_LEN(buf) = n;
+        ZVAL_STR(return_value, buf);
     }
-
-    TmpSocket *sock = (TmpSocket *) ecalloc(1, sizeof(TmpSocket));
-
-    sock->socket.fd = fd;
-    sock->socket.fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
-    sock->socket.object = sock;
-
-    if (swoole_event_add(&sock->socket, SW_EVENT_READ) < 0) {
-        swoole_set_last_error(errno);
-        efree(sock);
-        RETURN_FALSE;
-    }
-
-    sock->buf = zend_string_alloc(length + 1, 0);
-    sock->nbytes = length <= 0 ? SW_BUFFER_SIZE_STD : length;
-
-    PHPCoroutine::yield_m(return_value, &sock->context);
+    _socket.move_fd();
 }
 
 static void co_socket_write(int fd, char *str, size_t l_str, INTERNAL_FUNCTION_PARAMETERS) {
-    TmpSocket *sock;
-    ssize_t ret = write(fd, str, l_str);
-    if (ret < 0) {
-        if (errno == EAGAIN) {
-            goto _yield;
-        }
+    php_swoole_check_reactor();
+    Socket _socket(fd, SW_SOCK_RAW);
+
+    ssize_t n = _socket.write(str, l_str);
+    if (n < 0) {
         swoole_set_last_error(errno);
-        RETURN_FALSE;
+        ZVAL_FALSE(return_value);
     } else {
-        RETURN_LONG(ret);
+        ZVAL_LONG(return_value, n);
     }
-
-_yield:
-    sock = (TmpSocket *) ecalloc(1, sizeof(TmpSocket));
-
-    sock->socket.fd = fd;
-    sock->socket.fd_type = (enum swFd_type) PHP_SWOOLE_FD_CO_UTIL;
-    sock->socket.object = sock;
-
-    if (swoole_event_add(&sock->socket, SW_EVENT_WRITE) < 0) {
-        swoole_set_last_error(errno);
-        RETURN_FALSE;
-    }
-
-    FutureTask *task = &sock->context;
-    task->private_data = str;
-    sock->nbytes = l_str;
-    PHPCoroutine::yield_m(return_value, task);
+    _socket.move_fd();
 }
 
 PHP_METHOD(swoole_coroutine_system, fread) {
@@ -233,7 +147,7 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     }
     buf[length] = 0;
     int ret = -1;
-    swTrace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {
@@ -297,7 +211,7 @@ PHP_METHOD(swoole_coroutine_system, fgets) {
     }
 
     int ret = 0;
-    swTrace("fd=%d, length=%ld", fd, stream->readbuflen);
+    swoole_trace("fd=%d, length=%ld", fd, stream->readbuflen);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         char *data = fgets((char *) stream->readbuf, stream->readbuflen, file);
@@ -352,7 +266,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     }
 
     int ret = -1;
-    swTrace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=%ld", fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {

@@ -14,6 +14,8 @@
 #include <thread>
 #include <mutex>
 #include <unordered_map>
+#include <fstream>
+
 
 #define TEST_HOST "127.0.0.1"
 #define TEST_PORT 9501
