@@ -41,7 +41,6 @@
 #include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
-#include "swoole_ssl.h"
 
 using swoole::String;
 
@@ -127,13 +126,6 @@ static void bug_report_message_init() {
             u.version,
             u.machine);
     }
-
-#ifdef SW_USE_OPENSSL
-    SwooleG.bug_report_message += swoole::std_string::format(
-        "OPENSSL_VERSION: %s\n",
-        OPENSSL_VERSION_TEXT
-    );
-#endif
 
 #ifdef __VERSION__
     SwooleG.bug_report_message += swoole::std_string::format(
