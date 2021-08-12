@@ -128,13 +128,6 @@ static void bug_report_message_init() {
             u.machine);
     }
 
-#ifdef SW_USE_OPENSSL
-    SwooleG.bug_report_message += swoole::std_string::format(
-        "OPENSSL_VERSION: %s\n",
-        OPENSSL_VERSION_TEXT
-    );
-#endif
-
 #ifdef __VERSION__
     SwooleG.bug_report_message += swoole::std_string::format(
         "GCC_VERSION: %s\n",
