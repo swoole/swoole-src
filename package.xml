@@ -60,6 +60,10 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
+        New feature
+        ---
+        * Introduce a new concurrency mode (#4330) (@doubaokun)
+
         Enhancement
         ---
         * Supported query /etc/hosts for System::dnsLookup (#4341) (#4349) (@zmyWL) (@NathanFreeman)
