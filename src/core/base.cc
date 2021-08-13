@@ -148,6 +148,7 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
+    SwooleG.max_concurrency = 0;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
@@ -250,7 +251,7 @@ SW_API void swoole_set_trace_flags(int flags) {
     SwooleG.trace_flags = flags;
 }
 
-SW_API void swoole_set_dns_server(const std::string server) {
+SW_API void swoole_set_dns_server(const std::string &server) {
     char *_port;
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];

@@ -597,9 +597,9 @@ void PHPCoroutine::on_resume(void *arg) {
     restore_task(task);
     record_last_msec(task);
     swoole_trace_log(SW_TRACE_COROUTINE,
-               "php_coro_resume from cid=%ld to cid=%ld",
-               Coroutine::get_current_cid(),
-               task->co->get_cid());
+                     "php_coro_resume from cid=%ld to cid=%ld",
+                     Coroutine::get_current_cid(),
+                     task->co->get_cid());
 }
 
 void PHPCoroutine::on_close(void *arg) {
@@ -631,16 +631,20 @@ void PHPCoroutine::on_close(void *arg) {
         efree(task->array_walk_fci);
     }
 #endif
+
+    if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
+        SwooleWG.worker_concurrency--;
+    }
     vm_stack_destroy();
     restore_task(origin_task);
 
     swoole_trace_log(SW_TRACE_COROUTINE,
-               "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
-               cid,
-               origin_cid,
-               (uintmax_t) Coroutine::count() - 1,
-               (uintmax_t) zend_memory_usage(0),
-               (uintmax_t) zend_memory_usage(1));
+                     "coro close cid=%ld and resume to %ld, %zu remained. usage size: %zu. malloc size: %zu",
+                     cid,
+                     origin_cid,
+                     (uintmax_t) Coroutine::count() - 1,
+                     (uintmax_t) zend_memory_usage(0),
+                     (uintmax_t) zend_memory_usage(1));
 }
 
 void PHPCoroutine::main_func(void *arg) {
@@ -732,11 +736,31 @@ void PHPCoroutine::main_func(void *arg) {
         record_last_msec(task);
 
         swoole_trace_log(SW_TRACE_COROUTINE,
-                   "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
-                   task->co->get_cid(),
-                   task->co->get_origin_cid(),
-                   (uintmax_t) Coroutine::count(),
-                   (uintmax_t) zend_memory_usage(0));
+                         "Create coro id: %ld, origin cid: %ld, coro total count: %zu, heap size: %zu",
+                         task->co->get_cid(),
+                         task->co->get_origin_cid(),
+                         (uintmax_t) Coroutine::count(),
+                         (uintmax_t) zend_memory_usage(0));
+
+        if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
+            // wait until concurrency slots are available
+            while (SwooleWG.worker_concurrency > SwooleG.max_concurrency - 1) {
+                swoole_trace_log(SW_TRACE_COROUTINE,
+                                 "php_coro cid=%ld waiting for concurrency slots: max: %d, used: %d",
+                                 task->co->get_cid(),
+                                 SwooleG.max_concurrency,
+                                 SwooleWG.worker_concurrency);
+
+                swoole_event_defer(
+                    [](void *data) {
+                        Coroutine *co = (Coroutine *) data;
+                        co->resume();
+                    },
+                    (void *) task->co);
+                task->co->yield();
+            }
+            SwooleWG.worker_concurrency++;
+        }
 
         if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START]) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);

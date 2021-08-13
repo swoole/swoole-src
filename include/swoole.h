@@ -645,6 +645,7 @@ struct Global {
     uint32_t pagesize;
     struct utsname uname;
     uint32_t max_sockets;
+    uint32_t max_concurrency;
     //-----------------------[Memory]--------------------------
     MemoryPool *memory_pool;
     Allocator std_allocator;
@@ -655,6 +656,7 @@ struct Global {
     double dns_cache_refresh_time;
     int dns_tries;
     std::string dns_resolvconf_path;
+    std::string dns_hosts_path;
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
@@ -701,7 +703,8 @@ SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_trace_flags(int flags);
-SW_API void swoole_set_dns_server(const std::string server);
+SW_API void swoole_set_dns_server(const std::string &server);
+SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 

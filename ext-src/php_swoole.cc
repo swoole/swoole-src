@@ -54,8 +54,8 @@ END_EXTERN_C()
 #include <ares.h>
 #endif
 
-using swoole::network::Socket;
 using swoole::Server;
+using swoole::network::Socket;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
@@ -384,6 +384,9 @@ void php_swoole_set_global_option(HashTable *vht) {
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
+    }
+    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
+        SwooleG.max_concurrency = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
     }
 }
 
