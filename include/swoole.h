@@ -655,6 +655,7 @@ struct Global {
     double dns_cache_refresh_time;
     int dns_tries;
     std::string dns_resolvconf_path;
+    std::string dns_hosts_path;
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
@@ -702,6 +703,7 @@ SW_API void swoole_throw_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_trace_flags(int flags);
 SW_API void swoole_set_dns_server(const std::string server);
+SW_API void swoole_set_hosts_path(char *hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 

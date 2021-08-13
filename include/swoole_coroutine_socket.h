@@ -610,7 +610,6 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int family, double timeout);
 #endif
 std::string get_ip_by_hosts(const std::string &domain);
-void swoole_set_hosts_path(char *hosts_file);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

@@ -119,7 +119,7 @@ TEST(dns, gethosts) {
     file << "       127.0.0.1 bbb.com               ccc.com      #ddd.com\n";
     file.close();
 
-    swoole::coroutine::swoole_set_hosts_path(hosts_file);
+    swoole_set_hosts_path(hosts_file);
 
     std::string ip = swoole::coroutine::get_ip_by_hosts("localhost");
     ASSERT_EQ(ip, "127.0.0.1");

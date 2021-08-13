@@ -57,16 +57,20 @@ bool swoole_load_resolv_conf() {
     return true;
 }
 
+void swoole_set_hosts_path(const char *hosts_file) {
+    SwooleG.dns_hosts_path = hosts_file;
+}
+
 namespace swoole {
 namespace coroutine {
 
-enum swDNS_type {
+enum RecordType {
     SW_DNS_A_RECORD = 0x01,     // Lookup IPv4 address
     SW_DNS_AAAA_RECORD = 0x1c,  // Lookup IPv6 address
     SW_DNS_MX_RECORD = 0x0f     // Lookup mail server for domain
 };
 
-enum swDNS_error {
+enum DNSError {
     SW_DNS_NOT_EXIST,  // Error: address does not exist
     SW_DNS_TIMEOUT,    // Lookup time expired
     SW_DNS_ERROR       // No memory or other error
@@ -104,14 +108,13 @@ struct RR_FLAGS {
 };
 
 static uint16_t dns_request_id = 1;
-char *swoole_hosts = nullptr;
 
 static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
 static std::string parse_ip_address(void *vaddr, int type);
 
 std::string get_ip_by_hosts(const std::string &search_domain) {
-    std::ifstream file(swoole_hosts ? swoole_hosts : SW_PATH_HOSTS);
+    std::ifstream file(SwooleG.dns_hosts_path.empty() ? SW_PATH_HOSTS : SwooleG.dns_hosts_path);
     if (!file.is_open()) {
         return "";
     }
@@ -157,10 +160,6 @@ std::string get_ip_by_hosts(const std::string &search_domain) {
     }
 
     return "";
-}
-
-void swoole_set_hosts_path(char *hosts_file) {
-    swoole_hosts = hosts_file;
 }
 
 static std::string parse_ip_address(void *vaddr, int type) {
