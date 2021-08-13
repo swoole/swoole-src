@@ -668,6 +668,10 @@ int Server::create() {
         return SW_ERR;
     }
 
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE)) {
+        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE, this);
+    }
+
     session_list = (Session *) sw_shm_calloc(SW_SESSION_LIST_SIZE, sizeof(Session));
     if (session_list == nullptr) {
         swoole_error("sw_shm_calloc(%ld) for session_list failed", SW_SESSION_LIST_SIZE * sizeof(Session));
@@ -734,13 +738,20 @@ int Server::create() {
         return SW_ERR;
     }
 
+    int retval;
     if (is_base_mode()) {
         factory = new BaseFactory(this);
-        return create_reactor_processes();
+        retval = create_reactor_processes();
     } else {
         factory = new ProcessFactory(this);
-        return create_reactor_threads();
+        retval = create_reactor_threads();
     }
+
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE)) {
+        swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE, this);
+    }
+
+    return retval;
 }
 
 void Server::clear_timer() {
