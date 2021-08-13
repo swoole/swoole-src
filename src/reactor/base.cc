@@ -202,19 +202,8 @@ static void reactor_begin(Reactor *reactor) {
 }
 
 int Reactor::_close(Reactor *reactor, Socket *socket) {
-    if (socket->out_buffer) {
-        delete socket->out_buffer;
-        socket->out_buffer = nullptr;
-    }
-    if (socket->in_buffer) {
-        delete socket->in_buffer;
-        socket->in_buffer = nullptr;
-    }
-
     swoole_trace_log(SW_TRACE_CLOSE, "fd=%d", socket->fd);
-
     socket->free();
-
     return SW_OK;
 }
 

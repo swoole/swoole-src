@@ -320,6 +320,12 @@ void Socket::free() {
     if (send_timer) {
         swoole_timer_del(send_timer);
     }
+    if (in_buffer) {
+        delete in_buffer;
+    }
+    if (out_buffer) {
+        delete out_buffer;
+    }
     if (swoole_event_is_available()) {
         removed = 1;
         swoole_event_defer(socket_free_defer, this);

@@ -148,6 +148,7 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
+    SwooleG.max_concurrency = 0;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
@@ -193,12 +194,16 @@ SW_API void *swoole_get_function(const char *name, uint32_t length) {
     }
 }
 
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swHookFunc func, int push_back) {
+SW_API int swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
     return swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
+SW_API void swoole_call_hook(enum swGlobalHookType type, void *arg) {
     swoole::hook_call(SwooleG.hooks, type, arg);
+}
+
+SW_API bool swoole_isset_hook(enum swGlobalHookType type) {
+    return SwooleG.hooks[type] != nullptr;
 }
 
 SW_API const char *swoole_version(void) {

@@ -360,6 +360,18 @@ class Socket {
         buffer_init_size = size;
     }
 
+    int move_fd() {
+        int sockfd = socket->fd;
+        socket->fd = -1;
+        return sockfd;
+    }
+
+    network::Socket *move_socket() {
+        network::Socket *_socket = socket;
+        socket = nullptr;
+        return _socket;
+    }
+
 #ifdef SW_USE_OPENSSL
     inline bool ssl_is_available() {
         return socket && ssl_handshaked;
@@ -575,6 +587,7 @@ class ProtocolSwitch {
     bool ori_open_length_check;
     Protocol ori_protocol;
     Socket *socket_;
+
   public:
     ProtocolSwitch(Socket *socket) {
         ori_open_eof_check = socket->open_eof_check;
@@ -596,7 +609,7 @@ std::vector<std::string> dns_lookup_impl_with_socket(const char *domain, int fam
 #ifdef SW_USE_CARES
 std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int family, double timeout);
 #endif
-std::string get_ip_by_hosts(std::string domain);
+std::string get_ip_by_hosts(const std::string &domain);
 //-------------------------------------------------------------------------------
 }  // namespace coroutine
 }  // namespace swoole

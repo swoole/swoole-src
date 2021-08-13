@@ -1730,9 +1730,6 @@ bool Socket::close() {
  * 3. called close() and it return false but it will not be accessed anywhere else
  */
 Socket::~Socket() {
-    if (socket == nullptr) {
-        return;
-    }
 #ifdef SW_DEBUG
     if (SwooleG.running) {
         SW_ASSERT(!has_bound() && socket->removed);
@@ -1744,28 +1741,25 @@ Socket::~Socket() {
     if (write_buffer) {
         delete write_buffer;
     }
+    if (socks5_proxy) {
+        delete socks5_proxy;
+    }
+    if (http_proxy) {
+        delete http_proxy;
+    }
+    if (socket == nullptr) {
+        return;
+    }
     /* {{{ release socket resources */
 #ifdef SW_USE_OPENSSL
     ssl_shutdown();
 #endif
-    if (socket->in_buffer) {
-        delete socket->in_buffer;
-    }
-    if (socket->out_buffer) {
-        delete socket->out_buffer;
-    }
     if (sock_domain == AF_UNIX && !bind_address.empty()) {
         ::unlink(bind_address_info.addr.un.sun_path);
         bind_address_info = {};
     }
     if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         ::unlink(socket->info.addr.un.sun_path);
-    }
-    if (socks5_proxy) {
-        delete socks5_proxy;
-    }
-    if (http_proxy) {
-        delete http_proxy;
     }
     socket->free();
 }

@@ -116,25 +116,6 @@ void Coroutine::resume() {
     check_end();
 }
 
-void Coroutine::yield_naked() {
-    SW_ASSERT(current == this);
-    state = STATE_WAITING;
-    current = origin;
-    ctx.swap_out();
-}
-
-void Coroutine::resume_naked() {
-    SW_ASSERT(current != this);
-    if (sw_unlikely(on_bailout)) {
-        return;
-    }
-    state = STATE_RUNNING;
-    origin = current;
-    current = this;
-    ctx.swap_in();
-    check_end();
-}
-
 bool Coroutine::cancel() {
     if (!cancel_fn_) {
         swoole_set_last_error(SW_ERROR_CO_CANNOT_CANCEL);

@@ -93,6 +93,7 @@ struct WorkerGlobal {
     String **output_buffer;
     Worker *worker;
     time_t exit_time;
+    uint32_t worker_concurrency = 0;
 };
 
 struct Worker {

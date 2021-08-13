@@ -21,6 +21,9 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <unordered_map>
+#include <sstream>
+#include <fstream>
 
 #define SW_PATH_HOSTS "/etc/hosts"
 
@@ -54,16 +57,20 @@ bool swoole_load_resolv_conf() {
     return true;
 }
 
+void swoole_set_hosts_path(const char *hosts_file) {
+    SwooleG.dns_hosts_path = hosts_file;
+}
+
 namespace swoole {
 namespace coroutine {
 
-enum swDNS_type {
+enum RecordType {
     SW_DNS_A_RECORD = 0x01,     // Lookup IPv4 address
     SW_DNS_AAAA_RECORD = 0x1c,  // Lookup IPv6 address
     SW_DNS_MX_RECORD = 0x0f     // Lookup mail server for domain
 };
 
-enum swDNS_error {
+enum DNSError {
     SW_DNS_NOT_EXIST,  // Error: address does not exist
     SW_DNS_TIMEOUT,    // Lookup time expired
     SW_DNS_ERROR       // No memory or other error
@@ -106,159 +113,52 @@ static int domain_encode(const char *src, int n, char *dest);
 static void domain_decode(char *str);
 static std::string parse_ip_address(void *vaddr, int type);
 
-static int read_line(FILE *fp, char **buf, size_t *bufsize) {
-    char *newbuf;
-    size_t offset = 0;
-    size_t len;
-
-    if (*buf == nullptr) {
-        *buf = (char *) malloc(128);
-        if (!*buf) {
-            return SW_ERR;
-        }
-        *bufsize = 128;
-    }
-
-    for (;;) {
-        int bytestoread = *bufsize - offset;
-        if (!fgets(*buf + offset, bytestoread, fp)) {
-            return SW_ERR;
-        }
-
-        len = offset + strlen(*buf + offset);
-        if ((*buf)[len - 1] == '\n') {
-            (*buf)[len - 1] = 0;
-            break;
-        }
-        offset = len;
-        if (len < *bufsize - 1) {
-            continue;
-        }
-        newbuf = (char *) realloc(*buf, *bufsize * 2);
-        if (!newbuf) {
-            free(*buf);
-            *buf = nullptr;
-            return SW_ERR;
-        }
-        *buf = newbuf;
-        *bufsize *= 2;
-    }
-
-    return SW_OK;
-}
-
-static std::pair<std::string, std::string> get_hostent(FILE *fp) {
-    char *line = nullptr, *p, *q;
-    char *txtaddr, *txthost, *txtalias;
-    int status;
-    size_t linesize, naliases;
-
-    std::pair<std::string, std::string> result{};
-
-    while ((status = read_line(fp, &line, &linesize)) == SW_OK) {
-        p = line;
-        while (*p && (*p != '#')) {
-            p++;
-        }
-        *p = '\0';
-
-        q = p - 1;
-        while ((q >= line) && isspace(*q)) {
-            q--;
-        }
-        *++q = '\0';
-
-        p = line;
-        while (*p && isspace(*q)) {
-            q--;
-        }
-        if (!*p) {
-            continue;
-        }
-
-        txtaddr = p;
-
-        while (*p && !isspace(*p)) {
-            p++;
-        }
-        if (!*p) {
-            continue;
-        }
-
-        *p = '\0';
-
-        p++;
-        while (*p && isspace(*p)) {
-            p++;
-        }
-        if (!*p) {
-            continue;
-        }
-
-        txthost = p;
-
-        while (*p && !isspace(*p)) {
-            p++;
-        }
-
-        txtalias = nullptr;
-        if (*p) {
-            q = p + 1;
-            while (*q && isspace(*q)) {
-                q++;
-            }
-            if (*q) {
-                txtalias = q;
-            }
-        }
-
-        *p = '\0';
-
-        naliases = 0;
-        if (txtalias) {
-            p = txtalias;
-            while (*p) {
-                while (*p && !isspace(*p)) {
-                    p++;
-                }
-                while (*p && isspace(*p)) {
-                    p++;
-                }
-                naliases++;
-            }
-        }
-
-        result.first = txthost;
-        result.second = txtaddr;
-
-        free(line);
-
-        return result;
-    }
-
-    if (line) free(line);
-
-    return result;
-}
-
-std::string get_ip_by_hosts(std::string domain) {
-    std::unordered_map<std::string, std::string> _map;
-    auto fp = fopen(SW_PATH_HOSTS, "r");
-    if (fp == nullptr) {
+std::string get_ip_by_hosts(const std::string &search_domain) {
+    std::ifstream file(SwooleG.dns_hosts_path.empty() ? SW_PATH_HOSTS : SwooleG.dns_hosts_path);
+    if (!file.is_open()) {
         return "";
     }
-    ON_SCOPE_EXIT {
-        fclose(fp);
-    };
-    while (1) {
-        auto result = get_hostent(fp);
-        if (result.first == "") {
-            break;
+
+    std::string line;
+    std::string domain;
+    std::string txtaddr;
+    std::vector<std::string> domains;
+    std::unordered_map<std::string, std::string> result{};
+
+    while (getline(file, line)) {
+        std::string::size_type ops = line.find_first_of('#');
+        if (ops != std::string::npos) {
+            line[ops] = '\0';
         }
-        if (result.first == domain) {
-            return result.second;
+
+        if (line[0] == '\n' || line[0] == '\0' || line[0] == '\r') {
+            continue;
+        }
+
+        std::istringstream stream(line);
+        while (stream >> domain) {
+            domains.push_back(domain);
+        }
+        if (domains.empty() || domains.size() == 1) {
+            domains.clear();
+            continue;
+        }
+
+        txtaddr = domains[0];
+        for (size_t i = 1; i < domains.size(); i++) {
+            result.insert(std::make_pair(domains[i], txtaddr));
+        }
+
+        auto iter = result.find(search_domain);
+        if (iter != result.end()) {
+            return iter->second;
+        } else {
+            result.clear();
+            domains.clear();
+            continue;
         }
     }
+
     return "";
 }
 
