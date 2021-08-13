@@ -65,6 +65,7 @@
         * Supported query /etc/hosts for System::dnsLookup (#4341) (#4349) (@zmyWL) (@NathanFreeman)
         * Supported boost context suppoprt for mips64 support (#4358) (@dixyes)
         * Supported CURLOPT_RESOLVE option for SWOOLE_HOOK_CURL (swoole/library#107) (@sy-records)
+        * Support CURLOPT_NOPROGRESS for SWOOLE_HOOK_CURL (swoole/library#117) (@sy-records)
 
         Fixed
         ---
@@ -72,6 +73,7 @@
         * Fixed not serializable classes for 8.1.0beta1 (#4335) (@remicollet)
         * Fixed multiple coroutines recursively creating directories (#4337) (@NathanFreeman)
         * Fixed native curl bugs (#4360) (@matyhtf)
+        * Fixed PDOStatement::bindParam() expects parameter 1 to be string (swoole/library#116) (@sy-records)
     </notes>
     <contents>
         <dir name="/">
