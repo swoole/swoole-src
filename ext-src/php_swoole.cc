@@ -54,8 +54,8 @@ END_EXTERN_C()
 #include <ares.h>
 #endif
 
-using swoole::network::Socket;
 using swoole::Server;
+using swoole::network::Socket;
 
 ZEND_DECLARE_MODULE_GLOBALS(swoole)
 
