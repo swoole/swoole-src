@@ -62,6 +62,7 @@ static int sw_php_stdiop_cast(php_stream *stream, int castas, void **ret);
 static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result);
 static php_stream *_sw_php_stream_fopen_from_fd_int(int fd, const char *mode, const char *persistent_id STREAMS_DC);
 static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC);
+static int sw_php_mkdir(const char *dir, zend_long mode);
 
 static inline zend_bool file_can_poll(zend_stat_t *_stat) {
     return S_ISCHR(_stat->st_mode) || S_ISSOCK(_stat->st_mode) || S_ISFIFO(_stat->st_mode);
@@ -1038,7 +1039,7 @@ static int php_plain_files_mkdir(
     }
 
     if (!recursive) {
-        ret = mkdir(dir, mode);
+        ret = sw_php_mkdir(dir, mode);
     } else {
         /* we look for directory separator from the end of string, thus hopefuly reducing our work load */
         char *e;
@@ -1052,7 +1053,8 @@ static int php_plain_files_mkdir(
             return 0;
         }
 
-        e = buf + strlen(buf);
+        size_t len = strlen(buf);
+        e = buf + len;
 
         if ((p = (char *) memchr(buf, DEFAULT_SLASH, dir_len))) {
             offset = p - buf + 1;
@@ -1084,27 +1086,34 @@ static int php_plain_files_mkdir(
         }
 
         if (p == buf) {
-            ret = mkdir(dir, mode);
-        } else if (!(ret = mkdir(buf, mode)) || EEXIST == errno) {
-            if (!p) {
-                p = buf;
-            }
-            /* create any needed directories if the creation of the 1st directory worked */
-            while (++p != e) {
-                if (*p == '\0') {
-                    *p = DEFAULT_SLASH;
-                    if ((*(p + 1) != '\0') && (ret = mkdir(buf, (mode_t) mode)) < 0) {
-                        // parent directory already exists and try to create child directories.
-                        if (EEXIST == errno && (int) strlen(buf) < dir_len) {
-                            continue;
-                        }
+            ret = sw_php_mkdir(dir, mode);
+        } else if ((ret = php_check_open_basedir(dir)) < 0) {
+            // php_check_open_basedir will issue a warning.
+        } else {
+            ret = mkdir(dir, (mode_t) mode);
+            if (!ret || (EEXIST == errno && (len - strlen(buf)) > 1)) {
+                if (!p) {
+                    p = buf;
+                }
+                /* create any needed directories if the creation of the 1st directory worked */
+                while (++p != e) {
+                    if (*p == '\0') {
+                        *p = DEFAULT_SLASH;
+                        if ((*(p + 1) != '\0') && (ret = mkdir(buf, (mode_t) mode)) < 0) {
+                            // parent directory already exists and try to create child directories.
+                            if (EEXIST == errno && (len - strlen(buf)) > 1) {
+                                continue;
+                            }
 
-                        if (options & REPORT_ERRORS) {
-                            php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
+                            if (options & REPORT_ERRORS) {
+                                php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
+            } else {
+                php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
             }
         }
     }
@@ -1257,6 +1266,20 @@ static php_stream *_sw_php_stream_fopen_from_fd(int fd, const char *mode, const 
     }
 
     return stream;
+}
+
+static int sw_php_mkdir(const char *dir, zend_long mode) {
+    int ret;
+
+    if (php_check_open_basedir(dir)) {
+        return -1;
+    }
+
+    if ((ret = mkdir(dir, (mode_t) mode)) < 0) {
+        php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
+    }
+
+    return ret;
 }
 
 static void php_stream_mode_sanitize_fdopen_fopencookie(php_stream *stream, char *result) {
