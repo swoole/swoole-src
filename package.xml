@@ -48,10 +48,10 @@
         <email>lufei@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-07-16</date>
-    <time>16:00:00</time>
+    <date>2021-08-13</date>
+    <time>15:00:00</time>
     <version>
-        <release>4.7.0</release>
+        <release>4.7.1</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -60,42 +60,18 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New APIs
-        ---
-        * Added Process\Pool::detach() (#4221) (@matyhtf)
-        * Added onDisconnect callback for Swoole\Server (#4230) (@matyhtf)
-        * Added Coroutine::cancel() (#4247) (#4249) (@matyhtf)
-        * Added http_compression/body_decompression options for Http Client (#4299) (@matyhtf)
-
         Enhancement
         ---
-        * Supported mysql client prepare field type identification (#4238) (@Yurunsoft)
-        * Supported c-ares, Refactor DNS (#4275) (@matyhtf)
-        * Supported setting different idle time for each port (#4290) (@matyhtf)
-        * Supported SW_DISPATCH_CO_CONN_LB and SW_DISPATCH_CO_REQ_LB for Swoole\Server dispatch_mode (#4318) (@matyhtf)
-        * Supported timeout for Swoole\ConnectionPool::get (swoole/library#108) (@leocavalcante)
-        * Supported CURLOPT_PRIVATE for Hook Curl (swoole/library#112) (@sy-records)
-        * Optimized PDOStatementProxy::setFetchMode function prototype (swoole/library#109) (@yespire)
+        * Supported query /etc/hosts for System::dnsLookup (#4341) (#4349) (@zmyWL) (@NathanFreeman)
+        * Supported boost context suppoprt for mips64 support (#4358) (@dixyes)
+        * Supported CURLOPT_RESOLVE option for SWOOLE_HOOK_CURL (swoole/library#107) (@sy-records)
 
         Fixed
         ---
-        * Fixed uncaught thread creation exception when creating a large number of coroutines (swoole/swoole-src@8ce5041) (@matyhtf)
-        * Fixed the "make install" missing php_swoole.h header file (#4239) (@sy-records)
-        * Fixed EVENT_HANDSHAKE BC (#4248) (@sy-records)
-        * Fixed SW_LOCK_CHECK_RETURN (#4302) (@zmyWL)
-        * Fixed problems with Swoole\Atomic\Long M1 chip (swoole/swoole-src@e6fae2e) (@matyhtf)
-        * Fixed missing return value of Coroutine\go (swoole/library@1ed49db) (@matyhtf)
-        * Fixed StringObject consistency between other methods and its immutability (swoole/library#111) (@leocavalcante)
-        * Fixed StringObject substr error (swoole/library#113) (@sy-records)
-
-        Kernel
-        ---
-        * Did not hook disabled functions (#4283) (@twose)
-
-        Test
-        ---
-        * Added Cygwin build (#4222) (@sy-records)
-        * Added alpine 3.13 and 3.14 into building test (#4309) (@limingxinleo)
+        * Fixed memory error on shutdown (PHP-8.1) (#4325) (@twose)
+        * Fixed not serializable classes for 8.1.0beta1 (#4335) (@remicollet)
+        * Fixed multiple coroutines recursively creating directories (#4337) (@NathanFreeman)
+        * Fixed native curl bugs (#4360) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
@@ -482,12 +458,12 @@
             <file role="doc" name="examples/ssl/websocket_client.html" />
             <file role="doc" name="examples/ssl/websocket_server.php" />
             <file role="doc" name="examples/swoole_http_client.php" />
-            <file role="doc" name="examples/table/array.php" />
             <file role="doc" name="examples/table/deadlock.php" />
             <file role="doc" name="examples/table/iterator.php" />
             <file role="doc" name="examples/table/server.php" />
             <file role="doc" name="examples/table/set.php" />
             <file role="doc" name="examples/table/simulation.php" />
+            <file role="doc" name="examples/table/usage.php" />
             <file role="doc" name="examples/task/http.php" />
             <file role="doc" name="examples/task/msg_push.php" />
             <file role="doc" name="examples/task/shared_client.php" />
@@ -969,6 +945,7 @@
             <file role="test" name="tests/swoole_coroutine/dnslookup_4.phpt" />
             <file role="test" name="tests/swoole_coroutine/dnslookup_5.phpt" />
             <file role="test" name="tests/swoole_coroutine/dnslookup_ipv6.phpt" />
+            <file role="test" name="tests/swoole_coroutine/dnslookup_query_hosts.phpt" />
             <file role="test" name="tests/swoole_coroutine/empty.phpt" />
             <file role="test" name="tests/swoole_coroutine/eval.phpt" />
             <file role="test" name="tests/swoole_coroutine/exception.phpt" />
@@ -1151,6 +1128,7 @@
             <file role="test" name="tests/swoole_curl/template" />
             <file role="test" name="tests/swoole_curl/timer_coredump.phpt" />
             <file role="test" name="tests/swoole_curl/upload/1.phpt" />
+            <file role="test" name="tests/swoole_curl/upload/2.phpt" />
             <file role="test" name="tests/swoole_curl/upload/curl_testdata1.txt" />
             <file role="test" name="tests/swoole_curl/upload/curl_testdata2.txt" />
             <file role="test" name="tests/swoole_curl/yield_in_callback.phpt" />
@@ -1228,6 +1206,7 @@
             <file role="test" name="tests/swoole_http2_server/compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/goaway.phpt" />
             <file role="test" name="tests/swoole_http2_server/http2_headers.phpt" />
+            <file role="test" name="tests/swoole_http2_server/issue_4365.phpt" />
             <file role="test" name="tests/swoole_http2_server/nghttp2_big_data.phpt" />
             <file role="test" name="tests/swoole_http2_server/no_compression.phpt" />
             <file role="test" name="tests/swoole_http2_server/ping.phpt" />
@@ -1594,6 +1573,7 @@
             <file role="test" name="tests/swoole_runtime/enable_crypto.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/a.inc" />
             <file role="test" name="tests/swoole_runtime/file_hook/b.inc" />
+            <file role="test" name="tests/swoole_runtime/file_hook/bug_4327.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/bug_ftell_2g.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/bug_scandir.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/co_fread.phpt" />
@@ -2006,6 +1986,7 @@
             <file role="src" name="thirdparty/boost/asm/jump_i386_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_i386_x86_64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_mips32_o32_elf_gas.S" />
+            <file role="src" name="thirdparty/boost/asm/jump_mips64_n64_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_ppc32_ppc64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_ppc32_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_ppc32_sysv_macho_gas.S" />
@@ -2031,6 +2012,7 @@
             <file role="src" name="thirdparty/boost/asm/make_i386_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_i386_x86_64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_mips32_o32_elf_gas.S" />
+            <file role="src" name="thirdparty/boost/asm/make_mips64_n64_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_ppc32_ppc64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_ppc32_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_ppc32_sysv_macho_gas.S" />

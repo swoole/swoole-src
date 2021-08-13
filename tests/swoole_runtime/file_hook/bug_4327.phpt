@@ -1,5 +1,5 @@
 --TEST--
-mkdir failed when coroutines: bug #4372
+swoole_runtime/file_hook: bug #4372
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
@@ -48,7 +48,6 @@ Swoole\Runtime::enableCoroutine(false);
 createDirectories();
 createDirectories("file://");
 ?>
-
 --EXPECT--
 SUCCESS
 SUCCESS
