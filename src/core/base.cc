@@ -251,7 +251,7 @@ SW_API void swoole_set_trace_flags(int flags) {
     SwooleG.trace_flags = flags;
 }
 
-SW_API void swoole_set_dns_server(const std::string server) {
+SW_API void swoole_set_dns_server(const std::string &server) {
     char *_port;
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];

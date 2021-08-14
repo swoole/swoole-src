@@ -57,7 +57,7 @@ bool swoole_load_resolv_conf() {
     return true;
 }
 
-void swoole_set_hosts_path(const char *hosts_file) {
+void swoole_set_hosts_path(const std::string &hosts_file) {
     SwooleG.dns_hosts_path = hosts_file;
 }
 

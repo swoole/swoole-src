@@ -703,8 +703,8 @@ SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_trace_flags(int flags);
-SW_API void swoole_set_dns_server(const std::string server);
-SW_API void swoole_set_hosts_path(char *hosts_file);
+SW_API void swoole_set_dns_server(const std::string &server);
+SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 
