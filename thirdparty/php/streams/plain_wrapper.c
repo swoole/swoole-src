@@ -1087,10 +1087,10 @@ static int php_plain_files_mkdir(
 
         if (p == buf) {
             ret = sw_php_mkdir(dir, mode);
-        } else if ((ret = php_check_open_basedir(dir)) < 0) {
+        } else if ((ret = php_check_open_basedir(buf)) < 0) {
             // php_check_open_basedir will issue a warning.
         } else {
-            ret = mkdir(dir, (mode_t) mode);
+            ret = mkdir(buf, (mode_t) mode);
             if (!ret || (EEXIST == errno && (len - strlen(buf)) > 1)) {
                 if (!p) {
                     p = buf;
