@@ -54,13 +54,13 @@ static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_l
 #else
 #define MAYBE_UNUSED
 #endif
-static void bug_report_message_init() {
-#ifdef SW_USE_OPENSSL
-    SwooleG.bug_report_message += swoole::std_string::format(
+
+std::string get_openssl_message() {
+    std::string message = swoole::std_string::format(
         "OPENSSL_VERSION: %s\n",
-        OPENSSL_VERSION_TEXT
-    );
-#endif
+        OPENSSL_VERSION_TEXT);
+
+    return message;
 }
 
 static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line);

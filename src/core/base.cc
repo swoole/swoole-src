@@ -41,6 +41,7 @@
 #include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
+#include "swoole_ssl.h"
 
 using swoole::String;
 
@@ -132,6 +133,7 @@ static void bug_report_message_init() {
         "GCC_VERSION: %s\n",
         __VERSION__);
 #endif
+    SwooleG.bug_report_message += get_openssl_message();
 }
 
 void swoole_init(void) {
