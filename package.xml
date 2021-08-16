@@ -67,9 +67,10 @@
         Enhancement
         ---
         * Supported query /etc/hosts for System::dnsLookup (#4341) (#4349) (@zmyWL) (@NathanFreeman)
-        * Supported boost context support for mips64 support (#4358) (@dixyes)
+        * Supported boost context support for mips64 (#4358) (@dixyes)
         * Supported CURLOPT_RESOLVE option for SWOOLE_HOOK_CURL (swoole/library#107) (@sy-records)
-        * Support CURLOPT_NOPROGRESS for SWOOLE_HOOK_CURL (swoole/library#117) (@sy-records)
+        * Supported CURLOPT_NOPROGRESS for SWOOLE_HOOK_CURL (swoole/library#117) (@sy-records)
+        * Supported boost context support for riscv64 (#4358) (@dixyes)
 
         Fixed
         ---
