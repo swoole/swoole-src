@@ -242,6 +242,7 @@ static bool swoole_signalfd_create() {
     signal_fd = signalfd(-1, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     if (signal_fd < 0) {
         swoole_sys_warning("signalfd() failed");
+        signal_fd = 0;
         return false;
     }
     signal_socket = swoole::make_socket(signal_fd, SW_FD_SIGNAL);
@@ -250,6 +251,7 @@ static bool swoole_signalfd_create() {
         signal_socket->fd = -1;
         signal_socket->free();
         close(signal_fd);
+        signal_socket = nullptr;
         signal_fd = 0;
         return false;
     }
