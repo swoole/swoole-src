@@ -367,7 +367,7 @@ static PHP_METHOD(swoole_process, __construct) {
 
     uint32_t base = 1;
     if (sw_server() && sw_server()->is_started()) {
-        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->user_worker_num;
+        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->get_user_worker_num();
     }
     if (php_swoole_worker_round_id == 0) {
         php_swoole_worker_round_id = base;

@@ -31,7 +31,7 @@ static int ReactorProcess_reuse_port(ListenPort *ls);
 
 static bool Server_is_single(Server *serv) {
     return serv->worker_num == 1 && serv->task_worker_num == 0 && serv->max_request == 0 &&
-           serv->user_worker_list == nullptr;
+           serv->user_worker_list.empty();
 }
 
 int Server::create_reactor_processes() {
@@ -121,16 +121,14 @@ int Server::start_reactor_processes() {
         }
     }
 
-    /**
-     * create user worker process
-     */
-    if (user_worker_list) {
-        user_workers = (Worker *) sw_shm_calloc(user_worker_num, sizeof(Worker));
+    // create user worker process
+    if (!user_worker_list.empty()) {
+        user_workers = (Worker *) sw_shm_calloc(get_user_worker_num(), sizeof(Worker));
         if (user_workers == nullptr) {
             swoole_sys_warning("gmalloc[server->user_workers] failed");
             return SW_ERR;
         }
-        for (auto worker : *user_worker_list) {
+        for (auto worker : user_worker_list) {
             /**
              * store the pipe object
              */

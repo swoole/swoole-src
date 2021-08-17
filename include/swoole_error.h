@@ -143,11 +143,12 @@ enum swErrorCode {
     SW_ERROR_SERVER_SEND_IN_MASTER,
     SW_ERROR_SERVER_INVALID_REQUEST,
     SW_ERROR_SERVER_CONNECT_FAIL,
+    SW_ERROR_SERVER_INVALID_COMMAND,
 
     /**
      * Process exit timeout, forced to end.
      */
-    SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT,
+    SW_ERROR_SERVER_WORKER_EXIT_TIMEOUT = 9101,
     SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
     SW_ERROR_SERVER_WORKER_UNPROCESSED_DATA,
 
@@ -187,4 +188,4 @@ class Exception {
 
     Exception(int code);
 };
-}
+}  // namespace swoole

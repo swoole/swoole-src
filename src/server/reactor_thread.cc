@@ -172,7 +172,7 @@ _do_recvfrom:
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = conn->session_id;
             ev.reactor_id = conn->reactor_id;
-            if (serv->send_to_reactor_thread((EventData*) &ev, sizeof(ev), conn->session_id) < 0) {
+            if (serv->send_to_reactor_thread((EventData *) &ev, sizeof(ev), conn->session_id) < 0) {
                 reactor->close(reactor, session->socket);
                 return SW_OK;
             }
@@ -401,6 +401,8 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                     if (serv->connection_incoming(reactor, conn) < 0) {
                         return reactor->close(reactor, conn->socket);
                     }
+                } else if (resp->info.type == SW_SERVER_EVENT_COMMAND) {
+                    return serv->call_command_handler((EventData *) resp, thread->pipe_command, thread->id);
                 }
                 /**
                  * server shutdown
@@ -626,11 +628,11 @@ static int ReactorThread_onWrite(Reactor *reactor, Event *ev) {
     }
 
     swoole_trace_log(SW_TRACE_REACTOR,
-               "fd=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
-               fd,
-               conn->close_notify,
-               serv->disable_notify,
-               conn->close_force);
+                     "fd=%d, conn->close_notify=%d, serv->disable_notify=%d, conn->close_force=%d",
+                     fd,
+                     conn->close_notify,
+                     serv->disable_notify,
+                     conn->close_force);
 
     if (conn->close_notify) {
 #ifdef SW_USE_OPENSSL
@@ -717,7 +719,7 @@ int Server::start_reactor_threads() {
         return SW_ERR;
     }
 
-    Reactor *reactor = SwooleTG.reactor;
+    Reactor *reactor = sw_reactor();
 
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd) {
@@ -784,37 +786,7 @@ _init_master_thread:
         start_heartbeat_thread();
     }
 
-    SwooleTG.type = THREAD_MASTER;
-    SwooleTG.update_time = 1;
-    SwooleTG.reactor = reactor;
-
-    if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
-        SwooleTG.timer->reinit(reactor);
-    }
-
-    SwooleG.pid = getpid();
-    SwooleG.process_type = SW_PROCESS_MASTER;
-
-    reactor->ptr = this;
-    reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
-
-    if (hooks[Server::HOOK_MASTER_START]) {
-        call_hook(Server::HOOK_MASTER_START, this);
-    }
-
-    /**
-     * 1 second timer
-     */
-    if ((master_timer = swoole_timer_add(1000, true, Server::timer_callback, this)) == nullptr) {
-        swoole_event_free();
-        return SW_ERR;
-    }
-
-    if (onStart) {
-        onStart(this);
-    }
-
-    return swoole_event_wait();
+    return start_master_thread();
 }
 
 static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
@@ -870,6 +842,11 @@ static int ReactorThread_init(Server *serv, Reactor *reactor, uint16_t reactor_i
         return SW_ERR;
     }
 
+    if (serv->pipe_command) {
+        thread->pipe_command = make_socket(serv->pipe_command->get_socket(false)->get_fd(), SW_FD_PIPE);
+        thread->pipe_command->buffer_size = UINT_MAX;
+    }
+
     for (uint32_t i = 0; i < serv->worker_num; i++) {
         int pipe_fd = serv->workers[i].pipe_master->fd;
         Socket *socket = &thread->pipe_sockets[pipe_fd];
@@ -914,6 +891,7 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
     }
 
     ReactorThread *thread = serv->get_thread(reactor_id);
+    thread->id = reactor_id;
     Reactor *reactor = sw_reactor();
 
 #ifdef HAVE_CPU_AFFINITY
@@ -953,6 +931,10 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
         delete it->second;
     }
     sw_free(thread->pipe_sockets);
+    if (thread->pipe_command) {
+        thread->pipe_command->fd = -1;
+        delete thread->pipe_command;
+    }
 }
 
 static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) {

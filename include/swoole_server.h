@@ -140,10 +140,12 @@ struct Connection {
 };
 
 struct ReactorThread {
+    int id;
     std::thread thread;
     network::Socket *notify_pipe = nullptr;
     uint32_t pipe_num = 0;
     network::Socket *pipe_sockets = nullptr;
+    network::Socket *pipe_command = nullptr;
     std::unordered_map<int, String *> send_buffers;
 };
 
@@ -466,11 +468,20 @@ enum ServerEventType {
     // process message
     SW_SERVER_EVENT_INCOMING,
     SW_SERVER_EVENT_SHUTDOWN,
+    SW_SERVER_EVENT_COMMAND,
 };
 
 class Server {
   public:
     typedef int (*DispatchFunction)(Server *, Connection *, SendData *);
+
+    struct Command {
+        typedef std::function<void(Server *, const std::string &msg)> Callback;
+        typedef std::function<std::string(Server *, const std::string &msg)> Handler;
+        int id;
+        std::string name;
+        std::string manual;
+    };
 
     enum Mode {
         MODE_BASE = 1,
@@ -570,7 +581,7 @@ class Server {
 
     /*----------------------------Reactor schedule--------------------------------*/
     const Allocator *worker_buffer_allocator;
-    std::unordered_map<uint64_t, std::shared_ptr<String>> worker_buffers;
+    std::unordered_map<uint64_t, std::shared_ptr<String>> pipe_packet_buffers;
     std::atomic<uint64_t> worker_msg_id;
     sw_atomic_t worker_round_id = 0;
 
@@ -682,6 +693,8 @@ class Server {
     int cpu_affinity_available_num = 0;
 
     PipeBuffer **pipe_buffers = nullptr;
+    UnixSocket *pipe_command = nullptr;
+
     double send_timeout = 0;
 
     uint16_t heartbeat_check_interval = 0;
@@ -759,10 +772,15 @@ class Server {
     /**
      * user process
      */
-    uint32_t user_worker_num = 0;
-    std::vector<Worker *> *user_worker_list = nullptr;
-    std::unordered_map<pid_t, Worker *> *user_worker_map = nullptr;
+    std::vector<Worker *> user_worker_list;
+    std::unordered_map<pid_t, Worker *> user_worker_map;
     Worker *user_workers = nullptr;
+
+    std::unordered_map<std::string, Command> commands;
+    std::unordered_map<int, Command::Handler> command_handlers;
+    std::unordered_map<int64_t, Command::Callback> command_callbacks;
+    int command_current_id = 1;
+    int64_t command_current_request_id = 1;
 
     Worker *workers = nullptr;
     Channel *message_box = nullptr;
@@ -854,11 +872,11 @@ class Server {
     size_t get_packet(EventData *req, char **data_ptr);
 
     String *get_worker_buffer(DataHead *info) {
-        auto iter = worker_buffers.find(info->msg_id);
-        if (iter == worker_buffers.end()) {
+        auto iter = pipe_packet_buffers.find(info->msg_id);
+        if (iter == pipe_packet_buffers.end()) {
             if (info->flags & SW_EVENT_DATA_BEGIN) {
                 auto buffer = make_string(info->len, worker_buffer_allocator);
-                worker_buffers.emplace(info->msg_id, std::shared_ptr<String>(buffer));
+                pipe_packet_buffers.emplace(info->msg_id, std::shared_ptr<String>(buffer));
                 return buffer;
             }
             return nullptr;
@@ -868,8 +886,8 @@ class Server {
 
     void pop_worker_buffer(DataHead *info) {
         uint64_t msg_id = info->msg_id;
-        auto iter = worker_buffers.find(msg_id);
-        if (iter != worker_buffers.end()) {
+        auto iter = pipe_packet_buffers.find(msg_id);
+        if (iter != pipe_packet_buffers.end()) {
             iter->second.get()->str = nullptr;
         }
     }
@@ -911,6 +929,7 @@ class Server {
     ListenPort *add_port(SocketType type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
+    bool add_command(const std::string &command, const std::string &manual, const Command::Handler &func);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
@@ -960,7 +979,7 @@ class Server {
     /**
      * reactor_id: The fd in which the reactor.
      */
-    inline swSocket *get_reactor_thread_pipe(SessionId session_id, int reactor_id) {
+    inline network::Socket *get_reactor_thread_pipe(SessionId session_id, int reactor_id) {
         int pipe_index = session_id % reactor_pipe_num;
         /**
          * pipe_worker_id: The pipe in which worker.
@@ -1035,7 +1054,7 @@ class Server {
         }
 
         // User Worker
-        uint32_t user_worker_max = task_worker_max + user_worker_num;
+        uint32_t user_worker_max = task_worker_max + user_worker_list.size();
         if (worker_id < user_worker_max) {
             return &(user_workers[worker_id - task_worker_max]);
         }
@@ -1063,7 +1082,11 @@ class Server {
     }
 
     size_t get_all_worker_num() {
-        return worker_num + task_worker_num + user_worker_num;
+        return worker_num + task_worker_num + get_user_worker_num();
+    }
+
+    size_t get_user_worker_num() {
+        return user_worker_list.size();
     }
 
     inline ReactorThread *get_thread(int reactor_id) {
@@ -1211,6 +1234,8 @@ class Server {
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
+    ResultCode call_command_handler(EventData *resp, network::Socket *reply_pipe_sock, uint16_t worker_id);
+    void call_command_callback(EventData *result);
 
     void foreach_connection(const std::function<void(Connection *)> &callback);
 
@@ -1219,6 +1244,7 @@ class Server {
 #ifdef SW_SUPPORT_DTLS
     dtls::Session *accept_dtls_connection(ListenPort *ls, network::Address *sa);
 #endif
+    static int accept_command_result(Reactor *reactor, Event *event);
     static int close_connection(Reactor *reactor, network::Socket *_socket);
     static int dispatch_task(Protocol *proto, network::Socket *_socket, const char *data, uint32_t length);
 
@@ -1228,14 +1254,24 @@ class Server {
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
     ssize_t send_to_reactor_thread(const DataHead *head, const iovec *iov, size_t iovcnt, SessionId session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
+    ssize_t recv_packet_from_pipe(Reactor *reactor,
+                                  Event *event,
+                                  PipeBuffer *pipe_buffer,
+                                  std::unordered_map<uint64_t, std::shared_ptr<String>> &buffer_map);
 
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool sendwait(SessionId session_id, const void *data, uint32_t length);
     bool close(SessionId session_id, bool reset);
+    bool send_pipe_packet(network::Socket *sock, SendData *packet);
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);
+    bool command(uint16_t worker_id,
+                 bool reactor_thread,
+                 const std::string &name,
+                 const std::string &msg,
+                 const Command::Callback &fn);
 
     void init_reactor(Reactor *reactor);
     void init_worker(Worker *worker);
@@ -1318,6 +1354,7 @@ class Server {
     int create_reactor_threads();
     int start_reactor_threads();
     int start_reactor_processes();
+    int start_master_thread();
     int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
     void join_reactor_thread();

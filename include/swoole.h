@@ -570,6 +570,8 @@ typedef uint8_t ReactorId;
 typedef enum swEventType EventType;
 typedef enum swSocketType SocketType;
 typedef enum swFdType FdType;
+typedef enum swReturnCode ReturnCode;
+typedef enum swResultCode ResultCode;
 
 struct Event {
     int fd;

@@ -27,6 +27,7 @@ typedef int (*SendFunc)(Server *serv, DataHead *head, const iovec *iov, size_t i
 static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data);
 static int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
 static int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
+static int process_sendto_socket(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
 
 ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
     send_buffer = nullptr;
@@ -137,14 +138,21 @@ bool ProcessFactory::notify(DataHead *ev) {
     return dispatch(&task);
 }
 
-static inline int process_sendto_worker(
-    Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
+static int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
     return serv->send_to_worker_from_master((Worker *) private_data, iov, iovcnt);
 }
 
-static inline int process_sendto_reactor(
-    Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
+static int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
     return serv->send_to_reactor_thread(head, iov, iovcnt, ((Connection *) private_data)->session_id);
+}
+
+static int process_sendto_socket(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
+    Socket *sock = (Socket *) private_data;
+    if (swoole_event_is_available()) {
+        return swoole_event_writev(sock, iov, iovcnt);
+    } else {
+        return sock->writev_blocking(iov, iovcnt);
+    }
 }
 
 /**
@@ -195,13 +203,13 @@ bool ProcessFactory::dispatch(SendData *task) {
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
 
-    return process_send_packet(server_, &_task, process_sendto_worker, worker);
+    return process_send_packet(server_, &_task, process_sendto_worker, worker) != 0;
 }
 
 /**
  * @description: master process send data to worker process.
- *  If the data sent is larger than Server::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
- * @return: send success returns SW_OK, send failure returns SW_ERR.
+ *  If the data sent is larger than Server::ipc_max_size, then it is sent in chunks. Otherwise send it directly.
+ * @return: send success returns MsgId(must be greater than 0), send failure returns 0.
  */
 static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data) {
     const char *data = resp->data;
@@ -211,8 +219,9 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
 
     struct iovec iov[2];
 
+    uint64_t msg_id = serv->worker_msg_id.fetch_add(1);
     uint32_t max_length = serv->ipc_max_size - sizeof(resp->info);
-    resp->info.msg_id = serv->worker_msg_id.fetch_add(1);
+    resp->info.msg_id = msg_id;
 
     if (l_payload <= max_length) {
         resp->info.flags = 0;
@@ -448,4 +457,9 @@ _close:
         return finish(&_send);
     }
 }
+
+bool Server::send_pipe_packet(network::Socket *sock, SendData *packet) {
+    return process_send_packet(this, packet, process_sendto_socket, sock);
+}
+
 }  // namespace swoole
