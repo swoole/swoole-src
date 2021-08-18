@@ -209,7 +209,7 @@ void Server::check_worker_exit_status(int worker_id, const ExitStatus &exit_stat
                worker_id,
                exit_status.get_code(),
                exit_status.get_signal(),
-               exit_status.get_signal() == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : "");
+               exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
         if (onWorkerError != nullptr) {
             onWorkerError(this, worker_id, exit_status);
         }
