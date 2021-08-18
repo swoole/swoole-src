@@ -170,6 +170,6 @@ void swoole_ssl_server_http_advise(swoole::SSLContext &);
 const char *swoole_ssl_get_error();
 int swoole_ssl_get_ex_connection_index();
 int swoole_ssl_get_ex_port_index();
-std::string get_openssl_message();
+std::string swoole_ssl_get_version_message();
 
 #endif

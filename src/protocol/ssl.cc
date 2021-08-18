@@ -55,7 +55,7 @@ static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_l
 #define MAYBE_UNUSED
 #endif
 
-std::string get_openssl_message() {
+std::string swoole_ssl_get_version_message() {
     std::string message = swoole::std_string::format(
         "OPENSSL_VERSION: %s\n",
         OPENSSL_VERSION_TEXT);

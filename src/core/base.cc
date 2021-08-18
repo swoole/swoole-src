@@ -133,9 +133,12 @@ static void bug_report_message_init() {
         "GCC_VERSION: %s\n",
         __VERSION__);
 #endif
-    SwooleG.bug_report_message += get_openssl_message();
-}
 
+#ifdef SW_USE_OPENSSL
+    SwooleG.bug_report_message += swoole_ssl_get_version_message();
+
+#endif
+}
 void swoole_init(void) {
     if (SwooleG.init) {
         return;
