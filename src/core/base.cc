@@ -117,11 +117,7 @@ static void bug_report_message_init() {
     struct utsname u;
     if (uname(&u) != -1) {
         SwooleG.bug_report_message += swoole::std_string::format(
-            "operating system:\n"
-            "sysname: %s "
-            "release: %s "
-            "version: %s "
-            "machine: %s ",
+            "OS: %s %s %s %s\n",
             u.sysname,
             u.release,
             u.version,
