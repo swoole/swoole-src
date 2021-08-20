@@ -2657,7 +2657,7 @@ static PHP_METHOD(swoole_server, addCommand) {
 
     char *name;
     size_t l_name;
-    long scenarios;
+    zend_long scenarios;
     zend_fcall_info fci;
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
 
@@ -3437,7 +3437,7 @@ static PHP_METHOD(swoole_server, task) {
 static PHP_METHOD(swoole_server, command) {
     char *name;
     size_t l_name;
-    long process_id;
+    zend_long process_id;
     zval *zdata;
     zend_bool json_decode = true;
 
@@ -3457,7 +3457,7 @@ static PHP_METHOD(swoole_server, command) {
 
     std::string msg;
 
-#ifndef SW_USE_JSON
+#ifdef SW_USE_JSON
     smart_str buf = {0};
     JSON_G(error_code) = PHP_JSON_ERROR_NONE;
     php_json_encode(&buf, zdata, 0);
