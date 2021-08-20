@@ -478,9 +478,15 @@ class Server {
     struct Command {
         typedef std::function<void(Server *, const std::string &msg)> Callback;
         typedef std::function<std::string(Server *, const std::string &msg)> Handler;
+        enum ProcessFlag {
+            MASTER_THREAD = 1u << 20,
+            REACTOR_THREAD = 1u << 17,
+            EVENT_WORKER = 1u << 18,
+            TASK_WORKER = 1u << 19,
+        };
         int id;
+        int scenarios;
         std::string name;
-        std::string manual;
     };
 
     enum Mode {
@@ -929,7 +935,9 @@ class Server {
     ListenPort *add_port(SocketType type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
-    bool add_command(const std::string &command, const std::string &manual, const Command::Handler &func);
+    bool add_command(const std::string &command,
+                     int scenarios,
+                     const Command::Handler &func);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
@@ -1235,7 +1243,8 @@ class Server {
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
     ResultCode call_command_handler(EventData *resp, network::Socket *reply_pipe_sock, uint16_t worker_id);
-    void call_command_callback(EventData *result);
+    std::string call_command_handler_in_master(int command_id, const std::string &msg);
+    void call_command_callback(int64_t request_id, const std::string &result);
 
     void foreach_connection(const std::function<void(Connection *)> &callback);
 
@@ -1267,11 +1276,7 @@ class Server {
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);
-    bool command(uint16_t worker_id,
-                 bool reactor_thread,
-                 const std::string &name,
-                 const std::string &msg,
-                 const Command::Callback &fn);
+    bool command(long process_id, const std::string &name, const std::string &msg, const Command::Callback &fn);
 
     void init_reactor(Reactor *reactor);
     void init_worker(Worker *worker);

@@ -93,15 +93,14 @@ void Server::close_port(bool only_stream_port) {
     }
 }
 
-void Server::call_command_callback(EventData *result) {
-    int64_t request_id = result->info.fd;
+void Server::call_command_callback(int64_t request_id, const std::string &result) {
     auto iter = command_callbacks.find(request_id);
     if (iter == command_callbacks.end()) {
         swoole_error_log(
             SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Invalid command result[request_id=%lu]", request_id);
         return;
     }
-    iter->second(this, std::string(result->data, result->info.len));
+    iter->second(this, result);
 }
 
 ResultCode Server::call_command_handler(EventData *resp, network::Socket *reply_pipe_sock, uint16_t worker_id) {
@@ -126,6 +125,17 @@ ResultCode Server::call_command_handler(EventData *resp, network::Socket *reply_
     return send_pipe_packet(reply_pipe_sock, &task) ? SW_OK : SW_ERR;
 }
 
+std::string Server::call_command_handler_in_master(int command_id, const std::string &msg) {
+    auto iter = command_handlers.find(command_id);
+    if (iter == command_handlers.end()) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%d]", command_id);
+        return "";
+    }
+
+    Server::Command::Handler handler = iter->second;
+    return handler(this, msg);
+}
+
 int Server::accept_command_result(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
     PipeBuffer *pipe_buffer = serv->pipe_buffers[serv->reactor_num];
@@ -134,7 +144,12 @@ int Server::accept_command_result(Reactor *reactor, Event *event) {
         return SW_OK;
     }
 
-    serv->call_command_callback((EventData *) pipe_buffer);
+    char *_data;
+    size_t _len = serv->get_packet((EventData *) pipe_buffer, &_data);
+    std::string result(_data, _len);
+
+    serv->call_command_callback(pipe_buffer->info.fd, result);
+
     if (pipe_buffer->info.flags & SW_EVENT_DATA_END) {
         serv->pipe_packet_buffers.erase(pipe_buffer->info.msg_id);
     }
@@ -974,11 +989,7 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     }
 }
 
-bool Server::command(uint16_t worker_id,
-                     bool reactor_thread,
-                     const std::string &name,
-                     const std::string &msg,
-                     const Command::Callback &fn) {
+bool Server::command(long process_id, const std::string &name, const std::string &msg, const Command::Callback &fn) {
     if (!is_master()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "command() can only be used in master process");
         return false;
@@ -990,30 +1001,39 @@ bool Server::command(uint16_t worker_id,
         return false;
     }
 
+    uint16_t real_process_id = process_id & USHRT_MAX;
     int command_id = iter->second.id;
     int64_t requset_id = command_current_request_id++;
     Socket *pipe_sock;
 
     SendData task{};
     task.info.fd = requset_id;
-    task.info.reactor_id = worker_id;
+    task.info.reactor_id = real_process_id;
     task.info.server_fd = command_id;
     task.info.type = SW_SERVER_EVENT_COMMAND;
     task.info.len = msg.length();
     task.data = msg.c_str();
 
-    if (reactor_thread) {
+    if (process_id & Command::REACTOR_THREAD) {
         if (!is_process_mode()) {
             swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "");
             return false;
         }
-        if (worker_id > reactor_num) {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid worker_id");
+        if (real_process_id >= reactor_num) {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid thread_id[%d]", real_process_id);
             return false;
         }
-        pipe_sock = get_worker(worker_id)->pipe_worker;
-    } else {
-        pipe_sock = get_worker(worker_id)->pipe_master;
+        pipe_sock = get_worker(process_id)->pipe_worker;
+    } else if (process_id & Command::EVENT_WORKER) {
+        if (real_process_id >= worker_num) {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid worker_id[%d]", real_process_id);
+            return false;
+        }
+        pipe_sock = get_worker(process_id)->pipe_master;
+    } else if (process_id & Command::MASTER_THREAD) {
+         auto result = call_command_handler_in_master(command_id, msg);
+         fn(this, result);
+         return true;
     }
 
     if (!send_pipe_packet(pipe_sock, &task)) {
@@ -1480,7 +1500,9 @@ int Server::add_hook(Server::HookType type, const Callback &func, int push_back)
     return swoole::hook_add(hooks, (int) type, func, push_back);
 }
 
-bool Server::add_command(const std::string &name, const std::string &manual, const Command::Handler &func) {
+bool Server::add_command(const std::string &name,
+                         int scenarios,
+                         const Command::Handler &func) {
     if (is_started()) {
         return false;
     }
@@ -1496,7 +1518,12 @@ bool Server::add_command(const std::string &name, const std::string &manual, con
         pipe_command = _pipe;
     }
     int command_id = command_current_id++;
-    commands.emplace(name, Command{command_id, name, manual});
+    commands.emplace(name,
+                     Command{
+                         command_id,
+                         scenarios,
+                         name,
+                     });
     command_handlers[command_id] = func;
     return true;
 }
