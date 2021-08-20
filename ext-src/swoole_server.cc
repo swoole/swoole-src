@@ -3492,7 +3492,7 @@ static PHP_METHOD(swoole_server, command) {
             ZVAL_BOOL(&argv[1], true);
 
             auto result = zend::function::call("json_decode", 2, argv);
-            if (!ZVAL_IS_STRING(&result.value)) {
+            if (!zend_is_true(&result.value)) {
                 RETURN_FALSE;
             }
             ZVAL_DUP(return_value, &result.value);
