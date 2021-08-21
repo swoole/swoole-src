@@ -402,6 +402,7 @@ struct ResolvContext {
     int error;
     bool completed;
     Coroutine *co;
+    std::shared_ptr<bool> defer_task_cancelled;
     std::unordered_map<int, network::Socket *> sockets;
     std::vector<std::string> result;
 };
@@ -428,6 +429,7 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
     Coroutine *co = Coroutine::get_current_safe();
     ctx.co = co;
     ctx.completed = false;
+    ctx.defer_task_cancelled = std::make_shared<bool>(false);
     char lookups[] = "fb";
     int res;
     ctx.ares_opts.lookups = lookups;
@@ -533,8 +535,12 @@ std::vector<std::string> dns_lookup_impl_with_cares(const char *domain, int fami
             }
         _resume:
             if (ctx->co && ctx->co->is_suspending()) {
+                auto _cancelled = ctx->defer_task_cancelled;
                 swoole_event_defer(
-                    [](void *data) {
+                    [_cancelled](void *data) {
+                        if (*_cancelled) {
+                            return;
+                        }
                         Coroutine *co = reinterpret_cast<Coroutine *>(data);
                         co->resume();
                     },
@@ -573,6 +579,7 @@ _destroy:
             break;
         }
     }
+    *ctx.defer_task_cancelled = true;
     ares_destroy(ctx.channel);
 _return:
     return ctx.result;

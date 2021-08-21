@@ -704,7 +704,7 @@ int ProcessPool::wait() {
                        exit_worker->id,
                        exit_status.get_code(),
                        exit_status.get_signal(),
-                       exit_status.get_signal() == SIGSEGV ? "\n" SWOOLE_BUG_REPORT : "");
+                       exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
             }
             new_pid = spawn(exit_worker);
             if (new_pid < 0) {
