@@ -1017,13 +1017,13 @@ bool Server::command(uint16_t process_id,
     task.data = msg.c_str();
 
     if (!(process_type & iter->second.accepted_process_types)) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported");
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
         return false;
     }
 
     if (process_type == Command::REACTOR_THREAD) {
         if (!is_process_mode()) {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported");
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [server_mode]");
             return false;
         }
         if (process_id >= reactor_num) {

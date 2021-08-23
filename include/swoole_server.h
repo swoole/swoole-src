@@ -495,10 +495,11 @@ class Server {
         typedef std::function<void(Server *, const std::string &msg)> Callback;
         typedef std::function<std::string(Server *, const std::string &msg)> Handler;
         enum ProcessType {
-            MASTER = 1u << 20,
-            REACTOR_THREAD = 1u << 17,
-            EVENT_WORKER = 1u << 18,
-            TASK_WORKER = 1u << 19,
+            MASTER = 1u << 1,
+            REACTOR_THREAD = 1u << 2,
+            EVENT_WORKER = 1u << 3,
+            TASK_WORKER = 1u << 4,
+            ALL_PROCESS = MASTER | REACTOR_THREAD | EVENT_WORKER | TASK_WORKER,
         };
         int id;
         int accepted_process_types;
