@@ -370,7 +370,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         ssize_t n = ev->socket->read(resp, serv->ipc_max_size);
         if (n > 0) {
             // packet chunk
-            if (resp->info.flags & SW_EVENT_DATA_CHUNK) {
+            if (resp->is_chunked()) {
                 int worker_id = resp->info.server_fd;
                 int key = (ev->fd << 16) + worker_id;
                 auto it = thread->send_buffers.find(key);
@@ -383,7 +383,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
                 // merge data to package buffer
                 package->append(resp->data, n - sizeof(resp->info));
                 // wait more data
-                if (!(resp->info.flags & SW_EVENT_DATA_END)) {
+                if (!resp->is_end()) {
                     return SW_OK;
                 }
                 _send.info = resp->info;

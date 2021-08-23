@@ -851,7 +851,7 @@ void php_swoole_get_recv_data(Server *serv, zval *zdata, RecvData *req) {
     } else {
         if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
             zend::assign_zend_string_by_val(zdata, (char *) data, length);
-            serv->pop_worker_buffer(&req->info);
+            serv->pop_pipe_packet(&req->info);
         } else if (req->info.flags & SW_EVENT_DATA_POP_PTR) {
             String *recv_buffer = serv->get_recv_buffer(serv->get_connection_by_session_id(req->info.fd)->socket);
             zend::assign_zend_string_by_val(zdata, recv_buffer->pop(serv->recv_buffer_size), length);
@@ -1006,10 +1006,10 @@ void ServerObject::on_before_start() {
     /**
      * init method
      */
-    serv->worker_buffer_allocator = sw_zend_string_allocator();
+    serv->pipe_buffer_allocator = sw_zend_string_allocator();
 
     if (serv->is_base_mode()) {
-        serv->buffer_allocator = sw_zend_string_allocator();
+        serv->recv_buffer_allocator = sw_zend_string_allocator();
     }
 
     /**

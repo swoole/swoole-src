@@ -140,18 +140,17 @@ int Server::accept_command_result(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
     PipeBuffer *pipe_buffer = serv->pipe_buffers[serv->reactor_num];
 
-    if (serv->recv_packet_from_pipe(reactor, event, pipe_buffer, serv->pipe_packet_buffers) <= 0) {
+    if (serv->recv_pipe_packet(event, pipe_buffer) <= 0) {
         return SW_OK;
     }
 
-    char *_data;
-    size_t _len = serv->get_packet((EventData *) pipe_buffer, &_data);
-    std::string result(_data, _len);
+    auto pkt = serv->get_pipe_packet(pipe_buffer);
+    std::string result(pkt.data, pkt.length);
 
     serv->call_command_callback(pipe_buffer->info.fd, result);
 
     if (pipe_buffer->info.flags & SW_EVENT_DATA_END) {
-        serv->pipe_packet_buffers.erase(pipe_buffer->info.msg_id);
+        serv->release_pipe_packet(&pipe_buffer->info);
     }
 
     return SW_OK;
@@ -740,8 +739,8 @@ Server::Server(enum Mode _mode) {
         swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
 
-    worker_msg_id = 1;
-    worker_buffer_allocator = sw_std_allocator();
+    pipe_packet_msg_id = 1;
+    pipe_buffer_allocator = sw_std_allocator();
 
     g_server_instance = this;
 }
@@ -1433,23 +1432,23 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     return conn->socket->send_blocking(data, length) == length;
 }
 
-size_t Server::get_packet(EventData *req, char **data_ptr) {
-    size_t length;
-    if (req->info.flags & SW_EVENT_DATA_PTR) {
-        PacketPtr *task = (PacketPtr *) req;
-        *data_ptr = task->data.str;
-        length = task->data.length;
-    } else if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
+PipePacket Server::get_pipe_packet(PipeBuffer *pipe_buffer) {
+    PipePacket pkt;
+    if (pipe_buffer->info.flags & SW_EVENT_DATA_PTR) {
+        PacketPtr *task = (PacketPtr *) pipe_buffer;
+        pkt.data = task->data.str;
+        pkt.length = task->data.length;
+    } else if (pipe_buffer->info.flags & SW_EVENT_DATA_OBJ_PTR) {
         String *worker_buffer;
-        memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
-        *data_ptr = worker_buffer->str;
-        length = worker_buffer->length;
+        memcpy(&worker_buffer, pipe_buffer->data, sizeof(worker_buffer));
+        pkt.data = worker_buffer->str;
+        pkt.length = worker_buffer->length;
     } else {
-        *data_ptr = req->data;
-        length = req->info.len;
+        pkt.data = pipe_buffer->data;
+        pkt.length = pipe_buffer->info.len;
     }
 
-    return length;
+    return pkt;
 }
 
 void Server::call_hook(HookType type, void *arg) {

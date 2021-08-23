@@ -219,7 +219,7 @@ static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, vo
 
     struct iovec iov[2];
 
-    uint64_t msg_id = serv->worker_msg_id.fetch_add(1);
+    uint64_t msg_id = serv->pipe_packet_msg_id.fetch_add(1);
     uint32_t max_length = serv->ipc_max_size - sizeof(resp->info);
     resp->info.msg_id = msg_id;
 

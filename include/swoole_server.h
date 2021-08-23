@@ -167,6 +167,23 @@ struct RecvData {
 struct PipeBuffer {
     DataHead info;
     char data[0];
+
+    bool is_begin() {
+        return info.flags & SW_EVENT_DATA_BEGIN;
+    }
+
+    bool is_chunked() {
+        return info.flags & SW_EVENT_DATA_CHUNK;
+    }
+
+    bool is_end() {
+        return info.flags & SW_EVENT_DATA_END;
+    }
+};
+
+struct PipePacket {
+    size_t length;
+    char *data;
 };
 
 struct DgramPacket {
@@ -586,9 +603,6 @@ class Server {
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     /*----------------------------Reactor schedule--------------------------------*/
-    const Allocator *worker_buffer_allocator;
-    std::unordered_map<uint64_t, std::shared_ptr<String>> pipe_packet_buffers;
-    std::atomic<uint64_t> worker_msg_id;
     sw_atomic_t worker_round_id = 0;
 
     /**
@@ -825,7 +839,7 @@ class Server {
     EventData *last_task = nullptr;
     std::queue<String *> *buffer_pool = nullptr;
 
-    const Allocator *buffer_allocator = &SwooleG.std_allocator;
+    const Allocator *recv_buffer_allocator = &SwooleG.std_allocator;
     size_t recv_buffer_size = SW_BUFFER_SIZE_BIG;
 
     int manager_alarm = 0;
@@ -837,6 +851,7 @@ class Server {
 
     void *hooks[SW_MAX_HOOK_TYPE] = {};
 
+    /*----------------------------Event Callback--------------------------------*/
     /**
      * Master Process
      */
@@ -872,30 +887,35 @@ class Server {
      */
     std::function<int(Server *, EventData *)> onTask;
     std::function<int(Server *, EventData *)> onFinish;
+
+    /*----------------------------Pipe Data Packet--------------------------------*/
+    const Allocator *pipe_buffer_allocator;
+    std::unordered_map<uint64_t, std::shared_ptr<String>> pipe_packet_buffers;
+    std::atomic<uint64_t> pipe_packet_msg_id;
     /**
-     * Chunk control
+     * Receive data from pipeline, if only one chunk is received, will be saved in pipe_buffers.
+     * Then continue to listen to readable events, waiting for more chunks.
      */
-    size_t get_packet(EventData *req, char **data_ptr);
-
-    String *get_worker_buffer(DataHead *info) {
-        auto iter = pipe_packet_buffers.find(info->msg_id);
-        if (iter == pipe_packet_buffers.end()) {
-            if (info->flags & SW_EVENT_DATA_BEGIN) {
-                auto buffer = make_string(info->len, worker_buffer_allocator);
-                pipe_packet_buffers.emplace(info->msg_id, std::shared_ptr<String>(buffer));
-                return buffer;
-            }
-            return nullptr;
-        }
-        return iter->second.get();
-    }
-
-    void pop_worker_buffer(DataHead *info) {
+    ssize_t recv_pipe_packet(Event *event, PipeBuffer *pipe_buffer);
+    /**
+     * The last chunk of data has been received, return address and length, start processing this packet.
+     */
+    PipePacket get_pipe_packet(PipeBuffer *pipe_buffer);
+    /**
+     * Pop the data memory address to the outer layer, no longer managed by the pipe_buffers
+     */
+    void pop_pipe_packet(DataHead *info) {
         uint64_t msg_id = info->msg_id;
         auto iter = pipe_packet_buffers.find(msg_id);
         if (iter != pipe_packet_buffers.end()) {
             iter->second.get()->str = nullptr;
         }
+    }
+    /**
+     * The processing of this data packet has been completed, and the relevant memory has been released
+     */
+    void release_pipe_packet(DataHead *info) {
+        pipe_packet_buffers.erase(info->msg_id);
     }
 
     /**
@@ -968,7 +988,7 @@ class Server {
     inline String *get_recv_buffer(swSocket *_socket) {
         String *buffer = _socket->recv_buffer;
         if (buffer == nullptr) {
-            buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, recv_buffer_allocator);
             if (!buffer) {
                 return nullptr;
             }
@@ -1265,10 +1285,6 @@ class Server {
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
     ssize_t send_to_reactor_thread(const DataHead *head, const iovec *iov, size_t iovcnt, SessionId session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
-    ssize_t recv_packet_from_pipe(Reactor *reactor,
-                                  Event *event,
-                                  PipeBuffer *pipe_buffer,
-                                  std::unordered_map<uint64_t, std::shared_ptr<String>> &buffer_map);
 
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
