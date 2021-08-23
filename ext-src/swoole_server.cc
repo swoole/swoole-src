@@ -26,12 +26,6 @@
 #include <zlib.h>
 #endif
 
-BEGIN_EXTERN_C()
-#ifdef SW_USE_JSON
-#include "ext/json/php_json.h"
-#endif
-END_EXTERN_C()
-
 using namespace swoole;
 
 struct ConnectionIterator {
@@ -2682,11 +2676,11 @@ static PHP_METHOD(swoole_server, addCommand) {
 
         if (UNEXPECTED(!zend::function::call(fci_cache, 2, argv, &return_value, false))) {
             php_swoole_fatal_error(E_WARNING, "%s: command handler error", ZSTR_VAL(swoole_server_ce->name));
-            return std::string("ERROR[0]");
+            return std::string("{\"data\": \"failed to call function\", \"code\": -1}");
         }
 
         if (!ZVAL_IS_STRING(&return_value)) {
-            return std::string("ERROR[1]");
+            return std::string("{\"data\": \"wrong return type\", \"code\": -2}");
         }
 
         return std::string(Z_STRVAL(return_value), Z_STRLEN(return_value));
@@ -3459,46 +3453,29 @@ static PHP_METHOD(swoole_server, command) {
 
     std::string msg;
 
-#ifdef SW_USE_JSON
-    smart_str buf = {0};
-    JSON_G(error_code) = PHP_JSON_ERROR_NONE;
-    php_json_encode(&buf, zdata, 0);
-
-    ON_SCOPE_EXIT {
-        smart_str_free(&buf);
-    };
-    if (JSON_G(error_code) != PHP_JSON_ERROR_NONE) {
-        RETURN_FALSE;
-    }
-    smart_str_0(&buf);
-    msg.append(ZSTR_VAL(buf.s), ZSTR_LEN(buf.s));
-#else
     auto result = zend::function::call("json_encode", 1, zdata);
     if (!ZVAL_IS_STRING(&result.value)) {
         RETURN_FALSE;
     }
     msg.append(Z_STRVAL(result.value), Z_STRLEN(result.value));
-#endif
 
     auto co = Coroutine::get_current_safe();
     bool donot_yield = false;
     Server::Command::Callback fn = [co, return_value, json_decode, &donot_yield](Server *serv, const std::string &msg) {
-#ifdef SW_USE_JSON
         if (json_decode) {
-            zend::json_decode(return_value, msg.c_str(), msg.length(), 0, JSON_G(encode_max_depth));
-        } else
-#endif
-        {
             zval argv[2];
             ZVAL_STRINGL(&argv[0], msg.c_str(), msg.length());
             ZVAL_BOOL(&argv[1], true);
-
             auto result = zend::function::call("json_decode", 2, argv);
             if (!zend_is_true(&result.value)) {
                 RETURN_FALSE;
+            } else {
+                ZVAL_DUP(return_value, &result.value);
             }
-            ZVAL_DUP(return_value, &result.value);
+        } else {
+            ZVAL_STRINGL(return_value, msg.c_str(), msg.length());
         }
+
         if (co->is_suspending()) {
             co->resume();
         } else {

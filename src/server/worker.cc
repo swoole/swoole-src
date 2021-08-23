@@ -651,7 +651,7 @@ _read_from_pipe:
 
     String *buffer = nullptr;
 
-    while (0) {
+    SW_LOOP {
         auto iter = buffer_map.find(info->msg_id);
         if (iter == buffer_map.end()) {
             if (info->flags & SW_EVENT_DATA_BEGIN) {
