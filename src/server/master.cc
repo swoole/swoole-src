@@ -144,12 +144,12 @@ int Server::accept_command_result(Reactor *reactor, Event *event) {
         return SW_OK;
     }
 
-    auto pkt = serv->get_pipe_packet(pipe_buffer);
-    std::string result(pkt.data, pkt.length);
+    auto packet = serv->get_pipe_packet(pipe_buffer);
+    std::string result(packet.data, packet.length);
 
     serv->call_command_callback(pipe_buffer->info.fd, result);
 
-    if (pipe_buffer->info.flags & SW_EVENT_DATA_END) {
+    if (pipe_buffer->is_end()) {
         serv->release_pipe_packet(&pipe_buffer->info);
     }
 

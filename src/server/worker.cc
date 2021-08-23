@@ -208,10 +208,10 @@ typedef std::function<int(Server *, RecvData *)> TaskCallback;
 
 static sw_inline void Worker_do_task(Server *serv, Worker *worker, EventData *task, const TaskCallback &callback) {
     RecvData recv_data;
-    auto retval = serv->get_pipe_packet((PipeBuffer *) task);
+    auto packet = serv->get_pipe_packet((PipeBuffer *) task);
     recv_data.info = task->info;
-    recv_data.info.len = retval.length;
-    recv_data.data = retval.data;
+    recv_data.info.len = packet.length;
+    recv_data.data = packet.data;
 
     if (callback(serv, &recv_data) == SW_OK) {
         worker->request_count++;
@@ -260,8 +260,8 @@ int Server::accept_task(EventData *task) {
         if (task->info.len > 0) {
             Connection *conn = get_connection_verify_no_ssl(task->info.fd);
             if (conn) {
-                auto pkt = get_pipe_packet((PipeBuffer *) task);
-                conn->ssl_client_cert = new String(pkt.data, pkt.length);
+                auto packet = get_pipe_packet((PipeBuffer *) task);
+                conn->ssl_client_cert = new String(packet.data, packet.length);
                 conn->ssl_client_cert_pid = SwooleG.pid;
             }
         }
