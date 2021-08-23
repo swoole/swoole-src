@@ -457,16 +457,6 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
     return SW_OK;
 }
 
-ssize_t Server::send_to_worker_from_master(Worker *worker, const iovec *iov, size_t iovcnt) {
-    if (SwooleTG.reactor) {
-        ReactorThread *thread = get_thread(SwooleTG.id);
-        Socket *socket = &thread->pipe_sockets[worker->pipe_master->fd];
-        return swoole_event_writev(socket, iov, iovcnt);
-    } else {
-        return worker->pipe_master->writev_blocking(iov, iovcnt);
-    }
-}
-
 /**
  * [ReactorThread] worker pipe can write.
  */

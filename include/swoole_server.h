@@ -893,8 +893,15 @@ class Server {
     std::unordered_map<uint64_t, std::shared_ptr<String>> pipe_packet_buffers;
     std::atomic<uint64_t> pipe_packet_msg_id;
     /**
+     * Send data to pipe. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
+     * Otherwise send it directly.
+     * @return: send success returns MsgId(must be greater than 0), send failure returns 0.
+     */
+    bool send_pipe_packet(network::Socket *sock, SendData *packet);
+    /**
      * Receive data from pipeline, if only one chunk is received, will be saved in pipe_buffers.
      * Then continue to listen to readable events, waiting for more chunks.
+     * @return: Receive a complete packet and return greater than 0, Otherwise return <=0
      */
     ssize_t recv_pipe_packet(Event *event, PipeBuffer *pipe_buffer);
     /**
@@ -1280,17 +1287,14 @@ class Server {
     static int dispatch_task(Protocol *proto, network::Socket *_socket, const char *data, uint32_t length);
 
     int send_to_connection(SendData *);
-    ssize_t send_to_worker_from_master(Worker *worker, const iovec *iov, size_t iovcnt);
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
-    ssize_t send_to_reactor_thread(const DataHead *head, const iovec *iov, size_t iovcnt, SessionId session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
     bool send(SessionId session_id, const void *data, uint32_t length);
     bool sendfile(SessionId session_id, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool sendwait(SessionId session_id, const void *data, uint32_t length);
     bool close(SessionId session_id, bool reset);
-    bool send_pipe_packet(network::Socket *sock, SendData *packet);
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);
