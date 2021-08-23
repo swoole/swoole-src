@@ -23,7 +23,7 @@ namespace swoole {
 using network::Socket;
 
 ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
-    send_buffer = nullptr;
+
 }
 
 bool ProcessFactory::shutdown() {
@@ -46,19 +46,12 @@ bool ProcessFactory::shutdown() {
 }
 
 ProcessFactory::~ProcessFactory() {
-    if (server_->pipe_buffers) {
-        SW_LOOP_N(server_->reactor_num) {
-            sw_free(server_->pipe_buffers[i]);
-        }
-        sw_free(server_->pipe_buffers);
-    }
+    server_->release_pipe_buffers();
+
     if (server_->stream_socket_file) {
         unlink(server_->stream_socket_file);
         sw_free(server_->stream_socket_file);
         server_->stream_socket->free();
-    }
-    if (send_buffer) {
-        sw_free(send_buffer);
     }
 }
 
@@ -103,13 +96,6 @@ bool ProcessFactory::start() {
     if (server_->create_pipe_buffers() < 0) {
         return false;
     }
-
-    send_buffer = (PipeBuffer *) sw_malloc(server_->ipc_max_size);
-    if (send_buffer == nullptr) {
-        swoole_sys_error("malloc[send_buffer] failed");
-        return false;
-    }
-    sw_memset_zero(send_buffer, sizeof(DataHead));
 
     /**
      * The manager process must be started first, otherwise it will have a thread fork

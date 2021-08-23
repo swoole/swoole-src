@@ -1910,6 +1910,19 @@ int Server::create_pipe_buffers() {
     return SW_OK;
 }
 
+void Server::release_pipe_buffers() {
+    if (pipe_buffers) {
+        uint32_t n_buffer = reactor_num;
+        if (pipe_command) {
+            n_buffer++;
+        }
+        SW_LOOP_N(n_buffer) {
+            sw_free(pipe_buffers[i]);
+        }
+        sw_free(pipe_buffers);
+    }
+}
+
 int Server::get_idle_worker_num() {
     uint32_t i;
     uint32_t idle_worker_num = 0;

@@ -445,7 +445,6 @@ class BaseFactory : public Factory {
 class ProcessFactory : public Factory {
   private:
     std::vector<std::shared_ptr<UnixSocket>> pipes;
-    PipeBuffer *send_buffer;
 
   public:
     ProcessFactory(Server *server);
@@ -1325,6 +1324,7 @@ class Server {
     }
 
     int create_pipe_buffers();
+    void release_pipe_buffers();
     void create_worker(Worker *worker);
     void destroy_worker(Worker *worker);
     void disable_accept();
