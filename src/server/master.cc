@@ -757,7 +757,7 @@ Server::~Server() {
 }
 
 int Server::create() {
-    if (factory) {
+    if (is_created()) {
         return SW_ERR;
     }
 
@@ -989,7 +989,11 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     }
 }
 
-bool Server::command(long process_id, const std::string &name, const std::string &msg, const Command::Callback &fn) {
+bool Server::command(uint16_t process_id,
+                     Command::ProcessType process_type,
+                     const std::string &name,
+                     const std::string &msg,
+                     const Command::Callback &fn) {
     if (!is_master()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "command() can only be used in master process");
         return false;
@@ -1001,39 +1005,47 @@ bool Server::command(long process_id, const std::string &name, const std::string
         return false;
     }
 
-    uint16_t real_process_id = process_id & USHRT_MAX;
     int command_id = iter->second.id;
     int64_t requset_id = command_current_request_id++;
     Socket *pipe_sock;
 
     SendData task{};
     task.info.fd = requset_id;
-    task.info.reactor_id = real_process_id;
+    task.info.reactor_id = process_id;
     task.info.server_fd = command_id;
     task.info.type = SW_SERVER_EVENT_COMMAND;
     task.info.len = msg.length();
     task.data = msg.c_str();
 
-    if (process_id & Command::REACTOR_THREAD) {
+    if (!(process_type & iter->second.accepted_process_types)) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported");
+        return false;
+    }
+
+    if (process_type == Command::REACTOR_THREAD) {
         if (!is_process_mode()) {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "");
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported");
             return false;
         }
-        if (real_process_id >= reactor_num) {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid thread_id[%d]", real_process_id);
+        if (process_id >= reactor_num) {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid thread_id[%d]", process_id);
             return false;
         }
         pipe_sock = get_worker(process_id)->pipe_worker;
-    } else if (process_id & Command::EVENT_WORKER) {
-        if (real_process_id >= worker_num) {
-            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid worker_id[%d]", real_process_id);
+    } else if (process_type == Command::EVENT_WORKER) {
+        if (process_id >= worker_num) {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "invalid worker_id[%d]", process_id);
             return false;
         }
         pipe_sock = get_worker(process_id)->pipe_master;
-    } else if (process_id & Command::MASTER_THREAD) {
-         auto result = call_command_handler_in_master(command_id, msg);
-         fn(this, result);
-         return true;
+    } else if (process_type == Command::MASTER) {
+        if (!(iter->second.accepted_process_types & Command::MASTER)) {
+            swoole_error_log(SW_LOG_ERROR, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported");
+            return false;
+        }
+        auto result = call_command_handler_in_master(command_id, msg);
+        fn(this, result);
+        return true;
     }
 
     if (!send_pipe_packet(pipe_sock, &task)) {
@@ -1500,9 +1512,7 @@ int Server::add_hook(Server::HookType type, const Callback &func, int push_back)
     return swoole::hook_add(hooks, (int) type, func, push_back);
 }
 
-bool Server::add_command(const std::string &name,
-                         int scenarios,
-                         const Command::Handler &func) {
+bool Server::add_command(const std::string &name, int accepted_process_types, const Command::Handler &func) {
     if (is_started()) {
         return false;
     }
@@ -1518,12 +1528,12 @@ bool Server::add_command(const std::string &name,
         pipe_command = _pipe;
     }
     int command_id = command_current_id++;
-    commands.emplace(name,
-                     Command{
-                         command_id,
-                         scenarios,
-                         name,
-                     });
+    Command command{
+        command_id,
+        accepted_process_types,
+        name,
+    };
+    commands.emplace(name, command);
     command_handlers[command_id] = func;
     return true;
 }

@@ -442,9 +442,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_sendMessage, 0, 0, 2)
     ZEND_ARG_INFO(0, dst_worker_id)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_command, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_command, 0, 0, 4)
     ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, dst_worker_id)
+    ZEND_ARG_INFO(0, process_id)
+    ZEND_ARG_INFO(0, process_type)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, json_encode)
 ZEND_END_ARG_INFO()
@@ -455,7 +456,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addCommand, 0, 0, 3)
     ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, scenarios)
+    ZEND_ARG_INFO(0, accepted_process_types)
     ZEND_ARG_CALLABLE_INFO(0, callback, 1)
 ZEND_END_ARG_INFO()
 
@@ -761,7 +762,7 @@ void php_swoole_server_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_MSGQUEUE", Server::TASK_IPC_MSGQUEUE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_PREEMPTIVE", Server::TASK_IPC_PREEMPTIVE);
 
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_SERVER_COMMAND_MASTER_THREAD", Server::Command::MASTER_THREAD);
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_SERVER_COMMAND_MASTER", Server::Command::MASTER);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SERVER_COMMAND_REACTOR_THREAD", Server::Command::REACTOR_THREAD);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SERVER_COMMAND_EVENT_WORKER", Server::Command::EVENT_WORKER);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_SERVER_COMMAND_TASK_WORKER", Server::Command::TASK_WORKER);
@@ -2657,17 +2658,17 @@ static PHP_METHOD(swoole_server, addCommand) {
 
     char *name;
     size_t l_name;
-    zend_long scenarios;
+    zend_long accepted_process_types;
     zend_fcall_info fci;
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ecalloc(1, sizeof(zend_fcall_info_cache));
 
     ZEND_PARSE_PARAMETERS_START(3, 3)
     Z_PARAM_STRING(name, l_name)
-    Z_PARAM_LONG(scenarios)
+    Z_PARAM_LONG(accepted_process_types)
     Z_PARAM_FUNC(fci, *fci_cache)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    if (scenarios & Server::Command::REACTOR_THREAD) {
+    if (accepted_process_types & Server::Command::REACTOR_THREAD) {
         php_swoole_fatal_error(E_WARNING, "only support worker/task_worker process");
         RETURN_FALSE;
     }
@@ -2691,7 +2692,7 @@ static PHP_METHOD(swoole_server, addCommand) {
         return std::string(Z_STRVAL(return_value), Z_STRLEN(return_value));
     };
 
-    if (!serv->add_command(std::string(name, l_name), scenarios, fn)) {
+    if (!serv->add_command(std::string(name, l_name), accepted_process_types, fn)) {
         RETURN_FALSE;
     }
 
@@ -3437,7 +3438,7 @@ static PHP_METHOD(swoole_server, task) {
 static PHP_METHOD(swoole_server, command) {
     char *name;
     size_t l_name;
-    zend_long process_id;
+    zend_long process_id, process_type;
     zval *zdata;
     zend_bool json_decode = true;
 
@@ -3447,9 +3448,10 @@ static PHP_METHOD(swoole_server, command) {
         RETURN_FALSE;
     }
 
-    ZEND_PARSE_PARAMETERS_START(3, 4)
+    ZEND_PARSE_PARAMETERS_START(4, 5)
     Z_PARAM_STRING(name, l_name)
     Z_PARAM_LONG(process_id)
+    Z_PARAM_LONG(process_type)
     Z_PARAM_ZVAL(zdata)
     Z_PARAM_OPTIONAL
     Z_PARAM_BOOL(json_decode)
@@ -3504,7 +3506,8 @@ static PHP_METHOD(swoole_server, command) {
         }
     };
 
-    if (!serv->command(process_id, std::string(name, l_name), msg, fn)) {
+    if (!serv->command(
+            (uint16_t) process_id, (Server::Command::ProcessType) process_type, std::string(name, l_name), msg, fn)) {
         RETURN_FALSE;
     }
     if (!donot_yield) {

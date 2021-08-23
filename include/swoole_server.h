@@ -478,14 +478,14 @@ class Server {
     struct Command {
         typedef std::function<void(Server *, const std::string &msg)> Callback;
         typedef std::function<std::string(Server *, const std::string &msg)> Handler;
-        enum ProcessFlag {
-            MASTER_THREAD = 1u << 20,
+        enum ProcessType {
+            MASTER = 1u << 20,
             REACTOR_THREAD = 1u << 17,
             EVENT_WORKER = 1u << 18,
             TASK_WORKER = 1u << 19,
         };
         int id;
-        int scenarios;
+        int accepted_process_types;
         std::string name;
     };
 
@@ -935,9 +935,7 @@ class Server {
     ListenPort *add_port(SocketType type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
-    bool add_command(const std::string &command,
-                     int scenarios,
-                     const Command::Handler &func);
+    bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
@@ -1103,6 +1101,10 @@ class Server {
 
     inline bool is_started() {
         return gs->start;
+    }
+
+    bool is_created() {
+        return factory != nullptr;
     }
 
     bool is_master() {
@@ -1276,7 +1278,11 @@ class Server {
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);
-    bool command(long process_id, const std::string &name, const std::string &msg, const Command::Callback &fn);
+    bool command(uint16_t process_id,
+                 Command::ProcessType process_type,
+                 const std::string &name,
+                 const std::string &msg,
+                 const Command::Callback &fn);
 
     void init_reactor(Reactor *reactor);
     void init_worker(Worker *worker);

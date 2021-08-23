@@ -182,7 +182,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
 }
 
 bool Reactor::if_exit() {
-    int _event_num = event_num;
+    int _event_num = get_event_num();
     for (auto &kv : exit_conditions) {
         if (kv.second(this, _event_num) == false) {
             return false;

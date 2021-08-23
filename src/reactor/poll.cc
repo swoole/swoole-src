@@ -66,8 +66,8 @@ int ReactorPoll::add(Socket *socket, int events) {
         return SW_ERR;
     }
 
-    int cur = reactor_->event_num;
-    if (reactor_->event_num == max_fd_num) {
+    int cur = reactor_->get_event_num();
+    if (reactor_->get_event_num() == max_fd_num) {
         swoole_warning("too many connection, more than %d", max_fd_num);
         return SW_ERR;
     }
@@ -98,7 +98,7 @@ int ReactorPoll::set(Socket *socket, int events) {
 
     swoole_trace("fd=%d, events=%d", socket->fd, events);
 
-    for (i = 0; i < reactor_->event_num; i++) {
+    for (i = 0; i < reactor_->get_event_num(); i++) {
         // found
         if (events_[i].fd == socket->fd) {
             events_[i].events = 0;
@@ -126,10 +126,10 @@ int ReactorPoll::del(Socket *socket) {
         return SW_ERR;
     }
 
-    for (uint32_t i = 0; i < reactor_->event_num; i++) {
+    for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
         if (events_[i].fd == socket->fd) {
-            for (; i < reactor_->event_num; i++) {
-                if (i == reactor_->event_num) {
+            for (; i < reactor_->get_event_num(); i++) {
+                if (i == reactor_->get_event_num()) {
                     fds_[i] = nullptr;
                     events_[i].fd = 0;
                     events_[i].events = 0;
@@ -166,7 +166,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
         if (reactor_->onBegin != nullptr) {
             reactor_->onBegin(reactor_);
         }
-        ret = poll(events_, reactor_->event_num, reactor_->get_timeout_msec());
+        ret = poll(events_, reactor_->get_event_num(), reactor_->get_timeout_msec());
         if (ret < 0) {
             if (!reactor_->catch_error()) {
                 swoole_sys_warning("poll error");
@@ -178,7 +178,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
             reactor_->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         } else {
-            for (uint32_t i = 0; i < reactor_->event_num; i++) {
+            for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
                 event.socket = fds_[i];
                 event.fd = events_[i].fd;
                 event.reactor_id = reactor_->id;
@@ -230,7 +230,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
 }
 
 bool ReactorPoll::exists(int fd) {
-    for (uint32_t i = 0; i < reactor_->event_num; i++) {
+    for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
         if (events_[i].fd == fd) {
             return true;
         }
