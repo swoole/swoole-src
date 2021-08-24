@@ -462,6 +462,7 @@ enum ServerEventType {
     SW_SERVER_EVENT_RECV_DATA,
     SW_SERVER_EVENT_RECV_DGRAM,
     // send data
+    SW_SERVER_EVENT_SEND_DATA,
     SW_SERVER_EVENT_SEND_FILE,
     // connection event
     SW_SERVER_EVENT_CLOSE,
@@ -472,9 +473,6 @@ enum ServerEventType {
     SW_SERVER_EVENT_FINISH,
     // pipe
     SW_SERVER_EVENT_PIPE_MESSAGE,
-    // proxy
-    SW_SERVER_EVENT_PROXY_START,
-    SW_SERVER_EVENT_PROXY_END,
     // event operate
     SW_SERVER_EVENT_PAUSE_RECV,
     SW_SERVER_EVENT_RESUME_RECV,
@@ -1186,6 +1184,8 @@ class Server {
     static int is_stream_event(uint8_t type) {
         switch (type) {
         case SW_SERVER_EVENT_RECV_DATA:
+        case SW_SERVER_EVENT_SEND_DATA:
+        case SW_SERVER_EVENT_SEND_FILE:
         case SW_SERVER_EVENT_CONNECT:
         case SW_SERVER_EVENT_CLOSE:
         case SW_SERVER_EVENT_PAUSE_RECV:

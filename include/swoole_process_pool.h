@@ -27,13 +27,13 @@
 #include "swoole_channel.h"
 #include "swoole_msg_queue.h"
 
-enum swWorker_status {
+enum swWorkerStatus {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
     SW_WORKER_EXIT = 3,
 };
 
-enum swIPC_type {
+enum swIPCMode {
     SW_IPC_NONE = 0,
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
@@ -90,7 +90,6 @@ struct WorkerGlobal {
     bool run_always;
     bool shutdown;
     uint32_t max_request;
-    String **output_buffer;
     Worker *worker;
     time_t exit_time;
     uint32_t worker_concurrency = 0;
@@ -151,7 +150,7 @@ struct Worker {
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
 
-    void set_status(enum swWorker_status _status) {
+    void set_status(enum swWorkerStatus _status) {
         status = _status;
     }
 
@@ -288,7 +287,7 @@ struct ProcessPool {
     int add_worker(Worker *worker);
     int del_worker(Worker *worker);
     void destroy();
-    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPC_type ipc_mode = SW_IPC_NONE);
+    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
     int schedule();

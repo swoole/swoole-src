@@ -98,14 +98,16 @@ bool BaseFactory::end(SessionId session_id, int flags) {
 
     Session *session = server_->get_session(session_id);
     if (!session->fd) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST,
-                            "failed to close connection, session#%ld does not exist", session_id);
+        swoole_error_log(SW_LOG_NOTICE,
+                         SW_ERROR_SESSION_NOT_EXIST,
+                         "failed to close connection, session#%ld does not exist",
+                         session_id);
         return false;
     }
 
     if (session->reactor_id != SwooleG.process_id) {
         Worker *worker = server_->get_worker(session->reactor_id);
-        if (worker->pipe_master->send_async((const char*) &_send.info, sizeof(_send.info)) < 0) {
+        if (worker->pipe_master->send_async((const char *) &_send.info, sizeof(_send.info)) < 0) {
             swoole_sys_warning("failed to send %lu bytes to pipe_master", sizeof(_send.info));
             return false;
         }
@@ -116,7 +118,7 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     if (conn == nullptr) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
         return false;
-    } 
+    }
     // Reset send buffer, Immediately close the connection.
     if (flags & Server::CLOSE_RESET) {
         conn->close_reset = 1;
@@ -176,36 +178,18 @@ bool BaseFactory::finish(SendData *data) {
         Worker *worker = server_->gs->event_workers.get_worker(session->reactor_id);
         EventData proxy_msg{};
 
-        if (data->info.type == SW_SERVER_EVENT_RECV_DATA) {
-            proxy_msg.info.fd = session_id;
-            proxy_msg.info.reactor_id = SwooleG.process_id;
-            proxy_msg.info.type = SW_SERVER_EVENT_PROXY_START;
-
-            size_t send_n = data->info.len;
-            size_t offset = 0;
-
-            while (send_n > 0) {
-                if (send_n > SW_IPC_BUFFER_SIZE) {
-                    proxy_msg.info.len = SW_IPC_BUFFER_SIZE;
-                } else {
-                    proxy_msg.info.type = SW_SERVER_EVENT_PROXY_END;
-                    proxy_msg.info.len = send_n;
-                }
-                memcpy(proxy_msg.data, data->data + offset, proxy_msg.info.len);
-                send_n -= proxy_msg.info.len;
-                offset += proxy_msg.info.len;
-                size_t __len =  sizeof(proxy_msg.info) + proxy_msg.info.len;
-                if (worker->pipe_master->send_async((const char*) &proxy_msg, __len) < 0) {
-                    swoole_sys_warning("failed to send %lu bytes to pipe_master", __len);
-                    return false;
-                }
+        if (data->info.type == SW_SERVER_EVENT_SEND_DATA) {
+            if (!server_->send_pipe_packet(worker->pipe_master, data)) {
+                swoole_sys_warning("failed to send %u bytes to pipe_master", data->info.len);
+                return false;
             }
-            swoole_trace("proxy message, fd=%d, len=%ld", worker->pipe_master->fd, sizeof(proxy_msg.info) + proxy_msg.info.len);
+            swoole_trace(
+                "proxy message, fd=%d, len=%ld", worker->pipe_master->fd, sizeof(proxy_msg.info) + proxy_msg.info.len);
         } else if (data->info.type == SW_SERVER_EVENT_SEND_FILE) {
             memcpy(&proxy_msg.info, &data->info, sizeof(proxy_msg.info));
             memcpy(proxy_msg.data, data->data, data->info.len);
-            size_t __len =  sizeof(proxy_msg.info) + proxy_msg.info.len;
-            return worker->pipe_master->send_async((const char*) &proxy_msg, __len);
+            size_t __len = sizeof(proxy_msg.info) + proxy_msg.info.len;
+            return worker->pipe_master->send_async((const char *) &proxy_msg, __len);
         } else {
             swoole_warning("unkown event type[%d]", data->info.type);
             return false;

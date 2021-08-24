@@ -477,7 +477,7 @@ void Server::store_listen_socket() {
  */
 int Server::create_task_workers() {
     key_t key = 0;
-    swIPC_type ipc_mode;
+    swIPCMode ipc_mode;
 
     if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
         key = message_queue_key;
@@ -639,8 +639,7 @@ int Server::start() {
     gs->event_workers.worker_num = worker_num;
     gs->event_workers.use_msgqueue = 0;
 
-    uint32_t i;
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
         gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
@@ -667,7 +666,7 @@ int Server::start() {
     }
 
     if (!user_worker_list.empty()) {
-        i = 0;
+        uint32_t i = 0;
         for (auto worker : user_worker_list) {
             worker->id = worker_num + task_worker_num + i;
             i++;
@@ -831,6 +830,8 @@ int Server::create() {
         return SW_ERR;
     }
 
+    release_pipe_buffers();
+
     int retval;
     if (is_base_mode()) {
         factory = new BaseFactory(this);
@@ -993,15 +994,22 @@ bool Server::command(uint16_t process_id,
                      const std::string &name,
                      const std::string &msg,
                      const Command::Callback &fn) {
-    if (!is_master()) {
-        swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "command() can only be used in master process");
-        return false;
-    }
-
     auto iter = commands.find(name);
     if (iter == commands.end()) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%s]", name.c_str());
         return false;
+    }
+
+    if (is_process_mode() && !is_master()) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "command() can only be used in master process");
+        return false;
+    } else if (is_base_mode() && SwooleWG.worker->id != 0) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_INVALID_PARAMS, "command() can only be used in worker process 0");
+        return false;
+    }
+
+    if (is_base_mode() && process_type == Command::EVENT_WORKER && process_id == 0) {
+        process_type = Command::MASTER;
     }
 
     int command_id = iter->second.id;
@@ -1077,7 +1085,7 @@ void Server::store_pipe_fd(UnixSocket *p) {
 bool Server::send(SessionId session_id, const void *data, uint32_t length) {
     SendData _send{};
     _send.info.fd = session_id;
-    _send.info.type = SW_SERVER_EVENT_RECV_DATA;
+    _send.info.type = SW_SERVER_EVENT_SEND_DATA;
     _send.data = (char *) data;
     _send.info.len = length;
     return factory->finish(&_send);
@@ -1178,7 +1186,7 @@ int Server::send_to_connection(SendData *_send) {
         conn = get_connection_verify_no_ssl(session_id);
     }
     if (!conn) {
-        if (_send->info.type == SW_SERVER_EVENT_RECV_DATA) {
+        if (_send->info.type == SW_SERVER_EVENT_SEND_DATA) {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
                              "send %d byte failed, session#%ld does not exist",
@@ -1887,7 +1895,7 @@ void Server::set_ipc_max_size() {
  * allocate memory for Server::pipe_buffers
  */
 int Server::create_pipe_buffers() {
-    uint32_t n_buffer = reactor_num;
+    uint32_t n_buffer = is_base_mode() ? 1 : reactor_num;
     if (pipe_command) {
         n_buffer++;
     }
