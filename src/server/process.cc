@@ -22,9 +22,7 @@ namespace swoole {
 
 using network::Socket;
 
-ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
-
-}
+ProcessFactory::ProcessFactory(Server *server) : Factory(server) {}
 
 bool ProcessFactory::shutdown() {
     int status;
@@ -46,8 +44,6 @@ bool ProcessFactory::shutdown() {
 }
 
 ProcessFactory::~ProcessFactory() {
-    server_->release_pipe_buffers();
-
     if (server_->stream_socket_file) {
         unlink(server_->stream_socket_file);
         sw_free(server_->stream_socket_file);
@@ -92,7 +88,7 @@ bool ProcessFactory::start() {
         server_->store_pipe_fd(server_->workers[i].pipe_object);
     }
 
-    server_->set_ipc_max_size();
+    server_->init_ipc_max_size();
     if (server_->create_pipe_buffers() < 0) {
         return false;
     }
@@ -165,95 +161,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
 
-    return server_->send_pipe_packet(&server_->get_thread(SwooleTG.id)->pipe_sockets[worker->pipe_master->fd], &_task);
-}
-
-bool Server::send_pipe_packet(Socket *sock, SendData *resp) {
-    const char *data = resp->data;
-    uint32_t l_payload = resp->info.len;
-    off_t offset = 0;
-    uint32_t copy_n;
-
-    struct iovec iov[2];
-
-    uint64_t msg_id = pipe_packet_msg_id.fetch_add(1);
-    uint32_t max_length = ipc_max_size - sizeof(resp->info);
-    resp->info.msg_id = msg_id;
-
-    auto send_fn = [](Socket *sock, const iovec *iov, size_t iovcnt) {
-        if (swoole_event_is_available()) {
-            return swoole_event_writev(sock, iov, iovcnt);
-        } else {
-            return sock->writev_blocking(iov, iovcnt);
-        }
-    };
-
-    if (l_payload <= max_length) {
-        resp->info.flags = 0;
-        resp->info.len = l_payload;
-
-        size_t iovcnt;
-        iov[0].iov_base = &resp->info;
-        iov[0].iov_len = sizeof(resp->info);
-
-        if (resp->data && l_payload > 0) {
-            iov[1].iov_base = (void *) resp->data;
-            iov[1].iov_len = l_payload;
-            iovcnt = 2;
-        } else {
-            iovcnt = 1;
-        }
-
-        ssize_t retval = send_fn(sock, iov, iovcnt);
-#ifdef __linux__
-        if (retval < 0 && errno == ENOBUFS) {
-            max_length = SW_IPC_BUFFER_SIZE;
-            goto _ipc_use_chunk;
-        }
-#endif
-        return retval >= 0;
-    }
-
-#ifdef __linux__
-_ipc_use_chunk:
-#endif
-    resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
-    resp->info.len = l_payload;
-
-    while (l_payload > 0) {
-        if (l_payload > max_length) {
-            copy_n = max_length;
-        } else {
-            resp->info.flags |= SW_EVENT_DATA_END;
-            copy_n = l_payload;
-        }
-
-        iov[0].iov_base = &resp->info;
-        iov[0].iov_len = sizeof(resp->info);
-        iov[1].iov_base = (void *) (data + offset);
-        iov[1].iov_len = copy_n;
-
-        swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
-
-        if (send_fn(sock, iov, 2) < 0) {
-#ifdef __linux__
-            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
-                max_length = SW_IPC_BUFFER_SIZE;
-                continue;
-            }
-#endif
-            return false;
-        }
-
-        if (resp->info.flags & SW_EVENT_DATA_BEGIN) {
-            resp->info.flags &= ~SW_EVENT_DATA_BEGIN;
-        }
-
-        l_payload -= copy_n;
-        offset += copy_n;
-    }
-
-    return true;
+    return server_->message_bus.write(server_->get_worker_pipe_socket(worker), &_task);
 }
 
 static bool inline process_is_supported_send_yield(Server *serv, Connection *conn) {
@@ -336,7 +244,7 @@ bool ProcessFactory::finish(SendData *resp) {
 
     swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
-    return server_->send_pipe_packet(server_->get_reactor_thread_pipe(session_id, task.info.reactor_id), &task);
+    return server_->message_bus.write(server_->get_reactor_pipe_socket(session_id, task.info.reactor_id), &task);
 }
 
 bool ProcessFactory::end(SessionId session_id, int flags) {
@@ -421,104 +329,6 @@ _close:
         conn->close_errno = 0;
         return finish(&_send);
     }
-}
-
-ssize_t Server::recv_pipe_packet(Event *event, PipeBuffer *pipe_buffer) {
-    ssize_t recv_n = 0;
-    int recv_chunk_count = 0;
-    DataHead *info = &pipe_buffer->info;
-    struct iovec buffers[2];
-
-_read_from_pipe:
-    recv_n = recv(event->fd, info, sizeof(pipe_buffer->info), MSG_PEEK);
-    if (recv_n < 0) {
-        if (event->socket->catch_error(errno) == SW_WAIT) {
-            return SW_OK;
-        }
-        return SW_ERR;
-    } else if (recv_n == 0) {
-        swoole_warning("receive pipeline data error, pipe_fd=%d, reactor_id=%d", event->fd, info->reactor_id);
-        return SW_ERR;
-    }
-
-    if (!pipe_buffer->is_chunked()) {
-        return event->socket->read(pipe_buffer, ipc_max_size);
-    }
-
-    String *packet_buffer = nullptr;
-
-    SW_LOOP {
-        auto iter = pipe_packet_buffers.find(info->msg_id);
-        if (iter == pipe_packet_buffers.end()) {
-            if (pipe_buffer->is_begin()) {
-                packet_buffer = make_string(info->len, pipe_buffer_allocator);
-                pipe_packet_buffers.emplace(info->msg_id, std::shared_ptr<String>(packet_buffer));
-            }
-            break;
-        }
-        packet_buffer = iter->second.get();
-        break;
-    }
-
-    if (packet_buffer == nullptr) {
-        swoole_error_log(SW_LOG_WARNING,
-                         SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
-                         "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
-                         info->msg_id,
-                         event->fd,
-                         info->reactor_id);
-        return SW_OK;
-    }
-    size_t remain_len = pipe_buffer->info.len - packet_buffer->length;
-
-    buffers[0].iov_base = info;
-    buffers[0].iov_len = sizeof(pipe_buffer->info);
-    buffers[1].iov_base = packet_buffer->str + packet_buffer->length;
-    buffers[1].iov_len = SW_MIN(ipc_max_size - sizeof(pipe_buffer->info), remain_len);
-
-    recv_n = readv(event->fd, buffers, 2);
-    if (recv_n == 0) {
-        swoole_warning("receive pipeline data error, pipe_fd=%d, reactor_id=%d", event->fd, info->reactor_id);
-        return SW_ERR;
-    }
-    if (recv_n < 0 && event->socket->catch_error(errno) == SW_WAIT) {
-        return SW_OK;
-    }
-    if (recv_n > 0) {
-        packet_buffer->length += (recv_n - sizeof(pipe_buffer->info));
-        swoole_trace("append msgid=%ld, buffer=%p, n=%ld", pipe_buffer->info.msg_id, worker_buffer, recv_n);
-    }
-
-    recv_chunk_count++;
-
-    if (!pipe_buffer->is_end()) {
-        /**
-         * if the reactor thread sends too many chunks to the worker process,
-         * the worker process may receive chunks all the time,
-         * resulting in the worker process being unable to handle other tasks.
-         * in order to make the worker process handle tasks fairly,
-         * the maximum number of consecutive chunks received by the worker is limited.
-         */
-        if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT) {
-            swoole_trace_log(SW_TRACE_WORKER,
-                             "worker process[%u] receives the chunk data to the maximum[%d], return to event loop",
-                             SwooleG.process_id,
-                             recv_chunk_count);
-            return SW_OK;
-        }
-        goto _read_from_pipe;
-    } else {
-        /**
-         * Because we don't want to split the EventData parameters into DataHead and data,
-         * we store the value of the worker_buffer pointer in EventData.data.
-         * The value of this pointer will be fetched in the Server::get_pipe_packet() function.
-         */
-        pipe_buffer->info.flags |= SW_EVENT_DATA_OBJ_PTR;
-        memcpy(pipe_buffer->data, &packet_buffer, sizeof(packet_buffer));
-        swoole_trace("msg_id=%ld, len=%u", pipe_buffer->info.msg_id, pipe_buffer->info.len);
-    }
-
-    return recv_n;
 }
 
 }  // namespace swoole

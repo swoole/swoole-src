@@ -28,7 +28,6 @@ bool BaseFactory::shutdown() {
 }
 
 bool BaseFactory::dispatch(SendData *task) {
-    PacketPtr pkg{};
     Connection *conn = nullptr;
 
     if (Server::is_stream_event(task->info.type)) {
@@ -46,25 +45,19 @@ bool BaseFactory::dispatch(SendData *task) {
         task->info.fd = conn->session_id;
         task->info.server_fd = conn->server_fd;
     }
-    // with data
-    if (task->info.len > 0) {
-        memcpy(&pkg.info, &task->info, sizeof(pkg.info));
-        pkg.info.flags = SW_EVENT_DATA_PTR;
-        pkg.data.length = task->info.len;
-        pkg.data.str = (char *) task->data;
 
+    if (task->info.len > 0) {
         if (conn && conn->socket->recv_buffer && task->data == conn->socket->recv_buffer->str &&
             conn->socket->recv_buffer->offset > 0 &&
             conn->socket->recv_buffer->length == (size_t) conn->socket->recv_buffer->offset) {
-            pkg.info.flags |= SW_EVENT_DATA_POP_PTR;
+            task->info.flags |= SW_EVENT_DATA_POP_PTR;
         }
+    }
 
-        return server_->accept_task((EventData *) &pkg) == SW_OK;
-    }
-    // no data
-    else {
-        return server_->accept_task((EventData *) &task->info) == SW_OK;
-    }
+    server_->message_bus.pass(task);
+    server_->worker_accept_event(&server_->message_bus.get_buffer()->info);
+
+    return true;
 }
 
 /**
@@ -86,7 +79,9 @@ bool BaseFactory::notify(DataHead *info) {
     info->server_fd = conn->server_fd;
     info->flags = SW_EVENT_DATA_NORMAL;
 
-    return server_->accept_task((EventData *) info) == SW_OK;
+    server_->worker_accept_event(info);
+
+    return true;
 }
 
 bool BaseFactory::end(SessionId session_id, int flags) {
@@ -179,7 +174,7 @@ bool BaseFactory::finish(SendData *data) {
         EventData proxy_msg{};
 
         if (data->info.type == SW_SERVER_EVENT_SEND_DATA) {
-            if (!server_->send_pipe_packet(worker->pipe_master, data)) {
+            if (!server_->message_bus.write(worker->pipe_master, data)) {
                 swoole_sys_warning("failed to send %u bytes to pipe_master", data->info.len);
                 return false;
             }

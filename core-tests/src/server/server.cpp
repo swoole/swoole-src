@@ -27,19 +27,6 @@
 using namespace std;
 using namespace swoole;
 
-TEST(server, create_pipe_buffers) {
-    int ret;
-    Server serv(Server::MODE_PROCESS);
-    serv.create();
-
-    ret = serv.create_pipe_buffers();
-    ASSERT_EQ(0, ret);
-    ASSERT_NE(nullptr, serv.pipe_buffers);
-    for (uint32_t i = 0; i < serv.reactor_num; i++) {
-        ASSERT_NE(nullptr, serv.pipe_buffers[i]);
-    }
-}
-
 TEST(server, schedule) {
     int ret;
     Server serv(Server::MODE_PROCESS);
@@ -436,7 +423,7 @@ TEST(server, command) {
 
     ASSERT_EQ(serv.create(), SW_OK);
 
-    serv.add_command("test", "", [](Server *, const std::string &msg) -> std::string {
+    serv.add_command("test", Server::Command::ALL_PROCESS, [](Server *, const std::string &msg) -> std::string {
         printf("command handler: msg=%s, len=%ld\n", msg.c_str(), msg.length());
         return "json result";
     });
@@ -446,8 +433,8 @@ TEST(server, command) {
             printf("command result: msg=%s, len=%ld\n", msg.c_str(), msg.length());
         };
 
-        serv->command(1, true, "test", "hello world [1]", fn);
-        serv->command(1, false, "test", "hello world [2]", fn);
+        serv->command(1, Server::Command::REACTOR_THREAD, "test", "hello world [1]", fn);
+        serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);
     };
 
     serv.onWorkerStart = [](Server *serv, int worker_id) {

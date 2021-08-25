@@ -100,7 +100,7 @@ int Server::start_reactor_processes() {
         gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
     }
 
-    set_ipc_max_size();
+    init_ipc_max_size();
     if (create_pipe_buffers() < 0) {
         return SW_ERR;
     }
@@ -182,56 +182,65 @@ int Server::start_reactor_processes() {
 }
 
 static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
-    EventData task;
     SendData _send;
     Server *serv = (Server *) reactor->ptr;
     Factory *factory = serv->factory;
-    PipeBuffer *pipe_buffer = serv->pipe_buffers[0];
+    PipeBuffer *pipe_buffer = serv->message_bus.get_buffer();
 
-    ssize_t retval = serv->recv_pipe_packet(event, pipe_buffer);
+    ssize_t retval = serv->message_bus.read(event->socket);
     if (retval <= 0) {
-        return SW_OK;
-    } else if ((size_t) retval != task.info.len + sizeof(_send.info)) {
-        swoole_warning("bad pipeline data");
         return SW_OK;
     }
 
-    switch (task.info.type) {
-    case SW_SERVER_EVENT_PIPE_MESSAGE:
-        serv->onPipeMessage(serv, &task);
+    switch (pipe_buffer->info.type) {
+    case SW_SERVER_EVENT_PIPE_MESSAGE: {
+        serv->onPipeMessage(serv, (EventData *) pipe_buffer);
         break;
-    case SW_SERVER_EVENT_FINISH:
-        serv->onFinish(serv, &task);
+    }
+    case SW_SERVER_EVENT_FINISH: {
+        serv->onFinish(serv, (EventData *) pipe_buffer);
         break;
+    }
     case SW_SERVER_EVENT_SEND_FILE: {
-        _send.info = task.info;
-        _send.data = task.data;
+        _send.info = pipe_buffer->info;
+        _send.data = pipe_buffer->data;
         factory->finish(&_send);
         break;
     }
     case SW_SERVER_EVENT_SEND_DATA: {
-        if (task.info.reactor_id < 0 || task.info.reactor_id >= (int16_t) serv->get_all_worker_num()) {
-            swoole_warning("invalid worker_id=%d", task.info.reactor_id);
+        if (pipe_buffer->info.reactor_id < 0 || pipe_buffer->info.reactor_id >= (int16_t) serv->get_all_worker_num()) {
+            swoole_warning("invalid worker_id=%d", pipe_buffer->info.reactor_id);
             return SW_OK;
         }
-        auto packet = serv->get_pipe_packet(pipe_buffer);
-        memcpy(&_send.info, &task.info, sizeof(_send.info));
+        auto packet = serv->message_bus.get_packet();
+        memcpy(&_send.info, &pipe_buffer->info, sizeof(_send.info));
         _send.info.type = SW_SERVER_EVENT_RECV_DATA;
         _send.data = packet.data;
         _send.info.len = packet.length;
         factory->finish(&_send);
-        if (pipe_buffer->is_end()) {
-            serv->release_pipe_packet(&pipe_buffer->info);
-        }
         break;
     }
     case SW_SERVER_EVENT_CLOSE: {
-        factory->end(task.info.fd, Server::CLOSE_ACTIVELY);
+        factory->end(pipe_buffer->info.fd, Server::CLOSE_ACTIVELY);
+        break;
+    }
+    case SW_SERVER_EVENT_COMMAND: {
+        WorkerId worker_id = SwooleWG.worker->id;
+        if (worker_id == 0) {
+            int64_t request_id = pipe_buffer->info.fd;
+            auto packet = serv->message_bus.get_packet();
+            serv->call_command_callback(request_id, std::string(packet.data, packet.length));
+        } else {
+            serv->call_command_handler(serv->message_bus, worker_id, serv->get_worker(0)->pipe_master);
+        }
         break;
     }
     default:
         break;
     }
+
+    serv->message_bus.pop();
+
     return SW_OK;
 }
 
