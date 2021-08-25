@@ -749,8 +749,8 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
     reactor->max_socket = serv->get_max_connection();
     reactor->close = Server::close_connection;
 
-    reactor->set_exit_condition(Reactor::EXIT_CONDITION_DEFAULT, [this](Reactor *reactor, int &event_num) -> bool {
-        return event_num == (int) pipe_num;
+    reactor->set_exit_condition(Reactor::EXIT_CONDITION_DEFAULT, [this](Reactor *reactor, size_t &event_num) -> bool {
+        return event_num == (size_t) pipe_num;
     });
 
     reactor->default_error_handler = ReactorThread_onClose;

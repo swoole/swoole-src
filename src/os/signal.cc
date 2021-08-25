@@ -267,7 +267,7 @@ bool swoole_signalfd_setup(Reactor *reactor) {
     }
     if (!swoole_event_isset_handler(SW_FD_SIGNAL)) {
         swoole_event_set_handler(SW_FD_SIGNAL, swoole_signalfd_event_callback);
-        reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, int &event_num) -> bool {
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNALFD, [](Reactor *reactor, size_t &event_num) -> bool {
             event_num--;
             return true;
         });

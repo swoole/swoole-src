@@ -124,7 +124,7 @@ Reactor::Reactor(int max_event, Type _type) {
     });
 
     set_exit_condition(Reactor::EXIT_CONDITION_DEFER_TASK,
-                       [](Reactor *reactor, int &event_num) -> bool { return reactor->defer_tasks == nullptr; });
+                       [](Reactor *reactor, size_t &event_num) -> bool { return reactor->defer_tasks == nullptr; });
 
     set_end_callback(Reactor::PRIORITY_IDLE_TASK, [](Reactor *reactor) {
         if (reactor->idle_task.callback) {
@@ -156,7 +156,7 @@ Reactor::Reactor(int max_event, Type _type) {
 #endif
 
     set_exit_condition(Reactor::EXIT_CONDITION_DEFAULT,
-                       [](Reactor *reactor, int &event_num) -> bool { return event_num == 0; });
+                       [](Reactor *reactor, size_t &event_num) -> bool { return event_num == 0; });
 }
 
 bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
@@ -182,7 +182,7 @@ bool Reactor::set_handler(int _fdtype, ReactorHandler handler) {
 }
 
 bool Reactor::if_exit() {
-    int _event_num = get_event_num();
+    size_t _event_num = get_event_num();
     for (auto &kv : exit_conditions) {
         if (kv.second(this, _event_num) == false) {
             return false;
@@ -383,7 +383,7 @@ void Reactor::set_end_callback(enum EndCallback id, const std::function<void(Rea
     end_callbacks[id] = fn;
 }
 
-void Reactor::set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, int &)> &fn) {
+void Reactor::set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn) {
     exit_conditions[id] = fn;
 }
 

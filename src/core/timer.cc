@@ -77,7 +77,7 @@ bool Timer::init_reactor(Reactor *reactor) {
     reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(); });
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
-                                [this](Reactor *reactor, int &event_num) -> bool { return count() == 0; });
+                                [this](Reactor *reactor, size_t &event_num) -> bool { return count() == 0; });
 
     reactor->add_destroy_callback([](void *) {
         if (swoole_timer_is_available()) {

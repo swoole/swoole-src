@@ -587,11 +587,11 @@ void Server::kill_event_workers() {
         return;
     }
 
-    for (uint32_t i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         swoole_trace("[Manager]kill worker processor");
         swoole_kill(workers[i].pid, SIGTERM);
     }
-    for (uint32_t i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         if (swoole_waitpid(workers[i].pid, &status, 0) < 0) {
             swoole_sys_warning("waitpid(%d) failed", workers[i].pid);
         }

@@ -880,6 +880,9 @@ void Server::shutdown() {
             }
             reactor->del(port->socket);
         }
+        if (pipe_command) {
+            reactor->del(pipe_command->get_socket(true));
+        }
         clear_timer();
     }
 
