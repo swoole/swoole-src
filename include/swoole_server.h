@@ -277,7 +277,7 @@ class MessageBus {
         return buffer_;
     }
     /**
-     * Pop the data memory address to the outer layer, no longer managed by the pipe_buffers
+     * Pop the data memory address to the outer layer, no longer managed by MessageBus
      */
     char *move_packet() {
         uint64_t msg_id = buffer_->info.msg_id;

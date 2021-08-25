@@ -22,6 +22,7 @@
 
 #include <list>
 #include <map>
+#include <unordered_map>
 
 namespace swoole {
 

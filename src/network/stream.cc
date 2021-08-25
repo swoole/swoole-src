@@ -106,8 +106,8 @@ Stream::~Stream() {
  */
 void Stream::set_protocol(Protocol *protocol) {
     protocol->get_package_length = Protocol::default_length_func;
-    protocol->package_length_size = 4;
     protocol->package_length_type = 'N';
+    protocol->package_length_size = swoole_type_size(protocol->package_length_type);
     protocol->package_body_offset = 4;
     protocol->package_length_offset = 0;
 }
