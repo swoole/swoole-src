@@ -250,6 +250,7 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
     // notify worker process
     if (onConnect) {
         if (!notify(conn, SW_SERVER_EVENT_CONNECT)) {
+            printf("notify faile\n");
             return SW_ERR;
         }
     }
@@ -1365,7 +1366,7 @@ int Server::send_to_connection(SendData *_send) {
  * use in master process
  */
 bool Server::notify(Connection *conn, enum ServerEventType event) {
-    DataHead notify_event = {};
+    DataHead notify_event{};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;

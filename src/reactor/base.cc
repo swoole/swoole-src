@@ -281,7 +281,7 @@ static int write_func(
         }
         append_fn(buffer);
     }
-    return SW_OK;
+    return __len;
 }
 
 int Reactor::_write(Reactor *reactor, Socket *socket, const void *buf, size_t n) {

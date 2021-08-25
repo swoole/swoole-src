@@ -62,7 +62,7 @@ static std::unordered_map<std::string, ServerEvent> server_event_map({
 
 // server event callback
 static void php_swoole_onPipeMessage(Server *serv, EventData *req);
-static void php_swoole_onStart(Server *);
+static void php_swoole_server_onStart(Server *);
 static void php_swoole_onShutdown(Server *);
 static void php_swoole_server_onWorkerStart(Server *, int worker_id);
 static void php_swoole_server_onBeforeReload(Server *serv);
@@ -463,6 +463,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_getWorkerStatus, 0, 0, 0)
     ZEND_ARG_INFO(0, worker_id)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_getWorkerPid, 0, 0, 0)
+    ZEND_ARG_INFO(0, worker_id)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_getClientList, 0, 0, 1)
     ZEND_ARG_INFO(0, start_fd)
     ZEND_ARG_INFO(0, find_count)
@@ -589,7 +593,7 @@ static zend_function_entry swoole_server_methods[] = {
     PHP_ME(swoole_server, getClientInfo, arginfo_swoole_server_getClientInfo, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getClientList, arginfo_swoole_server_getClientList, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getWorkerId, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server, getWorkerPid, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server, getWorkerPid, arginfo_swoole_server_getWorkerPid, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getWorkerStatus, arginfo_swoole_server_getWorkerStatus, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getManagerPid, arginfo_swoole_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_server, getMasterPid, arginfo_swoole_void, ZEND_ACC_PUBLIC)
@@ -1160,7 +1164,7 @@ void ServerObject::on_before_start() {
 
 void ServerObject::register_callback() {
     // control plane
-    serv->onStart = php_swoole_onStart;
+    serv->onStart = php_swoole_server_onStart;
     serv->onShutdown = php_swoole_onShutdown;
     serv->onWorkerStart = php_swoole_server_onWorkerStart;
     serv->onWorkerStop = php_swoole_server_onWorkerStop;
@@ -1564,7 +1568,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     return SW_OK;
 }
 
-static void php_swoole_onStart(Server *serv) {
+static void php_swoole_server_onStart(Server *serv) {
     serv->lock();
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
@@ -1577,7 +1581,7 @@ static void php_swoole_onStart(Server *serv) {
         zend::function::call("\\Swoole\\Server\\Helper::onStart", 1, zserv);
     }
 
-    if (fci_cache && UNEXPECTED(!zend::function::call(fci_cache, 1, zserv, nullptr, false))) {
+    if (fci_cache && UNEXPECTED(!zend::function::call(fci_cache, 1, zserv, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onStart handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     serv->unlock();
@@ -3469,6 +3473,7 @@ static PHP_METHOD(swoole_server, command) {
             } else {
                 ZVAL_DUP(return_value, &result.value);
             }
+            zval_dtor(&argv[0]);
         } else {
             ZVAL_STRINGL(return_value, msg.c_str(), msg.length());
         }
@@ -3878,18 +3883,15 @@ static PHP_METHOD(swoole_server, getWorkerStatus) {
 
 static PHP_METHOD(swoole_server, getWorkerPid) {
     Server *serv = php_swoole_server_get_and_check_server(ZEND_THIS);
-    if (!serv->is_worker() && !serv->is_task_worker()) {
-        zend_long worker_id = -1;
-        if (zend_parse_parameters(ZEND_NUM_ARGS(), "l", &worker_id) == FAILURE) {
-            RETURN_FALSE;
-        }
-        if (worker_id < 0) {
-            RETURN_FALSE;
-        }
-        RETURN_LONG(serv->get_worker(worker_id)->pid);
-    } else {
-        RETURN_LONG(SwooleG.pid);
+    zend_long worker_id = -1;
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "|l", &worker_id) == FAILURE) {
+        RETURN_FALSE;
     }
+    Worker *worker = worker_id < 0 ? SwooleWG.worker : serv->get_worker(worker_id);
+    if (!worker) {
+        RETURN_FALSE;
+    }
+    RETURN_LONG(serv->get_worker(worker_id)->pid);
 }
 
 static PHP_METHOD(swoole_server, getManagerPid) {
@@ -3910,7 +3912,7 @@ static PHP_METHOD(swoole_server, shutdown) {
     }
 
     if (swoole_kill(serv->gs->master_pid, SIGTERM) < 0) {
-        php_swoole_sys_error(E_WARNING, "failed to shutdown. swKill(%d, SIGTERM) failed", serv->gs->master_pid);
+        php_swoole_sys_error(E_WARNING, "failed to shutdown, kill(%d, SIGTERM) failed", serv->gs->master_pid);
         RETURN_FALSE;
     } else {
         RETURN_TRUE;

@@ -186,7 +186,7 @@ _read_from_pipe:
 }
 
 bool MessageBus::write(Socket *sock, SendData *resp) {
-    const char *data = resp->data;
+    const char *payload = resp->data;
     uint32_t l_payload = resp->info.len;
     off_t offset = 0;
     uint32_t copy_n;
@@ -205,10 +205,10 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         }
     };
 
-    if (l_payload == 0) {
+    if (l_payload == 0 || payload == nullptr) {
         iov[0].iov_base = &resp->info;
         iov[0].iov_len = sizeof(resp->info);
-        return send_fn(sock, iov, 1);
+        return send_fn(sock, iov, 1) == (ssize_t) iov[0].iov_len;
     }
 
     resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
@@ -224,7 +224,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
 
         iov[0].iov_base = &resp->info;
         iov[0].iov_len = sizeof(resp->info);
-        iov[1].iov_base = (void *) (data + offset);
+        iov[1].iov_base = (void *) (payload + offset);
         iov[1].iov_len = copy_n;
 
         swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
