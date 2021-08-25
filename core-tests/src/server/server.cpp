@@ -424,17 +424,19 @@ TEST(server, command) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     serv.add_command("test", Server::Command::ALL_PROCESS, [](Server *, const std::string &msg) -> std::string {
-        printf("command handler: msg=%s, len=%ld\n", msg.c_str(), msg.length());
-        return "json result";
+        return std::string("json result, ") + msg;
     });
 
     serv.onStart = [](Server *serv) {
-        Server::Command::Callback fn = [](Server *, const std::string &msg) {
-            printf("command result: msg=%s, len=%ld\n", msg.c_str(), msg.length());
+        static Server::Command::Callback fn = [](Server *serv, const std::string &msg) {
+            if (msg == "json result, hello world [1]") {
+                serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);
+            } else if (msg == "json result, hello world [2]") {
+                serv->shutdown();
+            }
         };
 
         serv->command(1, Server::Command::REACTOR_THREAD, "test", "hello world [1]", fn);
-        serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);
     };
 
     serv.onWorkerStart = [](Server *serv, int worker_id) {
