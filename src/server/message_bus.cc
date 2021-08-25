@@ -187,6 +187,12 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         }
     };
 
+    if (l_payload == 0) {
+        iov[0].iov_base = &resp->info;
+        iov[0].iov_len = sizeof(resp->info);
+        return send_fn(sock, iov, 1);
+    }
+
     resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
     resp->info.len = l_payload;
 
