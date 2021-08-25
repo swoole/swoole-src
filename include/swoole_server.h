@@ -201,6 +201,7 @@ class MessageBus {
     PipeBuffer *buffer_ = nullptr;
 
     String *get_packet_buffer();
+    ReturnCode prepare_packet(uint16_t &recv_chunk_count, String *packet_buffer);
 
   public:
     MessageBus() {
@@ -232,10 +233,15 @@ class MessageBus {
         buffer_size_ = buffer_size;
     }
 
+    size_t get_buffer_size() {
+        return buffer_size_;
+    }
+
     bool alloc_buffer() {
         void *_ptr = allocator_->malloc(sizeof(*buffer_) + buffer_size_);
         if (_ptr) {
             buffer_ = (PipeBuffer *) _ptr;
+            sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
             return true;
         } else {
             return false;
@@ -510,6 +516,7 @@ struct ServerGS {
     sw_atomic_long_t close_count;
     sw_atomic_long_t request_count;
     sw_atomic_long_t dispatch_count;
+    sw_atomic_long_t pipe_packet_msg_id;
 
     sw_atomic_t spinlock;
 
@@ -815,7 +822,6 @@ class Server {
     int cpu_affinity_available_num = 0;
 
     UnixSocket *pipe_command = nullptr;
-    std::atomic<uint64_t> pipe_packet_msg_id;
     MessageBus message_bus;
 
     double send_timeout = 0;

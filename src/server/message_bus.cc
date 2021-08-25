@@ -41,9 +41,41 @@ String *MessageBus::get_packet_buffer() {
     return packet_buffer;
 }
 
+ReturnCode MessageBus::prepare_packet(uint16_t &recv_chunk_count, String *packet_buffer) {
+    recv_chunk_count++;
+    if (!buffer_->is_end()) {
+        /**
+         * if the reactor thread sends too many chunks to the worker process,
+         * the worker process may receive chunks all the time,
+         * resulting in the worker process being unable to handle other tasks.
+         * in order to make the worker process handle tasks fairly,
+         * the maximum number of consecutive chunks received by the worker is limited.
+         */
+        if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT) {
+            swoole_trace_log(SW_TRACE_WORKER,
+                             "worker process[%u] receives the chunk data to the maximum[%d], return to event loop",
+                             SwooleG.process_id,
+                             recv_chunk_count);
+            return SW_WAIT;
+        }
+        return SW_CONTINUE;
+    } else {
+        /**
+         * Because we don't want to split the EventData parameters into DataHead and data,
+         * we store the value of the worker_buffer pointer in EventData.data.
+         * The value of this pointer will be fetched in the Server::get_pipe_packet() function.
+         */
+        buffer_->info.flags |= SW_EVENT_DATA_OBJ_PTR;
+        memcpy(buffer_->data, &packet_buffer, sizeof(packet_buffer));
+        swoole_trace("msg_id=%ld, len=%u", buffer_->info.msg_id, buffer_->info.len);
+
+        return SW_READY;
+    }
+}
+
 ssize_t MessageBus::read(Socket *sock) {
     ssize_t recv_n = 0;
-    int recv_chunk_count = 0;
+    uint16_t recv_chunk_count = 0;
     DataHead *info = &buffer_->info;
     struct iovec buffers[2];
 
@@ -93,40 +125,25 @@ _read_from_pipe:
         swoole_trace("append msgid=%ld, buffer=%p, n=%ld", buffer_->info.msg_id, packet_buffer, recv_n);
     }
 
-    recv_chunk_count++;
-
-    if (!buffer_->is_end()) {
-        /**
-         * if the reactor thread sends too many chunks to the worker process,
-         * the worker process may receive chunks all the time,
-         * resulting in the worker process being unable to handle other tasks.
-         * in order to make the worker process handle tasks fairly,
-         * the maximum number of consecutive chunks received by the worker is limited.
-         */
-        if (recv_chunk_count >= SW_WORKER_MAX_RECV_CHUNK_COUNT) {
-            swoole_trace_log(SW_TRACE_WORKER,
-                             "worker process[%u] receives the chunk data to the maximum[%d], return to event loop",
-                             SwooleG.process_id,
-                             recv_chunk_count);
-            return SW_OK;
-        }
+    switch (prepare_packet(recv_chunk_count, packet_buffer)) {
+    case SW_READY:
+        return recv_n;
+    case SW_CONTINUE:
         goto _read_from_pipe;
-    } else {
-        /**
-         * Because we don't want to split the EventData parameters into DataHead and data,
-         * we store the value of the worker_buffer pointer in EventData.data.
-         * The value of this pointer will be fetched in the Server::get_pipe_packet() function.
-         */
-        buffer_->info.flags |= SW_EVENT_DATA_OBJ_PTR;
-        memcpy(buffer_->data, &packet_buffer, sizeof(packet_buffer));
-        swoole_trace("msg_id=%ld, len=%u", buffer_->info.msg_id, buffer_->info.len);
+    case SW_WAIT:
+        return SW_OK;
+    default:
+        assert(0);
+        return SW_ERR;
     }
-
-    return recv_n;
 }
 
 ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
-    ssize_t recv_n = sock->read(buffer_, buffer_size_);
+    ssize_t recv_n;
+    uint16_t recv_chunk_count = 0;
+
+_read_from_pipe:
+    recv_n = sock->read(buffer_, buffer_size_);
     if (recv_n < 0) {
         if (sock->catch_error(errno) == SW_WAIT) {
             return SW_OK;
@@ -137,12 +154,14 @@ ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
         return SW_ERR;
     }
 
+    recv_chunk_count++;
+
     if (!buffer_->is_chunked()) {
         return recv_n;
     }
 
-    String *packet = get_packet_buffer();
-    if (packet == nullptr) {
+    String *packet_buffer = get_packet_buffer();
+    if (packet_buffer == nullptr) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
                          "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
@@ -151,14 +170,19 @@ ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
                          buffer_->info.reactor_id);
         return SW_ERR;
     }
-    // merge data to package buffer
-    packet->append(buffer_->data, recv_n - sizeof(buffer_->info));
-    // wait more data
-    if (!buffer_->is_end()) {
-        return SW_OK;
-    }
+    packet_buffer->append(buffer_->data, recv_n - sizeof(buffer_->info));
 
-    return recv_n;
+    switch (prepare_packet(recv_chunk_count, packet_buffer)) {
+    case SW_READY:
+        return recv_n;
+    case SW_CONTINUE:
+        goto _read_from_pipe;
+    case SW_WAIT:
+        return SW_OK;
+    default:
+        assert(0);
+        return SW_ERR;
+    }
 }
 
 bool MessageBus::write(Socket *sock, SendData *resp) {
@@ -209,6 +233,9 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
 #ifdef __linux__
             if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
                 max_length = SW_IPC_BUFFER_SIZE;
+                if (resp->info.flags & SW_EVENT_DATA_END) {
+                    resp->info.flags &= ~SW_EVENT_DATA_END;
+                }
                 continue;
             }
 #endif

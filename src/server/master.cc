@@ -737,8 +737,8 @@ Server::Server(enum Mode _mode) {
         swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
 
-    pipe_packet_msg_id = 1;
-    message_bus.set_id_generator([this]() { return pipe_packet_msg_id.fetch_add(1); });
+    gs->pipe_packet_msg_id = 1;
+    message_bus.set_id_generator([this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); });
 
     g_server_instance = this;
 }

@@ -798,7 +798,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
         pipe_command->buffer_size = UINT_MAX;
     }
 
-    message_bus.set_id_generator([serv]() { return serv->pipe_packet_msg_id.fetch_add(1); });
+    message_bus.set_id_generator([serv]() { return sw_atomic_fetch_add(&serv->gs->pipe_packet_msg_id, 1); });
     message_bus.set_buffer_size(serv->ipc_max_size);
     if (!message_bus.alloc_buffer()) {
         return SW_ERR;
