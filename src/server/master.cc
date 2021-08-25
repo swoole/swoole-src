@@ -1057,6 +1057,9 @@ bool Server::command(WorkerId process_id,
         auto result = call_command_handler_in_master(command_id, msg);
         fn(this, result);
         return true;
+    } else {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
+        return false;
     }
 
     if (!message_bus.write(pipe_sock, &task)) {

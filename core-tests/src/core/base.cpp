@@ -41,7 +41,7 @@ TEST(base, dec2hex) {
     sw_free(result);
 }
 
-TEST(base, swoole_hex2dec) {
+TEST(base, hex2dec) {
     size_t n_parsed;
     ASSERT_EQ(swoole_hex2dec("9fff9123", &n_parsed), 2684326179);
     ASSERT_EQ(n_parsed, 8);

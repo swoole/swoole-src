@@ -168,8 +168,8 @@ class Reactor {
 
     std::function<void(Reactor *)> onBegin;
 
-    int (*write)(Reactor *reactor, network::Socket *socket, const void *buf, size_t n) = nullptr;
-    int (*writev)(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) = nullptr;
+    ssize_t (*write)(Reactor *reactor, network::Socket *socket, const void *buf, size_t n) = nullptr;
+    ssize_t (*writev)(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) = nullptr;
     int (*close)(Reactor *reactor, network::Socket *socket) = nullptr;
 
   private:
@@ -341,8 +341,8 @@ class Reactor {
         return false;
     }
 
-    static int _write(Reactor *reactor, network::Socket *socket, const void *buf, size_t n);
-    static int _writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt);
+    static ssize_t _write(Reactor *reactor, network::Socket *socket, const void *buf, size_t n);
+    static ssize_t _writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt);
     static int _close(Reactor *reactor, network::Socket *socket);
     static int _writable_callback(Reactor *reactor, Event *ev);
 
