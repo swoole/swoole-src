@@ -29,10 +29,11 @@ String *MessageBus::get_packet_buffer() {
 
     auto iter = packet_pool_.find(buffer_->info.msg_id);
     if (iter == packet_pool_.end()) {
-        if (buffer_->is_begin()) {
-            packet_buffer = make_string(buffer_->info.len, allocator_);
-            packet_pool_.emplace(buffer_->info.msg_id, packet_buffer);
+        if (!buffer_->is_begin()) {
+            return nullptr;
         }
+        packet_buffer = make_string(buffer_->info.len, allocator_);
+        packet_pool_.emplace(buffer_->info.msg_id, std::shared_ptr<String>(packet_buffer));
     } else {
         packet_buffer = iter->second.get();
     }
@@ -136,32 +137,25 @@ ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
         return SW_ERR;
     }
 
-    if (buffer_->is_chunked()) {
-        String *packet;
-        auto msg_id = buffer_->info.msg_id;
-        auto it = packet_pool_.find(msg_id);
-        if (it == packet_pool_.end()) {
-            if (!buffer_->is_begin()) {
-                swoole_error_log(SW_LOG_WARNING,
-                                 SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
-                                 "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
-                                 msg_id,
-                                 sock->get_fd(),
-                                 buffer_->info.reactor_id);
-                return SW_ERR;
-            }
+    if (!buffer_->is_chunked()) {
+        return recv_n;
+    }
 
-            packet = new String(buffer_->info.len);
-            packet_pool_.emplace(std::make_pair(msg_id, std::shared_ptr<String>(packet)));
-        } else {
-            packet = it->second.get();
-        }
-        // merge data to package buffer
-        packet->append(buffer_->data, recv_n - sizeof(buffer_->info));
-        // wait more data
-        if (!buffer_->is_end()) {
-            return SW_OK;
-        }
+    String *packet = get_packet_buffer();
+    if (packet == nullptr) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
+                         "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
+                         buffer_->info.msg_id,
+                         sock->get_fd(),
+                         buffer_->info.reactor_id);
+        return SW_ERR;
+    }
+    // merge data to package buffer
+    packet->append(buffer_->data, recv_n - sizeof(buffer_->info));
+    // wait more data
+    if (!buffer_->is_end()) {
+        return SW_OK;
     }
 
     return recv_n;
