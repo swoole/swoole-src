@@ -89,7 +89,7 @@ _read_from_pipe:
     }
     if (recv_n > 0) {
         packet_buffer->length += (recv_n - sizeof(buffer_->info));
-        swoole_trace("append msgid=%ld, buffer=%p, n=%ld", pipe_buffer->info.msg_id, worker_buffer, recv_n);
+        swoole_trace("append msgid=%ld, buffer=%p, n=%ld", buffer_->info.msg_id, packet_buffer, recv_n);
     }
 
     recv_chunk_count++;
@@ -118,7 +118,7 @@ _read_from_pipe:
          */
         buffer_->info.flags |= SW_EVENT_DATA_OBJ_PTR;
         memcpy(buffer_->data, &packet_buffer, sizeof(packet_buffer));
-        swoole_trace("msg_id=%ld, len=%u", pipe_buffer->info.msg_id, pipe_buffer->info.len);
+        swoole_trace("msg_id=%ld, len=%u", buffer_->info.msg_id, buffer_->info.len);
     }
 
     return recv_n;
