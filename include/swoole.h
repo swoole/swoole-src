@@ -448,7 +448,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
 }
 
 //------------------------------Base--------------------------------
-enum swDataFlag {
+enum swEventDataFlag {
     SW_EVENT_DATA_NORMAL,
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
