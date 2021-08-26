@@ -65,6 +65,11 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
 }
 
 bool EventData::pack(const void *_data, size_t _length) {
+    info.type = SW_SERVER_EVENT_TASK;
+    info.fd = SwooleG.current_task_id++;
+    info.reactor_id = SwooleG.process_id;
+    info.time = swoole::microtime();
+
     if (_length < SW_IPC_MAX_SIZE - sizeof(info)) {
         memcpy(data, _data, _length);
         info.len = _length;

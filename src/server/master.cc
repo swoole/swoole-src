@@ -1057,17 +1057,26 @@ bool Server::command(WorkerId process_id,
         auto result = call_command_handler_in_master(command_id, msg);
         fn(this, result);
         return true;
+    } else if (process_type == Command::TASK_WORKER) {
+        EventData buf;
+        memset(&buf.info, 0, sizeof(buf.info));
+        if (!buf.pack(msg.c_str(), msg.length())) {
+            return false;
+        }
+        buf.info.type = SW_SERVER_EVENT_COMMAND;
+        if (send_to_worker_from_worker(process_id, &buf, SW_PIPE_MASTER | SW_PIPE_NONBLOCK) <= 0) {
+            return false;
+        }
+        command_callbacks[requset_id] = fn;
+        return true;
     } else {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
         return false;
     }
-
     if (!message_bus.write(pipe_sock, &task)) {
         return false;
     }
-
     command_callbacks[requset_id] = fn;
-
     return true;
 }
 

@@ -436,7 +436,7 @@ struct ListenPort {
     Protocol protocol = {};
     void *ptr = nullptr;
 
-    int (*onRead)(Reactor *reactor, ListenPort *port, swEvent *event) = nullptr;
+    int (*onRead)(Reactor *reactor, ListenPort *port, Event *event) = nullptr;
 
     inline bool is_dgram() {
         return network::Socket::is_dgram(type);
@@ -1370,6 +1370,11 @@ class Server {
 
     int send_to_connection(SendData *);
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
+
+    ssize_t send_to_worker_from_worker(WorkerId id, EventData *data, int flags) {
+        return send_to_worker_from_worker(get_worker(id), data, sizeof(data->info) + data->info.len, flags);
+    }
+
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 

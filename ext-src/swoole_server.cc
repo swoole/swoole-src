@@ -811,10 +811,6 @@ TaskId php_swoole_task_pack(EventData *task, zval *zdata) {
     smart_str serialized_data = {};
     php_serialize_data_t var_hash;
 
-    task->info.type = SW_SERVER_EVENT_TASK;
-    task->info.fd = SwooleG.current_task_id++;
-    task->info.reactor_id = SwooleG.process_id;
-    task->info.time = swoole::microtime();
     SW_TASK_TYPE(task) = 0;
 
     char *task_data_str;

@@ -92,7 +92,7 @@ _read_from_pipe:
     }
 
     if (!buffer_->is_chunked()) {
-        return sock->read(buffer_, buffer_size_);
+        return sock->read(buffer_, sizeof(buffer_->info) + buffer_->info.len);
     }
 
     auto packet_buffer = get_packet_buffer();
@@ -138,6 +138,9 @@ _read_from_pipe:
     }
 }
 
+/**
+ * Notice: only supports dgram type socket
+ */
 ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
     ssize_t recv_n;
     uint16_t recv_chunk_count = 0;
@@ -206,6 +209,8 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
     };
 
     if (l_payload == 0 || payload == nullptr) {
+        resp->info.flags = 0;
+        resp->info.len = 0;
         iov[0].iov_base = &resp->info;
         iov[0].iov_len = sizeof(resp->info);
         return send_fn(sock, iov, 1) == (ssize_t) iov[0].iov_len;

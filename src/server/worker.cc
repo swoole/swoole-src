@@ -192,7 +192,7 @@ static int Worker_onStreamPackage(Protocol *proto, Socket *sock, const char *dat
     serv->last_stream_socket = nullptr;
 
     int _end = 0;
-    SwooleTG.reactor->write(SwooleTG.reactor, sock, (void *) &_end, sizeof(_end));
+    swoole_event_write(sock, (void *) &_end, sizeof(_end));
 
     return SW_OK;
 }
@@ -641,8 +641,8 @@ ssize_t Worker::send_pipe_message(const void *buf, size_t n, int flags) {
         return pool->queue->push((QueueNode *) &msg, n) ? n : -1;
     }
 
-    if ((flags & SW_PIPE_NONBLOCK) && SwooleTG.reactor) {
-        return SwooleTG.reactor->write(SwooleTG.reactor, pipe_sock, buf, n);
+    if ((flags & SW_PIPE_NONBLOCK) && swoole_event_is_available()) {
+        return swoole_event_write(pipe_sock, buf, n);
     } else {
         return pipe_sock->send_blocking(buf, n);
     }
