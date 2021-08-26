@@ -133,10 +133,10 @@ function processRename(swoole_server $serv, $worker_id) {
 	{
 		swoole_set_process_name("php {$argv[0]}: worker");
 	}
-   if ($worker_id == 0)
-   {
-       var_dump($serv->setting);
-   }
+//    if ($worker_id == 0)
+//    {
+//        var_dump($serv->setting);
+//    }
 	my_log("WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}");
 }
 

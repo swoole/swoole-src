@@ -276,7 +276,7 @@ bool HttpContext::parse_form_data(const char *boundary_str, int boundary_len) {
     return true;
 }
 
-void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool is_parse_cookie) {
+void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
     char valbuf[SW_HTTP_COOKIE_VALLEN];
     char *_c = (char *) at;
@@ -292,10 +292,10 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN) {
                 swoole_warning("cookie[%.*s...] name length %d is exceed the max name len %d",
-                               8,
-                               (char *) at + j,
-                               klen,
-                               SW_HTTP_COOKIE_KEYLEN);
+                       8,
+                       (char *) at + j,
+                       klen,
+                       SW_HTTP_COOKIE_KEYLEN);
                 return;
             }
             memcpy(keybuf, (char *) at + j, klen - 1);
@@ -307,11 +307,11 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN) {
                 swoole_warning("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
-                               keybuf,
-                               8,
-                               (char *) at + j,
-                               vlen,
-                               SW_HTTP_COOKIE_VALLEN);
+                       keybuf,
+                       8,
+                       (char *) at + j,
+                       vlen,
+                       SW_HTTP_COOKIE_VALLEN);
                 return;
             }
             memcpy(valbuf, (char *) at + j, vlen);
@@ -344,19 +344,17 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN) {
             swoole_warning("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
-                           keybuf,
-                           8,
-                           (char *) at + j,
-                           vlen,
-                           SW_HTTP_COOKIE_VALLEN);
+                   keybuf,
+                   8,
+                   (char *) at + j,
+                   vlen,
+                   SW_HTTP_COOKIE_VALLEN);
             return;
         }
         memcpy(valbuf, (char *) at + j, vlen);
         valbuf[vlen] = 0;
         _value = http_trim_double_quote(valbuf, &vlen);
-        if (!is_parse_cookie) {
-            vlen = php_url_decode(_value, vlen);
-        }
+        vlen = php_url_decode(_value, vlen);
         if (klen > 1) {
             add_assoc_stringl_ex(zarray, keybuf, klen - 1, _value, vlen);
         }
