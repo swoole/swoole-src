@@ -33,6 +33,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/rand.h>
+#include <openssl/opensslv.h>
 
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 #define SW_SUPPORT_DTLS
@@ -169,5 +170,6 @@ void swoole_ssl_server_http_advise(swoole::SSLContext &);
 const char *swoole_ssl_get_error();
 int swoole_ssl_get_ex_connection_index();
 int swoole_ssl_get_ex_port_index();
+std::string swoole_ssl_get_version_message();
 
 #endif

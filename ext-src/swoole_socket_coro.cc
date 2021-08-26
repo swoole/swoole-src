@@ -843,9 +843,12 @@ static void sw_inline php_swoole_init_socket(zval *zobject, SocketObject *sock) 
     sock->socket->set_zero_copy(true);
     sock->socket->set_buffer_allocator(sw_zend_string_allocator());
     zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("fd"), sock->socket->get_fd());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("domain"), sock->socket->get_sock_domain());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
+    zend_update_property_long(
+        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("domain"), sock->socket->get_sock_domain());
+    zend_update_property_long(
+        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
+    zend_update_property_long(
+        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
 }
 
 SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
@@ -1479,26 +1482,27 @@ static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const b
 
     std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
 
-    SW_HASHTABLE_FOREACH_START(vht, zelement)
-    if (!ZVAL_IS_LONG(zelement)) {
-        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
-                                EINVAL,
-                                "Item #[%d] must be of type int, %s given",
-                                iov_index,
-                                zend_get_type_by_const(Z_TYPE_P(zelement)));
-        RETURN_FALSE;
-    }
-    if (Z_LVAL_P(zelement) < 0) {
-        zend_throw_exception_ex(
-            swoole_socket_coro_exception_ce, EINVAL, "Item #[%d] must be greater than 0", iov_index);
-        RETURN_FALSE;
-    }
-    size_t iov_len = Z_LVAL_P(zelement);
+    SW_HASHTABLE_FOREACH_START(vht, zelement) {
+        if (!ZVAL_IS_LONG(zelement)) {
+            zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                    EINVAL,
+                                    "Item #[%d] must be of type int, %s given",
+                                    iov_index,
+                                    zend_get_type_by_const(Z_TYPE_P(zelement)));
+            RETURN_FALSE;
+        }
+        if (Z_LVAL_P(zelement) < 0) {
+            zend_throw_exception_ex(
+                swoole_socket_coro_exception_ce, EINVAL, "Item #[%d] must be greater than 0", iov_index);
+            RETURN_FALSE;
+        }
+        size_t iov_len = Z_LVAL_P(zelement);
 
-    iov[iov_index].iov_base = zend_string_alloc(iov_len, 0)->val;
-    iov[iov_index].iov_len = iov_len;
-    iov_index++;
-    total_length += iov_len;
+        iov[iov_index].iov_base = zend_string_alloc(iov_len, 0)->val;
+        iov[iov_index].iov_len = iov_len;
+        iov_index++;
+        total_length += iov_len;
+    }
     SW_HASHTABLE_FOREACH_END();
 
     swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
@@ -1533,6 +1537,7 @@ static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const b
             real_count = iov_index + 1;
             zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
             iov[iov_index].iov_base = sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes)->val;
+            iov[iov_index].iov_len = offset_bytes;
             free_func(iov.get(), iovcnt, real_count);
         } else {
             real_count = iovcnt;
@@ -1767,9 +1772,10 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
     case SO_RCVTIMEO:
     case SO_SNDTIMEO: {
-        double timeout = sock->socket->get_timeout(optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
+        double timeout =
+            sock->socket->get_timeout(optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
         array_init(return_value);
-        int sec =  (int) timeout;
+        int sec = (int) timeout;
         add_assoc_long(return_value, "sec", (int) timeout);
         add_assoc_long(return_value, "usec", (timeout - (double) sec) * 1000000);
         break;
