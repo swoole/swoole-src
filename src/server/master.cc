@@ -1058,13 +1058,19 @@ bool Server::command(WorkerId process_id,
         fn(this, result);
         return true;
     } else if (process_type == Command::TASK_WORKER) {
+        if (process_id >= task_worker_num) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid task_worker_id[%d]", process_id);
+            return false;
+        }
         EventData buf;
         memset(&buf.info, 0, sizeof(buf.info));
-        if (!buf.pack(msg.c_str(), msg.length())) {
+        if (!event_data_pack(&buf, msg.c_str(), msg.length())) {
             return false;
         }
         buf.info.type = SW_SERVER_EVENT_COMMAND;
-        if (send_to_worker_from_worker(process_id, &buf, SW_PIPE_MASTER | SW_PIPE_NONBLOCK) <= 0) {
+        buf.info.fd = requset_id;
+        buf.info.server_fd = command_id;
+        if (send_to_worker_from_worker(worker_num + process_id, &buf, SW_PIPE_MASTER | SW_PIPE_NONBLOCK) <= 0) {
             return false;
         }
         command_callbacks[requset_id] = fn;

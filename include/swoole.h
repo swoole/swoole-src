@@ -448,7 +448,7 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
 }
 
 //------------------------------Base--------------------------------
-enum swEventDataFlag {
+enum swDataFlag {
     SW_EVENT_DATA_NORMAL,
     SW_EVENT_DATA_PTR = 1u << 1,
     SW_EVENT_DATA_CHUNK = 1u << 2,
@@ -458,20 +458,15 @@ enum swEventDataFlag {
     SW_EVENT_DATA_POP_PTR = 1u << 6,
 };
 
-/**
- * Use server_fd field to store flag of the server task
- */
-#define SW_TASK_TYPE(task) ((task)->info.server_fd)
-
-enum swTaskType {
-    SW_TASK_TMPFILE = 1,     // tmp file
-    SW_TASK_SERIALIZE = 2,   // php serialize
-    SW_TASK_NONBLOCK = 4,    // task
-    SW_TASK_CALLBACK = 8,    // callback
-    SW_TASK_WAITALL = 16,    // for taskWaitAll
-    SW_TASK_COROUTINE = 32,  // coroutine
-    SW_TASK_PEEK = 64,       // peek
-    SW_TASK_NOREPLY = 128,   // don't reply
+enum swTaskFlag {
+    SW_TASK_TMPFILE = 1,
+    SW_TASK_SERIALIZE = 1u << 1,
+    SW_TASK_NONBLOCK = 1u << 2,
+    SW_TASK_CALLBACK = 1u << 3,
+    SW_TASK_WAITALL = 1u << 4,
+    SW_TASK_COROUTINE = 1u << 5,
+    SW_TASK_PEEK = 1u << 6,
+    SW_TASK_NOREPLY = 1u << 7,
 };
 
 enum swDNSLookupFlag {
@@ -596,8 +591,6 @@ struct DataHead {
 struct EventData {
     DataHead info;
     char data[SW_IPC_BUFFER_SIZE];
-    bool pack(const void *data, size_t data_len);
-    bool unpack(String *buffer);
 };
 
 struct ThreadGlobal {

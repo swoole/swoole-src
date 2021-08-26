@@ -288,11 +288,11 @@ TEST(server, dtls) {
 #endif
 
 TEST(server, task_worker) {
-    swServer serv;
+    Server serv;
     serv.worker_num = 1;
     serv.task_worker_num = 1;
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
         swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
@@ -314,10 +314,10 @@ TEST(server, task_worker) {
 
     usleep(10000);
 
-    swEventData buf;
+    EventData buf;
     memset(&buf.info, 0, sizeof(buf.info));
 
-    SW_TASK_TYPE(&buf) |= SW_TASK_NOREPLY;
+    buf.info.flags = SW_TASK_NOREPLY;
     buf.info.len = strlen(packet);
     memcpy(buf.data, packet, strlen(packet));
 

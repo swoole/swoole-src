@@ -1445,6 +1445,8 @@ class Server {
     void worker_accept_event(DataHead *info);
     static void worker_signal_handler(int signo);
     static void worker_signal_init(void);
+    static bool event_data_pack(EventData *edata, const void *data, size_t data_len);
+    static bool event_data_unpack(EventData *edata, String *buffer, PacketPtr *packet);
 
   private:
     enum Mode mode_;

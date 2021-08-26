@@ -811,14 +811,14 @@ TaskId php_swoole_task_pack(EventData *task, zval *zdata) {
     smart_str serialized_data = {};
     php_serialize_data_t var_hash;
 
-    SW_TASK_TYPE(task) = 0;
+    task->info.flags = 0;
 
     char *task_data_str;
     size_t task_data_len = 0;
     // need serialize
     if (Z_TYPE_P(zdata) != IS_STRING) {
         // serialize
-        SW_TASK_TYPE(task) |= SW_TASK_SERIALIZE;
+        task->info.flags |= SW_TASK_SERIALIZE;
 
         PHP_VAR_SERIALIZE_INIT(var_hash);
         php_var_serialize(&serialized_data, zdata, &var_hash);
@@ -834,7 +834,7 @@ TaskId php_swoole_task_pack(EventData *task, zval *zdata) {
         task_data_len = Z_STRLEN_P(zdata);
     }
 
-    if (!task->pack(task_data_str, task_data_len)) {
+    if (!Server::event_data_pack(task, task_data_str, task_data_len)) {
         php_swoole_fatal_error(E_WARNING, "large task pack failed");
         task->info.fd = SW_ERR;
         task->info.len = 0;
@@ -880,25 +880,17 @@ static sw_inline int php_swoole_check_task_param(Server *serv, zend_long dst_wor
 
 zval *php_swoole_task_unpack(EventData *task_result) {
     zval *result_data, *result_unserialized_data;
-    char *result_data_str;
-    size_t result_data_len = 0;
     php_unserialize_data_t var_hash;
+    PacketPtr packet;
 
-    /**
-     * Large result package
-     */
-    if (SW_TASK_TYPE(task_result) & SW_TASK_TMPFILE) {
-        if (!task_result->unpack(sw_tg_buffer())) {
-            return nullptr;
-        }
-        result_data_str = sw_tg_buffer()->str;
-        result_data_len = sw_tg_buffer()->length;
-    } else {
-        result_data_str = task_result->data;
-        result_data_len = task_result->info.len;
+    if (Server::event_data_unpack(task_result, sw_tg_buffer(), &packet)) {
+        return nullptr;
     }
 
-    if (SW_TASK_TYPE(task_result) & SW_TASK_SERIALIZE) {
+    char *result_data_str = packet.data;
+    size_t result_data_len = packet.length;
+
+    if (task_result->info.flags & SW_TASK_SERIALIZE) {
         result_unserialized_data = sw_malloc_zval();
 
         PHP_VAR_UNSERIALIZE_INIT(var_hash);
@@ -1409,7 +1401,7 @@ static sw_inline void php_swoole_create_task_object(zval *ztask, Server *serv, E
     zend_update_property(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("data"), zdata);
     zend_update_property_double(swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("dispatch_time"), req->info.time);
     zend_update_property_long(
-        swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("flags"), (zend_long) SW_TASK_TYPE(req));
+        swoole_server_task_ce, SW_Z8_OBJ_P(ztask), ZEND_STRL("flags"), (zend_long) req->info.flags);
 }
 
 static int php_swoole_server_onTask(Server *serv, EventData *req) {
@@ -1469,7 +1461,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
         return SW_ERR;
     }
 
-    if (SW_TASK_TYPE(req) & SW_TASK_COROUTINE) {
+    if (req->info.flags & SW_TASK_COROUTINE) {
         TaskId task_id = req->info.fd;
         auto task_co_iterator = server_object->property->task_coroutine_map.find(task_id);
 
@@ -1511,10 +1503,10 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     }
 
     zend_fcall_info_cache *fci_cache = nullptr;
-    if (SW_TASK_TYPE(req) & SW_TASK_CALLBACK) {
+    if (req->info.flags & SW_TASK_CALLBACK) {
         auto callback_iterator = server_object->property->task_callbacks.find(req->info.fd);
         if (callback_iterator == server_object->property->task_callbacks.end()) {
-            SW_TASK_TYPE(req) = SW_TASK_TYPE(req) & (~SW_TASK_CALLBACK);
+            req->info.flags = req->info.flags & (~SW_TASK_CALLBACK);
         } else {
             fci_cache = &callback_iterator->second;
         }
@@ -1553,7 +1545,7 @@ static int php_swoole_server_onFinish(Server *serv, EventData *req) {
     if (UNEXPECTED(!zend::function::call(fci_cache, argc, args, nullptr, serv->enable_coroutine))) {
         php_swoole_error(E_WARNING, "%s->onFinish handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
-    if (SW_TASK_TYPE(req) & SW_TASK_CALLBACK) {
+    if (req->info.flags & SW_TASK_CALLBACK) {
         sw_zend_fci_cache_discard(fci_cache);
         server_object->property->task_callbacks.erase(req->info.fd);
     }
@@ -3083,7 +3075,7 @@ static PHP_METHOD(swoole_server, taskwait) {
     // coroutine
     if (PHPCoroutine::get_cid() >= 0) {
         ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
-        SW_TASK_TYPE(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
+        buf.info.flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
 
         TaskCo task_co{};
         task_co.co = Coroutine::get_current_safe();
@@ -3219,7 +3211,7 @@ static PHP_METHOD(swoole_server, taskWaitMulti) {
         php_swoole_fatal_error(E_WARNING, "task pack failed");
         goto _fail;
     }
-    SW_TASK_TYPE(&buf) |= SW_TASK_WAITALL;
+    buf.info.flags |= SW_TASK_WAITALL;
     dst_worker_id = -1;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
     if (serv->gs->task_workers.dispatch_blocking(&buf, &dst_worker_id) < 0) {
@@ -3339,7 +3331,7 @@ static PHP_METHOD(swoole_server, taskCo) {
             php_swoole_fatal_error(E_WARNING, "failed to pack task");
             goto _fail;
         }
-        SW_TASK_TYPE(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
+        buf.info.flags |= (SW_TASK_NONBLOCK | SW_TASK_COROUTINE);
         dst_worker_id = -1;
         sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
         if (serv->gs->task_workers.dispatch(&buf, &dst_worker_id) < 0) {
@@ -3407,14 +3399,14 @@ static PHP_METHOD(swoole_server, task) {
     }
 
     if (!serv->is_worker()) {
-        SW_TASK_TYPE(&buf) |= SW_TASK_NOREPLY;
+        buf.info.flags |= SW_TASK_NOREPLY;
     } else if (fci.size) {
-        SW_TASK_TYPE(&buf) |= SW_TASK_CALLBACK;
+        buf.info.flags |= SW_TASK_CALLBACK;
         sw_zend_fci_cache_persist(&fci_cache);
         server_object->property->task_callbacks[buf.info.fd] = fci_cache;
     }
 
-    SW_TASK_TYPE(&buf) |= SW_TASK_NONBLOCK;
+    buf.info.flags |= SW_TASK_NONBLOCK;
 
     int _dst_worker_id = (int) dst_worker_id;
     sw_atomic_fetch_add(&serv->gs->tasking_num, 1);
@@ -3584,7 +3576,7 @@ static PHP_METHOD(swoole_server_task, pack) {
     if (php_swoole_task_pack(&buf, zdata) < 0) {
         RETURN_FALSE;
     }
-    SW_TASK_TYPE(&buf) |= (SW_TASK_NONBLOCK | SW_TASK_NOREPLY);
+    buf.info.flags |= (SW_TASK_NONBLOCK | SW_TASK_NOREPLY);
 
     RETURN_STRINGL((char *) &buf, sizeof(buf.info) + buf.info.len);
 }
