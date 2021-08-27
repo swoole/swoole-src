@@ -22,6 +22,7 @@
 
 #include <list>
 #include <map>
+#include <unordered_map>
 
 namespace swoole {
 
@@ -111,7 +112,6 @@ class Reactor {
      */
     int singal_no = 0;
 
-    uint32_t event_num = 0;
     uint32_t max_event_num = 0;
 
     bool running = false;
@@ -168,14 +168,15 @@ class Reactor {
 
     std::function<void(Reactor *)> onBegin;
 
-    int (*write)(Reactor *reactor, network::Socket *socket, const void *buf, size_t n) = nullptr;
-    int (*writev)(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) = nullptr;
+    ssize_t (*write)(Reactor *reactor, network::Socket *socket, const void *buf, size_t n) = nullptr;
+    ssize_t (*writev)(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt) = nullptr;
     int (*close)(Reactor *reactor, network::Socket *socket) = nullptr;
 
   private:
     ReactorImpl *impl;
     std::map<int, std::function<void(Reactor *)>> end_callbacks;
-    std::map<int, std::function<bool(Reactor *, int &)>> exit_conditions;
+    std::map<int, std::function<bool(Reactor *, size_t &)>> exit_conditions;
+    std::unordered_map<int, network::Socket *> sockets_;
 
   public:
     Reactor(int max_event = SW_REACTOR_MAXEVENTS, Type _type = TYPE_AUTO);
@@ -183,7 +184,7 @@ class Reactor {
     bool if_exit();
     void defer(Callback cb, void *data = nullptr);
     void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
-    void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, int &)> &fn);
+    void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
     bool set_handler(int _fdtype, ReactorHandler handler);
     void add_destroy_callback(Callback cb, void *data = nullptr);
     void execute_end_callbacks(bool timedout = false);
@@ -263,6 +264,20 @@ class Reactor {
         return defer_tasks == nullptr ? timeout_msec : 0;
     }
 
+    size_t get_event_num() {
+        return sockets_.size();
+    }
+
+    const std::unordered_map<int, network::Socket *> &get_sockets() {
+        return sockets_;
+    }
+
+    void foreach_socket(const std::function<void(int, network::Socket *)> &callback) {
+        for (auto kv : sockets_) {
+            callback(kv.first, kv.second);
+        }
+    }
+
     inline ReactorHandler get_handler(EventType event_type, FdType fd_type) {
         switch (event_type) {
         case SW_EVENT_READ:
@@ -305,7 +320,7 @@ class Reactor {
     inline void _add(network::Socket *_socket, int events) {
         _socket->events = events;
         _socket->removed = 0;
-        event_num++;
+        sockets_[_socket->fd] = _socket;
     }
 
     inline void _set(network::Socket *_socket, int events) {
@@ -315,7 +330,7 @@ class Reactor {
     inline void _del(network::Socket *_socket) {
         _socket->events = 0;
         _socket->removed = 1;
-        event_num--;
+        sockets_.erase(_socket->fd);
     }
 
     bool catch_error() {
@@ -326,8 +341,8 @@ class Reactor {
         return false;
     }
 
-    static int _write(Reactor *reactor, network::Socket *socket, const void *buf, size_t n);
-    static int _writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt);
+    static ssize_t _write(Reactor *reactor, network::Socket *socket, const void *buf, size_t n);
+    static ssize_t _writev(Reactor *reactor, network::Socket *socket, const iovec *iov, size_t iovcnt);
     static int _close(Reactor *reactor, network::Socket *socket);
     static int _writable_callback(Reactor *reactor, Event *ev);
 

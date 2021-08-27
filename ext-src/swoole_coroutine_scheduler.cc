@@ -123,7 +123,7 @@ void php_swoole_coroutine_scheduler_minit(int module_number) {
 static zend_fcall_info_cache exit_condition_fci_cache;
 static bool exit_condition_cleaner;
 
-static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, int &event_num) {
+static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &event_num) {
     zval retval;
     int success;
 

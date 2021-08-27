@@ -50,6 +50,36 @@ void Server::init_task_workers() {
     }
 }
 
+static int TaskWorker_call_command_handler(ProcessPool *pool, EventData *req) {
+    Server *serv = (Server *) pool->ptr;
+    int command_id = req->info.server_fd;
+    auto iter = serv->command_handlers.find(command_id);
+    if (iter == serv->command_handlers.end()) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%d]", command_id);
+        return SW_OK;
+    }
+
+    Server::Command::Handler handler = iter->second;
+    PacketPtr packet;
+    if (!Server::event_data_unpack(req, sw_tg_buffer(), &packet)) {
+        return SW_OK;
+    }
+
+    auto result = handler(serv, std::string(packet.data, packet.length));
+
+    SendData task{};
+    task.info.fd = req->info.fd;
+    task.info.reactor_id = SwooleWG.worker->id;
+    task.info.server_fd = -1;
+    task.info.type = SW_SERVER_EVENT_COMMAND;
+    task.info.len = result.length();
+    task.data = result.c_str();
+
+    Socket *reply_sock =
+        serv->is_base_mode() ? serv->get_worker(0)->pipe_master : serv->pipe_command->get_socket(false);
+    return serv->message_bus.write(reply_sock, &task) ? SW_OK : SW_ERR;
+}
+
 static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
     int ret = SW_OK;
     Server *serv = (Server *) pool->ptr;
@@ -57,6 +87,8 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
 
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         serv->onPipeMessage(serv, task);
+    } else if (task->info.type == SW_SERVER_EVENT_COMMAND) {
+        ret = TaskWorker_call_command_handler(pool, task);
     } else {
         ret = serv->onTask(serv, task);
     }
@@ -64,10 +96,15 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
     return ret;
 }
 
-bool EventData::pack(const void *_data, size_t _length) {
-    if (_length < SW_IPC_MAX_SIZE - sizeof(info)) {
-        memcpy(data, _data, _length);
-        info.len = _length;
+bool Server::event_data_pack(EventData *edata, const void *_data, size_t _length) {
+    edata->info.type = SW_SERVER_EVENT_TASK;
+    edata->info.fd = SwooleG.current_task_id++;
+    edata->info.reactor_id = SwooleG.process_id;
+    edata->info.time = swoole::microtime();
+
+    if (_length < SW_IPC_MAX_SIZE - sizeof(edata->info)) {
+        memcpy(edata->data, _data, _length);
+        edata->info.len = _length;
         return true;
     }
 
@@ -82,18 +119,24 @@ bool EventData::pack(const void *_data, size_t _length) {
         return false;
     }
 
-    info.len = sizeof(pkg);
-    SW_TASK_TYPE(this) |= SW_TASK_TMPFILE;
+    edata->info.len = sizeof(pkg);
+    edata->info.flags |= SW_TASK_TMPFILE;
     swoole_strlcpy(pkg.tmpfile, file.get_path().c_str(), sizeof(pkg.tmpfile));
     pkg.length = _length;
-    memcpy(data, &pkg, sizeof(pkg));
+    memcpy(edata->data, &pkg, sizeof(pkg));
 
     return true;
 }
 
-bool EventData::unpack(String *buffer) {
+bool Server::event_data_unpack(EventData *edata, String *buffer, PacketPtr *packet) {
+    if (!(edata->info.flags & SW_TASK_TMPFILE)) {
+        packet->data = edata->data;
+        packet->length = edata->info.len;
+        return true;
+    }
+
     PacketTask _pkg{};
-    memcpy(&_pkg, data, sizeof(_pkg));
+    memcpy(&_pkg, edata->data, sizeof(_pkg));
 
     File fp(_pkg.tmpfile, O_RDONLY);
     if (!fp.ready()) {
@@ -106,10 +149,12 @@ bool EventData::unpack(String *buffer) {
     if (fp.read_all(buffer->str, _pkg.length) != _pkg.length) {
         return false;
     }
-    if (!(SW_TASK_TYPE(this) & SW_TASK_PEEK)) {
+    if (!(edata->info.flags & SW_TASK_PEEK)) {
         unlink(_pkg.tmpfile);
     }
     buffer->length = _pkg.length;
+    packet->data = buffer->str;
+    packet->length = buffer->length;
     return true;
 }
 
@@ -236,7 +281,7 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         swoole_warning("Server::task()/Server::finish() is not supported in onPipeMessage callback");
         return SW_ERR;
     }
-    if (SW_TASK_TYPE(current_task) & SW_TASK_NOREPLY) {
+    if (buf.info.flags & SW_TASK_NOREPLY) {
         swoole_warning("Server::finish() can only be used in the worker process");
         return SW_ERR;
     }
@@ -251,21 +296,21 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
 
     int ret;
     // for swoole_server_task
-    if (SW_TASK_TYPE(current_task) & SW_TASK_NONBLOCK) {
+    if (current_task->info.flags & SW_TASK_NONBLOCK) {
         buf.info.type = SW_SERVER_EVENT_FINISH;
         buf.info.fd = current_task->info.fd;
         buf.info.time = microtime();
         buf.info.reactor_id = SwooleWG.worker->id;
         // callback function
-        if (SW_TASK_TYPE(current_task) & SW_TASK_CALLBACK) {
+        if (current_task->info.flags & SW_TASK_CALLBACK) {
             flags |= SW_TASK_CALLBACK;
-        } else if (SW_TASK_TYPE(current_task) & SW_TASK_COROUTINE) {
+        } else if (current_task->info.flags & SW_TASK_COROUTINE) {
             flags |= SW_TASK_COROUTINE;
         }
-        SW_TASK_TYPE(&buf) = flags;
+        buf.info.flags = flags;
 
         // write to file
-        if (!buf.pack(data, data_len)) {
+        if (!event_data_pack(&buf, data, data_len)) {
             swoole_warning("large task pack failed()");
             return SW_ERR;
         }
@@ -291,15 +336,15 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         // lock worker
         worker->lock->lock();
 
-        if (SW_TASK_TYPE(current_task) & SW_TASK_WAITALL) {
+        if (current_task->info.flags & SW_TASK_WAITALL) {
             sw_atomic_t *finish_count = (sw_atomic_t *) result->data;
             char *_tmpfile = result->data + 4;
             File file(_tmpfile, O_APPEND | O_WRONLY);
             if (file.ready()) {
                 buf.info.type = SW_SERVER_EVENT_FINISH;
                 buf.info.fd = current_task->info.fd;
-                SW_TASK_TYPE(&buf) = flags;
-                if (!buf.pack(data, data_len)) {
+                buf.info.flags = flags;
+                if (!event_data_pack(&buf, data, data_len)) {
                     swoole_warning("large task pack failed()");
                     buf.info.len = 0;
                 }
@@ -312,8 +357,8 @@ int Server::reply_task_result(const char *data, size_t data_len, int flags, Even
         } else {
             result->info.type = SW_SERVER_EVENT_FINISH;
             result->info.fd = current_task->info.fd;
-            SW_TASK_TYPE(result) = flags;
-            if (!result->pack(data, data_len)) {
+            result->info.flags = flags;
+            if (!event_data_pack(result, data, data_len)) {
                 // unlock worker
                 worker->lock->unlock();
                 swoole_warning("large task pack failed()");

@@ -322,7 +322,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));
     *pool = {};
-    if (pool->create(worker_num, (key_t) msgq_key, (swIPC_type) ipc_type) < 0) {
+    if (pool->create(worker_num, (key_t) msgq_key, (swIPCMode) ipc_type) < 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
         efree(pool);
         RETURN_FALSE;

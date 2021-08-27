@@ -202,6 +202,10 @@ class String {
         return append(append_str.c_str(), append_str.length());
     }
 
+    inline int append(char c) {
+        return append(&c, sizeof(c));
+    }
+
     inline int append(const String &append_str) {
         size_t new_size = length + append_str.length;
         if (new_size > size) {

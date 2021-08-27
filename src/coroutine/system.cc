@@ -267,7 +267,7 @@ bool System::wait_signal(int signo, double timeout) {
     if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
         sw_reactor()->set_exit_condition(
             Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER,
-            [](Reactor *reactor, int &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
+            [](Reactor *reactor, size_t &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
     }
     /* always enable signalfd */
     SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
