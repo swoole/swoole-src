@@ -349,7 +349,7 @@ void Server::worker_start_callback() {
         }
     }
 
-    for (uint32_t i = 0; i < worker_num + task_worker_num; i++) {
+    SW_LOOP_N(worker_num + task_worker_num) {
         Worker *worker = get_worker(i);
         if (SwooleG.process_id == i) {
             continue;

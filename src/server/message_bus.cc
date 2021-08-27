@@ -216,6 +216,16 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         return send_fn(sock, iov, 1) == (ssize_t) iov[0].iov_len;
     }
 
+    if (!always_chunked_transfer_ && l_payload <= max_length) {
+        resp->info.flags = 0;
+        resp->info.len = l_payload;
+        iov[0].iov_base = &resp->info;
+        iov[0].iov_len = sizeof(resp->info);
+        iov[1].iov_base = (void *) payload;
+        iov[1].iov_len = l_payload;
+        return send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload);
+    }
+
     resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
     resp->info.len = l_payload;
 

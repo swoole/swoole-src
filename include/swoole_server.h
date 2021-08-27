@@ -199,6 +199,7 @@ class MessageBus {
     std::function<uint64_t(void)> id_generator_;
     size_t buffer_size_;
     PipeBuffer *buffer_ = nullptr;
+    bool always_chunked_transfer_ = false;
 
     String *get_packet_buffer();
     ReturnCode prepare_packet(uint16_t &recv_chunk_count, String *packet_buffer);
@@ -231,6 +232,10 @@ class MessageBus {
 
     void set_buffer_size(size_t buffer_size) {
         buffer_size_ = buffer_size;
+    }
+
+    void set_always_chunked_transfer() {
+        always_chunked_transfer_ = true;
     }
 
     size_t get_buffer_size() {

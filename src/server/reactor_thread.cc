@@ -800,6 +800,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
 
     message_bus.set_id_generator([serv]() { return sw_atomic_fetch_add(&serv->gs->pipe_packet_msg_id, 1); });
     message_bus.set_buffer_size(serv->ipc_max_size);
+    message_bus.set_always_chunked_transfer();
     if (!message_bus.alloc_buffer()) {
         return SW_ERR;
     }
