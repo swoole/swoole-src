@@ -295,7 +295,7 @@ static inline bool swoole_http_has_crlf(const char *value, size_t length) {
     return false;
 }
 
-void swoole_http_parse_cookie(zval *array, const char *at, size_t length);
+void swoole_http_parse_cookie(zval *array, const char *at, size_t length, bool url_decode = true);
 
 swoole::http::Context *php_swoole_http_request_get_context(zval *zobject);
 void php_swoole_http_request_set_context(zval *zobject, swoole::http::Context *context);
