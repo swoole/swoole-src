@@ -29,7 +29,7 @@ using swoole::Timer;
 using swoole::coroutine::Socket;
 
 struct DNSCacheEntity {
-    char address[16];
+    char address[INET6_ADDRSTRLEN];
     time_t update_time;
 };
 

@@ -661,6 +661,8 @@ struct Global {
     //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(Reactor *reactor, size_t &event_num)> user_exit_condition;
+    // bug report message
+    std::string bug_report_message = "";
 };
 
 std::string dirname(const std::string &file);
