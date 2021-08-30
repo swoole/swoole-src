@@ -883,7 +883,7 @@ zval *php_swoole_task_unpack(EventData *task_result) {
     php_unserialize_data_t var_hash;
     PacketPtr packet;
 
-    if (Server::event_data_unpack(task_result, sw_tg_buffer(), &packet)) {
+    if (!Server::event_data_unpack(task_result, sw_tg_buffer(), &packet)) {
         return nullptr;
     }
 
