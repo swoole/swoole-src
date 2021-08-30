@@ -231,11 +231,11 @@ int Timer::select() {
         next_msec_ = -1;
         set(this, -1);
     } else {
-        long next_msec = tnode->exec_msec - now_msec;
-        if (next_msec <= 0) {
-            next_msec = 1;
+        next_msec_ = tnode->exec_msec - now_msec;
+        if (next_msec_ <= 0) {
+            next_msec_ = 1;
         }
-        set(this, next_msec);
+        set(this, next_msec_);
     }
     round++;
 
