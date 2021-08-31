@@ -116,18 +116,12 @@ static void bug_report_message_init() {
 
     struct utsname u;
     if (uname(&u) != -1) {
-        SwooleG.bug_report_message += swoole::std_string::format(
-            "OS: %s %s %s %s\n",
-            u.sysname,
-            u.release,
-            u.version,
-            u.machine);
+        SwooleG.bug_report_message +=
+            swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
     }
 
 #ifdef __VERSION__
-    SwooleG.bug_report_message += swoole::std_string::format(
-        "GCC_VERSION: %s\n",
-        __VERSION__);
+    SwooleG.bug_report_message += swoole::std_string::format("GCC_VERSION: %s\n", __VERSION__);
 #endif
 
 #ifdef SW_USE_OPENSSL
@@ -876,6 +870,11 @@ size_t DataHead::dump(char *_buf, size_t _len) {
                        server_fd,
                        ext_flags,
                        time);
+}
+
+void DataHead::print() {
+    sw_tg_buffer()->length = dump(sw_tg_buffer()->str, sw_tg_buffer()->size);
+    printf("%.*s", (int) sw_tg_buffer()->length, sw_tg_buffer()->str);
 }
 
 std::string dirname(const std::string &file) {

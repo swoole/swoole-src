@@ -125,16 +125,16 @@ TEST(base, file_size) {
 TEST(base, eventdata_pack) {
     EventData ed1 { };
 
-    ASSERT_TRUE(Server::event_data_pack(&ed1, test_data.c_str(), test_data.length()));
+    ASSERT_TRUE(Server::task_pack(&ed1, test_data.c_str(), test_data.length()));
     ASSERT_EQ(string(ed1.data, ed1.info.len), test_data);
 
     EventData ed2 { };
     ASSERT_EQ(swoole_random_bytes(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG), SW_BUFFER_SIZE_BIG);
-    ASSERT_TRUE(Server::event_data_pack(&ed2, sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
+    ASSERT_TRUE(Server::task_pack(&ed2, sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
 
     String _buffer(SW_BUFFER_SIZE_BIG);
     PacketPtr packet;
-    ASSERT_TRUE(Server::event_data_unpack(&ed2, &_buffer, &packet));
+    ASSERT_TRUE(Server::task_unpack(&ed2, &_buffer, &packet));
     ASSERT_EQ(memcmp(sw_tg_buffer()->str, _buffer.str, SW_BUFFER_SIZE_BIG), 0);
 }
 

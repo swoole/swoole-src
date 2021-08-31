@@ -1064,7 +1064,7 @@ bool Server::command(WorkerId process_id,
         }
         EventData buf;
         memset(&buf.info, 0, sizeof(buf.info));
-        if (!event_data_pack(&buf, msg.c_str(), msg.length())) {
+        if (!task_pack(&buf, msg.c_str(), msg.length())) {
             return false;
         }
         buf.info.type = SW_SERVER_EVENT_COMMAND;

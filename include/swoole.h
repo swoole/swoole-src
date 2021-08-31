@@ -584,8 +584,10 @@ struct DataHead {
     uint8_t flags;
     uint16_t server_fd;
     uint16_t ext_flags;
+    uint32_t reserved;
     double time;
     size_t dump(char *buf, size_t len);
+    void print();
 };
 
 struct EventData {
