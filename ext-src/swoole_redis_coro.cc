@@ -4781,8 +4781,6 @@ static PHP_METHOD(swoole_redis_coro, xRead) {
 
     // streams
     SW_REDIS_COMMAND_ARGV_FILL("STREAMS", 7)
-    char *key, *val;
-    size_t key_len, val_len;
     zend_long _num_key;
     zend_string *_str_key;
     zval *_val;
@@ -4790,16 +4788,12 @@ static PHP_METHOD(swoole_redis_coro, xRead) {
         if (_str_key == NULL) {
             _str_key = zend_long_to_str(_num_key);
         }
-        key = ZSTR_VAL(_str_key);
-        key_len = ZSTR_LEN(_str_key);
-        SW_REDIS_COMMAND_ARGV_FILL(key, key_len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(_str_key), ZSTR_LEN(_str_key))
     }
     ZEND_HASH_FOREACH_END();
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_streams), _val) {
-        convert_to_string_ex(_val);
-        val = Z_STRVAL_P(_val);
-        val_len = Z_STRLEN_P(_val);
-        SW_REDIS_COMMAND_ARGV_FILL(val, val_len)
+        convert_to_string(_val);
+        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(_val), Z_STRLEN_P(_val))
     }
     ZEND_HASH_FOREACH_END();
 
@@ -5077,8 +5071,6 @@ static PHP_METHOD(swoole_redis_coro, xReadGroup) {
 
     // streams
     SW_REDIS_COMMAND_ARGV_FILL("STREAMS", 7)
-    char *opt_key, *opt_val;
-    size_t opt_key_len, opt_val_len;
     zend_long _num_key;
     zend_string *_str_key;
     zval *_val;
@@ -5086,16 +5078,12 @@ static PHP_METHOD(swoole_redis_coro, xReadGroup) {
         if (_str_key == NULL) {
             _str_key = zend_long_to_str(_num_key);
         }
-        opt_key = ZSTR_VAL(_str_key);
-        opt_key_len = ZSTR_LEN(_str_key);
-        SW_REDIS_COMMAND_ARGV_FILL(opt_key, opt_key_len)
+        SW_REDIS_COMMAND_ARGV_FILL(ZSTR_VAL(_str_key), ZSTR_LEN(_str_key))
     }
     ZEND_HASH_FOREACH_END();
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_streams), _val) {
-        convert_to_string_ex(_val);
-        opt_val = Z_STRVAL_P(_val);
-        opt_val_len = Z_STRLEN_P(_val);
-        SW_REDIS_COMMAND_ARGV_FILL(opt_val, opt_val_len)
+        convert_to_string(_val);
+        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(_val), Z_STRLEN_P(_val))
     }
     ZEND_HASH_FOREACH_END();
 
@@ -5193,9 +5181,8 @@ static PHP_METHOD(swoole_redis_coro, xAck) {
     // id
     zval *_id;
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_id), _id) {
-        if (Z_TYPE_P(_id) == IS_STRING) {
-            SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(_id), Z_STRLEN_P(_id))
-        }
+        convert_to_string(_id);
+        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(_id), Z_STRLEN_P(_id))
     }
     ZEND_HASH_FOREACH_END();
 
@@ -5236,9 +5223,8 @@ static PHP_METHOD(swoole_redis_coro, xClaim) {
     // id
     zval *_id;
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(z_id), _id) {
-        if (Z_TYPE_P(_id) == IS_STRING) {
-            SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(_id), Z_STRLEN_P(_id))
-        }
+        convert_to_string(_id);
+        SW_REDIS_COMMAND_ARGV_FILL(Z_STRVAL_P(_id), Z_STRLEN_P(_id))
     }
     ZEND_HASH_FOREACH_END();
 

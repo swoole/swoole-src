@@ -101,6 +101,10 @@ go(function () {
     $ret = $redis->xTrim('mystream', ['minid'=>['~', '0'], 'limit'=>1]);
     Assert::assert($ret == '0');
 
+    // xGroupSetId
+    $ret = $redis->xGroupSetId('mystream', 'group1', '0-1');
+    Assert::assert($ret == '1');
+
     // xGroupDelConsumer
     $ret = $redis->xGroupDelConsumer('mystream', 'group1', 'consumer1');
     Assert::assert($ret == '1');
