@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 //Co::set(['log_level' => SWOOLE_LOG_TRACE, 'trace_flags' => SWOOLE_TRACE_ALL]);
 
-go(function () {
+Co\run(function() {
     $redis = new Swoole\Coroutine\Redis();
     $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
 
@@ -117,8 +117,6 @@ go(function () {
 
     echo "OK\n";
 });
-
-swoole_event::wait();
 ?>
 --EXPECT--
 OK
