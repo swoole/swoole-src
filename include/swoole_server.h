@@ -50,6 +50,9 @@ namespace http_server {
 struct Request;
 }
 
+class Server;
+struct Manager;
+
 struct Session {
     SessionId id;
     int fd;
@@ -139,14 +142,6 @@ struct Connection {
     sw_atomic_t lock;
 };
 
-struct ReactorThread {
-    std::thread thread;
-    network::Socket *notify_pipe = nullptr;
-    uint32_t pipe_num = 0;
-    network::Socket *pipe_sockets = nullptr;
-    std::unordered_map<int, String *> send_buffers;
-};
-
 struct WorkerStopMessage {
     pid_t pid;
     uint16_t worker_id;
@@ -165,6 +160,24 @@ struct RecvData {
 struct PipeBuffer {
     DataHead info;
     char data[0];
+
+    bool is_begin() {
+        return info.flags & SW_EVENT_DATA_BEGIN;
+    }
+
+    bool is_chunked() {
+        return info.flags & SW_EVENT_DATA_CHUNK;
+    }
+
+    bool is_end() {
+        return info.flags & SW_EVENT_DATA_END;
+    }
+};
+
+//------------------------------------Packet-------------------------------------------
+struct PacketPtr {
+    size_t length;
+    char *data;
 };
 
 struct DgramPacket {
@@ -174,18 +187,142 @@ struct DgramPacket {
     char data[0];
 };
 
-//------------------------------------Packet-------------------------------------------
 struct PacketTask {
     size_t length;
     char tmpfile[SW_TASK_TMP_PATH_SIZE];
 };
 
-struct PacketPtr {
-    DataHead info;
-    struct {
-        uint32_t length;
-        char *str;
-    } data;
+class MessageBus {
+  private:
+    const Allocator *allocator_;
+    std::unordered_map<uint64_t, std::shared_ptr<String>> packet_pool_;
+    std::function<uint64_t(void)> id_generator_;
+    size_t buffer_size_;
+    PipeBuffer *buffer_ = nullptr;
+    bool always_chunked_transfer_ = false;
+
+    String *get_packet_buffer();
+    ReturnCode prepare_packet(uint16_t &recv_chunk_count, String *packet_buffer);
+
+  public:
+    MessageBus() {
+        allocator_ = sw_std_allocator();
+        buffer_size_ = SW_BUFFER_SIZE_STD;
+    }
+
+    ~MessageBus() {
+        allocator_->free(buffer_);
+    }
+
+    bool empty() {
+        return packet_pool_.empty();
+    }
+
+    void clear() {
+        packet_pool_.clear();
+    }
+
+    void set_allocator(const Allocator *allocator) {
+        allocator_ = allocator;
+    }
+
+    void set_id_generator(const std::function<uint64_t(void)> &id_generator) {
+        id_generator_ = id_generator;
+    }
+
+    void set_buffer_size(size_t buffer_size) {
+        buffer_size_ = buffer_size;
+    }
+
+    void set_always_chunked_transfer() {
+        always_chunked_transfer_ = true;
+    }
+
+    size_t get_buffer_size() {
+        return buffer_size_;
+    }
+
+    bool alloc_buffer() {
+        void *_ptr = allocator_->malloc(sizeof(*buffer_) + buffer_size_);
+        if (_ptr) {
+            buffer_ = (PipeBuffer *) _ptr;
+            sw_memset_zero(&buffer_->info, sizeof(buffer_->info));
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    void pass(SendData *task) {
+        memcpy(&buffer_->info, &task->info, sizeof(buffer_->info));
+        if (task->info.len > 0) {
+            buffer_->info.flags = SW_EVENT_DATA_PTR;
+            PacketPtr pkt{task->info.len, (char *) task->data};
+            buffer_->info.len = sizeof(pkt);
+            memcpy(buffer_->data, &pkt, sizeof(pkt));
+        }
+    }
+
+    /**
+     * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
+     * Otherwise send it directly.
+     * @return: send success returns MsgId(must be greater than 0), send failure returns 0.
+     */
+    bool write(network::Socket *sock, SendData *packet);
+    /**
+     * Receive data from socket, if only one chunk is received, packet will be saved in packet_pool.
+     * Then continue to listen to readable events, waiting for more chunks.
+     * @return: >0: receive a complete packet, 0: continue to wait for data, -1: an error occurred
+     */
+    ssize_t read(network::Socket *sock);
+    /**
+     * Receive data from pipeline, and store data to buffer
+     * @return: >0: receive a complete packet, 0: continue to wait for data, -1: an error occurred
+     */
+    ssize_t read_with_buffer(network::Socket *sock);
+    /**
+     * The last chunk of data has been received, return address and length, start processing this packet.
+     */
+    PacketPtr get_packet();
+    PipeBuffer *get_buffer() {
+        return buffer_;
+    }
+    /**
+     * Pop the data memory address to the outer layer, no longer managed by MessageBus
+     */
+    char *move_packet() {
+        uint64_t msg_id = buffer_->info.msg_id;
+        auto iter = packet_pool_.find(msg_id);
+        if (iter != packet_pool_.end()) {
+            auto str = iter->second.get();
+            char *val = str->str;
+            str->str = nullptr;
+            return val;
+        } else {
+            return nullptr;
+        }
+    }
+    /**
+     * The processing of this data packet has been completed, and the relevant memory has been released
+     */
+    void pop() {
+        if (buffer_->is_end()) {
+            packet_pool_.erase(buffer_->info.msg_id);
+        }
+    }
+};
+
+//------------------------------------ReactorThread-------------------------------------------
+struct ReactorThread {
+    int id;
+    std::thread thread;
+    network::Socket *notify_pipe = nullptr;
+    uint32_t pipe_num = 0;
+    network::Socket *pipe_sockets = nullptr;
+    network::Socket *pipe_command = nullptr;
+    MessageBus message_bus;
+
+    int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
 };
 
 struct ListenPort {
@@ -304,7 +441,7 @@ struct ListenPort {
     Protocol protocol = {};
     void *ptr = nullptr;
 
-    int (*onRead)(Reactor *reactor, ListenPort *port, swEvent *event) = nullptr;
+    int (*onRead)(Reactor *reactor, ListenPort *port, Event *event) = nullptr;
 
     inline bool is_dgram() {
         return network::Socket::is_dgram(type);
@@ -384,15 +521,13 @@ struct ServerGS {
     sw_atomic_long_t close_count;
     sw_atomic_long_t request_count;
     sw_atomic_long_t dispatch_count;
+    sw_atomic_long_t pipe_packet_msg_id;
 
     sw_atomic_t spinlock;
 
     ProcessPool task_workers;
     ProcessPool event_workers;
 };
-
-class Server;
-struct Manager;
 
 class Factory {
   protected:
@@ -426,7 +561,6 @@ class BaseFactory : public Factory {
 class ProcessFactory : public Factory {
   private:
     std::vector<std::shared_ptr<UnixSocket>> pipes;
-    PipeBuffer *send_buffer;
 
   public:
     ProcessFactory(Server *server);
@@ -444,6 +578,7 @@ enum ServerEventType {
     SW_SERVER_EVENT_RECV_DATA,
     SW_SERVER_EVENT_RECV_DGRAM,
     // send data
+    SW_SERVER_EVENT_SEND_DATA,
     SW_SERVER_EVENT_SEND_FILE,
     // connection event
     SW_SERVER_EVENT_CLOSE,
@@ -454,9 +589,6 @@ enum ServerEventType {
     SW_SERVER_EVENT_FINISH,
     // pipe
     SW_SERVER_EVENT_PIPE_MESSAGE,
-    // proxy
-    SW_SERVER_EVENT_PROXY_START,
-    SW_SERVER_EVENT_PROXY_END,
     // event operate
     SW_SERVER_EVENT_PAUSE_RECV,
     SW_SERVER_EVENT_RESUME_RECV,
@@ -466,11 +598,27 @@ enum ServerEventType {
     // process message
     SW_SERVER_EVENT_INCOMING,
     SW_SERVER_EVENT_SHUTDOWN,
+    SW_SERVER_EVENT_COMMAND,
 };
 
 class Server {
   public:
     typedef int (*DispatchFunction)(Server *, Connection *, SendData *);
+
+    struct Command {
+        typedef std::function<void(Server *, const std::string &msg)> Callback;
+        typedef std::function<std::string(Server *, const std::string &msg)> Handler;
+        enum ProcessType {
+            MASTER = 1u << 1,
+            REACTOR_THREAD = 1u << 2,
+            EVENT_WORKER = 1u << 3,
+            TASK_WORKER = 1u << 4,
+            ALL_PROCESS = MASTER | REACTOR_THREAD | EVENT_WORKER | TASK_WORKER,
+        };
+        int id;
+        int accepted_process_types;
+        std::string name;
+    };
 
     enum Mode {
         MODE_BASE = 1,
@@ -569,9 +717,6 @@ class Server {
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
 
     /*----------------------------Reactor schedule--------------------------------*/
-    const Allocator *worker_buffer_allocator;
-    std::unordered_map<uint64_t, std::shared_ptr<String>> worker_buffers;
-    std::atomic<uint64_t> worker_msg_id;
     sw_atomic_t worker_round_id = 0;
 
     /**
@@ -681,7 +826,9 @@ class Server {
     int *cpu_affinity_available = 0;
     int cpu_affinity_available_num = 0;
 
-    PipeBuffer **pipe_buffers = nullptr;
+    UnixSocket *pipe_command = nullptr;
+    MessageBus message_bus;
+
     double send_timeout = 0;
 
     uint16_t heartbeat_check_interval = 0;
@@ -747,6 +894,26 @@ class Server {
     }
 
     /**
+     * [ReactorThread]
+     */
+    network::Socket *get_worker_pipe_socket(Worker *worker) {
+        return &get_thread(SwooleTG.id)->pipe_sockets[worker->pipe_master->fd];
+    }
+
+    /**
+     * [Worker|Master]
+     */
+    inline network::Socket *get_reactor_pipe_socket(SessionId session_id, int reactor_id) {
+        int pipe_index = session_id % reactor_pipe_num;
+        /**
+         * pipe_worker_id: The pipe in which worker.
+         */
+        int pipe_worker_id = reactor_id + (pipe_index * reactor_num);
+        Worker *worker = get_worker(pipe_worker_id);
+        return worker->pipe_worker;
+    }
+
+    /**
      *  task process
      */
     uint32_t task_worker_num = 0;
@@ -759,10 +926,15 @@ class Server {
     /**
      * user process
      */
-    uint32_t user_worker_num = 0;
-    std::vector<Worker *> *user_worker_list = nullptr;
-    std::unordered_map<pid_t, Worker *> *user_worker_map = nullptr;
+    std::vector<Worker *> user_worker_list;
+    std::unordered_map<pid_t, Worker *> user_worker_map;
     Worker *user_workers = nullptr;
+
+    std::unordered_map<std::string, Command> commands;
+    std::unordered_map<int, Command::Handler> command_handlers;
+    std::unordered_map<int64_t, Command::Callback> command_callbacks;
+    int command_current_id = 1;
+    int64_t command_current_request_id = 1;
 
     Worker *workers = nullptr;
     Channel *message_box = nullptr;
@@ -801,7 +973,7 @@ class Server {
     EventData *last_task = nullptr;
     std::queue<String *> *buffer_pool = nullptr;
 
-    const Allocator *buffer_allocator = &SwooleG.std_allocator;
+    const Allocator *recv_buffer_allocator = &SwooleG.std_allocator;
     size_t recv_buffer_size = SW_BUFFER_SIZE_BIG;
 
     int manager_alarm = 0;
@@ -813,6 +985,7 @@ class Server {
 
     void *hooks[SW_MAX_HOOK_TYPE] = {};
 
+    /*----------------------------Event Callback--------------------------------*/
     /**
      * Master Process
      */
@@ -848,31 +1021,6 @@ class Server {
      */
     std::function<int(Server *, EventData *)> onTask;
     std::function<int(Server *, EventData *)> onFinish;
-    /**
-     * Chunk control
-     */
-    size_t get_packet(EventData *req, char **data_ptr);
-
-    String *get_worker_buffer(DataHead *info) {
-        auto iter = worker_buffers.find(info->msg_id);
-        if (iter == worker_buffers.end()) {
-            if (info->flags & SW_EVENT_DATA_BEGIN) {
-                auto buffer = make_string(info->len, worker_buffer_allocator);
-                worker_buffers.emplace(info->msg_id, std::shared_ptr<String>(buffer));
-                return buffer;
-            }
-            return nullptr;
-        }
-        return iter->second.get();
-    }
-
-    void pop_worker_buffer(DataHead *info) {
-        uint64_t msg_id = info->msg_id;
-        auto iter = worker_buffers.find(msg_id);
-        if (iter != worker_buffers.end()) {
-            iter->second.get()->str = nullptr;
-        }
-    }
 
     /**
      * Hook
@@ -911,6 +1059,7 @@ class Server {
     ListenPort *add_port(SocketType type, const char *host, int port);
     int add_systemd_socket();
     int add_hook(enum HookType type, const Callback &func, int push_back);
+    bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
@@ -943,7 +1092,7 @@ class Server {
     inline String *get_recv_buffer(swSocket *_socket) {
         String *buffer = _socket->recv_buffer;
         if (buffer == nullptr) {
-            buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, buffer_allocator);
+            buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, recv_buffer_allocator);
             if (!buffer) {
                 return nullptr;
             }
@@ -955,19 +1104,6 @@ class Server {
 
     inline uint32_t get_worker_buffer_num() {
         return is_base_mode() ? 1 : reactor_num + dgram_port_num;
-    }
-
-    /**
-     * reactor_id: The fd in which the reactor.
-     */
-    inline swSocket *get_reactor_thread_pipe(SessionId session_id, int reactor_id) {
-        int pipe_index = session_id % reactor_pipe_num;
-        /**
-         * pipe_worker_id: The pipe in which worker.
-         */
-        int pipe_worker_id = reactor_id + (pipe_index * reactor_num);
-        Worker *worker = get_worker(pipe_worker_id);
-        return worker->pipe_worker;
     }
 
     inline bool is_support_unsafe_events() {
@@ -1035,7 +1171,7 @@ class Server {
         }
 
         // User Worker
-        uint32_t user_worker_max = task_worker_max + user_worker_num;
+        uint32_t user_worker_max = task_worker_max + user_worker_list.size();
         if (worker_id < user_worker_max) {
             return &(user_workers[worker_id - task_worker_max]);
         }
@@ -1063,7 +1199,11 @@ class Server {
     }
 
     size_t get_all_worker_num() {
-        return worker_num + task_worker_num + user_worker_num;
+        return worker_num + task_worker_num + get_user_worker_num();
+    }
+
+    size_t get_user_worker_num() {
+        return user_worker_list.size();
     }
 
     inline ReactorThread *get_thread(int reactor_id) {
@@ -1072,6 +1212,10 @@ class Server {
 
     inline bool is_started() {
         return gs->start;
+    }
+
+    bool is_created() {
+        return factory != nullptr;
     }
 
     bool is_master() {
@@ -1092,6 +1236,10 @@ class Server {
 
     bool is_user_worker() {
         return SwooleG.process_type == SW_PROCESS_USERWORKER;
+    }
+
+    bool is_reactor_thread() {
+        return SwooleG.process_type == SW_PROCESS_MASTER && SwooleTG.type == Server::THREAD_REACTOR;
     }
 
     bool is_sync_process() {
@@ -1126,6 +1274,8 @@ class Server {
     static int is_stream_event(uint8_t type) {
         switch (type) {
         case SW_SERVER_EVENT_RECV_DATA:
+        case SW_SERVER_EVENT_SEND_DATA:
+        case SW_SERVER_EVENT_SEND_FILE:
         case SW_SERVER_EVENT_CONNECT:
         case SW_SERVER_EVENT_CLOSE:
         case SW_SERVER_EVENT_PAUSE_RECV:
@@ -1211,22 +1361,26 @@ class Server {
 
     void call_hook(enum HookType type, void *arg);
     void call_worker_start_callback(Worker *worker);
-
+    ResultCode call_command_handler(MessageBus &mb, uint16_t worker_id, network::Socket *sock);
+    std::string call_command_handler_in_master(int command_id, const std::string &msg);
+    void call_command_callback(int64_t request_id, const std::string &result);
     void foreach_connection(const std::function<void(Connection *)> &callback);
-
-    int accept_task(EventData *task);
     static int accept_connection(Reactor *reactor, Event *event);
 #ifdef SW_SUPPORT_DTLS
     dtls::Session *accept_dtls_connection(ListenPort *ls, network::Address *sa);
 #endif
+    static int accept_command_result(Reactor *reactor, Event *event);
     static int close_connection(Reactor *reactor, network::Socket *_socket);
     static int dispatch_task(Protocol *proto, network::Socket *_socket, const char *data, uint32_t length);
 
     int send_to_connection(SendData *);
-    ssize_t send_to_worker_from_master(Worker *worker, const iovec *iov, size_t iovcnt);
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
+
+    ssize_t send_to_worker_from_worker(WorkerId id, EventData *data, int flags) {
+        return send_to_worker_from_worker(get_worker(id), data, sizeof(data->info) + data->info.len, flags);
+    }
+
     ssize_t send_to_reactor_thread(const EventData *ev_data, size_t sendn, SessionId session_id);
-    ssize_t send_to_reactor_thread(const DataHead *head, const iovec *iov, size_t iovcnt, SessionId session_id);
     int reply_task_result(const char *data, size_t data_len, int flags, EventData *current_task);
 
     bool send(SessionId session_id, const void *data, uint32_t length);
@@ -1236,14 +1390,19 @@ class Server {
 
     bool notify(Connection *conn, enum ServerEventType event);
     bool feedback(Connection *conn, enum ServerEventType event);
+    bool command(WorkerId process_id,
+                 Command::ProcessType process_type,
+                 const std::string &name,
+                 const std::string &msg,
+                 const Command::Callback &fn);
 
     void init_reactor(Reactor *reactor);
     void init_worker(Worker *worker);
     void init_task_workers();
     void init_port_protocol(ListenPort *port);
     void init_signal_handler();
+    void init_ipc_max_size();
 
-    void set_ipc_max_size();
     void set_max_connection(uint32_t _max_connection);
 
     inline uint32_t get_max_connection() {
@@ -1258,6 +1417,7 @@ class Server {
     }
 
     int create_pipe_buffers();
+    void release_pipe_buffers();
     void create_worker(Worker *worker);
     void destroy_worker(Worker *worker);
     void disable_accept();
@@ -1287,8 +1447,11 @@ class Server {
      */
     void worker_start_callback();
     void worker_stop_callback();
+    void worker_accept_event(DataHead *info);
     static void worker_signal_handler(int signo);
     static void worker_signal_init(void);
+    static bool task_pack(EventData *task, const void *data, size_t data_len);
+    static bool task_unpack(EventData *task, String *buffer, PacketPtr *packet);
 
   private:
     enum Mode mode_;
@@ -1318,6 +1481,7 @@ class Server {
     int create_reactor_threads();
     int start_reactor_threads();
     int start_reactor_processes();
+    int start_master_thread();
     int start_event_worker(Worker *worker);
     void start_heartbeat_thread();
     void join_reactor_thread();

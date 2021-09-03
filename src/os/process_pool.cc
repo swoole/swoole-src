@@ -65,7 +65,7 @@ void ProcessPool::kill_timeout_worker(Timer *timer, TimerNode *tnode) {
 /**
  * Process manager
  */
-int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPC_type _ipc_mode) {
+int ProcessPool::create(uint32_t _worker_num, key_t _msgqueue_key, swIPCMode _ipc_mode) {
     worker_num = _worker_num;
     /**
      * Shared memory is used here

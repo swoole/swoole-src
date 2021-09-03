@@ -77,7 +77,7 @@ bool Timer::init_reactor(Reactor *reactor) {
     reactor->set_end_callback(Reactor::PRIORITY_TIMER, [this](Reactor *) { select(); });
 
     reactor->set_exit_condition(Reactor::EXIT_CONDITION_TIMER,
-                                [this](Reactor *reactor, int &event_num) -> bool { return count() == 0; });
+                                [this](Reactor *reactor, size_t &event_num) -> bool { return count() == 0; });
 
     reactor->add_destroy_callback([](void *) {
         if (swoole_timer_is_available()) {
@@ -231,11 +231,11 @@ int Timer::select() {
         next_msec_ = -1;
         set(this, -1);
     } else {
-        long next_msec = tnode->exec_msec - now_msec;
-        if (next_msec <= 0) {
-            next_msec = 1;
+        next_msec_ = tnode->exec_msec - now_msec;
+        if (next_msec_ <= 0) {
+            next_msec_ = 1;
         }
-        set(this, next_msec);
+        set(this, next_msec_);
     }
     round++;
 

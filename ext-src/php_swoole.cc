@@ -419,10 +419,7 @@ static void fatal_error(int code, const char *format, ...) {
 }
 
 static void bug_report_message_init() {
-    SwooleG.bug_report_message += swoole::std_string::format(
-        "PHP_VERSION : %s\n",
-        PHP_VERSION
-    );
+    SwooleG.bug_report_message += swoole::std_string::format("PHP_VERSION : %s\n", PHP_VERSION);
 }
 
 /* {{{ PHP_MINIT_FUNCTION
@@ -459,19 +456,6 @@ PHP_MINIT_FUNCTION(swoole) {
 #endif
 
     SW_REGISTER_BOOL_CONSTANT("SWOOLE_USE_SHORTNAME", SWOOLE_G(use_shortname));
-
-    /**
-     * mode type
-     */
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_BASE", swoole::Server::MODE_BASE);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_PROCESS", swoole::Server::MODE_PROCESS);
-
-    /**
-     * task ipc mode
-     */
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_UNSOCK", Server::TASK_IPC_UNIXSOCK);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_MSGQUEUE", Server::TASK_IPC_MSGQUEUE);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_IPC_PREEMPTIVE", Server::TASK_IPC_PREEMPTIVE);
 
     /**
      * socket type
@@ -1123,11 +1107,12 @@ static PHP_FUNCTION(swoole_hashcode) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     switch (type) {
+    case 0:
+        RETURN_LONG(zend_hash_func(data, l_data));
     case 1:
         RETURN_LONG(hashkit_one_at_a_time(data, l_data));
-        break; /* ide */
     default:
-        RETURN_LONG(zend_hash_func(data, l_data));
+        RETURN_FALSE;
     }
 }
 

@@ -89,12 +89,12 @@ bool SocketPair::close(int which) {
 }
 
 SocketPair::~SocketPair() {
-    if (!master_socket) {
+    if (master_socket) {
         close(SW_PIPE_CLOSE_MASTER);
     }
-    if (!worker_socket) {
+    if (worker_socket) {
         close(SW_PIPE_CLOSE_WORKER);
     }
 }
 
-}
+}  // namespace swoole

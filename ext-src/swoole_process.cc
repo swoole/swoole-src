@@ -367,7 +367,7 @@ static PHP_METHOD(swoole_process, __construct) {
 
     uint32_t base = 1;
     if (sw_server() && sw_server()->is_started()) {
-        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->user_worker_num;
+        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->get_user_worker_num();
     }
     if (php_swoole_worker_round_id == 0) {
         php_swoole_worker_round_id = base;
@@ -585,7 +585,7 @@ static PHP_METHOD(swoole_process, signal) {
     SwooleTG.reactor->check_signalfd = true;
     if (!SwooleTG.reactor->isset_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER)) {
         SwooleTG.reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER,
-                                             [](Reactor *reactor, int &event_num) -> bool {
+                                             [](Reactor *reactor, size_t &event_num) -> bool {
                                                  return SwooleTG.signal_listener_num == 0 or !SwooleG.wait_signal;
                                              });
     }

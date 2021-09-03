@@ -116,18 +116,12 @@ static void bug_report_message_init() {
 
     struct utsname u;
     if (uname(&u) != -1) {
-        SwooleG.bug_report_message += swoole::std_string::format(
-            "OS: %s %s %s %s\n",
-            u.sysname,
-            u.release,
-            u.version,
-            u.machine);
+        SwooleG.bug_report_message +=
+            swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
     }
 
 #ifdef __VERSION__
-    SwooleG.bug_report_message += swoole::std_string::format(
-        "GCC_VERSION: %s\n",
-        __VERSION__);
+    SwooleG.bug_report_message += swoole::std_string::format("GCC_VERSION: %s\n", __VERSION__);
 #endif
 
 #ifdef SW_USE_OPENSSL
@@ -145,7 +139,7 @@ void swoole_init(void) {
 
     SwooleG.running = 1;
     SwooleG.init = 1;
-    SwooleG.std_allocator = { malloc, calloc, realloc, free };
+    SwooleG.std_allocator = {malloc, calloc, realloc, free};
     SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
@@ -184,7 +178,7 @@ void swoole_init(void) {
 
     SwooleTG.buffer_stack = new swoole::String(SW_STACK_BUFFER_SIZE);
 
-    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR) ) {
+    if (!swoole_set_task_tmpdir(SW_TASK_TMP_DIR)) {
         exit(4);
     }
 
@@ -284,7 +278,7 @@ SW_API void swoole_set_dns_server(const std::string &server) {
     int dns_server_port = SW_DNS_SERVER_PORT;
     char dns_server_host[32];
     strcpy(dns_server_host, server.c_str());
-    if ((_port = strchr((char *)server.c_str(), ':'))) {
+    if ((_port = strchr((char *) server.c_str(), ':'))) {
         dns_server_port = atoi(_port + 1);
         if (dns_server_port <= 0 || dns_server_port > 65535) {
             dns_server_port = SW_DNS_SERVER_PORT;
@@ -336,7 +330,8 @@ pid_t swoole_fork(int flags) {
         }
         if (SwooleTG.async_threads) {
             swoole_trace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
-            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT,
+                               "can not create server after using async file operation");
         }
     }
     if (flags & SW_FORK_PRECHECK) {
@@ -833,9 +828,7 @@ void swoole_print_backtrace(void) {
     free(stacktrace);
 }
 #else
-void swoole_print_backtrace(void) {
-
-}
+void swoole_print_backtrace(void) {}
 #endif
 
 static void swoole_fatal_error_impl(int code, const char *format, ...) {
@@ -855,22 +848,33 @@ namespace swoole {
 size_t DataHead::dump(char *_buf, size_t _len) {
     return sw_snprintf(_buf,
                        _len,
-                       "swDataHead[%p]\n"
+                       "DataHead[%p]\n"
                        "{\n"
                        "    long fd = %ld;\n"
+                       "    uint64_t msg_id = %lu;\n"
                        "    uint32_t len = %d;\n"
                        "    int16_t reactor_id = %d;\n"
                        "    uint8_t type = %d;\n"
                        "    uint8_t flags = %d;\n"
                        "    uint16_t server_fd = %d;\n"
+                       "    uint16_t ext_flags = %d;\n"
+                       "    double time = %f;\n"
                        "}\n",
                        this,
                        fd,
+                       msg_id,
                        len,
                        reactor_id,
                        type,
                        flags,
-                       server_fd);
+                       server_fd,
+                       ext_flags,
+                       time);
+}
+
+void DataHead::print() {
+    sw_tg_buffer()->length = dump(sw_tg_buffer()->str, sw_tg_buffer()->size);
+    printf("%.*s", (int) sw_tg_buffer()->length, sw_tg_buffer()->str);
 }
 
 std::string dirname(const std::string &file) {

@@ -980,7 +980,7 @@ PHP_FUNCTION(swoole_coroutine_defer) {
 
 static PHP_METHOD(swoole_coroutine, stats) {
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->event_num : 0);
+    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->get_event_num() : 0);
     add_assoc_long_ex(
         return_value, ZEND_STRL("signal_listener_num"), SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
 

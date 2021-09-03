@@ -79,6 +79,7 @@ struct ServerProperty {
     std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
     std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
     std::unordered_map<SessionId, std::list<Coroutine *> *> send_coroutine_map;
+    std::vector<zend_fcall_info_cache *> command_callbacks;
 };
 
 struct ServerObject {

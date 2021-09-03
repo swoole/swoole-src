@@ -18,8 +18,6 @@
 #include "swoole_socket.h"
 #include "swoole_reactor.h"
 
-#define EVENT_DEBUG 0
-
 #ifdef HAVE_EPOLL
 #include <sys/epoll.h>
 #ifndef EPOLLRDHUP
@@ -66,15 +64,6 @@ class ReactorEpoll : public ReactorImpl {
     }
 };
 
-#if EVENT_DEBUG
-#include <unordered_map>
-static thread_local std::unordered_map<int, Socket *> event_map;
-
-Socket *swoole_event_map_get(int sockfd) {
-    return event_map[sockfd];
-}
-#endif
-
 ReactorImpl *make_reactor_epoll(Reactor *_reactor, int max_events) {
     return new ReactorEpoll(_reactor, max_events);
 }
@@ -114,10 +103,6 @@ int ReactorEpoll::add(Socket *socket, int events) {
         return SW_ERR;
     }
 
-#if EVENT_DEBUG
-    event_map[socket->fd] = socket;
-#endif
-
     reactor_->_add(socket, events);
     swoole_trace_log(
         SW_TRACE_EVENT, "add events[fd=%d#%d, type=%d, events=%d]", socket->fd, reactor_->id, socket->fd_type, events);
@@ -139,10 +124,6 @@ int ReactorEpoll::del(Socket *_socket) {
             return SW_ERR;
         }
     }
-
-#if EVENT_DEBUG
-    event_map.erase(_socket->fd);
-#endif
 
     swoole_trace_log(SW_TRACE_REACTOR, "remove event[reactor_id=%d|fd=%d]", reactor_->id, _socket->fd);
     reactor_->_del(_socket);
@@ -170,7 +151,7 @@ int ReactorEpoll::set(Socket *socket, int events) {
 }
 
 int ReactorEpoll::wait(struct timeval *timeo) {
-    swEvent event;
+    Event event;
     ReactorHandler handler;
     int i, n, ret;
 
