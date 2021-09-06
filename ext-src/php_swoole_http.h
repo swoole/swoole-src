@@ -364,7 +364,7 @@ class HeaderSet {
             nv->valuelen = value_len;
             nv->flags = flags | NGHTTP2_NV_FLAG_NO_COPY_NAME | NGHTTP2_NV_FLAG_NO_COPY_VALUE;
             swoole_trace_log(SW_TRACE_HTTP2,
-                             "name=(%zu)[%.*s], value=(%zu)[%.*s]",
+                             "name=(%zu)[" SW_ECHO_LEN_BLUE "], value=(%zu)[" SW_ECHO_LEN_CYAN "]",
                              name_len,
                              (int) name_len,
                              name,
