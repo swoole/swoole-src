@@ -1068,13 +1068,11 @@ ssize_t Client::build_header(zval *zobject, zval *zrequest, char *buffer) {
     }
 
     size_t buflen = nghttp2_hd_deflate_bound(h2c->deflater, headers.get(), headers.len());
-    /*
-    if (buflen > h2c->remote_settings.max_header_list_size)
-    {
-        php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u",
-    h2c->remote_settings.max_header_list_size); return -1;
-    }
-    */
+    // if (buflen > h2c->remote_settings.max_header_list_size) {
+    //     php_swoole_error(E_WARNING, "header cannot bigger than remote max_header_list_size %u",
+    //     h2c->remote_settings.max_header_list_size);
+    //     return -1;
+    // }
     ssize_t rv = nghttp2_hd_deflate_hd(h2c->deflater, (uchar *) buffer, buflen, headers.get(), headers.len());
     if (rv < 0) {
         h2c->nghttp2_error(rv, "nghttp2_hd_deflate_hd() failed");
@@ -1125,8 +1123,8 @@ bool Client::send_data(uint32_t stream_id, const char *p, size_t len, int flag) 
     uint32_t send_len;
     char header[SW_HTTP2_FRAME_HEADER_SIZE];
     while (len > 0) {
-        if (len > remote_settings.max_frame_size) {
-            send_len = remote_settings.max_frame_size;
+        if (len > local_settings.max_frame_size) {
+            send_len = local_settings.max_frame_size;
             send_flag = 0;
         } else {
             send_len = len;
