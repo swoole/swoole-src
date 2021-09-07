@@ -19,7 +19,7 @@
 
 #define SW_HTTP2_PRI_STRING "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
-enum swHttp2_error_code {
+enum swHttp2ErrorCode {
     SW_HTTP2_ERROR_NO_ERROR = 0,
     SW_HTTP2_ERROR_PROTOCOL_ERROR = 1,
     SW_HTTP2_ERROR_INTERNAL_ERROR = 2,
@@ -35,7 +35,7 @@ enum swHttp2_error_code {
     SW_HTTP2_ERROR_INADEQUATE_SECURITY = 12,
 };
 
-enum swHttp2_frame_type {
+enum swHttp2FrameType {
     SW_HTTP2_TYPE_DATA = 0,
     SW_HTTP2_TYPE_HEADERS = 1,
     SW_HTTP2_TYPE_PRIORITY = 2,
@@ -48,7 +48,7 @@ enum swHttp2_frame_type {
     SW_HTTP2_TYPE_CONTINUATION = 9,
 };
 
-enum swHttp2_frame_flag {
+enum swHttp2FrameFlag {
     SW_HTTP2_FLAG_NONE = 0x00,
     SW_HTTP2_FLAG_ACK = 0x01,
     SW_HTTP2_FLAG_END_STREAM = 0x01,
@@ -57,7 +57,7 @@ enum swHttp2_frame_flag {
     SW_HTTP2_FLAG_PRIORITY = 0x20,
 };
 
-enum swHttp2_setting_id {
+enum swHttp2SettingId {
     SW_HTTP2_SETTING_HEADER_TABLE_SIZE = 0x1,
     SW_HTTP2_SETTINGS_ENABLE_PUSH = 0x2,
     SW_HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS = 0x3,
@@ -66,7 +66,7 @@ enum swHttp2_setting_id {
     SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE = 0x6,
 };
 
-enum swHttp2_stream_flag {
+enum swHttp2StreamFlag {
     SW_HTTP2_STREAM_NORMAL = 0,
     SW_HTTP2_STREAM_REQUEST_END = 1 << 0,
     SW_HTTP2_STREAM_PIPELINE_REQUEST = 1 << 1,
@@ -87,28 +87,16 @@ enum swHttp2_stream_flag {
 #define SW_HTTP2_STREAM_ID_SIZE 4
 #define SW_HTTP2_SETTINGS_PARAM_SIZE 6
 
-#define swHttp2FrameTraceLogFlags                                                                                      \
-    ((flags & SW_HTTP2_FLAG_ACK) ? "\nEND_ACK |" : ""), ((flags & SW_HTTP2_FLAG_END_STREAM) ? "\nEND_STREAM |" : ""),  \
-        ((flags & SW_HTTP2_FLAG_END_HEADERS) ? "\nEND_HEADERS |" : ""),                                                \
-        ((flags & SW_HTTP2_FLAG_PADDED) ? "\nEND_PADDED |" : ""),                                                      \
-        ((flags & SW_HTTP2_FLAG_PRIORITY) ? "\nEND_PRIORITY |" : "")
-
-#define swHttp2FrameTraceLog(recv, str, ...)                                                                           \
-    swoole_trace_log(SW_TRACE_HTTP2,                                                                                         \
-               "\nrecv ["                                                                                              \
-               "\e[3"                                                                                                  \
-               "%d"                                                                                                    \
-               "m"                                                                                                     \
-               "%s"                                                                                                    \
-               "\e[0m"                                                                                                 \
-               "] frame <length=%jd, flags=%d, stream_id=%d> " str "%s%s%s%s%s",                                       \
-               swoole::http2::get_type_color(type),                                                                    \
-               swoole::http2::get_type(type),                                                                          \
-               length,                                                                                                 \
-               flags,                                                                                                  \
-               stream_id,                                                                                              \
-               ##__VA_ARGS__,                                                                                          \
-               swHttp2FrameTraceLogFlags);
+#define swoole_http2_frame_trace_log(_trace_fn, _trace_str, ...)                                                       \
+    swoole_trace_log(SW_TRACE_HTTP2,                                                                                   \
+                     "%s [" SW_ECHO_GREEN "] frame"                                                                    \
+                     "<length=%jd, flags=(%s), stream_id=%d> " _trace_str,                                             \
+                     #_trace_fn,                                                                                       \
+                     swoole::http2::get_type(type),                                                                    \
+                     length,                                                                                           \
+                     swoole::http2::get_flag_string(flags).c_str(),                                                    \
+                     stream_id,                                                                                        \
+                     ##__VA_ARGS__)
 
 namespace swoole {
 namespace http2 {
@@ -156,6 +144,30 @@ static sw_inline void init_settings(Settings *settings) {
     settings->max_concurrent_streams = SW_HTTP2_MAX_MAX_CONCURRENT_STREAMS;
     settings->max_frame_size = SW_HTTP2_MAX_MAX_FRAME_SIZE;
     settings->max_header_list_size = SW_HTTP2_DEFAULT_MAX_HEADER_LIST_SIZE;
+}
+
+static inline const std::string get_flag_string(int __flags) {
+    std::string str;
+    if (__flags & SW_HTTP2_FLAG_ACK) {
+        str.append("ACK|");
+    }
+    if (__flags & SW_HTTP2_FLAG_END_STREAM) {
+        str.append("END_STREAM|");
+    }
+    if (__flags & SW_HTTP2_FLAG_END_HEADERS) {
+        str.append("END_HEADERS|");
+    }
+    if (__flags & SW_HTTP2_FLAG_PADDED) {
+        str.append("PADDED|");
+    }
+    if (__flags & SW_HTTP2_FLAG_PRIORITY) {
+        str.append("PRIORITY|");
+    }
+    if (str.back() == '|') {
+        return str.substr(0, str.length() - 1);
+    } else {
+        return "none";
+    }
 }
 
 /**
