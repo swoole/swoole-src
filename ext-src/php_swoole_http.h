@@ -19,6 +19,9 @@
 #pragma once
 
 #include "swoole_http.h"
+#ifdef SW_USE_HTTP2
+#include "swoole_http2.h"
+#endif
 #include "thirdparty/swoole_http_parser.h"
 #include "thirdparty/multipart_parser.h"
 
@@ -208,8 +211,8 @@ class Stream {
     // uint8_t priority; // useless now
     uint32_t id;
     // flow control
-    uint32_t send_window;
-    uint32_t recv_window;
+    uint32_t remote_window_size;
+    uint32_t local_window_size;
     Coroutine *waiting_coroutine = nullptr;
 
     Stream(Session *client, uint32_t _id);
@@ -230,11 +233,9 @@ class Session {
     nghttp2_hd_inflater *inflater = nullptr;
     nghttp2_hd_deflater *deflater = nullptr;
 
-    uint32_t header_table_size;
-    uint32_t send_window;
-    uint32_t recv_window;
-    uint32_t max_concurrent_streams;
-    uint32_t max_frame_size;
+    http2::Settings local_settings = {};
+    http2::Settings remote_settings = {};
+
     uint32_t last_stream_id;
     bool shutting_down;
     bool is_coro;
