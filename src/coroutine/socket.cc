@@ -1258,7 +1258,7 @@ bool Socket::ssl_handshake() {
             }
         }
     } else {
-        enum swReturnCode retval;
+        ReturnCode retval;
         TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
         do {
