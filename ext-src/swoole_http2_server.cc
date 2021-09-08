@@ -450,7 +450,6 @@ bool Http2Stream::send_body(String *body, bool end_stream, size_t max_frame_size
     while (l > 0) {
         size_t send_n;
         int _send_flags;
-        swoole_http_buffer->clear();
         if (l > max_frame_size) {
             send_n = max_frame_size;
             _send_flags = 0;
@@ -459,18 +458,30 @@ bool Http2Stream::send_body(String *body, bool end_stream, size_t max_frame_size
             _send_flags = flags;
         }
         http2::set_frame_header(frame_header, SW_HTTP2_TYPE_DATA, send_n, _send_flags, id);
-        swoole_http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
-        swoole_http_buffer->append(p, send_n);
+
+        // send twice to reduce memory copy
+        if (send_n < SwooleG.pagesize) {
+            swoole_http_buffer->clear();
+            swoole_http_buffer->append(frame_header, SW_HTTP2_FRAME_HEADER_SIZE);
+            swoole_http_buffer->append(p, send_n);
+            if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length)) {
+                return false;
+            }
+        } else {
+            if (!ctx->send(ctx, frame_header, SW_HTTP2_FRAME_HEADER_SIZE)) {
+                return false;
+            }
+            if (!ctx->send(ctx, p, send_n)) {
+                return false;
+            }
+        }
 
         swoole_trace_log(
             SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, flags=%d, send_n=%lu", "DATA", id, flags, send_n);
 
-        if (!ctx->send(ctx, swoole_http_buffer->str, swoole_http_buffer->length)) {
-            return false;
-        } else {
-            l -= send_n;
-            p += send_n;
-        }
+
+        l -= send_n;
+        p += send_n;
     }
 
     return true;
