@@ -1065,7 +1065,8 @@ static PHP_METHOD(swoole_coroutine, getElapsed) {
 }
 
 static PHP_METHOD(swoole_coroutine, getStackUsage) {
-    zend_long cid = PHPCoroutine::get_cid();
+    zend_long current_cid = PHPCoroutine::get_cid();
+    zend_long cid = current_cid;
 
     ZEND_PARSE_PARAMETERS_START(0, 1)
     Z_PARAM_OPTIONAL
@@ -1078,7 +1079,7 @@ static PHP_METHOD(swoole_coroutine, getStackUsage) {
         RETURN_FALSE;
     }
 
-    zend_vm_stack stack = task->vm_stack;
+    zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : task->vm_stack;
     size_t usage = 0;
 
     while (stack) {
