@@ -1083,7 +1083,7 @@ static PHP_METHOD(swoole_coroutine, getStackUsage) {
     size_t usage = 0;
 
     while (stack) {
-        usage += (stack->end - stack->top);
+        usage += (stack->end - stack->top) * sizeof(zval);
         stack = stack->prev;
     }
 
