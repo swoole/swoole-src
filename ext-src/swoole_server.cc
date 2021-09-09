@@ -451,7 +451,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_addCommand, 0, 0, 3)
     ZEND_ARG_INFO(0, name)
     ZEND_ARG_INFO(0, accepted_process_types)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 1)
+    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_getClientInfo, 0, 0, 1)

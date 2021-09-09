@@ -1057,7 +1057,7 @@ const char *Socket::ssl_get_error_reason(int *reason) {
     return ERR_reason_error_string(error);
 }
 
-enum swReturnCode Socket::ssl_accept() {
+ReturnCode Socket::ssl_accept() {
     ssl_clear_error();
 
     int n = SSL_accept(ssl);

@@ -97,7 +97,7 @@ void Server::call_command_callback(int64_t request_id, const std::string &result
     auto iter = command_callbacks.find(request_id);
     if (iter == command_callbacks.end()) {
         swoole_error_log(
-            SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Invalid command result[request_id=%lu]", request_id);
+            SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Invalid command result[request_id=%ld]", request_id);
         return;
     }
     iter->second(this, result);

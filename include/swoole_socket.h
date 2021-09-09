@@ -360,7 +360,7 @@ struct Socket {
     }
     int ssl_create(SSLContext *_ssl_context, int _flags);
     int ssl_connect();
-    enum swReturnCode ssl_accept();
+    ReturnCode ssl_accept();
     ssize_t ssl_recv(void *__buf, size_t __n);
     ssize_t ssl_send(const void *__buf, size_t __n);
     ssize_t ssl_readv(IOVector *io_vector);

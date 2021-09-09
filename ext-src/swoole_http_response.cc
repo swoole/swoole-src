@@ -784,20 +784,13 @@ void HttpContext::end(zval *zdata, zval *return_value) {
                 send_body_str = http_body.str;
                 send_body_len = http_body.length;
             }
-            /**
-             *
-             */
-#ifdef SW_HTTP_SEND_TWICE
-            if (send_body_len < SwooleG.pagesize)
-#endif
-            {
+            // send twice to reduce memory copy
+            if (send_body_len < SwooleG.pagesize) {
                 if (http_buffer->append(send_body_str, send_body_len) < 0) {
                     send_header_ = 0;
                     RETURN_FALSE;
                 }
-            }
-#ifdef SW_HTTP_SEND_TWICE
-            else {
+            } else {
                 if (!send(this, http_buffer->str, http_buffer->length)) {
                     send_header_ = 0;
                     RETURN_FALSE;
@@ -809,7 +802,6 @@ void HttpContext::end(zval *zdata, zval *return_value) {
                 }
                 goto _skip_copy;
             }
-#endif
         }
 
         if (!send(this, http_buffer->str, http_buffer->length)) {
@@ -819,9 +811,7 @@ void HttpContext::end(zval *zdata, zval *return_value) {
         }
     }
 
-#ifdef SW_HTTP_SEND_TWICE
 _skip_copy:
-#endif
     if (upgrade && !co_socket) {
         Server *serv = (Server *) private_data;
         Connection *conn = serv->get_connection_verify(fd);

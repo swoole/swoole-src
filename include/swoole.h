@@ -107,6 +107,15 @@ typedef unsigned long ulong_t;
 #define SW_ECHO_MAGENTA "\e[35m%s\e[0m"
 #define SW_ECHO_CYAN "\e[36m%s\e[0m"
 #define SW_ECHO_WHITE "\e[37m%s\e[0m"
+
+#define SW_ECHO_LEN_RED "\e[31m%.*s\e[0m"
+#define SW_ECHO_LEN_GREEN "\e[32m%.*s\e[0m"
+#define SW_ECHO_LEN_YELLOW "\e[33m%.*s\e[0m"
+#define SW_ECHO_LEN_BLUE "\e[34m%.*s\e[0m"
+#define SW_ECHO_LEN_MAGENTA "\e[35m%.*s\e[0m"
+#define SW_ECHO_LEN_CYAN "\e[36m%.*s\e[0m"
+#define SW_ECHO_LEN_WHITE "\e[37m%.*s\e[0m"
+
 #define SW_COLOR_RED 1
 #define SW_COLOR_GREEN 2
 #define SW_COLOR_YELLOW 3
