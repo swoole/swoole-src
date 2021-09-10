@@ -157,6 +157,7 @@ int Server::start_reactor_processes() {
      */
     SwooleG.use_signalfd = 0;
 
+    gs->event_workers.onWorkerMessage = read_worker_message;
     gs->event_workers.start();
 
     init_signal_handler();

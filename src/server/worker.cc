@@ -449,11 +449,8 @@ void Server::stop_async_worker(Worker *worker) {
         msg.pid = SwooleG.pid;
         msg.worker_id = SwooleG.process_id;
 
-        // send message to manager
-        if (message_box && message_box->push(&msg, sizeof(msg)) < 0) {
+        if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             running = 0;
-        } else {
-            swoole_kill(gs->manager_pid, SIGIO);
         }
     }
 

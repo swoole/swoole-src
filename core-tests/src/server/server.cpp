@@ -432,6 +432,8 @@ TEST(server, command) {
             if (msg == "json result, hello world [1]") {
                 serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);
             } else if (msg == "json result, hello world [2]") {
+                serv->command(1, Server::Command::MANAGER, "test", "hello world [3]", fn);
+            } else if (msg == "json result, hello world [3]") {
                 swoole_timer_after(50, [serv](Timer *, TimerNode *) {
                     serv->shutdown();
                 });

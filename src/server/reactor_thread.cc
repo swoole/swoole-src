@@ -926,6 +926,11 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
     task.info.time = conn->last_recv_time;
 
+    if (serv->is_process_mode()) {
+        ReactorThread *thread = serv->get_thread(conn->reactor_id);
+        thread->dispatch_count++;
+    }
+
     swoole_trace("send string package, size=%ld bytes", (long) length);
 
     if (serv->stream_socket_file) {
@@ -1008,8 +1013,8 @@ void Server::destroy_reactor_threads() {
     sw_shm_free(connection_list);
     delete[] reactor_threads;
 
-    if (message_box) {
-        message_box->destroy();
+    if (gs->event_workers.message_box) {
+        gs->event_workers.message_box->destroy();
     }
 }
 

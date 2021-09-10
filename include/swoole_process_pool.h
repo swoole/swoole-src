@@ -42,6 +42,15 @@ enum swIPCMode {
 
 namespace swoole {
 
+enum WorkerMessageType {
+    SW_WORKER_MESSAGE_STOP = 1,
+};
+
+struct WorkerStopMessage {
+    pid_t pid;
+    uint16_t worker_id;
+};
+
 class ExitStatus {
   private:
     pid_t pid_;
@@ -229,6 +238,7 @@ struct ProcessPool {
     void (*onWorkerStart)(ProcessPool *pool, int worker_id);
     void (*onMessage)(ProcessPool *pool, const char *data, uint32_t length);
     void (*onWorkerStop)(ProcessPool *pool, int worker_id);
+    void (*onWorkerMessage)(ProcessPool *pool, EventData *msg);
     int (*onWorkerNotFound)(ProcessPool *pool, const ExitStatus &exit_status);
     int (*main_loop)(ProcessPool *pool, Worker *worker);
 
@@ -288,6 +298,10 @@ struct ProcessPool {
     int del_worker(Worker *worker);
     void destroy();
     int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
+    int create_message_box(size_t memory_size);
+    int push_message(uint8_t type, const void *data, size_t length);
+    int push_message(EventData *msg);
+    int pop_message(void *data, size_t size);
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
     int schedule();

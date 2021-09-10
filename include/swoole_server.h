@@ -142,11 +142,6 @@ struct Connection {
     sw_atomic_t lock;
 };
 
-struct WorkerStopMessage {
-    pid_t pid;
-    uint16_t worker_id;
-};
-
 struct SendData {
     DataHead info;
     const char *data;
@@ -318,6 +313,7 @@ struct ReactorThread {
     std::thread thread;
     network::Socket *notify_pipe = nullptr;
     uint32_t pipe_num = 0;
+    uint64_t dispatch_count = 0;
     network::Socket *pipe_sockets = nullptr;
     network::Socket *pipe_command = nullptr;
     MessageBus message_bus;
@@ -613,7 +609,8 @@ class Server {
             REACTOR_THREAD = 1u << 2,
             EVENT_WORKER = 1u << 3,
             TASK_WORKER = 1u << 4,
-            ALL_PROCESS = MASTER | REACTOR_THREAD | EVENT_WORKER | TASK_WORKER,
+            MANAGER = 1u << 5,
+            ALL_PROCESS = MASTER | REACTOR_THREAD | EVENT_WORKER | TASK_WORKER | MANAGER,
         };
         int id;
         int accepted_process_types;
@@ -937,7 +934,6 @@ class Server {
     int64_t command_current_request_id = 1;
 
     Worker *workers = nullptr;
-    Channel *message_box = nullptr;
     ServerGS *gs = nullptr;
 
     std::unordered_set<std::string> *types = nullptr;
@@ -1437,6 +1433,7 @@ class Server {
     void kill_task_workers();
 
     static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
+    static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();
 
