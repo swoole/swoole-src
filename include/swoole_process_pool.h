@@ -194,6 +194,8 @@ struct ProcessPool {
     pid_t master_pid;
     uint32_t reload_worker_i;
     uint32_t max_wait_time;
+    uint64_t reload_count;
+    time_t reload_last_time;
     Worker *reload_workers;
 
     /**
@@ -289,6 +291,7 @@ struct ProcessPool {
     int wait();
     int start();
     void shutdown();
+    bool reload();
     pid_t spawn(Worker *worker);
     int dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);

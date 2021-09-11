@@ -480,8 +480,7 @@ void Manager::signal_handler(int sig) {
          * reload all workers
          */
     case SIGUSR1:
-        if (!pool->reloading) {
-            pool->reloading = true;
+        if (pool->reload()) {
             manager->reload_all_worker = true;
         }
         sw_logger()->reopen();
@@ -490,8 +489,7 @@ void Manager::signal_handler(int sig) {
          * only reload task workers
          */
     case SIGUSR2:
-        if (!pool->reloading) {
-            pool->reloading = true;
+        if (pool->reload()) {
             manager->reload_task_worker = true;
         }
         sw_logger()->reopen();

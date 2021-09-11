@@ -348,6 +348,16 @@ int ProcessPool::dispatch_blocking(EventData *data, int *dst_worker_id) {
     return ret > 0 ? SW_OK : SW_ERR;
 }
 
+bool ProcessPool::reload() {
+    if (reloading) {
+        return false;
+    }
+    reloading = true;
+    reload_count++;
+    reload_last_time = ::time(NULL);
+    return true;
+}
+
 void ProcessPool::shutdown() {
     uint32_t i;
     int status;

@@ -1771,10 +1771,9 @@ static void Server_signal_handler(int sig) {
     case SIGUSR1:
     case SIGUSR2:
         if (serv->is_base_mode()) {
-            if (serv->gs->event_workers.reloading) {
+            if (!serv->gs->event_workers.reload()) {
                 break;
             }
-            serv->gs->event_workers.reloading = true;
             serv->gs->event_workers.reload_init = false;
         } else {
             swoole_kill(serv->gs->manager_pid, sig);
