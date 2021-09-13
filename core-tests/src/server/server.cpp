@@ -428,18 +428,18 @@ TEST(server, command) {
     });
 
     serv.onStart = [](Server *serv) {
-        static Server::Command::Callback fn = [](Server *serv, const std::string &msg) {
+        usleep(10000);
+        static Server::Command::Callback fn = [&](Server *serv, const std::string &msg) {
             if (msg == "json result, hello world [1]") {
                 serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);
             } else if (msg == "json result, hello world [2]") {
                 serv->command(1, Server::Command::MANAGER, "test", "hello world [3]", fn);
             } else if (msg == "json result, hello world [3]") {
-                swoole_timer_after(100, [serv](Timer *, TimerNode *) {
+                swoole_timer_after(50, [serv](Timer *, TimerNode *) {
                     serv->shutdown();
                 });
             }
         };
-
         serv->command(1, Server::Command::REACTOR_THREAD, "test", "hello world [1]", fn);
     };
 
