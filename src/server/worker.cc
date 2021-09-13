@@ -374,11 +374,6 @@ void Server::worker_start_callback() {
 
     if (is_process_mode()) {
         sw_shm_protect(session_list, PROT_READ);
-#ifdef HAVE_PTHREAD_BARRIER
-        pthread_barrier_wait(&gs->worker_barrier);
-#else
-        SW_START_SLEEP;
-#endif
     }
 
     call_worker_start_callback(SwooleWG.worker);

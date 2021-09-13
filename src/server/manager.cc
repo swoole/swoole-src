@@ -247,7 +247,7 @@ void Manager::start(Server *_server) {
 #endif
 
 #ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_wait(&_server->gs->worker_barrier);
+    pthread_barrier_wait(&_server->gs->manager_barrier);
 #else
     SW_START_SLEEP;
 #endif

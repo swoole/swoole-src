@@ -445,7 +445,7 @@ int Server::start_master_thread() {
 #ifdef HAVE_PTHREAD_BARRIER
     // wait reactor thread
     pthread_barrier_wait(&reactor_thread_barrier);
-    pthread_barrier_wait(&gs->worker_barrier);
+    pthread_barrier_wait(&gs->manager_barrier);
 #else
     SW_START_SLEEP;
 #endif
@@ -847,8 +847,8 @@ int Server::create() {
 #ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode()) {
         pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
-        pthread_barrierattr_setpshared(&gs->worker_barrier_attr, PTHREAD_PROCESS_SHARED);
-        pthread_barrier_init(&gs->worker_barrier, &gs->worker_barrier_attr, worker_num + task_worker_num + 2);
+        pthread_barrierattr_setpshared(&gs->manager_barrier_attr, PTHREAD_PROCESS_SHARED);
+        pthread_barrier_init(&gs->manager_barrier, &gs->manager_barrier_attr, 2);
     }
 #endif
 
@@ -972,11 +972,13 @@ void Server::destroy() {
             delete l;
         }
     }
+#ifdef HAVE_PTHREAD_BARRIER
     if (is_process_mode()) {
         pthread_barrier_destroy(&reactor_thread_barrier);
-        pthread_barrier_destroy(&gs->worker_barrier);
-        pthread_barrierattr_destroy(&gs->worker_barrier_attr);
+        pthread_barrier_destroy(&gs->manager_barrier);
+        pthread_barrierattr_destroy(&gs->manager_barrier_attr);
     }
+#endif
     sw_shm_free(session_list);
     sw_shm_free(port_connnection_num_list);
     sw_shm_free(workers);

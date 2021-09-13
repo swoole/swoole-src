@@ -522,8 +522,8 @@ struct ServerGS {
     sw_atomic_t spinlock;
 
 #ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_t worker_barrier;
-    pthread_barrierattr_t worker_barrier_attr;
+    pthread_barrier_t manager_barrier;
+    pthread_barrierattr_t manager_barrier_attr;
 #endif
 
     ProcessPool task_workers;
