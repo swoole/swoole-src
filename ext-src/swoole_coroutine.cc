@@ -35,6 +35,7 @@ using swoole::PHPContext;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
+using swoole::CallbackManager;
 
 #define PHP_CORO_TASK_SLOT                                                                                             \
     ((int) ((ZEND_MM_ALIGNED_SIZE(sizeof(PHPContext)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) /                      \
@@ -94,6 +95,7 @@ SW_EXTERN_C_BEGIN
 static PHP_METHOD(swoole_coroutine, exists);
 static PHP_METHOD(swoole_coroutine, yield);
 static PHP_METHOD(swoole_coroutine, resume);
+static PHP_METHOD(swoole_coroutine, join);
 static PHP_METHOD(swoole_coroutine, cancel);
 static PHP_METHOD(swoole_coroutine, isCanceled);
 static PHP_METHOD(swoole_coroutine, stats);
@@ -128,6 +130,11 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_resume, 0, 0, 1)
     ZEND_ARG_INFO(0, cid)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_join, 0, 0, 1)
+    ZEND_ARG_INFO(0, cid_array)
+    ZEND_ARG_INFO(0, timeout)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_exists, 0, 0, 1)
@@ -178,6 +185,7 @@ static const zend_function_entry swoole_coroutine_methods[] =
     PHP_ME(swoole_coroutine, exists, arginfo_swoole_coroutine_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, cancel, arginfo_swoole_coroutine_cancel, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, join, arginfo_swoole_coroutine_join, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, isCanceled, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine, suspend, yield, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, resume, arginfo_swoole_coroutine_resume, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -590,10 +598,14 @@ void PHPCoroutine::restore_task(PHPContext *task) {
 void PHPCoroutine::on_yield(void *arg) {
     PHPContext *task = (PHPContext *) arg;
     PHPContext *origin_task = get_origin_context(task);
-    swoole_trace_log(
-        SW_TRACE_COROUTINE, "php_coro_yield from cid=%ld to cid=%ld", task->co->get_cid(), task->co->get_origin_cid());
     save_task(task);
     restore_task(origin_task);
+
+    if (task->on_yield) {
+        (*task->on_yield)(task);
+    }
+
+    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", task->co->get_cid(), task->co->get_origin_cid());
 }
 
 void PHPCoroutine::on_resume(void *arg) {
@@ -602,10 +614,12 @@ void PHPCoroutine::on_resume(void *arg) {
     save_task(current_task);
     restore_task(task);
     record_last_msec(task);
-    swoole_trace_log(SW_TRACE_COROUTINE,
-                     "php_coro_resume from cid=%ld to cid=%ld",
-                     Coroutine::get_current_cid(),
-                     task->co->get_cid());
+
+    if (task->on_resume) {
+        (*task->on_resume)(task);
+    }
+
+    swoole_trace_log(SW_TRACE_COROUTINE, "from cid=%ld to cid=%ld", Coroutine::get_current_cid(), task->co->get_cid());
 }
 
 void PHPCoroutine::on_close(void *arg) {
@@ -638,9 +652,14 @@ void PHPCoroutine::on_close(void *arg) {
     }
 #endif
 
+    if (task->on_close) {
+        (*task->on_close)(task);
+    }
+
     if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
         SwooleWG.worker_concurrency--;
     }
+
     vm_stack_destroy();
     restore_task(origin_task);
 
@@ -736,6 +755,9 @@ void PHPCoroutine::main_func(void *arg) {
         task->defer_tasks = nullptr;
         task->pcid = task->co->get_origin_cid();
         task->context = nullptr;
+        task->on_yield = nullptr;
+        task->on_resume = nullptr;
+        task->on_close = nullptr;
         task->enable_scheduler = true;
 
         save_vm_stack(task);
@@ -1108,7 +1130,7 @@ static PHP_METHOD(swoole_coroutine, resume) {
 
     auto coroutine_iterator = user_yield_coros.find(cid);
     if (coroutine_iterator == user_yield_coros.end()) {
-        php_swoole_fatal_error(E_WARNING, "you can not resume the coroutine which is in IO operation or non-existent");
+        php_swoole_fatal_error(E_WARNING, "can not resume the coroutine which is in IO operation or non-existent");
         RETURN_FALSE;
     }
 
@@ -1131,6 +1153,70 @@ static PHP_METHOD(swoole_coroutine, yield) {
     co->yield(&cancel_fn);
     if (co->is_canceled()) {
         swoole_set_last_error(SW_ERROR_CO_CANCELED);
+        RETURN_FALSE;
+    }
+
+    RETURN_TRUE;
+}
+
+static PHP_METHOD(swoole_coroutine, join) {
+    Coroutine *co = Coroutine::get_current_safe();
+    zval *cid_array;
+    double timeout = -1;
+
+    ZEND_PARSE_PARAMETERS_START(1, 2)
+    Z_PARAM_ARRAY(cid_array)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_DOUBLE(timeout)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    auto count = php_swoole_array_length(cid_array);
+    if (count == 0) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        RETURN_FALSE;
+    }
+
+    CallbackManager::TaskList::iterator iter;
+
+    PHPContext::SwapCallback join_fn = [&count, &iter, co](PHPContext *task) {
+        if (--count > 0) {
+            return;
+        }
+        swoole_event_defer([co](void*) {
+            co->resume();
+        }, nullptr);
+        iter = sw_reactor()->get_last_defer_task();
+    };
+
+    zval *zcid;
+    ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
+        long cid = zval_get_long(zcid);
+        if (co->get_cid() == cid) {
+            swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
+            php_swoole_fatal_error(E_WARNING, "can not join self");
+            RETURN_FALSE;
+        }
+        auto ctx = PHPCoroutine::get_context_by_cid(cid);
+        if (ctx == nullptr) {
+            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            RETURN_FALSE;
+        }
+        ctx->on_close = &join_fn;
+    }
+    ZEND_HASH_FOREACH_END();
+
+    if (!co->yield_ex(timeout)) {
+        sw_reactor()->remove_defer_task(iter);
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
+            long cid = zval_get_long(zcid);
+            auto ctx = PHPCoroutine::get_context_by_cid(cid);
+            if (ctx == nullptr) {
+                swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+                RETURN_FALSE;
+            }
+            ctx->on_close = nullptr;
+        }
+        ZEND_HASH_FOREACH_END();
         RETURN_FALSE;
     }
 
