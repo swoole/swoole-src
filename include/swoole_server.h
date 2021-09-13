@@ -903,6 +903,10 @@ class Server {
         return &get_thread(SwooleTG.id)->pipe_sockets[worker->pipe_master->fd];
     }
 
+    network::Socket *get_command_reply_socket() {
+        return  is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
+    }
+
     /**
      * [Worker|Master]
      */

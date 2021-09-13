@@ -226,14 +226,13 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         break;
     }
     case SW_SERVER_EVENT_COMMAND_REQUEST: {
-        WorkerId worker_id = SwooleWG.worker->id;
-        if (worker_id == 0) {
-            int64_t request_id = pipe_buffer->info.fd;
-            auto packet = serv->message_bus.get_packet();
-            serv->call_command_callback(request_id, std::string(packet.data, packet.length));
-        } else {
-            serv->call_command_handler(serv->message_bus, worker_id, serv->get_worker(0)->pipe_master);
-        }
+        serv->call_command_handler(serv->message_bus, SwooleWG.worker->id, serv->get_worker(0)->pipe_master);
+        break;
+    }
+    case SW_SERVER_EVENT_COMMAND_RESPONSE: {
+        int64_t request_id = pipe_buffer->info.fd;
+        auto packet = serv->message_bus.get_packet();
+        serv->call_command_callback(request_id, std::string(packet.data, packet.length));
         break;
     }
     default:

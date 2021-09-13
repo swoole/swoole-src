@@ -595,7 +595,7 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
     task.info.len = result.length();
     task.data = result.c_str();
 
-    serv->message_bus.write(serv->pipe_command->get_socket(false), &task);
+    serv->message_bus.write(serv->get_command_reply_socket(), &task);
 }
 
 /**

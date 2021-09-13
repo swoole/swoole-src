@@ -1089,7 +1089,8 @@ bool Server::command(WorkerId process_id,
         buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
         buf.info.fd = requset_id;
         buf.info.server_fd = command_id;
-        if (send_to_worker_from_worker(worker_num + process_id, &buf, SW_PIPE_MASTER | SW_PIPE_NONBLOCK) <= 0) {
+        int _dst_worker_id = process_id;
+        if (gs->task_workers.dispatch(&buf, &_dst_worker_id) <= 0) {
             return false;
         }
         command_callbacks[requset_id] = fn;
@@ -1801,6 +1802,9 @@ static void Server_signal_handler(int sig) {
             swoole_kill(serv->gs->manager_pid, sig);
         }
         sw_logger()->reopen();
+        break;
+    case SIGIO:
+        serv->gs->event_workers.read_message = true;
         break;
     default:
 
