@@ -60,10 +60,10 @@ class CallbackManager {
         list_.emplace_front(fn, private_data);
         auto t = list_.back();
     }
-    TaskList::iterator back() {
-        return list_.end()--;
+    TaskList::iterator back_position() {
+        return std::prev(list_.end());
     }
-    TaskList::iterator front() {
+    TaskList::iterator front_position() {
         return list_.begin();
     }
     void remove(TaskList::iterator iter) {

@@ -53,7 +53,7 @@ TEST(coroutine_http_server, get) {
 
         svr.BeforeListen([&lock]() { lock.unlock(); });
 
-        svr.listen(TEST_HOST, 8080);
+        ASSERT_TRUE(svr.listen(TEST_HOST, 8080));
     });
 
     t1.join();

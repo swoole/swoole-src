@@ -395,7 +395,7 @@ void Reactor::defer(Callback cb, void *data) {
 }
 
 CallbackManager::TaskList::iterator Reactor::get_last_defer_task() {
-    return defer_tasks->back();
+    return defer_tasks->back_position();
 }
 
 void Reactor::remove_defer_task(CallbackManager::TaskList::iterator iter) {
