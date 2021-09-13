@@ -120,7 +120,7 @@ ResultCode Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Sock
     task.info.fd = buffer->info.fd;
     task.info.reactor_id = worker_id;
     task.info.server_fd = -1;
-    task.info.type = SW_SERVER_EVENT_COMMAND;
+    task.info.type = SW_SERVER_EVENT_COMMAND_RESPONSE;
     task.info.len = result.length();
     task.data = result.c_str();
 
@@ -433,7 +433,9 @@ int Server::start_master_thread() {
     reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
 
     if (pipe_command) {
-        reactor->set_handler(SW_FD_PIPE, Server::accept_command_result);
+        if (!single_thread) {
+            reactor->set_handler(SW_FD_PIPE, Server::accept_command_result);
+        }
         reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
     }
 
@@ -443,8 +445,9 @@ int Server::start_master_thread() {
     }
 
 #ifdef HAVE_PTHREAD_BARRIER
-    // wait reactor thread
-    pthread_barrier_wait(&reactor_thread_barrier);
+    if (!single_thread) {
+        pthread_barrier_wait(&reactor_thread_barrier);
+    }
     pthread_barrier_wait(&gs->manager_barrier);
 #else
     SW_START_SLEEP;
@@ -1048,7 +1051,7 @@ bool Server::command(WorkerId process_id,
     task.info.fd = requset_id;
     task.info.reactor_id = process_id;
     task.info.server_fd = command_id;
-    task.info.type = SW_SERVER_EVENT_COMMAND;
+    task.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
     task.info.len = msg.length();
     task.data = msg.c_str();
 
@@ -1083,7 +1086,7 @@ bool Server::command(WorkerId process_id,
         if (!task_pack(&buf, msg.c_str(), msg.length())) {
             return false;
         }
-        buf.info.type = SW_SERVER_EVENT_COMMAND;
+        buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
         buf.info.fd = requset_id;
         buf.info.server_fd = command_id;
         if (send_to_worker_from_worker(worker_num + process_id, &buf, SW_PIPE_MASTER | SW_PIPE_NONBLOCK) <= 0) {
@@ -1102,7 +1105,7 @@ bool Server::command(WorkerId process_id,
             return false;
         }
         memset(&buf.info, 0, sizeof(buf.info));
-        buf.info.type = SW_SERVER_EVENT_COMMAND;
+        buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
         buf.info.fd = requset_id;
         buf.info.server_fd = command_id;
         buf.info.len = msg.length();

@@ -599,7 +599,8 @@ enum ServerEventType {
     // process message
     SW_SERVER_EVENT_INCOMING,
     SW_SERVER_EVENT_SHUTDOWN,
-    SW_SERVER_EVENT_COMMAND,
+    SW_SERVER_EVENT_COMMAND_REQUEST,
+    SW_SERVER_EVENT_COMMAND_RESPONSE,
 };
 
 class Server {

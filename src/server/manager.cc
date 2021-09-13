@@ -571,7 +571,7 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
  * [manager]
  */
 void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
-    if (msg->info.type != SW_SERVER_EVENT_COMMAND) {
+    if (msg->info.type != SW_SERVER_EVENT_COMMAND_REQUEST) {
         swoole_warning("unknown worker message type[%d]", msg->info.type);
         return;
     }
@@ -591,7 +591,7 @@ void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
     task.info.fd = msg->info.fd;
     task.info.reactor_id = 0;
     task.info.server_fd = -1;
-    task.info.type = SW_SERVER_EVENT_COMMAND;
+    task.info.type = SW_SERVER_EVENT_COMMAND_RESPONSE;
     task.info.len = result.length();
     task.data = result.c_str();
 

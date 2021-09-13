@@ -376,8 +376,12 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             if (serv->connection_incoming(reactor, conn) < 0) {
                 return reactor->close(reactor, conn->socket);
             }
-        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND) {
+        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
             return serv->call_command_handler(thread->message_bus, thread->id, thread->pipe_command);
+        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_RESPONSE) {
+            auto packet = thread->message_bus.get_packet();
+            serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
+            return SW_OK;
         }
         /**
          * server shutdown

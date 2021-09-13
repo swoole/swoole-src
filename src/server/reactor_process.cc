@@ -225,7 +225,7 @@ static int ReactorProcess_onPipeRead(Reactor *reactor, Event *event) {
         factory->end(pipe_buffer->info.fd, Server::CLOSE_ACTIVELY);
         break;
     }
-    case SW_SERVER_EVENT_COMMAND: {
+    case SW_SERVER_EVENT_COMMAND_REQUEST: {
         WorkerId worker_id = SwooleWG.worker->id;
         if (worker_id == 0) {
             int64_t request_id = pipe_buffer->info.fd;

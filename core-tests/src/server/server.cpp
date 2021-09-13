@@ -428,7 +428,6 @@ TEST(server, command) {
     });
 
     serv.onStart = [](Server *serv) {
-        usleep(10000);
         static Server::Command::Callback fn = [&](Server *serv, const std::string &msg) {
             if (msg == "json result, hello world [1]") {
                 serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);

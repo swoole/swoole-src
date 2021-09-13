@@ -285,7 +285,7 @@ void Server::worker_accept_event(DataHead *info) {
         onPipeMessage(this, (EventData *) message_bus.get_buffer());
         break;
     }
-    case SW_SERVER_EVENT_COMMAND: {
+    case SW_SERVER_EVENT_COMMAND_REQUEST: {
         call_command_handler(message_bus, worker->id, pipe_command->get_socket(false));
         break;
     }

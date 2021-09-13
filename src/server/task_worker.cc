@@ -71,7 +71,7 @@ static int TaskWorker_call_command_handler(ProcessPool *pool, EventData *req) {
     task.info.fd = req->info.fd;
     task.info.reactor_id = SwooleWG.worker->id;
     task.info.server_fd = -1;
-    task.info.type = SW_SERVER_EVENT_COMMAND;
+    task.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
     task.info.len = result.length();
     task.data = result.c_str();
 
@@ -87,7 +87,7 @@ static int TaskWorker_onTask(ProcessPool *pool, EventData *task) {
 
     if (task->info.type == SW_SERVER_EVENT_PIPE_MESSAGE) {
         serv->onPipeMessage(serv, task);
-    } else if (task->info.type == SW_SERVER_EVENT_COMMAND) {
+    } else if (task->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
         ret = TaskWorker_call_command_handler(pool, task);
     } else {
         ret = serv->onTask(serv, task);
