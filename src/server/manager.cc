@@ -138,7 +138,6 @@ int Server::start_manager_process() {
     // fork manager process
     case 0: {
         // wait master process
-        SW_START_SLEEP;
         if (!is_started()) {
             swoole_error("master process is not running");
             return SW_ERR;
@@ -186,7 +185,7 @@ int Server::start_manager_process() {
     }
     // master process
     default:
-        gs->manager_pid = pid;
+        gs->event_workers.master_pid = gs->manager_pid = pid;
         break;
     case -1:
         swoole_error("fork() failed");
@@ -216,7 +215,6 @@ void Manager::start(Server *_server) {
     server_->manager = this;
 
     ProcessPool *pool = &server_->gs->event_workers;
-    pool->master_pid = getpid();
     pool->onWorkerMessage = Server::read_worker_message;
 
     SwooleG.use_signalfd = 0;
@@ -246,6 +244,12 @@ void Manager::start(Server *_server) {
 #elif defined(__FreeBSD__)
     int sigid = SIGTERM;
     procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
+#endif
+
+#ifdef HAVE_PTHREAD_BARRIER
+    pthread_barrier_wait(&_server->gs->worker_barrier);
+#else
+    SW_START_SLEEP;
 #endif
 
     if (_server->hooks[Server::HOOK_MANAGER_START]) {

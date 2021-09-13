@@ -432,21 +432,26 @@ int Server::start_master_thread() {
     reactor->ptr = this;
     reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
 
-    if (hooks[Server::HOOK_MASTER_START]) {
-        call_hook(Server::HOOK_MASTER_START, this);
-    }
-
     if (pipe_command) {
         reactor->set_handler(SW_FD_PIPE, Server::accept_command_result);
         reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
     }
 
-    /**
-     * 1 second timer
-     */
     if ((master_timer = swoole_timer_add(1000, true, Server::timer_callback, this)) == nullptr) {
         swoole_event_free();
         return SW_ERR;
+    }
+
+#ifdef HAVE_PTHREAD_BARRIER
+    // wait reactor thread
+    pthread_barrier_wait(&reactor_thread_barrier);
+    pthread_barrier_wait(&gs->worker_barrier);
+#else
+    SW_START_SLEEP;
+#endif
+
+    if (hooks[Server::HOOK_MASTER_START]) {
+        call_hook(Server::HOOK_MASTER_START, this);
     }
 
     if (onStart) {
@@ -839,6 +844,14 @@ int Server::create() {
         retval = create_reactor_threads();
     }
 
+#ifdef HAVE_PTHREAD_BARRIER
+    if (is_process_mode()) {
+        pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
+        pthread_barrierattr_setpshared(&gs->worker_barrier_attr, PTHREAD_PROCESS_SHARED);
+        pthread_barrier_init(&gs->worker_barrier, &gs->worker_barrier_attr, worker_num + task_worker_num + 2);
+    }
+#endif
+
     if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE, this);
     }
@@ -959,7 +972,11 @@ void Server::destroy() {
             delete l;
         }
     }
-
+    if (is_process_mode()) {
+        pthread_barrier_destroy(&reactor_thread_barrier);
+        pthread_barrier_destroy(&gs->worker_barrier);
+        pthread_barrierattr_destroy(&gs->worker_barrier_attr);
+    }
     sw_shm_free(session_list);
     sw_shm_free(port_connnection_num_list);
     sw_shm_free(workers);

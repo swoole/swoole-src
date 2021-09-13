@@ -716,19 +716,9 @@ int Server::start_reactor_threads() {
         SwooleTG.id = reactor_num;
     }
 
-#ifdef HAVE_PTHREAD_BARRIER
-    // init thread barrier
-    pthread_barrier_init(&barrier, nullptr, reactor_num + 1);
-#endif
     SW_LOOP_N(reactor_num) {
         get_thread(i)->thread = std::thread(ReactorThread_loop, this, i);
     }
-#ifdef HAVE_PTHREAD_BARRIER
-    // wait reactor thread
-    pthread_barrier_wait(&barrier);
-#else
-    SW_START_SLEEP;
-#endif
 
 _init_master_thread:
 
@@ -878,7 +868,7 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
 
     // wait other thread
 #ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_wait(&serv->barrier);
+    pthread_barrier_wait(&serv->reactor_thread_barrier);
 #else
     SW_START_SLEEP;
 #endif

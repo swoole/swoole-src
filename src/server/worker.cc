@@ -366,15 +366,20 @@ void Server::worker_start_callback() {
     SwooleWG.worker = get_worker(SwooleG.process_id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
-    if (is_process_mode()) {
-        sw_shm_protect(session_list, PROT_READ);
-    }
-
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd && SwooleTG.reactor && SwooleG.signal_fd == 0) {
         swoole_signalfd_setup(SwooleTG.reactor);
     }
 #endif
+
+    if (is_process_mode()) {
+        sw_shm_protect(session_list, PROT_READ);
+#ifdef HAVE_PTHREAD_BARRIER
+        pthread_barrier_wait(&gs->worker_barrier);
+#else
+        SW_START_SLEEP;
+#endif
+    }
 
     call_worker_start_callback(SwooleWG.worker);
 }

@@ -521,6 +521,11 @@ struct ServerGS {
 
     sw_atomic_t spinlock;
 
+#ifdef HAVE_PTHREAD_BARRIER
+    pthread_barrier_t worker_barrier;
+    pthread_barrierattr_t worker_barrier_attr;
+#endif
+
     ProcessPool task_workers;
     ProcessPool event_workers;
 };
@@ -941,7 +946,7 @@ class Server {
     std::vector<std::string> *http_index_files = nullptr;
 
 #ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_t barrier = {};
+    pthread_barrier_t reactor_thread_barrier = {};
 #endif
 
     /**
