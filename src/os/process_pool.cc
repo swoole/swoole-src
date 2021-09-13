@@ -703,6 +703,7 @@ int ProcessPool::wait() {
                     continue;
                 }
                 WorkerStopMessage worker_stop_msg;
+                memcpy(&worker_stop_msg, msg.data, sizeof(worker_stop_msg));
                 Worker *exit_worker = get_worker_by_pid(worker_stop_msg.pid);
                 if (exit_worker == nullptr) {
                     continue;
