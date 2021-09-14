@@ -181,6 +181,7 @@ static PHP_METHOD(swoole_table, count);
 static PHP_METHOD(swoole_table, destroy);
 static PHP_METHOD(swoole_table, getSize);
 static PHP_METHOD(swoole_table, getMemorySize);
+static PHP_METHOD(swoole_table, stats);
 
 static PHP_METHOD(swoole_table, rewind);
 static PHP_METHOD(swoole_table, next);
@@ -206,8 +207,9 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_MALIAS(swoole_table, exist, exists, arginfo_swoole_table_exists, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, incr,        arginfo_swoole_table_incr, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, decr,        arginfo_swoole_table_decr, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, getSize,    arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, getSize,     arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, getMemorySize,    arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, stats,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     // implement Iterator
     PHP_ME(swoole_table, rewind,      arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, valid,       arginfo_swoole_table_void, ZEND_ACC_PUBLIC)
@@ -594,6 +596,22 @@ static PHP_METHOD(swoole_table, getSize) {
     } else {
         RETURN_LONG(table->get_size());
     }
+}
+
+static PHP_METHOD(swoole_table, stats) {
+    Table *table = php_swoole_table_get_ptr(ZEND_THIS);
+    if (!table) {
+        RETURN_FALSE;
+    }
+    array_init(return_value);
+    add_assoc_long(return_value, "num", table->count());
+    add_assoc_long(return_value, "conflict_count", table->conflict_count);
+    add_assoc_long(return_value, "conflict_max_level", table->conflict_max_level);
+    add_assoc_long(return_value, "insert_count", table->insert_count);
+    add_assoc_long(return_value, "update_count", table->update_count);
+    add_assoc_long(return_value, "delete_count", table->delete_count);
+    add_assoc_long(return_value, "available_slice_num", table->get_available_slice_num());
+    add_assoc_long(return_value, "total_slice_num", table->get_total_slice_num());
 }
 
 static PHP_METHOD(swoole_table, rewind) {
