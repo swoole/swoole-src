@@ -285,7 +285,7 @@ void Server::worker_accept_event(DataHead *info) {
         onPipeMessage(this, (EventData *) message_bus.get_buffer());
         break;
     }
-    case SW_SERVER_EVENT_COMMAND: {
+    case SW_SERVER_EVENT_COMMAND_REQUEST: {
         call_command_handler(message_bus, worker->id, pipe_command->get_socket(false));
         break;
     }
@@ -366,15 +366,15 @@ void Server::worker_start_callback() {
     SwooleWG.worker = get_worker(SwooleG.process_id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
-    if (is_process_mode()) {
-        sw_shm_protect(session_list, PROT_READ);
-    }
-
 #ifdef HAVE_SIGNALFD
     if (SwooleG.use_signalfd && SwooleTG.reactor && SwooleG.signal_fd == 0) {
         swoole_signalfd_setup(SwooleTG.reactor);
     }
 #endif
+
+    if (is_process_mode()) {
+        sw_shm_protect(session_list, PROT_READ);
+    }
 
     call_worker_start_callback(SwooleWG.worker);
 }
@@ -449,11 +449,8 @@ void Server::stop_async_worker(Worker *worker) {
         msg.pid = SwooleG.pid;
         msg.worker_id = SwooleG.process_id;
 
-        // send message to manager
-        if (message_box && message_box->push(&msg, sizeof(msg)) < 0) {
+        if (gs->event_workers.push_message(SW_WORKER_MESSAGE_STOP, &msg, sizeof(msg)) < 0) {
             running = 0;
-        } else {
-            swoole_kill(gs->manager_pid, SIGIO);
         }
     }
 

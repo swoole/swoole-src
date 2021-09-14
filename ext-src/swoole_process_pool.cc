@@ -274,7 +274,7 @@ static void pool_signal_handler(int sig) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        current_pool->reloading = true;
+        current_pool->reload();
         current_pool->reload_init = false;
         break;
     case SIGIO:

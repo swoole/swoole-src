@@ -52,13 +52,24 @@ class ReactorImpl {
 
 class CallbackManager {
   public:
-    inline void append(Callback fn, void *private_data) {
+    typedef std::list<std::pair<Callback, void *>> TaskList;
+    void append(Callback fn, void *private_data) {
         list_.emplace_back(fn, private_data);
     }
-    inline void prepend(Callback fn, void *private_data) {
+    void prepend(Callback fn, void *private_data) {
         list_.emplace_front(fn, private_data);
+        auto t = list_.back();
     }
-    inline void execute() {
+    TaskList::iterator back_position() {
+        return std::prev(list_.end());
+    }
+    TaskList::iterator front_position() {
+        return list_.begin();
+    }
+    void remove(TaskList::iterator iter) {
+        list_.erase(iter);
+    }
+    void execute() {
         while (!list_.empty()) {
             std::pair<Callback, void *> task = list_.front();
             list_.pop_front();
@@ -67,7 +78,7 @@ class CallbackManager {
     }
 
   protected:
-    std::list<std::pair<Callback, void *>> list_;
+    TaskList list_;
 };
 
 class Reactor {
@@ -183,6 +194,8 @@ class Reactor {
     ~Reactor();
     bool if_exit();
     void defer(Callback cb, void *data = nullptr);
+    CallbackManager::TaskList::iterator get_last_defer_task();
+    void remove_defer_task(CallbackManager::TaskList::iterator iter);
     void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
     void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
     bool set_handler(int _fdtype, ReactorHandler handler);
@@ -270,6 +283,10 @@ class Reactor {
 
     const std::unordered_map<int, network::Socket *> &get_sockets() {
         return sockets_;
+    }
+
+    network::Socket *get_socket(int fd) {
+        return sockets_[fd];
     }
 
     void foreach_socket(const std::function<void(int, network::Socket *)> &callback) {

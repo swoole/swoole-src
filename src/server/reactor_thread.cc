@@ -376,8 +376,12 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             if (serv->connection_incoming(reactor, conn) < 0) {
                 return reactor->close(reactor, conn->socket);
             }
-        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND) {
+        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
             return serv->call_command_handler(thread->message_bus, thread->id, thread->pipe_command);
+        } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_RESPONSE) {
+            auto packet = thread->message_bus.get_packet();
+            serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
+            return SW_OK;
         }
         /**
          * server shutdown
@@ -716,19 +720,9 @@ int Server::start_reactor_threads() {
         SwooleTG.id = reactor_num;
     }
 
-#ifdef HAVE_PTHREAD_BARRIER
-    // init thread barrier
-    pthread_barrier_init(&barrier, nullptr, reactor_num + 1);
-#endif
     SW_LOOP_N(reactor_num) {
         get_thread(i)->thread = std::thread(ReactorThread_loop, this, i);
     }
-#ifdef HAVE_PTHREAD_BARRIER
-    // wait reactor thread
-    pthread_barrier_wait(&barrier);
-#else
-    SW_START_SLEEP;
-#endif
 
 _init_master_thread:
 
@@ -878,7 +872,7 @@ static void ReactorThread_loop(Server *serv, int reactor_id) {
 
     // wait other thread
 #ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_wait(&serv->barrier);
+    pthread_barrier_wait(&serv->reactor_thread_barrier);
 #else
     SW_START_SLEEP;
 #endif
@@ -925,6 +919,11 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
     proto->ext_flags = 0;
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
     task.info.time = conn->last_recv_time;
+
+    if (serv->is_process_mode()) {
+        ReactorThread *thread = serv->get_thread(conn->reactor_id);
+        thread->dispatch_count++;
+    }
 
     swoole_trace("send string package, size=%ld bytes", (long) length);
 
@@ -1008,8 +1007,8 @@ void Server::destroy_reactor_threads() {
     sw_shm_free(connection_list);
     delete[] reactor_threads;
 
-    if (message_box) {
-        message_box->destroy();
+    if (gs->event_workers.message_box) {
+        gs->event_workers.message_box->destroy();
     }
 }
 

@@ -41,6 +41,7 @@ struct TimerNode {
     enum Type type;
     int64_t exec_msec;
     int64_t interval;
+    uint64_t exec_count;
     uint64_t round;
     bool removed;
     HeapNode *heap_node;
