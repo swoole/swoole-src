@@ -31,16 +31,11 @@ namespace swoole {
 using ReloadWorkerList = std::unordered_map<uint32_t, pid_t>;
 
 struct Manager {
-    bool reloading;
     bool reload_all_worker;
     bool reload_task_worker;
-    bool reload_init;
-    bool read_message;
     bool force_kill;
-    uint32_t reload_worker_i;
     uint32_t reload_worker_num;
     pid_t reload_worker_pid;
-    Worker *reload_workers;
     Server *server_;
 
     std::vector<pid_t> kill_workers;
@@ -134,8 +129,7 @@ int Server::start_manager_process() {
         }
     }
 
-    message_box = Channel::make(65536, sizeof(WorkerStopMessage), SW_CHAN_LOCK | SW_CHAN_SHM);
-    if (message_box == nullptr) {
+    if (gs->event_workers.create_message_box(65536) == SW_ERR) {
         return SW_ERR;
     }
 
@@ -144,7 +138,6 @@ int Server::start_manager_process() {
     // fork manager process
     case 0: {
         // wait master process
-        SW_START_SLEEP;
         if (!is_started()) {
             swoole_error("master process is not running");
             return SW_ERR;
@@ -192,7 +185,7 @@ int Server::start_manager_process() {
     }
     // master process
     default:
-        gs->manager_pid = pid;
+        gs->event_workers.master_pid = gs->manager_pid = pid;
         break;
     case -1:
         swoole_error("fork() failed");
@@ -204,12 +197,12 @@ int Server::start_manager_process() {
 void Server::check_worker_exit_status(int worker_id, const ExitStatus &exit_status) {
     if (exit_status.get_status() != 0) {
         swoole_warning("worker(pid=%d, id=%d) abnormal exit, status=%d, signal=%d"
-               "%s",
-               exit_status.get_pid(),
-               worker_id,
-               exit_status.get_code(),
-               exit_status.get_signal(),
-               exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
+                       "%s",
+                       exit_status.get_pid(),
+                       worker_id,
+                       exit_status.get_code(),
+                       exit_status.get_signal(),
+                       exit_status.get_signal() == SIGSEGV ? SwooleG.bug_report_message.c_str() : "");
 
         if (onWorkerError != nullptr) {
             onWorkerError(this, worker_id, exit_status);
@@ -221,13 +214,16 @@ void Manager::start(Server *_server) {
     server_ = _server;
     server_->manager = this;
 
+    ProcessPool *pool = &server_->gs->event_workers;
+    pool->onWorkerMessage = Server::read_worker_message;
+
     SwooleG.use_signalfd = 0;
     SwooleTG.reactor = nullptr;
 
-    reload_workers = new Worker[_server->worker_num + _server->task_worker_num];
+    pool->reload_workers = new Worker[_server->worker_num + _server->task_worker_num];
     ON_SCOPE_EXIT {
-        delete[] reload_workers;
-        reload_workers = nullptr;
+        delete[] pool->reload_workers;
+        pool->reload_workers = nullptr;
         server_->manager = nullptr;
     };
 
@@ -250,6 +246,12 @@ void Manager::start(Server *_server) {
     procctl(P_PID, 0, PROC_PDEATHSIG_CTL, &sigid);
 #endif
 
+#ifdef HAVE_PTHREAD_BARRIER
+    pthread_barrier_wait(&_server->gs->manager_barrier);
+#else
+    SW_START_SLEEP;
+#endif
+
     if (_server->hooks[Server::HOOK_MANAGER_START]) {
         _server->call_hook(Server::HOOK_MANAGER_START, _server);
     }
@@ -265,23 +267,29 @@ void Manager::start(Server *_server) {
     while (_server->running) {
         ExitStatus exit_status = wait_process();
 
-        if (read_message) {
-            WorkerStopMessage msg;
-            while (_server->message_box->pop(&msg, sizeof(msg)) > 0) {
+        if (pool->read_message) {
+            EventData msg;
+            while (pool->pop_message(&msg, sizeof(msg)) > 0) {
                 if (!_server->running) {
                     continue;
                 }
-                if (msg.worker_id >= _server->worker_num) {
-                    _server->spawn_task_worker(_server->get_worker(msg.worker_id));
+                if (msg.info.type != SW_WORKER_MESSAGE_STOP && pool->onWorkerMessage) {
+                    pool->onWorkerMessage(pool, &msg);
+                    continue;
+                }
+                WorkerStopMessage worker_stop_msg;
+                memcpy(&worker_stop_msg, msg.data, sizeof(worker_stop_msg));
+                if (worker_stop_msg.worker_id >= _server->worker_num) {
+                    _server->spawn_task_worker(_server->get_worker(worker_stop_msg.worker_id));
                 } else {
-                    Worker *worker = _server->get_worker(msg.worker_id);
+                    Worker *worker = _server->get_worker(worker_stop_msg.worker_id);
                     pid_t new_pid = _server->spawn_event_worker(worker);
                     if (new_pid > 0) {
                         worker->pid = new_pid;
                     }
                 }
             }
-            read_message = false;
+            pool->read_message = false;
         }
 
         if (SwooleG.signal_alarm && SwooleTG.timer) {
@@ -290,7 +298,7 @@ void Manager::start(Server *_server) {
         }
 
         if (exit_status.get_pid() < 0) {
-            if (!reloading) {
+            if (!pool->reloading) {
             _error:
                 if (errno > 0 && errno != EINTR) {
                     swoole_sys_warning("wait() failed");
@@ -303,15 +311,15 @@ void Manager::start(Server *_server) {
                 if (_server->onBeforeReload != nullptr) {
                     _server->onBeforeReload(_server);
                 }
-                if (!reload_init) {
-                    reload_init = true;
-                    memcpy(reload_workers, _server->workers, sizeof(Worker) * _server->worker_num);
+                if (!pool->reload_init) {
+                    pool->reload_init = true;
+                    memcpy(pool->reload_workers, _server->workers, sizeof(Worker) * _server->worker_num);
 
                     add_timeout_killer(_server->workers, _server->worker_num);
 
                     reload_worker_num = _server->worker_num;
                     if (_server->task_worker_num > 0) {
-                        memcpy(reload_workers + _server->worker_num,
+                        memcpy(pool->reload_workers + _server->worker_num,
                                _server->gs->task_workers.workers,
                                sizeof(Worker) * _server->task_worker_num);
                         reload_worker_num += _server->task_worker_num;
@@ -322,13 +330,13 @@ void Manager::start(Server *_server) {
                     reload_all_worker = false;
                     if (_server->reload_async) {
                         SW_LOOP_N(_server->worker_num) {
-                            if (swoole_kill(reload_workers[i].pid, SIGTERM) < 0) {
-                                swoole_sys_warning("swKill(%d, SIGTERM) [%d] failed", reload_workers[i].pid, i);
+                            if (swoole_kill(pool->reload_workers[i].pid, SIGTERM) < 0) {
+                                swoole_sys_warning("swKill(%d, SIGTERM) [%d] failed", pool->reload_workers[i].pid, i);
                             }
                         }
-                        reload_worker_i = _server->worker_num;
+                        pool->reload_worker_i = _server->worker_num;
                     } else {
-                        reload_worker_i = 0;
+                        pool->reload_worker_i = 0;
                     }
                 }
                 goto _kill_worker;
@@ -337,20 +345,21 @@ void Manager::start(Server *_server) {
             else if (reload_task_worker) {
                 if (_server->task_worker_num == 0) {
                     swoole_warning("cannot reload task workers, task workers is not started");
-                    reloading = false;
+                    pool->reloading = false;
                     continue;
                 }
                 swoole_info("Server is reloading task workers now");
                 if (_server->onBeforeReload != nullptr) {
                     _server->onBeforeReload(_server);
                 }
-                if (!reload_init) {
-                    memcpy(
-                        reload_workers, _server->gs->task_workers.workers, sizeof(Worker) * _server->task_worker_num);
+                if (!pool->reload_init) {
+                    memcpy(pool->reload_workers,
+                           _server->gs->task_workers.workers,
+                           sizeof(Worker) * _server->task_worker_num);
                     add_timeout_killer(_server->gs->task_workers.workers, _server->task_worker_num);
                     reload_worker_num = _server->task_worker_num;
-                    reload_worker_i = 0;
-                    reload_init = true;
+                    pool->reload_worker_i = 0;
+                    pool->reload_init = true;
                     reload_task_worker = false;
                 }
                 goto _kill_worker;
@@ -394,30 +403,31 @@ void Manager::start(Server *_server) {
             if (!_server->user_worker_map.empty()) {
                 Server::wait_other_worker(&_server->gs->event_workers, exit_status);
             }
-            if (exit_status.get_pid() == reload_worker_pid && reloading) {
-                reload_worker_i++;
+            if (exit_status.get_pid() == reload_worker_pid && pool->reloading) {
+                pool->reload_worker_i++;
             }
         }
     // reload worker
     _kill_worker:
-        if (reloading) {
+        if (pool->reloading) {
             // reload finish
-            if (reload_worker_i >= reload_worker_num) {
-                reload_worker_pid = reload_worker_i = 0;
-                reload_init = reloading = false;
+            if (pool->reload_worker_i >= reload_worker_num) {
+                reload_worker_pid = pool->reload_worker_i = 0;
+                pool->reload_init = pool->reloading = false;
                 if (_server->onAfterReload != nullptr) {
                     _server->onAfterReload(_server);
                 }
                 continue;
             }
-            reload_worker_pid = reload_workers[reload_worker_i].pid;
+            reload_worker_pid = pool->reload_workers[pool->reload_worker_i].pid;
             if (swoole_kill(reload_worker_pid, SIGTERM) < 0) {
                 if (errno == ECHILD || errno == ESRCH) {
-                    reload_worker_i++;
+                    pool->reload_worker_i++;
                     goto _kill_worker;
                 }
-                swoole_sys_warning(
-                    "swKill(%d, SIGTERM) [%d] failed", reload_workers[reload_worker_i].pid, reload_worker_i);
+                swoole_sys_warning("kill(%d, SIGTERM) [%d] failed",
+                                   pool->reload_workers[pool->reload_worker_i].pid,
+                                   pool->reload_worker_i);
             }
         }
     }
@@ -464,6 +474,7 @@ void Manager::signal_handler(int sig) {
         return;
     }
     Manager *manager = _server->manager;
+    ProcessPool *pool = &_server->gs->event_workers;
 
     switch (sig) {
     case SIGTERM:
@@ -473,8 +484,7 @@ void Manager::signal_handler(int sig) {
          * reload all workers
          */
     case SIGUSR1:
-        if (!manager->reloading) {
-            manager->reloading = true;
+        if (pool->reload()) {
             manager->reload_all_worker = true;
         }
         sw_logger()->reopen();
@@ -483,14 +493,13 @@ void Manager::signal_handler(int sig) {
          * only reload task workers
          */
     case SIGUSR2:
-        if (!manager->reloading) {
-            manager->reloading = true;
+        if (pool->reload()) {
             manager->reload_task_worker = true;
         }
         sw_logger()->reopen();
         break;
     case SIGIO:
-        manager->read_message = true;
+        pool->read_message = true;
         break;
     case SIGALRM:
         SwooleG.signal_alarm = 1;
@@ -556,6 +565,37 @@ int Server::wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status) 
     }
 
     return new_process_pid;
+}
+
+/**
+ * [manager]
+ */
+void Server::read_worker_message(ProcessPool *pool, EventData *msg) {
+    if (msg->info.type != SW_SERVER_EVENT_COMMAND_REQUEST) {
+        swoole_warning("unknown worker message type[%d]", msg->info.type);
+        return;
+    }
+
+    Server *serv = (Server *) pool->ptr;
+    int command_id = msg->info.server_fd;
+    auto iter = serv->command_handlers.find(command_id);
+    if (iter == serv->command_handlers.end()) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[command_id=%d]", command_id);
+        return;
+    }
+
+    Server::Command::Handler handler = iter->second;
+    auto result = handler(serv, std::string(msg->data, msg->info.len));
+
+    SendData task{};
+    task.info.fd = msg->info.fd;
+    task.info.reactor_id = 0;
+    task.info.server_fd = -1;
+    task.info.type = SW_SERVER_EVENT_COMMAND_RESPONSE;
+    task.info.len = result.length();
+    task.data = result.c_str();
+
+    serv->message_bus.write(serv->get_command_reply_socket(), &task);
 }
 
 /**
