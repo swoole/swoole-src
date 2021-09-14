@@ -139,6 +139,8 @@ target_link_libraries(co swoole)
 # ext-swoole
 file(GLOB ext_cxx_files ext-src/*.cc)
 set(ext_src_list  ${ext_cxx_files}
+        thirdparty/php/curl/interface.cc
+        thirdparty/php/curl/multi.cc
         thirdparty/php/sockets/multicast.cc
         thirdparty/php/sockets/sendrecvmsg.cc
         thirdparty/php/sockets/conversions.cc
@@ -161,7 +163,7 @@ add_dependencies(ext-swoole lib-swoole)
 
 target_link_libraries(ext-swoole swoole)
 
-#install
+# install
 INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
 INSTALL(TARGETS ext-swoole LIBRARY DESTINATION ${PHP_EXTENSION_DIR})
 INSTALL(TARGETS lib-swoole LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)

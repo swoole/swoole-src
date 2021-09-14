@@ -128,6 +128,18 @@ void FixedPoolImpl::init() {
     } while (1);
 }
 
+uint32_t FixedPool::get_number_of_spare_slice() {
+    return impl->slice_num - impl->slice_use;
+}
+
+uint32_t FixedPool::get_number_of_total_slice() {
+    return impl->slice_num;
+}
+
+uint32_t FixedPool::get_slice_size() {
+    return impl->slice_size;
+}
+
 void *FixedPool::alloc(uint32_t size) {
     FixedPoolSlice *slice;
 

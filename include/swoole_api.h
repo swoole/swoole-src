@@ -46,6 +46,7 @@ SW_API int swoole_event_del(swoole::network::Socket *socket);
 SW_API void swoole_event_defer(swoole::Callback cb, void *private_data);
 SW_API ssize_t swoole_event_write(swoole::network::Socket *socket, const void *data, size_t len);
 SW_API ssize_t swoole_event_writev(swoole::network::Socket *socket, const iovec *iov, size_t iovcnt);
+SW_API swoole::network::Socket *swoole_event_get_socket(int fd);
 SW_API int swoole_event_wait();
 SW_API int swoole_event_free();
 SW_API bool swoole_event_set_handler(int fdtype, swoole::ReactorHandler handler);

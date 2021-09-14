@@ -114,8 +114,8 @@ int ReactorEpoll::del(Socket *_socket) {
     if (_socket->removed) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_EVENT_SOCKET_REMOVED,
-                         "failed to delete events[%d], it has already been removed",
-                         _socket->fd);
+                         "failed to delete events[fd=%d, fd_type=%d], it has already been removed",
+                         _socket->fd, _socket->fd_type);
         return SW_ERR;
     }
     if (epoll_ctl(epfd_, EPOLL_CTL_DEL, _socket->fd, nullptr) < 0) {

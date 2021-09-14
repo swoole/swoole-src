@@ -142,11 +142,6 @@ struct Connection {
     sw_atomic_t lock;
 };
 
-struct WorkerStopMessage {
-    pid_t pid;
-    uint16_t worker_id;
-};
-
 struct SendData {
     DataHead info;
     const char *data;
@@ -318,6 +313,7 @@ struct ReactorThread {
     std::thread thread;
     network::Socket *notify_pipe = nullptr;
     uint32_t pipe_num = 0;
+    uint64_t dispatch_count = 0;
     network::Socket *pipe_sockets = nullptr;
     network::Socket *pipe_command = nullptr;
     MessageBus message_bus;
@@ -525,6 +521,11 @@ struct ServerGS {
 
     sw_atomic_t spinlock;
 
+#ifdef HAVE_PTHREAD_BARRIER
+    pthread_barrier_t manager_barrier;
+    pthread_barrierattr_t manager_barrier_attr;
+#endif
+
     ProcessPool task_workers;
     ProcessPool event_workers;
 };
@@ -598,7 +599,8 @@ enum ServerEventType {
     // process message
     SW_SERVER_EVENT_INCOMING,
     SW_SERVER_EVENT_SHUTDOWN,
-    SW_SERVER_EVENT_COMMAND,
+    SW_SERVER_EVENT_COMMAND_REQUEST,
+    SW_SERVER_EVENT_COMMAND_RESPONSE,
 };
 
 class Server {
@@ -613,7 +615,8 @@ class Server {
             REACTOR_THREAD = 1u << 2,
             EVENT_WORKER = 1u << 3,
             TASK_WORKER = 1u << 4,
-            ALL_PROCESS = MASTER | REACTOR_THREAD | EVENT_WORKER | TASK_WORKER,
+            MANAGER = 1u << 5,
+            ALL_PROCESS = MASTER | REACTOR_THREAD | EVENT_WORKER | TASK_WORKER | MANAGER,
         };
         int id;
         int accepted_process_types;
@@ -900,6 +903,10 @@ class Server {
         return &get_thread(SwooleTG.id)->pipe_sockets[worker->pipe_master->fd];
     }
 
+    network::Socket *get_command_reply_socket() {
+        return  is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
+    }
+
     /**
      * [Worker|Master]
      */
@@ -937,7 +944,6 @@ class Server {
     int64_t command_current_request_id = 1;
 
     Worker *workers = nullptr;
-    Channel *message_box = nullptr;
     ServerGS *gs = nullptr;
 
     std::unordered_set<std::string> *types = nullptr;
@@ -945,7 +951,7 @@ class Server {
     std::vector<std::string> *http_index_files = nullptr;
 
 #ifdef HAVE_PTHREAD_BARRIER
-    pthread_barrier_t barrier = {};
+    pthread_barrier_t reactor_thread_barrier = {};
 #endif
 
     /**
@@ -1437,6 +1443,7 @@ class Server {
     void kill_task_workers();
 
     static int wait_other_worker(ProcessPool *pool, const ExitStatus &exit_status);
+    static void read_worker_message(ProcessPool *pool, EventData *msg);
 
     void drain_worker_pipe();
 

@@ -394,6 +394,14 @@ void Reactor::defer(Callback cb, void *data) {
     defer_tasks->append(cb, data);
 }
 
+CallbackManager::TaskList::iterator Reactor::get_last_defer_task() {
+    return defer_tasks->back_position();
+}
+
+void Reactor::remove_defer_task(CallbackManager::TaskList::iterator iter) {
+    defer_tasks->remove(iter);
+}
+
 void Reactor::execute_end_callbacks(bool timedout) {
     for (auto &kv : end_callbacks) {
         kv.second(this);

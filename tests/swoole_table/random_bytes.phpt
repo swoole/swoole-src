@@ -17,8 +17,8 @@ $map = [];
 while($n--) {
     $key = "key-".rand(1000000, 9999999);
     $value = RandStr::getBytes(rand(100*1024, 250*1024));
-    $data[$key] = $value;
-    $table->set($key, ['string' => $value]);   
+    $map[$key] = $value;
+    $table->set($key, ['string' => $value]);
 }
 
 foreach($map as $k => $v) {

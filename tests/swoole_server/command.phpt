@@ -23,9 +23,9 @@ $server->set([
 $server->on('start', function (Server $serv) {
     $result = $serv->command('test_getpid', 0, SWOOLE_SERVER_COMMAND_MASTER, ['type' => 'master']);
     Assert::eq($result['pid'], $serv->getMasterPid());
-    $result = $serv->command('test_getpid', 1, SWOOLE_SERVER_COMMAND_EVENT_WORKER, ['type' => 'worker'],);
+    $result = $serv->command('test_getpid', 1, SWOOLE_SERVER_COMMAND_EVENT_WORKER, ['type' => 'worker']);
     Assert::eq($result['pid'], $serv->getWorkerPid(1));
-    $result = $serv->command('test_not_found', 1, SWOOLE_SERVER_COMMAND_EVENT_WORKER, ['type' => 'worker'],);
+    $result = $serv->command('test_not_found', 1, SWOOLE_SERVER_COMMAND_EVENT_WORKER, ['type' => 'worker']);
     Assert::false($result);
 
     $serv->shutdown();
