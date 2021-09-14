@@ -1031,95 +1031,93 @@ static int php_plain_files_rename(
 
 static int php_plain_files_mkdir(
     php_stream_wrapper *wrapper, const char *dir, int mode, int options, php_stream_context *context) {
+    if (strncasecmp(dir, "file://", sizeof("file://") - 1) == 0) {
+        dir += sizeof("file://") - 1;
+    }
 
-	if (strncasecmp(dir, "file://", sizeof("file://") - 1) == 0) {
-		dir += sizeof("file://") - 1;
-	}
+    if (!(options & PHP_STREAM_MKDIR_RECURSIVE)) {
+        return sw_php_mkdir(dir, mode) == 0;
+    }
 
-	if (!(options & PHP_STREAM_MKDIR_RECURSIVE)) {
-		return sw_php_mkdir(dir, mode) == 0;
-	}
+    char buf[MAXPATHLEN];
+    if (!expand_filepath_with_mode(dir, buf, NULL, 0, CWD_EXPAND)) {
+        php_error_docref(NULL, E_WARNING, "Invalid path");
+        return 0;
+    }
 
-	char buf[MAXPATHLEN];
-	if (!expand_filepath_with_mode(dir, buf, NULL, 0, CWD_EXPAND)) {
-		php_error_docref(NULL, E_WARNING, "Invalid path");
-		return 0;
-	}
+    if (php_check_open_basedir(buf)) {
+        return 0;
+    }
 
-	if (php_check_open_basedir(buf)) {
-		return 0;
-	}
+    /* we look for directory separator from the end of string, thus hopefully reducing our work load */
+    char *p;
+    zend_stat_t sb;
+    size_t dir_len = strlen(dir), offset = 0;
+    char *e = buf + strlen(buf);
 
-	/* we look for directory separator from the end of string, thus hopefully reducing our work load */
-	char *p;
-	zend_stat_t sb;
-	size_t dir_len = strlen(dir), offset = 0;
-	char *e = buf +  strlen(buf);
+    if ((p = (char *) memchr(buf, DEFAULT_SLASH, dir_len))) {
+        offset = p - buf + 1;
+    }
 
-	if ((p = (char *) memchr(buf, DEFAULT_SLASH, dir_len))) {
-		offset = p - buf + 1;
-	}
+    if (p && dir_len == 1) {
+        /* buf == "DEFAULT_SLASH" */
+    } else {
+        /* find a top level directory we need to create */
+        while ((p = strrchr(buf + offset, DEFAULT_SLASH)) || (offset != 1 && (p = strrchr(buf, DEFAULT_SLASH)))) {
+            int n = 0;
 
-	if (p && dir_len == 1) {
-		/* buf == "DEFAULT_SLASH" */
-	}
-	else {
-		/* find a top level directory we need to create */
-		while ( (p = strrchr(buf + offset, DEFAULT_SLASH)) || (offset != 1 && (p = strrchr(buf, DEFAULT_SLASH))) ) {
-			int n = 0;
+            *p = '\0';
+            while (p > buf && *(p - 1) == DEFAULT_SLASH) {
+                ++n;
+                --p;
+                *p = '\0';
+            }
+            if (stat(buf, &sb) == 0) {
+                while (1) {
+                    *p = DEFAULT_SLASH;
+                    if (!n) break;
+                    --n;
+                    ++p;
+                }
+                break;
+            }
+        }
+    }
 
-			*p = '\0';
-			while (p > buf && *(p-1) == DEFAULT_SLASH) {
-				++n;
-				--p;
-				*p = '\0';
-			}
-			if (stat(buf, &sb) == 0) {
-				while (1) {
-					*p = DEFAULT_SLASH;
-					if (!n) break;
-					--n;
-					++p;
-				}
-				break;
-			}
-		}
-	}
+    if (!p) {
+        p = buf;
+    }
+    while (true) {
+        int ret = mkdir(buf, (mode_t) mode);
+        if (ret < 0 && errno != EEXIST) {
+            if (options & REPORT_ERRORS) {
+                php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
+            }
+            return 0;
+        }
 
-	if (!p) {
-		p = buf;
-	}
-	while (true) {
-		int ret = mkdir(buf, (mode_t) mode);
-		if (ret < 0 && errno != EEXIST) {
-			if (options & REPORT_ERRORS) {
-				php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
-			}
-			return 0;
-		}
-
-		bool replaced_slash = false;
-		while (++p != e) {
-			if (*p == '\0') {
-				replaced_slash = true;
-				*p = DEFAULT_SLASH;
-				if (*(p+1) != '\0') {
-					break;
-				}
-			}
-		}
-		if (p == e || !replaced_slash) {
-			/* No more directories to create */
-			/* issue a warning to client when the last directory was created failed */
-			if (ret < 0) {
-				if (options & REPORT_ERRORS) {
-					php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
-				}
-				return 0;
-			}
-			return 1;
-		}
-	}
+        bool replaced_slash = false;
+        while (++p != e) {
+            if (*p == '\0') {
+                replaced_slash = true;
+                *p = DEFAULT_SLASH;
+                if (*(p + 1) != '\0') {
+                    break;
+                }
+            }
+        }
+        if (p == e || !replaced_slash) {
+            /* No more directories to create */
+            /* issue a warning to client when the last directory was created failed */
+            if (ret < 0) {
+                if (options & REPORT_ERRORS) {
+                    php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
+                }
+                return 0;
+            }
+            return 1;
+        }
+    }
 }
 
 static int php_plain_files_rmdir(php_stream_wrapper *wrapper,
