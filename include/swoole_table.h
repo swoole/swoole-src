@@ -178,17 +178,19 @@ class Table {
 
     void *memory;
 
-#ifdef SW_TABLE_DEBUG
-    int conflict_count;
-    int insert_count;
-    int conflict_max_level;
-#endif
-
   public:
     std::vector<TableColumn *> *column_list;
 
+    size_t conflict_count;
+    sw_atomic_long_t insert_count;
+    sw_atomic_long_t delete_count;
+    sw_atomic_long_t update_count;
+    uint32_t conflict_max_level;
+
     static Table *make(uint32_t rows_size, float conflict_proportion);
     size_t get_memory_size();
+    uint32_t get_available_slice_num();
+    uint32_t get_total_slice_num();
     bool create();
     bool add_column(const std::string &name, enum TableColumn::Type type, size_t size);
     TableRow *set(const char *key, uint16_t keylen, TableRow **rowlock, int *out_flags);
@@ -289,9 +291,6 @@ class Table {
         new_row->key_len = keylen;
         new_row->active = 1;
         sw_atomic_fetch_add(&(row_num), 1);
-#ifdef SW_TABLE_DEBUG
-        insert_count++;
-#endif
     }
 };
 }  // namespace swoole
