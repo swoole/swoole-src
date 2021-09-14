@@ -54,6 +54,7 @@ foreach($map as $k => $v) {
 }
 
 $stats3 = $table->stats();
+Assert::eq($stats3['num'], 0);
 Assert::eq($stats3['available_slice_num'], $stats3['total_slice_num']);
 phpt_var_dump("delete\n" . str_repeat('-', 64), $stats3);
 ?>
