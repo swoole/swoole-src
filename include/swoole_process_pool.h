@@ -27,13 +27,13 @@
 #include "swoole_channel.h"
 #include "swoole_msg_queue.h"
 
-enum swWorker_status {
+enum swWorkerStatus {
     SW_WORKER_BUSY = 1,
     SW_WORKER_IDLE = 2,
     SW_WORKER_EXIT = 3,
 };
 
-enum swIPC_type {
+enum swIPCMode {
     SW_IPC_NONE = 0,
     SW_IPC_UNIXSOCK = 1,
     SW_IPC_MSGQUEUE = 2,
@@ -41,6 +41,15 @@ enum swIPC_type {
 };
 
 namespace swoole {
+
+enum WorkerMessageType {
+    SW_WORKER_MESSAGE_STOP = 1,
+};
+
+struct WorkerStopMessage {
+    pid_t pid;
+    uint16_t worker_id;
+};
 
 class ExitStatus {
   private:
@@ -90,7 +99,6 @@ struct WorkerGlobal {
     bool run_always;
     bool shutdown;
     uint32_t max_request;
-    String **output_buffer;
     Worker *worker;
     time_t exit_time;
     uint32_t worker_concurrency = 0;
@@ -136,7 +144,7 @@ struct Worker {
     /**
      * worker id
      */
-    uint32_t id;
+    WorkerId id;
 
     Mutex *lock;
 
@@ -151,7 +159,7 @@ struct Worker {
 
     ssize_t send_pipe_message(const void *buf, size_t n, int flags);
 
-    void set_status(enum swWorker_status _status) {
+    void set_status(enum swWorkerStatus _status) {
         status = _status;
     }
 
@@ -186,6 +194,8 @@ struct ProcessPool {
     pid_t master_pid;
     uint32_t reload_worker_i;
     uint32_t max_wait_time;
+    uint64_t reload_count;
+    time_t reload_last_time;
     Worker *reload_workers;
 
     /**
@@ -230,6 +240,7 @@ struct ProcessPool {
     void (*onWorkerStart)(ProcessPool *pool, int worker_id);
     void (*onMessage)(ProcessPool *pool, const char *data, uint32_t length);
     void (*onWorkerStop)(ProcessPool *pool, int worker_id);
+    void (*onWorkerMessage)(ProcessPool *pool, EventData *msg);
     int (*onWorkerNotFound)(ProcessPool *pool, const ExitStatus &exit_status);
     int (*main_loop)(ProcessPool *pool, Worker *worker);
 
@@ -280,6 +291,7 @@ struct ProcessPool {
     int wait();
     int start();
     void shutdown();
+    bool reload();
     pid_t spawn(Worker *worker);
     int dispatch(EventData *data, int *worker_id);
     int response(const char *data, int length);
@@ -288,7 +300,11 @@ struct ProcessPool {
     int add_worker(Worker *worker);
     int del_worker(Worker *worker);
     void destroy();
-    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPC_type ipc_mode = SW_IPC_NONE);
+    int create(uint32_t worker_num, key_t msgqueue_key = 0, swIPCMode ipc_mode = SW_IPC_NONE);
+    int create_message_box(size_t memory_size);
+    int push_message(uint8_t type, const void *data, size_t length);
+    int push_message(EventData *msg);
+    int pop_message(void *data, size_t size);
     int listen(const char *socket_file, int blacklog);
     int listen(const char *host, int port, int blacklog);
     int schedule();

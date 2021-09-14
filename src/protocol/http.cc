@@ -52,7 +52,7 @@ bool Server::select_static_handler(http_server::Request *request, Connection *co
     char header_buffer[1024];
     SendData response;
     response.info.fd = conn->session_id;
-    response.info.type = SW_SERVER_EVENT_RECV_DATA;
+    response.info.type = SW_SERVER_EVENT_SEND_DATA;
 
     if (handler.status_code == SW_HTTP_NOT_FOUND) {
         response.info.len = sw_snprintf(header_buffer,

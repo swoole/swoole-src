@@ -400,7 +400,7 @@ AsyncThreads::AsyncThreads() {
         SwooleTG.async_threads = nullptr;
     });
 
-    sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_AIO_TASK, [](Reactor *reactor, int &event_num) -> bool {
+    sw_reactor()->set_exit_condition(Reactor::EXIT_CONDITION_AIO_TASK, [](Reactor *reactor, size_t &event_num) -> bool {
         if (SwooleTG.async_threads && SwooleTG.async_threads->task_num == 0) {
             event_num--;
         }

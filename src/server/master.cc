@@ -93,6 +93,68 @@ void Server::close_port(bool only_stream_port) {
     }
 }
 
+void Server::call_command_callback(int64_t request_id, const std::string &result) {
+    auto iter = command_callbacks.find(request_id);
+    if (iter == command_callbacks.end()) {
+        swoole_error_log(
+            SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Invalid command result[request_id=%ld]", request_id);
+        return;
+    }
+    iter->second(this, result);
+}
+
+ResultCode Server::call_command_handler(MessageBus &mb, uint16_t worker_id, Socket *sock) {
+    PipeBuffer *buffer = mb.get_buffer();
+    int command_id = buffer->info.server_fd;
+    auto iter = command_handlers.find(command_id);
+    if (iter == command_handlers.end()) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[command_id=%d]", command_id);
+        return SW_OK;
+    }
+
+    Server::Command::Handler handler = iter->second;
+    auto packet = mb.get_packet();
+    auto result = handler(this, std::string(packet.data, packet.length));
+
+    SendData task{};
+    task.info.fd = buffer->info.fd;
+    task.info.reactor_id = worker_id;
+    task.info.server_fd = -1;
+    task.info.type = SW_SERVER_EVENT_COMMAND_RESPONSE;
+    task.info.len = result.length();
+    task.data = result.c_str();
+
+    return mb.write(sock, &task) ? SW_OK : SW_ERR;
+}
+
+std::string Server::call_command_handler_in_master(int command_id, const std::string &msg) {
+    auto iter = command_handlers.find(command_id);
+    if (iter == command_handlers.end()) {
+        swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%d]", command_id);
+        return "";
+    }
+
+    Server::Command::Handler handler = iter->second;
+    return handler(this, msg);
+}
+
+int Server::accept_command_result(Reactor *reactor, Event *event) {
+    Server *serv = (Server *) reactor->ptr;
+
+    if (serv->message_bus.read(event->socket) <= 0) {
+        return SW_OK;
+    }
+
+    auto packet = serv->message_bus.get_packet();
+    std::string result(packet.data, packet.length);
+
+    auto buffer = serv->message_bus.get_buffer();
+    serv->call_command_callback(buffer->info.fd, result);
+    serv->message_bus.pop();
+
+    return SW_OK;
+}
+
 int Server::accept_connection(Reactor *reactor, Event *event) {
     Server *serv = (Server *) reactor->ptr;
     ListenPort *listen_host = serv->get_port_by_server_fd(event->fd);
@@ -115,10 +177,10 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
         }
 
         swoole_trace("[Master] Accept new connection. maxfd=%d|minfd=%d|reactor_id=%d|conn=%d",
-                serv->get_maxfd(),
-                serv->get_minfd(),
-                reactor->id,
-                sock->fd);
+                     serv->get_maxfd(),
+                     serv->get_minfd(),
+                     reactor->id,
+                     sock->fd);
 
         // too many connection
         if (sock->fd >= (int) serv->max_connection) {
@@ -188,6 +250,7 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
     // notify worker process
     if (onConnect) {
         if (!notify(conn, SW_SERVER_EVENT_CONNECT)) {
+            printf("notify faile\n");
             return SW_ERR;
         }
     }
@@ -353,6 +416,54 @@ int Server::start_check() {
     return SW_OK;
 }
 
+int Server::start_master_thread() {
+    SwooleTG.type = THREAD_MASTER;
+    SwooleTG.update_time = 1;
+
+    Reactor *reactor = sw_reactor();
+
+    if (SwooleTG.timer && SwooleTG.timer->get_reactor() == nullptr) {
+        SwooleTG.timer->reinit(reactor);
+    }
+
+    SwooleG.pid = getpid();
+    SwooleG.process_type = SW_PROCESS_MASTER;
+
+    reactor->ptr = this;
+    reactor->set_handler(SW_FD_STREAM_SERVER, Server::accept_connection);
+
+    if (pipe_command) {
+        if (!single_thread) {
+            reactor->set_handler(SW_FD_PIPE, Server::accept_command_result);
+        }
+        reactor->add(pipe_command->get_socket(true), SW_EVENT_READ);
+    }
+
+    if ((master_timer = swoole_timer_add(1000, true, Server::timer_callback, this)) == nullptr) {
+        swoole_event_free();
+        return SW_ERR;
+    }
+
+#ifdef HAVE_PTHREAD_BARRIER
+    if (!single_thread) {
+        pthread_barrier_wait(&reactor_thread_barrier);
+    }
+    pthread_barrier_wait(&gs->manager_barrier);
+#else
+    SW_START_SLEEP;
+#endif
+
+    if (hooks[Server::HOOK_MASTER_START]) {
+        call_hook(Server::HOOK_MASTER_START, this);
+    }
+
+    if (onStart) {
+        onStart(this);
+    }
+
+    return swoole_event_wait();
+}
+
 void Server::store_listen_socket() {
     for (auto ls : ports) {
         int sockfd = ls->socket->fd;
@@ -374,7 +485,7 @@ void Server::store_listen_socket() {
  */
 int Server::create_task_workers() {
     key_t key = 0;
-    swIPC_type ipc_mode;
+    swIPCMode ipc_mode;
 
     if (task_ipc_mode == TASK_IPC_MSGQUEUE || task_ipc_mode == TASK_IPC_PREEMPTIVE) {
         key = message_queue_key;
@@ -417,20 +528,11 @@ int Server::create_task_workers() {
  * @return: SW_OK|SW_ERR
  */
 int Server::create_user_workers() {
-    /**
-     * if Swoole\Server::addProcess is called first,
-     * Server::user_worker_list is initialized in the Server_add_worker function
-     */
-    if (user_worker_list == nullptr) {
-        user_worker_list = new std::vector<Worker *>;
-    }
-
-    user_workers = (Worker *) sw_shm_calloc(user_worker_num, sizeof(Worker));
+    user_workers = (Worker *) sw_shm_calloc(get_user_worker_num(), sizeof(Worker));
     if (user_workers == nullptr) {
         swoole_sys_warning("gmalloc[server->user_workers] failed");
         return SW_ERR;
     }
-
     return SW_OK;
 }
 
@@ -545,8 +647,7 @@ int Server::start() {
     gs->event_workers.worker_num = worker_num;
     gs->event_workers.use_msgqueue = 0;
 
-    uint32_t i;
-    for (i = 0; i < worker_num; i++) {
+    SW_LOOP_N(worker_num) {
         gs->event_workers.workers[i].pool = &gs->event_workers;
         gs->event_workers.workers[i].id = i;
         gs->event_workers.workers[i].type = SW_PROCESS_WORKER;
@@ -572,16 +673,14 @@ int Server::start() {
         }
     }
 
-    /**
-     * user worker process
-     */
-    if (user_worker_list) {
-        i = 0;
-        for (auto worker : *user_worker_list) {
+    if (!user_worker_list.empty()) {
+        uint32_t i = 0;
+        for (auto worker : user_worker_list) {
             worker->id = worker_num + task_worker_num + i;
             i++;
         }
     }
+
     running = true;
     // factory start
     if (!factory->start()) {
@@ -647,8 +746,8 @@ Server::Server(enum Mode _mode) {
         swoole_error("[Master] Fatal Error: failed to allocate memory for Server->gs");
     }
 
-    worker_msg_id = 1;
-    worker_buffer_allocator = sw_std_allocator();
+    gs->pipe_packet_msg_id = 1;
+    message_bus.set_id_generator([this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); });
 
     g_server_instance = this;
 }
@@ -664,7 +763,7 @@ Server::~Server() {
 }
 
 int Server::create() {
-    if (factory) {
+    if (is_created()) {
         return SW_ERR;
     }
 
@@ -700,13 +799,14 @@ int Server::create() {
     }
     if (max_connection < minimum_connection) {
         max_connection = SwooleG.max_sockets;
-        swoole_warning("max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
+        swoole_warning(
+            "max_connection must be bigger than %u, it's reset to %u", minimum_connection, SwooleG.max_sockets);
     }
     // Reactor Thread Num
     if (reactor_num > SW_CPU_NUM * SW_MAX_THREAD_NCPU) {
         swoole_warning("serv->reactor_num == %d, Too many threads, reset to max value %d",
-               reactor_num,
-               SW_CPU_NUM * SW_MAX_THREAD_NCPU);
+                       reactor_num,
+                       SW_CPU_NUM * SW_MAX_THREAD_NCPU);
         reactor_num = SW_CPU_NUM * SW_MAX_THREAD_NCPU;
     } else if (reactor_num == 0) {
         reactor_num = SW_CPU_NUM;
@@ -727,8 +827,8 @@ int Server::create() {
     if (task_worker_num > 0) {
         if (task_worker_num > SW_CPU_NUM * SW_MAX_WORKER_NCPU) {
             swoole_warning("serv->task_worker_num == %d, Too many processes, reset to max value %d",
-                   task_worker_num,
-                   SW_CPU_NUM * SW_MAX_WORKER_NCPU);
+                           task_worker_num,
+                           SW_CPU_NUM * SW_MAX_WORKER_NCPU);
             task_worker_num = SW_CPU_NUM * SW_MAX_WORKER_NCPU;
         }
     }
@@ -746,6 +846,14 @@ int Server::create() {
         factory = new ProcessFactory(this);
         retval = create_reactor_threads();
     }
+
+#ifdef HAVE_PTHREAD_BARRIER
+    if (is_process_mode()) {
+        pthread_barrier_init(&reactor_thread_barrier, nullptr, reactor_num + 1);
+        pthread_barrierattr_setpshared(&gs->manager_barrier_attr, PTHREAD_PROCESS_SHARED);
+        pthread_barrier_init(&gs->manager_barrier, &gs->manager_barrier_attr, 2);
+    }
+#endif
 
     if (swoole_isset_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_AFTER_SERVER_CREATE, this);
@@ -789,6 +897,9 @@ void Server::shutdown() {
             }
             reactor->del(port->socket);
         }
+        if (pipe_command) {
+            reactor->del(pipe_command->get_socket(true));
+        }
         clear_timer();
     }
 
@@ -826,15 +937,6 @@ void Server::destroy() {
         port->close();
     }
 
-    /**
-     * because the Worker in user_worker_list is the memory allocated by emalloc,
-     * the efree function will be called when the user process is destructed,
-     * so there's no need to call the efree here.
-     */
-    if (user_worker_list) {
-        delete user_worker_list;
-        user_worker_list = nullptr;
-    }
     if (user_workers) {
         sw_shm_free(user_workers);
         user_workers = nullptr;
@@ -873,7 +975,13 @@ void Server::destroy() {
             delete l;
         }
     }
-
+#ifdef HAVE_PTHREAD_BARRIER
+    if (is_process_mode()) {
+        pthread_barrier_destroy(&reactor_thread_barrier);
+        pthread_barrier_destroy(&gs->manager_barrier);
+        pthread_barrierattr_destroy(&gs->manager_barrier_attr);
+    }
+#endif
     sw_shm_free(session_list);
     sw_shm_free(port_connnection_num_list);
     sw_shm_free(workers);
@@ -904,6 +1012,125 @@ bool Server::feedback(Connection *conn, enum ServerEventType event) {
     }
 }
 
+bool Server::command(WorkerId process_id,
+                     Command::ProcessType process_type,
+                     const std::string &name,
+                     const std::string &msg,
+                     const Command::Callback &fn) {
+    if (!is_started()) {
+        return false;
+    }
+    auto iter = commands.find(name);
+    if (iter == commands.end()) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SERVER_INVALID_COMMAND, "Unknown command[%s]", name.c_str());
+        return false;
+    }
+
+    if (is_process_mode() && !is_master()) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "command() can only be used in master process");
+        return false;
+    } else if (is_base_mode() && SwooleWG.worker->id != 0) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "command() can only be used in worker process 0");
+        return false;
+    }
+
+    if (is_base_mode() && process_type == Command::EVENT_WORKER && process_id == 0) {
+        process_type = Command::MASTER;
+    }
+
+    if (is_process_mode() && process_type == Command::REACTOR_THREAD && process_id == reactor_num) {
+        process_type = Command::MASTER;
+        process_id = 0;
+    }
+
+    int command_id = iter->second.id;
+    int64_t requset_id = command_current_request_id++;
+    Socket *pipe_sock;
+
+    SendData task{};
+    task.info.fd = requset_id;
+    task.info.reactor_id = process_id;
+    task.info.server_fd = command_id;
+    task.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
+    task.info.len = msg.length();
+    task.data = msg.c_str();
+
+    if (!(process_type & iter->second.accepted_process_types)) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
+        return false;
+    }
+
+    if (process_type == Command::REACTOR_THREAD) {
+        if (!is_process_mode()) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [server_mode]");
+            return false;
+        }
+        if (process_id >= reactor_num) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid thread_id[%d]", process_id);
+            return false;
+        }
+        pipe_sock = get_worker(process_id)->pipe_worker;
+    } else if (process_type == Command::EVENT_WORKER) {
+        if (process_id >= worker_num) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid worker_id[%d]", process_id);
+            return false;
+        }
+        pipe_sock = get_worker(process_id)->pipe_master;
+    } else if (process_type == Command::TASK_WORKER) {
+        if (process_id >= task_worker_num) {
+            swoole_error_log(SW_LOG_NOTICE, SW_ERROR_INVALID_PARAMS, "invalid task_worker_id[%d]", process_id);
+            return false;
+        }
+        EventData buf;
+        memset(&buf.info, 0, sizeof(buf.info));
+        if (!task_pack(&buf, msg.c_str(), msg.length())) {
+            return false;
+        }
+        buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
+        buf.info.fd = requset_id;
+        buf.info.server_fd = command_id;
+        int _dst_worker_id = process_id;
+        if (gs->task_workers.dispatch(&buf, &_dst_worker_id) <= 0) {
+            return false;
+        }
+        command_callbacks[requset_id] = fn;
+        return true;
+    } else if (process_type == Command::MANAGER) {
+        EventData buf;
+        if (msg.length() >= sizeof(buf.data)) {
+            swoole_error_log(SW_LOG_NOTICE,
+                             SW_ERROR_DATA_LENGTH_TOO_LARGE,
+                             "message is too large, maximum length is %lu, the given length is %lu",
+                             sizeof(buf.data),
+                             msg.length());
+            return false;
+        }
+        memset(&buf.info, 0, sizeof(buf.info));
+        buf.info.type = SW_SERVER_EVENT_COMMAND_REQUEST;
+        buf.info.fd = requset_id;
+        buf.info.server_fd = command_id;
+        buf.info.len = msg.length();
+        memcpy(buf.data, msg.c_str(), msg.length());
+        if (gs->event_workers.push_message(&buf) < 0) {
+            return false;
+        }
+        command_callbacks[requset_id] = fn;
+        return true;
+    } else if (process_type == Command::MASTER) {
+        auto result = call_command_handler_in_master(command_id, msg);
+        fn(this, result);
+        return true;
+    } else {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_OPERATION_NOT_SUPPORT, "unsupported [process_type]");
+        return false;
+    }
+    if (!message_bus.write(pipe_sock, &task)) {
+        return false;
+    }
+    command_callbacks[requset_id] = fn;
+    return true;
+}
+
 void Server::store_pipe_fd(UnixSocket *p) {
     Socket *master_socket = p->get_socket(true);
     Socket *worker_socket = p->get_socket(false);
@@ -925,7 +1152,7 @@ void Server::store_pipe_fd(UnixSocket *p) {
 bool Server::send(SessionId session_id, const void *data, uint32_t length) {
     SendData _send{};
     _send.info.fd = session_id;
-    _send.info.type = SW_SERVER_EVENT_RECV_DATA;
+    _send.info.type = SW_SERVER_EVENT_SEND_DATA;
     _send.data = (char *) data;
     _send.info.len = length;
     return factory->finish(&_send);
@@ -1026,7 +1253,7 @@ int Server::send_to_connection(SendData *_send) {
         conn = get_connection_verify_no_ssl(session_id);
     }
     if (!conn) {
-        if (_send->info.type == SW_SERVER_EVENT_RECV_DATA) {
+        if (_send->info.type == SW_SERVER_EVENT_SEND_DATA) {
             swoole_error_log(SW_LOG_NOTICE,
                              SW_ERROR_SESSION_NOT_EXIST,
                              "send %d byte failed, session#%ld does not exist",
@@ -1202,7 +1429,7 @@ int Server::send_to_connection(SendData *_send) {
  * use in master process
  */
 bool Server::notify(Connection *conn, enum ServerEventType event) {
-    DataHead notify_event = {};
+    DataHead notify_event{};
     notify_event.type = event;
     notify_event.reactor_id = conn->reactor_id;
     notify_event.fd = conn->fd;
@@ -1280,25 +1507,6 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
     return conn->socket->send_blocking(data, length) == length;
 }
 
-size_t Server::get_packet(EventData *req, char **data_ptr) {
-    size_t length;
-    if (req->info.flags & SW_EVENT_DATA_PTR) {
-        PacketPtr *task = (PacketPtr *) req;
-        *data_ptr = task->data.str;
-        length = task->data.length;
-    } else if (req->info.flags & SW_EVENT_DATA_OBJ_PTR) {
-        String *worker_buffer;
-        memcpy(&worker_buffer, req->data, sizeof(worker_buffer));
-        *data_ptr = worker_buffer->str;
-        length = worker_buffer->length;
-    } else {
-        *data_ptr = req->data;
-        length = req->info.len;
-    }
-
-    return length;
-}
-
 void Server::call_hook(HookType type, void *arg) {
     swoole::hook_call(hooks, type, arg);
 }
@@ -1351,21 +1559,38 @@ void Server::timer_callback(Timer *timer, TimerNode *tnode) {
 }
 
 int Server::add_worker(Worker *worker) {
-    if (user_worker_list == nullptr) {
-        user_worker_list = new std::vector<Worker *>();
-    }
-    user_worker_num++;
-    user_worker_list->push_back(worker);
-
-    if (!user_worker_map) {
-        user_worker_map = new std::unordered_map<pid_t, Worker *>();
-    }
-
+    user_worker_list.push_back(worker);
     return worker->id;
 }
 
 int Server::add_hook(Server::HookType type, const Callback &func, int push_back) {
     return swoole::hook_add(hooks, (int) type, func, push_back);
+}
+
+bool Server::add_command(const std::string &name, int accepted_process_types, const Command::Handler &func) {
+    if (is_started()) {
+        return false;
+    }
+    if (commands.find(name) != commands.end()) {
+        return false;
+    }
+    if (is_process_mode() && pipe_command == nullptr) {
+        auto _pipe = new UnixSocket(false, SOCK_DGRAM);
+        if (!_pipe->ready()) {
+            delete _pipe;
+            return false;
+        }
+        pipe_command = _pipe;
+    }
+    int command_id = command_current_id++;
+    Command command{
+        command_id,
+        accepted_process_types,
+        name,
+    };
+    commands.emplace(name, command);
+    command_handlers[command_id] = func;
+    return true;
 }
 
 void Server::check_port_type(ListenPort *ls) {
@@ -1553,8 +1778,8 @@ static void Server_signal_handler(int sig) {
         pid = waitpid(-1, &status, WNOHANG);
         if (pid > 0 && pid == serv->gs->manager_pid) {
             swoole_warning("Fatal Error: manager process exit. status=%d, signal=[%s]",
-                   WEXITSTATUS(status),
-                   swoole_signal_to_str(WTERMSIG(status)));
+                           WEXITSTATUS(status),
+                           swoole_signal_to_str(WTERMSIG(status)));
         }
         break;
         /**
@@ -1569,15 +1794,17 @@ static void Server_signal_handler(int sig) {
     case SIGUSR1:
     case SIGUSR2:
         if (serv->is_base_mode()) {
-            if (serv->gs->event_workers.reloading) {
+            if (!serv->gs->event_workers.reload()) {
                 break;
             }
-            serv->gs->event_workers.reloading = true;
             serv->gs->event_workers.reload_init = false;
         } else {
             swoole_kill(serv->gs->manager_pid, sig);
         }
         sw_logger()->reopen();
+        break;
+    case SIGIO:
+        serv->gs->event_workers.read_message = true;
         break;
     default:
 
@@ -1585,7 +1812,7 @@ static void Server_signal_handler(int sig) {
         if (sig == SIGRTMIN) {
             uint32_t i;
             Worker *worker;
-            for (i = 0; i < serv->worker_num + serv->task_worker_num + serv->user_worker_num; i++) {
+            for (i = 0; i < serv->worker_num + serv->task_worker_num + serv->get_user_worker_num(); i++) {
                 worker = serv->get_worker(i);
                 swoole_kill(worker->pid, SIGRTMIN);
             }
@@ -1699,7 +1926,7 @@ _find_available_slot:
     return connection;
 }
 
-void Server::set_ipc_max_size() {
+void Server::init_ipc_max_size() {
 #ifdef HAVE_KQUEUE
     ipc_max_size = SW_IPC_MAX_SIZE;
 #else
@@ -1718,21 +1945,8 @@ void Server::set_ipc_max_size() {
  * allocate memory for Server::pipe_buffers
  */
 int Server::create_pipe_buffers() {
-    pipe_buffers = (PipeBuffer **) sw_calloc(reactor_num, sizeof(PipeBuffer *));
-    if (pipe_buffers == nullptr) {
-        swoole_sys_error("malloc[buffers] failed");
-        return SW_ERR;
-    }
-    for (uint32_t i = 0; i < reactor_num; i++) {
-        pipe_buffers[i] = (PipeBuffer *) sw_malloc(ipc_max_size);
-        if (pipe_buffers[i] == nullptr) {
-            swoole_sys_error("malloc[sndbuf][%d] failed", i);
-            return SW_ERR;
-        }
-        sw_memset_zero(pipe_buffers[i], sizeof(DataHead));
-    }
-
-    return SW_OK;
+    message_bus.set_buffer_size(ipc_max_size);
+    return message_bus.alloc_buffer() ? SW_OK : SW_ERR;
 }
 
 int Server::get_idle_worker_num() {
@@ -1750,10 +1964,9 @@ int Server::get_idle_worker_num() {
 }
 
 int Server::get_idle_task_worker_num() {
-    uint32_t i;
     uint32_t idle_worker_num = 0;
 
-    for (i = worker_num; i < (worker_num + task_worker_num); i++) {
+    for (uint32_t i = worker_num; i < (worker_num + task_worker_num); i++) {
         Worker *worker = get_worker(i);
         if (worker->status == SW_WORKER_IDLE) {
             idle_worker_num++;
@@ -1762,4 +1975,5 @@ int Server::get_idle_task_worker_num() {
 
     return idle_worker_num;
 }
+
 }  // namespace swoole

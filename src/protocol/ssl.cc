@@ -18,6 +18,7 @@
 #include "swoole_string.h"
 #include "swoole_socket.h"
 #include "swoole_ssl.h"
+#include "swoole_util.h"
 
 #ifdef SW_USE_OPENSSL
 
@@ -53,6 +54,14 @@ static int swoole_ssl_verify_cookie(SSL *ssl, const uchar *cookie, uint cookie_l
 #else
 #define MAYBE_UNUSED
 #endif
+
+std::string swoole_ssl_get_version_message() {
+    std::string message = swoole::std_string::format(
+        "OPENSSL_VERSION: %s\n",
+        OPENSSL_VERSION_TEXT);
+
+    return message;
+}
 
 static void MAYBE_UNUSED swoole_ssl_lock_callback(int mode, int type, const char *file, int line);
 

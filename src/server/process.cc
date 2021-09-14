@@ -22,15 +22,7 @@ namespace swoole {
 
 using network::Socket;
 
-typedef int (*SendFunc)(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
-
-static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data);
-static int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
-static int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
-
-ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
-    send_buffer = nullptr;
-}
+ProcessFactory::ProcessFactory(Server *server) : Factory(server) {}
 
 bool ProcessFactory::shutdown() {
     int status;
@@ -52,19 +44,10 @@ bool ProcessFactory::shutdown() {
 }
 
 ProcessFactory::~ProcessFactory() {
-    if (server_->pipe_buffers) {
-        SW_LOOP_N(server_->reactor_num) {
-            sw_free(server_->pipe_buffers[i]);
-        }
-        sw_free(server_->pipe_buffers);
-    }
     if (server_->stream_socket_file) {
         unlink(server_->stream_socket_file);
         sw_free(server_->stream_socket_file);
         server_->stream_socket->free();
-    }
-    if (send_buffer) {
-        sw_free(send_buffer);
     }
 }
 
@@ -105,17 +88,10 @@ bool ProcessFactory::start() {
         server_->store_pipe_fd(server_->workers[i].pipe_object);
     }
 
-    server_->set_ipc_max_size();
+    server_->init_ipc_max_size();
     if (server_->create_pipe_buffers() < 0) {
         return false;
     }
-
-    send_buffer = (PipeBuffer *) sw_malloc(server_->ipc_max_size);
-    if (send_buffer == nullptr) {
-        swoole_sys_error("malloc[send_buffer] failed");
-        return false;
-    }
-    sw_memset_zero(send_buffer, sizeof(DataHead));
 
     /**
      * The manager process must be started first, otherwise it will have a thread fork
@@ -135,16 +111,6 @@ bool ProcessFactory::notify(DataHead *ev) {
     task.info = *ev;
     task.data = nullptr;
     return dispatch(&task);
-}
-
-static inline int process_sendto_worker(
-    Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
-    return serv->send_to_worker_from_master((Worker *) private_data, iov, iovcnt);
-}
-
-static inline int process_sendto_reactor(
-    Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
-    return serv->send_to_reactor_thread(head, iov, iovcnt, ((Connection *) private_data)->session_id);
 }
 
 /**
@@ -195,91 +161,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
 
-    return process_send_packet(server_, &_task, process_sendto_worker, worker);
-}
-
-/**
- * @description: master process send data to worker process.
- *  If the data sent is larger than Server::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
- * @return: send success returns SW_OK, send failure returns SW_ERR.
- */
-static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data) {
-    const char *data = resp->data;
-    uint32_t l_payload = resp->info.len;
-    off_t offset = 0;
-    uint32_t copy_n;
-
-    struct iovec iov[2];
-
-    uint32_t max_length = serv->ipc_max_size - sizeof(resp->info);
-    resp->info.msg_id = serv->worker_msg_id.fetch_add(1);
-
-    if (l_payload <= max_length) {
-        resp->info.flags = 0;
-        resp->info.len = l_payload;
-
-        size_t iovcnt;
-        iov[0].iov_base = &resp->info;
-        iov[0].iov_len = sizeof(resp->info);
-
-        if (resp->data && l_payload > 0) {
-            iov[1].iov_base = (void *) resp->data;
-            iov[1].iov_len = l_payload;
-            iovcnt = 2;
-        } else {
-            iovcnt = 1;
-        }
-
-        int retval = _send(serv, &resp->info, iov, iovcnt, private_data);
-#ifdef __linux__
-        if (retval < 0 && errno == ENOBUFS) {
-            max_length = SW_IPC_BUFFER_SIZE;
-            goto _ipc_use_chunk;
-        }
-#endif
-        return retval >= 0;
-    }
-
-#ifdef __linux__
-_ipc_use_chunk:
-#endif
-    resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
-    resp->info.len = l_payload;
-
-    while (l_payload > 0) {
-        if (l_payload > max_length) {
-            copy_n = max_length;
-        } else {
-            resp->info.flags |= SW_EVENT_DATA_END;
-            copy_n = l_payload;
-        }
-
-        iov[0].iov_base = &resp->info;
-        iov[0].iov_len = sizeof(resp->info);
-        iov[1].iov_base = (void *) (data + offset);
-        iov[1].iov_len = copy_n;
-
-        swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
-
-        if (_send(serv, &resp->info, iov, 2, private_data) < 0) {
-#ifdef __linux__
-            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
-                max_length = SW_IPC_BUFFER_SIZE;
-                continue;
-            }
-#endif
-            return false;
-        }
-
-        if (resp->info.flags & SW_EVENT_DATA_BEGIN) {
-            resp->info.flags &= ~SW_EVENT_DATA_BEGIN;
-        }
-
-        l_payload -= copy_n;
-        offset += copy_n;
-    }
-
-    return true;
+    return server_->message_bus.write(server_->get_worker_pipe_socket(worker), &_task);
 }
 
 static bool inline process_is_supported_send_yield(Server *serv, Connection *conn) {
@@ -362,7 +244,7 @@ bool ProcessFactory::finish(SendData *resp) {
 
     swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
-    return process_send_packet(server_, &task, process_sendto_reactor, conn);
+    return server_->message_bus.write(server_->get_reactor_pipe_socket(session_id, task.info.reactor_id), &task);
 }
 
 bool ProcessFactory::end(SessionId session_id, int flags) {
@@ -448,4 +330,5 @@ _close:
         return finish(&_send);
     }
 }
+
 }  // namespace swoole

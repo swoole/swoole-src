@@ -1150,6 +1150,7 @@ bool Socket::listen(int backlog) {
         set_err(errno);
         return false;
     }
+    socket->get_name(&socket->info);
 #ifdef SW_USE_OPENSSL
     ssl_is_server = true;
 #endif
@@ -1257,7 +1258,7 @@ bool Socket::ssl_handshake() {
             }
         }
     } else {
-        enum swReturnCode retval;
+        ReturnCode retval;
         TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
         do {

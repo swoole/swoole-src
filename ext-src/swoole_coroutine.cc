@@ -103,6 +103,7 @@ static PHP_METHOD(swoole_coroutine, getContext);
 static PHP_METHOD(swoole_coroutine, getBackTrace);
 static PHP_METHOD(swoole_coroutine, printBackTrace);
 static PHP_METHOD(swoole_coroutine, getElapsed);
+static PHP_METHOD(swoole_coroutine, getStackUsage);
 static PHP_METHOD(swoole_coroutine, list);
 static PHP_METHOD(swoole_coroutine, enableScheduler);
 static PHP_METHOD(swoole_coroutine, disableScheduler);
@@ -161,6 +162,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getElapsed, 0, 0, 0)
     ZEND_ARG_INFO(0, cid)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getStackUsage, 0, 0, 0)
+    ZEND_ARG_INFO(0, cid)
+ZEND_END_ARG_INFO()
+
 static const zend_function_entry swoole_coroutine_methods[] =
 {
     /**
@@ -184,6 +189,7 @@ static const zend_function_entry swoole_coroutine_methods[] =
     PHP_ME(swoole_coroutine, getBackTrace, arginfo_swoole_coroutine_getBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, printBackTrace, arginfo_swoole_coroutine_printBackTrace, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, getElapsed, arginfo_swoole_coroutine_getElapsed, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_coroutine, getStackUsage, arginfo_swoole_coroutine_getStackUsage, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_MALIAS(swoole_coroutine, listCoroutines, list, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, enableScheduler, arginfo_swoole_coroutine_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -980,7 +986,7 @@ PHP_FUNCTION(swoole_coroutine_defer) {
 
 static PHP_METHOD(swoole_coroutine, stats) {
     array_init(return_value);
-    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->event_num : 0);
+    add_assoc_long_ex(return_value, ZEND_STRL("event_num"), sw_reactor() ? sw_reactor()->get_event_num() : 0);
     add_assoc_long_ex(
         return_value, ZEND_STRL("signal_listener_num"), SwooleTG.signal_listener_num + SwooleTG.co_signal_listener_num);
 
@@ -1056,6 +1062,32 @@ static PHP_METHOD(swoole_coroutine, getElapsed) {
 
     ret = PHPCoroutine::get_elapsed(cid);
     RETURN_LONG(ret);
+}
+
+static PHP_METHOD(swoole_coroutine, getStackUsage) {
+    zend_long current_cid = PHPCoroutine::get_cid();
+    zend_long cid = current_cid;
+
+    ZEND_PARSE_PARAMETERS_START(0, 1)
+    Z_PARAM_OPTIONAL
+    Z_PARAM_LONG(cid)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    PHPContext *task = (PHPContext *) PHPCoroutine::get_context_by_cid(cid);
+    if (UNEXPECTED(!task)) {
+        swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+        RETURN_FALSE;
+    }
+
+    zend_vm_stack stack = cid == current_cid ? EG(vm_stack) : task->vm_stack;
+    size_t usage = 0;
+
+    while (stack) {
+        usage += (stack->end - stack->top) * sizeof(zval);
+        stack = stack->prev;
+    }
+
+    RETURN_LONG(usage);
 }
 
 static PHP_METHOD(swoole_coroutine, exists) {

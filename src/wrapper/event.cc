@@ -104,9 +104,6 @@ void swoole_event_defer(Callback cb, void *private_data) {
     SwooleTG.reactor->defer(cb, private_data);
 }
 
-/**
- * @return SW_OK or SW_ERR
- */
 ssize_t swoole_event_write(Socket *socket, const void *data, size_t len) {
     return SwooleTG.reactor->write(SwooleTG.reactor, socket, data, len);
 }
@@ -125,4 +122,8 @@ bool swoole_event_isset_handler(int fdtype) {
 
 bool swoole_event_is_available() {
     return SwooleTG.reactor and !SwooleTG.reactor->destroyed;
+}
+
+Socket *swoole_event_get_socket(int fd) {
+    return SwooleTG.reactor->get_socket(fd);
 }

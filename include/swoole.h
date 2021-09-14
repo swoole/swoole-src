@@ -107,6 +107,15 @@ typedef unsigned long ulong_t;
 #define SW_ECHO_MAGENTA "\e[35m%s\e[0m"
 #define SW_ECHO_CYAN "\e[36m%s\e[0m"
 #define SW_ECHO_WHITE "\e[37m%s\e[0m"
+
+#define SW_ECHO_LEN_RED "\e[31m%.*s\e[0m"
+#define SW_ECHO_LEN_GREEN "\e[32m%.*s\e[0m"
+#define SW_ECHO_LEN_YELLOW "\e[33m%.*s\e[0m"
+#define SW_ECHO_LEN_BLUE "\e[34m%.*s\e[0m"
+#define SW_ECHO_LEN_MAGENTA "\e[35m%.*s\e[0m"
+#define SW_ECHO_LEN_CYAN "\e[36m%.*s\e[0m"
+#define SW_ECHO_LEN_WHITE "\e[37m%.*s\e[0m"
+
 #define SW_COLOR_RED 1
 #define SW_COLOR_GREEN 2
 #define SW_COLOR_YELLOW 3
@@ -140,8 +149,8 @@ typedef unsigned long ulong_t;
 #define MIN(A, B) SW_MIN(A, B)
 #endif
 
-#define SW_NUM_BILLION   (1000 * 1000 * 1000)
-#define SW_NUM_MILLION   (1000 * 1000)
+#define SW_NUM_BILLION (1000 * 1000 * 1000)
+#define SW_NUM_MILLION (1000 * 1000)
 
 #ifdef SW_DEBUG
 #define SW_ASSERT(e) assert(e)
@@ -227,8 +236,7 @@ typedef swoole::Event swEvent;
 #endif
 
 /** always return less than size, zero termination  */
-size_t sw_snprintf(char *buf, size_t size, const char *format, ...)
-    __attribute__ ((format (printf, 3, 4)));
+size_t sw_snprintf(char *buf, size_t size, const char *format, ...) __attribute__((format(printf, 3, 4)));
 size_t sw_vsnprintf(char *buf, size_t size, const char *format, va_list args);
 
 #define sw_memset_zero(s, n) memset(s, '\0', n)
@@ -341,17 +349,17 @@ static inline void swoole_strtolower(char *str, int length) {
 
 /*--------------------------------Constants------------------------------------*/
 enum swResultCode {
-    SW_OK  = 0,
+    SW_OK = 0,
     SW_ERR = -1,
 };
 
 enum swReturnCode {
     SW_CONTINUE = 1,
-    SW_WAIT     = 2,
-    SW_CLOSE    = 3,
-    SW_ERROR    = 4,
-    SW_READY    = 5,
-    SW_INVALID  = 6,
+    SW_WAIT = 2,
+    SW_CLOSE = 3,
+    SW_ERROR = 4,
+    SW_READY = 5,
+    SW_INVALID = 6,
 };
 
 enum swFdType {
@@ -389,34 +397,34 @@ enum swFdType {
 
 enum swSocketFlag {
     SW_SOCK_NONBLOCK = 1 << 2,
-    SW_SOCK_CLOEXEC  = 1 << 3,
-    SW_SOCK_SSL      = (1u << 9),
+    SW_SOCK_CLOEXEC = 1 << 3,
+    SW_SOCK_SSL = (1u << 9),
 };
 
 enum swSocketType {
-    SW_SOCK_TCP         = 1,
-    SW_SOCK_UDP         = 2,
-    SW_SOCK_TCP6        = 3,
-    SW_SOCK_UDP6        = 4,
+    SW_SOCK_TCP = 1,
+    SW_SOCK_UDP = 2,
+    SW_SOCK_TCP6 = 3,
+    SW_SOCK_UDP6 = 4,
     SW_SOCK_UNIX_STREAM = 5,  // unix sock stream
-    SW_SOCK_UNIX_DGRAM  = 6,  // unix sock dgram
-    SW_SOCK_RAW         = 7,
+    SW_SOCK_UNIX_DGRAM = 6,   // unix sock dgram
+    SW_SOCK_RAW = 7,
 };
 
 enum swEventType {
-    SW_EVENT_NULL   = 0,
+    SW_EVENT_NULL = 0,
     SW_EVENT_DEAULT = 1u << 8,
-    SW_EVENT_READ   = 1u << 9,
-    SW_EVENT_WRITE  = 1u << 10,
-    SW_EVENT_RDWR   = SW_EVENT_READ | SW_EVENT_WRITE,
-    SW_EVENT_ERROR  = 1u << 11,
-    SW_EVENT_ONCE   = 1u << 12,
+    SW_EVENT_READ = 1u << 9,
+    SW_EVENT_WRITE = 1u << 10,
+    SW_EVENT_RDWR = SW_EVENT_READ | SW_EVENT_WRITE,
+    SW_EVENT_ERROR = 1u << 11,
+    SW_EVENT_ONCE = 1u << 12,
 };
 
 enum swForkType {
-    SW_FORK_SPAWN    = 0,
-    SW_FORK_EXEC     = 1 << 1,
-    SW_FORK_DAEMON   = 1 << 2,
+    SW_FORK_SPAWN = 0,
+    SW_FORK_EXEC = 1 << 1,
+    SW_FORK_DAEMON = 1 << 2,
     SW_FORK_PRECHECK = 1 << 3,
 };
 
@@ -451,28 +459,23 @@ static sw_inline size_t swoole_size_align(size_t size, int pagesize) {
 //------------------------------Base--------------------------------
 enum swEventDataFlag {
     SW_EVENT_DATA_NORMAL,
-    SW_EVENT_DATA_PTR     = 1u << 1,
-    SW_EVENT_DATA_CHUNK   = 1u << 2,
-    SW_EVENT_DATA_BEGIN   = 1u << 3,
-    SW_EVENT_DATA_END     = 1u << 4,
+    SW_EVENT_DATA_PTR = 1u << 1,
+    SW_EVENT_DATA_CHUNK = 1u << 2,
+    SW_EVENT_DATA_BEGIN = 1u << 3,
+    SW_EVENT_DATA_END = 1u << 4,
     SW_EVENT_DATA_OBJ_PTR = 1u << 5,
     SW_EVENT_DATA_POP_PTR = 1u << 6,
 };
 
-/**
- * Use server_fd field to store flag of the server task
- */
-#define SW_TASK_TYPE(task) ((task)->info.server_fd)
-
-enum swTaskType {
-    SW_TASK_TMPFILE   = 1,    // tmp file
-    SW_TASK_SERIALIZE = 2,    // php serialize
-    SW_TASK_NONBLOCK  = 4,    // task
-    SW_TASK_CALLBACK  = 8,    // callback
-    SW_TASK_WAITALL   = 16,   // for taskWaitAll
-    SW_TASK_COROUTINE = 32,   // coroutine
-    SW_TASK_PEEK      = 64,   // peek
-    SW_TASK_NOREPLY   = 128,  // don't reply
+enum swTaskFlag {
+    SW_TASK_TMPFILE = 1,
+    SW_TASK_SERIALIZE = 1u << 1,
+    SW_TASK_NONBLOCK = 1u << 2,
+    SW_TASK_CALLBACK = 1u << 3,
+    SW_TASK_WAITALL = 1u << 4,
+    SW_TASK_COROUTINE = 1u << 5,
+    SW_TASK_PEEK = 1u << 6,
+    SW_TASK_NOREPLY = 1u << 7,
 };
 
 enum swDNSLookupFlag {
@@ -487,18 +490,18 @@ extern __thread char sw_error[SW_ERROR_MSG_SIZE];
 #endif
 
 enum swProcessType {
-    SW_PROCESS_MASTER     = 1,
-    SW_PROCESS_WORKER     = 2,
-    SW_PROCESS_MANAGER    = 3,
+    SW_PROCESS_MASTER = 1,
+    SW_PROCESS_WORKER = 2,
+    SW_PROCESS_MANAGER = 3,
     SW_PROCESS_TASKWORKER = 4,
     SW_PROCESS_USERWORKER = 5,
 };
 
 enum swPipeType {
-    SW_PIPE_WORKER   = 0,
-    SW_PIPE_MASTER   = 1,
-    SW_PIPE_READ     = 0,
-    SW_PIPE_WRITE    = 1,
+    SW_PIPE_WORKER = 0,
+    SW_PIPE_MASTER = 1,
+    SW_PIPE_READ = 0,
+    SW_PIPE_WRITE = 1,
     SW_PIPE_NONBLOCK = 2,
 };
 
@@ -538,7 +541,7 @@ int swoole_set_cpu_affinity(cpu_set_t *set);
 #endif
 
 #ifdef HAVE_CLOCK_GETTIME
-#define swoole_clock_gettime     clock_gettime
+#define swoole_clock_gettime clock_gettime
 #else
 int swoole_clock_gettime(int which_clock, struct timespec *t);
 #endif
@@ -567,9 +570,12 @@ namespace swoole {
 typedef long SessionId;
 typedef long TaskId;
 typedef uint8_t ReactorId;
+typedef uint32_t WorkerId;
 typedef enum swEventType EventType;
 typedef enum swSocketType SocketType;
 typedef enum swFdType FdType;
+typedef enum swReturnCode ReturnCode;
+typedef enum swResultCode ResultCode;
 
 struct Event {
     int fd;
@@ -587,15 +593,15 @@ struct DataHead {
     uint8_t flags;
     uint16_t server_fd;
     uint16_t ext_flags;
+    uint32_t reserved;
     double time;
     size_t dump(char *buf, size_t len);
+    void print();
 };
 
 struct EventData {
     DataHead info;
     char data[SW_IPC_BUFFER_SIZE];
-    bool pack(const void *data, size_t data_len);
-    bool unpack(String *buffer);
 };
 
 struct ThreadGlobal {
@@ -665,7 +671,9 @@ struct Global {
     network::Socket *aio_default_socket;
     //-----------------------[Hook]--------------------------
     void *hooks[SW_MAX_HOOK_TYPE];
-    std::function<bool(Reactor *reactor, int &event_num)> user_exit_condition;
+    std::function<bool(Reactor *reactor, size_t &event_num)> user_exit_condition;
+    // bug report message
+    std::string bug_report_message = "";
 };
 
 std::string dirname(const std::string &file);
@@ -703,8 +711,8 @@ SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_trace_flags(int flags);
-SW_API void swoole_set_dns_server(const std::string server);
-SW_API void swoole_set_hosts_path(char *hosts_file);
+SW_API void swoole_set_dns_server(const std::string &server);
+SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 

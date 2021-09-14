@@ -749,7 +749,12 @@ static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, in
     while (1) {
 #ifdef HAVE_KQUEUE
         int timeout_ms = (int) (cli->timeout * 1000);
-        if (cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
+#ifdef SW_USE_OPENSSL
+        if (cli->socket->ssl) {
+            timeout_ms = 0;
+        }
+#endif
+        if (timeout_ms > 0 && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) < 0) {
             return -1;
         }
 #endif
@@ -768,7 +773,7 @@ static ssize_t Client_tcp_recv_no_buffer(Client *cli, char *data, size_t len, in
             }
         }
 #ifdef SW_USE_OPENSSL
-        if (errno == EAGAIN && cli->socket->ssl) {
+        if (cli->socket->catch_error(errno) == SW_WAIT && cli->socket->ssl) {
             int timeout_ms = (int) (cli->timeout * 1000);
             if (cli->socket->ssl_want_read && cli->socket->wait_event(timeout_ms, SW_EVENT_READ) == SW_OK) {
                 continue;

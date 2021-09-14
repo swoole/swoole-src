@@ -813,6 +813,8 @@ static PHP_METHOD(swoole_websocket_server, push) {
 #ifdef SW_HAVE_ZLIB
     Connection *conn = serv->get_connection_verify(fd);
     if (!conn) {
+        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
+        php_swoole_fatal_error(E_WARNING, "session#%ld does not exists", fd);
         RETURN_FALSE;
     }
     allow_compress = conn->websocket_compression;
@@ -821,11 +823,13 @@ static PHP_METHOD(swoole_websocket_server, push) {
     swoole_http_buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
         if (php_swoole_websocket_frame_object_pack(swoole_http_buffer, zdata, 0, allow_compress) < 0) {
+            swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
             RETURN_FALSE;
         }
     } else {
         if (php_swoole_websocket_frame_pack(
                 swoole_http_buffer, zdata, opcode, flags & WebSocket::FLAGS_ALL, 0, allow_compress) < 0) {
+            swoole_set_last_error(SW_ERROR_WEBSOCKET_PACK_FAILED);
             RETURN_FALSE;
         }
     }
