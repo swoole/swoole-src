@@ -430,6 +430,7 @@ void test_command(enum Server::Mode _mode) {
 
     serv.onStart = [](Server *serv) {
         static Server::Command::Callback fn = [&](Server *serv, const std::string &msg) {
+            usleep(50000);
             if (msg == "json result, hello world [0]") {
                 if (serv->is_base_mode()) {
                     goto _send_to_event_worker;
