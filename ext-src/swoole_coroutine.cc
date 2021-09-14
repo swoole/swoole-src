@@ -676,7 +676,6 @@ void PHPCoroutine::main_func(void *arg) {
 #ifdef SW_CORO_SUPPORT_BAILOUT
     zend_first_try {
 #endif
-        int i;
         Args *php_arg = (Args *) arg;
         zend_fcall_info_cache fci_cache = *php_arg->fci_cache;
         zend_function *func = fci_cache.function_handler;
@@ -713,7 +712,7 @@ void PHPCoroutine::main_func(void *arg) {
     } while (0);
 #endif
 
-        for (i = 0; i < argc; ++i) {
+        SW_LOOP_N(argc) {
             zval *param;
             zval *arg = &argv[i];
             if (Z_ISREF_P(arg) && !(func->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)) {
