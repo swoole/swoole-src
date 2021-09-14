@@ -60,12 +60,6 @@ class CallbackManager {
         list_.emplace_front(fn, private_data);
         auto t = list_.back();
     }
-    TaskList::iterator back_position() {
-        return std::prev(list_.end());
-    }
-    TaskList::iterator front_position() {
-        return list_.begin();
-    }
     void remove(TaskList::iterator iter) {
         list_.erase(iter);
     }
@@ -194,8 +188,6 @@ class Reactor {
     ~Reactor();
     bool if_exit();
     void defer(Callback cb, void *data = nullptr);
-    CallbackManager::TaskList::iterator get_last_defer_task();
-    void remove_defer_task(CallbackManager::TaskList::iterator iter);
     void set_end_callback(enum EndCallback id, const std::function<void(Reactor *)> &fn);
     void set_exit_condition(enum ExitCondition id, const std::function<bool(Reactor *, size_t &)> &fn);
     bool set_handler(int _fdtype, ReactorHandler handler);

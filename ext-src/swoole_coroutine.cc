@@ -1175,16 +1175,17 @@ static PHP_METHOD(swoole_coroutine, join) {
         RETURN_FALSE;
     }
 
-    CallbackManager::TaskList::iterator iter;
-
-    PHPContext::SwapCallback join_fn = [&count, &iter, co](PHPContext *task) {
+    bool *canceled = new bool(false);
+    PHPContext::SwapCallback join_fn = [&count, canceled, co](PHPContext *task) {
         if (--count > 0) {
             return;
         }
-        swoole_event_defer([co](void*) {
-            co->resume();
+        swoole_event_defer([co, canceled](void*) {
+            if (*canceled == false) {
+                co->resume();
+            }
+            delete canceled;
         }, nullptr);
-        iter = sw_reactor()->get_last_defer_task();
     };
 
     zval *zcid;
@@ -1192,7 +1193,7 @@ static PHP_METHOD(swoole_coroutine, join) {
         long cid = zval_get_long(zcid);
         if (co->get_cid() == cid) {
             swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
-            php_swoole_fatal_error(E_WARNING, "can not join self");
+            php_swoole_error(E_WARNING, "can not join self");
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
@@ -1205,15 +1206,13 @@ static PHP_METHOD(swoole_coroutine, join) {
     ZEND_HASH_FOREACH_END();
 
     if (!co->yield_ex(timeout)) {
-        sw_reactor()->remove_defer_task(iter);
+        *canceled = true;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
             long cid = zval_get_long(zcid);
             auto ctx = PHPCoroutine::get_context_by_cid(cid);
-            if (ctx == nullptr) {
-                swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
-                RETURN_FALSE;
+            if (ctx) {
+                ctx->on_close = nullptr;
             }
-            ctx->on_close = nullptr;
         }
         ZEND_HASH_FOREACH_END();
         RETURN_FALSE;
