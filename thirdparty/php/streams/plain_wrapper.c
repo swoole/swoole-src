@@ -1056,7 +1056,7 @@ static int php_plain_files_mkdir(
 	size_t dir_len = strlen(dir), offset = 0;
 	char *e = buf +  strlen(buf);
 
-	if ((p = memchr(buf, DEFAULT_SLASH, dir_len))) {
+	if ((p = memchr((void *) buf, DEFAULT_SLASH, dir_len))) {
 		offset = p - buf + 1;
 	}
 
