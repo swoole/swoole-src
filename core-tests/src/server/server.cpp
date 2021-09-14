@@ -406,9 +406,10 @@ TEST(server, reactor_num_zero) {
     ASSERT_EQ(serv.reactor_num, SW_CPU_NUM);
 }
 
-TEST(server, command) {
-    Server serv(Server::MODE_PROCESS);
+void test_command(enum Server::Mode _mode) {
+    Server serv(_mode);
     serv.worker_num = 4;
+    serv.task_worker_num = 4;
     serv.reactor_num = 2;
 
     SwooleG.running = 1;
@@ -429,22 +430,33 @@ TEST(server, command) {
 
     serv.onStart = [](Server *serv) {
         static Server::Command::Callback fn = [&](Server *serv, const std::string &msg) {
-            if (msg == "json result, hello world [1]") {
+            if (msg == "json result, hello world [0]") {
+                if (serv->is_base_mode()) {
+                    goto _send_to_event_worker;
+                } else {
+                    serv->command(1, Server::Command::REACTOR_THREAD, "test", "hello world [1]", fn);
+                }
+            } else if (msg == "json result, hello world [1]") {
+            _send_to_event_worker:
                 serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);
             } else if (msg == "json result, hello world [2]") {
-                serv->command(1, Server::Command::MANAGER, "test", "hello world [3]", fn);
+                serv->command(1, Server::Command::TASK_WORKER, "test", "hello world [3]", fn);
             } else if (msg == "json result, hello world [3]") {
-                swoole_timer_after(50, [serv](Timer *, TimerNode *) {
-                    serv->shutdown();
-                });
+                serv->command(1, Server::Command::MANAGER, "test", "hello world [4]", fn);
+            } else if (msg == "json result, hello world [4]") {
+                swoole_timer_after(50, [serv](Timer *, TimerNode *) { serv->shutdown(); });
+            } else {
+                ASSERT_TRUE(0);
             }
         };
-        serv->command(1, Server::Command::REACTOR_THREAD, "test", "hello world [1]", fn);
+        serv->command(1, Server::Command::MASTER, "test", "hello world [0]", fn);
     };
 
     serv.onWorkerStart = [](Server *serv, int worker_id) {
 
     };
+
+    serv.onTask = [](Server *, EventData *) -> int { return SW_OK; };
 
     serv.onReceive = [](Server *serv, RecvData *req) -> int {
         EXPECT_EQ(string(req->data, req->info.len), string(packet));
@@ -456,4 +468,12 @@ TEST(server, command) {
     };
 
     ASSERT_EQ(serv.start(), 0);
+}
+
+TEST(server, command_1) {
+    test_command(Server::MODE_PROCESS);
+}
+
+TEST(server, command_2) {
+    test_command(Server::MODE_BASE);
 }
