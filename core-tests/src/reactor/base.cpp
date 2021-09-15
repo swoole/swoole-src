@@ -257,3 +257,15 @@ TEST(reactor, add_or_update) {
 
     swoole_event_free();
 }
+
+TEST(reactor, defer_task) {
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+    Reactor *reactor = sw_reactor();
+    ASSERT_EQ(reactor->max_event_num, SW_REACTOR_MAXEVENTS);
+
+    int count = 0;
+    reactor->defer([&count](void *) { count++; });
+    swoole_event_wait();
+    ASSERT_EQ(count, 1);
+    swoole_event_free();
+}
