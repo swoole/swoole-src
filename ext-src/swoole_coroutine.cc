@@ -35,7 +35,6 @@ using swoole::PHPContext;
 using swoole::PHPCoroutine;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::CallbackManager;
 
 #define PHP_CORO_TASK_SLOT                                                                                             \
     ((int) ((ZEND_MM_ALIGNED_SIZE(sizeof(PHPContext)) + ZEND_MM_ALIGNED_SIZE(sizeof(zval)) - 1) /                      \
