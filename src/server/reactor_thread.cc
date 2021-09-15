@@ -280,6 +280,8 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     }
     serv->unlock();
 
+    swoole_warning("real close, session=%ld", conn->session_id);
+
     *conn = {};
     return Reactor::_close(reactor, socket);
 }

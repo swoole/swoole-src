@@ -122,45 +122,44 @@ bool BaseFactory::end(SessionId session_id, int flags) {
     if (flags & Server::CLOSE_ACTIVELY) {
         conn->close_actively = 1;
     }
-    if (conn->close_force) {
-        goto _do_close;
-    } else if (conn->closing) {
-        swoole_warning("session#%ld is closing", session_id);
-        return false;
-    } else if (conn->closed) {
-        return false;
-    } else {
-    _do_close:
-        conn->closing = 1;
-        if (server_->onClose != nullptr) {
-            DataHead info{};
-            info.fd = session_id;
-            if (conn->close_actively) {
-                info.reactor_id = -1;
-            } else {
-                info.reactor_id = conn->reactor_id;
-            }
-            info.server_fd = conn->server_fd;
-            server_->onClose(server_, &info);
-        }
-        conn->closing = 0;
-        conn->closed = 1;
-        conn->close_errno = 0;
 
-        if (conn->socket == nullptr) {
-            swoole_warning("session#%ld->socket is nullptr", session_id);
-            return false;
-        }
+    if (conn->closing) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
+        return false;
+    } else if (!(conn->close_force || conn->close_reset) && conn->closed) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
+        return false;
+    }
 
-        if (Buffer::empty(conn->socket->out_buffer) || conn->peer_closed || conn->close_force) {
-            Reactor *reactor = SwooleTG.reactor;
-            return Server::close_connection(reactor, conn->socket) == SW_OK;
+    conn->closing = 1;
+    if (server_->onClose != nullptr && !conn->closed) {
+        DataHead info{};
+        info.fd = session_id;
+        if (conn->close_actively) {
+            info.reactor_id = -1;
         } else {
-            BufferChunk *chunk = conn->socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
-            chunk->value.data.val1 = _send.info.type;
-            conn->close_queued = 1;
-            return true;
+            info.reactor_id = conn->reactor_id;
         }
+        info.server_fd = conn->server_fd;
+        server_->onClose(server_, &info);
+    }
+    conn->closing = 0;
+    conn->closed = 1;
+    conn->close_errno = 0;
+
+    if (conn->socket == nullptr) {
+        swoole_warning("session#%ld->socket is nullptr", session_id);
+        return false;
+    }
+
+    if (Buffer::empty(conn->socket->out_buffer) || (conn->close_reset || conn->peer_closed || conn->close_force)) {
+        Reactor *reactor = SwooleTG.reactor;
+        return Server::close_connection(reactor, conn->socket) == SW_OK;
+    } else {
+        BufferChunk *chunk = conn->socket->out_buffer->alloc(BufferChunk::TYPE_CLOSE, 0);
+        chunk->value.data.val1 = _send.info.type;
+        conn->close_queued = 1;
+        return true;
     }
 }
 
