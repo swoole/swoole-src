@@ -257,11 +257,12 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
 
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld is closed", session_id);
         return false;
     }
     // Reset send buffer, Immediately close the connection.
     if (flags & Server::CLOSE_RESET) {
+        swoole_warning("close session=%ld, force", session_id);
         conn->close_reset = 1;
     }
     // Server is initiative to close the connection
@@ -301,34 +302,28 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
     }
 
 _close:
-    if (conn == nullptr || conn->active == 0) {
-        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
-        return false;
-    } else if (conn->close_force) {
-        goto _do_close;
-    } else if (conn->closing) {
+    if (conn->closing) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
-    } else if (conn->closed) {
+    } else if (!(conn->close_force || conn->close_reset) && conn->closed) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
         return false;
-    } else {
-    _do_close:
-        conn->closing = 1;
-        if (server_->onClose != nullptr) {
-            info.fd = session_id;
-            if (conn->close_actively) {
-                info.reactor_id = -1;
-            } else {
-                info.reactor_id = conn->reactor_id;
-            }
-            info.server_fd = conn->server_fd;
-            server_->onClose(server_, &info);
-        }
-        conn->closing = 0;
-        conn->closed = 1;
-        conn->close_errno = 0;
-        return finish(&_send);
     }
-}
 
+    if (server_->onClose != nullptr && !conn->closed) {
+        info.fd = session_id;
+        if (conn->close_actively) {
+            info.reactor_id = -1;
+        } else {
+            info.reactor_id = conn->reactor_id;
+        }
+        info.server_fd = conn->server_fd;
+        conn->closing = 1;
+        server_->onClose(server_, &info);
+        conn->closing = 0;
+    }
+    conn->closed = 1;
+    conn->close_errno = 0;
+    return finish(&_send);
+}
 }  // namespace swoole
