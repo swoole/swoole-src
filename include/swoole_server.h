@@ -469,17 +469,17 @@ struct ListenPort {
     int listen();
     void close();
     bool import(int sock);
+    const char *get_protocols();
+
 #ifdef SW_USE_OPENSSL
     bool ssl_create_context(SSLContext *context);
     bool ssl_create(Connection *conn, network::Socket *sock);
     bool ssl_add_sni_cert(const std::string &name, SSLContext *context);
     bool ssl_init();
-    const char *get_protocols();
 
     void ssl_set_key_file(const std::string &file) {
         ssl_context->key_file = file;
     }
-
     void ssl_set_cert_file(const std::string &file) {
         ssl_context->cert_file = file;
     }
