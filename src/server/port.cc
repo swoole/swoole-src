@@ -723,4 +723,31 @@ void ListenPort::close() {
     }
 }
 
+const char* ListenPort::get_protocols() {
+    if (open_eof_check) {
+        return "eof";
+    } else if (open_length_check) {
+        return "length";
+    } else if (open_http_protocol) {
+#ifdef SW_USE_HTTP2
+        if (open_http2_protocol && open_websocket_protocol) {
+            return "http|http2|websocket";
+        } else if (open_http2_protocol) {
+            return "http|http2";
+        } else
+#endif
+        if (open_websocket_protocol) {
+            return "http|websocket";
+        } else {
+            return "http";
+        }
+    } else if (open_mqtt_protocol) {
+        return "mqtt";
+    } else if (open_redis_protocol) {
+        return "redis";
+    } else {
+        return "raw";
+    }
+}
+
 }  // namespace swoole

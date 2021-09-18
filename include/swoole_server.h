@@ -237,6 +237,8 @@ class MessageBus {
         return buffer_size_;
     }
 
+    size_t get_memory_size();
+
     bool alloc_buffer() {
         void *_ptr = allocator_->malloc(sizeof(*buffer_) + buffer_size_);
         if (_ptr) {
@@ -472,6 +474,7 @@ struct ListenPort {
     bool ssl_create(Connection *conn, network::Socket *sock);
     bool ssl_add_sni_cert(const std::string &name, SSLContext *context);
     bool ssl_init();
+    const char *get_protocols();
 
     void ssl_set_key_file(const std::string &file) {
         ssl_context->key_file = file;

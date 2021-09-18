@@ -156,11 +156,11 @@ class ThreadPool {
         return _event_copy;
     }
 
-    inline size_t worker_count() {
+    inline size_t get_worker_num() {
         return threads.size();
     }
 
-    inline size_t queue_count() {
+    inline size_t get_queue_size() {
         std::unique_lock<std::mutex> lock(event_mutex);
         return _queue.count();
     }
@@ -361,8 +361,12 @@ int AsyncThreads::callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-size_t AsyncThreads::thread_count() {
-    return pool ? pool->worker_count() : 0;
+size_t AsyncThreads::get_worker_num() {
+    return pool ? pool->get_worker_num() : 0;
+}
+
+size_t AsyncThreads::get_queue_size() {
+    return pool ? pool->get_queue_size() : 0;
 }
 
 void AsyncThreads::notify_one() {
