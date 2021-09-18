@@ -26,7 +26,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-array(13) {
+array(%d) {
   ["start_time"]=>
   int(%d)
   ["connection_num"]=>
@@ -47,10 +47,20 @@ array(13) {
   int(0)
   ["dispatch_count"]=>
   int(0)
+  ["pipe_packet_msg_id"]=>
+  int(%d)
+  ["session_round"]=>
+  int(0)
+  ["min_fd"]=>
+  int(%d)
+  ["max_fd"]=>
+  int(%d)
   ["worker_request_count"]=>
   int(0)
   ["worker_dispatch_count"]=>
   int(0)
   ["coroutine_num"]=>
+  int(0)
+  ["coroutine_peek_num"]=>
   int(0)
 }
