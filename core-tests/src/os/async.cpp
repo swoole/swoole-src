@@ -24,7 +24,7 @@
 
 #include <atomic>
 
-using swoole::AsyncEvent;
+using namespace swoole;
 
 static int callback_count;
 
@@ -47,4 +47,47 @@ TEST(async, dispatch) {
 
     ASSERT_EQ(handle_count, 1000);
     ASSERT_EQ(callback_count, 1000);
+}
+
+TEST(async, schedule) {
+    callback_count = 0;
+    std::atomic<int> handle_count(0);
+
+    int N = 1000;
+
+    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+
+    AsyncEvent event{};
+    event.object = &handle_count;
+    event.callback = [](AsyncEvent *event) { callback_count++; };
+    event.handler = [](AsyncEvent *event) {
+        usleep(swoole_rand(50000, 100000));
+        (*(std::atomic<int> *) event->object)++;
+    };
+
+    SwooleG.aio_core_worker_num = 4;
+    SwooleG.aio_worker_num = 128;
+    SwooleG.aio_max_wait_time = 0.05;
+    SwooleG.aio_max_idle_time = 0.5;
+
+    int count = N;
+    swoole_timer_tick(2, [&count, &event, N](Timer *, TimerNode *timer) {
+        SW_LOOP_N(swoole_rand(5, 15)) {
+            auto ret = swoole::async::dispatch(&event);
+            EXPECT_EQ(ret->object, event.object);
+            count--;
+            if (count == 0) {
+                swoole_timer_del(timer);
+                ASSERT_EQ(SwooleTG.async_threads->get_worker_num(), 128);
+                ASSERT_GT(SwooleTG.async_threads->get_queue_size(), 100);
+                ASSERT_GT(SwooleTG.async_threads->get_task_num(), 100);
+                break;
+            }
+        }
+    });
+
+    swoole_event_wait();
+
+    ASSERT_EQ(handle_count, N);
+    ASSERT_EQ(callback_count, N);
 }
