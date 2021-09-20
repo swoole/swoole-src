@@ -3685,9 +3685,9 @@ static PHP_METHOD(swoole_server, getClientInfo) {
         }
 #endif
         // server socket
-        Connection *from_sock = serv->get_connection(conn->server_fd);
-        if (from_sock) {
-            add_assoc_long(return_value, "server_port", from_sock->info.get_port());
+        Connection *server_socket = serv->get_connection(conn->server_fd);
+        if (server_socket) {
+            add_assoc_long(return_value, "server_port", server_socket->info.get_port());
         }
         add_assoc_long(return_value, "server_fd", conn->server_fd);
         add_assoc_long(return_value, "socket_fd", conn->fd);

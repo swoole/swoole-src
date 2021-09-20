@@ -43,12 +43,10 @@ void System::clear_dns_cache() {
 }
 
 static void sleep_callback(Coroutine *co, bool *canceled) {
-    bool _canceled = *canceled;
-    delete canceled;
-    if (_canceled) {
-        return;
+    if (*canceled == false) {
+        co->resume();
     }
-    co->resume();
+    delete canceled;
 }
 
 int System::sleep(double sec) {

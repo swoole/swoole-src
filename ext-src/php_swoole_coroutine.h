@@ -45,6 +45,8 @@ struct Function;
 namespace swoole {
 
 struct PHPContext {
+    typedef std::function<void(PHPContext *)> SwapCallback;
+
     JMP_BUF *bailout;
     zval *vm_stack_top;
     zval *vm_stack_end;
@@ -69,6 +71,9 @@ struct PHPContext {
     int tmp_error_reporting;
     Coroutine *co;
     std::stack<zend::Function *> *defer_tasks;
+    SwapCallback *on_yield;
+    SwapCallback *on_resume;
+    SwapCallback *on_close;
     long pcid;
     zend_object *context;
     int64_t last_msec;
