@@ -518,10 +518,10 @@ _parse:
     if (!request->header_parsed) {
         request->parse_header_info();
         swoole_trace_log(SW_TRACE_SERVER,
-                   "content-length=%u, keep-alive=%u, chunked=%u",
-                   request->content_length_,
-                   request->keep_alive,
-                   request->chunked);
+                         "content-length=%u, keep-alive=%u, chunked=%u",
+                         request->content_length_,
+                         request->keep_alive,
+                         request->chunked);
     }
 
     // content length (equal to 0) or (field not found but not chunked)
@@ -614,11 +614,12 @@ _parse:
             if (request->has_expect_header()) {
                 _socket->send(SW_STRL(SW_HTTP_100_CONTINUE_PACKET), 0);
             } else {
-                swoole_trace_log(SW_TRACE_SERVER,
-                           "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
-                           request->content_length,
-                           buffer_->length,
-                           request->header_length);
+                swoole_trace_log(
+                    SW_TRACE_SERVER,
+                    "PostWait: request->content_length=%d, buffer->length=%zu, request->header_length=%d\n",
+                    request->content_length,
+                    buffer_->length,
+                    request->header_length);
             }
 #endif
             goto _recv_data;
@@ -720,6 +721,33 @@ void ListenPort::close() {
     // remove unix socket file
     if (type == SW_SOCK_UNIX_STREAM || type == SW_SOCK_UNIX_DGRAM) {
         unlink(host.c_str());
+    }
+}
+
+const char *ListenPort::get_protocols() {
+    if (open_eof_check) {
+        return "eof";
+    } else if (open_length_check) {
+        return "length";
+    } else if (open_http_protocol) {
+#ifdef SW_USE_HTTP2
+        if (open_http2_protocol && open_websocket_protocol) {
+            return "http|http2|websocket";
+        } else if (open_http2_protocol) {
+            return "http|http2";
+        } else
+#endif
+            if (open_websocket_protocol) {
+            return "http|websocket";
+        } else {
+            return "http";
+        }
+    } else if (open_mqtt_protocol) {
+        return "mqtt";
+    } else if (open_redis_protocol) {
+        return "redis";
+    } else {
+        return "raw";
     }
 }
 

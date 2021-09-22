@@ -69,6 +69,11 @@ task_worker_num: %d
 tasking_num: %d
 request_count: %d
 dispatch_count: %d
+pipe_packet_msg_id: %d
+session_round: %d
+min_fd: %d
+max_fd: %d
 worker_request_count: %d
 worker_dispatch_count: %d
 coroutine_num: %d
+coroutine_peek_num: %d

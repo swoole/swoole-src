@@ -28,7 +28,7 @@ bool ProcessFactory::shutdown() {
     int status;
 
     if (swoole_kill(server_->gs->manager_pid, SIGTERM) < 0) {
-        swoole_sys_warning("swKill(%d) failed", server_->gs->manager_pid);
+        swoole_sys_warning("kill(%d) failed", server_->gs->manager_pid);
     }
 
     if (swoole_waitpid(server_->gs->manager_pid, &status, 0) < 0) {
@@ -97,7 +97,7 @@ bool ProcessFactory::start() {
      * The manager process must be started first, otherwise it will have a thread fork
      */
     if (server_->start_manager_process() < 0) {
-        swoole_warning("FactoryProcess_manager_start failed");
+        swoole_warning("failed to start");
         return false;
     }
     return true;
@@ -262,7 +262,6 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
     }
     // Reset send buffer, Immediately close the connection.
     if (flags & Server::CLOSE_RESET) {
-        swoole_warning("close session=%ld, force", session_id);
         conn->close_reset = 1;
     }
     // Server is initiative to close the connection
