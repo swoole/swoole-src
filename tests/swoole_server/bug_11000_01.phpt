@@ -14,7 +14,10 @@ $pm->childFunc = function () {
     $serv = new Server(TCP_SERVER_HOST, $port);
     $process = new \Swoole\Process(function ($process) use ($serv) {
         usleep(10000);
-        var_dump($serv->stats());
+        $stats = $serv->stats();
+        Assert::isArray($stats);
+        Assert::keyExists($stats, 'connection_num');
+        Assert::keyExists($stats, 'request_count');
         $serv->shutdown();
     });
     $serv->set(['worker_num' => 2, 'log_file' => '/dev/null']);
@@ -25,42 +28,4 @@ $pm->childFunc = function () {
 $pm->childFirst();
 $pm->run();
 ?>
---EXPECTF--
-array(%d) {
-  ["start_time"]=>
-  int(%d)
-  ["connection_num"]=>
-  int(0)
-  ["accept_count"]=>
-  int(0)
-  ["close_count"]=>
-  int(0)
-  ["worker_num"]=>
-  int(2)
-  ["idle_worker_num"]=>
-  int(2)
-  ["task_worker_num"]=>
-  int(0)
-  ["tasking_num"]=>
-  int(0)
-  ["request_count"]=>
-  int(0)
-  ["dispatch_count"]=>
-  int(0)
-  ["pipe_packet_msg_id"]=>
-  int(%d)
-  ["session_round"]=>
-  int(0)
-  ["min_fd"]=>
-  int(%d)
-  ["max_fd"]=>
-  int(%d)
-  ["worker_request_count"]=>
-  int(0)
-  ["worker_dispatch_count"]=>
-  int(0)
-  ["coroutine_num"]=>
-  int(0)
-  ["coroutine_peek_num"]=>
-  int(0)
-}
+--EXPECT--
