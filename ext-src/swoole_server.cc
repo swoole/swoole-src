@@ -2950,15 +2950,10 @@ static PHP_METHOD(swoole_server, stats) {
         tasking_num = serv->gs->tasking_num = 0;
     }
 
-    uint32_t idle_worker_num = 0;
-    uint32_t worker_num = serv->worker_num;
-    uint32_t task_worker_num = serv->task_worker_num;
-
-    add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), worker_num);
-    idle_worker_num = serv->get_idle_worker_num();
-
-    add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), idle_worker_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("task_worker_num"), task_worker_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), serv->worker_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("task_worker_num"), serv->task_worker_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("user_worker_num"), serv->get_user_worker_num());
+    add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), serv->get_idle_worker_num());
     add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
     add_assoc_long_ex(return_value, ZEND_STRL("dispatch_count"), serv->gs->dispatch_count);
     add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->gs->request_count);
@@ -2984,9 +2979,8 @@ static PHP_METHOD(swoole_server, stats) {
         }
     }
 
-    if (task_worker_num > 0) {
-        idle_worker_num = serv->get_idle_task_worker_num();
-        add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), idle_worker_num);
+    if (serv->task_worker_num > 0) {
+        add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), serv->get_idle_task_worker_num());
     }
 
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
