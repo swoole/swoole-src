@@ -44,34 +44,36 @@ struct ServerEvent {
 
 // clang-format off
 static std::unordered_map<std::string, ServerEvent> server_event_map({
-    { "start",        ServerEvent(SW_SERVER_CB_onStart,        "Start") },
-    { "shutdown",     ServerEvent(SW_SERVER_CB_onShutdown,     "Shutdown") },
-    { "workerstart",  ServerEvent(SW_SERVER_CB_onWorkerStart,  "WorkerStart") },
-    { "workerstop",   ServerEvent(SW_SERVER_CB_onWorkerStop,   "WorkerStop") },
-    { "beforereload", ServerEvent(SW_SERVER_CB_onBeforeReload, "BeforeReload") },
-    { "afterreload",  ServerEvent(SW_SERVER_CB_onAfterReload,  "AfterReload") },
-    { "task",         ServerEvent(SW_SERVER_CB_onTask,         "Task") },
-    { "finish",       ServerEvent(SW_SERVER_CB_onFinish,       "Finish") },
-    { "workerexit",   ServerEvent(SW_SERVER_CB_onWorkerExit,   "WorkerExit") },
-    { "workererror",  ServerEvent(SW_SERVER_CB_onWorkerError,  "WorkerError") },
-    { "managerstart", ServerEvent(SW_SERVER_CB_onManagerStart, "ManagerStart") },
-    { "managerstop",  ServerEvent(SW_SERVER_CB_onManagerStop,  "ManagerStop") },
-    { "pipemessage",  ServerEvent(SW_SERVER_CB_onPipeMessage,  "PipeMessage") },
+    { "start",          ServerEvent(SW_SERVER_CB_onStart,           "Start") },
+    { "beforeshutdown", ServerEvent(SW_SERVER_CB_onBeforeShutdown,  "BeforeShutdown") },
+    { "shutdown",       ServerEvent(SW_SERVER_CB_onShutdown,        "Shutdown") },
+    { "workerstart",    ServerEvent(SW_SERVER_CB_onWorkerStart,     "WorkerStart") },
+    { "workerstop",     ServerEvent(SW_SERVER_CB_onWorkerStop,      "WorkerStop") },
+    { "beforereload",   ServerEvent(SW_SERVER_CB_onBeforeReload,    "BeforeReload") },
+    { "afterreload",    ServerEvent(SW_SERVER_CB_onAfterReload,     "AfterReload") },
+    { "task",           ServerEvent(SW_SERVER_CB_onTask,            "Task") },
+    { "finish",         ServerEvent(SW_SERVER_CB_onFinish,          "Finish") },
+    { "workerexit",     ServerEvent(SW_SERVER_CB_onWorkerExit,      "WorkerExit") },
+    { "workererror",    ServerEvent(SW_SERVER_CB_onWorkerError,     "WorkerError") },
+    { "managerstart",   ServerEvent(SW_SERVER_CB_onManagerStart,    "ManagerStart") },
+    { "managerstop",    ServerEvent(SW_SERVER_CB_onManagerStop,     "ManagerStop") },
+    { "pipemessage",    ServerEvent(SW_SERVER_CB_onPipeMessage,     "PipeMessage") },
 });
 // clang-format on
 
 // server event callback
-static void php_swoole_onPipeMessage(Server *serv, EventData *req);
 static void php_swoole_server_onStart(Server *);
-static void php_swoole_onShutdown(Server *);
+static void php_swoole_server_onBeforeShutdown(Server *serv);
+static void php_swoole_server_onShutdown(Server *);
 static void php_swoole_server_onWorkerStart(Server *, int worker_id);
 static void php_swoole_server_onBeforeReload(Server *serv);
 static void php_swoole_server_onAfterReload(Server *serv);
 static void php_swoole_server_onWorkerStop(Server *, int worker_id);
 static void php_swoole_server_onWorkerExit(Server *serv, int worker_id);
-static void php_swoole_onUserWorkerStart(Server *serv, Worker *worker);
+static void php_swoole_server_onUserWorkerStart(Server *serv, Worker *worker);
 static int php_swoole_server_onTask(Server *, EventData *task);
 static int php_swoole_server_onFinish(Server *, EventData *task);
+static void php_swoole_server_onPipeMessage(Server *serv, EventData *req);
 static void php_swoole_server_onWorkerError(Server *serv, int worker_id, const ExitStatus &exit_status);
 static void php_swoole_server_onManagerStart(Server *serv);
 static void php_swoole_server_onManagerStop(Server *serv);
@@ -746,6 +748,7 @@ void php_swoole_server_minit(int module_number) {
     zend_declare_property_bool(swoole_server_ce, ZEND_STRL("taskworker"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_server_ce, ZEND_STRL("worker_pid"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("stats_timer"), ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_server_ce, ZEND_STRL("admin_server"), ZEND_ACC_PUBLIC);
 
     /**
      * mode type
@@ -1158,7 +1161,8 @@ void ServerObject::on_before_start() {
 void ServerObject::register_callback() {
     // control plane
     serv->onStart = php_swoole_server_onStart;
-    serv->onShutdown = php_swoole_onShutdown;
+    serv->onBeforeShutdown = php_swoole_server_onBeforeShutdown;
+    serv->onShutdown = php_swoole_server_onShutdown;
     serv->onWorkerStart = php_swoole_server_onWorkerStart;
     serv->onWorkerStop = php_swoole_server_onWorkerStop;
     serv->onWorkerExit = php_swoole_server_onWorkerExit;
@@ -1174,7 +1178,7 @@ void ServerObject::register_callback() {
         serv->onFinish = php_swoole_server_onFinish;
     }
     if (property->callbacks[SW_SERVER_CB_onPipeMessage] != nullptr) {
-        serv->onPipeMessage = php_swoole_onPipeMessage;
+        serv->onPipeMessage = php_swoole_server_onPipeMessage;
     }
     if (serv->send_yield && serv->is_support_unsafe_events()) {
         serv->onBufferEmpty = php_swoole_server_onBufferEmpty;
@@ -1210,7 +1214,7 @@ static int php_swoole_task_finish(Server *serv, zval *zdata, EventData *current_
     return ret;
 }
 
-static void php_swoole_onPipeMessage(Server *serv, EventData *req) {
+static void php_swoole_server_onPipeMessage(Server *serv, EventData *req) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
     zend_fcall_info_cache *fci_cache = server_object->property->callbacks[SW_SERVER_CB_onPipeMessage];
     zval *zserv = (zval *) serv->private_data_2;
@@ -1611,7 +1615,23 @@ static void php_swoole_server_onManagerStop(Server *serv) {
     }
 }
 
-static void php_swoole_onShutdown(Server *serv) {
+static void php_swoole_server_onBeforeShutdown(Server *serv) {
+    serv->lock();
+    zval *zserv = (zval *) serv->private_data_2;
+    ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
+    auto fci_cache = server_object->property->callbacks[SW_SERVER_CB_onBeforeShutdown];
+
+    if (SWOOLE_G(enable_library)) {
+        zend::function::call("\\Swoole\\Server\\Helper::onBeforeShutdown", 1, zserv);
+    }
+
+    if (fci_cache && UNEXPECTED(!zend::function::call(fci_cache, 1, zserv, nullptr, false))) {
+        php_swoole_error(E_WARNING, "%s->onBeforeShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
+    }
+    serv->unlock();
+}
+
+static void php_swoole_server_onShutdown(Server *serv) {
     serv->lock();
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
@@ -1723,7 +1743,7 @@ static void php_swoole_server_onWorkerExit(Server *serv, int worker_id) {
     }
 }
 
-static void php_swoole_onUserWorkerStart(Server *serv, Worker *worker) {
+static void php_swoole_server_onUserWorkerStart(Server *serv, Worker *worker) {
     zval *object = (zval *) worker->ptr;
     zend_update_property_long(swoole_process_ce, SW_Z8_OBJ_P(object), ZEND_STRL("id"), SwooleG.process_id);
 
@@ -2613,7 +2633,7 @@ static PHP_METHOD(swoole_server, addProcess) {
     }
 
     if (serv->onUserWorkerStart == nullptr) {
-        serv->onUserWorkerStart = php_swoole_onUserWorkerStart;
+        serv->onUserWorkerStart = php_swoole_server_onUserWorkerStart;
     }
 
     zval *tmp_process = (zval *) emalloc(sizeof(zval));

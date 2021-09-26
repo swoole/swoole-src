@@ -431,6 +431,9 @@ void Server::stop_async_worker(Worker *worker) {
 
     if (is_base_mode()) {
         if (is_worker()) {
+            if (worker->id == 0 && gs->event_workers.running == 0 && onBeforeShutdown) {
+                onBeforeShutdown(this);
+            }
             for (auto ls : ports) {
                 reactor->del(ls->socket);
             }
