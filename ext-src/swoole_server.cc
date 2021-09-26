@@ -2939,6 +2939,7 @@ static PHP_METHOD(swoole_server, stats) {
     array_init(return_value);
     add_assoc_long_ex(return_value, ZEND_STRL("start_time"), serv->gs->start_time);
     add_assoc_long_ex(return_value, ZEND_STRL("connection_num"), serv->gs->connection_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("abort_count"), serv->gs->abort_count);
     add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->gs->accept_count);
     add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->gs->close_count);
     /**
@@ -2949,18 +2950,16 @@ static PHP_METHOD(swoole_server, stats) {
         tasking_num = serv->gs->tasking_num = 0;
     }
 
-    uint32_t idle_worker_num = 0;
-    uint32_t worker_num = serv->worker_num;
-    uint32_t task_worker_num = serv->task_worker_num;
-
-    add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), worker_num);
-    idle_worker_num = serv->get_idle_worker_num();
-
-    add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), idle_worker_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("task_worker_num"), task_worker_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), serv->worker_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("task_worker_num"), serv->task_worker_num);
+    add_assoc_long_ex(return_value, ZEND_STRL("user_worker_num"), serv->get_user_worker_num());
+    add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), serv->get_idle_worker_num());
     add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
-    add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->gs->request_count);
     add_assoc_long_ex(return_value, ZEND_STRL("dispatch_count"), serv->gs->dispatch_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->gs->request_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("response_count"), serv->gs->response_count);
+    add_assoc_long_ex(return_value, ZEND_STRL("total_recv_bytes"), serv->gs->total_recv_bytes);
+    add_assoc_long_ex(return_value, ZEND_STRL("total_send_bytes"), serv->gs->total_send_bytes);
     add_assoc_long_ex(return_value, ZEND_STRL("pipe_packet_msg_id"), serv->gs->pipe_packet_msg_id);
     add_assoc_long_ex(return_value, ZEND_STRL("session_round"), serv->gs->session_round);
     add_assoc_long_ex(return_value, ZEND_STRL("min_fd"), serv->gs->min_fd);
@@ -2980,9 +2979,8 @@ static PHP_METHOD(swoole_server, stats) {
         }
     }
 
-    if (task_worker_num > 0) {
-        idle_worker_num = serv->get_idle_task_worker_num();
-        add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), idle_worker_num);
+    if (serv->task_worker_num > 0) {
+        add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), serv->get_idle_task_worker_num());
     }
 
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());
@@ -4007,7 +4005,7 @@ static PHP_METHOD(swoole_connection_iterator, key) {
 static PHP_METHOD(swoole_connection_iterator, count) {
     ConnectionIterator *iterator = php_swoole_connection_iterator_get_and_check_ptr(ZEND_THIS);
     if (iterator->port) {
-        RETURN_LONG(*iterator->port->connection_num);
+        RETURN_LONG(iterator->port->gs->connection_num);
     } else {
         RETURN_LONG(iterator->serv->gs->connection_num);
     }

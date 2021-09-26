@@ -186,7 +186,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
         if (sock->fd >= (int) serv->max_connection) {
             swoole_error_log(
                 SW_LOG_WARNING, SW_ERROR_SERVER_TOO_MANY_SOCKET, "Too many connections [now: %d]", sock->fd);
-            sock->free();
+            serv->abort_connection(reactor, listen_host, sock);
             serv->disable_accept();
             return SW_OK;
         }
@@ -194,7 +194,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
         // add to connection_list
         Connection *conn = serv->add_connection(listen_host, sock, event->fd);
         if (conn == nullptr) {
-            sock->free();
+            serv->abort_connection(reactor, listen_host, sock);
             return SW_OK;
         }
         sock->chunk_size = SW_SEND_BUFFER_SIZE;
@@ -202,7 +202,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 #ifdef SW_USE_OPENSSL
         if (listen_host->ssl) {
             if (!listen_host->ssl_create(conn, sock)) {
-                reactor->close(reactor, sock);
+                serv->abort_connection(reactor, listen_host, sock);
                 return SW_OK;
             }
         } else {
@@ -211,7 +211,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
 #endif
         if (serv->single_thread) {
             if (serv->connection_incoming(reactor, conn) < 0) {
-                reactor->close(reactor, sock);
+                serv->abort_connection(reactor, listen_host, sock);
                 return SW_OK;
             }
         } else {
@@ -220,7 +220,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
             ev.fd = conn->session_id;
             ev.reactor_id = conn->reactor_id;
             if (serv->send_to_reactor_thread((EventData *) &ev, sizeof(ev), conn->session_id) < 0) {
-                reactor->close(reactor, sock);
+                serv->abort_connection(reactor, listen_host, sock);
                 return SW_OK;
             }
         }
@@ -250,7 +250,6 @@ int Server::connection_incoming(Reactor *reactor, Connection *conn) {
     // notify worker process
     if (onConnect) {
         if (!notify(conn, SW_SERVER_EVENT_CONNECT)) {
-            printf("notify faile\n");
             return SW_ERR;
         }
     }
@@ -777,15 +776,15 @@ int Server::create() {
         return SW_ERR;
     }
 
-    port_connnection_num_list = (uint32_t *) sw_shm_calloc(ports.size(), sizeof(sw_atomic_t));
-    if (port_connnection_num_list == nullptr) {
+    port_gs_list = (ServerPortGS *) sw_shm_calloc(ports.size(), sizeof(ServerPortGS));
+    if (port_gs_list == nullptr) {
         swoole_error("sw_shm_calloc() for port_connnection_num_array failed");
         return SW_ERR;
     }
 
     int index = 0;
     for (auto port : ports) {
-        port->connection_num = &port_connnection_num_list[index++];
+        port->gs = &port_gs_list[index++];
     }
 
     if (enable_static_handler and locations == nullptr) {
@@ -983,11 +982,11 @@ void Server::destroy() {
     }
 #endif
     sw_shm_free(session_list);
-    sw_shm_free(port_connnection_num_list);
+    sw_shm_free(port_gs_list);
     sw_shm_free(workers);
 
     session_list = nullptr;
-    port_connnection_num_list = nullptr;
+    port_gs_list = nullptr;
     workers = nullptr;
 
     delete factory;
@@ -1155,7 +1154,17 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) {
     _send.info.type = SW_SERVER_EVENT_SEND_DATA;
     _send.data = (char *) data;
     _send.info.len = length;
-    return factory->finish(&_send);
+    if (factory->finish(&_send)) {
+        sw_atomic_fetch_add(&gs->response_count, 1);
+        sw_atomic_fetch_add(&gs->total_send_bytes, length);
+        ListenPort *port = get_port_by_session_id(session_id);
+        if (port) {
+            sw_atomic_fetch_add(&port->gs->response_count, 1);
+            sw_atomic_fetch_add(&port->gs->total_send_bytes, length);
+        }
+        return true;
+    }
+    return false;
 }
 
 int Server::schedule_worker(int fd, SendData *data) {
@@ -1835,23 +1844,21 @@ void Server::foreach_connection(const std::function<void(Connection *)> &callbac
     }
 }
 
+void Server::abort_connection(Reactor *reactor, ListenPort *ls, Socket *_socket) {
+    sw_atomic_fetch_add(&gs->abort_count, 1);
+    sw_atomic_fetch_add(&ls->gs->abort_count, 1);
+    if (_socket->object) {
+        reactor->close(reactor, _socket);
+    } else {
+        _socket->free();
+    }
+}
+
 /**
  * new connection
  */
 Connection *Server::add_connection(ListenPort *ls, Socket *_socket, int server_fd) {
-    gs->accept_count++;
-    sw_atomic_fetch_add(&gs->connection_num, 1);
-    sw_atomic_fetch_add(ls->connection_num, 1);
-
     int fd = _socket->fd;
-
-    lock();
-    if (fd > get_maxfd()) {
-        set_maxfd(fd);
-    } else if (fd < get_minfd()) {
-        set_minfd(fd);
-    }
-    unlock();
 
     Connection *connection = &(connection_list[fd]);
     ReactorId reactor_id = is_base_mode() ? SwooleG.process_id : fd % reactor_num;
@@ -1922,6 +1929,19 @@ _find_available_slot:
     if (!ls->ssl) {
         _socket->direct_send = 1;
     }
+
+    lock();
+    if (fd > get_maxfd()) {
+        set_maxfd(fd);
+    } else if (fd < get_minfd()) {
+        set_minfd(fd);
+    }
+    unlock();
+
+    gs->accept_count++;
+    ls->gs->accept_count++;
+    sw_atomic_fetch_add(&gs->connection_num, 1);
+    sw_atomic_fetch_add(&ls->gs->connection_num, 1);
 
     return connection;
 }
