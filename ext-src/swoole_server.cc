@@ -1625,7 +1625,7 @@ static void php_swoole_server_onBeforeShutdown(Server *serv) {
         zend::function::call("\\Swoole\\Server\\Helper::onBeforeShutdown", 1, zserv);
     }
 
-    if (fci_cache && UNEXPECTED(!zend::function::call(fci_cache, 1, zserv, nullptr, false))) {
+    if (fci_cache && UNEXPECTED(!zend::function::call(fci_cache, 1, zserv, nullptr, serv->is_enable_coroutine()))) {
         php_swoole_error(E_WARNING, "%s->onBeforeShutdown handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
     }
     serv->unlock();
