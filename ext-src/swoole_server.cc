@@ -722,6 +722,7 @@ void php_swoole_server_minit(int module_number) {
 #endif
     // ---------------------------------------Server Property-------------------------------------
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onStart"), ZEND_ACC_PRIVATE);
+    zend_declare_property_null(swoole_server_ce, ZEND_STRL("onBeforeShutdown"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onShutdown"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onWorkerStart"), ZEND_ACC_PRIVATE);
     zend_declare_property_null(swoole_server_ce, ZEND_STRL("onWorkerStop"), ZEND_ACC_PRIVATE);
