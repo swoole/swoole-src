@@ -222,8 +222,13 @@ void Server::worker_accept_event(DataHead *info) {
         Connection *conn = get_connection_verify(info->fd);
         if (conn) {
             if (info->len > 0) {
-                sw_atomic_fetch_sub(&conn->recv_queued_bytes, info->len);
-                swoole_trace_log(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", info->len, conn->recv_queued_bytes);
+                auto packet = message_bus.get_packet();
+                sw_atomic_fetch_sub(&conn->recv_queued_bytes, packet.length);
+                swoole_trace_log(SW_TRACE_SERVER,
+                                 "[Worker] session_id=%ld, len=%d, qb=%d",
+                                 conn->session_id,
+                                 packet.length,
+                                 conn->recv_queued_bytes);
             }
             conn->last_dispatch_time = info->time;
         }

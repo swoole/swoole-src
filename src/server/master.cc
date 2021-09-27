@@ -1165,6 +1165,9 @@ bool Server::send(SessionId session_id, const void *data, uint32_t length) {
             sw_atomic_fetch_add(&port->gs->response_count, 1);
             sw_atomic_fetch_add(&port->gs->total_send_bytes, length);
         }
+        if (SwooleWG.worker) {
+            SwooleWG.worker->response_count++;
+        }
         return true;
     }
     return false;

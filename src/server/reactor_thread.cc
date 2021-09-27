@@ -962,13 +962,16 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
         task.info.fd = conn->fd;
         task.info.len = length;
         task.data = data;
-        if (!serv->factory->dispatch(&task)) {
-            return_code = SW_ERR;
-            goto _return;
-        }
         if (length > 0) {
             sw_atomic_fetch_add(&conn->recv_queued_bytes, length);
-            swoole_trace_log(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->recv_queued_bytes);
+            swoole_trace_log(
+                SW_TRACE_SERVER, "session_id=%ld, len=%d, qb=%d", conn->session_id, length, conn->recv_queued_bytes);
+        }
+        if (!serv->factory->dispatch(&task)) {
+            return_code = SW_ERR;
+            if (length > 0) {
+                sw_atomic_fetch_sub(&conn->recv_queued_bytes, length);
+            }
         }
     }
 
