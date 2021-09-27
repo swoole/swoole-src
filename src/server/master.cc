@@ -885,6 +885,9 @@ void Server::shutdown() {
         kill(gs->master_pid, SIGTERM);
         return;
     }
+    if (is_process_mode() && onBeforeShutdown) {
+        onBeforeShutdown(this);
+    }
     running = false;
     // stop all thread
     if (SwooleTG.reactor) {

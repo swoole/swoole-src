@@ -1015,6 +1015,7 @@ class Server {
      * Master Process
      */
     std::function<void(Server *)> onStart;
+    std::function<void(Server *)> onBeforeShutdown;
     std::function<void(Server *)> onShutdown;
     /**
      * Manager Process
