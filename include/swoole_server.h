@@ -280,7 +280,7 @@ class MessageBus {
     /**
      * The last chunk of data has been received, return address and length, start processing this packet.
      */
-    PacketPtr get_packet();
+    PacketPtr get_packet() const;
     PipeBuffer *get_buffer() {
         return buffer_;
     }
