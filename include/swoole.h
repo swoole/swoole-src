@@ -372,15 +372,15 @@ enum swFdType {
     /**
      * Coroutine Socket
      */
-    SW_FD_CORO_SOCKET,
+    SW_FD_CO_SOCKET,
     /**
      * socket poll fd [coroutine::socket_poll]
      */
-    SW_FD_CORO_POLL,
+    SW_FD_CO_POLL,
     /**
      * event waiter
      */
-    SW_FD_CORO_EVENT,
+    SW_FD_CO_EVENT,
     /**
      * signalfd
      */
