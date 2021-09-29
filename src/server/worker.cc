@@ -436,8 +436,13 @@ void Server::stop_async_worker(Worker *worker) {
 
     if (is_base_mode()) {
         if (is_worker()) {
-            if (worker->id == 0 && gs->event_workers.running == 0 && onBeforeShutdown) {
-                onBeforeShutdown(this);
+            if (worker->id == 0 && gs->event_workers.running == 0) {
+                if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
+                    swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+                }
+                if (onBeforeShutdown) {
+                    onBeforeShutdown(this);
+                }
             }
             for (auto ls : ports) {
                 reactor->del(ls->socket);

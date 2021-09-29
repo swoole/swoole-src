@@ -878,15 +878,17 @@ void Server::clear_timer() {
 
 void Server::shutdown() {
     swoole_trace_log(SW_TRACE_SERVER, "shutdown service");
-    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
-        swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
-    }
     if (getpid() != gs->master_pid) {
         kill(gs->master_pid, SIGTERM);
         return;
     }
-    if (is_process_mode() && onBeforeShutdown) {
-        onBeforeShutdown(this);
+    if (is_process_mode()) {
+        if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
+            swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+        }
+        if (onBeforeShutdown) {
+            onBeforeShutdown(this);
+        }
     }
     running = false;
     // stop all thread

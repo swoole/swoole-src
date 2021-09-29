@@ -263,7 +263,7 @@ class MessageBus {
     /**
      * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
      * Otherwise send it directly.
-     * @return: send success returns MsgId(must be greater than 0), send failure returns 0.
+     * @return: send success returns true, send failure returns false.
      */
     bool write(network::Socket *sock, SendData *packet);
     /**
