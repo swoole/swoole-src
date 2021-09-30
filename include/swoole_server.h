@@ -1092,6 +1092,7 @@ class Server {
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
+    int get_task_count();
 
     inline int get_minfd() {
         return gs->min_fd;

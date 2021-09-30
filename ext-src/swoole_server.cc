@@ -2963,19 +2963,10 @@ static PHP_METHOD(swoole_server, stats) {
     add_assoc_long_ex(return_value, ZEND_STRL("abort_count"), serv->gs->abort_count);
     add_assoc_long_ex(return_value, ZEND_STRL("accept_count"), serv->gs->accept_count);
     add_assoc_long_ex(return_value, ZEND_STRL("close_count"), serv->gs->close_count);
-    /**
-     * reset
-     */
-    int tasking_num = serv->gs->tasking_num;
-    if (tasking_num < 0) {
-        tasking_num = serv->gs->tasking_num = 0;
-    }
-
     add_assoc_long_ex(return_value, ZEND_STRL("worker_num"), serv->worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("task_worker_num"), serv->task_worker_num);
     add_assoc_long_ex(return_value, ZEND_STRL("user_worker_num"), serv->get_user_worker_num());
     add_assoc_long_ex(return_value, ZEND_STRL("idle_worker_num"), serv->get_idle_worker_num());
-    add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), tasking_num);
     add_assoc_long_ex(return_value, ZEND_STRL("dispatch_count"), serv->gs->dispatch_count);
     add_assoc_long_ex(return_value, ZEND_STRL("request_count"), serv->gs->request_count);
     add_assoc_long_ex(return_value, ZEND_STRL("response_count"), serv->gs->response_count);
@@ -3003,6 +2994,7 @@ static PHP_METHOD(swoole_server, stats) {
 
     if (serv->task_worker_num > 0) {
         add_assoc_long_ex(return_value, ZEND_STRL("task_idle_worker_num"), serv->get_idle_task_worker_num());
+        add_assoc_long_ex(return_value, ZEND_STRL("tasking_num"), serv->get_task_count());
     }
 
     add_assoc_long_ex(return_value, ZEND_STRL("coroutine_num"), Coroutine::count());

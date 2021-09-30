@@ -2004,4 +2004,13 @@ int Server::get_idle_task_worker_num() {
     return idle_worker_num;
 }
 
+int Server::get_task_count() {
+    // TODO Why need to reset ?
+    int tasking_num = gs->tasking_num;
+    if (tasking_num < 0) {
+        tasking_num = gs->tasking_num = 0;
+    }
+    return tasking_num;
+}
+
 }  // namespace swoole
