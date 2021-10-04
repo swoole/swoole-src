@@ -92,7 +92,6 @@ struct Connection {
     uint8_t closing;
     uint8_t close_reset;
     uint8_t peer_closed;
-    uint8_t discard_data_warning;
     // protected connection, do not close connection when receiving/sending timeout
     uint8_t protect;
     uint8_t close_notify;
