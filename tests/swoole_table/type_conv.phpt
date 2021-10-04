@@ -41,4 +41,3 @@ Assert::same($r1['id'], 0);
 
 ?>
 --EXPECT--
-SUCCESS
