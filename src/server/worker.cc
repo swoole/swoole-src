@@ -105,12 +105,14 @@ static sw_inline bool Worker_discard_data(Server *serv, Connection *conn, DataHe
         }
     }
 _discard_data:
-    swoole_error_log(SW_LOG_WARNING,
-                     SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
-                     "[2] ignore data[%u bytes] received from session#%ld",
-                     info->len,
-                     info->fd);
-
+    if (conn->discard_data_warning == 0) {
+        conn->discard_data_warning = 1;
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SESSION_DISCARD_TIMEOUT_DATA,
+                         "[2] ignore data[%u bytes] received from session#%ld",
+                         info->len,
+                         info->fd);
+    }
     return true;
 }
 

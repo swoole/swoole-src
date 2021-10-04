@@ -1839,17 +1839,17 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
     SessionId session_id = info->fd;
 
     if (serv->enable_coroutine && serv->send_yield) {
-        auto _i_coros_list = server_object->property->send_coroutine_map.find(session_id);
-        if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
-            auto coros_list = _i_coros_list->second;
+        auto _i_co_list = server_object->property->send_coroutine_map.find(session_id);
+        if (_i_co_list != server_object->property->send_coroutine_map.end()) {
+            auto co_list = _i_co_list->second;
             server_object->property->send_coroutine_map.erase(session_id);
-            while (!coros_list->empty()) {
-                Coroutine *co = coros_list->front();
-                coros_list->pop_front();
+            while (!co_list->empty()) {
+                Coroutine *co = co_list->front();
+                co_list->pop_front();
                 swoole_set_last_error(ECONNRESET);
                 co->resume();
             }
-            delete coros_list;
+            delete co_list;
         }
     }
 
@@ -1921,7 +1921,6 @@ void php_swoole_server_onBufferFull(Server *serv, DataHead *info) {
 
 void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdata, zval *return_value) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P((zval *) serv->private_data_2));
-    std::list<Coroutine *> *coros_list;
     Coroutine *co = Coroutine::get_current_safe();
     char *data;
     size_t length = php_swoole_get_send_data(zdata, &data);
@@ -1930,17 +1929,19 @@ void php_swoole_server_send_yield(Server *serv, SessionId session_id, zval *zdat
         RETURN_FALSE;
     }
 
-    auto coroutine_iterator = server_object->property->send_coroutine_map.find(session_id);
-    if (coroutine_iterator == server_object->property->send_coroutine_map.end()) {
-        coros_list = new std::list<Coroutine *>;
-        server_object->property->send_coroutine_map[session_id] = coros_list;
-    } else {
-        coros_list = coroutine_iterator->second;
-    }
-
     SW_LOOP {
-        coros_list->push_back(co);
+        auto coroutine_iterator = server_object->property->send_coroutine_map.find(session_id);
+        std::list<Coroutine *> *co_list;
+        if (coroutine_iterator == server_object->property->send_coroutine_map.end()) {
+            co_list = new std::list<Coroutine *>;
+            server_object->property->send_coroutine_map[session_id] = co_list;
+        } else {
+            co_list = coroutine_iterator->second;
+        }
+        co_list->push_back(co);
+        auto iter = std::prev(co_list->end());
         if (!co->yield_ex(serv->send_timeout)) {
+            co_list->erase(iter);
             RETURN_FALSE;
         }
         bool ret = serv->send(session_id, data, length);
@@ -1996,23 +1997,23 @@ static int php_swoole_server_dispatch_func(Server *serv, Connection *conn, SendD
 void php_swoole_server_onBufferEmpty(Server *serv, DataHead *info) {
     zval *zserv = (zval *) serv->private_data_2;
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(zserv));
-    zend_fcall_info_cache *fci_cache;
 
     if (serv->send_yield) {
-        auto _i_coros_list = server_object->property->send_coroutine_map.find(info->fd);
-        if (_i_coros_list != server_object->property->send_coroutine_map.end()) {
-            auto coros_list = _i_coros_list->second;
+        auto _i_co_list = server_object->property->send_coroutine_map.find(info->fd);
+        if (_i_co_list != server_object->property->send_coroutine_map.end()) {
+            auto co_list = _i_co_list->second;
             server_object->property->send_coroutine_map.erase(info->fd);
-            while (!coros_list->empty()) {
-                Coroutine *co = coros_list->front();
-                coros_list->pop_front();
+            while (!co_list->empty()) {
+                Coroutine *co = co_list->front();
+                co_list->pop_front();
                 co->resume();
             }
-            delete coros_list;
+            delete co_list;
         }
     }
 
-    fci_cache = php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferEmpty);
+    zend_fcall_info_cache *fci_cache =
+        php_swoole_server_get_fci_cache(serv, info->server_fd, SW_SERVER_CB_onBufferEmpty);
     if (fci_cache) {
         zval args[2];
 
