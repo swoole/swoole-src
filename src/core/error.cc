@@ -17,7 +17,7 @@
 #include "swoole.h"
 
 namespace swoole {
-Exception::Exception(int code) : code(code) {
+Exception::Exception(int code) throw() : code(code) {
     msg = swoole_strerror(code);
 }
 }  // namespace swoole
