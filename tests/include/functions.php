@@ -799,3 +799,8 @@ function swoole_get_average($array)
 {
     return array_sum($array) / count($array);
 }
+
+function assert_server_stats($stats) {
+    Assert::keyExists($stats, 'connection_num');
+    Assert::keyExists($stats, 'request_count');
+}

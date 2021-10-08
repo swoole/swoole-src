@@ -82,13 +82,13 @@ FixedPool::FixedPool(uint32_t slice_size, void *memory, size_t size, bool shared
     impl = (FixedPoolImpl*) memory;
     memory = (char*) memory + sizeof(*impl);
     sw_memset_zero(impl, sizeof(*impl));
+    impl->shared = shared;
+    impl->slice_size = slice_size;
+    impl->size = size - sizeof(*impl);
     uint32_t slice_num = impl->size / (slice_size + sizeof(FixedPoolSlice));
     if (slice_num < 2) {
         throw Exception(SW_ERROR_INVALID_PARAMS);
     }
-    impl->shared = shared;
-    impl->slice_size = slice_size;
-    impl->size = size - sizeof(*impl);
     impl->slice_num = slice_num;
     impl->memory = memory;
     impl->allocated = false;
