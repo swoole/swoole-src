@@ -1055,8 +1055,7 @@ void Server::start_heartbeat_thread() {
                 ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                 // convert fd to session_id, in order to verify the connection before the force close connection
                 ev.fd = session_id;
-                Socket *_pipe_sock = get_reactor_pipe_socket(session_id, conn->reactor_id);
-                _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
+                get_reactor_pipe_socket(session_id, conn->reactor_id)->send_blocking(&ev, sizeof(ev));
             });
             sleep(heartbeat_check_interval);
         }
