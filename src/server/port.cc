@@ -725,6 +725,9 @@ void ListenPort::close() {
 }
 
 const char *ListenPort::get_protocols() {
+    if (is_dgram()) {
+        return "dgram";
+    }
     if (open_eof_check) {
         return "eof";
     } else if (open_length_check) {

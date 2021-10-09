@@ -187,6 +187,6 @@ class Exception {
     int code;
     const char *msg;
 
-    Exception(int code);
+    Exception(int code) throw();
 };
 }  // namespace swoole

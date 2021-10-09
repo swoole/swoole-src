@@ -457,7 +457,7 @@ void Socket::init_sock_type(SocketType _sw_type) {
 }
 
 bool Socket::init_sock() {
-    socket = make_socket(type, SW_FD_CORO_SOCKET, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    socket = make_socket(type, SW_FD_CO_SOCKET, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (socket == nullptr) {
         return false;
     }
@@ -468,7 +468,7 @@ bool Socket::init_sock() {
 }
 
 bool Socket::init_reactor_socket(int _fd) {
-    socket = swoole::make_socket(_fd, SW_FD_CORO_SOCKET);
+    socket = swoole::make_socket(_fd, SW_FD_CO_SOCKET);
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
@@ -526,7 +526,7 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
     socket = sock;
     socket->object = this;
     socket->socket_type = type;
-    socket->fd_type = SW_FD_CORO_SOCKET;
+    socket->fd_type = SW_FD_CO_SOCKET;
     init_options();
     /* inherits server socket options */
     dns_timeout = server_sock->dns_timeout;

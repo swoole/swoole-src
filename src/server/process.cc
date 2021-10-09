@@ -154,8 +154,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     Worker *worker = server_->get_worker(target_worker_id);
 
     if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
-        worker->dispatch_count++;
-        server_->gs->dispatch_count++;
+        sw_atomic_fetch_add(&worker->dispatch_count, 1);
     }
 
     SendData _task;
@@ -206,7 +205,8 @@ bool ProcessFactory::finish(SendData *resp) {
                          resp->info.len,
                          session_id);
         return false;
-    } else if (conn->overflow) {
+    } else if (conn->overflow &&
+               (resp->info.type == SW_SERVER_EVENT_SEND_DATA && resp->info.type == SW_SERVER_EVENT_SEND_FILE)) {
         if (server_->send_yield && process_is_supported_send_yield(server_, conn)) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {

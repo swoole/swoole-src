@@ -455,7 +455,7 @@ bool System::socket_poll(std::unordered_map<int, PollSocket> &fds, double timeou
     task.co = Coroutine::get_current_safe();
 
     for (auto i = fds.begin(); i != fds.end(); i++) {
-        i->second.socket = swoole::make_socket(i->first, SW_FD_CORO_POLL);
+        i->second.socket = swoole::make_socket(i->first, SW_FD_CO_POLL);
         if (swoole_event_add(i->second.socket, i->second.events) < 0) {
             i->second.socket->free();
             continue;
@@ -486,7 +486,7 @@ struct EventWaiter {
 
     EventWaiter(int fd, int events, double timeout) {
         error_ = revents = 0;
-        socket = swoole::make_socket(fd, SW_FD_CORO_EVENT);
+        socket = swoole::make_socket(fd, SW_FD_CO_EVENT);
         socket->object = this;
         timer = nullptr;
         co = Coroutine::get_current_safe();
@@ -601,13 +601,13 @@ int System::wait_event(int fd, int events, double timeout) {
 }
 
 void System::init_reactor(Reactor *reactor) {
-    reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_READ, socket_poll_read_callback);
-    reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
-    reactor->set_handler(SW_FD_CORO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
+    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_READ, socket_poll_read_callback);
+    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_WRITE, socket_poll_write_callback);
+    reactor->set_handler(SW_FD_CO_POLL | SW_EVENT_ERROR, socket_poll_error_callback);
 
-    reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_READ, event_waiter_read_callback);
-    reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
-    reactor->set_handler(SW_FD_CORO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
+    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_READ, event_waiter_read_callback);
+    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_WRITE, event_waiter_write_callback);
+    reactor->set_handler(SW_FD_CO_EVENT | SW_EVENT_ERROR, event_waiter_error_callback);
 
     reactor->set_handler(SW_FD_AIO | SW_EVENT_READ, AsyncThreads::callback);
 }

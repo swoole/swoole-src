@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm, $atomic) {
     $serv = new Server('127.0.0.1', $pm->getFreePort());
 
     $serv->set([
-        "worker_num" => 1,
+        'worker_num' => 1,
         'log_file' => '/dev/null',
     ]);
 
@@ -41,10 +41,14 @@ $pm->childFunc = function () use ($pm, $atomic) {
     });
 
     $serv->on(Constant::EVENT_MANAGER_START, function (Server $serv) use ($atomic, $pm) {
+        usleep(1000);
         $pm->writeLog('manager start');
     });
 
     $serv->on(Constant::EVENT_WORKER_START, function (Server $serv) use ($atomic, $pm) {
+        if ($atomic->get() == 0) {
+            usleep(2000);
+        }
         $pm->writeLog('worker start, id=' . $serv->getWorkerId() . ', status=' . $serv->getWorkerStatus());
 
         if ($atomic->add() == 2) {

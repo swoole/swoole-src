@@ -371,7 +371,7 @@ PHP_FUNCTION(swoole_native_curl_multi_close) {
         if (!ch) {
             continue;
         }
-        swoole_curl_verify_handlers(ch, 1);
+        swoole_curl_verify_handlers(ch, 0);
         mh->multi->remove_handle(ch->cp);
     }
     zend_llist_clean(&mh->easyh);

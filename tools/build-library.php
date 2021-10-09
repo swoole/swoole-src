@@ -85,6 +85,7 @@ $files = [
     # <core for Process> #
     'core/Process/Manager.php',
     # <core for Server> #
+    'core/Server/Admin.php',
     'core/Server/Helper.php',
     # <core for functions> #
     'core/Coroutine/functions.php',

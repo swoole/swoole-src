@@ -110,7 +110,6 @@ _discard_data:
                      "[2] ignore data[%u bytes] received from session#%ld",
                      info->len,
                      info->fd);
-
     return true;
 }
 
@@ -222,8 +221,13 @@ void Server::worker_accept_event(DataHead *info) {
         Connection *conn = get_connection_verify(info->fd);
         if (conn) {
             if (info->len > 0) {
-                sw_atomic_fetch_sub(&conn->recv_queued_bytes, info->len);
-                swoole_trace_log(SW_TRACE_SERVER, "[Worker] len=%d, qb=%d\n", info->len, conn->recv_queued_bytes);
+                auto packet = message_bus.get_packet();
+                sw_atomic_fetch_sub(&conn->recv_queued_bytes, packet.length);
+                swoole_trace_log(SW_TRACE_SERVER,
+                                 "[Worker] session_id=%ld, len=%d, qb=%d",
+                                 conn->session_id,
+                                 packet.length,
+                                 conn->recv_queued_bytes);
             }
             conn->last_dispatch_time = info->time;
         }
@@ -431,6 +435,14 @@ void Server::stop_async_worker(Worker *worker) {
 
     if (is_base_mode()) {
         if (is_worker()) {
+            if (worker->id == 0 && gs->event_workers.running == 0) {
+                if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN)) {
+                    swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_SHUTDOWN, this);
+                }
+                if (onBeforeShutdown) {
+                    onBeforeShutdown(this);
+                }
+            }
             for (auto ls : ports) {
                 reactor->del(ls->socket);
             }

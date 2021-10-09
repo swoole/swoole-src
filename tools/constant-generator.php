@@ -21,8 +21,16 @@ foreach ($file_list as $file) {
 
 preg_match_all('/php_swoole_array_get_value\(.+?, "(.+?)", .+?\)/', $source_content, $matches);
 $matches = array_unique($matches[1]);
+
+$coroutineOptions = [
+    'exit_condition',
+    'deadlock_check_disable_trace',
+    'deadlock_check_limit',
+    'deadlock_check_depth'
+];
+$options = array_merge($matches, $coroutineOptions);
 $result = '';
-foreach ($matches as $option) {
+foreach ($options as $option) {
     $result .= space(4) . sprintf("public const OPTION_%s = '%s';\n\n", strtoupper($option), $option);
 }
 

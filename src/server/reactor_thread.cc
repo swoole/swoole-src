@@ -217,6 +217,9 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
     sw_atomic_fetch_add(&serv->gs->close_count, 1);
     sw_atomic_fetch_sub(&serv->gs->connection_num, 1);
 
+    sw_atomic_fetch_add(&port->gs->close_count, 1);
+    sw_atomic_fetch_sub(&port->gs->connection_num, 1);
+
     swoole_trace("Close Event.fd=%d|from=%d", socket->fd, reactor->id);
 
 #ifdef SW_USE_OPENSSL
@@ -238,8 +241,6 @@ int Server::close_connection(Reactor *reactor, Socket *socket) {
         delete socket->recv_buffer;
         socket->recv_buffer = nullptr;
     }
-
-    sw_atomic_fetch_sub(port->connection_num, 1);
 
     if (port->open_http_protocol && conn->object) {
         serv->destroy_http_request(conn);
@@ -534,7 +535,7 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
         dtls::Session *session = port->dtls_sessions->find(event->fd)->second;
         session->append(buffer);
         if (!session->listened && !session->listen()) {
-            Server::close_connection(reactor, event->socket);
+            serv->abort_connection(reactor, port, event->socket);
             return SW_OK;
         }
     }
@@ -542,7 +543,8 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
     ReturnCode code = ReactorThread_verify_ssl_state(reactor, port, event->socket);
     switch (code) {
     case SW_ERROR:
-        return Server::close_connection(reactor, event->socket);
+        serv->abort_connection(reactor, port, event->socket);
+        return SW_OK;
     case SW_READY:
 #ifdef SW_SUPPORT_DTLS
         if (event->socket->dtls) {
@@ -560,8 +562,15 @@ static int ReactorThread_onRead(Reactor *reactor, Event *event) {
 #endif
 
     conn->last_recv_time = microtime();
+    long last_recv_bytes = event->socket->total_recv_bytes;
 
     int retval = port->onRead(reactor, port, event);
+
+    long socket_recv_bytes = event->socket->total_recv_bytes - last_recv_bytes;
+    if (socket_recv_bytes > 0) {
+        sw_atomic_fetch_add(&port->gs->total_recv_bytes, socket_recv_bytes);
+        sw_atomic_fetch_add(&serv->gs->total_recv_bytes, socket_recv_bytes);
+    }
     if (!conn->active) {
         return retval;
     }
@@ -911,6 +920,7 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
     SendData task;
 
     Connection *conn = (Connection *) _socket->object;
+    ListenPort *port = serv->get_port_by_fd(conn->fd);
 
     sw_memset_zero(&task.info, sizeof(task.info));
     task.info.server_fd = conn->server_fd;
@@ -920,23 +930,20 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
     task.info.time = conn->last_recv_time;
 
-    if (serv->is_process_mode()) {
-        ReactorThread *thread = serv->get_thread(conn->reactor_id);
-        thread->dispatch_count++;
-    }
+    int return_code = SW_OK;
 
     swoole_trace("send string package, size=%ld bytes", (long) length);
 
     if (serv->stream_socket_file) {
         Stream *stream = Stream::create(serv->stream_socket_file, 0, SW_SOCK_UNIX_STREAM);
         if (!stream) {
-            return SW_ERR;
+            return_code = SW_ERR;
+            goto _return;
         }
         stream->response = ReactorThread_onStreamResponse;
         stream->private_data = serv;
         stream->private_data_2 = conn;
         stream->private_data_fd = conn->session_id;
-        ListenPort *port = serv->get_port_by_fd(conn->fd);
         stream->set_max_length(port->protocol.package_max_length);
 
         task.info.fd = conn->session_id;
@@ -945,25 +952,40 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
         _cancel:
             stream->cancel = 1;
             delete stream;
-            return SW_ERR;
+            return_code = SW_ERR;
+            goto _return;
         }
         if (stream->send(data, length) < 0) {
             goto _cancel;
         }
-        return SW_OK;
     } else {
         task.info.fd = conn->fd;
         task.info.len = length;
         task.data = data;
-        if (!serv->factory->dispatch(&task)) {
-            return SW_ERR;
-        }
         if (length > 0) {
             sw_atomic_fetch_add(&conn->recv_queued_bytes, length);
-            swoole_trace_log(SW_TRACE_SERVER, "[Master] len=%d, qb=%d\n", length, conn->recv_queued_bytes);
+            swoole_trace_log(
+                SW_TRACE_SERVER, "session_id=%ld, len=%d, qb=%d", conn->session_id, length, conn->recv_queued_bytes);
         }
-        return SW_OK;
+        if (!serv->factory->dispatch(&task)) {
+            return_code = SW_ERR;
+            if (length > 0) {
+                sw_atomic_fetch_sub(&conn->recv_queued_bytes, length);
+            }
+        }
     }
+
+_return:
+    if (return_code == SW_OK) {
+        if (serv->is_process_mode()) {
+            ReactorThread *thread = serv->get_thread(conn->reactor_id);
+            thread->dispatch_count++;
+        }
+        sw_atomic_fetch_add(&serv->gs->dispatch_count, 1);
+        sw_atomic_fetch_add(&port->gs->dispatch_count, 1);
+    }
+
+    return return_code;
 }
 
 void Server::join_reactor_thread() {
@@ -1033,8 +1055,7 @@ void Server::start_heartbeat_thread() {
                 ev.type = SW_SERVER_EVENT_CLOSE_FORCE;
                 // convert fd to session_id, in order to verify the connection before the force close connection
                 ev.fd = session_id;
-                Socket *_pipe_sock = get_reactor_pipe_socket(session_id, conn->reactor_id);
-                _pipe_sock->send_blocking((void *) &ev, sizeof(ev));
+                get_reactor_pipe_socket(session_id, conn->reactor_id)->send_blocking(&ev, sizeof(ev));
             });
             sleep(heartbeat_check_interval);
         }

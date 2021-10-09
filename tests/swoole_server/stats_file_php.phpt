@@ -1,5 +1,5 @@
 --TEST--
-swoole_server: stats_file
+swoole_server: stats_file [php]
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--
@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use function Swoole\Coroutine\run;
 
-const STATS_FILE = __DIR__ . '/stats.log';
+const STATS_FILE = __DIR__ . '/stats.php';
 $rm_fn = function () {
     if (is_file(STATS_FILE)) {
         unlink(STATS_FILE);
@@ -24,15 +24,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
         httpRequest('http://127.0.0.1:' . $pm->getFreePort(0));
         for ($i = 0; $i < 4; ++$i) {
             Co::sleep(0.5);
-            $content = @file_get_contents(STATS_FILE);
-            if ('' != $content) {
-                $stats = [];
-                swoole_string($content)->split("\n")->each(function ($value, $key) use (&$stats) {
-                    [$k, $v] = swoole_string($value)->split(":");
-                    $stats[$k] = trim($v);
-                });
-                Assert::keyExists($stats, 'connection_num');
-                Assert::keyExists($stats, 'request_count');
+            if (!is_file(STATS_FILE)) {
+                continue;
+            }
+            $stats = include STATS_FILE;
+            if (empty($stats)) {
+                assert_server_stats($stats);
                 break;
             }
         }
@@ -62,6 +59,7 @@ $pm->childFunc = function () use ($pm) {
 
 $pm->childFirst();
 $pm->run();
+
 $rm_fn();
 ?>
 --EXPECT--

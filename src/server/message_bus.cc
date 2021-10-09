@@ -7,7 +7,7 @@ using swoole::network::Socket;
 
 namespace swoole {
 
-PacketPtr MessageBus::get_packet() {
+PacketPtr MessageBus::get_packet() const {
     PacketPtr pkt;
     if (buffer_->info.flags & SW_EVENT_DATA_PTR) {
         memcpy(&pkt, buffer_->data, sizeof(pkt));

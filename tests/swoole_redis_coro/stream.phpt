@@ -1,7 +1,9 @@
 --TEST--
 swoole_redis_coro: stream
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip("unavailable, waiting for review");
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

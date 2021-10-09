@@ -27,33 +27,34 @@
 
 //--------------------------------------------------------
 enum php_swoole_server_callback_type {
-    SW_SERVER_CB_onStart,         // master
-    SW_SERVER_CB_onShutdown,      // master
-    SW_SERVER_CB_onWorkerStart,   // worker(event & task)
-    SW_SERVER_CB_onWorkerStop,    // worker(event & task)
-    SW_SERVER_CB_onBeforeReload,  // manager
-    SW_SERVER_CB_onAfterReload,   // manager
-    SW_SERVER_CB_onTask,          // worker(task)
-    SW_SERVER_CB_onFinish,        // worker(event & task)
-    SW_SERVER_CB_onWorkerExit,    // worker(event)
-    SW_SERVER_CB_onWorkerError,   // manager
-    SW_SERVER_CB_onManagerStart,  // manager
-    SW_SERVER_CB_onManagerStop,   // manager
-    SW_SERVER_CB_onPipeMessage,   // worker(event & task)
+    SW_SERVER_CB_onStart,           // master
+    SW_SERVER_CB_onBeforeShutdown,  // master
+    SW_SERVER_CB_onShutdown,        // master
+    SW_SERVER_CB_onWorkerStart,     // worker(event & task)
+    SW_SERVER_CB_onWorkerStop,      // worker(event & task)
+    SW_SERVER_CB_onBeforeReload,    // manager
+    SW_SERVER_CB_onAfterReload,     // manager
+    SW_SERVER_CB_onTask,            // worker(task)
+    SW_SERVER_CB_onFinish,          // worker(event & task)
+    SW_SERVER_CB_onWorkerExit,      // worker(event)
+    SW_SERVER_CB_onWorkerError,     // manager
+    SW_SERVER_CB_onManagerStart,    // manager
+    SW_SERVER_CB_onManagerStop,     // manager
+    SW_SERVER_CB_onPipeMessage,     // worker(event & task)
 };
 //--------------------------------------------------------
 enum php_swoole_server_port_callback_type {
-    SW_SERVER_CB_onConnect,      // stream, worker(event)
-    SW_SERVER_CB_onReceive,      // stream, worker(event)
-    SW_SERVER_CB_onClose,        // stream, worker(event)
-    SW_SERVER_CB_onPacket,       // dgram, worker(event)
-    SW_SERVER_CB_onRequest,      // http, worker(event)
-    SW_SERVER_CB_onHandShake,    // websocket, worker(event)
-    SW_SERVER_CB_onOpen,         // websocket, worker(event)
-    SW_SERVER_CB_onMessage,      // websocket, worker(event)
-    SW_SERVER_CB_onDisconnect,   // websocket (non websocket connection), worker(event)
-    SW_SERVER_CB_onBufferFull,   // worker(event)
-    SW_SERVER_CB_onBufferEmpty,  // worker(event)
+    SW_SERVER_CB_onConnect,         // stream, worker(event)
+    SW_SERVER_CB_onReceive,         // stream, worker(event)
+    SW_SERVER_CB_onClose,           // stream, worker(event)
+    SW_SERVER_CB_onPacket,          // dgram, worker(event)
+    SW_SERVER_CB_onRequest,         // http, worker(event)
+    SW_SERVER_CB_onHandShake,       // websocket, worker(event)
+    SW_SERVER_CB_onOpen,            // websocket, worker(event)
+    SW_SERVER_CB_onMessage,         // websocket, worker(event)
+    SW_SERVER_CB_onDisconnect,      // websocket (non websocket connection), worker(event)
+    SW_SERVER_CB_onBufferFull,      // worker(event)
+    SW_SERVER_CB_onBufferEmpty,     // worker(event)
 };
 
 #define PHP_SWOOLE_SERVER_CALLBACK_NUM (SW_SERVER_CB_onPipeMessage + 1)

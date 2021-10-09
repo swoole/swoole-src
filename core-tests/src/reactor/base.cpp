@@ -38,20 +38,20 @@ TEST(reactor, create) {
     /**
      * coroutine socket reactor
      */
-    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CORO_SOCKET | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CORO_SOCKET | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CORO_SOCKET | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CO_SOCKET | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CO_SOCKET | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CO_SOCKET | SW_EVENT_ERROR)], nullptr);
 
     /**
      * system reactor
      */
-    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CORO_POLL | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CORO_POLL | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CORO_POLL | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CO_POLL | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CO_POLL | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CO_POLL | SW_EVENT_ERROR)], nullptr);
 
-    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CORO_EVENT | SW_EVENT_READ)], nullptr);
-    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CORO_EVENT | SW_EVENT_WRITE)], nullptr);
-    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CORO_EVENT | SW_EVENT_ERROR)], nullptr);
+    ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_CO_EVENT | SW_EVENT_READ)], nullptr);
+    ASSERT_NE(reactor->write_handler[Reactor::get_fd_type(SW_FD_CO_EVENT | SW_EVENT_WRITE)], nullptr);
+    ASSERT_NE(reactor->error_handler[Reactor::get_fd_type(SW_FD_CO_EVENT | SW_EVENT_ERROR)], nullptr);
 
     ASSERT_NE(reactor->read_handler[Reactor::get_fd_type(SW_FD_AIO | SW_EVENT_READ)], nullptr);
 

@@ -263,7 +263,7 @@ class MessageBus {
     /**
      * Send data to socket. If the data sent is larger than Server::ipc_max_size, then it is sent in chunks.
      * Otherwise send it directly.
-     * @return: send success returns MsgId(must be greater than 0), send failure returns 0.
+     * @return: send success returns true, send failure returns false.
      */
     bool write(network::Socket *sock, SendData *packet);
     /**
@@ -280,7 +280,7 @@ class MessageBus {
     /**
      * The last chunk of data has been received, return address and length, start processing this packet.
      */
-    PacketPtr get_packet();
+    PacketPtr get_packet() const;
     PipeBuffer *get_buffer() {
         return buffer_;
     }
@@ -321,6 +321,18 @@ struct ReactorThread {
     MessageBus message_bus;
 
     int init(Server *serv, Reactor *reactor, uint16_t reactor_id);
+};
+
+struct ServerPortGS {
+    sw_atomic_t connection_num;
+    sw_atomic_long_t abort_count;
+    sw_atomic_long_t accept_count;
+    sw_atomic_long_t close_count;
+    sw_atomic_long_t dispatch_count;
+    sw_atomic_long_t request_count;
+    sw_atomic_long_t response_count;
+    sw_atomic_long_t total_recv_bytes;
+    sw_atomic_long_t total_send_bytes;
 };
 
 struct ListenPort {
@@ -434,7 +446,7 @@ struct ListenPort {
 #endif
 #endif
 
-    sw_atomic_t *connection_num = nullptr;
+    ServerPortGS *gs = nullptr;
 
     Protocol protocol = {};
     void *ptr = nullptr;
@@ -516,10 +528,14 @@ struct ServerGS {
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
+    sw_atomic_long_t abort_count;
     sw_atomic_long_t accept_count;
     sw_atomic_long_t close_count;
-    sw_atomic_long_t request_count;
     sw_atomic_long_t dispatch_count;
+    sw_atomic_long_t request_count;
+    sw_atomic_long_t response_count;
+    sw_atomic_long_t total_recv_bytes;
+    sw_atomic_long_t total_send_bytes;
     sw_atomic_long_t pipe_packet_msg_id;
 
     sw_atomic_t spinlock;
@@ -907,7 +923,7 @@ class Server {
     }
 
     network::Socket *get_command_reply_socket() {
-        return  is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
+        return is_base_mode() ? get_worker(0)->pipe_master : pipe_command->get_socket(false);
     }
 
     /**
@@ -999,6 +1015,7 @@ class Server {
      * Master Process
      */
     std::function<void(Server *)> onStart;
+    std::function<void(Server *)> onBeforeShutdown;
     std::function<void(Server *)> onShutdown;
     /**
      * Manager Process
@@ -1070,10 +1087,12 @@ class Server {
     int add_hook(enum HookType type, const Callback &func, int push_back);
     bool add_command(const std::string &command, int accepted_process_types, const Command::Handler &func);
     Connection *add_connection(ListenPort *ls, network::Socket *_socket, int server_fd);
+    void abort_connection(Reactor *reactor, ListenPort *ls, network::Socket *_socket);
     int connection_incoming(Reactor *reactor, Connection *conn);
 
     int get_idle_worker_num();
     int get_idle_task_worker_num();
+    int get_task_count();
 
     inline int get_minfd() {
         return gs->min_fd;
@@ -1467,7 +1486,7 @@ class Server {
     enum Mode mode_;
     Connection *connection_list = nullptr;
     Session *session_list = nullptr;
-    uint32_t *port_connnection_num_list = nullptr;
+    ServerPortGS *port_gs_list = nullptr;
     /**
      * http static file directory
      */
