@@ -1345,6 +1345,7 @@ static PHP_METHOD(swoole_http_response, create) {
             ctx->parser.data = ctx;
             swoole_http_parser_init(&ctx->parser, PHP_HTTP_REQUEST);
         } else {
+            delete ctx;
             assert(0);
             RETURN_FALSE;
         }

@@ -1146,11 +1146,14 @@ bool Socket::listen(int backlog) {
         return false;
     }
     this->backlog = backlog <= 0 ? SW_BACKLOG : backlog;
-    if (socket->listen(this->backlog) != 0) {
+    if (socket->listen(this->backlog) < 0) {
         set_err(errno);
         return false;
     }
-    socket->get_name(&socket->info);
+    if (socket->get_name(&socket->info) < 0) {
+        set_err(errno);
+        return false;
+    }
 #ifdef SW_USE_OPENSSL
     ssl_is_server = true;
 #endif

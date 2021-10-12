@@ -206,7 +206,7 @@ bool ProcessFactory::finish(SendData *resp) {
                          session_id);
         return false;
     } else if (conn->overflow &&
-               (resp->info.type == SW_SERVER_EVENT_SEND_DATA && resp->info.type == SW_SERVER_EVENT_SEND_FILE)) {
+               (resp->info.type == SW_SERVER_EVENT_SEND_DATA || resp->info.type == SW_SERVER_EVENT_SEND_FILE)) {
         if (server_->send_yield && process_is_supported_send_yield(server_, conn)) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {
