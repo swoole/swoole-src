@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<package packagerversion="1.9.4" version="2.0"
-	xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
+<package xmlns="http://pear.php.net/dtd/package-2.0" xmlns:tasks="http://pear.php.net/dtd/tasks-1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" packagerversion="1.9.4" version="2.0" xsi:schemaLocation="http://pear.php.net/dtd/tasks-1.0 http://pear.php.net/dtd/tasks-1.0.xsd http://pear.php.net/dtd/package-2.0 http://pear.php.net/dtd/package-2.0.xsd">
 	<name>swoole</name>
 	<channel>pecl.php.net</channel>
 	<summary>Event-driven asynchronous and concurrent networking engine with high performance for PHP.</summary>
@@ -48,10 +45,10 @@
         <email>lufei@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-08-13</date>
-    <time>15:00:00</time>
+    <date>2021-10-12</date>
+    <time>19:00:00</time>
     <version>
-        <release>4.7.1</release>
+        <release>4.8.0</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -60,32 +57,39 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
+        New APIs
+        ---
+        * Added Co::getStackUsage() (#4398) (@matyhtf) (@twose)
+        * Added Coroutine\Redis some api (#4390) (@chrysanthemum)
+        * Added Table::stats() (#4405) (@matyhtf)
+        * Added Coroutine::join() (#4406) (@matyhtf)
+
         New feature
         ---
-        * Introduce a new concurrency mode (#4330) (@doubaokun)
+        * Supported server command (#4389) (@matyhtf)
+        * Supported Server::onBeforeShutdown callback (#4415) (@matyhtf)
 
         Enhancement
         ---
-        * Supported query /etc/hosts for System::dnsLookup (#4341) (#4349) (@zmyWL) (@NathanFreeman)
-        * Supported boost context support for mips64 (#4358) (@dixyes)
-        * Supported CURLOPT_RESOLVE option for SWOOLE_HOOK_CURL (swoole/library#107) (@sy-records)
-        * Supported CURLOPT_NOPROGRESS for SWOOLE_HOOK_CURL (swoole/library#117) (@sy-records)
-        * Supported boost context support for riscv64 (#4375) (@dixyes)
+        * Set error code when websocket pack fails (swoole/swoole-src@d27c5a5) (@matyhtf)
+        * Added Timer::exec_count field (#4402) (@matyhtf)
+        * Supported for hooked mkdir using open_basedir ini config (#4407) (@NathanFreeman)
+        * Added vendor_init.php (swoole/library@6c40b02) (@matyhtf)
+        * Supported CURLOPT_UNIX_SOCKET_PATH for SWOOLE_HOOK_CURL (swoole/library#121) (@sy-records)
 
         Fixed
         ---
-        * Fixed memory error on shutdown (PHP-8.1) (#4325) (@twose)
-        * Fixed not serializable classes for 8.1.0beta1 (#4335) (@remicollet)
-        * Fixed multiple coroutines recursively creating directories (#4337) (@NathanFreeman)
-        * Fixed native curl bugs (#4360) (@matyhtf)
-        * Fixed PDOStatement::bindParam() expects parameter 1 to be string (swoole/library#116) (@sy-records)
+        * Fixed unnecessary URL decode of file names when uploading files (swoole/swoole-src@a73780e) (@matyhtf)
+        * Fixed HTTP2 max_frame_size error (#4394) (@twose)
+        * Fixed curl_multi_select bug #4393 (#4418) (@matyhtf)
+        * Fixed missing coroutine options (#4425) (@sy-records)
+        * Fixed connection cannot be forcibly closed when the send buffer is full (swoole/swoole-src@2198378) (@matyhtf)
     </notes>
     <contents>
         <dir name="/">
             <file role="src" name="CMakeLists.txt" />
             <file role="doc" name="CODE-STYLE.md" />
             <file role="src" name="CPPLINT.cfg" />
-            <file role="doc" name="CREDITS" />
             <file role="doc" name="LICENSE" />
             <file role="src" name="Makefile.frag" />
             <file role="doc" name="README-CN.md" />
@@ -158,6 +162,7 @@
             <file role="src" name="core-tests/src/reactor/base.cpp" />
             <file role="src" name="core-tests/src/server/buffer.cpp" />
             <file role="src" name="core-tests/src/server/http.cpp" />
+            <file role="src" name="core-tests/src/server/message_bus.cpp" />
             <file role="src" name="core-tests/src/server/server.cpp" />
             <file role="doc" name="examples/atomic/long.php" />
             <file role="doc" name="examples/atomic/test.php" />
@@ -222,6 +227,7 @@
             <file role="doc" name="examples/coroutine/http_download.php" />
             <file role="doc" name="examples/coroutine/http_server.php" />
             <file role="doc" name="examples/coroutine/httpmulti.php" />
+            <file role="doc" name="examples/coroutine/join.php" />
             <file role="doc" name="examples/coroutine/library/base.php" />
             <file role="doc" name="examples/coroutine/list_coroutines.php" />
             <file role="doc" name="examples/coroutine/mysql_chan.php" />
@@ -671,6 +677,7 @@
             <file role="src" name="src/server/base.cc" />
             <file role="src" name="src/server/manager.cc" />
             <file role="src" name="src/server/master.cc" />
+            <file role="src" name="src/server/message_bus.cc" />
             <file role="src" name="src/server/port.cc" />
             <file role="src" name="src/server/process.cc" />
             <file role="src" name="src/server/reactor_process.cc" />
@@ -680,6 +687,7 @@
             <file role="src" name="src/server/worker.cc" />
             <file role="src" name="src/wrapper/event.cc" />
             <file role="src" name="src/wrapper/timer.cc" />
+            <file role="src" name="swoole-logo.svg" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
             <file role="test" name="tests/clean" />
@@ -975,6 +983,10 @@
             <file role="test" name="tests/swoole_coroutine/getPcid_by_random_cid.phpt.phpt" />
             <file role="test" name="tests/swoole_coroutine/gethostbyname.phpt" />
             <file role="test" name="tests/swoole_coroutine/iterator.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/1.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/2.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/3.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/4.phpt" />
             <file role="test" name="tests/swoole_coroutine/kernel_coroutine.phpt" />
             <file role="test" name="tests/swoole_coroutine/list_and_backtrace.phpt" />
             <file role="test" name="tests/swoole_coroutine/max_num.phpt" />
@@ -1091,6 +1103,7 @@
             <file role="test" name="tests/swoole_curl/guzzle/request_on_stats.phpt" />
             <file role="test" name="tests/swoole_curl/guzzle/send_async.phpt" />
             <file role="test" name="tests/swoole_curl/https.phpt" />
+            <file role="test" name="tests/swoole_curl/multi/bug4393.phpt" />
             <file role="test" name="tests/swoole_curl/multi/bug48203_multi.phpt" />
             <file role="test" name="tests/swoole_curl/multi/bug67643.phpt" />
             <file role="test" name="tests/swoole_curl/multi/bug71523.phpt" />
@@ -1136,6 +1149,7 @@
             <file role="test" name="tests/swoole_curl/timer_coredump.phpt" />
             <file role="test" name="tests/swoole_curl/upload/1.phpt" />
             <file role="test" name="tests/swoole_curl/upload/2.phpt" />
+            <file role="test" name="tests/swoole_curl/upload/3.phpt" />
             <file role="test" name="tests/swoole_curl/upload/curl_testdata1.txt" />
             <file role="test" name="tests/swoole_curl/upload/curl_testdata2.txt" />
             <file role="test" name="tests/swoole_curl/yield_in_callback.phpt" />
@@ -1362,6 +1376,7 @@
             <file role="test" name="tests/swoole_http_server/unixsocket2.phpt" />
             <file role="test" name="tests/swoole_http_server/unset_response_header.phpt" />
             <file role="test" name="tests/swoole_http_server/upload.phpt" />
+            <file role="test" name="tests/swoole_http_server/upload4.phpt" />
             <file role="test" name="tests/swoole_http_server/uploadFile.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_02.phpt" />
             <file role="test" name="tests/swoole_http_server/upload_03.phpt" />
@@ -1555,6 +1570,7 @@
             <file role="test" name="tests/swoole_redis_coro/select.phpt" />
             <file role="test" name="tests/swoole_redis_coro/set.phpt" />
             <file role="test" name="tests/swoole_redis_coro/setOptions.phpt" />
+            <file role="test" name="tests/swoole_redis_coro/stream.phpt" />
             <file role="test" name="tests/swoole_redis_coro/subscribe_1.phpt" />
             <file role="test" name="tests/swoole_redis_coro/subscribe_2.phpt" />
             <file role="test" name="tests/swoole_redis_coro/subscribe_multi.phpt" />
@@ -1591,6 +1607,7 @@
             <file role="test" name="tests/swoole_runtime/file_hook/lock_nb_1.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/lock_nb_2.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/lock_sh.phpt" />
+            <file role="test" name="tests/swoole_runtime/file_hook/open_basedir.phpt" />
             <file role="test" name="tests/swoole_runtime/file_hook/read.phpt" />
             <file role="test" name="tests/swoole_runtime/file_lock/file_lock_1.phpt" />
             <file role="test" name="tests/swoole_runtime/file_lock/lock_nb.phpt" />
@@ -1685,6 +1702,8 @@
             <file role="test" name="tests/swoole_server/close_in_task_worker.phpt" />
             <file role="test" name="tests/swoole_server/close_max_fd.phpt" />
             <file role="test" name="tests/swoole_server/close_queued.phpt" />
+            <file role="test" name="tests/swoole_server/close_reset.phpt" />
+            <file role="test" name="tests/swoole_server/command.phpt" />
             <file role="test" name="tests/swoole_server/connections.phpt" />
             <file role="test" name="tests/swoole_server/discard_timeout_packet.phpt" />
             <file role="test" name="tests/swoole_server/dispatch_fallback.phpt" />
@@ -1702,6 +1721,7 @@
             <file role="test" name="tests/swoole_server/enable_reuse_port.phpt" />
             <file role="test" name="tests/swoole_server/eof_protocol.phpt" />
             <file role="test" name="tests/swoole_server/eof_server.phpt" />
+            <file role="test" name="tests/swoole_server/event/before_shutdown.phpt" />
             <file role="test" name="tests/swoole_server/event/manager_start.phpt" />
             <file role="test" name="tests/swoole_server/event/manager_stop.phpt" />
             <file role="test" name="tests/swoole_server/event/shutdown.phpt" />
@@ -1736,6 +1756,7 @@
             <file role="test" name="tests/swoole_server/length/03.phpt" />
             <file role="test" name="tests/swoole_server/length/length_func.phpt" />
             <file role="test" name="tests/swoole_server/listen_fail.phpt" />
+            <file role="test" name="tests/swoole_server/max_concurrency.phpt" />
             <file role="test" name="tests/swoole_server/max_idle_time_1.phpt" />
             <file role="test" name="tests/swoole_server/max_idle_time_2.phpt" />
             <file role="test" name="tests/swoole_server/max_queued_bytes.phpt" />
@@ -1807,6 +1828,8 @@
             <file role="test" name="tests/swoole_server/start_twice.phpt" />
             <file role="test" name="tests/swoole_server/stats.phpt" />
             <file role="test" name="tests/swoole_server/stats_file.phpt" />
+            <file role="test" name="tests/swoole_server/stats_file_json.phpt" />
+            <file role="test" name="tests/swoole_server/stats_file_php.phpt" />
             <file role="test" name="tests/swoole_server/stop.phpt" />
             <file role="test" name="tests/swoole_server/stop_in_workerStart.phpt" />
             <file role="test" name="tests/swoole_server/systemd_fds.phpt" />
@@ -1836,6 +1859,7 @@
             <file role="test" name="tests/swoole_server/task/task_pack.phpt" />
             <file role="test" name="tests/swoole_server/task/task_queue.phpt" />
             <file role="test" name="tests/swoole_server/task/task_wait.phpt" />
+            <file role="test" name="tests/swoole_server/task/timer.phpt" />
             <file role="test" name="tests/swoole_server/task/without_onfinish.phpt" />
             <file role="test" name="tests/swoole_server/taskWaitMulti.phpt" />
             <file role="test" name="tests/swoole_server/taskwait_01.phpt" />
@@ -1929,6 +1953,8 @@
             <file role="test" name="tests/swoole_table/negative.phpt" />
             <file role="test" name="tests/swoole_table/random_bytes.phpt" />
             <file role="test" name="tests/swoole_table/set_after_del.phpt" />
+            <file role="test" name="tests/swoole_table/stats.phpt" />
+            <file role="test" name="tests/swoole_table/type_conv.phpt" />
             <file role="test" name="tests/swoole_timer/after.phpt" />
             <file role="test" name="tests/swoole_timer/after_fork.phpt" />
             <file role="test" name="tests/swoole_timer/bug_2342.phpt" />
@@ -2001,6 +2027,7 @@
             <file role="src" name="thirdparty/boost/asm/jump_ppc64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_ppc64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_ppc64_sysv_xcoff_gas.S" />
+            <file role="src" name="thirdparty/boost/asm/jump_riscv64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_sparc64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_sparc_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_x86_64_ms_pe_gas.asm" />
@@ -2027,6 +2054,7 @@
             <file role="src" name="thirdparty/boost/asm/make_ppc64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_ppc64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_ppc64_sysv_xcoff_gas.S" />
+            <file role="src" name="thirdparty/boost/asm/make_riscv64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_sparc64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_sparc_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_x86_64_ms_pe_gas.asm" />
@@ -2128,11 +2156,11 @@
     </dependencies>
     <providesextension>swoole</providesextension>
     <extsrcrelease>
-        <configureoption default="no" name="enable-sockets" prompt="enable sockets supports?" />
-        <configureoption default="no" name="enable-openssl" prompt="enable openssl support?" />
-        <configureoption default="no" name="enable-http2" prompt="enable http2 support?" />
-        <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?" />
-        <configureoption default="no" name="enable-swoole-json" prompt="enable json support?" />
-        <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?" />
+        <configureoption default="no" name="enable-sockets" prompt="enable sockets supports?"/>
+        <configureoption default="no" name="enable-openssl" prompt="enable openssl support?"/>
+        <configureoption default="no" name="enable-http2" prompt="enable http2 support?"/>
+        <configureoption default="no" name="enable-mysqlnd" prompt="enable mysqlnd support?"/>
+        <configureoption default="no" name="enable-swoole-json" prompt="enable json support?"/>
+        <configureoption default="no" name="enable-swoole-curl" prompt="enable curl support?"/>
     </extsrcrelease>
 </package>

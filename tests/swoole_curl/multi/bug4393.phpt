@@ -1,5 +1,5 @@
 --TEST--
-swoole_curl: guzzle
+swoole_curl/multi: guzzle
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';
