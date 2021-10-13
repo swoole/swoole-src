@@ -82,6 +82,7 @@
         * Supported for hooked mkdir using open_basedir ini config (#4407) (@NathanFreeman)
         * Added vendor_init.php (swoole/library@6c40b02) (@matyhtf)
         * Supported CURLOPT_UNIX_SOCKET_PATH for SWOOLE_HOOK_CURL (swoole/library#121) (@sy-records)
+        * Supported ssl_ciphers config for client (#4432) (@amuluowin)
 
         Fixed
         ---
