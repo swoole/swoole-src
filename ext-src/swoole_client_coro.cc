@@ -457,6 +457,9 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         zend_long v = zval_get_long(ztmp);
         sock->get_ssl_context()->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
+    if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
+        sock->get_ssl_context()->ciphers = zend::String(ztmp).to_std_string();
+    }
     if (!sock->ssl_check_context()) {
         ret = false;
     }
