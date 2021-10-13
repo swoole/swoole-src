@@ -48,6 +48,12 @@
         <email>lufei@php.net</email>
         <active>yes</active>
     </developer>
+    <lead>
+        <name>Bruce Dou</name>
+        <user>doubaokun</user>
+        <email>doubaokun@php.net</email>
+        <active>yes</active>
+    </lead>
     <date>2021-08-13</date>
     <time>15:00:00</time>
     <version>
