@@ -24,20 +24,20 @@
     <lead>
         <name>Tianfeng Han</name>
         <user>tianfenghan</user>
-        <email>mikan.tenny@gmail.com</email>
+        <email>rango@swoole.com</email>
         <active>yes</active>
     </lead>
     <developer>
         <name>Twosee</name>
         <user>twosee</user>
-        <email>twose@qq.com</email>
+        <email>twosee@php.net</email>
         <active>yes</active>
     </developer>
     <developer>
         <name>Shen Zhe</name>
         <user>shenzhe</user>
         <email>shenzhe163@gmail.com</email>
-        <active>yes</active>
+        <active>no</active>
     </developer>
     <developer>
         <name>Lu Fei</name>
@@ -45,12 +45,12 @@
         <email>lufei@php.net</email>
         <active>yes</active>
     </developer>
-    <lead>
+    <developer>
         <name>Bruce Dou</name>
         <user>doubaokun</user>
         <email>doubaokun@php.net</email>
         <active>yes</active>
-    </lead>
+    </developer>
     <date>2021-10-12</date>
     <time>19:00:00</time>
     <version>
