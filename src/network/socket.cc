@@ -1426,6 +1426,7 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
         swoole_warning("SSL_set_ex_data() failed");
         return SW_ERR;
     }
+    SSLTYPE(, SSL_set_enable_ech_grease(ssl, ssl_context->grease));
     ssl_state = 0;
     return SW_OK;
 }
