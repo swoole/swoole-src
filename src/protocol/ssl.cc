@@ -504,7 +504,7 @@ bool SSLContext::create() {
     }
 #endif
 
-    SSLTYPE(, SSL_CTX_set_grease_enabled(context, 1));
+    SSLTYPE(, SSL_CTX_set_grease_enabled(context, grease));
 
     if (!client_cert_file.empty() && !set_client_certificate()) {
         swoole_warning("set_client_certificate() error");
