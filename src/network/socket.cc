@@ -1017,7 +1017,7 @@ std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) {
         return list;
     }
     auto n = sk_X509_num(chain);
-    n = std::min(n, limit);
+    n = std::min(SSLTYPE(n, (int)n), limit);
     SW_LOOP_N(n) {
         X509 *cert = sk_X509_value(chain, i);
         auto n = _ssl_read_x509_file(cert, sw_tg_buffer()->str, sw_tg_buffer()->size);

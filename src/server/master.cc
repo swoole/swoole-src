@@ -277,7 +277,7 @@ dtls::Session *Server::accept_dtls_connection(ListenPort *port, Address *sa) {
     case SW_SOCK_UDP6:
         break;
     default:
-        OPENSSL_assert(0);
+        SSLTYPE(OPENSSL_assert(0),);
         break;
     }
 

@@ -43,6 +43,17 @@
 #undef SW_SUPPORT_DTLS
 #endif
 
+#ifdef SW_USE_BORINGSSL
+#define BIO_CTRL_DGRAM_SET_CONNECTED 32
+#define BIO_CTRL_DGRAM_SET_PEER 44
+#define BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT 45
+#define BIO_dgram_get_peer(b,peer) \
+         (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *)(peer))
+#define SSLTYPE(x, y) y
+#else
+#define SSLTYPE(x, y) x
+#endif
+
 enum swSSLCreateFlag {
     SW_SSL_SERVER = 1,
     SW_SSL_CLIENT = 2,
@@ -113,6 +124,7 @@ struct SSLContext {
     uchar disable_tls_host_name : 1;
     std::string tls_host_name;
 #endif
+    SSLTYPE(, uint8_t grease);
     std::string cafile;
     std::string capath;
     uint8_t verify_depth;

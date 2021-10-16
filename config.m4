@@ -36,6 +36,11 @@ PHP_ARG_ENABLE([openssl],
   [AS_HELP_STRING([--enable-openssl],
     [Use openssl])], [no], [no])
 
+PHP_ARG_ENABLE([boringssl],
+  [enable boringssl support],
+  [AS_HELP_STRING([--enable-boringssl],
+    [Use boringssl])], [no], [no])
+
 PHP_ARG_ENABLE([http2],
   [enable http2.0 support],
   [AS_HELP_STRING([--enable-http2],
@@ -498,6 +503,10 @@ if test "$PHP_SWOOLE" != "no"; then
     fi
 
     if test "$PHP_OPENSSL" != "no" || test "$PHP_OPENSSL_DIR" != "no"; then
+        if test "$PHP_BORINGSSL" != "no"; then
+            AC_DEFINE(SW_USE_BORINGSSL, 1, [enable boringssl support])
+        fi
+        
         if test "$PHP_OPENSSL_DIR" != "no"; then
             AC_DEFINE(HAVE_OPENSSL, 1, [have openssl])
             PHP_ADD_INCLUDE("${PHP_OPENSSL_DIR}/include")
