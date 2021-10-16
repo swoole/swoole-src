@@ -28,7 +28,12 @@ $coroutineOptions = [
     'deadlock_check_limit',
     'deadlock_check_depth'
 ];
-$options = array_merge($matches, $coroutineOptions);
+$helperOptions = [
+    'stats_file',
+    'stats_timer_interval',
+    'admin_server',
+];
+$options = array_merge($matches, $coroutineOptions, $helperOptions);
 $result = '';
 foreach ($options as $option) {
     $result .= space(4) . sprintf("public const OPTION_%s = '%s';\n\n", strtoupper($option), $option);
