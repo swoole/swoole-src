@@ -16,10 +16,11 @@ const ERROR_2 = 999999;
 
 swoole_async_set(['log_file' => LOG_FILE]);
 swoole_error_log(SWOOLE_LOG_NOTICE, "hello 1");
-swoole_error_log(SWOOLE_LOG_NOTICE, ERROR_1, "hello 2");
-swoole_ignore_error(ERROR_2);
+swoole_error_log_ex(SWOOLE_LOG_NOTICE, ERROR_1, "hello 2");
 
-swoole_error_log(SWOOLE_LOG_NOTICE, ERROR_2, "hello 3");
+swoole_ignore_error(ERROR_2);
+swoole_error_log_ex(SWOOLE_LOG_NOTICE, ERROR_2, "hello 3");
+
 $content = file_get_contents(LOG_FILE);
 Assert::contains($content, 'hello 1');
 Assert::contains($content, 'hello 2');
