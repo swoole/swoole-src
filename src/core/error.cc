@@ -16,6 +16,10 @@
 
 #include "swoole.h"
 
+#include <unordered_set>
+
+static std::unordered_set<int> ignored_errors;
+
 namespace swoole {
 Exception::Exception(int code) throw() : code(code) {
     msg = swoole_strerror(code);
@@ -27,8 +31,7 @@ const char *swoole_strerror(int code) {
         return strerror(code);
     }
     /* swstrerror {{{*/
-    switch(code)
-    {
+    switch (code) {
     case SW_ERROR_MALLOC_FAIL:
         return "Malloc fail";
     case SW_ERROR_SYSTEM_CALL_FAIL:
@@ -240,9 +243,17 @@ const char *swoole_strerror(int code) {
 #endif
         return buffer;
     }
-/*}}}*/
+    /*}}}*/
 }
 
 void swoole_throw_error(int code) {
     throw swoole::Exception(code);
+}
+
+void swoole_ignore_error(int code) {
+    ignored_errors.insert(code);
+}
+
+bool swoole_is_ignored_error(int code) {
+    return ignored_errors.find(code) != ignored_errors.end();
 }
