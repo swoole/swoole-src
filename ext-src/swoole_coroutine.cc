@@ -1202,6 +1202,10 @@ static PHP_METHOD(swoole_coroutine, join) {
             swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
             RETURN_FALSE;
         }
+        if (ctx->on_close) {
+            swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
+            RETURN_FALSE;
+        }
         ctx->on_close = &join_fn;
     }
     ZEND_HASH_FOREACH_END();
