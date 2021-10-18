@@ -468,8 +468,10 @@ bool SSLContext::create() {
 
 #ifdef SW_SUPPORT_DTLS
     if (protocols & SW_SSL_DTLS) {
-        SSLTYPE(SSL_CTX_set_cookie_generate_cb(context, swoole_ssl_generate_cookie), );
-        SSLTYPE(SSL_CTX_set_cookie_verify_cb(context, swoole_ssl_verify_cookie), );
+#ifndef OPENSSL_IS_BORINGSSL
+        SSL_CTX_set_cookie_generate_cb(context, swoole_ssl_generate_cookie);
+        SSL_CTX_set_cookie_verify_cb(context, swoole_ssl_verify_cookie);
+#endif        
     }
 #endif
 
@@ -504,7 +506,9 @@ bool SSLContext::create() {
     }
 #endif
 
-    SSLTYPE(, SSL_CTX_set_grease_enabled(context, grease));
+#ifdef OPENSSL_IS_BORINGSSL
+    SSL_CTX_set_grease_enabled(context, grease);
+#endif
 
     if (!client_cert_file.empty() && !set_client_certificate()) {
         swoole_warning("set_client_certificate() error");
@@ -760,7 +764,9 @@ static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
         length += sizeof(struct in6_addr);
         break;
     default:
-        SSLTYPE(OPENSSL_assert(0),);
+#ifndef OPENSSL_IS_BORINGSSL 
+        OPENSSL_assert(0);
+#endif
         break;
     }
 
@@ -782,7 +788,9 @@ static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
         memcpy(buffer + sizeof(in_port_t), &sa.addr.inet_v6.sin6_addr, sizeof(struct in6_addr));
         break;
     default:
-        SSLTYPE(OPENSSL_assert(0),);
+#ifndef OPENSSL_IS_BORINGSSL 
+        OPENSSL_assert(0);
+#endif
         break;
     }
 

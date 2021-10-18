@@ -463,10 +463,14 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
     if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", ztmp)) {
         sock->get_ssl_context()->ecdh_curve = zend::String(ztmp).to_std_string();
     }
-    SSLTYPE(, if (php_swoole_array_get_value(vht, "ssl_grease", ztmp)) {
+
+#ifdef OPENSSL_IS_BORINGSSL
+    if (php_swoole_array_get_value(vht, "ssl_grease", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         sock->get_ssl_context()->grease = SW_MAX(0, SW_MIN(v, UINT8_MAX));
-    })
+    }
+#endif
+
     if (!sock->ssl_check_context()) {
         ret = false;
     }
