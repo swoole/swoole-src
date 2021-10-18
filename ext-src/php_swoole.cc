@@ -180,6 +180,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_read, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
+#include "php_swoole_x_arginfo.h"
+
 const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_version, arginfo_swoole_void)
     PHP_FE(swoole_cpu_num, arginfo_swoole_void)
@@ -216,6 +218,10 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
 #endif
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
+    // for admin server
+    ZEND_FE(swoole_get_objects, arginfo_swoole_get_objects)
+    ZEND_FE(swoole_get_vm_status, arginfo_swoole_get_vm_status)
+    ZEND_FE(swoole_get_object_by_handle, arginfo_swoole_get_object_by_handle)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 

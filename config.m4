@@ -563,6 +563,7 @@ if test "$PHP_SWOOLE" != "no"; then
         ext-src/swoole_table.cc \
         ext-src/swoole_timer.cc \
         ext-src/swoole_websocket_server.cc \
+        ext-src/swoole_admin_server.cc \
         src/core/base.cc \
         src/core/channel.cc \
         src/core/crc32.cc \
@@ -760,6 +761,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
+    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     AC_MSG_CHECKING([swoole coverage])
