@@ -70,6 +70,7 @@ static PHP_FUNCTION(swoole_strerror);
 static PHP_FUNCTION(swoole_clear_error);
 static PHP_FUNCTION(swoole_errno);
 static PHP_FUNCTION(swoole_error_log);
+static PHP_FUNCTION(swoole_ignore_error);
 static PHP_FUNCTION(swoole_get_local_ip);
 static PHP_FUNCTION(swoole_get_local_mac);
 static PHP_FUNCTION(swoole_hashcode);
@@ -157,7 +158,12 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_error_log, 0, 0, 2)
     ZEND_ARG_INFO(0, level)
-    ZEND_ARG_INFO(0, msg)
+    ZEND_ARG_INFO(0, error)
+    ZEND_ARG_INFO(0, message)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ignore_error, 0, 0, 1)
+    ZEND_ARG_INFO(0, error)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
@@ -202,6 +208,7 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_clear_error, arginfo_swoole_void)
     PHP_FE(swoole_error_log, arginfo_swoole_error_log)
+    PHP_FE(swoole_ignore_error, arginfo_swoole_ignore_error)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE(swoole_mime_type_add, arginfo_swoole_mime_type_write)
     PHP_FE(swoole_mime_type_set, arginfo_swoole_mime_type_write)
@@ -1154,14 +1161,29 @@ static PHP_FUNCTION(swoole_strerror) {
 static PHP_FUNCTION(swoole_error_log) {
     char *msg;
     size_t l_msg;
-    zend_long level = 0;
+    zend_long level, error;
 
-    ZEND_PARSE_PARAMETERS_START(2, 2)
-    Z_PARAM_LONG(level)
-    Z_PARAM_STRING(msg, l_msg)
+    if (ZEND_NUM_ARGS() == 3) {
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "lls", &level, &error, &msg, &l_msg) == FAILURE) {
+            RETURN_FALSE;
+        }
+        swoole_error_log(level, (int) error, "%.*s", (int) l_msg, msg);
+    } else {
+        if (zend_parse_parameters(ZEND_NUM_ARGS(), "ls", &level, &msg, &l_msg) == FAILURE) {
+            RETURN_FALSE;
+        }
+        sw_logger()->put(level, msg, l_msg);
+    }
+}
+
+static PHP_FUNCTION(swoole_ignore_error) {
+    zend_long error;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(error)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    sw_logger()->put(level, msg, l_msg);
+    swoole_ignore_error(error);
 }
 
 static PHP_FUNCTION(swoole_mime_type_add) {

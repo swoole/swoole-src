@@ -167,7 +167,7 @@ swoole::Logger *sw_logger();
 #define swoole_error_log(level, error, str, ...)                                                                       \
     do {                                                                                                               \
         swoole_set_last_error(error);                                                                                  \
-        if (level >= sw_logger()->get_level()) {                                                                       \
+        if (level >= sw_logger()->get_level() && !swoole_is_ignored_error(error)) {                                    \
             size_t _sw_error_len =                                                                                     \
                 sw_snprintf(sw_error, SW_ERROR_MSG_SIZE, "%s() (ERRNO %d): " str, __SW_FUNC__, error, ##__VA_ARGS__);  \
             sw_logger()->put(level, sw_error, _sw_error_len);                                                          \
