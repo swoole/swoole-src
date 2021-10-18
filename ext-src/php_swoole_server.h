@@ -123,7 +123,7 @@ struct TaskCo {
     uint32_t count;
     zval *result;
 };
-void register_admin_server_commands(swoole::Server *serv);
+void register_admin_server_commands(Server *serv);
 }  // namespace swoole
 
 void php_swoole_server_register_callbacks(swServer *serv);
