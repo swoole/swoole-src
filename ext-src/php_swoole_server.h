@@ -44,17 +44,17 @@ enum php_swoole_server_callback_type {
 };
 //--------------------------------------------------------
 enum php_swoole_server_port_callback_type {
-    SW_SERVER_CB_onConnect,         // stream, worker(event)
-    SW_SERVER_CB_onReceive,         // stream, worker(event)
-    SW_SERVER_CB_onClose,           // stream, worker(event)
-    SW_SERVER_CB_onPacket,          // dgram, worker(event)
-    SW_SERVER_CB_onRequest,         // http, worker(event)
-    SW_SERVER_CB_onHandShake,       // websocket, worker(event)
-    SW_SERVER_CB_onOpen,            // websocket, worker(event)
-    SW_SERVER_CB_onMessage,         // websocket, worker(event)
-    SW_SERVER_CB_onDisconnect,      // websocket (non websocket connection), worker(event)
-    SW_SERVER_CB_onBufferFull,      // worker(event)
-    SW_SERVER_CB_onBufferEmpty,     // worker(event)
+    SW_SERVER_CB_onConnect,      // stream, worker(event)
+    SW_SERVER_CB_onReceive,      // stream, worker(event)
+    SW_SERVER_CB_onClose,        // stream, worker(event)
+    SW_SERVER_CB_onPacket,       // dgram, worker(event)
+    SW_SERVER_CB_onRequest,      // http, worker(event)
+    SW_SERVER_CB_onHandShake,    // websocket, worker(event)
+    SW_SERVER_CB_onOpen,         // websocket, worker(event)
+    SW_SERVER_CB_onMessage,      // websocket, worker(event)
+    SW_SERVER_CB_onDisconnect,   // websocket (non websocket connection), worker(event)
+    SW_SERVER_CB_onBufferFull,   // worker(event)
+    SW_SERVER_CB_onBufferEmpty,  // worker(event)
 };
 
 #define PHP_SWOOLE_SERVER_CALLBACK_NUM (SW_SERVER_CB_onPipeMessage + 1)
@@ -123,7 +123,7 @@ struct TaskCo {
     uint32_t count;
     zval *result;
 };
-
+void register_admin_server_commands(Server *serv);
 }  // namespace swoole
 
 void php_swoole_server_register_callbacks(swServer *serv);

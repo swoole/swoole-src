@@ -1029,6 +1029,10 @@ void ServerObject::on_before_start() {
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection"))) {
         add_assoc_long(zsetting, "max_connection", serv->get_max_connection());
     }
+    // for admin_server
+    if (zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("admin_server"))) {
+        swoole::register_admin_server_commands(serv);
+    }
 
     bool find_http_port = false;
     if (is_redis_server()) {
