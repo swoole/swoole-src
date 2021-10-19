@@ -49,6 +49,7 @@
 #define BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT 45
 #define BIO_dgram_get_peer(b,peer) \
          (int)BIO_ctrl(b, BIO_CTRL_DGRAM_GET_PEER, 0, (char *)(peer))
+#define OPENSSL_assert(x)       assert(x)
 #endif
 
 enum swSSLCreateFlag {

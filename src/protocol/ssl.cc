@@ -764,9 +764,7 @@ static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
         length += sizeof(struct in6_addr);
         break;
     default:
-#ifndef OPENSSL_IS_BORINGSSL 
         OPENSSL_assert(0);
-#endif
         break;
     }
 
@@ -788,9 +786,7 @@ static int swoole_ssl_generate_cookie(SSL *ssl, uchar *cookie, uint *cookie_len)
         memcpy(buffer + sizeof(in_port_t), &sa.addr.inet_v6.sin6_addr, sizeof(struct in6_addr));
         break;
     default:
-#ifndef OPENSSL_IS_BORINGSSL 
         OPENSSL_assert(0);
-#endif
         break;
     }
 
