@@ -19,11 +19,14 @@
 #include "php_swoole_http.h"
 #include "php_swoole_x_arginfo.h"
 
+#include <sstream>
+#include <thread>
+
 #include "nlohmann/json.hpp"
 
-namespace swoole {
-
 using json = nlohmann::json;
+
+namespace swoole {
 
 #ifdef TCP_INFO
 static json get_socket_info(int fd);
@@ -252,14 +255,16 @@ static std::string handle_get_socket_info(Server *serv, const std::string &msg) 
         {"data", get_socket_info(fd)},
         {"code", 0},
     };
-    return return_value.dump();
 #endif
+    return return_value.dump();
 }
 
 static std::string handle_get_thread_info(Server *serv, const std::string &msg) {
     ReactorThread *thread = serv->get_thread(SwooleTG.id);
+    std::stringstream ss;
+    ss << std::this_thread::get_id();
     json jinfo{
-        {"tid", pthread_self()},
+        {"tid", ss.str()},
         {"id", thread->id},
         {"dispatch_count", thread->dispatch_count},
         {"event_num", SwooleTG.reactor->get_event_num()},
@@ -462,7 +467,7 @@ ZEND_FUNCTION(swoole_get_objects) {
 }
 
 ZEND_FUNCTION(swoole_get_object_by_handle) {
-    long handle;
+    zend_long handle;
     ZEND_PARSE_PARAMETERS_START(1, 1)
     Z_PARAM_LONG(handle)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
