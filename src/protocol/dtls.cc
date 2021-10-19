@@ -121,7 +121,12 @@ BIO_METHOD *BIO_get_methods(void) {
     BIO_meth_set_ctrl(_bio_methods, BIO_ctrl);
     BIO_meth_set_create(_bio_methods, BIO_create);
     BIO_meth_set_destroy(_bio_methods, BIO_destroy);
+
+#ifdef OPENSSL_IS_BORINGSSL
+    BIO_meth_set_ctrl(_bio_methods, (long (*)(BIO *, int, long, void *)) BIO_callback_ctrl);
+#else
     BIO_meth_set_callback_ctrl(_bio_methods, (long (*)(BIO *, int, BIO_info_cb *)) BIO_callback_ctrl);
+#endif
 
     return _bio_methods;
 }
@@ -159,6 +164,10 @@ bool Session::init() {
 }
 
 bool Session::listen() {
+#ifdef OPENSSL_IS_BORINGSSL
+    return SSL_is_dtls(socket->ssl);
+#else
+
     if (listened) {
         return false;
     }
@@ -179,8 +188,8 @@ bool Session::listen() {
     } else {
         listened = true;
     }
-
     return true;
+#endif
 }
 
 //-------------------------------------------------------------------------------

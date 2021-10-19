@@ -1017,7 +1017,13 @@ std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) {
         return list;
     }
     auto n = sk_X509_num(chain);
+
+#ifdef OPENSSL_IS_BORINGSSL
+    n = std::min((int)n, limit);
+#else
     n = std::min(n, limit);
+#endif
+
     SW_LOOP_N(n) {
         X509 *cert = sk_X509_value(chain, i);
         auto n = _ssl_read_x509_file(cert, sw_tg_buffer()->str, sw_tg_buffer()->size);
@@ -1426,6 +1432,11 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
         swoole_warning("SSL_set_ex_data() failed");
         return SW_ERR;
     }
+
+#ifdef OPENSSL_IS_BORINGSSL
+    SSL_set_enable_ech_grease(ssl, ssl_context->grease);
+#endif
+
     ssl_state = 0;
     return SW_OK;
 }
