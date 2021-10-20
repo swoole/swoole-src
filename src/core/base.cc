@@ -42,6 +42,7 @@
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
 #include "swoole_coroutine_system.h"
+#include "swoole_ssl.h"
 
 using swoole::String;
 using swoole::coroutine::System;
@@ -90,7 +91,7 @@ char *sw_error_() {
 __thread char sw_error[SW_ERROR_MSG_SIZE];
 #endif
 
-static void swoole_fatal_error(int code, const char *format, ...);
+static void swoole_fatal_error_impl(int code, const char *format, ...);
 
 swoole::Logger *sw_logger() {
     return g_logger_instance;
@@ -112,6 +113,24 @@ void *sw_realloc(void *ptr, size_t size) {
     return SwooleG.std_allocator.realloc(ptr, size);
 }
 
+static void bug_report_message_init() {
+    SwooleG.bug_report_message += "\n" + std::string(SWOOLE_BUG_REPORT) + "\n";
+
+    struct utsname u;
+    if (uname(&u) != -1) {
+        SwooleG.bug_report_message +=
+            swoole::std_string::format("OS: %s %s %s %s\n", u.sysname, u.release, u.version, u.machine);
+    }
+
+#ifdef __VERSION__
+    SwooleG.bug_report_message += swoole::std_string::format("GCC_VERSION: %s\n", __VERSION__);
+#endif
+
+#ifdef SW_USE_OPENSSL
+    SwooleG.bug_report_message += swoole_ssl_get_version_message();
+
+#endif
+}
 void swoole_init(void) {
     if (SwooleG.init) {
         return;
@@ -123,9 +142,13 @@ void swoole_init(void) {
     SwooleG.running = 1;
     SwooleG.init = 1;
     SwooleG.std_allocator = {malloc, calloc, realloc, free};
-    SwooleG.fatal_error = swoole_fatal_error;
+    SwooleG.fatal_error = swoole_fatal_error_impl;
     SwooleG.cpu_num = SW_MAX(1, sysconf(_SC_NPROCESSORS_ONLN));
     SwooleG.pagesize = getpagesize();
+
+    // DNS options
+    SwooleG.dns_tries = 1;
+    SwooleG.dns_resolvconf_path = SW_DNS_RESOLV_CONF;
 
     // get system uname
     uname(&SwooleG.uname);
@@ -146,9 +169,10 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
+    SwooleG.max_concurrency = 0;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
-        swSysWarn("getrlimit() failed");
+        swoole_sys_warning("getrlimit() failed");
     } else {
         SwooleG.max_sockets = SW_MAX((uint32_t) rlmt.rlim_cur, SW_MAX_SOCKETS_DEFAULT);
         SwooleG.max_sockets = SW_MIN((uint32_t) rlmt.rlim_cur, SW_SESSION_LIST_SIZE);
@@ -177,10 +201,13 @@ void swoole_init(void) {
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
-    swSignalfd_init();
+    swoole_signalfd_init();
     SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
+
+    // init bug report message
+    bug_report_message_init();
 }
 
 SW_EXTERN_C_BEGIN
@@ -189,7 +216,7 @@ SW_API int swoole_add_function(const char *name, void *func) {
     std::string _name(name);
     auto iter = functions.find(_name);
     if (iter != functions.end()) {
-        swWarn("Function '%s' has already been added", name);
+        swoole_warning("Function '%s' has already been added", name);
         return SW_ERR;
     } else {
         functions.emplace(std::make_pair(_name, func));
@@ -206,12 +233,16 @@ SW_API void *swoole_get_function(const char *name, uint32_t length) {
     }
 }
 
-SW_API int swoole_add_hook(enum swGlobal_hook_type type, swHookFunc func, int push_back) {
+SW_API int swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
     return swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
-SW_API void swoole_call_hook(enum swGlobal_hook_type type, void *arg) {
+SW_API void swoole_call_hook(enum swGlobalHookType type, void *arg) {
     swoole::hook_call(SwooleG.hooks, type, arg);
+}
+
+SW_API bool swoole_isset_hook(enum swGlobalHookType type) {
+    return SwooleG.hooks[type] != nullptr;
 }
 
 SW_API const char *swoole_version(void) {
@@ -242,17 +273,59 @@ void swoole_clean(void) {
         delete g_logger_instance;
         g_logger_instance = nullptr;
     }
+    if (SwooleTG.buffer_stack) {
+        delete SwooleTG.buffer_stack;
+        SwooleTG.buffer_stack = nullptr;
+    }
     SwooleG = {};
+}
+
+SW_API void swoole_set_log_level(int level) {
+    if (sw_logger()) {
+        sw_logger()->set_level(level);
+    }
+}
+
+SW_API void swoole_set_trace_flags(int flags) {
+    SwooleG.trace_flags = flags;
+}
+
+SW_API void swoole_set_dns_server(const std::string &server) {
+    char *_port;
+    int dns_server_port = SW_DNS_SERVER_PORT;
+    char dns_server_host[32];
+    strcpy(dns_server_host, server.c_str());
+    if ((_port = strchr((char *) server.c_str(), ':'))) {
+        dns_server_port = atoi(_port + 1);
+        if (dns_server_port <= 0 || dns_server_port > 65535) {
+            dns_server_port = SW_DNS_SERVER_PORT;
+        }
+        dns_server_host[_port - server.c_str()] = '\0';
+    }
+    SwooleG.dns_server_host = dns_server_host;
+    SwooleG.dns_server_port = dns_server_port;
+}
+
+SW_API std::pair<std::string, int> swoole_get_dns_server() {
+    std::pair<std::string, int> result;
+    if (SwooleG.dns_server_host.empty()) {
+        result.first = "";
+        result.second = 0;
+    } else {
+        result.first = SwooleG.dns_server_host;
+        result.second = SwooleG.dns_server_port;
+    }
+    return result;
 }
 
 bool swoole_set_task_tmpdir(const std::string &dir) {
     if (dir.at(0) != '/') {
-        swWarn("wrong absolute path '%s'", dir.c_str());
+        swoole_warning("wrong absolute path '%s'", dir.c_str());
         return false;
     }
 
     if (access(dir.c_str(), R_OK) < 0 && !swoole_mkdir_recursive(dir)) {
-        swWarn("create task tmp dir(%s) failed", dir.c_str());
+        swoole_warning("create task tmp dir(%s) failed", dir.c_str());
         return false;
     }
 
@@ -260,7 +333,7 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
     SwooleG.task_tmpfile = sw_tg_buffer()->to_std_string();
 
     if (SwooleG.task_tmpfile.length() >= SW_TASK_TMP_PATH_SIZE) {
-        swWarn("task tmp_dir is too large, the max size is '%d'", SW_TASK_TMP_PATH_SIZE - 1);
+        swoole_warning("task tmp_dir is too large, the max size is '%d'", SW_TASK_TMP_PATH_SIZE - 1);
         return false;
     }
 
@@ -270,11 +343,12 @@ bool swoole_set_task_tmpdir(const std::string &dir) {
 pid_t swoole_fork(int flags) {
     if (!(flags & SW_FORK_EXEC)) {
         if (swoole_coroutine_is_in()) {
-            swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
         }
         if (SwooleTG.async_threads) {
-            swTrace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
-            swFatalError(SW_ERROR_OPERATION_NOT_SUPPORT, "can not create server after using async file operation");
+            swoole_trace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
+            swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT,
+                               "can not create server after using async file operation");
         }
     }
     if (flags & SW_FORK_PRECHECK) {
@@ -304,7 +378,7 @@ pid_t swoole_fork(int flags) {
             // reset eventLoop
             if (swoole_event_is_available()) {
                 swoole_event_free();
-                swTraceLog(SW_TRACE_REACTOR, "reactor has been destroyed");
+                swoole_trace_log(SW_TRACE_REACTOR, "reactor has been destroyed");
             }
         } else {
             /**
@@ -315,7 +389,7 @@ pid_t swoole_fork(int flags) {
         /**
          * reset signal handler
          */
-        swSignal_clear();
+        swoole_signal_clear();
     }
 
     return pid;
@@ -366,7 +440,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
 
     // PATH_MAX limit includes string trailing null character
     if (len + 1 > PATH_MAX) {
-        swWarn("mkdir(%s) failed. Path exceeds the limit of %d characters", dir.c_str(), PATH_MAX - 1);
+        swoole_warning("mkdir(%s) failed. Path exceeds the limit of %d characters", dir.c_str(), PATH_MAX - 1);
         return false;
     }
     swoole_strlcpy(tmp, dir.c_str(), PATH_MAX);
@@ -381,7 +455,7 @@ bool swoole_mkdir_recursive(const std::string &dir) {
             tmp[i] = 0;
             if (access(tmp, R_OK) != 0) {
                 if (mkdir(tmp, 0755) == -1) {
-                    swSysWarn("mkdir(%s) failed", tmp);
+                    swoole_sys_warning("mkdir(%s) failed", tmp);
                     return -1;
                 }
             }
@@ -494,7 +568,7 @@ int swoole_system_random(int min, int max) {
     bytes_to_read = sizeof(random_value);
 
     if (read(dev_random_fd, next_random_byte, bytes_to_read) < bytes_to_read) {
-        swSysWarn("read() from /dev/urandom failed");
+        swoole_sys_warning("read() from /dev/urandom failed");
         return SW_ERR;
     }
     return min + (random_value % (max - min + 1));
@@ -502,10 +576,10 @@ int swoole_system_random(int min, int max) {
 
 void swoole_redirect_stdout(int new_fd) {
     if (dup2(new_fd, STDOUT_FILENO) < 0) {
-        swSysWarn("dup2(STDOUT_FILENO) failed");
+        swoole_sys_warning("dup2(STDOUT_FILENO) failed");
     }
     if (dup2(new_fd, STDERR_FILENO) < 0) {
-        swSysWarn("dup2(STDERR_FILENO) failed");
+        swoole_sys_warning("dup2(STDERR_FILENO) failed");
     }
 }
 
@@ -643,7 +717,7 @@ int swoole_shell_exec(const char *command, pid_t *pid, bool get_error_stream) {
     }
 
     if ((child_pid = fork()) == -1) {
-        swSysWarn("fork() failed");
+        swoole_sys_warning("fork() failed");
         close(fds[0]);
         close(fds[1]);
         return SW_ERR;
@@ -741,7 +815,7 @@ bool swoole_get_env(const char *name, int *value) {
 int swoole_get_systemd_listen_fds() {
     int ret;
     if (!swoole_get_env("LISTEN_FDS", &ret)) {
-        swWarn("invalid LISTEN_FDS");
+        swoole_warning("invalid LISTEN_FDS");
         return -1;
     } else if (ret >= SW_MAX_LISTEN_PORT) {
         swoole_error_log(SW_LOG_ERROR, SW_ERROR_SERVER_TOO_MANY_LISTEN_PORT, "LISTEN_FDS is too big");
@@ -774,7 +848,7 @@ void swoole_print_backtrace(void) {
 void swoole_print_backtrace(void) {}
 #endif
 
-static void swoole_fatal_error(int code, const char *format, ...) {
+static void swoole_fatal_error_impl(int code, const char *format, ...) {
     size_t retval = 0;
     va_list args;
 
@@ -786,29 +860,40 @@ static void swoole_fatal_error(int code, const char *format, ...) {
     exit(1);
 }
 
-size_t swDataHead::dump(char *_buf, size_t _len) {
+namespace swoole {
+//-------------------------------------------------------------------------------
+size_t DataHead::dump(char *_buf, size_t _len) {
     return sw_snprintf(_buf,
                        _len,
-                       "swDataHead[%p]\n"
+                       "DataHead[%p]\n"
                        "{\n"
                        "    long fd = %ld;\n"
+                       "    uint64_t msg_id = %lu;\n"
                        "    uint32_t len = %d;\n"
                        "    int16_t reactor_id = %d;\n"
                        "    uint8_t type = %d;\n"
                        "    uint8_t flags = %d;\n"
                        "    uint16_t server_fd = %d;\n"
+                       "    uint16_t ext_flags = %d;\n"
+                       "    double time = %f;\n"
                        "}\n",
                        this,
                        fd,
+                       msg_id,
                        len,
                        reactor_id,
                        type,
                        flags,
-                       server_fd);
+                       server_fd,
+                       ext_flags,
+                       time);
 }
 
-namespace swoole {
-//-------------------------------------------------------------------------------
+void DataHead::print() {
+    sw_tg_buffer()->length = dump(sw_tg_buffer()->str, sw_tg_buffer()->size);
+    printf("%.*s", (int) sw_tg_buffer()->length, sw_tg_buffer()->str);
+}
+
 std::string dirname(const std::string &file) {
     size_t index = file.find_last_of('/');
     if (index == std::string::npos) {

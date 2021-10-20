@@ -50,6 +50,8 @@ using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
 
+namespace WebSocket = swoole::websocket;
+
 enum http_client_error_status_code {
     HTTP_CLIENT_ESTATUS_CONNECT_FAILED = -1,
     HTTP_CLIENT_ESTATUS_REQUEST_TIMEOUT = -2,
@@ -110,11 +112,14 @@ class HttpClient {
 
     /* options */
     uint8_t reconnect_interval = 3;
+    uint8_t reconnected_count = 0;
     uint8_t max_retries = 1;
     bool keep_alive = true;      // enable by default
     bool websocket = false;      // if upgrade successfully
     bool chunked = false;        // Transfer-Encoding: chunked
     bool websocket_mask = true;  // enable websocket mask
+    bool body_decompression = true;
+    bool http_compression = true;
 #ifdef SW_HAVE_ZLIB
     bool websocket_compression = false;  // allow to compress websocket messages
 #endif
@@ -179,11 +184,11 @@ class HttpClient {
     void recv(zval *zframe, double timeout = 0);
     bool recv_http_response(double timeout = 0);
     bool upgrade(std::string path);
-    bool push(zval *zdata, zend_long opcode = WEBSOCKET_OPCODE_TEXT, uint8_t flags = SW_WEBSOCKET_FLAG_FIN);
+    bool push(zval *zdata, zend_long opcode = websocket::OPCODE_TEXT, uint8_t flags = websocket::FLAG_FIN);
     bool close(const bool should_be_reset = true);
 
     void get_header_out(zval *return_value) {
-        swString *buffer = nullptr;
+        String *buffer = nullptr;
         if (socket == nullptr) {
             if (tmp_write_buffer) {
                 buffer = tmp_write_buffer;
@@ -540,7 +545,7 @@ static int http_parser_on_headers_complete(swoole_http_parser *parser) {
 static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_t length) {
     HttpClient *http = (HttpClient *) parser->data;
 #ifdef SW_HAVE_COMPRESSION
-    if (!http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
+    if (http->body_decompression && !http->compression_error && http->compress_method != HTTP_COMPRESS_NONE) {
         if (!http->decompress_response(at, length)) {
             http->compression_error = true;
             goto _append_raw;
@@ -560,17 +565,17 @@ static int http_parser_on_body(swoole_http_parser *parser, const char *at, size_
             char *download_file_name = http->download_file_name.val();
             std::unique_ptr<File> fp(new File(download_file_name, O_CREAT | O_WRONLY, 0664));
             if (!fp->ready()) {
-                swSysWarn("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
+                swoole_sys_warning("open(%s, O_CREAT | O_WRONLY) failed", download_file_name);
                 return false;
             }
             if (http->download_offset == 0) {
                 if (!fp->truncate(0)) {
-                    swSysWarn("ftruncate(%s) failed", download_file_name);
+                    swoole_sys_warning("ftruncate(%s) failed", download_file_name);
                     return false;
                 }
             } else {
                 if (!fp->set_offest(http->download_offset)) {
-                    swSysWarn("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
+                    swoole_sys_warning("fseek(%s, %jd) failed", download_file_name, (intmax_t) http->download_offset);
                     return false;
                 }
             }
@@ -648,7 +653,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             // gzip_stream.total_out = 0;
             status = inflateInit2(&gzip_stream, encoding);
             if (status != Z_OK) {
-                swWarn("inflateInit2() failed by %s", zError(status));
+                swoole_warning("inflateInit2() failed by %s", zError(status));
                 return false;
             }
             gzip_stream_active = true;
@@ -689,7 +694,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
             goto _retry;
         }
 
-        swWarn("HttpClient::decompress_response failed by %s", zError(status));
+        swoole_warning("HttpClient::decompress_response failed by %s", zError(status));
         body->length = reserved_body_length;
         return false;
     }
@@ -699,7 +704,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
         if (!brotli_decoder_state) {
             brotli_decoder_state = BrotliDecoderCreateInstance(php_brotli_alloc, php_brotli_free, nullptr);
             if (!brotli_decoder_state) {
-                swWarn("BrotliDecoderCreateInstance() failed");
+                swoole_warning("BrotliDecoderCreateInstance() failed");
                 return false;
             }
         }
@@ -723,11 +728,11 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
                 return true;
             } else if (result == BROTLI_DECODER_RESULT_NEEDS_MORE_OUTPUT) {
                 if (!body->extend()) {
-                    swWarn("BrotliDecoderDecompressStream() failed, no memory is available");
+                    swoole_warning("BrotliDecoderDecompressStream() failed, no memory is available");
                     break;
                 }
             } else {
-                swWarn("BrotliDecoderDecompressStream() failed, %s",
+                swoole_warning("BrotliDecoderDecompressStream() failed, %s",
                        BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
@@ -741,7 +746,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
         break;
     }
 
-    swWarn("HttpClient::decompress_response unknown compress method [%d]", compress_method);
+    swoole_warning("HttpClient::decompress_response unknown compress method [%d]", compress_method);
     return false;
 }
 #endif
@@ -775,6 +780,12 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
         }
         if (php_swoole_array_get_value(vht, "websocket_mask", ztmp)) {
             websocket_mask = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "http_compression", ztmp)) {
+            http_compression = zval_is_true(ztmp);
+        }
+        if (php_swoole_array_get_value(vht, "body_decompression", ztmp)) {
+            body_decompression = zval_is_true(ztmp);
         }
 #ifdef SW_HAVE_ZLIB
         if (php_swoole_array_get_value(vht, "websocket_compression", ztmp)) {
@@ -907,7 +918,7 @@ bool HttpClient::send() {
     // clear errno
     swoole_set_last_error(0);
     // alloc buffer
-    swString *buffer = socket->get_write_buffer();
+    String *buffer = socket->get_write_buffer();
     buffer->clear();
     // clear body
     body->clear();
@@ -952,7 +963,7 @@ bool HttpClient::send() {
             method = zbody ? "POST" : "GET";
             method_len = strlen(method);
         }
-        this->method = swHttp_get_method(method, method_len);
+        this->method = http_server::get_method(method, method_len);
         buffer->append(method, method_len);
         buffer->append(ZEND_STRL(" "));
     }
@@ -1062,7 +1073,7 @@ bool HttpClient::send() {
         }
     }
 #ifdef SW_HAVE_COMPRESSION
-    if (!(header_flag & HTTP_HEADER_ACCEPT_ENCODING)) {
+    if (http_compression && !(header_flag & HTTP_HEADER_ACCEPT_ENCODING)) {
         add_headers(buffer,
                     ZEND_STRL("Accept-Encoding"),
 #if defined(SW_HAVE_ZLIB) && defined(SW_HAVE_BROTLI)
@@ -1326,7 +1337,7 @@ bool HttpClient::send() {
         }
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT,
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
                host.c_str(),
                port,
@@ -1412,7 +1423,7 @@ bool HttpClient::recv(double timeout) {
         socket->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN;
         socket->protocol.package_length_offset = 0;
         socket->protocol.package_body_offset = 0;
-        socket->protocol.get_package_length = swWebSocket_get_package_length;
+        socket->protocol.get_package_length = websocket::get_package_length;
     }
     // handler keep alive
     if (!keep_alive && !websocket) {
@@ -1454,7 +1465,7 @@ void HttpClient::recv(zval *zframe, double timeout) {
             close();
         }
     } else {
-        swString msg;
+        String msg;
         msg.length = retval;
         msg.str = socket->get_read_buffer()->str;
 #ifdef SW_HAVE_ZLIB
@@ -1469,7 +1480,7 @@ void HttpClient::recv(zval *zframe, double timeout) {
 bool HttpClient::recv_http_response(double timeout) {
     ssize_t retval = 0;
     size_t total_bytes = 0, parsed_n = 0;
-    swString *buffer = socket->get_read_buffer();
+    String *buffer = socket->get_read_buffer();
     bool header_completed = false;
     off_t header_crlf_offset = 0;
 
@@ -1518,7 +1529,7 @@ bool HttpClient::recv_http_response(double timeout) {
 
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
-        swTraceLog(SW_TRACE_HTTP_CLIENT,
+        swoole_trace_log(SW_TRACE_HTTP_CLIENT,
                    "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
                    parsed_n,
                    retval,
@@ -1594,7 +1605,7 @@ bool HttpClient::push(zval *zdata, zend_long opcode, uint8_t flags) {
         return false;
     }
 
-    swString *buffer = socket->get_write_buffer();
+    String *buffer = socket->get_write_buffer();
     buffer->clear();
     if (php_swoole_websocket_frame_is_object(zdata)) {
         if (php_swoole_websocket_frame_object_pack(buffer, zdata, websocket_mask, websocket_compression) < 0) {
@@ -1723,7 +1734,7 @@ void php_swoole_http_client_coro_minit(int module_number) {
                         nullptr,
                         "Co\\Http\\Client",
                         swoole_http_client_coro_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_http_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_client_coro);
     SW_SET_CLASS_CLONEABLE(swoole_http_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_client_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_client_coro,
@@ -2114,9 +2125,9 @@ static PHP_METHOD(swoole_http_client_coro, upgrade) {
 static PHP_METHOD(swoole_http_client_coro, push) {
     HttpClient *phc = php_swoole_get_phc(ZEND_THIS);
     zval *zdata;
-    zend_long opcode = WEBSOCKET_OPCODE_TEXT;
+    zend_long opcode = WebSocket::OPCODE_TEXT;
     zval *zflags = nullptr;
-    zend_long flags = SW_WEBSOCKET_FLAG_FIN;
+    zend_long flags = WebSocket::FLAG_FIN;
 
     ZEND_PARSE_PARAMETERS_START(1, 3)
     Z_PARAM_ZVAL(zdata)
@@ -2129,7 +2140,7 @@ static PHP_METHOD(swoole_http_client_coro, push) {
         flags = zval_get_long(zflags);
     }
 
-    RETURN_BOOL(phc->push(zdata, opcode, flags & SW_WEBSOCKET_FLAGS_ALL));
+    RETURN_BOOL(phc->push(zdata, opcode, flags & WebSocket::FLAGS_ALL));
 }
 
 static PHP_METHOD(swoole_http_client_coro, recv) {

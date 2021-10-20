@@ -35,7 +35,7 @@ Coroutine::BailoutCallback Coroutine::on_bailout = nullptr;
 namespace coroutine {
 void thread_context_init();
 void thread_context_clean();
-}
+}  // namespace coroutine
 #endif
 
 void Coroutine::activate() {
@@ -55,11 +55,50 @@ void Coroutine::deactivate() {
 void Coroutine::yield() {
     SW_ASSERT(current == this || on_bailout != nullptr);
     state = STATE_WAITING;
+    resume_code_ = RC_OK;
     if (sw_likely(on_yield && task)) {
         on_yield(task);
     }
     current = origin;
     ctx.swap_out();
+}
+
+void Coroutine::yield(CancelFunc *cancel_fn) {
+    set_cancel_fn(cancel_fn);
+    yield();
+    set_cancel_fn(nullptr);
+}
+
+bool Coroutine::yield_ex(double timeout) {
+    TimerNode *timer = nullptr;
+    TimerCallback timer_callback = [this](Timer *timer, TimerNode *tnode) {
+        resume_code_ = RC_TIMEDOUT;
+        resume();
+    };
+
+    if (timeout > 0) {
+        timer = swoole_timer_add((long) (timeout * 1000), false, timer_callback, nullptr);
+    }
+
+    CancelFunc cancel_fn = [](Coroutine *co) {
+        co->resume();
+        return true;
+    };
+
+    yield(&cancel_fn);
+
+    if (is_timedout()) {
+        swoole_set_last_error(SW_ERROR_CO_TIMEDOUT);
+        return false;
+    }
+    if (timer) {
+        swoole_timer_del(timer);
+    }
+    if (is_canceled()) {
+        swoole_set_last_error(SW_ERROR_CO_CANCELED);
+        return false;
+    }
+    return true;
 }
 
 void Coroutine::resume() {
@@ -77,23 +116,15 @@ void Coroutine::resume() {
     check_end();
 }
 
-void Coroutine::yield_naked() {
-    SW_ASSERT(current == this);
-    state = STATE_WAITING;
-    current = origin;
-    ctx.swap_out();
-}
-
-void Coroutine::resume_naked() {
-    SW_ASSERT(current != this);
-    if (sw_unlikely(on_bailout)) {
-        return;
+bool Coroutine::cancel() {
+    if (!cancel_fn_) {
+        swoole_set_last_error(SW_ERROR_CO_CANNOT_CANCEL);
+        return false;
     }
-    state = STATE_RUNNING;
-    origin = current;
-    current = this;
-    ctx.swap_in();
-    check_end();
+    auto fn = *cancel_fn_;
+    set_cancel_fn(nullptr);
+    resume_code_ = RC_CANCELED;
+    return fn(this);
 }
 
 void Coroutine::close() {
@@ -103,7 +134,7 @@ void Coroutine::close() {
         on_close(task);
     }
 #if !defined(SW_USE_THREAD_CONTEXT) && defined(SW_CONTEXT_DETECT_STACK_USAGE)
-    swTraceLog(
+    swoole_trace_log(
         SW_TRACE_CONTEXT, "coroutine#%ld stack memory use less than %ld bytes", get_cid(), ctx.get_stack_usage());
 #endif
     current = origin;
@@ -155,7 +186,7 @@ void Coroutine::bailout(BailoutCallback func) {
         return;
     }
     if (!func) {
-        swError("bailout without bailout function");
+        swoole_error("bailout without bailout function");
     }
     if (!co->task) {
         // TODO: decoupling
@@ -171,8 +202,9 @@ void Coroutine::bailout(BailoutCallback func) {
     // expect that never here
     exit(1);
 }
+
 namespace coroutine {
-bool run(const coroutine_func_t &fn, void *arg) {
+bool run(const CoroutineFunc &fn, void *arg) {
     if (swoole_event_init(SW_EVENTLOOP_WAIT_EXIT) < 0) {
         return false;
     }
@@ -193,26 +225,7 @@ long swoole_coroutine_get_current_id() {
     return swoole::Coroutine::get_current_cid();
 }
 
-/**
- * for gdb
- */
-static std::unordered_map<long, swoole::Coroutine *>::iterator _gdb_iterator;
-
-void swoole_coro_iterator_reset() {
-    _gdb_iterator = swoole::Coroutine::coroutines.begin();
-}
-
-swoole::Coroutine *swoole_coro_iterator_each() {
-    if (_gdb_iterator == swoole::Coroutine::coroutines.end()) {
-        return nullptr;
-    } else {
-        swoole::Coroutine *co = _gdb_iterator->second;
-        _gdb_iterator++;
-        return co;
-    }
-}
-
-swoole::Coroutine *swoole_coro_get(long cid) {
+swoole::Coroutine *swoole_coroutine_get(long cid) {
     auto i = swoole::Coroutine::coroutines.find(cid);
     if (i == swoole::Coroutine::coroutines.end()) {
         return nullptr;
@@ -221,6 +234,25 @@ swoole::Coroutine *swoole_coro_get(long cid) {
     }
 }
 
-size_t swoole_coro_count() {
+size_t swoole_coroutine_count() {
     return swoole::Coroutine::coroutines.size();
+}
+
+/**
+ * for gdb
+ */
+static std::unordered_map<long, swoole::Coroutine *>::iterator _gdb_iterator;
+
+void swoole_coroutine_iterator_reset() {
+    _gdb_iterator = swoole::Coroutine::coroutines.begin();
+}
+
+swoole::Coroutine *swoole_coroutine_iterator_each() {
+    if (_gdb_iterator == swoole::Coroutine::coroutines.end()) {
+        return nullptr;
+    } else {
+        swoole::Coroutine *co = _gdb_iterator->second;
+        _gdb_iterator++;
+        return co;
+    }
 }

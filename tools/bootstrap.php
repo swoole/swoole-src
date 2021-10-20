@@ -11,10 +11,19 @@ define('ROOT_DIR', dirname(__DIR__));
 define('LIBRARY_DIR', ROOT_DIR . '/library');
 define('LIBRARY_SRC_DIR', LIBRARY_DIR . '/src');
 
-define('EMOJI_OK', '✅');
-define('EMOJI_SUCCESS', '🚀');
-define('EMOJI_ERROR', '❌');
-define('EMOJI_WARN', '⚠️');
+if (!defined('EMOJI_OK')) {
+    define('EMOJI_OK', '✅');
+}
+if (!defined('EMOJI_SUCCESS')) {
+    define('EMOJI_SUCCESS', '🚀');
+}
+if (!defined('EMOJI_ERROR')) {
+    define('EMOJI_ERROR', '❌');
+}
+if (!defined('EMOJI_WARN')) {
+    define('EMOJI_WARN', '⚠️');
+}
+
 define('SWOOLE_SOURCE_ROOT', dirname(__DIR__) . '/');
 
 if (!defined('SWOOLE_COLOR_RED')) {

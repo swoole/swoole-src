@@ -77,7 +77,7 @@
 #else
 #define SW_IPC_MAX_SIZE 8192  // for IPC, dgram and message-queue max size
 #endif
-#define SW_IPC_BUFFER_SIZE (SW_IPC_MAX_SIZE - sizeof(swDataHead))
+#define SW_IPC_BUFFER_SIZE (SW_IPC_MAX_SIZE - sizeof(swoole::DataHead))
 // !!!End.-------------------------------------------------------------------
 
 #define SW_BUFFER_SIZE_STD 8192
@@ -192,7 +192,7 @@
 
 #define SW_DNS_HOST_BUFFER_SIZE 16
 #define SW_DNS_SERVER_PORT 53
-#define SW_DNS_DEFAULT_SERVER "8.8.8.8"
+#define SW_DNS_RESOLV_CONF "/etc/resolv.conf"
 
 #define SW_Z_BEST_SPEED 1
 #define SW_COMPRESSION_MIN_LENGTH_DEFAULT  20
@@ -220,7 +220,6 @@
 #define SW_HTTP_RFC1123_DATE_UTC "%a, %d %b %Y %T UTC"
 #define SW_HTTP_RFC850_DATE "%A, %d-%b-%y %T GMT"
 #define SW_HTTP_ASCTIME_DATE "%a %b %e %T %Y"
-#define SW_HTTP_SEND_TWICE 1
 
 // #define SW_HTTP_100_CONTINUE
 #define SW_HTTP_100_CONTINUE_PACKET "HTTP/1.1 100 Continue\r\n\r\n"

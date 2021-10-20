@@ -8,6 +8,8 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+const VERBOSE = false;
+
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
@@ -32,8 +34,9 @@ $pm->parentFunc = function ($pid) use ($pm) {
                 Assert::assert($data);
                 $char = chr(ord('A') + $n % 10);
                 $info = unpack('Nlen', substr($data, 0, 4));
-
-//                echo "c=$i, n=$n, len={$info['len']}\n---------------------------------------------------------------------\n";
+                if (VERBOSE) {
+                    echo "[Client] c=$i, n=$n, len={$info['len']}\n---------------------------------------------------------------------\n";
+                }
                 Assert::same($info['len'], strlen($data) - 4);
                 Assert::same(str_repeat($char, 1024), substr($data, rand(4, $info['len'] - 1024 - 4), 1024));
                 $total += strlen($data);
@@ -41,14 +44,14 @@ $pm->parentFunc = function ($pid) use ($pm) {
         });
     }
     swoole_event::wait();
-    echo $total." bytes\n";
+    echo $total . " bytes\n";
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
     $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set(array(
-        "worker_num" => IS_IN_TRAVIS ? 2 : 4,
+        "worker_num" => 1,
         'log_level' => SWOOLE_LOG_ERROR,
         'open_length_check' => true,
         'package_max_length' => 4 * 1024 * 1024,
@@ -61,19 +64,23 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('connect', function (Swoole\Server $serv, $fd, $rid) {
-//        echo "new client, fd=$fd\n";
+        if (VERBOSE) {
+            echo "new client, fd=$fd\n";
+        }
         $n = MAX_REQUESTS;
         while ($n--) {
             $len = rand(8192, 1024 * 1024);
             $send_data = str_repeat(chr(ord('A') + $n % 10), $len);
+            if (VERBOSE) {
+                echo "[Server] c=$fd, n=$n, len=" . (strlen($send_data) + 4) . "\n---------------------------------------------------------------------\n";
+            }
             $retval = $serv->send($fd, pack('N', $len) . $send_data);
             if ($retval === false) {
-                echo "send error, code=".swoole_last_error()."\n";
+                echo "send error, code=" . swoole_last_error() . "\n";
             }
         }
     });
     $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
-
     });
     $serv->start();
 };

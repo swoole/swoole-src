@@ -63,6 +63,9 @@
       header('abc: 123');
       echo "a\nb\nc";
       break;
+    case 'input':
+      echo file_get_contents('php://input');
+      break;
     default:
       echo "Hello World!\n";
       echo "Hello World!";

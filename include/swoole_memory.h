@@ -44,7 +44,9 @@ class FixedPool : public MemoryPool {
     void *alloc(uint32_t size);
     void free(void *ptr);
     void debug();
-
+    uint32_t get_number_of_spare_slice();
+    uint32_t get_number_of_total_slice();
+    uint32_t get_slice_size();
     static size_t sizeof_struct_slice();
     static size_t sizeof_struct_impl();
 };
@@ -77,6 +79,7 @@ class GlobalMemory : public MemoryPool {
     void free(void *ptr);
     void destroy();
     size_t capacity();
+    size_t get_memory_size();
 };
 }  // namespace swoole
 

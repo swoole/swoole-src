@@ -202,6 +202,10 @@ class String {
         return append(append_str.c_str(), append_str.length());
     }
 
+    inline int append(char c) {
+        return append(&c, sizeof(c));
+    }
+
     inline int append(const String &append_str) {
         size_t new_size = length + append_str.length;
         if (new_size > size) {
@@ -215,7 +219,7 @@ class String {
         return SW_OK;
     }
 
-    inline void write(off_t _offset, swString *write_str) {
+    inline void write(off_t _offset, String *write_str) {
         size_t new_length = _offset + write_str->length;
         if (new_length > size) {
             reserve(swoole_size_align(new_length * 2, SwooleG.pagesize));

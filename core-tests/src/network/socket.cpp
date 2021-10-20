@@ -53,7 +53,7 @@ TEST(socket, sendto) {
     unlink(sock2_path);
 }
 
-static void test_sendto(enum swSocket_type sock_type) {
+static void test_sendto(enum swSocketType sock_type) {
     int port1 = 0, port2 = 0;
     const char *ip = sock_type == SW_SOCK_UDP ? "127.0.0.1" : "::1";
 

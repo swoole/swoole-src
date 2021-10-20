@@ -189,7 +189,7 @@ static const zend_function_entry swoole_process_pool_methods[] =
 void php_swoole_process_pool_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_process_pool, "Swoole\\Process\\Pool", "swoole_process_pool", nullptr, swoole_process_pool_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_process_pool, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_process_pool);
     SW_SET_CLASS_CLONEABLE(swoole_process_pool, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process_pool, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_process_pool,
@@ -218,7 +218,7 @@ static void pool_onWorkerStart(ProcessPool *pool, int worker_id) {
         return;
     }
     if (!pp->enable_coroutine && pp->onMessage) {
-        swSignal_set(SIGTERM, pool_signal_handler);
+        swoole_signal_set(SIGTERM, pool_signal_handler);
     }
     zval args[2];
     args[0] = *zobject;
@@ -274,7 +274,7 @@ static void pool_signal_handler(int sig) {
         break;
     case SIGUSR1:
     case SIGUSR2:
-        current_pool->reloading = true;
+        current_pool->reload();
         current_pool->reload_init = false;
         break;
     case SIGIO:
@@ -322,7 +322,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));
     *pool = {};
-    if (pool->create(worker_num, (key_t) msgq_key, (swIPC_type) ipc_type) < 0) {
+    if (pool->create(worker_num, (key_t) msgq_key, (swIPCMode) ipc_type) < 0) {
         zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
         efree(pool);
         RETURN_FALSE;
@@ -334,10 +334,7 @@ static PHP_METHOD(swoole_process_pool, __construct) {
         pool->main_loop = nullptr;
     } else {
         if (ipc_type > 0) {
-            if (pool->set_protocol(0, SW_INPUT_BUFFER_SIZE) < 0) {
-                zend_throw_exception_ex(swoole_exception_ce, errno, "failed to create process pool");
-                RETURN_FALSE;
-            }
+            pool->set_protocol(0, SW_INPUT_BUFFER_SIZE);
         }
     }
 
@@ -360,8 +357,17 @@ static PHP_METHOD(swoole_process_pool, set) {
 
     ProcessPoolProperty *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
 
+    php_swoole_set_global_option(vht);
+    php_swoole_set_coroutine_option(vht);
+    php_swoole_set_aio_option(vht);
+
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
         pp->enable_coroutine = zval_is_true(ztmp);
+    }
+
+    ProcessPool *pool = php_swoole_process_pool_get_and_check_pool(ZEND_THIS);
+    if (pp->enable_coroutine) {
+        pool->main_loop = nullptr;
     }
 }
 
@@ -508,10 +514,10 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     std::unordered_map<int, swSignalHandler> ori_handlers;
 
-    ori_handlers[SIGTERM] = swSignal_set(SIGTERM, pool_signal_handler);
-    ori_handlers[SIGUSR1] = swSignal_set(SIGUSR1, pool_signal_handler);
-    ori_handlers[SIGUSR2] = swSignal_set(SIGUSR2, pool_signal_handler);
-    ori_handlers[SIGIO] = swSignal_set(SIGIO, pool_signal_handler);
+    ori_handlers[SIGTERM] = swoole_signal_set(SIGTERM, pool_signal_handler);
+    ori_handlers[SIGUSR1] = swoole_signal_set(SIGUSR1, pool_signal_handler);
+    ori_handlers[SIGUSR2] = swoole_signal_set(SIGUSR2, pool_signal_handler);
+    ori_handlers[SIGIO] = swoole_signal_set(SIGIO, pool_signal_handler);
 
     if (pool->ipc_mode == SW_IPC_NONE || pp->enable_coroutine) {
         if (pp->onWorkerStart == nullptr) {
@@ -551,7 +557,7 @@ static PHP_METHOD(swoole_process_pool, start) {
     current_pool = nullptr;
 
     for (auto iter = ori_handlers.begin(); iter != ori_handlers.end(); iter++) {
-        swSignal_set(iter->first, iter->second);
+        swoole_signal_set(iter->first, iter->second);
     }
 }
 

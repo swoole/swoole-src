@@ -17,15 +17,14 @@
   +----------------------------------------------------------------------+
 */
 
-#include "swoole_coroutine_socket.h"
-
-#include <string>
-
+#include "swoole_string.h"
 #include "swoole_util.h"
-#include "swoole_socket.h"
-#include "swoole_coroutine_system.h"
+#include "swoole_reactor.h"
 #include "swoole_buffer.h"
 #include "swoole_base64.h"
+
+#include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 
 namespace swoole {
 namespace coroutine {
@@ -100,7 +99,7 @@ int Socket::error_event_callback(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-bool Socket::add_event(const enum swEvent_type event) {
+bool Socket::add_event(const EventType event) {
     bool ret = true;
     if (sw_likely(!(socket->events & event))) {
         if (socket->removed) {
@@ -120,8 +119,8 @@ bool Socket::add_event(const enum swEvent_type event) {
  * We only need to set the errCode for the socket operation when wait_event returns true,
  * which means that the exception's error code priority is greater than the current event error priority.
  */
-bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_t __n) {
-    enum swEvent_type added_event = event;
+bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
+    EventType added_event = event;
     Coroutine *co = Coroutine::get_current_safe();
     if (!co) {
         return false;
@@ -145,7 +144,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
         if (sw_unlikely(!add_event(event))) {
         return false;
     }
-    swTraceLog(SW_TRACE_SOCKET,
+    swoole_trace_log(SW_TRACE_SOCKET,
                "socket#%d blongs to cid#%ld is waiting for %s event",
                sock_fd,
                co->get_cid(),
@@ -154,9 +153,14 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
                                      : socket->ssl_want_write ? "SSL WRITE" :
 #endif
                                                               event == SW_EVENT_READ ? "READ" : "WRITE");
+
+    Coroutine::CancelFunc cancel_fn = [this, event](Coroutine *co){
+        return cancel(event);
+    };
+
     if (sw_likely(event == SW_EVENT_READ)) {
         read_co = co;
-        read_co->yield();
+        read_co->yield(&cancel_fn);
         read_co = nullptr;
     } else if (event == SW_EVENT_WRITE) {
         if (sw_unlikely(!zero_copy && __n > 0 && *__buf != get_write_buffer()->str)) {
@@ -168,7 +172,7 @@ bool Socket::wait_event(const enum swEvent_type event, const void **__buf, size_
             *__buf = write_buffer->str;
         }
         write_co = co;
-        write_co->yield();
+        write_co->yield(&cancel_fn);
         write_co = nullptr;
     } else {
         assert(0);
@@ -190,7 +194,7 @@ _failed:
 #ifdef SW_USE_OPENSSL
     want_event = SW_EVENT_NULL;
 #endif
-    swTraceLog(SW_TRACE_SOCKET,
+    swoole_trace_log(SW_TRACE_SOCKET,
                "socket#%d blongs to cid#%ld trigger %s event",
                sock_fd,
                co->get_cid(),
@@ -372,7 +376,7 @@ bool Socket::http_proxy_handshake() {
                         http_proxy->target_port);
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, send_buffer->str);
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy request: <<EOF\n%.*sEOF", n, send_buffer->str);
 
     send_buffer->length = n;
     if (send(send_buffer->str, n) != n) {
@@ -395,7 +399,7 @@ bool Socket::http_proxy_handshake() {
         return false;
     }
 
-    swTraceLog(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, recv_buffer->str);
+    swoole_trace_log(SW_TRACE_HTTP_CLIENT, "proxy response: <<EOF\n%.*sEOF", n, recv_buffer->str);
 
     bool ret = false;
     char *buf = recv_buffer->str;
@@ -447,13 +451,13 @@ bool Socket::http_proxy_handshake() {
     return ret;
 }
 
-void Socket::init_sock_type(enum swSocket_type _sw_type) {
+void Socket::init_sock_type(SocketType _sw_type) {
     type = _sw_type;
     network::Socket::get_domain_and_type(_sw_type, &sock_domain, &sock_type);
 }
 
 bool Socket::init_sock() {
-    socket = make_socket(type, SW_FD_CORO_SOCKET, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
+    socket = make_socket(type, SW_FD_CO_SOCKET, SW_SOCK_CLOEXEC | SW_SOCK_NONBLOCK);
     if (socket == nullptr) {
         return false;
     }
@@ -464,7 +468,7 @@ bool Socket::init_sock() {
 }
 
 bool Socket::init_reactor_socket(int _fd) {
-    socket = swoole::make_socket(_fd, SW_FD_CORO_SOCKET);
+    socket = swoole::make_socket(_fd, SW_FD_CO_SOCKET);
     sock_fd = _fd;
     socket->object = this;
     socket->socket_type = type;
@@ -483,7 +487,7 @@ Socket::Socket(int _domain, int _type, int _protocol)
     init_options();
 }
 
-Socket::Socket(enum swSocket_type _type) {
+Socket::Socket(SocketType _type) {
     init_sock_type(_type);
     if (sw_unlikely(!init_sock())) {
         return;
@@ -491,7 +495,7 @@ Socket::Socket(enum swSocket_type _type) {
     init_options();
 }
 
-Socket::Socket(int _fd, enum swSocket_type _type) {
+Socket::Socket(int _fd, SocketType _type) {
     init_sock_type(_type);
     if (sw_unlikely(!init_reactor_socket(_fd))) {
         return;
@@ -522,7 +526,7 @@ Socket::Socket(network::Socket *sock, Socket *server_sock) {
     socket = sock;
     socket->object = this;
     socket->socket_type = type;
-    socket->fd_type = SW_FD_CORO_SOCKET;
+    socket->fd_type = SW_FD_CO_SOCKET;
     init_options();
     /* inherits server socket options */
     dns_timeout = server_sock->dns_timeout;
@@ -786,7 +790,7 @@ ssize_t Socket::peek(void *__buf, size_t __n) {
     return retval;
 }
 
-bool Socket::poll(enum swEvent_type type) {
+bool Socket::poll(EventType type) {
     if (sw_unlikely(!is_available(type))) {
         return -1;
     }
@@ -936,7 +940,7 @@ ssize_t Socket::readv_all(network::IOVector *io_vector) {
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
     retval = socket->readv(io_vector);
-    swTraceLog(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "readv %ld bytes, errno=%d", retval, errno);
 
     if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
         set_err(errno);
@@ -998,7 +1002,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
 
     retval = socket->writev(io_vector);
-    swTraceLog(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
 
     if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
         set_err(errno);
@@ -1167,7 +1171,11 @@ bool Socket::listen(int backlog) {
         return false;
     }
     this->backlog = backlog <= 0 ? SW_BACKLOG : backlog;
-    if (socket->listen(this->backlog) != 0) {
+    if (socket->listen(this->backlog) < 0) {
+        set_err(errno);
+        return false;
+    }
+    if (socket->get_name(&socket->info) < 0) {
         set_err(errno);
         return false;
     }
@@ -1196,7 +1204,7 @@ Socket *Socket::accept(double timeout) {
 
     Socket *client_sock = new Socket(conn, this);
     if (sw_unlikely(client_sock->get_fd() < 0)) {
-        swSysWarn("new Socket() failed");
+        swoole_sys_warning("new Socket() failed");
         set_err(errno);
         delete client_sock;
         return nullptr;
@@ -1216,13 +1224,13 @@ bool Socket::ssl_check_context() {
         ssl_context->protocols = SW_SSL_DTLS;
         socket->chunk_size = SW_SSL_BUFFER_SIZE;
 #else
-        swWarn("DTLS support require openssl-1.1 or later");
+        swoole_warning("DTLS support require openssl-1.1 or later");
         return false;
 #endif
     }
     ssl_context->http_v2 = http2;
     if (!ssl_context->create()) {
-        swWarn("swSSL_get_context() error");
+        swoole_warning("swSSL_get_context() error");
         return false;
     }
     socket->ssl_send_ = 1;
@@ -1278,7 +1286,7 @@ bool Socket::ssl_handshake() {
             }
         }
     } else {
-        enum swReturn_code retval;
+        ReturnCode retval;
         TimerController timer(&read_timer, read_timeout, this, timer_callback);
 
         do {
@@ -1438,7 +1446,7 @@ ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, siz
         TimerController timer(&write_timer, write_timeout, this, timer_callback);
         do {
             retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
-            swTraceLog(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
+            swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
         } while (retval < 0 && (errno == EINTR || (socket->catch_error(errno) == SW_WAIT && timer.start() &&
                                                    wait_event(SW_EVENT_WRITE, &__buf, __n))));
         check_return_value(retval);
@@ -1463,7 +1471,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, sockle
     TimerController timer(&read_timer, read_timeout, this, timer_callback);
     do {
         retval = ::recvfrom(sock_fd, __buf, __n, 0, _addr, _socklen);
-        swTraceLog(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);
+        swoole_trace_log(SW_TRACE_SOCKET, "recvfrom %ld/%ld bytes, errno=%d", retval, __n, errno);
     } while (retval < 0 && ((errno == EINTR) ||
                             (socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_READ))));
     check_return_value(retval);
@@ -1496,7 +1504,7 @@ _recv_header:
 _get_length:
     protocol.real_header_length = 0;
     packet_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
-    swTraceLog(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
+    swoole_trace_log(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
     if (packet_len < 0) {
         set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
         return 0;
@@ -1507,7 +1515,13 @@ _get_length:
         goto _recv_header;
     } else if (packet_len > protocol.package_max_length) {
         read_buffer->clear();
-        set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, "remote packet is too big");
+        swoole_error_log(SW_LOG_WARNING,
+                            SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                            "packet length is too big, remote_addr=%s:%d, length=%zu",
+                            socket->info.get_ip(),
+                            socket->info.get_port(),
+                            packet_len);
+        set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, sw_error);
         return -1;
     }
 
@@ -1685,7 +1699,7 @@ bool Socket::ssl_shutdown() {
 }
 #endif
 
-bool Socket::cancel(const enum swEvent_type event) {
+bool Socket::cancel(const EventType event) {
     if (!has_bound(event)) {
         return false;
     }
@@ -1745,9 +1759,6 @@ bool Socket::close() {
  * 3. called close() and it return false but it will not be accessed anywhere else
  */
 Socket::~Socket() {
-    if (socket == nullptr) {
-        return;
-    }
 #ifdef SW_DEBUG
     if (SwooleG.running) {
         SW_ASSERT(!has_bound() && socket->removed);
@@ -1759,28 +1770,25 @@ Socket::~Socket() {
     if (write_buffer) {
         delete write_buffer;
     }
+    if (socks5_proxy) {
+        delete socks5_proxy;
+    }
+    if (http_proxy) {
+        delete http_proxy;
+    }
+    if (socket == nullptr) {
+        return;
+    }
     /* {{{ release socket resources */
 #ifdef SW_USE_OPENSSL
     ssl_shutdown();
 #endif
-    if (socket->in_buffer) {
-        delete socket->in_buffer;
-    }
-    if (socket->out_buffer) {
-        delete socket->out_buffer;
-    }
     if (sock_domain == AF_UNIX && !bind_address.empty()) {
         ::unlink(bind_address_info.addr.un.sun_path);
         bind_address_info = {};
     }
     if (socket->socket_type == SW_SOCK_UNIX_DGRAM) {
         ::unlink(socket->info.addr.un.sun_path);
-    }
-    if (socks5_proxy) {
-        delete socks5_proxy;
-    }
-    if (http_proxy) {
-        delete http_proxy;
     }
     socket->free();
 }

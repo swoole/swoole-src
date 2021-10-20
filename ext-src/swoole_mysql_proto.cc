@@ -349,7 +349,7 @@ static sw_inline uint32_t mysql_auth_encrypt_dispatch(char *buf,
     } else if (auth_plugin_name == "caching_sha2_password") {
         return sha256_password_with_nonce(buf, nonce, password);
     } else {
-        swWarn("Unknown auth plugin: %s", auth_plugin_name.c_str());
+        swoole_warning("Unknown auth plugin: %s", auth_plugin_name.c_str());
         return 0;
     }
 }
@@ -365,7 +365,7 @@ eof_packet::eof_packet(const char *data) : server_packet(data) {
     data += 2;
     // int<2>   status_flags    Status Flags
     server_status = sw_mysql_uint2korr2korr(data);
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "EOF_Packet, warnings=%u, status_code=%u", warning_count, server_status);
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "EOF_Packet, warnings=%u, status_code=%u", warning_count, server_status.status);
 }
 
 ok_packet::ok_packet(const char *data) : server_packet(data) {
@@ -384,11 +384,11 @@ ok_packet::ok_packet(const char *data) : server_packet(data) {
     // int<2>   warnings    number of warnings
     warning_count = sw_mysql_uint2korr2korr(data);
     // p += 2;
-    swTraceLog(SW_TRACE_MYSQL_CLIENT,
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
                "OK_Packet, affected_rows=%" PRIu64 ", insert_id=%" PRIu64 ", status_flags=0x%08x, warnings=%u",
                affected_rows,
                last_insert_id,
-               server_status,
+               server_status.status,
                warning_count);
 }
 
@@ -409,7 +409,7 @@ err_packet::err_packet(const char *data) : server_packet(data) {
     data += 5;
     // string<EOF>  error_message   human readable error message
     msg = std::string(data, header.length - 9);
-    swTraceLog(SW_TRACE_MYSQL_CLIENT,
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
                "ERR_Packet, error_code=%u, sql_state=%s, status_msg=[%s]",
                code,
                sql_state,
@@ -484,17 +484,17 @@ greeting_packet::greeting_packet(const char *data) : server_packet(data) {
         }
         if (capability_flags & SW_MYSQL_CLIENT_PLUGIN_AUTH) {
             auth_plugin_name = std::string(p, strlen(p));
-            swTraceLog(SW_TRACE_MYSQL_CLIENT, "use %s auth plugin", auth_plugin_name.c_str());
+            swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "use %s auth plugin", auth_plugin_name.c_str());
         }
     }
-    swTraceLog(SW_TRACE_MYSQL_CLIENT,
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
                "Server protocol=%d, version=%s, connection_id=%d, capabilites=0x%08x, status=%u, auth_plugin_name=%s, "
                "auth_plugin_data=L%u[%s]",
                protocol_version,
                server_version.c_str(),
                connection_id,
                capability_flags,
-               status_flags,
+               status_flags.status,
                auth_plugin_name.c_str(),
                auth_plugin_data_length,
                auth_plugin_data);
@@ -512,12 +512,12 @@ login_packet::login_packet(greeting_packet *greeting_packet,
            SW_MYSQL_CLIENT_CONNECT_WITH_DB | SW_MYSQL_CLIENT_PLUGIN_AUTH | SW_MYSQL_CLIENT_MULTI_RESULTS;
     memcpy(p, &tint, sizeof(tint));
     p += sizeof(tint);
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "Client capabilites=0x%08x", tint);
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "Client capabilites=0x%08x", tint);
     // max-packet size
     tint = 300;
     memcpy(p, &tint, sizeof(tint));
     p += sizeof(tint);
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "Client max packet=%u", tint);
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "Client max packet=%u", tint);
     // use the server character_set when the character_set is not set.
     *p = charset ? charset : greeting_packet->charset;
     p += 1;
@@ -533,7 +533,7 @@ login_packet::login_packet(greeting_packet *greeting_packet,
     } else {
         *p = 0;
     }
-    swTraceLog(SW_TRACE_MYSQL_CLIENT,
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
                "Client charset=%u, user=%s, password=%s, hased=L%d[%.*s], database=%s, auth_plugin_name=%s",
                charset,
                user.c_str(),
@@ -566,7 +566,7 @@ auth_switch_request_packet::auth_switch_request_packet(const char *data) : serve
     data += (auth_method_name.length() + 1);
     // string[NUL] auth_method_data
     strcpy(auth_method_data, data);
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "auth switch plugin name=%s", auth_method_name.c_str());
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "auth switch plugin name=%s", auth_method_name.c_str());
 }
 
 auth_switch_response_packet::auth_switch_response_packet(auth_switch_request_packet *req, const std::string &password) {
@@ -584,7 +584,7 @@ auth_signature_response_packet::auth_signature_response_packet(raw_data_packet *
                                                                const char *auth_plugin_data) {
 #ifndef SW_MYSQL_RSA_SUPPORT
     {
-        swWarn(SW_MYSQL_NO_RSA_ERROR);
+        swoole_warning(SW_MYSQL_NO_RSA_ERROR);
 #else
     if (0) {
     _error:
@@ -603,7 +603,7 @@ auth_signature_response_packet::auth_signature_response_packet(raw_data_packet *
     char rsa_public_key[rsa_public_key_length + 1];  // rsa + '\0'
     memcpy((char *) rsa_public_key, tmp, rsa_public_key_length);
     rsa_public_key[rsa_public_key_length] = '\0';
-    swTraceLog(SW_TRACE_MYSQL_CLIENT,
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
                "rsa_public_key_length=%d;\nrsa_public_key=[%.*s]",
                rsa_public_key_length,
                rsa_public_key_length,
@@ -623,7 +623,7 @@ auth_signature_response_packet::auth_signature_response_packet(raw_data_packet *
     BIO *bio = nullptr;
     RSA *public_rsa = nullptr;
     if (sw_unlikely((bio = BIO_new_mem_buf((void *) rsa_public_key, -1)) == nullptr)) {
-        swWarn("BIO_new_mem_buf publicKey error!");
+        swoole_warning("BIO_new_mem_buf publicKey error!");
         goto _error;
     }
     // PEM_read_bio_RSA_PUBKEY
@@ -632,7 +632,7 @@ auth_signature_response_packet::auth_signature_response_packet(raw_data_packet *
         char err_buf[512];
         ERR_load_crypto_strings();
         ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
-        swWarn("[PEM_read_bio_RSA_PUBKEY ERROR]: %s", err_buf);
+        swoole_warning("[PEM_read_bio_RSA_PUBKEY ERROR]: %s", err_buf);
         goto _error;
     }
     BIO_free_all(bio);
@@ -643,7 +643,7 @@ auth_signature_response_packet::auth_signature_response_packet(raw_data_packet *
     ERR_clear_error();
     size_t flen = rsa_len - 42;
     flen = password_bytes_length > flen ? flen : password_bytes_length;
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "rsa_len=%d", rsa_len);
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "rsa_len=%d", rsa_len);
     if (sw_unlikely(RSA_public_encrypt(flen,
                                        (const unsigned char *) password_bytes,
                                        (unsigned char *) encrypt_msg,
@@ -652,7 +652,7 @@ auth_signature_response_packet::auth_signature_response_packet(raw_data_packet *
         char err_buf[512];
         ERR_load_crypto_strings();
         ERR_error_string_n(ERR_get_error(), err_buf, sizeof(err_buf));
-        swWarn("[RSA_public_encrypt ERROR]: %s", err_buf);
+        swoole_warning("[RSA_public_encrypt ERROR]: %s", err_buf);
         goto _error;
     }
     RSA_free(public_rsa);
@@ -717,7 +717,7 @@ void field_packet::parse(const char *data) {
         p += def_length;
     }
     swMysqlPacketDump(header.length, header.number, data, (*name == '?' ? "Protocol::Param" : "Protocol::Field"));
-    swTraceLog(SW_TRACE_MYSQL_CLIENT,
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
                "catalog=%.*s, database=%.*s, table=%.*s, org_table=%.*s, name=%.*s, org_name=%.*s,"
                "charset=%u, binary_length=%" PRIu64 ", type=%u, flags=0x%08x, decimals=%u, def=[%.*s]",
                catalog_length,

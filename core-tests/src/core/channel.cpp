@@ -36,14 +36,14 @@ TEST(channel, push) {
         char buf[8000];
         int n = swoole_random_bytes(buf, (rand() % (sizeof(buf) / 2)) + (sizeof(buf) / 2));
         if (n <= 0) {
-            swTrace("no enough data, n=%d, errno=%d\n", n, errno);
+            swoole_trace("no enough data, n=%d, errno=%d\n", n, errno);
             continue;
         }
         m[index++] = string(buf, n);
         bytes += n;
     }
 
-    swTrace("size=%d\n", m.size());
+    swoole_trace("size=%lu", m.size());
 
     thread t1([&]() {
         auto next = m.find(0);
@@ -52,7 +52,7 @@ TEST(channel, push) {
 
         while (bytes < N) {
             if (c->push(next->second.c_str(), next->second.length()) == SW_OK) {
-                swTrace("[PUSH] index=%d, size=%d\n", index, next->second.length());
+                swoole_trace("[PUSH] index=%d, size=%lu", index, next->second.length());
                 bytes += next->second.length();
                 next = m.find(index++);
                 if (next == m.end()) {
@@ -71,7 +71,7 @@ TEST(channel, push) {
         while (bytes < N) {
             int retval = c->pop(buf, sizeof(buf));
             if (retval > 0) {
-                swTrace("[POP] index=%d, size=%ld\n", index, retval);
+                swoole_trace("[POP] index=%d, size=%d", index, retval);
                 string &_data = m[index++];
                 bytes += retval;
                 ASSERT_EQ(_data, string(buf, retval));

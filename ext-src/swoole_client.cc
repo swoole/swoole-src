@@ -240,7 +240,7 @@ static const zend_function_entry swoole_client_methods[] =
 
 void php_swoole_client_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_client, "Swoole\\Client", "swoole_client", nullptr, swoole_client_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_client, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_client);
     SW_SET_CLASS_CLONEABLE(swoole_client, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
@@ -324,6 +324,10 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
         zend_long v = zval_get_long(ztmp);
         cli->ssl_context->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
+    if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
+        zend::String str_v(ztmp);
+        cli->ssl_context->ciphers = str_v.to_std_string();
+    }
     if (!cli->ssl_context->cert_file.empty() && cli->ssl_context->key_file.empty()) {
         php_swoole_fatal_error(E_ERROR, "ssl require key file");
         return;
@@ -366,7 +370,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
         cli->open_length_check = zval_is_true(ztmp);
         if (zval_is_true(ztmp)) {
-            swMqtt_set_protocol(&cli->protocol);
+            swoole::mqtt::set_protocol(&cli->protocol);
         }
     }
     // open length check
@@ -488,7 +492,7 @@ bool php_swoole_client_check_setting(Client *cli, zval *zset) {
     _open_tcp_nodelay:
         if (cli->socket->socket_type == SW_SOCK_TCP || cli->socket->socket_type == SW_SOCK_TCP6) {
             if (cli->socket->set_tcp_nodelay() < 0) {
-                swSysWarn("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
+                swoole_sys_warning("setsockopt(%d, TCP_NODELAY) failed", cli->socket->fd);
             }
         }
     }
@@ -1007,7 +1011,7 @@ static PHP_METHOD(swoole_client, recv) {
             cli->buffer = swoole::make_string(SW_BUFFER_SIZE_BIG, sw_zend_string_allocator());
         }
 
-        swString *buffer = cli->buffer;
+        String *buffer = cli->buffer;
         ssize_t eof = -1;
         char *buf = nullptr;
 
@@ -1088,7 +1092,7 @@ static PHP_METHOD(swoole_client, recv) {
         } else {
             cli->buffer->clear();
         }
-        swString *buffer = cli->buffer;
+        String *buffer = cli->buffer;
 
         uint32_t header_len = protocol->package_length_offset + protocol->package_length_size;
 

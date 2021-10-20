@@ -105,7 +105,7 @@ bool StaticHandler::hit() {
     }
     dir_path = std::string(url, n);
 
-    l_filename = swHttp_url_decode(task.filename, p - task.filename);
+    l_filename = http_server::url_decode(task.filename, p - task.filename);
     task.filename[l_filename] = '\0';
 
     if (swoole_strnpos(url, n, SW_STRL("..")) == -1) {

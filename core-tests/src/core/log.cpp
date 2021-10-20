@@ -119,3 +119,77 @@ TEST(log, redirect) {
 
     ASSERT_TRUE(content->contains(SW_STRL("hello world\n")));
 }
+
+namespace TestA {
+class TestPrettyName {
+  public:
+    static void fun(bool strip, const char *expect_str);
+};
+
+void TestPrettyName::fun(bool strip, const char *expect_str) {
+    ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+}
+
+static void test_pretty_name(bool strip, const char *expect_str) {
+    ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+}
+
+static void test_pretty_name_lambda(bool strip, const char *expect_str) {
+    auto fn = [](bool strip, const char *expect_str) {
+        ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+    };
+    fn(strip, expect_str);
+}
+
+}  // namespace TestA
+
+static void test_pretty_name(bool strip, const char *expect_str) {
+    ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+}
+
+static void test_pretty_name_lambda(bool strip, const char *expect_str) {
+    auto fn = [](bool strip, const char *expect_str) {
+        ASSERT_STREQ(Logger::get_pretty_name(__PRETTY_FUNCTION__, strip).c_str(), expect_str);
+    };
+    fn(strip, expect_str);
+}
+
+TEST(log, pretty_name) {
+    TestA::TestPrettyName::fun(false, "TestA::TestPrettyName::fun");
+    TestA::test_pretty_name(false, "TestA::test_pretty_name");
+    test_pretty_name(false, "test_pretty_name");
+
+    TestA::TestPrettyName::fun(true, "TestPrettyName::fun");
+    TestA::test_pretty_name(true, "test_pretty_name");
+    test_pretty_name(true, "test_pretty_name");
+}
+
+TEST(log, pretty_name_lambda) {
+    TestA::test_pretty_name_lambda(true, "test_pretty_name_lambda");
+    test_pretty_name_lambda(true, "test_pretty_name_lambda");
+
+    TestA::test_pretty_name_lambda(false, "TestA::test_pretty_name_lambda");
+    test_pretty_name_lambda(false, "test_pretty_name_lambda");
+}
+
+TEST(log, ignore_error) {
+    sw_logger()->reset();
+    sw_logger()->set_level(SW_LOG_NOTICE);
+    sw_logger()->open(file);
+
+    const int ignored_errcode = 999999;
+    const int errcode = 888888;
+
+    swoole_ignore_error(ignored_errcode);
+
+    swoole_error_log(SW_LOG_WARNING, ignored_errcode, "error 1");
+    swoole_error_log(SW_LOG_WARNING, errcode, "error 2");
+
+    auto content = file_get_contents(file);
+
+    sw_logger()->close();
+    unlink(file);
+
+    ASSERT_FALSE(content->contains(SW_STRL("error 1")));
+    ASSERT_TRUE(content->contains(SW_STRL("error 2")));
+}

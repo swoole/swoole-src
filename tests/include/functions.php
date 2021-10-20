@@ -775,3 +775,32 @@ function curl_type_assert($ch, $resource_type, $class_type)
         Assert::eq(get_resource_type($ch), $resource_type);
     }
 }
+
+function swoole_get_variance($avg, $array, $is_swatch = false)
+{
+    $count = count($array);
+    if ($count == 1 && $is_swatch == true) {
+        return false;
+    } elseif ($count > 0) {
+        $total_var = 0;
+        foreach ($array as $lv) {
+            $total_var += pow(($lv - $avg), 2);
+        }
+        if ($count == 1 && $is_swatch == true) {
+            return false;
+        }
+        return $is_swatch ? sqrt($total_var / (count($array) - 1)) : sqrt($total_var / count($array));
+    } else {
+        return false;
+    }
+}
+
+function swoole_get_average($array)
+{
+    return array_sum($array) / count($array);
+}
+
+function assert_server_stats($stats) {
+    Assert::keyExists($stats, 'connection_num');
+    Assert::keyExists($stats, 'request_count');
+}

@@ -40,7 +40,7 @@ _do_sendfile:
 #endif
 
     // sent_bytes = (off_t)size;
-    swTrace(
+    swoole_trace(
         "send file, ret:%d, out_fd:%d, in_fd:%d, offset:%jd, size:%zu", ret, out_fd, in_fd, (intmax_t) *offset, size);
 
 #ifdef __MACH__
@@ -58,7 +58,7 @@ _do_sendfile:
     } else if (ret == 0) {
         return size;
     } else {
-        swSysWarn("sendfile failed");
+        swoole_sys_warning("sendfile failed");
         return SW_ERR;
     }
     return SW_OK;
@@ -72,13 +72,13 @@ int swoole_sendfile(int out_fd, int in_fd, off_t *offset, size_t size) {
     if (n > 0) {
         ssize_t ret = write(out_fd, buf, n);
         if (ret < 0) {
-            swSysWarn("write() failed");
+            swoole_sys_warning("write() failed");
         } else {
             *offset += ret;
         }
         return ret;
     } else {
-        swSysWarn("pread() failed");
+        swoole_sys_warning("pread() failed");
         return SW_ERR;
     }
 }

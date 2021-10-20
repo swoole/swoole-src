@@ -1,6 +1,12 @@
 #include "test_core.h"
 #include "swoole_process_pool.h"
 
+#include <signal.h>
+
+#ifdef __MACH__
+#define sysv_signal signal
+#endif
+
 using namespace swoole;
 
 static void test_func(ProcessPool &pool) {
@@ -32,8 +38,7 @@ TEST(process_pool, tcp) {
 TEST(process_pool, unix_sock) { 
     ProcessPool pool{};
     signal(SIGPIPE, SIG_IGN);
-    ASSERT_EQ(pool.create(1, 0, SW_IPC_SOCKET), SW_OK);
-    ASSERT_EQ(pool.listen(TEST_TMP_FILE, 128), SW_OK);
+    ASSERT_EQ(pool.create(1, 0, SW_IPC_UNIXSOCK), SW_OK);
 
     test_func(pool);
 }

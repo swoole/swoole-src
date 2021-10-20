@@ -241,7 +241,7 @@ class mysql_client {
             return false;
         } else {
             /* without unread data */
-            swString *buffer = socket->get_read_buffer();
+            String *buffer = socket->get_read_buffer();
             SW_ASSERT(buffer->length == (size_t) buffer->offset);
             buffer->clear();
             return true;
@@ -606,11 +606,11 @@ bool mysql_client::connect(std::string host, uint16_t port, bool ssl) {
 const char *mysql_client::recv_length(size_t need_length, const bool try_to_recycle) {
     if (sw_likely(check_connection())) {
         ssize_t retval;
-        swString *buffer = socket->get_read_buffer();
+        String *buffer = socket->get_read_buffer();
         off_t offset = buffer->offset;                    // save offset instead of buffer point (due to realloc)
         size_t read_n = buffer->length - buffer->offset;  // readable bytes
         if (try_to_recycle && read_n == 0) {
-            swTraceLog(SW_TRACE_MYSQL_CLIENT,
+            swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
                        "mysql buffer will be recycled, length=%zu, offset=%jd",
                        buffer->length,
                        (intmax_t) offset);
@@ -628,7 +628,7 @@ const char *mysql_client::recv_length(size_t need_length, const bool try_to_recy
                     non_sql_error(MYSQLND_CR_OUT_OF_MEMORY, strerror(ENOMEM));
                     return nullptr;
                 } else {
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "mysql buffer extend to %zu", buffer->size);
+                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "mysql buffer extend to %zu", buffer->size);
                 }
             }
             retval = socket->recv(buffer->str + buffer->length, buffer->size - buffer->length);
@@ -653,7 +653,7 @@ const char *mysql_client::recv_packet() {
         return nullptr;
     }
     length = mysql::packet::get_length(p);
-    swTraceLog(SW_TRACE_MYSQL_CLIENT, "recv packet length=%u, number=%u", length, mysql::packet::get_number(p));
+    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "recv packet length=%u, number=%u", length, mysql::packet::get_number(p));
     p = recv_length(length);
     if (sw_unlikely(!p)) {
         return nullptr;
@@ -921,17 +921,17 @@ void mysql_client::handle_row_data_text(zval *return_value, mysql::row_data *row
         }
     }
     if (row_data->text.nul || field->type == SW_MYSQL_TYPE_NULL) {
-        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s is null", field->name_length, field->name);
+        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s is null", field->name_length, field->name);
         RETURN_NULL();
     } else {
         RETVAL_STRINGL(p, row_data->text.length);
     _return:
-        swTraceLog(SW_TRACE_MYSQL_CLIENT,
-                   "%.*s=[%zu]%.*s%s",
+        swoole_trace_log(SW_TRACE_MYSQL_CLIENT,
+                   "%.*s=[%lu]%.*s%s",
                    field->name_length,
                    field->name,
                    Z_STRLEN_P(return_value),
-                   SW_MIN(32, Z_STRLEN_P(return_value)),
+                   (int) SW_MIN(32, Z_STRLEN_P(return_value)),
                    Z_STRVAL_P(return_value),
                    (Z_STRLEN_P(return_value) > 32 ? "..." : ""));
     }
@@ -1005,7 +1005,7 @@ void mysql_client::handle_strict_type(zval *ztext, mysql::field_packet *field) {
             break;
         }
         default: {
-            swWarn("unknown type[%d] for field [%.*s].", field->type, field->name_length, field->name);
+            swoole_warning("unknown type[%d] for field [%.*s].", field->type, field->name_length, field->name);
             break;
         }
         }
@@ -1204,7 +1204,7 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params) {
         RETURN_FALSE;
     }
 
-    swString *buffer = client->socket->get_write_buffer();
+    String *buffer = client->socket->get_write_buffer();
     char *p = buffer->str;
 
     memset(p, 0, 5);
@@ -1247,36 +1247,36 @@ void mysql_statement::send_execute_request(zval *return_value, zval *params) {
         zval *value;
         ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(params), value) {
             switch (client->strict_type ? Z_TYPE_P(value) : (IS_NULL == Z_TYPE_P(value) ? IS_NULL : IS_STRING)) {
-                case IS_NULL:
-                    *((buffer->str + null_start_offset) + (index / 8)) |= (1UL << (index % 8));
-                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_NULL);
-                    break;
-                case IS_TRUE:
-                case IS_FALSE:
-                case IS_LONG:
-                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_LONGLONG);
-                    sw_mysql_int8store(stack_buffer, zval_get_long(value));
-                    if (buffer->append(stack_buffer, mysql::get_static_type_size(SW_MYSQL_TYPE_LONGLONG)) < 0) {
-                        RETURN_FALSE;
-                    }
-                    break;
-                case IS_DOUBLE:
-                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_DOUBLE);
-                    sw_mysql_doublestore(stack_buffer, zval_get_double(value));
-                    if (buffer->append(stack_buffer, mysql::get_static_type_size(SW_MYSQL_TYPE_DOUBLE)) < 0) {
-                        RETURN_FALSE;
-                    }
-                    break;
-                default:
-                    zend::String str_value(value);
-                    uint8_t lcb_size = mysql::write_lcb(stack_buffer, str_value.len());
-                    sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
-                    if (buffer->append(stack_buffer, lcb_size) < 0) {
-                        RETURN_FALSE;
-                    }
-                    if (buffer->append(str_value.val(), str_value.len()) < 0) {
-                        RETURN_FALSE;
-                    }
+            case IS_NULL:
+                *((buffer->str + null_start_offset) + (index / 8)) |= (1UL << (index % 8));
+                sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_NULL);
+                break;
+            case IS_TRUE:
+            case IS_FALSE:
+            case IS_LONG:
+                sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_LONGLONG);
+                sw_mysql_int8store(stack_buffer, zval_get_long(value));
+                if (buffer->append(stack_buffer, mysql::get_static_type_size(SW_MYSQL_TYPE_LONGLONG)) < 0) {
+                    RETURN_FALSE;
+                }
+                break;
+            case IS_DOUBLE:
+                sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_DOUBLE);
+                sw_mysql_doublestore(stack_buffer, zval_get_double(value));
+                if (buffer->append(stack_buffer, mysql::get_static_type_size(SW_MYSQL_TYPE_DOUBLE)) < 0) {
+                    RETURN_FALSE;
+                }
+                break;
+            default:
+                zend::String str_value(value);
+                uint8_t lcb_size = mysql::write_lcb(stack_buffer, str_value.len());
+                sw_mysql_int2store((buffer->str + type_start_offset) + (index * 2), SW_MYSQL_TYPE_VAR_STRING);
+                if (buffer->append(stack_buffer, lcb_size) < 0) {
+                    RETURN_FALSE;
+                }
+                if (buffer->append(str_value.val(), str_value.len()) < 0) {
+                    RETURN_FALSE;
+                }
             }
             index++;
         }
@@ -1380,7 +1380,7 @@ void mysql_statement::fetch(zval *return_value) {
 
             /* to check Null-Bitmap @see https://dev.mysql.com/doc/internals/en/null-bitmap.html */
             if (null_bitmap.is_null(i) || field->type == SW_MYSQL_TYPE_NULL) {
-                swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s is null", field->name_length, field->name);
+                swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s is null", field->name_length, field->name);
                 add_assoc_null_ex(return_value, field->name, field->name_length);
                 continue;
             }
@@ -1428,26 +1428,26 @@ void mysql_statement::fetch(zval *return_value) {
                     std::string datetime = mysql::datetime(p, row_data.text.length, field->decimals);
                     add_assoc_stringl_ex(
                         return_value, field->name, field->name_length, (char *) datetime.c_str(), datetime.length());
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, datetime.c_str());
+                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, datetime.c_str());
                     break;
                 }
                 case SW_MYSQL_TYPE_TIME: {
                     std::string time = mysql::time(p, row_data.text.length, field->decimals);
                     add_assoc_stringl_ex(
                         return_value, field->name, field->name_length, (char *) time.c_str(), time.length());
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, time.c_str());
+                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, time.c_str());
                     break;
                 }
                 case SW_MYSQL_TYPE_DATE: {
                     std::string date = mysql::date(p, row_data.text.length);
                     add_assoc_stringl_ex(
                         return_value, field->name, field->name_length, (char *) date.c_str(), date.length());
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, date.c_str());
+                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%s", field->name_length, field->name, date.c_str());
                     break;
                 }
                 case SW_MYSQL_TYPE_YEAR: {
                     add_assoc_long_ex(return_value, field->name, field->name_length, sw_mysql_uint2korr2korr(p));
-                    swTraceLog(
+                    swoole_trace_log(
                         SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, sw_mysql_uint2korr2korr(p));
                     break;
                 }
@@ -1455,52 +1455,51 @@ void mysql_statement::fetch(zval *return_value) {
                 case SW_MYSQL_TYPE_TINY:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(uint8_t *) p);
-                        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint8_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint8_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int8_t *) p);
-                        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int8_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int8_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_SHORT:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(uint16_t *) p);
-                        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint16_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint16_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int16_t *) p);
-                        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int16_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int16_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_INT24:
                 case SW_MYSQL_TYPE_LONG:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(uint32_t *) p);
-                        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint32_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%u", field->name_length, field->name, *(uint32_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int32_t *) p);
-                        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int32_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, *(int32_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_LONGLONG:
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_ulong_safe_ex(return_value, field->name, field->name_length, *(uint64_t *) p);
-                        swTraceLog(
-                            SW_TRACE_MYSQL_CLIENT, "%.*s=%llu", field->name_length, field->name, *(uint64_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%lu", field->name_length, field->name, *(uint64_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int64_t *) p);
-                        swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%lld", field->name_length, field->name, *(int64_t *) p);
+                        swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%ld", field->name_length, field->name, *(int64_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_FLOAT: {
                     double dv = sw_php_math_round(*(float *) p, 5, PHP_ROUND_HALF_DOWN);
                     add_assoc_double_ex(return_value, field->name, field->name_length, dv);
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%.7f", field->name_length, field->name, dv);
+                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%.7f", field->name_length, field->name, dv);
                 } break;
                 case SW_MYSQL_TYPE_DOUBLE: {
                     add_assoc_double_ex(return_value, field->name, field->name_length, *(double *) p);
-                    swTraceLog(SW_TRACE_MYSQL_CLIENT, "%.*s=%.16f", field->name_length, field->name, *(double *) p);
+                    swoole_trace_log(SW_TRACE_MYSQL_CLIENT, "%.*s=%.16f", field->name_length, field->name, *(double *) p);
                 } break;
                 default:
-                    swWarn("unknown type[%d] for field [%.*s].", field->type, field->name_length, field->name);
+                    swoole_warning("unknown type[%d] for field [%.*s].", field->type, field->name_length, field->name);
                     goto _add_string;
                 }
             }
@@ -1691,7 +1690,7 @@ static sw_inline void swoole_mysql_coro_sync_execute_result_properties(zval *zob
 
 void php_swoole_mysql_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_mysql_coro, "Swoole\\Coroutine\\MySQL", nullptr, "Co\\MySQL", swoole_mysql_coro_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_mysql_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_mysql_coro);
     SW_SET_CLASS_CLONEABLE(swoole_mysql_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mysql_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
@@ -1702,7 +1701,7 @@ void php_swoole_mysql_coro_minit(int module_number) {
                         nullptr,
                         "Co\\MySQL\\Statement",
                         swoole_mysql_coro_statement_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_mysql_coro_statement, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_mysql_coro_statement);
     SW_SET_CLASS_CLONEABLE(swoole_mysql_coro_statement, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mysql_coro_statement, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_mysql_coro_statement,
@@ -1717,7 +1716,7 @@ void php_swoole_mysql_coro_minit(int module_number) {
                            "Co\\MySQL\\Exception",
                            nullptr,
                            swoole_exception);
-    SW_SET_CLASS_SERIALIZABLE(swoole_mysql_coro_exception, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_mysql_coro_exception);
     SW_SET_CLASS_CLONEABLE(swoole_mysql_coro_exception, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_mysql_coro_exception, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_mysql_coro_exception);
@@ -1901,7 +1900,8 @@ static PHP_METHOD(swoole_mysql_coro, fetch) {
     mc->fetch(return_value);
     mc->del_timeout_controller();
     if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE)) {
-        swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connected());
+        swoole_mysql_coro_sync_error_properties(
+            ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connected());
     }
 }
 
@@ -1918,7 +1918,8 @@ static PHP_METHOD(swoole_mysql_coro, fetchAll) {
     mc->fetch_all(return_value);
     mc->del_timeout_controller();
     if (sw_unlikely(Z_TYPE_P(return_value) == IS_FALSE)) {
-        swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connected());
+        swoole_mysql_coro_sync_error_properties(
+            ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connected());
     }
 }
 
@@ -1958,7 +1959,8 @@ static PHP_METHOD(swoole_mysql_coro, prepare) {
     mc->add_timeout_controller(timeout, Socket::TIMEOUT_RDWR);
     if (UNEXPECTED(!mc->send_prepare_request(statement, statement_length))) {
     _failed:
-        swoole_mysql_coro_sync_error_properties(ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connected());
+        swoole_mysql_coro_sync_error_properties(
+            ZEND_THIS, mc->get_error_code(), mc->get_error_msg(), mc->is_connected());
         RETVAL_FALSE;
     } else if (UNEXPECTED(mc->get_defer())) {
         RETVAL_TRUE;

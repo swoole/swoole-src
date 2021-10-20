@@ -8,8 +8,8 @@
 #include <regex>
 
 using namespace std;
-using swoole::test::coroutine;
 using swoole::AsyncEvent;
+using swoole::test::coroutine;
 
 const int magic_code = 0x7009501;
 
@@ -19,11 +19,11 @@ TEST(coroutine_async, usleep) {
         bool retval = swoole::coroutine::async(
             [](AsyncEvent *event) {
                 usleep(1000);
-                event->ret = magic_code;
+                event->retval = magic_code;
             },
             ev);
         ASSERT_EQ(retval, true);
-        ASSERT_EQ(ev.ret, magic_code);
+        ASSERT_EQ(ev.retval, magic_code);
     });
 }
 
@@ -50,5 +50,15 @@ TEST(coroutine_async, gethostbyname) {
         } catch (std::exception &ex) {
             std::cerr << "regex error: gcc version must be 4.9+" << std::endl;
         }
+    });
+}
+
+TEST(coroutine_async, error) {
+    coroutine::run([](void *arg) {
+        int retval = 0x7009501;
+        const char *test_file = "/tmp/swoole_core_test_file_not_exists";
+        swoole::coroutine::async([&](void) { retval = open(test_file, O_RDONLY); }, -1);
+        ASSERT_EQ(retval, -1);
+        ASSERT_EQ(errno, ENOENT);
     });
 }

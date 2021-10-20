@@ -8,10 +8,12 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-go(function () {
-    $host = swoole_async_dns_lookup_coro('www.baidu.com');
+use Swoole\Coroutine\System;
+use function Swoole\Coroutine\run;
+
+run(function () {
+    $host = System::dnsLookup('www.baidu.com');
     Assert::assert(filter_var($host, FILTER_VALIDATE_IP) !== false);
 });
-swoole_event_wait();
 ?>
 --EXPECT--

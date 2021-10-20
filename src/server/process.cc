@@ -22,25 +22,17 @@ namespace swoole {
 
 using network::Socket;
 
-typedef int (*SendFunc)(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
-
-static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data);
-static int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
-static int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data);
-
-ProcessFactory::ProcessFactory(Server *server) : Factory(server) {
-    send_buffer = nullptr;
-}
+ProcessFactory::ProcessFactory(Server *server) : Factory(server) {}
 
 bool ProcessFactory::shutdown() {
     int status;
 
     if (swoole_kill(server_->gs->manager_pid, SIGTERM) < 0) {
-        swSysWarn("swKill(%d) failed", server_->gs->manager_pid);
+        swoole_sys_warning("kill(%d) failed", server_->gs->manager_pid);
     }
 
     if (swoole_waitpid(server_->gs->manager_pid, &status, 0) < 0) {
-        swSysWarn("waitpid(%d) failed", server_->gs->manager_pid);
+        swoole_sys_warning("waitpid(%d) failed", server_->gs->manager_pid);
     }
 
     SW_LOOP_N(server_->worker_num) {
@@ -52,24 +44,15 @@ bool ProcessFactory::shutdown() {
 }
 
 ProcessFactory::~ProcessFactory() {
-    if (server_->pipe_buffers) {
-        SW_LOOP_N(server_->reactor_num) {
-            sw_free(server_->pipe_buffers[i]);
-        }
-        sw_free(server_->pipe_buffers);
-    }
     if (server_->stream_socket_file) {
         unlink(server_->stream_socket_file);
         sw_free(server_->stream_socket_file);
         server_->stream_socket->free();
     }
-    if (send_buffer) {
-        sw_free(send_buffer);
-    }
 }
 
 bool ProcessFactory::start() {
-    if (server_->dispatch_mode == SW_DISPATCH_STREAM) {
+    if (server_->dispatch_mode == Server::DISPATCH_STREAM) {
         server_->stream_socket_file = swoole_string_format(64, "/tmp/swoole.%d.sock", server_->gs->master_pid);
         if (server_->stream_socket_file == nullptr) {
             return false;
@@ -105,23 +88,16 @@ bool ProcessFactory::start() {
         server_->store_pipe_fd(server_->workers[i].pipe_object);
     }
 
-    server_->set_ipc_max_size();
+    server_->init_ipc_max_size();
     if (server_->create_pipe_buffers() < 0) {
         return false;
     }
-
-    send_buffer = (PipeBuffer *) sw_malloc(server_->ipc_max_size);
-    if (send_buffer == nullptr) {
-        swSysError("malloc[send_buffer] failed");
-        return false;
-    }
-    sw_memset_zero(send_buffer, sizeof(DataHead));
 
     /**
      * The manager process must be started first, otherwise it will have a thread fork
      */
     if (server_->start_manager_process() < 0) {
-        swWarn("FactoryProcess_manager_start failed");
+        swoole_warning("failed to start");
         return false;
     }
     return true;
@@ -137,14 +113,6 @@ bool ProcessFactory::notify(DataHead *ev) {
     return dispatch(&task);
 }
 
-static inline int process_sendto_worker(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
-    return serv->send_to_worker_from_master((Worker *) private_data, iov, iovcnt);
-}
-
-static inline int process_sendto_reactor(Server *serv, DataHead *head, const iovec *iov, size_t iovcnt, void *private_data) {
-    return serv->send_to_reactor_thread(head, iov, iovcnt, ((Connection *) private_data)->session_id);
-}
-
 /**
  * [ReactorThread] dispatch request to worker
  */
@@ -154,13 +122,13 @@ bool ProcessFactory::dispatch(SendData *task) {
     int target_worker_id = server_->schedule_worker(fd, task);
     if (target_worker_id < 0) {
         switch (target_worker_id) {
-        case SW_DISPATCH_RESULT_DISCARD_PACKET:
+        case Server::DISPATCH_RESULT_DISCARD_PACKET:
             return false;
-        case SW_DISPATCH_RESULT_CLOSE_CONNECTION:
+        case Server::DISPATCH_RESULT_CLOSE_CONNECTION:
             // TODO: close connection
             return false;
         default:
-            swWarn("invalid target worker id[%d]", target_worker_id);
+            swoole_warning("invalid target worker id[%d]", target_worker_id);
             return false;
         }
     }
@@ -168,7 +136,7 @@ bool ProcessFactory::dispatch(SendData *task) {
     if (Server::is_stream_event(task->info.type)) {
         Connection *conn = server_->get_connection(fd);
         if (conn == nullptr || conn->active == 0) {
-            swWarn("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
+            swoole_warning("dispatch[type=%d] failed, connection#%d is not active", task->info.type, fd);
             return false;
         }
         // server active close, discard data.
@@ -186,98 +154,13 @@ bool ProcessFactory::dispatch(SendData *task) {
     Worker *worker = server_->get_worker(target_worker_id);
 
     if (task->info.type == SW_SERVER_EVENT_RECV_DATA) {
-        worker->dispatch_count++;
-        server_->gs->dispatch_count++;
+        sw_atomic_fetch_add(&worker->dispatch_count, 1);
     }
 
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
 
-    return process_send_packet(server_, &_task, process_sendto_worker, worker);
-}
-
-/**
- * @description: master process send data to worker process.
- *  If the data sent is larger than Server::ipc_max_size, then it is sent in chunks. Otherwise send it directly。
- * @return: send success returns SW_OK, send failure returns SW_ERR.
- */
-static bool process_send_packet(Server *serv, SendData *resp, SendFunc _send, void *private_data) {
-    const char *data = resp->data;
-    uint32_t send_n = resp->info.len;
-    off_t offset = 0;
-    uint32_t copy_n;
-
-    struct iovec iov[2];
-
-    uint32_t max_length = serv->ipc_max_size - sizeof(resp->info);
-    resp->info.msg_id = serv->worker_msg_id.fetch_add(1);
-
-    if (send_n <= max_length) {
-        resp->info.flags = 0;
-        resp->info.len = send_n;
-
-        size_t iovcnt;
-        iov[0].iov_base = &resp->info;
-        iov[0].iov_len = sizeof(resp->info);
-
-        if (resp->data) {
-            iov[1].iov_base = (void *) resp->data;
-            iov[1].iov_len = send_n;
-            iovcnt = 2;
-        } else {
-            iovcnt = 1;
-        }
-
-        int retval = _send(serv, &resp->info, iov, iovcnt, private_data);
-#ifdef __linux__
-        if (retval < 0 && errno == ENOBUFS) {
-            max_length = SW_IPC_BUFFER_SIZE;
-            goto _ipc_use_chunk;
-        }
-#endif
-        return retval >= 0;
-    }
-
-#ifdef __linux__
-_ipc_use_chunk:
-#endif
-    resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
-    resp->info.len = send_n;
-
-    while (send_n > 0) {
-        if (send_n > max_length) {
-            copy_n = max_length;
-        } else {
-            resp->info.flags |= SW_EVENT_DATA_END;
-            copy_n = send_n;
-        }
-
-        iov[0].iov_base = &resp->info;
-        iov[0].iov_len = sizeof(resp->info);
-        iov[1].iov_base = (void *) (data + offset);
-        iov[1].iov_len = copy_n;
-
-        swTrace("finish, type=%d|len=%u", resp->info.type, copy_n);
-
-        if (_send(serv, &resp->info, iov, 2, private_data) < 0) {
-#ifdef __linux__
-            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
-                max_length = SW_IPC_BUFFER_SIZE;
-                continue;
-            }
-#endif
-            return false;
-        }
-
-        if (resp->info.flags & SW_EVENT_DATA_BEGIN) {
-            resp->info.flags &= ~SW_EVENT_DATA_BEGIN;
-        }
-
-        send_n -= copy_n;
-        offset += copy_n;
-    }
-
-    return true;
+    return server_->message_bus.write(server_->get_worker_pipe_socket(worker), &_task);
 }
 
 static bool inline process_is_supported_send_yield(Server *serv, Connection *conn) {
@@ -322,7 +205,8 @@ bool ProcessFactory::finish(SendData *resp) {
                          resp->info.len,
                          session_id);
         return false;
-    } else if (conn->overflow) {
+    } else if (conn->overflow &&
+               (resp->info.type == SW_SERVER_EVENT_SEND_DATA || resp->info.type == SW_SERVER_EVENT_SEND_FILE)) {
         if (server_->send_yield && process_is_supported_send_yield(server_, conn)) {
             swoole_set_last_error(SW_ERROR_OUTPUT_SEND_YIELD);
         } else {
@@ -358,9 +242,9 @@ bool ProcessFactory::finish(SendData *resp) {
     task.info.reactor_id = conn->reactor_id;
     task.info.server_fd = SwooleG.process_id;
 
-    swTrace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
+    swoole_trace("worker_id=%d, type=%d", SwooleG.process_id, task.info.type);
 
-    return process_send_packet(server_, &task, process_sendto_reactor, conn);
+    return server_->message_bus.write(server_->get_reactor_pipe_socket(session_id, task.info.reactor_id), &task);
 }
 
 bool ProcessFactory::end(SessionId session_id, int flags) {
@@ -373,7 +257,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
 
     Connection *conn = server_->get_connection_verify_no_ssl(session_id);
     if (!conn) {
-        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session[%ld] is closed", session_id);
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_NOT_EXIST, "session#%ld is closed", session_id);
         return false;
     }
     // Reset send buffer, Immediately close the connection.
@@ -385,7 +269,7 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
         conn->close_actively = 1;
     }
 
-    swTraceLog(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
+    swoole_trace_log(SW_TRACE_CLOSE, "session_id=%ld, fd=%d", session_id, conn->fd);
 
     Worker *worker;
     DataHead ev = {};
@@ -416,34 +300,29 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
         }
     }
 
-    _close:
-    if (conn == nullptr || conn->active == 0) {
-        swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
-        return false;
-    } else if (conn->close_force) {
-        goto _do_close;
-    } else if (conn->closing) {
+_close:
+    if (conn->closing) {
         swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSING, "session#%ld is closing", session_id);
         return false;
-    } else if (conn->closed) {
+    } else if (!(conn->close_force || conn->close_reset) && conn->closed) {
+        swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session#%ld is closed", session_id);
         return false;
-    } else {
-    _do_close:
-        conn->closing = 1;
-        if (server_->onClose != nullptr) {
-            info.fd = session_id;
-            if (conn->close_actively) {
-                info.reactor_id = -1;
-            } else {
-                info.reactor_id = conn->reactor_id;
-            }
-            info.server_fd = conn->server_fd;
-            server_->onClose(server_, &info);
-        }
-        conn->closing = 0;
-        conn->closed = 1;
-        conn->close_errno = 0;
-        return finish(&_send);
     }
+
+    if (server_->onClose != nullptr && !conn->closed) {
+        info.fd = session_id;
+        if (conn->close_actively) {
+            info.reactor_id = -1;
+        } else {
+            info.reactor_id = conn->reactor_id;
+        }
+        info.server_fd = conn->server_fd;
+        conn->closing = 1;
+        server_->onClose(server_, &info);
+        conn->closing = 0;
+    }
+    conn->closed = 1;
+    conn->close_errno = 0;
+    return finish(&_send);
 }
 }  // namespace swoole

@@ -61,11 +61,12 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     } else {                                                                                                           \
         RETURN_TRUE;                                                                                                   \
     }
-#define SW_LOCK_CHECK_RETURN(s)                                                                                        \
-    if (s == 0) {                                                                                                      \
+#define SW_LOCK_CHECK_RETURN(s)																						   \
+    zend_long ___tmp_return_value = s; 																				   \
+    if (___tmp_return_value == 0) {                                                                                    \
         RETURN_TRUE;                                                                                                   \
     } else {                                                                                                           \
-        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), s);                                \
+        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value );             \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -81,6 +82,12 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #ifdef SW_USE_OPENSSL
 #ifndef HAVE_OPENSSL
 #error "Enable openssl support, require openssl library"
+#endif
+#endif
+
+#ifdef SW_USE_CARES
+#ifndef HAVE_CARES
+#error "Enable c-ares support, require c-ares library"
 #endif
 #endif
 
@@ -128,10 +135,6 @@ enum php_swoole_fd_type {
     PHP_SWOOLE_FD_REDIS_CORO,
     PHP_SWOOLE_FD_POSTGRESQL,
     PHP_SWOOLE_FD_SOCKET,
-    /**
-     * for Co::fread/Co::fwrite
-     */
-    PHP_SWOOLE_FD_CO_UTIL,
     PHP_SWOOLE_FD_CO_CURL,
 };
 //---------------------------------------------------------
@@ -144,8 +147,8 @@ enum php_swoole_req_status {
 };
 //---------------------------------------------------------
 
-static sw_inline enum swSocket_type php_swoole_socktype(long type) {
-    return (enum swSocket_type)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
+static sw_inline enum swSocketType php_swoole_socktype(long type) {
+    return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
 }
 
 extern zend_class_entry *swoole_event_ce;
@@ -628,9 +631,14 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         }                                                                                                              \
     } while (0)
 
-#define SW_SET_CLASS_SERIALIZABLE(module, _serialize, _unserialize)                                                    \
-    module##_ce->serialize = _serialize;                                                                               \
-    module##_ce->unserialize = _unserialize
+#if PHP_VERSION_ID < 80100
+#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
+    module##_ce->serialize = zend_class_serialize_deny;                                                                               \
+    module##_ce->unserialize = zend_class_unserialize_deny;
+#else
+#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
+    module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#endif
 
 #define sw_zend_class_clone_deny NULL
 #define SW_SET_CLASS_CLONEABLE(module, _clone_obj) module##_handlers.clone_obj = _clone_obj

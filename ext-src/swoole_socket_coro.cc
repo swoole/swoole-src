@@ -803,7 +803,7 @@ static void swoole_socket_coro_register_constants(int module_number) {
 void php_swoole_socket_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_socket_coro, "Swoole\\Coroutine\\Socket", nullptr, "Co\\Socket", swoole_socket_coro_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_socket_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_socket_coro);
     SW_SET_CLASS_CLONEABLE(swoole_socket_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_socket_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_socket_coro,
@@ -843,9 +843,12 @@ static void sw_inline php_swoole_init_socket(zval *zobject, SocketObject *sock) 
     sock->socket->set_zero_copy(true);
     sock->socket->set_buffer_allocator(sw_zend_string_allocator());
     zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("fd"), sock->socket->get_fd());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("domain"), sock->socket->get_sock_domain());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
-    zend_update_property_long(swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
+    zend_update_property_long(
+        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("domain"), sock->socket->get_sock_domain());
+    zend_update_property_long(
+        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("type"), sock->socket->get_sock_type());
+    zend_update_property_long(
+        swoole_socket_coro_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("protocol"), sock->socket->get_sock_protocol());
 }
 
 SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
@@ -863,7 +866,7 @@ SW_API bool php_swoole_export_socket(zval *zobject, Socket *_socket) {
     return true;
 }
 
-SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type) {
+SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocketType type) {
     php_swoole_check_reactor();
     int new_fd = dup(fd);
     if (new_fd < 0) {
@@ -873,7 +876,7 @@ SW_API zend_object *php_swoole_dup_socket(int fd, enum swSocket_type type) {
     return php_swoole_create_socket_from_fd(new_fd, type);
 }
 
-SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocket_type type) {
+SW_API zend_object *php_swoole_create_socket_from_fd(int fd, enum swSocketType type) {
     zval zobject;
     zend_object *object = php_swoole_socket_coro_create_object(swoole_socket_coro_ce);
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
@@ -980,7 +983,7 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
     if (php_swoole_array_get_value(vht, "open_mqtt_protocol", ztmp)) {
         sock->open_length_check = zval_is_true(ztmp);
         if (zval_is_true(ztmp)) {
-            swMqtt_set_protocol(&sock->protocol);
+            swoole::mqtt::set_protocol(&sock->protocol);
         }
     }
     // open length check
@@ -1479,26 +1482,27 @@ static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const b
 
     std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
 
-    SW_HASHTABLE_FOREACH_START(vht, zelement)
-    if (!ZVAL_IS_LONG(zelement)) {
-        zend_throw_exception_ex(swoole_socket_coro_exception_ce,
-                                EINVAL,
-                                "Item #[%d] must be of type int, %s given",
-                                iov_index,
-                                zend_get_type_by_const(Z_TYPE_P(zelement)));
-        RETURN_FALSE;
-    }
-    if (Z_LVAL_P(zelement) < 0) {
-        zend_throw_exception_ex(
-            swoole_socket_coro_exception_ce, EINVAL, "Item #[%d] must be greater than 0", iov_index);
-        RETURN_FALSE;
-    }
-    size_t iov_len = Z_LVAL_P(zelement);
+    SW_HASHTABLE_FOREACH_START(vht, zelement) {
+        if (!ZVAL_IS_LONG(zelement)) {
+            zend_throw_exception_ex(swoole_socket_coro_exception_ce,
+                                    EINVAL,
+                                    "Item #[%d] must be of type int, %s given",
+                                    iov_index,
+                                    zend_get_type_by_const(Z_TYPE_P(zelement)));
+            RETURN_FALSE;
+        }
+        if (Z_LVAL_P(zelement) < 0) {
+            zend_throw_exception_ex(
+                swoole_socket_coro_exception_ce, EINVAL, "Item #[%d] must be greater than 0", iov_index);
+            RETURN_FALSE;
+        }
+        size_t iov_len = Z_LVAL_P(zelement);
 
-    iov[iov_index].iov_base = zend_string_alloc(iov_len, 0)->val;
-    iov[iov_index].iov_len = iov_len;
-    iov_index++;
-    total_length += iov_len;
+        iov[iov_index].iov_base = zend_string_alloc(iov_len, 0)->val;
+        iov[iov_index].iov_len = iov_len;
+        iov_index++;
+        total_length += iov_len;
+    }
     SW_HASHTABLE_FOREACH_END();
 
     swoole::network::IOVector io_vector((struct iovec *) iov.get(), iovcnt);
@@ -1533,6 +1537,7 @@ static void swoole_socket_coro_read_vector(INTERNAL_FUNCTION_PARAMETERS, const b
             real_count = iov_index + 1;
             zend_string *str = zend::fetch_zend_string_by_val((char *) iov[iov_index].iov_base);
             iov[iov_index].iov_base = sw_zend_string_recycle(str, iov[iov_index].iov_len, offset_bytes)->val;
+            iov[iov_index].iov_len = offset_bytes;
             free_func(iov.get(), iovcnt, real_count);
         } else {
             real_count = iovcnt;
@@ -1767,9 +1772,10 @@ static PHP_METHOD(swoole_socket_coro, getOption) {
     }
     case SO_RCVTIMEO:
     case SO_SNDTIMEO: {
-        double timeout = sock->socket->get_timeout(optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
+        double timeout =
+            sock->socket->get_timeout(optname == SO_RCVTIMEO ? Socket::TIMEOUT_READ : Socket::TIMEOUT_WRITE);
         array_init(return_value);
-        int sec =  (int) timeout;
+        int sec = (int) timeout;
         add_assoc_long(return_value, "sec", (int) timeout);
         add_assoc_long(return_value, "usec", (timeout - (double) sec) * 1000000);
         break;

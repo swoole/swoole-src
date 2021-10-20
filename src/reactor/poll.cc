@@ -62,19 +62,19 @@ ReactorPoll::~ReactorPoll() {
 int ReactorPoll::add(Socket *socket, int events) {
     int fd = socket->fd;
     if (exists(fd)) {
-        swWarn("fd#%d is already exists", fd);
+        swoole_warning("fd#%d is already exists", fd);
         return SW_ERR;
     }
 
-    int cur = reactor_->event_num;
-    if (reactor_->event_num == max_fd_num) {
-        swWarn("too many connection, more than %d", max_fd_num);
+    int cur = reactor_->get_event_num();
+    if (reactor_->get_event_num() == max_fd_num) {
+        swoole_warning("too many connection, more than %d", max_fd_num);
         return SW_ERR;
     }
 
     reactor_->_add(socket, events);
 
-    swTrace("fd=%d, events=%d", fd, events);
+    swoole_trace("fd=%d, events=%d", fd, events);
 
     fds_[cur] = socket;
     events_[cur].fd = fd;
@@ -96,9 +96,9 @@ int ReactorPoll::add(Socket *socket, int events) {
 int ReactorPoll::set(Socket *socket, int events) {
     uint32_t i;
 
-    swTrace("fd=%d, events=%d", socket->fd, events);
+    swoole_trace("fd=%d, events=%d", socket->fd, events);
 
-    for (i = 0; i < reactor_->event_num; i++) {
+    for (i = 0; i < reactor_->get_event_num(); i++) {
         // found
         if (events_[i].fd == socket->fd) {
             events_[i].events = 0;
@@ -126,10 +126,10 @@ int ReactorPoll::del(Socket *socket) {
         return SW_ERR;
     }
 
-    for (uint32_t i = 0; i < reactor_->event_num; i++) {
+    for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
         if (events_[i].fd == socket->fd) {
-            for (; i < reactor_->event_num; i++) {
-                if (i == reactor_->event_num) {
+            for (; i < reactor_->get_event_num(); i++) {
+                if (i == reactor_->get_event_num()) {
                     fds_[i] = nullptr;
                     events_[i].fd = 0;
                     events_[i].events = 0;
@@ -166,10 +166,10 @@ int ReactorPoll::wait(struct timeval *timeo) {
         if (reactor_->onBegin != nullptr) {
             reactor_->onBegin(reactor_);
         }
-        ret = poll(events_, reactor_->event_num, reactor_->get_timeout_msec());
+        ret = poll(events_, reactor_->get_event_num(), reactor_->get_timeout_msec());
         if (ret < 0) {
             if (!reactor_->catch_error()) {
-                swSysWarn("poll error");
+                swoole_sys_warning("poll error");
                 break;
             } else {
                 goto _continue;
@@ -178,7 +178,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
             reactor_->execute_end_callbacks(true);
             SW_REACTOR_CONTINUE;
         } else {
-            for (uint32_t i = 0; i < reactor_->event_num; i++) {
+            for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
                 event.socket = fds_[i];
                 event.fd = events_[i].fd;
                 event.reactor_id = reactor_->id;
@@ -188,13 +188,13 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     event.socket->event_hup = 1;
                 }
 
-                swTrace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor_->id, event.type);
+                swoole_trace("Event: fd=%d|reactor_id=%d|type=%d", event.fd, reactor_->id, event.type);
                 // in
                 if ((events_[i].revents & POLLIN) && !event.socket->removed) {
                     handler = reactor_->get_handler(SW_EVENT_READ, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swSysWarn("poll[POLLIN] handler failed. fd=%d", event.fd);
+                        swoole_sys_warning("poll[POLLIN] handler failed. fd=%d", event.fd);
                     }
                 }
                 // out
@@ -202,7 +202,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     handler = reactor_->get_handler(SW_EVENT_WRITE, event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swSysWarn("poll[POLLOUT] handler failed. fd=%d", event.fd);
+                        swoole_sys_warning("poll[POLLOUT] handler failed. fd=%d", event.fd);
                     }
                 }
                 // error
@@ -214,7 +214,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
                     handler = reactor_->get_error_handler(event.type);
                     ret = handler(reactor_, &event);
                     if (ret < 0) {
-                        swSysWarn("poll[POLLERR] handler failed. fd=%d", event.fd);
+                        swoole_sys_warning("poll[POLLERR] handler failed. fd=%d", event.fd);
                     }
                 }
                 if (!event.socket->removed && (event.socket->events & SW_EVENT_ONCE)) {
@@ -230,7 +230,7 @@ int ReactorPoll::wait(struct timeval *timeo) {
 }
 
 bool ReactorPoll::exists(int fd) {
-    for (uint32_t i = 0; i < reactor_->event_num; i++) {
+    for (uint32_t i = 0; i < reactor_->get_event_num(); i++) {
         if (events_[i].fd == fd) {
             return true;
         }

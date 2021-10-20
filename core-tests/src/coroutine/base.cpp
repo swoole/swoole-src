@@ -1,6 +1,7 @@
 #include "test_coroutine.h"
 
 using namespace swoole;
+using swoole::coroutine::System;
 
 TEST(coroutine_base, create) {
     long _cid;
@@ -177,4 +178,24 @@ TEST(coroutine_base, run) {
 
     });
     ASSERT_GE(cid, 1);
+}
+
+TEST(coroutine_base, cancel) {
+    coroutine::run([](void *arg) {
+        auto co = Coroutine::get_current_safe();
+        Coroutine::create([co](void *){
+            System::sleep(0.002);
+            co->cancel();
+        });
+        ASSERT_EQ(co->yield_ex(-1), false);
+        ASSERT_EQ(co->is_canceled(), true);
+    });
+}
+
+TEST(coroutine_base, timeout) {
+    coroutine::run([](void *arg) {
+        auto co = Coroutine::get_current_safe();
+        ASSERT_EQ(co->yield_ex(0.005), false);
+        ASSERT_EQ(co->is_timedout(), true);
+    });
 }

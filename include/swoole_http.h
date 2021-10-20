@@ -17,14 +17,14 @@
 
 #include "swoole.h"
 
-enum swHttp_version {
+enum swHttpVersion {
     SW_HTTP_VERSION_10 = 1,
     SW_HTTP_VERSION_11,
     SW_HTTP_VERSION_2,
     SW_HTTP_VERSION_3,
 };
 
-enum swHttp_method {
+enum swHttpMethod {
     SW_HTTP_DELETE = 1,
     SW_HTTP_GET,
     SW_HTTP_HEAD,
@@ -59,7 +59,7 @@ enum swHttp_method {
     SW_HTTP_PRI,
 };
 
-enum swHttp_status_code {
+enum swHttpStatusCode {
     SW_HTTP_CONTINUE = 100,
     SW_HTTP_SWITCHING_PROTOCOLS = 101,
     SW_HTTP_PROCESSING = 102,
@@ -127,7 +127,7 @@ struct Request {
     uint32_t header_length_;       /* include request_line_length + \r\n */
     uint32_t content_length_;
 
-    swString *buffer_;
+    String *buffer_;
 
   public:
     Request() {
@@ -146,18 +146,19 @@ struct Request {
     bool has_expect_header();
 #endif
 };
-//-----------------------------------------------------------------
-}  // namespace http
-}  // namespace swoole
 
-int swHttp_get_method(const char *method_str, size_t method_len);
-const char *swHttp_get_method_string(int method);
-const char *swHttp_get_status_message(int code);
-size_t swHttp_url_decode(char *str, size_t len);
-char *swHttp_url_encode(char const *str, size_t len);
+int get_method(const char *method_str, size_t method_len);
+const char *get_method_string(int method);
+const char *get_status_message(int code);
+size_t url_decode(char *str, size_t len);
+char *url_encode(char const *str, size_t len);
 
 #ifdef SW_USE_HTTP2
-ssize_t swHttpMix_get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
-uint8_t swHttpMix_get_package_length_size(swSocket *conn);
-int swHttpMix_dispatch_frame(swProtocol *protocol, swSocket *conn, const char *data, uint32_t length);
+ssize_t get_package_length(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
+uint8_t get_package_length_size(network::Socket *conn);
+int dispatch_frame(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
 #endif
+
+//-----------------------------------------------------------------
+}  // namespace http_server
+}  // namespace swoole

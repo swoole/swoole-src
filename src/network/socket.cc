@@ -89,7 +89,7 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
 
     File file(filename, O_RDONLY);
     if (!file.ready()) {
-        swSysWarn("open(%s) failed", filename);
+        swoole_sys_warning("open(%s) failed", filename);
         return SW_ERR;
     }
 
@@ -111,7 +111,7 @@ int Socket::sendfile_blocking(const char *filename, off_t offset, size_t length,
             sendn = (length - offset > SW_SENDFILE_CHUNK_SIZE) ? SW_SENDFILE_CHUNK_SIZE : length - offset;
             n = ::swoole_sendfile(fd, file.get_fd(), &offset, sendn);
             if (n <= 0) {
-                swSysWarn("sendfile(%d, %s) failed", fd, filename);
+                swoole_sys_warning("sendfile(%d, %s) failed", fd, filename);
                 return SW_ERR;
             } else {
                 continue;
@@ -131,7 +131,7 @@ ssize_t Socket::writev_blocking(const struct iovec *iov, size_t iovcnt) {
                        wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
-                swSysWarn("send %lu bytes failed", iov[1].iov_len);
+                swoole_sys_warning("send %lu bytes failed", iov[1].iov_len);
                 return SW_ERR;
             }
         } else {
@@ -174,7 +174,7 @@ int Socket::wait_event(int timeout_ms, int events) {
             swoole_set_last_error(SW_ERROR_SOCKET_POLL_TIMEOUT);
             return SW_ERR;
         } else if (ret < 0 && errno != EINTR) {
-            swSysWarn("poll() failed");
+            swoole_sys_warning("poll() failed");
             return SW_ERR;
         } else {
             return SW_OK;
@@ -203,7 +203,7 @@ ssize_t Socket::send_blocking(const void *__data, size_t __len) {
                        wait_event((int) (send_timeout_ * 1000), SW_EVENT_WRITE) == SW_OK) {
                 continue;
             } else {
-                swSysWarn("send %lu bytes failed", __len);
+                swoole_sys_warning("send %lu bytes failed", __len);
                 return SW_ERR;
             }
         }
@@ -308,7 +308,7 @@ ssize_t Socket::recvfrom_blocking(char *__buf, size_t __len, int flags, Address 
 static void socket_free_defer(void *ptr) {
     Socket *sock = (Socket *) ptr;
     if (sock->fd != -1 && close(sock->fd) != 0) {
-        swSysWarn("close(%d) failed", sock->fd);
+        swoole_sys_warning("close(%d) failed", sock->fd);
     }
     delete sock;
 }
@@ -319,6 +319,12 @@ void Socket::free() {
     }
     if (send_timer) {
         swoole_timer_del(send_timer);
+    }
+    if (in_buffer) {
+        delete in_buffer;
+    }
+    if (out_buffer) {
+        delete out_buffer;
     }
     if (swoole_event_is_available()) {
         removed = 1;
@@ -335,12 +341,12 @@ int Socket::bind(const std::string &_host, int *port) {
     const char *host = _host.c_str();
 
     if (set_reuse_addr() < 0) {
-        swSysWarn("setsockopt(%d, SO_REUSEADDR) failed", fd);
+        swoole_sys_warning("setsockopt(%d, SO_REUSEADDR) failed", fd);
     }
     // UnixSocket
     if (socket_type == SW_SOCK_UNIX_DGRAM || socket_type == SW_SOCK_UNIX_STREAM) {
         if (l_host == 0 || l_host > sizeof(address.addr.un) - 1) {
-            swWarn("bad unix socket file");
+            swoole_warning("bad unix socket file");
             errno = EINVAL;
             return SW_ERR;
         }
@@ -355,7 +361,7 @@ int Socket::bind(const std::string &_host, int *port) {
             host = "::";
         }
         if (inet_pton(AF_INET6, host, &address.addr.inet_v6.sin6_addr) < 0) {
-            swSysWarn("inet_pton(AF_INET6, %s) failed", host);
+            swoole_sys_warning("inet_pton(AF_INET6, %s) failed", host);
             return SW_ERR;
         }
         address.addr.inet_v6.sin6_port = htons(*port);
@@ -374,7 +380,7 @@ int Socket::bind(const std::string &_host, int *port) {
             host = "0.0.0.0";
         }
         if (inet_pton(AF_INET, host, &address.addr.inet_v4.sin_addr) < 0) {
-            swSysWarn("inet_pton(AF_INET, %s) failed", host);
+            swoole_sys_warning("inet_pton(AF_INET, %s) failed", host);
             return SW_ERR;
         }
         address.addr.inet_v4.sin_port = htons(*port);
@@ -411,7 +417,7 @@ bool Socket::set_buffer_size(uint32_t _buffer_size) {
 
 bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
     if (set_option(SOL_SOCKET, SO_RCVBUF, _buffer_size) != 0) {
-        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
+        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_SNDBUF, %d) failed", fd, _buffer_size);
         return false;
     }
     return true;
@@ -419,7 +425,7 @@ bool Socket::set_recv_buffer_size(uint32_t _buffer_size) {
 
 bool Socket::set_send_buffer_size(uint32_t _buffer_size) {
     if (set_option(SOL_SOCKET, SO_SNDBUF, _buffer_size) != 0) {
-        swSysWarn("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
+        swoole_sys_warning("setsockopt(%d, SOL_SOCKET, SO_RCVBUF, %d) failed", fd, _buffer_size);
         return false;
     }
     return true;
@@ -436,7 +442,7 @@ static bool _set_timeout(int fd, int type, double timeout) {
     timeo.tv_usec = (int) ((timeout - timeo.tv_sec) * 1000 * 1000);
     ret = setsockopt(fd, SOL_SOCKET, type, (void *) &timeo, sizeof(timeo));
     if (ret < 0) {
-        swSysWarn("setsockopt(SO_SNDTIMEO, %s) failed", type == SO_SNDTIMEO ? "SEND" : "RECV");
+        swoole_sys_warning("setsockopt(SO_SNDTIMEO, %s) failed", type == SO_SNDTIMEO ? "SEND" : "RECV");
         return false;
     } else {
         return true;
@@ -452,7 +458,7 @@ static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
         } while (opts < 0 && errno == EINTR);
 
         if (opts < 0) {
-            swSysWarn("fcntl(%d, GETFL) failed", sock);
+            swoole_sys_warning("fcntl(%d, GETFL) failed", sock);
         }
 
         if (nonblock) {
@@ -466,7 +472,7 @@ static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
         } while (ret < 0 && errno == EINTR);
 
         if (ret < 0) {
-            swSysWarn("fcntl(%d, SETFL, opts) failed", sock);
+            swoole_sys_warning("fcntl(%d, SETFL, opts) failed", sock);
             return false;
         }
     }
@@ -478,7 +484,7 @@ static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
         } while (opts < 0 && errno == EINTR);
 
         if (opts < 0) {
-            swSysWarn("fcntl(%d, GETFL) failed", sock);
+            swoole_sys_warning("fcntl(%d, GETFL) failed", sock);
         }
 
         if (cloexec) {
@@ -492,7 +498,7 @@ static bool _fcntl_set_option(int sock, int nonblock, int cloexec) {
         } while (ret < 0 && errno == EINTR);
 
         if (ret < 0) {
-            swSysWarn("fcntl(%d, SETFD, opts) failed", sock);
+            swoole_sys_warning("fcntl(%d, SETFD, opts) failed", sock);
             return false;
         }
     }
@@ -551,12 +557,12 @@ int Socket::handle_sendfile() {
         ret = ::swoole_sendfile(fd, task->file.get_fd(), &task->offset, sendn);
     }
 
-    swTrace("ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->offset, sendn, task->length);
+    swoole_trace("ret=%d|task->offset=%ld|sendn=%lu|filesize=%lu", ret, (long) task->offset, sendn, task->length);
 
     if (ret <= 0) {
         switch (catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->offset, sendn);
+            swoole_sys_warning("sendfile(%s, %ld, %zu) failed", task->file.get_path().c_str(), (long) task->offset, sendn);
             buffer->pop();
             return SW_OK;
         case SW_CLOSE:
@@ -600,7 +606,7 @@ int Socket::handle_send() {
     if (ret < 0) {
         switch (catch_error(errno)) {
         case SW_ERROR:
-            swSysWarn("send to fd[%d] failed", fd);
+            swoole_sys_warning("send to fd[%d] failed", fd);
             break;
         case SW_CLOSE:
             close_wait = 1;
@@ -635,18 +641,18 @@ static void Socket_sendfile_destructor(BufferChunk *chunk) {
 int Socket::sendfile(const char *filename, off_t offset, size_t length) {
     std::unique_ptr<SendfileRequest> task(new SendfileRequest(filename, offset, length));
     if (!task->file.ready()) {
-        swSysWarn("open(%s) failed", filename);
+        swoole_sys_warning("open(%s) failed", filename);
         return SW_OK;
     }
 
     FileStatus file_stat;
     if (!task->file.stat(&file_stat)) {
-        swSysWarn("fstat(%s) failed", filename);
+        swoole_sys_warning("fstat(%s) failed", filename);
         return SW_ERR;
     }
 
     if (file_stat.st_size == 0) {
-        swWarn("empty file[%s]", filename);
+        swoole_warning("empty file[%s]", filename);
         return SW_ERR;
     }
 
@@ -714,7 +720,7 @@ ssize_t Socket::recv(void *__buf, size_t __n, int __flags) {
         total_bytes = 0;
     }
 
-    swTraceLog(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "recv %ld/%ld bytes, errno=%d", total_bytes, __n, errno);
 
     return total_bytes;
 }
@@ -740,7 +746,7 @@ ssize_t Socket::send(const void *__buf, size_t __n, int __flags) {
         }
     }
 
-    swTraceLog(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, __n, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "send %ld/%ld bytes, errno=%d", retval, __n, errno);
 
     return retval;
 }
@@ -804,7 +810,7 @@ ssize_t Socket::peek(void *__buf, size_t __n, int __flags) {
         }
     } while (retval < 0 && errno == EINTR);
 
-    swTraceLog(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, __n, errno);
+    swoole_trace_log(SW_TRACE_SOCKET, "peek %ld/%ld bytes, errno=%d", retval, __n, errno);
 
     return retval;
 }
@@ -855,7 +861,7 @@ bool Socket::ssl_check_host(const char *tls_host_name) {
 #ifdef X509_CHECK_FLAG_ALWAYS_CHECK_SUBJECT
     /* X509_check_host() is only available in OpenSSL 1.0.2+ */
     if (X509_check_host(cert, tls_host_name, strlen(tls_host_name), 0, nullptr) != 1) {
-        swWarn("X509_check_host(): no match");
+        swoole_warning("X509_check_host(): no match");
         goto _failed;
     }
     goto _found;
@@ -884,16 +890,16 @@ bool Socket::ssl_check_host(const char *tls_host_name) {
             }
 
             str = altname->d.dNSName;
-            swTrace("SSL subjectAltName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+            swoole_trace("SSL subjectAltName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
             if (ssl_check_name(tls_host_name, str) == SW_OK) {
-                swTrace("SSL subjectAltName: match");
+                swoole_trace("SSL subjectAltName: match");
                 GENERAL_NAMES_free(altnames);
                 goto _found;
             }
         }
 
-        swTrace("SSL subjectAltName: no match");
+        swoole_trace("SSL subjectAltName: no match");
         GENERAL_NAMES_free(altnames);
         goto _failed;
     }
@@ -920,14 +926,14 @@ bool Socket::ssl_check_host(const char *tls_host_name) {
         entry = X509_NAME_get_entry(sname, i);
         str = X509_NAME_ENTRY_get_data(entry);
 
-        swTrace("SSL commonName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
+        swoole_trace("SSL commonName: \"%.*s\"", ASN1_STRING_length(str), ASN1_STRING_data(str));
 
         if (ssl_check_name(tls_host_name, str) == SW_OK) {
-            swTrace("SSL commonName: match");
+            swoole_trace("SSL commonName: match");
             goto _found;
         }
     }
-    swTrace("SSL commonName: no match");
+    swoole_trace("SSL commonName: no match");
 #endif
 
 _failed:
@@ -987,18 +993,18 @@ static int _ssl_read_x509_file(X509 *cert, char *buffer, size_t length) {
     };
 
     if (bio == nullptr) {
-        swWarn("BIO_new() failed");
+        swoole_warning("BIO_new() failed");
         return -1;
     }
 
     if (PEM_write_bio_X509(bio, cert) == 0) {
-        swWarn("PEM_write_bio_X509() failed");
+        swoole_warning("PEM_write_bio_X509() failed");
         return -1;
     }
 
     len = BIO_pending(bio);
     if (len < 0 && len > (long) length) {
-        swWarn("certificate length[%ld] is too big", len);
+        swoole_warning("certificate length[%ld] is too big", len);
         return -1;
     }
     return BIO_read(bio, buffer, len);
@@ -1011,7 +1017,13 @@ std::vector<std::string> Socket::ssl_get_peer_cert_chain(int limit) {
         return list;
     }
     auto n = sk_X509_num(chain);
+
+#ifdef OPENSSL_IS_BORINGSSL
+    n = std::min((int)n, limit);
+#else
     n = std::min(n, limit);
+#endif
+
     SW_LOOP_N(n) {
         X509 *cert = sk_X509_value(chain, i);
         auto n = _ssl_read_x509_file(cert, sw_tg_buffer()->str, sw_tg_buffer()->size);
@@ -1051,7 +1063,7 @@ const char *Socket::ssl_get_error_reason(int *reason) {
     return ERR_reason_error_string(error);
 }
 
-enum swReturn_code Socket::ssl_accept() {
+ReturnCode Socket::ssl_accept() {
     ssl_clear_error();
 
     int n = SSL_accept(ssl);
@@ -1088,7 +1100,7 @@ enum swReturn_code Socket::ssl_accept() {
     } else if (err == SSL_ERROR_SSL) {
         int reason;
         const char *error_string = ssl_get_error_reason(&reason);
-        swWarn(
+        swoole_warning(
             "bad SSL client[%s:%d], reason=%d, error_string=%s", info.get_ip(), info.get_port(), reason, error_string);
         return SW_ERROR;
     } else if (err == SSL_ERROR_SYSCALL) {
@@ -1100,7 +1112,7 @@ enum swReturn_code Socket::ssl_accept() {
 #endif
         return SW_ERROR;
     }
-    swWarn("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(errno), err, errno);
+    swoole_warning("SSL_do_handshake() failed. Error: %s[%ld|%d]", strerror(errno), err, errno);
     return SW_ERROR;
 }
 
@@ -1114,7 +1126,7 @@ int Socket::ssl_connect() {
 #ifdef SW_LOG_TRACE_OPEN
         const char *ssl_version = SSL_get_version(ssl);
         const char *ssl_cipher = SSL_get_cipher_name(ssl);
-        swTraceLog(SW_TRACE_SSL, "connected (%s %s)", ssl_version, ssl_cipher);
+        swoole_trace_log(SW_TRACE_SSL, "connected (%s %s)", ssl_version, ssl_cipher);
 #endif
 
         return SW_OK;
@@ -1132,7 +1144,7 @@ int Socket::ssl_connect() {
         ssl_state = SW_SSL_STATE_WAIT_STREAM;
         return SW_OK;
     } else if (err == SSL_ERROR_ZERO_RETURN) {
-        swDebug("SSL_connect(fd=%d) closed", fd);
+        swoole_debug("SSL_connect(fd=%d) closed", fd);
         return SW_ERR;
     } else if (err == SSL_ERROR_SYSCALL) {
         if (n) {
@@ -1143,7 +1155,7 @@ int Socket::ssl_connect() {
 
     long err_code = ERR_get_error();
     char *msg = ERR_error_string(err_code, sw_tg_buffer()->str);
-    swNotice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]", fd, info.get_ip(), info.get_port(), msg,
+    swoole_notice("Socket::ssl_connect(fd=%d) to server[%s:%d] failed. Error: %s[%ld|%d]", fd, info.get_ip(), info.get_port(), msg,
            err, ERR_GET_REASON(err_code));
 
     return SW_ERR;
@@ -1158,15 +1170,15 @@ int Socket::ssl_sendfile(const File &fp, off_t *_offset, size_t _size) {
         ssize_t ret = ssl_send(buf, n);
         if (ret < 0) {
             if (catch_error(errno) == SW_ERROR) {
-                swSysWarn("write() failed");
+                swoole_sys_warning("write() failed");
             }
         } else {
             *_offset += ret;
         }
-        swTraceLog(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
+        swoole_trace_log(SW_TRACE_REACTOR, "fd=%d, readn=%ld, n=%ld, ret=%ld", fd, readn, n, ret);
         return ret;
     } else {
-        swSysWarn("pread() failed");
+        swoole_sys_warning("pread() failed");
         return SW_ERR;
     }
 }
@@ -1191,19 +1203,19 @@ bool Socket::ssl_shutdown() {
 
     int n = SSL_shutdown(ssl);
     ssl_closed_ = 1;
-    swTrace("SSL_shutdown: %d", n);
+    swoole_trace("SSL_shutdown: %d", n);
 
     int sslerr = 0;
     /* before 0.9.8m SSL_shutdown() returned 0 instead of -1 on errors */
     if (n != 1 && ERR_peek_error()) {
         sslerr = SSL_get_error(ssl, n);
-        swTrace("SSL_get_error: %d", sslerr);
+        swoole_trace("SSL_get_error: %d", sslerr);
     }
 
     if (!(n == 1 || sslerr == 0 || sslerr == SSL_ERROR_ZERO_RETURN)) {
         int reason;
         const char *error_string = ssl_get_error_reason(&reason);
-        swWarn("SSL_shutdown() failed, reason=%d, error_string=%s", reason, error_string);
+        swoole_warning("SSL_shutdown() failed, reason=%d, error_string=%s", reason, error_string);
         return false;
     }
 
@@ -1403,12 +1415,12 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
 
     ssl = SSL_new(ssl_context->get_context());
     if (ssl == nullptr) {
-        swWarn("SSL_new() failed");
+        swoole_warning("SSL_new() failed");
         return SW_ERR;
     }
     if (!SSL_set_fd(ssl, fd)) {
         long err = ERR_get_error();
-        swWarn("SSL_set_fd() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
+        swoole_warning("SSL_set_fd() failed. Error: %s[%ld]", ERR_reason_error_string(err), err);
         return SW_ERR;
     }
     if (_flags & SW_SSL_CLIENT) {
@@ -1416,10 +1428,15 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
     } else if (_flags & SW_SSL_SERVER) {
         SSL_set_accept_state(ssl);
     }
-    if (SSL_set_ex_data(ssl, swSSL_get_ex_connection_index(), this) == 0) {
-        swWarn("SSL_set_ex_data() failed");
+    if (SSL_set_ex_data(ssl, swoole_ssl_get_ex_connection_index(), this) == 0) {
+        swoole_warning("SSL_set_ex_data() failed");
         return SW_ERR;
     }
+
+#ifdef OPENSSL_IS_BORINGSSL
+    SSL_set_enable_ech_grease(ssl, ssl_context->grease);
+#endif
+
     ssl_state = 0;
     return SW_OK;
 }
@@ -1430,12 +1447,12 @@ int Socket::ssl_create(SSLContext *ssl_context, int _flags) {
 
 using network::Socket;
 
-Socket *make_socket(enum swSocket_type type, enum swFd_type fd_type, int flags) {
+Socket *make_socket(SocketType type, FdType fd_type, int flags) {
     int sock_domain;
     int sock_type;
 
     if (Socket::get_domain_and_type(type, &sock_domain, &sock_type) < 0) {
-        swWarn("unknown socket type [%d]", type);
+        swoole_warning("unknown socket type [%d]", type);
         errno = ESOCKTNOSUPPORT;
         return nullptr;
     }
@@ -1474,10 +1491,10 @@ Socket *make_socket(enum swSocket_type type, enum swFd_type fd_type, int flags) 
     return _socket;
 }
 
-Socket *make_server_socket(enum swSocket_type type, const char *address, int port, int backlog) {
+Socket *make_server_socket(SocketType type, const char *address, int port, int backlog) {
     Socket *sock = swoole::make_socket(type, SW_FD_STREAM_SERVER, SW_SOCK_CLOEXEC);
     if (sock == nullptr) {
-        swSysWarn("socket() failed");
+        swoole_sys_warning("socket() failed");
         return nullptr;
     }
     if (sock->bind(address, &port) < 0) {
@@ -1485,14 +1502,14 @@ Socket *make_server_socket(enum swSocket_type type, const char *address, int por
         return nullptr;
     }
     if (sock->is_stream() && sock->listen(backlog) < 0) {
-        swSysWarn("listen(%s:%d, %d) failed", address, port, backlog);
+        swoole_sys_warning("listen(%s:%d, %d) failed", address, port, backlog);
         sock->free();
         return nullptr;
     }
     return sock;
 }
 
-Socket *make_socket(int fd, enum swFd_type fd_type) {
+Socket *make_socket(int fd, FdType fd_type) {
     Socket *socket = new Socket();
     socket->fd = fd;
     socket->fd_type = fd_type;

@@ -27,20 +27,20 @@ int swoole_daemon(int nochdir, int noclose) {
     pid_t pid;
 
     if (!nochdir && chdir("/") != 0) {
-        swSysWarn("chdir() failed");
+        swoole_sys_warning("chdir() failed");
         return -1;
     }
 
     if (!noclose) {
         int fd = open("/dev/null", O_RDWR);
         if (fd < 0) {
-            swSysWarn("open() failed");
+            swoole_sys_warning("open() failed");
             return -1;
         }
 
         if (dup2(fd, 0) < 0 || dup2(fd, 1) < 0 || dup2(fd, 2) < 0) {
             close(fd);
-            swSysWarn("dup2() failed");
+            swoole_sys_warning("dup2() failed");
             return -1;
         }
 
@@ -49,14 +49,14 @@ int swoole_daemon(int nochdir, int noclose) {
 
     pid = swoole_fork(SW_FORK_DAEMON);
     if (pid < 0) {
-        swSysWarn("fork() failed");
+        swoole_sys_warning("fork() failed");
         return -1;
     }
     if (pid > 0) {
         _exit(0);
     }
     if (setsid() < 0) {
-        swSysWarn("setsid() failed");
+        swoole_sys_warning("setsid() failed");
         return -1;
     }
     return 0;
@@ -85,7 +85,7 @@ namespace async {
 
 void handler_gethostbyname(AsyncEvent *event) {
     char addr[SW_IP_MAX_LENGTH];
-    int ret = swoole::network::gethostbyname(event->flags, (char *) event->buf, addr);
+    int ret = network::gethostbyname(event->flags, (char *) event->buf, addr);
     sw_memset_zero(event->buf, event->nbytes);
 
     if (ret < 0) {
@@ -99,12 +99,12 @@ void handler_gethostbyname(AsyncEvent *event) {
             ret = 0;
         }
     }
-    event->ret = ret;
+    event->retval = ret;
 }
 
 void handler_getaddrinfo(AsyncEvent *event) {
-    swoole::network::GetaddrinfoRequest *req = (swoole::network::GetaddrinfoRequest *) event->req;
-    event->ret = swoole::network::getaddrinfo(req);
+    network::GetaddrinfoRequest *req = (network::GetaddrinfoRequest *) event->req;
+    event->retval = network::getaddrinfo(req);
     event->error = req->error;
 }
 

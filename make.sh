@@ -1,6 +1,6 @@
 #!/bin/sh -e
 __DIR__=$(cd "$(dirname "$0")";pwd)
-COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-json --enable-swoole-curl"
+COMPILE_PARAMS="--enable-openssl --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-json --enable-swoole-curl --enable-cares"
 
 if [ "$(uname | grep -i darwin)"x != ""x ]; then
   CPU_COUNT="$(sysctl -n machdep.cpu.core_count)"
@@ -62,6 +62,7 @@ if [ "$1" = "help" ] ;then
   echo "./make.sh install-module"
   echo "./make.sh clean"
   echo "./make.sh debug"
+  echo "./make.sh trace"
   echo "./make.sh library [dev]"
   echo "./make.sh"
   exit 0
@@ -70,6 +71,8 @@ fi
 phpize
 if [ "$1" = "debug" ] ;then
   ./configure ${COMPILE_PARAMS} --enable-debug-log
+elif [ "$1" = "trace" ] ;then
+  ./configure ${COMPILE_PARAMS} --enable-trace-log
 else
   ./configure ${COMPILE_PARAMS}
 fi

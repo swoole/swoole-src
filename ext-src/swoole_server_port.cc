@@ -18,39 +18,39 @@
 
 using namespace swoole;
 
-struct server_port_event {
+struct ServerPortEvent {
     enum php_swoole_server_port_callback_type type;
     std::string name;
-    server_port_event(enum php_swoole_server_port_callback_type type, std::string &&name) : type(type), name(name) {}
+    ServerPortEvent(enum php_swoole_server_port_callback_type type, std::string &&name) : type(type), name(name) {}
 };
 
 // clang-format off
-static std::unordered_map<std::string, server_port_event> server_port_event_map({
-    { "connect",     server_port_event(SW_SERVER_CB_onConnect,     "Connect") },
-    { "receive",     server_port_event(SW_SERVER_CB_onReceive,     "Receive") },
-    { "close",       server_port_event(SW_SERVER_CB_onClose,       "Close") },
-    { "packet",      server_port_event(SW_SERVER_CB_onPacket,      "Packet") },
-    { "bufferfull",  server_port_event(SW_SERVER_CB_onBufferFull,  "BufferFull") },
-    { "bufferempty", server_port_event(SW_SERVER_CB_onBufferEmpty, "BufferEmpty") },
-    { "request",     server_port_event(SW_SERVER_CB_onRequest,     "Request") },
-    { "handshake",   server_port_event(SW_SERVER_CB_onHandShake,   "Handshake") },
-    { "open",        server_port_event(SW_SERVER_CB_onOpen,        "Open") },
-    { "message",     server_port_event(SW_SERVER_CB_onMessage,     "Message") },
-    { "disconnect",  server_port_event(SW_SERVER_CB_onDisconnect,  "Disconnect") },
+static std::unordered_map<std::string, ServerPortEvent> server_port_event_map({
+    { "connect",     ServerPortEvent(SW_SERVER_CB_onConnect,     "Connect") },
+    { "receive",     ServerPortEvent(SW_SERVER_CB_onReceive,     "Receive") },
+    { "close",       ServerPortEvent(SW_SERVER_CB_onClose,       "Close") },
+    { "packet",      ServerPortEvent(SW_SERVER_CB_onPacket,      "Packet") },
+    { "bufferfull",  ServerPortEvent(SW_SERVER_CB_onBufferFull,  "BufferFull") },
+    { "bufferempty", ServerPortEvent(SW_SERVER_CB_onBufferEmpty, "BufferEmpty") },
+    { "request",     ServerPortEvent(SW_SERVER_CB_onRequest,     "Request") },
+    { "handshake",   ServerPortEvent(SW_SERVER_CB_onHandShake,   "Handshake") },
+    { "open",        ServerPortEvent(SW_SERVER_CB_onOpen,        "Open") },
+    { "message",     ServerPortEvent(SW_SERVER_CB_onMessage,     "Message") },
+    { "disconnect",  ServerPortEvent(SW_SERVER_CB_onDisconnect,  "Disconnect") },
 });
 // clang-format on
 
 zend_class_entry *swoole_server_port_ce;
 static zend_object_handlers swoole_server_port_handlers;
 
-struct server_port_t {
+struct ServerPortObject {
     ListenPort *port;
     ServerPortProperty property;
     zend_object std;
 };
 
-static sw_inline server_port_t *php_swoole_server_port_fetch_object(zend_object *obj) {
-    return (server_port_t *) ((char *) obj - swoole_server_port_handlers.offset);
+static sw_inline ServerPortObject *php_swoole_server_port_fetch_object(zend_object *obj) {
+    return (ServerPortObject *) ((char *) obj - swoole_server_port_handlers.offset);
 }
 
 static sw_inline ListenPort *php_swoole_server_port_get_ptr(zval *zobject) {
@@ -83,7 +83,7 @@ static ServerPortProperty *php_swoole_server_port_get_and_check_property(zval *z
 
 // Dereference from server object
 void php_swoole_server_port_deref(zend_object *object) {
-    server_port_t *server_port = php_swoole_server_port_fetch_object(object);
+    ServerPortObject *server_port = php_swoole_server_port_fetch_object(object);
     ServerPortProperty *property = &server_port->property;
     if (property->serv) {
         for (int j = 0; j < PHP_SWOOLE_SERVER_PORT_CALLBACK_NUM; j++) {
@@ -112,7 +112,7 @@ static void php_swoole_server_port_free_object(zend_object *object) {
 }
 
 static zend_object *php_swoole_server_port_create_object(zend_class_entry *ce) {
-    server_port_t *server_port = (server_port_t *) zend_object_alloc(sizeof(server_port_t), ce);
+    ServerPortObject *server_port = (ServerPortObject *) zend_object_alloc(sizeof(ServerPortObject), ce);
     zend_object_std_init(&server_port->std, ce);
     object_properties_init(&server_port->std, ce);
     server_port->std.handlers = &swoole_server_port_handlers;
@@ -166,13 +166,13 @@ const zend_function_entry swoole_server_port_methods[] =
 void php_swoole_server_port_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_server_port, "Swoole\\Server\\Port", "swoole_server_port", nullptr, swoole_server_port_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_server_port, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_server_port);
     SW_SET_CLASS_CLONEABLE(swoole_server_port, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_server_port, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_server_port,
                                php_swoole_server_port_create_object,
                                php_swoole_server_port_free_object,
-                               server_port_t,
+                               ServerPortObject,
                                std);
 
     zend_declare_property_null(swoole_server_port_ce, ZEND_STRL("onConnect"), ZEND_ACC_PRIVATE);
@@ -199,7 +199,10 @@ void php_swoole_server_port_minit(int module_number) {
 /**
  * [Master-Process]
  */
-static ssize_t php_swoole_server_length_func(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length) {
+static ssize_t php_swoole_server_length_func(Protocol *protocol,
+                                             network::Socket *conn,
+                                             const char *data,
+                                             uint32_t length) {
     Server *serv = (Server *) protocol->private_data_2;
     serv->lock();
 
@@ -308,6 +311,11 @@ static PHP_METHOD(swoole_server_port, set) {
         if (port->kernel_socket_send_buffer_size <= 0) {
             port->kernel_socket_send_buffer_size = INT_MAX;
         }
+    }
+    // heartbeat idle time
+    if (php_swoole_array_get_value(vht, "heartbeat_idle_time", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        port->heartbeat_idle_time = SW_MAX(0, SW_MIN(v, UINT16_MAX));
     }
     if (php_swoole_array_get_value(vht, "buffer_high_watermark", ztmp)) {
         zend_long v = zval_get_long(ztmp);
@@ -590,7 +598,8 @@ static PHP_METHOD(swoole_server_port, set) {
                     delete context;
                     RETURN_FALSE;
                 }
-            } ZEND_HASH_FOREACH_END();
+            }
+            ZEND_HASH_FOREACH_END();
         }
 
         if (!port->ssl_context->cert_file.empty() || port->sni_contexts.empty()) {
@@ -643,7 +652,7 @@ static PHP_METHOD(swoole_server_port, on) {
     efree(func_name);
 
     bool found = false;
-    for (auto i = server_port_event_map.begin(); i!= server_port_event_map.end(); i++) {
+    for (auto i = server_port_event_map.begin(); i != server_port_event_map.end(); i++) {
         if (!swoole_strcaseeq(name, len, i->first.c_str(), i->first.length())) {
             continue;
         }
@@ -651,7 +660,8 @@ static PHP_METHOD(swoole_server_port, on) {
         found = true;
         int index = i->second.type;
         std::string property_name = std::string("on") + i->second.name;
-        zend_update_property(swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
+        zend_update_property(
+            swoole_server_port_ce, SW_Z8_OBJ_P(ZEND_THIS), property_name.c_str(), property_name.length(), cb);
         property->callbacks[index] =
             sw_zend_read_property(swoole_server_port_ce, ZEND_THIS, property_name.c_str(), property_name.length(), 0);
         sw_copy_to_stack(property->callbacks[index], property->_callbacks[index]);

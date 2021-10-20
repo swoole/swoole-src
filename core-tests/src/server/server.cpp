@@ -27,17 +27,36 @@
 using namespace std;
 using namespace swoole;
 
-TEST(server, create_pipe_buffers) {
+TEST(server, schedule) {
     int ret;
     Server serv(Server::MODE_PROCESS);
-    serv.create();
+    serv.worker_num = 6;
+    serv.dispatch_mode = Server::DISPATCH_IDLE_WORKER;
+    ret = serv.create();
+    ASSERT_EQ(SW_OK, ret);
 
-    ret = serv.create_pipe_buffers();
-    ASSERT_EQ(0, ret);
-    ASSERT_NE(nullptr, serv.pipe_buffers);
-    for (uint32_t i = 0; i < serv.reactor_num; i++) {
-        ASSERT_NE(nullptr, serv.pipe_buffers[i]);
+    for (uint32_t i = 0; i < serv.worker_num; i++) {
+        serv.workers[i].status = SW_WORKER_BUSY;
     }
+
+    std::set<int> _worker_id_set;
+
+    for (uint32_t i = 0; i < serv.worker_num; i++) {
+        auto worker_id = serv.schedule_worker(i * 13, nullptr);
+        _worker_id_set.insert(worker_id);
+    }
+    ASSERT_EQ(_worker_id_set.size(), serv.worker_num);
+
+    for (uint32_t i = 1; i < serv.worker_num - 1; i++) {
+        serv.workers[i].status = SW_WORKER_IDLE;
+    }
+
+    _worker_id_set.clear();
+    for (uint32_t i = 0; i < serv.worker_num; i++) {
+        auto worker_id = serv.schedule_worker(i * 13, nullptr);
+        _worker_id_set.insert(worker_id);
+    }
+    ASSERT_EQ(_worker_id_set.size(), serv.worker_num - 2);
 }
 
 static const char *packet = "hello world\n";
@@ -57,7 +76,7 @@ TEST(server, base) {
     ASSERT_EQ(serv.create(), SW_OK);
 
     std::thread t1([&]() {
-        swSignal_none();
+        swoole_signal_block_all();
 
         lock.lock();
 
@@ -99,7 +118,7 @@ TEST(server, process) {
 
     ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -107,7 +126,7 @@ TEST(server, process) {
 
     serv.onStart = [&lock](swServer *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
@@ -153,9 +172,9 @@ TEST(server, ssl) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocket_type )(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_TCP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -167,14 +186,14 @@ TEST(server, ssl) {
 
     serv.onStart = [&lock](Server *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
             ListenPort *port = serv->get_primary_port();
 
             EXPECT_EQ(port->ssl, 1);
-            EXPECT_EQ(swSSL_is_thread_safety(), true);
+            EXPECT_EQ(swoole_ssl_is_thread_safety(), true);
 
             swoole::network::SyncClient c(SW_SOCK_TCP);
             c.connect(TEST_HOST, port->port);
@@ -216,9 +235,9 @@ TEST(server, dtls) {
     Mutex *lock = new Mutex(Mutex::PROCESS_SHARED);
     lock->lock();
 
-    ListenPort *port = serv.add_port((enum swSocket_type )(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
+    ListenPort *port = serv.add_port((enum swSocketType)(SW_SOCK_UDP | SW_SOCK_SSL), TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -230,7 +249,7 @@ TEST(server, dtls) {
 
     serv.onStart = [&lock](Server *serv) {
         thread t1([=]() {
-            swSignal_none();
+            swoole_signal_block_all();
 
             lock->lock();
 
@@ -269,13 +288,13 @@ TEST(server, dtls) {
 #endif
 
 TEST(server, task_worker) {
-    swServer serv;
+    Server serv;
     serv.worker_num = 1;
     serv.task_worker_num = 1;
 
-    swListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
     if (!port) {
-        swWarn("listen failed, [error=%d]", swoole_get_last_error());
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
         exit(2);
     }
 
@@ -295,10 +314,10 @@ TEST(server, task_worker) {
 
     usleep(10000);
 
-    swEventData buf;
+    EventData buf;
     memset(&buf.info, 0, sizeof(buf.info));
 
-    swTask_type(&buf) |= SW_TASK_NOREPLY;
+    buf.info.ext_flags = SW_TASK_NOREPLY;
     buf.info.len = strlen(packet);
     memcpy(buf.data, packet, strlen(packet));
 
@@ -385,4 +404,77 @@ TEST(server, reactor_num_zero) {
     serv.create();
 
     ASSERT_EQ(serv.reactor_num, SW_CPU_NUM);
+}
+
+void test_command(enum Server::Mode _mode) {
+    Server serv(_mode);
+    serv.worker_num = 4;
+    serv.task_worker_num = 4;
+    serv.reactor_num = 2;
+
+    SwooleG.running = 1;
+
+    sw_logger()->set_level(SW_LOG_WARNING);
+
+    ListenPort *port = serv.add_port(SW_SOCK_TCP, TEST_HOST, 0);
+    if (!port) {
+        swoole_warning("listen failed, [error=%d]", swoole_get_last_error());
+        exit(2);
+    }
+
+    ASSERT_EQ(serv.create(), SW_OK);
+
+    serv.add_command("test", Server::Command::ALL_PROCESS, [](Server *, const std::string &msg) -> std::string {
+        return std::string("json result, ") + msg;
+    });
+
+    serv.onStart = [](Server *serv) {
+        static Server::Command::Callback fn = [&](Server *serv, const std::string &msg) {
+            usleep(50000);
+            if (msg == "json result, hello world [0]") {
+                if (serv->is_base_mode()) {
+                    goto _send_to_event_worker;
+                } else {
+                    serv->command(1, Server::Command::REACTOR_THREAD, "test", "hello world [1]", fn);
+                }
+            } else if (msg == "json result, hello world [1]") {
+            _send_to_event_worker:
+                serv->command(1, Server::Command::EVENT_WORKER, "test", "hello world [2]", fn);
+            } else if (msg == "json result, hello world [2]") {
+                serv->command(1, Server::Command::TASK_WORKER, "test", "hello world [3]", fn);
+            } else if (msg == "json result, hello world [3]") {
+                serv->command(1, Server::Command::MANAGER, "test", "hello world [4]", fn);
+            } else if (msg == "json result, hello world [4]") {
+                swoole_timer_after(50, [serv](Timer *, TimerNode *) { serv->shutdown(); });
+            } else {
+                ASSERT_TRUE(0);
+            }
+        };
+        serv->command(1, Server::Command::MASTER, "test", "hello world [0]", fn);
+    };
+
+    serv.onWorkerStart = [](Server *serv, int worker_id) {
+
+    };
+
+    serv.onTask = [](Server *, EventData *) -> int { return SW_OK; };
+
+    serv.onReceive = [](Server *serv, RecvData *req) -> int {
+        EXPECT_EQ(string(req->data, req->info.len), string(packet));
+
+        string resp = string("Server: ") + string(packet);
+        serv->send(req->info.fd, resp.c_str(), resp.length());
+
+        return SW_OK;
+    };
+
+    ASSERT_EQ(serv.start(), 0);
+}
+
+TEST(server, command_1) {
+    test_command(Server::MODE_PROCESS);
+}
+
+TEST(server, command_2) {
+    test_command(Server::MODE_BASE);
 }

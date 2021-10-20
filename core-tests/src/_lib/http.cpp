@@ -2,6 +2,8 @@
 #include "httplib_client.h"
 #include "swoole_http.h"
 
+namespace websocket = swoole::websocket;
+
 namespace httplib {
 
 bool Client::Upgrade(const char *_path, Headers &_headers) {
@@ -29,7 +31,7 @@ bool Client::Push(const char *data, size_t length, int opcode) {
         buffer.size = sizeof(buf);
         buffer.str = buf;
 
-        swWebSocket_encode(&buffer, data, length, opcode, SW_WEBSOCKET_FLAG_FIN | SW_WEBSOCKET_FLAG_ENCODE_HEADER_ONLY);
+        websocket::encode(&buffer, data, length, opcode, websocket::FLAG_FIN | websocket::FLAG_ENCODE_HEADER_ONLY);
         strm.write(buffer.str, buffer.length);
         strm.write(data, length);
         return true;
@@ -41,7 +43,7 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
     auto retval = process_socket(socket_, [&](Stream &strm) {
         swProtocol proto = {};
         proto.package_length_size = SW_WEBSOCKET_HEADER_LEN;
-        proto.get_package_length = swWebSocket_get_package_length;
+        proto.get_package_length = websocket::get_package_length;
         proto.package_max_length = SW_INPUT_BUFFER_SIZE;
 
         char buf[1024];
@@ -83,7 +85,7 @@ std::shared_ptr<WebSocketFrame> Client::Recv() {
             read_bytes += n_read;
         }
 
-        return swWebSocket_decode(msg.get(), data, packet_len);
+        return websocket::decode(msg.get(), data, packet_len);
     });
 
     return retval ? msg : nullptr;

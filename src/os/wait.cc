@@ -69,20 +69,20 @@ static void signal_handler(int signo) {
 static void signal_init() {
     if (!signal_ready) {
         Reactor *reactor = SwooleTG.reactor;
-        swSignal_set(SIGCHLD, signal_handler);
+        swoole_signal_set(SIGCHLD, signal_handler);
 #ifdef HAVE_SIGNALFD
         if (SwooleG.use_signalfd && !reactor->isset_handler(SW_FD_SIGNAL)) {
-            swSignalfd_setup(reactor);
+            swoole_signalfd_setup(reactor);
         }
 #endif
 
-        reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](Reactor *reactor, int &event_num) -> bool {
+        reactor->set_exit_condition(Reactor::EXIT_CONDITION_WAIT_PID, [](Reactor *reactor, size_t &event_num) -> bool {
             return swoole_coroutine_wait_count() == 0;
         });
 
         reactor->add_destroy_callback([](void *) {
             signal_ready = false;
-            swSignal_clear();
+            swoole_signal_clear();
         });
 
         signal_ready = true;
@@ -93,6 +93,9 @@ pid_t System::wait(int *__stat_loc, double timeout) {
     return System::waitpid(-1, __stat_loc, 0, timeout);
 }
 
+/**
+ * @error: errno & swoole_get_last_error()
+ */
 pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeout) {
     if (__pid < 0) {
         if (!child_processes.empty()) {
@@ -148,7 +151,14 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
             task.co);
     }
 
-    task.co->yield();
+    Coroutine::CancelFunc cancel_fn = [timer](Coroutine *co) {
+        if (timer) {
+            swoole_timer_del(timer);
+        }
+        co->resume();
+        return true;
+    };
+    task.co->yield(&cancel_fn);
 
     /* dequeue */
     if (__pid < 0) {
@@ -169,7 +179,8 @@ pid_t System::waitpid(pid_t __pid, int *__stat_loc, int __options, double timeou
         }
         *__stat_loc = task.status;
     } else {
-        errno = ETIMEDOUT;
+        swoole_set_last_error(task.co->is_canceled() ? SW_ERROR_CO_CANCELED : ETIMEDOUT);
+        errno = swoole_get_last_error();
     }
 
     return task.pid;

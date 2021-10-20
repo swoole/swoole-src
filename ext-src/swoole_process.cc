@@ -258,7 +258,7 @@ static const zend_function_entry swoole_process_methods[] =
 
 void php_swoole_process_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_process, "Swoole\\Process", "swoole_process", nullptr, swoole_process_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_process, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_process);
     SW_SET_CLASS_CLONEABLE(swoole_process, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_process, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
@@ -367,7 +367,7 @@ static PHP_METHOD(swoole_process, __construct) {
 
     uint32_t base = 1;
     if (sw_server() && sw_server()->is_started()) {
-        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->user_worker_num;
+        base = sw_server()->worker_num + sw_server()->task_worker_num + sw_server()->get_user_worker_num();
     }
     if (php_swoole_worker_round_id == 0) {
         php_swoole_worker_round_id = base;
@@ -534,7 +534,7 @@ static PHP_METHOD(swoole_process, signal) {
         RETURN_FALSE;
     }
 
-    swSignalHandler handler = swSignal_get_handler(signo);
+    swSignalHandler handler = swoole_signal_get_handler(signo);
     if (handler && handler != php_swoole_onSignal) {
         php_swoole_fatal_error(
             E_WARNING, "signal [" ZEND_LONG_FMT "] processor has been registered by the system", signo);
@@ -544,7 +544,7 @@ static PHP_METHOD(swoole_process, signal) {
     if (zcallback == nullptr) {
         fci_cache = signal_fci_caches[signo];
         if (fci_cache) {
-            swSignal_set(signo, nullptr);
+            swoole_signal_set(signo, nullptr);
             signal_fci_caches[signo] = nullptr;
             swoole_event_defer(sw_zend_fci_cache_free, fci_cache);
             SwooleTG.signal_listener_num--;
@@ -576,7 +576,7 @@ static PHP_METHOD(swoole_process, signal) {
             SwooleTG.signal_listener_num++;
         }
         signal_fci_caches[signo] = fci_cache;
-        swSignal_set(signo, handler);
+        swoole_signal_set(signo, handler);
         RETURN_TRUE;
     }
 
@@ -585,7 +585,7 @@ static PHP_METHOD(swoole_process, signal) {
     SwooleTG.reactor->check_signalfd = true;
     if (!SwooleTG.reactor->isset_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER)) {
         SwooleTG.reactor->set_exit_condition(Reactor::EXIT_CONDITION_SIGNAL_LISTENER,
-                                             [](Reactor *reactor, int &event_num) -> bool {
+                                             [](Reactor *reactor, size_t &event_num) -> bool {
                                                  return SwooleTG.signal_listener_num == 0 or !SwooleG.wait_signal;
                                              });
     }
@@ -601,7 +601,7 @@ static PHP_METHOD(swoole_process, signal) {
     // use user settings
     SwooleG.use_signalfd = SwooleG.enable_signalfd;
 
-    swSignal_set(signo, handler);
+    swoole_signal_set(signo, handler);
 
     RETURN_TRUE;
 }
@@ -998,7 +998,7 @@ static PHP_METHOD(swoole_process, daemon) {
                 int new_fd = php_swoole_convert_to_fd(elem);
                 if (new_fd >= 0) {
                     if (dup2(new_fd, fd) < 0) {
-                        swSysWarn("dup2(%d, %d) failed", new_fd, fd);
+                        swoole_sys_warning("dup2(%d, %d) failed", new_fd, fd);
                     }
                 }
             }

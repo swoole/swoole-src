@@ -1,6 +1,6 @@
 <?php
 /**
- * The script is used for simulating the usage of swoole_table() and guaranting its usability.
+ * The script is used for simulating the usage of swoole_table() and guarantying its usability.
  */
 $table = new swoole_table(1024);
 $table->column('name', swoole_table::TYPE_STRING, 64);

@@ -27,19 +27,20 @@
 
 //--------------------------------------------------------
 enum php_swoole_server_callback_type {
-    SW_SERVER_CB_onStart,         // master
-    SW_SERVER_CB_onShutdown,      // master
-    SW_SERVER_CB_onWorkerStart,   // worker(event & task)
-    SW_SERVER_CB_onWorkerStop,    // worker(event & task)
-    SW_SERVER_CB_onBeforeReload,  // manager
-    SW_SERVER_CB_onAfterReload,   // manager
-    SW_SERVER_CB_onTask,          // worker(task)
-    SW_SERVER_CB_onFinish,        // worker(event & task)
-    SW_SERVER_CB_onWorkerExit,    // worker(event)
-    SW_SERVER_CB_onWorkerError,   // manager
-    SW_SERVER_CB_onManagerStart,  // manager
-    SW_SERVER_CB_onManagerStop,   // manager
-    SW_SERVER_CB_onPipeMessage,   // worker(event & task)
+    SW_SERVER_CB_onStart,           // master
+    SW_SERVER_CB_onBeforeShutdown,  // master
+    SW_SERVER_CB_onShutdown,        // master
+    SW_SERVER_CB_onWorkerStart,     // worker(event & task)
+    SW_SERVER_CB_onWorkerStop,      // worker(event & task)
+    SW_SERVER_CB_onBeforeReload,    // manager
+    SW_SERVER_CB_onAfterReload,     // manager
+    SW_SERVER_CB_onTask,            // worker(task)
+    SW_SERVER_CB_onFinish,          // worker(event & task)
+    SW_SERVER_CB_onWorkerExit,      // worker(event)
+    SW_SERVER_CB_onWorkerError,     // manager
+    SW_SERVER_CB_onManagerStart,    // manager
+    SW_SERVER_CB_onManagerStop,     // manager
+    SW_SERVER_CB_onPipeMessage,     // worker(event & task)
 };
 //--------------------------------------------------------
 enum php_swoole_server_port_callback_type {
@@ -78,7 +79,8 @@ struct ServerProperty {
     zend_fcall_info_cache *callbacks[PHP_SWOOLE_SERVER_CALLBACK_NUM];
     std::unordered_map<TaskId, zend_fcall_info_cache> task_callbacks;
     std::unordered_map<TaskId, TaskCo *> task_coroutine_map;
-    std::unordered_map<SessionId, std::list<FutureTask *> *> send_coroutine_map;
+    std::unordered_map<SessionId, std::list<Coroutine *> *> send_coroutine_map;
+    std::vector<zend_fcall_info_cache *> command_callbacks;
 };
 
 struct ServerObject {
@@ -116,14 +118,12 @@ struct ServerObject {
 };
 
 struct TaskCo {
-    FutureTask context;
+    Coroutine *co;
     int *list;
     uint32_t count;
     zval *result;
-    TimerNode *timer;
-    ServerObject *server_object;
 };
-
+void register_admin_server_commands(Server *serv);
 }  // namespace swoole
 
 void php_swoole_server_register_callbacks(swServer *serv);
@@ -145,3 +145,5 @@ void php_swoole_server_onBufferEmpty(swServer *, swDataHead *);
 
 swServer *php_swoole_server_get_and_check_server(zval *zobject);
 void php_swoole_server_port_deref(zend_object *object);
+swoole::ServerObject *php_swoole_server_get_zend_object(swoole::Server *serv);
+zval *php_swoole_server_get_zval_object(swoole::Server *serv);

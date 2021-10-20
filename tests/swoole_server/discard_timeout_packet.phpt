@@ -32,7 +32,7 @@ $pm->parentFunc = function () use ($pm) {
     });
     $pm->kill();
     Assert::eq(substr_count(file_get_contents(TMP_LOG_FILE),
-        'Worker_discard_data (ERRNO 1007): [2] ignore data'), 8);
+        'Worker_discard_data() (ERRNO 1007): [2] ignore data'), 8);
     unlink(TMP_LOG_FILE);
 };
 

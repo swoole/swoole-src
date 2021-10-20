@@ -15,6 +15,7 @@
 */
 
 #include "swoole_coroutine_context.h"
+
 #ifdef SW_CONTEXT_PROTECT_STACK_PAGE
 #include <sys/mman.h>
 #if !defined(MAP_ANONYMOUS) && defined(MAP_ANON)
@@ -30,7 +31,7 @@
 namespace swoole {
 namespace coroutine {
 
-Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_data)
+Context::Context(size_t stack_size, const CoroutineFunc &fn, void *private_data)
     : fn_(fn), stack_size_(stack_size), private_data_(private_data) {
     end_ = false;
 
@@ -46,10 +47,10 @@ Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_da
     stack_ = (char *) sw_malloc(stack_size_);
 #endif
     if (!stack_) {
-        swFatalError(SW_ERROR_MALLOC_FAIL, "failed to malloc stack memory.");
+        swoole_fatal_error(SW_ERROR_MALLOC_FAIL, "failed to malloc stack memory.");
         exit(254);
     }
-    swTraceLog(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p", stack_size_, stack_);
+    swoole_trace_log(SW_TRACE_COROUTINE, "alloc stack: size=%u, ptr=%p", stack_size_, stack_);
 
     void *sp = (void *) ((char *) stack_ + stack_size_);
 #ifdef USE_VALGRIND
@@ -86,7 +87,7 @@ Context::Context(size_t stack_size, const coroutine_func_t &fn, void *private_da
 
 Context::~Context() {
     if (stack_) {
-        swTraceLog(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
+        swoole_trace_log(SW_TRACE_COROUTINE, "free stack: ptr=%p", stack_);
 #ifdef USE_VALGRIND
         VALGRIND_STACK_DEREGISTER(valgrind_stack_id);
 #endif

@@ -169,7 +169,7 @@ static zend_object *php_swoole_client_coro_create_object(zend_class_entry *ce) {
 void php_swoole_client_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_client_coro, "Swoole\\Coroutine\\Client", nullptr, "Co\\Client", swoole_client_coro_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_client_coro, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_client_coro);
     SW_SET_CLASS_CLONEABLE(swoole_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_client_coro, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(
@@ -209,7 +209,7 @@ static sw_inline Socket *client_get_ptr(zval *zobject, bool silent = false) {
 static Socket *client_coro_new(zval *zobject, int port) {
     zval *ztype = sw_zend_read_property_ex(Z_OBJCE_P(zobject), zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TYPE), 0);
     zend_long type = zval_get_long(ztype);
-    enum swSocket_type sock_type = php_swoole_socktype(type);
+    enum swSocketType sock_type = php_swoole_socktype(type);
 
     if ((sock_type == SW_SOCK_TCP || sock_type == SW_SOCK_TCP6) && (port <= 0 || port > SW_CLIENT_MAX_PORT)) {
         php_swoole_fatal_error(E_WARNING, "The port is invalid");
@@ -457,6 +457,20 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         zend_long v = zval_get_long(ztmp);
         sock->get_ssl_context()->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
+    if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
+        sock->get_ssl_context()->ciphers = zend::String(ztmp).to_std_string();
+    }
+    if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", ztmp)) {
+        sock->get_ssl_context()->ecdh_curve = zend::String(ztmp).to_std_string();
+    }
+
+#ifdef OPENSSL_IS_BORINGSSL
+    if (php_swoole_array_get_value(vht, "ssl_grease", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        sock->get_ssl_context()->grease = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+    }
+#endif
+
     if (!sock->ssl_check_context()) {
         ret = false;
     }

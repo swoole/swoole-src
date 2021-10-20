@@ -29,7 +29,7 @@
 
 namespace swoole {
 
-enum AsyncFlags {
+enum AsyncFlag {
     SW_AIO_WRITE_FSYNC = 1u << 1,
     SW_AIO_EOF = 1u << 2,
 };
@@ -50,7 +50,7 @@ struct AsyncEvent {
     /**
      * output
      */
-    ssize_t ret;
+    ssize_t retval;
     int error;
     /**
      * internal use only
@@ -60,12 +60,16 @@ struct AsyncEvent {
     void *object;
     void (*handler)(AsyncEvent *event);
     void (*callback)(AsyncEvent *event);
+
+    bool catch_error() {
+        return (error == SW_ERROR_AIO_TIMEOUT || error == SW_ERROR_AIO_CANCELED);
+    }
 };
 
 class AsyncThreads {
   public:
     bool schedule = false;
-    uint32_t task_num = 0;
+    size_t task_num = 0;
     Pipe *pipe = nullptr;
     async::ThreadPool *pool = nullptr;
     network::Socket *read_socket = nullptr;
@@ -74,7 +78,12 @@ class AsyncThreads {
     AsyncThreads();
     ~AsyncThreads();
 
-    size_t thread_count();
+    size_t get_task_num() {
+        return task_num;
+    }
+
+    size_t get_queue_size();
+    size_t get_worker_num();
     void notify_one();
 
     static int callback(Reactor *reactor, Event *event);

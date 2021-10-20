@@ -24,7 +24,7 @@ namespace swoole {
 
 bool MsgQueue::destroy() {
     if (msgctl(msg_id_, IPC_RMID, 0) < 0) {
-        swSysWarn("msgctl(%d, IPC_RMID) failed", msg_id_);
+        swoole_sys_warning("msgctl(%d, IPC_RMID) failed", msg_id_);
         return false;
     }
     msg_id_ = -1;
@@ -49,7 +49,7 @@ MsgQueue::MsgQueue(key_t msg_key, bool blocking, int perms) {
     blocking_ = blocking;
     msg_id_ = msgget(msg_key, IPC_CREAT | perms);
     if (msg_id_ < 0) {
-        swSysWarn("msgget() failed");
+        swoole_sys_warning("msgget() failed");
     } else {
         set_blocking(blocking);
     }
@@ -67,7 +67,7 @@ ssize_t MsgQueue::pop(QueueNode *data, size_t mdata_size) {
     if (ret < 0) {
         swoole_set_last_error(errno);
         if (errno != ENOMSG && errno != EINTR) {
-            swSysWarn("msgrcv(%d, %zu, %ld) failed", msg_id_, mdata_size, data->mtype);
+            swoole_sys_warning("msgrcv(%d, %zu, %ld) failed", msg_id_, mdata_size, data->mtype);
         }
     }
     return ret;
@@ -82,7 +82,7 @@ bool MsgQueue::push(QueueNode *in, size_t mdata_length) {
             continue;
         }
         if (errno != EAGAIN) {
-            swSysWarn("msgsnd(%d, %lu, %ld) failed", msg_id_, mdata_length, in->mtype);
+            swoole_sys_warning("msgsnd(%d, %lu, %ld) failed", msg_id_, mdata_length, in->mtype);
         }
         swoole_set_last_error(errno);
         break;
@@ -113,7 +113,7 @@ bool MsgQueue::set_capacity(size_t queue_bytes) {
     }
     __stat.msg_qbytes = queue_bytes;
     if (msgctl(msg_id_, IPC_SET, &__stat)) {
-        swSysWarn("msgctl(msqid=%d, IPC_SET, msg_qbytes=%lu) failed", msg_id_, queue_bytes);
+        swoole_sys_warning("msgctl(msqid=%d, IPC_SET, msg_qbytes=%lu) failed", msg_id_, queue_bytes);
         return false;
     }
     return true;

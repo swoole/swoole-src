@@ -18,6 +18,7 @@
 */
 
 #include "test_core.h"
+#include "swoole_server.h"
 #include "swoole_file.h"
 #include "swoole_util.h"
 
@@ -41,7 +42,7 @@ TEST(base, dec2hex) {
     sw_free(result);
 }
 
-TEST(base, swoole_hex2dec) {
+TEST(base, hex2dec) {
     size_t n_parsed;
     ASSERT_EQ(swoole_hex2dec("9fff9123", &n_parsed), 2684326179);
     ASSERT_EQ(n_parsed, 8);
@@ -122,17 +123,18 @@ TEST(base, file_size) {
 }
 
 TEST(base, eventdata_pack) {
-    swEventData ed1 { };
+    EventData ed1 { };
 
-    ASSERT_TRUE(ed1.pack(test_data.c_str(), test_data.length()));
+    ASSERT_TRUE(Server::task_pack(&ed1, test_data.c_str(), test_data.length()));
     ASSERT_EQ(string(ed1.data, ed1.info.len), test_data);
 
-    swEventData ed2 { };
+    EventData ed2 { };
     ASSERT_EQ(swoole_random_bytes(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG), SW_BUFFER_SIZE_BIG);
-    ASSERT_TRUE(ed2.pack(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
+    ASSERT_TRUE(Server::task_pack(&ed2, sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
 
     String _buffer(SW_BUFFER_SIZE_BIG);
-    ASSERT_TRUE(ed2.unpack(&_buffer));
+    PacketPtr packet;
+    ASSERT_TRUE(Server::task_unpack(&ed2, &_buffer, &packet));
     ASSERT_EQ(memcmp(sw_tg_buffer()->str, _buffer.str, SW_BUFFER_SIZE_BIG), 0);
 }
 
@@ -207,6 +209,7 @@ TEST(base, hook) {
         int *_count = (int *) data;
         *_count = 9999;
     }, 1);
+    ASSERT_TRUE(swoole_isset_hook(SW_GLOBAL_HOOK_END));
     swoole_call_hook(SW_GLOBAL_HOOK_END, &count);
     ASSERT_EQ(count, 9999);
 }

@@ -32,14 +32,21 @@ namespace coroutine {
 //-------------------------------------------------------------------------------
 class Channel {
   public:
-    enum opcode {
+    enum Opcode {
         PRODUCER = 1,
         CONSUMER = 2,
     };
 
+    enum ErrorCode {
+        ERROR_OK = 0,
+        ERROR_TIMEOUT = -1,
+        ERROR_CLOSED = -2,
+        ERROR_CANCELED = -3,
+    };
+
     struct TimeoutMessage {
         Channel *chan;
-        enum opcode type;
+        Opcode type;
         Coroutine *co;
         bool error;
         TimerNode *timer;
@@ -99,16 +106,21 @@ class Channel {
         return data;
     }
 
+    int get_error() {
+        return error_;
+    }
+
   protected:
     size_t capacity = 1;
     bool closed = false;
+    int error_ = 0;
     std::list<Coroutine *> producer_queue;
     std::list<Coroutine *> consumer_queue;
     std::queue<void *> data_queue;
 
     static void timer_callback(Timer *timer, TimerNode *tnode);
 
-    void yield(enum opcode type);
+    void yield(enum Opcode type);
 
     inline void consumer_remove(Coroutine *co) {
         consumer_queue.remove(co);
@@ -118,17 +130,17 @@ class Channel {
         producer_queue.remove(co);
     }
 
-    inline Coroutine *pop_coroutine(enum opcode type) {
+    inline Coroutine *pop_coroutine(enum Opcode type) {
         Coroutine *co;
         if (type == PRODUCER) {
             co = producer_queue.front();
             producer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
+            swoole_trace_log(SW_TRACE_CHANNEL, "resume producer cid=%ld", co->get_cid());
         } else  // if (type == CONSUMER)
         {
             co = consumer_queue.front();
             consumer_queue.pop_front();
-            swTraceLog(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
+            swoole_trace_log(SW_TRACE_CHANNEL, "resume consumer cid=%ld", co->get_cid());
         }
         return co;
     }

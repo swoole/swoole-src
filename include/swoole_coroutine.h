@@ -35,12 +35,6 @@
 namespace swoole {
 class Coroutine {
   public:
-    void resume();
-    void yield();
-
-    void resume_naked();
-    void yield_naked();
-
     constexpr static int STACK_ALIGNED_SIZE = (4 * 1024);
     constexpr static int MIN_STACK_SIZE = (64 * 1024);
     constexpr static int MAX_STACK_SIZE = (16 * 1024 * 1024);
@@ -59,18 +53,32 @@ class Coroutine {
         ERR_INVALID = -2,
     };
 
+    enum ResumeCode {
+        RC_OK = 0,
+        RC_TIMEDOUT = -1,
+        RC_CANCELED = -2,
+    };
+
     typedef void (*SwapCallback)(void *);
     typedef void (*BailoutCallback)();
+    typedef std::function<bool(swoole::Coroutine*)> CancelFunc;
 
-    inline enum State get_state() {
+    void resume();
+    void yield();
+    void yield(CancelFunc *cancel_fn);
+    bool cancel();
+
+    bool yield_ex(double timeout = -1);
+
+    inline enum State get_state() const {
         return state;
     }
 
-    inline long get_init_msec() {
+    inline long get_init_msec() const  {
         return init_msec;
     }
 
-    inline long get_cid() {
+    inline long get_cid() const {
         return cid;
     }
 
@@ -90,8 +98,24 @@ class Coroutine {
         return ctx.is_end();
     }
 
+    bool is_canceled() const {
+        return resume_code_ == RC_CANCELED;
+    }
+
+    bool is_timedout() const {
+        return resume_code_ == RC_TIMEDOUT;
+    }
+
+    bool is_suspending() const {
+        return state == STATE_WAITING;
+    }
+
     inline void set_task(void *_task) {
         task = _task;
+    }
+
+    void set_cancel_fn(CancelFunc *cancel_fn) {
+        cancel_fn_ = cancel_fn;
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -101,13 +125,13 @@ class Coroutine {
     static void set_on_close(SwapCallback func);
     static void bailout(BailoutCallback func);
 
-    static inline long create(const coroutine_func_t &fn, void *args = nullptr) {
+    static inline long create(const CoroutineFunc &fn, void *args = nullptr) {
 #ifdef SW_USE_THREAD_CONTEXT
         try {
             return (new Coroutine(fn, args))->run();
         } catch (const std::system_error& e) {
             swoole_set_last_error(e.code().value());
-            swWarn("failed to create coroutine, Error: %s[%d]", e.what(), swoole_get_last_error());
+            swoole_warning("failed to create coroutine, Error: %s[%d]", e.what(), swoole_get_last_error());
             return -1;
         }
 #else
@@ -124,7 +148,7 @@ class Coroutine {
 
     static inline Coroutine *get_current_safe() {
         if (sw_unlikely(!current)) {
-            swFatalError(SW_ERROR_CO_OUT_OF_COROUTINE, "API must be called in the coroutine");
+            swoole_fatal_error(SW_ERROR_CO_OUT_OF_COROUTINE, "API must be called in the coroutine");
         }
         return current;
     }
@@ -186,13 +210,15 @@ class Coroutine {
     static bool activated;
 
     enum State state = STATE_INIT;
+    enum ResumeCode resume_code_ = RC_OK;
     long cid;
     long init_msec = Timer::get_absolute_msec();
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
-
-    Coroutine(const coroutine_func_t &fn, void *private_data) : ctx(stack_size, fn, private_data) {
+    CancelFunc *cancel_fn_ = nullptr;
+    
+    Coroutine(const CoroutineFunc &fn, void *private_data) : ctx(stack_size, fn, private_data) {
         cid = ++last_cid;
         coroutines[cid] = this;
         if (sw_unlikely(count() > peak_num)) {
@@ -226,7 +252,7 @@ class Coroutine {
 namespace coroutine {
 bool async(async::Handler handler, AsyncEvent &event, double timeout = -1);
 bool async(const std::function<void(void)> &fn, double timeout = -1);
-bool run(const coroutine_func_t &fn, void *arg = nullptr);
+bool run(const CoroutineFunc &fn, void *arg = nullptr);
 }  // namespace coroutine
 //-------------------------------------------------------------------------------
 }  // namespace swoole
@@ -234,7 +260,7 @@ bool run(const coroutine_func_t &fn, void *arg = nullptr);
 /**
  * for gdb
  */
-swoole::Coroutine *swoole_coro_iterator_each();
-void swoole_coro_iterator_reset();
-swoole::Coroutine *swoole_coro_get(long cid);
-size_t swoole_coro_count();
+swoole::Coroutine *swoole_coroutine_iterator_each();
+void swoole_coroutine_iterator_reset();
+swoole::Coroutine *swoole_coroutine_get(long cid);
+size_t swoole_coroutine_count();

@@ -112,7 +112,7 @@ void php_swoole_coroutine_scheduler_minit(int module_number) {
                         nullptr,
                         "Co\\Scheduler",
                         swoole_coroutine_scheduler_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_coroutine_scheduler, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_coroutine_scheduler);
     SW_SET_CLASS_CLONEABLE(swoole_coroutine_scheduler, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_coroutine_scheduler, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_coroutine_scheduler);
@@ -124,7 +124,7 @@ void php_swoole_coroutine_scheduler_minit(int module_number) {
 static zend_fcall_info_cache exit_condition_fci_cache;
 static bool exit_condition_cleaner;
 
-static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, int &event_num) {
+static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &event_num) {
     zval retval;
     int success;
 

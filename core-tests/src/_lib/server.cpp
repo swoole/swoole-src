@@ -36,13 +36,13 @@ Server::Server(std::string _host, int _port, swoole::Server::Mode _mode, int _ty
     serv.dispatch_mode = 2;
     serv.private_data_2 = this;
 
-    if (!listen(host, port, (swSocket_type) type)) {
-        swWarn("listen(%s:%d) fail[error=%d].", host.c_str(), port, errno);
+    if (!listen(host, port, (swSocketType) type)) {
+        swoole_warning("listen(%s:%d) fail[error=%d].", host.c_str(), port, errno);
         exit(0);
     }
 
     if (serv.create() < 0) {
-        swWarn("create server fail[error=%d].", errno);
+        swoole_warning("create server fail[error=%d].", errno);
         exit(0);
     }
 }
@@ -75,8 +75,8 @@ bool Server::start() {
     return serv.start() == 0;
 }
 
-bool Server::listen(std::string host, int port, enum swSocket_type type) {
-    swListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
+bool Server::listen(std::string host, int port, enum swSocketType type) {
+    ListenPort *ls = serv.add_port(type, (char *) host.c_str(), port);
     if (ls == nullptr) {
         return false;
     }

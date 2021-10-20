@@ -86,6 +86,7 @@ $files = [
     # <core for Process> #
     'core/Process/Manager.php',
     # <core for Server> #
+    'core/Server/Admin.php',
     'core/Server/Helper.php',
     # <core for NameService> #
     'core/NameService/BaseObject.php',
@@ -102,7 +103,15 @@ $files = [
     'alias_ns.php',
 ];
 
+$ignore_files = ['vendor_init.php',];
+
 $diff_files = array_diff(swoole_library_files(), $files);
+foreach ($diff_files as $k => $f) {
+    if (in_array($f, $ignore_files)) {
+        unset($diff_files[$k]);
+    }
+}
+
 if (!empty($diff_files)) {
     swoole_error('Some files are not loaded: ', ...$diff_files);
 }

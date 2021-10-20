@@ -51,6 +51,9 @@ struct FixedPoolImpl {
  * create new FixedPool, random alloc/free fixed size memory
  */
 FixedPool::FixedPool(uint32_t slice_num, uint32_t slice_size, bool shared) {
+    if (slice_num < 2) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
     slice_size = SW_MEM_ALIGNED_SIZE(slice_size);
     size_t size = slice_num * (sizeof(FixedPoolSlice) + slice_size);
     size_t alloc_size = size + sizeof(*impl);
@@ -79,11 +82,14 @@ FixedPool::FixedPool(uint32_t slice_size, void *memory, size_t size, bool shared
     impl = (FixedPoolImpl*) memory;
     memory = (char*) memory + sizeof(*impl);
     sw_memset_zero(impl, sizeof(*impl));
-
     impl->shared = shared;
     impl->slice_size = slice_size;
     impl->size = size - sizeof(*impl);
-    impl->slice_num = impl->size / (slice_size + sizeof(FixedPoolSlice));
+    uint32_t slice_num = impl->size / (slice_size + sizeof(FixedPoolSlice));
+    if (slice_num < 2) {
+        throw Exception(SW_ERROR_INVALID_PARAMS);
+    }
+    impl->slice_num = slice_num;
     impl->memory = memory;
     impl->allocated = false;
     impl->init();
@@ -126,6 +132,18 @@ void FixedPoolImpl::init() {
         }
 
     } while (1);
+}
+
+uint32_t FixedPool::get_number_of_spare_slice() {
+    return impl->slice_num - impl->slice_use;
+}
+
+uint32_t FixedPool::get_number_of_total_slice() {
+    return impl->slice_num;
+}
+
+uint32_t FixedPool::get_slice_size() {
+    return impl->slice_size;
 }
 
 void *FixedPool::alloc(uint32_t size) {

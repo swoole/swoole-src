@@ -1699,9 +1699,8 @@ static int stream_array_emulate_read_fd_set(zval *stream_array) {
         return 0;
     }
 
-    ZVAL_NEW_ARR(&new_array);
+    array_init_size(&new_array, zend_hash_num_elements(Z_ARRVAL_P(stream_array)));
     ht = Z_ARRVAL(new_array);
-    zend_hash_init(ht, zend_hash_num_elements(Z_ARRVAL_P(stream_array)), nullptr, ZVAL_PTR_DTOR, 0);
 
     ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(stream_array), num_ind, key, elem) {
         ZVAL_DEREF(elem);
@@ -1860,6 +1859,11 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     if (zf == nullptr) {
         return;
     }
+#if PHP_VERSION_ID < 80000
+    if (zf->internal_function.handler == ZEND_FN(display_disabled_function)) {
+        return;
+    }
+#endif
 
     rf = (real_func *) emalloc(sizeof(real_func));
     sw_memset_zero(rf, sizeof(*rf));

@@ -40,12 +40,12 @@ enum http_upload_errno {
     HTTP_UPLOAD_ERR_CANT_WRITE,
 };
 
-using http_request = swoole::http::Request;
-using http_context = swoole::http::Context;
-using swoole::Server;
+using HttpRequest = swoole::http::Request;
+using HttpContext = swoole::http::Context;
 using swoole::Connection;
 using swoole::ListenPort;
 using swoole::microtime;
+using swoole::Server;
 
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length);
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length);
@@ -62,7 +62,7 @@ static int multipart_body_on_header_complete(multipart_parser *p);
 static int multipart_body_on_data_end(multipart_parser *p);
 
 static int http_request_on_path(swoole_http_parser *parser, const char *at, size_t length) {
-    http_context *ctx = (http_context *) parser->data;
+    HttpContext *ctx = (HttpContext *) parser->data;
     ctx->request.path = estrndup(at, length);
     ctx->request.path_len = length;
     return 0;
@@ -126,7 +126,7 @@ static const multipart_parser_settings mt_parser_settings =
 };
 // clang-format on
 
-size_t http_context::parse(const char *data, size_t length) {
+size_t HttpContext::parse(const char *data, size_t length) {
     return swoole_http_parser_execute(&parser, &http_parser_settings, data, length);
 }
 
@@ -134,7 +134,7 @@ zend_class_entry *swoole_http_request_ce;
 static zend_object_handlers swoole_http_request_handlers;
 
 typedef struct {
-    http_context *ctx;
+    HttpContext *ctx;
     zend_object std;
 } http_request_t;
 
@@ -142,17 +142,17 @@ static sw_inline http_request_t *php_swoole_http_request_fetch_object(zend_objec
     return (http_request_t *) ((char *) obj - swoole_http_request_handlers.offset);
 }
 
-http_context *php_swoole_http_request_get_context(zval *zobject) {
+HttpContext *php_swoole_http_request_get_context(zval *zobject) {
     return php_swoole_http_request_fetch_object(Z_OBJ_P(zobject))->ctx;
 }
 
-void php_swoole_http_request_set_context(zval *zobject, http_context *ctx) {
+void php_swoole_http_request_set_context(zval *zobject, HttpContext *ctx) {
     php_swoole_http_request_fetch_object(Z_OBJ_P(zobject))->ctx = ctx;
 }
 
 static void php_swoole_http_request_free_object(zend_object *object) {
     http_request_t *request = php_swoole_http_request_fetch_object(object);
-    http_context *ctx = request->ctx;
+    HttpContext *ctx = request->ctx;
     zval zobject, *ztmpfiles;
 
     ZVAL_OBJ(&zobject, object);
@@ -192,7 +192,7 @@ static PHP_METHOD(swoole_http_request, create);
 static PHP_METHOD(swoole_http_request, parse);
 static PHP_METHOD(swoole_http_request, isCompleted);
 static PHP_METHOD(swoole_http_request, getMethod);
-static PHP_METHOD(swoole_http_request, rawContent);
+static PHP_METHOD(swoole_http_request, getContent);
 static PHP_METHOD(swoole_http_request, __destruct);
 SW_EXTERN_C_END
 
@@ -210,8 +210,8 @@ ZEND_END_ARG_INFO()
 
 const zend_function_entry swoole_http_request_methods[] =
 {
-    PHP_ME(swoole_http_request, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_http_request, getContent, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_http_request, rawContent, getContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, create, arginfo_swoole_http_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_http_request, parse, arginfo_swoole_http_parse, ZEND_ACC_PUBLIC)
@@ -225,7 +225,7 @@ const zend_function_entry swoole_http_request_methods[] =
 void php_swoole_http_request_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(
         swoole_http_request, "Swoole\\Http\\Request", "swoole_http_request", nullptr, swoole_http_request_methods);
-    SW_SET_CLASS_SERIALIZABLE(swoole_http_request, zend_class_serialize_deny, zend_class_unserialize_deny);
+    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_request);
     SW_SET_CLASS_CLONEABLE(swoole_http_request, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http_request, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CUSTOM_OBJECT(swoole_http_request,
@@ -248,7 +248,7 @@ void php_swoole_http_request_minit(int module_number) {
 }
 
 static int http_request_on_query_string(swoole_http_parser *parser, const char *at, size_t length) {
-    http_context *ctx = (http_context *) parser->data;
+    HttpContext *ctx = (HttpContext *) parser->data;
     add_assoc_stringl_ex(ctx->request.zserver, ZEND_STRL("query_string"), (char *) at, length);
     // parse url params
     sapi_module.treat_data(PARSE_STRING,
@@ -259,13 +259,13 @@ static int http_request_on_query_string(swoole_http_parser *parser, const char *
 }
 
 static int http_request_on_header_field(swoole_http_parser *parser, const char *at, size_t length) {
-    http_context *ctx = (http_context *) parser->data;
+    HttpContext *ctx = (HttpContext *) parser->data;
     ctx->current_header_name = (char *) at;
     ctx->current_header_name_len = length;
     return 0;
 }
 
-bool http_context::parse_form_data(const char *boundary_str, int boundary_len) {
+bool HttpContext::parse_form_data(const char *boundary_str, int boundary_len) {
     mt_parser = multipart_parser_init(boundary_str, boundary_len, &mt_parser_settings);
     if (!mt_parser) {
         php_swoole_fatal_error(E_WARNING, "multipart_parser_init() failed");
@@ -276,7 +276,7 @@ bool http_context::parse_form_data(const char *boundary_str, int boundary_len) {
     return true;
 }
 
-void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
+void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool url_decode) {
     char keybuf[SW_HTTP_COOKIE_KEYLEN];
     char valbuf[SW_HTTP_COOKIE_VALLEN];
     char *_c = (char *) at;
@@ -291,7 +291,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
         if (state <= 0 && *_c == '=') {
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-                swWarn("cookie[%.*s...] name length %d is exceed the max name len %d",
+                swoole_warning("cookie[%.*s...] name length %d is exceed the max name len %d",
                        8,
                        (char *) at + j,
                        klen,
@@ -306,7 +306,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
         } else if (state == 1 && *_c == ';') {
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-                swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
+                swoole_warning("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
                        keybuf,
                        8,
                        (char *) at + j,
@@ -337,13 +337,13 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
     if (j < (off_t) length) {
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-            swWarn(
+            swoole_warning(
                 "cookie[%.*s...] name length %d is exceed the max name len %d", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
             return;
         }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-            swWarn("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
+            swoole_warning("cookie[%s]'s value[v=%.*s...] length %d is exceed the max value len %d",
                    keybuf,
                    8,
                    (char *) at + j,
@@ -354,7 +354,9 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
         memcpy(valbuf, (char *) at + j, vlen);
         valbuf[vlen] = 0;
         _value = http_trim_double_quote(valbuf, &vlen);
-        vlen = php_url_decode(_value, vlen);
+        if (url_decode) {
+            vlen = php_url_decode(_value, vlen);
+        }
         if (klen > 1) {
             add_assoc_stringl_ex(zarray, keybuf, klen - 1, _value, vlen);
         }
@@ -363,7 +365,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length) {
 
 static int http_request_on_header_value(swoole_http_parser *parser, const char *at, size_t length) {
     size_t offset = 0;
-    http_context *ctx = (http_context *) parser->data;
+    HttpContext *ctx = (HttpContext *) parser->data;
     zval *zheader = ctx->request.zheader;
     size_t header_len = ctx->current_header_name_len;
     char *header_name = zend_str_tolower_dup(ctx->current_header_name, header_len);
@@ -380,6 +382,9 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
             goto _add_header;
         }
         Server *serv = (Server *) ctx->private_data;
+        if (!serv) {
+            goto _add_header;
+        }
         Connection *conn = serv->get_connection_by_session_id(ctx->fd);
         if (!conn) {
             swoole_error_log(SW_LOG_NOTICE, SW_ERROR_SESSION_CLOSED, "session[%ld] is closed", ctx->fd);
@@ -388,7 +393,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
         }
         ListenPort *port = serv->get_port_by_server_fd(conn->server_fd);
         if (port->open_websocket_protocol) {
-            conn->websocket_status = WEBSOCKET_STATUS_CONNECTION;
+            conn->websocket_status = swoole::websocket::STATUS_CONNECTION;
         }
     } else if ((parser->method == PHP_HTTP_POST || parser->method == PHP_HTTP_PUT ||
                 parser->method == PHP_HTTP_DELETE || parser->method == PHP_HTTP_PATCH) &&
@@ -414,7 +419,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 }
             }
             if (boundary_len <= 0) {
-                swWarn("invalid multipart/form-data body fd:%ld", ctx->fd);
+                swoole_warning("invalid multipart/form-data body fd:%ld", ctx->fd);
                 /* make it same with protocol error */
                 ctx->parser.state = s_dead;
                 return -1;
@@ -424,7 +429,7 @@ static int http_request_on_header_value(swoole_http_parser *parser, const char *
                 boundary_str++;
                 boundary_len -= 2;
             }
-            swTraceLog(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
+            swoole_trace_log(SW_TRACE_HTTP, "form_data, boundary_str=%s", boundary_str);
             ctx->parse_form_data(boundary_str, boundary_len);
         }
     }
@@ -445,7 +450,7 @@ _add_header:
 }
 
 static int http_request_on_headers_complete(swoole_http_parser *parser) {
-    http_context *ctx = (http_context *) parser->data;
+    HttpContext *ctx = (HttpContext *) parser->data;
     const char *vpath = ctx->request.path, *end = vpath + ctx->request.path_len, *p = end;
     zval *zserver = ctx->request.zserver;
 
@@ -481,7 +486,7 @@ static int http_request_on_headers_complete(swoole_http_parser *parser) {
 }
 
 static int multipart_body_on_header_field(multipart_parser *p, const char *at, size_t length) {
-    http_context *ctx = (http_context *) p->data;
+    HttpContext *ctx = (HttpContext *) p->data;
     return http_request_on_header_field(&ctx->parser, at, length);
 }
 
@@ -490,7 +495,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
     int value_len;
     int ret = 0;
 
-    http_context *ctx = (http_context *) p->data;
+    HttpContext *ctx = (HttpContext *) p->data;
     /**
      * Hash collision attack
      */
@@ -515,7 +520,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
 
         zval tmp_array;
         array_init(&tmp_array);
-        swoole_http_parse_cookie(&tmp_array, at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1);
+        swoole_http_parse_cookie(&tmp_array, at + sizeof("form-data;") - 1, length - sizeof("form-data;") + 1, false);
 
         zval *zform_name;
         if (!(zform_name = zend_hash_str_find(Z_ARRVAL(tmp_array), ZEND_STRL("name")))) {
@@ -523,7 +528,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         }
 
         if (Z_STRLEN_P(zform_name) >= SW_HTTP_FORM_KEYLEN) {
-            swWarn("form_name[%s] is too large", Z_STRVAL_P(zform_name));
+            swoole_warning("form_name[%s] is too large", Z_STRVAL_P(zform_name));
             ret = -1;
             goto _end;
         }
@@ -541,7 +546,7 @@ static int multipart_body_on_header_value(multipart_parser *p, const char *at, s
         // upload file
         else {
             if (Z_STRLEN_P(zfilename) >= SW_HTTP_FORM_KEYLEN) {
-                swWarn("filename[%s] is too large", Z_STRVAL_P(zfilename));
+                swoole_warning("filename[%s] is too large", Z_STRVAL_P(zfilename));
                 ret = -1;
                 goto _end;
             }
@@ -584,7 +589,7 @@ _end:
 }
 
 static int multipart_body_on_data(multipart_parser *p, const char *at, size_t length) {
-    http_context *ctx = (http_context *) p->data;
+    HttpContext *ctx = (HttpContext *) p->data;
     if (ctx->current_form_data_name) {
         swoole_http_form_data_buffer->append(at, length);
         return 0;
@@ -600,7 +605,7 @@ static int multipart_body_on_data(multipart_parser *p, const char *at, size_t le
         fclose((FILE *) p->fp);
         p->fp = nullptr;
 
-        swSysWarn("write upload file failed");
+        swoole_sys_warning("write upload file failed");
     }
     return 0;
 }
@@ -621,7 +626,7 @@ static void get_random_file_name(char *des, const char *src)
 #endif
 
 static int multipart_body_on_header_complete(multipart_parser *p) {
-    http_context *ctx = (http_context *) p->data;
+    HttpContext *ctx = (HttpContext *) p->data;
     if (!ctx->current_input_name) {
         return 0;
     }
@@ -645,7 +650,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
     FILE *fp = fdopen(tmpfile, "wb+");
     if (fp == nullptr) {
         add_assoc_long(z_multipart_header, "error", HTTP_UPLOAD_ERR_NO_TMP_DIR);
-        swSysWarn("fopen(%s) failed", file_path);
+        swoole_sys_warning("fopen(%s) failed", file_path);
         return 0;
     }
 
@@ -665,7 +670,7 @@ static int multipart_body_on_header_complete(multipart_parser *p) {
 }
 
 static int multipart_body_on_data_end(multipart_parser *p) {
-    http_context *ctx = (http_context *) p->data;
+    HttpContext *ctx = (HttpContext *) p->data;
 
     if (ctx->current_form_data_name) {
         php_register_variable_safe(
@@ -745,7 +750,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         return 0;
     }
 
-    http_context *ctx = (http_context *) parser->data;
+    HttpContext *ctx = (HttpContext *) parser->data;
     bool is_beginning = (ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length) == 0;
 
     if (ctx->recv_chunked) {
@@ -785,7 +790,7 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
 }
 
 static int http_request_message_complete(swoole_http_parser *parser) {
-    http_context *ctx = (http_context *) parser->data;
+    HttpContext *ctx = (HttpContext *) parser->data;
     size_t content_length = ctx->request.chunked_body ? ctx->request.chunked_body->length : ctx->request.body_length;
 
     if (ctx->request.chunked_body != nullptr && ctx->parse_body && ctx->request.post_form_urlencoded) {
@@ -802,13 +807,13 @@ static int http_request_message_complete(swoole_http_parser *parser) {
     }
     ctx->completed = 1;
 
-    swTraceLog(SW_TRACE_HTTP, "request body length=%ld", content_length);
+    swoole_trace_log(SW_TRACE_HTTP, "request body length=%ld", content_length);
 
     return 1; /* return from execute */
 }
 
 #ifdef SW_HAVE_COMPRESSION
-void http_context::set_compression_method(const char *accept_encoding, size_t length) {
+void HttpContext::set_compression_method(const char *accept_encoding, size_t length) {
 #ifdef SW_HAVE_BROTLI
     if (swoole_strnpos(accept_encoding, length, ZEND_STRL("br")) >= 0) {
         accept_compression = 1;
@@ -826,7 +831,7 @@ void http_context::set_compression_method(const char *accept_encoding, size_t le
     }
 }
 
-const char *http_context::get_content_encoding() {
+const char *HttpContext::get_content_encoding() {
     if (compression_method == HTTP_COMPRESS_GZIP) {
         return "gzip";
     } else if (compression_method == HTTP_COMPRESS_DEFLATE) {
@@ -843,13 +848,13 @@ const char *http_context::get_content_encoding() {
 }
 #endif
 
-static PHP_METHOD(swoole_http_request, rawContent) {
-    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+static PHP_METHOD(swoole_http_request, getContent) {
+    HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
 
-    http_request *req = &ctx->request;
+    HttpRequest *req = &ctx->request;
     if (req->body_length > 0) {
         zval *zdata = &req->zdata;
         RETURN_STRINGL(Z_STRVAL_P(zdata) + Z_STRLEN_P(zdata) - req->body_length, req->body_length);
@@ -866,7 +871,7 @@ static PHP_METHOD(swoole_http_request, rawContent) {
 }
 
 static PHP_METHOD(swoole_http_request, getData) {
-    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -893,7 +898,7 @@ static PHP_METHOD(swoole_http_request, create) {
     Z_PARAM_ARRAY(zoptions)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    http_context *ctx = new http_context();
+    HttpContext *ctx = new HttpContext();
     object_init_ex(return_value, swoole_http_request_ce);
     zval *zrequest_object = &ctx->request._zobject;
     ctx->request.zobject = zrequest_object;
@@ -954,7 +959,7 @@ static PHP_METHOD(swoole_http_request, create) {
 }
 
 static PHP_METHOD(swoole_http_request, parse) {
-    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx) || ctx->completed) {
         RETURN_FALSE;
     }
@@ -983,7 +988,7 @@ static PHP_METHOD(swoole_http_request, parse) {
 }
 
 static PHP_METHOD(swoole_http_request, getMethod) {
-    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }
@@ -992,7 +997,7 @@ static PHP_METHOD(swoole_http_request, getMethod) {
 }
 
 static PHP_METHOD(swoole_http_request, isCompleted) {
-    http_context *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
+    HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;
     }

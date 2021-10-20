@@ -24,7 +24,7 @@ int swoole_tmpfile(char *filename) {
 #endif
 
     if (tmp_fd < 0) {
-        swSysWarn("mkstemp(%s) failed", filename);
+        swoole_sys_warning("mkstemp(%s) failed", filename);
         return SW_ERR;
     } else {
         return tmp_fd;
@@ -63,7 +63,7 @@ ssize_t file_get_size(int fd) {
 std::shared_ptr<String> file_get_contents(const std::string &filename) {
     File fp(filename, O_RDONLY);
     if (!fp.ready()) {
-        swSysWarn("open(%s) failed", filename.c_str());
+        swoole_sys_warning("open(%s) failed", filename.c_str());
         return nullptr;
     }
 
@@ -107,7 +107,7 @@ bool file_put_contents(const std::string &filename, const char *content, size_t 
     }
     File file(filename, O_WRONLY | O_TRUNC | O_CREAT, 0666);
     if (!file.ready()) {
-        swSysWarn("open(%s) failed", filename.c_str());
+        swoole_sys_warning("open(%s) failed", filename.c_str());
         return false;
     }
     return file.write_all(content, length);
@@ -130,7 +130,7 @@ size_t File::write_all(const void *data, size_t len) {
             if (errno == EINTR) {
                 continue;
             } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
-                swSysWarn("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
+                swoole_sys_warning("pwrite(%d, %p, %lu, %lu) failed", fd_, data, len - written_bytes, written_bytes);
             }
             break;
         }
@@ -150,7 +150,7 @@ size_t File::read_all(void *buf, size_t len) {
             if (errno == EINTR) {
                 continue;
             } else if (!(errno == EAGAIN || errno == EWOULDBLOCK)) {
-                swSysWarn("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
+                swoole_sys_warning("pread(%d, %p, %lu, %lu) failed", fd_, buf, len - read_bytes, read_bytes);
             }
             break;
         }
