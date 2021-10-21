@@ -641,6 +641,7 @@ struct ResolveContext {
 
 struct NameResolver {
     std::function<std::string(const std::string &name, ResolveContext *ctx)> resolve;
+    void *private_data;
 };
 
 struct Global {
