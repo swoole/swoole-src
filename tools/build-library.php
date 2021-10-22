@@ -90,8 +90,10 @@ $files = [
     'core/Server/Helper.php',
     # <core for NameService> #
     'core/NameService/BaseObject.php',
-    'core/NameService/Redis.php',
     'core/NameService/Cluster.php',
+    'core/NameService/Redis.php',
+    'core/NameService/Nacos.php',
+    'core/NameService/Consul.php',
     # <core for functions> #
     'core/Coroutine/functions.php',
     # <ext> #
@@ -137,6 +139,7 @@ foreach ($files as $file) {
     if (strpos($code, PHP_TAG) !== 0) {
         swoole_error("File [{$file}] must start with \"<?php\"");
     }
+    $code = swoole_remove_php_comments($code);
     $name = unCamelize(str_replace(['/', '.php'], ['_', ''], $file));
     // keep line breaks to align line numbers
     $code = rtrim(substr($code, strlen(PHP_TAG)));

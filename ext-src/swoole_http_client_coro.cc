@@ -733,7 +733,7 @@ bool HttpClient::decompress_response(const char *in, size_t in_len) {
                 }
             } else {
                 swoole_warning("BrotliDecoderDecompressStream() failed, %s",
-                       BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
+                               BrotliDecoderErrorString(BrotliDecoderGetErrorCode(brotli_decoder_state)));
                 break;
             }
         }
@@ -1338,15 +1338,15 @@ bool HttpClient::send() {
     }
 
     swoole_trace_log(SW_TRACE_HTTP_CLIENT,
-               "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
-               host.c_str(),
-               port,
-               path.c_str(),
-               socket->get_fd(),
-               Coroutine::get_current_cid(),
-               buffer->length,
-               (int) buffer->length,
-               buffer->str);
+                     "to [%s:%u%s] by fd#%d in cid#%ld with [%zu] bytes: <<EOF\n%.*s\nEOF",
+                     host.c_str(),
+                     port,
+                     path.c_str(),
+                     socket->get_fd(),
+                     Coroutine::get_current_cid(),
+                     buffer->length,
+                     (int) buffer->length,
+                     buffer->str);
 
     if (socket->send_all(buffer->str, buffer->length) != (ssize_t) buffer->length) {
     _send_fail:
@@ -1373,15 +1373,14 @@ bool HttpClient::exec(std::string _path) {
             return false;
         }
         if (recv() == false) {
-            if (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE) {
-                close(true);
-                continue;
-            } else {
-                return false;
-            }
-        } else {
-            return true;
+            return false;
         }
+        if (max_retries > 0 &&
+            (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE)) {
+            close(true);
+            continue;
+        }
+        return true;
     }
     return false;
 }
@@ -1530,11 +1529,11 @@ bool HttpClient::recv_http_response(double timeout) {
         total_bytes += retval;
         parsed_n = swoole_http_parser_execute(&parser, &http_parser_settings, buffer->str, retval);
         swoole_trace_log(SW_TRACE_HTTP_CLIENT,
-                   "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
-                   parsed_n,
-                   retval,
-                   total_bytes,
-                   parser.state == s_start_res);
+                         "parsed_n=%ld, retval=%ld, total_bytes=%ld, completed=%d",
+                         parsed_n,
+                         retval,
+                         total_bytes,
+                         parser.state == s_start_res);
         if (parser.state == s_start_res) {
             // handle redundant data (websocket packet)
             if (parser.upgrade && (size_t) retval > parsed_n + SW_WEBSOCKET_HEADER_LEN) {

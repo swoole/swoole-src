@@ -164,7 +164,6 @@ add_dependencies(ext-swoole lib-swoole)
 target_link_libraries(ext-swoole swoole)
 
 # install
-INSTALL(CODE "MESSAGE(\"Are you run command using root user?\")")
 INSTALL(TARGETS ext-swoole LIBRARY DESTINATION ${PHP_EXTENSION_DIR})
 INSTALL(TARGETS lib-swoole LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
 INSTALL(FILES ${HEAD_FILES} DESTINATION include/swoole)

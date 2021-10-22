@@ -804,3 +804,18 @@ function assert_server_stats($stats) {
     Assert::keyExists($stats, 'connection_num');
     Assert::keyExists($stats, 'request_count');
 }
+
+function swoole_loop_n($n, $fn)
+{
+    for ($i = 0; $i < $n; $i++) {
+        $fn($i);
+    }
+}
+
+function swoole_loop($fn)
+{
+    $i = 0;
+    while (true) {
+        $fn($i++);
+    }
+}

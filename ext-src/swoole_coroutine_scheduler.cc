@@ -182,13 +182,23 @@ static std::string php_swoole_name_resolve(const std::string &name, ResolveConte
     }
 
     zval cluster_pop_retval;
-    zval with_port;
-    ZVAL_BOOL(&with_port, ctx->with_port);
-    sw_zend_call_method_with_1_params(zcluster_object, NULL, NULL, "pop", &cluster_pop_retval, &with_port);
-    if (Z_TYPE(cluster_pop_retval) != IS_STRING) {
+    sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "pop", &cluster_pop_retval);
+    if (!ZVAL_IS_ARRAY(&cluster_pop_retval)) {
         return "";
     }
-    auto result = std::string(Z_STRVAL(cluster_pop_retval), Z_STRLEN(cluster_pop_retval));
+    zval *zhost = zend_hash_str_find(HASH_OF(&cluster_pop_retval), ZEND_STRL("host"));
+    if (zhost == nullptr || !ZVAL_IS_STRING(zhost)) {
+        return "";
+    }
+    std::string result = std::string(Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));;
+    if (ctx->with_port) {
+        result.append(":");
+        zval *zport = zend_hash_str_find(HASH_OF(&cluster_pop_retval), ZEND_STRL("port"));
+        if (zport == nullptr) {
+            return "";
+        }
+        result.append(std::to_string(zval_get_long(zport)));
+    }
     zval_ptr_dtor(&cluster_pop_retval);
     return result;
 }
