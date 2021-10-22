@@ -202,3 +202,30 @@ function swoole_library_files()
 
     return $files;
 }
+
+function swoole_remove_php_comments($code)
+{
+    $newCode = '';
+    $commentTokens = array(T_COMMENT);
+
+    if (defined('T_DOC_COMMENT')) {
+        $commentTokens[] = T_DOC_COMMENT;
+    }
+
+    if (defined('T_ML_COMMENT')) {
+        $commentTokens[] = T_ML_COMMENT;
+    }
+
+    $tokens = token_get_all($code);
+    foreach ($tokens as $token) {
+        if (is_array($token)) {
+            if (in_array($token[0], $commentTokens)) {
+                continue;
+            }
+            $token = $token[1];
+        }
+        $newCode .= $token;
+    }
+
+    return $newCode;
+}

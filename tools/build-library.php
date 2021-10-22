@@ -4,6 +4,7 @@ require __DIR__ . '/bootstrap.php';
 
 define('LIBRARY_HEADER', ROOT_DIR . '/ext-src/php_swoole_library.h');
 define('PHP_TAG', '<?php');
+define('STRIP_COMMENTS', true);
 
 if (!isset($argv[1]) or $argv[1] != 'dev') {
     preg_match(
@@ -131,6 +132,9 @@ foreach ($files as $file) {
     }
     if (strpos($code, PHP_TAG) !== 0) {
         swoole_error("File [{$file}] must start with \"<?php\"");
+    }
+    if (STRIP_COMMENTS) {
+        $code = swoole_remove_php_comments($code);
     }
     $name = unCamelize(str_replace(['/', '.php'], ['_', ''], $file));
     // keep line breaks to align line numbers
