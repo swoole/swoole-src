@@ -4,7 +4,7 @@ require __DIR__ . '/bootstrap.php';
 
 define('LIBRARY_HEADER', ROOT_DIR . '/ext-src/php_swoole_library.h');
 define('PHP_TAG', '<?php');
-define('STRIP_COMMENTS', false);
+define('STRIP_COMMENTS', true);
 
 if (!isset($argv[1]) or $argv[1] != 'dev') {
     preg_match(
