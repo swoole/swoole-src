@@ -156,7 +156,7 @@ char *url_encode(char const *str, size_t len);
 #ifdef SW_USE_HTTP2
 ssize_t get_package_length(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
 uint8_t get_package_length_size(network::Socket *conn);
-int dispatch_frame(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
+int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
 #endif
 
 //-----------------------------------------------------------------

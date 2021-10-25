@@ -736,12 +736,12 @@ uint8_t get_package_length_size(Socket *socket) {
     }
 }
 
-int dispatch_frame(Protocol *proto, Socket *socket, const char *data, uint32_t length) {
+int dispatch_frame(const Protocol *proto, Socket *socket, const RecvData *rdata) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return websocket::dispatch_frame(proto, socket, data, length);
+        return websocket::dispatch_frame(proto, socket, rdata);
     } else if (conn->http2_stream) {
-        return Server::dispatch_task(proto, socket, data, length);
+        return Server::dispatch_task(proto, socket, rdata);
     } else {
         protocol_status_error(socket, conn);
         return SW_ERR;

@@ -915,7 +915,7 @@ static void ReactorThread_resume_data_receiving(Timer *timer, TimerNode *tnode) 
 /**
  * dispatch request data [only data frame]
  */
-int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, uint32_t length) {
+int Server::dispatch_task(const Protocol *proto, Socket *_socket, const RecvData *rdata) {
     Server *serv = (Server *) proto->private_data_2;
     SendData task;
 
@@ -925,14 +925,13 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
     sw_memset_zero(&task.info, sizeof(task.info));
     task.info.server_fd = conn->server_fd;
     task.info.reactor_id = conn->reactor_id;
-    task.info.ext_flags = proto->ext_flags;
-    proto->ext_flags = 0;
+    task.info.ext_flags = rdata->info.ext_flags;
     task.info.type = SW_SERVER_EVENT_RECV_DATA;
     task.info.time = conn->last_recv_time;
 
     int return_code = SW_OK;
 
-    swoole_trace("send string package, size=%ld bytes", (long) length);
+    swoole_trace("send string package, size=%u bytes", rdata->info.len);
 
     if (serv->stream_socket_file) {
         Stream *stream = Stream::create(serv->stream_socket_file, 0, SW_SOCK_UNIX_STREAM);
@@ -955,22 +954,25 @@ int Server::dispatch_task(Protocol *proto, Socket *_socket, const char *data, ui
             return_code = SW_ERR;
             goto _return;
         }
-        if (stream->send(data, length) < 0) {
+        if (stream->send(rdata->data, rdata->info.len) < 0) {
             goto _cancel;
         }
     } else {
         task.info.fd = conn->fd;
-        task.info.len = length;
-        task.data = data;
-        if (length > 0) {
-            sw_atomic_fetch_add(&conn->recv_queued_bytes, length);
-            swoole_trace_log(
-                SW_TRACE_SERVER, "session_id=%ld, len=%d, qb=%d", conn->session_id, length, conn->recv_queued_bytes);
+        task.info.len = rdata->info.len;
+        task.data = rdata->data;
+        if (rdata->info.len > 0) {
+            sw_atomic_fetch_add(&conn->recv_queued_bytes, rdata->info.len);
+            swoole_trace_log(SW_TRACE_SERVER,
+                             "session_id=%ld, len=%d, qb=%d",
+                             conn->session_id,
+                             rdata->info.len,
+                             conn->recv_queued_bytes);
         }
         if (!serv->factory->dispatch(&task)) {
             return_code = SW_ERR;
-            if (length > 0) {
-                sw_atomic_fetch_sub(&conn->recv_queued_bytes, length);
+            if (rdata->info.len > 0) {
+                sw_atomic_fetch_sub(&conn->recv_queued_bytes, rdata->info.len);
             }
         }
     }
