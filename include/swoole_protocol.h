@@ -43,7 +43,16 @@ struct Protocol {
     void *private_data_2;
     uint16_t real_header_length;
 
-    int (*dispatch)(const Protocol *, network::Socket *, const RecvData *);
+    /**
+     * callback this function when a complete data packet is received
+     */
+    int (*onPackage)(const Protocol *, network::Socket *, const RecvData *);
+    /**
+     * parse the length value in the received data
+     * @return 0: more data needs to be received
+     * @return -1: abnormal value, connection should be closed
+     * @return >0: the length of the data packet
+     */
     LengthFunc get_package_length;
     uint8_t (*get_package_length_size)(network::Socket *);
 

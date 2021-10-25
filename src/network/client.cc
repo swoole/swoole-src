@@ -104,7 +104,7 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     protocol.package_length_size = 4;
     protocol.package_body_offset = 0;
     protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
-    protocol.dispatch = Client_onPackage;
+    protocol.onPackage = Client_onPackage;
 }
 
 int Client::sleep() {

@@ -223,40 +223,40 @@ void Server::init_port_protocol(ListenPort *ls) {
         if (ls->protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
             ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
-        ls->protocol.dispatch = Server::dispatch_task;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = Port_onRead_check_eof;
     } else if (ls->open_length_check) {
         if (ls->protocol.package_length_type != '\0') {
             ls->protocol.get_package_length = Protocol::default_length_func;
         }
-        ls->protocol.dispatch = Server::dispatch_task;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = Port_onRead_check_length;
     } else if (ls->open_http_protocol) {
 #ifdef SW_USE_HTTP2
         if (ls->open_http2_protocol && ls->open_websocket_protocol) {
             ls->protocol.get_package_length = http_server::get_package_length;
             ls->protocol.get_package_length_size = http_server::get_package_length_size;
-            ls->protocol.dispatch = http_server::dispatch_frame;
+            ls->protocol.onPackage = http_server::dispatch_frame;
         } else if (ls->open_http2_protocol) {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.get_package_length = http2::get_frame_length;
-            ls->protocol.dispatch = Server::dispatch_task;
+            ls->protocol.onPackage = Server::dispatch_task;
         } else
 #endif
             if (ls->open_websocket_protocol) {
             ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
             ls->protocol.get_package_length = websocket::get_package_length;
-            ls->protocol.dispatch = websocket::dispatch_frame;
+            ls->protocol.onPackage = websocket::dispatch_frame;
         }
         ls->protocol.package_length_offset = 0;
         ls->protocol.package_body_offset = 0;
         ls->onRead = Port_onRead_http;
     } else if (ls->open_mqtt_protocol) {
         mqtt::set_protocol(&ls->protocol);
-        ls->protocol.dispatch = Server::dispatch_task;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = Port_onRead_check_length;
     } else if (ls->open_redis_protocol) {
-        ls->protocol.dispatch = Server::dispatch_task;
+        ls->protocol.onPackage = Server::dispatch_task;
         ls->onRead = Port_onRead_redis;
     } else {
         ls->onRead = Port_onRead_raw;

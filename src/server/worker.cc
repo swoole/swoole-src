@@ -566,7 +566,7 @@ int Server::start_event_worker(Worker *worker) {
         network::Stream::set_protocol(&stream_protocol);
         stream_protocol.private_data_2 = this;
         stream_protocol.package_max_length = UINT_MAX;
-        stream_protocol.dispatch = Worker_onStreamPackage;
+        stream_protocol.onPackage = Worker_onStreamPackage;
         buffer_pool = new std::queue<String *>;
     } else if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,

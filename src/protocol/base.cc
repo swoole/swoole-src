@@ -70,7 +70,7 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
     ssize_t n = buffer->split(package_eof, package_eof_len, [&](const char *data, size_t length) -> int {
         rdata.info.len = length;
         rdata.data = data;
-        if (dispatch(this, socket, &rdata) < 0) {
+        if (onPackage(this, socket, &rdata) < 0) {
             retval = SW_CLOSE;
             return false;
         }
@@ -158,7 +158,7 @@ _do_recv:
             _do_dispatch:
                 rdata.info.len = buffer->offset;
                 rdata.data = buffer->str;
-                if (dispatch(this, socket, &rdata) < 0) {
+                if (onPackage(this, socket, &rdata) < 0) {
                     return SW_ERR;
                 }
                 if (socket->removed) {
@@ -277,7 +277,7 @@ _recv_data:
             buffer->offset = buffer->length;
             rdata.info.len = buffer->length;
             rdata.data = buffer->str;
-            if (dispatch(this, socket, &rdata) < 0) {
+            if (onPackage(this, socket, &rdata) < 0) {
                 return SW_ERR;
             }
             if (socket->removed) {

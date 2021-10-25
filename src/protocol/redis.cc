@@ -150,7 +150,7 @@ _recv_data:
                     if (request->n_lines_received == request->n_lines_total) {
                         rdata.info.len = buffer->length;
                         rdata.data = buffer->str;
-                        if (protocol->dispatch(protocol, socket, &rdata) < 0) {
+                        if (protocol->onPackage(protocol, socket, &rdata) < 0) {
                             return SW_ERR;
                         }
                         if (socket->removed) {
