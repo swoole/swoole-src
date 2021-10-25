@@ -42,9 +42,8 @@ struct Protocol {
     void *private_data;
     void *private_data_2;
     uint16_t real_header_length;
-    uint16_t ext_flags;
 
-    int (*onPackage)(Protocol *, network::Socket *, const char *, uint32_t);
+    int (*dispatch)(const Protocol *, network::Socket *, const RecvData *);
     LengthFunc get_package_length;
     uint8_t (*get_package_length_size)(network::Socket *);
 

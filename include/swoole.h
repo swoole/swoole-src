@@ -604,6 +604,16 @@ struct EventData {
     char data[SW_IPC_BUFFER_SIZE];
 };
 
+struct SendData {
+    DataHead info;
+    const char *data;
+};
+
+struct RecvData {
+    DataHead info;
+    const char *data;
+};
+
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;

@@ -152,7 +152,7 @@ static inline bool decode(Frame *frame, String *str) {
 }
 
 ssize_t get_package_length(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
-int dispatch_frame(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
+int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
 
 }  // namespace websocket
 }  // namespace swoole

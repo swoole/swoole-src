@@ -47,10 +47,10 @@ ssize_t Protocol::default_length_func(Protocol *protocol, network::Socket *socke
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0) {
         swoole_warning("invalid package (size=%d) from socket#%u<%s:%d>",
-               size,
-               socket->fd,
-               socket->info.get_ip(),
-               socket->info.get_port());
+                       size,
+                       socket->fd,
+                       socket->info.get_ip(),
+                       socket->info.get_port());
         return SW_ERR;
     }
     swoole_debug("length=%d", protocol->package_body_offset + body_length);
@@ -60,14 +60,17 @@ ssize_t Protocol::default_length_func(Protocol *protocol, network::Socket *socke
 }
 
 int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
+    RecvData rdata{};
+    int retval;
+
     if (buffer->length < package_eof_len) {
         return SW_CONTINUE;
     }
 
-    int retval;
-
     ssize_t n = buffer->split(package_eof, package_eof_len, [&](const char *data, size_t length) -> int {
-        if (onPackage(this, socket, data, length) < 0) {
+        rdata.info.len = length;
+        rdata.data = data;
+        if (dispatch(this, socket, &rdata) < 0) {
             retval = SW_CLOSE;
             return false;
         }
@@ -108,6 +111,7 @@ int Protocol::recv_split_by_eof(network::Socket *socket, String *buffer) {
  * @return SW_OK: continue
  */
 int Protocol::recv_with_length_protocol(network::Socket *socket, String *buffer) {
+    RecvData rdata{};
     ssize_t package_length;
     uint8_t _package_length_size = get_package_length_size ? get_package_length_size(socket) : package_length_size;
     uint32_t recv_size;
@@ -152,7 +156,9 @@ _do_recv:
         if (socket->recv_wait) {
             if (buffer->length >= (size_t) buffer->offset) {
             _do_dispatch:
-                if (onPackage(this, socket, buffer->str, buffer->offset) < 0) {
+                rdata.info.len = buffer->offset;
+                rdata.data = buffer->str;
+                if (dispatch(this, socket, &rdata) < 0) {
                     return SW_ERR;
                 }
                 if (socket->removed) {
@@ -228,6 +234,7 @@ _do_recv:
 int Protocol::recv_with_eof_protocol(network::Socket *socket, String *buffer) {
     bool recv_again = false;
     int buf_size;
+    RecvData rdata{};
 
 _recv_data:
     buf_size = buffer->size - buffer->length;
@@ -268,7 +275,9 @@ _recv_data:
             }
         } else if (memcmp(buffer->str + buffer->length - package_eof_len, package_eof, package_eof_len) == 0) {
             buffer->offset = buffer->length;
-            if (onPackage(this, socket, buffer->str, buffer->length) < 0) {
+            rdata.info.len = buffer->length;
+            rdata.data = buffer->str;
+            if (dispatch(this, socket, &rdata) < 0) {
                 return SW_ERR;
             }
             if (socket->removed) {

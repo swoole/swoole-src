@@ -33,7 +33,7 @@ using namespace network;
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static int Worker_onStreamAccept(Reactor *reactor, Event *event);
 static int Worker_onStreamRead(Reactor *reactor, Event *event);
-static int Worker_onStreamPackage(Protocol *proto, Socket *sock, const char *data, uint32_t length);
+static int Worker_onStreamPackage(const Protocol *proto, Socket *sock, const RecvData *rdata);
 static int Worker_onStreamClose(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
@@ -175,14 +175,14 @@ static int Worker_onStreamClose(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int Worker_onStreamPackage(Protocol *proto, Socket *sock, const char *data, uint32_t length) {
+static int Worker_onStreamPackage(const Protocol *proto, Socket *sock, const RecvData *rdata) {
     Server *serv = (Server *) proto->private_data_2;
 
     SendData task{};
-    memcpy(&task.info, data + proto->package_length_size, sizeof(task.info));
-    task.info.len = length - (uint32_t) sizeof(task.info) - proto->package_length_size;
+    memcpy(&task.info, rdata->data + proto->package_length_size, sizeof(task.info));
+    task.info.len = rdata->info.len - (uint32_t) sizeof(task.info) - proto->package_length_size;
     if (task.info.len > 0) {
-        task.data = (char *) (data + proto->package_length_size + sizeof(task.info));
+        task.data = (char *) (rdata->data + proto->package_length_size + sizeof(task.info));
     }
 
     serv->last_stream_socket = sock;
@@ -566,7 +566,7 @@ int Server::start_event_worker(Worker *worker) {
         network::Stream::set_protocol(&stream_protocol);
         stream_protocol.private_data_2 = this;
         stream_protocol.package_max_length = UINT_MAX;
-        stream_protocol.onPackage = Worker_onStreamPackage;
+        stream_protocol.dispatch = Worker_onStreamPackage;
         buffer_pool = new std::queue<String *>;
     } else if (dispatch_mode == DISPATCH_CO_CONN_LB || dispatch_mode == DISPATCH_CO_REQ_LB) {
         reactor->set_end_callback(Reactor::PRIORITY_WORKER_CALLBACK,

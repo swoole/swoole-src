@@ -51,7 +51,7 @@ static int Client_onWrite(Reactor *reactor, Event *event);
 static int Client_onError(Reactor *reactor, Event *event);
 static void Client_onTimeout(Timer *timer, TimerNode *tnode);
 static void Client_onResolveCompleted(AsyncEvent *event);
-static int Client_onPackage(Protocol *proto, Socket *conn, const char *data, uint32_t length);
+static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata);
 
 static sw_inline void execute_onConnect(Client *cli) {
     if (cli->timer) {
@@ -104,7 +104,7 @@ Client::Client(SocketType _type, bool _async) : async(_async) {
     protocol.package_length_size = 4;
     protocol.package_body_offset = 0;
     protocol.package_max_length = SW_INPUT_BUFFER_SIZE;
-    protocol.onPackage = Client_onPackage;
+    protocol.dispatch = Client_onPackage;
 }
 
 int Client::sleep() {
@@ -938,9 +938,9 @@ static int Client_https_proxy_handshake(Client *cli) {
 }
 #endif
 
-static int Client_onPackage(Protocol *proto, Socket *conn, const char *data, uint32_t length) {
+static int Client_onPackage(const Protocol *proto, Socket *conn, const RecvData *rdata) {
     Client *cli = (Client *) conn->object;
-    cli->onReceive(cli, data, length);
+    cli->onReceive(cli, rdata->data, rdata->info.len);
     return conn->close_wait ? SW_ERR : SW_OK;
 }
 

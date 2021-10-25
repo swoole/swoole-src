@@ -223,40 +223,40 @@ void Server::init_port_protocol(ListenPort *ls) {
         if (ls->protocol.package_eof_len > SW_DATA_EOF_MAXLEN) {
             ls->protocol.package_eof_len = SW_DATA_EOF_MAXLEN;
         }
-        ls->protocol.onPackage = Server::dispatch_task;
+        ls->protocol.dispatch = Server::dispatch_task;
         ls->onRead = Port_onRead_check_eof;
     } else if (ls->open_length_check) {
         if (ls->protocol.package_length_type != '\0') {
             ls->protocol.get_package_length = Protocol::default_length_func;
         }
-        ls->protocol.onPackage = Server::dispatch_task;
+        ls->protocol.dispatch = Server::dispatch_task;
         ls->onRead = Port_onRead_check_length;
     } else if (ls->open_http_protocol) {
 #ifdef SW_USE_HTTP2
         if (ls->open_http2_protocol && ls->open_websocket_protocol) {
             ls->protocol.get_package_length = http_server::get_package_length;
             ls->protocol.get_package_length_size = http_server::get_package_length_size;
-            ls->protocol.onPackage = http_server::dispatch_frame;
+            ls->protocol.dispatch = http_server::dispatch_frame;
         } else if (ls->open_http2_protocol) {
             ls->protocol.package_length_size = SW_HTTP2_FRAME_HEADER_SIZE;
             ls->protocol.get_package_length = http2::get_frame_length;
-            ls->protocol.onPackage = Server::dispatch_task;
+            ls->protocol.dispatch = Server::dispatch_task;
         } else
 #endif
             if (ls->open_websocket_protocol) {
             ls->protocol.package_length_size = SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN + sizeof(uint64_t);
             ls->protocol.get_package_length = websocket::get_package_length;
-            ls->protocol.onPackage = websocket::dispatch_frame;
+            ls->protocol.dispatch = websocket::dispatch_frame;
         }
         ls->protocol.package_length_offset = 0;
         ls->protocol.package_body_offset = 0;
         ls->onRead = Port_onRead_http;
     } else if (ls->open_mqtt_protocol) {
         mqtt::set_protocol(&ls->protocol);
-        ls->protocol.onPackage = Server::dispatch_task;
+        ls->protocol.dispatch = Server::dispatch_task;
         ls->onRead = Port_onRead_check_length;
     } else if (ls->open_redis_protocol) {
-        ls->protocol.onPackage = Server::dispatch_task;
+        ls->protocol.dispatch = Server::dispatch_task;
         ls->onRead = Port_onRead_redis;
     } else {
         ls->onRead = Port_onRead_raw;
@@ -311,6 +311,7 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Server *serv = (Server *) reactor->ptr;
+    RecvData rdata{};
 
     String *buffer = serv->get_recv_buffer(_socket);
     if (!buffer) {
@@ -335,7 +336,9 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
         return SW_OK;
     } else {
         buffer->offset = buffer->length = n;
-        return Server::dispatch_task(&port->protocol, _socket, buffer->str, n);
+        rdata.info.len = n;
+        rdata.data = buffer->str;
+        return Server::dispatch_task(&port->protocol, _socket, &rdata);
     }
 }
 
@@ -379,6 +382,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Server *serv = (Server *) reactor->ptr;
+    RecvData dispatch_data {};
 
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         if (conn->http_upgrade == 0) {
@@ -540,7 +544,9 @@ _parse:
             // send static file content directly in the reactor thread
             if (!serv->enable_static_handler || !serv->select_static_handler(request, conn)) {
                 // dynamic request, dispatch to worker
-                Server::dispatch_task(protocol, _socket, buffer->str, request->header_length_);
+                dispatch_data.info.len = request->header_length_;
+                dispatch_data.data = buffer->str;
+                Server::dispatch_task(protocol, _socket, &dispatch_data);
             }
             if (!conn->active || _socket->removed) {
                 return SW_OK;
@@ -637,7 +643,9 @@ _parse:
     }
 
     buffer->offset = request_length;
-    Server::dispatch_task(protocol, _socket, buffer->str, buffer->length);
+    dispatch_data.data = buffer->str;
+    dispatch_data.info.len = buffer->length;
+    Server::dispatch_task(protocol, _socket, &dispatch_data);
 
     if (conn->active && !_socket->removed) {
         serv->destroy_http_request(conn);

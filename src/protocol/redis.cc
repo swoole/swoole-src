@@ -43,7 +43,7 @@ int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
     int ret;
     char *buf_ptr;
     size_t buf_size;
-
+    RecvData rdata{};
     Request *request;
     network::Socket *socket = conn->socket;
 
@@ -148,7 +148,9 @@ _recv_data:
                     buffer->offset = buffer->length;
 
                     if (request->n_lines_received == request->n_lines_total) {
-                        if (protocol->onPackage(protocol, socket, buffer->str, buffer->length) < 0) {
+                        rdata.info.len = buffer->length;
+                        rdata.data = buffer->str;
+                        if (protocol->dispatch(protocol, socket, &rdata) < 0) {
                             return SW_ERR;
                         }
                         if (socket->removed) {
