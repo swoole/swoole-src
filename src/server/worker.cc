@@ -33,7 +33,7 @@ using namespace network;
 static int Worker_onPipeReceive(Reactor *reactor, Event *event);
 static int Worker_onStreamAccept(Reactor *reactor, Event *event);
 static int Worker_onStreamRead(Reactor *reactor, Event *event);
-static int Worker_onStreamPackage(Protocol *proto, Socket *sock, const char *data, uint32_t length);
+static int Worker_onStreamPackage(const Protocol *proto, Socket *sock, const RecvData *rdata);
 static int Worker_onStreamClose(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
@@ -175,14 +175,14 @@ static int Worker_onStreamClose(Reactor *reactor, Event *event) {
     return SW_OK;
 }
 
-static int Worker_onStreamPackage(Protocol *proto, Socket *sock, const char *data, uint32_t length) {
+static int Worker_onStreamPackage(const Protocol *proto, Socket *sock, const RecvData *rdata) {
     Server *serv = (Server *) proto->private_data_2;
 
     SendData task{};
-    memcpy(&task.info, data + proto->package_length_size, sizeof(task.info));
-    task.info.len = length - (uint32_t) sizeof(task.info) - proto->package_length_size;
+    memcpy(&task.info, rdata->data + proto->package_length_size, sizeof(task.info));
+    task.info.len = rdata->info.len - (uint32_t) sizeof(task.info) - proto->package_length_size;
     if (task.info.len > 0) {
-        task.data = (char *) (data + proto->package_length_size + sizeof(task.info));
+        task.data = (char *) (rdata->data + proto->package_length_size + sizeof(task.info));
     }
 
     serv->last_stream_socket = sock;
@@ -224,7 +224,7 @@ void Server::worker_accept_event(DataHead *info) {
                 auto packet = message_bus.get_packet();
                 sw_atomic_fetch_sub(&conn->recv_queued_bytes, packet.length);
                 swoole_trace_log(SW_TRACE_SERVER,
-                                 "[Worker] session_id=%ld, len=%d, qb=%d",
+                                 "[Worker] session_id=%ld, len=%lu, qb=%d",
                                  conn->session_id,
                                  packet.length,
                                  conn->recv_queued_bytes);

@@ -201,3 +201,17 @@ TEST(string, substr_len) {
     ASSERT_EQ(swoole::substr_len(str1, strlen(str1), ':', true), 5);
     ASSERT_EQ(swoole::substr_len(str1, strlen(str1), ':', false), 15);
 }
+
+TEST(string, starts_with) {
+    const char *str1 = "hello world";
+    ASSERT_TRUE(swoole::starts_with(str1, strlen(str1), SW_STRL("hello")));
+    ASSERT_FALSE(swoole::starts_with(str1, strlen(str1), SW_STRL("php")));
+    ASSERT_TRUE(swoole::starts_with(str1, strlen(str1), str1, strlen(str1)));
+}
+
+TEST(string, ends_with) {
+    const char *str1 = "hello world";
+    ASSERT_TRUE(swoole::ends_with(str1, strlen(str1), SW_STRL("world")));
+    ASSERT_FALSE(swoole::ends_with(str1, strlen(str1), SW_STRL("php")));
+    ASSERT_TRUE(swoole::ends_with(str1, strlen(str1), str1, strlen(str1)));
+}

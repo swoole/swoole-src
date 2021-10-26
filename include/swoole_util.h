@@ -65,15 +65,16 @@ static inline long time(bool steady = false) {
 }
 
 class DeferTask {
- private:
+  private:
     std::stack<Callback> list_;
- public:
+
+  public:
     void add(Callback fn) {
         list_.push(fn);
     }
 
     ~DeferTask() {
-        while(!list_.empty()) {
+        while (!list_.empty()) {
             auto fn = list_.top();
             fn(nullptr);
             list_.pop();
@@ -116,7 +117,7 @@ template <typename Fun>
 inline ScopeGuard<Fun> operator+(ScopeGuardOnExit, Fun &&fn) {
     return ScopeGuard<Fun>(std::forward<Fun>(fn));
 }
-}
+}  // namespace detail
 
 // Helper macro
 #define ON_SCOPE_EXIT                                                                                                  \
@@ -153,6 +154,20 @@ static inline ssize_t substr_len(const char *str, size_t len, char separator, bo
         return -1;
     }
     return before ? substr - str : str + len - substr - 1;
+}
+
+static inline bool starts_with(const char *haystack, size_t l_haystack, const char *needle, size_t l_needle) {
+    if (l_needle > l_haystack) {
+        return false;
+    }
+    return memcmp(haystack, needle, l_needle) == 0;
+}
+
+static inline bool ends_with(const char *haystack, size_t l_haystack, const char *needle, size_t l_needle) {
+    if (l_needle > l_haystack) {
+        return false;
+    }
+    return memcmp(haystack + l_haystack - l_needle, needle, l_needle) == 0;
 }
 
 }  // namespace swoole

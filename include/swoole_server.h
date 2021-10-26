@@ -142,16 +142,6 @@ struct Connection {
     sw_atomic_t lock;
 };
 
-struct SendData {
-    DataHead info;
-    const char *data;
-};
-
-struct RecvData {
-    DataHead info;
-    const char *data;
-};
-
 struct PipeBuffer {
     DataHead info;
     char data[0];
@@ -1399,7 +1389,7 @@ class Server {
 #endif
     static int accept_command_result(Reactor *reactor, Event *event);
     static int close_connection(Reactor *reactor, network::Socket *_socket);
-    static int dispatch_task(Protocol *proto, network::Socket *_socket, const char *data, uint32_t length);
+    static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
 
     int send_to_connection(SendData *);
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
