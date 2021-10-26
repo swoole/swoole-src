@@ -224,7 +224,7 @@ void Server::worker_accept_event(DataHead *info) {
                 auto packet = message_bus.get_packet();
                 sw_atomic_fetch_sub(&conn->recv_queued_bytes, packet.length);
                 swoole_trace_log(SW_TRACE_SERVER,
-                                 "[Worker] session_id=%ld, len=%d, qb=%d",
+                                 "[Worker] session_id=%ld, len=%lu, qb=%d",
                                  conn->session_id,
                                  packet.length,
                                  conn->recv_queued_bytes);
