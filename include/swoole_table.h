@@ -285,7 +285,7 @@ class Table {
     }
 
     void init_row(TableRow *new_row, const char *key, int keylen) {
-        sw_memset_zero((void *)new_row + offsetof(TableRow, active), sizeof(TableRow) - (sizeof(sw_atomic_t) + sizeof(pid_t)));
+        sw_memset_zero((void *)new_row + offsetof(TableRow, active), sizeof(TableRow) - offsetof(TableRow, active));
         memcpy(new_row->key, key, keylen);
         new_row->key[keylen] = '\0';
         new_row->key_len = keylen;
