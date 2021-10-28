@@ -513,14 +513,15 @@ sudo make install
 
 Enable it by adding a new line `extension=swoole_async.so` to `php.ini`.
 
-## 💎 Frameworks & Components
-+ [**Hyperf**](https://github.com/hyperf/hyperf) is a coroutine framework that focuses on hyperspeed and flexibility, specifically used for build microservices or middlewares.
-+ [**Swoft**](https://github.com/swoft-cloud/swoft) is a modern, high-performance AOP and coroutine PHP framework.
-+ [**Easyswoole**](https://www.easyswoole.com) is a simple, high-performance PHP framework, based on Swoole, which makes using Swoole as easy as `echo "hello world"`.
-+ [**MixPHP**](https://github.com/mix-php/mix) is a powerful single-threaded coroutine framework with a very small footprint, simple and elegant.
-+ [**imi**](https://github.com/Yurunsoft/imi) is a high-performance coroutine application development framework based on PHP Swoole, which supports the development of HttpApi, WebSocket, TCP, UDP services.
-+ [**Saber**](https://github.com/swlib/saber) is a human-friendly, high-performance HTTP client component that has almost everything you can imagine.
-+ [**One**](https://github.com/lizhichao/one) is a minimalist, high-performance PHP framework that supports the [swoole | php-fpm] environment
+## 💎 Awesome Swoole
+Project [Awesome Swoole](https://github.com/swoole/awesome-swoole) maintains a curated list of awesome things related to Swoole, including
+
+* Swoole-based frameworks and libraries.
+* Packages to integrate Swoole with popular PHP frameworks, including Laravel, Symfony, Slim, and Yii.
+* Books, videos, and other learning materials about Swoole.
+* Debugging, profiling, and testing tools for developing Swoole-based applications.
+* Coroutine-friendly packages and libraries.
+* Other Swoole related projects and resources.
 
 ## 🛠 Develop & Discussion
 
