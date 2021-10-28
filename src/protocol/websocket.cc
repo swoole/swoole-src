@@ -320,8 +320,8 @@ int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata
             dispatch_data.info.len = 0;
         } else {
             offset = ws.header.MASK ? SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN : SW_WEBSOCKET_HEADER_LEN;
-            dispatch_data.data = data + offset;
             dispatch_data.info.len = length - offset;
+            dispatch_data.data = dispatch_data.info.len == 0 ? nullptr : data + offset;
         }
         dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
         Server::dispatch_task(proto, _socket, &dispatch_data);
