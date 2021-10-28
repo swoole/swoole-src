@@ -56,7 +56,9 @@
 #include <sys/utsname.h>
 #include <sys/time.h>
 
+#include <string>
 #include <memory>
+#include <list>
 #include <functional>
 
 typedef unsigned long ulong_t;
@@ -650,8 +652,13 @@ struct ResolveContext {
 };
 
 struct NameResolver {
-    std::function<std::string(const std::string &name, ResolveContext *ctx)> resolve;
+    enum Type {
+        TYPE_KERNEL,
+        TYPE_PHP,
+    };
+    std::function<std::string(const std::string &, ResolveContext *, void *)> resolve;
     void *private_data;
+    enum Type type;
 };
 
 struct Global {
@@ -694,7 +701,7 @@ struct Global {
     int dns_tries;
     std::string dns_resolvconf_path;
     std::string dns_hosts_path;
-    NameResolver name_resolver;
+    std::list<NameResolver> name_resolvers;
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
@@ -705,7 +712,7 @@ struct Global {
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(Reactor *reactor, size_t &event_num)> user_exit_condition;
     // bug report message
-    std::string bug_report_message = "";
+    std::string bug_report_message;
 };
 
 std::string dirname(const std::string &file);
@@ -749,6 +756,8 @@ SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
+SW_API void swoole_add_name_resolver(const swoole::NameResolver &resolver);
+SW_API std::string swoole_name_resolve(const std::string &host_name, swoole::ResolveContext *ctx);
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {
@@ -782,8 +791,4 @@ static sw_inline swoole::MemoryPool *sw_mem_pool() {
 
 static sw_inline const swoole::Allocator *sw_std_allocator() {
     return &SwooleG.std_allocator;
-}
-
-static sw_inline const swoole::NameResolver *sw_name_resolver() {
-    return &SwooleG.name_resolver;
 }

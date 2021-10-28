@@ -31,7 +31,7 @@
 #include <ares.h>
 #endif
 
-bool swoole_load_resolv_conf() {
+SW_API bool swoole_load_resolv_conf() {
     FILE *fp;
     char line[100];
     char buf[16] = {};
@@ -57,8 +57,22 @@ bool swoole_load_resolv_conf() {
     return true;
 }
 
-void swoole_set_hosts_path(const std::string &hosts_file) {
+SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
     SwooleG.dns_hosts_path = hosts_file;
+}
+
+SW_API void swoole_add_name_resolver(const swoole::NameResolver &resolver) {
+    SwooleG.name_resolvers.push_back(resolver);
+}
+
+SW_API std::string swoole_name_resolve(const std::string &host_name, swoole::ResolveContext *ctx) {
+    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
+        std::string result = iter->resolve(host_name, ctx, iter->private_data);
+        if (!result.empty()) {
+            return result;
+        }
+    }
+    return "";
 }
 
 namespace swoole {

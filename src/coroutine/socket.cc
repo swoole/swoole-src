@@ -671,7 +671,7 @@ bool Socket::connect(std::string _host, int _port, int flags) {
         ON_SCOPE_EXIT {
             read_co = write_co = nullptr;
         };
-        std::string addr = sw_name_resolver()->resolve(connect_host, ctx);
+        std::string addr = swoole_name_resolve(connect_host, ctx);
         if (addr.empty()) {
             set_err(swoole_get_last_error());
             return false;

@@ -61,6 +61,7 @@
     _(SW_ZEND_STR_REASON,                   "reason") \
     _(SW_ZEND_STR_FLAGS,                    "flags") \
     _(SW_ZEND_STR_FINISH,                   "finish") \
+    _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameService\\Resolver") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,

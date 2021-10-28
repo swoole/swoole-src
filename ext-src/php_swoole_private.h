@@ -599,6 +599,10 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         if (short_name) SW_CLASS_ALIAS_SHORT_NAME(short_name, module);                                                 \
     } while (0)
 
+#define SW_INIT_CLASS_ENTRY_STD(module, namespace_name, methods)                                                       \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, nullptr, nullptr, methods, NULL);                                 \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
+
 #define SW_INIT_CLASS_ENTRY(module, namespace_name, snake_name, short_name, methods)                                   \
     SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, NULL);                           \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))

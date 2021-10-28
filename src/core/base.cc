@@ -44,6 +44,7 @@
 #include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
 
+using swoole::NameResolver;
 using swoole::String;
 using swoole::coroutine::System;
 
@@ -184,20 +185,21 @@ void swoole_init(void) {
         exit(4);
     }
 
-    SwooleG.name_resolver = {
-        [](const std::string &name, swoole::ResolveContext *ctx) -> std::string {
-            if (swoole_coroutine_is_in()) {
-                return System::gethostbyname(name, ctx->type, ctx->timeout);
-            } else {
-                char addr[SW_IP_MAX_LENGTH];
-                if (swoole::network::gethostbyname(ctx->type, name.c_str(), addr) < 0) {
-                    swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-                    return "";
-                }
-                return std::string(addr);
-            }
-        },
-    };
+    NameResolver dns{[](const std::string &name, swoole::ResolveContext *ctx, void *) -> std::string {
+                         if (swoole_coroutine_is_in()) {
+                             return System::gethostbyname(name, ctx->type, ctx->timeout);
+                         } else {
+                             char addr[SW_IP_MAX_LENGTH];
+                             if (swoole::network::gethostbyname(ctx->type, name.c_str(), addr) < 0) {
+                                 swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+                                 return "";
+                             }
+                             return std::string(addr);
+                         }
+                     },
+                     nullptr,
+                     NameResolver::TYPE_KERNEL};
+    SwooleG.name_resolvers.push_back(dns);
 
     // init signalfd
 #ifdef HAVE_SIGNALFD
