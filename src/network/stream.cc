@@ -117,6 +117,8 @@ void Stream::set_max_length(uint32_t max_length) {
 }
 
 int Stream::send(const char *data, size_t length) {
+    assert(data != nullptr);
+    assert(length > 0);
     if (buffer == nullptr) {
         buffer = new String(swoole_size_align(length + 4, SwooleG.pagesize));
         buffer->length = 4;
