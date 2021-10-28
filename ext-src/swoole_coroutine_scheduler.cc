@@ -147,14 +147,19 @@ void php_swoole_coroutine_scheduler_rshutdown() {
     for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
         if (iter->type == NameResolver::TYPE_PHP) {
             zval_dtor((zval *) iter->private_data);
+            efree(iter->private_data);
+            SwooleG.name_resolvers.erase(iter++);
         }
     }
 }
 
 static std::string php_swoole_name_resolve(const std::string &name, ResolveContext *ctx, void *private_data) {
     zval *zcluster_object;
+    zval retval;
     zval *zresolver = (zval *) private_data;
+
     if (!ctx->private_data) {
+    _do_resolve:
         ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
         ctx->dtor = [](ResolveContext *ctx) {
             zval *_zcluster_object = (zval *) ctx->private_data;
@@ -163,42 +168,42 @@ static std::string php_swoole_name_resolve(const std::string &name, ResolveConte
         };
         zval zname;
         ZVAL_STRINGL(&zname, name.c_str(), name.length());
-        zval params[2] = {
-            zname,
-            *zresolver,
-        };
-        auto retval = zend::function::call("\\Swoole\\Coroutine\\Helper::nameResolve", 2, params);
+        zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), NULL, NULL, "resolve", &retval, &zname);
         zval_dtor(&zname);
-        if (Z_TYPE(retval.value) != IS_OBJECT) {
+        if (Z_TYPE(retval) != IS_OBJECT) {
             return "";
         }
-        *zcluster_object = retval.value;
+        *zcluster_object = retval;
         ctx->cluster = true;
-        zval_add_ref(zcluster_object);
     } else {
         zcluster_object = (zval *) ctx->private_data;
+        // no available node, resolve again
+        sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "count", &retval);
+        if (zval_get_long(&retval) == 0) {
+            ctx->dtor(ctx);
+            ctx->private_data = nullptr;
+            goto _do_resolve;
+        }
     }
 
-    zval cluster_pop_retval;
-    sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "pop", &cluster_pop_retval);
-    if (!ZVAL_IS_ARRAY(&cluster_pop_retval)) {
+    sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "pop", &retval);
+    if (!ZVAL_IS_ARRAY(&retval)) {
         return "";
     }
-    zval *zhost = zend_hash_str_find(HASH_OF(&cluster_pop_retval), ZEND_STRL("host"));
+    zval *zhost = zend_hash_str_find(HASH_OF(&retval), ZEND_STRL("host"));
     if (zhost == nullptr || !ZVAL_IS_STRING(zhost)) {
         return "";
     }
     std::string result = std::string(Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));
-    ;
     if (ctx->with_port) {
         result.append(":");
-        zval *zport = zend_hash_str_find(HASH_OF(&cluster_pop_retval), ZEND_STRL("port"));
+        zval *zport = zend_hash_str_find(HASH_OF(&retval), ZEND_STRL("port"));
         if (zport == nullptr) {
             return "";
         }
         result.append(std::to_string(zval_get_long(zport)));
     }
-    zval_ptr_dtor(&cluster_pop_retval);
+    zval_ptr_dtor(&retval);
     return result;
 }
 
@@ -225,7 +230,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
         if (!ZVAL_IS_ARRAY(ztmp)) {
             php_swoole_fatal_error(E_WARNING, "name_resolver must be an array");
         } else {
-            zend_hash_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
+            zend_hash_reverse_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
                 auto ce = zend_lookup_class(SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER));
                 if (!instanceof_function(Z_OBJCE_P(zresolver), ce)) {
                     php_swoole_fatal_error(E_WARNING, "the given object is not an instance of NameService\\Resovler");
@@ -233,7 +238,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
                 }
                 zval_add_ref(zresolver);
                 NameResolver resolver{php_swoole_name_resolve, sw_zval_dup(zresolver), NameResolver::TYPE_PHP};
-                swoole_add_name_resolver(resolver);
+                swoole_name_resolver_add(resolver, false);
                 return 0;
             });
         }

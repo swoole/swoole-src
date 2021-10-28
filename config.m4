@@ -564,6 +564,7 @@ if test "$PHP_SWOOLE" != "no"; then
         ext-src/swoole_timer.cc \
         ext-src/swoole_websocket_server.cc \
         ext-src/swoole_admin_server.cc \
+        ext-src/swoole_resolve_context.cc \
         src/core/base.cc \
         src/core/channel.cc \
         src/core/crc32.cc \

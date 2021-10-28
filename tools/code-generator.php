@@ -63,7 +63,7 @@ file_put_contents($swoole_c, $swoole_c_content);
 // generate ERROR strings
 $swoole_error_cc = ROOT_DIR . '/src/core/error.cc';
 $swoole_error_cc_content = file_get_contents($swoole_error_cc);
-$swstrerror_output = space(4) . "switch(code)\n" . space(4) . "{\n";
+$swstrerror_output = space(4) . "switch(code) {\n";
 foreach ($matches_error[0] as $match) {
     // convert error code to swstrerror
     $sw_error_str = implode(' ', explode('_', strtolower(str_replace('SW_ERROR_', '', $match))));
@@ -90,7 +90,7 @@ $swstrerror_output .= <<<CPP
 CPP;
 $swstrerror_output .= "\n";
 $swoole_error_cc_content = preg_replace(
-    '/(\* swstrerror \{\{\{\*\/\n)([\s\S]+?)(\/\*\}\}\}\*\/)/',
+    '/(\* swstrerror \{\{\{\*\/\n)([\s\S]+?)('.space(4).'\/\*\}\}\}\*\/)/',
     '${1}' . $swstrerror_output . '${3}',
     $swoole_error_cc_content, 1, $is_ok
 );

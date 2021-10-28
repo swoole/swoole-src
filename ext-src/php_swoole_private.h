@@ -207,6 +207,7 @@ void php_swoole_event_minit(int module_number);
 // base
 void php_swoole_atomic_minit(int module_number);
 void php_swoole_lock_minit(int module_number);
+int swoole_resolve_context_module_init(INIT_FUNC_ARGS);
 void php_swoole_process_minit(int module_number);
 void php_swoole_process_pool_minit(int module_number);
 void php_swoole_table_minit(int module_number);
@@ -236,6 +237,7 @@ void php_swoole_http_server_minit(int module_number);
 void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
+void php_swoole_resolve_context_minit(int module_number);
 
 /**
  * RINIT

@@ -1663,32 +1663,6 @@ static const char* swoole_library_source_core_coroutine_barrier =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_coroutine_helper =
-    "\n"
-    "\n"
-    "\n"
-    "declare(strict_types=1);\n"
-    "\n"
-    "namespace Swoole\\Coroutine;\n"
-    "\n"
-    "use Swoole\\NameService\\Resolver;\n"
-    "\n"
-    "class Helper\n"
-    "{\n"
-    "    public static function nameResolve($name, $resolver_list)\n"
-    "    {\n"
-    "        foreach ($resolver_list as $resolver) {\n"
-    "            if (!($resolver instanceof Resolver)) {\n"
-    "                continue;\n"
-    "            }\n"
-    "            if ($resolver->hasFilter() and ($resolver->getFilter())($name) !== true) {\n"
-    "                continue;\n"
-    "            }\n"
-    "            return $resolver->resolve($name);\n"
-    "        }\n"
-    "    }\n"
-    "}\n";
-
 static const char* swoole_library_source_core_coroutine_http_client_proxy =
     "\n"
     "\n"
@@ -7582,16 +7556,24 @@ static const char* swoole_library_source_core_name_service_resolver =
     "{\n"
     "    private $filter_fn;\n"
     "\n"
-    "    abstract public function resolve(string $name): ?Cluster;\n"
-    "\n"
     "    abstract public function join(string $name, string $ip, int $port, array $options = []): bool;\n"
     "\n"
     "    abstract public function leave(string $name, string $ip, int $port): bool;\n"
+    "\n"
+    "    abstract public function getCluster(string $name): ?Cluster;\n"
     "\n"
     "    public function withFilter(callable $fn): self\n"
     "    {\n"
     "        $this->filter_fn = $fn;\n"
     "        return $this;\n"
+    "    }\n"
+    "\n"
+    "    function resolve(string $name): ?Cluster\n"
+    "    {\n"
+    "        if ($this->hasFilter() and ($this->getFilter())($name) !== true) {\n"
+    "            return null;\n"
+    "        }\n"
+    "        return $this->getCluster($name);\n"
     "    }\n"
     "\n"
     "    public function getFilter()\n"
@@ -7614,7 +7596,7 @@ static const char* swoole_library_source_core_name_service_cluster =
     "\n"
     "class Cluster\n"
     "{\n"
-    "    private $nodes = [];\n"
+    "    private array $nodes = [];\n"
     "\n"
     "    public function add(string $host, int $port, int $weight = 100): void\n"
     "    {\n"
@@ -7639,6 +7621,11 @@ static const char* swoole_library_source_core_name_service_cluster =
     "        $node = $this->nodes[$index];\n"
     "        unset($this->nodes[$index]);\n"
     "        return $node;\n"
+    "    }\n"
+    "\n"
+    "    public function count(): int\n"
+    "    {\n"
+    "        return count($this->nodes);\n"
     "    }\n"
     "}\n";
 
@@ -7692,7 +7679,7 @@ static const char* swoole_library_source_core_name_service_redis =
     "        return true;\n"
     "    }\n"
     "\n"
-    "    public function resolve(string $name): ?Cluster\n"
+    "    public function getCluster(string $name): ?Cluster\n"
     "    {\n"
     "        if (($redis = $this->connect()) === false) {\n"
     "            return null;\n"
@@ -7753,7 +7740,7 @@ static const char* swoole_library_source_core_name_service_nacos =
     "        return $r and $r->getStatusCode() === 200;\n"
     "    }\n"
     "\n"
-    "    public function resolve(string $name): ?Cluster\n"
+    "    public function getCluster(string $name): ?Cluster\n"
     "    {\n"
     "        $params['serviceName'] = $this->prefix . $name;\n"
     "\n"
@@ -7838,7 +7825,7 @@ static const char* swoole_library_source_core_name_service_consul =
     "        return $r and $r->getStatusCode() === 200;\n"
     "    }\n"
     "\n"
-    "    public function resolve(string $name): ?Cluster\n"
+    "    public function getCluster(string $name): ?Cluster\n"
     "    {\n"
     "        $r = Coroutine\\Http\\get($this->server . '/v1/catalog/service/' . $this->prefix . $name);\n"
     "        if (!$r or $r->getStatusCode() !== 200) {\n"
@@ -8461,7 +8448,6 @@ void php_swoole_load_library()
     zend::eval(swoole_library_source_core_coroutine_server, "@swoole-src/library/core/Coroutine/Server.php");
     zend::eval(swoole_library_source_core_coroutine_server_connection, "@swoole-src/library/core/Coroutine/Server/Connection.php");
     zend::eval(swoole_library_source_core_coroutine_barrier, "@swoole-src/library/core/Coroutine/Barrier.php");
-    zend::eval(swoole_library_source_core_coroutine_helper, "@swoole-src/library/core/Coroutine/Helper.php");
     zend::eval(swoole_library_source_core_coroutine_http_client_proxy, "@swoole-src/library/core/Coroutine/Http/ClientProxy.php");
     zend::eval(swoole_library_source_core_coroutine_http_functions, "@swoole-src/library/core/Coroutine/Http/functions.php");
     zend::eval(swoole_library_source_core_connection_pool, "@swoole-src/library/core/ConnectionPool.php");

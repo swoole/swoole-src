@@ -31,6 +31,9 @@
 #include <ares.h>
 #endif
 
+using swoole::NameResolver;
+using swoole::ResolveContext;
+
 SW_API bool swoole_load_resolv_conf() {
     FILE *fp;
     char line[100];
@@ -61,11 +64,21 @@ SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
     SwooleG.dns_hosts_path = hosts_file;
 }
 
-SW_API void swoole_add_name_resolver(const swoole::NameResolver &resolver) {
-    SwooleG.name_resolvers.push_back(resolver);
+SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) {
+    if (append) {
+        SwooleG.name_resolvers.push_back(resolver);
+    } else {
+        SwooleG.name_resolvers.push_front(resolver);
+    }
 }
 
-SW_API std::string swoole_name_resolve(const std::string &host_name, swoole::ResolveContext *ctx) {
+SW_API void swoole_name_resolver_each(const std::function<void(const std::list<NameResolver>::iterator &iter)> &fn) {
+    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
+        fn(iter);
+    }
+}
+
+SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, ResolveContext *ctx) {
     for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
         std::string result = iter->resolve(host_name, ctx, iter->private_data);
         if (!result.empty()) {

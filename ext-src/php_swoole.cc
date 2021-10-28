@@ -236,6 +236,7 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_get_objects, arginfo_swoole_get_objects)
     ZEND_FE(swoole_get_vm_status, arginfo_swoole_get_vm_status)
     ZEND_FE(swoole_get_object_by_handle, arginfo_swoole_get_object_by_handle)
+    ZEND_FE(swoole_name_resolver_lookup, arginfo_swoole_name_resolver_lookup)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -810,6 +811,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
+    php_swoole_resolve_context_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);

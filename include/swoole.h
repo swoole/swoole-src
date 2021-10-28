@@ -756,8 +756,10 @@ SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
-SW_API void swoole_add_name_resolver(const swoole::NameResolver &resolver);
-SW_API std::string swoole_name_resolve(const std::string &host_name, swoole::ResolveContext *ctx);
+SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool append = true);
+SW_API void swoole_name_resolver_each(
+    const std::function<void(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
+SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::ResolveContext *ctx);
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {
