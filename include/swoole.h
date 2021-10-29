@@ -640,8 +640,9 @@ struct ResolveContext {
     int type;
     double timeout;
     void *private_data;
-    bool cluster;
     bool with_port;
+    bool cluster_;
+    bool final_;
     std::function<void(ResolveContext *ctx)> dtor;
 
     ~ResolveContext() {

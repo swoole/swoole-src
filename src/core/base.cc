@@ -185,22 +185,6 @@ void swoole_init(void) {
         exit(4);
     }
 
-    NameResolver dns{[](const std::string &name, swoole::ResolveContext *ctx, void *) -> std::string {
-                         if (swoole_coroutine_is_in()) {
-                             return System::gethostbyname(name, ctx->type, ctx->timeout);
-                         } else {
-                             char addr[SW_IP_MAX_LENGTH];
-                             if (swoole::network::gethostbyname(ctx->type, name.c_str(), addr) < 0) {
-                                 swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
-                                 return "";
-                             }
-                             return std::string(addr);
-                         }
-                     },
-                     nullptr,
-                     NameResolver::TYPE_KERNEL};
-    SwooleG.name_resolvers.push_back(dns);
-
     // init signalfd
 #ifdef HAVE_SIGNALFD
     swoole_signalfd_init();

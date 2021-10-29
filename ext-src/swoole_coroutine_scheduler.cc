@@ -160,21 +160,30 @@ static std::string php_swoole_name_resolve(const std::string &name, ResolveConte
 
     if (!ctx->private_data) {
     _do_resolve:
-        ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
-        ctx->dtor = [](ResolveContext *ctx) {
-            zval *_zcluster_object = (zval *) ctx->private_data;
-            zval_dtor(_zcluster_object);
-            efree(_zcluster_object);
-        };
         zval zname;
         ZVAL_STRINGL(&zname, name.c_str(), name.length());
         zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), NULL, NULL, "resolve", &retval, &zname);
         zval_dtor(&zname);
-        if (Z_TYPE(retval) != IS_OBJECT) {
+        if (Z_TYPE(retval) == IS_OBJECT) {
+            *zcluster_object = retval;
+            ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
+            ctx->dtor = [](ResolveContext *ctx) {
+                zval *_zcluster_object = (zval *) ctx->private_data;
+                zval_dtor(_zcluster_object);
+                efree(_zcluster_object);
+            };
+            ctx->cluster_ = true;
+        }
+        else if (Z_TYPE(retval) == IS_STRING) {
+            *zcluster_object = retval;
+            ctx->final_ = true;
+            ctx->cluster_ = false;
+            return std::string(Z_STRVAL(retval), Z_STRLEN(retval));
+        } else {
+            ctx->final_ = false;
+            ctx->cluster_ = false;
             return "";
         }
-        *zcluster_object = retval;
-        ctx->cluster = true;
     } else {
         zcluster_object = (zval *) ctx->private_data;
         // no available node, resolve again
@@ -194,7 +203,7 @@ static std::string php_swoole_name_resolve(const std::string &name, ResolveConte
     if (zhost == nullptr || !ZVAL_IS_STRING(zhost)) {
         return "";
     }
-    std::string result = std::string(Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));
+    std::string result(Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));
     if (ctx->with_port) {
         result.append(":");
         zval *zport = zend_hash_str_find(HASH_OF(&retval), ZEND_STRL("port"));
@@ -230,7 +239,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
         if (!ZVAL_IS_ARRAY(ztmp)) {
             php_swoole_fatal_error(E_WARNING, "name_resolver must be an array");
         } else {
-            zend_hash_reverse_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
+            zend_hash_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
                 auto ce = zend_lookup_class(SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER));
                 if (!instanceof_function(Z_OBJCE_P(zresolver), ce)) {
                     php_swoole_fatal_error(E_WARNING, "the given object is not an instance of NameService\\Resovler");
@@ -238,7 +247,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
                 }
                 zval_add_ref(zresolver);
                 NameResolver resolver{php_swoole_name_resolve, sw_zval_dup(zresolver), NameResolver::TYPE_PHP};
-                swoole_name_resolver_add(resolver, false);
+                swoole_name_resolver_add(resolver);
                 return 0;
             });
         }

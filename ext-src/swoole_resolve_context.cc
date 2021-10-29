@@ -106,3 +106,7 @@ PHP_FUNCTION(swoole_name_resolver_lookup) {
 }
 
 END_EXTERN_C()
+
+ResolveContext *php_swoole_resolve_context_get_handle(zval *zobject) {
+    return swoole_resolve_context_get_handle(Z_OBJ_P(zobject));
+}

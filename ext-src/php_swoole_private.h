@@ -61,12 +61,12 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     } else {                                                                                                           \
         RETURN_TRUE;                                                                                                   \
     }
-#define SW_LOCK_CHECK_RETURN(s)																						   \
-    zend_long ___tmp_return_value = s; 																				   \
+#define SW_LOCK_CHECK_RETURN(s)                                                                                        \
+    zend_long ___tmp_return_value = s;                                                                                 \
     if (___tmp_return_value == 0) {                                                                                    \
         RETURN_TRUE;                                                                                                   \
     } else {                                                                                                           \
-        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value );             \
+        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value);              \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -169,6 +169,8 @@ extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 extern zend_class_entry *swoole_error_ce;
+extern zend_class_entry *swoole_resolve_context_ce;
+extern zend_object_handlers swoole_resolve_context_handlers;
 
 PHP_FUNCTION(swoole_clear_dns_cache);
 PHP_FUNCTION(swoole_last_error);
@@ -639,11 +641,10 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 #if PHP_VERSION_ID < 80100
 #define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->serialize = zend_class_serialize_deny;                                                                               \
+    module##_ce->serialize = zend_class_serialize_deny;                                                                \
     module##_ce->unserialize = zend_class_unserialize_deny;
 #else
-#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#define SW_SET_CLASS_NOT_SERIALIZABLE(module) module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
 #endif
 
 #define sw_zend_class_clone_deny NULL

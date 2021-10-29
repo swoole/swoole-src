@@ -147,6 +147,8 @@ zval *php_swoole_task_unpack(swoole::EventData *task_result);
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
 #endif
 
+swoole::ResolveContext *php_swoole_resolve_context_get_handle(zval *zobject);
+
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
 

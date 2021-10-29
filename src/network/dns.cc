@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 #include "swoole_util.h"
 
 #include <string>
@@ -33,6 +34,7 @@
 
 using swoole::NameResolver;
 using swoole::ResolveContext;
+using swoole::coroutine::System;
 
 SW_API bool swoole_load_resolv_conf() {
     FILE *fp;
@@ -79,13 +81,29 @@ SW_API void swoole_name_resolver_each(const std::function<void(const std::list<N
 }
 
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, ResolveContext *ctx) {
+    if (SwooleG.name_resolvers.empty()) {
+        goto _dns_lookup;
+    }
     for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
         std::string result = iter->resolve(host_name, ctx, iter->private_data);
-        if (!result.empty()) {
+        if (!result.empty() || ctx->final_) {
             return result;
         }
     }
-    return "";
+_dns_lookup:
+    /*
+     * Use DNS to resolve host name by default
+     */
+    if (swoole_coroutine_is_in()) {
+        return System::gethostbyname(host_name, ctx->type, ctx->timeout);
+    } else {
+        char addr[SW_IP_MAX_LENGTH];
+        if (swoole::network::gethostbyname(ctx->type, host_name.c_str(), addr) < 0) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return "";
+        }
+        return std::string(addr);
+    }
 }
 
 namespace swoole {
