@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-10-12</date>
-    <time>19:00:00</time>
+    <date>2021-10-27</date>
+    <time>16:00:00</time>
     <version>
-        <release>4.8.0</release>
+        <release>4.8.1</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -65,32 +65,25 @@
     <notes>
         New APIs
         ---
-        * Added Co::getStackUsage() (#4398) (@matyhtf) (@twose)
-        * Added Coroutine\Redis some api (#4390) (@chrysanthemum)
-        * Added Table::stats() (#4405) (@matyhtf)
-        * Added Coroutine::join() (#4406) (@matyhtf)
-
-        New feature
-        ---
-        * Supported server command (#4389) (@matyhtf)
-        * Supported Server::onBeforeShutdown callback (#4415) (@matyhtf)
+        * Added swoole_error_log_ex(), swoole_ignore_error() (#4440) (@matyhtf)
 
         Enhancement
         ---
-        * Set error code when websocket pack fails (swoole/swoole-src@d27c5a5) (@matyhtf)
-        * Added Timer::exec_count field (#4402) (@matyhtf)
-        * Supported for hooked mkdir using open_basedir ini config (#4407) (@NathanFreeman)
-        * Added vendor_init.php (swoole/library@6c40b02) (@matyhtf)
-        * Supported CURLOPT_UNIX_SOCKET_PATH for SWOOLE_HOOK_CURL (swoole/library#121) (@sy-records)
-        * Supported ssl_ciphers config for client (#4432) (@amuluowin)
+        * Migrate admin api from ext-swoole_plus to swoole-src (#4441) (@matyhtf)
+        * Added get_composer_packages command for admin server (swoole/library@07763f46) (swoole/library@8805dc05) (swoole/library@175f1797) (@sy-records) (@yunbaoi)
+        * Added POST method request restrictions for write operations (swoole/library@ac16927c) (@yunbaoi)
+        * Supported to get the method information of the class by get_function_info (swoole/library@690a1952) (@djw1028769140) (@sy-records)
+        * Optimized admin server code (swoole/library#128) (swoole/library#131) (@sy-records)
+        * Supported to request multiple groups of server information for admin server (swoole/library#124) (@sy-records)
+        * Supported to get interface info for admin server (swoole/library#130) (@sy-records)
+        * Supported CURLOPT_HTTPPROXYTUNNEL for SWOOLE_HOOK_CURL (swoole/library#126) (@sy-records)
 
         Fixed
         ---
-        * Fixed unnecessary URL decode of file names when uploading files (swoole/swoole-src@a73780e) (@matyhtf)
-        * Fixed HTTP2 max_frame_size error (#4394) (@twose)
-        * Fixed curl_multi_select bug #4393 (#4418) (@matyhtf)
-        * Fixed missing coroutine options (#4425) (@sy-records)
-        * Fixed connection cannot be forcibly closed when the send buffer is full (swoole/swoole-src@2198378) (@matyhtf)
+        * Prohibit coroutine concurrent join (#4442) (@matyhtf)
+        * Fixed init_row, don't clear lock_ and lock_pid (#4446) (@Txhua) (@matyhtf)
+        * Fixed missing helper options (swoole/library#123) (@sy-records)
+        * Fixed get_static_property_value command error (swoole/library#129) (@sy-records)
     </notes>
     <contents>
         <dir name="/">
@@ -523,6 +516,8 @@
             <file role="doc" name="examples/www/index.html" />
             <file role="doc" name="examples/www/index.txt" />
             <file role="src" name="ext-src/php_swoole.cc" />
+            <file role="src" name="ext-src/php_swoole.stub.php" />
+            <file role="src" name="ext-src/php_swoole_arginfo.h" />
             <file role="src" name="ext-src/php_swoole_client.h" />
             <file role="src" name="ext-src/php_swoole_coroutine.h" />
             <file role="src" name="ext-src/php_swoole_coroutine_system.h" />
@@ -531,11 +526,14 @@
             <file role="src" name="ext-src/php_swoole_cxx.h" />
             <file role="src" name="ext-src/php_swoole_http.h" />
             <file role="src" name="ext-src/php_swoole_http_server.h" />
+            <file role="src" name="ext-src/php_swoole_legacy_arginfo.h" />
             <file role="src" name="ext-src/php_swoole_library.h" />
             <file role="src" name="ext-src/php_swoole_mysql_proto.h" />
             <file role="src" name="ext-src/php_swoole_private.h" />
             <file role="src" name="ext-src/php_swoole_process.h" />
             <file role="src" name="ext-src/php_swoole_server.h" />
+            <file role="src" name="ext-src/php_swoole_x_arginfo.h" />
+            <file role="src" name="ext-src/swoole_admin_server.cc" />
             <file role="src" name="ext-src/swoole_async_coro.cc" />
             <file role="src" name="ext-src/swoole_atomic.cc" />
             <file role="src" name="ext-src/swoole_channel_coro.cc" />
@@ -994,6 +992,7 @@
             <file role="test" name="tests/swoole_coroutine/join/2.phpt" />
             <file role="test" name="tests/swoole_coroutine/join/3.phpt" />
             <file role="test" name="tests/swoole_coroutine/join/4.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/5.phpt" />
             <file role="test" name="tests/swoole_coroutine/kernel_coroutine.phpt" />
             <file role="test" name="tests/swoole_coroutine/list_and_backtrace.phpt" />
             <file role="test" name="tests/swoole_coroutine/max_num.phpt" />
@@ -1196,6 +1195,7 @@
             <file role="test" name="tests/swoole_function/substr_unserialize.phpt" />
             <file role="test" name="tests/swoole_function/swoole_clear_dns_cache.phpt" />
             <file role="test" name="tests/swoole_function/swoole_cpu_num.phpt" />
+            <file role="test" name="tests/swoole_function/swoole_error_log.phpt" />
             <file role="test" name="tests/swoole_function/swoole_get_local_ip.phpt" />
             <file role="test" name="tests/swoole_function/swoole_get_local_mac.phpt" />
             <file role="test" name="tests/swoole_function/swoole_set_process_name.phpt" />
@@ -2099,6 +2099,40 @@
             <file role="src" name="thirdparty/nghttp2/nghttp2_mem.h" />
             <file role="src" name="thirdparty/nghttp2/nghttp2_rcbuf.c" />
             <file role="src" name="thirdparty/nghttp2/nghttp2_rcbuf.h" />
+            <file role="src" name="thirdparty/nlohmann/adl_serializer.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/conversions/from_json.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/conversions/to_chars.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/conversions/to_json.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/exceptions.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/input/binary_reader.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/input/input_adapters.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/input/json_sax.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/input/lexer.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/input/parser.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/input/position_t.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/iterators/internal_iterator.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/iterators/iter_impl.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/iterators/iteration_proxy.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/iterators/iterator_traits.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/iterators/json_reverse_iterator.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/iterators/primitive_iterator.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/json_pointer.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/json_ref.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/macro_scope.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/macro_unscope.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/meta/cpp_future.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/meta/detected.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/meta/is_sax.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/meta/type_traits.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/meta/void_t.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/output/binary_writer.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/output/output_adapters.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/output/serializer.hpp" />
+            <file role="src" name="thirdparty/nlohmann/detail/value_t.hpp" />
+            <file role="src" name="thirdparty/nlohmann/json.hpp" />
+            <file role="src" name="thirdparty/nlohmann/json_fwd.hpp" />
+            <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley.hpp" />
+            <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley_undef.hpp" />
             <file role="src" name="thirdparty/php/curl/curl_arginfo.h" />
             <file role="src" name="thirdparty/php/curl/curl_interface.h" />
             <file role="src" name="thirdparty/php/curl/curl_private.h" />
