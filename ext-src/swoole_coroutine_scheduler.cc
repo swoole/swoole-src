@@ -176,7 +176,6 @@ static std::string php_swoole_name_resolve(const std::string &name, ResolveConte
             ctx->final_ = false;
         }
         else if (Z_TYPE(retval) == IS_STRING) {
-            *zcluster_object = retval;
             ctx->final_ = true;
             ctx->cluster_ = false;
             return std::string(Z_STRVAL(retval), Z_STRLEN(retval));
