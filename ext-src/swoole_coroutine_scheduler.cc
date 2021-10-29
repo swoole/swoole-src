@@ -165,14 +165,15 @@ static std::string php_swoole_name_resolve(const std::string &name, ResolveConte
         zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), NULL, NULL, "resolve", &retval, &zname);
         zval_dtor(&zname);
         if (Z_TYPE(retval) == IS_OBJECT) {
-            *zcluster_object = retval;
             ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
             ctx->dtor = [](ResolveContext *ctx) {
                 zval *_zcluster_object = (zval *) ctx->private_data;
                 zval_dtor(_zcluster_object);
                 efree(_zcluster_object);
             };
+            *zcluster_object = retval;
             ctx->cluster_ = true;
+            ctx->final_ = false;
         }
         else if (Z_TYPE(retval) == IS_STRING) {
             *zcluster_object = retval;

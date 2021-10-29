@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: 15ef548f386ef387a1bf9afb70cf79ad53387a5b */
+/* $Id: 07252c16046e82ce2ad5e7e8254e169a0858cc84 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -7568,14 +7568,6 @@ static const char* swoole_library_source_core_name_service_resolver =
     "        return $this;\n"
     "    }\n"
     "\n"
-    "    function resolve(string $name): ?Cluster\n"
-    "    {\n"
-    "        if ($this->hasFilter() and ($this->getFilter())($name) !== true) {\n"
-    "            return null;\n"
-    "        }\n"
-    "        return $this->getCluster($name);\n"
-    "    }\n"
-    "\n"
     "    public function getFilter()\n"
     "    {\n"
     "        return $this->filter_fn;\n"
@@ -7584,6 +7576,15 @@ static const char* swoole_library_source_core_name_service_resolver =
     "    public function hasFilter(): bool\n"
     "    {\n"
     "        return !empty($this->filter_fn);\n"
+    "    }\n"
+    "\n"
+    "    \n"
+    "    function resolve(string $name)\n"
+    "    {\n"
+    "        if ($this->hasFilter() and ($this->getFilter())($name) !== true) {\n"
+    "            return null;\n"
+    "        }\n"
+    "        return $this->getCluster($name);\n"
     "    }\n"
     "}\n";
 
@@ -7596,7 +7597,8 @@ static const char* swoole_library_source_core_name_service_cluster =
     "\n"
     "class Cluster\n"
     "{\n"
-    "    private array $nodes = [];\n"
+    "    \n"
+    "    private $nodes = [];\n"
     "\n"
     "    public function add(string $host, int $port, int $weight = 100): void\n"
     "    {\n"
