@@ -78,11 +78,11 @@ $builder->files = [
     'core/Server/Admin.php',
     'core/Server/Helper.php',
     # <core for NameService> #
-    'core/NameService/Resolver.php',
-    'core/NameService/Cluster.php',
-    'core/NameService/Redis.php',
-    'core/NameService/Nacos.php',
-    'core/NameService/Consul.php',
+    'core/NameResolver/Resolver.php',
+    'core/NameResolver/Cluster.php',
+    'core/NameResolver/Redis.php',
+    'core/NameResolver/Nacos.php',
+    'core/NameResolver/Consul.php',
     # <core for functions> #
     'core/Coroutine/functions.php',
     # <ext> #
