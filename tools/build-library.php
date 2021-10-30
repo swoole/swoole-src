@@ -77,7 +77,7 @@ $builder->files = [
     # <core for Server> #
     'core/Server/Admin.php',
     'core/Server/Helper.php',
-    # <core for NameService> #
+    # <core for NameResolver> #
     'core/NameResolver/Resolver.php',
     'core/NameResolver/Cluster.php',
     'core/NameResolver/Redis.php',

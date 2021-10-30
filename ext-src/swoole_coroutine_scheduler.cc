@@ -242,7 +242,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
             zend_hash_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
                 auto ce = zend_lookup_class(SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER));
                 if (!instanceof_function(Z_OBJCE_P(zresolver), ce)) {
-                    php_swoole_fatal_error(E_WARNING, "the given object is not an instance of NameService\\Resovler");
+                    php_swoole_fatal_error(E_WARNING, "the given object is not an instance of NameResolver\\Resovler");
                     return 0;
                 }
                 zval_add_ref(zresolver);

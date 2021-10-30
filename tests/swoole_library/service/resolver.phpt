@@ -7,7 +7,7 @@ swoole_library/name_service: resolve
 require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Coroutine;
-use Swoole\NameService\Consul;
+use Swoole\NameResolver\Consul;
 
 use function Swoole\Coroutine\run;
 
