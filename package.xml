@@ -2133,6 +2133,7 @@
             <file role="src" name="thirdparty/nlohmann/json_fwd.hpp" />
             <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley.hpp" />
             <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley_undef.hpp" />
+            <file role="doc" name="thirdparty/nlohmann/LICENSE.MIT" />
             <file role="src" name="thirdparty/php/curl/curl_arginfo.h" />
             <file role="src" name="thirdparty/php/curl/curl_interface.h" />
             <file role="src" name="thirdparty/php/curl/curl_private.h" />
