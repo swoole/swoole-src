@@ -532,6 +532,7 @@ if test "$PHP_SWOOLE" != "no"; then
     swoole_source_file=" \
         ext-src/php_swoole.cc \
         ext-src/php_swoole_cxx.cc \
+        ext-src/swoole_admin_server.cc \
         ext-src/swoole_async_coro.cc \
         ext-src/swoole_atomic.cc \
         ext-src/swoole_channel_coro.cc \
@@ -563,7 +564,6 @@ if test "$PHP_SWOOLE" != "no"; then
         ext-src/swoole_table.cc \
         ext-src/swoole_timer.cc \
         ext-src/swoole_websocket_server.cc \
-        ext-src/swoole_admin_server.cc \
         ext-src/swoole_resolve_context.cc \
         src/core/base.cc \
         src/core/channel.cc \
