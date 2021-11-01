@@ -1425,11 +1425,31 @@ class Server {
     void init_ipc_max_size();
 
     void set_max_connection(uint32_t _max_connection);
-    void set_max_concurrency(uint32_t _max_concurrency);
-    void set_worker_max_concurrency(uint32_t _max_concurrency);
 
-    inline uint32_t get_max_connection() {
+    void set_max_concurrency(uint32_t _max_concurrency) {
+        if (_max_concurrency == 0) {
+            _max_concurrency = UINT_MAX;
+        }
+        max_concurrency = _max_concurrency;
+    }
+
+    void set_worker_max_concurrency(uint32_t _max_concurrency) {
+        if (_max_concurrency == 0) {
+            _max_concurrency = UINT_MAX;
+        }
+        worker_max_concurrency = _max_concurrency;
+    }
+
+    uint32_t get_max_connection() {
         return max_connection;
+    }
+
+    uint32_t get_max_concurrency() {
+        return max_concurrency;
+    }
+
+    uint32_t get_worker_max_concurrency() {
+        return worker_max_concurrency;
     }
 
     void set_start_session_id(SessionId value) {

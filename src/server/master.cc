@@ -340,14 +340,6 @@ void Server::set_max_connection(uint32_t _max_connection) {
     }
 }
 
-void Server::set_max_concurrency(uint32_t _max_concurrency) {
-    max_concurrency = _max_concurrency;
-}
-
-void Server::set_worker_max_concurrency(uint32_t _max_concurrency) {
-    worker_max_concurrency = _max_concurrency;
-}
-
 int Server::start_check() {
     // disable notice when use SW_DISPATCH_ROUND and SW_DISPATCH_QUEUE
     if (is_process_mode()) {
