@@ -177,7 +177,8 @@ function swoole_source_list(array $ext_list = [], array $excepts = []): array
         $excepts = $excepts + [
                 'core-tests',
                 'examples',
-                'thirdparty'
+                'tools',
+                'thirdparty',
             ];
         foreach ($excepts as $except) {
             if (preg_match("/{$except}/", $filename)) {
