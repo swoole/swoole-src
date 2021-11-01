@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 40a99ebe81a12529441bc3979f9823bbd86e326f */
+ * Stub hash: b3778013580fca5acb8dff62da2144ab8afb086a */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_get_objects, 0, 0, MAY_BE_ARRAY|MAY_BE_BOOL)
 ZEND_END_ARG_INFO()
@@ -12,7 +12,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_name_resolver_lookup, 0, 2, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, name, IS_STRING, 0)
-	ZEND_ARG_OBJ_INFO(0, ctx, Swoole\\ResolveContext, 0)
+	ZEND_ARG_OBJ_INFO(0, ctx, Swoole\\NameResolver\\Context, 0)
 ZEND_END_ARG_INFO()
 
 

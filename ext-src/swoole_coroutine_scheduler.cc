@@ -24,7 +24,6 @@ using swoole::Coroutine;
 using swoole::NameResolver;
 using swoole::PHPCoroutine;
 using swoole::Reactor;
-using swoole::ResolveContext;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
@@ -48,8 +47,6 @@ static PHP_METHOD(swoole_coroutine_scheduler, add);
 static PHP_METHOD(swoole_coroutine_scheduler, parallel);
 static PHP_METHOD(swoole_coroutine_scheduler, start);
 SW_EXTERN_C_END
-
-static std::string php_swoole_name_resolve(const std::string &name, ResolveContext *ctx, void *private_data);
 
 static sw_inline SchedulerObject *scheduler_get_object(zend_object *obj) {
     return (SchedulerObject *) ((char *) obj - swoole_coroutine_scheduler_handlers.offset);
@@ -153,69 +150,6 @@ void php_swoole_coroutine_scheduler_rshutdown() {
     }
 }
 
-static std::string php_swoole_name_resolve(const std::string &name, ResolveContext *ctx, void *private_data) {
-    zval *zcluster_object;
-    zval retval;
-    zval *zresolver = (zval *) private_data;
-
-    if (!ctx->private_data) {
-    _do_resolve:
-        zval zname;
-        ZVAL_STRINGL(&zname, name.c_str(), name.length());
-        zend_call_method_with_1_params(SW_Z8_OBJ_P(zresolver), NULL, NULL, "resolve", &retval, &zname);
-        zval_dtor(&zname);
-        if (Z_TYPE(retval) == IS_OBJECT) {
-            ctx->private_data = zcluster_object = (zval *) ecalloc(1, sizeof(zval));
-            ctx->dtor = [](ResolveContext *ctx) {
-                zval *_zcluster_object = (zval *) ctx->private_data;
-                zval_dtor(_zcluster_object);
-                efree(_zcluster_object);
-            };
-            *zcluster_object = retval;
-            ctx->cluster_ = true;
-            ctx->final_ = false;
-        }
-        else if (Z_TYPE(retval) == IS_STRING) {
-            ctx->final_ = true;
-            ctx->cluster_ = false;
-            return std::string(Z_STRVAL(retval), Z_STRLEN(retval));
-        } else {
-            ctx->final_ = false;
-            ctx->cluster_ = false;
-            return "";
-        }
-    } else {
-        zcluster_object = (zval *) ctx->private_data;
-        // no available node, resolve again
-        sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "count", &retval);
-        if (zval_get_long(&retval) == 0) {
-            ctx->dtor(ctx);
-            ctx->private_data = nullptr;
-            goto _do_resolve;
-        }
-    }
-
-    sw_zend_call_method_with_0_params(zcluster_object, NULL, NULL, "pop", &retval);
-    if (!ZVAL_IS_ARRAY(&retval)) {
-        return "";
-    }
-    zval *zhost = zend_hash_str_find(HASH_OF(&retval), ZEND_STRL("host"));
-    if (zhost == nullptr || !ZVAL_IS_STRING(zhost)) {
-        return "";
-    }
-    std::string result(Z_STRVAL_P(zhost), Z_STRLEN_P(zhost));
-    if (ctx->with_port) {
-        result.append(":");
-        zval *zport = zend_hash_str_find(HASH_OF(&retval), ZEND_STRL("port"));
-        if (zport == nullptr) {
-            return "";
-        }
-        result.append(std::to_string(zval_get_long(zport)));
-    }
-    zval_ptr_dtor(&retval);
-    return result;
-}
-
 void php_swoole_set_coroutine_option(zend_array *vht) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) ||
@@ -246,7 +180,7 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
                     return 0;
                 }
                 zval_add_ref(zresolver);
-                NameResolver resolver{php_swoole_name_resolve, sw_zval_dup(zresolver), NameResolver::TYPE_PHP};
+                NameResolver resolver{php_swoole_name_resolver_lookup, sw_zval_dup(zresolver), NameResolver::TYPE_PHP};
                 swoole_name_resolver_add(resolver);
                 return 0;
             });

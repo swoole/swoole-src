@@ -7655,12 +7655,14 @@ static const char* swoole_library_source_core_server_helper =
     "    }\n"
     "}\n";
 
-static const char* swoole_library_source_core_name_resolver_resolver =
+static const char* swoole_library_source_core_name_resolver =
     "\n"
     "\n"
-    "namespace Swoole\\NameResolver;\n"
+    "namespace Swoole;\n"
     "\n"
-    "abstract class Resolver\n"
+    "use Swoole\\NameResolver\\Cluster;\n"
+    "\n"
+    "abstract class NameResolver\n"
     "{\n"
     "    private $filter_fn;\n"
     "\n"
@@ -7687,12 +7689,22 @@ static const char* swoole_library_source_core_name_resolver_resolver =
     "    }\n"
     "\n"
     "    \n"
-    "    public function resolve(string $name)\n"
+    "    public function lookup(string $name)\n"
     "    {\n"
     "        if ($this->hasFilter() and ($this->getFilter())($name) !== true) {\n"
     "            return null;\n"
     "        }\n"
-    "        return $this->getCluster($name);\n"
+    "        $cluster = $this->getCluster($name);\n"
+    "        \n"
+    "        if ($cluster == null) {\n"
+    "            return '';\n"
+    "        }\n"
+    "        \n"
+    "        if ($cluster->count() == 1) {\n"
+    "            return $cluster->pop();\n"
+    "        } else {\n"
+    "            return $cluster;\n"
+    "        }\n"
     "    }\n"
     "}\n";
 
@@ -7722,6 +7734,7 @@ static const char* swoole_library_source_core_name_resolver_cluster =
     "        $this->nodes[] = ['host' => $host, 'port' => $port, 'weight' => $weight];\n"
     "    }\n"
     "\n"
+    "    \n"
     "    public function pop()\n"
     "    {\n"
     "        if (empty($this->nodes)) {\n"
@@ -7745,7 +7758,9 @@ static const char* swoole_library_source_core_name_resolver_redis =
     "\n"
     "namespace Swoole\\NameResolver;\n"
     "\n"
-    "class Redis extends Resolver\n"
+    "use Swoole\\NameResolver;\n"
+    "\n"
+    "class Redis extends NameResolver\n"
     "{\n"
     "    private $redis_host;\n"
     "    private $redis_port;\n"
@@ -7814,8 +7829,9 @@ static const char* swoole_library_source_core_name_resolver_nacos =
     "namespace Swoole\\NameResolver;\n"
     "\n"
     "use Swoole\\Coroutine;\n"
+    "use Swoole\\NameResolver;\n"
     "\n"
-    "class Nacos extends Resolver\n"
+    "class Nacos extends NameResolver\n"
     "{\n"
     "    private $server;\n"
     "    private $prefix;\n"
@@ -7859,6 +7875,9 @@ static const char* swoole_library_source_core_name_resolver_nacos =
     "            return null;\n"
     "        }\n"
     "        $result = json_decode($r->getBody());\n"
+    "        if (empty($list)) {\n"
+    "            return null;\n"
+    "        }\n"
     "        $cluster = new Cluster();\n"
     "        foreach ($result->hosts as $node) {\n"
     "            $cluster->add($node->ip, $node->port, $node->weight);\n"
@@ -7874,8 +7893,9 @@ static const char* swoole_library_source_core_name_resolver_consul =
     "namespace Swoole\\NameResolver;\n"
     "\n"
     "use Swoole\\Coroutine;\n"
+    "use Swoole\\NameResolver;\n"
     "\n"
-    "class Consul extends Resolver\n"
+    "class Consul extends NameResolver\n"
     "{\n"
     "    private $server;\n"
     "    private $prefix;\n"
@@ -7942,6 +7962,9 @@ static const char* swoole_library_source_core_name_resolver_consul =
     "            return null;\n"
     "        }\n"
     "        $list = json_decode($r->getBody());\n"
+    "        if (empty($list)) {\n"
+    "            return null;\n"
+    "        }\n"
     "        $cluster = new Cluster();\n"
     "        foreach ($list as $li) {\n"
     "            $cluster->add($li->ServiceAddress, $li->ServicePort, $li->ServiceWeights->Passing);\n"
@@ -8601,7 +8624,7 @@ void php_swoole_load_library()
     zend::eval(swoole_library_source_core_process_manager, "@swoole-src/library/core/Process/Manager.php");
     zend::eval(swoole_library_source_core_server_admin, "@swoole-src/library/core/Server/Admin.php");
     zend::eval(swoole_library_source_core_server_helper, "@swoole-src/library/core/Server/Helper.php");
-    zend::eval(swoole_library_source_core_name_resolver_resolver, "@swoole-src/library/core/NameResolver/Resolver.php");
+    zend::eval(swoole_library_source_core_name_resolver, "@swoole-src/library/core/NameResolver.php");
     zend::eval(swoole_library_source_core_name_resolver_cluster, "@swoole-src/library/core/NameResolver/Cluster.php");
     zend::eval(swoole_library_source_core_name_resolver_redis, "@swoole-src/library/core/NameResolver/Redis.php");
     zend::eval(swoole_library_source_core_name_resolver_nacos, "@swoole-src/library/core/NameResolver/Nacos.php");

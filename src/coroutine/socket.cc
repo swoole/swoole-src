@@ -646,9 +646,9 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     connect_port = _port;
 
     struct sockaddr *_target_addr = nullptr;
-    ResolveContext *ctx = resolve_context_;
+    NameResolver::Context *ctx = resolve_context_;
 
-    ResolveContext _ctx{};
+    NameResolver::Context _ctx{};
     if (ctx == nullptr) {
         ctx = &_ctx;
     }

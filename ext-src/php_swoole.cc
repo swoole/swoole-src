@@ -811,7 +811,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
-    php_swoole_resolve_context_minit(module_number);
+    php_swoole_name_resolver_minit(module_number);
 
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);

@@ -33,7 +33,6 @@
 #endif
 
 using swoole::NameResolver;
-using swoole::ResolveContext;
 using swoole::coroutine::System;
 
 SW_API bool swoole_load_resolv_conf() {
@@ -80,7 +79,7 @@ SW_API void swoole_name_resolver_each(const std::function<void(const std::list<N
     }
 }
 
-SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, ResolveContext *ctx) {
+SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, NameResolver::Context *ctx) {
     if (SwooleG.name_resolvers.empty()) {
         goto _dns_lookup;
     }

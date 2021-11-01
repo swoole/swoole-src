@@ -239,7 +239,7 @@ void php_swoole_http_server_minit(int module_number);
 void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
-void php_swoole_resolve_context_minit(int module_number);
+void php_swoole_name_resolver_minit(int module_number);
 
 /**
  * RINIT

@@ -247,8 +247,8 @@ class HttpClient {
 
   private:
     Socket *socket = nullptr;
-    ResolveContext resolve_context_ = {};
-    swSocketType socket_type = SW_SOCK_TCP;
+    NameResolver::Context resolve_context_ = {};
+    SocketType socket_type = SW_SOCK_TCP;
     swoole_http_parser parser = {};
     bool wait = false;
 };

@@ -636,28 +636,27 @@ struct Allocator {
     void (*free)(void *ptr);
 };
 
-struct ResolveContext {
-    int type;
-    double timeout;
-    void *private_data;
-    bool with_port;
-    bool cluster_;
-    bool final_;
-    std::function<void(ResolveContext *ctx)> dtor;
-
-    ~ResolveContext() {
-        if (private_data && dtor) {
-            dtor(this);
-        }
-    }
-};
-
 struct NameResolver {
     enum Type {
         TYPE_KERNEL,
         TYPE_PHP,
     };
-    std::function<std::string(const std::string &, ResolveContext *, void *)> resolve;
+    struct Context {
+        int type;
+        double timeout;
+        void *private_data;
+        bool with_port;
+        bool cluster_;
+        bool final_;
+        std::function<void(Context *ctx)> dtor;
+
+        ~Context() {
+            if (private_data && dtor) {
+                dtor(this);
+            }
+        }
+    };
+    std::function<std::string(const std::string &, Context *, void *)> resolve;
     void *private_data;
     enum Type type;
 };
@@ -760,7 +759,7 @@ SW_API bool swoole_load_resolv_conf();
 SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool append = true);
 SW_API void swoole_name_resolver_each(
     const std::function<void(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
-SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::ResolveContext *ctx);
+SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {

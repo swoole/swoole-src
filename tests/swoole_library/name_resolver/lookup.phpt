@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/name_service: resolve
+swoole_library/name_service: lookup
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -25,7 +25,7 @@ run(function () use ($ns) {
         $ns->join($test_name, $node['ip'], $node['port'],);
     });
 
-    $ctx = new Swoole\ResolveContext(AF_INET, true);
+    $ctx = new Swoole\NameResolver\Context(AF_INET, true);
     swoole_loop_n(N * 2, function ($i) use (&$nodes, $test_name, $ns, $ctx) {
         $rs = swoole_name_resolver_lookup($test_name, $ctx);
         Assert::notEmpty($rs);

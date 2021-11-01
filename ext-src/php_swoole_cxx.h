@@ -61,7 +61,7 @@
     _(SW_ZEND_STR_REASON,                   "reason") \
     _(SW_ZEND_STR_FLAGS,                    "flags") \
     _(SW_ZEND_STR_FINISH,                   "finish") \
-    _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameResolver\\Resolver") \
+    _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameResolver") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,
@@ -147,7 +147,10 @@ zval *php_swoole_task_unpack(swoole::EventData *task_result);
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
 #endif
 
-swoole::ResolveContext *php_swoole_resolve_context_get_handle(zval *zobject);
+swoole::NameResolver::Context *php_swoole_name_resolver_get_context(zval *zobject);
+std::string php_swoole_name_resolver_lookup(const std::string &name,
+                                            swoole::NameResolver::Context *ctx,
+                                            void *_resolver);
 
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();

@@ -327,7 +327,7 @@ class Socket {
         return write_buffer;
     }
 
-    void set_resolve_context(ResolveContext *ctx) {
+    void set_resolve_context(NameResolver::Context *ctx) {
         resolve_context_ = ctx;
     }
 
@@ -477,7 +477,7 @@ class Socket {
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
 
-    ResolveContext *resolve_context_ = nullptr;
+    NameResolver::Context *resolve_context_ = nullptr;
 
     inline bool is_available(const EventType event) {
         if (event != SW_EVENT_NULL) {
