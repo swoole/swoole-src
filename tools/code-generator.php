@@ -90,8 +90,8 @@ $swstrerror_output .= <<<CPP
 CPP;
 $swstrerror_output .= "\n";
 $swoole_error_cc_content = preg_replace(
-    '/(\* swstrerror \{\{\{\*\/\n)([\s\S]+?)('.space(4).'\/\*\}\}\}\*\/)/',
-    '${1}' . $swstrerror_output . '${3}',
+    '/(\* swstrerror \{\{\{\*\/\n)([\s\S]+?)(\/\*\}\}\}\*\/)/',
+    '${1}' . $swstrerror_output . space(4).'${3}',
     $swoole_error_cc_content, 1, $is_ok
 );
 swoole_check($is_ok, 'Generate ERROR stringify');

@@ -553,6 +553,7 @@ if test "$PHP_SWOOLE" != "no"; then
         ext-src/swoole_lock.cc \
         ext-src/swoole_mysql_coro.cc \
         ext-src/swoole_mysql_proto.cc \
+        ext-src/swoole_name_resolver.cc \
         ext-src/swoole_process.cc \
         ext-src/swoole_process_pool.cc \
         ext-src/swoole_redis_coro.cc \
@@ -564,7 +565,6 @@ if test "$PHP_SWOOLE" != "no"; then
         ext-src/swoole_table.cc \
         ext-src/swoole_timer.cc \
         ext-src/swoole_websocket_server.cc \
-        ext-src/swoole_name_resolver.cc \
         src/core/base.cc \
         src/core/channel.cc \
         src/core/crc32.cc \

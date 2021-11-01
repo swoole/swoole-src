@@ -31,8 +31,7 @@ const char *swoole_strerror(int code) {
         return strerror(code);
     }
     /* swstrerror {{{*/
-    switch(code)
-    {
+    switch(code) {
     case SW_ERROR_MALLOC_FAIL:
         return "Malloc fail";
     case SW_ERROR_SYSTEM_CALL_FAIL:
@@ -244,7 +243,7 @@ const char *swoole_strerror(int code) {
 #endif
         return buffer;
     }
-/*}}}*/
+    /*}}}*/
 }
 
 void swoole_throw_error(int code) {

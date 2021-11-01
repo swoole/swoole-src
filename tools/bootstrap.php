@@ -237,14 +237,14 @@ function swoole_remove_php_comments($code)
 
 class SwooleLibraryBuilder
 {
-    public string $checkFileChange;
-    public string $libraryDir;
-    public string $librarySrcDir;
-    public array $files;
-    public string $srcPath;
-    public bool $stripComments = true;
-    public string $symbolPrefix = 'swoole';
-    public string $outputFile;
+    public $checkFileChange;
+    public $libraryDir;
+    public $librarySrcDir;
+    public $files;
+    public $srcPath;
+    public $stripComments = true;
+    public $symbolPrefix = 'swoole';
+    public $outputFile;
 
     function make()
     {
