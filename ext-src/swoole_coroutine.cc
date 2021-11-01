@@ -780,8 +780,6 @@ void PHPCoroutine::main_func(void *arg) {
                                  config.max_concurrency,
                                  concurrency);
 
-                printf("concurrency=%u > config.max_concurrency =%u\n", concurrency, config.max_concurrency );
-
                 swoole_event_defer(
                     [](void *data) {
                         Coroutine *co = (Coroutine *) data;

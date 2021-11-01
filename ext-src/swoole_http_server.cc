@@ -145,8 +145,9 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         sw_atomic_add_fetch(&serv->gs->concurrency, 1);
         if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
             swoole_trace_log(SW_TRACE_COROUTINE,
-                             "exceed worker_max_concurrency[%u] limit, waiting in queue",
-                             serv->worker_max_concurrency);
+                             "exceed worker_max_concurrency[%u] limit, request[%p] queued",
+                             serv->worker_max_concurrency,
+                             ctx);
             ctx->private_data_2 = fci_cache;
             swoole_http_server_queued_requests.push(ctx);
             return SW_OK;
@@ -263,21 +264,25 @@ void HttpContext::free() {
 
     if (!co_socket && SwooleWG.worker) {
         Server *serv = (Server *) private_data;
+        SwooleWG.worker->concurrency--;
+        sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
         if (!swoole_http_server_queued_requests.empty()) {
             HttpContext *ctx = swoole_http_server_queued_requests.front();
+            swoole_trace(
+                "[POP 1] concurrency=%u, ctx=%p, request=%p", SwooleWG.worker->concurrency, ctx, ctx->request.zobject);
             swoole_http_server_queued_requests.pop();
-            swoole_event_defer([](void *private_data) {
-                HttpContext *ctx = (HttpContext*) private_data;
-                zval_ptr_dtor(ctx->request.zobject);
-                Server *serv = (Server*) ctx->private_data;
-                zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) ctx->private_data_2;
-                http_server_process_request(serv, fci_cache, ctx);
-                zval_ptr_dtor(ctx->request.zobject);
-                zval_ptr_dtor(ctx->response.zobject);
-            }, ctx);
+            swoole_event_defer(
+                [](void *private_data) {
+                    HttpContext *ctx = (HttpContext *) private_data;
+                    Server *serv = (Server *) ctx->private_data;
+                    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ctx->private_data_2;
+                    swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
+                    http_server_process_request(serv, fci_cache, ctx);
+                    zval_ptr_dtor(ctx->request.zobject);
+                    zval_ptr_dtor(ctx->response.zobject);
+                },
+                ctx);
         }
-       SwooleWG.worker->concurrency--;
-       sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
     }
     delete this;
 }
