@@ -43,11 +43,12 @@ using swoole::coroutine::System;
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::activated = false;
-uint32_t PHPCoroutine::concurrency = UINT_MAX;
+uint32_t PHPCoroutine::concurrency = 0;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
+    UINT_MAX,
     0,
     false,
     true,
