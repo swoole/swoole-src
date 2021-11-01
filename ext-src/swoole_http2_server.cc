@@ -201,17 +201,16 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
     Server *serv = (Server *) ctx->private_data;
-
+    zval args[2];
+    zend_fcall_info_cache *fci_cache = nullptr;
     Connection *conn = serv->get_connection_by_session_id(ctx->fd);
     int server_fd = conn->server_fd;
     Connection *serv_sock = serv->get_connection(server_fd);
 
-    ctx->request.version = SW_HTTP_OK;
+    ctx->request.version = SW_HTTP_VERSION_2;
 
     if (serv->enable_static_handler && swoole_http2_is_static_file(serv, ctx)) {
-        zval_ptr_dtor(ctx->request.zobject);
-        zval_ptr_dtor(ctx->response.zobject);
-        return;
+        goto _destroy;
     }
 
     add_assoc_long(zserver, "request_time", time(nullptr));
@@ -224,10 +223,17 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     add_assoc_long(zserver, "master_time", conn->last_recv_time);
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 
-    zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
+    fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
 
     SwooleWG.worker->concurrency++;
     sw_atomic_add_fetch(&serv->gs->concurrency, 1);
+
+    if (serv->gs->concurrency > serv->max_concurrency) {
+        String null_body{};
+        ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
+        swoole_http2_server_respond(ctx, &null_body);
+        goto _destroy;
+    }
 
     if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
         swoole_trace_log(SW_TRACE_COROUTINE,
@@ -238,14 +244,16 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
         return;
     }
 
-    zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
+    args[0] = *ctx->request.zobject;
+    args[1] =  *ctx->response.zobject;
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
         php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));
     }
 
-    zval_ptr_dtor(&args[0]);
-    zval_ptr_dtor(&args[1]);
+_destroy:
+    zval_ptr_dtor(ctx->request.zobject);
+    zval_ptr_dtor(ctx->response.zobject);
 }
 
 static ssize_t http2_build_header(HttpContext *ctx, uchar *buffer, size_t body_length) {

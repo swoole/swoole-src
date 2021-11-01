@@ -655,6 +655,7 @@ void PHPCoroutine::on_close(void *arg) {
 
     if (task->on_close) {
         (*task->on_close)(task);
+        task->on_close = nullptr;
     }
 
     if (task->pcid == -1) {
@@ -778,6 +779,8 @@ void PHPCoroutine::main_func(void *arg) {
                                  task->co->get_cid(),
                                  config.max_concurrency,
                                  concurrency);
+
+                printf("concurrency=%u > config.max_concurrency =%u\n", concurrency, config.max_concurrency );
 
                 swoole_event_defer(
                     [](void *data) {
@@ -1191,21 +1194,33 @@ static PHP_METHOD(swoole_coroutine, join) {
         }, nullptr);
     };
 
+    auto clean_fn = [cid_array]() {
+        zval *zcid;
+        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
+            auto ctx = PHPCoroutine::get_context_by_cid(zval_get_long(zcid));
+            if (ctx) {
+                ctx->on_close = nullptr;
+            }
+        }
+        ZEND_HASH_FOREACH_END();
+    };
+
     zval *zcid;
     ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
         long cid = zval_get_long(zcid);
         if (co->get_cid() == cid) {
             swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
             php_swoole_error(E_WARNING, "can not join self");
+            clean_fn();
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
         if (ctx == nullptr) {
-            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
-            RETURN_FALSE;
+            continue;
         }
         if (ctx->on_close) {
             swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
+            clean_fn();
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;
@@ -1214,14 +1229,7 @@ static PHP_METHOD(swoole_coroutine, join) {
 
     if (!co->yield_ex(timeout)) {
         *canceled = true;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
-            long cid = zval_get_long(zcid);
-            auto ctx = PHPCoroutine::get_context_by_cid(cid);
-            if (ctx) {
-                ctx->on_close = nullptr;
-            }
-        }
-        ZEND_HASH_FOREACH_END();
+        clean_fn();
         RETURN_FALSE;
     }
 
