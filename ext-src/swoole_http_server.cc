@@ -35,9 +35,24 @@ String *swoole_http_form_data_buffer;
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
+std::queue<HttpContext *> swoole_http_server_queued_requests;
+
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
 static bool http_context_disconnect(HttpContext *ctx);
+
+static void http_server_process_request(Server *serv, zend_fcall_info_cache *fci_cache, HttpContext *ctx) {
+    zval args[2];
+    args[0] = *ctx->request.zobject;
+    args[1] = *ctx->response.zobject;
+    if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
+        php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
+#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
+        ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
+#endif
+        ctx->close(ctx);
+    }
+}
 
 int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     SessionId session_id = req->info.fd;
@@ -59,6 +74,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     if (conn->websocket_status == WebSocket::STATUS_ACTIVE) {
         return swoole_websocket_onMessage(serv, req);
     }
+
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
         return swoole_http2_server_onReceive(serv, conn, req);
@@ -78,9 +94,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                      (int) Z_STRLEN_P(zdata),
                      Z_STRVAL_P(zdata));
 
-    zval args[2], *zrequest_object = &args[0], *zresponse_object = &args[1];
-    args[0] = *ctx->request.zobject;
-    args[1] = *ctx->response.zobject;
+    zval *zrequest_object = ctx->request.zobject;
+    zval *zresponse_object = ctx->response.zobject;
 
     swoole_http_parser *parser = &ctx->parser;
     parser->data = ctx;
@@ -88,9 +103,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     size_t parsed_n = ctx->parse(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (ctx->parser.state == s_dead) {
-#ifdef SW_HTTP_BAD_REQUEST_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
-#endif
         ctx->close(ctx);
         swoole_notice("request is illegal and it has been discarded, %ld bytes unprocessed",
                       Z_STRLEN_P(zdata) - parsed_n);
@@ -128,14 +141,17 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                 goto _dtor_and_return;
             }
         }
-
-        if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
-            php_swoole_error(E_WARNING, "%s->onRequest handler error", ZSTR_VAL(swoole_http_server_ce->name));
-#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
-            ctx->send(ctx, SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET));
-#endif
-            ctx->close(ctx);
+        SwooleWG.worker->concurrency++;
+        sw_atomic_add_fetch(&serv->gs->concurrency, 1);
+        if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
+            swoole_trace_log(SW_TRACE_COROUTINE,
+                             "exceed worker_max_concurrency[%u] limit, waiting in queue",
+                             serv->worker_max_concurrency);
+            ctx->private_data_2 = fci_cache;
+            swoole_http_server_queued_requests.push(ctx);
+            return SW_OK;
         }
+        http_server_process_request(serv, fci_cache, ctx);
     } while (0);
 
 _dtor_and_return:
@@ -243,6 +259,25 @@ void HttpContext::free() {
 #endif
     if (res->reason) {
         efree(res->reason);
+    }
+
+    if (!co_socket && SwooleWG.worker) {
+        Server *serv = (Server *) private_data;
+        if (!swoole_http_server_queued_requests.empty()) {
+            HttpContext *ctx = swoole_http_server_queued_requests.front();
+            swoole_http_server_queued_requests.pop();
+            swoole_event_defer([](void *private_data) {
+                HttpContext *ctx = (HttpContext*) private_data;
+                zval_ptr_dtor(ctx->request.zobject);
+                Server *serv = (Server*) ctx->private_data;
+                zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache*) ctx->private_data_2;
+                http_server_process_request(serv, fci_cache, ctx);
+                zval_ptr_dtor(ctx->request.zobject);
+                zval_ptr_dtor(ctx->response.zobject);
+            }, ctx);
+        }
+       SwooleWG.worker->concurrency--;
+       sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
     }
     delete this;
 }

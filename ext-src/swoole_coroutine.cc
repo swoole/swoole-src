@@ -43,6 +43,7 @@ using swoole::coroutine::System;
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::activated = false;
+uint32_t PHPCoroutine::concurrency = UINT_MAX;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
@@ -655,8 +656,8 @@ void PHPCoroutine::on_close(void *arg) {
         (*task->on_close)(task);
     }
 
-    if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
-        SwooleWG.worker_concurrency--;
+    if (task->pcid == -1) {
+        concurrency--;
     }
 
     vm_stack_destroy();
@@ -768,14 +769,14 @@ void PHPCoroutine::main_func(void *arg) {
                          (uintmax_t) Coroutine::count(),
                          (uintmax_t) zend_memory_usage(0));
 
-        if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
+        if (task->pcid == -1) {
             // wait until concurrency slots are available
-            while (SwooleWG.worker_concurrency > SwooleG.max_concurrency - 1) {
+            while (concurrency > config.max_concurrency - 1) {
                 swoole_trace_log(SW_TRACE_COROUTINE,
                                  "php_coro cid=%ld waiting for concurrency slots: max: %d, used: %d",
                                  task->co->get_cid(),
-                                 SwooleG.max_concurrency,
-                                 SwooleWG.worker_concurrency);
+                                 config.max_concurrency,
+                                 concurrency);
 
                 swoole_event_defer(
                     [](void *data) {
@@ -785,7 +786,7 @@ void PHPCoroutine::main_func(void *arg) {
                     (void *) task->co);
                 task->co->yield();
             }
-            SwooleWG.worker_concurrency++;
+            concurrency++;
         }
 
         if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START]) {

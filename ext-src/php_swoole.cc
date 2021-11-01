@@ -405,9 +405,6 @@ void php_swoole_set_global_option(HashTable *vht) {
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
     }
-    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
-        SwooleG.max_concurrency = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
-    }
 }
 
 void php_swoole_register_rshutdown_callback(swoole::Callback cb, void *private_data) {

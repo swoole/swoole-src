@@ -101,20 +101,11 @@ struct WorkerGlobal {
     uint32_t max_request;
     Worker *worker;
     time_t exit_time;
-    uint32_t worker_concurrency = 0;
 };
 
 struct Worker {
-    /**
-     * worker process
-     */
     pid_t pid;
-
-    /**
-     * worker thread
-     */
-    pthread_t tid;
-
+    WorkerId id;
     ProcessPool *pool;
     MsgQueue *queue;
 
@@ -130,11 +121,8 @@ struct Worker {
     uint8_t ipc_mode;
     uint8_t child_process;
 
-    /**
-     * tasking num
-     */
     sw_atomic_t tasking_num;
-
+    uint32_t concurrency;
     time_t start_time;
 
     sw_atomic_long_t dispatch_count;
@@ -142,13 +130,7 @@ struct Worker {
     sw_atomic_long_t response_count;
     size_t coroutine_num;
 
-    /**
-     * worker id
-     */
-    WorkerId id;
-
     Mutex *lock;
-
     UnixSocket *pipe_object;
 
     network::Socket *pipe_master;

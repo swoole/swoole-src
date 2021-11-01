@@ -35,6 +35,7 @@ using Http2Session = Http2::Session;
 
 static std::unordered_map<SessionId, Http2Session *> http2_sessions;
 extern String *swoole_http_buffer;
+extern std::queue<HttpContext *> swoole_http_server_queued_requests;
 
 static bool swoole_http2_server_respond(HttpContext *ctx, String *body);
 
@@ -224,6 +225,19 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 
     zend_fcall_info_cache *fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
+
+    SwooleWG.worker->concurrency++;
+    sw_atomic_add_fetch(&serv->gs->concurrency, 1);
+
+    if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
+        swoole_trace_log(SW_TRACE_COROUTINE,
+                         "exceed worker_max_concurrency[%u] limit, the HTTP-Request will be queued",
+                         serv->worker_max_concurrency);
+        ctx->private_data_2 = fci_cache;
+        swoole_http_server_queued_requests.push(ctx);
+        return;
+    }
+
     zval args[2] = {*ctx->request.zobject, *ctx->response.zobject};
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
@@ -479,7 +493,6 @@ bool Http2Stream::send_body(String *body, bool end_stream, size_t max_frame_size
         swoole_trace_log(
             SW_TRACE_HTTP2, "send [" SW_ECHO_YELLOW "] stream_id=%u, flags=%d, send_n=%lu", "DATA", id, flags, send_n);
 
-
         l -= send_n;
         p += send_n;
     }
@@ -569,10 +582,13 @@ static bool swoole_http2_server_respond(HttpContext *ctx, String *body) {
                 _end_stream = true && end_stream;
             }
 
-            error = !stream->send_body(body, _end_stream, client->local_settings.max_frame_size, body->offset, send_len);
+            error =
+                !stream->send_body(body, _end_stream, client->local_settings.max_frame_size, body->offset, send_len);
             if (!error) {
-                swoole_trace_log(
-                    SW_TRACE_HTTP2, "body: send length=%zu, stream->remote_window_size=%u", send_len, stream->remote_window_size);
+                swoole_trace_log(SW_TRACE_HTTP2,
+                                 "body: send length=%zu, stream->remote_window_size=%u",
+                                 send_len,
+                                 stream->remote_window_size);
 
                 body->offset += send_len;
                 if (send_len > stream->remote_window_size) {
@@ -861,7 +877,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_frame_size=%u", value);
                 break;
             case SW_HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE:
-                client->remote_settings.max_header_list_size = value; // useless now
+                client->remote_settings.max_header_list_size = value;  // useless now
                 swoole_trace_log(SW_TRACE_HTTP2, "setting: max_header_list_size=%u", value);
                 break;
             default:

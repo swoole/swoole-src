@@ -437,21 +437,15 @@ _recv_data:
     if (n == 0) {
         if (0) {
         _bad_request:
-#ifdef SW_HTTP_BAD_REQUEST_PACKET
             _socket->send(SW_STRL(SW_HTTP_BAD_REQUEST_PACKET), 0);
-#endif
         }
         if (0) {
         _too_large:
-#ifdef SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET
             _socket->send(SW_STRL(SW_HTTP_REQUEST_ENTITY_TOO_LARGE_PACKET), 0);
-#endif
         }
         if (0) {
         _unavailable:
-#ifdef SW_HTTP_SERVICE_UNAVAILABLE_PACKET
             _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
-#endif
         }
     _close_fd:
         serv->destroy_http_request(conn);
@@ -546,7 +540,9 @@ _parse:
                 // dynamic request, dispatch to worker
                 dispatch_data.info.len = request->header_length_;
                 dispatch_data.data = buffer->str;
-                Server::dispatch_task(protocol, _socket, &dispatch_data);
+                if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+                    goto _close_fd;
+                }
             }
             if (!conn->active || _socket->removed) {
                 return SW_OK;
@@ -645,7 +641,10 @@ _parse:
     buffer->offset = request_length;
     dispatch_data.data = buffer->str;
     dispatch_data.info.len = buffer->length;
-    Server::dispatch_task(protocol, _socket, &dispatch_data);
+
+    if (http_server::dispatch_request(serv, protocol, _socket, &dispatch_data) < 0) {
+        goto _close_fd;
+    }
 
     if (conn->active && !_socket->removed) {
         serv->destroy_http_request(conn);
