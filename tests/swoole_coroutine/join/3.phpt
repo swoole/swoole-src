@@ -23,7 +23,7 @@ run(function () {
     Assert::eq(swoole_last_error(), SWOOLE_ERROR_WRONG_OPERATION);
 
     Assert::false(Coroutine::join([9999]));
-    Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_NOT_EXISTS);
+    Assert::eq(swoole_last_error(), SWOOLE_ERROR_INVALID_PARAMS);
 
     $cid_list = [];
     $cid_list[] = go(function () {
