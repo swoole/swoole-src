@@ -2758,10 +2758,12 @@ static void _php_curl_free(php_curl *ch) {
         efree(ch->handlers->progress);
     }
 
+#if LIBCURL_VERSION_NUM >= 0x071500
     if (ch->handlers->fnmatch) {
         zval_ptr_dtor(&ch->handlers->fnmatch->func_name);
         efree(ch->handlers->fnmatch);
     }
+#endif
 
     efree(ch->handlers);
     zval_ptr_dtor(&ch->postfields);

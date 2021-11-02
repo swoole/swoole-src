@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/join: 4
+swoole_coroutine/join: 7
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
@@ -17,16 +17,17 @@ run(function () {
     $current_cid = Coroutine::getCid();
     $cid = go(function () use ($current_cid) {
         System::sleep(.1);
-        swoole_event_defer(function () use ($current_cid) {
-            echo "DEFER CALLBACK\n";
-            Coroutine::cancel($current_cid);
-        });
     });
     $cid_list[] = $cid;
 
+    swoole_event_defer(function () use ($current_cid) {
+        echo "DEFER CALLBACK\n";
+        Coroutine::cancel($current_cid);
+    });
+
     Assert::false(Coroutine::join($cid_list));
     Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_CANCELED);
-    Assert::false(Coroutine::exists($cid));
+    Assert::true(Coroutine::exists($cid));
     echo "DONE\n";
 });
 ?>

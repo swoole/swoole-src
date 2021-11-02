@@ -1170,15 +1170,17 @@ static PHP_METHOD(swoole_coroutine, join) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto count = php_swoole_array_length(cid_array);
-    if (count == 0) {
+    if (php_swoole_array_length(cid_array) == 0) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
+    std::set<PHPContext*> co_set;
     bool *canceled = new bool(false);
-    PHPContext::SwapCallback join_fn = [&count, canceled, co](PHPContext *task) {
-        if (--count > 0) {
+
+    PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
+        co_set.erase(task);
+        if (!co_set.empty()) {
             return;
         }
         swoole_event_defer([co, canceled](void*) {
@@ -1195,31 +1197,38 @@ static PHP_METHOD(swoole_coroutine, join) {
         if (co->get_cid() == cid) {
             swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
             php_swoole_error(E_WARNING, "can not join self");
+            delete canceled;
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
         if (ctx == nullptr) {
-            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
-            RETURN_FALSE;
+            continue;
         }
         if (ctx->on_close) {
             swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
+            delete canceled;
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;
+        co_set.insert(ctx);
     }
     ZEND_HASH_FOREACH_END();
 
+    if (co_set.empty()) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        delete canceled;
+        RETURN_FALSE;
+    }
+
     if (!co->yield_ex(timeout)) {
-        *canceled = true;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
-            long cid = zval_get_long(zcid);
-            auto ctx = PHPCoroutine::get_context_by_cid(cid);
-            if (ctx) {
+        if (!co_set.empty()) {
+            for (auto ctx : co_set) {
                 ctx->on_close = nullptr;
             }
+            delete canceled;
+        } else {
+            *canceled = true;
         }
-        ZEND_HASH_FOREACH_END();
         RETURN_FALSE;
     }
 

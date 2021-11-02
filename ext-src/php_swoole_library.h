@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: 7c4d5ba2e270b171421323ceb3acf96e5e5aa1c9 */
+/* $Id: d1bc5e1112dc0370e1e8d5f48ce101e2f5acf148 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -297,11 +297,15 @@ static const char* swoole_library_source_core_constant =
     "\n"
     "    public const OPTION_STACK_SIZE = 'stack_size';\n"
     "\n"
+    "    public const OPTION_NAME_RESOLVER = 'name_resolver';\n"
+    "\n"
     "    public const OPTION_DNS_CACHE_EXPIRE = 'dns_cache_expire';\n"
     "\n"
     "    public const OPTION_DNS_CACHE_CAPACITY = 'dns_cache_capacity';\n"
     "\n"
     "    public const OPTION_RECONNECT = 'reconnect';\n"
+    "\n"
+    "    public const OPTION_MAX_RETRIES = 'max_retries';\n"
     "\n"
     "    public const OPTION_DEFER = 'defer';\n"
     "\n"
@@ -7450,9 +7454,6 @@ static const char* swoole_library_source_core_server_helper =
     "        'max_wait_time' => true,\n"
     "        'max_queued_bytes' => true,\n"
     "        'enable_coroutine' => true,\n"
-    "        'max_coro_num' => true,\n"
-    "        'max_coroutine' => true,\n"
-    "        'hook_flags' => true,\n"
     "        'send_timeout' => true,\n"
     "        'dispatch_mode' => true,\n"
     "        'send_yield' => true,\n"
@@ -7485,8 +7486,8 @@ static const char* swoole_library_source_core_server_helper =
     "        'http_parse_files' => true,\n"
     "        'http_compression' => true,\n"
     "        'http_compression_level' => true,\n"
-    "        'compression_min_length' => true,\n"
     "        'http_gzip_level' => true,\n"
+    "        'compression_min_length' => true,\n"
     "        'websocket_compression' => true,\n"
     "        'upload_tmp_dir' => true,\n"
     "        'enable_static_handler' => true,\n"
@@ -7508,6 +7509,7 @@ static const char* swoole_library_source_core_server_helper =
     "        'socket_buffer_size' => true,\n"
     "        'kernel_socket_recv_buffer_size' => true,\n"
     "        'kernel_socket_send_buffer_size' => true,\n"
+    "        'heartbeat_idle_time' => true,\n"
     "        'buffer_high_watermark' => true,\n"
     "        'buffer_low_watermark' => true,\n"
     "        'open_tcp_nodelay' => true,\n"
