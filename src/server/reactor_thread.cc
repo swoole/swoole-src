@@ -369,12 +369,9 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
         if (n <= 0) {
             return n;
         }
-        /**
-         * connection incoming
-         */
         if (resp->info.type == SW_SERVER_EVENT_INCOMING) {
-            Connection *conn = serv->get_connection_by_session_id(resp->info.fd);
-            if (serv->connection_incoming(reactor, conn) < 0) {
+            Connection *conn = serv->get_connection_verify_no_ssl(resp->info.fd);
+            if (conn && serv->connection_incoming(reactor, conn) < 0) {
                 return reactor->close(reactor, conn->socket);
             }
         } else if (resp->info.type == SW_SERVER_EVENT_COMMAND_REQUEST) {
@@ -384,15 +381,11 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
             return SW_OK;
         }
-        /**
-         * server shutdown
-         */
         else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
             ReactorThread_shutdown(reactor);
         } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
             SessionId session_id = resp->info.fd;
             Connection *conn = serv->get_connection_verify_no_ssl(session_id);
-
             if (!conn) {
                 swoole_error_log(SW_LOG_NOTICE,
                                  SW_ERROR_SESSION_NOT_EXIST,
