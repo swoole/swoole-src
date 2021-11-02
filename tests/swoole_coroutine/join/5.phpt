@@ -17,6 +17,7 @@ run(function () {
     $cid_list[] = go(function () {
         System::sleep(.1);
     });
+    // concurrency join
     swoole_event_defer(function () use ($cid_list) {
         go(function () use ($cid_list) {
             Assert::false(Coroutine::join($cid_list));

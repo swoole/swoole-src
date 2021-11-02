@@ -1,5 +1,5 @@
 --TEST--
-swoole_coroutine/join: 4
+swoole_coroutine/join: 7
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--
