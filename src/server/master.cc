@@ -219,6 +219,7 @@ int Server::accept_connection(Reactor *reactor, Event *event) {
             ev.type = SW_SERVER_EVENT_INCOMING;
             ev.fd = conn->session_id;
             ev.reactor_id = conn->reactor_id;
+            ev.server_fd = event->fd;
             if (serv->send_to_reactor_thread((EventData *) &ev, sizeof(ev), conn->session_id) < 0) {
                 serv->abort_connection(reactor, listen_host, sock);
                 return SW_OK;
