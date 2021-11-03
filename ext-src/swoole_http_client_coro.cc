@@ -1369,10 +1369,7 @@ bool HttpClient::exec(std::string _path) {
         return send();
     }
     SW_LOOP_N(max_retries) {
-        if (send() == false) {
-            return false;
-        }
-        if (recv() == false) {
+        if (send() == false || recv() == false) {
             return false;
         }
         if (max_retries > 0 &&
