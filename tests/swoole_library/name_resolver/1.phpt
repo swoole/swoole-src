@@ -10,6 +10,7 @@ use Swoole\Coroutine;
 use Swoole\Http\Server;
 use Swoole\Coroutine\Http\Client;
 use Swoole\NameResolver\Consul;
+use Swoole\NameResolver\Redis;
 
 use function Swoole\Coroutine\run;
 
@@ -17,7 +18,12 @@ const SERVICE_NAME = 'test_service';
 const REQ_N = 16;
 const PORT_N = 3;
 
-$ns = new Consul('http://127.0.0.1:8500');
+if (IS_IN_TRAVIS) {
+    $ns = new Redis(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
+} else {
+    $ns = new Consul('http://127.0.0.1:8500');
+}
+
 $html = base64_encode(random_bytes(rand(2048, 65536 * 2)));
 
 $pm = new SwooleTest\ProcessManager;

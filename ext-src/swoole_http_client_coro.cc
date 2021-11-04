@@ -1377,7 +1377,7 @@ bool HttpClient::exec(std::string _path) {
         if (send() == false || recv() == false) {
             return false;
         }
-        if (max_retries > 0 &&
+        if (max_retries > 1 &&
             (parser.status_code == SW_HTTP_BAD_GATEWAY || parser.status_code == SW_HTTP_SERVICE_UNAVAILABLE)) {
             close(true);
             continue;
