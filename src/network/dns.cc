@@ -97,7 +97,11 @@ _dns_lookup:
         return System::gethostbyname(host_name, ctx->type, ctx->timeout);
     } else {
         char addr[SW_IP_MAX_LENGTH];
-        if (swoole::network::gethostbyname(ctx->type, host_name.c_str(), addr) < 0) {
+        if (swoole::network::gethostbyname(ctx->type, host_name.c_str(), sw_tg_buffer()->str) < 0) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return "";
+        }
+        if (!inet_ntop(ctx->type, sw_tg_buffer()->str, addr, sizeof(addr))) {
             swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
             return "";
         }
