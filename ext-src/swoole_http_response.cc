@@ -704,6 +704,10 @@ static PHP_METHOD(swoole_http_response, end) {
     Z_PARAM_ZVAL_EX(zdata, 1, 0)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
+    if (ctx->onAfterResponse) {
+        ctx->onAfterResponse(ctx);
+    }
+
 #ifdef SW_USE_HTTP2
     if (ctx->http2) {
         ctx->http2_end(zdata, return_value);
@@ -911,6 +915,10 @@ static PHP_METHOD(swoole_http_response, sendfile) {
         length = file_stat.st_size - offset;
     }
 
+    if (ctx->onAfterResponse) {
+        ctx->onAfterResponse(ctx);
+    }
+
 #ifdef SW_USE_HTTP2
     if (!ctx->http2)
 #endif
@@ -942,8 +950,6 @@ static PHP_METHOD(swoole_http_response, sendfile) {
             RETURN_FALSE;
         }
     }
-
-    ctx->end_ = 1;
 
     if (!ctx->keepalive) {
         ctx->close(ctx);

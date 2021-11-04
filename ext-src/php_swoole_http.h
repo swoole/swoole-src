@@ -176,6 +176,8 @@ struct Context {
     bool (*send)(Context *ctx, const char *data, size_t length);
     bool (*sendfile)(Context *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
     bool (*close)(Context *ctx);
+    bool (*onBeforeRequest)(Context *ctx);
+    void (*onAfterResponse)(Context *ctx);
 
     void init(Server *server);
     void init(coroutine::Socket *socket);

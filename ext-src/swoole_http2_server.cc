@@ -35,7 +35,6 @@ using Http2Session = Http2::Session;
 
 static std::unordered_map<SessionId, Http2Session *> http2_sessions;
 extern String *swoole_http_buffer;
-extern std::queue<HttpContext *> swoole_http_server_queued_requests;
 
 static bool swoole_http2_server_respond(HttpContext *ctx, String *body);
 
@@ -224,23 +223,9 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     add_assoc_string(zserver, "server_protocol", (char *) "HTTP/2");
 
     fci_cache = php_swoole_server_get_fci_cache(serv, server_fd, SW_SERVER_CB_onRequest);
+    ctx->private_data_2 = fci_cache;
 
-    SwooleWG.worker->concurrency++;
-    sw_atomic_add_fetch(&serv->gs->concurrency, 1);
-
-    if (serv->gs->concurrency > serv->max_concurrency) {
-        String null_body{};
-        ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
-        swoole_http2_server_respond(ctx, &null_body);
-        goto _destroy;
-    }
-
-    if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
-        swoole_trace_log(SW_TRACE_COROUTINE,
-                         "exceed worker_max_concurrency[%u] limit, the HTTP-Request will be queued",
-                         serv->worker_max_concurrency);
-        ctx->private_data_2 = fci_cache;
-        swoole_http_server_queued_requests.push(ctx);
+    if (ctx->onBeforeRequest && !ctx->onBeforeRequest(ctx)) {
         return;
     }
 
@@ -698,6 +683,19 @@ static bool http2_context_sendfile(HttpContext *ctx, const char *file, uint32_t 
     return true;
 }
 
+static bool http2_context_onBeforeRequest(HttpContext *ctx) {
+    Server *serv = (Server *) ctx->private_data;
+    if (serv->gs->concurrency >= serv->max_concurrency) {
+        String null_body{};
+        ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
+        swoole_http2_server_respond(ctx, &null_body);
+        zval_ptr_dtor(ctx->request.zobject);
+        zval_ptr_dtor(ctx->response.zobject);
+        return false;
+    }
+    return swoole_http_server_onBeforeRequest(ctx);
+}
+
 static int http2_parse_header(Http2Session *client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
     nghttp2_hd_inflater *inflater = client->inflater;
 
@@ -1072,6 +1070,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->stream = (Http2Stream *) -1;
         client->default_ctx->keepalive = true;
         client->default_ctx->sendfile = http2_context_sendfile;
+        client->default_ctx->onBeforeRequest = http2_context_onBeforeRequest;
     }
 
     zval zdata;

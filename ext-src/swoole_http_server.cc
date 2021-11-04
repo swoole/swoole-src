@@ -141,15 +141,8 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
                 goto _dtor_and_return;
             }
         }
-        SwooleWG.worker->concurrency++;
-        sw_atomic_add_fetch(&serv->gs->concurrency, 1);
-        if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
-            swoole_trace_log(SW_TRACE_COROUTINE,
-                             "exceed worker_max_concurrency[%u] limit, request[%p] queued",
-                             serv->worker_max_concurrency,
-                             ctx);
-            ctx->private_data_2 = fci_cache;
-            swoole_http_server_queued_requests.push(ctx);
+        ctx->private_data_2 = fci_cache;
+        if (ctx->onBeforeRequest && !ctx->onBeforeRequest(ctx)) {
             return SW_OK;
         }
         http_server_process_request(serv, fci_cache, ctx);
@@ -213,6 +206,8 @@ void HttpContext::bind(Server *serv) {
     send = http_context_send_data;
     sendfile = http_context_sendfile;
     close = http_context_disconnect;
+    onBeforeRequest = swoole_http_server_onBeforeRequest;
+    onAfterResponse = swoole_http_server_onAfterResponse;
 }
 
 void HttpContext::copy(HttpContext *ctx) {
@@ -229,6 +224,8 @@ void HttpContext::copy(HttpContext *ctx) {
     send = ctx->send;
     sendfile = ctx->sendfile;
     close = ctx->close;
+    onBeforeRequest = ctx->onBeforeRequest;
+    onAfterResponse = ctx->onAfterResponse;
 }
 
 void HttpContext::free() {
@@ -260,29 +257,6 @@ void HttpContext::free() {
 #endif
     if (res->reason) {
         efree(res->reason);
-    }
-
-    if (!co_socket && SwooleWG.worker) {
-        Server *serv = (Server *) private_data;
-        SwooleWG.worker->concurrency--;
-        sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
-        if (!swoole_http_server_queued_requests.empty()) {
-            HttpContext *ctx = swoole_http_server_queued_requests.front();
-            swoole_trace(
-                "[POP 1] concurrency=%u, ctx=%p, request=%p", SwooleWG.worker->concurrency, ctx, ctx->request.zobject);
-            swoole_http_server_queued_requests.pop();
-            swoole_event_defer(
-                [](void *private_data) {
-                    HttpContext *ctx = (HttpContext *) private_data;
-                    Server *serv = (Server *) ctx->private_data;
-                    zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ctx->private_data_2;
-                    swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
-                    http_server_process_request(serv, fci_cache, ctx);
-                    zval_ptr_dtor(ctx->request.zobject);
-                    zval_ptr_dtor(ctx->response.zobject);
-                },
-                ctx);
-        }
     }
     delete this;
 }
@@ -334,4 +308,44 @@ static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l
 static bool http_context_disconnect(HttpContext *ctx) {
     Server *serv = (Server *) ctx->private_data;
     return serv->close(ctx->fd, 0);
+}
+
+bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
+    Server *serv = (Server *) ctx->private_data;
+    SwooleWG.worker->concurrency++;
+    sw_atomic_add_fetch(&serv->gs->concurrency, 1);
+    if (SwooleWG.worker->concurrency > serv->worker_max_concurrency) {
+        swoole_trace_log(SW_TRACE_COROUTINE,
+                         "exceed worker_max_concurrency[%u] limit, request[%p] queued",
+                         serv->worker_max_concurrency,
+                         ctx);
+        swoole_http_server_queued_requests.push(ctx);
+        return false;
+    }
+
+    return true;
+}
+
+void swoole_http_server_onAfterResponse(HttpContext *ctx) {
+    ctx->onAfterResponse = nullptr;
+    Server *serv = (Server *) ctx->private_data;
+    SwooleWG.worker->concurrency--;
+    sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
+    if (!swoole_http_server_queued_requests.empty()) {
+        HttpContext *ctx = swoole_http_server_queued_requests.front();
+        swoole_trace(
+            "[POP 1] concurrency=%u, ctx=%p, request=%p", SwooleWG.worker->concurrency, ctx, ctx->request.zobject);
+        swoole_http_server_queued_requests.pop();
+        swoole_event_defer(
+            [](void *private_data) {
+                HttpContext *ctx = (HttpContext *) private_data;
+                Server *serv = (Server *) ctx->private_data;
+                zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) ctx->private_data_2;
+                swoole_trace("[POP 2] ctx=%p, request=%p", ctx, ctx->request.zobject);
+                http_server_process_request(serv, fci_cache, ctx);
+                zval_ptr_dtor(ctx->request.zobject);
+                zval_ptr_dtor(ctx->response.zobject);
+            },
+            ctx);
+    }
 }
