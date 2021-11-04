@@ -35,7 +35,7 @@ String *swoole_http_form_data_buffer;
 zend_class_entry *swoole_http_server_ce;
 zend_object_handlers swoole_http_server_handlers;
 
-std::queue<HttpContext *> swoole_http_server_queued_requests;
+static std::queue<HttpContext *> queued_http_contexts;
 
 static bool http_context_send_data(HttpContext *ctx, const char *data, size_t length);
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length);
@@ -319,7 +319,7 @@ bool swoole_http_server_onBeforeRequest(HttpContext *ctx) {
                          "exceed worker_max_concurrency[%u] limit, request[%p] queued",
                          serv->worker_max_concurrency,
                          ctx);
-        swoole_http_server_queued_requests.push(ctx);
+        queued_http_contexts.push(ctx);
         return false;
     }
 
@@ -331,11 +331,11 @@ void swoole_http_server_onAfterResponse(HttpContext *ctx) {
     Server *serv = (Server *) ctx->private_data;
     SwooleWG.worker->concurrency--;
     sw_atomic_sub_fetch(&serv->gs->concurrency, 1);
-    if (!swoole_http_server_queued_requests.empty()) {
-        HttpContext *ctx = swoole_http_server_queued_requests.front();
+    if (!queued_http_contexts.empty()) {
+        HttpContext *ctx = queued_http_contexts.front();
         swoole_trace(
             "[POP 1] concurrency=%u, ctx=%p, request=%p", SwooleWG.worker->concurrency, ctx, ctx->request.zobject);
-        swoole_http_server_queued_requests.pop();
+        queued_http_contexts.pop();
         swoole_event_defer(
             [](void *private_data) {
                 HttpContext *ctx = (HttpContext *) private_data;

@@ -230,7 +230,7 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
     }
 
     args[0] = *ctx->request.zobject;
-    args[1] =  *ctx->response.zobject;
+    args[1] = *ctx->response.zobject;
     if (UNEXPECTED(!zend::function::call(fci_cache, 2, args, nullptr, serv->is_enable_coroutine()))) {
         stream->reset(SW_HTTP2_ERROR_INTERNAL_ERROR);
         php_swoole_error(E_WARNING, "%s->onRequest[v2] handler error", ZSTR_VAL(swoole_http_server_ce->name));

@@ -951,6 +951,8 @@ static PHP_METHOD(swoole_http_response, sendfile) {
         }
     }
 
+    ctx->end_ = 1;
+
     if (!ctx->keepalive) {
         ctx->close(ctx);
     }
