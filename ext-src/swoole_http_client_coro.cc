@@ -88,14 +88,15 @@ namespace coroutine {
 class HttpClient {
   public:
     /* request info */
-    std::string host = "127.0.0.1";
-    uint16_t port = 80;
+    std::string host;
+    uint16_t port;
 #ifdef SW_USE_OPENSSL
-    uint8_t ssl = false;
+    uint8_t ssl;
 #endif
     double connect_timeout = network::Socket::default_connect_timeout;
     bool defer = false;
     bool lowercase_header = true;
+    bool use_default_port;
 
     int8_t method = SW_HTTP_GET;
     std::string path;
@@ -620,6 +621,10 @@ static int http_parser_on_message_complete(swoole_http_parser *parser) {
 HttpClient::HttpClient(zval *zobject, std::string host, zend_long port, zend_bool ssl) {
     this->socket_type = network::Socket::convert_to_type(host);
     this->host = host;
+    this->use_default_port = port == 0;
+    if (this->use_default_port) {
+        port = ssl ? 443 : 80;
+    }
     this->port = port;
 #ifdef SW_USE_OPENSSL
     this->ssl = ssl;
@@ -1362,7 +1367,7 @@ bool HttpClient::exec(std::string _path) {
     path = _path;
     // bzero when make a new reqeust
     resolve_context_ = {};
-    if (port == SW_SOCKET_MAGIC_PORT_NUMBER) {
+    if (use_default_port) {
         resolve_context_.with_port = true;
     }
     if (defer) {
@@ -1815,9 +1820,6 @@ static PHP_METHOD(swoole_http_client_coro, __construct) {
         RETURN_FALSE;
     }
 #endif
-    if (port == 0) {
-        port = ssl ? 443 : 80;
-    }
     hcc->phc = new HttpClient(ZEND_THIS, std::string(host, host_len), port, ssl);
 }
 

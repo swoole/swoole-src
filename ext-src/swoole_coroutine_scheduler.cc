@@ -177,15 +177,8 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
             php_swoole_fatal_error(E_WARNING, "name_resolver must be an array");
         } else {
             zend_hash_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
-                auto ce = zend_lookup_class(SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER));
-                if (!instanceof_function(Z_OBJCE_P(zresolver), ce)) {
-                    php_swoole_fatal_error(E_WARNING, "the given object is not an instance of NameResolver\\Resovler");
-                    return 0;
-                }
-                zval_add_ref(zresolver);
-                NameResolver resolver{php_swoole_name_resolver_lookup, sw_zval_dup(zresolver), NameResolver::TYPE_PHP};
-                swoole_name_resolver_add(resolver);
-                return 0;
+                php_swoole_name_resolver_add(zresolver);
+                return ZEND_HASH_APPLY_KEEP;
             });
         }
     }

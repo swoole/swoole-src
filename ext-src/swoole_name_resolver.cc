@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+
  */
 
-#include "php_swoole_private.h"
+#include "php_swoole_cxx.h"
 #include "swoole_name_resolver_x_arginfo.h"
 
 using swoole::NameResolver;
@@ -79,7 +79,8 @@ ZEND_METHOD(Swoole_NameResolver_Context, __construct) {
 }
 
 void php_swoole_name_resolver_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY_STD(swoole_name_resolver_context, "Swoole\\NameResolver\\Context", class_Swoole_NameResolver_Context_methods);
+    SW_INIT_CLASS_ENTRY_STD(
+        swoole_name_resolver_context, "Swoole\\NameResolver\\Context", class_Swoole_NameResolver_Context_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_name_resolver_context);
     SW_SET_CLASS_CLONEABLE(swoole_name_resolver_context, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_name_resolver_context, sw_zend_class_unset_property_deny);
@@ -106,6 +107,25 @@ PHP_FUNCTION(swoole_name_resolver_lookup) {
 }
 
 END_EXTERN_C()
+
+bool php_swoole_name_resolver_add(zval *zresolver) {
+    auto ce = zend_lookup_class(SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER));
+    if (ce == nullptr) {
+        php_swoole_fatal_error(
+            E_WARNING, "Class \"%s\" not found", SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER)->val);
+        return false;
+    }
+    if (!instanceof_function(Z_OBJCE_P(zresolver), ce)) {
+        php_swoole_fatal_error(E_WARNING,
+                               "the given object is not an instance of %s",
+                               SW_ZSTR_KNOWN(SW_ZEND_STR_CLASS_NAME_RESOLVER)->val);
+        return false;
+    }
+    zval_add_ref(zresolver);
+    NameResolver resolver{php_swoole_name_resolver_lookup, sw_zval_dup(zresolver), NameResolver::TYPE_PHP};
+    swoole_name_resolver_add(resolver);
+    return true;
+}
 
 std::string php_swoole_name_resolver_lookup(const std::string &name, NameResolver::Context *ctx, void *_resolver) {
     zval *zcluster_object;

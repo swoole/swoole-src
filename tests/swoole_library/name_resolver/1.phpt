@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm, $ns, $html) {
     Coroutine::set(['name_resolver' => [$ns]]);
     run(function () use ($html) {
         swoole_loop_n(REQ_N, function () use ($html) {
-            $client = new Client(SERVICE_NAME, 9501);
+            $client = new Client(SERVICE_NAME);
             $client->set(['max_retries' => PORT_N]);
             $r = $client->get('/');
             Assert::true($r);

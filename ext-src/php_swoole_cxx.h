@@ -151,6 +151,7 @@ swoole::NameResolver::Context *php_swoole_name_resolver_get_context(zval *zobjec
 std::string php_swoole_name_resolver_lookup(const std::string &name,
                                             swoole::NameResolver::Context *ctx,
                                             void *_resolver);
+bool php_swoole_name_resolver_add(zval *zresolver);
 
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
