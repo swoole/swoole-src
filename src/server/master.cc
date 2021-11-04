@@ -453,8 +453,8 @@ int Server::start_master_thread() {
     SW_START_SLEEP;
 #endif
 
-    if (hooks[Server::HOOK_MASTER_START]) {
-        call_hook(Server::HOOK_MASTER_START, this);
+    if (isset_hook(HOOK_MASTER_START)) {
+        call_hook(HOOK_MASTER_START, this);
     }
 
     if (onStart) {
@@ -587,10 +587,10 @@ void Server::call_worker_start_callback(Worker *worker) {
     hook_args[0] = this;
     hook_args[1] = (void *) (uintptr_t) worker->id;
 
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_WORKER_START]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_START, hook_args);
     }
-    if (hooks[Server::HOOK_WORKER_START]) {
+    if (isset_hook(HOOK_WORKER_START)) {
         call_hook(Server::HOOK_WORKER_START, hook_args);
     }
     if (onWorkerStart) {
@@ -602,7 +602,7 @@ int Server::start() {
     if (start_check() < 0) {
         return SW_ERR;
     }
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_SERVER_START]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_SERVER_START, this);
     }
     // cannot start 2 servers at the same time, please use process->exec.
@@ -1526,6 +1526,7 @@ bool Server::sendwait(SessionId session_id, const void *data, uint32_t length) {
 }
 
 void Server::call_hook(HookType type, void *arg) {
+    assert(type <= HOOK_END);
     swoole::hook_call(hooks, type, arg);
 }
 

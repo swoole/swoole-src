@@ -404,7 +404,7 @@ Reactor::~Reactor() {
     destroyed = true;
     destroy_callbacks.execute();
     delete impl;
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
     }
 }

@@ -684,6 +684,7 @@ class Server {
         HOOK_MANAGER_START,
         HOOK_MANAGER_TIMER,
         HOOK_PROCESS_TIMER,
+        HOOK_END = SW_MAX_HOOK_TYPE - 1,
     };
 
     enum CloseFlag {
@@ -1258,6 +1259,11 @@ class Server {
 
     bool is_reactor_thread() {
         return SwooleG.process_type == SW_PROCESS_MASTER && SwooleTG.type == Server::THREAD_REACTOR;
+    }
+
+    bool isset_hook(enum HookType type) {
+        assert(type <= HOOK_END);
+        return hooks[type];
     }
 
     bool is_sync_process() {

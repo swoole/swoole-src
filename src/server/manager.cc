@@ -50,7 +50,7 @@ struct Manager {
 
 void Manager::timer_callback(Timer *timer, TimerNode *tnode) {
     Server *serv = (Server *) tnode->data;
-    if (serv->hooks[Server::HOOK_MANAGER_TIMER]) {
+    if (serv->isset_hook(Server::HOOK_MANAGER_TIMER)) {
         serv->call_hook(Server::HOOK_MANAGER_TIMER, serv);
     }
 }
@@ -252,7 +252,7 @@ void Manager::start(Server *_server) {
     SW_START_SLEEP;
 #endif
 
-    if (_server->hooks[Server::HOOK_MANAGER_START]) {
+    if (_server->isset_hook(Server::HOOK_MANAGER_START)) {
         _server->call_hook(Server::HOOK_MANAGER_START, _server);
     }
 
