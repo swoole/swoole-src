@@ -26,6 +26,7 @@
 
 #define SW_HAVE_COUNTABLE 1
 
+#include "swoole_c_api.h"
 #include "swoole_api.h"
 #include "swoole_async.h"
 
@@ -146,6 +147,12 @@ enum php_swoole_req_status {
     PHP_SWOOLE_RSHUTDOWN_END,
 };
 //---------------------------------------------------------
+enum php_swoole_hook_type {
+    PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK = SW_GLOBAL_HOOK_USER,
+    PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK,
+};
+//---------------------------------------------------------
+
 
 static sw_inline enum swSocketType php_swoole_socktype(long type) {
     return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
