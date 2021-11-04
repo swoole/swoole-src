@@ -632,7 +632,7 @@ void PHPCoroutine::on_close(void *arg) {
     long origin_cid = task->co->get_origin_cid();
 #endif
 
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
     }
 
@@ -790,7 +790,7 @@ void PHPCoroutine::main_func(void *arg) {
             concurrency++;
         }
 
-        if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START]) {
+        if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_START)) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
         }
 

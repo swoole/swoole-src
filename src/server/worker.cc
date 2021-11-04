@@ -387,7 +387,7 @@ void Server::worker_stop_callback() {
     void *hook_args[2];
     hook_args[0] = this;
     hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_BEFORE_WORKER_STOP]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_BEFORE_WORKER_STOP, hook_args);
     }
     if (onWorkerStop) {

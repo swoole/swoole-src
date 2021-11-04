@@ -370,7 +370,7 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     /**
      * call internal serv hooks
      */
-    if (serv->hooks[Server::HOOK_WORKER_CLOSE]) {
+    if (serv->isset_hook(Server::HOOK_WORKER_CLOSE)) {
         void *hook_args[2];
         hook_args[0] = serv;
         hook_args[1] = (void *) (uintptr_t) SwooleG.process_id;
