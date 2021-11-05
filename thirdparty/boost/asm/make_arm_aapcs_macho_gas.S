@@ -39,16 +39,16 @@
  *******************************************************/
 
 .text
-.globl _make_fcontext
+.globl _swoole_make_fcontext
 .align 2
-_make_fcontext:
+_swoole_make_fcontext:
     @ shift address in A1 to lower 16 byte boundary
     bic  a1, a1, #15
 
     @ reserve space for context-data on context-stack
     sub  a1, a1, #108
 
-    @ third arg of make_fcontext() == address of context-function
+    @ third arg of swoole_make_fcontext() == address of context-function
     str  a3, [a1,#104]
 
     @ compute abs address of label finish

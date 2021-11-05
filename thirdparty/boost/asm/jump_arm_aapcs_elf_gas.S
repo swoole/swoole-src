@@ -39,10 +39,10 @@
  *******************************************************/
 
 .text
-.globl jump_fcontext
+.globl swoole_jump_fcontext
 .align 2
-.type jump_fcontext,%function
-jump_fcontext:
+.type swoole_jump_fcontext,%function
+swoole_jump_fcontext:
     @ save LR as PC
     push {lr}
     @ save V1-V8,LR
@@ -84,10 +84,10 @@ jump_fcontext:
     @ use third arg as return value after jump
     @ and as first arg in context function
     mov  a1, a3
-    
+
     @ restore v1-V8,LR,PC
     pop {v1-v8,lr,pc}
-.size jump_fcontext,.-jump_fcontext
+.size swoole_jump_fcontext,.-swoole_jump_fcontext
 
 #ifndef __NetBSD__
 @ Mark that we don't need executable stack.

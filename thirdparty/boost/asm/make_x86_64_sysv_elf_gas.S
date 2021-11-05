@@ -32,11 +32,11 @@
  ****************************************************************************************/
 
 .text
-.globl make_fcontext
-.type make_fcontext,@function
+.globl swoole_make_fcontext
+.type swoole_make_fcontext,@function
 .align 16
-make_fcontext:
-    /* first arg of make_fcontext() == top of context-stack */
+swoole_make_fcontext:
+    /* first arg of swoole_make_fcontext() == top of context-stack */
     movq  %rdi, %rax
 
     /* shift address in RAX to lower 16 byte boundary */
@@ -47,7 +47,7 @@ make_fcontext:
     /* on context-function entry: (RSP -0x8) % 16 == 0 */
     leaq  -0x48(%rax), %rax
 
-    /* third arg of make_fcontext() == address of context-function */
+    /* third arg of swoole_make_fcontext() == address of context-function */
     movq  %rdx, 0x38(%rax)
 
     /* save MMX control- and status-word */
@@ -69,7 +69,7 @@ finish:
     /* exit application */
     call  _exit@PLT
     hlt
-.size make_fcontext,.-make_fcontext
+.size swoole_make_fcontext,.-swoole_make_fcontext
 
 #ifndef __NetBSD__
 /* Mark that we don't need executable stack. */
