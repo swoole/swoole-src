@@ -37,7 +37,6 @@ static std::unordered_map<SessionId, Http2Session *> http2_sessions;
 extern String *swoole_http_buffer;
 
 static bool http2_server_respond(HttpContext *ctx, String *body);
-static int http2_server_parse(swoole::http2::Session *client, const char *buf);
 
 Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
@@ -822,7 +821,7 @@ static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int
     return SW_OK;
 }
 
-int http2_server_parse(Http2Session *client, const char *buf) {
+int swoole_http2_server_parse(Http2Session *client, const char *buf) {
     Http2Stream *stream = nullptr;
     int type = buf[3];
     int flags = buf[4];
@@ -1077,7 +1076,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
 
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req);
-    int retval = http2_server_parse(client, Z_STRVAL(zdata));
+    int retval = swoole_http2_server_parse(client, Z_STRVAL(zdata));
     zval_ptr_dtor(&zdata);
 
     return retval;

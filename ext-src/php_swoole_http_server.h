@@ -39,7 +39,7 @@ void swoole_websocket_onRequest(swoole::http::Context *ctx);
 bool swoole_websocket_handshake(swoole::http::Context *ctx);
 
 #ifdef SW_USE_HTTP2
-
+int swoole_http2_server_parse(swoole::http2::Session *client, const char *buf);
 int swoole_http2_server_onReceive(swoole::Server *serv, swoole::Connection *conn, swoole::RecvData *req);
 void swoole_http2_server_session_free(swoole::Connection *conn);
 int swoole_http2_server_ping(swoole::http::Context *ctx);
