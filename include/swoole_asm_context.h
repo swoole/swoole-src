@@ -29,8 +29,8 @@ SW_EXTERN_C_BEGIN
 
 typedef void *fcontext_t;
 
-intptr_t jump_fcontext(fcontext_t *ofc, fcontext_t nfc, intptr_t vp, bool preserve_fpu = false);
-fcontext_t make_fcontext(void *sp, size_t size, void (*fn)(intptr_t));
+intptr_t swoole_jump_fcontext(fcontext_t *ofc, fcontext_t nfc, intptr_t vp, bool preserve_fpu = false);
+fcontext_t swoole_make_fcontext(void *sp, size_t size, void (*fn)(intptr_t));
 
 SW_EXTERN_C_END
 

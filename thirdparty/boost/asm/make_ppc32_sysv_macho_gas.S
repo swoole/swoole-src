@@ -67,13 +67,13 @@
  *******************************************************/
 
 .text
-.globl _make_fcontext
+.globl _swoole_make_fcontext
 .align 2
-_make_fcontext:
+_swoole_make_fcontext:
     ; save return address into R6
     mflr  r6
 
-    ; first arg of make_fcontext() == top address of context-function
+    ; first arg of swoole_make_fcontext() == top address of context-function
     ; shift address in R3 to lower 16 byte boundary
     clrrwi  r3, r3, 4
 
@@ -81,7 +81,7 @@ _make_fcontext:
     ; including 64 byte of linkage + parameter area (R1 % 16 == 0)
     subi  r3, r3, 304
 
-    ; third arg of make_fcontext() == address of context-function
+    ; third arg of swoole_make_fcontext() == address of context-function
     stw  r5, 236(r3)
 
     ; load LR
