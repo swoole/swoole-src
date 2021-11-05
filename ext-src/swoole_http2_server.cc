@@ -36,7 +36,8 @@ using Http2Session = Http2::Session;
 static std::unordered_map<SessionId, Http2Session *> http2_sessions;
 extern String *swoole_http_buffer;
 
-static bool swoole_http2_server_respond(HttpContext *ctx, String *body);
+static bool http2_server_respond(HttpContext *ctx, String *body);
+static int http2_server_parse(swoole::http2::Session *client, const char *buf);
 
 Http2Stream::Stream(Http2Session *client, uint32_t _id) {
     ctx = swoole_http_context_new(client->fd);
@@ -100,7 +101,7 @@ static void http2_server_send_window_update(HttpContext *ctx, uint32_t stream_id
     ctx->send(ctx, frame, SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_WINDOW_UPDATE_SIZE);
 }
 
-static ssize_t http2_build_trailer(HttpContext *ctx, uchar *buffer) {
+static ssize_t http2_server_build_trailer(HttpContext *ctx, uchar *buffer) {
     zval *ztrailer =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     uint32_t size = php_swoole_array_length_safe(ztrailer);
@@ -151,7 +152,7 @@ static ssize_t http2_build_trailer(HttpContext *ctx, uchar *buffer) {
     return 0;
 }
 
-static bool swoole_http2_is_static_file(Server *serv, HttpContext *ctx) {
+static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
     zval *zserver = ctx->request.zserver;
     zval *zrequest_uri = zend_hash_str_find(Z_ARR_P(zserver), ZEND_STRL("request_uri"));
     if (zrequest_uri && Z_TYPE_P(zrequest_uri) == IS_STRING) {
@@ -164,7 +165,7 @@ static bool swoole_http2_is_static_file(Server *serv, HttpContext *ctx) {
             String null_body = {};
 
             ctx->response.status = SW_HTTP_NOT_FOUND;
-            swoole_http2_server_respond(ctx, &null_body);
+            http2_server_respond(ctx, &null_body);
             return true;
         }
 
@@ -187,6 +188,7 @@ static bool swoole_http2_is_static_file(Server *serv, HttpContext *ctx) {
         zval zfilename;
         ZVAL_STR(&zfilename, _filename.get());
         zval retval; /* do not care the retval (the connection will be closed if failed) */
+        ctx->onAfterResponse = nullptr;
         sw_zend_call_method_with_1_params(
             ctx->response.zobject, swoole_http_response_ce, nullptr, "sendfile", &retval, &zfilename);
 
@@ -196,7 +198,7 @@ static bool swoole_http2_is_static_file(Server *serv, HttpContext *ctx) {
     return false;
 }
 
-static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
+static void http2_server_onRequest(Http2Session *client, Http2Stream *stream) {
     HttpContext *ctx = stream->ctx;
     zval *zserver = ctx->request.zserver;
     Server *serv = (Server *) ctx->private_data;
@@ -208,7 +210,7 @@ static void swoole_http2_onRequest(Http2Session *client, Http2Stream *stream) {
 
     ctx->request.version = SW_HTTP_VERSION_2;
 
-    if (serv->enable_static_handler && swoole_http2_is_static_file(serv, ctx)) {
+    if (serv->enable_static_handler && http2_server_is_static_file(serv, ctx)) {
         goto _destroy;
     }
 
@@ -241,7 +243,7 @@ _destroy:
     zval_ptr_dtor(ctx->response.zobject);
 }
 
-static ssize_t http2_build_header(HttpContext *ctx, uchar *buffer, size_t body_length) {
+static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, size_t body_length) {
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *zcookie =
@@ -407,7 +409,7 @@ int swoole_http2_server_goaway(HttpContext *ctx, zend_long error_code, const cha
 
 bool Http2Stream::send_header(size_t body_length, bool end_stream) {
     char header_buffer[SW_BUFFER_SIZE_STD];
-    ssize_t bytes = http2_build_header(ctx, (uchar *) header_buffer, body_length);
+    ssize_t bytes = http2_server_build_header(ctx, (uchar *) header_buffer, body_length);
     if (bytes < 0) {
         return false;
     }
@@ -498,7 +500,7 @@ bool Http2Stream::send_trailer() {
     char frame_header[SW_HTTP2_FRAME_HEADER_SIZE];
 
     swoole_http_buffer->clear();
-    ssize_t bytes = http2_build_trailer(ctx, (uchar *) header_buffer);
+    ssize_t bytes = http2_server_build_trailer(ctx, (uchar *) header_buffer);
     if (bytes > 0) {
         http2::set_frame_header(
             frame_header, SW_HTTP2_TYPE_HEADERS, bytes, SW_HTTP2_FLAG_END_HEADERS | SW_HTTP2_FLAG_END_STREAM, id);
@@ -512,7 +514,7 @@ bool Http2Stream::send_trailer() {
     return true;
 }
 
-static bool swoole_http2_server_respond(HttpContext *ctx, String *body) {
+static bool http2_server_respond(HttpContext *ctx, String *body) {
     Http2Session *client = http2_sessions[ctx->fd];
     Http2Stream *stream = ctx->stream;
 
@@ -611,7 +613,7 @@ static bool swoole_http2_server_respond(HttpContext *ctx, String *body) {
     return !error;
 }
 
-static bool http2_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
+static bool http2_server_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
     Http2Session *client = http2_sessions[ctx->fd];
     Http2Stream *stream = (Http2Stream *) ctx->stream;
     std::shared_ptr<String> body;
@@ -683,12 +685,12 @@ static bool http2_context_sendfile(HttpContext *ctx, const char *file, uint32_t 
     return true;
 }
 
-static bool http2_context_onBeforeRequest(HttpContext *ctx) {
+static bool http2_server_context_onBeforeRequest(HttpContext *ctx) {
     Server *serv = (Server *) ctx->private_data;
     if (serv->gs->concurrency >= serv->max_concurrency) {
         String null_body{};
         ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
-        swoole_http2_server_respond(ctx, &null_body);
+        http2_server_respond(ctx, &null_body);
         zval_ptr_dtor(ctx->request.zobject);
         zval_ptr_dtor(ctx->response.zobject);
         return false;
@@ -696,7 +698,7 @@ static bool http2_context_onBeforeRequest(HttpContext *ctx) {
     return swoole_http_server_onBeforeRequest(ctx);
 }
 
-static int http2_parse_header(Http2Session *client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
+static int http2_server_parse_header(Http2Session *client, HttpContext *ctx, int flags, const char *in, size_t inlen) {
     nghttp2_hd_inflater *inflater = client->inflater;
 
     if (!inflater) {
@@ -820,7 +822,7 @@ static int http2_parse_header(Http2Session *client, HttpContext *ctx, int flags,
     return SW_OK;
 }
 
-int swoole_http2_server_parse(Http2Session *client, const char *buf) {
+int http2_server_parse(Http2Session *client, const char *buf) {
     Http2Stream *stream = nullptr;
     int type = buf[3];
     int flags = buf[4];
@@ -914,7 +916,7 @@ int swoole_http2_server_parse(Http2Session *client, const char *buf) {
         } else {
             ctx = stream->ctx;
         }
-        if (http2_parse_header(client, ctx, flags, buf, length) < 0) {
+        if (http2_server_parse_header(client, ctx, flags, buf, length) < 0) {
             return SW_ERR;
         }
 
@@ -1061,7 +1063,7 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client = new Http2Session(session_id);
     }
 
-    client->handle = swoole_http2_onRequest;
+    client->handle = http2_server_onRequest;
     if (!client->default_ctx) {
         client->default_ctx = new HttpContext();
         client->default_ctx->init(serv);
@@ -1069,13 +1071,13 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->http2 = true;
         client->default_ctx->stream = (Http2Stream *) -1;
         client->default_ctx->keepalive = true;
-        client->default_ctx->sendfile = http2_context_sendfile;
-        client->default_ctx->onBeforeRequest = http2_context_onBeforeRequest;
+        client->default_ctx->sendfile = http2_server_context_sendfile;
+        client->default_ctx->onBeforeRequest = http2_server_context_onBeforeRequest;
     }
 
     zval zdata;
     php_swoole_get_recv_data(serv, &zdata, req);
-    int retval = swoole_http2_server_parse(client, Z_STRVAL(zdata));
+    int retval = http2_server_parse(client, Z_STRVAL(zdata));
     zval_ptr_dtor(&zdata);
 
     return retval;
@@ -1099,7 +1101,7 @@ void HttpContext::http2_end(zval *zdata, zval *return_value) {
         http_body.str = nullptr;
     }
 
-    RETURN_BOOL(swoole_http2_server_respond(this, &http_body));
+    RETURN_BOOL(http2_server_respond(this, &http_body));
 }
 
 #endif
