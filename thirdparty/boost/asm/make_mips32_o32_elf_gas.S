@@ -32,17 +32,17 @@
  * *****************************************************/
 
 .text
-.globl make_fcontext
+.globl swoole_make_fcontext
 .align 2
-.type make_fcontext,@function
-.ent make_fcontext
-make_fcontext:
+.type swoole_make_fcontext,@function
+.ent swoole_make_fcontext
+swoole_make_fcontext:
 #ifdef __PIC__
 .set    noreorder
 .cpload $t9
 .set    reorder
 #endif
-    # first arg of make_fcontext() == top address of context-stack
+    # first arg of swoole_make_fcontext() == top address of context-stack
     move $v0, $a0
 
     # shift address in A0 to lower 16 byte boundary
@@ -54,7 +54,7 @@ make_fcontext:
     # including 48 byte of shadow space (sp % 16 == 0)
     addiu $v0, $v0, -140
 
-    # third arg of make_fcontext() == address of context-function
+    # third arg of swoole_make_fcontext() == address of context-function
     sw  $a2, 88($v0)
     # save global pointer in context-data
     # S0 will contain address of global pointer
@@ -82,8 +82,8 @@ finish:
     lw  $t9, %call16(_exit)($gp)
     # exit application
     jalr  $t9
-.end make_fcontext
-.size make_fcontext, .-make_fcontext
+.end swoole_make_fcontext
+.size swoole_make_fcontext, .-swoole_make_fcontext
 
 /* Mark that we don't need executable stack.  */
 .section .note.GNU-stack,"",%progbits

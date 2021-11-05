@@ -32,11 +32,11 @@
  * *****************************************************/
 
 .text
-.globl jump_fcontext
+.globl swoole_jump_fcontext
 .align 2
-.type jump_fcontext,@function
-.ent jump_fcontext
-jump_fcontext:
+.type swoole_jump_fcontext,@function
+.ent swoole_jump_fcontext
+swoole_jump_fcontext:
     # reserve space on stack
     addiu $sp, $sp, -92
 
@@ -53,7 +53,7 @@ jump_fcontext:
     sw  $ra, 88($sp)  # save RA as PC
 
 #if defined(__mips_hard_float)
-    # test if fpu env should be preserved 
+    # test if fpu env should be preserved
     beqz    $a3,  1f
 
     s.d  $f20, ($sp)  # save F20
@@ -74,7 +74,7 @@ jump_fcontext:
 
 
 #if defined(__mips_hard_float)
-    # test if fpu env should be preserved 
+    # test if fpu env should be preserved
     beqz    $a3,  2f
 
     l.d  $f20, ($sp)  # restore F20
@@ -111,8 +111,8 @@ jump_fcontext:
 
     # jump to context
     jr  $t9
-.end jump_fcontext
-.size jump_fcontext, .-jump_fcontext
+.end swoole_jump_fcontext
+.size swoole_jump_fcontext, .-swoole_jump_fcontext
 
 /* Mark that we don't need executable stack.  */
 .section .note.GNU-stack,"",%progbits

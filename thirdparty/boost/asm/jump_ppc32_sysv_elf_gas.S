@@ -67,10 +67,10 @@
  *******************************************************/
 
 .text
-.globl jump_fcontext
+.globl swoole_jump_fcontext
 .align 2
-.type jump_fcontext,@function
-jump_fcontext:
+.type swoole_jump_fcontext,@function
+swoole_jump_fcontext:
     # reserve space on stack
     subi  %r1, %r1, 240
 
@@ -202,7 +202,7 @@ jump_fcontext:
 
     # jump to context
     bctr
-.size jump_fcontext, .-jump_fcontext
+.size swoole_jump_fcontext, .-swoole_jump_fcontext
 
 #ifndef __NetBSD__
 /* Mark that we don't need executable stack.  */
