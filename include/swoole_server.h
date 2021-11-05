@@ -518,6 +518,7 @@ struct ServerGS {
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
+    sw_atomic_t concurrency;
     sw_atomic_long_t abort_count;
     sw_atomic_long_t accept_count;
     sw_atomic_long_t close_count;
@@ -728,6 +729,8 @@ class Server {
     int null_fd = -1;
 
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
+    uint32_t max_concurrency = UINT_MAX;
+    uint32_t worker_max_concurrency = UINT_MAX;
 
     /*----------------------------Reactor schedule--------------------------------*/
     sw_atomic_t worker_round_id = 0;
@@ -1429,8 +1432,30 @@ class Server {
 
     void set_max_connection(uint32_t _max_connection);
 
-    inline uint32_t get_max_connection() {
+    void set_max_concurrency(uint32_t _max_concurrency) {
+        if (_max_concurrency == 0) {
+            _max_concurrency = UINT_MAX;
+        }
+        max_concurrency = _max_concurrency;
+    }
+
+    void set_worker_max_concurrency(uint32_t _max_concurrency) {
+        if (_max_concurrency == 0) {
+            _max_concurrency = UINT_MAX;
+        }
+        worker_max_concurrency = _max_concurrency;
+    }
+
+    uint32_t get_max_connection() {
         return max_connection;
+    }
+
+    uint32_t get_max_concurrency() {
+        return max_concurrency;
+    }
+
+    uint32_t get_worker_max_concurrency() {
+        return worker_max_concurrency;
     }
 
     void set_start_session_id(SessionId value) {

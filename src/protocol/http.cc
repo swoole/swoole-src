@@ -699,6 +699,14 @@ const char *get_method_string(int method) {
     return method_strings[method - 1];
 }
 
+int dispatch_request(Server *serv, const Protocol *proto, Socket *_socket, const RecvData *rdata) {
+    if (serv->gs->concurrency > serv->max_concurrency - 1) {
+        _socket->send(SW_STRL(SW_HTTP_SERVICE_UNAVAILABLE_PACKET), 0);
+        return SW_ERR;
+    }
+    return Server::dispatch_task(proto, _socket, rdata);
+}
+
 //-----------------------------------------------------------------
 
 #ifdef SW_USE_HTTP2

@@ -122,6 +122,7 @@ struct Worker {
     uint8_t child_process;
 
     sw_atomic_t tasking_num;
+    uint32_t concurrency;
     time_t start_time;
 
     sw_atomic_long_t dispatch_count;

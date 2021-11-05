@@ -8,6 +8,8 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use function Swoole\Coroutine\run;
 use Swoole\Coroutine\Http\Client;
+use Swoole\WebSocket\Server;
+use Swoole\WebSocket\Frame;
 
 $pm = new ProcessManager;
 
@@ -26,7 +28,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -34,22 +36,22 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
+    $serv->on('Message', function (Server $serv, Frame $frame) {
         if ($frame->data == 'shutdown') {
             $serv->disconnect($frame->fd, 4000, 'shutdown received');
         }
     });
     $serv->on('connect', function ($s, $id) use ($pm) {
-        puts("connect ".$id);
+        puts("connect " . $id);
     });
     $serv->on('disconnect', function ($s, $id) use ($pm) {
-        puts("disconnect ".$id);
+        puts("disconnect " . $id);
     });
     $serv->on('open', function ($s, $req) use ($pm) {
-        puts("open ".$req->fd);
+        puts("open " . $req->fd);
     });
     $serv->on('close', function ($s, $id) use ($pm) {
-        puts("close ".$id);
+        puts("close " . $id);
     });
     $serv->start();
 };
