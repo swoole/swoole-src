@@ -9,6 +9,9 @@ skip("no supports");
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
+use Swoole\Lock;
+use Swoole\Process;
+
 $file = __DIR__.'/tmp.log';
 $fp = fopen($file, 'w+');
 $pm = new SwooleTest\ProcessManager;
@@ -18,13 +21,13 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm, $fp) {
-    $lock = new Swoole\Lock(SWOOLE_MUTEX);
+    $lock = new Lock(SWOOLE_MUTEX);
     $pid = posix_getpid();
-    fwrite($fp, "[Master {$pid}]create lock\n");
+    fwrite($fp, "[Master {$pid}] Create Lock\n");
     $lock->lock();
     $n = 2;
     while ($n--) {
-        $process = new Swoole\Process(function ($p) use ($lock, $fp) {
+        $process = new Process(function ($p) use ($lock, $fp) {
             fwrite($fp, "[Child {$p->pid}] Wait Lock\n");
             $lock->lock();
             fwrite($fp, "[Child {$p->pid}] Get Lock\n");
@@ -44,7 +47,7 @@ echo file_get_contents($file);
 unlink($file);
 ?>
 --EXPECTF--
-[Master %d]create lock
+[Master %d] Create Lock
 [Child %d] Wait Lock
 [Child %d] Wait Lock
 [Child %d] Get Lock
