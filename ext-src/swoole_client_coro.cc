@@ -457,6 +457,20 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
         zend_long v = zval_get_long(ztmp);
         sock->get_ssl_context()->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
+    if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
+        sock->get_ssl_context()->ciphers = zend::String(ztmp).to_std_string();
+    }
+    if (php_swoole_array_get_value(vht, "ssl_ecdh_curve", ztmp)) {
+        sock->get_ssl_context()->ecdh_curve = zend::String(ztmp).to_std_string();
+    }
+
+#ifdef OPENSSL_IS_BORINGSSL
+    if (php_swoole_array_get_value(vht, "ssl_grease", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        sock->get_ssl_context()->grease = SW_MAX(0, SW_MIN(v, UINT8_MAX));
+    }
+#endif
+
     if (!sock->ssl_check_context()) {
         ret = false;
     }

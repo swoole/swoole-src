@@ -142,16 +142,6 @@ struct Connection {
     sw_atomic_t lock;
 };
 
-struct SendData {
-    DataHead info;
-    const char *data;
-};
-
-struct RecvData {
-    DataHead info;
-    const char *data;
-};
-
 struct PipeBuffer {
     DataHead info;
     char data[0];
@@ -528,6 +518,7 @@ struct ServerGS {
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
+    sw_atomic_t concurrency;
     sw_atomic_long_t abort_count;
     sw_atomic_long_t accept_count;
     sw_atomic_long_t close_count;
@@ -694,6 +685,7 @@ class Server {
         HOOK_MANAGER_START,
         HOOK_MANAGER_TIMER,
         HOOK_PROCESS_TIMER,
+        HOOK_END = SW_MAX_HOOK_TYPE - 1,
     };
 
     enum CloseFlag {
@@ -737,6 +729,8 @@ class Server {
     int null_fd = -1;
 
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
+    uint32_t max_concurrency = UINT_MAX;
+    uint32_t worker_max_concurrency = UINT_MAX;
 
     /*----------------------------Reactor schedule--------------------------------*/
     sw_atomic_t worker_round_id = 0;
@@ -1270,6 +1264,11 @@ class Server {
         return SwooleG.process_type == SW_PROCESS_MASTER && SwooleTG.type == Server::THREAD_REACTOR;
     }
 
+    bool isset_hook(enum HookType type) {
+        assert(type <= HOOK_END);
+        return hooks[type];
+    }
+
     bool is_sync_process() {
         if (is_manager()) {
             return true;
@@ -1399,7 +1398,7 @@ class Server {
 #endif
     static int accept_command_result(Reactor *reactor, Event *event);
     static int close_connection(Reactor *reactor, network::Socket *_socket);
-    static int dispatch_task(Protocol *proto, network::Socket *_socket, const char *data, uint32_t length);
+    static int dispatch_task(const Protocol *proto, network::Socket *_socket, const RecvData *rdata);
 
     int send_to_connection(SendData *);
     ssize_t send_to_worker_from_worker(Worker *dst_worker, const void *buf, size_t len, int flags);
@@ -1433,8 +1432,30 @@ class Server {
 
     void set_max_connection(uint32_t _max_connection);
 
-    inline uint32_t get_max_connection() {
+    void set_max_concurrency(uint32_t _max_concurrency) {
+        if (_max_concurrency == 0) {
+            _max_concurrency = UINT_MAX;
+        }
+        max_concurrency = _max_concurrency;
+    }
+
+    void set_worker_max_concurrency(uint32_t _max_concurrency) {
+        if (_max_concurrency == 0) {
+            _max_concurrency = UINT_MAX;
+        }
+        worker_max_concurrency = _max_concurrency;
+    }
+
+    uint32_t get_max_connection() {
         return max_connection;
+    }
+
+    uint32_t get_max_concurrency() {
+        return max_concurrency;
+    }
+
+    uint32_t get_worker_max_concurrency() {
+        return worker_max_concurrency;
     }
 
     void set_start_session_id(SessionId value) {

@@ -192,7 +192,7 @@ static PHP_METHOD(swoole_http_request, create);
 static PHP_METHOD(swoole_http_request, parse);
 static PHP_METHOD(swoole_http_request, isCompleted);
 static PHP_METHOD(swoole_http_request, getMethod);
-static PHP_METHOD(swoole_http_request, rawContent);
+static PHP_METHOD(swoole_http_request, getContent);
 static PHP_METHOD(swoole_http_request, __destruct);
 SW_EXTERN_C_END
 
@@ -210,8 +210,8 @@ ZEND_END_ARG_INFO()
 
 const zend_function_entry swoole_http_request_methods[] =
 {
-    PHP_ME(swoole_http_request, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_http_request, getContent, rawContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_http_request, rawContent, getContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_request, create, arginfo_swoole_http_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_http_request, parse, arginfo_swoole_http_parse, ZEND_ACC_PUBLIC)
@@ -848,7 +848,7 @@ const char *HttpContext::get_content_encoding() {
 }
 #endif
 
-static PHP_METHOD(swoole_http_request, rawContent) {
+static PHP_METHOD(swoole_http_request, getContent) {
     HttpContext *ctx = php_swoole_http_request_get_and_check_context(ZEND_THIS);
     if (UNEXPECTED(!ctx)) {
         RETURN_FALSE;

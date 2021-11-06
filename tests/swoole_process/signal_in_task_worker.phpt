@@ -32,11 +32,11 @@ $pm->childFunc = function () use ($pm) {
     $serv->on("WorkerStart", function (Server $serv) use ($pm) {
         if ($serv->taskworker) {
             file_put_contents(PID_FILE, $serv->getWorkerPid());
-            $pm->wakeup();
             Process::signal(SIGINT, function () use($pm) {
                 echo "SIGINT triggered\n";
                 $pm->wakeup();
             });
+            $pm->wakeup();
         }
     });
     $serv->on("Task", function (Server $serv) use ($pm) {

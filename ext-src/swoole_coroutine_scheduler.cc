@@ -158,6 +158,9 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
         Coroutine::set_stack_size(zval_get_long(ztmp));
     }
+    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
+        PHPCoroutine::set_max_concurrency((uint32_t) SW_MAX(1, zval_get_long(ztmp)));
+    }
     if (PHPCoroutine::options) {
         zend_hash_merge(PHPCoroutine::options, vht, zval_add_ref, true);
     } else {

@@ -181,10 +181,10 @@ bool decode(Frame *frame, char *data, size_t length) {
     }
 
     swoole_trace_log(SW_TRACE_WEBSOCKET,
-               "decode frame, payload_length=%ld, mask=%d, opcode=%d",
-               payload_length,
-               frame->header.MASK,
-               frame->header.OPCODE);
+                     "decode frame, payload_length=%ld, mask=%d, opcode=%d",
+                     payload_length,
+                     frame->header.MASK,
+                     frame->header.OPCODE);
 
     if (payload_length == 0) {
         frame->header_length = header_length;
@@ -239,11 +239,13 @@ void print_frame(Frame *frame) {
     }
 }
 
-int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t length) {
+int dispatch_frame(const Protocol *proto, Socket *_socket, const RecvData *rdata) {
     Server *serv = (Server *) proto->private_data_2;
     Connection *conn = (Connection *) _socket->object;
-
-    String send_frame = {};
+    RecvData dispatch_data{};
+    String send_frame{};
+    const char *data = rdata->data;
+    const uint32_t length = rdata->info.len;
     char buf[SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_CLOSE_CODE_LEN + SW_WEBSOCKET_CLOSE_REASON_MAX_LEN];
     send_frame.str = buf;
     send_frame.size = sizeof(buf);
@@ -275,9 +277,10 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
         frame_buffer->append(data + offset, frame_length);
         // frame is finished, do dispatch
         if (ws.header.FIN) {
-            proto->ext_flags = conn->websocket_buffer->offset;
-            proto->ext_flags |= FLAG_FIN;
-            Server::dispatch_task(proto, _socket, frame_buffer->str, frame_buffer->length);
+            dispatch_data.info.ext_flags = conn->websocket_buffer->offset | FLAG_FIN;
+            dispatch_data.info.len = frame_buffer->length;
+            dispatch_data.data = frame_buffer->str;
+            Server::dispatch_task(proto, _socket, &dispatch_data);
             delete frame_buffer;
             conn->websocket_buffer = nullptr;
         }
@@ -286,19 +289,21 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
     case OPCODE_TEXT:
     case OPCODE_BINARY: {
         offset = length - ws.payload_length;
-        proto->ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
-
+        int ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
         if (!ws.header.FIN) {
             if (conn->websocket_buffer) {
                 swoole_warning("merging incomplete frame, bad request. remote_addr=%s:%d",
-                       conn->info.get_ip(),
-                       conn->info.get_port());
+                               conn->info.get_ip(),
+                               conn->info.get_port());
                 return SW_ERR;
             }
             conn->websocket_buffer = new swoole::String(data + offset, length - offset);
-            conn->websocket_buffer->offset = proto->ext_flags;
+            conn->websocket_buffer->offset = ext_flags;
         } else {
-            Server::dispatch_task(proto, _socket, data + offset, length - offset);
+            dispatch_data.info.ext_flags = ext_flags;
+            dispatch_data.info.len = length - offset;
+            dispatch_data.data = data + offset;
+            Server::dispatch_task(proto, _socket, &dispatch_data);
         }
         break;
     }
@@ -306,20 +311,20 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
     case OPCODE_PONG:
         if (length >= (sizeof(buf) - SW_WEBSOCKET_HEADER_LEN)) {
             swoole_warning("%s frame application data is too big. remote_addr=%s:%d",
-                   ws.header.OPCODE == OPCODE_PING ? "ping" : "pong",
-                   conn->info.get_ip(),
-                   conn->info.get_port());
+                           ws.header.OPCODE == OPCODE_PING ? "ping" : "pong",
+                           conn->info.get_ip(),
+                           conn->info.get_port());
             return SW_ERR;
         } else if (length == SW_WEBSOCKET_HEADER_LEN) {
-            data = nullptr;
-            length = 0;
+            dispatch_data.data = nullptr;
+            dispatch_data.info.len = 0;
         } else {
             offset = ws.header.MASK ? SW_WEBSOCKET_HEADER_LEN + SW_WEBSOCKET_MASK_LEN : SW_WEBSOCKET_HEADER_LEN;
-            data += offset;
-            length -= offset;
+            dispatch_data.info.len = length - offset;
+            dispatch_data.data = dispatch_data.info.len == 0 ? nullptr : data + offset;
         }
-        proto->ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
-        Server::dispatch_task(proto, _socket, data, length);
+        dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+        Server::dispatch_task(proto, _socket, &dispatch_data);
         break;
 
     case OPCODE_CLOSE:
@@ -330,9 +335,10 @@ int dispatch_frame(Protocol *proto, Socket *_socket, const char *data, uint32_t 
         if (conn->websocket_status != STATUS_CLOSING) {
             // Dispatch the frame with the same format of message frame
             offset = length - ws.payload_length;
-            proto->ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
-
-            Server::dispatch_task(proto, _socket, data + offset, length - offset);
+            dispatch_data.info.ext_flags = get_ext_flags(ws.header.OPCODE, get_flags(&ws));
+            dispatch_data.info.len = length - offset;
+            dispatch_data.data = data + offset;
+            Server::dispatch_task(proto, _socket, &dispatch_data);
 
             // Client attempt to close
             send_frame.str[0] = 0x88;  // FIN | OPCODE: WEBSOCKET_OPCODE_CLOSE

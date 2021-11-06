@@ -468,8 +468,10 @@ bool SSLContext::create() {
 
 #ifdef SW_SUPPORT_DTLS
     if (protocols & SW_SSL_DTLS) {
+#ifndef OPENSSL_IS_BORINGSSL
         SSL_CTX_set_cookie_generate_cb(context, swoole_ssl_generate_cookie);
         SSL_CTX_set_cookie_verify_cb(context, swoole_ssl_verify_cookie);
+#endif        
     }
 #endif
 
@@ -502,6 +504,10 @@ bool SSLContext::create() {
         SSL_CTX_set_session_cache_mode(context, SSL_SESS_CACHE_SERVER);
         SSL_CTX_sess_set_cache_size(context, 1);
     }
+#endif
+
+#ifdef OPENSSL_IS_BORINGSSL
+    SSL_CTX_set_grease_enabled(context, grease);
 #endif
 
     if (!client_cert_file.empty() && !set_client_certificate()) {

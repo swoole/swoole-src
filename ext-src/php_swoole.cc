@@ -70,6 +70,8 @@ static PHP_FUNCTION(swoole_strerror);
 static PHP_FUNCTION(swoole_clear_error);
 static PHP_FUNCTION(swoole_errno);
 static PHP_FUNCTION(swoole_error_log);
+static PHP_FUNCTION(swoole_error_log_ex);
+static PHP_FUNCTION(swoole_ignore_error);
 static PHP_FUNCTION(swoole_get_local_ip);
 static PHP_FUNCTION(swoole_get_local_mac);
 static PHP_FUNCTION(swoole_hashcode);
@@ -160,6 +162,16 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_error_log, 0, 0, 2)
     ZEND_ARG_INFO(0, msg)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_error_log_ex, 0, 0, 3)
+    ZEND_ARG_INFO(0, level)
+    ZEND_ARG_INFO(0, error)
+    ZEND_ARG_INFO(0, msg)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_ignore_error, 0, 0, 1)
+    ZEND_ARG_INFO(0, error)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_hashcode, 0, 0, 1)
     ZEND_ARG_INFO(0, data)
     ZEND_ARG_INFO(0, type)
@@ -179,6 +191,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_read, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
+
+#include "php_swoole_x_arginfo.h"
 
 const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_version, arginfo_swoole_void)
@@ -202,6 +216,8 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_errno, arginfo_swoole_void)
     PHP_FE(swoole_clear_error, arginfo_swoole_void)
     PHP_FE(swoole_error_log, arginfo_swoole_error_log)
+    PHP_FE(swoole_error_log_ex, arginfo_swoole_error_log_ex)
+    PHP_FE(swoole_ignore_error, arginfo_swoole_ignore_error)
     PHP_FE(swoole_hashcode, arginfo_swoole_hashcode)
     PHP_FE(swoole_mime_type_add, arginfo_swoole_mime_type_write)
     PHP_FE(swoole_mime_type_set, arginfo_swoole_mime_type_write)
@@ -216,6 +232,10 @@ const zend_function_entry swoole_functions[] = {
     PHP_FE(swoole_substr_json_decode, arginfo_swoole_substr_json_decode)
 #endif
     PHP_FE(swoole_internal_call_user_shutdown_begin, arginfo_swoole_void)
+    // for admin server
+    ZEND_FE(swoole_get_objects, arginfo_swoole_get_objects)
+    ZEND_FE(swoole_get_vm_status, arginfo_swoole_get_vm_status)
+    ZEND_FE(swoole_get_object_by_handle, arginfo_swoole_get_object_by_handle)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -384,9 +404,6 @@ void php_swoole_set_global_option(HashTable *vht) {
     }
     if (php_swoole_array_get_value(vht, "socket_timeout", ztmp)) {
         Socket::default_read_timeout = Socket::default_write_timeout = timeout_format(ztmp);
-    }
-    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
-        SwooleG.max_concurrency = (uint32_t) SW_MAX(0, zval_get_long(ztmp));
     }
 }
 
@@ -790,6 +807,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
+#ifdef SW_USE_PGSQL
+    php_swoole_postgresql_coro_minit(module_number);
+#endif
 
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
@@ -923,7 +943,7 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "tcmalloc", "enabled");
 #endif
     php_info_print_table_row(2, "async_redis", "enabled");
-#ifdef SW_USE_POSTGRESQL
+#ifdef SW_USE_PGSQL
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif
     php_info_print_table_end();
@@ -1154,7 +1174,7 @@ static PHP_FUNCTION(swoole_strerror) {
 static PHP_FUNCTION(swoole_error_log) {
     char *msg;
     size_t l_msg;
-    zend_long level = 0;
+    zend_long level;
 
     ZEND_PARSE_PARAMETERS_START(2, 2)
     Z_PARAM_LONG(level)
@@ -1162,6 +1182,30 @@ static PHP_FUNCTION(swoole_error_log) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     sw_logger()->put(level, msg, l_msg);
+}
+
+static PHP_FUNCTION(swoole_error_log_ex) {
+    char *msg;
+    size_t l_msg;
+    zend_long level, error;
+
+    ZEND_PARSE_PARAMETERS_START(3, 3)
+    Z_PARAM_LONG(level)
+    Z_PARAM_LONG(error)
+    Z_PARAM_STRING(msg, l_msg)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_error_log(level, (int) error, "%.*s", (int) l_msg, msg);
+}
+
+static PHP_FUNCTION(swoole_ignore_error) {
+    zend_long error;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_LONG(error)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    swoole_ignore_error(error);
 }
 
 static PHP_FUNCTION(swoole_mime_type_add) {

@@ -1029,6 +1029,10 @@ void ServerObject::on_before_start() {
     if (!zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("max_connection"))) {
         add_assoc_long(zsetting, "max_connection", serv->get_max_connection());
     }
+    // for admin_server
+    if (zend_hash_str_exists(Z_ARRVAL_P(zsetting), ZEND_STRL("admin_server"))) {
+        swoole::register_admin_server_commands(serv);
+    }
 
     bool find_http_port = false;
     if (is_redis_server()) {
@@ -2186,6 +2190,17 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "max_queued_bytes", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         serv->max_queued_bytes = SW_MAX(0, SW_MIN(v, UINT32_MAX));
+    }
+    if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        serv->set_max_concurrency(SW_MAX(1, SW_MIN(v, UINT32_MAX)));
+        if (serv->get_worker_max_concurrency() == UINT_MAX) {
+            serv->set_worker_max_concurrency(serv->get_max_concurrency());
+        }
+    }
+    if (php_swoole_array_get_value(vht, "worker_max_concurrency", ztmp)) {
+        zend_long v = zval_get_long(ztmp);
+        serv->set_worker_max_concurrency(SW_MAX(1, SW_MIN(v, UINT32_MAX)));
     }
     if (php_swoole_array_get_value(vht, "enable_coroutine", ztmp)) {
         serv->enable_coroutine = zval_is_true(ztmp);

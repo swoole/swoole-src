@@ -50,7 +50,7 @@ PHP_ARG_ENABLE([mysqlnd],
   [enable mysqlnd support],
   [AS_HELP_STRING([--enable-mysqlnd],
     [Enable mysqlnd])], [no], [no])
-    
+
 PHP_ARG_ENABLE([cares],
   [enable c-ares support],
   [AS_HELP_STRING([--enable-cares],
@@ -90,6 +90,11 @@ PHP_ARG_ENABLE([swoole-curl],
   [whether to enable Swoole CURL build flags],
   [AS_HELP_STRING([--enable-swoole-curl],
     [Enable cURL support])], [no], [no])
+
+PHP_ARG_ENABLE([swoole-pgsql],
+  [whether to enable postgresql build flags],
+  [AS_HELP_STRING([--enable-swoole-pgsql],
+    [Enable postgresql support])], [no], [no])
 
 PHP_ARG_ENABLE([thread-context],
   [whether to enable thread context],
@@ -358,7 +363,7 @@ if test "$PHP_SWOOLE" != "no"; then
     AC_CHECK_LIB(pthread, pthread_mutex_consistent, AC_DEFINE(HAVE_PTHREAD_MUTEX_CONSISTENT, 1, [have pthread_mutex_consistent]))
     AC_CHECK_LIB(pcre, pcre_compile, AC_DEFINE(HAVE_PCRE, 1, [have pcre]))
     AC_CHECK_LIB(cares, ares_gethostbyname, AC_DEFINE(HAVE_CARES, 1, [have c-ares]))
-    
+
     if test "$PHP_SWOOLE_DEV" = "yes"; then
         AX_CHECK_COMPILE_FLAG(-Wbool-conversion,                _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wbool-conversion")
         AX_CHECK_COMPILE_FLAG(-Wignored-qualifiers,             _MAINTAINER_CFLAGS="$_MAINTAINER_CFLAGS -Wignored-qualifiers")
@@ -400,6 +405,76 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_SWOOLE_CURL" = "yes"; then
         AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
+    fi
+
+    if test "$PHP_SWOOLE_PGSQL" != "no"; then
+        dnl TODO macros below can be reused to find curl things
+        dnl prepare pkg-config
+        if test -z "$PKG_CONFIG"; then
+            AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
+        fi
+        AC_MSG_CHECKING(for libpq)
+        if test "x${LIBPQ_LIBS+set}" = "xset" || test "x${LIBPQ_CFLAGS+set}" = "xset"; then
+            AC_MSG_RESULT([using LIBPQ_CFLAGS and LIBPQ_LIBS])
+        elif test -x "$PKG_CONFIG" ; then
+            dnl find pkg using pkg-config cli tool
+            libpq_pkg_config_path="$PHP_SWOOLE_PGSQL/lib/pkgconfig"
+            if test "xyes" = "x$PHP_SWOOLE_PGSQL" ; then
+                libpq_pkg_config_path=/lib/pkgconfig
+            fi
+            if test "x" != "x$PKG_CONFIG_PATH"; then
+                libpq_pkg_config_path="$libpq_pkg_config_path:$PKG_CONFIG_PATH"
+            fi
+
+            libpq_version_full=`env PKG_CONFIG_PATH=${libpq_pkg_config_path} $PKG_CONFIG --modversion libpq`
+            AC_MSG_RESULT(${libpq_version_full})
+            LIBPQ_CFLAGS="`env PKG_CONFIG_PATH=${libpq_pkg_config_path} $PKG_CONFIG --cflags libpq`"
+            LIBPQ_LIBS="`env PKG_CONFIG_PATH=${libpq_pkg_config_path} $PKG_CONFIG --libs libpq`"
+        fi
+
+        _libpq_saved_cflags="$CFLAGS"
+        CFLAGS="$CFLAGS $LIBPQ_CFLAGS"
+        AC_CHECK_HEADER(libpq-fe.h, [], [
+            dnl this is too long, wht so chaos?
+            cat >&2 <<EOF
+libpq headers was not found.
+set LIBPQ_CFLAGS and LIBPQ_LIBS environment or
+install following package to obtain them:
+    libpq-dev (for debian and its varients)
+    postgresql-devel (for rhel varients)
+    libpq-devel (for newer fedora)
+    postgresql-libs (for arch and its varients)
+    postgresql-dev (for alpine)
+    postgresql (for homebrew)
+EOF
+            AC_MSG_ERROR([postgresql support needs libpq headers to build])
+        ])
+        CFLAGS="$_libpq_saved_cflags"
+
+        _libpq_saved_libs=$LIBS
+        LIBS="$LIBS $LIBPQ_LIBS"
+        AC_CHECK_LIB(pq, PQlibVersion, [ ], [
+            cat >&2 <<EOF
+libpq libraries was not found.
+set LIBPQ_CFLAGS and LIBPQ_LIBS environment or
+install following package to obtain them:
+    libpq-dev (for debian and its varients)
+    postgresql-devel (for rhel varients)
+    libpq-devel (for newer fedora)
+    postgresql-libs (for arch and its varients)
+    postgresql-dev (for alpine)
+    postgresql (for homebrew)
+EOF
+            AC_MSG_ERROR([postgresql support needs libpq libraries to build])
+        ])
+        LIBS="$_libpq_saved_libs"
+
+        dnl FIXME: this should be SWOOLE_CFLAGS="$SWOOLE_CFLAGS $LIBPQ_CFLAGS"
+        dnl or SWOOLE_PGSQL_CFLAGS="$SWOOLE_CFLAGS $LIBPQ_CFLAGS" and SWOOLE_PGSQL_CFLAGS only applies to ext-src/swoole_postgresql_coro.cc
+        EXTRA_CFLAGS="$EXTRA_CFLAGS $LIBPQ_CFLAGS"
+        PHP_EVAL_LIBLINE($LIBPQ_LIBS, SWOOLE_SHARED_LIBADD)
+
+        AC_DEFINE(SW_USE_PGSQL, 1, [do we enable postgresql coro support])
     fi
 
     AC_CHECK_LIB(z, gzgets, [
@@ -461,7 +536,7 @@ if test "$PHP_SWOOLE" != "no"; then
     if test "$PHP_THREAD" = "yes"; then
         AC_DEFINE(SW_USE_THREAD, 1, [enable thread support])
     fi
-    
+
     if test "$PHP_CARES" = "yes"; then
         AC_DEFINE(SW_USE_CARES, 1, [do we enable c-ares support])
         PHP_ADD_LIBRARY(cares, 1, SWOOLE_SHARED_LIBADD)
@@ -532,6 +607,7 @@ if test "$PHP_SWOOLE" != "no"; then
     swoole_source_file=" \
         ext-src/php_swoole.cc \
         ext-src/php_swoole_cxx.cc \
+        ext-src/swoole_admin_server.cc \
         ext-src/swoole_async_coro.cc \
         ext-src/swoole_atomic.cc \
         ext-src/swoole_channel_coro.cc \
@@ -552,6 +628,7 @@ if test "$PHP_SWOOLE" != "no"; then
         ext-src/swoole_lock.cc \
         ext-src/swoole_mysql_coro.cc \
         ext-src/swoole_mysql_proto.cc \
+        ext-src/swoole_postgresql_coro.cc \
         ext-src/swoole_process.cc \
         ext-src/swoole_process_pool.cc \
         ext-src/swoole_redis_coro.cc \
@@ -623,6 +700,7 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/base.cc \
         src/server/manager.cc \
         src/server/master.cc \
+        src/server/message_bus.cc \
         src/server/port.cc \
         src/server/process.cc \
         src/server/reactor_process.cc \
@@ -630,7 +708,6 @@ if test "$PHP_SWOOLE" != "no"; then
         src/server/static_handler.cc \
         src/server/task_worker.cc \
         src/server/worker.cc \
-        src/server/message_bus.cc \
         src/wrapper/event.cc \
         src/wrapper/timer.cc"
 
@@ -760,6 +837,7 @@ if test "$PHP_SWOOLE" != "no"; then
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
     PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
+    PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
 
     AC_MSG_CHECKING([swoole coverage])
@@ -771,7 +849,11 @@ if test "$PHP_SWOOLE" != "no"; then
         AC_MSG_RESULT([disabled])
     fi
 
-    PHP_INSTALL_HEADERS([ext/swoole], [ext-src/*.h config.h php_swoole.h include/*.h thirdparty/*.h thirdparty/hiredis/*.h])
+    PHP_INSTALL_HEADERS([ext/swoole], [ext-src/*.h config.h php_swoole.h \
+        include/*.h \
+        thirdparty/*.h \
+        thirdparty/nghttp2/*.h \
+        thirdparty/hiredis/*.h])
 
     PHP_REQUIRE_CXX()
 

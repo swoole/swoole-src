@@ -24,7 +24,7 @@
 #define SWOOLE_EXTRA_VERSION "<?=$next->extra ?>"
 #define SWOOLE_VERSION "<?=$next->getVersion() ?>"
 #define SWOOLE_VERSION_ID <?=$next->getVersionId()."\n" ?>
-#define SWOOLE_API_VERSION_ID 0x202012a
+#define SWOOLE_API_VERSION_ID <?=$next->api."\n" ?>
 
 #define SWOOLE_BUG_REPORT                                                                                              \
     "A bug occurred in Swoole-v" SWOOLE_VERSION ", please report it.\n"                                                \

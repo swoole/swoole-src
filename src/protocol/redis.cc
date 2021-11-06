@@ -43,7 +43,7 @@ int recv_packet(Protocol *protocol, Connection *conn, String *buffer) {
     int ret;
     char *buf_ptr;
     size_t buf_size;
-
+    RecvData rdata{};
     Request *request;
     network::Socket *socket = conn->socket;
 
@@ -102,18 +102,21 @@ _recv_data:
         do {
             switch (request->state) {
             case STATE_RECEIVE_TOTAL_LINE:
-                if (*p == '*' && (p = get_number(p, &ret))) {
+                if (*p == '*') {
+                    if ((p = get_number(p, &ret)) == nullptr) {
+                        goto _failed;
+                    }
                     request->n_lines_total = ret;
                     request->state = STATE_RECEIVE_LENGTH;
                     break;
                 }
-                if (p == nullptr) {
-                    goto _failed;
-                }
                 /* no break */
 
             case STATE_RECEIVE_LENGTH:
-                if (*p == '$' && (p = get_number(p, &ret))) {
+                if (*p == '$') {
+                    if ((p = get_number(p, &ret)) == nullptr) {
+                        goto _failed;
+                    }
                     if (ret < 0) {
                         break;
                     }
@@ -125,11 +128,11 @@ _recv_data:
                     break;
                 }
                 // integer
-                else if (*p == ':' && (p = get_number(p, &ret))) {
+                else if (*p == ':') {
+                    if ((p = get_number(p, &ret)) == nullptr) {
+                        goto _failed;
+                    }
                     break;
-                }
-                if (p == nullptr) {
-                    goto _failed;
                 }
                 /* no break */
 
@@ -145,7 +148,9 @@ _recv_data:
                     buffer->offset = buffer->length;
 
                     if (request->n_lines_received == request->n_lines_total) {
-                        if (protocol->onPackage(protocol, socket, buffer->str, buffer->length) < 0) {
+                        rdata.info.len = buffer->length;
+                        rdata.data = buffer->str;
+                        if (protocol->onPackage(protocol, socket, &rdata) < 0) {
                             return SW_ERR;
                         }
                         if (socket->removed) {

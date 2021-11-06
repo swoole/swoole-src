@@ -324,6 +324,10 @@ void php_swoole_client_check_ssl_setting(Client *cli, zval *zset) {
         zend_long v = zval_get_long(ztmp);
         cli->ssl_context->verify_depth = SW_MAX(0, SW_MIN(v, UINT8_MAX));
     }
+    if (php_swoole_array_get_value(vht, "ssl_ciphers", ztmp)) {
+        zend::String str_v(ztmp);
+        cli->ssl_context->ciphers = str_v.to_std_string();
+    }
     if (!cli->ssl_context->cert_file.empty() && cli->ssl_context->key_file.empty()) {
         php_swoole_fatal_error(E_ERROR, "ssl require key file");
         return;

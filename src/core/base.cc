@@ -167,7 +167,6 @@ void swoole_init(void) {
     // init global shared memory
     SwooleG.memory_pool = new swoole::GlobalMemory(SW_GLOBAL_MEMORY_PAGESIZE, true);
     SwooleG.max_sockets = SW_MAX_SOCKETS_DEFAULT;
-    SwooleG.max_concurrency = 0;
     struct rlimit rlmt;
     if (getrlimit(RLIMIT_NOFILE, &rlmt) < 0) {
         swoole_sys_warning("getrlimit() failed");
@@ -217,14 +216,17 @@ SW_API void *swoole_get_function(const char *name, uint32_t length) {
 }
 
 SW_API int swoole_add_hook(enum swGlobalHookType type, swHookFunc func, int push_back) {
+    assert(type <= SW_GLOBAL_HOOK_END);
     return swoole::hook_add(SwooleG.hooks, type, func, push_back);
 }
 
 SW_API void swoole_call_hook(enum swGlobalHookType type, void *arg) {
+    assert(type <= SW_GLOBAL_HOOK_END);
     swoole::hook_call(SwooleG.hooks, type, arg);
 }
 
 SW_API bool swoole_isset_hook(enum swGlobalHookType type) {
+    assert(type <= SW_GLOBAL_HOOK_END);
     return SwooleG.hooks[type] != nullptr;
 }
 
@@ -329,7 +331,7 @@ pid_t swoole_fork(int flags) {
             swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT, "must be forked outside the coroutine");
         }
         if (SwooleTG.async_threads) {
-            swoole_trace("aio_task_num=%d, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
+            swoole_trace("aio_task_num=%lu, reactor=%p", SwooleTG.async_threads->task_num, sw_reactor());
             swoole_fatal_error(SW_ERROR_OPERATION_NOT_SUPPORT,
                                "can not create server after using async file operation");
         }
@@ -903,6 +905,9 @@ int hook_add(void **hooks, int type, const Callback &func, int push_back) {
 }
 
 void hook_call(void **hooks, int type, void *arg) {
+    if (hooks[type] == nullptr) {
+        return;
+    }
     std::list<Callback> *l = reinterpret_cast<std::list<Callback> *>(hooks[type]);
     for (auto i = l->begin(); i != l->end(); i++) {
         (*i)(arg);

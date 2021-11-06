@@ -24,6 +24,8 @@ extern "C" {
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "swoole_config.h"
+
 enum swGlobalHookType {
     SW_GLOBAL_HOOK_BEFORE_SERVER_START,
     SW_GLOBAL_HOOK_BEFORE_CLIENT_START,
@@ -37,7 +39,8 @@ enum swGlobalHookType {
     SW_GLOBAL_HOOK_ON_REACTOR_DESTROY,
     SW_GLOBAL_HOOK_BEFORE_SERVER_CREATE,
     SW_GLOBAL_HOOK_AFTER_SERVER_CREATE,
-    SW_GLOBAL_HOOK_END  = SW_MAX_HOOK_TYPE - 1,
+    SW_GLOBAL_HOOK_USER = 24,
+    SW_GLOBAL_HOOK_END = SW_MAX_HOOK_TYPE - 1,
 };
 
 typedef void (*swHookFunc)(void *data);

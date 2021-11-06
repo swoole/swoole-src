@@ -604,6 +604,16 @@ struct EventData {
     char data[SW_IPC_BUFFER_SIZE];
 };
 
+struct SendData {
+    DataHead info;
+    const char *data;
+};
+
+struct RecvData {
+    DataHead info;
+    const char *data;
+};
+
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
@@ -651,7 +661,6 @@ struct Global {
     uint32_t pagesize;
     struct utsname uname;
     uint32_t max_sockets;
-    uint32_t max_concurrency;
     //-----------------------[Memory]--------------------------
     MemoryPool *memory_pool;
     Allocator std_allocator;
@@ -673,7 +682,7 @@ struct Global {
     void *hooks[SW_MAX_HOOK_TYPE];
     std::function<bool(Reactor *reactor, size_t &event_num)> user_exit_condition;
     // bug report message
-    std::string bug_report_message = "";
+    std::string bug_report_message;
 };
 
 std::string dirname(const std::string &file);
@@ -709,6 +718,8 @@ static inline int swoole_get_process_id() {
 
 SW_API const char *swoole_strerror(int code);
 SW_API void swoole_throw_error(int code);
+SW_API void swoole_ignore_error(int code);
+SW_API bool swoole_is_ignored_error(int code);
 SW_API void swoole_set_log_level(int level);
 SW_API void swoole_set_trace_flags(int flags);
 SW_API void swoole_set_dns_server(const std::string &server);

@@ -4824,7 +4824,7 @@ static PHP_METHOD(swoole_redis_coro, xTrim) {
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "s|a", &key, &key_len, &z_options) == FAILURE) {
         RETURN_FALSE;
     }
-    if (zend_hash_num_elements(Z_ARRVAL_P(z_options)) < 1) {
+    if (php_swoole_array_length_safe(z_options) < 1) {
         RETURN_FALSE;
     }
 

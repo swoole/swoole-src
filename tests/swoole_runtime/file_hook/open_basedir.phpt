@@ -1,5 +1,5 @@
 --TEST--
-support open_basedir config
+swoole_runtime/file_hook: support open_basedir config
 --SKIPIF--
 <?php
 require __DIR__ . '/../../include/skipif.inc';

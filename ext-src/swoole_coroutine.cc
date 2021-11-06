@@ -43,10 +43,12 @@ using swoole::coroutine::System;
 enum sw_exit_flags { SW_EXIT_IN_COROUTINE = 1 << 1, SW_EXIT_IN_SERVER = 1 << 2 };
 
 bool PHPCoroutine::activated = false;
+uint32_t PHPCoroutine::concurrency = 0;
 zend_array *PHPCoroutine::options = nullptr;
 
 PHPCoroutine::Config PHPCoroutine::config{
     SW_DEFAULT_MAX_CORO_NUM,
+    UINT_MAX,
     0,
     false,
     true,
@@ -630,7 +632,7 @@ void PHPCoroutine::on_close(void *arg) {
     long origin_cid = task->co->get_origin_cid();
 #endif
 
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_STOP]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_STOP)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_STOP, task);
     }
 
@@ -655,8 +657,8 @@ void PHPCoroutine::on_close(void *arg) {
         (*task->on_close)(task);
     }
 
-    if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
-        SwooleWG.worker_concurrency--;
+    if (task->pcid == -1) {
+        concurrency--;
     }
 
     vm_stack_destroy();
@@ -768,14 +770,14 @@ void PHPCoroutine::main_func(void *arg) {
                          (uintmax_t) Coroutine::count(),
                          (uintmax_t) zend_memory_usage(0));
 
-        if (SwooleG.max_concurrency > 0 && task->pcid == -1) {
+        if (task->pcid == -1) {
             // wait until concurrency slots are available
-            while (SwooleWG.worker_concurrency > SwooleG.max_concurrency - 1) {
+            while (concurrency > config.max_concurrency - 1) {
                 swoole_trace_log(SW_TRACE_COROUTINE,
                                  "php_coro cid=%ld waiting for concurrency slots: max: %d, used: %d",
                                  task->co->get_cid(),
-                                 SwooleG.max_concurrency,
-                                 SwooleWG.worker_concurrency);
+                                 config.max_concurrency,
+                                 concurrency);
 
                 swoole_event_defer(
                     [](void *data) {
@@ -785,10 +787,10 @@ void PHPCoroutine::main_func(void *arg) {
                     (void *) task->co);
                 task->co->yield();
             }
-            SwooleWG.worker_concurrency++;
+            concurrency++;
         }
 
-        if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_CORO_START]) {
+        if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_CORO_START)) {
             swoole_call_hook(SW_GLOBAL_HOOK_ON_CORO_START, task);
         }
 
@@ -1170,15 +1172,17 @@ static PHP_METHOD(swoole_coroutine, join) {
     Z_PARAM_DOUBLE(timeout)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto count = php_swoole_array_length(cid_array);
-    if (count == 0) {
+    if (php_swoole_array_length(cid_array) == 0) {
         swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
         RETURN_FALSE;
     }
 
+    std::set<PHPContext*> co_set;
     bool *canceled = new bool(false);
-    PHPContext::SwapCallback join_fn = [&count, canceled, co](PHPContext *task) {
-        if (--count > 0) {
+
+    PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
+        co_set.erase(task);
+        if (!co_set.empty()) {
             return;
         }
         swoole_event_defer([co, canceled](void*) {
@@ -1195,27 +1199,38 @@ static PHP_METHOD(swoole_coroutine, join) {
         if (co->get_cid() == cid) {
             swoole_set_last_error(SW_ERROR_WRONG_OPERATION);
             php_swoole_error(E_WARNING, "can not join self");
+            delete canceled;
             RETURN_FALSE;
         }
         auto ctx = PHPCoroutine::get_context_by_cid(cid);
         if (ctx == nullptr) {
-            swoole_set_last_error(SW_ERROR_CO_NOT_EXISTS);
+            continue;
+        }
+        if (ctx->on_close) {
+            swoole_set_last_error(SW_ERROR_CO_HAS_BEEN_BOUND);
+            delete canceled;
             RETURN_FALSE;
         }
         ctx->on_close = &join_fn;
+        co_set.insert(ctx);
     }
     ZEND_HASH_FOREACH_END();
 
+    if (co_set.empty()) {
+        swoole_set_last_error(SW_ERROR_INVALID_PARAMS);
+        delete canceled;
+        RETURN_FALSE;
+    }
+
     if (!co->yield_ex(timeout)) {
-        *canceled = true;
-        ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(cid_array), zcid) {
-            long cid = zval_get_long(zcid);
-            auto ctx = PHPCoroutine::get_context_by_cid(cid);
-            if (ctx) {
+        if (!co_set.empty()) {
+            for (auto ctx : co_set) {
                 ctx->on_close = nullptr;
             }
+            delete canceled;
+        } else {
+            *canceled = true;
         }
-        ZEND_HASH_FOREACH_END();
         RETURN_FALSE;
     }
 

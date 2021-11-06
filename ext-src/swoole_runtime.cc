@@ -1167,6 +1167,10 @@ void PHPCoroutine::enable_unsafe_function() {
 }
 
 bool PHPCoroutine::enable_hook(uint32_t flags) {
+    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK)) {
+        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK, &flags);
+    }
+
     if (!runtime_hook_init) {
         HashTable *xport_hash = php_stream_xport_get_hash();
         // php_stream
@@ -1481,6 +1485,10 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(curl_close);
             SW_UNHOOK_FUNC(curl_multi_getcontent);
         }
+    }
+
+    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK)) {
+        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK, &flags);
     }
 
     runtime_hook_flags = flags;

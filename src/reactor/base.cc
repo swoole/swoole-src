@@ -110,7 +110,7 @@ Reactor::Reactor(int max_event, Type _type) {
 
     default_write_handler = _writable_callback;
 
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_CREATE]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_CREATE, this);
     }
 
@@ -404,7 +404,7 @@ Reactor::~Reactor() {
     destroyed = true;
     destroy_callbacks.execute();
     delete impl;
-    if (SwooleG.hooks[SW_GLOBAL_HOOK_ON_REACTOR_DESTROY]) {
+    if (swoole_isset_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY)) {
         swoole_call_hook(SW_GLOBAL_HOOK_ON_REACTOR_DESTROY, this);
     }
 }

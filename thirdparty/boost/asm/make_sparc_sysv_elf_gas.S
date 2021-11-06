@@ -39,12 +39,12 @@
 #define	BLOCK_SIZE 8
 
 .text
-.globl make_fcontext
+.globl swoole_make_fcontext
 .align 4
-.type make_fcontext,@function
+.type swoole_make_fcontext,@function
 // fcontext_t *
-// make_fcontext( void * sp, std::size_t size, void (* fn)( intptr_t) )
-make_fcontext:
+// swoole_make_fcontext( void * sp, std::size_t size, void (* fn)( intptr_t) )
+swoole_make_fcontext:
     save %sp, -CCFSZ, %sp
     // %i0 initial stack pointer
     // %i1 stack size limit
@@ -79,7 +79,7 @@ finish:
     call _exit
      nop
 
-.size make_fcontext,.-make_fcontext
+.size swoole_make_fcontext,.-swoole_make_fcontext
 
 /* Mark that we don't need executable stack.  */
 .section .note.GNU-stack,"",%progbits
