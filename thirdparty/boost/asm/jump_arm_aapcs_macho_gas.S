@@ -39,9 +39,9 @@
  * *****************************************************/
 
 .text
-.globl _jump_fcontext
+.globl _swoole_jump_fcontext
 .align 2
-_jump_fcontext:
+_swoole_jump_fcontext:
     @ save LR as PC
     push {lr}
     @ save V1-V8,LR
@@ -98,6 +98,6 @@ _jump_fcontext:
     @ use third arg as return value after jump
     @ and as first arg in context function
     mov  a1, a3
-    
+
     @ restore v1-V8,LR,PC
     pop {v1-v8,lr,pc}

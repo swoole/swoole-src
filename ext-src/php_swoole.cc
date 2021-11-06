@@ -809,6 +809,9 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_websocket_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
     php_swoole_name_resolver_minit(module_number);
+#ifdef SW_USE_PGSQL
+    php_swoole_postgresql_coro_minit(module_number);
+#endif
 
     SwooleG.fatal_error = fatal_error;
     Socket::default_buffer_size = SWOOLE_G(socket_buffer_size);
@@ -942,7 +945,7 @@ PHP_MINFO_FUNCTION(swoole) {
     php_info_print_table_row(2, "tcmalloc", "enabled");
 #endif
     php_info_print_table_row(2, "async_redis", "enabled");
-#ifdef SW_USE_POSTGRESQL
+#ifdef SW_USE_PGSQL
     php_info_print_table_row(2, "coroutine_postgresql", "enabled");
 #endif
     php_info_print_table_end();

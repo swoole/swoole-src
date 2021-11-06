@@ -9,12 +9,13 @@ require __DIR__ . '/../include/skipif.inc';
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Process;
+use Swoole\Lock;
 
 $fp = STDOUT;
 
-$lock = new Swoole\Lock(SWOOLE_MUTEX);
+$lock = new Lock(SWOOLE_MUTEX);
 $pid = posix_getpid();
-fwrite($fp, "[Master]create lock\n");
+fwrite($fp, "[Master] Create Lock\n");
 $lock->lock();
 
 $process1 = new Process(function ($p) use ($lock, $fp) {
@@ -40,7 +41,7 @@ Process::wait();
 Process::wait();
 ?>
 --EXPECTF--
-[Master]create lock
+[Master] Create Lock
 [Child 1] Wait Lock
 [Child 2] Sleep
 [Child 2] Release Lock

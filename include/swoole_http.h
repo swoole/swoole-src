@@ -104,6 +104,7 @@ enum swHttpStatusCode {
 };
 
 namespace swoole {
+class Server;
 namespace http_server {
 //-----------------------------------------------------------------
 struct Request {
@@ -152,6 +153,7 @@ const char *get_method_string(int method);
 const char *get_status_message(int code);
 size_t url_decode(char *str, size_t len);
 char *url_encode(char const *str, size_t len);
+int dispatch_request(Server *serv, const Protocol *proto, network::Socket *socket, const RecvData *rdata);
 
 #ifdef SW_USE_HTTP2
 ssize_t get_package_length(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);

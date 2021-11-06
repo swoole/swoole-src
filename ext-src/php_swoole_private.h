@@ -234,6 +234,9 @@ void php_swoole_client_coro_minit(int module_number);
 void php_swoole_http_client_coro_minit(int module_number);
 void php_swoole_mysql_coro_minit(int module_number);
 void php_swoole_redis_coro_minit(int module_number);
+#ifdef SW_USE_PGSQL
+void php_swoole_postgresql_coro_minit(int module_number);
+#endif
 #ifdef SW_USE_HTTP2
 void php_swoole_http2_client_coro_minit(int module_number);
 #endif

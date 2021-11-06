@@ -1,10 +1,10 @@
-.globl .jump_fcontext
-.globl  jump_fcontext[DS]
-.align 2 
-.csect	jump_fcontext[DS]
-jump_fcontext:
-  .long	.jump_fcontext
-.jump_fcontext:
+.globl .swoole_jump_fcontext
+.globl  swoole_jump_fcontext[DS]
+.align 2
+.csect	swoole_jump_fcontext[DS]
+swoole_jump_fcontext:
+  .long	.swoole_jump_fcontext
+.swoole_jump_fcontext:
     # reserve space on stack
     subi 1, 1, 240
 
@@ -71,7 +71,7 @@ label1:
 
     # test if fpu env should be preserved
     cmpwi 7, 6, 0
-    beq 7, label2 
+    beq 7, label2
 
     lfd 14, 0(1) # restore F14
     lfd 15, 8(1) # restore F15
