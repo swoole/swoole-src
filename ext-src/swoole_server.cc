@@ -1891,7 +1891,7 @@ void php_swoole_server_onClose(Server *serv, DataHead *info) {
             argc = 3;
         }
 
-        if (UNEXPECTED(!zend::function::call(fci_cache, argc, args, nullptr, serv->enable_coroutine))) {
+        if (UNEXPECTED(!zend::function::call(fci_cache, argc, args, nullptr, (sw_server()->is_manager() ? false : serv->enable_coroutine)))) {
             php_swoole_error(E_WARNING, "%s->onClose handler error", SW_Z_OBJCE_NAME_VAL_P(zserv));
         }
 
