@@ -73,9 +73,20 @@ SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) 
     }
 }
 
-SW_API void swoole_name_resolver_each(const std::function<void(const std::list<NameResolver>::iterator &iter)> &fn) {
+SW_API void swoole_name_resolver_each(
+    const std::function<enum swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
     for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
-        fn(iter);
+        enum swTraverseOperation op = fn(iter);
+        switch (op) {
+        case SW_TRAVERSE_REMOVE:
+            SwooleG.name_resolvers.erase(iter++);
+            continue;
+        case SW_TRAVERSE_STOP:
+            break;
+        default:
+        case SW_TRAVERSE_KEEP:
+            continue;
+        }
     }
 }
 

@@ -141,13 +141,15 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &even
 }
 
 void php_swoole_coroutine_scheduler_rshutdown() {
-    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
+    swoole_name_resolver_each([](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
         if (iter->type == NameResolver::TYPE_PHP) {
             zval_dtor((zval *) iter->private_data);
             efree(iter->private_data);
-            SwooleG.name_resolvers.erase(iter++);
+            return SW_TRAVERSE_REMOVE;
+        } else {
+            return SW_TRAVERSE_KEEP;
         }
-    }
+    });
 }
 
 void php_swoole_set_coroutine_option(zend_array *vht) {

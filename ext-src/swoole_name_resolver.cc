@@ -21,6 +21,8 @@ using swoole::NameResolver;
 
 BEGIN_EXTERN_C()
 
+#include "ext/spl/php_spl.h"
+
 zend_class_entry *swoole_name_resolver_context_ce;
 zend_object_handlers swoole_name_resolver_context_handlers;
 
@@ -104,6 +106,43 @@ PHP_FUNCTION(swoole_name_resolver_lookup) {
     ContextObject *obj = swoole_name_resolver_context_get_object_safe(Z_OBJ_P(zcontext));
     auto result = swoole_name_resolver_lookup(std::string(name, l_name), obj->context);
     RETURN_STRINGL(result.c_str(), result.length());
+}
+
+PHP_FUNCTION(swoole_name_resolver_add) {
+    zval *zresolver;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_OBJECT(zresolver)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    RETURN_BOOL(php_swoole_name_resolver_add(zresolver));
+}
+
+PHP_FUNCTION(swoole_name_resolver_remove) {
+    zval *zresolver;
+
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_OBJECT(zresolver)
+    ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
+
+    auto hash = php_spl_object_hash(zresolver);
+    bool found = false;
+    swoole_name_resolver_each(
+        [&found, hash, zresolver](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
+            if (found) {
+                return SW_TRAVERSE_STOP;
+            }
+            if (iter->type == NameResolver::TYPE_PHP && iter->private_data &&
+                zend_string_equals(php_spl_object_hash((zval *) iter->private_data), hash)) {
+                zval_dtor(zresolver);
+                efree(iter->private_data);
+                found = true;
+                return SW_TRAVERSE_REMOVE;
+            } else {
+                return SW_TRAVERSE_KEEP;
+            }
+        });
+    RETURN_BOOL(found);
 }
 
 END_EXTERN_C()

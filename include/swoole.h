@@ -430,6 +430,12 @@ enum swForkType {
     SW_FORK_PRECHECK = 1 << 3,
 };
 
+enum swTraverseOperation {
+    SW_TRAVERSE_KEEP = 0,
+    SW_TRAVERSE_REMOVE = 1,
+    SW_TRAVERSE_STOP = 2,
+};
+
 //-------------------------------------------------------------------------------
 #define sw_yield() sched_yield()
 
@@ -757,7 +763,7 @@ SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
 SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool append = true);
 SW_API void swoole_name_resolver_each(
-    const std::function<void(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
+    const std::function<enum swTraverseOperation(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
 SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
 
 //-----------------------------------------------
