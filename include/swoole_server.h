@@ -1454,6 +1454,14 @@ class Server {
         return gs->max_concurrency;
     }
 
+    uint32_t get_concurrency() {
+        return gs->concurrency;
+    }
+
+    bool is_unavailable() {
+        return get_concurrency() >= get_max_concurrency();
+    }
+
     uint32_t get_worker_max_concurrency() {
         return worker_max_concurrency;
     }

@@ -686,7 +686,7 @@ static bool http2_server_context_sendfile(HttpContext *ctx, const char *file, ui
 
 static bool http2_server_context_onBeforeRequest(HttpContext *ctx) {
     Server *serv = (Server *) ctx->private_data;
-    if (serv->gs->concurrency >= serv->max_concurrency) {
+    if (serv->is_unavailable()) {
         String null_body{};
         ctx->response.status = SW_HTTP_SERVICE_UNAVAILABLE;
         http2_server_respond(ctx, &null_body);
