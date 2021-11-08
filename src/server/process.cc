@@ -282,17 +282,12 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
          * The worker process is not currently bound to this connection,
          * and needs to be forwarded to the correct worker process
          */
-        if (server_->is_hash_dispatch_mode()) {
-            int worker_id = server_->schedule_worker(conn->fd, nullptr);
-            if (worker_id != (int) SwooleG.process_id) {
-                worker = server_->get_worker(worker_id);
-                goto _notify;
-            } else {
-                goto _close;
-            }
-        } else if (!server_->is_worker()) {
-            worker = server_->get_worker(conn->fd % server_->worker_num);
-        _notify:
+        int worker_id = server_->is_hash_dispatch_mode() ? server_->schedule_worker(conn->fd, nullptr)
+                                                         : conn->fd % server_->worker_num;
+        if (server_->is_worker() && worker_id == (int) SwooleG.process_id) {
+            goto _close;
+        } else {
+            worker = server_->get_worker(worker_id);
             ev.type = SW_SERVER_EVENT_CLOSE;
             ev.fd = session_id;
             ev.reactor_id = conn->reactor_id;

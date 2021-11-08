@@ -518,6 +518,7 @@ struct ServerGS {
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
+    sw_atomic_t max_concurrency;
     sw_atomic_t concurrency;
     sw_atomic_long_t abort_count;
     sw_atomic_long_t accept_count;
@@ -729,7 +730,6 @@ class Server {
     int null_fd = -1;
 
     uint32_t max_wait_time = SW_WORKER_MAX_WAIT_TIME;
-    uint32_t max_concurrency = UINT_MAX;
     uint32_t worker_max_concurrency = UINT_MAX;
 
     /*----------------------------Reactor schedule--------------------------------*/
@@ -1436,7 +1436,7 @@ class Server {
         if (_max_concurrency == 0) {
             _max_concurrency = UINT_MAX;
         }
-        max_concurrency = _max_concurrency;
+        gs->max_concurrency = _max_concurrency;
     }
 
     void set_worker_max_concurrency(uint32_t _max_concurrency) {
@@ -1451,7 +1451,15 @@ class Server {
     }
 
     uint32_t get_max_concurrency() {
-        return max_concurrency;
+        return gs->max_concurrency;
+    }
+
+    uint32_t get_concurrency() {
+        return gs->concurrency;
+    }
+
+    bool is_unavailable() {
+        return get_concurrency() >= get_max_concurrency();
     }
 
     uint32_t get_worker_max_concurrency() {
