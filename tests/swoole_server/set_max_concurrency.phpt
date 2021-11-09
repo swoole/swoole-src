@@ -48,4 +48,4 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-ALL DONE
+SUCCESS
