@@ -2194,9 +2194,12 @@ static PHP_METHOD(swoole_server, set) {
     if (php_swoole_array_get_value(vht, "max_concurrency", ztmp)) {
         zend_long v = zval_get_long(ztmp);
         serv->set_max_concurrency(SW_MAX(1, SW_MIN(v, UINT32_MAX)));
-        if (serv->get_worker_max_concurrency() == UINT_MAX) {
-            serv->set_worker_max_concurrency(serv->get_max_concurrency());
-        }
+    } else {
+        /* serv->is_unavailable() will always be true if _max_concurrency is not set. */
+        serv->set_max_concurrency(0);
+    }
+    if (serv->get_worker_max_concurrency() == UINT_MAX) {
+        serv->set_worker_max_concurrency(serv->get_max_concurrency());
     }
     if (php_swoole_array_get_value(vht, "worker_max_concurrency", ztmp)) {
         zend_long v = zval_get_long(ztmp);
