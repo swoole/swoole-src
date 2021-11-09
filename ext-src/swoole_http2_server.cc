@@ -188,6 +188,7 @@ static bool http2_server_is_static_file(Server *serv, HttpContext *ctx) {
         ZVAL_STR(&zfilename, _filename.get());
         zval retval; /* do not care the retval (the connection will be closed if failed) */
         ctx->onAfterResponse = nullptr;
+        ctx->onBeforeRequest = nullptr;
         sw_zend_call_method_with_1_params(
             ctx->response.zobject, swoole_http_response_ce, nullptr, "sendfile", &retval, &zfilename);
 

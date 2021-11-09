@@ -121,6 +121,10 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
         add_assoc_long(zserver, "master_time", (int) conn->last_recv_time);
     } while (0);
 
+    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_REQUEST)) {
+        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_BEFORE_REQUEST, ctx);
+    }
+
     // begin to check and call registerd callback
     do {
         zend_fcall_info_cache *fci_cache = nullptr;

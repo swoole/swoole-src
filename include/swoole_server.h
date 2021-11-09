@@ -518,7 +518,7 @@ struct ServerGS {
     time_t start_time;
     sw_atomic_t connection_num;
     sw_atomic_t tasking_num;
-    sw_atomic_t max_concurrency;
+    uint32_t max_concurrency;
     sw_atomic_t concurrency;
     sw_atomic_long_t abort_count;
     sw_atomic_long_t accept_count;

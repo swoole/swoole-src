@@ -150,6 +150,8 @@ enum php_swoole_req_status {
 enum php_swoole_hook_type {
     PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK = SW_GLOBAL_HOOK_USER,
     PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK,
+    PHP_SWOOLE_HOOK_BEFORE_REQUEST,
+    PHP_SWOOLE_HOOK_AFTER_RESPONSE,
 };
 //---------------------------------------------------------
 
@@ -1093,6 +1095,22 @@ static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, 
     smart_str_0(formstr);
     *length = formstr->s->len;
     return formstr->s->val;
+}
+
+static inline const char *php_swoole_get_last_error_message() {
+#if PHP_VERSION_ID >= 80000
+    return PG(last_error_message) ? PG(last_error_message)->val : nullptr;
+#else
+    return PG(last_error_message);
+#endif
+}
+
+static inline const char *php_swoole_get_last_error_file() {
+#if PHP_VERSION_ID >= 80100
+     return PG(last_error_file) ? PG(last_error_file)->val : "-";
+#else
+     return PG(last_error_file) ? PG(last_error_file) : "-";
+#endif
 }
 
 END_EXTERN_C()
