@@ -39,7 +39,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on(Constant::EVENT_CONNECT, function ($serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on(Constant::EVENT_RECEIVE, function (Server $serv, $fd, $reactor_id) {
+    $serv->on(Constant::EVENT_RECEIVE, function (Server $serv, $fd, $reactor_id, string $data) {
         $serv->send($fd, $data);
     });
     $serv->start();
