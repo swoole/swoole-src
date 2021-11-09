@@ -33,8 +33,7 @@ $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set([
         'worker_num' => 2,
-        'log_file' => TEST_LOG_FILE,
-        'max_concurrency' => 10
+        'log_file' => TEST_LOG_FILE
     ]);
     $serv->on(Constant::EVENT_CONNECT, function ($serv) use ($pm) {
         $pm->wakeup();
