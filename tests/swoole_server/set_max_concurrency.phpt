@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => TEST_LOG_FILE,
         'max_concurrency' => 10
     ]);
-    $serv->on(EVENT_CONNECT, function ($serv) use ($pm) {
+    $serv->on(Constant::EVENT_CONNECT, function ($serv) use ($pm) {
         $pm->wakeup();
     });
     $serv->on(Constant::EVENT_RECEIVE, function (Server $serv, $fd, $reactor_id) {
