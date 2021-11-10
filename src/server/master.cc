@@ -747,6 +747,8 @@ Server::Server(enum Mode _mode) {
     }
 
     gs->pipe_packet_msg_id = 1;
+    gs->max_concurrency = UINT_MAX;
+
     message_bus.set_id_generator([this]() { return sw_atomic_fetch_add(&gs->pipe_packet_msg_id, 1); });
 
     g_server_instance = this;
