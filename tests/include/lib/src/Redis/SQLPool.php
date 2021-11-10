@@ -2,14 +2,12 @@
 
 namespace SwooleTest\Redis;
 
-Class SQLPool
+class SQLPool
 {
+    /**
+     * @var self
+     */
     private static $instance;
-
-    public static function init()
-    {
-        self::$instance = new self;
-    }
 
     /**
      * @param string $name
@@ -17,6 +15,9 @@ Class SQLPool
      */
     public static function i(string $name): \SplQueue
     {
+        if (!self::$instance) {
+            self::$instance = new self;
+        }
         return self::$instance->$name ?? (self::$instance->$name = new \SplQueue);
     }
 
