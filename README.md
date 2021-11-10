@@ -4,6 +4,7 @@ English | [中文](./README-CN.md)
 <img width="200" height="120" align=center alt="Swoole Logo" src="swoole-logo.svg" />
 </h1>
 
+[![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://discord.swoole.dev)
 [![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
 [![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
 [![test-linux](https://github.com/swoole/swoole-src/workflows/test-linux/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Atest-linux)
@@ -525,13 +526,12 @@ Project [Awesome Swoole](https://github.com/swoole/awesome-swoole) maintains a c
 
 ## 🛠 Develop & Discussion
 
-+ __中文文档__: <https://wiki.swoole.com>
++ __Discord__: <https://discord.swoole.dev> (the main communication platform of Swoole)
 + __Documentation__: <https://www.swoole.co.uk/docs>
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
 + __Debug Tool__: <https://github.com/swoole/yasd>
++ __中文文档__: <https://wiki.swoole.com>
 + __中文社区__: <https://wiki.swoole.com/#/other/discussion>
-+ __Twitter__: <https://twitter.com/php_swoole>
-+ __Slack Group__: <https://swoole.slack.com>
 
 ## 🍭 Benchmark
 
