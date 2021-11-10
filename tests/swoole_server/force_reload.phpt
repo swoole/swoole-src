@@ -29,8 +29,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         $clients[] = $client;
     }
     switch_process();
-    //reload
-    echo "[-1] start to reload\n";
+    // reload
     Swoole\Process::kill($pid, SIGUSR1);
     sleep(3);
     $pm->kill();
@@ -44,7 +43,6 @@ $pm->childFunc = function () use ($pm, $atomic) {
         'enable_coroutine' => false,
     ]);
     $server->on('workerStart', function (Swoole\Server $server, $worker_id) use ($pm, $atomic) {
-        echo "$worker_id [" . $server->worker_pid . "] start\n";
         $atomic->add(1);
         if ($atomic->get() === WORKER_NUM) {
             $pm->wakeup();
@@ -58,13 +56,9 @@ $pm->childFunc = function () use ($pm, $atomic) {
 
 $pm->childFirst();
 $pm->run();
+Assert::eq($atomic->get(), WORKER_NUM * 2);
 ?>
 --EXPECTF--
-%d [%d] start
-%d [%d] start
-%d [%d] start
-%d [%d] start
-%s start to reload
 [%s]	INFO	Server is reloading all workers now
 [%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9101): worker(pid=%d, id=%d) exit timeout, force kill the process
 [%s]	WARNING	Manager::kill_timeout_process() (ERRNO 9101): worker(pid=%d, id=%d) exit timeout, force kill the process
@@ -74,8 +68,4 @@ $pm->run();
 [%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
 [%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
 [%s]	WARNING	Server::check_worker_exit_status(): worker(pid=%d, id=%d) abnormal exit, status=0, signal=9
-%d [%d] start
-%d [%d] start
-%d [%d] start
-%d [%d] start
 [%s]	INFO	Server is shutdown now

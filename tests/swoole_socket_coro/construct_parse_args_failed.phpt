@@ -11,7 +11,7 @@ require __DIR__ . '/../include/bootstrap.php';
 var_dump(new Co\Socket());
 ?>
 --EXPECTF--
-Fatal error: Uncaught ArgumentCountError: Swoole\Coroutine\Socket::__construct() expects at least 2 parameters, 0 given in %s/tests/swoole_socket_coro/construct_parse_args_failed.php:3
+Fatal error: Uncaught ArgumentCountError: Swoole\Coroutine\Socket::__construct() expects at least 2 %s, 0 given in %s/tests/swoole_socket_coro/construct_parse_args_failed.php:3
 Stack trace:
 #0 %s/tests/swoole_socket_coro/construct_parse_args_failed.php(3): Swoole\Coroutine\Socket->__construct()
 #1 {main}
