@@ -361,8 +361,6 @@ PHP_FUNCTION(swoole_proc_open) {
 
     Coroutine::get_current_safe();
 
-    command = estrdup(command);
-
     if (environment) {
         env = _php_array_to_envp(environment);
     } else {
