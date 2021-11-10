@@ -848,6 +848,10 @@ void PHPCoroutine::main_func(void *arg) {
         // TODO: exceptions will only cause the coroutine to exit
         if (UNEXPECTED(EG(exception))) {
             zend_exception_error(EG(exception), E_ERROR);
+#if PHP_VERSION_ID >= 80000
+            EG(exit_status) = 255;
+            zend_bailout();
+#endif
         }
 
 #ifdef SW_CORO_SUPPORT_BAILOUT
