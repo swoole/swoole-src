@@ -3566,7 +3566,7 @@ static PHP_METHOD(swoole_server, sendMessage) {
         RETURN_FALSE;
     }
 
-    if (worker_id == SwooleG.process_id) {
+    if ((serv->is_worker() || serv->is_task_worker()) && worker_id == SwooleG.process_id) {
         php_swoole_fatal_error(E_WARNING, "can't send messages to self");
         RETURN_FALSE;
     }
