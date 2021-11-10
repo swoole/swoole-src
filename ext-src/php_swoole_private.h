@@ -495,6 +495,10 @@ static sw_inline zend_bool ZVAL_IS_OBJECT(zval *v) {
 }
 #endif
 
+#ifndef IS_MIXED
+#define IS_MIXED 0
+#endif
+
 static sw_inline zval *sw_malloc_zval() {
     return (zval *) emalloc(sizeof(zval));
 }
