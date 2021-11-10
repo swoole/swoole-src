@@ -10,8 +10,6 @@ require __DIR__ . '/../include/bootstrap.php';
 use SwooleTest\Redis\Lock;
 use SwooleTest\Redis\SQLPool;
 
-SQLPool::init();
-
 go(function () {
     $redis_lock = Lock::i();
     for ($i = 3; $i--;) {
