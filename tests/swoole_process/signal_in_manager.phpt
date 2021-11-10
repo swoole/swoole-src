@@ -25,11 +25,11 @@ $pm->childFunc = function () use ($pm) {
     $serv->set(["worker_num" => 1, 'log_file' => '/dev/null']);
     $serv->on("ManagerStart", function (Server $serv) use ($pm) {
         file_put_contents(PID_FILE, $serv->getManagerPid());
-        $pm->wakeup();
         Process::signal(SIGINT, function () use($pm) {
-           echo "SIGINT triggered\n";
-           $pm->wakeup();
+            echo "SIGINT triggered\n";
+            $pm->wakeup();
         });
+        $pm->wakeup();
     });
     $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data) {
     });
