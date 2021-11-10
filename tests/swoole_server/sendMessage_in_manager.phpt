@@ -24,7 +24,6 @@ $pm->parentFunc = function ($pid) use ($pm) {
     if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
-    $pm->wakeup();
     $list = [];
     swoole_loop_n(N, function () use ($client, &$list) {
         $msg = $client->recv();
@@ -40,15 +39,23 @@ $pm->childFunc = function () use ($pm) {
     $serv->set([
         'log_file' => '/dev/null',
         'worker_num' => 2,
+        'task_worker_num' => 2,
     ]);
     $serv->on(Constant::EVENT_MANAGER_START, function (Server $serv) use ($pm) {
         $pm->wakeup();
         $pm->wait();
+        usleep(10000);
         swoole_loop_n(N, function ($i) use ($serv) {
-            $serv->sendMessage("msg-" . $i, rand(0, 1));
+            $wid = rand(0, 3);
+            $serv->sendMessage("msg-" . $i, $wid);
         });
     });
-    $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
+    $serv->on(Constant::EVENT_CONNECT, function ($serv, $fd, $reactor_id) use ($pm) {
+        $pm->wakeup();
+    });
+    $serv->on(Constant::EVENT_RECEIVE, function ($serv, $fd, $reactor_id, $data) {
+    });
+    $serv->on(Constant::EVENT_TASK, function ($serv, $fd, $reactor_id, $data) {
     });
     $serv->on('pipeMessage', function (Server $serv, $worker_id, $data) {
         foreach ($serv->connections as $fd) {
