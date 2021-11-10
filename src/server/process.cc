@@ -218,9 +218,6 @@ bool ProcessFactory::finish(SendData *resp) {
         return false;
     }
 
-    /**
-     * stream
-     */
     if (server_->last_stream_socket) {
         uint32_t _len = resp->info.len;
         uint32_t _header = htonl(_len + sizeof(resp->info));
@@ -284,6 +281,9 @@ bool ProcessFactory::end(SessionId session_id, int flags) {
          */
         int worker_id = server_->is_hash_dispatch_mode() ? server_->schedule_worker(conn->fd, nullptr)
                                                          : conn->fd % server_->worker_num;
+        if (server_->last_stream_socket) {
+            goto _close;
+        }
         if (server_->is_worker() && worker_id == (int) SwooleG.process_id) {
             goto _close;
         } else {
