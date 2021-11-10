@@ -85,6 +85,9 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_frame_void, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_websocket_frame___toString, 0, 0, IS_STRING, 0)
+ZEND_END_ARG_INFO()
+
 const zend_function_entry swoole_websocket_server_methods[] =
 {
     PHP_ME(swoole_websocket_server, push,              arginfo_swoole_websocket_server_push,          ZEND_ACC_PUBLIC)
@@ -97,7 +100,7 @@ const zend_function_entry swoole_websocket_server_methods[] =
 
 const zend_function_entry swoole_websocket_frame_methods[] =
 {
-    PHP_ME(swoole_websocket_frame, __toString,      arginfo_swoole_websocket_frame_void,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_frame, __toString,      arginfo_swoole_websocket_frame___toString,    ZEND_ACC_PUBLIC)
     PHP_ME(swoole_websocket_server, pack,           arginfo_swoole_websocket_server_pack,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_websocket_server, unpack,         arginfo_swoole_websocket_server_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
@@ -635,6 +638,9 @@ void php_swoole_websocket_server_minit(int module_number) {
                         "swoole_websocket_frame",
                         nullptr,
                         swoole_websocket_frame_methods);
+    #if PHP_VERSION_ID >= 80000
+        zend_class_implements(swoole_websocket_frame_ce, 1, zend_ce_stringable);
+    #endif
     zend_declare_property_long(swoole_websocket_frame_ce, ZEND_STRL("fd"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_string(swoole_websocket_frame_ce, ZEND_STRL("data"), "", ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_websocket_frame_ce, ZEND_STRL("opcode"), WebSocket::OPCODE_TEXT, ZEND_ACC_PUBLIC);
