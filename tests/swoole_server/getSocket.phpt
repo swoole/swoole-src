@@ -7,14 +7,12 @@ swoole_server: getSocket
 require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Coroutine\Client;
-use Swoole\Timer;
-use Swoole\Event;
 use Swoole\Server;
 
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     Co\Run(function () use ($pm) {
-        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
+        $cli = new Client(SWOOLE_SOCK_TCP);
         $r = $cli->connect(TCP_SERVER_HOST, $pm->getFreePort(), 1);
         Assert::assert($r);
         $cli->send("test");
@@ -41,7 +39,11 @@ $pm->childFunc = function () use ($pm) {
             $serv->shutdown();
             return;
         } else {
-            $serv->send($fd, get_resource_type($socket));
+            if (PHP_VERSION_ID > 80000) {
+                $serv->send($fd, get_class($socket));
+            } else {
+                $serv->send($fd, get_resource_type($socket));
+            }
         }
     });
     $serv->start();
