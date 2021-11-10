@@ -243,7 +243,7 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
     zval *ztmp = nullptr;
 
     zdata = nullptr;
-    if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_OPCODE), 0))) {
+    if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_OPCODE), 1))) {
         opcode = zval_get_long(ztmp);
     }
     if (opcode == WebSocket::OPCODE_CLOSE) {
@@ -257,14 +257,14 @@ int php_swoole_websocket_frame_object_pack_ex(String *buffer, zval *zdata, zend_
         }
     }
     if (!zdata &&
-        (ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_DATA), 0))) {
+        (ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_DATA), 1))) {
         zdata = ztmp;
     }
-    if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FLAGS), 0))) {
+    if ((ztmp = sw_zend_read_property_ex(swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FLAGS), 1))) {
         flags = zval_get_long(ztmp) & WebSocket::FLAGS_ALL;
     }
     if ((ztmp = sw_zend_read_property_not_null_ex(
-             swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FINISH), 0))) {
+             swoole_websocket_frame_ce, zframe, SW_ZSTR_KNOWN(SW_ZEND_STR_FINISH), 1))) {
         if (zval_is_true(ztmp)) {
             flags |= WebSocket::FLAG_FIN;
         } else {
