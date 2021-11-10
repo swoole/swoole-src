@@ -43,6 +43,9 @@ services:
   tinyproxy:
     container_name: "tinyproxy"
     image: "vimagick/tinyproxy"
+  golang-h2demo:
+    container_name: "golang-h2demo"
+    image: "phpswoole/golang-h2demo"
   socks5:
     container_name: "socks5"
     image: "xkuma/socks5"
