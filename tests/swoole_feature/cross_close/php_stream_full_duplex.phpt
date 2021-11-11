@@ -5,38 +5,47 @@ swoole_feature/cross_close: full duplex (php stream)
 --FILE--
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
+
+use function Swoole\Coroutine\run;
+
 Swoole\Runtime::enableCoroutine();
 $pm = new ProcessManager();
 $pm->parentFunc = function () use ($pm) {
-    go(function () use ($pm) {
+    run(function () use ($pm) {
         $cli = stream_socket_client("tcp://127.0.0.1:{$pm->getFreePort()}", $errno, $errstr, 1);
         Assert::true(!$errno);
         go(function () use ($pm, $cli) {
             Co::sleep(0.001);
             echo "CLOSE\n";
+            Assert::eq(get_resource_type($cli), 'stream');
             Assert::true(fclose($cli));
             // double close
-            Assert::true(!@fclose($cli));
+            Assert::eq(get_resource_type($cli), 'Unknown');
+            // Assert::true(!@fclose($cli));
             $pm->kill();
             echo "DONE\n";
         });
         go(function () use ($cli) {
             echo "SEND\n";
             $size = 64 * 1024 * 1024;
+            Assert::eq(get_resource_type($cli), 'stream');
             Assert::true(@fwrite($cli, str_repeat('S', $size)) < $size);
-            Assert::true(!@fclose($cli));
+            Assert::eq(get_resource_type($cli), 'Unknown');
+            // Assert::true(!@fclose($cli));
             echo "SEND CLOSED\n";
         });
         go(function () use ($cli) {
             echo "RECV\n";
+            Assert::eq(get_resource_type($cli), 'stream');
             Assert::true(empty(fread($cli, 8192)));
-            Assert::true(!@fclose($cli));
+            Assert::eq(get_resource_type($cli), 'Unknown');
+            // Assert::true(!@fclose($cli));
             echo "RECV CLOSED\n";
         });
     });
 };
 $pm->childFunc = function () use ($pm) {
-    go(function () use ($pm) {
+    run(function () use ($pm) {
         $server = new Co\Socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
         Assert::true($server->bind('127.0.0.1', $pm->getFreePort()));
         Assert::true($server->listen());
