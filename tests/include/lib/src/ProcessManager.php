@@ -49,7 +49,7 @@ class ProcessManager
     public $useConstantPorts = false;
 
     protected $childPid;
-    protected $childStatus = 255;
+    protected $childExitStatus = 255;
     protected $expectExitSignal = [0, SIGTERM];
     protected $parentFirst = false;
     protected $killed = false;
@@ -309,7 +309,7 @@ class ProcessManager
         $this->runParentFunc($this->childPid = $this->childProcess->pid);
         Event::wait();
         $waitInfo = Process::wait(true);
-        $this->childStatus = $waitInfo['code'];
+        $this->childExitStatus = $waitInfo['code'];
         if (!in_array($waitInfo['signal'], $this->expectExitSignal)) {
             throw new RuntimeException("Unexpected exit code {$waitInfo['signal']}");
         }
@@ -337,9 +337,13 @@ class ProcessManager
         if (!is_array($code)) {
             $code = [$code];
         }
-        if (!in_array($this->childStatus, $code)) {
-            throw new RuntimeException("Unexpected exit code {$this->childStatus}");
+        if (!in_array($this->childExitStatus, $code)) {
+            throw new RuntimeException("Unexpected exit code {$this->childExitStatus}");
         }
+    }
+
+    function getChildExitStatus() {
+        return $this->childExitStatus;
     }
 
     public function setExpectExitSignal($signal = 0)
@@ -348,5 +352,20 @@ class ProcessManager
             $signal = [$signal];
         }
         $this->expectExitSignal = $signal;
+    }
+
+    static function exec(callable $fn)
+    {
+        $pm = new static();
+        $pm->setWaitTimeout(0);
+        $pm->parentFunc = function () {
+        };
+        $pm->childFunc = function () use ($pm, $fn) {
+            $fn($pm);
+        };
+        $pm->childFirst();
+        $pm->run(true);
+
+        return $pm;
     }
 }

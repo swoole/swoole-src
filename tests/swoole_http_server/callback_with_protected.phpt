@@ -5,10 +5,10 @@ swoole_http_server: http server with protected callback
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
-$pm = new ProcessManager;
-$pm->setWaitTimeout(0);
-$pm->parentFunc = function () { };
-$pm->childFunc = function () use ($pm) {
+
+use SwooleTest\ProcessManager;
+
+$pm = ProcessManager::exec(function ($pm) {
     class TestCo
     {
         protected function foo(swoole_http_request $request, swoole_http_response $response)
@@ -30,9 +30,7 @@ $pm->childFunc = function () use ($pm) {
     ]);
     $http->on('request', [new TestCo, 'foo']);
     $http->start();
-};
-$pm->childFirst();
-$pm->run(true);
+});
 //Fatal Error
 $pm->expectExitCode(255);
 $output = $pm->getChildOutput();
