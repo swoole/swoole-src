@@ -66,7 +66,7 @@ SQL;
                 do {
                     $res = $stmt->fetchAll();
                     Assert::same(current($res[0]), array_shift($_map));
-                } while ($ret = $stmt->nextRowset());
+                } while ($ret = $stmt->nextRowset() and count($_map) > 0);
                 Assert::same($stmt->rowCount(), 1, 'get the affected rows failed!');
                 Assert::assert(empty($_map), 'there are some results lost!');
             } catch (\PDOException $e) {
