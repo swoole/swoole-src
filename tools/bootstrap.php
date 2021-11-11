@@ -212,7 +212,7 @@ function swoole_library_files($librarySrcDir)
 function swoole_remove_php_comments($code)
 {
     $newCode = '';
-    $commentTokens = array(T_COMMENT);
+    $commentTokens = [T_COMMENT];
 
     if (defined('T_DOC_COMMENT')) {
         $commentTokens[] = T_DOC_COMMENT;
