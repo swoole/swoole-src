@@ -132,8 +132,8 @@ bool swoole_curl_is_in_coroutine(php_curl *ch) {
 
 void swoole_curl_set_private_data(php_curl *ch, zval *zvalue) {
 #if PHP_VERSION_ID >= 80100 || PHP_VERSION_ID < 80000
-    zval_ptr_dtor(&Z_CURL_TYPE_INFO(ch)->private_data);
-    ZVAL_COPY(&Z_CURL_TYPE_INFO(ch)->private_data, zvalue);
+    zval_ptr_dtor(&ch->private_data);
+    ZVAL_COPY(&ch->private_data, zvalue);
 #else
     zend_update_property_ex(nullptr, &ch->std, SW_ZSTR_KNOWN(SW_ZEND_STR_PRIVATE_DATA), zvalue);
 #endif
@@ -866,10 +866,9 @@ php_curl *swoole_curl_alloc_handle()
 #endif
 {
 #if PHP_VERSION_ID < 80000
-    char *mem = (char *) ecalloc(1, sizeof(php_curl_type_info)) + sizeof(php_curl);
-    memset(mem, 0, sizeof(php_curl_type_info));
-    php_curl *ch = (php_curl *) (mem + sizeof(php_curl_type_info));
+    php_curl *ch = (php_curl *) ecalloc(1, sizeof(php_curl));
 #endif
+
     ch->to_free = (struct _php_curl_free *) ecalloc(1, sizeof(struct _php_curl_free));
     ch->handlers = (php_curl_handlers *) ecalloc(1, sizeof(php_curl_handlers));
     ch->handlers->write = (php_curl_write *) ecalloc(1, sizeof(php_curl_write));
@@ -2536,7 +2535,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
         }
 #endif
         case CURLINFO_PRIVATE: {
-
+            swoole_curl_get_private_data(ch, return_value);
             return;
         }
         default: {
@@ -2762,7 +2761,7 @@ static void _php_curl_free(php_curl *ch) {
     efree(ch->handlers);
     zval_ptr_dtor(&ch->postfields);
 #if PHP_VERSION_ID >= 80100 || PHP_VERSION_ID < 80000
-    zval_ptr_dtor(&Z_CURL_TYPE_INFO(ch)->private_data);
+    zval_ptr_dtor(&ch->private_data);
 #endif
 
 #if PHP_VERSION_ID >= 80000

@@ -120,8 +120,6 @@ typedef struct {
     /* CurlShareHandle object set using CURLOPT_SHARE. */
 #if PHP_VERSION_ID >= 80000
     struct _php_curlsh *share;
-#endif
-#if PHP_VERSION_ID >= 80000
     zend_object std;
 #endif
 } php_curl;
