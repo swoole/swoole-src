@@ -4,12 +4,16 @@ English | [中文](./README-CN.md)
 <img width="200" height="120" align=center alt="Swoole Logo" src="swoole-logo.svg" />
 </h1>
 
-[![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://discord.swoole.dev)
 [![lib-swoole](https://github.com/swoole/swoole-src/workflows/lib-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Alib-swoole)
 [![ext-swoole](https://github.com/swoole/swoole-src/workflows/ext-swoole/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Aext-swoole)
 [![test-linux](https://github.com/swoole/swoole-src/workflows/test-linux/badge.svg)](https://github.com/swoole/swoole-src/actions?query=workflow%3Atest-linux)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
 [![codecov](https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg)](https://codecov.io/gh/swoole/swoole-src)
+
+[![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/phpswoole)
+[![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://discord.swoole.dev)
+[![Latest Release](https://img.shields.io/github/release/swoole/swoole-src.svg)](https://github.com/swoole/swoole-src/releases/)
+[![License](https://badgen.net/github/license/swoole/swoole-src)](https://github.com/swoole/swoole-src/blob/master/LICENSE)
 
 **Swoole is an event-driven asynchronous & coroutine-based concurrency networking communication engine with high performance written in C++ for PHP.**
 
@@ -526,10 +530,11 @@ Project [Awesome Swoole](https://github.com/swoole/awesome-swoole) maintains a c
 
 ## 🛠 Develop & Discussion
 
-+ __Discord__: <https://discord.swoole.dev> (the main communication platform of Swoole)
 + __Documentation__: <https://www.swoole.co.uk/docs>
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
 + __Debug Tool__: <https://github.com/swoole/yasd>
++ __Twitter__: <https://twitter.com/phpswoole>
++ __Discord__: <https://discord.swoole.dev>
 + __中文文档__: <https://wiki.swoole.com>
 + __中文社区__: <https://wiki.swoole.com/#/other/discussion>
 
