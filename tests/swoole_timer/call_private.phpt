@@ -13,41 +13,44 @@ class Test
     private function bar() { }
 }
 
-swoole_fork_exec(function () {
+// method not exists
+//------------------------------------------------------------------------------------------------------------------
+$pm = ProcessManager::exec(function () {
     Swoole\Timer::After(1, [Test::class, 'not_exist']);
 });
-swoole_fork_exec(function () {
+$pm->expectExitCode(255);
+$output = $pm->getChildOutput();
+if (PHP_VERSION_ID < 80000) {
+    Assert::contains($output, 'Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given');
+} else {
+    Assert::contains($output, 'Uncaught TypeError: Swoole\Timer::after(): Argument #2 ($callback) must be a valid callback, class Test does not have a method "not_exist"');
+}
+
+// private method
+//------------------------------------------------------------------------------------------------------------------
+$pm = ProcessManager::exec(function () {
     Swoole\Timer::After(1, [Test::class, 'foo']);
 });
-swoole_fork_exec(function () {
+$pm->expectExitCode(255);
+$output = $pm->getChildOutput();
+if (PHP_VERSION_ID < 80000) {
+    Assert::contains($output, 'Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given');
+} else {
+    Assert::contains($output, 'Swoole\Timer::after(): Argument #2 ($callback) must be a valid callback, cannot access private method Test::foo()');
+}
+
+// private method
+//------------------------------------------------------------------------------------------------------------------
+$pm = ProcessManager::exec(function () {
     Swoole\Timer::After(1, [new Test, 'bar']);
 });
+$pm->expectExitCode(255);
+$output = $pm->getChildOutput();
+if (PHP_VERSION_ID < 80000) {
+    Assert::contains($output, 'Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given');
+} else {
+    Assert::contains($output, 'Swoole\Timer::after(): Argument #2 ($callback) must be a valid callback, cannot access private method Test::bar()');
+}
 
 ?>
---EXPECTF--
-Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given in %s/tests/swoole_timer/call_private.php:%d
-Stack trace:
-#0 %s/tests/swoole_timer/call_private.php(%d): Swoole\Timer::after(1, Array)
-#1 [internal function]: {closure}(Object(Swoole\Process))
-#2 %s/tests/include/functions.php(%d): Swoole\Process->start()
-#3 %s/tests/swoole_timer/call_private.php(%d): swoole_fork_exec(Object(Closure))
-#4 {main}
-  thrown in %s/tests/swoole_timer/call_private.php on line %d
-
-Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given in %s/tests/swoole_timer/call_private.php:%d
-Stack trace:
-#0 %s/tests/swoole_timer/call_private.php(%d): Swoole\Timer::after(1, Array)
-#1 [internal function]: {closure}(Object(Swoole\Process))
-#2 %s/tests/include/functions.php(%d): Swoole\Process->start()
-#3 %s/tests/swoole_timer/call_private.php(%d): swoole_fork_exec(Object(Closure))
-#4 {main}
-  thrown in %s/tests/swoole_timer/call_private.php on line %d
-
-Fatal error: Uncaught TypeError: Argument 2 passed to Swoole\Timer::after() must be callable, array given in %s/tests/swoole_timer/call_private.php:%d
-Stack trace:
-#0 %s/tests/swoole_timer/call_private.php(%d): Swoole\Timer::after(1, Array)
-#1 [internal function]: {closure}(Object(Swoole\Process))
-#2 %s/tests/include/functions.php(%d): Swoole\Process->start()
-#3 %s/tests/swoole_timer/call_private.php(%d): swoole_fork_exec(Object(Closure))
-#4 {main}
-  thrown in %s/tests/swoole_timer/call_private.php on line %d
+--EXPECT--

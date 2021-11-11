@@ -629,7 +629,7 @@ function swoole_fork_exec(callable $fn, bool $redirect_stdin_and_stdout = false,
     return $process::wait();
 }
 
-function fork_exec(callable $fn, $f_stdout = "/dev/null", $f_stderr = null)
+function php_fork_exec(callable $fn, $f_stdout = "/dev/null", $f_stderr = null)
 {
     $pid = pcntl_fork();
     if ($pid < 0) {
@@ -646,6 +646,7 @@ function fork_exec(callable $fn, $f_stdout = "/dev/null", $f_stderr = null)
         exit;
     }
     pcntl_waitpid($pid, $status);
+    return ['pid' => $pid, 'status', $status];
 }
 
 /**
