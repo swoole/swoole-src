@@ -10,6 +10,11 @@ English | [中文](./README-CN.md)
 [![Coverity Scan Build Status](https://scan.coverity.com/projects/11654/badge.svg)](https://scan.coverity.com/projects/swoole-swoole-src)
 [![codecov](https://codecov.io/gh/swoole/swoole-src/branch/master/graph/badge.svg)](https://codecov.io/gh/swoole/swoole-src)
 
+[![Twitter](https://badgen.net/badge/icon/twitter?icon=twitter&label)](https://twitter.com/phpswoole)
+[![Discord](https://badgen.net/badge/icon/discord?icon=discord&label)](https://discord.swoole.dev)
+[![Latest Release](https://img.shields.io/github/release/swoole/swoole-src.svg)](https://github.com/swoole/swoole-src/releases/)
+[![License](https://badgen.net/github/license/swoole/swoole-src)](https://github.com/swoole/swoole-src/blob/master/LICENSE)
+
 **Swoole is an event-driven asynchronous & coroutine-based concurrency networking communication engine with high performance written in C++ for PHP.**
 
 ## ⚙️ Quick Start
@@ -525,13 +530,13 @@ Project [Awesome Swoole](https://github.com/swoole/awesome-swoole) maintains a c
 
 ## 🛠 Develop & Discussion
 
-+ __中文文档__: <https://wiki.swoole.com>
 + __Documentation__: <https://www.swoole.co.uk/docs>
 + __IDE Helper & API__: <https://github.com/swoole/ide-helper>
 + __Debug Tool__: <https://github.com/swoole/yasd>
++ __Twitter__: <https://twitter.com/phpswoole>
++ __Discord__: <https://discord.swoole.dev>
++ __中文文档__: <https://wiki.swoole.com>
 + __中文社区__: <https://wiki.swoole.com/#/other/discussion>
-+ __Twitter__: <https://twitter.com/php_swoole>
-+ __Slack Group__: <https://swoole.slack.com>
 
 ## 🍭 Benchmark
 
