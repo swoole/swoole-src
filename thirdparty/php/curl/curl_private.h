@@ -144,7 +144,11 @@ typedef struct {
 #endif
     Multi *multi;
     zend_llist easyh;
+#if PHP_VERSION_ID >= 80100
+    php_curlm_handlers handlers;
+#else
     php_curlm_handlers *handlers;
+#endif
     struct {
         int no;
     } err;

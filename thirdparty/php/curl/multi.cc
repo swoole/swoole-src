@@ -59,7 +59,7 @@ bool swoole_curl_multi_is_in_coroutine(php_curlm *mh) {
 zend_class_entry *swoole_coroutine_curl_multi_handle_ce;
 
 static inline php_curlm *curl_multi_from_obj(zend_object *obj) {
-    return(php_curlm *) ((char *) (obj) -XtOffsetOf(php_curlm, std));
+    return (php_curlm *) ((char *) (obj) -XtOffsetOf(php_curlm, std));
 }
 #define Z_CURL_MULTI_P(zv) curl_multi_from_obj(Z_OBJ_P(zv))
 #else
@@ -96,7 +96,9 @@ PHP_FUNCTION(swoole_native_curl_multi_init) {
 #endif
     mh->multi = new Multi();
     mh->multi->set_selector(new Selector());
+#if PHP_VERSION_ID <= 80000
     mh->handlers = (php_curlm_handlers *) ecalloc(1, sizeof(php_curlm_handlers));
+#endif
     swoole_curl_multi_set_in_coroutine(mh, true);
     zend_llist_init(&mh->easyh, sizeof(zval), swoole_curl_multi_cleanup_list, 0);
 }
@@ -544,7 +546,11 @@ static int _php_server_push_callback(
     php_curl *parent;
     php_curlm *mh = (php_curlm *) userp;
     size_t rval = CURL_PUSH_DENY;
+#if PHP_VERSION_ID < 80100
     php_curlm_server_push *t = mh->handlers->server_push;
+#else
+    php_curlm_server_push *t = mh->handlers.server_push;
+#endif
     zval *pz_parent_ch = NULL;
     zval pz_ch;
     zval headers;
@@ -627,7 +633,8 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
         break;
     }
 #if LIBCURL_VERSION_NUM > 0x072D00 /* Available since 7.45.0 */
-    case CURLMOPT_PUSHFUNCTION:
+    case CURLMOPT_PUSHFUNCTION: {
+#if PHP_VERSION_ID <= 80100
         if (mh->handlers->server_push == NULL) {
             mh->handlers->server_push = (php_curlm_server_push *) ecalloc(1, sizeof(php_curlm_server_push));
         } else if (!Z_ISUNDEF(mh->handlers->server_push->func_name)) {
@@ -637,12 +644,25 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
 
         ZVAL_COPY(&mh->handlers->server_push->func_name, zvalue);
         mh->handlers->server_push->method = PHP_CURL_USER;
+#else
+        if (mh->handlers.server_push == NULL) {
+            mh->handlers.server_push = (php_curlm_server_push *) ecalloc(1, sizeof(php_curlm_server_push));
+        } else if (!Z_ISUNDEF(mh->handlers.server_push->func_name)) {
+            zval_ptr_dtor(&mh->handlers.server_push->func_name);
+            mh->handlers.server_push->fci_cache = empty_fcall_info_cache;
+        }
+
+        ZVAL_COPY(&mh->handlers.server_push->func_name, zvalue);
+        mh->handlers.server_push->method = PHP_CURL_USER;
+#endif
+
         error = curl_multi_setopt(mh->multi->get_multi_handle(), (CURLMoption) option, _php_server_push_callback);
         if (error != CURLM_OK) {
             return 0;
         }
         error = curl_multi_setopt(mh->multi->get_multi_handle(), CURLMOPT_PUSHDATA, mh);
         break;
+    }
 #endif
     default:
 #if PHP_VERSION_ID < 80000
@@ -726,11 +746,17 @@ static HashTable *swoole_curl_multi_get_gc(zend_object *object, zval **table, in
 
     zend_get_gc_buffer *gc_buffer = zend_get_gc_buffer_create();
 
+#if PHP_VERSION_ID >= 80100
+    if (curl_multi->handlers.server_push) {
+        zend_get_gc_buffer_add_zval(gc_buffer, &curl_multi->handlers.server_push->func_name);
+    }
+#else
     if (curl_multi->handlers) {
         if (curl_multi->handlers->server_push) {
             zend_get_gc_buffer_add_zval(gc_buffer, &curl_multi->handlers->server_push->func_name);
         }
     }
+#endif
 
     zend_llist_position pos;
     for (zval *pz_ch = (zval *) zend_llist_get_first_ex(&curl_multi->easyh, &pos); pz_ch;
@@ -794,13 +820,14 @@ static void _php_curl_multi_free(php_curlm *mh) {
     }
     if (mh->multi) {
         if (is_in_coroutine) {
-            curl_multi_cleanup(mh->multi);
-        } else {
             delete mh->multi;
+        } else {
+            curl_multi_cleanup(mh->multi);
         }
         mh->multi = nullptr;
     }
     zend_llist_clean(&mh->easyh);
+#if PHP_VERSION_ID < 80100
     if (mh->handlers->server_push) {
         zval_ptr_dtor(&mh->handlers->server_push->func_name);
         efree(mh->handlers->server_push);
@@ -808,6 +835,12 @@ static void _php_curl_multi_free(php_curlm *mh) {
     if (mh->handlers) {
         efree(mh->handlers);
     }
+#else
+    if (mh->handlers.server_push) {
+        zval_ptr_dtor(&mh->handlers.server_push->func_name);
+        efree(mh->handlers.server_push);
+    }
+#endif
 }
 
 #endif
