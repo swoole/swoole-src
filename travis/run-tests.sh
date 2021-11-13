@@ -9,8 +9,9 @@ cd ${__DIR__} && cd ../tests/
 
 # initialization
 echo "" && echo "⭐️ Initialization for tests..." && echo ""
-./init
+php ./init
 cd ./include/lib
+echo "composer update"
 composer update
 cd -
 echo ""

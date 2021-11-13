@@ -7,9 +7,8 @@ swoole_process: signal in manager
 require __DIR__ . '/../include/bootstrap.php';
 use Swoole\Process;
 use Swoole\Server;
-use function Swoole\Coroutine\run;
 
-define('PID_FILE', __DIR__.'/manager.pid');
+const PID_FILE = __DIR__ . '/manager.pid';
 
 $pm = new SwooleTest\ProcessManager;
 
@@ -22,8 +21,8 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm) {
     $serv = new Server('127.0.0.1', $pm->getFreePort());
-    $serv->set(["worker_num" => 1, 'log_file' => '/dev/null']);
-    $serv->on("ManagerStart", function (Server $serv) use ($pm) {
+    $serv->set(['worker_num' => 1, 'log_file' => '/dev/null']);
+    $serv->on('ManagerStart', function (Server $serv) use ($pm) {
         file_put_contents(PID_FILE, $serv->getManagerPid());
         Process::signal(SIGINT, function () use($pm) {
             echo "SIGINT triggered\n";
@@ -31,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
         });
         $pm->wakeup();
     });
-    $serv->on("Receive", function (Server $serv, $fd, $reactorId, $data) {
+    $serv->on('Receive', function (Server $serv, $fd, $reactorId, $data) {
     });
     $serv->start();
 };
