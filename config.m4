@@ -837,6 +837,7 @@ EOF
 
     PHP_ADD_INCLUDE([$ext_srcdir])
     PHP_ADD_INCLUDE([$ext_srcdir/include])
+    PHP_ADD_INCLUDE([$ext_srcdir/stubs])
     PHP_ADD_INCLUDE([$ext_srcdir/ext-src])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty])
     PHP_ADD_INCLUDE([$ext_srcdir/thirdparty/hiredis])
@@ -852,6 +853,7 @@ EOF
 
     PHP_INSTALL_HEADERS([ext/swoole], [ext-src/*.h config.h php_swoole.h \
         include/*.h \
+        stubs/*.h
         thirdparty/*.h \
         thirdparty/nghttp2/*.h \
         thirdparty/hiredis/*.h])
