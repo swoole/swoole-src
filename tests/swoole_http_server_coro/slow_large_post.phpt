@@ -20,7 +20,7 @@ $pm = new ProcessManager;
 $pm->initFreePorts();
 $pm->parentFunc = function ($pid) use ($pm) {
     $client = new Swoole\Client(SWOOLE_SOCK_TCP);
-    $client->connect("127.0.01", $pm->getFreePort());
+    $client->connect("127.0.0.1", $pm->getFreePort());
     $post_data = KEY . '=' . urlencode(VALUE);
     $len = strlen($post_data);
     $data = "POST /index.html HTTP/1.1\r\nServer: nginx\r\nContent-Type: application/x-www-form-urlencoded\r\nConnection: close\r\nContent-Length: $len\r\nX-Server: swoole\r\n\r\n$post_data";
