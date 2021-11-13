@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: 914c356fc838c2d661255e4df32cd7f1b0d24604 */
+/* $Id: c5bab98ef073bef85bc5e25660945b698c9488a1 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -370,6 +370,8 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_MAX_WAIT_TIME = 'max_wait_time';\n"
     "\n"
     "    public const OPTION_MAX_QUEUED_BYTES = 'max_queued_bytes';\n"
+    "\n"
+    "    public const OPTION_WORKER_MAX_CONCURRENCY = 'worker_max_concurrency';\n"
     "\n"
     "    public const OPTION_SEND_TIMEOUT = 'send_timeout';\n"
     "\n"
@@ -7312,6 +7314,8 @@ static const char* swoole_library_source_core_server_helper =
     "        'worker_num' => true,\n"
     "        'max_wait_time' => true,\n"
     "        'max_queued_bytes' => true,\n"
+    "        'max_concurrency' => true,\n"
+    "        'worker_max_concurrency' => true,\n"
     "        'enable_coroutine' => true,\n"
     "        'send_timeout' => true,\n"
     "        'dispatch_mode' => true,\n"
