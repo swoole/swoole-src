@@ -772,6 +772,11 @@ void swoole_curl_multi_close(zend_resource *rsrc) /* {{{ */
 #endif
 
 static void _php_curl_multi_free(php_curlm *mh) {
+    if (!mh->multi) {
+        /* Can happen if constructor throws. */
+        zend_object_std_dtor(&mh->std);
+        return;
+    }
     bool is_in_coroutine = swoole_curl_multi_is_in_coroutine(mh);
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
@@ -780,16 +785,25 @@ static void _php_curl_multi_free(php_curlm *mh) {
         if (!Z_RES_P(z_ch)->ptr) {
             continue;
         }
+#else
+        if (OBJ_FLAGS(Z_OBJ_P(z_ch)) & IS_OBJ_FREE_CALLED) {
+            continue;
+        }
 #endif
-        if (is_in_coroutine && (ch = swoole_curl_get_handle(z_ch, true, false))) {
+        if ((ch = swoole_curl_get_handle(z_ch, true, false))) {
             swoole_curl_verify_handlers(ch, 0);
-            mh->multi->remove_handle(ch->cp);
+            if (is_in_coroutine) {
+                mh->multi->remove_handle(ch->cp);
+            }
         }
     }
-    if (!is_in_coroutine && mh->multi) {
+    if (is_in_coroutine) {
         curl_multi_cleanup(mh->multi);
         mh->multi = nullptr;
+    } else {
+        delete mh->multi;
     }
+    mh->multi = nullptr;
     zend_llist_clean(&mh->easyh);
     if (mh->handlers->server_push) {
         zval_ptr_dtor(&mh->handlers->server_push->func_name);
@@ -797,10 +811,6 @@ static void _php_curl_multi_free(php_curlm *mh) {
     }
     if (mh->handlers) {
         efree(mh->handlers);
-    }
-    if (is_in_coroutine && mh->multi) {
-        delete mh->multi;
-        mh->multi = nullptr;
     }
 }
 
