@@ -9,7 +9,7 @@ cd ${__DIR__} && cd ../tests/
 
 # initialization
 echo "" && echo "⭐️ Initialization for tests..." && echo ""
-./init
+USE_ZEND_ALLOC=0 valgrind php ./init
 cd ./include/lib
 composer update
 cd -
