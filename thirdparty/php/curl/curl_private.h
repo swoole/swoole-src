@@ -148,8 +148,11 @@ typedef struct {
     struct {
         int no;
     } err;
-    Multi *co_multi;
+#if PHP_VERSION_ID < 80000
+    bool in_coroutine;
+#else
     zend_object std;
+#endif
 } php_curlm;
 
 typedef struct _php_curlsh {
@@ -180,6 +183,7 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 
 #define Z_CURL_SHARE_P(zv) curl_share_from_obj(Z_OBJ_P(zv))
 void curl_multi_register_class(const zend_function_entry *method_entries);
+int swoole_curl_cast_object(zend_object *obj, zval *result, int type);
 #else
 #define Z_CURL_P(zv) swoole_curl_get_handle(zv)
 #endif /* PHP8 end */
