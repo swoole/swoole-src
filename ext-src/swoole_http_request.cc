@@ -762,13 +762,11 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         ctx->request.body_length += length;
     }
 
-    if (!ctx->recv_chunked && ctx->parse_body && ctx->request.post_form_urlencoded) {
-        sapi_module.treat_data(
-            PARSE_STRING,
-            estrndup(at, length),  // do not free, it will be freed by treat_data
-            swoole_http_init_and_read_property(
-                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
-    } else if (ctx->mt_parser != nullptr) {
+    if (ctx->request.body_at == nullptr) {
+        ctx->request.body_at = at;
+    }
+
+    if (ctx->mt_parser != nullptr) {
         multipart_parser *multipart_parser = ctx->mt_parser;
         if (is_beginning) {
             /* Compatibility: some clients may send extra EOL */
@@ -798,6 +796,12 @@ static int http_request_message_complete(swoole_http_parser *parser) {
         sapi_module.treat_data(
             PARSE_STRING,
             estrndup(ctx->request.chunked_body->str, content_length),  // do not free, it will be freed by treat_data
+            swoole_http_init_and_read_property(
+                swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
+    } else if (!ctx->recv_chunked && ctx->parse_body && ctx->request.post_form_urlencoded && ctx->request.body_at) {
+        sapi_module.treat_data(
+            PARSE_STRING,
+            estrndup(ctx->request.body_at, ctx->request.body_length),  // do not free, it will be freed by treat_data
             swoole_http_init_and_read_property(
                 swoole_http_request_ce, ctx->request.zobject, &ctx->request.zpost, ZEND_STRL("post")));
     }
