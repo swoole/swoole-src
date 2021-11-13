@@ -828,12 +828,14 @@ static void _php_curl_multi_free(php_curlm *mh) {
     }
     zend_llist_clean(&mh->easyh);
 #if PHP_VERSION_ID < 80100
-    if (mh->handlers->server_push) {
-        zval_ptr_dtor(&mh->handlers->server_push->func_name);
-        efree(mh->handlers->server_push);
-    }
     if (mh->handlers) {
-        efree(mh->handlers);
+        if (mh->handlers->server_push) {
+            zval_ptr_dtor(&mh->handlers->server_push->func_name);
+            efree(mh->handlers->server_push);
+        }
+        if (mh->handlers) {
+            efree(mh->handlers);
+        }
     }
 #else
     if (mh->handlers.server_push) {
