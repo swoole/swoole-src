@@ -202,8 +202,12 @@ PHP_FUNCTION(swoole_native_curl_multi_remove_handle) {
     ZEND_PARSE_PARAMETERS_END();
 
     mh = Z_CURL_MULTI_P(z_mh);
+    if (!(swoole_curl_multi_is_in_coroutine(mh))) {
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION,
+                           "The given object is not a valid coroutine CurlMultiHandle object");
+        RETURN_FALSE;
+    }
     ch = Z_CURL_P(z_ch);
-
     error = mh->multi->remove_handle(ch->cp);
     SAVE_CURLM_ERROR(mh, error);
 
@@ -229,6 +233,11 @@ PHP_FUNCTION(swoole_native_curl_multi_select) {
     ZEND_PARSE_PARAMETERS_END();
 
     mh = Z_CURL_MULTI_P(z_mh);
+    if (!(swoole_curl_multi_is_in_coroutine(mh))) {
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION,
+                           "The given object is not a valid coroutine CurlMultiHandle object");
+        RETURN_FALSE;
+    }
     RETURN_LONG(mh->multi->select(mh, timeout));
 }
 /* }}} */
@@ -339,6 +348,11 @@ PHP_FUNCTION(swoole_native_curl_multi_info_read) {
     ZEND_PARSE_PARAMETERS_END();
 
     mh = Z_CURL_MULTI_P(z_mh);
+    if (!(swoole_curl_multi_is_in_coroutine(mh))) {
+        swoole_fatal_error(SW_ERROR_WRONG_OPERATION,
+                           "The given object is not a valid coroutine CurlMultiHandle object");
+        RETURN_FALSE;
+    }
 
     tmp_msg = curl_multi_info_read(mh->multi->get_multi_handle(), &queued_msgs);
     if (tmp_msg == NULL) {

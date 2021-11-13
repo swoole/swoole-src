@@ -21,10 +21,10 @@ run(function () {
     //create the multiple cURL handle
     $mh = curl_multi_init();
 
-    curl_type_assert($mh, 'Swoole-Coroutine-cURL-Multi-Handle', Swoole\Coroutine\Curl\MultiHandle::class);
+    curl_type_assert($mh, 'Swoole-Coroutine-cURL-Multi-Handle', CurlMultiHandle::class);
 
     curl_multi_close($mh);
-    curl_type_assert($mh, 'Swoole-Coroutine-cURL-Multi-Handle', Swoole\Coroutine\Curl\MultiHandle::class);
+    curl_type_assert($mh, 'Swoole-Coroutine-cURL-Multi-Handle', CurlMultiHandle::class);
 });
 ?>
 --EXPECTF--
