@@ -772,11 +772,13 @@ void swoole_curl_multi_close(zend_resource *rsrc) /* {{{ */
 #endif
 
 static void _php_curl_multi_free(php_curlm *mh) {
+#if PHP_VERSION_ID >= 80000
     if (!mh->multi) {
         /* Can happen if constructor throws. */
         zend_object_std_dtor(&mh->std);
         return;
     }
+#endif
     bool is_in_coroutine = swoole_curl_multi_is_in_coroutine(mh);
     for (zend_llist_element *element = mh->easyh.head; element; element = element->next) {
         zval *z_ch = (zval *) element->data;
@@ -797,13 +799,14 @@ static void _php_curl_multi_free(php_curlm *mh) {
             }
         }
     }
-    if (is_in_coroutine) {
-        curl_multi_cleanup(mh->multi);
+    if (mh->multi) {
+        if (is_in_coroutine) {
+            curl_multi_cleanup(mh->multi);
+        } else {
+            delete mh->multi;
+        }
         mh->multi = nullptr;
-    } else {
-        delete mh->multi;
     }
-    mh->multi = nullptr;
     zend_llist_clean(&mh->easyh);
     if (mh->handlers->server_push) {
         zval_ptr_dtor(&mh->handlers->server_push->func_name);
