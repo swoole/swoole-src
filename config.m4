@@ -852,7 +852,7 @@ EOF
 
     PHP_INSTALL_HEADERS([ext/swoole], [ext-src/*.h config.h php_swoole.h \
         include/*.h \
-        stubs/*.h
+        stubs/*.h \
         thirdparty/*.h \
         thirdparty/nghttp2/*.h \
         thirdparty/hiredis/*.h])
