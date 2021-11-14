@@ -18,6 +18,12 @@
 #include "swoole_memory.h"
 #include "swoole_lock.h"
 
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_lock_arginfo.h"
+#else
+#include "stubs/php_swoole_lock_legacy_arginfo.h"
+#endif
+
 using swoole::Lock;
 using swoole::Mutex;
 #ifdef HAVE_SPINLOCK
@@ -84,29 +90,17 @@ static PHP_METHOD(swoole_lock, destroy);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_lock_construct, 0, 0, 0)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_lock_lockwait, 0, 0, 0)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_lock_methods[] =
 {
-    PHP_ME(swoole_lock, __construct, arginfo_swoole_lock_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, lock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, lockwait, arginfo_swoole_lock_lockwait, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, trylock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, lock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, trylock_read, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, unlock, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_lock, destroy, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, __construct, arginfo_class_Swoole_Lock___construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, __destruct, arginfo_class_Swoole_Lock___destruct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, lock, arginfo_class_Swoole_Lock_lock, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, lockwait, arginfo_class_Swoole_Lock_locakwait, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, trylock, arginfo_class_Swoole_Lock_trylock, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, lock_read, arginfo_class_Swoole_Lock_lock_read, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, trylock_read, arginfo_class_Swoole_Lock_trylock_read, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, unlock, arginfo_class_Swoole_Lock_unlock, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_lock, destroy, arginfo_class_Swoole_Lock_destroy, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
