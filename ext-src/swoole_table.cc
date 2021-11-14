@@ -160,7 +160,7 @@ static const zend_function_entry swoole_table_methods[] =
     PHP_ME(swoole_table, destroy,     arginfo_class_Swoole_Table_destroy, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, set,         arginfo_class_Swoole_Table_set, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, get,         arginfo_class_Swoole_Table_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_table, count,       arginfo_swoole_table_iterator_count, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_table, count,       arginfo_class_Swoole_Table_count, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, del,         arginfo_class_Swoole_Table_del, ZEND_ACC_PUBLIC)
     PHP_MALIAS(swoole_table, delete, del, arginfo_class_Swoole_Table_del, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_table, exists,      arginfo_class_Swoole_Table_exists, ZEND_ACC_PUBLIC)
