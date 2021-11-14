@@ -1,7 +1,5 @@
 <?php
-/**
- * @generate-legacy-arginfo
- */
+
 function swoole_timer_set(array $settings): void {}
 
 function swoole_timer_tick(int $ms, callable $callback, mixed ...$params): bool|int {}

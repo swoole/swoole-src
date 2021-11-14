@@ -1,7 +1,4 @@
 <?php
-/**
- * @generate-legacy-arginfo
- */
 namespace Swoole {
      final class Table {
         public function __construct(int $table_size, float $conflict_proportion = 0.2) {}
