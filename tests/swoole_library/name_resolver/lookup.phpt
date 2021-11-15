@@ -22,7 +22,7 @@ run(function () use ($ns) {
     swoole_loop_n(N, function () use (&$nodes, $test_name, $ns) {
         $node = ['port' => rand(1, 9999), 'ip' => '192.168.1.' . rand(1, 255)];
         $nodes[] = $node;
-        $ns->join($test_name, $node['ip'], $node['port'],);
+        $ns->join($test_name, $node['ip'], $node['port']);
     });
 
     $ctx = new Swoole\NameResolver\Context(AF_INET, true);
@@ -35,7 +35,7 @@ run(function () use ($ns) {
     });
 
     swoole_loop_n(N, function ($i) use (&$nodes, $test_name, $ns) {
-        $ns->leave($test_name, $nodes[$i]['ip'], $nodes[$i]['port'],);
+        $ns->leave($test_name, $nodes[$i]['ip'], $nodes[$i]['port']);
     });
 });
 echo "DONE\n";
