@@ -120,9 +120,9 @@ static std::vector<std::string> unsafe_functions {
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
-    PHP_ME(swoole_runtime, enableCoroutine, arginfo_class_Swoole_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_runtime, getHookFlags, arginfo_class_Swoole_swoole_runtime_getHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_runtime, setHookFlags, arginfo_class_Swoole_swoole_runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, enableCoroutine, arginfo_class_Swoole_Runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, getHookFlags, arginfo_class_Swoole_Runtime_getHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, setHookFlags, arginfo_class_Swoole_Runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
