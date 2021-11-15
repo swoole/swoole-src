@@ -646,6 +646,7 @@ struct NameResolver {
     enum Type {
         TYPE_KERNEL,
         TYPE_PHP,
+        TYPE_USER,
     };
     struct Context {
         int type;

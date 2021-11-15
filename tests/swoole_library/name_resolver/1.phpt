@@ -18,11 +18,9 @@ const SERVICE_NAME = 'test_service';
 const REQ_N = 16;
 const PORT_N = 3;
 
-if (IS_IN_TRAVIS) {
-    $ns = new Redis(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-} else {
-    $ns = new Consul('http://127.0.0.1:8500');
-}
+$config = TEST_NAME_RESOLVER;
+$ns = new $config['class']($config['server_url']);
+Coroutine::set(['name_resolver' => [$ns]]);
 
 $html = base64_encode(random_bytes(rand(2048, 65536 * 2)));
 
