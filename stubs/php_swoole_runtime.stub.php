@@ -3,7 +3,7 @@
  * @strict-properties
  */
 namespace Swoole {
-	class swoole_runtime {
+	class Runtime {
 		public function enableCoroutine(bool $enable = true, int $flags = SWOOLE_HOOK_ALL): bool {}
 		public function getHookFlags(): int {}
 		public function setHookFlags(int $flags = SWOOLE_HOOK_ALL): bool {}
