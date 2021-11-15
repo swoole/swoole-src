@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: 914c356fc838c2d661255e4df32cd7f1b0d24604 */
+/* $Id: 3f20e97a3f11d81aeef259a6f476a9af653f5d5c */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -167,6 +167,8 @@ static const char* swoole_library_source_core_constant =
     "\n"
     "    public const OPTION_SOCKET_TIMEOUT = 'socket_timeout';\n"
     "\n"
+    "    public const OPTION_MAX_CONCURRENCY = 'max_concurrency';\n"
+    "\n"
     "    public const OPTION_AIO_CORE_WORKER_NUM = 'aio_core_worker_num';\n"
     "\n"
     "    public const OPTION_AIO_WORKER_NUM = 'aio_worker_num';\n"
@@ -298,8 +300,6 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_DNS_CACHE_EXPIRE = 'dns_cache_expire';\n"
     "\n"
     "    public const OPTION_DNS_CACHE_CAPACITY = 'dns_cache_capacity';\n"
-    "\n"
-    "    public const OPTION_MAX_CONCURRENCY = 'max_concurrency';\n"
     "\n"
     "    public const OPTION_RECONNECT = 'reconnect';\n"
     "\n"
@@ -7440,7 +7440,6 @@ static const char* swoole_library_source_core_server_helper =
     "        'stack_size' => true,\n"
     "        'dns_cache_expire' => true,\n"
     "        'dns_cache_capacity' => true,\n"
-    "        'max_concurrency' => true,\n"
     "    ];\n"
     "\n"
     "    public const HELPER_OPTIONS = [\n"
