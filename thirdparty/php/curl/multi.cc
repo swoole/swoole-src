@@ -634,7 +634,7 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
     }
 #if LIBCURL_VERSION_NUM > 0x072D00 /* Available since 7.45.0 */
     case CURLMOPT_PUSHFUNCTION: {
-#if PHP_VERSION_ID <= 80100
+#if PHP_VERSION_ID < 80100
         if (mh->handlers->server_push == NULL) {
             mh->handlers->server_push = (php_curlm_server_push *) ecalloc(1, sizeof(php_curlm_server_push));
         } else if (!Z_ISUNDEF(mh->handlers->server_push->func_name)) {
