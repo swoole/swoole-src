@@ -1051,6 +1051,12 @@ static sw_inline void sw_zend_fci_cache_free(void *fci_cache) {
     efree((zend_fcall_info_cache *) fci_cache);
 }
 
+#if PHP_VERSION_ID >= 80100
+#define sw_php_spl_object_hash(o)  php_spl_object_hash(Z_OBJ_P(o))
+#else
+#define sw_php_spl_object_hash(o)  php_spl_object_hash(o)
+#endif
+
 //----------------------------------Misc API------------------------------------
 
 static sw_inline int php_swoole_check_reactor() {

@@ -125,7 +125,7 @@ PHP_FUNCTION(swoole_name_resolver_remove) {
     Z_PARAM_OBJECT(zresolver)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto hash = php_spl_object_hash(zresolver);
+    auto hash = sw_php_spl_object_hash(zresolver);
     bool found = false;
     swoole_name_resolver_each(
         [&found, hash, zresolver](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
@@ -133,7 +133,7 @@ PHP_FUNCTION(swoole_name_resolver_remove) {
                 return SW_TRAVERSE_STOP;
             }
             if (iter->type == NameResolver::TYPE_PHP && iter->private_data &&
-                zend_string_equals(php_spl_object_hash((zval *) iter->private_data), hash)) {
+                zend_string_equals(sw_php_spl_object_hash((zval *) iter->private_data), hash)) {
                 zval_dtor(zresolver);
                 efree(iter->private_data);
                 found = true;
