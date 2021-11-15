@@ -112,8 +112,6 @@ class HttpClient {
 #endif
 
     /* options */
-    uint8_t reconnect_interval = 3;
-    uint8_t reconnected_count = 0;
     uint8_t max_retries = 1;
     bool keep_alive = true;      // enable by default
     bool websocket = false;      // if upgrade successfully
@@ -768,10 +766,8 @@ void HttpClient::apply_setting(zval *zset, const bool check_all) {
             php_swoole_array_get_value(vht, "timeout", ztmp) /* backward compatibility */) {
             connect_timeout = zval_get_double(ztmp);
         }
-        if (php_swoole_array_get_value(vht, "reconnect", ztmp)) {
-            reconnect_interval = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
-        }
-        if (php_swoole_array_get_value(vht, "max_retries", ztmp)) {
+        if (php_swoole_array_get_value(vht, "reconnect", ztmp) ||
+            php_swoole_array_get_value(vht, "max_retries", ztmp)) {
             max_retries = (uint8_t) SW_MIN(zval_get_long(ztmp), UINT8_MAX);
         }
         if (php_swoole_array_get_value(vht, "defer", ztmp)) {
@@ -882,7 +878,7 @@ bool HttpClient::keep_liveness() {
             set_error(socket->errCode, socket->errMsg, HTTP_CLIENT_ESTATUS_SERVER_RESET);
             close(false);
         }
-        SW_LOOP_N(reconnect_interval) {
+        SW_LOOP_N(max_retries) {
             if (connect()) {
                 return true;
             }
