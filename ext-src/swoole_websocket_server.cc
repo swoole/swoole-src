@@ -22,6 +22,12 @@ SW_EXTERN_C_END
 
 #include "swoole_base64.h"
 
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_websocket_arginfo.h"
+#else
+#include "stubs/php_swoole_websocket_legacy_arginfo.h"
+#endif
+
 using swoole::Connection;
 using swoole::ListenPort;
 using swoole::RecvData;
@@ -54,55 +60,21 @@ static PHP_METHOD(swoole_websocket_frame, __toString);
 SW_EXTERN_C_END
 
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_push, 0, 0, 2)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, flags)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_disconnect, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, code)
-    ZEND_ARG_INFO(0, reason)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_pack, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, flags)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_unpack, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_server_isEstablished, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_websocket_frame_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_websocket_frame___toString, 0, 0, IS_STRING, 0)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_websocket_server_methods[] =
 {
-    PHP_ME(swoole_websocket_server, push,              arginfo_swoole_websocket_server_push,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, disconnect,        arginfo_swoole_websocket_server_disconnect,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, isEstablished,     arginfo_swoole_websocket_server_isEstablished, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, pack,              arginfo_swoole_websocket_server_pack,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_websocket_server, unpack,            arginfo_swoole_websocket_server_unpack,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_server, push,              arginfo_class_Swoole_WebSocket_Server_push,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, disconnect,        arginfo_class_Swoole_WebSocket_Server_disconnect,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, isEstablished,     arginfo_class_Swoole_WebSocket_Server_isEstablished, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, pack,              arginfo_class_Swoole_WebSocket_Server_pack,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_server, unpack,            arginfo_class_Swoole_WebSocket_Server_unpack,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 
 const zend_function_entry swoole_websocket_frame_methods[] =
 {
-    PHP_ME(swoole_websocket_frame, __toString,      arginfo_swoole_websocket_frame___toString,    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_websocket_server, pack,           arginfo_swoole_websocket_server_pack,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_websocket_server, unpack,         arginfo_swoole_websocket_server_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_frame, __toString,      arginfo_class_Swoole_WebSocket_Frame___toString,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_websocket_server, pack,           arginfo_class_Swoole_WebSocket_Frame_pack,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_websocket_server, unpack,         arginfo_class_Swoole_WebSocket_Frame_unpack, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
