@@ -96,8 +96,16 @@ if (IS_IN_TRAVIS) {
 
 if (IS_IN_TRAVIS) {
     define('TEST_HTTP2_SERVERPUSH_URL', 'https://golang-h2demo:4430/serverpush');
+    define('TEST_NAME_RESOLVER', [
+        'class' => Swoole\NameResolver\Redis::class,
+        'server_url' => 'tcp://' . REDIS_SERVER_HOST . ':' . REDIS_SERVER_PORT,
+    ]);
 } else {
     define('TEST_HTTP2_SERVERPUSH_URL', 'https://127.0.0.1:4430/serverpush');
+    define('TEST_NAME_RESOLVER', [
+        'class' => Swoole\NameResolver\Consul::class,
+        'server_url' => 'http://127.0.0.1:8500',
+    ]);
 }
 
 /** =============== IP ================ */

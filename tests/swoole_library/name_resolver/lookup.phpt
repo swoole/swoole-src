@@ -7,17 +7,11 @@ swoole_library/name_service: lookup
 require __DIR__ . '/../../include/bootstrap.php';
 
 use Swoole\Coroutine;
-use Swoole\NameResolver\Redis;
-use Swoole\NameResolver\Consul;
 
 use function Swoole\Coroutine\run;
 
-if (IS_IN_TRAVIS) {
-    $ns = new Redis(REDIS_SERVER_HOST, REDIS_SERVER_PORT);
-} else {
-    $ns = new Consul('http://127.0.0.1:8500');
-}
-
+$config = TEST_NAME_RESOLVER;
+$ns = new $config['class']($config['server_url']);
 Coroutine::set(['name_resolver' => [$ns]]);
 
 const N = 4;
