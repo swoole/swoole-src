@@ -140,14 +140,14 @@ TEST(dns, gethosts) {
     ASSERT_EQ(ip, "");
 }
 
-TEST(dns, name_resolver_1) {
+void name_resolver_test_fn_1() {
     NameResolver::Context ctx{};
     ctx.type = AF_INET;
     ctx.timeout = 1;
     ASSERT_EQ("127.0.0.1", swoole_name_resolver_lookup("localhost", &ctx));
 }
 
-TEST(dns, name_resolver_2) {
+void name_resolver_test_fn_2() {
     NameResolver::Context ctx;
     std::string domain = "non.exist.com";
     NameResolver nr{[](const std::string &domain, NameResolver::Context *ctx, void *) -> std::string {
@@ -184,4 +184,14 @@ TEST(dns, name_resolver_2) {
     ctx = {AF_INET};
     auto ip = swoole_name_resolver_lookup("www.baidu.com", &ctx);
     ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+}
+
+TEST(dns, name_resolver_1) {
+    name_resolver_test_fn_1();
+    test::coroutine::run([](void *arg) { name_resolver_test_fn_1(); });
+}
+
+TEST(dns, name_resolver_2) {
+    name_resolver_test_fn_2();
+    test::coroutine::run([](void *arg) { name_resolver_test_fn_2(); });
 }
