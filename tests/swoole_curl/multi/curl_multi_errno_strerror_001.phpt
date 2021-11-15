@@ -14,28 +14,34 @@ use Swoole\Runtime;
 
 use function Swoole\Coroutine\run;
 
-Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
-run(function () {
-    $mh = curl_multi_init();
-    $errno = curl_multi_errno($mh);
-    echo $errno . PHP_EOL;
-    echo curl_multi_strerror($errno) . PHP_EOL;
+$pm = ProcessManager::exec(function ($pm) {
+    Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
+    run(function () {
+        $mh = curl_multi_init();
+        $errno = curl_multi_errno($mh);
+        echo $errno . PHP_EOL;
+        echo curl_multi_strerror($errno) . PHP_EOL;
 
-    try {
-        curl_multi_setopt($mh, -1, -1);
-    } catch (ValueError $exception) {
-        echo $exception->getMessage() . "\n";
-    }
+        try {
+            curl_multi_setopt($mh, -1, -1);
+        } catch (ValueError $exception) {
+            echo $exception->getMessage() . "\n";
+        }
 
-    $errno = curl_multi_errno($mh);
-    echo $errno . PHP_EOL;
-    echo curl_multi_strerror($errno) . PHP_EOL;
+        $errno = curl_multi_errno($mh);
+        echo $errno . PHP_EOL;
+        echo curl_multi_strerror($errno) . PHP_EOL;
+    });
 });
-?>
---EXPECTF--
-0
-No error
+$output = $pm->getChildOutput();
 
-Warning: curl_multi_setopt(): Invalid curl multi configuration option in %s on line %d
-6
-Unknown option
+Assert::contains($output, "0\nNo error");
+if (PHP_VERSION_ID < 80000) {
+    Assert::contains($output, "Warning: curl_multi_setopt(): Invalid curl multi configuration option");
+} else {
+    Assert::contains($output, "0\nNo error");
+    Assert::contains($output, "curl_multi_setopt(): Argument #2 (\$option) is not a valid cURL multi option");
+}
+Assert::contains($output, "6\nUnknown option");
+?>
+--EXPECT--

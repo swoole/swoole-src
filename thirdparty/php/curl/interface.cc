@@ -38,6 +38,18 @@ SW_EXTERN_C_BEGIN
 #define HttpPost curl_httppost
 #endif
 
+#ifndef RETVAL_COPY
+#define RETVAL_COPY(zv) ZVAL_COPY(return_value, zv)
+#endif
+
+#ifndef RETURN_COPY
+#define RETURN_COPY(zv)                                                                                                \
+    do {                                                                                                               \
+        RETVAL_COPY(zv);                                                                                               \
+        return;                                                                                                        \
+    } while (0)
+#endif
+
 /* {{{ cruft for thread safe SSL crypto locks */
 #if defined(ZTS) && defined(HAVE_CURL_SSL)
 #ifdef PHP_WIN32
@@ -112,6 +124,47 @@ int swoole_curl_get_le_curl_multi() {
     return;
 #endif
 
+void swoole_curl_set_in_coroutine(php_curl *ch, bool value) {
+#if PHP_VERSION_ID >= 80000
+    zend_update_property_bool(nullptr, &ch->std, ZEND_STRL("in_coroutine"), value);
+#else
+    ch->in_coroutine = 1;
+#endif
+}
+
+bool swoole_curl_is_in_coroutine(php_curl *ch) {
+#if PHP_VERSION_ID >= 80000
+    zval rv;
+    zval *zv = zend_read_property_ex(nullptr, &ch->std, SW_ZSTR_KNOWN(SW_ZEND_STR_IN_COROUTINE), 1, &rv);
+    return zval_is_true(zv);
+#else
+    return ch->in_coroutine;
+#endif
+}
+
+void swoole_curl_set_private_data(php_curl *ch, zval *zvalue) {
+#if PHP_VERSION_ID >= 80100 || PHP_VERSION_ID < 80000
+    zval_ptr_dtor(&ch->private_data);
+    ZVAL_COPY(&ch->private_data, zvalue);
+#else
+    zend_update_property_ex(nullptr, &ch->std, SW_ZSTR_KNOWN(SW_ZEND_STR_PRIVATE_DATA), zvalue);
+#endif
+}
+
+void swoole_curl_get_private_data(php_curl *ch, zval *return_value) {
+#if PHP_VERSION_ID >= 80100 || PHP_VERSION_ID < 80000
+    if (!Z_ISUNDEF(ch->private_data)) {
+        RETURN_COPY(&ch->private_data);
+    } else {
+        RETURN_FALSE;
+    }
+#else
+    zval rv;
+    zval *zv = zend_read_property_ex(nullptr, &ch->std, SW_ZSTR_KNOWN(SW_ZEND_STR_PRIVATE_DATA), 1, &rv);
+    RETURN_COPY(zv);
+#endif
+}
+
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
     php_curl *ch;
 #if PHP_VERSION_ID >= 80000
@@ -124,6 +177,10 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
         return nullptr;
     }
 #endif
+    if (SWOOLE_G(req_status) == PHP_SWOOLE_RSHUTDOWN_END) {
+        exclusive = false;
+    }
+
     if (exclusive) {
         swoole::curl::Handle *handle = nullptr;
         curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
@@ -135,21 +192,11 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
 }
 
 static long php_curl_easy_setopt_str(php_curl *ch, CURLoption option, const char *str) {
-    if (option == CURLOPT_PRIVATE) {
-        ch->private_data = str;
-        return CURLE_OK;
-    } else {
-        return curl_easy_setopt(ch->cp, option, str);
-    }
+    return curl_easy_setopt(ch->cp, option, str);
 }
 
 static long php_curl_easy_getinfo_str(php_curl *ch, CURLINFO option, char **value) {
-    if (option == CURLINFO_PRIVATE) {
-        *value = (char *) ch->private_data;
-        return CURLE_OK;
-    } else {
-        return curl_easy_getinfo(ch->cp, option, value);
-    }
+    return curl_easy_getinfo(ch->cp, option, value);
 }
 
 static int php_curl_option_str(php_curl *ch, zend_long option, const char *str, const size_t len, zend_bool make_copy) {
@@ -300,11 +347,11 @@ zend_class_entry *swoole_coroutine_curl_handle_ce;
 zend_class_entry *curl_share_ce;
 static zend_object_handlers swoole_coroutine_curl_handle_handlers;
 
-static zend_object *curl_create_object(zend_class_entry *class_type);
-static void curl_free_obj(zend_object *object);
-static HashTable *curl_get_gc(zend_object *object, zval **table, int *n);
-static zend_function *curl_get_constructor(zend_object *object);
-static zend_object *curl_clone_obj(zend_object *object);
+static zend_object *swoole_curl_create_object(zend_class_entry *class_type);
+static void swoole_curl_free_obj(zend_object *object);
+static zend_function *swoole_curl_get_constructor(zend_object *object);
+static zend_object *swoole_curl_clone_obj(zend_object *object);
+static HashTable *swoole_curl_get_gc(zend_object *object, zval **table, int *n);
 #endif
 
 static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields);
@@ -313,15 +360,21 @@ SW_EXTERN_C_END
 
 void swoole_native_curl_minit(int module_number) {
 #if PHP_VERSION_ID >= 80000
-    SW_INIT_CLASS_ENTRY(
-        swoole_coroutine_curl_handle, "Swoole\\Coroutine\\Curl\\Handle", nullptr, "Co\\Curl\\Handle", nullptr);
-    SW_SET_CLASS_NOT_SERIALIZABLE(swoole_coroutine_curl_handle);
-    SW_SET_CLASS_CUSTOM_OBJECT(swoole_coroutine_curl_handle, curl_create_object, curl_free_obj, php_curl, std);
+    swoole_coroutine_curl_handle_ce = curl_ce;
+    swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
+    memcpy(&swoole_coroutine_curl_handle_handlers, &std_object_handlers, sizeof(zend_object_handlers));
+    swoole_coroutine_curl_handle_handlers.offset = XtOffsetOf(php_curl, std);
+    swoole_coroutine_curl_handle_handlers.free_obj = swoole_curl_free_obj;
+    swoole_coroutine_curl_handle_handlers.get_gc = swoole_curl_get_gc;
+    swoole_coroutine_curl_handle_handlers.get_constructor = swoole_curl_get_constructor;
+    swoole_coroutine_curl_handle_handlers.clone_obj = swoole_curl_clone_obj;
+    swoole_coroutine_curl_handle_handlers.cast_object = swoole_curl_cast_object;
+    swoole_coroutine_curl_handle_handlers.compare = [](zval *o1, zval *o2) { return ZEND_UNCOMPARABLE; };
+
     swoole_coroutine_curl_handle_ce->ce_flags |= ZEND_ACC_FINAL | ZEND_ACC_NO_DYNAMIC_PROPERTIES;
-    swoole_coroutine_curl_handle_handlers.get_gc = curl_get_gc;
-    swoole_coroutine_curl_handle_handlers.get_constructor = curl_get_constructor;
-    swoole_coroutine_curl_handle_handlers.clone_obj = curl_clone_obj;
-    swoole_coroutine_curl_handle_handlers.cast_object = curl_cast_object;
+
+    zend_declare_property_bool(swoole_coroutine_curl_handle_ce, ZEND_STRL("in_coroutine"), 0, ZEND_ACC_PUBLIC);
+    zend_declare_property_null(swoole_coroutine_curl_handle_ce, ZEND_STRL("private_data"), ZEND_ACC_PUBLIC);
 
     curl_multi_register_class(nullptr);
 
@@ -345,7 +398,7 @@ void swoole_native_curl_minit(int module_number) {
 /* CurlHandle class */
 
 #if PHP_VERSION_ID >= 80000
-static zend_object *curl_create_object(zend_class_entry *class_type) {
+static zend_object *swoole_curl_create_object(zend_class_entry *class_type) {
     php_curl *intern = (php_curl *) zend_object_alloc(sizeof(php_curl), class_type);
 
     zend_object_std_init(&intern->std, class_type);
@@ -355,23 +408,24 @@ static zend_object *curl_create_object(zend_class_entry *class_type) {
     return &intern->std;
 }
 
-static zend_function *curl_get_constructor(zend_object *object) {
+static zend_function *swoole_curl_get_constructor(zend_object *object) {
     zend_throw_error(NULL, "Cannot directly construct CurlHandle, use curl_init() instead");
     return NULL;
 }
 
-static zend_object *curl_clone_obj(zend_object *object) {
+static zend_object *swoole_curl_clone_obj(zend_object *object) {
     php_curl *ch;
     CURL *cp;
     zval *postfields;
     zend_object *clone_object;
     php_curl *clone_ch;
 
-    clone_object = curl_create_object(curl_ce);
+    clone_object = swoole_curl_create_object(curl_ce);
     clone_ch = curl_from_obj(clone_object);
     swoole_curl_init_handle(clone_ch);
 
     ch = curl_from_obj(object);
+    swoole_curl_set_in_coroutine(clone_ch, swoole_curl_is_in_coroutine(ch));
     cp = curl_easy_duphandle(ch->cp);
     if (!cp) {
         zend_throw_exception(NULL, "Failed to clone CurlHandle", 0);
@@ -392,7 +446,7 @@ static zend_object *curl_clone_obj(zend_object *object) {
     return &clone_ch->std;
 }
 
-static HashTable *curl_get_gc(zend_object *object, zval **table, int *n) {
+static HashTable *swoole_curl_get_gc(zend_object *object, zval **table, int *n) {
     php_curl *curl = curl_from_obj(object);
 
     zend_get_gc_buffer *gc_buffer = zend_get_gc_buffer_create();
@@ -432,7 +486,7 @@ static HashTable *curl_get_gc(zend_object *object, zval **table, int *n) {
     return zend_std_get_properties(object);
 }
 
-int curl_cast_object(zend_object *obj, zval *result, int type) {
+int swoole_curl_cast_object(zend_object *obj, zval *result, int type) {
     if (type == IS_LONG) {
         /* For better backward compatibility, make (int) $curl_handle return the object ID,
          * similar to how it previously returned the resource ID. */
@@ -442,6 +496,7 @@ int curl_cast_object(zend_object *obj, zval *result, int type) {
 
     return zend_std_cast_object_tostring(obj, result, type);
 }
+
 #endif
 
 void swoole_native_curl_mshutdown() {}
@@ -880,6 +935,7 @@ php_curl *swoole_curl_alloc_handle()
 #if PHP_VERSION_ID < 80000
     php_curl *ch = (php_curl *) ecalloc(1, sizeof(php_curl));
 #endif
+
     ch->to_free = (struct _php_curl_free *) ecalloc(1, sizeof(struct _php_curl_free));
     ch->handlers = (php_curl_handlers *) ecalloc(1, sizeof(php_curl_handlers));
     ch->handlers->write = (php_curl_write *) ecalloc(1, sizeof(php_curl_write));
@@ -1011,6 +1067,7 @@ PHP_FUNCTION(swoole_native_curl_init) {
     ch->handlers->read->method = PHP_CURL_DIRECT;
     ch->handlers->write_header->method = PHP_CURL_IGNORE;
 
+    swoole_curl_set_in_coroutine(ch, true);
     _php_curl_set_default_options(ch);
 
     if (url) {
@@ -1768,10 +1825,8 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue) /* {{{
 
     /* Curl private option */
     case CURLOPT_PRIVATE: {
-        zend_string *str = zval_get_string(zvalue);
-        int ret = php_curl_option_str(ch, option, ZSTR_VAL(str), ZSTR_LEN(str), 1);
-        zend_string_release(str);
-        return ret;
+        swoole_curl_set_private_data(ch, zvalue);
+        return SUCCESS;
     }
 
     /* Curl url option */
@@ -2547,6 +2602,10 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
             break;
         }
 #endif
+        case CURLINFO_PRIVATE: {
+            swoole_curl_get_private_data(ch, return_value);
+            return;
+        }
         default: {
             int type = CURLINFO_TYPEMASK & option;
             switch (type) {
@@ -2728,7 +2787,9 @@ static void _php_curl_free(php_curl *ch) {
         efree(ch->to_free);
         efree(ch->clone);
 
-        delete handle;
+        if (handle) {
+            delete handle;
+        }
         curl_easy_setopt(ch->cp, CURLOPT_PRIVATE, nullptr);
     }
 
@@ -2767,6 +2828,9 @@ static void _php_curl_free(php_curl *ch) {
 
     efree(ch->handlers);
     zval_ptr_dtor(&ch->postfields);
+#if PHP_VERSION_ID >= 80100 || PHP_VERSION_ID < 80000
+    zval_ptr_dtor(&ch->private_data);
+#endif
 
 #if PHP_VERSION_ID >= 80000
     if (ch->share) {
@@ -2776,7 +2840,7 @@ static void _php_curl_free(php_curl *ch) {
 }
 
 #if PHP_VERSION_ID >= 80000
-static void curl_free_obj(zend_object *object) {
+static void swoole_curl_free_obj(zend_object *object) {
     php_curl *ch = curl_from_obj(object);
 
 #if PHP_CURL_DEBUG

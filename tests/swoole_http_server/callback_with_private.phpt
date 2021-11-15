@@ -38,6 +38,10 @@ $pm->run(true);
 //Fatal Error
 $pm->expectExitCode(255);
 $output = $pm->getChildOutput();
-Assert::contains($output, 'Swoole\Server::on() must be callable');
+if (PHP_VERSION_ID < 80000) {
+    Assert::contains($output, 'Swoole\Server::on() must be callable');
+} else {
+    Assert::contains($output, 'Swoole\Server::on(): function \'TestCo_9::foo\' is not callable');
+}
 ?>
 --EXPECT--

@@ -19,7 +19,7 @@ Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 run(function () {
     $ch = curl_multi_init();
     curl_multi_close($ch);
-    curl_type_assert($ch, 'Swoole-Coroutine-cURL-Multi-Handle', Swoole\Coroutine\Curl\MultiHandle::class);
+    curl_type_assert($ch, 'Swoole-Coroutine-cURL-Multi-Handle', CurlMultiHandle::class);
 });
 ?>
 --EXPECT--

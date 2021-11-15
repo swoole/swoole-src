@@ -2,6 +2,11 @@
 <?php
 require __DIR__ . '/bootstrap.php';
 
+if (PHP_VERSION_ID < 80000) {
+    swoole_error('Require PHP version 8.0 or later, current version: '. PHP_VERSION);
+    exit;
+}
+
 $builder = new SwooleLibraryBuilder();
 $builder->libraryDir = LIBRARY_DIR;
 $builder->librarySrcDir = LIBRARY_SRC_DIR;

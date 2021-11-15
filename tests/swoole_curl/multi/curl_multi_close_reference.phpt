@@ -22,8 +22,8 @@ run(function () {
     curl_multi_add_handle($mh, curl_init());
     curl_multi_add_handle($mh, curl_init());
     curl_multi_add_handle($mh, curl_init());
-    echo "okey";
+    echo "DONE\n";
 });
 ?>
 --EXPECT--
-okey
+DONE
