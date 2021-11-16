@@ -221,13 +221,14 @@ static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
         signals[signo].activated = true;
     }
 
+    if (signal_fd == 0) {
+        swoole_signalfd_create();
+    } else {
+        sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
+        signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
+    }
+
     if (sw_reactor()) {
-        if (signal_fd == 0) {
-            swoole_signalfd_create();
-        } else {
-            sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
-            signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
-        }
         swoole_signalfd_setup(sw_reactor());
     }
 

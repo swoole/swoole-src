@@ -259,7 +259,7 @@ bool System::wait_signal(int signo, double timeout) {
 
     /* resgiter signal */
     listeners[signo] = co;
-    // for swSignalfd_setup
+    // for swoole_signalfd_setup
     sw_reactor()->check_signalfd = true;
     // exit condition
     if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
