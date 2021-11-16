@@ -30,6 +30,12 @@ SW_EXTERN_C_END
 #include <brotli/encode.h>
 #endif
 
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_http_request_arginfo.h"
+#else
+#include "stubs/php_swoole_http_request_legacy_arginfo.h"
+#endif
+
 enum http_upload_errno {
     HTTP_UPLOAD_ERR_OK = 0,
     HTTP_UPLOAD_ERR_INI_SIZE,
@@ -197,27 +203,16 @@ static PHP_METHOD(swoole_http_request, __destruct);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_create, 0, 0, 0)
-ZEND_ARG_INFO(0, options)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_parse, 0, 0, 1)
-ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_http_request_methods[] =
 {
-    PHP_ME(swoole_http_request, getContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_http_request, rawContent, getContent, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, getData, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, create, arginfo_swoole_http_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_http_request, parse, arginfo_swoole_http_parse, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, isCompleted, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, getMethod, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_request, __destruct, arginfo_swoole_http_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getContent, arginfo_class_Swoole_Http_Request_getContent, ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_http_request, rawContent, getContent, arginfo_class_Swoole_Http_Request_getContent, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getData, arginfo_class_Swoole_Http_Request_getData, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, create, arginfo_class_Swoole_Http_Request_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_http_request, parse, arginfo_class_Swoole_Http_Request_parse, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, isCompleted, arginfo_class_Swoole_Http_Request_isCompleted, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, getMethod, arginfo_class_Swoole_Http_Request_getMethod, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_request, __destruct, arginfo_class_Swoole_Http_Request___destruct, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
