@@ -24,7 +24,6 @@ using swoole::Timer;
 using swoole::TimerNode;
 
 TEST(timer, sys) {
-    SwooleG.use_signalfd = 0;
     int timer1_count = 0;
     int timer2_count = 0;
     int timer_running = true;
