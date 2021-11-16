@@ -687,12 +687,6 @@ int Server::start_reactor_threads() {
 
     Reactor *reactor = sw_reactor();
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd) {
-        swoole_signalfd_setup(reactor);
-    }
-#endif
-
     for (auto iter = ports.begin(); iter != ports.end(); iter++) {
         auto port = *iter;
         if (port->is_dgram()) {

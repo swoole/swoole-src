@@ -56,7 +56,9 @@
 #include <sys/utsname.h>
 #include <sys/time.h>
 
+#include <string>
 #include <memory>
+#include <list>
 #include <functional>
 
 typedef unsigned long ulong_t;
@@ -428,6 +430,12 @@ enum swForkType {
     SW_FORK_PRECHECK = 1 << 3,
 };
 
+enum swTraverseOperation {
+    SW_TRAVERSE_KEEP = 0,
+    SW_TRAVERSE_REMOVE = 1,
+    SW_TRAVERSE_STOP = 2,
+};
+
 //-------------------------------------------------------------------------------
 #define sw_yield() sched_yield()
 
@@ -634,15 +642,41 @@ struct Allocator {
     void (*free)(void *ptr);
 };
 
+struct NameResolver {
+    enum Type {
+        TYPE_KERNEL,
+        TYPE_PHP,
+        TYPE_USER,
+    };
+    struct Context {
+        int type;
+        double timeout;
+        void *private_data;
+        bool with_port;
+        bool cluster_;
+        bool final_;
+        std::function<void(Context *ctx)> dtor;
+
+        ~Context() {
+            if (private_data && dtor) {
+                dtor(this);
+            }
+        }
+    };
+    std::function<std::string(const std::string &, Context *, void *)> resolve;
+    void *private_data;
+    enum Type type;
+};
+
 struct Global {
     uchar init : 1;
     uchar running : 1;
-    uchar use_signalfd : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;
     uchar socket_dontwait : 1;
     uchar dns_lookup_random : 1;
     uchar use_async_resolver : 1;
+    uchar use_name_resolver : 1;
 
     int process_type;
     uint32_t process_id;
@@ -672,6 +706,7 @@ struct Global {
     int dns_tries;
     std::string dns_resolvconf_path;
     std::string dns_hosts_path;
+    std::list<NameResolver> name_resolvers;
     //-----------------------[AIO]--------------------------
     uint32_t aio_core_worker_num;
     uint32_t aio_worker_num;
@@ -726,6 +761,10 @@ SW_API void swoole_set_dns_server(const std::string &server);
 SW_API void swoole_set_hosts_path(const std::string &hosts_file);
 SW_API std::pair<std::string, int> swoole_get_dns_server();
 SW_API bool swoole_load_resolv_conf();
+SW_API void swoole_name_resolver_add(const swoole::NameResolver &resolver, bool append = true);
+SW_API void swoole_name_resolver_each(
+    const std::function<enum swTraverseOperation(const std::list<swoole::NameResolver>::iterator &iter)> &fn);
+SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, swoole::NameResolver::Context *ctx);
 
 //-----------------------------------------------
 static sw_inline void sw_spinlock(sw_atomic_t *lock) {

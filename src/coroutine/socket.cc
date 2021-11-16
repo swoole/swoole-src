@@ -145,18 +145,16 @@ bool Socket::wait_event(const EventType event, const void **__buf, size_t __n) {
         return false;
     }
     swoole_trace_log(SW_TRACE_SOCKET,
-               "socket#%d blongs to cid#%ld is waiting for %s event",
-               sock_fd,
-               co->get_cid(),
+                     "socket#%d blongs to cid#%ld is waiting for %s event",
+                     sock_fd,
+                     co->get_cid(),
 #ifdef SW_USE_OPENSSL
-               socket->ssl_want_read ? "SSL READ"
-                                     : socket->ssl_want_write ? "SSL WRITE" :
+                     socket->ssl_want_read ? "SSL READ"
+                                           : socket->ssl_want_write ? "SSL WRITE" :
 #endif
-                                                              event == SW_EVENT_READ ? "READ" : "WRITE");
+                                                                    event == SW_EVENT_READ ? "READ" : "WRITE");
 
-    Coroutine::CancelFunc cancel_fn = [this, event](Coroutine *co){
-        return cancel(event);
-    };
+    Coroutine::CancelFunc cancel_fn = [this, event](Coroutine *co) { return cancel(event); };
 
     if (sw_likely(event == SW_EVENT_READ)) {
         read_co = co;
@@ -195,12 +193,12 @@ _failed:
     want_event = SW_EVENT_NULL;
 #endif
     swoole_trace_log(SW_TRACE_SOCKET,
-               "socket#%d blongs to cid#%ld trigger %s event",
-               sock_fd,
-               co->get_cid(),
-               closed ? "CLOSE"
-                      : errCode ? errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR"
-                                : added_event == SW_EVENT_READ ? "READ" : "WRITE");
+                     "socket#%d blongs to cid#%ld trigger %s event",
+                     sock_fd,
+                     co->get_cid(),
+                     closed ? "CLOSE"
+                            : errCode ? errCode == ETIMEDOUT ? "TIMEOUT" : "ERROR"
+                                      : added_event == SW_EVENT_READ ? "READ" : "WRITE");
     return !closed && !errCode;
 }
 
@@ -648,23 +646,54 @@ bool Socket::connect(std::string _host, int _port, int flags) {
     connect_port = _port;
 
     struct sockaddr *_target_addr = nullptr;
+    NameResolver::Context *ctx = resolve_context_;
+
+    NameResolver::Context _ctx{};
+    if (ctx == nullptr) {
+        ctx = &_ctx;
+    }
+    ctx->timeout = dns_timeout;
+
+    std::once_flag oc;
+    auto name_resolve_fn = [ctx, &oc, this](int type) -> bool {
+        ctx->type = type;
+#ifdef SW_USE_OPENSSL
+        std::call_once(oc, [this]() {
+            if (ssl_context && !(socks5_proxy || http_proxy)) {
+                ssl_host_name = connect_host;
+            }
+        });
+#endif
+        /* locked like wait_event */
+        read_co = write_co = Coroutine::get_current_safe();
+        ON_SCOPE_EXIT {
+            read_co = write_co = nullptr;
+        };
+        std::string addr = swoole_name_resolver_lookup(connect_host, ctx);
+        if (addr.empty()) {
+            set_err(swoole_get_last_error());
+            return false;
+        }
+        if (ctx->with_port) {
+            char delimiter = type == AF_INET6 ? '@' : ':';
+            auto port_pos = addr.find_first_of(delimiter);
+            if (port_pos != addr.npos) {
+                connect_port = std::stoi(addr.substr(port_pos + 1));
+                connect_host = addr.substr(0, port_pos);
+                return true;
+            }
+        }
+        connect_host = addr;
+        return true;
+    };
 
     for (int i = 0; i < 2; i++) {
         if (sock_domain == AF_INET) {
             socket->info.addr.inet_v4.sin_family = AF_INET;
-            socket->info.addr.inet_v4.sin_port = htons(_port);
+            socket->info.addr.inet_v4.sin_port = htons(connect_port);
 
             if (!inet_pton(AF_INET, connect_host.c_str(), &socket->info.addr.inet_v4.sin_addr)) {
-#ifdef SW_USE_OPENSSL
-                if (ssl_context && !(socks5_proxy || http_proxy)) {
-                    ssl_host_name = connect_host;
-                }
-#endif
-                /* locked like wait_event */
-                read_co = write_co = Coroutine::get_current_safe();
-                connect_host = System::gethostbyname(connect_host, AF_INET, dns_timeout);
-                read_co = write_co = nullptr;
-                if (connect_host.empty()) {
+                if (!name_resolve_fn(AF_INET)) {
                     set_err(swoole_get_last_error(), swoole_strerror(swoole_get_last_error()));
                     return false;
                 }
@@ -676,16 +705,10 @@ bool Socket::connect(std::string _host, int _port, int flags) {
             }
         } else if (sock_domain == AF_INET6) {
             socket->info.addr.inet_v6.sin6_family = AF_INET6;
-            socket->info.addr.inet_v6.sin6_port = htons(_port);
+            socket->info.addr.inet_v6.sin6_port = htons(connect_port);
 
             if (!inet_pton(AF_INET6, connect_host.c_str(), &socket->info.addr.inet_v6.sin6_addr)) {
-#ifdef SW_USE_OPENSSL
-                if (ssl_context && !(socks5_proxy || http_proxy)) {
-                    ssl_host_name = connect_host;
-                }
-#endif
-                connect_host = System::gethostbyname(connect_host, AF_INET6, dns_timeout);
-                if (connect_host.empty()) {
+                if (!name_resolve_fn(AF_INET6)) {
                     set_err(swoole_get_last_error());
                     return false;
                 }
@@ -1491,11 +1514,11 @@ _get_length:
     } else if (packet_len > protocol.package_max_length) {
         read_buffer->clear();
         swoole_error_log(SW_LOG_WARNING,
-                            SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
-                            "packet length is too big, remote_addr=%s:%d, length=%zu",
-                            socket->info.get_ip(),
-                            socket->info.get_port(),
-                            packet_len);
+                         SW_ERROR_PACKAGE_LENGTH_TOO_LARGE,
+                         "packet length is too big, remote_addr=%s:%d, length=%zu",
+                         socket->info.get_ip(),
+                         socket->info.get_port(),
+                         packet_len);
         set_err(SW_ERROR_PACKAGE_LENGTH_TOO_LARGE, sw_error);
         return -1;
     }

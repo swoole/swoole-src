@@ -41,9 +41,12 @@
 #include "swoole_async.h"
 #include "swoole_c_api.h"
 #include "swoole_coroutine_c_api.h"
+#include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
 
+using swoole::NameResolver;
 using swoole::String;
+using swoole::coroutine::System;
 
 #ifdef HAVE_GETRANDOM
 #include <sys/random.h>
@@ -129,6 +132,7 @@ static void bug_report_message_init() {
 
 #endif
 }
+
 void swoole_init(void) {
     if (SwooleG.init) {
         return;
@@ -184,7 +188,6 @@ void swoole_init(void) {
     // init signalfd
 #ifdef HAVE_SIGNALFD
     swoole_signalfd_init();
-    SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
 

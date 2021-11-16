@@ -510,8 +510,6 @@ static PHP_METHOD(swoole_process_pool, start) {
 
     ProcessPoolProperty *pp = php_swoole_process_pool_get_and_check_pp(ZEND_THIS);
 
-    SwooleG.use_signalfd = 0;
-
     std::unordered_map<int, swSignalHandler> ori_handlers;
 
     ori_handlers[SIGTERM] = swoole_signal_set(SIGTERM, pool_signal_handler);

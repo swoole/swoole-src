@@ -18,6 +18,7 @@
 */
 
 #include "test_coroutine.h"
+#include "swoole_pipe.h"
 
 using namespace swoole;
 using namespace swoole::test;
@@ -44,20 +45,19 @@ TEST(coroutine_system, file) {
 }
 
 TEST(coroutine_system, flock) {
-
     std::shared_ptr<String> buf = std::make_shared<String>(65536);
     ASSERT_EQ(swoole_random_bytes(buf->str, buf->size - 1), buf->size - 1);
     buf->str[buf->size - 1] = 0;
 
     swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
 
-    Coroutine::create([&buf](void*) {
+    Coroutine::create([&buf](void *) {
         int fd = swoole_coroutine_open(test_file, File::WRITE | File::CREATE, 0666);
         ASSERT_TRUE(fd > 0);
         swoole_coroutine_flock_ex(test_file, fd, LOCK_EX);
 
         for (int i = 0; i < 4; i++) {
-            Coroutine::create([&buf](void*) {
+            Coroutine::create([&buf](void *) {
                 int fd = swoole_coroutine_open(test_file, File::READ, 0);
                 ASSERT_TRUE(fd > 0);
                 swoole_coroutine_flock_ex(test_file, fd, LOCK_SH);
@@ -84,10 +84,102 @@ TEST(coroutine_system, flock) {
 TEST(coroutine_system, cancel_sleep) {
     test::coroutine::run([](void *arg) {
         auto co = Coroutine::get_current_safe();
-        Coroutine::create([co](void *){
+        Coroutine::create([co](void *) {
             System::sleep(0.002);
             co->cancel();
         });
         System::sleep(1000);
+    });
+}
+
+TEST(coroutine_system, getaddrinfo) {
+    test::coroutine::run([](void *arg) {
+        std::vector<std::string> ip_list = System::getaddrinfo("www.baidu.com", AF_INET, SOCK_STREAM, 0, "http", 1);
+        ASSERT_GT(ip_list.size(), 0);
+        for (auto &ip : ip_list) {
+            ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+        }
+    });
+}
+
+TEST(coroutine_system, wait_signal) {
+    test::coroutine::run([](void *arg) {
+        Coroutine::create([](void *) {
+            System::sleep(0.002);
+            kill(getpid(), SIGUSR1);
+        });
+        ASSERT_TRUE(System::wait_signal(SIGUSR1, 1.0));
+        ASSERT_FALSE(System::wait_signal(SIGUSR2, 0.1));
+    });
+}
+
+static const char *GREETING = "hello world, hello swoole";
+
+TEST(coroutine_system, wait_event_readable) {
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
+
+    test::coroutine::run([&p](void *arg) {
+        Coroutine::create([&p](void *) {
+            System::sleep(0.002);
+            ASSERT_GT(p.write(GREETING, strlen(GREETING)), 0);
+        });
+
+        char buffer[128];
+        auto pipe_sock = p.get_socket(false);
+        System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 1);
+        ssize_t n = pipe_sock->read(buffer, sizeof(buffer));
+        buffer[n] = 0;
+        EXPECT_EQ(strlen(GREETING), n);
+        EXPECT_STREQ(GREETING, buffer);
+    });
+}
+
+TEST(coroutine_system, wait_event_writable) {
+    UnixSocket p(true, SOCK_STREAM);
+    ASSERT_TRUE(p.ready());
+    p.set_blocking(false);
+    p.set_buffer_size(65536);
+    sw_tg_buffer()->clear();
+
+    String str(2 * SW_NUM_MILLION);
+    str.append_random_bytes(str.size - 1, false);
+    str.append('\0');
+
+    test::coroutine::run([&](void *arg) {
+        Coroutine::create([&](void *) {
+            System::sleep(0.002);
+            auto pipe_sock = p.get_socket(true);
+
+            char *ptr = str.value();
+            size_t len = str.get_length();
+
+            while (len > 0) {
+                ssize_t retval = pipe_sock->write(ptr, len > 8192 ? 8192 : len);
+                if (retval > 0) {
+                    ptr += retval;
+                    len -= retval;
+                } else if (retval == 0 || (retval < 0 && errno != EAGAIN)) {
+                    break;
+                }
+                System::wait_event(pipe_sock->get_fd(), SW_EVENT_WRITE, 1);
+            }
+        });
+
+        auto pipe_sock = p.get_socket(false);
+        auto tg_buf = sw_tg_buffer();
+
+        while (tg_buf->length < str.size - 1) {
+            ssize_t retval = pipe_sock->read(tg_buf->str + tg_buf->length, tg_buf->size - tg_buf->length);
+            if (retval > 0) {
+                tg_buf->grow(retval);
+                continue;
+            } else if (retval == 0 && (retval < 0 && errno != EAGAIN)) {
+                break;
+            }
+            System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 1);
+        }
+        tg_buf->append('\0');
+        EXPECT_STREQ(sw_tg_buffer()->value(), str.value());
     });
 }

@@ -95,17 +95,8 @@ void php_swoole_server_rshutdown() {
             swoole_error_log(SW_LOG_ERROR,
                              SW_ERROR_PHP_FATAL_ERROR,
                              "Fatal error: %s in %s on line %d",
-#if PHP_VERSION_ID < 80000
-                             PG(last_error_message),
-#else
-                             PG(last_error_message)->val,
-#endif
-
-#if PHP_VERSION_ID >= 80100
-                             PG(last_error_file) ? PG(last_error_file)->val : "-",
-#else
-                             PG(last_error_file) ? PG(last_error_file) : "-",
-#endif
+                             php_swoole_get_last_error_message(),
+                             php_swoole_get_last_error_file(),
                              PG(last_error_lineno));
         } else {
             swoole_error_log(

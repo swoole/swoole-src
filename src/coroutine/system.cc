@@ -259,16 +259,12 @@ bool System::wait_signal(int signo, double timeout) {
 
     /* resgiter signal */
     listeners[signo] = co;
-    // for swSignalfd_setup
-    sw_reactor()->check_signalfd = true;
     // exit condition
     if (!sw_reactor()->isset_exit_condition(Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER)) {
         sw_reactor()->set_exit_condition(
             Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER,
             [](Reactor *reactor, size_t &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
     }
-    /* always enable signalfd */
-    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
     swoole_signal_set(signo, [](int signo) {
         Coroutine *co = listeners[signo];
         if (co) {

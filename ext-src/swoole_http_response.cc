@@ -395,7 +395,7 @@ static void http_build_header(HttpContext *ctx, String *response, size_t body_le
         int type;
         zval *zvalue;
 
-        auto add_header = [](swoole::String *response, const char *key, size_t l_key, zval *value) {
+        auto add_header = [](String *response, const char *key, size_t l_key, zval *value) {
             if (ZVAL_IS_NULL(value)) {
                 return;
             }
@@ -708,6 +708,10 @@ static PHP_METHOD(swoole_http_response, end) {
         ctx->onAfterResponse(ctx);
     }
 
+    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
+        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
+    }
+
 #ifdef SW_USE_HTTP2
     if (ctx->http2) {
         ctx->http2_end(zdata, return_value);
@@ -917,6 +921,9 @@ static PHP_METHOD(swoole_http_response, sendfile) {
 
     if (ctx->onAfterResponse) {
         ctx->onAfterResponse(ctx);
+    }
+    if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
+        swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
 
 #ifdef SW_USE_HTTP2

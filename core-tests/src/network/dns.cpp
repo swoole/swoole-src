@@ -139,3 +139,59 @@ TEST(dns, gethosts) {
     ip = swoole::coroutine::get_ip_by_hosts("non.exist.com");
     ASSERT_EQ(ip, "");
 }
+
+void name_resolver_test_fn_1() {
+    NameResolver::Context ctx{};
+    ctx.type = AF_INET;
+    ctx.timeout = 1;
+    ASSERT_EQ("127.0.0.1", swoole_name_resolver_lookup("localhost", &ctx));
+}
+
+void name_resolver_test_fn_2() {
+    NameResolver::Context ctx;
+    std::string domain = "non.exist.com";
+    NameResolver nr{[](const std::string &domain, NameResolver::Context *ctx, void *) -> std::string {
+                        if (domain == "name1") {
+                            return "127.0.0.2";
+                        } else if (domain == "www.baidu.com") {
+                            ctx->final_ = true;
+                            return "";
+                        }
+                        return "";
+                    },
+                    nullptr,
+                    NameResolver::TYPE_USER};
+
+    swoole_name_resolver_add(nr);
+
+    ctx = {AF_INET};
+    ASSERT_EQ("127.0.0.2", swoole_name_resolver_lookup("name1", &ctx));
+
+    ctx = {AF_INET};
+    ASSERT_EQ("", swoole_name_resolver_lookup("www.baidu.com", &ctx));
+
+    ctx = {AF_INET};
+    ASSERT_EQ("127.0.0.1", swoole_name_resolver_lookup("localhost", &ctx));
+
+    swoole_name_resolver_each([](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
+        if (iter->type == NameResolver::TYPE_USER) {
+            return SW_TRAVERSE_REMOVE;
+        } else {
+            return SW_TRAVERSE_KEEP;
+        }
+    });
+
+    ctx = {AF_INET};
+    auto ip = swoole_name_resolver_lookup("www.baidu.com", &ctx);
+    ASSERT_TRUE(swoole::network::Address::verify_ip(AF_INET, ip));
+}
+
+TEST(dns, name_resolver_1) {
+    name_resolver_test_fn_1();
+    test::coroutine::run([](void *arg) { name_resolver_test_fn_1(); });
+}
+
+TEST(dns, name_resolver_2) {
+    name_resolver_test_fn_2();
+    test::coroutine::run([](void *arg) { name_resolver_test_fn_2(); });
+}

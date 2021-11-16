@@ -20,9 +20,10 @@
 
 #include <queue>
 
-using swoole::Reactor;
 using swoole::Coroutine;
+using swoole::NameResolver;
 using swoole::PHPCoroutine;
+using swoole::Reactor;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 
@@ -139,10 +140,22 @@ static bool php_swoole_coroutine_reactor_can_exit(Reactor *reactor, size_t &even
     return !(Z_TYPE_P(&retval) == IS_FALSE);
 }
 
+void php_swoole_coroutine_scheduler_rshutdown() {
+    swoole_name_resolver_each([](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
+        if (iter->type == NameResolver::TYPE_PHP) {
+            zval_dtor((zval *) iter->private_data);
+            efree(iter->private_data);
+            return SW_TRAVERSE_REMOVE;
+        } else {
+            return SW_TRAVERSE_KEEP;
+        }
+    });
+}
+
 void php_swoole_set_coroutine_option(zend_array *vht) {
     zval *ztmp;
     if (php_swoole_array_get_value(vht, "max_coro_num", ztmp) ||
-            php_swoole_array_get_value(vht, "max_coroutine", ztmp)) {
+        php_swoole_array_get_value(vht, "max_coroutine", ztmp)) {
         zend_long max_num = zval_get_long(ztmp);
         PHPCoroutine::set_max_num(max_num <= 0 ? SW_DEFAULT_MAX_CORO_NUM : max_num);
     }
@@ -157,6 +170,16 @@ void php_swoole_set_coroutine_option(zend_array *vht) {
     }
     if (php_swoole_array_get_value(vht, "c_stack_size", ztmp) || php_swoole_array_get_value(vht, "stack_size", ztmp)) {
         Coroutine::set_stack_size(zval_get_long(ztmp));
+    }
+    if (php_swoole_array_get_value(vht, "name_resolver", ztmp)) {
+        if (!ZVAL_IS_ARRAY(ztmp)) {
+            php_swoole_fatal_error(E_WARNING, "name_resolver must be an array");
+        } else {
+            zend_hash_apply(Z_ARR_P(ztmp), [](zval *zresolver) -> int {
+                php_swoole_name_resolver_add(zresolver);
+                return ZEND_HASH_APPLY_KEEP;
+            });
+        }
     }
     if (PHPCoroutine::options) {
         zend_hash_merge(PHPCoroutine::options, vht, zval_add_ref, true);

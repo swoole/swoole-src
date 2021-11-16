@@ -232,12 +232,12 @@ class Socket {
         long cid = get_bound_cid(event);
         if (sw_unlikely(cid)) {
             swoole_fatal_error(SW_ERROR_CO_HAS_BEEN_BOUND,
-                         "Socket#%d has already been bound to another coroutine#%ld, "
-                         "%s of the same socket in coroutine#%ld at the same time is not allowed",
-                         sock_fd,
-                         cid,
-                         get_event_str(event),
-                         Coroutine::get_current_cid());
+                               "Socket#%d has already been bound to another coroutine#%ld, "
+                               "%s of the same socket in coroutine#%ld at the same time is not allowed",
+                               sock_fd,
+                               cid,
+                               get_event_str(event),
+                               Coroutine::get_current_cid());
         }
     }
 
@@ -325,6 +325,10 @@ class Socket {
             }
         }
         return write_buffer;
+    }
+
+    void set_resolve_context(NameResolver::Context *ctx) {
+        resolve_context_ = ctx;
     }
 
     inline String *pop_read_buffer() {
@@ -468,9 +472,12 @@ class Socket {
 
     bool add_event(const EventType event);
     bool wait_event(const EventType event, const void **__buf = nullptr, size_t __n = 0);
+    bool try_connect();
 
     ssize_t recv_packet_with_length_protocol();
     ssize_t recv_packet_with_eof_protocol();
+
+    NameResolver::Context *resolve_context_ = nullptr;
 
     inline bool is_available(const EventType event) {
         if (event != SW_EVENT_NULL) {

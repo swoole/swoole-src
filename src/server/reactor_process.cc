@@ -152,11 +152,6 @@ int Server::start_reactor_processes() {
     SwooleG.pid = gs->manager_pid = getpid();
     SwooleG.process_type = SW_PROCESS_MANAGER;
 
-    /**
-     * manager process can not use signalfd
-     */
-    SwooleG.use_signalfd = 0;
-
     gs->event_workers.onWorkerMessage = read_worker_message;
     gs->event_workers.start();
 
@@ -272,6 +267,8 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
         SwooleTG.timer->reinit(reactor);
     }
 
+    Server::worker_signal_init();
+
     for (auto ls : serv->ports) {
 #ifdef HAVE_REUSEPORT
         if (ls->is_stream() && serv->enable_reuse_port) {
@@ -288,13 +285,6 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
 
     reactor->id = worker->id;
     reactor->ptr = serv;
-
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd) {
-        swoole_signalfd_setup(SwooleTG.reactor);
-    }
-#endif
-
     reactor->max_socket = serv->get_max_connection();
 
     reactor->close = Server::close_connection;

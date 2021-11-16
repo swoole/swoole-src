@@ -60,8 +60,12 @@ void String::reduce(off_t _offset) {
     memmove(str, str + _offset, length);
 }
 
-void String::print() {
-    printf("String[length=%zu,size=%zu,offset=%jd]=%.*s\n", length, size, (intmax_t) offset, (int) length, str);
+void String::print(bool print_value) {
+    if (print_value) {
+        printf("String[length=%zu,size=%zu,offset=%jd]=%.*s\n", length, size, (intmax_t) offset, (int) length, str);
+    } else {
+        printf("String[length=%zu,size=%zu,offset=%jd]=%p\n", length, size, (intmax_t) offset, str);
+    }
 }
 
 int String::append(int value) {

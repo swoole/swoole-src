@@ -62,12 +62,12 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
     } else {                                                                                                           \
         RETURN_TRUE;                                                                                                   \
     }
-#define SW_LOCK_CHECK_RETURN(s)																						   \
-    zend_long ___tmp_return_value = s; 																				   \
+#define SW_LOCK_CHECK_RETURN(s)                                                                                        \
+    zend_long ___tmp_return_value = s;                                                                                 \
     if (___tmp_return_value == 0) {                                                                                    \
         RETURN_TRUE;                                                                                                   \
     } else {                                                                                                           \
-        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value );             \
+        zend_update_property_long(NULL, SW_Z8_OBJ_P(ZEND_THIS), SW_STRL("errCode"), ___tmp_return_value);              \
         RETURN_FALSE;                                                                                                  \
     }
 
@@ -150,6 +150,8 @@ enum php_swoole_req_status {
 enum php_swoole_hook_type {
     PHP_SWOOLE_HOOK_BEFORE_ENABLE_HOOK = SW_GLOBAL_HOOK_USER,
     PHP_SWOOLE_HOOK_AFTER_ENABLE_HOOK,
+    PHP_SWOOLE_HOOK_BEFORE_REQUEST,
+    PHP_SWOOLE_HOOK_AFTER_RESPONSE,
 };
 //---------------------------------------------------------
 
@@ -176,6 +178,8 @@ extern zend_class_entry *swoole_server_port_ce;
 extern zend_class_entry *swoole_exception_ce;
 extern zend_object_handlers swoole_exception_handlers;
 extern zend_class_entry *swoole_error_ce;
+extern zend_class_entry *swoole_resolve_context_ce;
+extern zend_object_handlers swoole_resolve_context_handlers;
 
 PHP_FUNCTION(swoole_clear_dns_cache);
 PHP_FUNCTION(swoole_last_error);
@@ -214,6 +218,7 @@ void php_swoole_event_minit(int module_number);
 // base
 void php_swoole_atomic_minit(int module_number);
 void php_swoole_lock_minit(int module_number);
+int swoole_resolve_context_module_init(INIT_FUNC_ARGS);
 void php_swoole_process_minit(int module_number);
 void php_swoole_process_pool_minit(int module_number);
 void php_swoole_table_minit(int module_number);
@@ -246,6 +251,7 @@ void php_swoole_http_server_minit(int module_number);
 void php_swoole_http_server_coro_minit(int module_number);
 void php_swoole_websocket_server_minit(int module_number);
 void php_swoole_redis_server_minit(int module_number);
+void php_swoole_name_resolver_minit(int module_number);
 
 /**
  * RINIT
@@ -261,6 +267,7 @@ void php_swoole_runtime_rinit();
 void php_swoole_async_coro_rshutdown();
 void php_swoole_redis_server_rshutdown();
 void php_swoole_coroutine_rshutdown();
+void php_swoole_coroutine_scheduler_rshutdown();
 void php_swoole_runtime_rshutdown();
 void php_swoole_server_rshutdown();
 
@@ -612,6 +619,10 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
         if (short_name) SW_CLASS_ALIAS_SHORT_NAME(short_name, module);                                                 \
     } while (0)
 
+#define SW_INIT_CLASS_ENTRY_STD(module, namespace_name, methods)                                                       \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, nullptr, nullptr, methods, NULL);                                 \
+    memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
+
 #define SW_INIT_CLASS_ENTRY(module, namespace_name, snake_name, short_name, methods)                                   \
     SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, NULL);                           \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
@@ -646,11 +657,10 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 #if PHP_VERSION_ID < 80100
 #define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->serialize = zend_class_serialize_deny;                                                                               \
+    module##_ce->serialize = zend_class_serialize_deny;                                                                \
     module##_ce->unserialize = zend_class_unserialize_deny;
 #else
-#define SW_SET_CLASS_NOT_SERIALIZABLE(module)                                                                          \
-    module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
+#define SW_SET_CLASS_NOT_SERIALIZABLE(module) module##_ce->ce_flags |= ZEND_ACC_NOT_SERIALIZABLE;
 #endif
 
 #define sw_zend_class_clone_deny NULL
@@ -1041,6 +1051,12 @@ static sw_inline void sw_zend_fci_cache_free(void *fci_cache) {
     efree((zend_fcall_info_cache *) fci_cache);
 }
 
+#if PHP_VERSION_ID >= 80100
+#define sw_php_spl_object_hash(o)  php_spl_object_hash(Z_OBJ_P(o))
+#else
+#define sw_php_spl_object_hash(o)  php_spl_object_hash(o)
+#endif
+
 //----------------------------------Misc API------------------------------------
 
 static sw_inline int php_swoole_check_reactor() {
@@ -1089,6 +1105,22 @@ static sw_inline char *php_swoole_http_build_query(zval *zdata, size_t *length, 
     smart_str_0(formstr);
     *length = formstr->s->len;
     return formstr->s->val;
+}
+
+static inline const char *php_swoole_get_last_error_message() {
+#if PHP_VERSION_ID >= 80000
+    return PG(last_error_message) ? PG(last_error_message)->val : nullptr;
+#else
+    return PG(last_error_message);
+#endif
+}
+
+static inline const char *php_swoole_get_last_error_file() {
+#if PHP_VERSION_ID >= 80100
+     return PG(last_error_file) ? PG(last_error_file)->val : "-";
+#else
+     return PG(last_error_file) ? PG(last_error_file) : "-";
+#endif
 }
 
 END_EXTERN_C()

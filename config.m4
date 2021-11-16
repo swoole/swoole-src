@@ -628,6 +628,7 @@ EOF
         ext-src/swoole_lock.cc \
         ext-src/swoole_mysql_coro.cc \
         ext-src/swoole_mysql_proto.cc \
+        ext-src/swoole_name_resolver.cc \
         ext-src/swoole_postgresql_coro.cc \
         ext-src/swoole_process.cc \
         ext-src/swoole_process_pool.cc \

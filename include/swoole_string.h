@@ -247,7 +247,7 @@ class String {
 
     ssize_t split(const char *delimiter, size_t delimiter_length, const StringExplodeHandler &handler);
     int append_random_bytes(size_t length, bool base64 = false);
-    void print();
+    void print(bool print_value = true);
 
     template <typename... Args>
     inline size_t format(const char *format, Args... args) {

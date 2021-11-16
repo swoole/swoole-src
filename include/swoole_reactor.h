@@ -125,10 +125,7 @@ class Reactor {
     bool wait_exit = false;
     bool destroyed = false;
     bool bailout = false;
-    /**
-     * callback signal
-     */
-    bool check_signalfd = false;
+
     /**
      * reactor->wait timeout (millisecond) or -1
      */

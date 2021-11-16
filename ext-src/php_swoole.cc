@@ -236,6 +236,9 @@ const zend_function_entry swoole_functions[] = {
     ZEND_FE(swoole_get_objects, arginfo_swoole_get_objects)
     ZEND_FE(swoole_get_vm_status, arginfo_swoole_get_vm_status)
     ZEND_FE(swoole_get_object_by_handle, arginfo_swoole_get_object_by_handle)
+    ZEND_FE(swoole_name_resolver_lookup, arginfo_swoole_name_resolver_lookup)
+    ZEND_FE(swoole_name_resolver_add, arginfo_swoole_name_resolver_add)
+    ZEND_FE(swoole_name_resolver_remove, arginfo_swoole_name_resolver_remove)
     PHP_FE_END /* Must be the last line in swoole_functions[] */
 };
 
@@ -807,6 +810,7 @@ PHP_MINIT_FUNCTION(swoole) {
     php_swoole_http_server_coro_minit(module_number);
     php_swoole_websocket_server_minit(module_number);
     php_swoole_redis_server_minit(module_number);
+    php_swoole_name_resolver_minit(module_number);
 #ifdef SW_USE_PGSQL
     php_swoole_postgresql_coro_minit(module_number);
 #endif
@@ -1065,6 +1069,7 @@ PHP_RSHUTDOWN_FUNCTION(swoole) {
     php_swoole_async_coro_rshutdown();
     php_swoole_redis_server_rshutdown();
     php_swoole_coroutine_rshutdown();
+    php_swoole_coroutine_scheduler_rshutdown();
     php_swoole_runtime_rshutdown();
 
     php_swoole_process_clean();

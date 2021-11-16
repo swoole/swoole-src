@@ -426,6 +426,8 @@ int Server::start_master_thread() {
         SwooleTG.timer->reinit(reactor);
     }
 
+    init_signal_handler();
+
     SwooleG.pid = getpid();
     SwooleG.process_type = SW_PROCESS_MASTER;
 
@@ -566,8 +568,6 @@ void Server::init_worker(Worker *worker) {
         }
     }
 #endif
-    // signal init
-    worker_signal_init();
 
     if (max_request < 1) {
         SwooleWG.run_always = true;
@@ -686,8 +686,6 @@ int Server::start() {
     if (!factory->start()) {
         return SW_ERR;
     }
-    init_signal_handler();
-
     // write PID file
     if (!pid_file.empty()) {
         size_t n = sw_snprintf(sw_tg_buffer()->str, sw_tg_buffer()->size, "%d", getpid());

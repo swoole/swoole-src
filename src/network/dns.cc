@@ -16,6 +16,7 @@
 
 #include "swoole.h"
 #include "swoole_coroutine_socket.h"
+#include "swoole_coroutine_system.h"
 #include "swoole_util.h"
 
 #include <string>
@@ -31,7 +32,10 @@
 #include <ares.h>
 #endif
 
-bool swoole_load_resolv_conf() {
+using swoole::NameResolver;
+using swoole::coroutine::System;
+
+SW_API bool swoole_load_resolv_conf() {
     FILE *fp;
     char line[100];
     char buf[16] = {};
@@ -57,8 +61,63 @@ bool swoole_load_resolv_conf() {
     return true;
 }
 
-void swoole_set_hosts_path(const std::string &hosts_file) {
+SW_API void swoole_set_hosts_path(const std::string &hosts_file) {
     SwooleG.dns_hosts_path = hosts_file;
+}
+
+SW_API void swoole_name_resolver_add(const NameResolver &resolver, bool append) {
+    if (append) {
+        SwooleG.name_resolvers.push_back(resolver);
+    } else {
+        SwooleG.name_resolvers.push_front(resolver);
+    }
+}
+
+SW_API void swoole_name_resolver_each(
+    const std::function<enum swTraverseOperation(const std::list<NameResolver>::iterator &iter)> &fn) {
+    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
+        enum swTraverseOperation op = fn(iter);
+        switch (op) {
+        case SW_TRAVERSE_REMOVE:
+            SwooleG.name_resolvers.erase(iter++);
+            continue;
+        case SW_TRAVERSE_STOP:
+            break;
+        default:
+        case SW_TRAVERSE_KEEP:
+            continue;
+        }
+    }
+}
+
+SW_API std::string swoole_name_resolver_lookup(const std::string &host_name, NameResolver::Context *ctx) {
+    if (SwooleG.name_resolvers.empty()) {
+        goto _dns_lookup;
+    }
+    for (auto iter = SwooleG.name_resolvers.begin(); iter != SwooleG.name_resolvers.end(); iter++) {
+        std::string result = iter->resolve(host_name, ctx, iter->private_data);
+        if (!result.empty() || ctx->final_) {
+            return result;
+        }
+    }
+_dns_lookup:
+    /*
+     * Use DNS to resolve host name by default
+     */
+    if (swoole_coroutine_is_in()) {
+        return System::gethostbyname(host_name, ctx->type, ctx->timeout);
+    } else {
+        char addr[SW_IP_MAX_LENGTH];
+        if (swoole::network::gethostbyname(ctx->type, host_name.c_str(), sw_tg_buffer()->str) < 0) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return "";
+        }
+        if (!inet_ntop(ctx->type, sw_tg_buffer()->str, addr, sizeof(addr))) {
+            swoole_set_last_error(SW_ERROR_DNSLOOKUP_RESOLVE_FAILED);
+            return "";
+        }
+        return std::string(addr);
+    }
 }
 
 namespace swoole {

@@ -63,6 +63,7 @@
     _(SW_ZEND_STR_FINISH,                   "finish") \
     _(SW_ZEND_STR_IN_COROUTINE,             "in_coroutine") \
     _(SW_ZEND_STR_PRIVATE_DATA,             "private_data") \
+    _(SW_ZEND_STR_CLASS_NAME_RESOLVER,      "Swoole\\NameResolver") \
 
 typedef enum sw_zend_known_string_id {
 #define _SW_ZEND_STR_ID(id, str) id,
@@ -147,6 +148,12 @@ zval *php_swoole_task_unpack(swoole::EventData *task_result);
 #ifdef SW_HAVE_ZLIB
 int php_swoole_zlib_decompress(z_stream *stream, swoole::String *buffer, char *body, int length);
 #endif
+
+swoole::NameResolver::Context *php_swoole_name_resolver_get_context(zval *zobject);
+std::string php_swoole_name_resolver_lookup(const std::string &name,
+                                            swoole::NameResolver::Context *ctx,
+                                            void *_resolver);
+bool php_swoole_name_resolver_add(zval *zresolver);
 
 const swoole::Allocator *sw_php_allocator();
 const swoole::Allocator *sw_zend_string_allocator();
