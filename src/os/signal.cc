@@ -57,6 +57,9 @@ static sigset_t signalfd_mask;
 static int signal_fd = -1;
 static pid_t signalfd_create_pid;
 static Socket *signal_socket = nullptr;
+static inline bool swoole_signalfd_is_available() {
+    return signal_fd != -1;
+}
 #endif
 static Signal signals[SW_SIGNO_MAX];
 static int _lock = 0;
@@ -223,11 +226,13 @@ static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
     }
 
     if (!swoole_event_is_available()) {
-        swoole_error_log(SW_LOG_WARNING, SW_ERROR_OPERATION_NOT_SUPPORT, "The signalfd must only be used after event loop is initialized");
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_OPERATION_NOT_SUPPORT,
+                         "The signalfd must only be used after event loop is initialized");
         return nullptr;
     }
 
-    if (signal_fd != -1) {
+    if (swoole_signalfd_is_available()) {
         sigprocmask(SIG_SETMASK, &signalfd_mask, nullptr);
         signalfd(signal_fd, &signalfd_mask, SFD_NONBLOCK | SFD_CLOEXEC);
     }
@@ -237,7 +242,7 @@ static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
 }
 
 static bool swoole_signalfd_create() {
-    if (signal_fd != -1) {
+    if (swoole_signalfd_is_available()) {
         return false;
     }
 
@@ -263,7 +268,7 @@ static bool swoole_signalfd_create() {
 }
 
 bool swoole_signalfd_setup(Reactor *reactor) {
-    if (signal_fd == -1 && !swoole_signalfd_create()) {
+    if (!swoole_signalfd_is_available() && !swoole_signalfd_create()) {
         return false;
     }
     if (!swoole_event_isset_handler(SW_FD_SIGNAL)) {
@@ -286,7 +291,7 @@ bool swoole_signalfd_setup(Reactor *reactor) {
 }
 
 static void swoole_signalfd_clear() {
-    if (signal_fd) {
+    if (swoole_signalfd_is_available()) {
         if (sigprocmask(SIG_UNBLOCK, &signalfd_mask, nullptr) < 0) {
             swoole_sys_warning("sigprocmask(SIG_UNBLOCK) failed");
         }

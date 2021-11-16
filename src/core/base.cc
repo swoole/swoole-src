@@ -132,6 +132,7 @@ static void bug_report_message_init() {
 
 #endif
 }
+
 void swoole_init(void) {
     if (SwooleG.init) {
         return;
