@@ -180,13 +180,12 @@ SignalHandler swoole_signal_get_handler(int signo) {
 
 void swoole_signal_clear(void) {
 #ifdef HAVE_SIGNALFD
-    if (SwooleG.enable_signalfd) {
+    if (SwooleG.enable_signalfd && swoole_signalfd_is_available()) {
         swoole_signalfd_clear();
     } else
 #endif
     {
-        int i;
-        for (i = 0; i < SW_SIGNO_MAX; i++) {
+        SW_LOOP_N(SW_SIGNO_MAX) {
             if (signals[i].activated) {
 #ifdef HAVE_KQUEUE
                 if (signals[i].signo != SIGCHLD && sw_reactor()) {
