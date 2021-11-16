@@ -34,7 +34,6 @@ typedef swoole::SignalHandler swSignalHandler;
 
 #ifdef HAVE_SIGNALFD
 void swoole_signalfd_init();
-bool swoole_signalfd_setup(swoole::Reactor *reactor);
 #endif
 
 SW_API swSignalHandler swoole_signal_set(int signo, swSignalHandler func);

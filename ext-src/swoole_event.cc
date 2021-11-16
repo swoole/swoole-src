@@ -263,11 +263,6 @@ void php_swoole_event_wait() {
     if (php_swoole_is_fatal_error() || !sw_reactor()) {
         return;
     }
-#ifdef HAVE_SIGNALFD
-    if (sw_reactor()->check_signalfd) {
-        swoole_signalfd_setup(sw_reactor());
-    }
-#endif
     if (!sw_reactor()->if_exit() && !sw_reactor()->bailout) {
         // Don't disable object slot reuse while running shutdown functions:
         // https://github.com/php/php-src/commit/bd6eabd6591ae5a7c9ad75dfbe7cc575fa907eac
@@ -738,17 +733,9 @@ static PHP_FUNCTION(swoole_event_dispatch) {
         RETURN_FALSE;
     }
     sw_reactor()->once = true;
-
-#ifdef HAVE_SIGNALFD
-    if (sw_reactor()->check_signalfd) {
-        swoole_signalfd_setup(sw_reactor());
-    }
-#endif
-
     if (sw_reactor()->wait(nullptr) < 0) {
         php_swoole_sys_error(E_ERROR, "reactor wait failed");
     }
-
     sw_reactor()->once = false;
     RETURN_TRUE;
 }

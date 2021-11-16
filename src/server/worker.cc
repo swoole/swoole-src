@@ -370,12 +370,6 @@ void Server::worker_start_callback() {
     SwooleWG.worker = get_worker(SwooleG.process_id);
     SwooleWG.worker->status = SW_WORKER_IDLE;
 
-#ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd && SwooleTG.reactor && SwooleG.signal_fd == 0) {
-        swoole_signalfd_setup(SwooleTG.reactor);
-    }
-#endif
-
     if (is_process_mode()) {
         sw_shm_protect(session_list, PROT_READ);
     }
@@ -539,6 +533,8 @@ int Server::start_event_worker(Worker *worker) {
     if (swoole_event_init(0) < 0) {
         return SW_ERR;
     }
+
+    worker_signal_init();
 
     Reactor *reactor = SwooleTG.reactor;
     /**

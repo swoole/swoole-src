@@ -568,8 +568,6 @@ void Server::init_worker(Worker *worker) {
         }
     }
 #endif
-    // signal init
-    worker_signal_init();
 
     if (max_request < 1) {
         SwooleWG.run_always = true;

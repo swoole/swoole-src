@@ -18,6 +18,7 @@
 */
 
 #include "test_coroutine.h"
+#include "swoole_pipe.h"
 
 using namespace swoole;
 using namespace swoole::test;
@@ -109,5 +110,75 @@ TEST(coroutine_system, wait_signal) {
         });
         ASSERT_TRUE(System::wait_signal(SIGUSR1, 1.0));
         ASSERT_FALSE(System::wait_signal(SIGUSR2, 0.1));
+    });
+}
+
+static const char *GREETING = "hello world, hello swoole";
+
+TEST(coroutine_system, wait_event_readable) {
+    UnixSocket p(true, SOCK_DGRAM);
+    ASSERT_TRUE(p.ready());
+
+    test::coroutine::run([&p](void *arg) {
+        Coroutine::create([&p](void *) {
+            System::sleep(0.002);
+            ASSERT_GT(p.write(GREETING, strlen(GREETING)), 0);
+        });
+
+        char buffer[128];
+        auto pipe_sock = p.get_socket(false);
+        System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 1);
+        ssize_t n = pipe_sock->read(buffer, sizeof(buffer));
+        EXPECT_EQ(strlen(GREETING), n);
+        EXPECT_STREQ(GREETING, buffer);
+    });
+}
+
+TEST(coroutine_system, wait_event_writable) {
+    UnixSocket p(true, SOCK_STREAM);
+    ASSERT_TRUE(p.ready());
+    p.set_blocking(false);
+    p.set_buffer_size(65536);
+    sw_tg_buffer()->clear();
+
+    String str(2 * SW_NUM_MILLION);
+    str.append_random_bytes(str.size - 1, false);
+    str.append('\0');
+
+    test::coroutine::run([&](void *arg) {
+        Coroutine::create([&](void *) {
+            System::sleep(0.002);
+            auto pipe_sock = p.get_socket(true);
+
+            char *ptr = str.value();
+            size_t len = str.get_length();
+
+            while (len > 0) {
+                ssize_t retval = pipe_sock->write(ptr, len > 8192 ? 8192 : len);
+                if (retval > 0) {
+                    ptr += retval;
+                    len -= retval;
+                } else if (retval == 0 || (retval < 0 && errno != EAGAIN)) {
+                    break;
+                }
+                System::wait_event(pipe_sock->get_fd(), SW_EVENT_WRITE, 1);
+            }
+        });
+
+        auto pipe_sock = p.get_socket(false);
+        auto tg_buf = sw_tg_buffer();
+
+        while (tg_buf->length < str.size - 1) {
+            ssize_t retval = pipe_sock->read(tg_buf->str + tg_buf->length, tg_buf->size - tg_buf->length);
+            if (retval > 0) {
+                tg_buf->grow(retval);
+                continue;
+            } else if (retval == 0 && (retval < 0 && errno != EAGAIN)) {
+                break;
+            }
+            System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 1);
+        }
+        tg_buf->append('\0');
+        EXPECT_STREQ(sw_tg_buffer()->value(), str.value());
     });
 }
