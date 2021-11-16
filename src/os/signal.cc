@@ -229,6 +229,7 @@ static SignalHandler swoole_signalfd_set(int signo, SignalHandler handler) {
     }
 
     if (sw_reactor()) {
+        sw_reactor()->check_signalfd = true;
         swoole_signalfd_setup(sw_reactor());
     }
 
