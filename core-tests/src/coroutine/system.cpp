@@ -129,6 +129,7 @@ TEST(coroutine_system, wait_event_readable) {
         auto pipe_sock = p.get_socket(false);
         System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 1);
         ssize_t n = pipe_sock->read(buffer, sizeof(buffer));
+        buffer[n] = 0;
         EXPECT_EQ(strlen(GREETING), n);
         EXPECT_STREQ(GREETING, buffer);
     });
