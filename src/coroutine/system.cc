@@ -265,8 +265,6 @@ bool System::wait_signal(int signo, double timeout) {
             Reactor::EXIT_CONDITION_CO_SIGNAL_LISTENER,
             [](Reactor *reactor, size_t &event_num) -> bool { return SwooleTG.co_signal_listener_num == 0; });
     }
-    /* always enable signalfd */
-    SwooleG.use_signalfd = SwooleG.enable_signalfd = 1;
     swoole_signal_set(signo, [](int signo) {
         Coroutine *co = listeners[signo];
         if (co) {

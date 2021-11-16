@@ -217,7 +217,6 @@ void Manager::start(Server *_server) {
     ProcessPool *pool = &server_->gs->event_workers;
     pool->onWorkerMessage = Server::read_worker_message;
 
-    SwooleG.use_signalfd = 0;
     SwooleTG.reactor = nullptr;
 
     pool->reload_workers = new Worker[_server->worker_num + _server->task_worker_num];

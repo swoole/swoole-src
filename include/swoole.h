@@ -671,7 +671,6 @@ struct NameResolver {
 struct Global {
     uchar init : 1;
     uchar running : 1;
-    uchar use_signalfd : 1;
     uchar wait_signal : 1;
     uchar enable_signalfd : 1;
     uchar socket_dontwait : 1;

@@ -38,11 +38,6 @@ static int Worker_onStreamClose(Reactor *reactor, Event *event);
 static void Worker_reactor_try_to_exit(Reactor *reactor);
 
 void Server::worker_signal_init(void) {
-    /**
-     * use user settings
-     */
-    SwooleG.use_signalfd = SwooleG.enable_signalfd;
-
     swoole_signal_set(SIGHUP, nullptr);
     swoole_signal_set(SIGPIPE, SIG_IGN);
     swoole_signal_set(SIGUSR1, nullptr);

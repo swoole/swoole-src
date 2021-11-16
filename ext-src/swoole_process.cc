@@ -596,9 +596,6 @@ static PHP_METHOD(swoole_process, signal) {
     }
     signal_fci_caches[signo] = fci_cache;
 
-    // use user settings
-    SwooleG.use_signalfd = SwooleG.enable_signalfd;
-
     swoole_signal_set(signo, handler);
 
     RETURN_TRUE;

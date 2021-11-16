@@ -187,7 +187,6 @@ void swoole_init(void) {
     // init signalfd
 #ifdef HAVE_SIGNALFD
     swoole_signalfd_init();
-    SwooleG.use_signalfd = 1;
     SwooleG.enable_signalfd = 1;
 #endif
 

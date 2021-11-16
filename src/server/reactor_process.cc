@@ -152,11 +152,6 @@ int Server::start_reactor_processes() {
     SwooleG.pid = gs->manager_pid = getpid();
     SwooleG.process_type = SW_PROCESS_MANAGER;
 
-    /**
-     * manager process can not use signalfd
-     */
-    SwooleG.use_signalfd = 0;
-
     gs->event_workers.onWorkerMessage = read_worker_message;
     gs->event_workers.start();
 

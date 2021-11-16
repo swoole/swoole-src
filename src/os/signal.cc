@@ -116,7 +116,7 @@ SignalHandler swoole_signal_set(int signo, SignalHandler func, int restart, int 
  */
 SignalHandler swoole_signal_set(int signo, SignalHandler handler) {
 #ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd && swoole_event_is_available()) {
+    if (SwooleG.enable_signalfd && swoole_event_is_available()) {
         return swoole_signalfd_set(signo, handler);
     } else
 #endif
@@ -177,7 +177,7 @@ SignalHandler swoole_signal_get_handler(int signo) {
 
 void swoole_signal_clear(void) {
 #ifdef HAVE_SIGNALFD
-    if (SwooleG.use_signalfd) {
+    if (SwooleG.enable_signalfd) {
         swoole_signalfd_clear();
     } else
 #endif
