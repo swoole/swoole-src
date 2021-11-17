@@ -364,11 +364,27 @@ static bool parse_header_flags(HttpContext *ctx, const char *key, size_t keylen,
     return true;
 }
 
+static void http_set_date_header(String *response) {
+    static struct {
+        time_t time;
+        size_t len;
+        char buf[64];
+    } cache{};
+
+    time_t now = time(nullptr);
+    if (now != cache.time) {
+        char *date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        cache.len = sw_snprintf(cache.buf, sizeof(cache.buf), "Date: %s\r\n", date_str);
+        efree(date_str);
+        cache.time = now;
+    }
+    response->append(cache.buf, cache.len);
+}
+
 static void http_build_header(HttpContext *ctx, String *response, size_t body_length) {
     char *buf = sw_tg_buffer()->str;
     size_t l_buf = sw_tg_buffer()->size;
     int n;
-    char *date_str;
 
     assert(ctx->send_header_ == 0);
 
@@ -470,10 +486,7 @@ static void http_build_header(HttpContext *ctx, String *response, size_t body_le
         response->append(ZEND_STRL("Content-Type: text/html\r\n"));
     }
     if (!(header_flags & HTTP_HEADER_DATE)) {
-        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
-        n = sw_snprintf(buf, l_buf, "Date: %s\r\n", date_str);
-        response->append(buf, n);
-        efree(date_str);
+        http_set_date_header(response);
     }
 
     if (ctx->send_chunked) {
