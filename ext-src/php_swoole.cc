@@ -57,7 +57,7 @@ END_EXTERN_C()
 BEGIN_EXTERN_C()
 #if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_arginfo.h"
-#include "stubs/php_swoole_ex.h"
+#include "stubs/php_swoole_ex_arginfo.h"
 #else
 #include "stubs/php_swoole_legacy_arginfo.h"
 #include "stubs/php_swoole_ex_legacy_arginfo.h"
