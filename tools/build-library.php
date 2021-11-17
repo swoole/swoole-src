@@ -84,6 +84,7 @@ $builder->files = [
     'core/Server/Helper.php',
     # <core for NameResolver> #
     'core/NameResolver.php',
+    'core/NameResolver/Exception.php',
     'core/NameResolver/Cluster.php',
     'core/NameResolver/Redis.php',
     'core/NameResolver/Nacos.php',

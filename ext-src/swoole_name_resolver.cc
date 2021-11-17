@@ -125,15 +125,17 @@ PHP_FUNCTION(swoole_name_resolver_remove) {
     Z_PARAM_OBJECT(zresolver)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
-    auto hash = sw_php_spl_object_hash(zresolver);
+    auto hash_1 = sw_php_spl_object_hash(zresolver);
     bool found = false;
     swoole_name_resolver_each(
-        [&found, hash, zresolver](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
+        [&found, hash_1, zresolver](const std::list<NameResolver>::iterator &iter) -> swTraverseOperation {
             if (found) {
                 return SW_TRAVERSE_STOP;
             }
-            if (iter->type == NameResolver::TYPE_PHP && iter->private_data &&
-                zend_string_equals(sw_php_spl_object_hash((zval *) iter->private_data), hash)) {
+            auto hash_2 = sw_php_spl_object_hash((zval *) iter->private_data);
+            bool equals = zend_string_equals(hash_2, hash_1);
+            zend_string_release(hash_2);
+            if (iter->type == NameResolver::TYPE_PHP && iter->private_data && equals) {
                 zval_dtor(zresolver);
                 efree(iter->private_data);
                 found = true;
@@ -142,6 +144,7 @@ PHP_FUNCTION(swoole_name_resolver_remove) {
                 return SW_TRAVERSE_KEEP;
             }
         });
+    zend_string_release(hash_1);
     RETURN_BOOL(found);
 }
 
