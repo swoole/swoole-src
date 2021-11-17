@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-10-27</date>
-    <time>16:00:00</time>
+    <date>2021-11-17</date>
+    <time>13:00:00</time>
     <version>
-        <release>4.8.1</release>
+        <release>4.8.2</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -63,27 +63,14 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        New APIs
-        ---
-        * Added swoole_error_log_ex(), swoole_ignore_error() (#4440) (@matyhtf)
-
-        Enhancement
-        ---
-        * Migrate admin api from ext-swoole_plus to swoole-src (#4441) (@matyhtf)
-        * Added get_composer_packages command for admin server (swoole/library@07763f46) (swoole/library@8805dc05) (swoole/library@175f1797) (@sy-records) (@yunbaoi)
-        * Added POST method request restrictions for write operations (swoole/library@ac16927c) (@yunbaoi)
-        * Supported to get the method information of the class by get_function_info (swoole/library@690a1952) (@djw1028769140) (@sy-records)
-        * Optimized admin server code (swoole/library#128) (swoole/library#131) (@sy-records)
-        * Supported to request multiple groups of server information for admin server (swoole/library#124) (@sy-records)
-        * Supported to get interface info for admin server (swoole/library#130) (@sy-records)
-        * Supported CURLOPT_HTTPPROXYTUNNEL for SWOOLE_HOOK_CURL (swoole/library#126) (@sy-records)
-
-        Fixed
-        ---
-        * Prohibit coroutine concurrent join (#4442) (@matyhtf)
-        * Fixed init_row, don't clear lock_ and lock_pid (#4446) (@Txhua) (@matyhtf)
-        * Fixed missing helper options (swoole/library#123) (@sy-records)
-        * Fixed get_static_property_value command error (swoole/library#129) (@sy-records)
+        - Fixed memory leak of proc_open hook
+        - Fixed compatibility of curl native hook with PHP-8.0 and PHP-8.1
+        - Fixed connection cannot be closed normally in the Manager process
+        - Fixed Manager process cannot use sendMessage
+        - Fixed Coroutine\Http\Server received abnormally large POST data parsing
+        - Fixed cannot exit directly when a fatal error occurs in PHP8 environment
+        - Adjust coroutine max_concurrency option, only allowed to be used in Co::set()
+        - Adjust Coroutine::join() to ignore non-exists coroutine
     </notes>
     <contents>
         <dir name="/">
@@ -993,6 +980,9 @@
             <file role="test" name="tests/swoole_coroutine/join/3.phpt" />
             <file role="test" name="tests/swoole_coroutine/join/4.phpt" />
             <file role="test" name="tests/swoole_coroutine/join/5.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/6.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/7.phpt" />
+            <file role="test" name="tests/swoole_coroutine/join/8.phpt" />
             <file role="test" name="tests/swoole_coroutine/kernel_coroutine.phpt" />
             <file role="test" name="tests/swoole_coroutine/list_and_backtrace.phpt" />
             <file role="test" name="tests/swoole_coroutine/max_num.phpt" />
@@ -1129,6 +1119,7 @@
             <file role="test" name="tests/swoole_curl/multi/curl_multi_segfault.phpt" />
             <file role="test" name="tests/swoole_curl/multi/curl_multi_select_basic1.phpt" />
             <file role="test" name="tests/swoole_curl/multi/curl_multi_setopt_basic001.phpt" />
+            <file role="test" name="tests/swoole_curl/multi/no_hook.phpt" />
             <file role="test" name="tests/swoole_curl/multi_1.phpt" />
             <file role="test" name="tests/swoole_curl/multi_2.phpt" />
             <file role="test" name="tests/swoole_curl/multi_3.phpt" />
@@ -1153,6 +1144,14 @@
             <file role="test" name="tests/swoole_curl/symfony.phpt" />
             <file role="test" name="tests/swoole_curl/template" />
             <file role="test" name="tests/swoole_curl/timer_coredump.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/0.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/1.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/2.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/3.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/4.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/5.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/6.phpt" />
+            <file role="test" name="tests/swoole_curl/undefined_behavior/7.phpt" />
             <file role="test" name="tests/swoole_curl/upload/1.phpt" />
             <file role="test" name="tests/swoole_curl/upload/2.phpt" />
             <file role="test" name="tests/swoole_curl/upload/3.phpt" />
@@ -1368,6 +1367,8 @@
             <file role="test" name="tests/swoole_http_server/sendfile_with_dispatch_mode_7.phpt" />
             <file role="test" name="tests/swoole_http_server/sendfile_with_ssl.phpt" />
             <file role="test" name="tests/swoole_http_server/set_content_length.phpt" />
+            <file role="test" name="tests/swoole_http_server/slow_client.phpt" />
+            <file role="test" name="tests/swoole_http_server/slow_large_post.phpt" />
             <file role="test" name="tests/swoole_http_server/sni/server.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler.phpt" />
             <file role="test" name="tests/swoole_http_server/static_handler/locations.phpt" />
@@ -1414,6 +1415,7 @@
             <file role="test" name="tests/swoole_http_server_coro/reuse_port.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/sendfile.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/slow_client.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/slow_large_post.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/ssl_bad_client.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/tcp_nodelay.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/upload.phpt" />
@@ -1703,6 +1705,7 @@
             <file role="test" name="tests/swoole_server/client_close_in_writable_event.phpt" />
             <file role="test" name="tests/swoole_server/close_force.phpt" />
             <file role="test" name="tests/swoole_server/close_in_connect_callback.phpt" />
+            <file role="test" name="tests/swoole_server/close_in_manager.phpt" />
             <file role="test" name="tests/swoole_server/close_in_master.phpt" />
             <file role="test" name="tests/swoole_server/close_in_non_current_worker.phpt" />
             <file role="test" name="tests/swoole_server/close_in_other_worker_with_base.phpt" />
@@ -1794,6 +1797,7 @@
             <file role="test" name="tests/swoole_server/reload_process.phpt" />
             <file role="test" name="tests/swoole_server/sendMessage.phpt" />
             <file role="test" name="tests/swoole_server/sendMessage_02.phpt" />
+            <file role="test" name="tests/swoole_server/sendMessage_in_manager.phpt" />
             <file role="test" name="tests/swoole_server/send_2.phpt" />
             <file role="test" name="tests/swoole_server/send_2m_in_task_worker.phpt" />
             <file role="test" name="tests/swoole_server/send_2m_in_user_process.phpt" />
@@ -2099,6 +2103,7 @@
             <file role="src" name="thirdparty/nghttp2/nghttp2_mem.h" />
             <file role="src" name="thirdparty/nghttp2/nghttp2_rcbuf.c" />
             <file role="src" name="thirdparty/nghttp2/nghttp2_rcbuf.h" />
+            <file role="src" name="thirdparty/nlohmann/LICENSE.MIT" />
             <file role="src" name="thirdparty/nlohmann/adl_serializer.hpp" />
             <file role="src" name="thirdparty/nlohmann/detail/conversions/from_json.hpp" />
             <file role="src" name="thirdparty/nlohmann/detail/conversions/to_chars.hpp" />
@@ -2133,7 +2138,6 @@
             <file role="src" name="thirdparty/nlohmann/json_fwd.hpp" />
             <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley.hpp" />
             <file role="src" name="thirdparty/nlohmann/thirdparty/hedley/hedley_undef.hpp" />
-            <file role="doc" name="thirdparty/nlohmann/LICENSE.MIT" />
             <file role="src" name="thirdparty/php/curl/curl_arginfo.h" />
             <file role="src" name="thirdparty/php/curl/curl_interface.h" />
             <file role="src" name="thirdparty/php/curl/curl_private.h" />
@@ -2163,6 +2167,7 @@
             <file role="src" name="tools/constant-generator.php" />
             <file role="src" name="tools/export.php" />
             <file role="src" name="tools/gen-data.php" />
+            <file role="src" name="tools/gen-ext-class.php" />
             <file role="src" name="tools/get-ip-info.php" />
             <file role="src" name="tools/next-version.php" />
             <file role="src" name="tools/option-generator.php" />
@@ -2171,6 +2176,7 @@
             <file role="src" name="tools/rename.php" />
             <file role="src" name="tools/send-http-data.php" />
             <file role="src" name="tools/show-big-files.php" />
+            <file role="src" name="tools/templates/class.c" />
             <file role="src" name="tools/templates/version.tpl.h" />
             <file role="src" name="travis/.gitignore" />
             <file role="doc" name="travis/README.md" />
