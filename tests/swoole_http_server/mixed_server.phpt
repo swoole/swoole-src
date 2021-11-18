@@ -63,7 +63,7 @@ $pm->childFunc = function () use ($pm, $tcp_options) {
         $pm->wakeup();
     });
     // http && http2
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end('Hello ' . $request->rawcontent());
     });
     // websocket

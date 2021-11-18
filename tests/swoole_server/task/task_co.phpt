@@ -39,7 +39,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
         $pm->wakeup();
     });
     $server->on('request',
-        function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($server, $randoms) {
+        function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server, $randoms) {
             $n = $request->get['n'];
             switch ($request->server['path_info']) {
                 case '/task':

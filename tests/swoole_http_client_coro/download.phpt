@@ -50,7 +50,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $serv->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $offset = (int) @explode('-', explode('=', $request->header['range'])[1])[0];
         $response->sendfile(TEST_IMAGE, $offset);
     });

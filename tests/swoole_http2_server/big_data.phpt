@@ -54,7 +54,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on("WorkerStart", function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $http->on("request", function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end($request->rawcontent());
     });
     $http->start();

@@ -32,7 +32,7 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->cookie('cookie1', null);
         $response->cookie('cookie2', '');
         $response->cookie('cookie3', 'cookie3', 0); // must be > 0

@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response)
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response)
     {
         $redis = new Swoole\Coroutine\Redis();
         $res = $redis->connect(REDIS_SERVER_HOST, REDIS_SERVER_PORT);

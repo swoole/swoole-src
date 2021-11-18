@@ -35,7 +35,7 @@ $pm->childFunc = function () use ($pm)
         $pm->wakeup();
     });
 
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response)
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response)
     {
         global $count, $pool;
         if (count($pool) == 0)

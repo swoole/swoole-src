@@ -41,7 +41,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->sendfile(__FILE__);
     });
 

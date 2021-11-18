@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'worker_num' => swoole_cpu_num()
     ]);
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         go(function () {
             for ($i = 5; $i--;) {
                 co::sleep(0.001);

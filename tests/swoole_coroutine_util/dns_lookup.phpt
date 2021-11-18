@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response)
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response)
     {
         $host = swoole_async_dns_lookup_coro('www.baidu.com');
         if ($host)

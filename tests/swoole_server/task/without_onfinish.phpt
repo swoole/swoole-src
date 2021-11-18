@@ -23,7 +23,7 @@ $pm->childFunc = function () use ($pm) {
         'log_file' => '/dev/null',
         'task_worker_num' => 4
     ]);
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         Assert::assert($response->detach());
         $http->task($response->fd);
     });

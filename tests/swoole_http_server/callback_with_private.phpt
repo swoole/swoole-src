@@ -13,7 +13,7 @@ $pm->childFunc = function () use ($pm) {
 
     class TestCo_9
     {
-        private function foo(Swoole\Http\Request $request(Swoole\Http\Response $response)
+        private function foo(Swoole\Http\Request $request, Swoole\Http\Response $response)
         {
             co::sleep(0.001);
             $cid = go(function () use ($response) {

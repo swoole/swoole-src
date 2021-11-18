@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($pm, $server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $server) {
         $response->end($pm->getRandomData());
         co::sleep(0.001);
         $server->close($request->fd);

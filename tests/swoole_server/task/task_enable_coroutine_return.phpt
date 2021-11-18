@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
         'task_worker_num' => 4,
         'task_enable_coroutine' => true
     ]);
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         Assert::assert($response->detach());
         $http->task($response->fd, -1, function ($server, $taskId, $data) {
             list($fd, $data) = $data;

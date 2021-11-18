@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response)
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response)
     {
         $mysql = new Swoole\Coroutine\MySQL();
         $res = $mysql->connect([

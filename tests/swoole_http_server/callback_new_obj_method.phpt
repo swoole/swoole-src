@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm) {
 
     class TestCo
     {
-        public function foo(Swoole\Http\Request $request(Swoole\Http\Response $response)
+        public function foo(Swoole\Http\Request $request, Swoole\Http\Response $response)
         {
             co::sleep(0.001);
             $cid = go(function () use ($response) {

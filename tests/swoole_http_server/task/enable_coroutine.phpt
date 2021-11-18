@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server) {
         global $randoms;
         $n = $request->get['n'];
         switch ($request->server['path_info']) {

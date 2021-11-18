@@ -39,7 +39,7 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($pm)
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm)
     {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         if (!$cli->connect('127.0.0.1', $pm->getFreePort(1)))

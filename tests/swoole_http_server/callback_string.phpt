@@ -24,7 +24,7 @@ $pm->parentFunc = function () use ($pm) {
 
 $pm->childFunc = function () use ($pm) {
 
-    function foo(Swoole\Http\Request $request(Swoole\Http\Response $response)
+    function foo(Swoole\Http\Request $request, Swoole\Http\Response $response)
     {
         static $test = '';
         co::sleep(0.001);

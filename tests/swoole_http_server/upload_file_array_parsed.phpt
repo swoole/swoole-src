@@ -18,7 +18,7 @@ $pm->parentFunc = function () use ($pm) {
         'form[file]'        => curl_file_create(TEST_IMAGE, 'image/jpeg', 'photo.jpg'),
         'form[group][file]' => curl_file_create(TEST_IMAGE2, 'image/svg+xml', 'swoole-logo.svg'),
     ];
-    
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:{$pm->getFreePort()}");
     curl_setopt($ch, CURLOPT_HEADER, 0);
@@ -42,7 +42,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $files = $request->files;
         if (!is_array($files)
             || empty($files['file']['tmp_name'])
@@ -65,7 +65,7 @@ $pm->run();
 ?>
 --EXPECT--
 array (
-  'file' => 
+  'file' =>
   array (
     'name' => 'image.jpg',
     'type' => 'application/octet-stream',
@@ -73,44 +73,44 @@ array (
     'error' => 0,
     'size' => 218787,
   ),
-  'form' => 
+  'form' =>
   array (
-    'name' => 
+    'name' =>
     array (
       'file' => 'photo.jpg',
-      'group' => 
+      'group' =>
       array (
         'file' => 'swoole-logo.svg',
       ),
     ),
-    'type' => 
+    'type' =>
     array (
       'file' => 'image/jpeg',
-      'group' => 
+      'group' =>
       array (
         'file' => 'image/svg+xml',
       ),
     ),
-    'tmp_name' => 
+    'tmp_name' =>
     array (
       'file' => '/tmp/swoole.upfile.fixture2',
-      'group' => 
+      'group' =>
       array (
         'file' => '/tmp/swoole.upfile.fixture3',
       ),
     ),
-    'error' => 
+    'error' =>
     array (
       'file' => 0,
-      'group' => 
+      'group' =>
       array (
         'file' => 0,
       ),
     ),
-    'size' => 
+    'size' =>
     array (
       'file' => 218787,
-      'group' => 
+      'group' =>
       array (
         'file' => 7424,
       ),

@@ -52,7 +52,7 @@ $pm->childFunc = function () use ($pm) {
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end("OK\n");
     });
     $http->start();

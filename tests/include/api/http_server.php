@@ -21,7 +21,7 @@ $http->on("WorkerStart", function (\swoole_server $serv)
         $pm->wakeup();
     }
 });
-$http->on('request', function ($request(Swoole\Http\Response $response) use ($pm)
+$http->on('request', function ($request, Swoole\Http\Response $response) use ($pm)
 {
     $route = $request->server['request_uri'];
     if ($route == '/info')

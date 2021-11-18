@@ -40,7 +40,7 @@ $pm->parentFunc = function () use ($pm) {
 $pm->childFunc = function () use ($pm) {
     $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $request->get['cookie'] = urldecode($request->get['cookie']);
         $response->cookie('cookie', $request->get['cookie']);
         $response->rawcookie('rawcookie', $request->get['cookie']);

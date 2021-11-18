@@ -18,7 +18,7 @@ $pm->childFunc = function () use ($pm) {
             $server->task(1, 0);
         }
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         usleep(100 * 1000);
         $response->end('OK');
     });

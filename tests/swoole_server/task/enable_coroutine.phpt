@@ -38,7 +38,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($server, $randoms) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server, $randoms) {
         $n = $request->get['n'];
         list($ret_n, $ret_random) = $server->taskwait($n, 1);
         if ($ret_n !== $n) {

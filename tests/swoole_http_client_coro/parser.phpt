@@ -215,7 +215,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($pm) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm) {
         global $normal_chars;
         foreach ($normal_chars as $char) {
             $response->header($char, $pm->getRandomData());

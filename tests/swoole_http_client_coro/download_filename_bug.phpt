@@ -50,7 +50,7 @@ $pm->parentFunc = function () use ($pm) {
     Co\run(function () use($pm) {
         download($pm, '/tmp/test-1.*');
     });
-    
+
     Co\run(function () use($pm) {
         download($pm, '/tmp/test-2.*');
     });
@@ -63,7 +63,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $serv->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->sendfile(TEST_IMAGE);
     });
     $serv->start();

@@ -52,7 +52,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end(md5_file($request->files['file']['tmp_name']));
     });
 

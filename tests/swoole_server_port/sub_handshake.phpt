@@ -22,7 +22,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 $pm->childFunc = function () use ($pm) {
     $main_server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
-    $main_server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $main_server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->write('hello world');
         $response->end();
     });
@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm) {
         'open_http_protocol' => true,
         'open_websocket_protocol' => true
     ]);
-    $sub_server->on('handshake', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $sub_server->on('handshake', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $secWebSocketKey = $request->header['sec-websocket-key'];
         $patten = '#^[+/0-9A-Za-z]{21}[AQgw]==$#';
         if (0 === preg_match($patten, $secWebSocketKey) || 16 !== strlen(base64_decode($secWebSocketKey))) {

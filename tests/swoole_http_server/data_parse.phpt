@@ -106,7 +106,7 @@ $pm->childFunc = function () use ($pm) {
         global $pm;
         $pm->wakeup();
     });
-    $http->on("request", function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
+    $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         $response->end(var_dump_return($request->get, $request->post));
         $http->close($request->fd);
     });

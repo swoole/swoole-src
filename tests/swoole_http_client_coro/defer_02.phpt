@@ -47,7 +47,7 @@ $pm->childFunc = function () use ($pm, $randomData) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($pm, $server, $randomData) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $server, $randomData) {
         $response->end($randomData[$request->get['n']]);
     });
     $server->start();

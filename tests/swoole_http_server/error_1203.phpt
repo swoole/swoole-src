@@ -35,7 +35,7 @@ $pm->childFunc = function () use ($pm)
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request(Swoole\Http\Response $response) {
+    $http->on("request", function ($request, Swoole\Http\Response $response) {
         Assert::eq($response->end(str_repeat('A', 256 * 1024)), false);
         Assert::eq(swoole_last_error(), SWOOLE_ERROR_DATA_LENGTH_TOO_LARGE);
     });

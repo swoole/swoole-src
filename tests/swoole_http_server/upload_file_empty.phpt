@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $files = $request->files;
         if (isset($files['file1']['tmp_name'])) {
             $files['file1']['tmp_name'] = '/tmp/swoole.upfile.fixture1';
@@ -66,7 +66,7 @@ $pm->run();
 ?>
 --EXPECT--
 array (
-  'file1' => 
+  'file1' =>
   array (
     'name' => 'empty.txt',
     'type' => 'text/plain',
@@ -74,7 +74,7 @@ array (
     'error' => 0,
     'size' => 0,
   ),
-  'file2' => 
+  'file2' =>
   array (
     'name' => '',
     'type' => '',

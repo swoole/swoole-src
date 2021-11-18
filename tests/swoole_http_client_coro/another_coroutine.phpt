@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function (swoole_http_server $server) use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($pm, $server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $server) {
         co::sleep(0.1);
         $server->shutdown();
     });

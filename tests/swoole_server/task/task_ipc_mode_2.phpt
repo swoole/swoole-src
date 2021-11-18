@@ -24,7 +24,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server) {
         $response->detach();
         $server->task($response->fd);
     });

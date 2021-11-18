@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
     {
         private static $test = '';
 
-        public static function foo(Swoole\Http\Request $request(Swoole\Http\Response $response)
+        public static function foo(Swoole\Http\Request $request, Swoole\Http\Response $response)
         {
             co::sleep(0.001);
             $cid = go(function () use ($response) {

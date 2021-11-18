@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($pm)
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm)
     {
         $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_TCP);
         $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);

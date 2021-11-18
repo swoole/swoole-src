@@ -57,7 +57,7 @@ $pm->childFunc = function () use ($pm) {
         'ssl_key_file' => SSL_FILE_DIR . '/server.key'
     ]);
     $http->on("WorkerStart", function () use ($pm) { $pm->wakeup(); });
-    $http->on("request", function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         foreach ($request->header as $name => $value) {
             $response->header($name, $value);
         }

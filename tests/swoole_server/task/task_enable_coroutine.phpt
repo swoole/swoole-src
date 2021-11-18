@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
         'task_worker_num' => 4,
         'task_enable_coroutine' => true
     ]);
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         Assert::assert($response->detach());
         if (mt_rand(0, 1)) {
             $http->task($response->fd);

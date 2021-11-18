@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request(Swoole\Http\Response $response) {
+    $http->on("request", function ($request, Swoole\Http\Response $response) {
         if ($request->server['path_info'] == '/nonexistent') {
             $response->redirect('/test.jpg');
         }

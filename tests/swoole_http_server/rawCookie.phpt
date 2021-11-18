@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm, $simple_http_server) {
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $name = "name";
         $value = "value";
         // $expire = $request->swoole_server["request_time"] + 3600;

@@ -26,7 +26,7 @@ $pm->childFunc = function () use ($pm) {
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $cli = new Swoole\Coroutine\Http\Client('www.qq.com', 443, true);
         $cli->set(['timeout' => 10]);
         $cli->setHeaders([

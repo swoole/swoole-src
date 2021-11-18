@@ -27,7 +27,7 @@ $pm->childFunc = function () use ($pm) {
     $http->set(array(
         'log_file' => '/dev/null',
     ));
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->cookie('name', COOKIE);
         $response->end();
     });

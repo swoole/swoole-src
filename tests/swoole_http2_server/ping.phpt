@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         Swoole\Timer::tick(100, function (int $id) use ($request, $response) {
             Assert::true($response->ping());
             if (@++$GLOBALS['i'] === 5) {

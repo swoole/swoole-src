@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->goaway(SWOOLE_HTTP2_ERROR_NO_ERROR, 'NO_ERROR');
         $response->end($request->rawcontent());
     });

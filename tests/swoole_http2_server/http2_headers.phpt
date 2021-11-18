@@ -21,7 +21,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->header('test-value', [
             "a\r\n",
             'd5678',
@@ -38,7 +38,7 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECTF--
-HTTP/2 200 
+HTTP/2 200
 test-value: a
 test-value: d5678
 test-value: e
