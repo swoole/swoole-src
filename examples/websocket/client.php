@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/../../tests/include/api/swoole_websocket_server/websocket_client.php';
+require __DIR__ . '/../../tests/include/api/Swoole\WebSocket\Server/websocket_client.php';
 $opt = getopt("c:n:k:");
 print_r($opt);
 if (empty($opt['c']) || empty($opt['n'])) {

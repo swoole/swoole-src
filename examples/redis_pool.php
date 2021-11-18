@@ -18,7 +18,7 @@ if(!extension_loaded('redis')) {
 	throw new Exception("install redis extension, pecl install redis");
 }
 
-$serv = new swoole_server("0.0.0.0", 9508);
+$serv = new Swoole\Server("0.0.0.0", 9508);
 
 $serv->set(array(
     'worker_num' => 4,//base on you cpu nums

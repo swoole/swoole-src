@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new Swoole\Server("0.0.0.0", 9501);
 $serv->fdlist = [];
 $serv->workerid = 0;
 $serv->set(array(
@@ -37,7 +37,7 @@ $serv->on('finish', function ($serv, $fd, $reactor_id){
 
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
 
     foreach($serv->fdlist as $_fd=>$val) {
         $serv->send($_fd, "{$fd} say:".$data.PHP_EOL);

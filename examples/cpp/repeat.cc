@@ -1,4 +1,4 @@
-#include "swoole_server.h"
+#include "Swoole\Server.h"
 using namespace swoole;
 
 int main(int argc, char **argv) {
@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
         serv.onWorkerStart = [](Server *serv, int worker_id) {
             swoole_notice("WorkerStart[%d]PID=%d, serv=%p,", worker_id, getpid(), serv);
-            swoole_timer_after(
+            Swoole\Timer::after(
                 1000,
                 [serv](Timer *, TimerNode *tnode) {
                     printf("timer=%p\n", tnode);

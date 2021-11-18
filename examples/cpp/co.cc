@@ -17,7 +17,7 @@ list<Socket *> slaves;
 size_t qs;
 
 int main(int argc, char **argv) {
-    swoole_event_init(SW_EVENTLOOP_WAIT_EXIT);
+    Swoole\Event::init(SW_EVENTLOOP_WAIT_EXIT);
 
     signal(SIGPIPE, SIG_IGN);
 
@@ -104,7 +104,7 @@ int main(int argc, char **argv) {
         }
     });
 
-    swoole_event_wait();
+    Swoole\Event::wait();
 
     return 0;
 }

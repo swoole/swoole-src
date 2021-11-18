@@ -1,13 +1,13 @@
 <?php
-$ws = new swoole_websocket_server("127.0.0.1", 9501, SWOOLE_BASE);
+$ws = new Swoole\WebSocket\Server("127.0.0.1", 9501, SWOOLE_BASE);
 $ws->set(array(
     'log_file' => '/dev/null'
 ));
-$ws->on("WorkerStart", function (\swoole_server $serv) {
+$ws->on("WorkerStart", function (\Swoole\Server $serv) {
 
 });
 
-$ws->on('open', function ($serv, swoole_http_request $request) {
+$ws->on('open', function ($serv, Swoole\Http\Request $request) {
     //$ip = co::gethostbyname('www.baidu.com');
     if (1) {
         $serv->push($request->fd, "start\n");

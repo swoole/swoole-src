@@ -1,11 +1,11 @@
 <?php
-$table = new swoole_table(1024);
-$table->column('id', swoole_table::TYPE_INT, 4);       //1,2,4,8
-$table->column('name', swoole_table::TYPE_STRING, 64);
-$table->column('num', swoole_table::TYPE_FLOAT);
+$table = new Swoole\Table(1024);
+$table->column('id', Swoole\Table::TYPE_INT, 4);       //1,2,4,8
+$table->column('name', Swoole\Table::TYPE_STRING, 64);
+$table->column('num', Swoole\Table::TYPE_FLOAT);
 $table->create();
 
-//$worker = new swoole_process('child1', false, false);
+//$worker = new Swoole\Process('child1', false, false);
 //$worker->start();
 //
 //child

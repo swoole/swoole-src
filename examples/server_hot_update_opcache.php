@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
+$serv = new Swoole\Server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 2,
     //'open_eof_check' => true,
@@ -61,7 +61,7 @@ function my_onWorkerStop($serv, $worker_id)
 	echo "WorkerStop[$worker_id]|pid=".posix_getpid().".\n";
 }
 
-function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
+function my_onReceive(Swoole\Server $serv, $fd, $reactor_id, $data)
 {
 	$cmd = trim($data);
     if($cmd == "reload")
@@ -114,16 +114,16 @@ function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
 	}
 	//echo "Client:Data. fd=$fd|reactor_id=$reactor_id|data=$data";
 	//$serv->deltimer(800);
-	//swoole_server_send($serv, $other_fd, "Server: $data", $other_reactor_id);
+	//Swoole\Server_send($serv, $other_fd, "Server: $data", $other_reactor_id);
 }
 
-function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
+function my_onTask(Swoole\Server $serv, $task_id, $reactor_id, $data)
 {
     echo "AsyncTask[PID=".posix_getpid()."]: task_id=$task_id.".PHP_EOL;
     $serv->finish("OK");
 }
 
-function my_onFinish(swoole_server $serv, $data)
+function my_onFinish(Swoole\Server $serv, $data)
 {
     echo "AsyncTask Finish:Connect.PID=".posix_getpid().PHP_EOL;
 }

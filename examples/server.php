@@ -39,21 +39,21 @@ if (isset($argv[1]) and $argv[1] == 'daemon') {
 //$mode = SWOOLE_BASE;
 $mode = SWOOLE_PROCESS;
 
-$serv = new swoole_server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
+$serv = new Swoole\Server("0.0.0.0", 9501, $mode, SWOOLE_SOCK_TCP);
 $serv->listen('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $serv->listen('::', 9503, SWOOLE_SOCK_TCP6);
 $serv->listen('::', 9504, SWOOLE_SOCK_UDP6);
-$process1 = new swoole_process(function ($worker) use ($serv) {
+$process1 = new Swoole\Process(function ($worker) use ($serv) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: my_process1");
-    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
+    Swoole\Timer::tick(2000, function ($interval) use ($worker, $serv) {
         echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
         foreach ($serv->connections as $conn)
         {
             $serv->send($conn, "heartbeat\n");
         }
     });
-    swoole_timer_tick(5000, function () use ($serv)
+    Swoole\Timer::tick(5000, function () use ($serv)
     {
         $serv->sendMessage("hello event worker", 0);
         $serv->sendMessage("hello task worker", 4);
@@ -62,10 +62,10 @@ $process1 = new swoole_process(function ($worker) use ($serv) {
 
 //$serv->addprocess($process1);
 
-$process2 = new swoole_process(function ($worker) use ($serv) {
+$process2 = new Swoole\Process(function ($worker) use ($serv) {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: my_process2");
-    swoole_timer_tick(2000, function ($interval) use ($worker, $serv) {
+    Swoole\Timer::tick(2000, function ($interval) use ($worker, $serv) {
         echo "#{$worker->pid} child process timer $interval\n"; // 如果worker中没有定时器，则会输出 process timer xxx
     });
 }, false);
@@ -80,7 +80,7 @@ $serv->set(['reactor_num' => 4]);
  */
 G::$serv = $serv;
 
-function my_onStart(swoole_server $serv)
+function my_onStart(Swoole\Server $serv)
 {
     global $argv;
     swoole_set_process_name("php {$argv[0]}: master");
@@ -101,17 +101,17 @@ function my_log($msg)
 function forkChildInWorker() {
 	global $serv;
 	echo "on worker start\n";
-	$process = new swoole_process( function (swoole_process $worker) use ($serv) {
-// 		$serv = new swoole_server( "0.0.0.0", 9503 );
+	$process = new Swoole\Process( function (Swoole\Process $worker) use ($serv) {
+// 		$serv = new Swoole\Server( "0.0.0.0", 9503 );
 // 		$serv->set(array(
 // 				'worker_num' => 1
 // 		));
-// 		$serv->on ( 'receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+// 		$serv->on ( 'receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
 // 			$serv->send ( $fd, "Swoole: " . $data );
 // 			$serv->close ( $fd );
 // 		});
 // 		$serv->start ();
-// 		swoole_event_add ($worker->pipe, function ($pipe) use ($worker) {
+// 		Swoole\Event::add ($worker->pipe, function ($pipe) use ($worker) {
 // 			echo $worker->read()."\n";
 // 		});
 	});
@@ -122,7 +122,7 @@ function forkChildInWorker() {
 	$serv->childprocess = $process;
 }
 
-function processRename(swoole_server $serv, $worker_id) {
+function processRename(Swoole\Server $serv, $worker_id) {
 
 	global $argv;
 	if ( $serv->taskworker)
@@ -140,7 +140,7 @@ function processRename(swoole_server $serv, $worker_id) {
 	my_log("WorkerStart: MasterPid={$serv->master_pid}|Manager_pid={$serv->manager_pid}|WorkerId={$serv->worker_id}|WorkerPid={$serv->worker_pid}");
 }
 
-function setTimerInWorker(swoole_server $serv, $worker_id) {
+function setTimerInWorker(Swoole\Server $serv, $worker_id) {
 
 	if ($worker_id == 0) {
 		echo "Start: ".microtime(true)."\n";
@@ -163,13 +163,13 @@ function my_onShutdown($serv)
     echo "Server: onShutdown\n";
 }
 
-function my_onClose(swoole_server $serv, $fd, $reactor_id)
+function my_onClose(Swoole\Server $serv, $fd, $reactor_id)
 {
     my_log("Client[$fd@$reactor_id]: fd=$fd is closed");
     var_dump($serv->getClientInfo($fd));
 }
 
-function my_onConnect(swoole_server $serv, $fd, $reactor_id)
+function my_onConnect(Swoole\Server $serv, $fd, $reactor_id)
 {
     //throw new Exception("hello world");
 //    var_dump($serv->connection_info($fd));
@@ -186,17 +186,17 @@ function timer_show($id)
     my_log("Timer#$id");
 }
 
-function my_onWorkerExit(swoole_server $serv, $worker_id) {
+function my_onWorkerExit(Swoole\Server $serv, $worker_id) {
     global $argv;
 }
 
-function my_onWorkerStart(swoole_server $serv, $worker_id)
+function my_onWorkerStart(Swoole\Server $serv, $worker_id)
 {
 	processRename($serv, $worker_id);
 
     if (!$serv->taskworker)
     {
-        swoole_process::signal(SIGUSR2, function($signo){
+        Swoole\Process::signal(SIGUSR2, function($signo){
             echo "SIGNAL: $signo\n";
         });
         $serv->defer(function(){
@@ -208,7 +208,7 @@ function my_onWorkerStart(swoole_server $serv, $worker_id)
     }
     else
     {
-//        swoole_timer_after(2000, function() {
+//        Swoole\Timer::after(2000, function() {
 //            echo "after 2 secends.\n";
 //        });
 //        $serv->tick(1000, function ($id) use ($serv) {
@@ -236,7 +236,7 @@ function my_onPacket($serv, $data, $clientInfo)
     var_dump($clientInfo);
 }
 
-function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
+function my_onReceive(Swoole\Server $serv, $fd, $reactor_id, $data)
 {
     my_log("Worker#{$serv->worker_pid} Client[$fd@$reactor_id]: received: $data");
     $cmd = trim($data);
@@ -297,7 +297,7 @@ function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
     }
     elseif ($cmd == "taskcallback")
     {
-        $serv->task("taskcallback", -1, function (swoole_server $serv, $task_id, $data)
+        $serv->task("taskcallback", -1, function (Swoole\Server $serv, $task_id, $data)
         {
             echo "Task Callback: ";
             var_dump($task_id, $data);
@@ -420,10 +420,10 @@ function my_onReceive(swoole_server $serv, $fd, $reactor_id, $data)
 //            echo "hello";
 //        }
 //    );
-    //swoole_server_send($serv, $other_fd, "Server: $data", $other_reactor_id);
+    //Swoole\Server_send($serv, $other_fd, "Server: $data", $other_reactor_id);
 }
 
-function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
+function my_onTask(Swoole\Server $serv, $task_id, $reactor_id, $data)
 {
     if ($data == 'taskwait')
     {
@@ -452,7 +452,7 @@ function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
             return $data;
         }
 //        $serv->sendto('127.0.0.1', 9999, "hello world");
-        //swoole_timer_after(1000, "test");
+        //Swoole\Timer::after(1000, "test");
 //        var_dump($data);
 //        $serv->send($fd, str_repeat('A', 8192 * 2));
 //        $serv->send($fd, str_repeat('B', 8192 * 2));
@@ -473,7 +473,7 @@ function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
     }
 }
 
-function my_onFinish(swoole_server $serv, $task_id, $data)
+function my_onFinish(Swoole\Server $serv, $task_id, $data)
 {
 	list($str, $fd) = explode('-', $data);
 	$serv->send($fd, 'taskok');
@@ -481,12 +481,12 @@ function my_onFinish(swoole_server $serv, $task_id, $data)
     echo "AsyncTask Finish: result={$data}. PID=".$serv->worker_pid.PHP_EOL;
 }
 
-function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code, $signo)
+function my_onWorkerError(Swoole\Server $serv, $worker_id, $worker_pid, $exit_code, $signo)
 {
     echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code|Signal=$signo\n";
 }
 
-function broadcast(swoole_server $serv, $fd = 0, $data = "hello")
+function broadcast(Swoole\Server $serv, $fd = 0, $data = "hello")
 {
     $start_fd = 0;
     echo "broadcast\n";

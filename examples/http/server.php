@@ -4,11 +4,11 @@ function dump($var)
     return highlight_string("<?php\n\$array = ".var_export($var, true).";", true);
 }
 $key_dir = dirname(dirname(__DIR__)) . '/tests/ssl';
-//$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE);
-$http = new swoole_http_server("0.0.0.0", 9501);
-//$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+//$http = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE);
+$http = new Swoole\Http\Server("0.0.0.0", 9501);
+//$http = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //https
-//$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+//$http = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 //$http->setGlobal(HTTP_GLOBAL_ALL, HTTP_GLOBAL_GET|HTTP_GLOBAL_POST|HTTP_GLOBAL_COOKIE);
 $http->set([
 //    'daemonize' => 1,
@@ -37,7 +37,7 @@ $http->set([
 
 $http->listen('127.0.0.1', 9502, SWOOLE_SOCK_TCP);
 
-function chunk(swoole_http_request $request, swoole_http_response $response)
+function chunk(Swoole\Http\Request $request, Swoole\Http\Response $response)
 {
     $response->write("<h1>hello world1</h1>");
     //sleep(1);
@@ -46,7 +46,7 @@ function chunk(swoole_http_request $request, swoole_http_response $response)
     $response->end();
 }
 
-function no_chunk(swoole_http_request $request, swoole_http_response $response)
+function no_chunk(Swoole\Http\Request $request, Swoole\Http\Response $response)
 {
     /**
      * Cookie Test
@@ -131,7 +131,7 @@ function no_chunk(swoole_http_request $request, swoole_http_response $response)
         var_dump($request->post);
         //$response->header('X-Server', 'Swoole');
         //unset($request, $response);
-//    swoole_timer_after(2000, function() use ( $response) {
+//    Swoole\Timer::after(2000, function() use ( $response) {
         $response->end("<h1>Hello Swoole.</h1>" . $output);
         return;
 //    });
