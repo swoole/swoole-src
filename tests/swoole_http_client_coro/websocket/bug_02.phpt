@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm) {
     $ws->on('workerStart', function (Swoole\WebSocket\Server  $serv) use ($pm) {
         $pm->wakeup();
     });
-    $ws->on('open', function (Swoole\WebSocket\Server  $ws, swoole_http_request $request) {
+    $ws->on('open', function (Swoole\WebSocket\Server  $ws, Swoole\Http\Request $request) {
         $ws->push($request->fd, "server: hello, welcome\n");
     });
     $ws->on('message', function (Swoole\WebSocket\Server  $ws, Swoole\WebSocket\Frame $frame) {

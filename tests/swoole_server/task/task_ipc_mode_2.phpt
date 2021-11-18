@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
         $server->task($response->fd);
     });
     $server->on('task', function ($server, $task_id, $worker_id, string $fd) {
-        $response = swoole_http_response::create($fd);
+        $response = Swoole\Http\Response::create($fd);
         $response->end("Hello Swoole!\n");
     });
     $server->on('finish', function () { });

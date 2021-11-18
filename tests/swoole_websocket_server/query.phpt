@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('open', function (Swoole\WebSocket\Server  $serv, swoole_http_request $req) {
+    $serv->on('open', function (Swoole\WebSocket\Server  $serv, Swoole\Http\Request $req) {
         $serv->push($req->fd, json_encode($req->get));
     });
     $serv->on('Message', function (Swoole\WebSocket\Server  $serv, Swoole\WebSocket\Frame $frame) {

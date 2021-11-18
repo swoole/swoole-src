@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm) {
         $http->task($response->fd);
     });
     $http->on('task', function ($a, $b, $c, string $fd) {
-        $response = swoole_http_response::create($fd);
+        $response = Swoole\Http\Response::create($fd);
         $response->end('Hello Swoole!');
         return null; // no on finish?
     });

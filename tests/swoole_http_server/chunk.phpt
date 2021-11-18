@@ -31,7 +31,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function (Swoole\Http\Request $request,  swoole_http_response $response) {
+    $http->on("request", function (Swoole\Http\Request $request,  Swoole\Http\Response $response) {
         $data = str_split(file_get_contents(TEST_IMAGE), 8192);
         foreach ($data as $chunk)
         {
