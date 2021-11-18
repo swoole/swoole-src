@@ -8,7 +8,7 @@ require __DIR__ . '/../../include/skipif.inc';
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 const FILE = __DIR__ . '/test.data';
 

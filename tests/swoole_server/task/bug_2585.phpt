@@ -35,17 +35,17 @@ $pm->childFunc = function () use ($pm) {
         } else {
             $http->task($response->fd, -1, function ($server, $taskId, $data) {
                 list($fd, $data) = $data;
-                $response = swoole_http_response::create($fd);
+                $response = Swoole\Http\Response::create($fd);
                 $response->end($data);
             });
         }
     });
-    $http->on('task', function (swoole_http_server $server, swoole_server_task $task) {
+    $http->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) {
         $fd = $task->data;
         if (mt_rand(0, 1)) {
             $task->finish([$fd, 'Hello Swoole!']);
         } else {
-            $response = swoole_http_response::create($fd);
+            $response = Swoole\Http\Response::create($fd);
             $pdo = new PDO(
                 "mysql:host=" . MYSQL_SERVER_HOST . ";port=" . MYSQL_SERVER_PORT . ";dbname=" . MYSQL_SERVER_DB . ";charset=utf8",
                 MYSQL_SERVER_USER, MYSQL_SERVER_PWD
@@ -58,7 +58,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $http->on('finish', function ($server, $taskId, $data) {
         list($fd, $ret) = $data;
-        $response = swoole_http_response::create($fd);
+        $response = Swoole\Http\Response::create($fd);
         $response->end($ret);
     });
     $http->start();

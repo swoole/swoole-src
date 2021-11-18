@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
         }
         $response->end('OK');
     });
-    $server->on('task', function (swoole_http_server $server, int $task_id, int $worker_id, string $n) use ($pm, $randoms) {
+    $server->on('task', function (Swoole\Http\Server $server, int $task_id, int $worker_id, string $n) use ($pm, $randoms) {
         return [$n, $randoms[$n]];
     });
     $server->start();

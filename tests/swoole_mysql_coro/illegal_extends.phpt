@@ -7,7 +7,7 @@ swoole_mysql_coro: illegal child class
 
 require __DIR__ . '/../include/bootstrap.php';
 
-class swoole_invalid_mysql_coro extends \Swoole\Coroutine\MySQL
+class InvalidMysqlCoro extends \Swoole\Coroutine\MySQL
 {
 
     public function __construct()
@@ -34,7 +34,7 @@ class swoole_invalid_mysql_coro extends \Swoole\Coroutine\MySQL
 }
 
 go(function () {
-    $db = new swoole_invalid_mysql_coro;
+    $db = new InvalidMysqlCoro;
     $server = [
         'host' => MYSQL_SERVER_HOST,
         'port' => MYSQL_SERVER_PORT,

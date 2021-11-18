@@ -15,7 +15,7 @@ for ($i = 0; $i < 4; $i++) {
     });
 };
 
-swoole_timer_after(200, function () use ($chan) {
+Swoole\Timer::after(200, function () use ($chan) {
     for ($i = 0; $i < 6; $i++)  {
         $chan->push($i);
     }

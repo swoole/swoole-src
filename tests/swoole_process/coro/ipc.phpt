@@ -6,7 +6,7 @@ swoole_process/coro: ipc with coroutine
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-$proc1 = new \swoole_process(function (swoole_process $proc) {
+$proc1 = new Swoole\Process(function (Swoole\Process $proc) {
     $socket = $proc->exportSocket();
     echo $socket->recv();
     $socket->send("hello proc2\n");
@@ -15,7 +15,7 @@ $proc1 = new \swoole_process(function (swoole_process $proc) {
 
 Assert::assert($proc1->start());
 
-$proc2 = new \swoole_process(function (swoole_process $proc) use ($proc1) {
+$proc2 = new Swoole\Process(function (Swoole\Process $proc) use ($proc1) {
     Co::sleep(0.01);
     $socket = $proc1->exportSocket();
     $socket->send("hello proc1\n");
@@ -25,8 +25,8 @@ $proc2 = new \swoole_process(function (swoole_process $proc) use ($proc1) {
 
 Assert::assert($proc2->start());
 
-swoole_process::wait(true);
-swoole_process::wait(true);
+Swoole\Process::wait(true);
+Swoole\Process::wait(true);
 
 ?>
 --EXPECT--

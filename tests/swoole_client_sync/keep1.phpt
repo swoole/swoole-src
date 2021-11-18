@@ -34,7 +34,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('receive', function (swoole_server $serv, $fd, $tid, $data) {
+    $server->on('receive', function (Swoole\Server $serv, $fd, $tid, $data) {
         $serv->send($fd, "Swoole $data\n");
     });
     $server->start();

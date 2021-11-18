@@ -38,7 +38,7 @@ $pm->childFunc = function () use ($pm)
     $ws->set(array(
         'log_file' => '/dev/null'
     ));
-    $ws->on('WorkerStart', function (\swoole_server $serv) {
+    $ws->on('WorkerStart', function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */
@@ -46,7 +46,7 @@ $pm->childFunc = function () use ($pm)
         $pm->wakeup();
     });
 
-    $ws->on('open', function ($serv, swoole_http_request $request) {
+    $ws->on('open', function ($serv, Swoole\Http\Request $request) {
         $serv->push($request->fd, "start\n");
     });
 

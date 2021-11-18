@@ -7,7 +7,7 @@ swoole_client_sync: connect 1 - 3 nonblocking connect & select
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $r = $cli->connect('127.0.0.1', $pm->getFreePort(), 1);
     Assert::assert($r);
     $r = $w = $e = [$cli];

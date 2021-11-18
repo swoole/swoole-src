@@ -57,7 +57,7 @@ $pm->childFunc = function () use ($pm) {
                 }
         }
     });
-    $server->on('task', function (swoole_http_server $server, swoole_server_task $task) use ($pm) {
+    $server->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) use ($pm) {
         $cli = new Swoole\Coroutine\Http\Client('127.0.0.1', $pm->getFreePort());
         $cli->get("/random?n={$task->data}");
         $task->finish([$task->data, $cli->body]);

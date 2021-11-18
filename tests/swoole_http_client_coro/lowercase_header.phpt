@@ -33,7 +33,7 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
         'log_file' => '/dev/null'
     ]);
-    $http->on('WorkerStart', function (\swoole_server $serv) {
+    $http->on('WorkerStart', function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */

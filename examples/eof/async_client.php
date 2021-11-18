@@ -9,7 +9,7 @@ function send(swoole_client $cli)
 $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC); //异步非阻塞
 $client->set(array('open_eof_check' => true, 'package_eof' => "\r\n\r\n"));
 
-$client->on("connect", function(swoole_client $cli) {
+$client->on("connect", function(Swoole\Client $cli) {
     send($cli);
 });
 
@@ -24,11 +24,11 @@ $client->on("receive", function (swoole_client $cli, $data) {
     //send($cli);
 });
 
-$client->on("error", function(swoole_client $cli){
+$client->on("error", function(Swoole\Client $cli){
     echo "error\n";
 });
 
-$client->on("close", function(swoole_client $cli){
+$client->on("close", function(Swoole\Client $cli){
     echo "Connection close\n";
 });
 

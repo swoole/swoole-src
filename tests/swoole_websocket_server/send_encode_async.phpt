@@ -58,12 +58,12 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('open', function (Swoole\WebSocket\Server  $serv, swoole_http_request $req) {
+    $serv->on('open', function (Swoole\WebSocket\Server  $serv, Swoole\Http\Request $req) {
         global $data_list;
         foreach ($data_list as $data) {
             $opcode = (int)explode('|', $data, 3)[1];
             if (mt_rand(0, 1)) {
-                $frame = new swoole_websocket_frame;
+                $frame = new Swoole\WebSocket\Frame;
                 $frame->opcode = $opcode;
                 $frame->data = $data;
                 $ret = $serv->push($req->fd, $frame);

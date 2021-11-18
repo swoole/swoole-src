@@ -30,18 +30,18 @@ $pm->childFunc = function () use ($pm)
 
     $serv->addProcess($process);
 
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data)
     {
 
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data) use($pm)
+    $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data) use($pm)
     {
         Assert::false($serv->finish("OK"));
         $pm->wakeup();
     });
 
-    $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('finish', function (Swoole\Server $serv, $fd, $rid, $data)
     {
 
     });

@@ -32,11 +32,11 @@ $pm->childFunc = function () use ($pm) {
         Assert::assert($response->detach());
         $http->task($response->fd, -1, function ($server, $taskId, $data) {
             list($fd, $data) = $data;
-            $response = swoole_http_response::create($fd);
+            $response = Swoole\Http\Response::create($fd);
             $response->end($data);
         });
     });
-    $http->on('task', function (swoole_http_server $server, swoole_server_task $task) {
+    $http->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) {
         defer(function ($data) {
             if (!empty($data)) {
                 list($task, $result) = $data;
@@ -55,7 +55,7 @@ $pm->childFunc = function () use ($pm) {
     });
     $http->on('finish', function ($server, $taskId, $data) {
         list($fd, $ret) = $data;
-        $response = swoole_http_response::create($fd);
+        $response = Swoole\Http\Response::create($fd);
         $response->end($ret);
     });
     $http->start();

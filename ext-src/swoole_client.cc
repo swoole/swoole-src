@@ -1393,7 +1393,7 @@ static PHP_METHOD(swoole_client, shutdown) {
     SW_CHECK_RETURN(cli->shutdown(__how));
 }
 
-PHP_FUNCTION(swoole_client_select) {
+PHP_function(Swoole\Client_select) {
 #ifdef PHP_SWOOLE_CLIENT_USE_POLL
     zval *r_array, *w_array, *e_array;
     int retval;

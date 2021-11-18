@@ -25,7 +25,7 @@ $client->set(array(
     'package_max_length'    => 2000000,  //协议最大长度
 ));
 
-$client->on("connect", function(swoole_client $cli) {
+$client->on("connect", function(Swoole\Client $cli) {
     send($cli);
 });
 
@@ -38,11 +38,11 @@ $client->on("receive", function (swoole_client $cli, $data) {
     //send($cli);
 });
 
-$client->on("error", function(swoole_client $cli){
+$client->on("error", function(Swoole\Client $cli){
     echo "error\n";
 });
 
-$client->on("close", function(swoole_client $cli){
+$client->on("close", function(Swoole\Client $cli){
     echo "Connection close\n";
 });
 

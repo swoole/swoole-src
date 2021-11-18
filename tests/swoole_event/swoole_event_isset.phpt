@@ -19,7 +19,7 @@ Swoole\Event::add($fp, function ($fp) {
 });
 
 Assert::true(Swoole\Event::isset($fp, SWOOLE_EVENT_READ));
-Assert::false(Swoole\Event::isset($fp, Swoole\Event::write));
+Assert::false(Swoole\Event::isset($fp, SWOOLE_EVENT_WRITE));
 Swoole\Event::wait();
 ?>
 --EXPECT--

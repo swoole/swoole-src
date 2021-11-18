@@ -26,7 +26,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
                         $count++;
                         $loop++;
                         if (mt_rand(0, 1)) {
-                            $pong = new swoole_websocket_frame;
+                            $pong = new Swoole\WebSocket\Frame;
                             $pong->data = 'pong';
                             $pong->opcode = WEBSOCKET_OPCODE_PONG;
                             $ret = $cli->push($pong);
@@ -62,7 +62,7 @@ $pm->childFunc = function () use ($pm) {
         $timer_id = $server->tick(PING_INTERVAL, function () use ($server) {
             foreach ($server->connections as $fd) {
                 if (mt_rand(0, 1)) {
-                    $ping = new swoole_websocket_frame;
+                    $ping = new Swoole\WebSocket\Frame;
                     $ping->data = 'ping';
                     $ping->opcode = WEBSOCKET_OPCODE_PING;
                     $server->push($fd, $ping);
@@ -75,7 +75,7 @@ $pm->childFunc = function () use ($pm) {
             $server->clearTimer($timer_id);
             Swoole\Coroutine::sleep(0.1); // wait pong
             foreach ($server->connections as $fd) {
-                $server->push($fd, new swoole_websocket_closeframe);
+                $server->push($fd, new Swoole\WebSocket\CloseFrame);
             }
         });
         $pm->wakeup();

@@ -23,7 +23,7 @@ Swoole\Timer::tick(1, function ( $id ) use ( &$stat ) {
         $stat->m2 = memory_get_usage();
         Assert::lessThan($stat->m2 - $stat->m1, 128);
         echo 'diff[1] ' . ($stat->m2 - $stat->m1) . "\n";
-        swoole_timer_clear($id);
+        Swoole\Timer::clear($id);
     }
 });
 

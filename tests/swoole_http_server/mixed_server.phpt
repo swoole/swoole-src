@@ -29,7 +29,7 @@ $pm->parentFunc = function ($pid) use ($pm, $tcp_options) {
         // http2
         $http2_client = new Swoole\Coroutine\Http2\Client('127.0.0.1', $pm->getFreePort(0));
         $http2_client->connect();
-        $http2_request = new swoole_http2_request;
+        $http2_request = new Swoole\Http2\Request;
         $http2_request->method = 'POST';
         $http2_request->data = 'Swoole Http2';
         $http2_client->send($http2_request);
@@ -73,7 +73,7 @@ $pm->childFunc = function () use ($pm, $tcp_options) {
     // tcp
     $tcp_server = $server->listen('127.0.0.1', $pm->getFreePort(1), SWOOLE_TCP);
     $tcp_server->set($tcp_options);
-    $tcp_server->on('receive', function (swoole_server $server, int $fd, int $reactor_id, string $data) {
+    $tcp_server->on('receive', function (Swoole\Server $server, int $fd, int $reactor_id, string $data) {
         $server->send($fd, tcp_pack('Hello ' . tcp_unpack($data)));
     });
     $server->start();

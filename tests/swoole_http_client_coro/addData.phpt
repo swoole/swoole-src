@@ -20,7 +20,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         $cli->close();
     });
     Swoole\Event::wait();
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)

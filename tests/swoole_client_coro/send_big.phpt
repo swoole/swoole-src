@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on('connect', function (swoole_server $serv, $fd)
+    $serv->on('connect', function (Swoole\Server $serv, $fd)
     {
 
     });

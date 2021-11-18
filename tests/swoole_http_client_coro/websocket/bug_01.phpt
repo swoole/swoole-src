@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm)
     $ws->set(array(
         'log_file' => '/dev/null'
     ));
-    $ws->on('WorkerStart', function (\swoole_server $serv) {
+    $ws->on('WorkerStart', function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */

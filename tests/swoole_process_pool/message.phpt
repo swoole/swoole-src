@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP);
     Assert::assert($client->connect('127.0.0.1', 8089, 5));
     $data = "hello swoole!";
     $client->send(pack('N', strlen($data)) . $data);
@@ -25,7 +25,7 @@ $pm->childFunc = function () use ($pm) {
     $pool = new Swoole\Process\Pool(1, SWOOLE_IPC_SOCKET);
 
     $pool->on('workerStart', function (Swoole\Process\Pool $pool, int $workerId) {
-        $client = new swoole_client(SWOOLE_SOCK_TCP);
+        $client = new Swoole\Client(SWOOLE_SOCK_TCP);
         Assert::assert($client->connect('127.0.0.1', 8089, 5));
         $data = "hello swoole! (from workerStart)";
         $client->send(pack('N', strlen($data)) . $data);

@@ -13,7 +13,7 @@ Swoole\Event::add(STDIN, function ($fp) {
     Swoole\Event::del(STDIN);
 });
 
-swoole_timer_after(100, function () {
+Swoole\Timer::after(100, function () {
     Swoole\Event::del(STDIN);
     fclose(STDIN);
 });

@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $pm = new ProcessManager;
 $pm->parentFunc = function () use ($pm) {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
     $r = $cli->connect('127.0.0.1', $pm->getFreePort(), 5);
     Assert::assert($r);
     $cli->send("hello world\n");
@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on("workerStart", function ($serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $tid, $data) {
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $tid, $data) {
         $serv->send($fd, "Swoole $data");
     });
     $serv->start();

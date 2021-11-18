@@ -6,14 +6,14 @@ swoole_atomic: wakeup & wait
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$atomic = new swoole_atomic;
+$atomic = new Swoole\Atomic;
 const N = 4;
 
 $workers = [];
 
 for ($i = 0; $i < 4; $i++)
 {
-    $p = new swoole_process(function () use ($atomic)
+    $p = new Swoole\Process(function () use ($atomic)
     {
         $atomic->wait();
         echo "Child OK\n";
@@ -28,7 +28,7 @@ $atomic->wakeup(N);
 
 for ($i = 0; $i < 4; $i++)
 {
-    $status = swoole_process::wait();
+    $status = Swoole\Process::wait();
 }
 ?>
 --EXPECT--

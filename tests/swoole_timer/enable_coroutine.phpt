@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 swoole_async_set([
     'enable_coroutine' => false
 ]);
-swoole_timer_after(1, function () {
+Swoole\Timer::after(1, function () {
     $uid = Co::getuid();
     echo "#{$uid}\n";
 });

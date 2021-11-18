@@ -1,5 +1,5 @@
 --TEST--
-swoole_event: Swoole\Event::write
+swoole_event: write()
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc';
 skip_if_offline();
@@ -23,7 +23,7 @@ Swoole\Event::add($fp, function($fp) {
 Swoole\Event::write($fp, "GET / HTTP/1.1\r\nHost: www.qq.com\r\n\r\n");
 
 echo "Finish\n";
-\Swoole\Event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 Finish

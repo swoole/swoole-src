@@ -7,14 +7,14 @@ $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC); //异步非阻�
 //));
 
 $client->_count = 0;
-$client->on("connect", function(swoole_client $cli) {
+$client->on("connect", function(Swoole\Client $cli) {
     //swoole_timer_clear($cli->timer);
     $cli->send("GET / HTTP/1.1\r\n\r\n");
     //$cli->sendfile(__DIR__.'/test.txt');
     //$cli->_count = 0;
 });
 
-$client->on("receive", function(swoole_client $cli, $data){
+$client->on("receive", function(Swoole\Client $cli, $data){
     echo "Receive: $data";
     $cli->_count++;
     if ($cli->_count > 5)
@@ -36,11 +36,11 @@ $client->on("receive", function(swoole_client $cli, $data){
     }
 });
 
-$client->on("error", function(swoole_client $cli){
+$client->on("error", function(Swoole\Client $cli){
     echo "error\n";
 });
 
-$client->on("close", function(swoole_client $cli){
+$client->on("close", function(Swoole\Client $cli){
     echo "Connection close\n";
 });
 

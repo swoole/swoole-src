@@ -19,13 +19,13 @@ function debug_log($str, $handle = STDERR)
 class TcpServer
 {
     /**
-     * @var \swoole_server
+     * @var Swoole\Server
      */
     public $swooleServer;
 
     public function __construct()
     {
-        $this->swooleServer = new \swoole_server('127.0.0.1', 9001, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+        $this->swooleServer = new Swoole\Server('127.0.0.1', 9001, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
             // "output_buffer_size" => 1024 * 1024 * 1024, // 输出限制
 
@@ -70,32 +70,32 @@ class TcpServer
         debug_log("closing .....");
     }
 
-    public function onStart(swoole_server $swooleServer)
+    public function onStart(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server starting .....");
     }
 
-    public function onShutdown(swoole_server $swooleServer)
+    public function onShutdown(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server shutdown .....");
     }
 
-    public function onWorkerStart(swoole_server $swooleServer, $workerId)
+    public function onWorkerStart(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId starting .....");
     }
 
-    public function onWorkerStop(swoole_server $swooleServer, $workerId)
+    public function onWorkerStop(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId stopping ....");
     }
 
-    public function onWorkerError(swoole_server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
+    public function onWorkerError(Swoole\Server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
     {
         debug_log("worker error happening [workerId=$workerId, workerPid=$workerPid, exitCode=$exitCode, signalNo=$sigNo]...");
     }
 
-    public function onReceive(swoole_server $swooleServer, $fd, $fromId, $data)
+    public function onReceive(Swoole\Server $swooleServer, $fd, $fromId, $data)
     {
         echo "close $fd\n";
 //        var_dump($swooleServer->shutdown());

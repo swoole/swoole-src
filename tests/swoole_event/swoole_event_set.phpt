@@ -31,7 +31,7 @@ Swoole\Event::add($fp, function($fp) {
 });
 
 #设置写事件回调函数，这会替换掉原有的写事件回调函数
-Swoole\Event::set($fp, null, 'write_callback', Swoole\Event::write);
+Swoole\Event::set($fp, null, 'write_callback', SWOOLE_EVENT_WRITE);
 
 Swoole\Event::write($fp, "GET / HTTP/1.1\r\nHost: www.qq.com\r\n\r\n");
 echo "Finish\n";

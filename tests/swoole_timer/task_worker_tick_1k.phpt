@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
     $cli->connect('127.0.0.1', $pm->getFreePort(), 5) or die("ERROR");
 
@@ -29,15 +29,15 @@ $pm->childFunc = function () use ($pm)
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Swoole\Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data) {
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
         $serv->task([$fd, 'timer']);
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data) {
+    $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data) {
         static $i = 0;
         $serv->tick(1, function () use(&$i, $serv) {
             $i++;

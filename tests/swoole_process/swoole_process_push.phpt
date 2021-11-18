@@ -6,7 +6,7 @@ swoole_process: push
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-//$proc = new \swoole_process(swoole_function() {});
+//$proc = new Swoole\Process(swoole_function() {});
 //$proc->useQueue();
 //$r = $proc->push("\0");
 // Assert::false($r);
@@ -15,13 +15,13 @@ require __DIR__ . '/../include/bootstrap.php';
 // Assert::false($r);
 //$proc->freeQueue();
 
-$proc = new \swoole_process(function() {});
+$proc = new Swoole\Process(function() {});
 $proc->useQueue();
 $proc->start();
 $r = $proc->push("\0");
 Assert::true($r);
 $proc->freeQueue();
-\swoole_process::wait(true);
+\Swoole\Process::wait(true);
 echo "SUCCESS";
 ?>
 --EXPECT--

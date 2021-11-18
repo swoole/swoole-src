@@ -10,7 +10,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 go(function () {
     $fp = stream_socket_client("ssl://www.baidu.com:443", $errno, $errstr, 30);

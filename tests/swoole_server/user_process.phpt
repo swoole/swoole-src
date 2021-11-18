@@ -27,7 +27,7 @@ $pm->parentFunc = function ($pid) use ($pm)
       Assert::same(strlen($ret), SIZE +4);
     }
     $client->close();
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
@@ -35,7 +35,7 @@ $pm->childFunc = function () use ($pm)
     $serv = new Server('127.0.0.1', $pm->getFreePort());
     $serv->set(["worker_num" => 1, 'log_file' => '/dev/null']);
 
-    $proc = new swoole\process(function ($process) use ($serv){
+    $proc = new Swoole\Process(function ($process) use ($serv){
       //echo posix_getpid()."\n";
       while(true) {
        $data = json_decode($process->read(), true);

@@ -50,7 +50,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
         }
         $response->end('OK');
     });
-    $server->on('task', function (swoole_http_server $server, Swoole\Server\Task $task) use ($pm, $randoms) {
+    $server->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) use ($pm, $randoms) {
         Assert::same($task->worker_id, 0);
         Assert::assert($task->flags > 0);
         Assert::assert($task->id >= 0);

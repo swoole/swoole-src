@@ -62,7 +62,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
                 }
             }
         });
-    $server->on('task', function (swoole_http_server $server, swoole_server_task $task) use ($pm) {
+    $server->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) use ($pm) {
         $task->finish([$task->data, httpGetBody('http://127.0.0.1:' . $pm->getFreePort() . "/random?n={$task->data}")]);
     });
     $server->on('finish', function () {

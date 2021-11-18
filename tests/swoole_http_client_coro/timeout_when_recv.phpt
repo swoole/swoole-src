@@ -28,7 +28,7 @@ $pm->childFunc = function () use ($pm, $port) {
     $serv->set([
         'log_file' => '/dev/null'
     ]);
-    $serv->on('WorkerStart', function (swoole_http_server $serv) {
+    $serv->on('WorkerStart', function (Swoole\Http\Server $serv) {
         global $pm;
         $pm->wakeup();
     });

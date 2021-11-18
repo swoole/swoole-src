@@ -442,7 +442,7 @@ function killself_in_syncmode($lifetime = 1000, $sig = SIGKILL)
  */
 function suicide($lifetime, $sig = SIGKILL, callable $cb = null)
 {
-    return swoole_timer_after($lifetime, function () use ($lifetime, $sig, $cb) {
+    return Swoole\Timer::after($lifetime, function () use ($lifetime, $sig, $cb) {
         if ($cb) {
             $cb();
         }

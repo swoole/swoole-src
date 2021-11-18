@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     Assert::assert(is_array($json));
     Assert::true(isset($json['folder_id']));
     Assert::true(isset($json['name']));
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm) {

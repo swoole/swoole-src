@@ -6,7 +6,7 @@ swoole_process: redirect
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function(\swoole_process $proc) {
+$proc = new Swoole\Process(function(Swoole\Process $proc) {
     echo "SUCCESS";
 }, true);
 
@@ -14,7 +14,7 @@ $proc->start();
 $r = $proc->read();
 echo "READ: $r~";
 
-\swoole_process::wait(true);
+\Swoole\Process::wait(true);
 ?>
 --EXPECT--
 READ: SUCCESS~

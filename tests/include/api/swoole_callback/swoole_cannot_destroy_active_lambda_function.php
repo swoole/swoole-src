@@ -21,7 +21,7 @@ function send($str, $onRecv)
     static $client;
 
     if ($client === null) {
-        $client = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+        $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
         $client->on("error", function($cli) { echo "error"; });
         $client->on("close", function($cli) { echo "close"; });

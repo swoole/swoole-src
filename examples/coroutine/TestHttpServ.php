@@ -54,26 +54,26 @@ class TestHttpServer {
 	public function onRequest($request, $response){
 
 		// $udp = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_ASYNC);
-		// $udp->on("connect", function(swoole_client $cli) {
+		// $udp->on("connect", function(Swoole\Client $cli) {
 		//     $cli->send("udp test");
 		// });
-		// $udp->on("receive", function(swoole_client $cli, $data)use($response){
+		// $udp->on("receive", function(Swoole\Client $cli, $data)use($response){
 
 			$tcp = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
-			$tcp->on("connect", function(swoole_client $cli) {
+			$tcp->on("connect", function(Swoole\Client $cli) {
 			    $cli->send("tcp test");
 			});
-			$tcp->on("receive", function(swoole_client $cli, $data)use($response){
+			$tcp->on("receive", function(Swoole\Client $cli, $data)use($response){
 				$response ->end("<h1> swoole response</h1>");
 			});
-			$tcp->on("close", function(swoole_client $cli){
+			$tcp->on("close", function(Swoole\Client $cli){
 			});
-			$tcp->on("error", function(swoole_client $cli){
+			$tcp->on("error", function(Swoole\Client $cli){
 			});
 			$tcp->connect('10.100.64.151', 9805);
 
 		// });
-		// $udp->on("close", function(swoole_client $cli){
+		// $udp->on("close", function(Swoole\Client $cli){
 		// });
 		// $udp->connect('10.100.65.222', 9906);
 

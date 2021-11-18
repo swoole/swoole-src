@@ -14,7 +14,7 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($port)
 {
-    $client = new swoole_client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_UDP, SWOOLE_SOCK_SYNC);
     if (!$client->connect('127.0.0.1', $port))
     {
         exit("connect failed\n");
@@ -22,7 +22,7 @@ $pm->parentFunc = function ($pid) use ($port)
     $client->send(str_repeat('A',  N));
     $data = $client->recv();
     Assert::same(strlen($data), N);
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm, $port)

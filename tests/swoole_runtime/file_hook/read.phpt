@@ -40,7 +40,7 @@ foreach ($files as &$f)
     $f['hash'] = md5_file($f['file']);
 }
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 foreach ($files as $k => $v)
 {

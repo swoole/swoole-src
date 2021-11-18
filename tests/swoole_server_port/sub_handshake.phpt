@@ -60,9 +60,9 @@ $pm->childFunc = function () use ($pm) {
         $response->end();
         return true;
     });
-    $sub_server->on('message', function (swoole_http_server $server, Swoole\WebSocket\Frame $frame) {
+    $sub_server->on('message', function (Swoole\Http\Server $server, Swoole\WebSocket\Frame $frame) {
         var_dump($frame);
-        $response = new swoole_websocket_frame;
+        $response = new Swoole\WebSocket\Frame;
         $response->data = 'OK';
         $server->send($frame->fd, (string)$response);
     });

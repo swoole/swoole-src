@@ -11,7 +11,7 @@ require __DIR__ . '/../../include/bootstrap.php';
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP | SWOOLE_SSL, SWOOLE_SOCK_SYNC);
     $client->set([
         'ssl_cert_file' => SSL_FILE_DIR . '/client.crt',
         'ssl_key_file' => SSL_FILE_DIR . '/client.key',

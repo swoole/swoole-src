@@ -7,7 +7,7 @@ swoole_event: Swoole\Event::exit
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole_timer_tick(1, function() {
+Swoole\Timer::tick(1, function() {
     echo "tick\n";
     Swoole\Event::exit();
 });

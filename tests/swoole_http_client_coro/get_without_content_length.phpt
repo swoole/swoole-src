@@ -35,7 +35,7 @@ $pm->childFunc = function () use ($pm)
     $serv->set(array(
         'log_file' => '/dev/null'
     ));
-    $serv->on('WorkerStart', function (\swoole_server $serv)
+    $serv->on('WorkerStart', function (Swoole\Server $serv)
     {
         /**
          * @var $pm ProcessManager

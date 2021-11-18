@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
 
-$atomic = new swoole_atomic(1);
+$atomic = new Swoole\Atomic(1);
 
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm,$argv) {
@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm,$atomic) {
             if ($atomic->get() == 1) {
                 $atomic->add(1);
                 $server->reload();
-            }            
+            }
         });
     });
     $serv->on('receive', function ($serv, $fd, $tid, $data) {

@@ -9,7 +9,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 go(function () {
     $opts = array(

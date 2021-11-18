@@ -37,11 +37,11 @@ $pm->childFunc = function () use ($pm) {
         'package_length_offset' => 0,
         'package_body_offset' => 4,
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Swoole\Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data)
     {
         $serv->close($fd);
     });

@@ -16,7 +16,7 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($port)
 {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
     if (!$client->connect('127.0.0.1', $port))
     {
         exit("connect failed\n");
@@ -39,7 +39,7 @@ $pm->parentFunc = function ($pid) use ($port)
         $bytes += strlen($r);
     }
     Assert::same($bytes, N);
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm, $port)
@@ -54,7 +54,7 @@ $pm->childFunc = function () use ($pm, $port)
     {
         $pm->wakeup();
     });
-    $serv->on('connect', function (swoole_server $serv, $fd)
+    $serv->on('connect', function (Swoole\Server $serv, $fd)
     {
         $_send_data = str_repeat("A", N);
         $serv->send($fd, $_send_data);

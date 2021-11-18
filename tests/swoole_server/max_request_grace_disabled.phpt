@@ -10,7 +10,7 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function () use ($pm)
 {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'open_eof_check' => true,
         'package_eof' => "\n",
@@ -40,7 +40,7 @@ $pm->childFunc = function () use ($pm)
         $pm->wakeup();
     });
     $count = 0;
-    $serv->on('receive', function (swoole_server $serv, $fd, $reactorId, $data) use (&$count) {
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $reactorId, $data) use (&$count) {
         $count++;
         $serv->send($fd, "Worker $serv->worker_id served $count request(s) since start\n");
     });

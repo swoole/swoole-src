@@ -32,7 +32,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         goto fail;
     }
     echo "OK\n";
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
@@ -50,7 +50,7 @@ $pm->childFunc = function () use ($pm)
     $http->set(array(
         //'log_file' => '/dev/null'
     ));
-    $http->on("WorkerStart", function (\swoole_server $serv)
+    $http->on("WorkerStart", function (Swoole\Server $serv)
     {
         /**
          * @var $pm ProcessManager

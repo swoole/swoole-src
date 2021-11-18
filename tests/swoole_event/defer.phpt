@@ -9,9 +9,9 @@ require __DIR__ . '/../include/bootstrap.php';
 Swoole\Event::defer(function () {
     echo "defer [1]\n";
 });
-swoole_timer_after(100, function () {
+Swoole\Timer::after(100, function () {
     echo "timer [1]\n";
-    swoole_timer_after(100, function () {
+    Swoole\Timer::after(100, function () {
         echo "timer [2]\n";
     });
     Swoole\Event::defer(function () {

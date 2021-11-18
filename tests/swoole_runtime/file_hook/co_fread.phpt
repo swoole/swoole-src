@@ -8,14 +8,14 @@ require __DIR__ . '/../../include/skipif.inc';
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 go(function () {
     $fp = fopen(__FILE__, 'r');
     echo "open\n";
     $data = Co::fread($fp, 1024);
     echo "read\n";
-    swoole\runtime::enableCoroutine(false);
+    Swoole\Runtime::enableCoroutine(false);
     Assert::assert(!empty($data));
     Assert::same(md5($data), md5_file(__FILE__));
 });

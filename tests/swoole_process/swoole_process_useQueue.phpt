@@ -6,14 +6,14 @@ swoole_process: useQueue
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function(\swoole_process $proc) {
+$proc = new Swoole\Process(function(Swoole\Process $proc) {
     echo $proc->pop();
 });
 $proc->useQueue();
 $proc->start();
 $proc->push("SUCCESS");
 
-\swoole_process::wait(true);
+\Swoole\Process::wait(true);
 $proc->freeQueue();
 ?>
 --EXPECT--

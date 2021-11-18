@@ -47,7 +47,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     });
 
     Swoole\Event::wait();
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
@@ -71,7 +71,7 @@ $pm->childFunc = function () use ($pm)
         $resp->end("hello swooler\n");
     });
 
-    $server->on("WorkerStart", function (\swoole_server $serv) {
+    $server->on("WorkerStart", function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */
