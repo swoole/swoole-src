@@ -12,7 +12,7 @@ go(function () {
     Assert::assert(!$redis->set('foo', 'bar'));
     Assert::same($redis->errType, SWOOLE_REDIS_ERR_PROTOCOL);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

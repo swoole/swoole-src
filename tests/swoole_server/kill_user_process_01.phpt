@@ -35,7 +35,7 @@ $pm->childFunc = function () use ($pm)
         global $argv;
         swoole_set_process_name(WORKER_PROC_NAME);
         swoole_process::signal(SIGTERM, function () {
-            swoole_event_exit();
+            Swoole\Event::exit();
         });
         swoole_timer_after(200000, function ($interval) use ($worker, $serv) {
             echo "OK\n";

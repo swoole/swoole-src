@@ -20,11 +20,11 @@ $pm->parentFunc = function ($pid) use ($pm, $port) {
         Assert::assert(empty($cli->body));
         $pm->kill();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
 };
 
 $pm->childFunc = function () use ($pm, $port) {
-    $serv = new swoole_http_server('127.0.0.1', $port, SWOOLE_BASE);
+    $serv = new Swoole\Http\Server('127.0.0.1', $port, SWOOLE_BASE);
     $serv->set([
         'log_file' => '/dev/null'
     ]);
@@ -32,7 +32,7 @@ $pm->childFunc = function () use ($pm, $port) {
         global $pm;
         $pm->wakeup();
     });
-    $serv->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $serv->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
         Assert::same($request->header['hello'], 'swoole');
         co::sleep(2);
         $response->end('ok!');

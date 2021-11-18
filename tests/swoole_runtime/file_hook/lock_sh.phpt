@@ -19,7 +19,7 @@ while ($n--) {
     });
 }
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 %d OK

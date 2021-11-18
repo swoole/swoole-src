@@ -34,7 +34,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
     $http->set([
         'log_file' => '/dev/null',
         'http_parse_files' => true,
@@ -42,7 +42,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
         $files = $request->files;
         if (!is_array($files)
             || empty($files['file']['tmp_name'])

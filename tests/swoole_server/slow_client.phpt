@@ -44,7 +44,7 @@ $pm->parentFunc = function ($pid) use ($port)
 
 $pm->childFunc = function () use ($pm, $port)
 {
-    $serv = new swoole_server('127.0.0.1', $port);
+    $serv = new Swoole\Server('127.0.0.1', $port);
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',

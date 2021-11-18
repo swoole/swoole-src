@@ -32,11 +32,11 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             }
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         // 'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -44,7 +44,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
+    $serv->on('Message', function (Swoole\WebSocket\Server  $serv, Swoole\WebSocket\Frame $frame) {
         Assert::isInstanceOf($frame, swoole_websocket_closeframe::class);
         Assert::same($frame->opcode, WEBSOCKET_OPCODE_CLOSE);
         if (mt_rand(0, 1)) {

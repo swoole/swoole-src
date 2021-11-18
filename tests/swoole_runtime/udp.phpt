@@ -37,7 +37,7 @@ go(function () {
         fclose($fp);
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 [Server] recvfrom[127.0.0.1:%d] : hello-0

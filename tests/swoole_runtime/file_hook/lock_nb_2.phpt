@@ -35,7 +35,7 @@ go(function () {
     fclose($fp);
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 unlink(FILE);
 ?>
 --EXPECTF--

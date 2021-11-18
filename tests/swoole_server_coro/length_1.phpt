@@ -65,7 +65,7 @@ $pm->childFunc = function () use ($pm) {
         $serv = new TestServer_5($pm->getFreePort(), false);
         $serv->start();
     });
-    swoole_event::wait();
+    Swoole\Event::wait();
 };
 
 $pm->childFirst();

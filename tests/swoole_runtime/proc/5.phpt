@@ -35,7 +35,7 @@ go(function() {
 
     echo "END\n";
 });
-swoole_event::wait();
+Swoole\Event::wait();
 
 ?>
 --CLEAN--

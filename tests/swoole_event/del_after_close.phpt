@@ -20,7 +20,7 @@ $fd = $cli->sock;
 
 Event::add($fd, function($fd) use($cli) {
     $resp = fread($fp, 8192);
-    swoole_event_del($fp);
+    Swoole\Event::del($fp);
     fclose($fp);
 });
 

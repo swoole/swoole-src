@@ -51,7 +51,7 @@ go(function () use ($ready) {
     }
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 Warning: stream_socket_client(): ssl require key file in %s on line %d

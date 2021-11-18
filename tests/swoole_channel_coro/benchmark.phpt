@@ -52,7 +52,7 @@ go(function () use (&$time, $chan) {
     $chan->close();
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 var_dump($time);
 $diff = $time['channel_raw'] - $time['splQueue'];
 var_dump($diff);

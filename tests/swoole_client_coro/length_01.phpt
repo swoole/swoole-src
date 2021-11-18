@@ -26,12 +26,12 @@ $pm->parentFunc = function ($pid) use ($pm)
         $len = unpack('Nlen', $retData)['len'];
         Assert::same(strlen($retData), $len + 4);
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,

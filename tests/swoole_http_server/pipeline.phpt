@@ -51,13 +51,13 @@ HTTP;
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['log_file' => '/dev/null']);
     $http->on("WorkerStart", function ($serv, $wid) {
         global $pm;
         $pm->wakeup();
     });
-    $http->on("request", function (swoole_http_request $request, swoole_http_response $response) {
+    $http->on("request", function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
         $response->end(var_dump_return($request->get, $request->server));
     });
     $http->start();

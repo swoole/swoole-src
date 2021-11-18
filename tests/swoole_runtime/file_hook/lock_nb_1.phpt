@@ -32,7 +32,7 @@ go(function () use (&$cid) {
     Assert::same(flock($fp, LOCK_NB | LOCK_EX), false);
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 unlink(FILE);
 ?>
 --EXPECTF--

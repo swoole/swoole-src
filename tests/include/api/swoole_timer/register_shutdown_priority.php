@@ -20,7 +20,7 @@ function func1()
 function func1_2()
 {
     $order4 = function() { echo "first shutdown func\n"; };
-    $order5 = function() { swoole_event_wait(); };
+    $order5 = function() { Swoole\Event::wait(); };
     $order6 = function() { echo "timer after\n";};
 
     // order 1
@@ -44,7 +44,7 @@ function func2()
         echo "timer after\n";
     });
 
-    swoole_event_wait();
+    Swoole\Event::wait();
 }
 
 

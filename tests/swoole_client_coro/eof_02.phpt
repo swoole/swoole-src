@@ -64,12 +64,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
             }
         }
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('0.0.0.0', 8000, SWOOLE_BASE, SWOOLE_SOCK_TCP);
+    $serv = new Swoole\Server('0.0.0.0', 8000, SWOOLE_BASE, SWOOLE_SOCK_TCP);
     $serv->set(array(
         'open_eof_split' => true,
         'package_eof' => "\r\n",

@@ -24,7 +24,7 @@ go(function () {
     SQLPool::release();
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 LOCK

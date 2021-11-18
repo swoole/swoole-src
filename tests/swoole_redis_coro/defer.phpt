@@ -32,7 +32,7 @@ go(function () {
     var_dump($result2);
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 CONNECT [1]

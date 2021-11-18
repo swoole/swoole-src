@@ -13,7 +13,7 @@ $id = swoole_timer_tick(100, function () {
 $n = 5;
 while ($n--) {
     echo "loop\n";
-    swoole_event_dispatch();
+    Swoole\Event::dispatch();
 }
 
 swoole_timer_clear($id);

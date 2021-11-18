@@ -28,7 +28,7 @@ Co::create(function()use(&$pipe){
 });
 
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 Write byte: 13

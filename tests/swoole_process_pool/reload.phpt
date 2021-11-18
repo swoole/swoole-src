@@ -39,9 +39,9 @@ $pm->childFunc = function () use ($pm) {
             echo "sleep [$workerId] \n";
         });
         swoole_process::signal(SIGTERM, function () {
-            swoole_event_exit();
+            Swoole\Event::exit();
         });
-        swoole_event_wait();
+        Swoole\Event::wait();
     });
 
     $pool->start();

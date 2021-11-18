@@ -45,7 +45,7 @@ go(function () use ($ready) {
     }
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 OK

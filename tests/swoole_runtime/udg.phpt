@@ -34,7 +34,7 @@ go(function () {
         fclose($fp);
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 [Server] recv : hello-0

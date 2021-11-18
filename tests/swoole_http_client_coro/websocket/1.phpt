@@ -30,13 +30,13 @@ $pm->parentFunc = function ($pid) use ($pm) {
             co::sleep(0.1);
         }
     });
-    swoole_event::wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $ws = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $ws = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $ws->set(array(
         'log_file' => '/dev/null'
     ));

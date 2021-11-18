@@ -17,7 +17,7 @@ go(function () {
     }); // [#5] destroyed and output: 4
     echo "3\n";
 }); // [#3] destroyed and output: 2 3
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 1

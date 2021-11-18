@@ -19,7 +19,7 @@ $pm->parentFunc = function ($pid) use ($pm)
         Assert::same(md5_file(TEST_IMAGE), $ret['md5']);
         $cli->close();
     });
-    swoole_event::wait();
+    Swoole\Event::wait();
     swoole_process::kill($pid);
 };
 

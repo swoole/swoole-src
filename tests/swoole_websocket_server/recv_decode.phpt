@@ -41,11 +41,11 @@ $pm->parentFunc = function (int $pid) use ($pm, $data_list) {
             Assert::assert(empty($data_list));
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         // 'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -53,7 +53,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('message', function (swoole_websocket_server $serv, swoole_websocket_frame $recv_frame) {
+    $serv->on('message', function (Swoole\WebSocket\Server  $serv, Swoole\WebSocket\Frame $recv_frame) {
         global $data_list;
         list($id, $opcode) = explode('|', $recv_frame->data, 3);
         if (!Assert::assert($recv_frame->finish)) {

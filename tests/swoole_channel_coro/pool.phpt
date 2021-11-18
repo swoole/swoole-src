@@ -69,7 +69,7 @@ go(function () {
     }
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 Assert::same($count, MAX_CONCURRENCY_MID * MAX_REQUESTS);
 ?>
 --EXPECT--

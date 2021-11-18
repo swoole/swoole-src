@@ -12,7 +12,7 @@ for ($i = MAX_PROCESS_NUM; $i--;) {
         co::exec('sleep 1');
     });
 }
-swoole_event_wait();
+Swoole\Event::wait();
 $s = microtime(true) - $s;
 time_approximate(1, $s);
 echo "DONE\n";

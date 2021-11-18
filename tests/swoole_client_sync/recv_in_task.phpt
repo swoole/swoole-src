@@ -10,7 +10,7 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', 0, SWOOLE_BASE);
+    $http = new Swoole\Http\Server('127.0.0.1', 0, SWOOLE_BASE);
     $http->set(['worker_num' => 1, 'task_worker_num'=>1, 'log_file' => '/dev/null']);
     $http->on('workerStart', function (swoole_server $server, int $worker_id) use ($pm) {
         if (!$server->taskworker) {
@@ -18,7 +18,7 @@ $pm->childFunc = function () use ($pm) {
             $server->task(1, 0);
         }
     });
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
+    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
         usleep(100 * 1000);
         $response->end('OK');
     });

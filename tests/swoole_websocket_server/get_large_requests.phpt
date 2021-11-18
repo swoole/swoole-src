@@ -36,7 +36,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             }
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {

@@ -19,12 +19,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
         Assert::same($cli->errCode, SOCKET_ETIMEDOUT);
         approximate(0.5, microtime(true) - $s);
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',

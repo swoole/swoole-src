@@ -16,19 +16,19 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             Assert::same($ret, 'Hello Swoole!');
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     echo "DONE\n";
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $http->set([
         'log_file' => '/dev/null',
         'task_worker_num' => 4,
         'enable_coroutine' => false,
         'task_enable_coroutine' => true
     ]);
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
+    $http->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) use ($http) {
         Assert::assert($response->detach());
         if (mt_rand(0, 1)) {
             $http->task($response->fd);

@@ -20,7 +20,7 @@ run(function () {
     });
     $cid_list[] = $cid;
 
-    swoole_event_defer(function () use ($current_cid) {
+    Swoole\Event::defer(function () use ($current_cid) {
         echo "DEFER CALLBACK\n";
         Coroutine::cancel($current_cid);
     });

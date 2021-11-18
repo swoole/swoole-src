@@ -95,12 +95,12 @@ class WebSocketServer
         $response->end("Hello World!");
     }
 
-    public function onOpen(swoole_websocket_server $server, $request)
+    public function onOpen(Swoole\WebSocket\Server  $server, $request)
     {
         debug_log("{$request->fd} opened");
     }
 
-    public function onMessage(swoole_websocket_server $server, $frame)
+    public function onMessage(Swoole\WebSocket\Server  $server, $frame)
     {
         $server->push($frame->fd, "SUCCESS");
     }

@@ -13,7 +13,7 @@ go(function () {
     $fp2 = fopen(FILE, 'w+');
     Assert::assert(!flock($fp2, LOCK_EX | LOCK_NB));
 });
-swoole_event_wait();
+Swoole\Event::wait();
 unlink(FILE);
 ?>
 --EXPECTF--

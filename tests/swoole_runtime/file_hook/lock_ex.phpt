@@ -21,7 +21,7 @@ while ($n--) {
     });
 }
 
-swoole_event_wait();
+Swoole\Event::wait();
 unlink(FILE);
 ?>
 --EXPECTF--

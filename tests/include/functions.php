@@ -615,7 +615,7 @@ function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 =
     return function () use ($handle, $redirect_file) {
         // @unlink($redirect_file);
         proc_terminate($handle, SIGTERM);
-        swoole_event_exit();
+        Swoole\Event::exit();
         exit;
     };
 }

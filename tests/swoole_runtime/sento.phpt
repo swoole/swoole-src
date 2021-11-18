@@ -26,6 +26,6 @@ go(function () {
         Assert::assert(strpos($content,'map.baidu.com') !== false);
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

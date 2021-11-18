@@ -53,7 +53,7 @@ $pm->parentFunc = function ($pid) use ($pm, $tcp_options) {
 };
 // server side
 $pm->childFunc = function () use ($pm, $tcp_options) {
-    $server = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
+    $server = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
     $server->set([
         'worker_num' => 1,
         'log_file' => '/dev/null',
@@ -63,11 +63,11 @@ $pm->childFunc = function () use ($pm, $tcp_options) {
         $pm->wakeup();
     });
     // http && http2
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $server->on('request', function (Swoole\Http\Request $request(Swoole\Http\Response $response) {
         $response->end('Hello ' . $request->rawcontent());
     });
     // websocket
-    $server->on('message', function (swoole_websocket_server $server, swoole_websocket_frame $frame) {
+    $server->on('message', function (Swoole\WebSocket\Server  $server, Swoole\WebSocket\Frame $frame) {
         $server->push($frame->fd, 'Hello ' . $frame->data);
     });
     // tcp

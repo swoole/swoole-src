@@ -14,7 +14,7 @@ go(function () {
     include __DIR__."/a.inc";
     include __DIR__."/b.inc";
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 A

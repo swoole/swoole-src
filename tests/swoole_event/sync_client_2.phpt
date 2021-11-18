@@ -31,7 +31,7 @@ Event::add($fp, null, function (Client $fp) {
 
         echo "Done\n";
     }, null, SWOOLE_EVENT_READ);
-}, SWOOLE_EVENT_WRITE);
+}, Swoole\Event::write);
 
 Event::wait();
 ?>

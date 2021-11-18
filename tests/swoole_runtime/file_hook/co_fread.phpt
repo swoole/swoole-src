@@ -20,7 +20,7 @@ go(function () {
     Assert::same(md5($data), md5_file(__FILE__));
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 open

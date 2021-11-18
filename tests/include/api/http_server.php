@@ -4,7 +4,7 @@
  */
 global $pm;
 
-$http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
+$http = new Swoole\Http\Server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
 $http->set(array(
     'log_file' => '/dev/null',
     "http_parse_post" => 1,
@@ -21,7 +21,7 @@ $http->on("WorkerStart", function (\swoole_server $serv)
         $pm->wakeup();
     }
 });
-$http->on('request', function ($request, swoole_http_response $response) use ($pm)
+$http->on('request', function ($request(Swoole\Http\Response $response) use ($pm)
 {
     $route = $request->server['request_uri'];
     if ($route == '/info')

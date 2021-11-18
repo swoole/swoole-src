@@ -35,7 +35,7 @@ go(function() {
 
     echo "Done!\n";
 });
-swoole_event::wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECTF--

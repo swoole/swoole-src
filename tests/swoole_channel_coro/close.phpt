@@ -32,7 +32,7 @@ go(function () {
     unset($a['1']);
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 chan get data :11

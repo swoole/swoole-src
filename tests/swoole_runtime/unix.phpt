@@ -43,7 +43,7 @@ go(function () {
         fclose($fp);
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 [Client] recvfrom[test.sock] : Swoole: hello-0

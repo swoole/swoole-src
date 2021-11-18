@@ -38,7 +38,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
         $server->start();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
 };
 $pm->childFirst();
 $pm->run();

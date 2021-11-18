@@ -25,7 +25,7 @@ go(function () use ($socket) {
     co::sleep(0.1);
     $socket->cancel();
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 DONE

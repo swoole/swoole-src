@@ -32,7 +32,7 @@ go(function () {
     $redis->connect('www.google.com', 80);
     Assert::same($redis->errCode, SOCKET_ETIMEDOUT);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

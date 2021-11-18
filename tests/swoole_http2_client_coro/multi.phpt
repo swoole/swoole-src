@@ -49,7 +49,7 @@ go(function () {
     Assert::lessThanEq(count(array_unique($responses_headers_count_map)), 2);
     Assert::assert($responses_headers_count_map[0] > 10);
 });
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 200

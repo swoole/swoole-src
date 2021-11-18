@@ -119,7 +119,7 @@ SQL
     }
     echo "DONE\n";
 });
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 DONE

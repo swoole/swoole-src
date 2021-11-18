@@ -15,7 +15,7 @@ Assert::assert($r > 0);
 
 swoole_timer_after(10, function() use($proc) {
     echo $proc->read();
-    // swoole_event_exit();
+    // Swoole\Event::exit();
 });
 
 \swoole_process::wait(true);

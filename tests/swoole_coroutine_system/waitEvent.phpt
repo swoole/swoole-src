@@ -12,8 +12,8 @@ use Swoole\Coroutine;
 
 Coroutine\run(function () {
     $client = stream_socket_client('tcp://www.qq.com:80', $errno, $errstr, 30);
-    $events = Coroutine::waitEvent($client, SWOOLE_EVENT_READ | SWOOLE_EVENT_WRITE);
-    Assert::eq($events, SWOOLE_EVENT_WRITE);
+    $events = Coroutine::waitEvent($client, SWOOLE_EVENT_READ | Swoole\Event::write);
+    Assert::eq($events, Swoole\Event::write);
     fwrite($client, "GET / HTTP/1.1\r\nHost: www.qq.com\r\n\r\n");
     $events = Coroutine::waitEvent($client, SWOOLE_EVENT_READ);
     Assert::eq($events, SWOOLE_EVENT_READ);

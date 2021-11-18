@@ -36,7 +36,7 @@ go(function () use ($cid, $port) {
     co::sleep(0.001);
     co::resume($cid);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

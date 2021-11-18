@@ -12,7 +12,7 @@ go(function() {
    $md5 = md5_file('https://www.baidu.com');
    var_dump(!empty($md5));
 });
-swoole_event_wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECT--

@@ -34,7 +34,7 @@ go(function () {
     echo $conn->recv();
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 world

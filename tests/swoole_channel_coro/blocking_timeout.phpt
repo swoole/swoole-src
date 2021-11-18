@@ -22,6 +22,6 @@ go(function () use ($chan) {
     $chan->push(999955);
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

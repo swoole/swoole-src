@@ -42,19 +42,19 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             Assert::same($loop, PING_LOOP);
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     global $count;
     Assert::same($count, PING_LOOP * MAX_CONCURRENCY_MID);
     $pm->kill();
     echo "DONE";
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         'worker_num' => 1,
         'log_file' => '/dev/null'
     ]);
-    $serv->on('workerStart', function (swoole_websocket_server $server) use ($pm) {
+    $serv->on('workerStart', function (Swoole\WebSocket\Server  $server) use ($pm) {
         $timer_id = $server->tick(PING_INTERVAL, function () use ($server) {
             foreach ($server->connections as $fd) {
                 if (mt_rand(0, 1)) {
@@ -75,7 +75,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
     $serv->on('open', function ($server, $req) { });
-    $serv->on('message', function ($server, swoole_websocket_frame $frame) {
+    $serv->on('message', function ($server, Swoole\WebSocket\Frame $frame) {
         Assert::same($frame->opcode, WEBSOCKET_OPCODE_PONG);
     });
     $serv->on('close', function ($server, $fd) { });
