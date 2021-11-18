@@ -39,6 +39,12 @@ SW_EXTERN_C_BEGIN
 #include <zlib.h>
 #endif
 
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_http_client_coro_arginfo.h"
+#else
+#include "stubs/php_swoole_http_client_coro_legacy_arginfo.h"
+#endif
+
 SW_EXTERN_C_END
 
 #ifdef SW_HAVE_BROTLI
@@ -302,125 +308,38 @@ static PHP_METHOD(swoole_http_client_coro, close);
 SW_EXTERN_C_END
 
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_coro_construct, 0, 0, 1)
-    ZEND_ARG_INFO(0, host)
-    ZEND_ARG_INFO(0, port)
-    ZEND_ARG_INFO(0, ssl)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setDefer, 0, 0, 0)
-    ZEND_ARG_INFO(0, defer)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setMethod, 0, 0, 1)
-    ZEND_ARG_INFO(0, method)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setHeaders, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, headers, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setBasicAuth, 0, 0, 2)
-    ZEND_ARG_INFO(0, username)
-    ZEND_ARG_INFO(0, password)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setCookies, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, cookies, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_setData, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_addFile, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, filename)
-    ZEND_ARG_INFO(0, offset)
-    ZEND_ARG_INFO(0, length)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_addData, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, name)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, filename)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_execute, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_get, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_post, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_download, 0, 0, 2)
-    ZEND_ARG_INFO(0, path)
-    ZEND_ARG_INFO(0, file)
-    ZEND_ARG_INFO(0, offset)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_upgrade, 0, 0, 1)
-    ZEND_ARG_INFO(0, path)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_push, 0, 0, 1)
-    ZEND_ARG_INFO(0, data)
-    ZEND_ARG_INFO(0, opcode)
-    ZEND_ARG_INFO(0, flags)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_http_client_coro_recv, 0, 0, 0)
-    ZEND_ARG_INFO(0, timeout)
-ZEND_END_ARG_INFO()
 static const zend_function_entry swoole_http_client_coro_methods[] =
 {
-    PHP_ME(swoole_http_client_coro, __construct, arginfo_swoole_http_client_coro_coro_construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, set, arginfo_swoole_http_client_coro_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getDefer, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setDefer, arginfo_swoole_http_client_coro_setDefer, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setMethod, arginfo_swoole_http_client_coro_setMethod, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setHeaders, arginfo_swoole_http_client_coro_setHeaders, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setBasicAuth, arginfo_swoole_http_client_coro_setBasicAuth, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setCookies, arginfo_swoole_http_client_coro_setCookies, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, setData, arginfo_swoole_http_client_coro_setData, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, addFile, arginfo_swoole_http_client_coro_addFile, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, addData, arginfo_swoole_http_client_coro_addData, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, execute, arginfo_swoole_http_client_coro_execute, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getpeername, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getsockname, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, get, arginfo_swoole_http_client_coro_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, post, arginfo_swoole_http_client_coro_post, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, download, arginfo_swoole_http_client_coro_download, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getBody, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getHeaders, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getCookies, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getStatusCode, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, getHeaderOut, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, __construct, arginfo_class_Swoole_Coroutine_Http_Client___construct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, __destruct, arginfo_class_Swoole_Coroutine_Http_Client___destruct, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, set, arginfo_class_Swoole_Coroutine_Http_Client_set, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getDefer, arginfo_class_Swoole_Coroutine_Http_Client_getDefer, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setDefer, arginfo_class_Swoole_Coroutine_Http_Client_setDefer, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setMethod, arginfo_class_Swoole_Coroutine_Http_Client_setMethod, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setHeaders, arginfo_class_Swoole_Coroutine_Http_Client_setHeaders, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setBasicAuth, arginfo_class_Swoole_Coroutine_Http_Client_setBasicAuth, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setCookies, arginfo_class_Swoole_Coroutine_Http_Client_setCookies, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, setData, arginfo_class_Swoole_Coroutine_Http_Client_setData, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, addFile, arginfo_class_Swoole_Coroutine_Http_Client_addFile, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, addData, arginfo_class_Swoole_Coroutine_Http_Client_addData, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, execute, arginfo_class_Swoole_Coroutine_Http_Client_execute, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getpeername, arginfo_class_Swoole_Coroutine_Http_Client_getpeername, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getsockname, arginfo_class_Swoole_Coroutine_Http_Client_getsockname, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, get, arginfo_class_Swoole_Coroutine_Http_Client_get, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, post, arginfo_class_Swoole_Coroutine_Http_Client_post, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, download, arginfo_class_Swoole_Coroutine_Http_Client_download, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getBody, arginfo_class_Swoole_Coroutine_Http_Client_getBody, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getHeaders, arginfo_class_Swoole_Coroutine_Http_Client_getHeaders, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getCookies, arginfo_class_Swoole_Coroutine_Http_Client_getCookies, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getStatusCode, arginfo_class_Swoole_Coroutine_Http_Client_getStatusCode, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getHeaderOut, arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut, ZEND_ACC_PUBLIC)
 #ifdef SW_USE_OPENSSL
-    PHP_ME(swoole_http_client_coro, getPeerCert, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, getPeerCert, arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert, ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_http_client_coro, upgrade, arginfo_swoole_http_client_coro_upgrade, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, push, arginfo_swoole_http_client_coro_push, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, recv, arginfo_swoole_http_client_coro_recv, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_client_coro, close, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, upgrade, arginfo_class_Swoole_Coroutine_Http_Client_upgrade, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, push, arginfo_class_Swoole_Coroutine_Http_Client_push, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, recv, arginfo_class_Swoole_Coroutine_Http_Client_recv, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_client_coro, close, arginfo_class_Swoole_Coroutine_Http_Client_close, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
