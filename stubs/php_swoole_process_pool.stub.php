@@ -9,7 +9,7 @@ namespace Swoole\Process {
         public function listen(string $host, int $port = 0, int $backlog = 2048): bool {}
         public function write(string $data): bool {}
         public function detach(): bool {}
-        public function start(): bool|void {}
+        public function start(): bool {}
         public function stop(): void {}
         public function shutdown(): bool {}
     }

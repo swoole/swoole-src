@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9fd9277cac362da88c34a05b2f362791c21b09d7 */
+ * Stub hash: 834c8263bd258221bd5e610c156a1c5f788be75d */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_version, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -15,7 +15,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_async_dns_lookup_coro, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_LONG, 0, "AF_INET")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_async_set, 0, 1, MAY_BE_BOOL|MAY_BE_VOID)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_async_set, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, settings, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
@@ -24,7 +24,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_coroutine_create, 0, 1, M
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, params, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_coroutine_defer, 0, 1, MAY_BE_BOOL|MAY_BE_VOID)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_coroutine_defer, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
 ZEND_END_ARG_INFO()
 
@@ -34,7 +34,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_coroutine_socketpair, 0, 
 	ZEND_ARG_TYPE_INFO(0, protocol, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_test_kernel_coroutine, 0, 0, MAY_BE_BOOL|MAY_BE_VOID)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_test_kernel_coroutine, 0, 0, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, count, IS_LONG, 0, "100")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, sleep_time, IS_DOUBLE, 0, "1.0")
 ZEND_END_ARG_INFO()
@@ -65,18 +65,18 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_clear_error, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_error_log, 0, 2, MAY_BE_VOID|MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_error_log, 0, 2, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, level, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, msg, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_error_log_ex, 0, 3, MAY_BE_VOID|MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_error_log_ex, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, level, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, error, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, msg, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_ignore_error, 0, 1, MAY_BE_VOID|MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_ignore_error, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, error, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
@@ -90,10 +90,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_mime_type_add, 0, 2, _IS_
 	ZEND_ARG_TYPE_INFO(0, mime_type, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_mime_type_set, 0, 2, MAY_BE_VOID|MAY_BE_BOOL)
-	ZEND_ARG_TYPE_INFO(0, suffix, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO(0, mime_type, IS_STRING, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_swoole_mime_type_set arginfo_swoole_mime_type_add
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_mime_type_delete, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, suffix, IS_STRING, 0)

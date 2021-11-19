@@ -8,7 +8,7 @@ namespace Swoole\Coroutine\Http {
 		public function setDefer(bool $defer = true): bool {}
 		public function setMethod(string $method): bool {}
 		public function setHeaders(array $headers): bool {}
-		public function setBasicAuth(string $username, string $password): bool|void {}
+		public function setBasicAuth(string $username, string $password): bool {}
 		public function setCookies(array $cookies): bool {}
 		public function setData(mixed $data): bool {}
 		public function addFile(string $path, string $name, ?string $type = null, ?string $filename = null, int $offset = 0, int $length = 0): bool {}

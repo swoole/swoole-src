@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 15c629d28cfcb99048f20720ecccfbed6e2ba14d */
+ * Stub hash: f2bce46bfd6160084b7d56e1d94120f9e2a4f047 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Atomic___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, value, IS_LONG, 0, "0")
@@ -16,7 +16,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Atomic_get, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Atomic_set, 0, 1, MAY_BE_VOID|MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Atomic_set, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, value, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
