@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: db1cc1b6b974225741d5afcb5053372dfd423894 */
+/* $Id: e8c6880a24bbd5c50cd25d7a149ec79c1152029b */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -8411,7 +8411,7 @@ static const char* swoole_library_source_ext_sockets =
     "function swoole_socket_recv(Socket $socket, &$buffer, int $length, int $flags)\n"
     "{\n"
     "    if ($flags & MSG_OOB) {\n"
-    "        throw new RuntimeException('$flags[MSG_OOB] is not supported');\n"
+    "        throw new RuntimeException('\\$flags[MSG_OOB] is not supported');\n"
     "    }\n"
     "    if ($flags & MSG_PEEK) {\n"
     "        $buffer = $socket->peek($length);\n"
@@ -8447,6 +8447,10 @@ static const char* swoole_library_source_ext_sockets =
     "    if ($flags != 0) {\n"
     "        throw new RuntimeException(\"\\$flags[{$flags}] is not supported\");\n"
     "    }\n"
+    "    if ($length == 0) {\n"
+    "        $socket->errCode = SOCKET_EAGAIN;\n"
+    "        return false;\n"
+    "    }\n"
     "    if ($socket->type != SOCK_DGRAM) {\n"
     "        throw new RuntimeException('only supports dgram type socket');\n"
     "    }\n"
@@ -8463,7 +8467,7 @@ static const char* swoole_library_source_ext_sockets =
     "    } else {\n"
     "        $buffer = $data;\n"
     "    }\n"
-    "    return 100;\n"
+    "    return strlen($buffer);\n"
     "}\n"
     "\n"
     "function swoole_socket_bind(Socket $socket, string $address, int $port = 0): bool\n"
@@ -8567,6 +8571,9 @@ static const char* swoole_library_source_ext_sockets =
     "\n"
     "function swoole_socket_set_block(Socket $socket)\n"
     "{\n"
+    "    if ($socket->isClosed()) {\n"
+    "        return false;\n"
+    "    }\n"
     "    if (isset($socket->__ext_sockets_nonblock) and $socket->__ext_sockets_nonblock) {\n"
     "        $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, $socket->__ext_sockets_timeout);\n"
     "    }\n"
@@ -8576,6 +8583,9 @@ static const char* swoole_library_source_ext_sockets =
     "\n"
     "function swoole_socket_set_nonblock(Socket $socket)\n"
     "{\n"
+    "    if ($socket->isClosed()) {\n"
+    "        return false;\n"
+    "    }\n"
     "    if (isset($socket->__ext_sockets_nonblock) and $socket->__ext_sockets_nonblock) {\n"
     "        return true;\n"
     "    }\n"
@@ -8583,6 +8593,21 @@ static const char* swoole_library_source_ext_sockets =
     "    $socket->__ext_sockets_timeout = $socket->getOption(SOL_SOCKET, SO_RCVTIMEO);\n"
     "    $socket->setOption(SOL_SOCKET, SO_RCVTIMEO, ['sec' => 0, 'usec' => 1000]);\n"
     "    return true;\n"
+    "}\n"
+    "\n"
+    "function swoole_socket_create_pair(\n"
+    "    int $domain,\n"
+    "    int $type,\n"
+    "    int $protocol,\n"
+    "    array &$pair\n"
+    ") {\n"
+    "    $_pair =swoole_coroutine_socketpair($domain, $type, $protocol);\n"
+    "    if ($_pair) {\n"
+    "        $pair = $_pair;\n"
+    "        return true;\n"
+    "    } else {\n"
+    "        return false;\n"
+    "    }\n"
     "}\n";
 
 static const char* swoole_library_source_functions =

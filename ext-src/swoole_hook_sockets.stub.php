@@ -1,7 +1,5 @@
 <?php
 
-function swoole_native_socket_select(?array &$read, ?array &$write, ?array &$except, ?int $seconds, int $microseconds = 0): int|false {}
-
 function swoole_native_socket_create_listen(int $port, int $backlog = 128): Swoole\Coroutine\Socket |false {}
 
 function swoole_native_socket_accept(Swoole\Coroutine\Socket $socket): Swoole\Coroutine\Socket |false {}
@@ -79,23 +77,11 @@ function swoole_native_socket_last_error(?Swoole\Coroutine\Socket $socket = null
 
 function swoole_native_socket_clear_error(?Swoole\Coroutine\Socket $socket = null): void {}
 
-/** @param resource $stream */
-function swoole_native_socket_import_stream($stream): Swoole\Coroutine\Socket |false {}
 
-/** @return resource|false */
-function swoole_native_socket_export_stream(Swoole\Coroutine\Socket $socket) {}
 
-function swoole_native_socket_sendmsg(Swoole\Coroutine\Socket $socket, array $message, int $flags = 0): int|false {}
 
-function swoole_native_socket_recvmsg(Swoole\Coroutine\Socket $socket, array &$message, int $flags = 0): int|false {}
 
-function swoole_native_socket_cmsg_space(int $level, int $type, int $num = 0): ?int {}
 
-function swoole_native_socket_addrinfo_lookup(string $host, ?string $service = null, array $hints = []): array|false {}
 
-function swoole_native_socket_addrinfo_connect(AddressInfo $address): Swoole\Coroutine\Socket |false {}
 
-function swoole_native_socket_addrinfo_bind(AddressInfo $address): Swoole\Coroutine\Socket |false {}
-
-function swoole_native_socket_addrinfo_explain(AddressInfo $address): array {}
 

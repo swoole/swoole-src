@@ -8,13 +8,9 @@ use function Swoole\Coroutine\run;
 Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 
 run(function () {
-
-
-$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-var_dump(socket_accept($socket));
-
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    var_dump(socket_accept($socket));
 });
 ?>
 --EXPECTF--
-Warning: socket_accept(): unable to accept incoming connection [%d]: %s in %s on line %d
 bool(false)

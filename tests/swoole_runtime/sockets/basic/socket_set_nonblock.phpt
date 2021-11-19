@@ -11,6 +11,7 @@ fa@php.net
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../../../include/bootstrap.php';
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
@@ -20,11 +21,9 @@ run(function () {
 
     $s_c_l = socket_create_listen(0);
     socket_set_nonblock($s_c_l);
-    var_dump($s_c_l);
+    Assert::isInstanceOf($s_c_l, Swoole\Coroutine\Socket::class);
     //socket_accept($s_c_l);
     socket_close($s_c_l);
 });
 ?>
 --EXPECT--
-object(Swoole\Coroutine\Socket)#1 (0) {
-}

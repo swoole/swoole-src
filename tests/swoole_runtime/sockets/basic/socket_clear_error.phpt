@@ -32,6 +32,5 @@ run(function () {
 });
 ?>
 --EXPECTF--
-Warning: socket_connect(): unable to connect [%d]: Connection refused in %s on line %d
 int(%d)
 int(%d)

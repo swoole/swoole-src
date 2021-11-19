@@ -11,35 +11,33 @@ fa@php.net
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../../../include/bootstrap.php';
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
 Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 
 run(function () {
+    $s_c = socket_create_listen(0);
+    socket_getsockname($s_c, $addr, $port);
 
+    // wrong parameter count
+    try {
+        Assert::false(socket_connect($s_c));
+    } catch (\ArgumentCountError $e) {
+        echo $e->getMessage() . \PHP_EOL;
+    }
+    try {
+        Assert::false(socket_connect($s_c, '0.0.0.0'));
+    } catch (\ValueError $e) {
+        echo $e->getMessage() . \PHP_EOL;
+    }
+    $s_w = socket_connect($s_c, '0.0.0.0', $port);
 
-$s_c = socket_create_listen(0);
-socket_getsockname($s_c, $addr, $port);
-
-// wrong parameter count
-try {
-    socket_connect($s_c);
-} catch (\ArgumentCountError $e) {
-    echo $e->getMessage() . \PHP_EOL;
-}
-try {
-    socket_connect($s_c, '0.0.0.0');
-} catch (\ValueError $e) {
-    echo $e->getMessage() . \PHP_EOL;
-}
-$s_w = socket_connect($s_c, '0.0.0.0', $port);
-
-socket_close($s_c);
+    socket_close($s_c);
 });
 ?>
 --EXPECTF--
-socket_connect() expects at least 2 arguments, 1 given
-socket_connect(): Argument #3 ($port) cannot be null when the socket type is AF_INET
+Too few arguments to function swoole_socket_connect(), 1 passed and at least 2 expected
 
-Warning: socket_connect(): unable to connect [%i]: %a in %s on line %d
+Warning: Swoole\Coroutine\Socket::connect(): Invalid port argument[0] in %s on line %d

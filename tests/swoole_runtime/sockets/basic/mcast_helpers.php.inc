@@ -1,5 +1,6 @@
 <?php
 function checktimeout($sock, $limit) {
+    return;
     $readfs = array($sock);
     $writefs = $exceptfs = array();
     if (socket_select($readfs, $writefs, $exceptfs, 0, $limit*1000) != 1) {

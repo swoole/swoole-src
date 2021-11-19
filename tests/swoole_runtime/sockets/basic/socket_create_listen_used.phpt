@@ -11,6 +11,7 @@ fa@php.net
 ?>
 --FILE--
 <?php
+require __DIR__ . '/../../../include/bootstrap.php';
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
@@ -21,16 +22,12 @@ run(function () {
     $rand = rand(1,999);
     // wrong parameter count
     $s_c_l = socket_create_listen(31330+$rand);
-    var_dump($s_c_l);
+    Assert::isInstanceOf($s_c_l, Swoole\Coroutine\Socket::class);
     // default invocation
     $s_c_l2 = socket_create_listen(31330+$rand);
-    var_dump($s_c_l2);
+    Assert::false($s_c_l2);
     socket_close($s_c_l);
 });
 ?>
---EXPECTF--
-object(Swoole\Coroutine\Socket)#%d (0) {
-}
+--EXPECT--
 
-Warning: socket_create_listen(): unable to bind to given address [%i]: %a in %s on line %d
-bool(false)

@@ -18,6 +18,7 @@ if (@socket_create_listen(80)) {
 }?>
 --FILE--
 <?php
+require __DIR__ . '/../../../include/bootstrap.php';
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
@@ -26,7 +27,7 @@ Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 run(function () {
     $sock = socket_create_listen(80);
     Assert::false($sock);
-    Assert::eq(socket_last_error(), SOCKET_EPERM);
+    Assert::eq(socket_last_error(), SOCKET_EACCES);
 });
 ?>
 --EXPECT--

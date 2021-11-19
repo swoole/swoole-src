@@ -41,7 +41,7 @@ var_dump($retval_3 === $options);
 socket_close($socket);
 });
 ?>
---EXPECT--
-socket_set_option(): Argument #4 ($value) must have key "sec"
+--EXPECTF--
+Warning: Swoole\Coroutine\Socket::setOption(): no key "sec" passed in optval %s on line %d
 bool(true)
 bool(true)

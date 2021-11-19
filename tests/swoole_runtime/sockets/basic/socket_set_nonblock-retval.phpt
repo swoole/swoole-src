@@ -8,28 +8,27 @@ if (!extension_loaded('sockets')) {
 ?>
 --FILE--
 <?php
+
 use Swoole\Runtime;
+
 use function Swoole\Coroutine\run;
 
 Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 
 run(function () {
+    $socket = socket_create_listen(31339);
+    var_dump(socket_set_nonblock($socket));
+    socket_close($socket);
 
-
-$socket = socket_create_listen(31339);
-var_dump(socket_set_nonblock($socket));
-socket_close($socket);
-
-$socket2 = socket_create_listen(31340);
-socket_close($socket2);
-try {
-    var_dump(socket_set_nonblock($socket2));
-} catch (Error $e) {
-    echo $e->getMessage(), "\n";
-}
-
+    $socket2 = socket_create_listen(31340);
+    socket_close($socket2);
+    try {
+        var_dump(socket_set_nonblock($socket2));
+    } catch (Error $e) {
+        echo $e->getMessage(), "\n";
+    }
 });
 ?>
 --EXPECT--
 bool(true)
-socket_set_nonblock(): Argument #1 ($socket) has already been closed
+bool(false)

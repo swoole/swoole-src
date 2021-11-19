@@ -7,29 +7,23 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+require __DIR__ . '/../../../include/bootstrap.php';
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
 Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 
 run(function () {
-
-$sockets = array();
-if (strtolower(substr(PHP_OS, 0, 3)) == 'win') {
-    $domain = AF_INET;
-} else {
-    $domain = AF_UNIX;
-}
-socket_create_pair($domain, SOCK_STREAM, 0, $sockets);
-var_dump($sockets);
+    $sockets = array();
+    if (strtolower(substr(PHP_OS, 0, 3)) == 'win') {
+        $domain = AF_INET;
+    } else {
+        $domain = AF_UNIX;
+    }
+    socket_create_pair($domain, SOCK_STREAM, 0, $sockets);
+    Assert::count($sockets, 2);
+    Assert::isInstanceOf($sockets[0], Swoole\Coroutine\Socket::class);
+    Assert::isInstanceOf($sockets[1], Swoole\Coroutine\Socket::class);
 });
 ?>
 --EXPECT--
-array(2) {
-  [0]=>
-  object(Swoole\Coroutine\Socket)#1 (0) {
-  }
-  [1]=>
-  object(Swoole\Coroutine\Socket)#2 (0) {
-  }
-}

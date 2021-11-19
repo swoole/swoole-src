@@ -47,7 +47,6 @@ for ($i = 0; $i < 10; $i++) {
     socket_close($receiverSocket);
     unlink($receiverSocketPath);
     socket_close($senderSocket);
-    unlink($senderSocketPath);
 }
 });
 ?>

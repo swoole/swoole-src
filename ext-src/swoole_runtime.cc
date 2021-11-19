@@ -183,6 +183,8 @@ static const zend_function_entry swoole_sockets_functions[] = {
     SW_HOOK_FE(socket_sendto, arginfo_swoole_native_socket_sendto)
     SW_HOOK_FE(socket_get_option, arginfo_swoole_native_socket_get_option)
     SW_HOOK_FE(socket_set_option, arginfo_swoole_native_socket_set_option)
+    SW_HOOK_FE(socket_getopt, arginfo_swoole_native_socket_getopt)
+    SW_HOOK_FE(socket_setopt, arginfo_swoole_native_socket_setopt)
     SW_HOOK_FE(socket_shutdown, arginfo_swoole_native_socket_shutdown)
     SW_HOOK_FE(socket_last_error, arginfo_swoole_native_socket_last_error)
     SW_HOOK_FE(socket_clear_error, arginfo_swoole_native_socket_clear_error)
@@ -190,11 +192,6 @@ static const zend_function_entry swoole_sockets_functions[] = {
     SW_HOOK_FE(socket_export_stream, arginfo_swoole_native_socket_export_stream)
     SW_HOOK_FE(socket_sendmsg, arginfo_swoole_native_socket_sendmsg)
     SW_HOOK_FE(socket_recvmsg, arginfo_swoole_native_socket_recvmsg)
-    SW_HOOK_FE(socket_cmsg_space, arginfo_swoole_native_socket_cmsg_space)
-    SW_HOOK_FE(socket_addrinfo_lookup, arginfo_swoole_native_socket_addrinfo_lookup)
-    SW_HOOK_FE(socket_addrinfo_connect, arginfo_swoole_native_socket_addrinfo_connect)
-    SW_HOOK_FE(socket_addrinfo_bind, arginfo_swoole_native_socket_addrinfo_bind)
-    SW_HOOK_FE(socket_addrinfo_explain, arginfo_swoole_native_socket_addrinfo_explain)
     ZEND_FE_END
 };
 #else
@@ -1397,7 +1394,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
             SW_HOOK_SOCKETS_FUNC(socket_create);
             SW_HOOK_SOCKETS_FUNC(socket_create_listen);
-            hook_func(ZEND_STRL("socket_create_pair"), PHP_FN(swoole_coroutine_socketpair));
+            SW_HOOK_SOCKETS_FUNC(socket_create_pair);
             SW_HOOK_SOCKETS_FUNC(socket_connect);
             SW_HOOK_SOCKETS_FUNC(socket_write);
             SW_HOOK_SOCKETS_FUNC(socket_read);

@@ -20,6 +20,7 @@ if (!defined("MCAST_BLOCK_SOURCE")) {
 }?>
 --FILE--
 <?php
+require __DIR__ . '/../../../include/bootstrap.php';
 use Swoole\Runtime;
 use function Swoole\Coroutine\run;
 
@@ -45,7 +46,7 @@ var_dump($br);
 
 echo "creating receive socket\n";
 $s = socket_create($domain, SOCK_DGRAM, SOL_UDP);
-var_dump($s);
+Assert::assert(is_object($s));
 $br = socket_bind($s, '0.0.0.0', 0);
 socket_getsockname($s, $unused, $port);
 var_dump($br);
@@ -168,8 +169,6 @@ bool(true)
 creating unbound socket and hoping the routing table causes an interface other than lo to be used for sending messages to 224.0.0.23
 bool(true)
 creating receive socket
-object(Swoole\Coroutine\Socket)#%d (0) {
-}
 bool(true)
 bool(true)
 int(14)
