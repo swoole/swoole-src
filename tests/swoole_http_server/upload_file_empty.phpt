@@ -37,9 +37,15 @@ $pm->parentFunc = function () use ($pm) {
     stream_set_chunk_size($sock, 2 * 1024 * 1024);
     $response = fread($sock, 2 * 1024 * 1024);
     fclose($sock);
+    [$header, $body] = explode("\r\n\r\n", $response);
+    $json = json_decode($body, true);
+    Assert::true(is_array($json));
+    Assert::true(isset($json['file1']));
+    assert_upload_file($json['file1'], '/tmp/swoole.upfile.fixture1', 'empty.txt', 'text/plain', 0, 0);
 
-    $result = ltrim(strstr($response, "\r\n\r\n"));
-    echo "$result\n";
+    Assert::true(isset($json['file2']));
+    assert_upload_file($json['file2'], '', '', '', 0, 4);
+
     $pm->kill();
 };
 
@@ -56,7 +62,7 @@ $pm->childFunc = function () use ($pm) {
         if (isset($files['file1']['tmp_name'])) {
             $files['file1']['tmp_name'] = '/tmp/swoole.upfile.fixture1';
         }
-        $response->end(var_export($files, true));
+        $response->end(json_encode($files));
     });
     $http->start();
 };
@@ -65,21 +71,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-array (
-  'file1' =>
-  array (
-    'name' => 'empty.txt',
-    'type' => 'text/plain',
-    'tmp_name' => '/tmp/swoole.upfile.fixture1',
-    'error' => 0,
-    'size' => 0,
-  ),
-  'file2' =>
-  array (
-    'name' => '',
-    'type' => '',
-    'tmp_name' => '',
-    'error' => 4,
-    'size' => 0,
-  ),
-)

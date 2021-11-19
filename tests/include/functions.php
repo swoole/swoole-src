@@ -806,6 +806,16 @@ function assert_server_stats($stats) {
     Assert::keyExists($stats, 'request_count');
 }
 
+function assert_upload_file($file, $tmp_name, $name, $type, $size, $error = 0)
+{
+    Assert::notEmpty($file);
+    Assert::eq($file['tmp_name'], $tmp_name);
+    Assert::eq($file['name'], $name);
+    Assert::eq($file['type'], $type);
+    Assert::eq($file['size'], $size);
+    Assert::eq($file['error'], $error);
+}
+
 function swoole_loop_n($n, $fn)
 {
     for ($i = 0; $i < $n; $i++) {

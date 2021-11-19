@@ -29,7 +29,12 @@ $pm->parentFunc = function () use ($pm) {
     $result = curl_exec($ch);
     curl_close($ch);
 
-    echo "$result\n";
+    $json = json_decode($result, true);
+
+    assert_upload_file($json['file'], '/tmp/swoole.upfile.fixture1', 'image.jpg', 'application/octet-stream', 218787, 0);
+    assert_upload_file($json['form']['file'], '/tmp/swoole.upfile.fixture2', 'photo.jpg', 'image/jpeg', 218787, 0);
+    assert_upload_file($json['form']['group']['file'], '/tmp/swoole.upfile.fixture3', 'swoole-logo.svg', 'image/svg+xml', 7424, 0);
+
     $pm->kill();
 };
 
@@ -54,7 +59,7 @@ $pm->childFunc = function () use ($pm) {
         $files['file']['tmp_name']                  = '/tmp/swoole.upfile.fixture1';
         $files['form']['file']['tmp_name']          = '/tmp/swoole.upfile.fixture2';
         $files['form']['group']['file']['tmp_name'] = '/tmp/swoole.upfile.fixture3';
-        $response->end(var_export($files, true));
+        $response->end(json_encode($files));
     });
     $http->start();
 };
@@ -63,35 +68,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-array (
-  'file' =>
-  array (
-    'name' => 'image.jpg',
-    'type' => 'application/octet-stream',
-    'tmp_name' => '/tmp/swoole.upfile.fixture1',
-    'error' => 0,
-    'size' => 218787,
-  ),
-  'form' =>
-  array (
-    'file' =>
-    array (
-      'name' => 'photo.jpg',
-      'type' => 'image/jpeg',
-      'tmp_name' => '/tmp/swoole.upfile.fixture2',
-      'error' => 0,
-      'size' => 218787,
-    ),
-    'group' =>
-    array (
-      'file' =>
-      array (
-        'name' => 'swoole-logo.svg',
-        'type' => 'image/svg+xml',
-        'tmp_name' => '/tmp/swoole.upfile.fixture3',
-        'error' => 0,
-        'size' => 7424,
-      ),
-    ),
-  ),
-)
