@@ -75,6 +75,10 @@ class Socket {
         return connected && !closed;
     }
 
+    bool is_closed() {
+        return closed;
+    }
+
     bool check_liveness();
     ssize_t peek(void *__buf, size_t __n);
     ssize_t recv(void *__buf, size_t __n);
