@@ -3,7 +3,7 @@
  * make test_server
  * ./bin/test_server
  */
-#include "Swoole\Server.h"
+#include "swoole_server.h"
 #include "swoole_util.h"
 
 using namespace swoole;
