@@ -41,7 +41,7 @@ socket_close($socket);
 --EXPECTF--
 bool(true)
 
-Warning: socket_set_option(): Unable to set socket option [19]: No such device in %s on line %d
+Warning: Swoole\Coroutine\Socket::setOption(): setsockopt(%d) failed, Error: No such device[%d] in %s on line %d
 bool(false)
 --CREDITS--
 Damjan Cvetko, foreach.org
