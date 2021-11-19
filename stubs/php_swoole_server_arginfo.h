@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 84823f96ad9f611f4b6cbb85f8610de1358038c1 */
+ * Stub hash: 2c09513b3220d3af3fe8e13f60ebfb46399e92bb */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -134,8 +134,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_reload, 0, 0
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, only_reload_taskworker, _IS_BOOL, 0, "false")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_shutdown, 0, 0, IS_VOID, 0)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Swoole_Server_shutdown arginfo_class_Swoole_Server_start
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_heartbeat, 0, 0, MAY_BE_BOOL|MAY_BE_ARRAY)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, ifCloseConnection, _IS_BOOL, 0, "true")
@@ -184,9 +183,10 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Connection_Iterator___destruct arginfo_class_Swoole_Server___destruct
 
-#define arginfo_class_Swoole_Connection_Iterator_rewind arginfo_class_Swoole_Server_shutdown
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Connection_Iterator_rewind, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Connection_Iterator_next arginfo_class_Swoole_Server_shutdown
+#define arginfo_class_Swoole_Connection_Iterator_next arginfo_class_Swoole_Connection_Iterator_rewind
 
 #define arginfo_class_Swoole_Connection_Iterator_current arginfo_class_Swoole_Server_getManagerPid
 

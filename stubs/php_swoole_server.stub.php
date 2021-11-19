@@ -29,7 +29,7 @@ namespace Swoole {
         public function taskCo(mixed $tasks, float $timeout = 0.5): array {}
         public function finish(mixed $data): bool {}
         public function reload(bool $only_reload_taskworker = false): bool {}
-        public function shutdown(): void {}
+        public function shutdown(): bool {}
         public function heartbeat(bool $ifCloseConnection = true): bool|array {}
         public function command(string $name, int $process_id, int $process_type, mixed $data, bool $json_decode = true): bool|string {}
         public function getClientList(int $start_fd = 0, int $find_count = 10): bool|array {}
