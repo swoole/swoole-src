@@ -10,6 +10,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 var_dump(socket_create_pair(AF_INET, null, null, $sockets));
 
@@ -24,6 +31,7 @@ try {
 } catch (\ValueError $e) {
     echo $e->getMessage() . \PHP_EOL;
 }
+});
 ?>
 --EXPECT--
 bool(true)

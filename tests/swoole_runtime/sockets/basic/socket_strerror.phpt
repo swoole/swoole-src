@@ -14,9 +14,17 @@ if (!stristr(PHP_OS, "Linux")) {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 /* Only test one representative error code here,
  * as messages will differ depending on the used libc. */
 var_dump(socket_strerror(1));
+});
 ?>
 --EXPECT--
 string(23) "Operation not permitted"

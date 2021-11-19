@@ -4,13 +4,17 @@ Support for paths in the abstract namespace (bind, sendmsg, recvmsg)
 <?php
 if (!extension_loaded('sockets'))
     die('skip sockets extension not available.');
-
-if (PHP_OS != 'Linux') {
-    die('skip For Linux only');
-}
+die('skip unsupport');
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 include __DIR__."/mcast_helpers.php.inc";
 
 $path = "\x00/bar_foo";
@@ -32,6 +36,7 @@ checktimeout($s, 500);
 
 if (!socket_recv($s, $buf, 20, 0)) die("recv");
 print_r($buf);
+});
 ?>
 --EXPECT--
 creating send socket

@@ -10,9 +10,17 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $sock = socket_create_listen(31338);
 socket_getsockname($sock, $addr, $port);
 var_dump($addr, $port);
+});
 ?>
 --EXPECT--
 string(7) "0.0.0.0"

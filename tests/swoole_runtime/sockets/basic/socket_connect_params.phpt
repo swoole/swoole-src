@@ -11,6 +11,13 @@ fa@php.net
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 $s_c = socket_create_listen(0);
 socket_getsockname($s_c, $addr, $port);
@@ -29,6 +36,7 @@ try {
 $s_w = socket_connect($s_c, '0.0.0.0', $port);
 
 socket_close($s_c);
+});
 ?>
 --EXPECTF--
 socket_connect() expects at least 2 arguments, 1 given

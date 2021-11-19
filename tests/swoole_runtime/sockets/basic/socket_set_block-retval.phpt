@@ -8,6 +8,13 @@ if (!extension_loaded('sockets')) {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 $socket = socket_create_listen(31339);
 var_dump(socket_set_block($socket));
@@ -21,6 +28,7 @@ try {
     echo $e->getMessage(), "\n";
 }
 
+});
 ?>
 --EXPECT--
 bool(true)

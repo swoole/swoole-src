@@ -2,12 +2,20 @@
 Error during socket_sendmsg() or socket_recvmsg()
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
 socket_sendmsg($socket, [], -1);
 $message = ['controllen' => 1];
 socket_recvmsg($socket, $message, -1);
 
+});
 ?>
 --EXPECTF--
 Warning: socket_sendmsg(): Error in sendmsg [%d]: %a in %s on line %d

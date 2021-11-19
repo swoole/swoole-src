@@ -17,6 +17,13 @@ if (!function_exists("posix_getuid") || posix_getuid() != 0) {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
 
 if (!$socket) {
@@ -29,6 +36,7 @@ $retval_2 = socket_set_option( $socket, SOL_SOCKET, SO_BINDTODEVICE, "ethIDONOTE
 var_dump($retval_2);
 
 socket_close($socket);
+});
 ?>
 --EXPECTF--
 bool(true)

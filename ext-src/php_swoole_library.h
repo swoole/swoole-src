@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: 5fe5fc77374aa782bf32b484b835e577ba57dd5c */
+/* $Id: db1cc1b6b974225741d5afcb5053372dfd423894 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -8392,7 +8392,7 @@ static const char* swoole_library_source_ext_sockets =
     "    return $socket->recv($length);\n"
     "}\n"
     "\n"
-    "function swoole_socket_write(Socket $socket, string $buffer, int $length = 0): int\n"
+    "function swoole_socket_write(Socket $socket, string $buffer, int $length = 0)\n"
     "{\n"
     "    if ($length > 0 and $length < strlen($buffer)) {\n"
     "        $buffer = substr($buffer, 0, $length);\n"
@@ -8400,7 +8400,7 @@ static const char* swoole_library_source_ext_sockets =
     "    return $socket->send($buffer);\n"
     "}\n"
     "\n"
-    "function swoole_socket_send(Socket $socket, string $buffer, int $length, int $flags): int\n"
+    "function swoole_socket_send(Socket $socket, string $buffer, int $length, int $flags)\n"
     "{\n"
     "    if ($flags != 0) {\n"
     "        throw new RuntimeException(\"\\$flags[{$flags}] is not supported\");\n"
@@ -8442,7 +8442,7 @@ static const char* swoole_library_source_ext_sockets =
     "    return $socket->sendto($addr, $port, $buffer);\n"
     "}\n"
     "\n"
-    "function swoole_socket_recvfrom(Socket $socket, &$buffer, int $length, int $flags, &$name, &$port)\n"
+    "function swoole_socket_recvfrom(Socket $socket, &$buffer, int $length, int $flags, &$name, &$port = null)\n"
     "{\n"
     "    if ($flags != 0) {\n"
     "        throw new RuntimeException(\"\\$flags[{$flags}] is not supported\");\n"
@@ -8539,9 +8539,9 @@ static const char* swoole_library_source_ext_sockets =
     "    return $socket->getOption($level, $optname);\n"
     "}\n"
     "\n"
-    "function swoole_socket_shutdown(Socket $socket, int $how = 2)\n"
+    "function swoole_socket_shutdown(Socket $socket, int $how = 2): bool\n"
     "{\n"
-    "    $socket->shutdown($how);\n"
+    "    return $socket->shutdown($how);\n"
     "}\n"
     "\n"
     "function swoole_socket_close(Socket $socket)\n"

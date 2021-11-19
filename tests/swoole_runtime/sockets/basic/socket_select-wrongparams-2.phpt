@@ -4,9 +4,18 @@ Test parameter handling in socket_select().
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');
-}?>
+}
+die('skip unsupport');
+?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $sockets = null;
 $write   = null;
 $except  = null;
@@ -17,6 +26,7 @@ try {
 } catch (ValueError $exception) {
     echo $exception->getMessage() . "\n";
 }
+});
 ?>
 --EXPECTF--
 socket_select(): At least one array argument must be passed

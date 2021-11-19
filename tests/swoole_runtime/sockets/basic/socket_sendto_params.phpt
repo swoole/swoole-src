@@ -8,6 +8,13 @@ ext/sockets - socket_sendto - test with incorrect parameters
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     $s_c = socket_create_listen(0);
     try {
         $s_w = socket_sendto($s_c, "foo", -1, MSG_OOB, '127.0.0.1');
@@ -15,6 +22,7 @@ ext/sockets - socket_sendto - test with incorrect parameters
         echo $e->getMessage() . \PHP_EOL;
     }
     socket_close($s_c);
+});
 ?>
 --EXPECT--
 socket_sendto(): Argument #3 ($length) must be greater than or equal to 0

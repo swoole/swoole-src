@@ -7,6 +7,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 var_dump(socket_import_stream(fopen(__FILE__, "rb")));
 try {
@@ -24,6 +31,7 @@ try {
 }
 
 echo "Done.";
+});
 ?>
 --EXPECTF--
 Warning: socket_import_stream(): Cannot represent a stream of type STDIO as a Socket Descriptor in %s on line %d

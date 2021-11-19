@@ -8,6 +8,13 @@ IPv4 Loopback test
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     /* Setup socket server */
     $server = socket_create(AF_INET, SOCK_STREAM, getprotobyname('tcp'));
     if (!$server) {
@@ -47,6 +54,7 @@ IPv4 Loopback test
     socket_close($client);
     socket_close($socket);
     socket_close($server);
+});
 ?>
 --EXPECT--
 string(10) "ABCdef123

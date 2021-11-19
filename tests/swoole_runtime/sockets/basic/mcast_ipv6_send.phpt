@@ -15,6 +15,13 @@ if (socket_set_option($s, $level, IPV6_MULTICAST_IF, 1) === false) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $domain = AF_INET6;
 $level = IPPROTO_IPV6;
 $s = socket_create($domain, SOCK_DGRAM, SOL_UDP) or die("err");
@@ -49,6 +56,7 @@ var_dump($r);
 $r = socket_get_option($s, $level, IPV6_MULTICAST_IF);
 var_dump($r);
 echo "\n";
+});
 ?>
 --EXPECT--
 Setting IPV6_MULTICAST_TTL

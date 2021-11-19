@@ -18,10 +18,16 @@ if (@socket_create_listen(80)) {
 }?>
 --FILE--
 <?php
-$sock = socket_create_listen(80);
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+    $sock = socket_create_listen(80);
+    Assert::false($sock);
+    Assert::eq(socket_last_error(), SOCKET_EPERM);
+});
 ?>
---EXPECTF--
-Warning: socket_create_listen(): unable to bind to given address [13]: Permission denied in %s on line %d
---CREDITS--
-Till Klampaeckel, till@php.net
-PHP Testfest Berlin 2009-05-09
+--EXPECT--
+

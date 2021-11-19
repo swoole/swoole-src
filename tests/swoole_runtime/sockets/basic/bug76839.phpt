@@ -10,6 +10,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 // This bug only occurs when a specific portion of memory is unclean.
 // Unfortunately, looping around 10 times and using random paths is the
@@ -42,6 +49,7 @@ for ($i = 0; $i < 10; $i++) {
     socket_close($senderSocket);
     unlink($senderSocketPath);
 }
+});
 ?>
 --EXPECT--
 Received 'Ping!'

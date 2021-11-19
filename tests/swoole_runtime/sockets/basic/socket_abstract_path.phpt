@@ -11,6 +11,13 @@ if (PHP_OS != 'Linux') {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 include __DIR__."/mcast_helpers.php.inc";
 
 $path = "\x00/foo_bar";
@@ -36,6 +43,7 @@ checktimeout($conns, 500);
 
 if (!socket_recv($conns, $buf, 20, 0)) die("recv");
 print_r($buf);
+});
 ?>
 --EXPECT--
 creating server socket

@@ -7,6 +7,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 try {
     socket_export_stream(fopen(__FILE__, "rb"));
@@ -29,11 +36,12 @@ try {
 }
 
 echo "Done.";
+});
 ?>
 --EXPECTF--
 socket_export_stream(): Argument #1 ($socket) must be of type Socket, resource given
 socket_export_stream(): Argument #1 ($socket) must be of type Socket, resource given
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 socket_export_stream(): Argument #1 ($socket) has already been closed
 Done.

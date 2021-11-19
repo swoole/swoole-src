@@ -16,6 +16,13 @@ if (socket_set_option($s, $level, IP_MULTICAST_IF, 1) === false) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $domain = AF_INET;
 $level = IPPROTO_IP;
 $s = socket_create($domain, SOCK_DGRAM, SOL_UDP) or die("err");
@@ -66,6 +73,7 @@ try {
 $r = socket_get_option($s, $level, IP_MULTICAST_TTL);
 var_dump($r);
 echo "\n";
+});
 ?>
 --EXPECT--
 Setting IP_MULTICAST_LOOP with 256

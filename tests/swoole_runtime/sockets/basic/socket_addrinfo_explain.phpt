@@ -7,6 +7,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $addrinfo = socket_addrinfo_lookup('127.0.0.1', 2000, array(
     'ai_family' => AF_INET,
     'ai_socktype' => SOCK_DGRAM,
@@ -16,6 +23,7 @@ $result = socket_addrinfo_explain($addrinfo[0]);
 unset($result['ai_canonname']);
 var_dump($result);
 echo "Done";
+});
 ?>
 --EXPECTF--
 array(5) {

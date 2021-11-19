@@ -10,6 +10,13 @@ if(substr(PHP_OS, 0, 3) != 'WIN' ) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 function test($stream, $sock) {
     if ($stream !== null) {
@@ -68,6 +75,7 @@ $stream4 = stream_socket_server("udp://0.0.0.0:0", $errno, $errstr, STREAM_SERVE
 $sock4 = socket_import_stream($stream4);
 socket_close($sock4);
 test($stream4, $sock4);
+});
 ?>
 --EXPECTF--
 normal

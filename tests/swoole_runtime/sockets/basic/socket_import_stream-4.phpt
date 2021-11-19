@@ -10,6 +10,13 @@ if(substr(PHP_OS, 0, 3) == 'WIN' ) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 function test($stream, $sock) {
     if ($stream !== null) {
@@ -70,6 +77,7 @@ socket_close($sock4);
 test($stream4, $sock4);
 
 echo "Done.\n";
+});
 ?>
 --EXPECTF--
 normal

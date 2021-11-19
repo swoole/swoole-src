@@ -11,6 +11,13 @@ fa@php.net
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     $s_c     = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
     $s_bind  = socket_bind($s_c, '0.0.0.0');
     var_dump($s_bind);
@@ -21,6 +28,7 @@ fa@php.net
     var_dump($ip);
     var_dump($port);
     socket_close($s_c);
+});
 ?>
 --EXPECTF--
 bool(true)

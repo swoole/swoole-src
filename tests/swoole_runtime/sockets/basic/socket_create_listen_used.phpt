@@ -11,6 +11,13 @@ fa@php.net
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     $rand = rand(1,999);
     // wrong parameter count
     $s_c_l = socket_create_listen(31330+$rand);
@@ -19,9 +26,10 @@ fa@php.net
     $s_c_l2 = socket_create_listen(31330+$rand);
     var_dump($s_c_l2);
     socket_close($s_c_l);
+});
 ?>
 --EXPECTF--
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 
 Warning: socket_create_listen(): unable to bind to given address [%i]: %a in %s on line %d

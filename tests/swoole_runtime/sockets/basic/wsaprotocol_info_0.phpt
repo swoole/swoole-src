@@ -11,6 +11,13 @@ if (!extension_loaded('sockets')) {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     $address = 'localhost';
     $port = 10000;
 
@@ -45,16 +52,17 @@ if (!extension_loaded('sockets')) {
 
     /* Importing with invalid identifier. */
     $sock2 = socket_wsaprotocol_info_import("garbage");
+});
 ?>
 --EXPECTF--
 bool(true)
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 
 Warning: socket_wsaprotocol_info_export(): Unable to export WSA protocol info [0x00002726]: %s in %s on line %d

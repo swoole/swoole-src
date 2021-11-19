@@ -7,7 +7,15 @@ Florian Anderiasch
 fa@php.net
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     var_dump(TCP_NODELAY);
+});
 ?>
 --EXPECTF--
 int(%d)

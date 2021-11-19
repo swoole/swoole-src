@@ -10,6 +10,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 var_dump(socket_create_pair(AF_INET, null, null, $sockets));
 
@@ -25,6 +32,7 @@ try {
     echo $e->getMessage() . \PHP_EOL;
 }
 
+});
 ?>
 --EXPECTF--
 Warning: socket_create_pair(): Unable to create socket pair [%d]: %s not supported in %s on line %d

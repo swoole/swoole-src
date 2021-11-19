@@ -10,6 +10,13 @@ if (!extension_loaded('sockets')) {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $domain = AF_INET;
 $level = IPPROTO_IP;
 $s = socket_create($domain, SOCK_DGRAM, SOL_UDP) or die("err");
@@ -52,6 +59,7 @@ unset($level);
 socket_close($s);
 unset($s);
 unset($r);
+});
 ?>
 --EXPECT--
 Setting IP_MULTICAST_TTL

@@ -8,6 +8,13 @@ if (!extension_loaded('sockets')) {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
 if (!$socket) {
     die('Unable to create AF_INET socket');
@@ -65,6 +72,7 @@ if ($recvd != $len) {
 }
 
 echo "Received $buf from remote address $address and remote port $port" . PHP_EOL;
+});
 ?>
 --EXPECTF--
 Received Ping! from remote address %s and remote port %d

@@ -11,6 +11,13 @@ if (!extension_loaded('sockets')) {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $port = 80;
 $host = "yahoo.com";
 $stringSocket = "send_socket_to_connected_socket";
@@ -43,6 +50,7 @@ unset($stringSocket);
 unset($stringSocketLength);
 unset($socket);
 unset($socketConn);
+});
 ?>
 --EXPECT--
 okey

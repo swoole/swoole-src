@@ -10,7 +10,15 @@ if (PHP_OS !== 'Darwin' && false === strpos(PHP_OS, 'BSD')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 var_dump(defined('SO_REUSEPORT'));
+});
 ?>
 --EXPECT--
 bool(true)

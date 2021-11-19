@@ -20,6 +20,13 @@ $path = __DIR__ . "/socket_cmsg_credentials.sock";
 @unlink($path);?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 include __DIR__."/mcast_helpers.php.inc";
 $path = __DIR__ . "/socket_cmsg_credentials.sock";
 
@@ -56,13 +63,14 @@ print_r($data);
 
 $pid = getmypid();
 var_dump($data['control'][0]['data']['pid'] === $pid);
+});
 ?>
 --EXPECTF--
 creating send socket
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 creating receive socket
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 bool(true)
 int(5)

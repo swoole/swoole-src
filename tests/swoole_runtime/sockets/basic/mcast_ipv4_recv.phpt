@@ -20,6 +20,13 @@ if (!defined("MCAST_BLOCK_SOURCE")) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 include __DIR__."/mcast_helpers.php.inc";
 $domain = AF_INET;
 $level = IPPROTO_IP;
@@ -153,6 +160,7 @@ if ($i == 8) {
 }
 
 }
+});
 ?>
 --EXPECTF--
 creating send socket bound to 127.0.0.1
@@ -160,7 +168,7 @@ bool(true)
 creating unbound socket and hoping the routing table causes an interface other than lo to be used for sending messages to 224.0.0.23
 bool(true)
 creating receive socket
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 bool(true)
 bool(true)

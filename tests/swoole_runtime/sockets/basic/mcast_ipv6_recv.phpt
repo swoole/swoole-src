@@ -46,6 +46,13 @@ if ($so === false) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 include __DIR__."/mcast_helpers.php.inc";
 $domain = AF_INET6;
 $level = IPPROTO_IPV6;
@@ -180,13 +187,14 @@ if ($i == 8) {
 }
 
 }
+});
 ?>
 --EXPECTF--
 creating send socket
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 creating receive socket
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 bool(true)
 bool(true)

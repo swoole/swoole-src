@@ -12,6 +12,13 @@ if (!function_exists('zend_leak_variable'))
 report_memleaks=0
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 $stream0 = stream_socket_server("udp://0.0.0.0:0", $errno, $errstr, STREAM_SERVER_BIND);
 $sock0 = socket_import_stream($stream0);
@@ -22,6 +29,7 @@ $sock1 = socket_import_stream($stream1);
 zend_leak_variable($sock1);
 
 echo "Done.\n";
+});
 ?>
 --EXPECT--
 Done.

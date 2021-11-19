@@ -11,6 +11,13 @@ if (socket_set_option($s, IPPROTO_IP, IP_MULTICAST_IF, 1) === false) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $domain = AF_INET;
 $level = IPPROTO_IP;
 $s = socket_create($domain, SOCK_DGRAM, SOL_UDP) or die("err");
@@ -45,6 +52,7 @@ var_dump($r);
 $r = socket_get_option($s, $level, IP_MULTICAST_IF);
 var_dump($r);
 echo "\n";
+});
 ?>
 --EXPECT--
 Setting IP_MULTICAST_TTL

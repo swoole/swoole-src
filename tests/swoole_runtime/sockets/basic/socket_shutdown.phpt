@@ -14,30 +14,37 @@ if(substr(PHP_OS, 0, 3) == 'WIN' ) {
 ?>
 --FILE--
 <?php
-$host = "yahoo.com";
-$port = 80;
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
 
-$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-$socketConn = socket_connect($socket, $host, $port);
-var_dump(socket_shutdown($socket,0));
-socket_close($socket);
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
 
-$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-$socketConn = socket_connect($socket, $host, $port);
-var_dump(socket_shutdown($socket,1));
-socket_close($socket);
+run(function () {
+    $host = "yahoo.com";
+    $port = 80;
 
-$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-$socketConn = socket_connect($socket, $host, $port);
-var_dump(socket_shutdown($socket,2));
-socket_close($socket);
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    $socketConn = socket_connect($socket, $host, $port);
+    var_dump(socket_shutdown($socket, 0));
+    socket_close($socket);
 
-$socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-var_dump(socket_shutdown($socket,0));
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    $socketConn = socket_connect($socket, $host, $port);
+    var_dump(socket_shutdown($socket, 1));
+    socket_close($socket);
 
-$socketConn = socket_connect($socket, $host, $port);
-var_dump(socket_shutdown($socket,-1));
-socket_close($socket);
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    $socketConn = socket_connect($socket, $host, $port);
+    var_dump(socket_shutdown($socket, 2));
+    socket_close($socket);
+
+    $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+    var_dump(socket_shutdown($socket, 0));
+
+    $socketConn = socket_connect($socket, $host, $port);
+    var_dump(socket_shutdown($socket, -1));
+    socket_close($socket);
+});
 ?>
 --CLEAN--
 <?php
@@ -50,9 +57,5 @@ unset($socketConn);
 bool(true)
 bool(true)
 bool(true)
-
-Warning: socket_shutdown(): Unable to shutdown socket [%d]: %s in %s on line %d
 bool(false)
-
-Warning: socket_shutdown(): Unable to shutdown socket [%d]: Invalid argument in %s on line %d
 bool(false)

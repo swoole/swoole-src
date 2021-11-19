@@ -11,6 +11,13 @@ Tatjana Andersen tatjana.andersen@redpill-linpro.com
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     /* Bind and connect sockets to localhost */
     $localhost = '127.0.0.1';
 
@@ -59,6 +66,7 @@ Tatjana Andersen tatjana.andersen@redpill-linpro.com
         socket_close($client);
         socket_close($socket);
         socket_close($server);
+});
 ?>
 --EXPECT--
 string(9) "127.0.0.1"

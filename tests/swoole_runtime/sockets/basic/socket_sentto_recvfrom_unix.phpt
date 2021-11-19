@@ -10,6 +10,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     $socket = socket_create(AF_UNIX, SOCK_DGRAM, SOL_UDP); // cause warning
     $socket = socket_create(AF_UNIX, SOCK_DGRAM, 0);
     if (!$socket) {
@@ -49,6 +56,7 @@ if (!extension_loaded('sockets')) {
 
     socket_close($socket);
     @unlink($address);
+});
 ?>
 --EXPECTF--
 Warning: socket_create(): Unable to create socket [%d]: Protocol not supported in %s on line %d

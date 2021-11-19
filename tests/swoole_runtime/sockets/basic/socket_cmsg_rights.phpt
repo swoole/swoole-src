@@ -17,6 +17,13 @@ $path = __DIR__ . "/socket_cmsg_rights.sock";
 @unlink($path);?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 include __DIR__."/mcast_helpers.php.inc";
 $path = __DIR__ . "/socket_cmsg_rights.sock";
 
@@ -77,13 +84,14 @@ if ($data["control"]) {
     echo "FAIL CONTROL\n";
     var_dump($data);
 }
+});
 ?>
 --EXPECTF--
 creating send socket
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 creating receive socket
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 bool(true)
 int(11)

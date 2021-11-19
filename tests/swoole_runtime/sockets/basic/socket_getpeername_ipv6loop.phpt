@@ -12,6 +12,13 @@ require 'ipv6_skipif.inc';
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     /* Bind and connect sockets to localhost */
     $localhost = '::1';
 
@@ -60,6 +67,7 @@ require 'ipv6_skipif.inc';
         socket_close($client);
         socket_close($socket);
         socket_close($server);
+});
 ?>
 --EXPECT--
 string(3) "::1"

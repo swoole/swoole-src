@@ -11,6 +11,13 @@ if (substr(PHP_OS, 0, 3) == 'WIN') {
 ?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
     $sock_path = sprintf("/tmp/%s.sock", uniqid());
 
     if (file_exists($sock_path))
@@ -52,6 +59,7 @@ if (substr(PHP_OS, 0, 3) == 'WIN') {
     socket_close($socket);
     socket_close($server);
     @unlink($sock_path);
+});
 ?>
 --EXPECT--
 string(10) "ABCdef123

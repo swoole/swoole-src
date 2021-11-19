@@ -9,6 +9,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 $sockets = array();
 if (strtolower(substr(PHP_OS, 0, 3)) == 'win') {
     $domain = AF_INET;
@@ -22,6 +29,7 @@ $except = null;
 $time   = 0;
 $usec   = 2000000;
 var_dump(socket_select($sockets, $write, $except, $time, $usec));
+});
 ?>
 --EXPECT--
 int(0)

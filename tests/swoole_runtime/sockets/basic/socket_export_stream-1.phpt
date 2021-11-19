@@ -7,6 +7,13 @@ if (!extension_loaded('sockets')) {
 }?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 $domain = (strtoupper(substr(PHP_OS, 0, 3) == 'WIN') ? AF_INET : AF_UNIX);
 socket_create_pair($domain, SOCK_STREAM, 0, $s);
@@ -21,6 +28,7 @@ socket_write($s1, "test message");
 socket_close($s1);
 
 var_dump(stream_get_contents($stream));
+});
 ?>
 --EXPECTF--
 resource(%d) of type (stream)

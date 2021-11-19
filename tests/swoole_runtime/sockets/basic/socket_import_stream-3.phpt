@@ -17,6 +17,13 @@ if ($so === false)
     die("SKIP joining group 224.0.0.23 on interface lo failed");?>
 --FILE--
 <?php
+use Swoole\Runtime;
+use function Swoole\Coroutine\run;
+
+Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
+
+run(function () {
+
 
 $stream = stream_socket_server("udp://0.0.0.0:58379", $errno, $errstr, STREAM_SERVER_BIND);
 $sock = socket_import_stream($stream);
@@ -36,12 +43,13 @@ var_dump($so);
 stream_set_blocking($stream, 0);
 var_dump(fread($stream, strlen($m)));
 echo "Done.\n";
+});
 ?>
 --EXPECTF--
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 bool(true)
-object(Socket)#%d (0) {
+object(Swoole\Coroutine\Socket)#%d (0) {
 }
 int(10)
 string(10) "my message"
