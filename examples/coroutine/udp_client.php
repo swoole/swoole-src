@@ -15,7 +15,7 @@ class Client
 
     public function send()
     {
-        $cli = new Swoole\Client_coro(SWOOLE_SOCK_UDP);
+        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
         $ret = $cli->connect($this->ip, self::PORT);
         $cli->send($this->data);
         $ret = $cli->recv();
@@ -24,15 +24,15 @@ class Client
 
     public function moreThanOneRecv()
     {
-        $cli = new Swoole\Client_coro(SWOOLE_SOCK_UDP);
+        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
         $ret = $cli->connect($this->ip, self::PORT);
         $cli->send("sent by cli");
 
-        $cli2 = new Swoole\Client_coro(SWOOLE_SOCK_UDP);
+        $cli2 = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
         $ret = $cli2->connect($this->ip, self::PORT);
         $cli2->send("sent by cli2");
 
-        $cli3 = new Swoole\Client_coro(SWOOLE_SOCK_UDP);
+        $cli3 = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
         $ret = $cli3->connect($this->ip, self::PORT);
         $cli3->send("sent by cli3");
 
@@ -63,7 +63,7 @@ class Server
     public static function onRequest($request, $response)
     {
         self::staticFunc();
-        $cli = new Swoole\Client_coro(SWOOLE_SOCK_UDP);
+        $cli = new Swoole\Coroutine\Client(SWOOLE_SOCK_UDP);
         $client = new Client();
         $ret = $client->sendRequest();
         $response->end($ret);

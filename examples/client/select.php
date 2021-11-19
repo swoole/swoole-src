@@ -20,7 +20,7 @@ while (!empty($clients))
 {
     $write = $error = array();
     $read = array_values($clients);
-    $n = Swoole\Client_select($read, $write, $error, 0.6);
+    $n = swoole_client_select($read, $write, $error, 0.6);
     if ($n > 0)
     {
         foreach ($read as $index => $c)
