@@ -17,7 +17,7 @@ if ($so === false) {
 }
 if (!defined("MCAST_BLOCK_SOURCE")) {
     die('skip source operations are unavailable');
-}
+}?>
 --FILE--
 <?php
 include __DIR__."/mcast_helpers.php.inc";

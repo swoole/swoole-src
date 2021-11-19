@@ -4,7 +4,7 @@ Bug #63000: Multicast on OSX
 <?php
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');
-}
+}?>
 --FILE--
 <?php
 $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);

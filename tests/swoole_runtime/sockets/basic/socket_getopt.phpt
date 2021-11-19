@@ -5,7 +5,7 @@ marcosptf - <marcosptf@yahoo.com.br> - #phparty7 - @phpsp - novatec/2015 - sao p
 --SKIPIF--
 <?php
 if (!extension_loaded('sockets')) {
-  die('skip sockets extension not available.');
+    die('skip sockets extension not available.');
 }
 ?>
 --FILE--
@@ -51,7 +51,7 @@ unset($domain);
 unset($level);
 socket_close($s);
 unset($s);
-unset($r");
+unset($r);
 ?>
 --EXPECT--
 Setting IP_MULTICAST_TTL

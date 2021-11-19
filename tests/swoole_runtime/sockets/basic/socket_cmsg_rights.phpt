@@ -10,11 +10,11 @@ die('skip not for Microsoft Windows');
 }
 if (strtolower(substr(PHP_OS, 0, 3)) == 'aix') {
 die('skip not for AIX');
-}
+}?>
 --CLEAN--
 <?php
 $path = __DIR__ . "/socket_cmsg_rights.sock";
-@unlink($path);
+@unlink($path);?>
 --FILE--
 <?php
 include __DIR__."/mcast_helpers.php.inc";

@@ -7,7 +7,7 @@ if (substr(PHP_OS, 0, 3) == 'WIN') {
 }
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');
-}
+}?>
 --FILE--
 <?php
     $socket = socket_create(AF_UNIX, SOCK_DGRAM, SOL_UDP); // cause warning

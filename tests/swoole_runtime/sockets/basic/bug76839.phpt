@@ -7,7 +7,7 @@ if (strtolower(substr(PHP_OS, 0, 3)) === 'win') {
 }
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');
-}
+}?>
 --FILE--
 <?php
 

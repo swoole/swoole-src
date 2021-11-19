@@ -4,7 +4,7 @@ Test socket_addrinfo_lookup()
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');
-}
+}?>
 --FILE--
 <?php
 try {

@@ -4,7 +4,7 @@ socket_export_stream: Bad arguments
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP sockets extension not available.');
-}
+}?>
 --FILE--
 <?php
 

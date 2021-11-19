@@ -4,7 +4,7 @@ Test for socket_create_pair()
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');
-}
+}?>
 --FILE--
 <?php
 $sockets = array();

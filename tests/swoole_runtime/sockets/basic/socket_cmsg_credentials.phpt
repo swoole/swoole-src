@@ -13,11 +13,11 @@ die('skip not for AIX');
 }
 if (!defined('SO_PASSCRED')) {
 die('skip SO_PASSCRED is not defined');
-}
+}?>
 --CLEAN--
 <?php
 $path = __DIR__ . "/socket_cmsg_credentials.sock";
-@unlink($path);
+@unlink($path);?>
 --FILE--
 <?php
 include __DIR__."/mcast_helpers.php.inc";
@@ -68,7 +68,7 @@ bool(true)
 int(5)
 Array
 (
-    [name] => 
+    [name] =>
     [control] => Array
         (
             [0] => Array
