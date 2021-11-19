@@ -1,13 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: b721c8d7480f3d8c1aff446c3176de7a949fddc2 */
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_native_socket_select, 0, 4, MAY_BE_LONG|MAY_BE_FALSE)
-	ZEND_ARG_TYPE_INFO(1, read, IS_ARRAY, 1)
-	ZEND_ARG_TYPE_INFO(1, write, IS_ARRAY, 1)
-	ZEND_ARG_TYPE_INFO(1, except, IS_ARRAY, 1)
-	ZEND_ARG_TYPE_INFO(0, seconds, IS_LONG, 1)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, microseconds, IS_LONG, 0, "0")
-ZEND_END_ARG_INFO()
+ * Stub hash: d1e6080cc38fa69333de561b46611af3c98d698d */
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_swoole_native_socket_create_listen, 0, 1, Swoole\\Coroutine\\Socket, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO(0, port, IS_LONG, 0)
@@ -146,46 +138,4 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_socket_clear_error, 0, 0, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, socket, Swoole\\Coroutine\\Socket, 1, "null")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_swoole_native_socket_import_stream, 0, 1, Swoole\\Coroutine\\Socket, MAY_BE_FALSE)
-	ZEND_ARG_INFO(0, stream)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_native_socket_export_stream, 0, 0, 1)
-	ZEND_ARG_OBJ_INFO(0, socket, Swoole\\Coroutine\\Socket, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_native_socket_sendmsg, 0, 2, MAY_BE_LONG|MAY_BE_FALSE)
-	ZEND_ARG_OBJ_INFO(0, socket, Swoole\\Coroutine\\Socket, 0)
-	ZEND_ARG_TYPE_INFO(0, message, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_native_socket_recvmsg, 0, 2, MAY_BE_LONG|MAY_BE_FALSE)
-	ZEND_ARG_OBJ_INFO(0, socket, Swoole\\Coroutine\\Socket, 0)
-	ZEND_ARG_TYPE_INFO(1, message, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_socket_cmsg_space, 0, 2, IS_LONG, 1)
-	ZEND_ARG_TYPE_INFO(0, level, IS_LONG, 0)
-	ZEND_ARG_TYPE_INFO(0, type, IS_LONG, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, num, IS_LONG, 0, "0")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_native_socket_addrinfo_lookup, 0, 1, MAY_BE_ARRAY|MAY_BE_FALSE)
-	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, service, IS_STRING, 1, "null")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, hints, IS_ARRAY, 0, "[]")
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_swoole_native_socket_addrinfo_connect, 0, 1, Swoole\\Coroutine\\Socket, MAY_BE_FALSE)
-	ZEND_ARG_OBJ_INFO(0, address, AddressInfo, 0)
-ZEND_END_ARG_INFO()
-
-#define arginfo_swoole_native_socket_addrinfo_bind arginfo_swoole_native_socket_addrinfo_connect
-
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_socket_addrinfo_explain, 0, 1, IS_ARRAY, 0)
-	ZEND_ARG_OBJ_INFO(0, address, AddressInfo, 0)
 ZEND_END_ARG_INFO()

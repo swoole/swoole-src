@@ -162,7 +162,6 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_HOOK_FE(name, arg_info)   ZEND_RAW_FENTRY("swoole_native_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
 static const zend_function_entry swoole_sockets_functions[] = {
-    SW_HOOK_FE(socket_select, arginfo_swoole_native_socket_select)
     SW_HOOK_FE(socket_create_listen, arginfo_swoole_native_socket_create_listen)
     SW_HOOK_FE(socket_accept, arginfo_swoole_native_socket_accept)
     SW_HOOK_FE(socket_set_nonblock, arginfo_swoole_native_socket_set_nonblock)
@@ -188,10 +187,6 @@ static const zend_function_entry swoole_sockets_functions[] = {
     SW_HOOK_FE(socket_shutdown, arginfo_swoole_native_socket_shutdown)
     SW_HOOK_FE(socket_last_error, arginfo_swoole_native_socket_last_error)
     SW_HOOK_FE(socket_clear_error, arginfo_swoole_native_socket_clear_error)
-    SW_HOOK_FE(socket_import_stream, arginfo_swoole_native_socket_import_stream)
-    SW_HOOK_FE(socket_export_stream, arginfo_swoole_native_socket_export_stream)
-    SW_HOOK_FE(socket_sendmsg, arginfo_swoole_native_socket_sendmsg)
-    SW_HOOK_FE(socket_recvmsg, arginfo_swoole_native_socket_recvmsg)
     ZEND_FE_END
 };
 #else
