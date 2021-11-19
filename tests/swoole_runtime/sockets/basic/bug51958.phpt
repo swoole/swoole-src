@@ -10,22 +10,14 @@ if (!defined('IPPROTO_IPV6')) {
 }
 if (PHP_OS != "WINNT")
     die('skip test relies Winsock\'s error code for WSAEWOULDBLOCK/EAGAIN');
-?>
 --FILE--
 <?php
-use function Swoole\Coroutine\run;
-use Swoole\Runtime;
-
-Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
-
-run(function () {
-    $listenfd = socket_create(AF_INET6, SOCK_STREAM, SOL_TCP);
-    socket_bind($listenfd, "::1", 13579);
-    socket_listen($listenfd);
-    socket_set_nonblock($listenfd);
-    $connfd = @socket_accept($listenfd);
-    echo socket_last_error();
-});
+$listenfd = socket_create(AF_INET6, SOCK_STREAM, SOL_TCP);
+socket_bind($listenfd, "::1", 13579);
+socket_listen($listenfd);
+socket_set_nonblock($listenfd);
+$connfd = @socket_accept($listenfd);
+echo socket_last_error();
 ?>
 --EXPECT--
 10035

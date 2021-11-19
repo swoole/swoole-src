@@ -9,12 +9,8 @@ if (!extension_loaded('sockets')) {
   die('SKIP sockets extension not available.');
 }
 ?>
-<?phpuse function Swoole\Coroutine\run;
-use Swoole\Runtime;
-
-Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
-
-run(function () {
+--FILE--
+<?php
 $port = 80;
 $host = "yahoo.com";
 $stringSocket = "send_socket_to_connected_socket";

@@ -8,21 +8,9 @@ if (!extension_loaded('sockets')) {
 if (PHP_OS !== 'Darwin' && false === strpos(PHP_OS, 'BSD')) {
     die('skip is not *BSD.');
 }
-?>
-<?phpuse function Swoole\Coroutine\run;
-use Swoole\Runtime;
-
-Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
-
-run(function () {
-use function Swoole\Coroutine\run;
-use Swoole\Runtime;
-
-Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
-
-run(function () {
-    var_dump(defined('SO_REUSEPORT'));
-});
+--FILE--
+<?php
+var_dump(defined('SO_REUSEPORT'));
 ?>
 --EXPECT--
 bool(true)

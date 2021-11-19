@@ -1,5 +1,0 @@
-001+ Fatal error: socket_create(): Return value must be of type Socket|false, Swoole\Coroutine\Socket returned in Unknown on line 0
-001- bool(true)
-002- bool(true)
-003- int(16)
-004- NULL

@@ -5,12 +5,8 @@ Bug #63000: Multicast on OSX
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');
 }
-<?phpuse function Swoole\Coroutine\run;
-use Swoole\Runtime;
-
-Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
-
-run(function () {
+--FILE--
+<?php
 $socket = socket_create(AF_INET, SOCK_DGRAM, SOL_UDP);
 socket_bind($socket, '0.0.0.0', 31057);
 

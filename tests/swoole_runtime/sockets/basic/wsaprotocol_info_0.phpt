@@ -11,12 +11,6 @@ if (!extension_loaded('sockets')) {
 ?>
 --FILE--
 <?php
-use function Swoole\Coroutine\run;
-use Swoole\Runtime;
-
-Runtime::setHookFlags(SWOOLE_HOOK_SOCKETS);
-
-run(function () {
     $address = 'localhost';
     $port = 10000;
 
@@ -51,7 +45,6 @@ run(function () {
 
     /* Importing with invalid identifier. */
     $sock2 = socket_wsaprotocol_info_import("garbage");
-});
 ?>
 --EXPECTF--
 bool(true)
