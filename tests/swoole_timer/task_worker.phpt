@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
     $cli->connect('127.0.0.1', $pm->getFreePort(), 5) or die("ERROR");
 
@@ -23,43 +23,43 @@ $pm->parentFunc = function ($pid) use ($pm)
 $pm->childFunc = function () use ($pm)
 {
     ini_set('swoole.display_errors', 'Off');
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort());
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort());
     $serv->set(array(
         "worker_num" => 1,
         'task_worker_num' => 1,
         'log_file' => '/dev/null',
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Swoole\Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data) {
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
         $serv->task([$fd, 'timer']);
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data) {
+    $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data) {
         list($fd) = $data;
-        swoole_timer::after(500, function () use ($serv, $fd) {
+        Swoole\Timer::after(500, function () use ($serv, $fd) {
             $serv->send($fd, "500\r\n\r\n");
-            swoole_timer::after(300, function () use ($serv, $fd) {
+            Swoole\Timer::after(300, function () use ($serv, $fd) {
                 $serv->send($fd, "800\r\n\r\n");
             });
         });
-        swoole_timer::after(1000, function () use ($serv, $fd) {
+        Swoole\Timer::after(1000, function () use ($serv, $fd) {
             $serv->send($fd, "1000[1]\r\n\r\n");
         });
-        swoole_timer::after(1000, function () use ($serv, $fd) {
+        Swoole\Timer::after(1000, function () use ($serv, $fd) {
             $serv->send($fd, "1000[2]\r\n\r\n");
         });
-        swoole_timer::after(500, function () use ($serv, $fd) {
+        Swoole\Timer::after(500, function () use ($serv, $fd) {
             $serv->send($fd, "500[2]\r\n\r\n");
         });
-        swoole_timer::after(2000, function () use ($serv, $fd) {
+        Swoole\Timer::after(2000, function () use ($serv, $fd) {
             $serv->send($fd, "2000\r\n\r\n");
         });
     });
 
-    $serv->on('finish', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('finish', function (Swoole\Server $serv, $fd, $rid, $data)
     {
 
     });

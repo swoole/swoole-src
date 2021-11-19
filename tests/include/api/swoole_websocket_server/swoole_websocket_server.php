@@ -5,13 +5,13 @@ require_once __DIR__ . "/../../../include/bootstrap.php";
 class WebSocketServer
 {
     /**
-     * @var \swoole_websocket_server
+     * @var Swoole\WebSocket\Server
      */
     public $webSocketServ;
 
     public function __construct($host = WEBSOCKET_SERVER_HOST, $port = WEBSOCKET_SERVER_PORT)
     {
-        $this->webSocketServ = new \swoole_websocket_server($host, $port);
+        $this->webSocketServ = new Swoole\WebSocket\Server($host, $port);
 
         $this->webSocketServ->set([
             // 输出限制
@@ -90,17 +90,17 @@ class WebSocketServer
         debug_log("worker error happening [workerId=$workerId, workerPid=$workerPid, exitCode=$exitCode, signalNo=$sigNo]...");
     }
 
-    public function onRequest(\swoole_http_request $request, \swoole_http_response $response)
+    public function onRequest(\Swoole\Http\Request $request, \Swoole\Http\Response $response)
     {
         $response->end("Hello World!");
     }
 
-    public function onOpen(swoole_websocket_server $server, $request)
+    public function onOpen(Swoole\WebSocket\Server  $server, $request)
     {
         debug_log("{$request->fd} opened");
     }
 
-    public function onMessage(swoole_websocket_server $server, $frame)
+    public function onMessage(Swoole\WebSocket\Server  $server, $frame)
     {
         $server->push($frame->fd, "SUCCESS");
     }

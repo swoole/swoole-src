@@ -56,7 +56,7 @@ $pm->childFunc = function () use ($pm) {
         'package_body_offset' => 4,
     ));
 
-    $proc = new swoole\process(function ($process) use ($serv) {
+    $proc = new Swoole\Process(function ($process) use ($serv) {
         while (true) {
             $pkt = $process->read();
             if (!$pkt) {

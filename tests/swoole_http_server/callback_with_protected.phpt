@@ -11,7 +11,7 @@ use SwooleTest\ProcessManager;
 $pm = ProcessManager::exec(function ($pm) {
     class TestCo
     {
-        protected function foo(swoole_http_request $request, swoole_http_response $response)
+        protected function foo(Swoole\Http\Request $request, Swoole\Http\Response $response)
         {
             co::sleep(0.001);
             $cid = go(function () use ($response) {

@@ -6,11 +6,11 @@ swoole_table: iterator
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$table = new swoole_table(65536);
+$table = new Swoole\Table(65536);
 
-$table->column('id', swoole_table::TYPE_INT);
-$table->column('name', swoole_table::TYPE_STRING, 128);
-$table->column('num', swoole_table::TYPE_FLOAT);
+$table->column('id', Swoole\Table::TYPE_INT);
+$table->column('name', Swoole\Table::TYPE_STRING, 128);
+$table->column('num', Swoole\Table::TYPE_FLOAT);
 
 if (!$table->create())
 {

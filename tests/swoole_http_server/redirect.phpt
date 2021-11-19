@@ -17,7 +17,7 @@ $pm->parentFunc = function () use ($pm) {
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
 
     $http->set([
         'log_file' => '/dev/null',
@@ -30,7 +30,7 @@ $pm->childFunc = function () use ($pm) {
         $pm->wakeup();
     });
 
-    $http->on("request", function ($request, swoole_http_response $response) {
+    $http->on("request", function ($request, Swoole\Http\Response $response) {
         if ($request->server['path_info'] == '/nonexistent') {
             $response->redirect('/test.jpg');
         }

@@ -18,7 +18,7 @@ run(function () {
         System::sleep(.1);
     });
     // concurrency join
-    swoole_event_defer(function () use ($cid_list) {
+    Swoole\Event::defer(function () use ($cid_list) {
         go(function () use ($cid_list) {
             Assert::false(Coroutine::join($cid_list));
             Assert::eq(swoole_last_error(), SWOOLE_ERROR_CO_HAS_BEEN_BOUND);

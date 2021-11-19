@@ -7,7 +7,7 @@ class ProxyServer
 
     function run()
     {
-        $serv = new swoole_server("127.0.0.1", 9509);
+        $serv = new Swoole\Server("127.0.0.1", 9509);
         $serv->set(array(
             'worker_num' => 32, //reactor thread num
             'backlog' => 128, //listen backlog
@@ -47,7 +47,7 @@ class ProxyServer
 
     function onReceive($serv, $fd, $reactor_id, $data)
     {
-		$socket = new swoole_client(SWOOLE_SOCK_TCP);
+		$socket = new Swoole\Client(SWOOLE_SOCK_TCP);
         if($socket->connect('127.0.0.1', 80, 0.5))
         {
 			$socket->send($data);

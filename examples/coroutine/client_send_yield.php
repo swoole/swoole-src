@@ -24,4 +24,4 @@ go(function () {
     var_dump($client->errCode);
 });
 
-swoole_event_wait();
+Swoole\Event::wait();

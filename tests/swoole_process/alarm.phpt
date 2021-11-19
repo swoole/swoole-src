@@ -16,7 +16,7 @@ Process::signal(SIGALRM, function () {
         Process::alarm(-1);
         Process::signal(SIGALRM, null);
         Swoole\Event::del(STDIN);
-        swoole_event_exit();
+        Swoole\Event::exit();
     }
 });
 

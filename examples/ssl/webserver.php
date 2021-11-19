@@ -1,6 +1,6 @@
 <?php
-//$serv = new swoole_http_server("0.0.0.0", 443, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
-$serv = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+//$serv = new Swoole\Http\Server("0.0.0.0", 443, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+$serv = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $serv->set([
     'ssl_cert_file' => __DIR__ . '/ssl.crt',
     'ssl_key_file' => __DIR__ . '/ssl.key',
@@ -12,7 +12,7 @@ $serv->set([
 ]);
 //c158354564362fcc
 
-$serv->on('Request', function(swoole_http_request $request, swoole_http_response $response) {
+$serv->on('Request', function(Swoole\Http\Request $request, Swoole\Http\Response $response) {
     //var_dump($request->get);
     //var_dump($request->post);
     //var_dump($request->cookie);

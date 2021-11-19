@@ -23,7 +23,7 @@ go(function () use ($c1) {
     $ret = $c1->push("chan-1");
     echo "chan push ret:".var_export($ret,1)."\n";
 });
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 pop ret:false error:-1

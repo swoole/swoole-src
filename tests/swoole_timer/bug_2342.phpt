@@ -16,18 +16,18 @@ class workerInfo
 
 function worker($timerId, $info)
 {
-    swoole_timer_clear($timerId);
+    Swoole\Timer::clear($timerId);
 }
 function manager($timerID)
 {
-    swoole_timer_tick( 10, 'worker', new workerInfo());
+    Swoole\Timer::tick( 10, 'worker', new workerInfo());
 }
 $mem = memory_get_usage();
-$timerId = swoole_timer_tick(50, 'manager');
-swoole_timer_after(500, function()use($timerId){
-    swoole_timer_clear($timerId);
+$timerId = Swoole\Timer::tick(50, 'manager');
+Swoole\Timer::after(500, function()use($timerId){
+    Swoole\Timer::clear($timerId);
 });
-swoole_event::wait();
+Swoole\Event::wait();
 Assert::assert($mem + 1024 * 1024 * 1 > memory_get_usage());
 echo "DONE\n";
 

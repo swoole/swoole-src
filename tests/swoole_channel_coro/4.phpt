@@ -25,7 +25,7 @@ go(function () use ($c1, $num) {
     }
 });
 echo "main end\n";
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 push start

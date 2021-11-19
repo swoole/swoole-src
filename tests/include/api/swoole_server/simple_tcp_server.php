@@ -12,14 +12,14 @@ $server->start();
 class TcpServer
 {
     /**
-     * @var \swoole_server
+     * @var Swoole\Server
      */
     public $swooleServer;
 
     public function __construct($host, $port)
     {
         echo "swoole_server host:$host, port:$port\n";
-        $this->swooleServer = new \swoole_server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+        $this->swooleServer = new Swoole\Server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
             "pipe_buffer_size" => 1024 * 1024 * 1024,
             'dispatch_mode' => 3,
@@ -59,37 +59,37 @@ class TcpServer
         debug_log("closing .....");
     }
 
-    public function onStart(swoole_server $swooleServer)
+    public function onStart(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server starting .....");
     }
 
-    public function onShutdown(swoole_server $swooleServer)
+    public function onShutdown(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server shutdown .....");
     }
 
-    public function onWorkerStart(swoole_server $swooleServer, $workerId)
+    public function onWorkerStart(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId starting .....");
         if ($workerId == 0) {
-            swoole_timer_after(5000, function () {
+            Swoole\Timer::after(5000, function () {
                 $this->swooleServer->shutdown();
             });
         }
     }
 
-    public function onWorkerStop(swoole_server $swooleServer, $workerId)
+    public function onWorkerStop(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId stopping ....");
     }
 
-    public function onWorkerError(swoole_server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
+    public function onWorkerError(Swoole\Server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
     {
         debug_log("worker error happening [workerId=$workerId, workerPid=$workerPid, exitCode=$exitCode, signalNo=$sigNo]...");
     }
 
-    public function onReceive(swoole_server $swooleServer, $fd, $fromId, $data)
+    public function onReceive(Swoole\Server $swooleServer, $fd, $fromId, $data)
     {
         //echo "swoole_server receive data: $data\n";
         $recv_len = strlen($data);

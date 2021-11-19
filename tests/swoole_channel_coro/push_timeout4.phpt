@@ -17,7 +17,7 @@ go(function () use ($channel) {
     Assert::same($channel->pop(0.1), 1);
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

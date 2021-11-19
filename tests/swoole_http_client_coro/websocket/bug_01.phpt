@@ -20,17 +20,17 @@ $pm->parentFunc = function ($pid) use ($pm) {
         echo "CONNECTED\n";
         echo $cli->recv()->data;
     });
-    swoole_event::wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $ws = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $ws = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $ws->set(array(
         'log_file' => '/dev/null'
     ));
-    $ws->on('WorkerStart', function (\swoole_server $serv) {
+    $ws->on('WorkerStart', function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */

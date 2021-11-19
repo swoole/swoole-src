@@ -27,7 +27,7 @@ go(function () {
     co::sleep(2);
     flock($f, LOCK_UN);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 unlink(FILE);
 ?>
 --EXPECTF--

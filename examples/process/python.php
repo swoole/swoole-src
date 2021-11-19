@@ -1,8 +1,8 @@
 <?php
-$process = new swoole_process('pyhon_process', true);
+$process = new Swoole\Process('pyhon_process', true);
 $pid = $process->start();
 
-function pyhon_process(swoole_process $worker)
+function pyhon_process(Swoole\Process $worker)
 {
     $worker->exec('/usr/bin/python', array("echo.py"));
 }
@@ -10,5 +10,5 @@ function pyhon_process(swoole_process $worker)
 $process->write("hello world\n");
 echo $process->read();
 
-$ret = swoole_process::wait();
+$ret = Swoole\Process::wait();
 var_dump($ret);

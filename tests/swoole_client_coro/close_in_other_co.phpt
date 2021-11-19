@@ -31,7 +31,7 @@ go(function () use ($client, $cid) {
     co::resume($cid);
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

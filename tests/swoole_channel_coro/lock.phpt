@@ -57,7 +57,7 @@ go(function () {
     }
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 fail

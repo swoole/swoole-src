@@ -2,7 +2,7 @@
 ini_set('memory_limit', '8M');
 
 $table = new Swoole\Table(1024);
-$table->column('name', swoole_table::TYPE_STRING, 1024 * 64);
+$table->column('name', Swoole\Table::TYPE_STRING, 1024 * 64);
 $table->create();
 
 $table->set('key1', ['name' => str_repeat('A', 1024 * 64 - 1) . "\n"]);

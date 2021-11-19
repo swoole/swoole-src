@@ -3,7 +3,7 @@ $clients = array();
 
 for($i=0; $i< 20; $i++)
 {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
     $ret = $client->connect('127.0.0.1', 9501, 0.5, 0);
     if(!$ret)
     {

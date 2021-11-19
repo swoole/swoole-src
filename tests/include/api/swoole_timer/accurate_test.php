@@ -2,15 +2,15 @@
 
 require_once __DIR__ . "/../../../include/bootstrap.php";
 
-//swoole_function swoole_timer_after($ms, $callback, $param = null) {}
-//swoole_function swoole_timer_tick($ms, $callback) {}
-//swoole_function swoole_timer_clear($timer_id) {}
+//swoole_function Swoole\Timer::after($ms, $callback, $param = null) {}
+//swoole_function Swoole\Timer::tick($ms, $callback) {}
+//swoole_function Swoole\Timer::clear($timer_id) {}
 
 
 function after()
 {
     $start = microtime(true);
-    swoole_timer_after(1000, function() use($start) {
+    Swoole\Timer::after(1000, function() use($start) {
         echo microtime(true) - $start, "\n";
         after();
     });

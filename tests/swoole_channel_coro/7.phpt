@@ -26,7 +26,7 @@ go(function ()use ($chan){
     }
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 int(0)

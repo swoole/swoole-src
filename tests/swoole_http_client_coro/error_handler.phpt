@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $server) {
         static $i = 0;
         $i++;
         if ($i <= MAX_CONCURRENCY_MID) {

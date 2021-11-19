@@ -20,27 +20,27 @@ $pm->parentFunc = function () use ($pm) {
         }
         $cli->close();
     });
-    swoole_event::wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $ws = new swoole_websocket_server('127.0.0.1', $pm->getFreePort());
+    $ws = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort());
     $ws->set([
         'log_file' => '/dev/null',
         'worker_num' => 1
     ]);
-    $ws->on('workerStart', function (swoole_websocket_server $serv) use ($pm) {
+    $ws->on('workerStart', function (Swoole\WebSocket\Server  $serv) use ($pm) {
         $pm->wakeup();
     });
-    $ws->on('open', function (swoole_websocket_server $ws, swoole_http_request $request) {
+    $ws->on('open', function (Swoole\WebSocket\Server  $ws, Swoole\Http\Request $request) {
         $ws->push($request->fd, "server: hello, welcome\n");
     });
-    $ws->on('message', function (swoole_websocket_server $ws, swoole_websocket_frame $frame) {
+    $ws->on('message', function (Swoole\WebSocket\Server  $ws, Swoole\WebSocket\Frame $frame) {
         echo "client: {$frame->data}";
         $frame->data = str_replace('server', 'client', $frame->data);
         $ws->push($frame->fd, "server-reply: {$frame->data}");
     });
-    $ws->on('close', function (swoole_websocket_server $ws, int $fd) {
+    $ws->on('close', function (Swoole\WebSocket\Server  $ws, int $fd) {
         echo "client-{$fd} is closed\n";
     });
     $ws->start();

@@ -442,7 +442,7 @@ function killself_in_syncmode($lifetime = 1000, $sig = SIGKILL)
  */
 function suicide($lifetime, $sig = SIGKILL, callable $cb = null)
 {
-    return swoole_timer_after($lifetime, function () use ($lifetime, $sig, $cb) {
+    return Swoole\Timer::after($lifetime, function () use ($lifetime, $sig, $cb) {
         if ($cb) {
             $cb();
         }
@@ -615,7 +615,7 @@ function start_server($file, $host, $port, $redirect_file = "/dev/null", $ext1 =
     return function () use ($handle, $redirect_file) {
         // @unlink($redirect_file);
         proc_terminate($handle, SIGTERM);
-        swoole_event_exit();
+        Swoole\Event::exit();
         exit;
     };
 }
@@ -804,6 +804,16 @@ function swoole_get_average($array)
 function assert_server_stats($stats) {
     Assert::keyExists($stats, 'connection_num');
     Assert::keyExists($stats, 'request_count');
+}
+
+function assert_upload_file($file, $tmp_name, $name, $type, $size, $error = 0)
+{
+    Assert::notEmpty($file);
+    Assert::eq($file['tmp_name'], $tmp_name);
+    Assert::eq($file['name'], $name);
+    Assert::eq($file['type'], $type);
+    Assert::eq($file['size'], $size);
+    Assert::eq($file['error'], $error);
 }
 
 function swoole_loop_n($n, $fn)

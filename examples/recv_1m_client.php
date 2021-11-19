@@ -1,5 +1,5 @@
 <?php
-$c = new swoole_client(SWOOLE_TCP);
+$c = new Swoole\Client(SWOOLE_TCP);
 $f = fopen('data.log', 'w');
 $c->connect('127.0.0.1', 9509, 60);
 $c->send("AAAAAAAAAAAAAAAA");

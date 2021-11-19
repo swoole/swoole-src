@@ -28,7 +28,7 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm, $randoms) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => '/dev/null',
         'worker_num' => 4,
@@ -39,7 +39,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
         $pm->wakeup();
     });
     $server->on('request',
-        function (swoole_http_request $request, swoole_http_response $response) use ($server, $randoms) {
+        function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server, $randoms) {
             $n = $request->get['n'];
             switch ($request->server['path_info']) {
                 case '/task':
@@ -62,7 +62,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
                 }
             }
         });
-    $server->on('task', function (swoole_http_server $server, swoole_server_task $task) use ($pm) {
+    $server->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) use ($pm) {
         $task->finish([$task->data, httpGetBody('http://127.0.0.1:' . $pm->getFreePort() . "/random?n={$task->data}")]);
     });
     $server->on('finish', function () {

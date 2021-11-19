@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+$serv = new Swoole\Server("127.0.0.1", 9501, SWOOLE_BASE);
 
 $serv->set(array(
 		'open_length_check'     => true,
@@ -11,7 +11,7 @@ $serv->set(array(
 		'package_max_length'    => 2000000,  //协议最大长度
 ));
 
-function send(swoole_server $serv, $fd, $data)
+function send(Swoole\Server $serv, $fd, $data)
 {
     $serv->send($fd, $data);
     echo "#send =" . strlen($data) . " bytes\n";
@@ -21,7 +21,7 @@ $serv->on('connect', function ($serv, $fd){
 	echo "Client:Connect.\n";
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
     $req = unserialize(substr($data, 4));
     echo "#{$serv->worker_id}>> received length=" . strlen($data) . ", SerId: {$req['int1']}\n";
     send($serv, $fd, $data);

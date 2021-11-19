@@ -28,7 +28,7 @@ co::resume($map[2]);
 echo "start to resume {$map[1]}\n";
 co::resume($map[1]);
 echo "main\n";
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 start coro 1

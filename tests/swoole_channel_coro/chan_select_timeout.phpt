@@ -19,6 +19,6 @@ go(function () use ($chan) {
     Assert::false($result);
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

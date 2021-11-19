@@ -8,13 +8,13 @@ require __DIR__ . '/../include/bootstrap.php';
 
 error_reporting(E_ALL & E_DEPRECATED);
 
-swoole_event_add(STDIN, function ($fp) {
+Swoole\Event::add(STDIN, function ($fp) {
     var_dump(fread($fp, 1024));
-    swoole_event_del(STDIN);
+    Swoole\Event::del(STDIN);
 });
 
-swoole_timer_after(100, function () {
-    swoole_event_del(STDIN);
+Swoole\Timer::after(100, function () {
+    Swoole\Event::del(STDIN);
     fclose(STDIN);
 });
 

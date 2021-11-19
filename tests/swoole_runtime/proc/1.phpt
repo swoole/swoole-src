@@ -29,7 +29,7 @@ go(function() {
     echo "I didn't segfault!\n";
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 I didn't segfault!

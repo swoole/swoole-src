@@ -25,7 +25,7 @@ go(function () use ($free_port) {
     Assert::same($port, $free_port);
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 hello

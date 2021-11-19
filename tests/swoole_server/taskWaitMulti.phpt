@@ -10,7 +10,7 @@ use Swoole\Server;
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($port)
 {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->connect('127.0.0.1', $port, 0.5) or die("ERROR");
 
     $cli->send("task-01") or die("ERROR");
@@ -18,7 +18,7 @@ $pm->parentFunc = function ($pid) use ($port)
     $cli->send("task-02") or die("ERROR");
     Assert::same($cli->recv(), 'OK');
     $cli->close();
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm, $port)

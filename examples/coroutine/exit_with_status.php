@@ -8,5 +8,5 @@ go(function () {
         $exit_status = $e->getStatus();
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 exit($exit_status);

@@ -11,7 +11,7 @@ use Swoole\Server;
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
     $cli->connect('127.0.0.1', $pm->getFreePort(), 0.5) or die("ERROR");
 

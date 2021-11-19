@@ -50,7 +50,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
         echo "SUCCESS\n";
         $client->close();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 

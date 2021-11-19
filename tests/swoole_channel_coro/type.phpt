@@ -37,7 +37,7 @@ go(function () use ($chan, $exit_status_list)
 });
 
 
-swoole_event_wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECTF--

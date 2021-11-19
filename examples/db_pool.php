@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_http_server("127.0.0.1", 9500);
+$serv = new Swoole\Http\Server("127.0.0.1", 9500);
 
 $serv->set(array(
     'worker_num' => 100,

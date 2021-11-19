@@ -38,7 +38,7 @@ while ($n--) {
     $proc1->write($pkg);
 }
 $proc1->write(pack('n', 0));
-swoole_process::wait(true);
+Swoole\Process::wait(true);
 ?>
 --EXPECT--
 END

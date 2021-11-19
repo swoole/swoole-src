@@ -40,17 +40,17 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             Assert::same($cli->body, $raw_file_content);
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     Assert::same($count, MAX_CONCURRENCY_LOW);
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set(['log_file' => '/dev/null']);
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $serv->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $offset = (int) @explode('-', explode('=', $request->header['range'])[1])[0];
         $response->sendfile(TEST_IMAGE, $offset);
     });

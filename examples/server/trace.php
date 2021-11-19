@@ -10,7 +10,7 @@ function test_sleep()
     sleep(5);
 }
 
-$server = new swoole_server('127.0.0.1', 9501);
+$server = new Swoole\Server('127.0.0.1', 9501);
 
 $server->set([
     'worker_num' => 1,
@@ -29,13 +29,13 @@ $server->on('Receive', function($serv, $fd, $reactor_id, $data) {
     $serv->send($fd, "Swoole: $data");
 });
 
-$server->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
+$server->on('Task', function (Swoole\Server $serv, $task_id, $reactor_id, $data) {
     echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
     test();
     $serv->send($data, "Swoole: task\n");
 });
 
-$server->on('Finish', function (swoole_server $serv, $task_id, $data) {
+$server->on('Finish', function (Swoole\Server $serv, $task_id, $data) {
     echo "Task#$task_id finished, data_len=".strlen($data).PHP_EOL;
 });
 

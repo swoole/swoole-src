@@ -22,7 +22,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
                 $opcode = $n === $times - 1 ? WEBSOCKET_OPCODE_TEXT : WEBSOCKET_OPCODE_CONTINUATION;
                 $finish = $n === 0;
                 if (mt_rand(0, 1)) {
-                    $frame = new swoole_websocket_frame;
+                    $frame = new Swoole\WebSocket\Frame;
                     $frame->opcode = $opcode;
                     $frame->data = $rand;
                     $frame->finish = $finish;
@@ -38,12 +38,12 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
             }
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     Assert::same($count, MAX_CONCURRENCY);
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_websocket_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Swoole\WebSocket\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set([
         // 'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm) {
     $serv->on('WorkerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('Message', function (swoole_websocket_server $serv, swoole_websocket_frame $frame) {
+    $serv->on('Message', function (Swoole\WebSocket\Server  $serv, Swoole\WebSocket\Frame $frame) {
         if (mt_rand(0, 1)) {
             $serv->push($frame->fd, $frame);
         } else {

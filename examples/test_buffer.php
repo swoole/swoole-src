@@ -1,5 +1,5 @@
 <?php
-$client = new swoole_client(SWOOLE_SOCK_TCP); //同步阻塞
+$client = new Swoole\Client(SWOOLE_SOCK_TCP); //同步阻塞
 if(empty($argv[1]))
 {
 	$loop = 1;

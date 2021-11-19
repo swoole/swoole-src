@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new Swoole\Server("0.0.0.0", 9501);
 
 $context = new ZMQContext();
 
@@ -29,7 +29,7 @@ $serv->on('workerStart', function($serv, $worker_id) {
     global $receiver;
 
     $rfd = $receiver->getsockopt(ZMQ::SOCKOPT_FD);
-    swoole_event_add($rfd, 'onZMQR', NULL , SWOOLE_EVENT_READ);
+    Swoole\Event::add($rfd, 'onZMQR', NULL , SWOOLE_EVENT_READ);
     echo "worker start\n";
 });
 
@@ -37,7 +37,7 @@ $serv->on('connect', function ($serv, $fd, $reactor_id){
     echo "[#".posix_getpid()."]\tClient@[$fd:$reactor_id]: Connect.\n";
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
 
     $cmd = trim($data);
     echo "[#".posix_getpid()."]\tClient[$fd]: $data\n";

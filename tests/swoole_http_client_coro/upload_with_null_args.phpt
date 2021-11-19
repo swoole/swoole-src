@@ -22,7 +22,7 @@ $pm->parentFunc = function () use ($pm) {
         Assert::same(md5_file(TEST_IMAGE), $ret['md5']);
         $cli->close();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     echo "DONE\n";
     $pm->kill();
 };

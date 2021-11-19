@@ -23,7 +23,7 @@ go(function () {
     $ret = $redis->set('lock', 1, ['nx', 'px' => 100]);
     Assert::assert($ret);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

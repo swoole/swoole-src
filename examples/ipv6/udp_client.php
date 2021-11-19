@@ -1,5 +1,5 @@
 <?php
-$client = new swoole_client(SWOOLE_SOCK_UDP6);
+$client = new Swoole\Client(SWOOLE_SOCK_UDP6);
 $client->connect('::1', 9502);
 $client->send("admin");
 echo $client->recv()."\n";

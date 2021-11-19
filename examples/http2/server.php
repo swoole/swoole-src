@@ -4,7 +4,7 @@ Swoole\Coroutine::set([
     'log_level' => 0,
 ]);
 $key_dir = __DIR__ . '/../ssl/';
-$http = new swoole_http_server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+$http = new Swoole\Http\Server("0.0.0.0", 9501, SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
 $http->set([
     'open_http2_protocol' => 1,
     'enable_static_handler' => TRUE,
@@ -13,7 +13,7 @@ $http->set([
     'ssl_key_file' => $key_dir . '/ssl.key',
 ]);
 
-$http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+$http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
 	$response->header('Test-Value', [
         "a\r\n",
         'd5678',

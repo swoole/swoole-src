@@ -22,6 +22,6 @@ go(function () use ($chan) {
     Assert::same($chan->stats()['queue_num'], 0);
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

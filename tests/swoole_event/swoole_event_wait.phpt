@@ -1,5 +1,5 @@
 --TEST--
-swoole_event: swoole_event_wait (auto)
+swoole_event: wait (auto)
 --SKIPIF--
 <?php require  __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

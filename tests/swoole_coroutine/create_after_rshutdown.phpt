@@ -10,7 +10,7 @@ register_shutdown_function(function () {
         co::sleep(.01);
         echo "DONE\n";
     });
-    swoole_event::wait();
+    Swoole\Event::wait();
 });
 exit(0);
 

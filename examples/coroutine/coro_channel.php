@@ -1,14 +1,14 @@
 <?php
-$http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+$http = new Swoole\Http\Server("127.0.0.1", 9501, SWOOLE_BASE);
 $http->set(array(
     'log_file' => '/dev/null'
 ));
 use Swoole\Coroutine as co;
-// $http->on("WorkerStart", function (\swoole_server $serv)
+// $http->on("WorkerStart", function (\Swoole\Server $serv)
 // {
 //
 // });
-$http->on('request', function (swoole_http_request $request, swoole_http_response $response)
+$http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response)
 {
     $ch = new co\Channel(1);
     $out = new co\Channel(1);

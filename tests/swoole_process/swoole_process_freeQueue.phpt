@@ -6,7 +6,7 @@ swoole_process: freeQueue
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function() {});
+$proc = new Swoole\Process(function() {});
 $r  = $proc->useQueue();
 Assert::assert($r);
 
@@ -14,7 +14,7 @@ $proc->start();
 $r  = $proc->freeQueue();
 Assert::assert($r);
 
-\swoole_process::wait();
+\Swoole\Process::wait();
 
 ?>
 --EXPECT--

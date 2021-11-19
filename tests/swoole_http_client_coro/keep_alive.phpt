@@ -21,7 +21,7 @@ go(function () {
     Assert::assert($cli->get('/'));
     Assert::assert(strpos($cli->body, 'pecl') !== false);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "OK\n";
 ?>
 --EXPECT--

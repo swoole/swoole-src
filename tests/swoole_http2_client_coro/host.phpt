@@ -42,7 +42,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $http->set([
         // 'log_file' => '/dev/null',
         'open_http2_protocol' => true,
@@ -51,7 +51,7 @@ $pm->childFunc = function () use ($pm) {
         'ssl_key_file' => SSL_FILE_DIR . '/server.key'
     ]);
     $http->on("WorkerStart", function () use ($pm) { $pm->wakeup(); });
-    $http->on("request", function (swoole_http_request $request, swoole_http_response $response) use ($http) {
+    $http->on("request", function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         Assert::same($request->header['host'], "{$http->host}:{$http->port}");
         unset($request->header['host']);
         foreach ($request->header as $name => $value) {

@@ -6,14 +6,14 @@ swoole_process: exec
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function(\swoole_process $proc) {
+$proc = new Swoole\Process(function(Swoole\Process $proc) {
     $proc->exec("/usr/bin/printf", ["HELLO"]);
 }, true);
 $proc->start();
 echo $proc->read();
 $proc->exec("/usr/bin/printf", [" WORLD"]);
 
-\swoole_process::wait(true);
+\Swoole\Process::wait(true);
 ?>
 --EXPECT--
 HELLO WORLD
