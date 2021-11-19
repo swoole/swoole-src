@@ -1,0 +1,1 @@
+Fatal error: socket_create(): Return value must be of type Socket|false, Swoole\Coroutine\Socket returned in Unknown on line 0
