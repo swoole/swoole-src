@@ -29,12 +29,12 @@ $pm->parentFunc = function () use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $server = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->set(['worker_num' => 1, 'log_file' => '/dev/null']);
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('receive', function (swoole_server $serv, $fd, $tid, $data) {
+    $server->on('receive', function (Swoole\Server $serv, $fd, $tid, $data) {
         $serv->send($fd, "Swoole $data\n");
     });
     $server->start();

@@ -17,7 +17,7 @@ co::create(function () {
     $http->execute('/get');
     swoole_string($http->getHeaderOut())->contains('httpbin.org');
 });
-swoole_event::wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECT--

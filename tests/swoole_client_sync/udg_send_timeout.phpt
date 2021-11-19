@@ -9,7 +9,7 @@ const N = 65507;
 define("SOCKET_FILE", __DIR__.'/server.sock');
 $socket = stream_socket_server("udg://".SOCKET_FILE, $errno, $errstr, STREAM_SERVER_BIND);
 
-$client = new swoole_client(SWOOLE_SOCK_UNIX_DGRAM);
+$client = new Swoole\Client(SWOOLE_SOCK_UNIX_DGRAM);
 $client->connect(SOCKET_FILE, 0, 0.3);
 $s = microtime(true);
 

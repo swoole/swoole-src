@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+include/lib/vendor/friendsofphp/php-cs-fixer/php-cs-fixer "$@"
+

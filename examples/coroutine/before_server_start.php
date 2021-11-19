@@ -3,7 +3,7 @@ go(function ()
 {
     co::sleep(1);
 
-    $http = new swoole_http_server("127.0.0.1", 9501, SWOOLE_BASE);
+    $http = new Swoole\Http\Server("127.0.0.1", 9501, SWOOLE_BASE);
 
     $http->on("start", function ($server)
     {

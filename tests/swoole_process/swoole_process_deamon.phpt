@@ -6,8 +6,8 @@ swoole_process: deamon
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function(\swoole_process $proc) {
-    $r = \swoole_process::daemon();
+$proc = new Swoole\Process(function(Swoole\Process $proc) {
+    $r = \Swoole\Process::daemon();
     Assert::assert($r);
 
     $proc->push(posix_getpid());
@@ -18,10 +18,10 @@ $demonPid = intval($proc->pop());
 
 Assert::assert($forkPid !== $demonPid);
 
-\swoole_process::kill($demonPid, SIGKILL);
+\Swoole\Process::kill($demonPid, SIGKILL);
 
-\swoole_process::wait(true);
-\swoole_process::wait(true);
+\Swoole\Process::wait(true);
+\Swoole\Process::wait(true);
 echo "SUCCESS";
 ?>
 --EXPECT--

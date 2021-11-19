@@ -14,7 +14,7 @@ use Swoole\Server;
 $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    for ($i=0; $i < 5; $i++) { 
+    for ($i=0; $i < 5; $i++) {
         go(function () use ($pm, $i) {
             $client = new Client(SWOOLE_SOCK_TCP);
             $client->set([
@@ -30,10 +30,10 @@ $pm->parentFunc = function ($pid) use ($pm) {
             $client->close();
         });
     }
-    
+
     Event::wait();
 
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)

@@ -2,12 +2,12 @@
 
 function fixRate(callable $callable, $interval)
 {
-    return swoole_timer_tick($interval, $callable);
+    return Swoole\Timer::tick($interval, $callable);
 }
 
 function fixDelay(callable $callable, $interval)
 {
-    return swoole_timer_after($interval, function() use($callable, $interval) {
+    return Swoole\Timer::after($interval, function() use($callable, $interval) {
         call_user_func($callable);
         fixDelay($callable, $interval);
     });

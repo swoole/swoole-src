@@ -12,7 +12,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 $name = "SWOOLE_PROCESS_TEST_" . rand(1, 100);
 
-$proc = new \swoole_process(function ($childProc) {
+$proc = new Swoole\Process(function ($childProc) {
     global $name;
     $childProc->name($name);
     sleep(PHP_INT_MAX);
@@ -21,9 +21,9 @@ $proc = new \swoole_process(function ($childProc) {
 $pid = $proc->start();
 $count = (int)trim(`ps aux|grep $name|grep -v grep|wc -l`);
 Assert::same($count, 1);
-\swoole_process::kill($pid, SIGKILL);
+\Swoole\Process::kill($pid, SIGKILL);
 
-\swoole_process::wait(true);
+\Swoole\Process::wait(true);
 echo "SUCCESS";
 ?>
 --EXPECT--

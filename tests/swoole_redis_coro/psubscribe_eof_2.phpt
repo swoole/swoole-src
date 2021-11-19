@@ -40,7 +40,7 @@ go(function () use ($sock, $port) {
     $redis->close();
     $sock->close();
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 DONE

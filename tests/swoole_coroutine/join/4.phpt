@@ -17,7 +17,7 @@ run(function () {
     $current_cid = Coroutine::getCid();
     $cid = go(function () use ($current_cid) {
         System::sleep(.1);
-        swoole_event_defer(function () use ($current_cid) {
+        Swoole\Event::defer(function () use ($current_cid) {
             echo "DEFER CALLBACK\n";
             Coroutine::cancel($current_cid);
         });

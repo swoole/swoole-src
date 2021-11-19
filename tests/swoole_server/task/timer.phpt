@@ -41,18 +41,18 @@ $pm->childFunc = function () use ($pm) {
     });
     $http->on('WorkerStart', function (Server $server, int $workerId) {
         if ($server->taskworker) {
-            swoole_timer_after(1, function () use ($server, $workerId) {
+            Swoole\Timer::after(1, function () use ($server, $workerId) {
                 var_dump("after1 : " . time());
             });
             // never callback
-            swoole_timer_after(10000, function () use ($server, $workerId) {
+            Swoole\Timer::after(10000, function () use ($server, $workerId) {
                 var_dump("after2 : " . time());
             });
         }
     });
     $http->on('task', function (Server $server, Task $task) {
         var_dump('begin : ' . time());
-        swoole_timer_after(2000, function () use ($server, $task) {
+        Swoole\Timer::after(2000, function () use ($server, $task) {
             var_dump('end : ' . time());
             Assert::true($server->push($task->data['fd'], "OK"));
         });

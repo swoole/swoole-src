@@ -6,7 +6,7 @@ $server->set([
     'task_worker_num' => 2,
 ]);
 
-$server->on('Task', function (swoole_server $serv, $task_id, $worker_id, $data) {
+$server->on('Task', function (Swoole\Server $serv, $task_id, $worker_id, $data) {
     echo "#{$serv->worker_id}\tonTask: worker_id={$worker_id}, task_id=$task_id\n";
     if ($serv->worker_id == 1) {
         sleep(1);
@@ -14,7 +14,7 @@ $server->on('Task', function (swoole_server $serv, $task_id, $worker_id, $data) 
     return $data;
 });
 
-$server->on('Finish', function (swoole_server $serv, $task_id, $data) {
+$server->on('Finish', function (Swoole\Server $serv, $task_id, $data) {
     echo "Task#$task_id finished, data_len=".strlen($data).PHP_EOL;
 });
 

@@ -3,7 +3,7 @@ use Swoole\Http\Response;
 use Swoole\Http\Request;
 use Swoole\WebSocket\Server;
 
-//$server = new swoole_websocket_server("0.0.0.0", 9501);
+//$server = new Swoole\WebSocket\Server("0.0.0.0", 9501);
 $server = new Server("0.0.0.0", 9501, SWOOLE_BASE);
 //$server->addlistener('0.0.0.0', 9502, SWOOLE_SOCK_UDP);
 $server->set([

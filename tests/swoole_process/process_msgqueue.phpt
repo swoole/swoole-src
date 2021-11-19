@@ -6,9 +6,9 @@ swoole_process: sysv msgqueue
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-function callback_function(swoole_process $worker){}
+function callback_function(Swoole\Process $worker){}
 
-$process = new swoole_process('callback_function', false, false);
+$process = new Swoole\Process('callback_function', false, false);
 $process->useQueue();
 
 $bytes = 0;

@@ -28,7 +28,7 @@ go(function () {
     throw new Exception('something wrong');
     echo "never here\n";
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 closed

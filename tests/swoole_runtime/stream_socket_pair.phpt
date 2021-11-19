@@ -8,7 +8,7 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 $pipe = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
 
@@ -16,7 +16,7 @@ Co::create(function()use(&$pipe){
     foreach(range(0, 9) as $n) {
         printf("Write byte: %d\n", fwrite($pipe[0], 'hello world '.$n));
         Co::sleep(.01);
-    } 
+    }
     fclose($pipe[0]);
 });
 
@@ -28,7 +28,7 @@ Co::create(function()use(&$pipe){
 });
 
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 Write byte: 13

@@ -20,7 +20,7 @@ go(function () {
     echo "coro 2 end\n";
 });
 echo "main 2\n";
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 coro 1 start

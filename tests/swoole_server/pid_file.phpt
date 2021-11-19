@@ -15,7 +15,7 @@ use Swoole\Server;
 $pm->parentFunc = function ($pid)
 {
     Assert::assert(is_file(PID_FILE));
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)

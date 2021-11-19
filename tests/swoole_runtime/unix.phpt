@@ -8,7 +8,7 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 const N = 5;
 
@@ -43,7 +43,7 @@ go(function () {
         fclose($fp);
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 [Client] recvfrom[test.sock] : Swoole: hello-0

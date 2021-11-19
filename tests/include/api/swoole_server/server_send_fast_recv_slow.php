@@ -7,15 +7,15 @@ if (pcntl_fork() === 0) {
     suicide(3000);
 
 
-    $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
 
     /** @noinspection PhpVoidFunctionResultUsedInspection */
     assert($cli->set([
         "socket_buffer_size" => 1,
     ]));
 
-    $cli->on("connect", function(swoole_client $cli) {
-        swoole_timer_clear($cli->timeo_id);
+    $cli->on("connect", function(Swoole\Client $cli) {
+        Swoole\Timer::clear($cli->timeo_id);
 
         // TODO getSocket BUG
         // assert(is_resource($cli->getSocket()));
@@ -31,24 +31,24 @@ if (pcntl_fork() === 0) {
         // $cli->sendfile(__DIR__.'/test.txt');
     });
 
-    $cli->on("receive", function(swoole_client $cli, $data){
+    $cli->on("receive", function(Swoole\Client $cli, $data){
         $recv_len = strlen($data);
         debug_log("receive: len $recv_len");
         $cli->send(str_repeat("\0", 1024));
     });
 
-    $cli->on("error", function(swoole_client $cli) {
-        swoole_timer_clear($cli->timeo_id);
+    $cli->on("error", function(Swoole\Client $cli) {
+        Swoole\Timer::clear($cli->timeo_id);
         debug_log("error");
     });
 
-    $cli->on("close", function(swoole_client $cli) {
-        swoole_timer_clear($cli->timeo_id);
+    $cli->on("close", function(Swoole\Client $cli) {
+        Swoole\Timer::clear($cli->timeo_id);
         debug_log("close");
     });
 
     $cli->connect(TCP_SERVER_HOST, TCP_SERVER_PORT);
-    $cli->timeo_id = swoole_timer_after(1000, function() use($cli) {
+    $cli->timeo_id = Swoole\Timer::after(1000, function() use($cli) {
         debug_log("connect timeout");
         $cli->close();
         Assert::false($cli->isConnected());
@@ -63,13 +63,13 @@ if (pcntl_fork() === 0) {
 class TcpServer
 {
     /**
-     * @var \swoole_server
+     * @var Swoole\Server
      */
     public $swooleServer;
 
     public function __construct()
     {
-        $this->swooleServer = new \swoole_server(TCP_SERVER_HOST, TCP_SERVER_PORT, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+        $this->swooleServer = new Swoole\Server(TCP_SERVER_HOST, TCP_SERVER_PORT, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
             "output_buffer_size" => 1024 * 1024 * 1024, // 输出限制
             "max_connection" => 10240,
@@ -111,32 +111,32 @@ class TcpServer
         debug_log("closing .....");
     }
 
-    public function onStart(swoole_server $swooleServer)
+    public function onStart(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server starting .....");
     }
 
-    public function onShutdown(swoole_server $swooleServer)
+    public function onShutdown(Swoole\Server $swooleServer)
     {
         debug_log("swoole_server shutdown .....");
     }
 
-    public function onWorkerStart(swoole_server $swooleServer, $workerId)
+    public function onWorkerStart(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId starting .....");
     }
 
-    public function onWorkerStop(swoole_server $swooleServer, $workerId)
+    public function onWorkerStop(Swoole\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId stopping ....");
     }
 
-    public function onWorkerError(swoole_server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
+    public function onWorkerError(Swoole\Server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
     {
         debug_log("worker error happening [workerId=$workerId, workerPid=$workerPid, exitCode=$exitCode, signalNo=$sigNo]...");
     }
 
-    public function onReceive(swoole_server $swooleServer, $fd, $fromId, $data)
+    public function onReceive(Swoole\Server $swooleServer, $fd, $fromId, $data)
     {
         $recv_len = strlen($data);
         debug_log("receive: len $recv_len");

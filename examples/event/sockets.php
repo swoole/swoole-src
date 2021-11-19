@@ -16,20 +16,20 @@ function socket_onRead($socket)
 	if ($i > 10)
 	{
 		echo "finish\n";
-		swoole_event_del($socket);
+		Swoole\Event::del($socket);
 		socket_close($socket);
 	}
 	else
 	{
 		sleep(1);
-		swoole_event_set($socket, null, 'socket_onWrite', SWOOLE_EVENT_READ | SWOOLE_EVENT_WRITE);
+		Swoole\Event::set($socket, null, 'socket_onWrite', SWOOLE_EVENT_READ | SWOOLE_EVENT_WRITE);
 	}
 }
 
 function socket_onWrite($socket)
 {
 	socket_write($socket, "hi swoole");
-	swoole_event_set($socket, null, null, SWOOLE_EVENT_READ);
+	Swoole\Event::set($socket, null, null, SWOOLE_EVENT_READ);
 }
 
 function socket_onConnect($socket)
@@ -38,16 +38,16 @@ function socket_onConnect($socket)
 	if ($err == 0)
 	{
 		echo "connect server success\n";
-		swoole_event_set($socket, null, 'socket_onWrite', SWOOLE_EVENT_READ);
+		Swoole\Event::set($socket, null, 'socket_onWrite', SWOOLE_EVENT_READ);
 		socket_write($socket, "first package\n");
 	}
 	else
 	{
 		echo "connect server failed\n";
-		swoole_event_del($socket);
+		Swoole\Event::del($socket);
 		socket_close($socket);
 	}
 }
 
-swoole_event_add($socket, 'socket_onRead', 'socket_onConnect', SWOOLE_EVENT_WRITE);
+Swoole\Event::add($socket, 'socket_onRead', 'socket_onConnect', SWOOLE_EVENT_WRITE);
 @socket_connect($socket, '127.0.0.1', 9501);

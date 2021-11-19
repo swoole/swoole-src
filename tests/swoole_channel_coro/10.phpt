@@ -16,6 +16,6 @@ go(function () {
     Assert::false($chan->pop(0.001));
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

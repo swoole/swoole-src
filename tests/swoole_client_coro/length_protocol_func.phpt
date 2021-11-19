@@ -39,7 +39,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $serv->set([
         "worker_num" => 1,
         'log_file' => '/dev/null',
@@ -49,10 +49,10 @@ $pm->childFunc = function () use ($pm) {
         'package_length_offset' => 0,
         'package_body_offset' => 0,
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm) {
+    $serv->on("WorkerStart", function (Swoole\Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data)
     {
         $data = str_repeat('A', rand(100, 2000));
         $serv->send($fd, strlen($data) . "|" . $data);

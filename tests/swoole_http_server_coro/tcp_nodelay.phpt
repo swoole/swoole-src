@@ -25,7 +25,7 @@ go(function () use ($port) {
     echo httpGetBody("http://127.0.0.1:{$port}/") . PHP_EOL;
     echo httpGetBody("http://127.0.0.1:{$port}/stop?hello=1") . PHP_EOL;
 });
-swoole_event_wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECT--

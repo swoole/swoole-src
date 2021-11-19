@@ -33,14 +33,14 @@ $pm->parentFunc = function () use ($pm) {
             );
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     echo "SUCCESS\n";
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
+    $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $http->set(['worker_num' => 1, 'log_file' => '/dev/null']);
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $request->get['cookie'] = urldecode($request->get['cookie']);
         $response->cookie('cookie', $request->get['cookie']);
         $response->rawcookie('rawcookie', $request->get['cookie']);

@@ -68,7 +68,7 @@ for ($i = 0; $i < count($exit_status_list); $i++) {
     });
 }
 
-swoole_event::wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECTF--

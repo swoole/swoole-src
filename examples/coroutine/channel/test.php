@@ -15,7 +15,7 @@ function BatchExecMethodByCo()
             $list[$key] = $channel->pop();
         }
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     return $list;
 }
 function test($value='')

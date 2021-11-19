@@ -18,7 +18,7 @@ go(function () {
         }
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

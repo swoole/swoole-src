@@ -8,7 +8,7 @@ require __DIR__ . '/../../include/skipif.inc';
 <?php
 require __DIR__ . '/../../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 $n = 10;
 while ($n--) {
@@ -19,7 +19,7 @@ while ($n--) {
     });
 }
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 %d OK

@@ -2,11 +2,11 @@
 /**
  * 分段发送数据
  *
- * @param swoole_client $client
+ * @param Swoole\Client $client
  * @param string        $data
  * @param int           $chunk_size
  */
-function send_chunk(swoole_client $client, $data, $chunk_size = 1024)
+function send_chunk(Swoole\Client $client, $data, $chunk_size = 1024)
 {
 	$len = strlen($data);
 	$chunk_num = intval($len / $chunk_size) + 1;
@@ -24,7 +24,7 @@ function send_chunk(swoole_client $client, $data, $chunk_size = 1024)
 	}
 }
 
-$client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
+$client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC); //同步阻塞
 if(!$client->connect('127.0.0.1', 9501, 0.5, 0))
 {
 	echo "Over flow. errno=".$client->errCode;

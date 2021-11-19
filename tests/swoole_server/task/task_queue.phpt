@@ -10,7 +10,7 @@ use Swoole\Server;
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    $cli = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $cli->connect('127.0.0.1', $pm->getFreePort(), 10) or die("ERROR");
     $cli->send("task-01") or die("ERROR");
     echo $cli->recv();

@@ -18,6 +18,6 @@ go(function () {
     Assert::assert(strlen($c->body) > 0);
     Assert::same($c->statusCode, 200);
 });
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

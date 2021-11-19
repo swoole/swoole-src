@@ -20,7 +20,7 @@ co::create(function () {
     }
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECT--

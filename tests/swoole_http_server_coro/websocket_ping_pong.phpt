@@ -29,7 +29,7 @@ $pm->parentFunc = function () use ($pm) {
         $ret = $cli->recv();
         Assert::same($ret->opcode, WEBSOCKET_OPCODE_PONG);
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
@@ -62,7 +62,7 @@ $pm->childFunc = function () use ($pm) {
         $server->start();
         $pm->wakeup();
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
 };
 $pm->childFirst();
 $pm->run();

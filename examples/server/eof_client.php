@@ -1,6 +1,6 @@
 <?php
 
-$client = new swoole_client(SWOOLE_SOCK_TCP);
+$client = new Swoole\Client(SWOOLE_SOCK_TCP);
 $client->set(
     array(
         'open_eof_split' => true,

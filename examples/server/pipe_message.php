@@ -1,6 +1,6 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9501, SWOOLE_BASE);
-//$serv = new swoole_server("0.0.0.0", 9501);
+$serv = new Swoole\Server("0.0.0.0", 9501, SWOOLE_BASE);
+//$serv = new Swoole\Server("0.0.0.0", 9501);
 $serv->set(array(
     'worker_num' => 2,
     'task_worker_num' => 2,
@@ -10,7 +10,7 @@ $serv->on('pipeMessage', function($serv, $src_worker_id, $data) {
 	echo "#{$serv->worker_id} message from #$src_worker_id: $data\n";
 });
 
-$serv->on('task', function (swoole_server $serv, $task_id, $reactor_id, $data){
+$serv->on('task', function (Swoole\Server $serv, $task_id, $reactor_id, $data){
     echo "#{$serv->worker_id} NewTask: $data\n";
     $serv->sendMessage($data, 0);
 	//$serv->send($fd, str_repeat('B', 1024*rand(40, 60)).rand(10000, 99999)."\n");
@@ -20,7 +20,7 @@ $serv->on('finish', function ($serv, $fd, $reactor_id){
 
 });
 
-$serv->on('receive', function (swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('receive', function (Swoole\Server $serv, $fd, $reactor_id, $data) {
     $cmd = trim($data);
     if($cmd == 'totask')
     {

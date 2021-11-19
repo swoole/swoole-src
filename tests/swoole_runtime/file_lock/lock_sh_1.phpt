@@ -36,7 +36,7 @@ go(function () use ($startTime) {
     $ret = flock($f, LOCK_UN);
     Assert::assert($ret);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 unlink(FILE);
 ?>
 --EXPECTF--

@@ -11,10 +11,10 @@ if (!@file_exists('/usr/bin/python')) {
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$process = new swoole_process('python_process', true);
+$process = new Swoole\Process('python_process', true);
 $pid = $process->start();
 
-function python_process(swoole_process $worker)
+function python_process(Swoole\Process $worker)
 {
     $worker->exec('/usr/bin/python', array(__DIR__ . "/echo.py"));
 }

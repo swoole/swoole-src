@@ -40,7 +40,7 @@ go(function () use ($socket) {
     }
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 
 ?>
 --EXPECTF--

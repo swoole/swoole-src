@@ -11,22 +11,22 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => '/dev/null',
         'task_worker_num' => 1,
         'task_enable_coroutine' => true
     ]);
-    $server->on('workerStart', function (swoole_http_server $server, int $wid) use ($pm) {
+    $server->on('workerStart', function (Swoole\Http\Server $server, int $wid) use ($pm) {
         if ($wid === 0) {
             $server->taskCo(['foo'], 1);
         }
     });
-    $server->on('workerError', function (swoole_http_server $server) use ($pm) {
+    $server->on('workerError', function (Swoole\Http\Server $server) use ($pm) {
         $pm->wakeup();
     });
     $server->on('request', function () { });
-    $server->on('task', function (swoole_http_server $server, swoole_server_task $task) use ($pm) {
+    $server->on('task', function (Swoole\Http\Server $server, Swoole\Server\Task $task) use ($pm) {
         $server->finish('bar');
     });
     $server->start();

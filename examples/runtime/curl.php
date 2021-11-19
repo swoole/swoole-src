@@ -16,4 +16,4 @@ go(function () {
     echo strlen($output) . "bytes\n";
 });
 
-swoole_event_wait();
+Swoole\Event::wait();

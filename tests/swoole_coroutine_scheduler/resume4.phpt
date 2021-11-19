@@ -15,7 +15,7 @@ $id = go(function () {
 echo "start to resume $id\n";
 Co::resume($id);
 echo "main\n";
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 Fatal error: Uncaught Swoole\Error: API must be called in the coroutine in %s:%d

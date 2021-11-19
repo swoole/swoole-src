@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm)
     $redis->set('big_value', str_repeat('A', VALUE_LEN));
     $ret = $redis->get('big_value');
     Assert::same(strlen($ret ?? '' ?: ''), VALUE_LEN);
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)

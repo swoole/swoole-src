@@ -5,16 +5,16 @@ require_once __DIR__ . "/../../../include/bootstrap.php";
 class HttpServer
 {
     /**
-     * @var \swoole_http_server
+     * @var Swoole\Http\Server
      */
     public $httpServ;
 
     public function __construct($host = HTTP_SERVER_HOST, $port = HTTP_SERVER_PORT, $ssl = false)
     {
         if ($ssl) {
-            $this->httpServ = new \swoole_http_server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+            $this->httpServ = new Swoole\Http\Server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
         } else {
-            $this->httpServ = new \swoole_http_server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+            $this->httpServ = new Swoole\Http\Server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         }
 
         $config = [
@@ -111,7 +111,7 @@ class HttpServer
         $swooleServer->send($fd, RandStr::gen($recv_len, RandStr::ALL));
     }
 
-    public function onRequest(\swoole_http_request $request, \swoole_http_response $response)
+    public function onRequest(\Swoole\Http\Request $request, \Swoole\Http\Response $response)
     {
         $uri = $request->server["request_uri"];
         if ($uri === "/favicon.ico")  {
@@ -220,7 +220,7 @@ class HttpServer
         }
 
         if ($uri === "/sleep") {
-            swoole_timer_after(1000, function() use($response) {
+            Swoole\Timer::after(1000, function() use($response) {
                 $response->end();
             });
             return;
@@ -265,11 +265,11 @@ class HttpServer
                 $hexLen = dechex(strlen($str));
                 return $write("$hexLen\r\n$str\r\n");
             };
-            $timer = swoole_timer_tick(200, function() use(&$timer, $writeChunk) {
+            $timer = Swoole\Timer::tick(200, function() use(&$timer, $writeChunk) {
                 static $i = 0;
                 $str = RandStr::gen($i++ % 40 + 1, RandStr::CHINESE) . "<br>";
                 if ($writeChunk($str) === false) {
-                    swoole_timer_clear($timer);
+                    Swoole\Timer::clear($timer);
                 }
             });
             return;

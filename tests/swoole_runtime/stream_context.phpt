@@ -9,7 +9,7 @@ skip_if_offline();
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 go(function () {
     $opts = array(
@@ -32,6 +32,6 @@ go(function () {
         Assert::assert(strpos($content,'map.baidu.com') !== false);
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

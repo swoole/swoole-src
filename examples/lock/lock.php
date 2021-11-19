@@ -7,7 +7,7 @@
  * SWOOLE_RWLOCK 读写锁
  */
 
-$lock = new swoole_lock(SWOOLE_MUTEX);
+$lock = new Swoole\Lock(SWOOLE_MUTEX);
 echo "[Master]create lock\n";
 $lock->lock();
 if (pcntl_fork() > 0)

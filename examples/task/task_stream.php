@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501, SWOOLE_BASE);
+$serv = new Swoole\Server("127.0.0.1", 9501, SWOOLE_BASE);
 
 $serv->set(array(
     'worker_num' => 1,
@@ -8,7 +8,7 @@ $serv->set(array(
 //    'message_queue_key' => 0x70001001,
 ));
 
-$serv->on('Receive', function(swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('Receive', function(Swoole\Server $serv, $fd, $reactor_id, $data) {
 	//AsyncTask
     $data = trim($data);
     //$data = str_repeat('A', 8192*100);
@@ -27,13 +27,13 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $reactor_id, $data) {
     }
     //$serv->send($fd, "OK\n");
 });
-$serv->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
+$serv->on('Task', function (Swoole\Server $serv, $task_id, $reactor_id, $data) {
     echo "#{$serv->worker_id}\tonTask: [PID={$serv->worker_pid}]: task_id=$task_id, data_len=".strlen($data).".".PHP_EOL;
     $serv->finish($data);
     return $data;
 });
 
-$serv->on('Finish', function (swoole_server $serv, $task_id, $data) {
+$serv->on('Finish', function (Swoole\Server $serv, $task_id, $data) {
     echo "Task#$task_id finished, data_len=".strlen($data).PHP_EOL;
 });
 

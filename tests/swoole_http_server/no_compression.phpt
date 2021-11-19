@@ -24,7 +24,7 @@ $pm->childFunc = function () use ($pm)
         global $pm;
         $pm->wakeup();
     });
-    $http->on("request", function ($request, swoole_http_response $response) {
+    $http->on("request", function ($request, Swoole\Http\Response $response) {
         $response->end(co::readFile(__DIR__ . '/../../README.md'));
     });
     $http->start();

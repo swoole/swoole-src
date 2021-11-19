@@ -28,7 +28,7 @@ go(function () use ($c1,$num) {
 
 });
 echo "main end\n";
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 pop start

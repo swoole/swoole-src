@@ -9,7 +9,7 @@ $pm = new SwooleTest\ProcessManager;
 
 $pm->parentFunc = function ($pid) use ($pm)
 {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'package_eof' => "\r\n",
         'open_eof_check' => true,
@@ -37,14 +37,14 @@ $pm->parentFunc = function ($pid) use ($pm)
 
 $pm->childFunc = function () use ($pm)
 {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP );
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP );
     $serv->set([
         'log_file' => '/dev/null',
         'worker_num' => 4,
         'task_worker_num' => 3,
     ]);
 
-    $lock = new swoole\lock();
+    $lock = new Swoole\Lock();
 
     $process = new \Swoole\Process(function ($process) use ($serv) {
         while (true)
@@ -68,20 +68,20 @@ $pm->childFunc = function () use ($pm)
             $pm->wakeup();
         }
     });
-    $serv->on('connect', function (swoole_server $serv, $fd) use ($process) {
+    $serv->on('connect', function (Swoole\Server $serv, $fd) use ($process) {
         $process->write(json_encode(["fd" => $fd]));
     });
     $serv->on('receive', function ($serv, $fd, $reactor_id, $data) {
 
     });
 
-    $serv->on('pipeMessage', function (swoole_server $serv, $worker_id, $data) use ($lock) {
+    $serv->on('pipeMessage', function (Swoole\Server $serv, $worker_id, $data) use ($lock) {
         //$lock->lock();
         $serv->send($data['fd'], $data['worker_id']."\r\n");
         //$lock->unlock();
     });
 
-    $serv->on('task', function (swoole_server $serv, $task_id, $worker_id, $data)
+    $serv->on('task', function (Swoole\Server $serv, $task_id, $worker_id, $data)
     {
 
     });

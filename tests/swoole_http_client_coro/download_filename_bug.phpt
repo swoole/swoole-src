@@ -50,7 +50,7 @@ $pm->parentFunc = function () use ($pm) {
     Co\run(function () use($pm) {
         download($pm, '/tmp/test-1.*');
     });
-    
+
     Co\run(function () use($pm) {
         download($pm, '/tmp/test-2.*');
     });
@@ -58,12 +58,12 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $serv = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $serv->set(['log_file' => '/dev/null']);
     $serv->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $serv->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->sendfile(TEST_IMAGE);
     });
     $serv->start();

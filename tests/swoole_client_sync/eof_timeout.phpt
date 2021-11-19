@@ -17,7 +17,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     if (!$cli->connect('127.0.0.1', $pm->getFreePort(1), 0.5)) {
         fail:
         echo "ERROR\n";
-        swoole_process::kill($pid);
+        Swoole\Process::kill($pid);
         return;
     }
     //no eof, should be timeout here
@@ -29,11 +29,11 @@ $pm->parentFunc = function ($pid) use ($pm) {
         goto fail;
     }
     echo "OK\n";
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
 
     $port2 = $http->listen('127.0.0.1', $pm->getFreePort(1), SWOOLE_SOCK_TCP);
     $port2->set(['open_eof_check' => true, "package_eof" => "\r\n\r\n"]);
@@ -45,14 +45,14 @@ $pm->childFunc = function () use ($pm) {
     $http->set([
         //'log_file' => '/dev/null'
     ]);
-    $http->on("WorkerStart", function (\swoole_server $serv) {
+    $http->on("WorkerStart", function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */
         global $pm;
         $pm->wakeup();
     });
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end("OK\n");
     });
     $http->start();

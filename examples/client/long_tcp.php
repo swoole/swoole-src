@@ -1,7 +1,7 @@
 <?php
 for($i=0; $i < 100; $i++)
 {
-	$client = new swoole_client(SWOOLE_TCP | SWOOLE_KEEP);
+	$client = new Swoole\Client(SWOOLE_TCP | SWOOLE_KEEP);
 	if(!$client->connect('127.0.0.1', 9501))
 	{
 		exit("connect failed\n");

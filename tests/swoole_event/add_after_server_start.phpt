@@ -29,9 +29,9 @@ $pm->childFunc = function () use ($pm) {
         $fp = stream_socket_client("tcp://www.qq.com:80", $errno, $errstr, 30);
         fwrite($fp, "GET / HTTP/1.1\r\nHost: www.qq.com\r\n\r\n");
 
-        swoole_event_add($fp, function ($fp) use ($pm) {
+        Swoole\Event::add($fp, function ($fp) use ($pm) {
             $resp = fread($fp, 8192);
-            swoole_event_del($fp);
+            Swoole\Event::del($fp);
             fclose($fp);
             file_put_contents(FILE, $resp);
             $pm->wakeup();

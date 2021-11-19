@@ -37,7 +37,7 @@ go(function () {
     echo "OK\n";
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 OK

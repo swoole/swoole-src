@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("0.0.0.0", 9509);
+$serv = new Swoole\Server("0.0.0.0", 9509);
 $serv->set(array('worker_num' => 1));
 $serv->on('workerStart', function($serv, $worker_id) {
         //if($worker_id == 0) $serv->addtimer(500);

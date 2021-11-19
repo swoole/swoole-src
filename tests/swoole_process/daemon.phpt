@@ -12,7 +12,7 @@ use  Swoole\Process;
 
 $sockets = stream_socket_pair(STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP);
 
-$process = new Process(function (swoole_process $worker) use ($sockets) {
+$process = new Process(function (Swoole\Process $worker) use ($sockets) {
     fclose($sockets[1]);
     Process::daemon(1, 1, [null, $sockets[0], $sockets[0]]);
 

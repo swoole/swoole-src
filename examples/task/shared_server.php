@@ -1,5 +1,5 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
+$serv = new Swoole\Server("127.0.0.1", 9501);
 
 $serv->set(array(
     'worker_num' => 1,
@@ -51,7 +51,7 @@ function my_onWorkerStop($serv, $worker_id)
     echo "WorkerStop[$worker_id]|pid=".posix_getpid().".\n";
 }
 
-function my_onReceive(swoole_server $serv, $fd, $reactor_id, $rdata)
+function my_onReceive(Swoole\Server $serv, $fd, $reactor_id, $rdata)
 {
     $data = unserialize($rdata);
     if (isset($data['cmd']))
@@ -79,7 +79,7 @@ function my_onReceive(swoole_server $serv, $fd, $reactor_id, $rdata)
     }
 }
 
-function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
+function my_onTask(Swoole\Server $serv, $task_id, $reactor_id, $data)
 {
     static $datas = array();
     if (isset($data['cmd']))
@@ -112,12 +112,12 @@ function my_onTask(swoole_server $serv, $task_id, $reactor_id, $data)
     // $serv->finish("OK");
 }
 
-function my_onFinish(swoole_server $serv, $task_id, $from_worker_id, $data)
+function my_onFinish(Swoole\Server $serv, $task_id, $from_worker_id, $data)
 {
     echo "AsyncTask Finish: Connect.PID=" . posix_getpid() . PHP_EOL;
 }
 
-function my_onWorkerError(swoole_server $serv, $worker_id, $worker_pid, $exit_code)
+function my_onWorkerError(Swoole\Server $serv, $worker_id, $worker_pid, $exit_code)
 {
     echo "worker abnormal exit. WorkerId=$worker_id|Pid=$worker_pid|ExitCode=$exit_code\n";
 }
