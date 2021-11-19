@@ -26,6 +26,14 @@ BEGIN_EXTERN_C()
 #ifdef SW_USE_JSON
 #include "ext/json/php_json.h"
 #endif
+
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_arginfo.h"
+#include "stubs/php_swoole_ex_arginfo.h"
+#else
+#include "stubs/php_swoole_legacy_arginfo.h"
+#include "stubs/php_swoole_ex_legacy_arginfo.h"
+#endif
 END_EXTERN_C()
 
 #include "swoole_mime_type.h"
@@ -53,16 +61,6 @@ END_EXTERN_C()
 #ifdef SW_USE_CARES
 #include <ares.h>
 #endif
-
-BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
-#include "stubs/php_swoole_arginfo.h"
-#include "stubs/php_swoole_ex_arginfo.h"
-#else
-#include "stubs/php_swoole_legacy_arginfo.h"
-#include "stubs/php_swoole_ex_legacy_arginfo.h"
-#endif
-END_EXTERN_C()
 
 using swoole::Server;
 using swoole::network::Socket;
