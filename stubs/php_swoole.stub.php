@@ -16,7 +16,7 @@ function swoole_async_dns_lookup_coro(mixed $domain_name, float $timeout = 60, i
 {
 }
 
-function swoole_async_set(array $settings): bool
+function swoole_async_set(array $settings): ?bool
 {
 }
 
@@ -24,7 +24,7 @@ function swoole_coroutine_create(callable $func, mixed ...$params): int|bool
 {
 }
 
-function swoole_coroutine_defer(callable $callback): bool
+function swoole_coroutine_defer(callable $callback): ?bool
 {
 }
 
@@ -32,7 +32,7 @@ function swoole_coroutine_socketpair(int $domain, int $type, int $protocol): arr
 {
 }
 
-function swoole_test_kernel_coroutine(int $count = 100, float $sleep_time = 1.0): bool
+function swoole_test_kernel_coroutine(int $count = 100, float $sleep_time = 1.0): ?bool
 {
 }
 
@@ -64,15 +64,15 @@ function swoole_clear_error(): void
 {
 }
 
-function swoole_error_log(int $level, string $msg): bool
+function swoole_error_log(int $level, string $msg): ?bool
 {
 }
 
-function swoole_error_log_ex(int $level, int $error, string $msg): bool
+function swoole_error_log_ex(int $level, int $error, string $msg): ?bool
 {
 }
 
-function swoole_ignore_error(int $error): bool
+function swoole_ignore_error(int $error): ?bool
 {
 }
 
@@ -84,7 +84,7 @@ function swoole_mime_type_add(string $suffix, string $mime_type): bool
 {
 }
 
-function swoole_mime_type_set(string $suffix, string $mime_type): bool
+function swoole_mime_type_set(string $suffix, string $mime_type): ?bool
 {
 }
 

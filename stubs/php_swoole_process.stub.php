@@ -14,9 +14,9 @@ namespace Swoole {
         public function wait(bool $blocking = true): array|bool {}
         public function daemon(bool $nochdir = true, bool $noclose = true, array $pipes = []): bool {}
         public function setAffinity(array $cpu_settings): bool {}
-        public function set(array $settings): bool {}
+        public function set(array $settings): ?bool {}
         public function setTimeout(float $seconds): bool {}
-        public function setBlocking(bool $blocking): bool {}
+        public function setBlocking(bool $blocking): ?bool {}
         public function setPriority(int $which, int $priority):bool {}
         public function getPriority(int $which): bool|int {}
         public function start(): bool|int {}

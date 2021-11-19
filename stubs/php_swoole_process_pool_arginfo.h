@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 74fd9d2b0bd10fd270dcce2ac3f95c70825edd31 */
+ * Stub hash: 4816bef1546a29ecd9ef88c5ead0ae2e52b72dbb */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Process_Pool___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, worker_num, IS_LONG, 0)
@@ -37,7 +37,8 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_Pool_detach, 0, 0, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Process_Pool_start arginfo_class_Swoole_Process_Pool_detach
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_Pool_start, 0, 0, _IS_BOOL, 1)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_Pool_stop, 0, 0, IS_VOID, 0)
 ZEND_END_ARG_INFO()

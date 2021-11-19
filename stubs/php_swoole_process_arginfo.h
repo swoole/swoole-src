@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 7f02bb1eb2de365964862ca5000da1acf3630743 */
+ * Stub hash: 86d03975bc319857872494f68a41e3e0a06fc90f */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Process___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
@@ -60,7 +60,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_setAffinity
 	ZEND_ARG_TYPE_INFO(0, cpu_settings, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_set, 0, 1, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_set, 0, 1, _IS_BOOL, 1)
 	ZEND_ARG_TYPE_INFO(0, settings, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
@@ -68,7 +68,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_setTimeout,
 	ZEND_ARG_TYPE_INFO(0, seconds, IS_DOUBLE, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_setBlocking, 0, 1, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Process_setBlocking, 0, 1, _IS_BOOL, 1)
 	ZEND_ARG_TYPE_INFO(0, blocking, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
