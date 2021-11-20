@@ -1,8 +1,4 @@
 <?php
-/**
- * @strict-properties
- * @not-serializable
- */
 namespace Swoole\Coroutine {
 	class Channel {
 		public function __construct(int $size = 1) {}

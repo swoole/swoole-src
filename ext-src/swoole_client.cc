@@ -22,11 +22,13 @@
 #include <queue>
 #include <unordered_map>
 
+BEGIN_EXTERN_C()
 #if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_client_arginfo.h"
 #else
 #include "stubs/php_swoole_client_legacy_arginfo.h"
 #endif
+END_EXTERN_C()
 
 using swoole::Protocol;
 using swoole::network::Client;

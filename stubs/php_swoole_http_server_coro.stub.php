@@ -5,7 +5,7 @@ namespace Swoole\Coroutine\Http {
 		public function __destruct() {}
 		public function set(array $settings): bool {}
 		public function handle(string $pattern, callable $callback):void {}
-		public function start(): bool {}
+		public function start(): ?bool {}
 		public function shutdown(): void {}
 		private function onAccept(): void {}
 	}

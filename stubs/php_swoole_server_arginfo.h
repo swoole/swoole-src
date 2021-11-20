@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 2c09513b3220d3af3fe8e13f60ebfb46399e92bb */
+ * Stub hash: 23db9ba600312c19e82301041d8506164fdd1478 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -16,12 +16,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_set, 0, 1, _
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_on, 0, 2, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, event_name, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, event_name, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_getCallback, 0, 1, Swoole\\Closure, MAY_BE_STRING|MAY_BE_NULL|MAY_BE_ARRAY)
-	ZEND_ARG_TYPE_INFO(0, event_name, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, event_name, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_listen, 0, 2, Swoole\\Server\\Port, MAY_BE_BOOL)
@@ -54,8 +54,8 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_stop, 0, 0, 
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_send, 0, 2, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, fd, IS_MIXED, 0)
-	ZEND_ARG_TYPE_INFO(0, send_data, IS_MIXED, 0)
+	ZEND_ARG_TYPE_MASK(0, fd, MAY_BE_LONG|MAY_BE_STRING, NULL)
+	ZEND_ARG_TYPE_INFO(0, send_data, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, serverSocket, IS_LONG, 0, "-1")
 ZEND_END_ARG_INFO()
 
@@ -83,7 +83,7 @@ ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_sendwait, 0, 2, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, conn_fd, IS_LONG, 0)
-	ZEND_ARG_TYPE_INFO(0, send_data, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, send_data, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_exists, 0, 1, _IS_BOOL, 0)
@@ -117,12 +117,12 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_taskwait, 0,
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_taskWaitMulti, 0, 1, MAY_BE_BOOL|MAY_BE_ARRAY)
-	ZEND_ARG_TYPE_INFO(0, tasks, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, tasks, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "0.5")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_taskCo, 0, 1, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO(0, tasks, IS_MIXED, 0)
+	ZEND_ARG_TYPE_INFO(0, tasks, IS_ARRAY, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "0.5")
 ZEND_END_ARG_INFO()
 
@@ -218,5 +218,3 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_Task_pack, 0, 1, MAY_BE_STRING|MAY_BE_BOOL)
 	ZEND_ARG_TYPE_INFO(0, data, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
-
-#define arginfo_class_Swoole_Server_Task_pack arginfo_class_Swoole_Server_Task_pack

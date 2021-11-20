@@ -20,11 +20,13 @@
 #include "swoole_server.h"
 #include "swoole_signal.h"
 
+BEGIN_EXTERN_C()
 #if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_event_arginfo.h"
 #else
 #include "stubs/php_swoole_event_legacy_arginfo.h"
 #endif
+END_EXTERN_C()
 
 using namespace swoole;
 using swoole::network::Socket;

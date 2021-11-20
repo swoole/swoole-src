@@ -1,26 +1,22 @@
 <?php
-/**
- * @strict-properties
- * @not-serializable
- */
 namespace Swoole\Http {
 	class Response {
-		public function write(mixed $content): bool {}
-		public function end(?mixed $content = null): bool {}
+		public function write(string $content): bool {}
+		public function end(?string $content = null): bool {}
 		public function sendfile(string $filename, int $offset = 0, int $length = 0): bool {}
-		public function redirect(mixed $location, ?mixed $http_code = 302): mixed {}
+		public function redirect(string $location, int $http_code = 302): bool {}
 		public function cookie(string $name, string $value = '', int $expire = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = ''): bool {}
 		public function rawcookie(string $name, string $value = '', int $expire = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = ''): bool {}
-		public function header(string $key, mixed $value, bool $format = true): bool {}
+		public function header(string $key, string $value, bool $format = true): bool {}
 		public function initHeader(): bool {}
 		public function isWritable(): bool {}
 		public function detach(): bool {}
-		public function create(mixed $server = -1, int $fd = -1): Response|bool {}
+		public static function create(object|array|int $server = -1, int $fd = -1): Response|bool {}
 		public function upgrade(): bool {}
-		public function push(mixed $data, int $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, int $flags = 1): bool {}
-		public function recv(float $timeout = -1): \Swoole\WebSocket\Frame|bool|string {}
+		public function push(\Swoole\WebSocket\Frame|string $data, int $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): bool {}
+		public function recv(float $timeout = 0): \Swoole\WebSocket\Frame|bool|string {}
 		public function close(): bool {}
-		public function trailer(string $key, string $value): array|bool {}
+		public function trailer(string $key, string $value): bool {}
 		public function ping(): bool {}
 		public function goaway(int $error_code = SWOOLE_HTTP2_ERROR_NO_ERROR, string $debug_data = ''): bool {}
 		public function status(int $http_code, string $reason = ''): bool {}

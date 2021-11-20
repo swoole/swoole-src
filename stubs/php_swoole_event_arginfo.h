@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 178ea10786e77123c2eacffc8adc17edcb38d5b1 */
+ * Stub hash: f67e19c67b3a16c620ff69ea416f9967afff8c6e */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_event_add, 0, 1, MAY_BE_BOOL|MAY_BE_LONG)
 	ZEND_ARG_TYPE_INFO(0, fd, IS_MIXED, 0)
@@ -8,10 +8,10 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_event_add, 0, 1, MAY_BE_B
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, events, IS_LONG, 0, "SWOOLE_EVENT_READ")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_event_set, 0, 3, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_event_set, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, fd, IS_MIXED, 0)
-	ZEND_ARG_TYPE_INFO(0, read_callback, IS_CALLABLE, 1)
-	ZEND_ARG_TYPE_INFO(0, write_callback, IS_CALLABLE, 1)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, read_callback, IS_CALLABLE, 1, "null")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, write_callback, IS_CALLABLE, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, events, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 

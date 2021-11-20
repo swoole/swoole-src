@@ -1,7 +1,7 @@
 <?php
 namespace Swoole\Coroutine\Http {
 	class Client {
-		public function __construct(string $host, int $port = 0, bool $ssl = false) {}
+		public function __construct(string $host, int $port, bool $ssl = false) {}
 		public function __destruct() {}
 		public function set(array $settings): bool {}
 		public function getDefer(): bool {}
@@ -10,7 +10,7 @@ namespace Swoole\Coroutine\Http {
 		public function setHeaders(array $headers): bool {}
 		public function setBasicAuth(string $username, string $password): ?bool {}
 		public function setCookies(array $cookies): bool {}
-		public function setData(mixed $data): bool {}
+		public function setData(string|array $data): bool {}
 		public function addFile(string $path, string $name, ?string $type = null, ?string $filename = null, int $offset = 0, int $length = 0): bool {}
 		public function addData(string $path, string $name, ?string $type = null , ?string $filename = null): bool {}
 		public function execute(string $path): bool {}
@@ -18,7 +18,7 @@ namespace Swoole\Coroutine\Http {
 		public function getpeername(): array|bool {}
 		public function get(string $path): bool {}
 		public function post(string $path, mixed $data): bool {}
-		public function download(string $path, mixed $file, int $offset = 0): bool {}
+		public function download(string $path, string $file, int $offset = 0): bool {}
 		public function getBody(): string|bool {}
 		public function getHeaders(): array|bool {}
 		public function getCookies(): array|bool {}

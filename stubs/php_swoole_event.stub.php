@@ -1,7 +1,7 @@
 <?php
 function swoole_event_add(mixed $fd, ?callable $read_callback = null, ?callable $write_callback = null, int $events = SWOOLE_EVENT_READ): bool|int {}
 
-function swoole_event_set(mixed $fd, ?callable $read_callback, ?callable $write_callback, int $events = 0): bool {}
+function swoole_event_set(mixed $fd, ?callable $read_callback = null, ?callable $write_callback = null, int $events = 0): bool {}
 
 function swoole_event_del(mixed $fd): bool {}
 

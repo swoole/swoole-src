@@ -18,11 +18,13 @@
 #include "swoole_memory.h"
 #include "swoole_lock.h"
 
+BEGIN_EXTERN_C()
 #if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_lock_arginfo.h"
 #else
 #include "stubs/php_swoole_lock_legacy_arginfo.h"
 #endif
+END_EXTERN_C()
 
 using swoole::Lock;
 using swoole::Mutex;

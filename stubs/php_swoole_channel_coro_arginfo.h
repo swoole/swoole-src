@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6ced53affc4717d33a72e5a6c5b65e2ed9980306 */
+ * Stub hash: 2ed4e36fbf2cabffca5dd794ba4be3dc1c6c086a */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Channel___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, size, IS_LONG, 0, "1")

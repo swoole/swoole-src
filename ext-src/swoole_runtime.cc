@@ -24,11 +24,13 @@
 
 #include <unordered_map>
 
+BEGIN_EXTERN_C()
 #if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_runtime_arginfo.h"
 #else
 #include "stubs/php_swoole_runtime_legacy_arginfo.h"
 #endif
+END_EXTERN_C()
 
 /* openssl */
 #ifndef OPENSSL_NO_ECDH

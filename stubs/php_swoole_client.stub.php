@@ -1,8 +1,4 @@
 <?php
-/**
- * @strict-properties
- * @not-serializable
- */
 namespace Swoole {
 	class Client {
 		public function __construct(int $type, int $async = SWOOLE_SOCK_SYNC, string $id = '') {}
