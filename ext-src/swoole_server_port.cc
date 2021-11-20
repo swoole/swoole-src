@@ -16,6 +16,14 @@
 
 #include "php_swoole_server.h"
 
+BEGIN_EXTERN_C()
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_server_port_arginfo.h"
+#else
+#include "stubs/php_swoole_server_port_legacy_arginfo.h"
+#endif
+END_EXTERN_C()
+
 using namespace swoole;
 
 struct ServerPortEvent {
@@ -132,32 +140,15 @@ static PHP_METHOD(swoole_server_port, getSocket);
 SW_EXTERN_C_END
 
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_set, 0, 0, 1)
-    ZEND_ARG_ARRAY_INFO(0, settings, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_on, 0, 0, 2)
-    ZEND_ARG_INFO(0, event_name)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_getCallback, 0, 0, 1)
-    ZEND_ARG_INFO(0, event_name)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_server_port_methods[] =
 {
-    PHP_ME(swoole_server_port, __construct,     arginfo_swoole_void,                    ZEND_ACC_PRIVATE)
-    PHP_ME(swoole_server_port, __destruct,      arginfo_swoole_void,                    ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, set,             arginfo_swoole_server_port_set,         ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, on,              arginfo_swoole_server_port_on,          ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_server_port, getCallback,     arginfo_swoole_server_port_getCallback, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, __construct,     arginfo_class_Swoole_Server_Port___construct,                   ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_server_port, __destruct,      arginfo_class_Swoole_Server_Port___destruct,                    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, set,             arginfo_class_Swoole_Server_Port_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, on,              arginfo_class_Swoole_Server_Port_on,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, getCallback,     arginfo_class_Swoole_Server_Port_getCallback, ZEND_ACC_PUBLIC)
 #ifdef SWOOLE_SOCKETS_SUPPORT
-    PHP_ME(swoole_server_port, getSocket,       arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_server_port, getSocket,       arginfo_class_Swoole_Server_Port_getSocket, ZEND_ACC_PUBLIC)
 #endif
     PHP_FE_END
 };

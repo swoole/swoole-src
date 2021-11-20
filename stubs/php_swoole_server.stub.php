@@ -5,7 +5,7 @@ namespace Swoole {
         public function __destruct() {}
         public function set(array $settings): bool {}
         public function on(string $event_name, mixed $callback): bool {}
-        public function getCallback(string $event_name): Closure|string|null|array {}
+        public function getCallback(string $event_name): \Closure|string|null|array {}
         public function listen(string $host, int $port, int $sock_type = SWOOLE_SOCK_TCP): bool|Server\Port {}
         public function sendMessage(string $message, int $dst_worker_id): bool {}
         public function addProcess(\Swoole\Process $process): bool|int {}

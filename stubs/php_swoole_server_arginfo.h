@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 23db9ba600312c19e82301041d8506164fdd1478 */
+ * Stub hash: 70cf8e32d9ffb9bb0c0e3efaa58706341ad45d3a */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -20,7 +20,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_on, 0, 2, _I
 	ZEND_ARG_TYPE_INFO(0, callback, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_getCallback, 0, 1, Swoole\\Closure, MAY_BE_STRING|MAY_BE_NULL|MAY_BE_ARRAY)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_getCallback, 0, 1, Closure, MAY_BE_STRING|MAY_BE_NULL|MAY_BE_ARRAY)
 	ZEND_ARG_TYPE_INFO(0, event_name, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
