@@ -31,7 +31,7 @@ go(function () use ($chan){
 });
 
 echo 'master end' . PHP_EOL;
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 coro1 start

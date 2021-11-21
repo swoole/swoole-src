@@ -1,11 +1,11 @@
 <?php
 $flag = 0;
-$serv = new swoole_server('127.0.0.1', 9501, SWOOLE_BASE);
+$serv = new Swoole\Server('127.0.0.1', 9501, SWOOLE_BASE);
 $serv->set([
     "worker_num" => 4,
     "max_wait_time" => 1
 ]);
-$serv->on("WorkerStart", function (\swoole_server $server, $worker_id) {
+$serv->on("WorkerStart", function (\Swoole\Server $server, $worker_id) {
     global $flag;
     echo "$worker_id [".$server->worker_pid."] start \n";
 });

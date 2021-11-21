@@ -1,5 +1,5 @@
 <?php
-swoole_process::daemon();
+Swoole\Process::daemon();
 
 while (1)
 {

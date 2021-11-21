@@ -1,5 +1,5 @@
 <?php
-function callback_function(swoole_process $worker)
+function callback_function(Swoole\Process $worker)
 {
     //echo "Worker: start. PID=".$worker->pid."\n";
     //recv data from master
@@ -13,8 +13,8 @@ function callback_function(swoole_process $worker)
     $worker->exit(0);
 }
 
-$process = new swoole_process('callback_function', false, false);
-$process->useQueue(ftok(__FILE__, 1), 2 | swoole_process::IPC_NOWAIT);
+$process = new Swoole\Process('callback_function', false, false);
+$process->useQueue(ftok(__FILE__, 1), 2 | Swoole\Process::IPC_NOWAIT);
 
 $send_bytes = 0;
 foreach(range(1, 10) as $i)

@@ -76,6 +76,7 @@ static PHP_METHOD(swoole_socket_coro, close);
 static PHP_METHOD(swoole_socket_coro, cancel);
 static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, getpeername);
+static PHP_METHOD(swoole_socket_coro, isClosed);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -223,6 +224,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, close,         arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getpeername,   arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getsockname,   arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, isClosed,      arginfo_swoole_void,                      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
@@ -1962,3 +1964,8 @@ static PHP_METHOD(swoole_socket_coro, sslHandshake) {
     RETURN_BOOL(sock->socket->ssl_handshake());
 }
 #endif
+
+static PHP_METHOD(swoole_socket_coro, isClosed) {
+    SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
+    RETURN_BOOL(_sock->socket == SW_BAD_SOCKET || _sock->socket->is_closed());
+}

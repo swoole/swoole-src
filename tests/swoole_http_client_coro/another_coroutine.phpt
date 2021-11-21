@@ -10,7 +10,7 @@ skip_unsupported();
 require __DIR__ . '/../include/bootstrap.php';
 $pm = new ProcessManager;
 $pm->parentFunc = function (int $pid) use ($pm) {
-    $process = new swoole_process(function (swoole_process $worker) use ($pm) {
+    $process = new Swoole\Process(function (Swoole\Process $worker) use ($pm) {
         function get(Swoole\Coroutine\Http\Client $client)
         {
             $client->get('/');
@@ -28,19 +28,19 @@ $pm->parentFunc = function (int $pid) use ($pm) {
         go(function () use ($cli) {
             $cli->get('/');
         });
-        swoole_event_wait();
+        Swoole\Event::wait();
     }, false);
     $process->start();
-    swoole_process::wait();
+    Swoole\Process::wait();
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $server->set(['log_file' => '/dev/null']);
-    $server->on('workerStart', function (swoole_http_server $server) use ($pm) {
+    $server->on('workerStart', function (Swoole\Http\Server $server) use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $server) {
         co::sleep(0.1);
         $server->shutdown();
     });

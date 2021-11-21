@@ -11,8 +11,8 @@ $pm->parentFunc = function () use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm, $counter) {
-    $serv = new \swoole_server('127.0.0.1', $pm->getFreePort());
-    $process = new \swoole_process(function (swoole_process $process) use ($serv, $counter) {
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort());
+    $process = new Swoole\Process(function (Swoole\Process $process) use ($serv, $counter) {
         if ($counter->get() != 1) {
             $counter->set(1);
             echo "process start\n";
@@ -27,7 +27,7 @@ $pm->childFunc = function () use ($pm, $counter) {
         "worker_num" => 1,
         'log_file' => '/dev/null',
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv) use ($process, $pm) {
+    $serv->on("WorkerStart", function (Swoole\Server $serv) use ($process, $pm) {
         usleep(1);
         for ($i = 0; $i < 1024; $i++) {
             Assert::same($process->write(str_repeat('A', 8192)), 8192);

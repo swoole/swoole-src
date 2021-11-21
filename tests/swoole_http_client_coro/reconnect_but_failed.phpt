@@ -32,11 +32,11 @@ $pm->parentFunc = function () use ($pm) {
             Assert::same($cli->statusCode, SWOOLE_HTTP_CLIENT_ESTATUS_CONNECT_FAILED);
         }
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     echo "OK\n";
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $server->set([
         'worker_num' => 1,
         'log_file' => '/dev/null'
@@ -44,7 +44,7 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($pm, $server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($pm, $server) {
         static $i = 0;
         $i++;
         if ($i % 2) {

@@ -22,7 +22,7 @@ go(function () {
     echo "after yield\n";
 });
 echo "main\n";
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 start to create coro

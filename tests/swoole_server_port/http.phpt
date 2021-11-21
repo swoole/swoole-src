@@ -46,13 +46,13 @@ $pm->parentFunc = function ($pid) use ($pm)
         }
     });
 
-    swoole_event_wait();
-    swoole_process::kill($pid);
+    Swoole\Event::wait();
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm)
 {
-    $server = new swoole_server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
 
     $server->set([
         'open_eof_check' => true,
@@ -71,14 +71,14 @@ $pm->childFunc = function () use ($pm)
         $resp->end("hello swooler\n");
     });
 
-    $server->on("WorkerStart", function (\swoole_server $serv) {
+    $server->on("WorkerStart", function (Swoole\Server $serv) {
         /**
          * @var $pm ProcessManager
          */
         global $pm;
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $response->end("OK\n");
     });
     $server->start();

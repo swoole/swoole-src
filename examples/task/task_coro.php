@@ -1,12 +1,12 @@
 <?php
-$serv = new swoole_server("127.0.0.1", 9501);
+$serv = new Swoole\Server("127.0.0.1", 9501);
 $serv->set(array(
     'worker_num' => 1,
     'task_worker_num' => 4,
     //'task_tmpdir' => '/data/task/',
 ));
 
-$serv->on('Receive', function(swoole_server $serv, $fd, $reactor_id, $data) {
+$serv->on('Receive', function(Swoole\Server $serv, $fd, $reactor_id, $data) {
     $tasks[] = mt_rand(1000, 9999);
     $tasks[] = mt_rand(1000, 9999);
     $tasks[] = mt_rand(1000, 9999);
@@ -17,7 +17,7 @@ $serv->on('Receive', function(swoole_server $serv, $fd, $reactor_id, $data) {
     var_dump($results);
 });
 
-$serv->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
+$serv->on('Task', function (Swoole\Server $serv, $task_id, $reactor_id, $data) {
     echo "onTask: [ID={$serv->worker_id}]: task_id=$task_id, data=$data, data_len=".strlen($data).".".PHP_EOL;
     //测试超时
     if ($serv->worker_id % 4 == 3)
@@ -35,7 +35,7 @@ $serv->on('Task', function (swoole_server $serv, $task_id, $reactor_id, $data) {
     return "hello world.[{$data}]";
 });
 
-$serv->on('Finish', function (swoole_server $serv, $task_id, $data) {
+$serv->on('Finish', function (Swoole\Server $serv, $task_id, $data) {
     echo "Task#$task_id finished, data_len=".strlen($data).PHP_EOL;
 });
 

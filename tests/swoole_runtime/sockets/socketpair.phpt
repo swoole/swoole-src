@@ -17,8 +17,9 @@ Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
 const N = 4;
 
 run(function () {
-    $pair = socket_create_pair(AF_UNIX, SOCK_DGRAM, 0);
-    
+    $pair = [];
+    Assert::true(socket_create_pair(AF_UNIX, SOCK_DGRAM, 0, $pair));
+
     go(function () use ($pair) {
         $n = N;
         while ($n--) {

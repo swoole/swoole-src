@@ -40,7 +40,7 @@ $pm->parentFunc = function (int $pid) use ($pm) {
             test($cli, 70000, 400000);
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 

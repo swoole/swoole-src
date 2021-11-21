@@ -36,7 +36,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
 
 $pm->childFunc = function () use ($pm)
 {
-    $server = new swoole_server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
+    $server = new Swoole\Server('127.0.0.1', $pm->getFreePort(0), SWOOLE_BASE);
     $server->on('receive', function ($server, $fd, $reactorId, $data) {
         $server->send($fd, 'ok');
     });

@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 $port = get_one_free_port();
 $pm = new ProcessManager;
 $pm->parentFunc = function ($pid) use ($port) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'open_length_check' => true,
         'package_max_length' => 1024 * 1024,
@@ -47,21 +47,21 @@ $pm->parentFunc = function ($pid) use ($port) {
     echo "SUCCESS\n";
     $client->close();
 
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm, $port) {
-    $serv = new swoole_server('127.0.0.1', $port, SWOOLE_BASE);
+    $serv = new Swoole\Server('127.0.0.1', $port, SWOOLE_BASE);
     $serv->set(array(
         'package_max_length' => 1024 * 1024 * 2, //2M
         'socket_buffer_size' => 256 * 1024 * 1024,
         "worker_num" => 1,
         'log_file' => '/tmp/swoole.log',
     ));
-    $serv->on("WorkerStart", function (\swoole_server $serv) use ($pm) {
+    $serv->on("WorkerStart", function (Swoole\Server $serv) use ($pm) {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data) {
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data) {
         //小包
         for ($i = 0; $i < 1000; $i++) {
             $data = str_repeat('A', rand(100, 2000));

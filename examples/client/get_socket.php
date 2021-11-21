@@ -2,7 +2,7 @@
 
 function getClient()
 {
-    $client = new swoole_client(SWOOLE_SOCK_TCP);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP);
     if (!$client->connect('127.0.0.1', 9501, -1))
     {
         exit("connect failed. Error: {$client->errCode}\n");
@@ -17,7 +17,7 @@ $client = getClient();
 $count = 0;
 //$client->set(array('open_eof_check' => true, 'package_eof' => "\r\n\r\n"));
 
-//$client = new swoole_client(SWOOLE_SOCK_UNIX_DGRAM, SWOOLE_SOCK_SYNC); //同步阻塞
+//$client = new Swoole\Client(SWOOLE_SOCK_UNIX_DGRAM, SWOOLE_SOCK_SYNC); //同步阻塞
 //if (!$client->connect(dirname(__DIR__).'/server/svr.sock', 0, -1, 1))
 
 

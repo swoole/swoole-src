@@ -20,7 +20,7 @@ go(function () use ($chan) {
     Assert::assert($chan->push('swoole', 1));
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 ?>
 --EXPECT--

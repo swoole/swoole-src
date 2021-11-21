@@ -9,11 +9,11 @@ require __DIR__ . '/../include/bootstrap.php';
 const PI =  3.1415926;
 const NAME = 'rango';
 
-$table = new swoole_table(65536);
+$table = new Swoole\Table(65536);
 
-$table->column('id', swoole_table::TYPE_INT);
-$table->column('name', swoole_table::TYPE_STRING, 128);
-$table->column('num', swoole_table::TYPE_FLOAT);
+$table->column('id', Swoole\Table::TYPE_INT);
+$table->column('name', Swoole\Table::TYPE_STRING, 128);
+$table->column('num', Swoole\Table::TYPE_FLOAT);
 
 if (!$table->create())
 {

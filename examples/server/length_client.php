@@ -1,5 +1,5 @@
 <?php
-$client = new swoole_client(SWOOLE_SOCK_TCP);
+$client = new Swoole\Client(SWOOLE_SOCK_TCP);
 $client->set(array(
     'open_length_check' => true,
     'package_max_length' => 8 * 1024 * 1024,

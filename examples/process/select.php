@@ -1,5 +1,5 @@
 <?php
-$process = new swoole_process(function (swoole_process $worker)
+$process = new Swoole\Process(function (Swoole\Process $worker)
 {
     echo "Worker: start. PID=" . $worker->pid . "\n";
     sleep(2);

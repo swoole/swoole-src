@@ -6,17 +6,17 @@ swoole_event: dispatch
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$id = swoole_timer_tick(100, function () {
+$id = Swoole\Timer::tick(100, function () {
     echo "Tick\n";
 });
 
 $n = 5;
 while ($n--) {
     echo "loop\n";
-    swoole_event_dispatch();
+    Swoole\Event::dispatch();
 }
 
-swoole_timer_clear($id);
+Swoole\Timer::clear($id);
 
 ?>
 --EXPECT--

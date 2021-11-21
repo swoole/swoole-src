@@ -14,13 +14,13 @@ $port2 = isset($argv[4]) ? $argv[4] : null;
 class OpcodeServer
 {
     /**
-     * @var \swoole_server
+     * @var Swoole\Server
      */
     public $swooleServer;
 
     public function __construct($host, $port, $port1 = null, $port2 = null)
     {
-	    $this->swooleServer = new \swoole_server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
+	    $this->swooleServer = new Swoole\Server($host, $port, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
         $this->swooleServer->set([
             'dispatch_mode' => 3,
             'worker_num' => 2,
@@ -63,59 +63,31 @@ class OpcodeServer
         $this->swooleServer->on('pipeMessage', [$this, 'onPipeMessage']);
         $this->swooleServer->on('packet', [$this, 'onPacket']);
 
-        /*
-        $proc = new \swoole_process(swoole_function(\swoole_process $proc) use($i) {
-            var_dump($this->swooleServer->id);
-            sleep(10000);
-            $r  = $this->swooleServer->addProcess($proc);
-            var_dump($r);
-            $proc->freeQueue();
-        });
-        $proc->useQueue();
-        // $proc->start();
-
-        $proc1 = new \swoole_process(swoole_function(\swoole_process $proc) use($i) {
-            var_dump($this->swooleServer->id);
-            sleep(1000);
-        });
-
-        $proc2 = new \swoole_process(swoole_function(\swoole_process $proc) {
-            var_dump($this->swooleServer->id);
-            sleep(1000);
-        });
-
-
-        $r = $this->swooleServer->addProcess($proc);
-        $r = $this->swooleServer->addProcess($proc1);
-        $r = $this->swooleServer->addProcess($proc2);
-        var_dump($this->swooleServer->id);
-        */
-
         $this->swooleServer->start();
     }
 
     public function onConnect() { }
     public function onClose() { }
-    public function onStart(\swoole_server $swooleServer) { }
-    public function onShutdown(\swoole_server $swooleServer) { }
-    public function onWorkerStart(\swoole_server $swooleServer, $workerId)
+    public function onStart(Swoole\Server $swooleServer) { }
+    public function onShutdown(Swoole\Server $swooleServer) { }
+    public function onWorkerStart(Swoole\Server $swooleServer, $workerId)
     {
         if ($workerId === 0) {
-            swoole_timer_after($this->lifetime, function() {
+            Swoole\Timer::after($this->lifetime, function() {
                 $this->swooleServer->shutdown();
                 kill_self_and_descendant(getmypid());
                 /*
-                \swoole_process::signal(SIGTERM, swoole_function() {
+                \Swoole\Process::signal(SIGTERM, swoole_function() {
                     $this->swooleServer->shutdown();
                 });
-                \swoole_process::kill(0, SIGTERM);
+                \Swoole\Process::kill(0, SIGTERM);
                 */
             });
         }
     }
-    public function onWorkerStop(\swoole_server $swooleServer, $workerId) { }
-    public function onWorkerError(\swoole_server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo) { }
-    public function onReceive(\swoole_server $swooleServer, $fd, $fromReactorId, $recv)
+    public function onWorkerStop(Swoole\Server $swooleServer, $workerId) { }
+    public function onWorkerError(Swoole\Server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo) { }
+    public function onReceive(Swoole\Server $swooleServer, $fd, $fromReactorId, $recv)
     {
         list($op, $args) = opcode_decode($recv);
 
@@ -152,14 +124,14 @@ class OpcodeServer
         }
     }
 
-    public function onTask(\swoole_server $swooleServer, $taskId, $fromWorkerId, $recv)
+    public function onTask(Swoole\Server $swooleServer, $taskId, $fromWorkerId, $recv)
     {
         $recv = json_decode($recv);
         Assert::same(json_last_error(), JSON_ERROR_NONE);
         return json_encode($recv);
     }
 
-    public function onFinish(\swoole_server $swooleServer, $taskId, $recv)
+    public function onFinish(Swoole\Server $swooleServer, $taskId, $recv)
     {
         $recv = json_decode($recv);
         Assert::same(json_last_error(), JSON_ERROR_NONE);
@@ -167,7 +139,7 @@ class OpcodeServer
         $this->swooleServer->send($recv["fd"], opcode_encode("return", $recv["data"]));
     }
 
-    public function onPipeMessage(\swoole_server $swooleServer, $fromWorkerId, $recv)
+    public function onPipeMessage(Swoole\Server $swooleServer, $fromWorkerId, $recv)
     {
         $recv = json_decode($recv, true);
         Assert::same(json_last_error(), JSON_ERROR_NONE);
@@ -175,7 +147,7 @@ class OpcodeServer
         $this->swooleServer->send($recv["fd"], opcode_encode("return", $recv["msg"]));
     }
 
-    public function onPacket(\swoole_server $swooleServer, $data, array $clientInfo)
+    public function onPacket(Swoole\Server $swooleServer, $data, array $clientInfo)
     {
 
     }

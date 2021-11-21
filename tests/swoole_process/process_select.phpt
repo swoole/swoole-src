@@ -6,7 +6,7 @@ swoole_process: select
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$process = new swoole_process(function (swoole_process $worker)
+$process = new Swoole\Process(function (Swoole\Process $worker)
 {
     $worker->write("hello master\n");
     $worker->exit(0);

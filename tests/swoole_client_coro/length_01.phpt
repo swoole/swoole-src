@@ -26,12 +26,12 @@ $pm->parentFunc = function ($pid) use ($pm)
         $len = unpack('Nlen', $retData)['len'];
         Assert::same(strlen($retData), $len + 4);
     });
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $serv = new swoole_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $serv = new Swoole\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $serv->set([
         'worker_num' => 1,
         //'dispatch_mode'         => 1,
@@ -42,11 +42,11 @@ $pm->childFunc = function () use ($pm) {
         'package_length_offset' => 0,
         'package_body_offset' => 4,
     ]);
-    $serv->on("WorkerStart", function (\swoole_server $serv)  use ($pm)
+    $serv->on("WorkerStart", function (Swoole\Server $serv)  use ($pm)
     {
         $pm->wakeup();
     });
-    $serv->on('receive', function (swoole_server $serv, $fd, $rid, $data)
+    $serv->on('receive', function (Swoole\Server $serv, $fd, $rid, $data)
     {
         $len = rand(512*1024, 1024*1024 - 4);
         $data = pack('N',$len ).str_repeat('C', $len);

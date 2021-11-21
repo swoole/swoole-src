@@ -24,7 +24,7 @@ go(function () {
     Assert::false($redis->connected);
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 connect [1]

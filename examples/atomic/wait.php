@@ -1,5 +1,5 @@
 <?php
-$n = new swoole_atomic(0);
+$n = new Swoole\Atomic(0);
 
 if (pcntl_fork() > 0)
 {

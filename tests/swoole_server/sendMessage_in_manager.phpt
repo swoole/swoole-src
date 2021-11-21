@@ -15,7 +15,7 @@ $pm = new SwooleTest\ProcessManager;
 const N = 16;
 
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
     $client->set([
         'package_eof' => "\r\n",
         'open_eof_check' => true,

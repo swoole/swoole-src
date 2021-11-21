@@ -6,18 +6,18 @@ swoole_process: write
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$proc = new \swoole_process(function(\swoole_process $process) {
+$proc = new Swoole\Process(function(Swoole\Process $process) {
     $r = $process->write("SUCCESS");
     Assert::same($r, 7);
 });
 $r = $proc->start();
 Assert::assert($r > 0);
 
-swoole_timer_after(10, function() use($proc) {
+Swoole\Timer::after(10, function() use($proc) {
     echo $proc->read();
 });
 
-\swoole_process::wait(true);
+\Swoole\Process::wait(true);
 ?>
 --EXPECT--
 SUCCESS

@@ -243,13 +243,30 @@ _destroy:
     zval_ptr_dtor(ctx->response.zobject);
 }
 
+static void http2_server_set_date_header(Http2::HeaderSet *headers) {
+    static struct {
+        time_t time;
+        size_t len;
+        char buf[64];
+    } cache{};
+
+    time_t now = time(nullptr);
+    if (now != cache.time) {
+        char *date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), now, 0);
+        cache.len = strlen(date_str);
+        memcpy(cache.buf, date_str, cache.len);
+        cache.time = now;
+        efree(date_str);
+    }
+    headers->add(ZEND_STRL("date"), cache.buf, cache.len);
+}
+
 static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, size_t body_length) {
     zval *zheader =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_HEADER), 0);
     zval *zcookie =
         sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_COOKIE), 0);
     Http2::HeaderSet headers(32 + php_swoole_array_length_safe(zheader) + php_swoole_array_length_safe(zcookie));
-    char *date_str = nullptr;
     char intbuf[2][16];
     int ret;
 
@@ -315,14 +332,10 @@ static ssize_t http2_server_build_header(HttpContext *ctx, uchar *buffer, size_t
         headers.add(ZEND_STRL("server"), ZEND_STRL(SW_HTTP_SERVER_SOFTWARE));
     }
     if (!(header_flags & HTTP_HEADER_DATE)) {
-        date_str = php_swoole_format_date((char *) ZEND_STRL(SW_HTTP_DATE_FORMAT), time(nullptr), 0);
-        headers.add(ZEND_STRL("date"), date_str, strlen(date_str));
+        http2_server_set_date_header(&headers);
     }
     if (!(header_flags & HTTP_HEADER_CONTENT_TYPE)) {
         headers.add(ZEND_STRL("content-type"), ZEND_STRL("text/html"));
-    }
-    if (date_str) {
-        efree(date_str);
     }
 
     // cookies

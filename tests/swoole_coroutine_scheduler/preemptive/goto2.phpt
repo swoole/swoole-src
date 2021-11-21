@@ -35,7 +35,7 @@ go(function () use (&$flag) {
     $flag = false;
 });
 echo "end\n";
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 start

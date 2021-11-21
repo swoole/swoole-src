@@ -8,7 +8,7 @@ require __DIR__ . '/../include/skipif.inc';
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-swoole\runtime::enableCoroutine();
+Swoole\Runtime::enableCoroutine();
 
 go(function () {
     $opts = array(
@@ -26,6 +26,6 @@ go(function () {
     }
 });
 
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

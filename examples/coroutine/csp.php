@@ -1,5 +1,5 @@
 <?php
-$serv = new \swoole_http_server("127.0.0.1", 9503, SWOOLE_BASE);
+$serv = new \Swoole\Http\Server("127.0.0.1", 9503, SWOOLE_BASE);
 
 $serv->on('request', function ($req, $resp) {
     $chan = new chan(2);

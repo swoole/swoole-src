@@ -9,7 +9,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 use Swoole\Server;
 
-$atomic = new swoole_atomic(1);
+$atomic = new Swoole\Atomic(1);
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
     sleep(2);
@@ -26,17 +26,17 @@ $pm->childFunc = function () use ($pm,$atomic) {
         'enable_coroutine' => false,
     ]);
     $serv->on("WorkerStart", function (Server $server, $worker_id) use ($pm, $atomic) {
-        $pm->wakeup();        
+        $pm->wakeup();
         echo "$worker_id [".$server->worker_pid."] start \n";
         if ($worker_id == 0 and $atomic->get() == 1) {
             $flag = 1;
             sleep(10);
         }
-        if ($worker_id == 1 and $atomic->get() == 1) {           
+        if ($worker_id == 1 and $atomic->get() == 1) {
             $server->after(1,function() use ($server, $worker_id, $atomic){
                 $atomic->add(1);
                 echo "$worker_id [".$server->worker_pid."] start to reload\n";
-                $server->reload();                
+                $server->reload();
             });
         }
     });

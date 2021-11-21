@@ -1,5 +1,5 @@
 --TEST--
-swoole_http_server: issue 2360 (swoole_http_server silently fails to read requests)
+swoole_http_server: issue 2360 (Swoole\Http\Server silently fails to read requests)
 --SKIPIF--
 <?php require __DIR__ . '/../include/skipif.inc'; ?>
 --FILE--

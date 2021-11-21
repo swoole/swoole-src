@@ -6,10 +6,10 @@ swoole_table: negative
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$table = new swoole_table(65536);
+$table = new Swoole\Table(65536);
 
-$table->column('v1', swoole_table::TYPE_INT);
-$table->column('v2', swoole_table::TYPE_FLOAT);
+$table->column('v1', Swoole\Table::TYPE_INT);
+$table->column('v2', Swoole\Table::TYPE_FLOAT);
 
 if (!$table->create())
 {

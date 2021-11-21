@@ -1,11 +1,11 @@
 <?php
 /**
- * The script is used for simulating the usage of swoole_table() and guarantying its usability.
+ * The script is used for simulating the usage of Swoole\Table() and guarantying its usability.
  */
-$table = new swoole_table(1024);
-$table->column('name', swoole_table::TYPE_STRING, 64);
-$table->column('id', swoole_table::TYPE_INT, 4);       //1,2,4,8
-$table->column('num', swoole_table::TYPE_FLOAT);
+$table = new Swoole\Table(1024);
+$table->column('name', Swoole\Table::TYPE_STRING, 64);
+$table->column('id', Swoole\Table::TYPE_INT, 4);       //1,2,4,8
+$table->column('num', Swoole\Table::TYPE_FLOAT);
 $table->create();
 
 while (true) {

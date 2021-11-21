@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid) use ($pm, $html) {
 };
 
 $pm->childFunc = function () use ($pm, $html) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_BASE);
     $http->set([
         'log_file' => '/dev/null',
     ]);

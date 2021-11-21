@@ -25,7 +25,7 @@ go(function () use ($num) {
         go('test_flock');
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 echo "DONE\n";
 
 ?>

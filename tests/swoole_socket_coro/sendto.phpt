@@ -31,7 +31,7 @@ go(function () {
         echo "[Client] recvfrom[{$peer['address']}:{$peer['port']}] : $data\n";
     }
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECTF--
 [Server] recvfrom[127.0.0.1:%d] : hello-0

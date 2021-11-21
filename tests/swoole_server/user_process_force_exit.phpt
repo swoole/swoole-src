@@ -29,7 +29,7 @@ $pm->childFunc = function () use ($pm) {
     $server->addProcess(new Swoole\Process(function () {
         pcntl_signal(SIGTERM, function () {
         });
-        swoole_timer_tick(1000, function () {
+        Swoole\Timer::tick(1000, function () {
         });
     }));
     $server->start();

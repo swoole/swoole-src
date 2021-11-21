@@ -1,5 +1,5 @@
 <?php
-$client = new swoole_client(SWOOLE_SOCK_TCP);
+$client = new Swoole\Client(SWOOLE_SOCK_TCP);
 $client->set(array(
     'kernel_socket_buffer_size' => 65536,
 ));

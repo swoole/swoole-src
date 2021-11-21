@@ -40,7 +40,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
             }
         });
     }
-    swoole_event::wait();
+    Swoole\Event::wait();
     echo $total . " bytes\n";
     $pm->kill();
 };

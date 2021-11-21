@@ -91,7 +91,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('WorkerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $http->on('Request', function (swoole_http_request $request, swoole_http_response $response) use ($http) {
+    $http->on('Request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($http) {
         $response->end(var_dump_return($request->get, $request->post));
         $http->send($request->fd, EOF);
     });

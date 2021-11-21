@@ -60,7 +60,7 @@ $pm->childFunc = function () use ($pm)
         'log_file' => TEST_LOG_FILE,
     ];
 
-    $status = new swoole_atomic(0);
+    $status = new Swoole\Atomic(0);
 
     $tcp = new Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
     $tcp->set($ss);

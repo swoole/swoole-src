@@ -25,7 +25,7 @@ go(function () {
     $result = call_user_func_array([$a, 'bar'], []);
     Assert::same($result, gethostbyname('www.tsinghua.edu.cn'));
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 bar

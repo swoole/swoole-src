@@ -18,13 +18,13 @@ $pm->parentFunc = function () use ($pm) {
             }
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
 
-    function foo(swoole_http_request $request, swoole_http_response $response)
+    function foo(Swoole\Http\Request $request, Swoole\Http\Response $response)
     {
         static $test = '';
         co::sleep(0.001);
@@ -36,7 +36,7 @@ $pm->childFunc = function () use ($pm) {
         echo $test;
     }
 
-    $http = new swoole_http_server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
+    $http = new Swoole\Http\Server('0.0.0.0', $pm->getFreePort(), SWOOLE_BASE);
     $http->set([
         'worker_num' => 1,
         'log_file' => '/dev/null'

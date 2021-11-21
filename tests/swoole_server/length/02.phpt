@@ -38,7 +38,7 @@ class PkgServer_2 extends TestServer
 
 $pm = new SwooleTest\ProcessManager;
 $pm->parentFunc = function ($pid) use ($pm) {
-    $client = new swoole_client(SWOOLE_SOCK_TCP);
+    $client = new Swoole\Client(SWOOLE_SOCK_TCP);
     if (!$client->connect('127.0.0.1', $pm->getFreePort())) {
         exit("connect failed\n");
     }
@@ -63,7 +63,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $client->close();
 
     usleep(1);
-    swoole_process::kill($pid);
+    Swoole\Process::kill($pid);
 };
 
 $pm->childFunc = function () use ($pm) {

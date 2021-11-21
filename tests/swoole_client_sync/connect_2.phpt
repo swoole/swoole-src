@@ -8,7 +8,7 @@ require __DIR__ . '/../include/bootstrap.php';
 
 killself_in_syncmode(1000, SIGTERM);
 
-$cli = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
+$cli = new Swoole\Client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_SYNC);
 $r = $cli->connect(MYSQL_SERVER_HOST, MYSQL_SERVER_PORT);
 Assert::assert($r);
 $cli->close();

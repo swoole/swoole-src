@@ -1,11 +1,11 @@
 <?php
-$table = new swoole_table(1024);
-$table->column('fd', swoole_table::TYPE_INT);
-$table->column('reactor_id', swoole_table::TYPE_INT);
-$table->column('data', swoole_table::TYPE_STRING, 64);
+$table = new Swoole\Table(1024);
+$table->column('fd', Swoole\Table::TYPE_INT);
+$table->column('reactor_id', Swoole\Table::TYPE_INT);
+$table->column('data', Swoole\Table::TYPE_STRING, 64);
 $table->create();
 
-$serv = new swoole_server('127.0.0.1', 9501);
+$serv = new Swoole\Server('127.0.0.1', 9501);
 $serv->set(['dispatch_mode' => 2]);
 $serv->table = $table;
 

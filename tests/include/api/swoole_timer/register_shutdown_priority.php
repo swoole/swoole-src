@@ -9,7 +9,7 @@ function func1()
     });
 
 //    $start = microtime(true);
-    swoole_timer_after(1, function() /*use($start)*/ {
+    Swoole\Timer::after(1, function() /*use($start)*/ {
         echo "timer after\n";
 //        echo (microtime(true) - $start) * 1000 - 1;
     });
@@ -20,7 +20,7 @@ function func1()
 function func1_2()
 {
     $order4 = function() { echo "first shutdown func\n"; };
-    $order5 = function() { swoole_event_wait(); };
+    $order5 = function() { Swoole\Event::wait(); };
     $order6 = function() { echo "timer after\n";};
 
     // order 1
@@ -28,7 +28,7 @@ function func1_2()
     // order 2
     register_shutdown_function($order5);
     // order 3
-    swoole_timer_after(1, $order6);
+    Swoole\Timer::after(1, $order6);
 }
 
 
@@ -40,11 +40,11 @@ function func2()
         echo "first shutdown func\n";
     });
 
-    swoole_timer_after(1, function() {
+    Swoole\Timer::after(1, function() {
         echo "timer after\n";
     });
 
-    swoole_event_wait();
+    Swoole\Event::wait();
 }
 
 
@@ -57,7 +57,7 @@ function func3()
         echo "first shutdown func\n";
     });
 
-    swoole_timer_after(1, function() {
+    Swoole\Timer::after(1, function() {
         echo "timer after\n";
         register_shutdown_function(function() {
             echo "second shutdown func\n";

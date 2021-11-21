@@ -23,12 +23,12 @@ $pm->parentFunc = function ($pid) use ($pm) {
             Assert::same($c->body, "OK");
         });
     }
-    swoole_event_wait();
+    Swoole\Event::wait();
     echo "DONE\n";
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm, $randoms) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS);
     $server->set([
         'log_file' => '/dev/null',
         'worker_num' => 1,
@@ -37,7 +37,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
     $server->on('workerStart', function ($serv, $wid) use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($server, $randoms) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server, $randoms) {
         $n = $request->get['n'];
         list($ret_n, $ret_random) = $server->taskwait($n, 1);
         if ($ret_n !== $n) {
@@ -49,7 +49,7 @@ $pm->childFunc = function () use ($pm, $randoms) {
         }
         $response->end('OK');
     });
-    $server->on('task', function (swoole_http_server $server, int $task_id, int $worker_id, string $n) use ($pm, $randoms) {
+    $server->on('task', function (Swoole\Http\Server $server, int $task_id, int $worker_id, string $n) use ($pm, $randoms) {
         return [$n, $randoms[$n]];
     });
     $server->start();

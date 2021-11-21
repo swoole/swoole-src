@@ -4,87 +4,49 @@
  */
 global $pm;
 
-$http = new swoole_http_server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
+$http = new Swoole\Http\Server("127.0.0.1", $pm->getFreePort(), SWOOLE_BASE);
 $http->set(array(
     'log_file' => '/dev/null',
     "http_parse_post" => 1,
     "upload_tmp_dir" => "/tmp",
 ));
-$http->on("WorkerStart", function (\swoole_server $serv)
-{
-    /**
-     * @var $pm ProcessManager
-     */
+$http->on("WorkerStart", function (Swoole\Server $serv) {
     global $pm;
-    if ($pm)
-    {
+    if ($pm) {
         $pm->wakeup();
     }
 });
-$http->on('request', function ($request, swoole_http_response $response) use ($pm)
-{
+$http->on('request', function ($request, Swoole\Http\Response $response) use ($pm) {
     $route = $request->server['request_uri'];
-    if ($route == '/info')
-    {
+    if ($route == '/info') {
         $response->end($request->header['user-agent']);
         return;
-    }
-    elseif ($route == '/cookies')
-    {
+    } elseif ($route == '/cookies') {
         $response->end(@json_encode($request->cookie));
         return;
-    }
-    elseif ($route == '/get')
-    {
+    } elseif ($route == '/get') {
         $response->end(@json_encode($request->get));
         return;
-    }
-    elseif ($route == '/post')
-    {
+    } elseif ($route == '/post') {
         $response->end(@json_encode($request->post));
         return;
-    }
-    elseif ($route == '/get_file')
-    {
+    } elseif ($route == '/get_file') {
         $response->sendfile(TEST_IMAGE);
         return;
-    }
-    elseif ($route == '/upload_file')
-    {
+    } elseif ($route == '/upload_file') {
         $response->end(json_encode([
             'files' => $request->files,
             'md5' => md5_file($request->files['test_jpg']['tmp_name']),
             'post' => $request->post
         ]));
         return;
-    }
-    elseif ($route == '/gzip')
-    {
+    } elseif ($route == '/gzip') {
         $response->gzip(5);
         $content = co::readFile(__DIR__ . '/../../../README.md');
         $response->end($content);
         return;
-    }
-    else
-    {
-        $cli = new swoole_http_client('127.0.0.1', $pm->getFreePort());
-        $cli->set(array(
-            'timeout' => 0.3,
-        ));
-        $cli->setHeaders(array('User-Agent' => "swoole"));
-        $cli->on('close', function ($cli) use ($response)
-        {
-        });
-        $cli->on('error', function ($cli) use ($response)
-        {
-            echo "error";
-            $response->end("error");
-        });
-        $cli->get('/info', function ($cli) use ($response)
-        {
-            $response->end($cli->body . "\n");
-            $cli->close();
-        });
+    } else {
+        return;
     }
 });
 $http->start();

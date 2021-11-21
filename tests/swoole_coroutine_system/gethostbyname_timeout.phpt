@@ -17,7 +17,7 @@ Swoole\Coroutine::create(function () {
     $result = Swoole\Coroutine\System::gethostbyname("www.github.com", AF_INET, 1);
     Assert::notEmpty($result);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 NEXT

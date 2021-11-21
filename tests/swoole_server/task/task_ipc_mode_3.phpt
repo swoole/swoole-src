@@ -14,7 +14,7 @@ $pm->parentFunc = function ($pid) use ($pm) {
     $pm->kill();
 };
 $pm->childFunc = function () use ($pm) {
-    $server = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
+    $server = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SERVER_MODE_RANDOM);
     $server->set([
         'log_file' => '/dev/null',
         'open_tcp_nodelay' => true,
@@ -25,12 +25,12 @@ $pm->childFunc = function () use ($pm) {
     $server->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $server->on('request', function (swoole_http_request $request, swoole_http_response $response) use ($server) {
+    $server->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) use ($server) {
         $response->detach();
         $server->task($response->fd);
     });
     $server->on('task', function ($server, $task_id, $worker_id, string $fd) {
-        $response = swoole_http_response::create($fd);
+        $response = Swoole\Http\Response::create($fd);
         $response->end("Hello Swoole!\n");
     });
     $server->on('finish', function () { });

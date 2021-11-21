@@ -53,7 +53,7 @@ go(function () use ($port) {
     echo "TIMEOUT\n";
 });
 
-swoole_event::wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 recvfrom client

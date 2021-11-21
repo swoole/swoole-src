@@ -1,5 +1,5 @@
 <?php
-$http = new swoole_http_server("0.0.0.0", 9501);
+$http = new Swoole\Http\Server("0.0.0.0", 9501);
 
 $http->set(['task_worker_num' => 1, 'worker_num' => 1]);
 

@@ -21,7 +21,7 @@ $pm->parentFunc = function ($pid) use ($pm, $html) {
 };
 
 $pm->childFunc = function () use ($pm, $html) {
-    $serv = new swoole_http_server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
+    $serv = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort(), SWOOLE_PROCESS, SWOOLE_SOCK_TCP | SWOOLE_SSL);
     $serv->set([
         'log_file' => '/dev/null',
         'ssl_cert_file' => SSL_FILE_DIR.'/server.crt',

@@ -10,15 +10,15 @@ skip_if_function_not_exist('curl_file_create');
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 
-$pm = new ProcessManager;
+$pm = new ProcessManager();
 
 $pm->parentFunc = function () use ($pm) {
     $formData = [
-        'file'              => curl_file_create(TEST_IMAGE, 'application/octet-stream', 'image.jpg'),
-        'form[file]'        => curl_file_create(TEST_IMAGE, 'image/jpeg', 'photo.jpg'),
+        'file' => curl_file_create(TEST_IMAGE, 'application/octet-stream', 'image.jpg'),
+        'form[file]' => curl_file_create(TEST_IMAGE, 'image/jpeg', 'photo.jpg'),
         'form[group][file]' => curl_file_create(TEST_IMAGE2, 'image/svg+xml', 'swoole-logo.svg'),
     ];
-    
+
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, "http://127.0.0.1:{$pm->getFreePort()}");
     curl_setopt($ch, CURLOPT_HEADER, 0);
@@ -29,12 +29,40 @@ $pm->parentFunc = function () use ($pm) {
     $result = curl_exec($ch);
     curl_close($ch);
 
-    echo "$result\n";
+    $json = json_decode($result, true);
+
+    assert_upload_file($json['file'], '/tmp/swoole.upfile.fixture1', 'image.jpg', 'application/octet-stream', 218787, 0);
+    assert_upload_file($json['form'], [
+        'file' => '/tmp/swoole.upfile.fixture2',
+        'group' => [
+            'file' => '/tmp/swoole.upfile.fixture3',
+        ],
+    ], [
+        'file' => 'photo.jpg',
+        'group' => [
+            'file' => 'swoole-logo.svg',
+        ],
+    ], [
+        'file' => 'image/jpeg',
+        'group' => [
+            'file' => 'image/svg+xml',
+        ],
+    ], [
+        'file' => 218787,
+        'group' => [
+            'file' => 7424,
+        ],
+    ], [
+        'file' => 0,
+        'group' => [
+            'file' => 0,
+        ],
+    ]);
     $pm->kill();
 };
 
 $pm->childFunc = function () use ($pm) {
-    $http = new swoole_http_server('127.0.0.1', $pm->getFreePort());
+    $http = new Swoole\Http\Server('127.0.0.1', $pm->getFreePort());
     $http->set([
         'log_file' => '/dev/null',
         'http_parse_files' => true,
@@ -42,7 +70,7 @@ $pm->childFunc = function () use ($pm) {
     $http->on('workerStart', function () use ($pm) {
         $pm->wakeup();
     });
-    $http->on('request', function (swoole_http_request $request, swoole_http_response $response) {
+    $http->on('request', function (Swoole\Http\Request $request, Swoole\Http\Response $response) {
         $files = $request->files;
         if (!is_array($files)
             || empty($files['file']['tmp_name'])
@@ -52,10 +80,10 @@ $pm->childFunc = function () use ($pm) {
             $response->end();
             return;
         }
-        $files['file']['tmp_name']                  = '/tmp/swoole.upfile.fixture1';
-        $files['form']['tmp_name']['file']          = '/tmp/swoole.upfile.fixture2';
+        $files['file']['tmp_name'] = '/tmp/swoole.upfile.fixture1';
+        $files['form']['tmp_name']['file'] = '/tmp/swoole.upfile.fixture2';
         $files['form']['tmp_name']['group']['file'] = '/tmp/swoole.upfile.fixture3';
-        $response->end(var_export($files, true));
+        $response->end(json_encode($files));
     });
     $http->start();
 };
@@ -64,56 +92,3 @@ $pm->childFirst();
 $pm->run();
 ?>
 --EXPECT--
-array (
-  'file' => 
-  array (
-    'name' => 'image.jpg',
-    'type' => 'application/octet-stream',
-    'tmp_name' => '/tmp/swoole.upfile.fixture1',
-    'error' => 0,
-    'size' => 218787,
-  ),
-  'form' => 
-  array (
-    'name' => 
-    array (
-      'file' => 'photo.jpg',
-      'group' => 
-      array (
-        'file' => 'swoole-logo.svg',
-      ),
-    ),
-    'type' => 
-    array (
-      'file' => 'image/jpeg',
-      'group' => 
-      array (
-        'file' => 'image/svg+xml',
-      ),
-    ),
-    'tmp_name' => 
-    array (
-      'file' => '/tmp/swoole.upfile.fixture2',
-      'group' => 
-      array (
-        'file' => '/tmp/swoole.upfile.fixture3',
-      ),
-    ),
-    'error' => 
-    array (
-      'file' => 0,
-      'group' => 
-      array (
-        'file' => 0,
-      ),
-    ),
-    'size' => 
-    array (
-      'file' => 218787,
-      'group' => 
-      array (
-        'file' => 7424,
-      ),
-    ),
-  ),
-)

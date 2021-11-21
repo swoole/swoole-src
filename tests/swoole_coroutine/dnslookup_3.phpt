@@ -11,6 +11,6 @@ go(function () {
     Assert::eq($host, false);
     Assert::eq(swoole_last_error(), SWOOLE_ERROR_DNSLOOKUP_RESOLVE_FAILED);
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--

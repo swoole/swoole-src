@@ -22,6 +22,10 @@
 #include "thirdparty/php/curl/curl_interface.h"
 #endif
 
+#if PHP_VERSION_ID >= 80000
+#include "swoole_hook_sockets_arginfo.h"
+#endif
+
 #include <unordered_map>
 
 BEGIN_EXTERN_C()
@@ -147,6 +151,43 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_UNHOOK_FUNC(f) unhook_func(ZEND_STRL(#f))
 #define SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(f) hook_func(ZEND_STRL(#f), PHP_FN(swoole_native_##f), get_arginfo(ZEND_STRL("swoole_native_" #f)))
 
+#if PHP_VERSION_ID >= 80000
+#define SW_HOOK_SOCKETS_FUNC(f)      hook_func(ZEND_STRL(#f), nullptr, get_arginfo(ZEND_STRL("swoole_native_" #f)))
+
+#define SW_HOOK_FE(name, arg_info)   ZEND_RAW_FENTRY("swoole_native_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
+
+static const zend_function_entry swoole_sockets_functions[] = {
+    SW_HOOK_FE(socket_create_listen, arginfo_swoole_native_socket_create_listen)
+    SW_HOOK_FE(socket_accept, arginfo_swoole_native_socket_accept)
+    SW_HOOK_FE(socket_set_nonblock, arginfo_swoole_native_socket_set_nonblock)
+    SW_HOOK_FE(socket_set_block, arginfo_swoole_native_socket_set_block)
+    SW_HOOK_FE(socket_listen, arginfo_swoole_native_socket_listen)
+    SW_HOOK_FE(socket_close, arginfo_swoole_native_socket_close)
+    SW_HOOK_FE(socket_write, arginfo_swoole_native_socket_write)
+    SW_HOOK_FE(socket_read, arginfo_swoole_native_socket_read)
+    SW_HOOK_FE(socket_getsockname, arginfo_swoole_native_socket_getsockname)
+    SW_HOOK_FE(socket_getpeername, arginfo_swoole_native_socket_getpeername)
+    SW_HOOK_FE(socket_create, arginfo_swoole_native_socket_create)
+    SW_HOOK_FE(socket_connect, arginfo_swoole_native_socket_connect)
+    SW_HOOK_FE(socket_strerror, arginfo_swoole_native_socket_strerror)
+    SW_HOOK_FE(socket_bind, arginfo_swoole_native_socket_bind)
+    SW_HOOK_FE(socket_recv, arginfo_swoole_native_socket_recv)
+    SW_HOOK_FE(socket_send, arginfo_swoole_native_socket_send)
+    SW_HOOK_FE(socket_recvfrom, arginfo_swoole_native_socket_recvfrom)
+    SW_HOOK_FE(socket_sendto, arginfo_swoole_native_socket_sendto)
+    SW_HOOK_FE(socket_get_option, arginfo_swoole_native_socket_get_option)
+    SW_HOOK_FE(socket_set_option, arginfo_swoole_native_socket_set_option)
+    SW_HOOK_FE(socket_getopt, arginfo_swoole_native_socket_getopt)
+    SW_HOOK_FE(socket_setopt, arginfo_swoole_native_socket_setopt)
+    SW_HOOK_FE(socket_shutdown, arginfo_swoole_native_socket_shutdown)
+    SW_HOOK_FE(socket_last_error, arginfo_swoole_native_socket_last_error)
+    SW_HOOK_FE(socket_clear_error, arginfo_swoole_native_socket_clear_error)
+    ZEND_FE_END
+};
+#else
+#define SW_HOOK_SOCKETS_FUNC(f)    hook_func(ZEND_STRL(#f))
+#endif
+
 static zend_array *tmp_function_table = nullptr;
 
 SW_EXTERN_C_BEGIN
@@ -158,6 +199,11 @@ void php_swoole_runtime_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_BASE(
         swoole_runtime, "Swoole\\Runtime", "swoole_runtime", nullptr, swoole_runtime_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_runtime, sw_zend_create_object_deny);
+
+#if PHP_VERSION_ID >= 80000
+    zend_unregister_functions(swoole_sockets_functions, -1, CG(function_table));
+    zend_register_functions(NULL, swoole_sockets_functions, NULL, MODULE_PERSISTENT);
+#endif
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TCP", PHPCoroutine::HOOK_TCP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDP", PHPCoroutine::HOOK_UDP);
@@ -1336,31 +1382,31 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
     }
     if (flags & PHPCoroutine::HOOK_SOCKETS) {
         if (!(runtime_hook_flags & PHPCoroutine::HOOK_SOCKETS)) {
-            hook_func(ZEND_STRL("socket_create"));
-            hook_func(ZEND_STRL("socket_create_listen"));
-            hook_func(ZEND_STRL("socket_create_pair"), PHP_FN(swoole_coroutine_socketpair));
-            hook_func(ZEND_STRL("socket_connect"));
-            hook_func(ZEND_STRL("socket_write"));
-            hook_func(ZEND_STRL("socket_read"));
-            hook_func(ZEND_STRL("socket_send"));
-            hook_func(ZEND_STRL("socket_recv"));
-            hook_func(ZEND_STRL("socket_sendto"));
-            hook_func(ZEND_STRL("socket_recvfrom"));
-            hook_func(ZEND_STRL("socket_bind"));
-            hook_func(ZEND_STRL("socket_listen"));
-            hook_func(ZEND_STRL("socket_accept"));
-            hook_func(ZEND_STRL("socket_getpeername"));
-            hook_func(ZEND_STRL("socket_getsockname"));
-            hook_func(ZEND_STRL("socket_getopt"));
-            hook_func(ZEND_STRL("socket_get_option"));
-            hook_func(ZEND_STRL("socket_setopt"));
-            hook_func(ZEND_STRL("socket_set_option"));
-            hook_func(ZEND_STRL("socket_set_block"));
-            hook_func(ZEND_STRL("socket_set_nonblock"));
-            hook_func(ZEND_STRL("socket_shutdown"));
-            hook_func(ZEND_STRL("socket_close"));
-            hook_func(ZEND_STRL("socket_clear_error"));
-            hook_func(ZEND_STRL("socket_last_error"));
+            SW_HOOK_SOCKETS_FUNC(socket_create);
+            SW_HOOK_SOCKETS_FUNC(socket_create_listen);
+            SW_HOOK_SOCKETS_FUNC(socket_create_pair);
+            SW_HOOK_SOCKETS_FUNC(socket_connect);
+            SW_HOOK_SOCKETS_FUNC(socket_write);
+            SW_HOOK_SOCKETS_FUNC(socket_read);
+            SW_HOOK_SOCKETS_FUNC(socket_send);
+            SW_HOOK_SOCKETS_FUNC(socket_recv);
+            SW_HOOK_SOCKETS_FUNC(socket_sendto);
+            SW_HOOK_SOCKETS_FUNC(socket_recvfrom);
+            SW_HOOK_SOCKETS_FUNC(socket_bind);
+            SW_HOOK_SOCKETS_FUNC(socket_listen);
+            SW_HOOK_SOCKETS_FUNC(socket_accept);
+            SW_HOOK_SOCKETS_FUNC(socket_getpeername);
+            SW_HOOK_SOCKETS_FUNC(socket_getsockname);
+            SW_HOOK_SOCKETS_FUNC(socket_getopt);
+            SW_HOOK_SOCKETS_FUNC(socket_get_option);
+            SW_HOOK_SOCKETS_FUNC(socket_setopt);
+            SW_HOOK_SOCKETS_FUNC(socket_set_option);
+            SW_HOOK_SOCKETS_FUNC(socket_set_block);
+            SW_HOOK_SOCKETS_FUNC(socket_set_nonblock);
+            SW_HOOK_SOCKETS_FUNC(socket_shutdown);
+            SW_HOOK_SOCKETS_FUNC(socket_close);
+            SW_HOOK_SOCKETS_FUNC(socket_clear_error);
+            SW_HOOK_SOCKETS_FUNC(socket_last_error);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {

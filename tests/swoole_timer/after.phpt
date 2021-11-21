@@ -11,14 +11,14 @@ class TimerTest {
     private $timer_id = null;
 
     protected function resetTimer($ms) {
-        if ($this->timer_id && swoole_timer_exists($this->timer_id)) {
-            swoole_timer_clear($this->timer_id);
+        if ($this->timer_id && Swoole\Timer::exists($this->timer_id)) {
+            Swoole\Timer::clear($this->timer_id);
             $this->timer_id = null;
         }
         if (self::$count == 10) {
             return;
         }
-        $this->timer_id = swoole_timer_after($ms, array($this, 'onTimerTick'));
+        $this->timer_id = Swoole\Timer::after($ms, array($this, 'onTimerTick'));
         Assert::assert($this->timer_id > 0);
     }
 

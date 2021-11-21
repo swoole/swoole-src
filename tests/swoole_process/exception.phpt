@@ -15,7 +15,7 @@ abstract class AbstractProcess
     public function start()
     {
         $process = new Swoole\Process(function (Swoole\Process $process) {
-            swoole_event_add($process->pipe, function (Swoole\Process $process) { });
+            Swoole\Event::add($process->pipe, function (Swoole\Process $process) { });
             try {
                 $this->run();
             } catch (Throwable $e) {

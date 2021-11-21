@@ -22,7 +22,7 @@ go(function () {
     Assert::assert(count($cli->getCookies()) > 2);
     echo "DONE\n";
 });
-swoole_event_wait();
+Swoole\Event::wait();
 ?>
 --EXPECT--
 DONE
