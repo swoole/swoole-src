@@ -22,6 +22,12 @@
 
 BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
+
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_redis_server_arginfo.h"
+#else
+#include "stubs/php_swoole_redis_server_legacy_arginfo.h"
+#endif
 END_EXTERN_C()
 
 using swoole::Server;
@@ -43,25 +49,11 @@ static PHP_METHOD(swoole_redis_server, format);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_setHandler, 0, 0, 2)
-    ZEND_ARG_INFO(0, command)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_getHandler, 0, 0, 1)
-    ZEND_ARG_INFO(0, command)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_redis_server_format, 0, 0, 1)
-    ZEND_ARG_INFO(0, type)
-    ZEND_ARG_INFO(0, value)
-ZEND_END_ARG_INFO()
-
 const zend_function_entry swoole_redis_server_methods[] =
 {
-    PHP_ME(swoole_redis_server, setHandler, arginfo_swoole_redis_server_setHandler, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_server, getHandler, arginfo_swoole_redis_server_getHandler, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_redis_server, format, arginfo_swoole_redis_server_format, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_redis_server, setHandler, arginfo_class_Swoole_Redis_Server_setHandler, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_server, getHandler, arginfo_class_Swoole_Redis_Server_getHandler, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_redis_server, format,     arginfo_class_Swoole_Redis_Server_format,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
