@@ -29,6 +29,6 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_timer_clear, 0, 0, 1)
     ZEND_ARG_INFO(0, timer_id)
 ZEND_END_ARG_INFO()
 
-#define arginfo_swoole_timer_stats arginfo_swoole_void
-#define arginfo_swoole_timer_list arginfo_swoole_void
+#define arginfo_swoole_timer_stats     arginfo_swoole_void
+#define arginfo_swoole_timer_list      arginfo_swoole_void
 #define arginfo_swoole_timer_clear_all arginfo_swoole_void

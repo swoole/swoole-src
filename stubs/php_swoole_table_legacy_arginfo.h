@@ -60,22 +60,22 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_table_iterator_count, 0, 0, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Table___construct arginfo_swoole_table_construct
-#define arginfo_class_Swoole_Table_column arginfo_swoole_table_column
-#define arginfo_class_Swoole_Table_create arginfo_swoole_table_void
-#define arginfo_class_Swoole_Table_destroy arginfo_swoole_table_void
-#define arginfo_class_Swoole_Table_set arginfo_swoole_table_set
-#define arginfo_class_Swoole_Table_get arginfo_swoole_table_get
-#define arginfo_class_Swoole_Table_count arginfo_swoole_table_iterator_count
-#define arginfo_class_Swoole_Table_del arginfo_swoole_table_del
-#define arginfo_class_Swoole_Table_exists arginfo_swoole_table_exists
-#define arginfo_class_Swoole_Table_incr arginfo_swoole_table_incr
-#define arginfo_class_Swoole_Table_decr arginfo_swoole_table_decr
-#define arginfo_class_Swoole_Table_getSize arginfo_swoole_table_void
-#define arginfo_class_Swoole_Table_getMemorySize arginfo_swoole_table_void
-#define arginfo_class_Swoole_Table_stats arginfo_swoole_table_void
-#define arginfo_class_Swoole_Table_rewind arginfo_swoole_table_iterator_rewind
-#define arginfo_class_Swoole_Table_valid arginfo_swoole_table_iterator_valid
-#define arginfo_class_Swoole_Table_next arginfo_swoole_table_iterator_next
-#define arginfo_class_Swoole_Table_current arginfo_swoole_table_iterator_current
-#define arginfo_class_Swoole_Table_key arginfo_swoole_table_iterator_key
+#define arginfo_class_Swoole_Table___construct    arginfo_swoole_table_construct
+#define arginfo_class_Swoole_Table_column         arginfo_swoole_table_column
+#define arginfo_class_Swoole_Table_create         arginfo_swoole_table_void
+#define arginfo_class_Swoole_Table_destroy        arginfo_swoole_table_void
+#define arginfo_class_Swoole_Table_set            arginfo_swoole_table_set
+#define arginfo_class_Swoole_Table_get            arginfo_swoole_table_get
+#define arginfo_class_Swoole_Table_count          arginfo_swoole_table_iterator_count
+#define arginfo_class_Swoole_Table_del            arginfo_swoole_table_del
+#define arginfo_class_Swoole_Table_exists         arginfo_swoole_table_exists
+#define arginfo_class_Swoole_Table_incr           arginfo_swoole_table_incr
+#define arginfo_class_Swoole_Table_decr           arginfo_swoole_table_decr
+#define arginfo_class_Swoole_Table_getSize        arginfo_swoole_table_void
+#define arginfo_class_Swoole_Table_getMemorySize  arginfo_swoole_table_void
+#define arginfo_class_Swoole_Table_stats          arginfo_swoole_table_void
+#define arginfo_class_Swoole_Table_rewind         arginfo_swoole_table_iterator_rewind
+#define arginfo_class_Swoole_Table_valid          arginfo_swoole_table_iterator_valid
+#define arginfo_class_Swoole_Table_next           arginfo_swoole_table_iterator_next
+#define arginfo_class_Swoole_Table_current        arginfo_swoole_table_iterator_current
+#define arginfo_class_Swoole_Table_key            arginfo_swoole_table_iterator_key

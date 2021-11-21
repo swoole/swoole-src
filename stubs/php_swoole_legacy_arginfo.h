@@ -100,22 +100,17 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_mime_type_read, 0, 0, 1)
     ZEND_ARG_INFO(0, filename)
 ZEND_END_ARG_INFO()
 
-#define arginfo_swoole_version arginfo_swoole_void
-#define arginfo_swoole_cpu_num arginfo_swoole_void
-#define arginfo_swoole_last_error arginfo_swoole_void
-
-#define arginfo_swoole_get_local_ip arginfo_swoole_void
-#define arginfo_swoole_get_local_mac arginfo_swoole_void
-
-#define arginfo_swoole_errno arginfo_swoole_void
-#define arginfo_swoole_clear_error arginfo_swoole_void
-
-#define arginfo_swoole_mime_type_add arginfo_swoole_mime_type_write
-#define arginfo_swoole_mime_type_set arginfo_swoole_mime_type_write
-
-#define arginfo_swoole_mime_type_get arginfo_swoole_mime_type_read
-#define arginfo_swoole_mime_type_exists arginfo_swoole_mime_type_read
-#define arginfo_swoole_mime_type_list arginfo_swoole_void
-#define arginfo_swoole_clear_dns_cache arginfo_swoole_void
-
+#define arginfo_swoole_version                           arginfo_swoole_void
+#define arginfo_swoole_cpu_num                           arginfo_swoole_void
+#define arginfo_swoole_last_error                        arginfo_swoole_void
+#define arginfo_swoole_get_local_ip                      arginfo_swoole_void
+#define arginfo_swoole_get_local_mac                     arginfo_swoole_void
+#define arginfo_swoole_errno                             arginfo_swoole_void
+#define arginfo_swoole_clear_error                       arginfo_swoole_void
+#define arginfo_swoole_mime_type_add                     arginfo_swoole_mime_type_write
+#define arginfo_swoole_mime_type_set                     arginfo_swoole_mime_type_write
+#define arginfo_swoole_mime_type_get                     arginfo_swoole_mime_type_read
+#define arginfo_swoole_mime_type_exists                  arginfo_swoole_mime_type_read
+#define arginfo_swoole_mime_type_list                    arginfo_swoole_void
+#define arginfo_swoole_clear_dns_cache                   arginfo_swoole_void
 #define arginfo_swoole_internal_call_user_shutdown_begin arginfo_swoole_void

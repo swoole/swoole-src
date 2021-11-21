@@ -38,7 +38,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_isset, 0, 0, 1)
     ZEND_ARG_INFO(0, events)
 ZEND_END_ARG_INFO()
 
-#define arginfo_swoole_event_dispatch arginfo_swoole_void
-#define arginfo_swoole_event_wait arginfo_swoole_void
-#define arginfo_swoole_event_rshutdown arginfo_swoole_void
-#define arginfo_swoole_event_exit arginfo_swoole_void
+#define arginfo_swoole_event_dispatch   arginfo_swoole_void
+#define arginfo_swoole_event_wait       arginfo_swoole_void
+#define arginfo_swoole_event_rshutdown  arginfo_swoole_void
+#define arginfo_swoole_event_exit       arginfo_swoole_void

@@ -15,8 +15,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_server_port_getCallback, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Server_Port___construct arginfo_swoole_void
-#define arginfo_class_Swoole_Server_Port___destruct arginfo_swoole_void
-#define arginfo_class_Swoole_Server_Port_set arginfo_swoole_server_port_set
-#define arginfo_class_Swoole_Server_Port_on arginfo_swoole_server_port_on
+#define arginfo_class_Swoole_Server_Port___destruct  arginfo_swoole_void
+#define arginfo_class_Swoole_Server_Port_set         arginfo_swoole_server_port_set
+#define arginfo_class_Swoole_Server_Port_on          arginfo_swoole_server_port_on
 #define arginfo_class_Swoole_Server_Port_getCallback arginfo_swoole_server_port_getCallback
-#define arginfo_class_Swoole_Server_Port_getSocket arginfo_swoole_void
+#define arginfo_class_Swoole_Server_Port_getSocket   arginfo_swoole_void
