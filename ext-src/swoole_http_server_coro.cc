@@ -206,12 +206,12 @@ SW_EXTERN_C_END
 static const zend_function_entry swoole_http_server_coro_methods[] =
 {
     PHP_ME(swoole_http_server_coro, __construct, arginfo_class_Swoole_Coroutine_Http_Server___construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, __destruct, arginfo_class_Swoole_Coroutine_Http_Server___destruct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, set, arginfo_class_Swoole_Coroutine_Http_Server_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, handle, arginfo_class_Swoole_Coroutine_Http_Server_handle, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, onAccept, arginfo_class_Swoole_Coroutine_Http_Server_onAccept, ZEND_ACC_PRIVATE)
-    PHP_ME(swoole_http_server_coro, start, arginfo_class_Swoole_Coroutine_Http_Server_start, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_server_coro, shutdown, arginfo_class_Swoole_Coroutine_Http_Server_shutdown, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, __destruct,  arginfo_class_Swoole_Coroutine_Http_Server___destruct,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, set,         arginfo_class_Swoole_Coroutine_Http_Server_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, handle,      arginfo_class_Swoole_Coroutine_Http_Server_handle,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, onAccept,    arginfo_class_Swoole_Coroutine_Http_Server_onAccept,    ZEND_ACC_PRIVATE)
+    PHP_ME(swoole_http_server_coro, start,       arginfo_class_Swoole_Coroutine_Http_Server_start,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_server_coro, shutdown,    arginfo_class_Swoole_Coroutine_Http_Server_shutdown,    ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on

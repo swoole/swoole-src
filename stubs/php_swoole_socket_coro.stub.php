@@ -20,7 +20,7 @@ namespace Swoole\Coroutine {
         public function recvPacket(float $timeout = 0):bool|string {}
         public function recvLine(int $length = 65535, float $timeout = 0): string|bool {}
         public function recvWithBuffer(int $length = 65535, float $timeout = 0): string|bool {}
-        public function recvfrom(array &$peername, float $timeout = 0): string|bool {}
+        public function recvfrom(mixed &$peername, float $timeout = 0): string|bool {}
         public function sendto(string $addr, int $port, string $data): int|bool {}
         public function getOption(int $level, int $opt_name): mixed {}
         public function setOption(int $level, int $opt_name, mixed $opt_value):bool {}

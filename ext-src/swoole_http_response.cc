@@ -173,33 +173,33 @@ SW_EXTERN_C_END
 // clang-format off
 const zend_function_entry swoole_http_response_methods[] =
 {
-    PHP_ME(swoole_http_response, initHeader, arginfo_class_Swoole_Http_Response_initHeader, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, isWritable, arginfo_class_Swoole_Http_Response_isWritable, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, cookie, arginfo_class_Swoole_Http_Response_cookie, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_http_response, setCookie, cookie, arginfo_class_Swoole_Http_Response_cookie, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, rawcookie, arginfo_class_Swoole_Http_Response_cookie, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, status, arginfo_class_Swoole_Http_Response_status, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_http_response, setStatusCode, status, arginfo_class_Swoole_Http_Response_status, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, header, arginfo_class_Swoole_Http_Response_header, ZEND_ACC_PUBLIC)
-    PHP_MALIAS(swoole_http_response, setHeader, header, arginfo_class_Swoole_Http_Response_header, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, initHeader,                arginfo_class_Swoole_Http_Response_initHeader, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, isWritable,                arginfo_class_Swoole_Http_Response_isWritable, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, cookie,                    arginfo_class_Swoole_Http_Response_cookie,     ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_http_response, setCookie, cookie,     arginfo_class_Swoole_Http_Response_cookie,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, rawcookie,                 arginfo_class_Swoole_Http_Response_cookie,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, status,                    arginfo_class_Swoole_Http_Response_status,     ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_http_response, setStatusCode, status, arginfo_class_Swoole_Http_Response_status,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, header,                    arginfo_class_Swoole_Http_Response_header,     ZEND_ACC_PUBLIC)
+    PHP_MALIAS(swoole_http_response, setHeader, header,     arginfo_class_Swoole_Http_Response_header,     ZEND_ACC_PUBLIC)
 #ifdef SW_USE_HTTP2
     PHP_ME(swoole_http_response, trailer, arginfo_class_Swoole_Http_Response_trailer, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, ping, arginfo_class_Swoole_Http_Response_ping, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, goaway, arginfo_class_Swoole_Http_Response_goaway, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, ping,    arginfo_class_Swoole_Http_Response_ping,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, goaway,  arginfo_class_Swoole_Http_Response_goaway,  ZEND_ACC_PUBLIC)
 #endif
-    PHP_ME(swoole_http_response, write, arginfo_class_Swoole_Http_Response_write, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, end, arginfo_class_Swoole_Http_Response_end, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, write,    arginfo_class_Swoole_Http_Response_write,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, end,      arginfo_class_Swoole_Http_Response_end,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, sendfile, arginfo_class_Swoole_Http_Response_sendfile, ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, redirect, arginfo_class_Swoole_Http_Response_redirect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, detach, arginfo_class_Swoole_Http_Response_detach, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, create, arginfo_class_Swoole_Http_Response_create, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_http_response, detach,   arginfo_class_Swoole_Http_Response_detach,   ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, create,   arginfo_class_Swoole_Http_Response_create,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     /**
      * WebSocket
      */
-    PHP_ME(swoole_http_response, upgrade, arginfo_class_Swoole_Http_Response_upgrade, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, push, arginfo_class_Swoole_Http_Response_push, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, recv, arginfo_class_Swoole_Http_Response_recv, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_http_response, close, arginfo_class_Swoole_Http_Response_close, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, upgrade,    arginfo_class_Swoole_Http_Response_upgrade,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, push,       arginfo_class_Swoole_Http_Response_push,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, recv,       arginfo_class_Swoole_Http_Response_recv,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_http_response, close,      arginfo_class_Swoole_Http_Response_close,      ZEND_ACC_PUBLIC)
     PHP_ME(swoole_http_response, __destruct, arginfo_class_Swoole_Http_Response___destruct, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };

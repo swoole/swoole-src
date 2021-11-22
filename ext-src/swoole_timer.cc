@@ -52,15 +52,14 @@ SW_EXTERN_C_END
 // clang-format off
 static const zend_function_entry swoole_timer_methods[] =
 {
-    ZEND_FENTRY(set, ZEND_FN(swoole_timer_set), arginfo_swoole_timer_set,
-                ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    ZEND_FENTRY(tick, ZEND_FN(swoole_timer_tick), arginfo_swoole_timer_tick, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(after, ZEND_FN(swoole_timer_after), arginfo_swoole_timer_after, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(exists, ZEND_FN(swoole_timer_exists), arginfo_swoole_timer_exists, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(info, ZEND_FN(swoole_timer_info), arginfo_swoole_timer_info, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(stats, ZEND_FN(swoole_timer_stats), arginfo_swoole_timer_stats, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(list, ZEND_FN(swoole_timer_list), arginfo_swoole_timer_list, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(clear, ZEND_FN(swoole_timer_clear), arginfo_swoole_timer_clear, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(set,      ZEND_FN(swoole_timer_set),       arginfo_swoole_timer_set,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    ZEND_FENTRY(tick,     ZEND_FN(swoole_timer_tick),      arginfo_swoole_timer_tick,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(after,    ZEND_FN(swoole_timer_after),     arginfo_swoole_timer_after,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(exists,   ZEND_FN(swoole_timer_exists),    arginfo_swoole_timer_exists,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(info,     ZEND_FN(swoole_timer_info),      arginfo_swoole_timer_info,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(stats,    ZEND_FN(swoole_timer_stats),     arginfo_swoole_timer_stats,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(list,     ZEND_FN(swoole_timer_list),      arginfo_swoole_timer_list,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(clear,    ZEND_FN(swoole_timer_clear),     arginfo_swoole_timer_clear,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     ZEND_FENTRY(clearAll, ZEND_FN(swoole_timer_clear_all), arginfo_swoole_timer_clear_all, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };

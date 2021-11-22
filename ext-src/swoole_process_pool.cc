@@ -146,16 +146,16 @@ SW_EXTERN_C_END
 static const zend_function_entry swoole_process_pool_methods[] =
 {
     PHP_ME(swoole_process_pool, __construct, arginfo_class_Swoole_Process_Pool___construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, __destruct, arginfo_class_Swoole_Process_Pool___destruct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, set, arginfo_class_Swoole_Process_Pool_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, on, arginfo_class_Swoole_Process_Pool_on, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, getProcess, arginfo_class_Swoole_Process_Pool_getProcess, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, listen, arginfo_class_Swoole_Process_Pool_listen, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, write, arginfo_class_Swoole_Process_Pool_write, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, detach, arginfo_class_Swoole_Process_Pool_detach, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, start, arginfo_class_Swoole_Process_Pool_start, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, stop, arginfo_class_Swoole_Process_Pool_stop, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_process_pool, shutdown, arginfo_class_Swoole_Process_Pool_shutdown, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, __destruct,  arginfo_class_Swoole_Process_Pool___destruct,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, set,         arginfo_class_Swoole_Process_Pool_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, on,          arginfo_class_Swoole_Process_Pool_on,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, getProcess,  arginfo_class_Swoole_Process_Pool_getProcess,  ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, listen,      arginfo_class_Swoole_Process_Pool_listen,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, write,       arginfo_class_Swoole_Process_Pool_write,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, detach,      arginfo_class_Swoole_Process_Pool_detach,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, start,       arginfo_class_Swoole_Process_Pool_start,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, stop,        arginfo_class_Swoole_Process_Pool_stop,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_process_pool, shutdown,    arginfo_class_Swoole_Process_Pool_shutdown,    ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on

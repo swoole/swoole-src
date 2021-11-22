@@ -54,13 +54,13 @@ SW_EXTERN_C_END
 static const zend_function_entry swoole_channel_coro_methods[] =
 {
     PHP_ME(swoole_channel_coro, __construct, arginfo_class_Swoole_Coroutine_Channel___construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, push, arginfo_class_Swoole_Coroutine_Channel_push, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, pop,  arginfo_class_Swoole_Coroutine_Channel_pop,  ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, isEmpty, arginfo_class_Swoole_Coroutine_Channel_isEmpty, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, isFull, arginfo_class_Swoole_Coroutine_Channel_isFull, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, close, arginfo_class_Swoole_Coroutine_Channel_close, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, stats, arginfo_class_Swoole_Coroutine_Channel_stats, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_channel_coro, length, arginfo_class_Swoole_Coroutine_Channel_length, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, push,        arginfo_class_Swoole_Coroutine_Channel_push,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, pop,         arginfo_class_Swoole_Coroutine_Channel_pop,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, isEmpty,     arginfo_class_Swoole_Coroutine_Channel_isEmpty,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, isFull,      arginfo_class_Swoole_Coroutine_Channel_isFull,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, close,       arginfo_class_Swoole_Coroutine_Channel_close,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, stats,       arginfo_class_Swoole_Coroutine_Channel_stats,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_channel_coro, length,      arginfo_class_Swoole_Coroutine_Channel_length,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on

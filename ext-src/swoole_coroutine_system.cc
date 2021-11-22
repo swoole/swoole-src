@@ -32,9 +32,9 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
     PHP_ME(swoole_coroutine_system, waitSignal,                              arginfo_class_Swoole_Coroutine_System_waitSignal,    ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine_system, waitEvent,                               arginfo_class_Swoole_Coroutine_System_waitEvent,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     /* Deprecated file methods */
-    PHP_ME(swoole_coroutine_system, fread,                                   arginfo_class_Swoole_Coroutine_System_fread,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fwrite,                                  arginfo_class_Swoole_Coroutine_System_fwrite,        ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
-    PHP_ME(swoole_coroutine_system, fgets,                                   arginfo_class_Swoole_Coroutine_System_fgets,         ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fread,  arginfo_class_Swoole_Coroutine_System_fread,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fwrite, arginfo_class_Swoole_Coroutine_System_fwrite, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
+    PHP_ME(swoole_coroutine_system, fgets,  arginfo_class_Swoole_Coroutine_System_fgets,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC | ZEND_ACC_DEPRECATED)
     PHP_FE_END
 };
 

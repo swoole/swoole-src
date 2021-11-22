@@ -195,24 +195,24 @@ SW_EXTERN_C_END
 static const zend_function_entry swoole_atomic_methods[] =
 {
     PHP_ME(swoole_atomic, __construct, arginfo_class_Swoole_Atomic___construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, add, arginfo_class_Swoole_Atomic_add, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, sub, arginfo_class_Swoole_Atomic_sub, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, get, arginfo_class_Swoole_Atomic_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, set, arginfo_class_Swoole_Atomic_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, wait, arginfo_class_Swoole_Atomic_wait, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, wakeup, arginfo_class_Swoole_Atomic_wakeup, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic, cmpset, arginfo_class_Swoole_Atomic_cmpset, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, add,         arginfo_class_Swoole_Atomic_add,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, sub,         arginfo_class_Swoole_Atomic_sub,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, get,         arginfo_class_Swoole_Atomic_get,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, set,         arginfo_class_Swoole_Atomic_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, wait,        arginfo_class_Swoole_Atomic_wait,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, wakeup,      arginfo_class_Swoole_Atomic_wakeup,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic, cmpset,      arginfo_class_Swoole_Atomic_cmpset,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
 static const zend_function_entry swoole_atomic_long_methods[] =
 {
     PHP_ME(swoole_atomic_long, __construct, arginfo_class_Swoole_Atomic_Long___construct, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, add, arginfo_class_Swoole_Atomic_Long_add, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, sub, arginfo_class_Swoole_Atomic_Long_sub, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, get, arginfo_class_Swoole_Atomic_Long_get, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, set, arginfo_class_Swoole_Atomic_Long_set, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_atomic_long, cmpset, arginfo_class_Swoole_Atomic_Long_cmpset, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, add,         arginfo_class_Swoole_Atomic_Long_add,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, sub,         arginfo_class_Swoole_Atomic_Long_sub,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, get,         arginfo_class_Swoole_Atomic_Long_get,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, set,         arginfo_class_Swoole_Atomic_Long_set,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_atomic_long, cmpset,      arginfo_class_Swoole_Atomic_Long_cmpset,      ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 
