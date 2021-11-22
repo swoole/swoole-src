@@ -26,4 +26,9 @@ namespace Swoole {
         public static function enableScheduler(): bool {}
         public static function disableScheduler(): bool {}
     }
+
+    class ExitException {
+        public function getFlags(): mixed {}
+        public function getStatus(): int {}
+    }
 }

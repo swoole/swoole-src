@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 239af7c787283ed15b3cfcb1ea38b47a83eafcc3 */
+ * Stub hash: a2d32f239de662193ca1b9e663a7f8becfd635ff */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_create, 0, 1, MAY_BE_LONG|MAY_BE_BOOL)
 	ZEND_ARG_TYPE_INFO(0, func, IS_CALLABLE, 0)
@@ -69,9 +69,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_getElapse
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, cid, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_getStackUsage, 0, 0, MAY_BE_BOOL|MAY_BE_LONG)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, cid, IS_LONG, 0, "-1")
-ZEND_END_ARG_INFO()
+#define arginfo_class_Swoole_Coroutine_getStackUsage arginfo_class_Swoole_Coroutine_getPcid
 
 ZEND_BEGIN_ARG_WITH_RETURN_OBJ_INFO_EX(arginfo_class_Swoole_Coroutine_list, 0, 0, Swoole\\Coroutine\\Iterator, 0)
 ZEND_END_ARG_INFO()
@@ -81,3 +79,8 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Coroutine_enableScheduler arginfo_class_Swoole_Coroutine_yield
 
 #define arginfo_class_Swoole_Coroutine_disableScheduler arginfo_class_Swoole_Coroutine_yield
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_ExitException_getFlags, 0, 0, IS_MIXED, 0)
+ZEND_END_ARG_INFO()
+
+#define arginfo_class_Swoole_ExitException_getStatus arginfo_class_Swoole_Coroutine_getCid
