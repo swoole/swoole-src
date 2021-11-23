@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole_http_server.h"
+#include "swoole_process_pool.h"
 
 using namespace swoole;
 using swoole::coroutine::Socket;
@@ -59,6 +60,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
     if (conn->websocket_status == WebSocket::STATUS_ACTIVE) {
         return swoole_websocket_onMessage(serv, req);
     }
+
 #ifdef SW_USE_HTTP2
     if (conn->http2_stream) {
         return swoole_http2_server_onReceive(serv, conn, req);
@@ -88,9 +90,7 @@ int php_swoole_http_server_onReceive(Server *serv, RecvData *req) {
 
     size_t parsed_n = ctx->parse(Z_STRVAL_P(zdata), Z_STRLEN_P(zdata));
     if (ctx->parser.state == s_dead) {
-#ifdef SW_HTTP_BAD_REQUEST_PACKET
         ctx->send(ctx, SW_STRL(SW_HTTP_BAD_REQUEST_PACKET));
-#endif
         ctx->close(ctx);
         swoole_notice("request is illegal and it has been discarded, %ld bytes unprocessed",
                       Z_STRLEN_P(zdata) - parsed_n);
