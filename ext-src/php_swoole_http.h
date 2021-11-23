@@ -192,6 +192,8 @@ struct Context {
     void end(zval *zdata, zval *return_value);
     void send_trailer(zval *return_value);
     String *get_write_buffer();
+    void build_header(String *http_buffer, size_t body_length);
+    ssize_t build_trailer(String *http_buffer);
 
 #ifdef SW_HAVE_COMPRESSION
     void set_compression_method(const char *accept_encoding, size_t length);
