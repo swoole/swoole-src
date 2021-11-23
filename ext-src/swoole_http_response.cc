@@ -746,6 +746,41 @@ void HttpContext::send_trailer(zval *return_value) {
     }
 }
 
+bool HttpContext::send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
+    zval *zheader =
+        sw_zend_read_and_convert_property_array(swoole_http_response_ce, response.zobject, ZEND_STRL("header"), 0);
+    if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type"))) {
+        add_assoc_string(zheader, "Content-Type", (char *) swoole::mime_type::get(file).c_str());
+    }
+
+    if (!send_header_) {
+#ifdef SW_HAVE_COMPRESSION
+        accept_compression = 0;
+#endif
+        String *http_buffer = get_write_buffer();
+        http_buffer->clear();
+
+        build_header(http_buffer, length);
+
+        if (!send(this, http_buffer->str, http_buffer->length)) {
+            send_header_ = 0;
+            return false;
+        }
+    }
+
+    if (length > 0 && !sendfile(this, file, l_file, offset, length)) {
+        close(this);
+        return false;
+    }
+
+    end_ = 1;
+
+    if (!keepalive) {
+        close(this);
+    }
+    return true;
+}
+
 void HttpContext::end(zval *zdata, zval *return_value) {
     struct {
         char *str;
@@ -935,33 +970,11 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
-
-    zval *zheader =
-        sw_zend_read_and_convert_property_array(swoole_http_response_ce, ctx->response.zobject, ZEND_STRL("header"), 0);
-    if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("Content-Type"))) {
-        add_assoc_string(zheader, "Content-Type", (char *) swoole::mime_type::get(file).c_str());
+    if (ctx->http2) {
+        RETURN_BOOL(ctx->http2_send_file(file, l_file, offset, length));
+    } else {
+        RETURN_BOOL(ctx->send_file(file, l_file, offset, length));
     }
-
-    if (!ctx->send_header_) {
-#ifdef SW_HAVE_COMPRESSION
-        ctx->accept_compression = 0;
-#endif
-    }
-
-    if (length != 0) {
-        if (!ctx->sendfile(ctx, file, l_file, offset, length)) {
-            ctx->close(ctx);
-            RETURN_FALSE;
-        }
-    }
-
-    ctx->end_ = 1;
-
-    if (!ctx->keepalive) {
-        ctx->close(ctx);
-    }
-
-    RETURN_TRUE;
 }
 
 static void php_swoole_http_response_cookie(INTERNAL_FUNCTION_PARAMETERS, const bool url_encode) {

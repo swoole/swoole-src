@@ -306,14 +306,6 @@ bool http_context_send_data(HttpContext *ctx, const char *data, size_t length) {
 }
 
 static bool http_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    String *http_buffer = ctx->get_write_buffer();
-    http_buffer->clear();
-    ctx->build_header(http_buffer, length);
-
-    if (!ctx->send(ctx, http_buffer->str, http_buffer->length)) {
-        ctx->send_header_ = 0;
-        return false;
-    }
     Server *serv = (Server *) ctx->private_data;
     return serv->sendfile(ctx->fd, file, l_file, offset, length);
 }

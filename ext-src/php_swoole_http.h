@@ -190,6 +190,7 @@ struct Context {
     bool set_header(const char *, size_t, zval *, bool);
     bool set_header(const char *, size_t, const char *, size_t, bool);
     void end(zval *zdata, zval *return_value);
+    bool send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
     void send_trailer(zval *return_value);
     String *get_write_buffer();
     void build_header(String *http_buffer, size_t body_length);
@@ -202,6 +203,7 @@ struct Context {
 
 #ifdef SW_USE_HTTP2
     void http2_end(zval *zdata, zval *return_value);
+    bool http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length);
 #endif
 
     void free();
