@@ -970,9 +970,12 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     if (swoole_isset_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE)) {
         swoole_call_hook((enum swGlobalHookType) PHP_SWOOLE_HOOK_AFTER_RESPONSE, ctx);
     }
+#ifdef SW_USE_HTTP2
     if (ctx->http2) {
         RETURN_BOOL(ctx->http2_send_file(file, l_file, offset, length));
-    } else {
+    } else
+#endif
+    {
         RETURN_BOOL(ctx->send_file(file, l_file, offset, length));
     }
 }
