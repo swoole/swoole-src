@@ -2,9 +2,9 @@
 
 function swoole_timer_set(array $settings): void {}
 
-function swoole_timer_tick(int $ms, callable $callback, mixed ...$params): bool|int {}
+function swoole_timer_tick(int $ms, callable $callback, mixed ...$params): false|int {}
 
-function swoole_timer_after(int $ms, callable $callback, mixed ...$params): bool|int {}
+function swoole_timer_after(int $ms, callable $callback, mixed ...$params): false|int {}
 
 function swoole_timer_exists(int $timer_id): bool {}
 

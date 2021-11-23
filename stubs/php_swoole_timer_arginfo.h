@@ -1,11 +1,11 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: f1583c9cf737632005d37f49025ce405db77b1a6 */
+ * Stub hash: b290d9707b6325d4d19f6eccb832d3e25719b016 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_timer_set, 0, 1, IS_VOID, 0)
 	ZEND_ARG_TYPE_INFO(0, settings, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_timer_tick, 0, 2, MAY_BE_BOOL|MAY_BE_LONG)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_swoole_timer_tick, 0, 2, MAY_BE_FALSE|MAY_BE_LONG)
 	ZEND_ARG_TYPE_INFO(0, ms, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, callback, IS_CALLABLE, 0)
 	ZEND_ARG_VARIADIC_TYPE_INFO(0, params, IS_MIXED, 0)
