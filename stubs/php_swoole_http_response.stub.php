@@ -11,10 +11,10 @@ namespace Swoole\Http {
 		public function initHeader(): bool {}
 		public function isWritable(): bool {}
 		public function detach(): bool {}
-		public static function create(object|array|int $server = -1, int $fd = -1): Response|bool {}
+		public static function create(object|array|int $server = -1, int $fd = -1): Response|false {}
 		public function upgrade(): bool {}
 		public function push(\Swoole\WebSocket\Frame|string $data, int $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): bool {}
-		public function recv(float $timeout = 0): \Swoole\WebSocket\Frame|bool|string {}
+		public function recv(float $timeout = 0): \Swoole\WebSocket\Frame|false|string {}
 		public function close(): bool {}
 		public function trailer(string $key, string $value): bool {}
 		public function ping(): bool {}

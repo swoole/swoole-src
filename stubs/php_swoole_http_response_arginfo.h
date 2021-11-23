@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 1e247024ae6e71409a86380987eeca87dcaf7be8 */
+ * Stub hash: 32871084bc87c567621c5248204cf69d42d215d5 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Http_Response_write, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, content, IS_STRING, 0)
@@ -47,7 +47,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Http_Response_detach arginfo_class_Swoole_Http_Response_initHeader
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Http_Response_create, 0, 0, Swoole\\Http\\Response, MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Http_Response_create, 0, 0, Swoole\\Http\\Response, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_MASK(0, server, MAY_BE_OBJECT|MAY_BE_ARRAY|MAY_BE_LONG, "-1")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, fd, IS_LONG, 0, "-1")
 ZEND_END_ARG_INFO()
@@ -60,7 +60,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Http_Response_push,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "SWOOLE_WEBSOCKET_FLAG_FIN")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Http_Response_recv, 0, 0, Swoole\\WebSocket\\Frame, MAY_BE_BOOL|MAY_BE_STRING)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Http_Response_recv, 0, 0, Swoole\\WebSocket\\Frame, MAY_BE_FALSE|MAY_BE_STRING)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 

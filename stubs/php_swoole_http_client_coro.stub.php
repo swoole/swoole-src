@@ -8,23 +8,23 @@ namespace Swoole\Coroutine\Http {
 		public function setDefer(bool $defer = true): bool {}
 		public function setMethod(string $method): bool {}
 		public function setHeaders(array $headers): bool {}
-		public function setBasicAuth(string $username, string $password): ?bool {}
+		public function setBasicAuth(string $username, string $password): null|false {}
 		public function setCookies(array $cookies): bool {}
 		public function setData(string|array $data): bool {}
 		public function addFile(string $path, string $name, ?string $type = null, ?string $filename = null, int $offset = 0, int $length = 0): bool {}
 		public function addData(string $path, string $name, ?string $type = null , ?string $filename = null): bool {}
 		public function execute(string $path): bool {}
-		public function getsockname(): array|bool {}
-		public function getpeername(): array|bool {}
+		public function getsockname(): array|false {}
+		public function getpeername(): array|false {}
 		public function get(string $path): bool {}
 		public function post(string $path, mixed $data): bool {}
 		public function download(string $path, string $file, int $offset = 0): bool {}
-		public function getBody(): string|bool {}
-		public function getHeaders(): array|bool {}
-		public function getCookies(): array|bool {}
-		public function getStatusCode(): int|bool {}
-		public function getHeaderOut(): bool|string {}
-		public function getPeerCert(): bool|string {}
+		public function getBody(): string|false {}
+		public function getHeaders(): array|false {}
+		public function getCookies(): array|false {}
+		public function getStatusCode(): int|false {}
+		public function getHeaderOut(): false|string {}
+		public function getPeerCert(): false|string {}
 		public function upgrade(string $path): bool {}
 		public function push(mixed $data, int $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): bool {}
 		public function recv(float $timeout = 0): bool|\Swoole\WebSocket\Frame {}

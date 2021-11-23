@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 96f1798a8f42f7be9e03eca9d57a92f969f8ea58 */
+ * Stub hash: de603492ed56945e6943db66a24b8a1872d12418 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Client___construct, 0, 0, 2)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
@@ -29,7 +29,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Clie
 	ZEND_ARG_TYPE_INFO(0, headers, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Client_setBasicAuth, 0, 2, _IS_BOOL, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_setBasicAuth, 0, 2, MAY_BE_NULL|MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO(0, username, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO(0, password, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -62,7 +62,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Clie
 	ZEND_ARG_TYPE_INFO(0, path, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getsockname, 0, 0, MAY_BE_ARRAY|MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getsockname, 0, 0, MAY_BE_ARRAY|MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Coroutine_Http_Client_getpeername arginfo_class_Swoole_Coroutine_Http_Client_getsockname
@@ -80,17 +80,17 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Clie
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getBody, 0, 0, MAY_BE_STRING|MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getBody, 0, 0, MAY_BE_STRING|MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Coroutine_Http_Client_getHeaders arginfo_class_Swoole_Coroutine_Http_Client_getsockname
 
 #define arginfo_class_Swoole_Coroutine_Http_Client_getCookies arginfo_class_Swoole_Coroutine_Http_Client_getsockname
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getStatusCode, 0, 0, MAY_BE_LONG|MAY_BE_BOOL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getStatusCode, 0, 0, MAY_BE_LONG|MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut, 0, 0, MAY_BE_BOOL|MAY_BE_STRING)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut, 0, 0, MAY_BE_FALSE|MAY_BE_STRING)
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut

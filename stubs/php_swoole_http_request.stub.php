@@ -3,10 +3,10 @@ namespace Swoole\Http {
 	class Request {
 		public function __destruct() {}
 		public function getData(): string {}
-		public static function create(array $options = []): Request|bool {}
-		public function parse(string $data): int|bool {}
+		public static function create(array $options = []): Request|false {}
+		public function parse(string $data): int|false {}
 		public function isCompleted(): bool {}
-		public function getMethod(): string|bool {}
-		public function getContent(): string|bool {}
+		public function getMethod(): string|false {}
+		public function getContent(): string|false {}
 	}
 }
