@@ -15,6 +15,7 @@
 */
 
 #include "php_swoole_http_server.h"
+#include "swoole_process_pool.h"
 
 using namespace swoole;
 using swoole::coroutine::Socket;

@@ -626,20 +626,19 @@ static bool http2_server_respond(HttpContext *ctx, String *body) {
     return !error;
 }
 
-static bool http2_server_context_sendfile(HttpContext *ctx, const char *file, uint32_t l_file, off_t offset, size_t length) {
-    Http2Session *client = http2_sessions[ctx->fd];
-    Http2Stream *stream = (Http2Stream *) ctx->stream;
+bool HttpContext::http2_send_file(const char *file, uint32_t l_file, off_t offset, size_t length) {
+    Http2Session *client = http2_sessions[fd];
     std::shared_ptr<String> body;
 
 #ifdef SW_HAVE_COMPRESSION
-    ctx->accept_compression = 0;
+    accept_compression = 0;
 #endif
     if (swoole_coroutine_is_in()) {
         body = System::read_file(file, false);
         if (!body) {
             return false;
         }
-        if (!ctx->stream) {
+        if (!stream) {
             /* closed */
             return false;
         }
@@ -656,13 +655,17 @@ static bool http2_server_context_sendfile(HttpContext *ctx, const char *file, ui
     body->length = SW_MIN(length, body->length);
 
     zval *ztrailer =
-        sw_zend_read_property_ex(swoole_http_response_ce, ctx->response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
+        sw_zend_read_property_ex(swoole_http_response_ce, response.zobject, SW_ZSTR_KNOWN(SW_ZEND_STR_TRAILER), 0);
     if (php_swoole_array_length_safe(ztrailer) == 0) {
         ztrailer = nullptr;
     }
 
-    const char *mimetype = swoole::mime_type::get(file).c_str();
-    ctx->set_header(ZEND_STRL("content-type"), mimetype, strlen(mimetype), 0);
+    zval *zheader =
+        sw_zend_read_and_convert_property_array(swoole_http_response_ce, response.zobject, ZEND_STRL("header"), 0);
+    if (!zend_hash_str_exists(Z_ARRVAL_P(zheader), ZEND_STRL("content-type"))) {
+        const char *mimetype = swoole::mime_type::get(file).c_str();
+        set_header(ZEND_STRL("content-type"), mimetype, strlen(mimetype), 0);
+    }
 
     bool end_stream = (ztrailer == nullptr);
     if (!stream->send_header(length, end_stream)) {
@@ -670,7 +673,7 @@ static bool http2_server_context_sendfile(HttpContext *ctx, const char *file, ui
     }
 
     /* headers has already been sent, retries are no longer allowed (even if send body failed) */
-    ctx->end_ = 1;
+    end_ = 1;
 
     bool error = false;
 
@@ -689,7 +692,7 @@ static bool http2_server_context_sendfile(HttpContext *ctx, const char *file, ui
     }
 
     if (error) {
-        ctx->close(ctx);
+        close(this);
     } else {
         client->streams.erase(stream->id);
         delete stream;
@@ -1084,7 +1087,6 @@ int swoole_http2_server_onReceive(Server *serv, Connection *conn, RecvData *req)
         client->default_ctx->http2 = true;
         client->default_ctx->stream = (Http2Stream *) -1;
         client->default_ctx->keepalive = true;
-        client->default_ctx->sendfile = http2_server_context_sendfile;
         client->default_ctx->onBeforeRequest = http2_server_context_onBeforeRequest;
     }
 
