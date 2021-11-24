@@ -192,17 +192,13 @@ php_curl *swoole_curl_get_handle(zval *zid, bool exclusive, bool required) {
     return ch;
 }
 
-static long php_curl_easy_setopt_str(php_curl *ch, CURLoption option, const char *str) {
-    return curl_easy_setopt(ch->cp, option, str);
-}
-
-static long php_curl_easy_getinfo_str(php_curl *ch, CURLINFO option, char **value) {
-    return curl_easy_getinfo(ch->cp, option, value);
-}
-
 static int php_curl_option_str(php_curl *ch, zend_long option, const char *str, const size_t len) {
     if (strlen(str) != len) {
+#if PHP_VERSION_ID >= 80000
         zend_value_error("%s(): cURL option must not contain any null bytes", get_active_function_name());
+#else
+        php_error_docref(NULL, E_WARNING, "Curl option contains invalid characters (\\0)");
+#endif
         return FAILURE;
     }
 
@@ -216,7 +212,23 @@ static int php_curl_option_url(php_curl *ch, const char *url, const size_t len) 
 {
     /* Disable file:// if open_basedir are used */
     if (PG(open_basedir) && *PG(open_basedir)) {
+#if LIBCURL_VERSION_NUM >= 0x071304
         curl_easy_setopt(ch->cp, CURLOPT_PROTOCOLS, CURLPROTO_ALL & ~CURLPROTO_FILE);
+#else
+        php_url *uri;
+
+        if (!(uri = php_url_parse_ex(url, len))) {
+            php_error_docref(NULL, E_WARNING, "Invalid URL '%s'", url);
+            return FAILURE;
+        }
+
+        if (uri->scheme && zend_string_equals_literal_ci(uri->scheme, "file")) {
+            php_error_docref(NULL, E_WARNING, "Protocol 'file' disabled in cURL");
+            php_url_free(uri);
+            return FAILURE;
+        }
+        php_url_free(uri);
+#endif
     }
 
     return php_curl_option_str(ch, CURLOPT_URL, url, len);
@@ -2574,7 +2586,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
             case CURLINFO_STRING: {
                 char *s_code = NULL;
 
-                if (php_curl_easy_getinfo_str(ch, (CURLINFO) option, &s_code) == CURLE_OK && s_code) {
+                if (curl_easy_getinfo(ch->cp, (CURLINFO) option, &s_code) == CURLE_OK && s_code) {
                     RETURN_STRING(s_code);
                 } else {
                     RETURN_FALSE;
