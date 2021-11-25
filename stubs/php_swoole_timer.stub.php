@@ -8,7 +8,7 @@ function swoole_timer_after(int $ms, callable $callback, mixed ...$params): fals
 
 function swoole_timer_exists(int $timer_id): bool {}
 
-function swoole_timer_info(int $timer_id): array {}
+function swoole_timer_info(int $timer_id): ?array {}
 
 function swoole_timer_stats(): array {}
 

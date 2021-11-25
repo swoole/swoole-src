@@ -1,7 +1,7 @@
 <?php
 namespace Swoole\Coroutine {
     class Socket {
-        public function __construct(int $domain, int $type, int $protocol) {}
+        public function __construct(int $domain, int $type, int $protocol = IPPROTO_IP) {}
         public function bind(string $address,int $port = 0): bool {}
         public function listen(int $backlog = 512): bool {}
         public function accept(float $timeout = 0): Socket|false {}
@@ -26,7 +26,7 @@ namespace Swoole\Coroutine {
         public function setOption(int $level, int $opt_name, mixed $opt_value): bool {}
         public function setProtocol(array $settings): bool {}
         public function sslHandshake(): bool {}
-        public function shutdown(int $how = Socket::SHUT_RDWR): bool {}
+        public function shutdown(int $how = 2): bool {}
         public function close(): bool {}
         public function cancel(int $event = SWOOLE_EVENT_READ): bool {}
         public function getsockname(): false|array {}

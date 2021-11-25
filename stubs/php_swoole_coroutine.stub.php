@@ -1,9 +1,9 @@
 <?php
 namespace Swoole {
     class Coroutine {
-        public static function create(callable $func, mixed ...$param): int|bool {}
-        public static function defer(callable $callback): ?bool {}
-        public static function set(array $options): ?bool {}
+        public static function create(callable $func, mixed ...$param): int|false {}
+        public static function defer(callable $callback): void {}
+        public static function set(array $options): void {}
         public static function getOptions(): ?array {}
         public static function exists(int $cid): bool {}
         public static function yield(): bool {}
@@ -15,12 +15,12 @@ namespace Swoole {
         public static function stats(): array {}
         public static function getCid(): int {}
         public static function getuid(): int {}
-        public static function getPcid(int $cid = 0): bool|int {}
-        public static function getContext(int $cid = 0): \Swoole\Coroutine\Context|bool|null {}
-        public static function getBackTrace(int $cid = 0, int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT, int $limit = 0): array|bool {}
-        public static function printBackTrace(int $cid = 0, int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT, int $limit = 0): ?bool {}
-        public static function getElapsed(int $cid = 0): int|bool {}
-        public static function getStackUsage(int $cid = 0): bool|int {}
+        public static function getPcid(int $cid = 0): false|int {}
+        public static function getContext(int $cid = 0): \Swoole\Coroutine\Context|null {}
+        public static function getBackTrace(int $cid = 0, int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT, int $limit = 0): array|false {}
+        public static function printBackTrace(int $cid = 0, int $options = DEBUG_BACKTRACE_PROVIDE_OBJECT, int $limit = 0): void {}
+        public static function getElapsed(int $cid = 0): int {}
+        public static function getStackUsage(int $cid = 0): false|int {}
         public static function list(): \Swoole\Coroutine\Iterator {}
         public static function listCoroutines(): \Swoole\Coroutine\Iterator {}
         public static function enableScheduler(): bool {}
@@ -28,7 +28,7 @@ namespace Swoole {
     }
 
     class ExitException {
-        public function getFlags(): mixed {}
+        public function getFlags(): int {}
         public function getStatus(): int {}
     }
 }

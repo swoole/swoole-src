@@ -1,10 +1,10 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 4bb30bed595349f95b44c5ad331a7de7c81ade01 */
+ * Stub hash: 6d4bc0408ffe0f2e1e7cd3c3fc73f5aaa244eb2d */
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Socket___construct, 0, 0, 3)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Socket___construct, 0, 0, 2)
 	ZEND_ARG_TYPE_INFO(0, domain, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, type, IS_LONG, 0)
-	ZEND_ARG_TYPE_INFO(0, protocol, IS_LONG, 0)
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, protocol, IS_LONG, 0, "IPPROTO_IP")
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Socket_bind, 0, 1, _IS_BOOL, 0)
@@ -113,7 +113,7 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Coroutine_Socket_sslHandshake arginfo_class_Swoole_Coroutine_Socket_checkLiveness
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_Socket_shutdown, 0, 0, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, how, IS_LONG, 0, "Swoole\\Coroutine\\Socket::SHUT_RDWR")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, how, IS_LONG, 0, "2")
 ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Coroutine_Socket_close arginfo_class_Swoole_Coroutine_Socket_checkLiveness

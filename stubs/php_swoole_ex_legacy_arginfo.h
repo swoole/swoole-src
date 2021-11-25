@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 3ac275a0141acd62d6398643a17c81436b22d524 */
+ * Stub hash: b34ba6d3ec570bd039d385f75fe01778a7494b25 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_get_objects, 0, 0, 0)
 ZEND_END_ARG_INFO()

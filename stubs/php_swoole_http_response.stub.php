@@ -7,7 +7,7 @@ namespace Swoole\Http {
 		public function redirect(string $location, int $http_code = 302): bool {}
 		public function cookie(string $name, string $value = '', int $expire = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = ''): bool {}
 		public function rawcookie(string $name, string $value = '', int $expire = 0 , string $path = '/', string $domain  = '', bool $secure = false , bool $httponly = false, string $samesite = '', string $priority = ''): bool {}
-		public function header(string $key, string $value, bool $format = true): bool {}
+		public function header(string $key, string|array $value, bool $format = true): bool {}
 		public function initHeader(): bool {}
 		public function isWritable(): bool {}
 		public function detach(): bool {}
