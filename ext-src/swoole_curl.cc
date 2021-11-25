@@ -93,7 +93,9 @@ void Multi::del_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd) {
     curl_multi_assign(multi_handle_, sockfd, NULL);
 
     Handle *handle = get_handle(cp);
-    handle->socket = nullptr;
+    if (handle) {
+        handle->socket = nullptr;
+    }
 
     swoole_trace_log(SW_TRACE_CO_CURL, SW_ECHO_RED " handle=%p, curl=%p, fd=%d", "[DEL_EVENT]", handle, cp, sockfd);
 }
