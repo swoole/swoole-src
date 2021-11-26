@@ -20,6 +20,14 @@
 #include "swoole_server.h"
 #include "swoole_signal.h"
 
+BEGIN_EXTERN_C()
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_event_arginfo.h"
+#else
+#include "stubs/php_swoole_event_legacy_arginfo.h"
+#endif
+END_EXTERN_C()
+
 using namespace swoole;
 using swoole::network::Socket;
 
@@ -55,59 +63,19 @@ static PHP_FUNCTION(swoole_event_isset);
 SW_EXTERN_C_END
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_add, 0, 0, 2)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_CALLABLE_INFO(0, read_callback, 1)
-    ZEND_ARG_CALLABLE_INFO(0, write_callback, 1)
-    ZEND_ARG_INFO(0, events)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_set, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_CALLABLE_INFO(0, read_callback, 1)
-    ZEND_ARG_CALLABLE_INFO(0, write_callback, 1)
-    ZEND_ARG_INFO(0, events)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_write, 0, 0, 2)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, data)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_defer, 0, 0, 1)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_cycle, 0, 0, 1)
-    ZEND_ARG_CALLABLE_INFO(0, callback, 1)
-    ZEND_ARG_INFO(0, before)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_del, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_event_isset, 0, 0, 1)
-    ZEND_ARG_INFO(0, fd)
-    ZEND_ARG_INFO(0, events)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_event_methods[] =
 {
-    ZEND_FENTRY(add, ZEND_FN(swoole_event_add), arginfo_swoole_event_add, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(del, ZEND_FN(swoole_event_del), arginfo_swoole_event_del, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(set, ZEND_FN(swoole_event_set), arginfo_swoole_event_set, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(isset, ZEND_FN(swoole_event_isset), arginfo_swoole_event_isset, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(dispatch, ZEND_FN(swoole_event_dispatch), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(defer, ZEND_FN(swoole_event_defer), arginfo_swoole_event_defer, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(cycle, ZEND_FN(swoole_event_cycle), arginfo_swoole_event_cycle, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(write, ZEND_FN(swoole_event_write), arginfo_swoole_event_write, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(wait, ZEND_FN(swoole_event_wait), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(rshutdown, ZEND_FN(swoole_event_rshutdown), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    ZEND_FENTRY(exit, ZEND_FN(swoole_event_exit), arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(add,       ZEND_FN(swoole_event_add),       arginfo_swoole_event_add,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(del,       ZEND_FN(swoole_event_del),       arginfo_swoole_event_del,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(set,       ZEND_FN(swoole_event_set),       arginfo_swoole_event_set,       ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(isset,     ZEND_FN(swoole_event_isset),     arginfo_swoole_event_isset,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(dispatch,  ZEND_FN(swoole_event_dispatch),  arginfo_swoole_event_dispatch,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(defer,     ZEND_FN(swoole_event_defer),     arginfo_swoole_event_defer,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(cycle,     ZEND_FN(swoole_event_cycle),     arginfo_swoole_event_cycle,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(write,     ZEND_FN(swoole_event_write),     arginfo_swoole_event_write,     ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(wait,      ZEND_FN(swoole_event_wait),      arginfo_swoole_event_wait,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(rshutdown, ZEND_FN(swoole_event_rshutdown), arginfo_swoole_event_rshutdown, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    ZEND_FENTRY(exit,      ZEND_FN(swoole_event_exit),      arginfo_swoole_event_exit,      ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on

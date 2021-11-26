@@ -22,6 +22,14 @@
 
 #include <libpq-fe.h>
 
+BEGIN_EXTERN_C()
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_postgresql_coro_arginfo.h"
+#else
+#include "stubs/php_swoole_postgresql_coro_legacy_arginfo.h"
+#endif
+END_EXTERN_C()
+
 namespace swoole {
 namespace postgresql {
 
@@ -152,97 +160,26 @@ static int meta_data_result_parse(PGObject *object);
 static void _php_pgsql_free_params(char **params, int num_params);
 
 // clang-format off
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_connect, 0, 0, -1)
-    ZEND_ARG_INFO(0, conninfo)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_query, 0, 0, 0)
-    ZEND_ARG_INFO(0, query)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_send_prepare, 0, 0, 2)
-    ZEND_ARG_INFO(0, stmtname)
-    ZEND_ARG_INFO(0, query)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_send_execute, 0, 0, 2)
-    ZEND_ARG_INFO(0, stmtname)
-    ZEND_ARG_INFO(0, pv_param_arr)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_all, 0, 0, 0)
-    ZEND_ARG_INFO(0, result)
-    ZEND_ARG_INFO(0, result_type)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_affected_rows, 0, 0, 0)
-    ZEND_ARG_INFO(0, result)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_num_rows, 0, 0, 0)
-    ZEND_ARG_INFO(0, result)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_field_count, 0, 0, 0)
-    ZEND_ARG_INFO(0, result)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_meta_data, 0, 0, 1)
-    ZEND_ARG_INFO(0, table_name)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_row, 0, 0, 1)
-    ZEND_ARG_INFO(0, result)
-    ZEND_ARG_INFO(0, row)
-    ZEND_ARG_INFO(0, result_type)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_escape, 0, 0, 1)
-    ZEND_ARG_INFO(0, string)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_assoc, 0, 0, 1)
-    ZEND_ARG_INFO(0, result)
-    ZEND_ARG_INFO(0, row)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_array, 0, 0, 1)
-    ZEND_ARG_INFO(0, result)
-    ZEND_ARG_INFO(0, row)
-    ZEND_ARG_INFO(0, result_type)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_pg_fetch_object, 0, 0, 1)
-    ZEND_ARG_INFO(0, result)
-    ZEND_ARG_INFO(0, row)
-    ZEND_ARG_INFO(0, class_name)
-    ZEND_ARG_INFO(0, l)
-    ZEND_ARG_INFO(0, ctor_params)
-ZEND_END_ARG_INFO()
-
 static const zend_function_entry swoole_postgresql_coro_methods[] =
 {
-    PHP_ME(swoole_postgresql_coro, __construct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, connect, arginfo_pg_connect, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, query, arginfo_pg_query, ZEND_ACC_PUBLIC )
-    PHP_ME(swoole_postgresql_coro, prepare, arginfo_pg_send_prepare, ZEND_ACC_PUBLIC )
-    PHP_ME(swoole_postgresql_coro, execute, arginfo_pg_send_execute, ZEND_ACC_PUBLIC )
-    PHP_ME(swoole_postgresql_coro, fetchAll, arginfo_pg_fetch_all, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, affectedRows, arginfo_pg_affected_rows, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, numRows, arginfo_pg_num_rows, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, fieldCount, arginfo_pg_field_count, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, metaData, arginfo_pg_meta_data, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, escape, arginfo_pg_escape, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, escapeLiteral, arginfo_pg_escape, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, escapeIdentifier, arginfo_pg_escape, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, fetchObject, arginfo_pg_fetch_object, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, fetchAssoc, arginfo_pg_fetch_assoc, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, fetchArray, arginfo_pg_fetch_array, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, fetchRow, arginfo_pg_fetch_row, ZEND_ACC_PUBLIC)
-    PHP_ME(swoole_postgresql_coro, __destruct, arginfo_swoole_void, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, __construct,      arginfo_class_Swoole_Coroutine_PostgreSQL___construct,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, connect,          arginfo_class_Swoole_Coroutine_PostgreSQL_connect,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, query,            arginfo_class_Swoole_Coroutine_PostgreSQL_query,            ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, prepare,          arginfo_class_Swoole_Coroutine_PostgreSQL_prepare,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, execute,          arginfo_class_Swoole_Coroutine_PostgreSQL_execute,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchAll,         arginfo_class_Swoole_Coroutine_PostgreSQL_fetchAll,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, affectedRows,     arginfo_class_Swoole_Coroutine_PostgreSQL_affectedRows,     ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, numRows,          arginfo_class_Swoole_Coroutine_PostgreSQL_numRows,          ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fieldCount,       arginfo_class_Swoole_Coroutine_PostgreSQL_fieldCount,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, metaData,         arginfo_class_Swoole_Coroutine_PostgreSQL_metaData,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, escape,           arginfo_class_Swoole_Coroutine_PostgreSQL_escape,           ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, escapeLiteral,    arginfo_class_Swoole_Coroutine_PostgreSQL_escapeLiteral,    ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, escapeIdentifier, arginfo_class_Swoole_Coroutine_PostgreSQL_escapeIdentifier, ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchObject,      arginfo_class_Swoole_Coroutine_PostgreSQL_fetchObject,      ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchAssoc,       arginfo_class_Swoole_Coroutine_PostgreSQL_fetchAssoc,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchArray,       arginfo_class_Swoole_Coroutine_PostgreSQL_fetchArray,       ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, fetchRow,         arginfo_class_Swoole_Coroutine_PostgreSQL_fetchRow,         ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_postgresql_coro, __destruct,       arginfo_class_Swoole_Coroutine_PostgreSQL___destruct,       ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
 // clang-format on
