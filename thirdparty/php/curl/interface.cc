@@ -2745,10 +2745,13 @@ static void _php_curl_free(php_curl *ch) {
     curl_easy_setopt(ch->cp, CURLOPT_WRITEFUNCTION, curl_write_nothing);
 
     swoole::curl::Handle *handle = nullptr;
-    curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle);
 
-    if (handle && handle->multi) {
-        handle->multi->remove_handle(ch);
+    if (curl_easy_getinfo(ch->cp, CURLINFO_PRIVATE, &handle) && handle) {
+        if (handle->multi) {
+            handle->multi->remove_handle(ch);
+        }
+    } else {
+        handle = nullptr;
     }
 
     /* cURL destructors should be invoked only by last curl handle */
