@@ -63,7 +63,7 @@ int Multi::handle_socket(CURL *easy, curl_socket_t s, int action, void *userp, v
 }
 
 Socket *Multi::create_socket(CURL *cp, curl_socket_t sockfd) {
-    if (swoole_event_is_available() && !swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL)) {
+    if (!swoole_event_isset_handler(PHP_SWOOLE_FD_CO_CURL)) {
         swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_READ, cb_readable);
         swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_WRITE, cb_writable);
         swoole_event_set_handler(PHP_SWOOLE_FD_CO_CURL | SW_EVENT_ERROR, cb_error);
@@ -109,13 +109,11 @@ void Multi::set_event(CURL *cp, void *socket_ptr, curl_socket_t sockfd, int acti
     }
     assert(socket->fd > 0);
     socket->fd = sockfd;
-    if (swoole_event_is_available()) {
-        if (socket->events) {
-            swoole_event_set(socket, events);
-        } else {
-            if (swoole_event_add(socket, events) == SW_OK) {
-                event_count_++;
-            }
+    if (socket->events) {
+        swoole_event_set(socket, events);
+    } else {
+        if (swoole_event_add(socket, events) == SW_OK) {
+            event_count_++;
         }
     }
     Handle *handle = get_handle(cp);
@@ -164,7 +162,7 @@ CURLcode Multi::exec(php_curl *ch) {
 
     SW_LOOP {
         if (handle->socket && handle->socket->removed) {
-            if (swoole_event_is_available() && swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
+            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
                 event_count_++;
             }
             swoole_trace_log(
@@ -185,7 +183,7 @@ CURLcode Multi::exec(php_curl *ch) {
         int bitmask = 0;
         if (sockfd >= 0) {
             bitmask = handle->event_bitmask;
-            if (handle->socket && !handle->socket->removed && swoole_event_is_available() && swoole_event_del(handle->socket) == SW_OK) {
+            if (handle->socket && !handle->socket->removed && swoole_event_del(handle->socket) == SW_OK) {
                 event_count_--;
             }
         }
@@ -203,7 +201,7 @@ CURLcode Multi::exec(php_curl *ch) {
         }
         set_timer();
         if (sockfd >= 0 && handle->socket && handle->socket->removed) {
-            if (swoole_event_is_available() && swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
+            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
                 event_count_++;
             }
         }
@@ -275,7 +273,7 @@ long Multi::select(php_curlm *mh, double timeout) {
         swoole_trace_log(SW_TRACE_CO_CURL, "handle=%p, handle->socket=%p, handle->socket->removed=%d", handle, handle ? handle->socket :nullptr);
 
         if (handle && handle->socket && handle->socket->removed) {
-            if (swoole_event_is_available() && swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
+            if (swoole_event_add(handle->socket, get_event(handle->action)) == SW_OK) {
                 event_count_++;
             }
             swoole_trace_log(
@@ -304,7 +302,7 @@ long Multi::select(php_curlm *mh, double timeout) {
             continue;
         }
         Handle *handle = get_handle(ch->cp);
-        if (handle && handle->socket && !handle->socket->removed && swoole_event_is_available() && swoole_event_del(handle->socket) == SW_OK) {
+        if (handle && handle->socket && !handle->socket->removed && swoole_event_del(handle->socket) == SW_OK) {
             swoole_trace_log(
                 SW_TRACE_CO_CURL, "suspend, handle=%p, curl=%p, fd=%d", handle, ch->cp, handle->socket->get_fd());
             event_count_--;
@@ -343,7 +341,7 @@ void Multi::callback(Handle *handle, int event_bitmask) {
     }
     if (!co) {
         if (handle) {
-            if (swoole_event_is_available() && swoole_event_del(handle->socket) == SW_OK) {
+            if (swoole_event_del(handle->socket) == SW_OK) {
                 event_count_--;
             }
         } else {
@@ -358,16 +356,14 @@ void Multi::callback(Handle *handle, int event_bitmask) {
         return;
     }
     defer_callback = true;
-    if (swoole_event_is_available()) {
-        swoole_event_defer(
-            [this](void *data) {
-                defer_callback = false;
-                if (co) {
-                    co->resume();
-                }
-            },
-            nullptr);
-    }
+    swoole_event_defer(
+        [this](void *data) {
+            defer_callback = false;
+            if (co) {
+                co->resume();
+            }
+        },
+        nullptr);
 }
 }  // namespace curl
 }  // namespace swoole
