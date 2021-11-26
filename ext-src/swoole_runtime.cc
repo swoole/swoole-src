@@ -28,6 +28,14 @@
 
 #include <unordered_map>
 
+BEGIN_EXTERN_C()
+#if PHP_VERSION_ID >= 80000
+#include "stubs/php_swoole_runtime_arginfo.h"
+#else
+#include "stubs/php_swoole_runtime_legacy_arginfo.h"
+#endif
+END_EXTERN_C()
+
 /* openssl */
 #ifndef OPENSSL_NO_ECDH
 #define HAVE_ECDH 1
@@ -70,19 +78,6 @@ static int socket_stat(php_stream *stream, php_stream_statbuf *ssb);
 static int socket_cast(php_stream *stream, int castas, void **ret);
 static bool socket_ssl_set_options(Socket *sock, php_stream_context *context);
 // clang-format off
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_void, 0, 0, 0)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_enableCoroutine, 0, 0, 0)
-    ZEND_ARG_INFO(0, enable)
-    ZEND_ARG_INFO(0, flags)
-ZEND_END_ARG_INFO()
-
-ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_runtime_setHookFlags, 0, 0, 1)
-    ZEND_ARG_INFO(0, flags)
-ZEND_END_ARG_INFO()
-
 static zend_class_entry *swoole_runtime_ce;
 
 static php_stream_ops socket_ops {
@@ -131,9 +126,9 @@ static std::vector<std::string> unsafe_functions {
 
 static const zend_function_entry swoole_runtime_methods[] =
 {
-    PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_runtime, getHookFlags, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
-    PHP_ME(swoole_runtime, setHookFlags, arginfo_swoole_runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, enableCoroutine, arginfo_class_Swoole_Runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, getHookFlags, arginfo_class_Swoole_Runtime_getHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+    PHP_ME(swoole_runtime, setHookFlags, arginfo_class_Swoole_Runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
