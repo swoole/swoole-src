@@ -15,8 +15,6 @@ use Symfony\Component\HttpClient\HttplugClient as SymfonyHttplugClient;
 use Http\Client\Common\PluginClient;
 use Http\Discovery\Psr17FactoryDiscovery;
 
-Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
-
 $httpClient = new SymfonyHttplugClient(
     SymfonyHttpClient::create(['max_duration' => 5])
 );
@@ -35,7 +33,6 @@ $data_2 = json_decode($data_1->data);
 Assert::eq($data_2->key, $uid);
 echo 'Done' . PHP_EOL;
 
-Runtime::enableCoroutine(SWOOLE_HOOK_NATIVE_CURL);
 ?>
 --EXPECT--
 Done
