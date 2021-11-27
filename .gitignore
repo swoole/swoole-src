@@ -107,3 +107,4 @@ core-tests/samples/CMakeFiles/
 *.info
 /html
 /tests/include/lib/vendor/
+/tests/include/lib/composer.lock
