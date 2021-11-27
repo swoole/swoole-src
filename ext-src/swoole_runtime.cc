@@ -23,7 +23,7 @@
 #endif
 
 #if PHP_VERSION_ID >= 80000
-#include "swoole_hook_sockets_arginfo.h"
+#include "stubs/php_swoole_hook_sockets_arginfo.h"
 #endif
 
 #include <unordered_map>
