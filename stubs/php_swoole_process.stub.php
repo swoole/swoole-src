@@ -13,7 +13,9 @@ namespace Swoole {
         public static function alarm(int $usec, int $type = 0): bool {}
         public static function wait(bool $blocking = true): array|false {}
         public static function daemon(bool $nochdir = true, bool $noclose = true, array $pipes = []): bool {}
+        #ifdef HAVE_CPU_AFFINITY
         public static function setAffinity(array $cpu_settings): bool {}
+        #endif
         public function set(array $settings): void {}
         public function setTimeout(float $seconds): bool {}
         public function setBlocking(bool $blocking): void {}

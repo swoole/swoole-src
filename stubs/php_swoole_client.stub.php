@@ -9,14 +9,18 @@ namespace Swoole {
 		public function send(string $data, int $flag = 0): false|int {}
 		public function sendfile(string $filename, int $offset = 0, int $length = 0): bool {}
 		public function sendto(string $ip, int $port, string $data): bool {}
+		#ifdef SW_USE_OPENSSL
 		public function enableSSL(): bool {}
 		public function getPeerCert(): string|bool {}
 		public function verifyPeerCert(): bool {}
+		#endif
 		public function isConnected(): bool {}
 		public function getsockname(): array|false {}
 		public function getpeername(): array|false {}
 		public function close(bool $force = false): bool {}
 		public function shutdown(int $how): bool {}
+		#ifdef SWOOLE_SOCKETS_SUPPORT
 		public function getSocket(): \Socket|false {}
+		#endif
 	}
 }
