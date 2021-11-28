@@ -60,6 +60,7 @@ void Coroutine::yield() {
         on_yield(task);
     }
     current = origin;
+    set_yield_mesc();
     ctx.swap_out();
 }
 
@@ -112,6 +113,7 @@ void Coroutine::resume() {
     }
     origin = current;
     current = this;
+    calc_idle_mesc();
     ctx.swap_in();
     check_end();
 }

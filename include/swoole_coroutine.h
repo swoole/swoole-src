@@ -118,6 +118,21 @@ class Coroutine {
         cancel_fn_ = cancel_fn;
     }
 
+    inline void set_yield_mesc() {
+        yield_msec = Timer::get_absolute_msec();
+    }
+
+    inline void calc_idle_mesc() {
+        if (yield_msec > 0) {
+            idle_msec += Timer::get_absolute_msec() - yield_msec;
+            yield_msec = 0;
+        }
+    }
+
+    inline long get_idle_mesc() const {
+        return idle_msec;
+    }
+
     static std::unordered_map<long, Coroutine *> coroutines;
 
     static void set_on_yield(SwapCallback func);
@@ -196,6 +211,11 @@ class Coroutine {
         return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() : -1;
     }
 
+    static inline long get_execute_time(long cid) {
+        Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
+        return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() - co->get_idle_mesc() : -1;
+    }
+
     static void print_list();
 
   protected:
@@ -213,6 +233,8 @@ class Coroutine {
     enum ResumeCode resume_code_ = RC_OK;
     long cid;
     long init_msec = Timer::get_absolute_msec();
+    long yield_msec = 0;
+    long idle_msec = 0;
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;

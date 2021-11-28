@@ -25,6 +25,7 @@ namespace Swoole {
         public static function listCoroutines(): \Swoole\Coroutine\Iterator {}
         public static function enableScheduler(): bool {}
         public static function disableScheduler(): bool {}
+        public static function getExecuteTime(): int {}
     }
 
     class ExitException {
