@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: bd2e803ff7900bb168a9101fdb8416c56894eab4 */
+ * Stub hash: 55087b0a0f40f43c0bcf426245cf1d69f2b6f51f */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Http_Client___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, host, IS_STRING, 0)
@@ -94,7 +94,10 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut, 0, 0, MAY_BE_FALSE|MAY_BE_STRING)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert arginfo_class_Swoole_Coroutine_Http_Client_getHeaderOut
+#if defined(SW_USE_OPENSSL)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Http_Client_getPeerCert, 0, 0, MAY_BE_FALSE|MAY_BE_STRING)
+ZEND_END_ARG_INFO()
+#endif
 
 #define arginfo_class_Swoole_Coroutine_Http_Client_upgrade arginfo_class_Swoole_Coroutine_Http_Client_execute
 

@@ -11,7 +11,7 @@ namespace Swoole\Coroutine {
         public function recv(int $length = 65536, float $timeout = 0): string|false {}
         public function send(string $data, float $timeout = 0): int|false {}
         public function readVector(array $io_vector, float $timeout = 0): false|array {}
-        public function readVectorAll(array $io_vector, float $timeout = 0): bool|array {}
+        public function readVectorAll(array $io_vector, float $timeout = 0): false|array {}
         public function writeVector(array $io_vector, float $timeout = 0): false|int {}
         public function writeVectorAll(array $io_vector, float $timeout = 0): false|int {}
         public function sendFile(string $file, int $offset = 0, int $length = 0): bool {}

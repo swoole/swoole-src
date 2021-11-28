@@ -24,7 +24,9 @@ namespace Swoole\Coroutine\Http {
 		public function getCookies(): null|array|false {}
 		public function getStatusCode(): int|false {}
 		public function getHeaderOut(): false|string {}
+		#ifdef SW_USE_OPENSSL
 		public function getPeerCert(): false|string {}
+		#endif
 		public function upgrade(string $path): bool {}
 		public function push(mixed $data, int $opcode = SWOOLE_WEBSOCKET_OPCODE_TEXT, int $flags = SWOOLE_WEBSOCKET_FLAG_FIN): bool {}
 		public function recv(float $timeout = 0): bool|\Swoole\WebSocket\Frame {}

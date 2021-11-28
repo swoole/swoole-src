@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 61258787d6b03df36c0c624b7087dc5db0afe875 */
+ * Stub hash: e88e084c2cc0a79c621e0b71000ee2acfecee366 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -31,11 +31,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_listen, 
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_sendMessage, 0, 2, _IS_BOOL, 0)
-	ZEND_ARG_TYPE_INFO(0, message, IS_STRING, 0)
+	ZEND_ARG_TYPE_INFO(0, message, IS_MIXED, 0)
 	ZEND_ARG_TYPE_INFO(0, dst_worker_id, IS_LONG, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_addProcess, 0, 1, MAY_BE_FALSE|MAY_BE_LONG)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_addProcess, 0, 1, IS_LONG, 0)
 	ZEND_ARG_OBJ_INFO(0, process, Swoole\\Process, 0)
 ZEND_END_ARG_INFO()
 
@@ -66,7 +66,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_sendfile, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, length, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Server_stats, 0, 0, MAY_BE_FALSE|MAY_BE_ARRAY)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_stats, 0, 0, IS_ARRAY, 0)
 ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Server_bind, 0, 2, _IS_BOOL, 0)
@@ -173,9 +173,11 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Server_getMasterPid arginfo_class_Swoole_Server_getManagerPid
 
-ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_getSocket, 0, 0, Swoole\\resource, MAY_BE_FALSE)
+#if defined(SWOOLE_SOCKETS_SUPPORT)
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Server_getSocket, 0, 0, Socket, MAY_BE_FALSE)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, port, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
+#endif
 
 #define arginfo_class_Swoole_Server_getLastError arginfo_class_Swoole_Server_getManagerPid
 

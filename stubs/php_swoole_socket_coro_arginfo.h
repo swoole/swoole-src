@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6d4bc0408ffe0f2e1e7cd3c3fc73f5aaa244eb2d */
+ * Stub hash: 6edc6c88fe7b9b4277111556fa31ed9e8d1cf3ca */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Socket___construct, 0, 0, 2)
 	ZEND_ARG_TYPE_INFO(0, domain, IS_LONG, 0)
@@ -48,10 +48,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Socket_re
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Socket_readVectorAll, 0, 1, MAY_BE_BOOL|MAY_BE_ARRAY)
-	ZEND_ARG_TYPE_INFO(0, io_vector, IS_ARRAY, 0)
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, timeout, IS_DOUBLE, 0, "0")
-ZEND_END_ARG_INFO()
+#define arginfo_class_Swoole_Coroutine_Socket_readVectorAll arginfo_class_Swoole_Coroutine_Socket_readVector
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Socket_writeVector, 0, 1, MAY_BE_FALSE|MAY_BE_LONG)
 	ZEND_ARG_TYPE_INFO(0, io_vector, IS_ARRAY, 0)

@@ -5,7 +5,7 @@ namespace Swoole\Coroutine\Http2 {
         public function __destruct() {}
         public function set(array $settings): bool {}
         public function connect(): bool {}
-        public function stats(string $key = ''): array|false|int {}
+        public function stats(string $key = ''): array|int {}
         public function isStreamExist(int $stream_id): bool {}
         public function send(\Swoole\Http2\Request $request): int|false {}
         public function write(int $stream_id, mixed $data, bool $end_stream = false): bool {}
