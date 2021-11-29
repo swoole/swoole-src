@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 20f659cb43717bb3818f08b4d0d4000628629a6e */
+ * Stub hash: f5d2fcbed05b70d92a528926b229eb75d91c0b3c */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_PostgreSQL___construct, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -19,7 +19,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Coroutine_PostgreSQL_escapeIdentifier arginfo_class_Swoole_Coroutine_PostgreSQL_escape
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Coroutine_PostgreSQL_query, 0, 1, IS_MIXED, 0)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_PostgreSQL_query, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, query, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 

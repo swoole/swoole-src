@@ -7,7 +7,10 @@ namespace Swoole\Coroutine {
         public function escape(string $string): false|string {}
         public function escapeLiteral(string $string): false|string {}
         public function escapeIdentifier(string $string): false|string {}
-        public function query(string $query): mixed {}
+        /**
+         * @return resource|false
+         */
+        public function query(string $query) {}
         public function prepare(string $stmtname, string $query): ?bool {}
         public function execute(string $stmtname, array $pv_param_arr): ?bool {}
         /**

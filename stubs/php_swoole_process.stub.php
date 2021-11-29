@@ -13,17 +13,19 @@ namespace Swoole {
         public static function alarm(int $usec, int $type = 0): bool {}
         public static function wait(bool $blocking = true): array|false {}
         public static function daemon(bool $nochdir = true, bool $noclose = true, array $pipes = []): bool {}
+        #ifdef HAVE_CPU_AFFINITY
         public static function setAffinity(array $cpu_settings): bool {}
+        #endif
         public function set(array $settings): void {}
         public function setTimeout(float $seconds): bool {}
-        public function setBlocking(bool $blocking): ?bool {}
+        public function setBlocking(bool $blocking): void {}
         public function setPriority(int $which, int $priority): bool {}
         public function getPriority(int $which): int {}
         public function start(): bool|int {}
         public function write(string $data): false|int {}
         public function read(int $size = 8192): false|string {}
         public function close(int $which = SW_PIPE_CLOSE_BOTH): bool {}
-        public function exit(int $exit_code = 0): ?bool {}
+        public function exit(int $exit_code = 0): void {}
         public function exec(string $exec_file, array $args): bool {}
         public function exportSocket(): \Swoole\Coroutine\Socket|false {}
         public function name(string $process_name): bool {}
