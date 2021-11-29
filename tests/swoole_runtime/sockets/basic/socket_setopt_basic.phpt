@@ -1,9 +1,10 @@
 --TEST--
-Test socket_setopt() basic functionality
+swoole_runtime/sockets/basic: Test socket_setopt() basic functionality
 --CREDITS--
 Rodrigo Prado de Jesus <royopa [at] gmail [dot] com>
 User Group: PHPSP #PHPTestFestBrasil
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('skip. Sockets extension is not available.');

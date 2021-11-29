@@ -1,6 +1,7 @@
 --TEST--
-Unix domain socket Loopback test
+swoole_runtime/sockets/basic: Unix domain socket Loopback test
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (substr(PHP_OS, 0, 3) == 'WIN') {
     die('skip.. Not valid for Windows');

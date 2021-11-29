@@ -1,9 +1,10 @@
 --TEST--
-mixed socket_getopt( resource $socket , int $level , int $optname ) ;
+swoole_runtime/sockets/basic: mixed socket_getopt( resource $socket , int $level , int $optname ) ;
 --CREDITS--
 marcosptf -
 <marcosptf@yahoo.com.br> - #phparty7 - @phpsp - novatec/2015 - sao paulo - br
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');
@@ -61,7 +62,6 @@ run(function () {
     unset($r);
 });
 ?>
-
 --EXPECT--
 Setting IP_MULTICAST_TTL
 bool(true)

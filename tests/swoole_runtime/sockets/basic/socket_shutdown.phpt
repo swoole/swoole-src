@@ -1,8 +1,9 @@
 --TEST--
-bool socket_shutdown ( resource $socket [, int $how = 2 ] ) ;
+swoole_runtime/sockets/basic: bool socket_shutdown ( resource $socket [, int $how = 2 ] ) ;
 --CREDITS--
 marcosptf - <marcosptf@yahoo.com.br> - #phparty7 - @phpsp - novatec/2015 - sao paulo - br
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (getenv("SKIP_ONLINE_TESTS")) die("skip online test");
 if (!extension_loaded('sockets')) {

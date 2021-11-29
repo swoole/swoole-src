@@ -1,9 +1,10 @@
 --TEST--
-ext/sockets - socket_create_listen - test for used socket
+swoole_runtime/sockets/basic: ext/sockets - socket_create_listen - test for used socket
 --CREDITS--
 Florian Anderiasch
 fa@php.net
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
     if (!extension_loaded('sockets')) {
         die('skip - sockets extension not available.');
@@ -30,4 +31,3 @@ run(function () {
 });
 ?>
 --EXPECT--
-

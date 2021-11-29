@@ -1,6 +1,7 @@
 --TEST--
-Test socket_set_block return values
+swoole_runtime/sockets/basic: Test socket_set_block return values
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');

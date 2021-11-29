@@ -1,6 +1,7 @@
 --TEST--
-Test parameter handling in socket_select().
+swoole_runtime/sockets/basic: Test parameter handling in socket_select().
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');
