@@ -118,18 +118,18 @@ class Coroutine {
         cancel_fn_ = cancel_fn;
     }
 
-    inline void set_yield_mesc() {
+    inline void set_yield_msec() {
         yield_msec = Timer::get_absolute_msec();
     }
 
-    inline void calc_idle_mesc() {
+    inline void calc_idle_msec() {
         if (yield_msec > 0) {
             idle_msec += Timer::get_absolute_msec() - yield_msec;
             yield_msec = 0;
         }
     }
 
-    inline long get_idle_mesc() const {
+    inline long get_idle_msec() const {
         return idle_msec;
     }
 
@@ -213,7 +213,7 @@ class Coroutine {
 
     static inline long get_execute_time(long cid) {
         Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
-        return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() - co->get_idle_mesc() : -1;
+        return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() - co->get_idle_msec() : -1;
     }
 
     static void print_list();
