@@ -14,7 +14,7 @@ $i = 1000;
 
 run(function()  use ($i) {
     go(function() use ($i) {
-        $time = 3;
+        $time = 1;
         sleep($time);
         while($i < 0) {
             $a = 1;
@@ -22,7 +22,7 @@ run(function()  use ($i) {
         }
         sleep($time);
         echo 'DONE';
-        Assert::assert(Swoole\Coroutine::getExecuteTime() < $time * 2);
+        Assert::assert(Swoole\Coroutine::getExecuteTime() < $time * 2 * 1000);
      }
 });
 ?>
