@@ -1306,7 +1306,7 @@ static PHP_METHOD(swoole_coroutine, list) {
     zval_ptr_dtor(&zlist);
 }
 
-static PHP_FUNCTION(swoole_coroutine, getExecuteTime) {
+static PHP_METHOD(swoole_coroutine, getExecuteTime) {
     RETURN_LONG(PHPCoroutine::get_execute_time());
 }
 
