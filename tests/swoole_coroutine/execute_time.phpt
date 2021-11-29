@@ -9,21 +9,16 @@ require __DIR__ . '/../include/bootstrap.php';
 use function Swoole\Coroutine\run;
 use function Swoole\Coroutine\go;
 
-Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
-$i = 1000;
-
-run(function()  use ($i) {
-    go(function() use ($i) {
-        $time = 1;
+run(function(){
+    go(function(){
+        $time = 2;
+        Swoole\Runtime::enableCoroutine(false);
         sleep($time);
-        while($i < 0) {
-            $a = 1;
-            $i--;
-        }
+        Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
         sleep($time);
         echo 'DONE';
-        Assert::assert(Swoole\Coroutine::getExecuteTime() < $time * 2 * 1000);
-     }
+        Assert::assert(Swoole\Coroutine::getExecuteTime() == $time);
+     });
 });
 ?>
 --EXPECT--
