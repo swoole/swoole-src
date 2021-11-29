@@ -17,7 +17,7 @@ run(function(){
         Swoole\Runtime::enableCoroutine(SWOOLE_HOOK_ALL);
         sleep($time);
         echo 'DONE';
-        Assert::assert(Swoole\Coroutine::getExecuteTime() == $time);
+        Assert::assert(Swoole\Coroutine::getExecuteTime() == $time * 1000);
      });
 });
 ?>
