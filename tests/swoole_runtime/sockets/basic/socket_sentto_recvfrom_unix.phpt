@@ -1,6 +1,7 @@
 --TEST--
-Test if socket_recvfrom() receives data sent by socket_sendto() through a Unix domain socket
+swoole_runtime/sockets/basic: Test if socket_recvfrom() receives data sent by socket_sendto() through a Unix domain socket
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (substr(PHP_OS, 0, 3) == 'WIN') {
     die('skip.. Not valid for Windows');

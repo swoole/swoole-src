@@ -1,6 +1,7 @@
 --TEST--
-Test if socket_set_option() returns 'Unable to set socket option' failure for invalid options
+swoole_runtime/sockets/basic: Test if socket_set_option() returns 'Unable to set socket option' failure for invalid options
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP sockets extension not available.');

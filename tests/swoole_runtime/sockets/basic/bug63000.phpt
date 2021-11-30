@@ -1,6 +1,7 @@
 --TEST--
-Bug #63000: Multicast on OSX
+swoole_runtime/sockets/basic: Multicast on OSX
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');

@@ -1,6 +1,7 @@
 --TEST--
-socket_select() error conditions
+swoole_runtime/sockets/basic: socket_select() error conditions
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) die('skip socket extension not available');
 die('skip unsupport');

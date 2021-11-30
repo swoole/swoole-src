@@ -1,10 +1,11 @@
 --TEST--
-Test if socket_set_option() works, option:SO_SEOLINGER
+swoole_runtime/sockets/basic:SO_SEOLINGER
 --DESCRIPTION--
 -wrong params
 -set/get params comparison
 -l_linger not given
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP sockets extension not available.');

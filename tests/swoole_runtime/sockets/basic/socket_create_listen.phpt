@@ -1,6 +1,7 @@
 --TEST--
-Test if socket binds on 31338
+swoole_runtime/sockets/basic: Test if socket binds on 31338
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (substr(PHP_OS, 0, 3) == 'WIN') {
     die('skip.. Not valid for Windows');
