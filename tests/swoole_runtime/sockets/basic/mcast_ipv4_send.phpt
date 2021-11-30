@@ -1,6 +1,7 @@
 --TEST--
-Multicast support: IPv4 send options
+swoole_runtime/sockets/basic: IPv4 send options
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');

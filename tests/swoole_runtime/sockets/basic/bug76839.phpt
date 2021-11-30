@@ -1,6 +1,7 @@
 --TEST--
-Bug #76839: socket_recvfrom may return an invalid 'from' address on MacOS
+swoole_runtime/sockets/basic: socket_recvfrom may return an invalid 'from' address on MacOS
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (strtolower(substr(PHP_OS, 0, 3)) === 'win') {
     die('skip not valid for Windows.');

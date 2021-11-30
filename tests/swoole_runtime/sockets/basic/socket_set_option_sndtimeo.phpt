@@ -1,9 +1,10 @@
 --TEST--
-Test if socket_set_option() works, option:SO_SNDTIMEO
+swoole_runtime/sockets/basic:SO_SNDTIMEO
 --DESCRIPTION--
 -wrong params
 -set/get params comparison
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
         die('SKIP sockets extension not available.');

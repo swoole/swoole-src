@@ -1,8 +1,9 @@
 --TEST--
-void socket_clear_error ([ resource $socket ] ) ;
+swoole_runtime/sockets/basic: void socket_clear_error ([ resource $socket ] ) ;
 --CREDITS--
 marcosptf - <marcosptf@yahoo.com.br> - #phparty7 - @phpsp - novatec/2015 - sao paulo - br
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
   die('SKIP sockets extension not available.');

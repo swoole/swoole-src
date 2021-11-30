@@ -1,6 +1,7 @@
 --TEST--
-Test for socket_create_pair()
+swoole_runtime/sockets/basic: Test for socket_create_pair()
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');

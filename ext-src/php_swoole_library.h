@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: 471e0a545312f42c2cfc3004e66d1ff3656bc9bf */
+/* $Id: acfe73e33caae4c5d12da7456a261b64b191f588 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -295,8 +295,6 @@ static const char* swoole_library_source_core_constant =
     "\n"
     "    public const OPTION_STACK_SIZE = 'stack_size';\n"
     "\n"
-    "    public const OPTION_NAME_RESOLVER = 'name_resolver';\n"
-    "\n"
     "    public const OPTION_DNS_CACHE_EXPIRE = 'dns_cache_expire';\n"
     "\n"
     "    public const OPTION_DNS_CACHE_CAPACITY = 'dns_cache_capacity';\n"
@@ -304,8 +302,6 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_MAX_CONCURRENCY = 'max_concurrency';\n"
     "\n"
     "    public const OPTION_RECONNECT = 'reconnect';\n"
-    "\n"
-    "    public const OPTION_MAX_RETRIES = 'max_retries';\n"
     "\n"
     "    public const OPTION_DEFER = 'defer';\n"
     "\n"
@@ -374,8 +370,6 @@ static const char* swoole_library_source_core_constant =
     "    public const OPTION_MAX_WAIT_TIME = 'max_wait_time';\n"
     "\n"
     "    public const OPTION_MAX_QUEUED_BYTES = 'max_queued_bytes';\n"
-    "\n"
-    "    public const OPTION_WORKER_MAX_CONCURRENCY = 'worker_max_concurrency';\n"
     "\n"
     "    public const OPTION_SEND_TIMEOUT = 'send_timeout';\n"
     "\n"

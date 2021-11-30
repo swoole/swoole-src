@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-11-17</date>
-    <time>13:00:00</time>
+    <date>2021-11-29</date>
+    <time>11:00:00</time>
     <version>
-        <release>4.8.2</release>
+        <release>4.8.3</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -531,6 +531,8 @@
             <file role="src" name="ext-src/swoole_coroutine_system.cc" />
             <file role="src" name="ext-src/swoole_curl.cc" />
             <file role="src" name="ext-src/swoole_event.cc" />
+            <file role="src" name="ext-src/swoole_hook_sockets.stub.php" />
+            <file role="src" name="ext-src/swoole_hook_sockets_arginfo.h" />
             <file role="src" name="ext-src/swoole_http2_client_coro.cc" />
             <file role="src" name="ext-src/swoole_http2_server.cc" />
             <file role="src" name="ext-src/swoole_http_client_coro.cc" />
@@ -733,7 +735,6 @@
             <file role="test" name="tests/include/config.php" />
             <file role="test" name="tests/include/functions.php" />
             <file role="test" name="tests/include/lib/composer.json" />
-            <file role="test" name="tests/include/lib/composer.lock" />
             <file role="test" name="tests/include/lib/src/Assert.php" />
             <file role="test" name="tests/include/lib/src/CoServer.php" />
             <file role="test" name="tests/include/lib/src/CurlManager.php" />
@@ -779,6 +780,7 @@
             <file role="test" name="tests/include/ssl_certs/sni_server_us_key.pem" />
             <file role="test" name="tests/init" />
             <file role="test" name="tests/new" />
+            <file role="test" name="tests/php-cs-fixer" />
             <file role="test" name="tests/run-tests" />
             <file role="test" name="tests/start.sh" />
             <file role="test" name="tests/swoole_atomic/atomic.phpt" />
@@ -1089,6 +1091,7 @@
             <file role="test" name="tests/swoole_curl/close_before_resume.phpt" />
             <file role="test" name="tests/swoole_curl/concurrent.phpt" />
             <file role="test" name="tests/swoole_curl/error.phpt" />
+            <file role="test" name="tests/swoole_curl/event_exit.phpt" />
             <file role="test" name="tests/swoole_curl/exec_twice.phpt" />
             <file role="test" name="tests/swoole_curl/guzzle.phpt" />
             <file role="test" name="tests/swoole_curl/guzzle/cancel.phpt" />
@@ -1141,6 +1144,7 @@
             <file role="test" name="tests/swoole_curl/setopt/nobody.phpt" />
             <file role="test" name="tests/swoole_curl/sleep.phpt" />
             <file role="test" name="tests/swoole_curl/ssl/version.phpt" />
+            <file role="test" name="tests/swoole_curl/symfony-noco.phpt" />
             <file role="test" name="tests/swoole_curl/symfony.phpt" />
             <file role="test" name="tests/swoole_curl/template" />
             <file role="test" name="tests/swoole_curl/timer_coredump.phpt" />
@@ -1643,6 +1647,54 @@
             <file role="test" name="tests/swoole_runtime/set_hook_flags.phpt" />
             <file role="test" name="tests/swoole_runtime/sleep.phpt" />
             <file role="test" name="tests/swoole_runtime/sleep_yield.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/bug46360.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/bug49341.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/bug63000.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/bug76839.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/ipv4loop.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/ipv6_skipif.inc" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/ipv6loop.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/mcast_helpers.php.inc" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/mcast_ipv4_recv.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/mcast_ipv4_send.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/mcast_ipv4_send_error.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/mcast_ipv6_recv.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/mcast_ipv6_recv_limited.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/mcast_ipv6_send.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_accept_failure.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_bind.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_clear_error.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_connect_params.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_create_listen-nobind.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_create_listen.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_create_listen_used.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_create_pair.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_getopt.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_getpeername.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_getpeername_ipv4loop.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_getpeername_ipv6loop.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_getsockname.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_listen-wrongparams.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_read_params.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_select-wrongparams-2.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_select.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_select_error.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_sentto_recvfrom_ipv4_udp.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_sentto_recvfrom_ipv6_udp.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_sentto_recvfrom_unix.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_block-retval.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_nonblock-retval.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_nonblock.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_option_bindtodevice.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_option_error_socket_option.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_option_in6_pktinfo.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_option_rcvtimeo.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_option_seolinger.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_set_option_sndtimeo.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_setopt_basic.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_shutdown.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/socket_strerror.phpt" />
+            <file role="test" name="tests/swoole_runtime/sockets/basic/unixloop.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/error.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/get_name.phpt" />
             <file role="test" name="tests/swoole_runtime/sockets/nonblock.phpt" />
