@@ -63,14 +63,12 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed memory leak of proc_open hook
-        - Fixed compatibility of curl native hook with PHP-8.0 and PHP-8.1
-        - Fixed connection cannot be closed normally in the Manager process
-        - Fixed Manager process cannot use sendMessage
-        - Fixed Coroutine\Http\Server received abnormally large POST data parsing
-        - Fixed cannot exit directly when a fatal error occurs in PHP8 environment
-        - Adjust coroutine max_concurrency option, only allowed to be used in Co::set()
-        - Adjust Coroutine::join() to ignore non-exists coroutine
+        - Fixed compatibility of curl native hook with PHP-8.1
+        - Fixed compatibility of sockets hook with PHP-8
+        - Fixed the return value error of sockets hook function
+        - Added Coroutine\Socket::isClosed()
+        - Fixed Http2Server sendfile cannot set content-type
+        - Optimize performance of HttpServer date header
     </notes>
     <contents>
         <dir name="/">
