@@ -1,5 +1,7 @@
 --TEST--
-socket_accept() failure
+swoole_runtime/sockets/basic: socket_accept() failure
+--SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 --FILE--
 <?php
 use Swoole\Runtime;

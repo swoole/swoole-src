@@ -1,9 +1,10 @@
 --TEST--
-Test if socket_set_option() works, option:SO_BINDTODEVICE
+swoole_runtime/sockets/basic:SO_BINDTODEVICE
 --DESCRIPTION--
 -Bind to loopback 'lo' device (should exist)
 -Bind to unexisting device
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
         die('SKIP sockets extension not available.');
