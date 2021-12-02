@@ -440,7 +440,7 @@ bool php_swoole_socket_set_ssl(Socket *sock, zval *zset) {
 
 static PHP_METHOD(swoole_client_coro, __construct) {
     if (php_swoole_get_client(ZEND_THIS)->sock) {
-        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
     }
 
     zend_long type = 0;

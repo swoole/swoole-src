@@ -268,12 +268,12 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     // only cli env
     if (!SWOOLE_G(cli)) {
-        php_swoole_fatal_error(E_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_exception(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
     if (sw_server()) {
-        php_swoole_fatal_error(E_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_exception(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
@@ -289,9 +289,10 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK) {
         ipc_type = SW_IPC_UNIXSOCK;
-        php_swoole_fatal_error(E_NOTICE,
-                               "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
-                               SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_exception_ex(swoole_exception_ce,
+                                SW_ERROR_PHP_FATAL_ERROR,
+                                "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
+                                SW_Z_OBJCE_NAME_VAL_P(zobject));
     }
 
     ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));

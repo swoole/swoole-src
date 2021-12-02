@@ -241,22 +241,22 @@ static PHP_METHOD(swoole_process, __construct) {
     Worker *process = php_swoole_process_get_worker(ZEND_THIS);
 
     if (process) {
-        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
     }
 
     // only cli env
     if (!SWOOLE_G(cli)) {
-        php_swoole_fatal_error(E_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 
     if (sw_server() && sw_server()->is_started() && sw_server()->is_master()) {
-        php_swoole_fatal_error(E_ERROR, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS);
         RETURN_FALSE;
     }
 
     if (SwooleTG.async_threads) {
-        php_swoole_fatal_error(E_ERROR, "unable to create %s with async-io threads", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "unable to create %s with async-io threads", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
         RETURN_FALSE;
     }
 

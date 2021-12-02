@@ -667,12 +667,12 @@ static PHP_METHOD(swoole_client, __construct) {
     size_t len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|bs", &type, &async, &id, &len) == FAILURE) {
-        php_swoole_fatal_error(E_ERROR, "socket type param is required");
+        zend_throw_exception(swoole_exception_ce, "socket type param is required", SW_ERROR_PHP_FATAL_ERROR);
         RETURN_FALSE;
     }
 
     if (async) {
-        php_swoole_fatal_error(E_ERROR, "please install the ext-async extension, using Swoole\\Async\\Client");
+        zend_throw_exception(swoole_exception_ce, "please install the ext-async extension, using Swoole\\Async\\Client", SW_ERROR_PHP_FATAL_ERROR);
     }
 
     int client_type = php_swoole_socktype(type);

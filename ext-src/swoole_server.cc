@@ -3801,7 +3801,7 @@ static PHP_METHOD(swoole_server, stop) {
 // swoole_connection_iterator
 
 static PHP_METHOD(swoole_connection_iterator, __construct) {
-    php_swoole_fatal_error(E_ERROR, "please use the Swoole\\Server->connections");
+    zend_throw_exception(swoole_exception_ce, "please use the Swoole\\Server->connections", SW_ERROR_PHP_FATAL_ERROR);
     return;
 }
 
