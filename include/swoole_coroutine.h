@@ -118,19 +118,21 @@ class Coroutine {
         cancel_fn_ = cancel_fn;
     }
 
-    inline void set_yield_msec() {
-        yield_msec = Timer::get_absolute_msec();
+    inline void set_resume_msec() {
+        resume_msec = Timer::get_absolute_msec();
     }
 
-    inline void calc_idle_msec() {
-        if (yield_msec > 0) {
-            idle_msec += Timer::get_absolute_msec() - yield_msec;
-            yield_msec = 0;
+    inline void calc_execute_msec() {
+        yield_msec = Timer::get_absolute_msec();
+        if (execute_msec == 0) {
+            execute_msec += yield_msec - init_msec;
+        } else {
+            execute_msec += yield_msec - resume_msec;
         }
     }
 
-    inline long get_idle_msec() const {
-        return idle_msec;
+    inline long get_execute_msec() const {
+        return (yield_msec == 0 && resume_msec == 0) ? (Timer::get_absolute_msec() - init_msec) : (Timer::get_absolute_msec() - resume_msec + execute_msec);
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -213,7 +215,7 @@ class Coroutine {
 
     static inline long get_execute_time(long cid) {
         Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
-        return sw_likely(co) ? Timer::get_absolute_msec() - co->get_init_msec() - co->get_idle_msec() : -1;
+        return sw_likely(co) ? co->get_execute_msec() : -1;
     }
 
     static void print_list();
@@ -233,8 +235,9 @@ class Coroutine {
     enum ResumeCode resume_code_ = RC_OK;
     long cid;
     long init_msec = Timer::get_absolute_msec();
+    long resume_msec = 0;
     long yield_msec = 0;
-    long idle_msec = 0;
+    long execute_msec = 0;
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
