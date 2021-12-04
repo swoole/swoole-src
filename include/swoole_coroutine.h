@@ -255,6 +255,9 @@ class Coroutine {
         long cid = this->cid;
         origin = current;
         current = this;
+        if (origin) {
+            origin->calc_execute_msec();
+        }
         ctx.swap_in();
         check_end();
         return cid;

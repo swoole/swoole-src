@@ -10,16 +10,21 @@ use function Swoole\Coroutine\run;
 use function Swoole\Coroutine\go;
 
 run(function(){
+    $i = 1000000;
+    while($i > 0) {
+        $a = 9999 ^ 10000;
+        $i--;
+    }
+    $execution_time = Swoole\Coroutine::getExecuteTime();
+
     go(function(){
-        $i = 1000000;
-        while($i > 0) {
-            $a = 10000 ^ 10000;
-            $i--;
-        }
-        $execution_time = Swoole\Coroutine::getExecuteTime();
         $time = 2;
+    	Swoole\Runtime::enableCoroutine($flags = false);
     	sleep($time);
-    	Assert::assert($execution_time == Swoole\Coroutine::getExecuteTime());
+    	$execution_time = Swoole\Coroutine::getExecuteTime();
+    	Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
+    	sleep($time);
+    	Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
     });
 
     go(function(){
@@ -37,13 +42,13 @@ run(function(){
     		$execution_time = Swoole\Coroutine::getExecuteTime();
     		Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
     		sleep($time);
-    		Assert::assert($execution_time == Swoole\Coroutine::getExecuteTime());
+    		Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
     	});
 
-    	Assert::assert($execution_time == Swoole\Coroutine::getExecuteTime());
+    	Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
     });
 
-    Assert::assert(0 == Swoole\Coroutine::getExecuteTime());
+    Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
     echo 'DONE';
 });
 ?>
