@@ -106,6 +106,9 @@ jobs:
       matrix:
         php-version: [ '7.4', '8.0', '8.1' ]
         alpine-version: [ '3.11', '3.12', '3.13', '3.14', '3.15' ]
+        exclude:
+          - php-version: '8.1'
+            alpine-version: '3.11'
       max-parallel: 8
       fail-fast: false
     steps:
