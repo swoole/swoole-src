@@ -756,11 +756,8 @@ static int http_request_on_body(swoole_http_parser *parser, const char *at, size
         }
         ctx->request.chunked_body->append(at, length);
     } else {
+        ctx->request.body_at = at - ctx->request.body_length;
         ctx->request.body_length += length;
-    }
-
-    if (ctx->request.body_at == nullptr) {
-        ctx->request.body_at = at;
     }
 
     if (ctx->mt_parser != nullptr) {
