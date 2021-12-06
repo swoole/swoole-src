@@ -30,9 +30,6 @@ jobs:
     - name: Run pecl-install.sh
       run: |
         sudo ${{runner.workspace}}/swoole-src/travis/pecl-install.sh
-    - name: Run simple-compile-on-github.sh
-      run: |
-        sudo ${{runner.workspace}}/swoole-src/travis/simple-compile-on-github.sh
     - name: Run Swoole test
       run: |
         export TRAVIS_BRANCH=${GITHUB_REF##*/}
