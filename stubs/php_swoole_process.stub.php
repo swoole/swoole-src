@@ -24,7 +24,7 @@ namespace Swoole {
         public function start(): bool|int {}
         public function write(string $data): false|int {}
         public function read(int $size = 8192): false|string {}
-        public function close(int $which = SW_PIPE_CLOSE_BOTH): bool {}
+        public function close(int $which = 0): bool {}
         public function exit(int $exit_code = 0): void {}
         public function exec(string $exec_file, array $args): bool {}
         public function exportSocket(): \Swoole\Coroutine\Socket|false {}
