@@ -268,12 +268,12 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     // only cli env
     if (!SWOOLE_G(cli)) {
-        zend_throw_exception(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
     if (sw_server()) {
-        zend_throw_exception(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
         RETURN_FALSE;
     }
 
