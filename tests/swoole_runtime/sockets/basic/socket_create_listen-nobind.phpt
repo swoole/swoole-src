@@ -1,6 +1,7 @@
 --TEST--
-Test if socket_create_listen() returns false, when it cannot bind to the port.
+swoole_runtime/sockets/basic: Test if socket_create_listen() returns false, when it cannot bind to the port.
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');
@@ -31,4 +32,3 @@ run(function () {
 });
 ?>
 --EXPECT--
-

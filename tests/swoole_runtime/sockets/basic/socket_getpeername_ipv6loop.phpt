@@ -1,9 +1,10 @@
 --TEST--
-ext/sockets - socket_getpeername_ipv6loop - basic test
+swoole_runtime/sockets/basic: ext/sockets - socket_getpeername_ipv6loop - basic test
 --CREDITS--
 Tatjana Andersen tatjana.andersen@redpill-linpro.com
 # TestFest 2009 - NorwayUG
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');

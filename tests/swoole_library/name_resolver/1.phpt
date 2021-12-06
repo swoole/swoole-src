@@ -1,5 +1,5 @@
 --TEST--
-swoole_library/name_service: resolve
+swoole_library/name_resolver: resolve
 --SKIPIF--
 <?php require __DIR__ . '/../../include/skipif.inc'; ?>
 --FILE--

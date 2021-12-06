@@ -1,6 +1,7 @@
 --TEST--
-Test parameter handling in socket_listen().
+swoole_runtime/sockets/basic: Test parameter handling in socket_listen().
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (substr(PHP_OS, 0, 3) == 'WIN') {
     die('skip.. Not valid for Windows');

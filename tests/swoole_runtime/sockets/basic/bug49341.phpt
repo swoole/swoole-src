@@ -1,6 +1,7 @@
 --TEST--
-Bug #49341: add SO_REUSEPORT support for socket_set_option()
+swoole_runtime/sockets/basic: add SO_REUSEPORT support for socket_set_option()
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');

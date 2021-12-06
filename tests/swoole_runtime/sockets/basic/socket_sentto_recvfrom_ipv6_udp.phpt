@@ -1,6 +1,7 @@
 --TEST--
-Test if socket_recvfrom() receives data sent by socket_sendto() via IPv6 UDP
+swoole_runtime/sockets/basic: Test if socket_recvfrom() receives data sent by socket_sendto() via IPv6 UDP
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('SKIP The sockets extension is not loaded.');

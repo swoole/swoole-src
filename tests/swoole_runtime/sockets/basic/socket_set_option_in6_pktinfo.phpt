@@ -1,6 +1,7 @@
 --TEST--
-socket_set_option() with IPV6_PKTINFO
+swoole_runtime/sockets/basic: socket_set_option() with IPV6_PKTINFO
 --SKIPIF--
+<?php require __DIR__ . '/../../../include/skipif.inc'; ?>
 <?php
 if (!extension_loaded('sockets')) {
     die('skip sockets extension not available.');
