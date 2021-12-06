@@ -22,6 +22,7 @@ phpize > /dev/null && \
 --enable-swoole-curl \
 --enable-cares \
 > /dev/null && \
+make clean && \
 make -j8 > /dev/null | tee /tmp/compile.log && \
 (test "`cat /tmp/compile.log`"x = ""x || exit 255) && \
 make install && echo "" && \
