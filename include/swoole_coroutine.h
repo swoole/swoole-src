@@ -118,21 +118,8 @@ class Coroutine {
         cancel_fn_ = cancel_fn;
     }
 
-    inline void set_resume_msec() {
-        resume_msec = Timer::get_absolute_msec();
-    }
-
-    inline void calc_execute_msec() {
-        yield_msec = Timer::get_absolute_msec();
-        if (execute_msec == 0) {
-            execute_msec += yield_msec - init_msec;
-        } else {
-            execute_msec += yield_msec - resume_msec;
-        }
-    }
-
     inline long get_execute_msec() const {
-        return (yield_msec == 0 && resume_msec == 0) ? (Timer::get_absolute_msec() - init_msec) : (Timer::get_absolute_msec() - resume_msec + execute_msec);
+        return Timer::get_absolute_msec() - switch_msec + execute_msec;
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -218,6 +205,16 @@ class Coroutine {
         return sw_likely(co) ? co->get_execute_msec() : -1;
     }
 
+    static inline void calc_execute_msec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
+        if (yield_coroutine) {
+            yield_coroutine->execute_msec += Timer::get_absolute_msec() - yield_coroutine->switch_msec;
+        }
+
+        if (resume_coroutine) {
+            resume_coroutine->switch_msec = Timer::get_absolute_msec();
+        }
+    }
+
     static void print_list();
 
   protected:
@@ -234,9 +231,7 @@ class Coroutine {
     enum State state = STATE_INIT;
     enum ResumeCode resume_code_ = RC_OK;
     long cid;
-    long init_msec = Timer::get_absolute_msec();
-    long resume_msec = 0;
-    long yield_msec = 0;
+    long init_msec, switch_msec = Timer::get_absolute_msec();
     long execute_msec = 0;
     void *task = nullptr;
     coroutine::Context ctx;
@@ -255,9 +250,7 @@ class Coroutine {
         long cid = this->cid;
         origin = current;
         current = this;
-        if (origin) {
-            origin->calc_execute_msec();
-        }
+        Coroutine::calc_execute_msec(origin, this);
         ctx.swap_in();
         check_end();
         return cid;

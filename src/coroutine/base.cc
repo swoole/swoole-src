@@ -60,10 +60,8 @@ void Coroutine::yield() {
         on_yield(task);
     }
     current = origin;
-    calc_execute_msec();
-    if (current) {
-        current->set_resume_msec();
-    }
+
+    Coroutine::calc_execute_msec(this, current);
     ctx.swap_out();
 }
 
@@ -116,10 +114,8 @@ void Coroutine::resume() {
     }
     origin = current;
     current = this;
-    set_resume_msec();
-    if (origin) {
-        origin->calc_execute_msec();
-    }
+
+    Coroutine::calc_execute_msec(origin, this);
     ctx.swap_in();
     check_end();
 }
