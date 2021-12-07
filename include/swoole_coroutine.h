@@ -231,7 +231,8 @@ class Coroutine {
     enum State state = STATE_INIT;
     enum ResumeCode resume_code_ = RC_OK;
     long cid;
-    long init_msec, switch_msec = Timer::get_absolute_msec();
+    long init_msec = Timer::get_absolute_msec();
+    long switch_msec = init_msec;
     long execute_msec = 0;
     void *task = nullptr;
     coroutine::Context ctx;
