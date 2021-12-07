@@ -23,13 +23,11 @@ $cm->run(function ($host) {
     curl_setopt($ch, CURLOPT_URL, $url);
 
     curl_exec($ch);
-    var_dump(curl_error($ch));
-    var_dump(curl_errno($ch));
+    Assert::eq(curl_errno($ch), CURLE_COULDNT_RESOLVE_PROXY);
     curl_close($ch);
-
+    echo "DONE\n";
 }, false);
 
 ?>
---EXPECTF--
-string(%d) "%r(Couldn't resolve proxy|Could not resolve proxy:|Could not resolve host:|Could not resolve:)%r %s"
-int(5)
+--EXPECT--
+DONE
