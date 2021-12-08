@@ -24,7 +24,7 @@ run(function(){
     	$execution_time = Swoole\Coroutine::getExecuteTime();
     	Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
     	sleep($time);
-    	Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
+    	Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time < 1000);
     });
 
     go(function(){
@@ -42,13 +42,13 @@ run(function(){
     		$execution_time = Swoole\Coroutine::getExecuteTime();
     		Swoole\Runtime::enableCoroutine($flags = SWOOLE_HOOK_ALL);
     		sleep($time);
-    		Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
+    		Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time < 1000);
     	});
 
-    	Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
+    	Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time < 1000);
     });
 
-    Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time <= 1);
+    Assert::assert(Swoole\Coroutine::getExecuteTime() - $execution_time < 1000);
     echo 'DONE';
 });
 ?>

@@ -23,6 +23,7 @@
 #include "swoole_reactor.h"
 #include "swoole_timer.h"
 #include "swoole_async.h"
+#include "swoole_util.h"
 
 #include "swoole_coroutine_context.h"
 
@@ -31,6 +32,8 @@
 #include <functional>
 #include <string>
 #include <unordered_map>
+
+typedef std::chrono::microseconds seconds_type;
 
 namespace swoole {
 class Coroutine {
@@ -119,7 +122,7 @@ class Coroutine {
     }
 
     inline long get_execute_msec() const {
-        return Timer::get_absolute_msec() - switch_msec + execute_msec;
+        return time<seconds_type>(true) - switch_msec + execute_msec;
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -206,12 +209,13 @@ class Coroutine {
     }
 
     static inline void calc_execute_msec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
+        long current_time = time<seconds_type>(true);
         if (yield_coroutine) {
-            yield_coroutine->execute_msec += Timer::get_absolute_msec() - yield_coroutine->switch_msec;
+            yield_coroutine->execute_msec += current_time - yield_coroutine->switch_msec;
         }
 
         if (resume_coroutine) {
-            resume_coroutine->switch_msec = Timer::get_absolute_msec();
+            resume_coroutine->switch_msec = current_time;
         }
     }
 
@@ -232,7 +236,7 @@ class Coroutine {
     enum ResumeCode resume_code_ = RC_OK;
     long cid;
     long init_msec = Timer::get_absolute_msec();
-    long switch_msec = init_msec;
+    long switch_msec = time<seconds_type>(true);
     long execute_msec = 0;
     void *task = nullptr;
     coroutine::Context ctx;
