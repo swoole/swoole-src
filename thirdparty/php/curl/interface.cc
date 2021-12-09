@@ -325,6 +325,9 @@ static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields
 SW_EXTERN_C_END
 
 void swoole_native_curl_minit(int module_number) {
+    if (!SWOOLE_G(cli)) {
+        return;
+    }
 #if PHP_VERSION_ID >= 80000
     swoole_coroutine_curl_handle_ce = curl_ce;
     swoole_coroutine_curl_handle_ce->create_object = swoole_curl_create_object;
