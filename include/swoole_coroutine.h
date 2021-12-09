@@ -121,8 +121,8 @@ class Coroutine {
         cancel_fn_ = cancel_fn;
     }
 
-    inline long get_execute_msec() const {
-        return time<seconds_type>(true) - switch_msec + execute_msec;
+    inline long get_execute_usec() const {
+        return time<seconds_type>(true) - switch_usec + execute_usec;
     }
 
     static std::unordered_map<long, Coroutine *> coroutines;
@@ -205,17 +205,17 @@ class Coroutine {
 
     static inline long get_execute_time(long cid) {
         Coroutine *co = cid == 0 ? get_current() : get_by_cid(cid);
-        return sw_likely(co) ? co->get_execute_msec() : -1;
+        return sw_likely(co) ? co->get_execute_usec() : -1;
     }
 
-    static inline void calc_execute_msec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
-        long current_time = time<seconds_type>(true);
+    static inline void calc_execute_usec(Coroutine *yield_coroutine, Coroutine *resume_coroutine) {
+        long current_usec = time<seconds_type>(true);
         if (yield_coroutine) {
-            yield_coroutine->execute_msec += current_time - yield_coroutine->switch_msec;
+            yield_coroutine->execute_usec += current_usec - yield_coroutine->switch_usec;
         }
 
         if (resume_coroutine) {
-            resume_coroutine->switch_msec = current_time;
+            resume_coroutine->switch_usec = current_usec;
         }
     }
 
@@ -236,8 +236,8 @@ class Coroutine {
     enum ResumeCode resume_code_ = RC_OK;
     long cid;
     long init_msec = Timer::get_absolute_msec();
-    long switch_msec = time<seconds_type>(true);
-    long execute_msec = 0;
+    long switch_usec = time<seconds_type>(true);
+    long execute_usec = 0;
     void *task = nullptr;
     coroutine::Context ctx;
     Coroutine *origin = nullptr;
@@ -255,7 +255,7 @@ class Coroutine {
         long cid = this->cid;
         origin = current;
         current = this;
-        Coroutine::calc_execute_msec(origin, this);
+        calc_execute_usec(origin, this);
         ctx.swap_in();
         check_end();
         return cid;

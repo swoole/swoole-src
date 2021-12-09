@@ -61,7 +61,7 @@ void Coroutine::yield() {
     }
     current = origin;
 
-    Coroutine::calc_execute_msec(this, current);
+    calc_execute_usec(this, current);
     ctx.swap_out();
 }
 
@@ -115,7 +115,7 @@ void Coroutine::resume() {
     origin = current;
     current = this;
 
-    Coroutine::calc_execute_msec(origin, this);
+    calc_execute_usec(origin, this);
     ctx.swap_in();
     check_end();
 }
