@@ -213,6 +213,10 @@ class PHPCoroutine {
         return activated;
     }
 
+    static inline long get_execute_time(long cid = 0) {
+        return sw_likely(activated) ? Coroutine::get_execute_time(cid) : -1;
+    }
+
   protected:
     static bool activated;
     static PHPContext main_task;
