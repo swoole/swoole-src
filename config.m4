@@ -101,6 +101,11 @@ PHP_ARG_ENABLE([thread-context],
   [AS_HELP_STRING([--enable-thread-context],
     [Use thread context])], [no], [no])
 
+PHP_ARG_ENABLE([swoole-coro-time],
+  [whether to enable coroutine execution time ],
+  [AS_HELP_STRING([--enable-swoole-coro-time],
+    [Calculating coroutine execution time])], [no], [no])
+
 AC_DEFUN([SWOOLE_HAVE_PHP_EXT], [
     extname=$1
     haveext=$[PHP_]translit($1,a-z_-,A-Z__)
@@ -405,6 +410,10 @@ if test "$PHP_SWOOLE" != "no"; then
 
     if test "$PHP_SWOOLE_CURL" = "yes"; then
         AC_DEFINE(SW_USE_CURL, 1, [do we enable cURL native client])
+    fi
+
+    if test "$PHP_SWOOLE_CORO_TIME" = "yes"; then
+        AC_DEFINE(SW_CORO_TIME, 1, [do we enable to calculate coroutine execution time])
     fi
 
     if test "$PHP_SWOOLE_PGSQL" != "no"; then

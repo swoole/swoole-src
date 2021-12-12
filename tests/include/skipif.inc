@@ -257,3 +257,8 @@ function skip_unsupported(string $message = '')
 {
     skip($message ?: 'the test cannot continue to work for some implementation reasons');
 }
+
+function skip_if_no_coroutine_get_execute_time()
+{
+    skip('no Swoole\Coroutine::getExecuteTime', !method_exists(Swoole\Coroutine::class, 'getExecuteTime'));
+}

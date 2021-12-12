@@ -35,6 +35,12 @@
 
 typedef std::chrono::microseconds seconds_type;
 
+#ifdef SW_CORO_TIME
+#define CALC_EXECUTE_USEC(yield_coroutine, resume_coroutine) calc_execute_usec(yield_coroutine, resume_coroutine)
+#else
+#define CALC_EXECUTE_USEC(yield_coroutine, resume_coroutine)
+#endif
+
 namespace swoole {
 class Coroutine {
   public:
@@ -255,7 +261,7 @@ class Coroutine {
         long cid = this->cid;
         origin = current;
         current = this;
-        calc_execute_usec(origin, this);
+        CALC_EXECUTE_USEC(origin, nullptr);
         ctx.swap_in();
         check_end();
         return cid;
