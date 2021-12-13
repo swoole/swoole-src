@@ -332,15 +332,11 @@ static int ReactorProcess_loop(ProcessPool *pool, Worker *worker) {
     serv->init_reactor(reactor);
 
     if (worker->id == 0) {
-        SwooleTG.update_time = 1;
         if (serv->onStart) {
             serv->onStart(serv);
         }
     }
 
-    /**
-     * 1 second timer
-     */
     if ((serv->master_timer = swoole_timer_add(1000, true, Server::timer_callback, serv)) == nullptr) {
     _fail:
         swoole_event_free();
