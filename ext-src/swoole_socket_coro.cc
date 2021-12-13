@@ -47,6 +47,7 @@ static zend_object_handlers swoole_socket_coro_exception_handlers;
 
 struct SocketObject {
     Socket *socket;
+    zval *zstream;
     bool reference;
     zend_object std;
 };
@@ -85,6 +86,7 @@ static PHP_METHOD(swoole_socket_coro, cancel);
 static PHP_METHOD(swoole_socket_coro, getsockname);
 static PHP_METHOD(swoole_socket_coro, getpeername);
 static PHP_METHOD(swoole_socket_coro, isClosed);
+static PHP_METHOD(swoole_socket_coro, import);
 SW_EXTERN_C_END
 
 // clang-format off
@@ -123,6 +125,7 @@ static const zend_function_entry swoole_socket_coro_methods[] =
     PHP_ME(swoole_socket_coro, getpeername,   arginfo_class_Swoole_Coroutine_Socket_getpeername,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, getsockname,   arginfo_class_Swoole_Coroutine_Socket_getsockname,     ZEND_ACC_PUBLIC)
     PHP_ME(swoole_socket_coro, isClosed,      arginfo_class_Swoole_Coroutine_Socket_isClosed,        ZEND_ACC_PUBLIC)
+    PHP_ME(swoole_socket_coro, import,        arginfo_class_Swoole_Coroutine_Socket_import,          ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_FE_END
 };
 // clang-format on
@@ -147,8 +150,18 @@ static sw_inline SocketObject *php_swoole_socket_coro_fetch_object(zend_object *
 static void php_swoole_socket_coro_free_object(zend_object *object) {
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket && sock->socket != SW_BAD_SOCKET) {
-        sock->socket->close();
+        if (sock->zstream) {
+            if (!Z_ISUNDEF_P(sock->zstream)) {
+                sock->socket->move_fd();
+            }
+        } else {
+            sock->socket->close();
+        }
         delete sock->socket;
+    }
+    if (sock->zstream) {
+        zval_ptr_dtor(sock->zstream);
+        efree(sock->zstream);
     }
     zend_object_std_dtor(&sock->std);
 }
@@ -1566,6 +1579,7 @@ static PHP_METHOD(swoole_socket_coro, shutdown) {
 static PHP_METHOD(swoole_socket_coro, close) {
     swoole_get_socket_coro(sock, ZEND_THIS);
     if (sock->reference) {
+        php_swoole_error(E_WARNING, "cannot close the referenced resource");
         RETURN_FALSE;
     }
     if (sock->socket->protocol.private_data) {
@@ -1573,9 +1587,29 @@ static PHP_METHOD(swoole_socket_coro, close) {
         sw_zend_fci_cache_discard(package_length_func);
         efree(package_length_func);
     }
-    if (sock->socket->close()) {
+    if (sock->zstream) {
+        if (Z_ISUNDEF_P(sock->zstream)) {
+            php_swoole_error(E_WARNING, "the imported stream resource has been closed");
+            RETURN_FALSE;
+        }
+        php_stream *stream = NULL;
+        php_stream_from_zval_no_verify(stream, sock->zstream);
+        if (stream != NULL) {
+            /* close & destroy stream, incl. removing it from the rsrc list;
+             * resource stored in php_sock->zstream will become invalid */
+            php_stream_free(stream,
+                            PHP_STREAM_FREE_KEEP_RSRC | PHP_STREAM_FREE_CLOSE |
+                                (stream->is_persistent ? PHP_STREAM_FREE_CLOSE_PERSISTENT : 0));
+        }
+        ZVAL_UNDEF(sock->zstream);
+        sock->socket->move_fd();
         delete sock->socket;
         sock->socket = SW_BAD_SOCKET;
+    } else {
+        if (sock->socket->close()) {
+            delete sock->socket;
+            sock->socket = SW_BAD_SOCKET;
+        }
     }
     RETURN_TRUE;
 }
@@ -1866,4 +1900,58 @@ static PHP_METHOD(swoole_socket_coro, sslHandshake) {
 static PHP_METHOD(swoole_socket_coro, isClosed) {
     SocketObject *_sock = php_swoole_socket_coro_fetch_object(Z_OBJ_P(ZEND_THIS));
     RETURN_BOOL(_sock->socket == SW_BAD_SOCKET || _sock->socket->is_closed());
+}
+
+static PHP_METHOD(swoole_socket_coro, import) {
+    zval *zstream;
+    php_stream *stream;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zstream) == FAILURE) {
+        RETURN_THROWS();
+    }
+    php_stream_from_zval(stream, zstream);
+
+    enum swSocketType type = SW_SOCK_TCP;
+    int socket_fd;
+
+    if (php_stream_cast(stream, PHP_STREAM_AS_SOCKETD, (void **) &socket_fd, 1)) {
+        /* error supposedly already shown */
+        RETURN_FALSE;
+    }
+
+    int sock_domain = AF_INET, sock_type = SOCK_STREAM;
+
+#ifdef SO_DOMAIN
+    socklen_t sock_domain_len = sizeof(sock_domain);
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_DOMAIN, &sock_domain, &sock_domain_len) < 0) {
+        php_swoole_sys_error(E_WARNING, "getsockopt(SOL_SOCKET, SO_DOMAIN) failed");
+        RETURN_FALSE;
+    }
+#endif
+
+#ifdef SO_TYPE
+    socklen_t sock_type_len = sizeof(sock_type);
+    if (getsockopt(socket_fd, SOL_SOCKET, SO_TYPE, &sock_type, &sock_type_len) < 0) {
+        php_swoole_sys_error(E_WARNING, "getsockopt(SOL_SOCKET, SO_TYPE) failed");
+        RETURN_FALSE;
+    }
+#endif
+
+    type = swoole::network::Socket::convert_to_type(sock_domain, sock_type);
+
+    /* determine blocking mode */
+    int t = fcntl(socket_fd, F_GETFL);
+    if (t < 0) {
+        php_swoole_sys_error(E_WARNING, "fcntl(F_GETFL) failed");
+        RETURN_FALSE;
+    }
+    zend_object *object = php_swoole_create_socket_from_fd(socket_fd, type);
+    SocketObject *sock = php_swoole_socket_coro_fetch_object(object);
+
+    sock->zstream = sw_malloc_zval();
+    ZVAL_COPY(sock->zstream, zstream);
+    php_stream_set_option(stream, PHP_STREAM_OPTION_READ_BUFFER, PHP_STREAM_BUFFER_NONE, NULL);
+    sock->socket->get_socket()->nonblock = (t & O_NONBLOCK);
+
+    RETURN_OBJ(object);
 }

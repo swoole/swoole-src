@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 6edc6c88fe7b9b4277111556fa31ed9e8d1cf3ca */
+ * Stub hash: d3b5127e8ed0a0816dbe869fe5a5aca9aee1bf4b */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Socket___construct, 0, 0, 2)
 	ZEND_ARG_TYPE_INFO(0, domain, IS_LONG, 0)
@@ -125,3 +125,7 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Coroutine_Socket_getpeername arginfo_class_Swoole_Coroutine_Socket_getsockname
 
 #define arginfo_class_Swoole_Coroutine_Socket_isClosed arginfo_class_Swoole_Coroutine_Socket_checkLiveness
+
+ZEND_BEGIN_ARG_WITH_RETURN_OBJ_TYPE_MASK_EX(arginfo_class_Swoole_Coroutine_Socket_import, 0, 1, Swoole\\Coroutine\\Socket, MAY_BE_FALSE)
+	ZEND_ARG_INFO(0, stream)
+ZEND_END_ARG_INFO()
