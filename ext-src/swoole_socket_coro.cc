@@ -1906,9 +1906,10 @@ static PHP_METHOD(swoole_socket_coro, import) {
     zval *zstream;
     php_stream *stream;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS(), "r", &zstream) == FAILURE) {
-        RETURN_THROWS();
-    }
+    ZEND_PARSE_PARAMETERS_START(1, 1)
+    Z_PARAM_RESOURCE(zstream)
+    ZEND_PARSE_PARAMETERS_END();
+
     php_stream_from_zval(stream, zstream);
 
     enum swSocketType type = SW_SOCK_TCP;
