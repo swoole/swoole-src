@@ -625,7 +625,6 @@ struct RecvData {
 struct ThreadGlobal {
     uint16_t id;
     uint8_t type;
-    uint8_t update_time;
     String *buffer_stack;
     Reactor *reactor;
     Timer *timer;

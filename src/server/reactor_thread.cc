@@ -380,8 +380,7 @@ static int ReactorThread_onPipeRead(Reactor *reactor, Event *ev) {
             auto packet = thread->message_bus.get_packet();
             serv->call_command_callback(resp->info.fd, std::string(packet.data, packet.length));
             return SW_OK;
-        }
-        else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
+        } else if (resp->info.type == SW_SERVER_EVENT_SHUTDOWN) {
             ReactorThread_shutdown(reactor);
         } else if (resp->info.type == SW_SERVER_EVENT_CLOSE_FORCE) {
             SessionId session_id = resp->info.fd;
@@ -1028,7 +1027,7 @@ void Server::start_heartbeat_thread() {
         swoole_signal_block_all();
 
         SwooleTG.type = THREAD_HEARTBEAT;
-        SwooleTG.id = reactor_num;
+        SwooleTG.id = reactor_num + 1;
 
         while (running) {
             double now = microtime();
