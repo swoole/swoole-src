@@ -59,8 +59,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_coroutine_getStackUsage, 0, 0, 0)
     ZEND_ARG_INFO(0, cid)
 ZEND_END_ARG_INFO()
 
+#ifdef SW_CORO_TIME
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_getExecuteTime, 0, 0, 0)
 ZEND_END_ARG_INFO()
+#endif
 
 #define arginfo_class_Swoole_Coroutine_create           arginfo_swoole_coroutine_create
 #define arginfo_class_Swoole_Coroutine_defer            arginfo_swoole_coroutine_defer
@@ -86,7 +88,9 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Coroutine_listCoroutines   arginfo_swoole_coroutine_void
 #define arginfo_class_Swoole_Coroutine_enableScheduler  arginfo_swoole_coroutine_void
 #define arginfo_class_Swoole_Coroutine_disableScheduler arginfo_swoole_coroutine_void
+#ifdef SW_CORO_TIME
 #define arginfo_class_Swoole_Coroutine_getExecuteTime   arginfo_swoole_coroutine_void
+#endif
 
 #define arginfo_class_Swoole_ExitException_getFlags  arginfo_swoole_coroutine_void
 #define arginfo_class_Swoole_ExitException_getStatus arginfo_swoole_coroutine_void
