@@ -112,20 +112,20 @@ ZEND_END_ARG_INFO()
 #endif
 
 #define arginfo_class_Swoole_Process_setPriority  arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_getPriority  arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_set          arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_setTimeout   arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_setBlocking  arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_useQueue     arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_statQueue    arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_freeQueue    arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_start        arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_write        arginfo_swoole_process_setPriority
+#define arginfo_class_Swoole_Process_getPriority  arginfo_swoole_process_getPriority
+#define arginfo_class_Swoole_Process_set          arginfo_swoole_process_set
+#define arginfo_class_Swoole_Process_setTimeout   arginfo_swoole_process_setTimeout
+#define arginfo_class_Swoole_Process_setBlocking  arginfo_swoole_process_setBlocking
+#define arginfo_class_Swoole_Process_useQueue     arginfo_swoole_process_useQueue
+#define arginfo_class_Swoole_Process_statQueue    arginfo_swoole_process_void
+#define arginfo_class_Swoole_Process_freeQueue    arginfo_swoole_process_void
+#define arginfo_class_Swoole_Process_start        arginfo_swoole_process_void
+#define arginfo_class_Swoole_Process_write        arginfo_swoole_process_write
 #define arginfo_class_Swoole_Process_close        arginfo_swoole_process_close
-#define arginfo_class_Swoole_Process_read         arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_push         arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_pop          arginfo_swoole_process_setPriority
-#define arginfo_class_Swoole_Process_exit         arginfo_swoole_process_setPriority
+#define arginfo_class_Swoole_Process_read         arginfo_swoole_process_read
+#define arginfo_class_Swoole_Process_push         arginfo_swoole_process_push
+#define arginfo_class_Swoole_Process_pop          arginfo_swoole_process_pop
+#define arginfo_class_Swoole_Process_exit         arginfo_swoole_process_exit
 #define arginfo_class_Swoole_Process_exec         arginfo_swoole_process_exec
-#define arginfo_class_Swoole_Process_exportSocket arginfo_swoole_process_setPriority
+#define arginfo_class_Swoole_Process_exportSocket arginfo_swoole_process_void
 #define arginfo_class_Swoole_Process_name         arginfo_swoole_process_name
