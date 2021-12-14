@@ -49,7 +49,7 @@ static zend_always_inline ContextObject *swoole_name_resolver_context_get_object
 static zend_always_inline ContextObject *swoole_name_resolver_context_get_object_safe(zend_object *object) {
     NameResolver::Context *name_resolver_context = swoole_name_resolver_context_get_handle(object);
     if (!name_resolver_context) {
-        zend_throw_exception(swoole_exception_ce, "must call name_resolver_context constructor first", SW_ERROR_PHP_FATAL_ERROR);
+        php_swoole_fatal_error(E_ERROR, "must call name_resolver_context constructor first");
     }
     return swoole_name_resolver_context_get_object(object);
 }

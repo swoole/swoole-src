@@ -289,10 +289,9 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     if (enable_coroutine && ipc_type > 0 && ipc_type != SW_IPC_UNIXSOCK) {
         ipc_type = SW_IPC_UNIXSOCK;
-        zend_throw_exception_ex(swoole_exception_ce,
-                                SW_ERROR_PHP_FATAL_ERROR,
-                                "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
-                                SW_Z_OBJCE_NAME_VAL_P(zobject));
+        zend_throw_error(NULL, "%s object's ipc_type will be reset to SWOOLE_IPC_UNIXSOCK after enable coroutine",
+                         SW_Z_OBJCE_NAME_VAL_P(zobject));
+        RETURN_FALSE;
     }
 
     ProcessPool *pool = (ProcessPool *) emalloc(sizeof(*pool));

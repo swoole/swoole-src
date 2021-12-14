@@ -667,7 +667,7 @@ static PHP_METHOD(swoole_client, __construct) {
     size_t len = 0;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS(), "l|bs", &type, &async, &id, &len) == FAILURE) {
-        zend_throw_exception(swoole_exception_ce, "socket type param is required", SW_ERROR_PHP_FATAL_ERROR);
+        zend_throw_error(NULL, "socket type param is required");
         RETURN_FALSE;
     }
 

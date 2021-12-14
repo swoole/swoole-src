@@ -3802,7 +3802,7 @@ static PHP_METHOD(swoole_server, stop) {
 // swoole_connection_iterator
 
 static PHP_METHOD(swoole_connection_iterator, __construct) {
-    zend_throw_exception(swoole_exception_ce, "please use the Swoole\\Server->connections", SW_ERROR_PHP_FATAL_ERROR);
+    zend_throw_error(NULL, "please use the Swoole\\Server->connections");
     return;
 }
 
