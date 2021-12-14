@@ -418,7 +418,7 @@ int Server::start_check() {
 
 int Server::start_master_thread() {
     SwooleTG.type = THREAD_MASTER;
-    SwooleTG.update_time = 1;
+    SwooleTG.id = single_thread ? 0 : reactor_num;
 
     Reactor *reactor = sw_reactor();
 

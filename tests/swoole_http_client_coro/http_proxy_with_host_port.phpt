@@ -47,4 +47,4 @@ $pm->run();
 GET http://127.0.0.1:1234/ HTTP/1.1
 Host: 127.0.0.1:1234
 Connection: keep-alive
-Accept-Encoding: gzip, deflate
+Accept-Encoding: gzip, deflate, br

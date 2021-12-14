@@ -108,8 +108,6 @@ struct _php_curl_free {
 };
 #endif
 
-using CurlCallback = std::function<bool(void)>;
-
 typedef struct {
     CURL *cp;
 #if PHP_VERSION_ID >= 80100

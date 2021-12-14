@@ -160,7 +160,9 @@ bool ProcessFactory::dispatch(SendData *task) {
     SendData _task;
     memcpy(&_task, task, sizeof(SendData));
 
-    return server_->message_bus.write(server_->get_worker_pipe_socket(worker), &_task);
+    network::Socket *pipe_socket =
+        server_->is_reactor_thread() ? server_->get_worker_pipe_socket(worker) : worker->pipe_master;
+    return server_->message_bus.write(pipe_socket, &_task);
 }
 
 static bool inline process_is_supported_send_yield(Server *serv, Connection *conn) {

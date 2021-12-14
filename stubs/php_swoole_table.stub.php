@@ -17,8 +17,8 @@ namespace Swoole {
         public function stats(): false|array {}
         public function rewind(): void {}
         public function next(): void {}
-        public function current(): ?array {}
-        public function key(): ?string {}
+        public function current(): mixed {}
+        public function key(): mixed {}
         public function valid(): bool {}
     }
 }

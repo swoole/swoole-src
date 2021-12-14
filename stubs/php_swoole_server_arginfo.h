@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: e88e084c2cc0a79c621e0b71000ee2acfecee366 */
+ * Stub hash: 05ceb02e60b2f231827ffc3afd5a3f0b85d25ae9 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Server___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, host, IS_STRING, 0, "\'0.0.0.0\'")
@@ -190,9 +190,10 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Connection_Iterator_next arginfo_class_Swoole_Connection_Iterator_rewind
 
-#define arginfo_class_Swoole_Connection_Iterator_current arginfo_class_Swoole_Server_getManagerPid
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Connection_Iterator_current, 0, 0, IS_MIXED, 0)
+ZEND_END_ARG_INFO()
 
-#define arginfo_class_Swoole_Connection_Iterator_key arginfo_class_Swoole_Server_getManagerPid
+#define arginfo_class_Swoole_Connection_Iterator_key arginfo_class_Swoole_Connection_Iterator_current
 
 #define arginfo_class_Swoole_Connection_Iterator_valid arginfo_class_Swoole_Server_start
 

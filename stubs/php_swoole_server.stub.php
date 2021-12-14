@@ -52,8 +52,8 @@ namespace Swoole\Connection {
         public function __destruct() {}
         public function rewind(): void {}
         public function next(): void {}
-        public function current(): int {}
-        public function key(): int {}
+        public function current(): mixed {}
+        public function key(): mixed {}
         public function valid(): bool {}
         public function count(): int {}
         public function offsetExists(mixed $fd): bool {}

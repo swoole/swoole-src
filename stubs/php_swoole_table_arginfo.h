@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 10e58450d37cbc6dddd4c8397ca4275457885189 */
+ * Stub hash: 89c46050b9892b3a31a9a21fe2e7d02e2eb975bb */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Table___construct, 0, 0, 1)
 	ZEND_ARG_TYPE_INFO(0, table_size, IS_LONG, 0)
@@ -56,10 +56,9 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Swoole_Table_next arginfo_class_Swoole_Table_rewind
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_current, 0, 0, IS_ARRAY, 1)
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_current, 0, 0, IS_MIXED, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Swoole_Table_key, 0, 0, IS_STRING, 1)
-ZEND_END_ARG_INFO()
+#define arginfo_class_Swoole_Table_key arginfo_class_Swoole_Table_current
 
 #define arginfo_class_Swoole_Table_valid arginfo_class_Swoole_Table_create

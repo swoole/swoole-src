@@ -60,6 +60,8 @@ void Coroutine::yield() {
         on_yield(task);
     }
     current = origin;
+
+    calc_execute_usec(this, current);
     ctx.swap_out();
 }
 
@@ -112,6 +114,8 @@ void Coroutine::resume() {
     }
     origin = current;
     current = this;
+
+    calc_execute_usec(origin, this);
     ctx.swap_in();
     check_end();
 }

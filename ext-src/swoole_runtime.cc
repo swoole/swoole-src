@@ -1613,7 +1613,7 @@ static PHP_FUNCTION(swoole_sleep) {
     if (Coroutine::get_current()) {
         RETURN_LONG(System::sleep((double) num) < 0 ? num : 0);
     } else {
-        RETURN_LONG(php_sleep(num));
+        RETURN_LONG(php_sleep((unsigned int) num));
     }
 }
 
