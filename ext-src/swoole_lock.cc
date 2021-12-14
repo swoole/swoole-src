@@ -141,7 +141,7 @@ static PHP_METHOD(swoole_lock, __construct) {
     Lock *lock = php_swoole_lock_get_ptr(ZEND_THIS);
     if (lock != nullptr) {
         zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     zend_long type = Lock::MUTEX;

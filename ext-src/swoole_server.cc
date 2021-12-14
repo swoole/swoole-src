@@ -1853,7 +1853,7 @@ static PHP_METHOD(swoole_server, __construct) {
     Server *serv = server_object->serv;
     if (serv) {
         zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     zval *zserv = ZEND_THIS;
@@ -1886,7 +1886,7 @@ static PHP_METHOD(swoole_server, __construct) {
 
     if (serv_mode != Server::MODE_BASE && serv_mode != Server::MODE_PROCESS) {
         zend_throw_error(NULL, "invalid $mode parameters %d", (int) serv_mode);
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     serv = new Server((enum Server::Mode) serv_mode);
@@ -1903,7 +1903,7 @@ static PHP_METHOD(swoole_server, __construct) {
         if (serv_port == 0 && strcasecmp(host, "SYSTEMD") == 0) {
             if (serv->add_systemd_socket() <= 0) {
                 zend_throw_error(NULL, "failed to add systemd socket");
-                RETURN_THROWS();
+                RETURN_FALSE;
             }
         } else {
             ListenPort *port = serv->add_port((enum swSocketType) sock_type, host, serv_port);

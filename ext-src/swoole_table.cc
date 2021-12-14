@@ -206,7 +206,7 @@ PHP_METHOD(swoole_table, __construct) {
     Table *table = php_swoole_table_get_ptr(ZEND_THIS);
     if (table) {
         zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     zend_long table_size;

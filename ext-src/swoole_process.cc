@@ -242,23 +242,23 @@ static PHP_METHOD(swoole_process, __construct) {
 
     if (process) {
         zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     // only cli env
     if (!SWOOLE_G(cli)) {
         zend_throw_error(NULL, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     if (sw_server() && sw_server()->is_started() && sw_server()->is_master()) {
         zend_throw_error(NULL, "%s can't be used in master process", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     if (SwooleTG.async_threads) {
         zend_throw_error(NULL, "unable to create %s with async-io threads", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
-        RETURN_THROWS();
+        RETURN_FALSE;
     }
 
     zend::Function func;
