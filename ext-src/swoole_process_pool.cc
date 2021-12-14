@@ -268,13 +268,13 @@ static PHP_METHOD(swoole_process_pool, __construct) {
 
     // only cli env
     if (!SWOOLE_G(cli)) {
-        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
-        RETURN_FALSE;
+        zend_throw_error(NULL, "%s can only be used in PHP CLI mode", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        RETURN_THROWS();
     }
 
     if (sw_server()) {
-        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
-        RETURN_FALSE;
+        zend_throw_error(NULL, "%s cannot use in server process", SW_Z_OBJCE_NAME_VAL_P(zobject));
+        RETURN_THROWS();
     }
 
     if (zend_parse_parameters_throw(ZEND_NUM_ARGS(), "l|llb", &worker_num, &ipc_type, &msgq_key, &enable_coroutine) ==

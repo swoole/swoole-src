@@ -140,7 +140,8 @@ void php_swoole_lock_minit(int module_number) {
 static PHP_METHOD(swoole_lock, __construct) {
     Lock *lock = php_swoole_lock_get_ptr(ZEND_THIS);
     if (lock != nullptr) {
-        zend_throw_exception_ex(swoole_exception_ce, SW_ERROR_PHP_FATAL_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_THROWS();
     }
 
     zend_long type = Lock::MUTEX;
