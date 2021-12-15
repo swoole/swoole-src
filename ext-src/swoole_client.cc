@@ -672,7 +672,8 @@ static PHP_METHOD(swoole_client, __construct) {
     }
 
     if (async) {
-        zend_throw_exception(swoole_exception_ce, "please install the ext-async extension, using Swoole\\Async\\Client", SW_ERROR_PHP_FATAL_ERROR);
+        zend_throw_error(NULL, "please install the ext-async extension, using Swoole\\Async\\Client");
+        RETURN_FALSE;
     }
 
     int client_type = php_swoole_socktype(type);

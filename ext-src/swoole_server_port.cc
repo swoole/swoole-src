@@ -223,8 +223,8 @@ static ssize_t php_swoole_server_length_func(Protocol *protocol,
 }
 
 static PHP_METHOD(swoole_server_port, __construct) {
-    zend_throw_exception(swoole_exception_ce, "please use the Swoole\\Server->listen method", SW_ERROR_PHP_FATAL_ERROR);
-    return;
+    zend_throw_error(NULL, "please use the Swoole\\Server->listen method");
+    RETURN_FALSE;
 }
 
 static PHP_METHOD(swoole_server_port, __destruct) {}
