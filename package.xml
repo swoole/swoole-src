@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-11-29</date>
-    <time>11:00:00</time>
+    <date>2021-12-16</date>
+    <time>17:00:00</time>
     <version>
-        <release>4.8.3</release>
+        <release>4.8.4</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -679,6 +679,9 @@
             <file role="src" name="src/server/worker.cc" />
             <file role="src" name="src/wrapper/event.cc" />
             <file role="src" name="src/wrapper/timer.cc" />
+            <file role="src" name="stubs/php_swoole_table.stub.php" />
+            <file role="src" name="stubs/php_swoole_table_arginfo.h" />
+            <file role="src" name="stubs/php_swoole_table_legacy_arginfo.h" />
             <file role="src" name="swoole-logo.svg" />
             <file role="test" name="tests/CONTRIBUTION" />
             <file role="test" name="tests/README.md" />
@@ -1396,6 +1399,7 @@
             <file role="test" name="tests/swoole_http_server_coro/bad_request.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_2682.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_3025.phpt" />
+            <file role="test" name="tests/swoole_http_server_coro/bug_4519.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/bug_no_handle.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_cookie_crlf.phpt" />
             <file role="test" name="tests/swoole_http_server_coro/check_http_header_crlf.phpt" />
