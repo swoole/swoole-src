@@ -63,12 +63,9 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed compatibility of curl native hook with PHP-8.1
-        - Fixed compatibility of sockets hook with PHP-8
-        - Fixed the return value error of sockets hook function
-        - Added Coroutine\Socket::isClosed()
-        - Fixed Http2Server sendfile cannot set content-type
-        - Optimize performance of HttpServer date header
+        - Fixed compatibility of sockets hook with PHP-8.1
+        - Fixed compatibility of Table with PHP-8.1
+        - Fixed bug #4519
     </notes>
     <contents>
         <dir name="/">
