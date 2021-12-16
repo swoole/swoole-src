@@ -1852,7 +1852,8 @@ static PHP_METHOD(swoole_server, __construct) {
     ServerObject *server_object = server_fetch_object(Z_OBJ_P(ZEND_THIS));
     Server *serv = server_object->serv;
     if (serv) {
-        php_swoole_fatal_error(E_ERROR, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        zend_throw_error(NULL, "Constructor of %s can only be called once", SW_Z_OBJCE_NAME_VAL_P(ZEND_THIS));
+        RETURN_FALSE;
     }
 
     zval *zserv = ZEND_THIS;
@@ -1884,7 +1885,7 @@ static PHP_METHOD(swoole_server, __construct) {
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     if (serv_mode != Server::MODE_BASE && serv_mode != Server::MODE_PROCESS) {
-        php_swoole_fatal_error(E_ERROR, "invalid $mode parameters %d", (int) serv_mode);
+        zend_throw_error(NULL, "invalid $mode parameters %d", (int) serv_mode);
         RETURN_FALSE;
     }
 
@@ -1901,7 +1902,7 @@ static PHP_METHOD(swoole_server, __construct) {
     do {
         if (serv_port == 0 && strcasecmp(host, "SYSTEMD") == 0) {
             if (serv->add_systemd_socket() <= 0) {
-                php_swoole_fatal_error(E_ERROR, "failed to add systemd socket");
+                zend_throw_error(NULL, "failed to add systemd socket");
                 RETURN_FALSE;
             }
         } else {
@@ -3801,7 +3802,7 @@ static PHP_METHOD(swoole_server, stop) {
 // swoole_connection_iterator
 
 static PHP_METHOD(swoole_connection_iterator, __construct) {
-    php_swoole_fatal_error(E_ERROR, "please use the Swoole\\Server->connections");
+    zend_throw_error(NULL, "please use the Swoole\\Server->connections");
     return;
 }
 
