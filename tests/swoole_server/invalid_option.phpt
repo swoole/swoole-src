@@ -22,8 +22,8 @@ try {
 }
 
 ?>
---EXPECTF--
-Warning: unsupported option [invalid_option] in @swoole-src/library/core/Server/Helper.php on line %d
-#0  Swoole\Server\Helper::checkOptions()
-#1  Swoole\Server\Port->set()
-#2  Swoole\Server->set() called at [%s:%d]
+--EXPECTREGEX--
+Warning: unsupported option \[invalid_option\] in [\w\W]* on line \d+
+#0 (\[internal function\]: )?Swoole\\Server\\Helper::checkOptions\(\)
+#1 (\[internal function\]: )?Swoole\\Server\\Port->set\(\)
+#2 ([\w\W]*\(\d+\): Swoole\\Server->set\(\))|(Swoole\\Server->set\(\) called at \[[\w\W]*:\d+\])
