@@ -34,21 +34,21 @@ Co\run(function () {
 });
 echo "DONE\n";
 ?>
---EXPECTF--
+--EXPECTREGEX--
 ===================================================================
- [FATAL ERROR]: all coroutines (count: 2) are asleep - deadlock!
+ \[FATAL ERROR\]: all coroutines \(count: 2\) are asleep - deadlock!
 ===================================================================
 
- [Coroutine-3]
+ \[Coroutine-3\]
 --------------------------------------------------------------------
-#0  Swoole\Coroutine::yield() called at [%s:%d]
-#1  test2() called at [%s:%d]
+#0  (Swoole\\Coroutine::yield\(\) called at \[[\w\W]*.php:\d+\])|([\w\W]*.php\(\d+\): Swoole\\Coroutine::yield\(\))
+#1  (test2\(\) called at \[[\w\W]*:\d+\])|([\w\W]*.php\(\d+\): test2\(\))
+(#2 \[internal function\]: \{closure\}\(\))|\n
 
-
- [Coroutine-2]
+ \[Coroutine-2\]
 --------------------------------------------------------------------
-#0  Swoole\Coroutine::yield() called at [%s:%d]
-#1  {closure}() called at [%s:%d]
-#2  test1() called at [%s:%d]
-
+#0  (Swoole\\Coroutine::yield\(\) called at \[[\w\W]*:\d+\])|([\w\W]*.php\(\d+\): Swoole\\Coroutine::yield\(\))
+#1  (\{closure\}\(\) called at \[[\w\W]*:\d+\])|([\w\W]*.php\(\d+\): \{closure\}\(\))
+#2  (test1\(\) called at \[[\w\W]*:\d+\])|([\w\W]*.php\(\d+\): test1\(\))
+(#3 \[internal function\]: \{closure\}\(\))|\n
 DONE
