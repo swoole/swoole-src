@@ -11,9 +11,9 @@ go(function () {
 });
 ?>
 --EXPECTREGEX--
-Fatal error: Uncaught Swoole\\Error: must be forked outside the coroutine in [\w\W]*:\d+
+Fatal error: Uncaught Swoole\\Error: must be forked outside the coroutine in [\w\W]+php:\d+
 Stack trace:
-#0 [\w\W]*\(\d+\): Swoole\\Process->start\(\)
+#0 [\w\W]+php\(\d+\): Swoole\\Process->start\(\)
 (#1 \[internal function\]: \{closure\}\(\))?|#\d \{main\}
-#\d \{main\}|  thrown in [\w\W]* on line \d+
-  thrown in [\w\W]* on line \d+
+#\d \{main\}|  thrown in [\w\W]+php on line \d+
+  thrown in [\w\W]+php on line \d+
