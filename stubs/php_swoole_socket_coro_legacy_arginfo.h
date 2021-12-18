@@ -104,7 +104,7 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_swoole_socket_coro_shutdown, 0, 0, 0)
     ZEND_ARG_INFO(0, how)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Socket_importStream, 0, 0, 1)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_Coroutine_Socket_import, 0, 0, 1)
     ZEND_ARG_INFO(0, stream)
 ZEND_END_ARG_INFO()
 
@@ -142,4 +142,4 @@ ZEND_END_ARG_INFO()
 #define arginfo_class_Swoole_Coroutine_Socket_getpeername       arginfo_swoole_void
 #define arginfo_class_Swoole_Coroutine_Socket_getsockname       arginfo_swoole_void
 #define arginfo_class_Swoole_Coroutine_Socket_isClosed          arginfo_swoole_void
-#define arginfo_class_Swoole_Coroutine_Socket_importStream      arginfo_class_Swoole_Coroutine_Socket_importStream
+#define arginfo_class_Swoole_Coroutine_Socket_import            arginfo_class_Swoole_Coroutine_Socket_import
