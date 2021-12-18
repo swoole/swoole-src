@@ -10,8 +10,8 @@ go(function () {
     $process->start();
 });
 ?>
---EXPECTF--
-Fatal error: Uncaught Swoole\Error: must be forked outside the coroutine in %s:%d
+--EXPECTREGEX--
+Fatal error: Uncaught Swoole\\Error: must be forked outside the coroutine in [\w\W]*:\d+
 Stack trace:
 #0 [\w\W]*\(\d+\): Swoole\\Process->start\(\)
 (#1 \[internal function\]: \{closure\}\(\))?|#\d \{main\}
