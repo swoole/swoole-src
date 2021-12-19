@@ -23,7 +23,7 @@ try {
 
 ?>
 --EXPECTREGEX--
-Warning: unsupported option \[invalid_option\] in [\w\W]+php on line \d+
-#0 (\[internal function\]: )?Swoole\\Server\\Helper::checkOptions\(\)
-#1 (\[internal function\]: )?Swoole\\Server\\Port->set\(\)
-#2 ([\w\W]+php\(\d+\): Swoole\\Server->set\(\))|(Swoole\\Server->set\(\) called at \[[\w\W]+php:\d+\])
+Warning: unsupported option \[invalid_option\] in [\w\W]*php on line \d+
+#0  (\[internal function\]: )?Swoole\\Server\\Helper::checkOptions\(\)
+#1  (\[internal function\]: )?Swoole\\Server\\Port->set\(\)
+#2  ([\w\W]*php\(\d+\): Swoole\\Server->set\(\)|Swoole\\Server->set\(\) called at \[[\w\W]*php:\d+\])
