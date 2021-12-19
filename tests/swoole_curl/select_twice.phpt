@@ -24,9 +24,9 @@ run(function () {
     }
 });
 ?>
---EXPECTF--
-Fatal error: Uncaught Swoole\Error: cURL is executing, cannot be operated in %s:%d
+--EXPECTREGEX--
+Fatal error: Uncaught Swoole\\Error: cURL is executing, cannot be operated in [\w\W]*php:\d+
 Stack trace:
-#0 %s(%d): curl_multi_select(%s)
-#1 {main}
-  thrown in %s on line %d
+#0 [\w\W]*php\(\d+\): curl_multi_select\([a-zA-Z\(\)]+\)
+#1 ({main}|\[internal function\]: {closure}\(\))
+(#\d {main})?\s+thrown in [\w\W]*php on line \d+
