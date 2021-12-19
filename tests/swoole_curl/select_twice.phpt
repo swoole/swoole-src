@@ -27,6 +27,6 @@ run(function () {
 --EXPECTREGEX--
 Fatal error: Uncaught Swoole\\Error: cURL is executing, cannot be operated in [\w\W]*php:\d+
 Stack trace:
-#0 [\w\W]*php\(\d+\): curl_multi_select\([a-zA-Z\(\)]+\)
+#0 [\w\W]*php\(\d+\): curl_multi_select\(\(Resource id #\d+\)|Object\(CurlMultiHandle\)\)
 #1 ({main}|\[internal function\]: {closure}\(\))
 (#\d {main})?\s+thrown in [\w\W]*php on line \d+
