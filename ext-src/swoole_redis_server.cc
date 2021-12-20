@@ -23,7 +23,7 @@
 BEGIN_EXTERN_C()
 #include "ext/standard/php_string.h"
 
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80100
 #include "stubs/php_swoole_redis_server_arginfo.h"
 #else
 #include "stubs/php_swoole_redis_server_legacy_arginfo.h"

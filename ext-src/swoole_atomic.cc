@@ -18,7 +18,7 @@
 #include "swoole_memory.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80100
 #include "stubs/php_swoole_atomic_arginfo.h"
 #else
 #include "stubs/php_swoole_atomic_legacy_arginfo.h"

@@ -23,7 +23,7 @@ SW_EXTERN_C_END
 #include "swoole_base64.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80100
 #include "stubs/php_swoole_websocket_arginfo.h"
 #else
 #include "stubs/php_swoole_websocket_legacy_arginfo.h"

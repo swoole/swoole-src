@@ -29,7 +29,7 @@
 #include <unordered_map>
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80100
 #include "stubs/php_swoole_runtime_arginfo.h"
 #else
 #include "stubs/php_swoole_runtime_legacy_arginfo.h"

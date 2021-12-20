@@ -19,7 +19,7 @@
 #include "swoole_table.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80100
 #include "stubs/php_swoole_table_arginfo.h"
 #else
 #include "stubs/php_swoole_table_legacy_arginfo.h"

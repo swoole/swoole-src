@@ -28,7 +28,7 @@
 #include <string>
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
+#if PHP_VERSION_ID >= 80100
 #include "stubs/php_swoole_socket_coro_arginfo.h"
 #else
 #include "stubs/php_swoole_socket_coro_legacy_arginfo.h"
