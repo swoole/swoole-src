@@ -295,7 +295,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
         if (state <= 0 && *_c == '=') {
             klen = i - j + 1;
             if (klen >= SW_HTTP_COOKIE_KEYLEN) {
-                swoole_warning("cookie[%.*s...] name length %ld is exceed the max name len %d",
+                swoole_warning("cookie[%.*s...] name length %zu is exceed the max name len %d",
                        8,
                        (char *) at + j,
                        klen,
@@ -310,7 +310,7 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
         } else if (state == 1 && *_c == ';') {
             vlen = i - j;
             if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-                swoole_warning("cookie[%s]'s value[v=%.*s...] length %ld is exceed the max value len %d",
+                swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
                        keybuf,
                        8,
                        (char *) at + j,
@@ -342,12 +342,12 @@ void swoole_http_parse_cookie(zval *zarray, const char *at, size_t length, bool 
         vlen = i - j;
         if (klen >= SW_HTTP_COOKIE_KEYLEN) {
             swoole_warning(
-                "cookie[%.*s...] name length %ld is exceed the max name len %d", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
+                "cookie[%.*s...] name length %zu is exceed the max name len %d", 8, keybuf, klen, SW_HTTP_COOKIE_KEYLEN);
             return;
         }
         keybuf[klen - 1] = 0;
         if (vlen >= SW_HTTP_COOKIE_VALLEN) {
-            swoole_warning("cookie[%s]'s value[v=%.*s...] length %ld is exceed the max value len %d",
+            swoole_warning("cookie[%s]'s value[v=%.*s...] length %zu is exceed the max value len %d",
                    keybuf,
                    8,
                    (char *) at + j,
