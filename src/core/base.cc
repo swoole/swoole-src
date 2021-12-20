@@ -44,6 +44,10 @@
 #include "swoole_coroutine_system.h"
 #include "swoole_ssl.h"
 
+#if defined(HAVE_CCRANDOMGENERATEBYTES)
+#include <CommonCrypto/CommonRandom.h>
+#endif
+
 using swoole::NameResolver;
 using swoole::String;
 using swoole::coroutine::System;
@@ -52,7 +56,16 @@ using swoole::coroutine::System;
 #include <sys/random.h>
 #else
 static ssize_t getrandom(void *buffer, size_t size, unsigned int __flags) {
-#ifdef HAVE_ARC4RANDOM
+#if defined(HAVE_CCRANDOMGENERATEBYTES)
+    /* 
+     * arc4random_buf on macOs uses ccrng_generate internally from which 
+     * the potential error is silented to respect the portable arc4random_buf interface contract
+     */
+    if (CCRandomGenerateBytes(buffer, size) == kCCSuccess) {
+        return size;
+    }
+    return -1;
+#elif defined(HAVE_ARC4RANDOM)
     arc4random_buf(buffer, size);
     return size;
 #else
