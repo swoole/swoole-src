@@ -224,6 +224,7 @@ class ThreadPool {
 void ThreadPool::create_thread(const bool is_core_worker) {
     try {
         std::thread *_thread = new std::thread([this, is_core_worker]() {
+            pthread_setname_np(pthread_self(), "swoole-aio");
             bool exit_flag = false;
             SwooleTG.buffer_stack = new String(SW_STACK_BUFFER_SIZE);
             ON_SCOPE_EXIT {
