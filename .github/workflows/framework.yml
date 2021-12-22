@@ -5,7 +5,7 @@ on:
   pull_request:
 
 jobs:
-  linux-tests:
+  linux:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -50,11 +50,14 @@ jobs:
 
       - name: Hyperf Tests
         if: matrix.framework == 'Hyperf'
+        env:
+          SW_VERSION: 'master'
+          MYSQL_VERSION: '5.7'
         run: |
           git clone https://github.com/hyperf/hyperf.git --depth=1
           cd hyperf/
           composer update -o
-          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:5.7 --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
+          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
           docker run --name redis -p 6379:6379 -d redis
           docker run -d --name dev-consul -e CONSUL_BIND_INTERFACE=eth0 -p 8500:8500 consul
           docker run --name nsq -p 4150:4150 -p 4151:4151 -p 4160:4160 -p 4161:4161 -p 4170:4170 -p 4171:4171 --entrypoint /bin/nsqd -d nsqio/nsq:latest
@@ -78,7 +81,7 @@ jobs:
           composer install -o
           composer test
 
-  macos-tests:
+  macos:
     runs-on: macos-latest
     strategy:
       fail-fast: false
