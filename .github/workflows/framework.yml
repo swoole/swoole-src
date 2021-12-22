@@ -11,11 +11,11 @@ jobs:
       fail-fast: false
       matrix:
         php-version: [ '8.0', '8.1' ]
-        framework: [ 'laravel', 'hyperf' ]
+        framework: [ 'Laravel', 'Hyperf' ]
         include:
           - os: ubuntu-latest
             php-version: '7.4'
-            framework: 'hyperf'
+            framework: 'Hyperf'
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
@@ -40,7 +40,7 @@ jobs:
           php --ri swoole
 
       - name: Laravel Tests
-        if: matrix.framework == 'laravel'
+        if: matrix.framework == 'Laravel'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
           cd octane/
@@ -49,12 +49,12 @@ jobs:
           vendor/bin/phpunit --verbose
 
       - name: Hyperf Tests
-        if: matrix.framework == 'hyperf'
+        if: matrix.framework == 'Hyperf'
         run: |
           git clone https://github.com/hyperf/hyperf.git --depth=1
           cd hyperf/
           composer update -o
-          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
+          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:5.7 --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
           docker run --name redis -p 6379:6379 -d redis
           docker run -d --name dev-consul -e CONSUL_BIND_INTERFACE=eth0 -p 8500:8500 consul
           docker run --name nsq -p 4150:4150 -p 4151:4151 -p 4160:4160 -p 4161:4161 -p 4170:4170 -p 4171:4171 --entrypoint /bin/nsqd -d nsqio/nsq:latest
