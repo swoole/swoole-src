@@ -39,7 +39,7 @@ jobs:
           sudo make install
           php --ri swoole
 
-      - name: Laravel Tests
+      - name: Laravel Octane Tests
         if: matrix.framework == 'Laravel'
         run: |
           git clone https://github.com/laravel/octane.git --depth=1
