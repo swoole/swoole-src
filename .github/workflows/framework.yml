@@ -5,13 +5,13 @@ on:
   pull_request:
 
 jobs:
-  tests:
+  linux-tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         php-version: [ '8.0', '8.1' ]
-        framework: [ 'Laravel', 'Hyperf' ]
+        framework: [ 'Laravel', 'Hyperf', 'Simps' ]
         include:
           - os: ubuntu-latest
             php-version: '7.4'
@@ -69,3 +69,50 @@ jobs:
           composer test -- --exclude-group NonCoroutine
           vendor/bin/phpunit --group NonCoroutine
           vendor/bin/phpunit src/filesystem --group NonCoroutine
+
+      - name: Simps Tests
+        if: matrix.framework == 'Simps'
+        run: |
+          git clone https://github.com/simps/mqtt.git --depth=1
+          cd mqtt/
+          composer install -o
+          composer test
+
+  macos-tests:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: [ '8.0', '8.1' ]
+        framework: [ 'Simps' ]
+    name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }} - macOS
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: dom, curl, libxml, mbstring, zip, redis, pdo, pdo_mysql, bcmath
+          tools: phpize, composer:v2
+          ini-values: extension=swoole
+          coverage: none
+
+      - name: Build Swoole
+        run: |
+          brew install openssl && brew link openssl
+          brew install c-ares && brew link c-ares
+          phpize
+          ./configure --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-cares
+          make -j$(nproc)
+          sudo make install
+          php --ri swoole
+
+      - name: Simps Tests
+        if: matrix.framework == 'Simps'
+        run: |
+          git clone https://github.com/simps/mqtt.git --depth=1
+          cd mqtt/
+          composer install -o
+          composer test
