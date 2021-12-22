@@ -10,14 +10,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        php-version: [ '8.0', '8.1' ]
+        framework: [ 'laravel', 'hyperf' ]
         include:
           - os: ubuntu-latest
-            php-version: '8.0'
-            framework: 'laravel'
-          - os: ubuntu-latest
-            php-version: '8.1'
-            framework: 'laravel'
-    name: PHP ${{ matrix.php-version }} - Framework ${{ matrix.framework }}
+            php-version: '7.4'
+            framework: 'hyperf'
+    name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -26,7 +25,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php-version }}
-          extensions: dom, curl, libxml, mbstring, zip
+          extensions: dom, curl, libxml, mbstring, zip, redis, pdo, pdo_mysql, bcmath
           tools: phpize, composer:v2
           ini-values: extension=swoole
           coverage: none
@@ -48,3 +47,25 @@ jobs:
           composer require laravel/framework:"^8.35" --no-update
           composer update --prefer-dist --no-interaction --no-progress
           vendor/bin/phpunit --verbose
+
+      - name: Hyperf Tests
+        if: matrix.framework == 'hyperf'
+        run: |
+          git clone https://github.com/hyperf/hyperf.git --depth=1
+          cd hyperf/
+          composer update -o
+          docker run --name mysql -p 3306:3306 -e MYSQL_ALLOW_EMPTY_PASSWORD=true -d mysql:${MYSQL_VERSION} --bind-address=0.0.0.0 --default-authentication-plugin=mysql_native_password
+          docker run --name redis -p 6379:6379 -d redis
+          docker run -d --name dev-consul -e CONSUL_BIND_INTERFACE=eth0 -p 8500:8500 consul
+          docker run --name nsq -p 4150:4150 -p 4151:4151 -p 4160:4160 -p 4161:4161 -p 4170:4170 -p 4171:4171 --entrypoint /bin/nsqd -d nsqio/nsq:latest
+          docker run -d --restart=always --name rabbitmq -p 4369:4369 -p 5672:5672 -p 15672:15672 -p 25672:25672 rabbitmq:management-alpine
+          docker build --tag grpc-server:latest src/grpc-client/tests/Mock
+          docker run -d --name grpc-server -p 50051:50051 grpc-server:latest
+          docker build -t tcp-server:latest .travis/tcp_server
+          docker run -d --name tcp-server -p 10001:10001 tcp-server:latest
+          export TRAVIS_BUILD_DIR=$(pwd) && bash ./.travis/setup.mysql.sh
+          cp .travis/.env.example .env
+          composer analyse src
+          composer test -- --exclude-group NonCoroutine
+          vendor/bin/phpunit --group NonCoroutine
+          vendor/bin/phpunit src/filesystem --group NonCoroutine
