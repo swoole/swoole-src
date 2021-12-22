@@ -108,7 +108,7 @@ jobs:
           brew install c-ares && brew link c-ares
           phpize
           ./configure --enable-openssl --with-openssl-dir=/usr/local/opt/openssl@1.1 --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-cares
-          make -j$(nproc)
+          make -j$(sysctl -n hw.logicalcpu)
           sudo make install
           php --ri swoole
 
