@@ -1,0 +1,50 @@
+name: Frameworks Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            php-version: '8.0'
+            framework: 'laravel'
+          - os: ubuntu-latest
+            php-version: '8.1'
+            framework: 'laravel'
+    name: PHP ${{ matrix.php-version }} - Framework ${{ matrix.framework }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php-version }}
+          extensions: dom, curl, libxml, mbstring, zip
+          tools: phpize, composer:v2
+          ini-values: extension=swoole
+          coverage: none
+
+      - name: Build Swoole
+        run: |
+          sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
+          phpize
+          ./configure --enable-openssl --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-cares
+          make -j$(nproc)
+          sudo make install
+          php --ri swoole
+
+      - name: Laravel Tests
+        if: matrix.framework == 'laravel'
+        run: |
+          git clone https://github.com/laravel/octane.git --depth=1
+          cd octane/
+          composer require laravel/framework:"^8.35" --no-update
+          composer update --prefer-dist --no-interaction --no-progress
+          vendor/bin/phpunit --verbose
