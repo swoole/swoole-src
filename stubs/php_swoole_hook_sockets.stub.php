@@ -76,3 +76,6 @@ function swoole_native_socket_shutdown(Swoole\Coroutine\Socket $socket, int $mod
 function swoole_native_socket_last_error(?Swoole\Coroutine\Socket $socket = null): int {}
 
 function swoole_native_socket_clear_error(?Swoole\Coroutine\Socket $socket = null): void {}
+
+/** @param resource $stream */
+function swoole_native_socket_import_stream($stream): Swoole\Coroutine\Socket {}

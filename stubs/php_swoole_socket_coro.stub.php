@@ -32,5 +32,7 @@ namespace Swoole\Coroutine {
         public function getsockname(): false|array {}
         public function getpeername(): false|array {}
         public function isClosed(): bool {}
+        /** @param resource $stream */
+        public static function import($stream) : Socket | false {}
     }
 }

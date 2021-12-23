@@ -182,6 +182,7 @@ static const zend_function_entry swoole_sockets_functions[] = {
     SW_HOOK_FE(socket_shutdown, arginfo_swoole_native_socket_shutdown)
     SW_HOOK_FE(socket_last_error, arginfo_swoole_native_socket_last_error)
     SW_HOOK_FE(socket_clear_error, arginfo_swoole_native_socket_clear_error)
+    SW_HOOK_FE(socket_import_stream, arginfo_swoole_native_socket_import_stream)
     ZEND_FE_END
 };
 #else
@@ -1407,6 +1408,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_HOOK_SOCKETS_FUNC(socket_close);
             SW_HOOK_SOCKETS_FUNC(socket_clear_error);
             SW_HOOK_SOCKETS_FUNC(socket_last_error);
+            SW_HOOK_SOCKETS_FUNC(socket_import_stream);
         }
     } else {
         if (runtime_hook_flags & PHPCoroutine::HOOK_BLOCKING_FUNCTION) {
@@ -1435,6 +1437,7 @@ bool PHPCoroutine::enable_hook(uint32_t flags) {
             SW_UNHOOK_FUNC(socket_close);
             SW_UNHOOK_FUNC(socket_clear_error);
             SW_UNHOOK_FUNC(socket_last_error);
+            SW_UNHOOK_FUNC(socket_import_stream);
         }
     }
 

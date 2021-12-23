@@ -14,7 +14,7 @@
   +----------------------------------------------------------------------+             
  */
 
-/* $Id: e8c6880a24bbd5c50cd25d7a149ec79c1152029b */
+/* $Id: e253a6319ca06ac3239c64dd0993f8c6a729a950 */
 
 static const char* swoole_library_source_constants =
     "\n"
@@ -8601,13 +8601,17 @@ static const char* swoole_library_source_ext_sockets =
     "    int $protocol,\n"
     "    array &$pair\n"
     ") {\n"
-    "    $_pair =swoole_coroutine_socketpair($domain, $type, $protocol);\n"
+    "    $_pair = swoole_coroutine_socketpair($domain, $type, $protocol);\n"
     "    if ($_pair) {\n"
     "        $pair = $_pair;\n"
     "        return true;\n"
-    "    } else {\n"
-    "        return false;\n"
     "    }\n"
+    "    return false;\n"
+    "}\n"
+    "\n"
+    "function swoole_socket_import_stream($stream)\n"
+    "{\n"
+    "    return Socket::import($stream);\n"
     "}\n";
 
 static const char* swoole_library_source_functions =
