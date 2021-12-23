@@ -1,12 +1,14 @@
 --TEST--
 swoole_socket_coro: import 2
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php require __DIR__ . '/../include/skipif.inc';
+skip_if_php_version_lower_than('8.0');
+skip_if_extension_not_exist('sockets');
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';
 Co\run(function () {
-
     var_dump(Swoole\Coroutine\Socket::import(fopen(__FILE__, "rb")));
     try {
         Swoole\Coroutine\Socket::import(socket_create(AF_INET, SOCK_DGRAM, SOL_UDP));
