@@ -1,7 +1,10 @@
 --TEST--
 swoole_coroutine: getExecuteTime
 --SKIPIF--
-<?php require __DIR__ . '/../include/skipif.inc'; ?>
+<?php
+require __DIR__ . '/../include/skipif.inc';
+skip_if_no_coroutine_get_execute_time();
+?>
 --FILE--
 <?php
 require __DIR__ . '/../include/bootstrap.php';

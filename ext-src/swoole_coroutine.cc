@@ -118,7 +118,9 @@ static PHP_METHOD(swoole_coroutine, getStackUsage);
 static PHP_METHOD(swoole_coroutine, list);
 static PHP_METHOD(swoole_coroutine, enableScheduler);
 static PHP_METHOD(swoole_coroutine, disableScheduler);
+#ifdef SW_CORO_TIME
 static PHP_METHOD(swoole_coroutine, getExecuteTime);
+#endif
 SW_EXTERN_C_END
 
 // clang-format off
@@ -151,7 +153,9 @@ static const zend_function_entry swoole_coroutine_methods[] =
     PHP_MALIAS(swoole_coroutine, listCoroutines, list,    arginfo_class_Swoole_Coroutine_listCoroutines,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, enableScheduler,             arginfo_class_Swoole_Coroutine_enableScheduler,  ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_coroutine, disableScheduler,            arginfo_class_Swoole_Coroutine_disableScheduler, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#ifdef SW_CORO_TIME
     PHP_ME(swoole_coroutine, getExecuteTime,              arginfo_class_Swoole_Coroutine_getExecuteTime,   ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
+#endif
     /**
      * Coroutine System API
      */
@@ -1306,9 +1310,11 @@ static PHP_METHOD(swoole_coroutine, list) {
     zval_ptr_dtor(&zlist);
 }
 
+#ifdef SW_CORO_TIME
 static PHP_METHOD(swoole_coroutine, getExecuteTime) {
     RETURN_LONG(PHPCoroutine::get_execute_time());
 }
+#endif
 
 PHP_METHOD(swoole_coroutine, enableScheduler) {
     RETURN_BOOL(PHPCoroutine::enable_scheduler());
