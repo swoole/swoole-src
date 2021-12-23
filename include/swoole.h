@@ -548,6 +548,8 @@ typedef cpuset_t cpu_set_t;
 int swoole_set_cpu_affinity(cpu_set_t *set);
 #endif
 
+void swoole_set_thread_name(const char *name);
+
 #ifdef HAVE_CLOCK_GETTIME
 #define swoole_clock_gettime clock_gettime
 #else

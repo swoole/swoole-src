@@ -824,6 +824,7 @@ int ReactorThread::init(Server *serv, Reactor *reactor, uint16_t reactor_id) {
  * ReactorThread main Loop
  */
 static void ReactorThread_loop(Server *serv, int reactor_id) {
+    swoole_set_thread_name("swoole-reactor");
     SwooleTG.id = reactor_id;
     SwooleTG.type = Server::THREAD_REACTOR;
 
@@ -1024,6 +1025,7 @@ void Server::destroy_reactor_threads() {
 
 void Server::start_heartbeat_thread() {
     heartbeat_thread = std::thread([this]() {
+        swoole_set_thread_name("swoole-heartbeat");
         swoole_signal_block_all();
 
         SwooleTG.type = THREAD_HEARTBEAT;

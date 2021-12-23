@@ -84,6 +84,7 @@ bool Context::swap_out() {
 }
 
 void Context::context_func(void *arg) {
+    swoole_set_thread_name("swoole-context");
     Context *_this = (Context *) arg;
     SwooleTG.reactor = g_reactor;
     SwooleTG.timer = g_timer;

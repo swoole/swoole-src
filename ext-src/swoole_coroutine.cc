@@ -400,6 +400,7 @@ void PHPCoroutine::interrupt_thread_start() {
     zend_vm_interrupt = &EG(vm_interrupt);
     interrupt_thread_running = true;
     interrupt_thread = std::thread([]() {
+        swoole_set_thread_name("swoole-interrupt");
         swoole_signal_block_all();
         while (interrupt_thread_running) {
             *zend_vm_interrupt = 1;

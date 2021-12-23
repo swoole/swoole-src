@@ -80,6 +80,18 @@ int swoole_set_cpu_affinity(cpu_set_t *set) {
 }
 #endif
 
+void swoole_set_thread_name(const char *name) {
+#if defined(__APPLE__)
+    pthread_setname_np(name);
+#elif defined(__FreeBSD__)
+    pthread_set_name_np(pthread_self(), name);
+#elif defined(__linux__)
+    pthread_setname_np(pthread_self(), name);
+#elif defined(__NetBSD__)
+    pthread_setname_np(pthread_self(), "%s", const_cast<char *>(name));
+#endif
+}
+
 namespace swoole {
 namespace async {
 
