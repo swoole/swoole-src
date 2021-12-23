@@ -77,9 +77,6 @@ static int http_request_on_path(swoole_http_parser *parser, const char *at, size
 }
 
 static inline char *http_trim_double_quote(char *ptr, size_t *len) {
-    if (0 == *len) {
-        return ptr;
-    }
     size_t i;
     char *tmp = ptr;
 
@@ -94,14 +91,10 @@ static inline char *http_trim_double_quote(char *ptr, size_t *len) {
         }
     }
     // rtrim('"')
-    i = (*len) - 1;
-    while (true) {
-        if (tmp[i] == '"') {
-            tmp[i] = 0;
+    for (i = (*len); i > 0; i--) {
+        if (tmp[i - 1] == '"') {
+            tmp[i - 1] = 0;
             (*len)--;
-            if (0 == i--) {
-                break;
-            }
             continue;
         } else {
             break;
