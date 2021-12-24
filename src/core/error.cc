@@ -114,6 +114,8 @@ const char *swoole_strerror(int code) {
         return "Package length not found";
     case SW_ERROR_DATA_LENGTH_TOO_LARGE:
         return "Data length too large";
+    case SW_ERROR_PACKAGE_MALFORMED_DATA:
+        return "Package malformed data";
     case SW_ERROR_TASK_PACKAGE_TOO_BIG:
         return "Task package too big";
     case SW_ERROR_TASK_DISPATCH_FAIL:
@@ -168,6 +170,10 @@ const char *swoole_strerror(int code) {
         return "Websocket handshake failed";
     case SW_ERROR_WEBSOCKET_PACK_FAILED:
         return "Websocket pack failed";
+    case SW_ERROR_WEBSOCKET_UNPACK_FAILED:
+        return "Websocket unpack failed";
+    case SW_ERROR_WEBSOCKET_INCOMPLETE_PACKET:
+        return "Websocket incomplete packet";
     case SW_ERROR_SERVER_MUST_CREATED_BEFORE_CLIENT:
         return "Server must created before client";
     case SW_ERROR_SERVER_TOO_MANY_SOCKET:

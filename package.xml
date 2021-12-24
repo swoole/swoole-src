@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-12-16</date>
-    <time>17:00:00</time>
+    <date>2021-12-24</date>
+    <time>18:00:00</time>
     <version>
-        <release>4.8.4</release>
+        <release>4.8.5</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -63,9 +63,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Fixed compatibility of sockets hook with PHP-8.1
-        - Fixed compatibility of Table with PHP-8.1
-        - Fixed bug #4519
+        - Revert parameter type of Table
+        - Fix crash when received wrong data with websocket protocol
     </notes>
     <contents>
         <dir name="/">
@@ -676,8 +675,6 @@
             <file role="src" name="src/server/worker.cc" />
             <file role="src" name="src/wrapper/event.cc" />
             <file role="src" name="src/wrapper/timer.cc" />
-            <file role="src" name="stubs/php_swoole_table.stub.php" />
-            <file role="src" name="stubs/php_swoole_table_arginfo.h" />
             <file role="src" name="stubs/php_swoole_table_legacy_arginfo.h" />
             <file role="src" name="swoole-logo.svg" />
             <file role="test" name="tests/CONTRIBUTION" />
@@ -2053,6 +2050,7 @@
             <file role="test" name="tests/swoole_websocket_server/get_small_requests.phpt" />
             <file role="test" name="tests/swoole_websocket_server/greeter.phpt" />
             <file role="test" name="tests/swoole_websocket_server/listener.phpt" />
+            <file role="test" name="tests/swoole_websocket_server/malformed_data.phpt" />
             <file role="test" name="tests/swoole_websocket_server/memory.phpt" />
             <file role="test" name="tests/swoole_websocket_server/message_size.phpt" />
             <file role="test" name="tests/swoole_websocket_server/onDisconnct.phpt" />
