@@ -1479,6 +1479,7 @@ ssize_t Socket::recvfrom(void *__buf, size_t __n, struct sockaddr *_addr, sockle
 ssize_t Socket::recv_packet_with_length_protocol() {
     ssize_t packet_len = SW_BUFFER_SIZE_STD;
     ssize_t retval;
+    PacketLength pl;
     uint32_t header_len = protocol.package_length_offset + protocol.package_length_size;
 
     if (read_buffer->length > 0) {
@@ -1500,15 +1501,17 @@ _recv_header:
     }
 
 _get_length:
-    protocol.real_header_length = 0;
-    packet_len = protocol.get_package_length(&protocol, socket, read_buffer->str, (uint32_t) read_buffer->length);
+    pl.header_len = 0;
+    pl.buf = read_buffer->str;
+    pl.buf_size = (uint32_t) read_buffer->length;
+    packet_len = protocol.get_package_length(&protocol, socket, &pl);
     swoole_trace_log(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
     if (packet_len < 0) {
         set_err(SW_ERROR_PACKAGE_LENGTH_NOT_FOUND, "get package length failed");
         return 0;
     } else if (packet_len == 0) {
-        if (protocol.real_header_length != 0) {
-            header_len = protocol.real_header_length;
+        if (pl.header_len != 0) {
+            header_len = pl.header_len;
         }
         goto _recv_header;
     } else if (packet_len > protocol.package_max_length) {

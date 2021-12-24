@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "swoole_protocol.h"
+
 #define SW_HTTP2_PRI_STRING "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 
 enum swHttp2ErrorCode {
@@ -133,7 +135,7 @@ static sw_inline ssize_t get_length(const char *buf) {
     return (((uint8_t) buf[0]) << 16) + (((uint8_t) buf[1]) << 8) + (uint8_t) buf[2];
 }
 
-ssize_t get_frame_length(Protocol *protocol, network::Socket *conn, const char *buf, uint32_t length);
+ssize_t get_frame_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 int send_setting_frame(Protocol *protocol, network::Socket *conn);
 const char *get_type(int type);
 int get_type_color(int type);
