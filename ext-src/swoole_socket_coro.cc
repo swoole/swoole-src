@@ -35,8 +35,8 @@ BEGIN_EXTERN_C()
 #endif
 END_EXTERN_C()
 
-using swoole::Protocol;
 using swoole::PacketLength;
+using swoole::Protocol;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
 

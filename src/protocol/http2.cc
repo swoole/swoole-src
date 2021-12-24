@@ -20,8 +20,8 @@
 #include "swoole_socket.h"
 #include "swoole_http2.h"
 
-using swoole::Protocol;
 using swoole::PacketLength;
+using swoole::Protocol;
 using swoole::network::Socket;
 
 namespace swoole {

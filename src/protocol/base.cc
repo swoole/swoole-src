@@ -190,11 +190,10 @@ _do_recv:
             if (package_length < 0) {
                 swoole_error_log(SW_LOG_WARNING,
                                  SW_ERROR_PACKAGE_MALFORMED_DATA,
-                                                 "received %zu bytes of malformed data received from the client[%s:%d]",
-                                                 buffer->length,
-                                                 socket->info.get_ip(),
-                                                 socket->info.get_port()
-                                                 );
+                                 "received %zu bytes of malformed data received from the client[%s:%d]",
+                                 buffer->length,
+                                 socket->info.get_ip(),
+                                 socket->info.get_port());
                 return SW_ERR;
             }
             // no length

@@ -30,13 +30,13 @@ BEGIN_EXTERN_C()
 #endif
 END_EXTERN_C()
 
-using swoole::Protocol;
+using swoole::HttpProxy;
 using swoole::PacketLength;
+using swoole::Protocol;
+using swoole::Socks5Proxy;
+using swoole::String;
 using swoole::network::Client;
 using swoole::network::Socket;
-using swoole::Socks5Proxy;
-using swoole::HttpProxy;
-using swoole::String;
 
 struct ClientCallback {
     zend_fcall_info_cache cache_onConnect;
@@ -163,8 +163,7 @@ static sw_inline Client *client_get_ptr(zval *zobject) {
         }
     }
     swoole_set_last_error(SW_ERROR_CLIENT_NO_CONNECTION);
-    zend_update_property_long(
-        swoole_client_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
+    zend_update_property_long(swoole_client_ce, SW_Z8_OBJ_P(zobject), ZEND_STRL("errCode"), swoole_get_last_error());
     php_swoole_error(E_WARNING, "client is not connected to server");
     return nullptr;
 }
@@ -205,12 +204,8 @@ void php_swoole_client_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_client, php_swoole_client_create_object, php_swoole_client_free_object, ClientObject, std);
 
-    SW_INIT_CLASS_ENTRY_EX(swoole_client_exception,
-                           "Swoole\\Client\\Exception",
-                           nullptr,
-                           nullptr,
-                           nullptr,
-                           swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(
+        swoole_client_exception, "Swoole\\Client\\Exception", nullptr, nullptr, nullptr, swoole_exception);
 
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
