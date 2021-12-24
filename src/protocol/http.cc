@@ -712,12 +712,12 @@ static void protocol_status_error(Socket *socket, Connection *conn) {
                      conn->info.get_port());
 }
 
-ssize_t get_package_length(Protocol *protocol, Socket *socket, const char *data, uint32_t length) {
+ssize_t get_package_length(const Protocol *protocol, Socket *socket, PacketLength *pl) {
     Connection *conn = (Connection *) socket->object;
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
-        return websocket::get_package_length(protocol, socket, data, length);
+        return websocket::get_package_length(protocol, socket, pl);
     } else if (conn->http2_stream) {
-        return http2::get_frame_length(protocol, socket, data, length);
+        return http2::get_frame_length(protocol, socket, pl);
     } else {
         protocol_status_error(socket, conn);
         return SW_ERR;

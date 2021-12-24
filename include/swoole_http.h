@@ -16,6 +16,7 @@
 #pragma once
 
 #include "swoole.h"
+#include "swoole_protocol.h"
 
 enum swHttpVersion {
     SW_HTTP_VERSION_10 = 1,
@@ -154,7 +155,7 @@ size_t url_decode(char *str, size_t len);
 char *url_encode(char const *str, size_t len);
 
 #ifdef SW_USE_HTTP2
-ssize_t get_package_length(Protocol *protocol, network::Socket *conn, const char *data, uint32_t length);
+ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
 uint8_t get_package_length_size(network::Socket *conn);
 int dispatch_frame(const Protocol *protocol, network::Socket *conn, const RecvData *rdata);
 #endif

@@ -25,8 +25,15 @@
 #include <netdb.h>
 
 namespace swoole {
+
+struct PacketLength {
+    const char *buf;
+    uint32_t buf_size;
+    uint32_t header_len;
+};
+
 struct Protocol {
-    typedef ssize_t (*LengthFunc)(Protocol *, network::Socket *, const char *, uint32_t);
+    typedef ssize_t (*LengthFunc)(const Protocol *, network::Socket *, PacketLength *pl);
     /* one package: eof check */
     bool split_by_eof;
 
@@ -41,7 +48,6 @@ struct Protocol {
 
     void *private_data;
     void *private_data_2;
-    uint16_t real_header_length;
 
     /**
      * callback this function when a complete data packet is received
@@ -60,7 +66,7 @@ struct Protocol {
     int recv_with_length_protocol(network::Socket *socket, String *buffer);
     int recv_split_by_eof(network::Socket *socket, String *buffer);
 
-    static ssize_t default_length_func(Protocol *protocol, network::Socket *socket, const char *data, uint32_t size);
+    static ssize_t default_length_func(const Protocol *protocol, network::Socket *socket, PacketLength *pl);
 
     inline static LengthFunc get_function(const std::string &name) {
         return (LengthFunc) swoole_get_function(name.c_str(), name.length());

@@ -22,12 +22,13 @@
 #include <queue>
 #include <unordered_map>
 
+using swoole::HttpProxy;
+using swoole::PacketLength;
 using swoole::Protocol;
+using swoole::Socks5Proxy;
+using swoole::String;
 using swoole::network::Client;
 using swoole::network::Socket;
-using swoole::Socks5Proxy;
-using swoole::HttpProxy;
-using swoole::String;
 
 struct ClientCallback {
     zend_fcall_info_cache cache_onConnect;
@@ -246,12 +247,8 @@ void php_swoole_client_minit(int module_number) {
     SW_SET_CLASS_CUSTOM_OBJECT(
         swoole_client, php_swoole_client_create_object, php_swoole_client_free_object, ClientObject, std);
 
-    SW_INIT_CLASS_ENTRY_EX(swoole_client_exception,
-                           "Swoole\\Client\\Exception",
-                           nullptr,
-                           nullptr,
-                           nullptr,
-                           swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(
+        swoole_client_exception, "Swoole\\Client\\Exception", nullptr, nullptr, nullptr, swoole_exception);
 
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("errCode"), 0, ZEND_ACC_PUBLIC);
     zend_declare_property_long(swoole_client_ce, ZEND_STRL("sock"), -1, ZEND_ACC_PUBLIC);
@@ -608,14 +605,14 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
     php_swoole_client_set_cli(zobject, nullptr);
 }
 
-ssize_t php_swoole_length_func(Protocol *protocol, Socket *_socket, const char *data, uint32_t length) {
+ssize_t php_swoole_length_func(const Protocol *protocol, Socket *_socket, PacketLength *pl) {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
     zval retval;
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
-    ZVAL_STRINGL(&zdata, data, length);
+    ZVAL_STRINGL(&zdata, pl->buf, pl->buf_size);
     if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
@@ -715,6 +712,7 @@ static PHP_METHOD(swoole_client, __construct) {
 
     if (async) {
         php_swoole_fatal_error(E_ERROR, "please install the ext-async extension, using Swoole\\Async\\Client");
+        RETURN_FALSE;
     }
 
     int client_type = php_swoole_socktype(type);
@@ -1102,7 +1100,11 @@ static PHP_METHOD(swoole_client, recv) {
                 break;
             }
             buffer->length += retval;
-            buf_len = protocol->get_package_length(protocol, cli->socket, buffer->str, buffer->length);
+            PacketLength pl{
+                buffer->str,
+                (uint32_t) buffer->length,
+            };
+            buf_len = protocol->get_package_length(protocol, cli->socket, &pl);
             if (buf_len == 0) {
                 continue;
             } else if (buf_len < 0) {

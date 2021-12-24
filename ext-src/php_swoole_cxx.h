@@ -118,10 +118,7 @@ static inline bool php_swoole_is_fatal_error() {
     return false;
 }
 
-ssize_t php_swoole_length_func(swoole::Protocol *protocol,
-                               swoole::network::Socket *_socket,
-                               const char *data,
-                               uint32_t length);
+ssize_t php_swoole_length_func(const swoole::Protocol *, swoole::network::Socket *, swoole::PacketLength *);
 
 #ifdef SW_HAVE_ZLIB
 #define php_swoole_websocket_frame_pack php_swoole_websocket_frame_pack_ex

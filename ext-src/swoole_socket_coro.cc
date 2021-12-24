@@ -27,6 +27,7 @@
 
 #include <string>
 
+using swoole::PacketLength;
 using swoole::Protocol;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
@@ -39,6 +40,7 @@ static zend_object_handlers swoole_socket_coro_exception_handlers;
 
 struct SocketObject {
     Socket *socket;
+    zval zstream;
     bool reference;
     zend_object std;
 };
@@ -967,10 +969,10 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length =
-            [](Protocol *protocol, swoole::network::Socket *conn, const char *data, uint32_t size) {
-                const uint8_t *p = (const uint8_t *) data;
+            [](const Protocol *protocol, swoole::network::Socket *conn, PacketLength *pl) {
+                const uint8_t *p = (const uint8_t *) pl->buf;
                 ssize_t length = 0;
-                if (size >= FCGI_HEADER_LEN) {
+                if (pl->buf_size >= FCGI_HEADER_LEN) {
                     length = ((p[4] << 8) | p[5]) + p[6];
                     if (length > FCGI_MAX_LENGTH) {
                         length = -1;
@@ -1668,6 +1670,7 @@ static PHP_METHOD(swoole_socket_coro, shutdown) {
 static PHP_METHOD(swoole_socket_coro, close) {
     swoole_get_socket_coro(sock, ZEND_THIS);
     if (sock->reference) {
+        php_swoole_error(E_WARNING, "cannot close the referenced resource");
         RETURN_FALSE;
     }
     if (sock->socket->protocol.private_data) {
