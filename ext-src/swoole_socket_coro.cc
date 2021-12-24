@@ -36,6 +36,7 @@ BEGIN_EXTERN_C()
 END_EXTERN_C()
 
 using swoole::Protocol;
+using swoole::PacketLength;
 using swoole::coroutine::Socket;
 using swoole::network::Address;
 
@@ -865,10 +866,10 @@ SW_API bool php_swoole_socket_set_protocol(Socket *sock, zval *zset) {
         sock->protocol.package_length_offset = 0;
         sock->protocol.package_body_offset = 0;
         sock->protocol.get_package_length =
-            [](Protocol *protocol, swoole::network::Socket *conn, const char *data, uint32_t size) {
-                const uint8_t *p = (const uint8_t *) data;
+            [](const Protocol *protocol, swoole::network::Socket *conn, PacketLength *pl) {
+                const uint8_t *p = (const uint8_t *) pl->buf;
                 ssize_t length = 0;
-                if (size >= FCGI_HEADER_LEN) {
+                if (pl->len >= FCGI_HEADER_LEN) {
                     length = ((p[4] << 8) | p[5]) + p[6];
                     if (length > FCGI_MAX_LENGTH) {
                         length = -1;

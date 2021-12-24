@@ -31,6 +31,7 @@ BEGIN_EXTERN_C()
 END_EXTERN_C()
 
 using swoole::Protocol;
+using swoole::PacketLength;
 using swoole::network::Client;
 using swoole::network::Socket;
 using swoole::Socks5Proxy;
@@ -566,14 +567,14 @@ static void php_swoole_client_free(zval *zobject, Client *cli) {
     php_swoole_client_set_cli(zobject, nullptr);
 }
 
-ssize_t php_swoole_length_func(Protocol *protocol, Socket *_socket, const char *data, uint32_t length) {
+ssize_t php_swoole_length_func(const Protocol *protocol, Socket *_socket, PacketLength *pl) {
     zend_fcall_info_cache *fci_cache = (zend_fcall_info_cache *) protocol->private_data;
     zval zdata;
     zval retval;
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
-    ZVAL_STRINGL(&zdata, data, length);
+    ZVAL_STRINGL(&zdata, pl->buf, pl->len);
     if (UNEXPECTED(sw_zend_call_function_ex2(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {
@@ -1061,7 +1062,11 @@ static PHP_METHOD(swoole_client, recv) {
                 break;
             }
             buffer->length += retval;
-            buf_len = protocol->get_package_length(protocol, cli->socket, buffer->str, buffer->length);
+            PacketLength pl{
+                buffer->str,
+                (uint32_t) buffer->length,
+            };
+            buf_len = protocol->get_package_length(protocol, cli->socket, &pl);
             if (buf_len == 0) {
                 continue;
             } else if (buf_len < 0) {

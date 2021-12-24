@@ -54,48 +54,50 @@ static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
  |                     Payload Data continued ...                |
  +---------------------------------------------------------------+
  */
-
-ssize_t get_package_length(Protocol *protocol, Socket *conn, const char *buf, uint32_t length) {
+static ssize_t get_package_length_impl(PacketLength *pl) {
     // need more data
-    if (length < SW_WEBSOCKET_HEADER_LEN) {
+    if (pl->len < SW_WEBSOCKET_HEADER_LEN) {
         return 0;
     }
-
+    const char *buf = pl->buf;
     char mask = (buf[1] >> 7) & 0x1;
     // 0-125
     uint64_t payload_length = buf[1] & 0x7f;
-    size_t header_length = SW_WEBSOCKET_HEADER_LEN;
+    pl->header_len = SW_WEBSOCKET_HEADER_LEN;
     buf += SW_WEBSOCKET_HEADER_LEN;
 
     // uint16_t, 2byte
     if (payload_length == SW_WEBSOCKET_EXT16_LENGTH) {
-        header_length += sizeof(uint16_t);
-        if (length < header_length) {
-            protocol->real_header_length = header_length;
+        pl->header_len += sizeof(uint16_t);
+        if (pl->len < pl->header_len) {
             return 0;
         }
         payload_length = ntohs(*((uint16_t *) buf));
-        buf += sizeof(uint16_t);
     }
     // uint64_t, 8byte
     else if (payload_length == SW_WEBSOCKET_EXT64_LENGTH) {
-        header_length += sizeof(uint64_t);
-        if (length < header_length) {
-            protocol->real_header_length = header_length;
+        pl->header_len += sizeof(uint64_t);
+        if (pl->len < pl->header_len) {
             return 0;
         }
         payload_length = swoole_ntoh64(*((uint64_t *) buf));
-        buf += sizeof(uint64_t);
     }
     if (mask) {
-        header_length += SW_WEBSOCKET_MASK_LEN;
-        if (length < header_length) {
-            protocol->real_header_length = header_length;
+        pl->header_len += SW_WEBSOCKET_MASK_LEN;
+        if (pl->len < pl->header_len) {
             return 0;
         }
     }
-    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%zu, payload_length=%lu", header_length, payload_length);
-    return header_length + payload_length;
+    if ((ssize_t) payload_length < 0) {
+        return -1;
+    }
+    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%u, payload_length=%lu", pl->header_len, payload_length);
+
+    return (ssize_t) pl->header_len + (ssize_t) payload_length;
+}
+
+ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength *pl) {
+    return get_package_length_impl(pl);
 }
 
 static sw_inline void mask(char *data, size_t len, const char *mask_key) {
@@ -124,9 +126,9 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
     header->MASK = !!(_flags & FLAG_MASK);
     pos = 2;
 
-    if (length < 126) {
+    if (length < SW_WEBSOCKET_EXT16_LENGTH) {
         header->LENGTH = length;
-    } else if (length < 65536) {
+    } else if (length <= SW_WEBSOCKET_EXT16_MAX_LEN) {
         header->LENGTH = SW_WEBSOCKET_EXT16_LENGTH;
         uint16_t *length_ptr = (uint16_t *) (frame_header + pos);
         *length_ptr = htons(length);
@@ -164,21 +166,19 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
 bool decode(Frame *frame, char *data, size_t length) {
     memcpy(frame, data, SW_WEBSOCKET_HEADER_LEN);
 
-    // 0-125
-    size_t payload_length = frame->header.LENGTH;
-    uint8_t header_length = SW_WEBSOCKET_HEADER_LEN;
-    char *buf = data + SW_WEBSOCKET_HEADER_LEN;
+    PacketLength pl{data, uint32_t(length > 128 ? 128 : length), 0};
+    ssize_t total_length = get_package_length_impl(&pl);
+    if (total_length <= 0 || length < (size_t) total_length) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_WEBSOCKET_INCOMPLETE_PACKET,
+                         "incomplete packet, expected length is %zu, actual length is %zu",
+                         total_length,
+                         length);
+        return false;
+    }
 
-    // uint16_t, 2byte
-    if (frame->header.LENGTH == 0x7e) {
-        payload_length = ntohs(*((uint16_t *) buf));
-        header_length += 2;
-    }
-    // uint64_t, 8byte
-    else if (frame->header.LENGTH > 0x7e) {
-        payload_length = swoole_ntoh64(*((uint64_t *) buf));
-        header_length += 8;
-    }
+    frame->payload_length = total_length - pl.header_len;
+    frame->header_length = pl.header_len;
 
     swoole_trace_log(SW_TRACE_WEBSOCKET,
                      "decode frame, payload_length=%ld, mask=%d, opcode=%d",
@@ -186,23 +186,15 @@ bool decode(Frame *frame, char *data, size_t length) {
                      frame->header.MASK,
                      frame->header.OPCODE);
 
-    if (payload_length == 0) {
-        frame->header_length = header_length;
-        frame->payload_length = 0;
+    if (frame->payload_length == 0) {
         frame->payload = nullptr;
-
-        return true;
+    } else {
+        frame->payload = data + frame->header_length;
+        if (frame->header.MASK) {
+            memcpy(frame->mask_key, frame->payload - SW_WEBSOCKET_MASK_LEN, SW_WEBSOCKET_MASK_LEN);
+            mask(frame->payload, frame->payload_length, frame->mask_key);
+        }
     }
-
-    if (frame->header.MASK) {
-        memcpy(frame->mask_key, data + header_length, SW_WEBSOCKET_MASK_LEN);
-        header_length += SW_WEBSOCKET_MASK_LEN;
-        mask(data + header_length, payload_length, frame->mask_key);
-    }
-
-    frame->payload = data + header_length;
-    frame->header_length = header_length;
-    frame->payload_length = payload_length;
 
     return true;
 }

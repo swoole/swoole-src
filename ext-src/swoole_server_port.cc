@@ -190,10 +190,7 @@ void php_swoole_server_port_minit(int module_number) {
 /**
  * [Master-Process]
  */
-static ssize_t php_swoole_server_length_func(Protocol *protocol,
-                                             network::Socket *conn,
-                                             const char *data,
-                                             uint32_t length) {
+static ssize_t php_swoole_server_length_func(const Protocol *protocol, network::Socket *conn, PacketLength *pl) {
     Server *serv = (Server *) protocol->private_data_2;
     serv->lock();
 
@@ -203,7 +200,7 @@ static ssize_t php_swoole_server_length_func(Protocol *protocol,
     ssize_t ret = -1;
 
     // TODO: reduce memory copy
-    ZVAL_STRINGL(&zdata, data, length);
+    ZVAL_STRINGL(&zdata, pl->buf, pl->len);
     if (UNEXPECTED(sw_zend_call_function_ex(nullptr, fci_cache, 1, &zdata, &retval) != SUCCESS)) {
         php_swoole_fatal_error(E_WARNING, "length function handler error");
     } else {

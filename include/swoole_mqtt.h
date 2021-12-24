@@ -57,7 +57,7 @@ struct Packet {
     char protocol_name[8];
 };
 
-ssize_t get_package_length(swProtocol *protocol, swSocket *conn, const char *data, uint32_t size);
-void set_protocol(swProtocol *protocol);
+ssize_t get_package_length(const Protocol *protocol, network::Socket *conn, PacketLength *pl);
+void set_protocol(Protocol *protocol);
 }  // namespace mqtt
 }  // namespace swoole

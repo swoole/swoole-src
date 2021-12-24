@@ -21,6 +21,7 @@
 #include "swoole_http2.h"
 
 using swoole::Protocol;
+using swoole::PacketLength;
 using swoole::network::Socket;
 
 namespace swoole {
@@ -66,11 +67,11 @@ int send_setting_frame(Protocol *protocol, Socket *_socket) {
  |                   Frame Payload (0...)                      ...
  +---------------------------------------------------------------+
  */
-ssize_t get_frame_length(Protocol *protocol, Socket *conn, const char *buf, uint32_t length) {
-    if (length < SW_HTTP2_FRAME_HEADER_SIZE) {
+ssize_t get_frame_length(const Protocol *protocol, Socket *conn, PacketLength *pl) {
+    if (pl->len < SW_HTTP2_FRAME_HEADER_SIZE) {
         return 0;
     }
-    return get_length(buf) + SW_HTTP2_FRAME_HEADER_SIZE;
+    return get_length(pl->buf) + SW_HTTP2_FRAME_HEADER_SIZE;
 }
 
 const char *get_type(int type) {
