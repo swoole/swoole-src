@@ -18,12 +18,12 @@
 #ifndef SWOOLE_VERSION_H_
 #define SWOOLE_VERSION_H_
 
-#define SWOOLE_MAJOR_VERSION 4
-#define SWOOLE_MINOR_VERSION 9
+#define SWOOLE_MAJOR_VERSION 5
+#define SWOOLE_MINOR_VERSION 0
 #define SWOOLE_RELEASE_VERSION 0
 #define SWOOLE_EXTRA_VERSION "dev"
-#define SWOOLE_VERSION "4.9.0-dev"
-#define SWOOLE_VERSION_ID 40900
+#define SWOOLE_VERSION "5.0.0-dev"
+#define SWOOLE_VERSION_ID 50000
 #define SWOOLE_API_VERSION_ID 0x202109a
 
 #define SWOOLE_BUG_REPORT                                                                                              \
