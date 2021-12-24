@@ -68,7 +68,7 @@ int send_setting_frame(Protocol *protocol, Socket *_socket) {
  +---------------------------------------------------------------+
  */
 ssize_t get_frame_length(const Protocol *protocol, Socket *conn, PacketLength *pl) {
-    if (pl->len < SW_HTTP2_FRAME_HEADER_SIZE) {
+    if (pl->buf_size < SW_HTTP2_FRAME_HEADER_SIZE) {
         return 0;
     }
     return get_length(pl->buf) + SW_HTTP2_FRAME_HEADER_SIZE;

@@ -38,7 +38,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     /**
      * no have length field, wait more data
      */
-    if (pl->len < length_offset + package_length_size) {
+    if (pl->buf_size < length_offset + package_length_size) {
         pl->header_len = length_offset + package_length_size;
         return 0;
     }
@@ -47,7 +47,7 @@ ssize_t Protocol::default_length_func(const Protocol *protocol, network::Socket 
     // Protocol length is not legitimate, out of bounds or exceed the allocated length
     if (body_length < 0) {
         swoole_warning("invalid package (size=%d) from socket#%u<%s:%d>",
-                       pl->len,
+                       pl->buf_size,
                        socket->fd,
                        socket->info.get_ip(),
                        socket->info.get_port());
@@ -184,7 +184,7 @@ _do_recv:
         } else {
         _do_get_length:
             pl.buf = buffer->str;
-            pl.len = buffer->length;
+            pl.buf_size = buffer->length;
             package_length = get_package_length(this, socket, &pl);
             // invalid package, close connection.
             if (package_length < 0) {

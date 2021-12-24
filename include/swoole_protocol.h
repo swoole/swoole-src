@@ -28,7 +28,7 @@ namespace swoole {
 
 struct PacketLength {
     const char *buf;
-    uint32_t len;
+    uint32_t buf_size;
     uint32_t header_len;
 };
 

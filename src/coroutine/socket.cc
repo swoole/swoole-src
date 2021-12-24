@@ -1503,7 +1503,7 @@ _recv_header:
 _get_length:
     pl.header_len = 0;
     pl.buf = read_buffer->str;
-    pl.len = (uint32_t) read_buffer->length;
+    pl.buf_size = (uint32_t) read_buffer->length;
     packet_len = protocol.get_package_length(&protocol, socket, &pl);
     swoole_trace_log(SW_TRACE_SOCKET, "packet_len=%ld, length=%ld", packet_len, read_buffer->length);
     if (packet_len < 0) {

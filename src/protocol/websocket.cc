@@ -56,7 +56,7 @@ static inline uint16_t get_ext_flags(uchar opcode, uchar flags) {
  */
 static ssize_t get_package_length_impl(PacketLength *pl) {
     // need more data
-    if (pl->len < SW_WEBSOCKET_HEADER_LEN) {
+    if (pl->buf_size < SW_WEBSOCKET_HEADER_LEN) {
         return 0;
     }
     const char *buf = pl->buf;
@@ -69,7 +69,7 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
     // uint16_t, 2byte
     if (payload_length == SW_WEBSOCKET_EXT16_LENGTH) {
         pl->header_len += sizeof(uint16_t);
-        if (pl->len < pl->header_len) {
+        if (pl->buf_size < pl->header_len) {
             return 0;
         }
         payload_length = ntohs(*((uint16_t *) buf));
@@ -77,14 +77,14 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
     // uint64_t, 8byte
     else if (payload_length == SW_WEBSOCKET_EXT64_LENGTH) {
         pl->header_len += sizeof(uint64_t);
-        if (pl->len < pl->header_len) {
+        if (pl->buf_size < pl->header_len) {
             return 0;
         }
         payload_length = swoole_ntoh64(*((uint64_t *) buf));
     }
     if (mask) {
         pl->header_len += SW_WEBSOCKET_MASK_LEN;
-        if (pl->len < pl->header_len) {
+        if (pl->buf_size < pl->header_len) {
             return 0;
         }
     }

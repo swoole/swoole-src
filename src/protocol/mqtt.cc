@@ -42,7 +42,7 @@ void set_protocol(Protocol *protocol) {
 
 ssize_t get_package_length(const Protocol *protocol, Socket *conn, PacketLength *pl) {
     //-1 cause the arg 'size' contain length_offset(1 byte len)
-    uint32_t recv_variable_header_size = (pl->len - 1);
+    uint32_t recv_variable_header_size = (pl->buf_size - 1);
     if (recv_variable_header_size < SW_MQTT_MIN_LENGTH_SIZE) {  // recv continue
         return SW_MQTT_RECV_LEN_AGAIN;
     }
