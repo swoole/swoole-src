@@ -34,7 +34,7 @@ $pm->parentFunc = function (int $pid) use ($pm, &$count) {
     });
     $pm->kill();
     $log = file_get_contents(LOG_FILE);
-    Assert::contains($log, 'malformed data received');
+    Assert::contains($log, 'malformed data');
     echo "DONE\n";
 };
 $pm->childFunc = function () use ($pm) {
