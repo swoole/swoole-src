@@ -166,7 +166,7 @@ bool encode(String *buffer, const char *data, size_t length, char opcode, uint8_
 bool decode(Frame *frame, char *data, size_t length) {
     memcpy(frame, data, SW_WEBSOCKET_HEADER_LEN);
 
-    PacketLength pl{data, uint32_t(length > 128 ? 128 : length), 0};
+    PacketLength pl{data, (uint32_t) length, 0};
     ssize_t total_length = get_package_length_impl(&pl);
     if (total_length <= 0 || length < (size_t) total_length) {
         swoole_error_log(SW_LOG_WARNING,
@@ -182,7 +182,7 @@ bool decode(Frame *frame, char *data, size_t length) {
 
     swoole_trace_log(SW_TRACE_WEBSOCKET,
                      "decode frame, payload_length=%ld, mask=%d, opcode=%d",
-                     payload_length,
+                     frame->payload_length,
                      frame->header.MASK,
                      frame->header.OPCODE);
 
