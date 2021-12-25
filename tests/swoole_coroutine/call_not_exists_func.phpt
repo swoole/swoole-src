@@ -33,9 +33,9 @@ $pm->run();
 --EXPECTF--
 Fatal error: Uncaught Error: Call to undefined function none() in %s:%d
 Stack trace:
-#0 {main}
+%A
   thrown in %s on line %d
 [%s]	ERROR	php_swoole_server_rshutdown() (ERRNO %d): Fatal error: Uncaught Error: Call to undefined function none() in %s:%d
 Stack trace:
-#0 {main}
+%A
   thrown in %s on line %d

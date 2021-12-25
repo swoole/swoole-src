@@ -39,5 +39,5 @@ go(function () {
 --EXPECTF--
 Fatal error: Uncaught Error: Call to undefined function a() in %s:%d
 Stack trace:
-#0 {main}
+%A
   thrown in %s on line %d

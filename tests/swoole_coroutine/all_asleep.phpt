@@ -41,14 +41,14 @@ echo "DONE\n";
 
  [Coroutine-3]
 --------------------------------------------------------------------
-#0  Swoole\Coroutine::yield() called at [%s:%d]
-#1  test2() called at [%s:%d]
+%A
+%A
 
 
  [Coroutine-2]
 --------------------------------------------------------------------
-#0  Swoole\Coroutine::yield() called at [%s:%d]
-#1  {closure}() called at [%s:%d]
-#2  test1() called at [%s:%d]
+%A
+%A
+%A
 
 DONE
