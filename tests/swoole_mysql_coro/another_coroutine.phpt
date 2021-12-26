@@ -61,5 +61,5 @@ Stack trace:
 #1 %s(%d): get(Object(Swoole\Coroutine\MySQL))
 #2 %s(%d): {closure}()
 #3 %s(%d): {closure}()
-#4 {main}
+%A
   thrown in %s on line %d
