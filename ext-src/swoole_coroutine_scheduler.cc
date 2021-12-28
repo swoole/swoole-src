@@ -99,7 +99,6 @@ static const zend_function_entry swoole_coroutine_scheduler_methods[] = {
 void php_swoole_coroutine_scheduler_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_coroutine_scheduler,
                         "Swoole\\Coroutine\\Scheduler",
-                        nullptr,
                         "Co\\Scheduler",
                         swoole_coroutine_scheduler_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_coroutine_scheduler);

@@ -65,27 +65,27 @@ class WebSocketServer
         debug_log("closing .....");
     }
 
-    public function onStart(\swoole_websocket_server $swooleServer)
+    public function onStart(Swoole\WebSocket\Server $swooleServer)
     {
         debug_log("swoole_server starting .....");
     }
 
-    public function onShutdown(\swoole_websocket_server $swooleServer)
+    public function onShutdown(Swoole\WebSocket\Server $swooleServer)
     {
         debug_log("swoole_server shutdown .....");
     }
 
-    public function onWorkerStart(\swoole_websocket_server $swooleServer, $workerId)
+    public function onWorkerStart(Swoole\WebSocket\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId starting .....");
     }
 
-    public function onWorkerStop(\swoole_websocket_server $swooleServer, $workerId)
+    public function onWorkerStop(Swoole\WebSocket\Server $swooleServer, $workerId)
     {
         debug_log("worker #$workerId stopping ....");
     }
 
-    public function onWorkerError(\swoole_websocket_server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
+    public function onWorkerError(Swoole\WebSocket\Server $swooleServer, $workerId, $workerPid, $exitCode, $sigNo)
     {
         debug_log("worker error happening [workerId=$workerId, workerPid=$workerPid, exitCode=$exitCode, signalNo=$sigNo]...");
     }

@@ -110,8 +110,7 @@ static zend_object *php_swoole_channel_coro_create_object(zend_class_entry *ce) 
 }
 
 void php_swoole_channel_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_channel_coro, "Swoole\\Coroutine\\Channel", nullptr, "Co\\Channel", swoole_channel_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_channel_coro, "Swoole\\Coroutine\\Channel", "Co\\Channel", swoole_channel_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_channel_coro);
     SW_SET_CLASS_CLONEABLE(swoole_channel_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_channel_coro, sw_zend_class_unset_property_deny);

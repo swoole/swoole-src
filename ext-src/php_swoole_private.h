@@ -155,7 +155,6 @@ enum php_swoole_hook_type {
 };
 //---------------------------------------------------------
 
-
 static sw_inline enum swSocketType php_swoole_socktype(long type) {
     return (enum swSocketType)(type & (~SW_FLAG_SYNC) & (~SW_FLAG_ASYNC) & (~SW_FLAG_KEEP) & (~SW_SOCK_SSL));
 }
@@ -610,35 +609,33 @@ static sw_inline void add_assoc_ulong_safe(zval *arg, const char *key, zend_ulon
 
 /* PHP 7 class declaration macros */
 
-#define SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_ce)                   \
+#define SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, parent_ce)                               \
     do {                                                                                                               \
         zend_class_entry _##module##_ce = {};                                                                          \
         INIT_CLASS_ENTRY(_##module##_ce, namespace_name, methods);                                                     \
         module##_ce = zend_register_internal_class_ex(&_##module##_ce, parent_ce);                                     \
-        if (snake_name) SW_CLASS_ALIAS(snake_name, module);                                                            \
         if (short_name) SW_CLASS_ALIAS_SHORT_NAME(short_name, module);                                                 \
     } while (0)
 
 #define SW_INIT_CLASS_ENTRY_STD(module, namespace_name, methods)                                                       \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, nullptr, nullptr, methods, NULL);                                 \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, nullptr, methods, NULL);                                          \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
-#define SW_INIT_CLASS_ENTRY(module, namespace_name, snake_name, short_name, methods)                                   \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, NULL);                           \
+#define SW_INIT_CLASS_ENTRY(module, namespace_name, short_name, methods)                                               \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, NULL);                                       \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
-#define SW_INIT_CLASS_ENTRY_EX(module, namespace_name, snake_name, short_name, methods, parent_module)                 \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_module##_ce);             \
+#define SW_INIT_CLASS_ENTRY_EX(module, namespace_name, short_name, methods, parent_module)                             \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, parent_module##_ce);                         \
     memcpy(&module##_handlers, &parent_module##_handlers, sizeof(zend_object_handlers))
 
-#define SW_INIT_CLASS_ENTRY_EX2(                                                                                       \
-    module, namespace_name, snake_name, short_name, methods, parent_module_ce, parent_module_handlers)                 \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, snake_name, short_name, methods, parent_module_ce);               \
+#define SW_INIT_CLASS_ENTRY_EX2(module, namespace_name, short_name, methods, parent_module_ce, parent_module_handlers) \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, short_name, methods, parent_module_ce);                           \
     memcpy(&module##_handlers, parent_module_handlers, sizeof(zend_object_handlers))
 
 // Data Object: no methods, no parent
 #define SW_INIT_CLASS_ENTRY_DATA_OBJECT(module, namespace_name)                                                        \
-    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, NULL, NULL, NULL, NULL);                                          \
+    SW_INIT_CLASS_ENTRY_BASE(module, namespace_name, NULL, NULL, NULL);                                                \
     memcpy(&module##_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers))
 
 #define SW_CLASS_ALIAS(name, module)                                                                                   \
@@ -1052,9 +1049,9 @@ static sw_inline void sw_zend_fci_cache_free(void *fci_cache) {
 }
 
 #if PHP_VERSION_ID >= 80100
-#define sw_php_spl_object_hash(o)  php_spl_object_hash(Z_OBJ_P(o))
+#define sw_php_spl_object_hash(o) php_spl_object_hash(Z_OBJ_P(o))
 #else
-#define sw_php_spl_object_hash(o)  php_spl_object_hash(o)
+#define sw_php_spl_object_hash(o) php_spl_object_hash(o)
 #endif
 
 //----------------------------------Misc API------------------------------------
@@ -1117,9 +1114,9 @@ static inline const char *php_swoole_get_last_error_message() {
 
 static inline const char *php_swoole_get_last_error_file() {
 #if PHP_VERSION_ID >= 80100
-     return PG(last_error_file) ? PG(last_error_file)->val : "-";
+    return PG(last_error_file) ? PG(last_error_file)->val : "-";
 #else
-     return PG(last_error_file) ? PG(last_error_file) : "-";
+    return PG(last_error_file) ? PG(last_error_file) : "-";
 #endif
 }
 

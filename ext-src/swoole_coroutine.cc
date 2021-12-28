@@ -185,11 +185,13 @@ static const zend_function_entry swoole_coroutine_methods[] =
 static PHP_METHOD(swoole_exit_exception, getFlags);
 static PHP_METHOD(swoole_exit_exception, getStatus);
 
+// clang-format off
 static const zend_function_entry swoole_exit_exception_methods[] = {
     PHP_ME(swoole_exit_exception, getFlags,  arginfo_class_Swoole_ExitException_getFlags,  ZEND_ACC_PUBLIC)
     PHP_ME(swoole_exit_exception, getStatus, arginfo_class_Swoole_ExitException_getStatus, ZEND_ACC_PUBLIC)
     PHP_FE_END
 };
+// clang-format on
 
 static int coro_exit_handler(zend_execute_data *execute_data) {
     zval ex;
@@ -863,18 +865,13 @@ void PHPCoroutine::defer(zend::Function *fci) {
 void php_swoole_coroutine_minit(int module_number) {
     PHPCoroutine::init();
 
-    SW_INIT_CLASS_ENTRY_BASE(
-        swoole_coroutine_util, "Swoole\\Coroutine", nullptr, "Co", swoole_coroutine_methods, nullptr);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_util, "Swoole\\Coroutine", "Co", swoole_coroutine_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_util, sw_zend_create_object_deny);
 
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_iterator,
-                             "Swoole\\Coroutine\\Iterator",
-                             nullptr,
-                             "Co\\Iterator",
-                             nullptr,
-                             spl_ce_ArrayIterator);
     SW_INIT_CLASS_ENTRY_BASE(
-        swoole_coroutine_context, "Swoole\\Coroutine\\Context", nullptr, "Co\\Context", nullptr, spl_ce_ArrayObject);
+        swoole_coroutine_iterator, "Swoole\\Coroutine\\Iterator", "Co\\Iterator", nullptr, spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(
+        swoole_coroutine_context, "Swoole\\Coroutine\\Context", "Co\\Context", nullptr, spl_ce_ArrayObject);
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_DEFAULT_MAX_CORO_NUM", SW_DEFAULT_MAX_CORO_NUM);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_MAX_NUM_LIMIT", Coroutine::MAX_NUM_LIMIT);
@@ -884,12 +881,8 @@ void php_swoole_coroutine_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_CORO_END", Coroutine::STATE_END);
 
     // prohibit exit in coroutine
-    SW_INIT_CLASS_ENTRY_EX(swoole_exit_exception,
-                           "Swoole\\ExitException",
-                           nullptr,
-                           nullptr,
-                           swoole_exit_exception_methods,
-                           swoole_exception);
+    SW_INIT_CLASS_ENTRY_EX(
+        swoole_exit_exception, "Swoole\\ExitException", nullptr, swoole_exit_exception_methods, swoole_exception);
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("flags"), 0, ZEND_ACC_PRIVATE);
     zend_declare_property_long(swoole_exit_exception_ce, ZEND_STRL("status"), 0, ZEND_ACC_PRIVATE);
 
@@ -1136,7 +1129,7 @@ static PHP_METHOD(swoole_coroutine, join) {
         RETURN_FALSE;
     }
 
-    std::set<PHPContext*> co_set;
+    std::set<PHPContext *> co_set;
     bool *canceled = new bool(false);
 
     PHPContext::SwapCallback join_fn = [&co_set, canceled, co](PHPContext *task) {
@@ -1144,12 +1137,14 @@ static PHP_METHOD(swoole_coroutine, join) {
         if (!co_set.empty()) {
             return;
         }
-        swoole_event_defer([co, canceled](void*) {
-            if (*canceled == false) {
-                co->resume();
-            }
-            delete canceled;
-        }, nullptr);
+        swoole_event_defer(
+            [co, canceled](void *) {
+                if (*canceled == false) {
+                    co->resume();
+                }
+                delete canceled;
+            },
+            nullptr);
     };
 
     zval *zcid;
