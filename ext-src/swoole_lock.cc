@@ -108,7 +108,7 @@ static const zend_function_entry swoole_lock_methods[] =
 // clang-format on
 
 void php_swoole_lock_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", "swoole_lock", nullptr, swoole_lock_methods);
+    SW_INIT_CLASS_ENTRY(swoole_lock, "Swoole\\Lock", nullptr, swoole_lock_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_lock);
     SW_SET_CLASS_CLONEABLE(swoole_lock, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_lock, sw_zend_class_unset_property_deny);

@@ -15,7 +15,6 @@
   +----------------------------------------------------------------------+
  */
 
-
 #include "php_swoole_cxx.h"
 
 #ifdef SW_USE_PGSQL
@@ -127,7 +126,6 @@ static zend_object *php_swoole_postgresql_coro_create_object(zend_class_entry *c
     return &postgresql_coro->std;
 }
 
-
 static PHP_METHOD(swoole_postgresql_coro, __construct);
 static PHP_METHOD(swoole_postgresql_coro, __destruct);
 static PHP_METHOD(swoole_postgresql_coro, connect);
@@ -185,11 +183,8 @@ static const zend_function_entry swoole_postgresql_coro_methods[] =
 // clang-format on
 
 void php_swoole_postgresql_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_postgresql_coro,
-                        "Swoole\\Coroutine\\PostgreSQL",
-                        NULL,
-                        "Co\\PostgreSQL",
-                        swoole_postgresql_coro_methods);
+    SW_INIT_CLASS_ENTRY(
+        swoole_postgresql_coro, "Swoole\\Coroutine\\PostgreSQL", "Co\\PostgreSQL", swoole_postgresql_coro_methods);
 #ifdef SW_SET_CLASS_NOT_SERIALIZABLE
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_postgresql_coro);
 #else

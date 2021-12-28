@@ -668,16 +668,11 @@ PHP_MINIT_FUNCTION(swoole) {
         SWOOLE_G(cli) = 1;
     }
 
-    SW_INIT_CLASS_ENTRY_EX2(swoole_exception,
-                            "Swoole\\Exception",
-                            "swoole_exception",
-                            nullptr,
-                            nullptr,
-                            zend_ce_exception,
-                            zend_get_std_object_handlers());
+    SW_INIT_CLASS_ENTRY_EX2(
+        swoole_exception, "Swoole\\Exception", nullptr, nullptr, zend_ce_exception, zend_get_std_object_handlers());
 
     SW_INIT_CLASS_ENTRY_EX2(
-        swoole_error, "Swoole\\Error", "swoole_error", nullptr, nullptr, zend_ce_error, zend_get_std_object_handlers());
+        swoole_error, "Swoole\\Error", nullptr, nullptr, zend_ce_error, zend_get_std_object_handlers());
 
     /** <Sort by dependency> **/
     php_swoole_event_minit(module_number);

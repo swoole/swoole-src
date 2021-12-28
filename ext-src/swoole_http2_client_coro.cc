@@ -280,11 +280,8 @@ static const zend_function_entry swoole_http2_client_methods[] =
 // clang-format on
 
 void php_swoole_http2_client_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_http2_client_coro,
-                        "Swoole\\Coroutine\\Http2\\Client",
-                        nullptr,
-                        "Co\\Http2\\Client",
-                        swoole_http2_client_methods);
+    SW_INIT_CLASS_ENTRY(
+        swoole_http2_client_coro, "Swoole\\Coroutine\\Http2\\Client", "Co\\Http2\\Client", swoole_http2_client_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http2_client_coro);
     SW_SET_CLASS_CLONEABLE(swoole_http2_client_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_client_coro, sw_zend_class_unset_property_deny);
@@ -296,18 +293,17 @@ void php_swoole_http2_client_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_EX(swoole_http2_client_coro_exception,
                            "Swoole\\Coroutine\\Http2\\Client\\Exception",
-                           nullptr,
                            "Co\\Http2\\Client\\Exception",
                            nullptr,
                            swoole_exception);
 
-    SW_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", "swoole_http2_request", nullptr, nullptr);
+    SW_INIT_CLASS_ENTRY(swoole_http2_request, "Swoole\\Http2\\Request", nullptr, nullptr);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http2_request);
     SW_SET_CLASS_CLONEABLE(swoole_http2_request, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_request, sw_zend_class_unset_property_deny);
     SW_SET_CLASS_CREATE_WITH_ITS_OWN_HANDLERS(swoole_http2_request);
 
-    SW_INIT_CLASS_ENTRY(swoole_http2_response, "Swoole\\Http2\\Response", "swoole_http2_response", nullptr, nullptr);
+    SW_INIT_CLASS_ENTRY(swoole_http2_response, "Swoole\\Http2\\Response", nullptr, nullptr);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http2_response);
     SW_SET_CLASS_CLONEABLE(swoole_http2_response, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_http2_response, sw_zend_class_unset_property_deny);
