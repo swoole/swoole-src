@@ -358,7 +358,6 @@ void swoole_native_curl_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_EX(swoole_native_curl_exception,
                            "Swoole\\Coroutine\\Curl\\Exception",
-                           nullptr,
                            "Co\\Coroutine\\Curl\\Exception",
                            nullptr,
                            swoole_exception);
