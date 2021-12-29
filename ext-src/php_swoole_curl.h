@@ -27,6 +27,10 @@ SW_EXTERN_C_BEGIN
 #include "thirdparty/php/curl/curl_private.h"
 SW_EXTERN_C_END
 
+#if LIBCURL_VERSION_NUM < 0x073800
+#error "require cURL version 7.56.0 or later"
+#endif
+
 namespace swoole {
 
 using network::Socket;

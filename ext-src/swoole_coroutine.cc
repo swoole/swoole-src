@@ -74,13 +74,8 @@ static user_opcode_handler_t ori_begin_silence_handler = nullptr;
 static user_opcode_handler_t ori_end_silence_handler = nullptr;
 static unordered_map<long, Coroutine *> user_yield_coros;
 
-#if PHP_VERSION_ID < 80000
-#define ZEND_ERROR_CB_LAST_ARG_D const char *format, va_list args
-#define ZEND_ERROR_CB_LAST_ARG_RELAY format, args
-#else
 #define ZEND_ERROR_CB_LAST_ARG_D zend_string *message
 #define ZEND_ERROR_CB_LAST_ARG_RELAY message
-#endif
 
 #if PHP_VERSION_ID < 80100
 typedef const char error_filename_t;
@@ -426,9 +421,7 @@ inline void PHPCoroutine::vm_stack_init(void) {
     EG(vm_stack)->top++;
     EG(vm_stack_top) = EG(vm_stack)->top;
     EG(vm_stack_end) = EG(vm_stack)->end;
-#if PHP_VERSION_ID >= 70300
     EG(vm_stack_page_size) = size;
-#endif
 }
 
 inline void PHPCoroutine::vm_stack_destroy(void) {
@@ -457,13 +450,9 @@ inline void PHPCoroutine::save_vm_stack(PHPContext *task) {
     task->vm_stack_top = EG(vm_stack_top);
     task->vm_stack_end = EG(vm_stack_end);
     task->vm_stack = EG(vm_stack);
-#if PHP_VERSION_ID >= 70300
     task->vm_stack_page_size = EG(vm_stack_page_size);
-#endif
     task->execute_data = EG(current_execute_data);
-#if PHP_VERSION_ID >= 80000
     task->jit_trace_num = EG(jit_trace_num);
-#endif
     task->error_handling = EG(error_handling);
     task->exception_class = EG(exception_class);
     task->exception = EG(exception);
@@ -489,13 +478,9 @@ inline void PHPCoroutine::restore_vm_stack(PHPContext *task) {
     EG(vm_stack_top) = task->vm_stack_top;
     EG(vm_stack_end) = task->vm_stack_end;
     EG(vm_stack) = task->vm_stack;
-#if PHP_VERSION_ID >= 70300
     EG(vm_stack_page_size) = task->vm_stack_page_size;
-#endif
     EG(current_execute_data) = task->execute_data;
-#if PHP_VERSION_ID >= 80000
     EG(jit_trace_num) = task->jit_trace_num;
-#endif
     EG(error_handling) = task->error_handling;
     EG(exception_class) = task->exception_class;
     EG(exception) = task->exception;
@@ -697,9 +682,7 @@ void PHPCoroutine::main_func(void *arg) {
         EG(error_handling) = EH_NORMAL;
         EG(exception_class) = nullptr;
         EG(exception) = nullptr;
-#if PHP_VERSION_ID >= 80000
         EG(jit_trace_num) = 0;
-#endif
 
         task->output_ptr = nullptr;
 #if PHP_VERSION_ID < 80100
@@ -771,15 +754,11 @@ void PHPCoroutine::main_func(void *arg) {
             while (!tasks->empty()) {
                 zend::Function *defer_fci = tasks->top();
                 tasks->pop();
-#if PHP_VERSION_ID < 80000
-                defer_fci->fci.param_count = 1;
-                defer_fci->fci.params = retval;
-#else
-            if (Z_TYPE_P(retval) != IS_UNDEF) {
-                defer_fci->fci.param_count = 1;
-                defer_fci->fci.params = retval;
-            }
-#endif
+
+                if (Z_TYPE_P(retval) != IS_UNDEF) {
+                    defer_fci->fci.param_count = 1;
+                    defer_fci->fci.params = retval;
+                }
 
                 if (UNEXPECTED(sw_zend_call_function_anyway(&defer_fci->fci, &defer_fci->fci_cache) != SUCCESS)) {
                     php_swoole_fatal_error(E_WARNING, "defer callback handler error");
@@ -805,10 +784,8 @@ void PHPCoroutine::main_func(void *arg) {
         // TODO: exceptions will only cause the coroutine to exit
         if (UNEXPECTED(EG(exception))) {
             zend_exception_error(EG(exception), E_ERROR);
-#if PHP_VERSION_ID >= 80000
             EG(exit_status) = 255;
             zend_bailout();
-#endif
         }
 
 #ifdef SW_CORO_SUPPORT_BAILOUT

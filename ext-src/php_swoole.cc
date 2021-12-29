@@ -235,15 +235,9 @@ void php_swoole_register_shutdown_function(const char *function) {
     register_user_shutdown_function(Z_STRVAL(function_name), Z_STRLEN(function_name), &shutdown_function_entry);
 #else
     zval *function_name;
-#if PHP_VERSION_ID >= 80000
     shutdown_function_entry.arg_count = 0;
     shutdown_function_entry.arguments = NULL;
     function_name = &shutdown_function_entry.function_name;
-#else
-    shutdown_function_entry.arg_count = 1;
-    shutdown_function_entry.arguments = (zval *) safe_emalloc(sizeof(zval), 1, 0);
-    function_name = &shutdown_function_entry.arguments[0];
-#endif
     ZVAL_STRING(function_name, function);
     register_user_shutdown_function(Z_STRVAL_P(function_name), Z_STRLEN_P(function_name), &shutdown_function_entry);
 #endif

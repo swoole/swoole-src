@@ -155,7 +155,6 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_HOOK_NATIVE_FUNC_WITH_ARG_INFO(f)                                                                           \
     hook_func(ZEND_STRL(#f), PHP_FN(swoole_native_##f), get_arginfo(ZEND_STRL("swoole_native_" #f)))
 
-#if PHP_VERSION_ID >= 80000
 #define SW_HOOK_SOCKETS_FUNC(f) hook_func(ZEND_STRL(#f), nullptr, get_arginfo(ZEND_STRL("swoole_native_" #f)))
 
 #define SW_HOOK_FE(name, arg_info)                                                                                     \
@@ -191,9 +190,6 @@ static const zend_function_entry swoole_sockets_functions[] = {
     SW_HOOK_FE(socket_import_stream, arginfo_swoole_native_socket_import_stream)
     ZEND_FE_END
 };
-#else
-#define SW_HOOK_SOCKETS_FUNC(f) hook_func(ZEND_STRL(#f))
-#endif
 // clang-format on
 
 static zend_array *tmp_function_table = nullptr;
@@ -207,10 +203,8 @@ void php_swoole_runtime_minit(int module_number) {
     SW_INIT_CLASS_ENTRY_BASE(swoole_runtime, "Swoole\\Runtime", nullptr, swoole_runtime_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_runtime, sw_zend_create_object_deny);
 
-#if PHP_VERSION_ID >= 80000
     zend_unregister_functions(swoole_sockets_functions, -1, CG(function_table));
     zend_register_functions(NULL, swoole_sockets_functions, NULL, MODULE_PERSISTENT);
-#endif
 
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TCP", PHPCoroutine::HOOK_TCP);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_UDP", PHPCoroutine::HOOK_UDP);
@@ -361,11 +355,6 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     }
 
 _exit:
-#if PHP_VERSION_ID < 70400
-    if (didwrite < 0) {
-        didwrite = 0;
-    }
-#endif
     return didwrite;
 }
 
@@ -406,11 +395,6 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
     }
 
 _exit:
-#if PHP_VERSION_ID < 70400
-    if (nr_bytes < 0) {
-        nr_bytes = 0;
-    }
-#endif
     return nr_bytes;
 }
 
@@ -1916,11 +1900,6 @@ static void hook_func(const char *name, size_t l_name, zif_handler handler, zend
     if (zf == nullptr) {
         return;
     }
-#if PHP_VERSION_ID < 80000
-    if (zf->internal_function.handler == ZEND_FN(display_disabled_function)) {
-        return;
-    }
-#endif
 
     rf = (real_func *) emalloc(sizeof(real_func));
     sw_memset_zero(rf, sizeof(*rf));
@@ -2030,11 +2009,7 @@ static PHP_FUNCTION(swoole_user_func_handler) {
     fci.retval = return_value;
     fci.param_count = ZEND_NUM_ARGS();
     fci.params = ZEND_CALL_ARG(execute_data, 1);
-#if PHP_VERSION_ID >= 80000
     fci.named_params = NULL;
-#else
-    fci.no_separation = 1;
-#endif
 
     real_func *rf = (real_func *) zend_hash_find_ptr(tmp_function_table, execute_data->func->common.function_name);
     zend_call_function(&fci, rf->fci_cache);
