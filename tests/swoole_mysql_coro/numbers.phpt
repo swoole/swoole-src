@@ -18,7 +18,7 @@ run(function () {
         'user' => MYSQL_SERVER_USER,
         'password' => MYSQL_SERVER_PWD,
         'database' => MYSQL_SERVER_DB,
-        'strict_type' => false
+        'strict_type' => (PHP_VERSION_ID >= 80100)
     ];
     $db->connect($server);
     $r_string1 = $db->query('SELECT * FROM numbers');
