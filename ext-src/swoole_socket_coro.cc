@@ -151,9 +151,9 @@ static sw_inline SocketObject *php_swoole_socket_coro_fetch_object(zend_object *
 static void php_swoole_socket_coro_free_object(zend_object *object) {
     SocketObject *sock = (SocketObject *) php_swoole_socket_coro_fetch_object(object);
     if (!sock->reference && sock->socket && sock->socket != SW_BAD_SOCKET) {
-		if (!Z_ISUNDEF(sock->zstream)) {
-			sock->socket->move_fd();
-			zval_ptr_dtor(&sock->zstream);
+        if (!Z_ISUNDEF(sock->zstream)) {
+            sock->socket->move_fd();
+            zval_ptr_dtor(&sock->zstream);
         } else {
             sock->socket->close();
         }
@@ -710,8 +710,7 @@ static void swoole_socket_coro_register_constants(int module_number) {
 }
 
 void php_swoole_socket_coro_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(
-        swoole_socket_coro, "Swoole\\Coroutine\\Socket", nullptr, "Co\\Socket", swoole_socket_coro_methods);
+    SW_INIT_CLASS_ENTRY(swoole_socket_coro, "Swoole\\Coroutine\\Socket", "Co\\Socket", swoole_socket_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_socket_coro);
     SW_SET_CLASS_CLONEABLE(swoole_socket_coro, sw_zend_class_clone_deny);
     SW_SET_CLASS_UNSET_PROPERTY_HANDLER(swoole_socket_coro, sw_zend_class_unset_property_deny);
@@ -730,7 +729,6 @@ void php_swoole_socket_coro_minit(int module_number) {
 
     SW_INIT_CLASS_ENTRY_EX(swoole_socket_coro_exception,
                            "Swoole\\Coroutine\\Socket\\Exception",
-                           nullptr,
                            "Co\\Socket\\Exception",
                            nullptr,
                            swoole_exception);

@@ -51,11 +51,11 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-11-27</date>
+    <date>2022-01-20</date>
     <time>19:00:00</time>
     <version>
-        <release>4.8.1</release>
-        <api>4.0</api>
+        <release>5.0.0</release>
+        <api>5.0</api>
     </version>
     <stability>
         <release>stable</release>
@@ -2323,7 +2323,7 @@
     <dependencies>
         <required>
             <php>
-                <min>7.2.0</min>
+                <min>8.0.0</min>
             </php>
             <pearinstaller>
                 <min>1.4.0</min>

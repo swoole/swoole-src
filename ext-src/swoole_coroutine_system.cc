@@ -5,14 +5,14 @@
 
 #include <string>
 
-using swoole::TimerNode;
 using swoole::Coroutine;
+using swoole::Event;
 using swoole::PHPCoroutine;
 using swoole::Reactor;
-using swoole::Event;
+using swoole::String;
+using swoole::TimerNode;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
-using swoole::String;
 
 static zend_class_entry *swoole_coroutine_system_ce;
 
@@ -41,12 +41,8 @@ static const zend_function_entry swoole_coroutine_system_methods[] =
 // clang-format on
 
 void php_swoole_coroutine_system_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY_BASE(swoole_coroutine_system,
-                             "Swoole\\Coroutine\\System",
-                             nullptr,
-                             "Co\\System",
-                             swoole_coroutine_system_methods,
-                             nullptr);
+    SW_INIT_CLASS_ENTRY_BASE(
+        swoole_coroutine_system, "Swoole\\Coroutine\\System", "Co\\System", swoole_coroutine_system_methods, nullptr);
     SW_SET_CLASS_CREATE(swoole_coroutine_system, sw_zend_create_object_deny);
 }
 

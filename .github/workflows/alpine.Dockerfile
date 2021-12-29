@@ -3,7 +3,7 @@ ARG ALPINE_VERSION
 
 FROM hyperf/hyperf:${PHP_VERSION}-alpine-v${ALPINE_VERSION}-dev
 
-LABEL maintainer="Swoole Team <team@swoole.com>" version="1.0" license="MIT"
+LABEL maintainer="Swoole Team <team@swoole.com>" version="1.0" license="Apache2"
 
 ARG PHP_VERSION
 

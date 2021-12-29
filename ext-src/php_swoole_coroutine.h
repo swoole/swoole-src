@@ -53,9 +53,7 @@ struct PHPContext {
     zend_vm_stack vm_stack;
     size_t vm_stack_page_size;
     zend_execute_data *execute_data;
-#if PHP_VERSION_ID >= 80000
     uint32_t jit_trace_num;
-#endif
     zend_error_handling_t error_handling;
     zend_class_entry *exception_class;
     zend_object *exception;

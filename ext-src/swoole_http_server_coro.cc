@@ -288,7 +288,6 @@ void HttpContext::bind(Socket *sock) {
 void php_swoole_http_server_coro_minit(int module_number) {
     SW_INIT_CLASS_ENTRY(swoole_http_server_coro,
                         "Swoole\\Coroutine\\Http\\Server",
-                        nullptr,
                         "Co\\Http\\Server",
                         swoole_http_server_coro_methods);
     SW_SET_CLASS_NOT_SERIALIZABLE(swoole_http_server_coro);

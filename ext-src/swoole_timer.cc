@@ -66,15 +66,10 @@ static const zend_function_entry swoole_timer_methods[] =
 // clang-format on
 
 void php_swoole_timer_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", "swoole_timer", nullptr, swoole_timer_methods);
+    SW_INIT_CLASS_ENTRY(swoole_timer, "Swoole\\Timer", nullptr, swoole_timer_methods);
     SW_SET_CLASS_CREATE(swoole_timer, sw_zend_create_object_deny);
 
-    SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator,
-                             "Swoole\\Timer\\Iterator",
-                             "swoole_timer_iterator",
-                             nullptr,
-                             nullptr,
-                             spl_ce_ArrayIterator);
+    SW_INIT_CLASS_ENTRY_BASE(swoole_timer_iterator, "Swoole\\Timer\\Iterator", nullptr, nullptr, spl_ce_ArrayIterator);
 
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "set", CG(function_table), "swoole_timer_set");
     SW_FUNCTION_ALIAS(&swoole_timer_ce->function_table, "after", CG(function_table), "swoole_timer_after");
@@ -156,7 +151,8 @@ static void timer_add(INTERNAL_FUNCTION_PARAMETERS, bool persistent) {
     }
 
     // no server || user worker || task process with async mode
-    if (!sw_server() || sw_server()->is_user_worker() || (sw_server()->is_task_worker() && sw_server()->task_enable_coroutine)) {
+    if (!sw_server() || sw_server()->is_user_worker() ||
+        (sw_server()->is_task_worker() && sw_server()->task_enable_coroutine)) {
         php_swoole_check_reactor();
     }
 

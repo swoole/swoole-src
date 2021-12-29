@@ -76,9 +76,7 @@ typedef struct {
     php_curl_read *read;
     zval std_err;
     php_curl_progress *progress;
-#if LIBCURL_VERSION_NUM >= 0x071500 /* Available since 7.21.0 */
     php_curl_fnmatch *fnmatch;
-#endif
 } php_curl_handlers;
 
 struct _php_curl_error {
@@ -94,9 +92,6 @@ struct _php_curl_send_headers {
 struct _php_curl_free {
     zend_llist post;
     zend_llist stream;
-#if LIBCURL_VERSION_NUM < 0x073800 /* 7.56.0 */
-    zend_llist buffers;
-#endif
     HashTable *slist;
 };
 #else
@@ -115,9 +110,6 @@ typedef struct {
 #else
     php_curl_handlers *handlers;
 #endif
-#if PHP_VERSION_ID < 80000
-    zend_resource *res;
-#endif
     struct _php_curl_free *to_free;
     struct _php_curl_send_headers header;
     struct _php_curl_error err;
@@ -126,15 +118,10 @@ typedef struct {
     zval postfields;
 #if PHP_VERSION_ID >= 80100
     zval private_data;
-#elif PHP_VERSION_ID < 80000
-    zval private_data;
-    bool in_coroutine;
 #endif
     /* CurlShareHandle object set using CURLOPT_SHARE. */
-#if PHP_VERSION_ID >= 80000
     struct _php_curlsh *share;
     zend_object std;
-#endif
 } php_curl;
 
 #define CURLOPT_SAFE_UPLOAD -1
@@ -165,11 +152,7 @@ typedef struct {
     struct {
         int no;
     } err;
-#if PHP_VERSION_ID < 80000
-    bool in_coroutine;
-#else
     zend_object std;
-#endif
 } php_curlm;
 
 typedef struct _php_curlsh {
@@ -197,7 +180,6 @@ static inline php_curl_handlers *curl_handlers(php_curl *ch) {
 }
 #endif
 
-#if PHP_VERSION_ID >= 80000
 static inline php_curl *curl_from_obj(zend_object *obj) {
     return (php_curl *) ((char *) (obj) -XtOffsetOf(php_curl, std));
 }
@@ -211,22 +193,8 @@ static inline php_curlsh *curl_share_from_obj(zend_object *obj) {
 #define Z_CURL_SHARE_P(zv) curl_share_from_obj(Z_OBJ_P(zv))
 void curl_multi_register_class(const zend_function_entry *method_entries);
 int swoole_curl_cast_object(zend_object *obj, zval *result, int type);
-#else
-#define Z_CURL_P(zv) swoole_curl_get_handle(zv)
-#endif /* PHP8 end */
 
 php_curl *swoole_curl_get_handle(zval *zid, bool exclusive = true, bool required = true);
-
-SW_EXTERN_C_BEGIN
-#if PHP_VERSION_ID < 80000
-void swoole_curl_close_ex(php_curl *ch);
-void swoole_curl_close(zend_resource *rsrc);
-void swoole_curl_multi_close(zend_resource *rsrc);
-php_curl *swoole_curl_alloc_handle();
-int swoole_curl_get_le_curl();
-int swoole_curl_get_le_curl_multi();
-#endif
-SW_EXTERN_C_END
 
 #endif /* _PHP_CURL_PRIVATE_H */
 #endif

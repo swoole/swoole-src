@@ -37,37 +37,6 @@ jobs:
         --enable-openssl --enable-cares --enable-debug-log &&
         make clean && make -j$(sysctl -n hw.ncpu)
 
-  build-ubuntu-old:
-    runs-on: ubuntu-18.04
-    steps:
-    - uses: actions/checkout@v1
-    - name: install-deps
-      run: sudo apt update -y && sudo apt install -y libcurl4-openssl-dev php-curl libc-ares-dev
-    - name: phpize
-      run: phpize
-    - name: build1
-      run: ./configure && make clean && make -j$(sysctl -n hw.ncpu)
-    - name: build2
-      run: ./configure --enable-sockets &&
-        make clean && make -j$(sysctl -n hw.ncpu)
-    - name: build3
-      run: ./configure --enable-sockets --enable-mysqlnd && make clean &&
-        make -j$(sysctl -n hw.ncpu)
-    - name: build4
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 &&
-        make clean && make -j$(sysctl -n hw.ncpu)
-    - name: build5
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-openssl &&
-        make clean && make -j$(sysctl -n hw.ncpu)
-    - name: build6
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
-        --enable-openssl --enable-debug-log &&
-        make clean && make -j$(sysctl -n hw.ncpu)
-    - name: build7
-      run: ./configure --enable-sockets --enable-mysqlnd --enable-http2 --enable-swoole-curl --enable-swoole-json
-        --enable-openssl --enable-cares --enable-debug-log &&
-        make clean && make -j$(sysctl -n hw.ncpu)
-
   build-macos-latest:
     runs-on: macos-latest
     steps:
@@ -104,11 +73,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-version: [ '7.4', '8.0' ]
-        alpine-version: [ '3.11', '3.12', '3.13', '3.14', '3.15' ]
-        exclude:
-          - php-version: '8.1'
-            alpine-version: '3.11'
+        php-version: [ '8.0', '8.1' ]
+        alpine-version: [ '3.12', '3.13', '3.14', '3.15' ]
       max-parallel: 8
       fail-fast: false
     steps:

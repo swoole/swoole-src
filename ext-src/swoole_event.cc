@@ -81,7 +81,7 @@ static const zend_function_entry swoole_event_methods[] =
 // clang-format on
 
 void php_swoole_event_minit(int module_number) {
-    SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", "swoole_event", nullptr, swoole_event_methods);
+    SW_INIT_CLASS_ENTRY(swoole_event, "Swoole\\Event", nullptr, swoole_event_methods);
     SW_SET_CLASS_CREATE(swoole_event, sw_zend_create_object_deny);
 
     SW_FUNCTION_ALIAS(&swoole_event_ce->function_table, "add", CG(function_table), "swoole_event_add");
@@ -342,37 +342,10 @@ int php_swoole_convert_to_fd_ex(zval *zsocket, int *async) {
 #ifdef SWOOLE_SOCKETS_SUPPORT
 php_socket *php_swoole_convert_to_socket(int sock) {
     php_socket *socket_object;
-#if PHP_VERSION_ID < 80000
-    socket_object = (php_socket *) emalloc(sizeof *socket_object);
-    sw_memset_zero(socket_object, sizeof(*socket_object));
-    socket_object->bsd_socket = sock;
-    socket_object->blocking = 1;
-
-    struct sockaddr_storage addr;
-    socklen_t addr_len = sizeof(addr);
-
-    if (getsockname(sock, (struct sockaddr *) &addr, &addr_len) == 0) {
-        socket_object->type = addr.ss_family;
-    } else {
-        php_swoole_sys_error(E_WARNING, "unable to obtain socket family");
-    _error:
-        efree(socket_object);
-        return nullptr;
-    }
-
-    int t = fcntl(sock, F_GETFL);
-    if (t == -1) {
-        php_swoole_sys_error(E_WARNING, "unable to obtain blocking state");
-        goto _error;
-    } else {
-        socket_object->blocking = !(t & O_NONBLOCK);
-    }
-#else
     zval zsocket;
     object_init_ex(&zsocket, socket_ce);
     socket_object = Z_SOCKET_P(&zsocket);
     socket_import_file_descriptor(sock, socket_object);
-#endif
     return socket_object;
 }
 #endif
