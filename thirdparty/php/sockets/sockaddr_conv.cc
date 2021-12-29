@@ -80,11 +80,7 @@ int php_set_inet_addr(struct sockaddr_in *sin, char *string, Socket *php_sock) /
 	if (inet_pton(AF_INET, string, &tmp)) {
 		sin->sin_addr.s_addr = tmp.s_addr;
 	} else {
-#if PHP_VERSION_ID >= 70006
 	    if (strlen(string) > MAXFQDNLEN || ! (host_entry = php_network_gethostbyname(string))) {
-#else
-        if (strlen(string) > MAXFQDNLEN || ! (host_entry = gethostbyname(string))) {
-#endif
 			/* Note: < -10000 indicates a host lookup error */
 			PHP_SWOOLE_SOCKET_ERROR(php_sock, "Host lookup failed", (-10000 - h_errno));
 			return 0;

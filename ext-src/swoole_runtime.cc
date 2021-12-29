@@ -22,9 +22,7 @@
 #include "thirdparty/php/curl/curl_interface.h"
 #endif
 
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_hook_sockets_arginfo.h"
-#endif
 
 #include <unordered_map>
 

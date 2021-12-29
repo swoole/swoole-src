@@ -252,8 +252,6 @@ void swoole_curl_verify_handlers(php_curl *ch, int reporterror) /* {{{ */
 /* }}} */
 
 /* CurlHandle class */
-
-#if PHP_VERSION_ID >= 80000
 static const zend_function_entry swoole_coroutine_curl_handle_methods[] = {ZEND_FE_END};
 
 zend_class_entry *swoole_coroutine_curl_handle_ce;
@@ -265,7 +263,6 @@ static void swoole_curl_free_obj(zend_object *object);
 static zend_function *swoole_curl_get_constructor(zend_object *object);
 static zend_object *swoole_curl_clone_obj(zend_object *object);
 static HashTable *swoole_curl_get_gc(zend_object *object, zval **table, int *n);
-#endif
 
 static inline int build_mime_structure_from_hash(php_curl *ch, zval *zpostfields);
 

@@ -16,6 +16,8 @@
  */
 
 #include "php_swoole_cxx.h"
+#include "swoole_reactor.h"
+#include "swoole_socket.h"
 
 #ifdef SW_USE_PGSQL
 
@@ -1267,15 +1269,8 @@ static void php_pgsql_fetch_hash(INTERNAL_FUNCTION_PARAMETERS, zend_long result_
                 }
             }
 
-#if PHP_VERSION_ID < 70300
-            fcc.initialized = 1;
-#endif
             fcc.function_handler = ce->constructor;
-#if PHP_VERSION_ID >= 70100
             fcc.calling_scope = zend_get_executed_scope();
-#else
-            fcc.calling_scope = EG(scope);
-#endif
             fcc.called_scope = Z_OBJCE_P(return_value);
             fcc.object = Z_OBJ_P(return_value);
 

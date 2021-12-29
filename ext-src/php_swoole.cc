@@ -712,8 +712,7 @@ PHP_MINIT_FUNCTION(swoole) {
     SwooleG.dns_cache_refresh_time = 60;
 
     // enable pcre.jit and use swoole extension on MacOS will lead to coredump, disable it temporarily
-#if defined(PHP_PCRE_VERSION) && defined(HAVE_PCRE_JIT_SUPPORT) && PHP_VERSION_ID >= 70300 && __MACH__ &&              \
-    !defined(SW_DEBUG)
+#if defined(PHP_PCRE_VERSION) && defined(HAVE_PCRE_JIT_SUPPORT) && __MACH__ && !defined(SW_DEBUG)
     PCRE_G(jit) = 0;
 #endif
 

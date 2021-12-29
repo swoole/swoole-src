@@ -4,7 +4,6 @@
 #include "curl_interface.h"
 
 #ifdef SW_USE_CURL
-#if PHP_VERSION_ID >= 80000
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_swoole_native_curl_close, 0, 1, IS_VOID, 0)
 	ZEND_ARG_OBJ_INFO(0, handle, CurlHandle, 0)
@@ -136,5 +135,4 @@ static const zend_function_entry swoole_native_curl_functions[] = {
 
     PHP_FE_END
 };
-#endif
 #endif

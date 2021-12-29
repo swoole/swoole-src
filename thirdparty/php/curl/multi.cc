@@ -53,7 +53,6 @@ static inline php_curlm *curl_multi_from_obj(zend_object *obj) {
 }
 #define Z_CURL_MULTI_P(zv) curl_multi_from_obj(Z_OBJ_P(zv))
 
-
 static void _php_curl_multi_free(php_curlm *mh);
 
 SW_EXTERN_C_END
@@ -454,8 +453,7 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
     case CURLMOPT_CONTENT_LENGTH_PENALTY_SIZE:
     case CURLMOPT_MAX_HOST_CONNECTIONS:
     case CURLMOPT_MAX_PIPELINE_LENGTH:
-    case CURLMOPT_MAX_TOTAL_CONNECTIONS:
-    {
+    case CURLMOPT_MAX_TOTAL_CONNECTIONS: {
         zend_long lval = zval_get_long(zvalue);
 
         if (option == CURLMOPT_PIPELINING && (lval & 1)) {
@@ -475,6 +473,17 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
 
         ZVAL_COPY(&mh->handlers->server_push->func_name, zvalue);
         mh->handlers->server_push->method = PHP_CURL_USER;
+#else
+        if (mh->handlers.server_push == NULL) {
+            mh->handlers.server_push = (php_curlm_server_push *) ecalloc(1, sizeof(php_curlm_server_push));
+        } else if (!Z_ISUNDEF(mh->handlers.server_push->func_name)) {
+            zval_ptr_dtor(&mh->handlers.server_push->func_name);
+            mh->handlers.server_push->fci_cache = empty_fcall_info_cache;
+        }
+
+        ZVAL_COPY(&mh->handlers.server_push->func_name, zvalue);
+        mh->handlers.server_push->method = PHP_CURL_USER;
+#endif
 
         error = curl_multi_setopt(mh->multi->get_multi_handle(), (CURLMoption) option, _php_server_push_callback);
         if (error != CURLM_OK) {
@@ -483,7 +492,6 @@ static int _php_curl_multi_setopt(php_curlm *mh, zend_long option, zval *zvalue,
         error = curl_multi_setopt(mh->multi->get_multi_handle(), CURLMOPT_PUSHDATA, mh);
         break;
     }
-#endif
     default:
         zend_argument_value_error(2, "is not a valid cURL multi option");
         error = CURLM_UNKNOWN_OPTION;

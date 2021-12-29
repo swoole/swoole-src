@@ -306,11 +306,7 @@ PHP_FUNCTION(swoole_proc_open) {
     ZEND_PARSE_PARAMETERS_START(3, 6)
     Z_PARAM_ZVAL(command_zv)
     Z_PARAM_ARRAY(descriptorspec)
-#if PHP_VERSION_ID >= 70400
     Z_PARAM_ZVAL(pipes)
-#else
-    Z_PARAM_ZVAL_DEREF(pipes)
-#endif
     Z_PARAM_OPTIONAL
     Z_PARAM_STRING_EX(cwd, cwd_len, 1, 0)
     Z_PARAM_ARRAY_EX(environment, 1, 0)
@@ -454,26 +450,18 @@ PHP_FUNCTION(swoole_proc_open) {
                 descriptors[ndesc].mode = DESC_FILE;
 
                 if ((zfile = zend_hash_index_find(Z_ARRVAL_P(descitem), 1)) != NULL) {
-#if PHP_VERSION_ID >= 70400
                     if (!try_convert_to_string(zfile)) {
                         goto exit_fail;
                     }
-#else
-                    convert_to_string_ex(zfile);
-#endif
                 } else {
                     php_swoole_fatal_error(E_WARNING, "Missing file name parameter for 'file'");
                     goto exit_fail;
                 }
 
                 if ((zmode = zend_hash_index_find(Z_ARRVAL_P(descitem), 2)) != NULL) {
-#if PHP_VERSION_ID >= 70400
                     if (!try_convert_to_string(zmode)) {
                         goto exit_fail;
                     }
-#else
-                    convert_to_string_ex(zmode);
-#endif
                 } else {
                     php_swoole_fatal_error(E_WARNING, "Missing mode parameter for 'file'");
                     goto exit_fail;
@@ -650,16 +638,10 @@ PHP_FUNCTION(swoole_proc_open) {
     }
 
     /* we forked/spawned and this is the parent */
-
-#if PHP_VERSION_ID >= 70400
     pipes = zend_try_array_init(pipes);
     if (!pipes) {
         goto exit_fail;
     }
-#else
-    zval_ptr_dtor(pipes);
-    array_init(pipes);
-#endif
 
     proc = (proc_co_t *) pemalloc(sizeof(proc_co_t), is_persistent);
     proc->is_persistent = is_persistent;
