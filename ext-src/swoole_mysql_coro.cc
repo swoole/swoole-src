@@ -1447,7 +1447,13 @@ void mysql_statement::fetch(zval *return_value) {
                     break;
                 }
                 case SW_MYSQL_TYPE_YEAR: {
+#if PHP_VERSION_ID >= 80100
+                    std::string year = mysql::year(p, row_data.text.length);
+                    add_assoc_stringl_ex(
+                        return_value, field->name, field->name_length, (char *) year.c_str(), year.length());
+#else
                     add_assoc_long_ex(return_value, field->name, field->name_length, sw_mysql_uint2korr2korr(p));
+#endif
                     swoole_trace_log(
                         SW_TRACE_MYSQL_CLIENT, "%.*s=%d", field->name_length, field->name, sw_mysql_uint2korr2korr(p));
                     break;
