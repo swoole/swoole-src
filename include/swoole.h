@@ -548,9 +548,10 @@ typedef cpuset_t cpu_set_t;
 int swoole_set_cpu_affinity(cpu_set_t *set);
 #endif
 
-#ifdef HAVE_CLOCK_GETTIME
+#if defined(_POSIX_TIMERS) && ((_POSIX_TIMERS > 0) || defined(__OpenBSD__)) && defined(_POSIX_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
+#define HAVE_CLOCK_GETTIME
 #define swoole_clock_gettime clock_gettime
-#else
+#elif defined(__APPLE__)
 int swoole_clock_gettime(int which_clock, struct timespec *t);
 #endif
 

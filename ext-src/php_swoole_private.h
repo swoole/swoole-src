@@ -80,12 +80,6 @@ extern PHPAPI int php_array_merge(zend_array *dest, zend_array *src);
 #define php_swoole_sys_error(level, fmt_str, ...)                                                                      \
     php_swoole_error(level, fmt_str ", Error: %s[%d]", ##__VA_ARGS__, strerror(errno), errno)
 
-#ifdef SW_USE_OPENSSL
-#ifndef HAVE_OPENSSL
-#error "Enable openssl support, require openssl library"
-#endif
-#endif
-
 #ifdef SW_USE_CARES
 #ifndef HAVE_CARES
 #error "Enable c-ares support, require c-ares library"
