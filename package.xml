@@ -702,7 +702,6 @@
             <file role="src" name="stubs/php_swoole_http_response_arginfo.h" />
             <file role="src" name="stubs/php_swoole_http_server_coro.stub.php" />
             <file role="src" name="stubs/php_swoole_http_server_coro_arginfo.h" />
-            <file role="src" name="stubs/php_swoole_legacy_arginfo.h" />
             <file role="src" name="stubs/php_swoole_lock.stub.php" />
             <file role="src" name="stubs/php_swoole_lock_arginfo.h" />
             <file role="src" name="stubs/php_swoole_name_resolver.stub.php" />
