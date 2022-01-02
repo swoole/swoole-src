@@ -27,11 +27,7 @@
 #endif
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_http_response_arginfo.h"
-#else
-#include "stubs/php_swoole_http_response_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using swoole::Connection;

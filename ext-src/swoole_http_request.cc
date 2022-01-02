@@ -18,6 +18,7 @@
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/url.h"
+#include "stubs/php_swoole_http_request_arginfo.h"
 SW_EXTERN_C_END
 
 #include "main/php_variables.h"
@@ -29,14 +30,6 @@ SW_EXTERN_C_END
 #ifdef SW_HAVE_BROTLI
 #include <brotli/encode.h>
 #endif
-
-BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
-#include "stubs/php_swoole_http_request_arginfo.h"
-#else
-#include "stubs/php_swoole_http_request_legacy_arginfo.h"
-#endif
-END_EXTERN_C()
 
 enum http_upload_errno {
     HTTP_UPLOAD_ERR_OK = 0,

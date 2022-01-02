@@ -18,11 +18,7 @@
 #include "swoole_memory.h"
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_atomic_arginfo.h"
-#else
-#include "stubs/php_swoole_atomic_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 #ifdef HAVE_FUTEX

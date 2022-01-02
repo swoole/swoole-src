@@ -22,11 +22,9 @@
 
 #include "ext/spl/spl_array.h"
 
-#if PHP_VERSION_ID >= 80000
+BEGIN_EXTERN_C()
 #include "stubs/php_swoole_timer_arginfo.h"
-#else
-#include "stubs/php_swoole_timer_legacy_arginfo.h"
-#endif
+END_EXTERN_C()
 
 using swoole::Timer;
 using swoole::TimerNode;

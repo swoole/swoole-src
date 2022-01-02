@@ -10,9 +10,7 @@
   | to obtain it through the world-wide-web, please send a note to       |
   | license@swoole.com so we can mail you a copy immediately.            |
   +----------------------------------------------------------------------+
-  | Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
-  |         shiguangqi <shiguangqi2008@gmail.com>                        |
-  |         Tianfeng Han  <mikan.tenny@gmail.com>                        |
+  | Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
   +----------------------------------------------------------------------+
  */
 
@@ -21,11 +19,7 @@
 #include <queue>
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_coroutine_scheduler_arginfo.h"
-#else
-#include "stubs/php_swoole_coroutine_scheduler_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using swoole::Coroutine;
