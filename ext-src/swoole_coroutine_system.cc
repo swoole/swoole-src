@@ -10,9 +10,7 @@
 | to obtain it through the world-wide-web, please send a note to       |
 | license@swoole.com so we can mail you a copy immediately.            |
 +----------------------------------------------------------------------+
-| Author: Xinyu Zhu  <xyzhu1120@gmail.com>                             |
-|         shiguangqi <shiguangqi2008@gmail.com>                        |
-|         Tianfeng Han  <mikan.tenny@gmail.com>                        |
+| Author: Tianfeng Han  <mikan.tenny@gmail.com>                        |
 +----------------------------------------------------------------------+
 */
 
