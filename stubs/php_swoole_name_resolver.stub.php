@@ -1,6 +1,5 @@
 <?php
 /**
- * @generate-legacy-arginfo
  * @generate-function-entries
  */
 namespace Swoole\NameResolver {

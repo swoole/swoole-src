@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 18ef5ddda0289927b16dce4bbdb4742031200f7b */
+ * Stub hash: 385775b8664fb0cfc035bfc26fb762885cb77aa8 */
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Swoole_NameResolver_Context___construct, 0, 0, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, family, IS_LONG, 0, "AF_INET")
