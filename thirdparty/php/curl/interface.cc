@@ -1392,8 +1392,13 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
     case CURLOPT_PROXY_TLSAUTH_USERNAME:
     case CURLOPT_ABSTRACT_UNIX_SOCKET:
     case CURLOPT_REQUEST_TARGET:
+#if LIBCURL_VERSION_NUM >= 0x073d00 /* Available since 7.61.0 */
     case CURLOPT_PROXY_TLS13_CIPHERS:
     case CURLOPT_TLS13_CIPHERS:
+#endif
+#if LIBCURL_VERSION_NUM >= 0x074700 /* Available since 7.71.0 */
+    case CURLOPT_PROXY_ISSUERCERT:
+#endif
     {
         zend_string *str = zval_get_string(zvalue);
         int ret = php_curl_option_str(ch, option, ZSTR_VAL(str), ZSTR_LEN(str));
@@ -1412,6 +1417,9 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
     case CURLOPT_DNS_LOCAL_IP6:
     case CURLOPT_XOAUTH2_BEARER:
     case CURLOPT_UNIX_SOCKET_PATH:
+#if LIBCURL_VERSION_NUM >= 0x073E00 /* Available since 7.62.0 */
+    case CURLOPT_DOH_URL:
+#endif
     case CURLOPT_KRBLEVEL:
     {
         if (Z_ISNULL_P(zvalue)) {
@@ -1755,6 +1763,29 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
         ZVAL_COPY(&curl_handlers(ch)->fnmatch->func_name, zvalue);
         curl_handlers(ch)->fnmatch->method = PHP_CURL_USER;
         break;
+
+        /* Curl blob options */
+#if LIBCURL_VERSION_NUM >= 0x074700 /* Available since 7.71.0 */
+        case CURLOPT_ISSUERCERT_BLOB:
+        case CURLOPT_PROXY_ISSUERCERT_BLOB:
+        case CURLOPT_PROXY_SSLCERT_BLOB:
+        case CURLOPT_PROXY_SSLKEY_BLOB:
+        case CURLOPT_SSLCERT_BLOB:
+        case CURLOPT_SSLKEY_BLOB:
+            {
+                zend_string *tmp_str;
+                zend_string *str = zval_get_tmp_string(zvalue, &tmp_str);
+
+                struct curl_blob stblob;
+                stblob.data = ZSTR_VAL(str);
+                stblob.len = ZSTR_LEN(str);
+                stblob.flags = CURL_BLOB_COPY;
+                error = curl_easy_setopt(ch->cp, option, &stblob);
+
+                zend_tmp_string_release(tmp_str);
+            }
+        break;
+#endif
 
     default:
         if (is_array_config) {
