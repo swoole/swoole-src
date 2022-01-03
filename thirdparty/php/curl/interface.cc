@@ -1698,7 +1698,9 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
     /* Curl off_t options */
     case CURLOPT_MAX_RECV_SPEED_LARGE:
     case CURLOPT_MAX_SEND_SPEED_LARGE:
+#if LIBCURL_VERSION_NUM >= 0x073b00 /* Available since 7.59.0 */
     case CURLOPT_TIMEVALUE_LARGE:
+#endif
         lval = zval_get_long(zvalue);
         error = curl_easy_setopt(ch->cp, (CURLoption) option, (curl_off_t) lval);
         break;
@@ -1780,7 +1782,7 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
                 stblob.data = ZSTR_VAL(str);
                 stblob.len = ZSTR_LEN(str);
                 stblob.flags = CURL_BLOB_COPY;
-                error = curl_easy_setopt(ch->cp, option, &stblob);
+                error = curl_easy_setopt(ch->cp, (CURLoption) option, &stblob);
 
                 zend_tmp_string_release(tmp_str);
             }
@@ -1961,7 +1963,6 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
         double d_code;
         struct curl_certinfo *ci = NULL;
         zval listcode;
-        curl_off_t co;
 
         array_init(return_value);
 
@@ -2064,6 +2065,7 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
             CAAS("scheme", s_code);
         }
 #if LIBCURL_VERSION_NUM >= 0x073d00 /* Available since 7.61.0 */
+        curl_off_t co;
         if (curl_easy_getinfo(ch->cp, CURLINFO_APPCONNECT_TIME_T, &co) == CURLE_OK) {
             CAAL("appconnect_time_us", co);
         }
