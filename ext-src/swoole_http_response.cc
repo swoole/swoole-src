@@ -408,6 +408,16 @@ void HttpContext::build_header(String *http_buffer, size_t body_length) {
         http_buffer->append(ZEND_STRL("Server: " SW_HTTP_SERVER_SOFTWARE "\r\n"));
     }
 
+#ifdef SW_HAVE_COMPRESSION
+    // http compress
+    if (accept_compression) {
+        const char *content_encoding = get_content_encoding();
+        http_buffer->append(ZEND_STRL("Content-Encoding: "));
+        http_buffer->append((char *) content_encoding, strlen(content_encoding));
+        http_buffer->append(ZEND_STRL("\r\n"));
+    }
+#endif
+
     // websocket protocol (subsequent header info is unnecessary)
     if (upgrade == 1) {
         http_buffer->append(ZEND_STRL("\r\n"));
@@ -447,15 +457,7 @@ void HttpContext::build_header(String *http_buffer, size_t body_length) {
             http_buffer->append(buf, n);
         }
     }
-#ifdef SW_HAVE_COMPRESSION
-    // http compress
-    if (accept_compression) {
-        const char *content_encoding = get_content_encoding();
-        http_buffer->append(ZEND_STRL("Content-Encoding: "));
-        http_buffer->append((char *) content_encoding, strlen(content_encoding));
-        http_buffer->append(ZEND_STRL("\r\n"));
-    }
-#endif
+
     http_buffer->append(ZEND_STRL("\r\n"));
     send_header_ = 1;
 }
