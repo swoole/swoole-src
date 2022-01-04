@@ -888,6 +888,16 @@ inline std::string date(const char *p, uint8_t length)
     return swoole::std_string::format("%04u-%02u-%02u", y, m, d);
 }
 
+inline std::string year(const char *p, uint8_t length)
+{
+    uint16_t y = 0;
+    if (length != 0)
+    {
+        y = sw_mysql_uint2korr2korr(p);
+    }
+    return swoole::std_string::format("%04u", y);
+}
+
 class result_info
 {
 public:
