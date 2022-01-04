@@ -18,17 +18,10 @@
 
 SW_EXTERN_C_BEGIN
 #include "ext/standard/sha1.h"
+#include "stubs/php_swoole_websocket_arginfo.h"
 SW_EXTERN_C_END
 
 #include "swoole_base64.h"
-
-BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
-#include "stubs/php_swoole_websocket_arginfo.h"
-#else
-#include "stubs/php_swoole_websocket_legacy_arginfo.h"
-#endif
-END_EXTERN_C()
 
 using swoole::Connection;
 using swoole::ListenPort;

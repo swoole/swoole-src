@@ -20,11 +20,7 @@
 
 // clang-format off
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_coroutine_system_arginfo.h"
-#else
-#include "stubs/php_swoole_coroutine_system_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 // clang-format on
 

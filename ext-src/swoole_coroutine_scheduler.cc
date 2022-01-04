@@ -21,11 +21,7 @@
 #include <queue>
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_coroutine_scheduler_arginfo.h"
-#else
-#include "stubs/php_swoole_coroutine_scheduler_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 using swoole::Coroutine;

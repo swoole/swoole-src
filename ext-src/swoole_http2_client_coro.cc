@@ -25,11 +25,7 @@
 #ifdef SW_USE_HTTP2
 
 BEGIN_EXTERN_C()
-#if PHP_VERSION_ID >= 80000
 #include "stubs/php_swoole_http2_client_coro_arginfo.h"
-#else
-#include "stubs/php_swoole_http2_client_coro_legacy_arginfo.h"
-#endif
 END_EXTERN_C()
 
 #include "swoole_http2.h"
