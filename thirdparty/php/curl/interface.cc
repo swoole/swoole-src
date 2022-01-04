@@ -1300,11 +1300,19 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
     case CURLOPT_SUPPRESS_CONNECT_HEADERS:
     case CURLOPT_SOCKS5_AUTH:
     case CURLOPT_SSH_COMPRESSION:
+#if LIBCURL_VERSION_NUM >= 0x073b00 /* Available since 7.59.0 */
     case CURLOPT_HAPPY_EYEBALLS_TIMEOUT_MS:
+#endif
+#if LIBCURL_VERSION_NUM >= 0x073c00 /* Available since 7.60.0 */
     case CURLOPT_DNS_SHUFFLE_ADDRESSES:
     case CURLOPT_HAPROXYPROTOCOL:
+#endif
+#if LIBCURL_VERSION_NUM >= 0x073d00 /* Available since 7.61.0 */
     case CURLOPT_DISALLOW_USERNAME_IN_URL:
+#endif
+#if LIBCURL_VERSION_NUM >= 0x074000 /* Available since 7.64.0 */
     case CURLOPT_HTTP09_ALLOWED:
+#endif
         lval = zval_get_long(zvalue);
         if ((option == CURLOPT_PROTOCOLS || option == CURLOPT_REDIR_PROTOCOLS) &&
             (PG(open_basedir) && *PG(open_basedir)) && (lval & CURLPROTO_FILE)) {
@@ -1384,8 +1392,13 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
     case CURLOPT_PROXY_TLSAUTH_USERNAME:
     case CURLOPT_ABSTRACT_UNIX_SOCKET:
     case CURLOPT_REQUEST_TARGET:
+#if LIBCURL_VERSION_NUM >= 0x073d00 /* Available since 7.61.0 */
     case CURLOPT_PROXY_TLS13_CIPHERS:
     case CURLOPT_TLS13_CIPHERS:
+#endif
+#if LIBCURL_VERSION_NUM >= 0x074700 /* Available since 7.71.0 */
+    case CURLOPT_PROXY_ISSUERCERT:
+#endif
     {
         zend_string *str = zval_get_string(zvalue);
         int ret = php_curl_option_str(ch, option, ZSTR_VAL(str), ZSTR_LEN(str));
@@ -1404,6 +1417,9 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
     case CURLOPT_DNS_LOCAL_IP6:
     case CURLOPT_XOAUTH2_BEARER:
     case CURLOPT_UNIX_SOCKET_PATH:
+#if LIBCURL_VERSION_NUM >= 0x073E00 /* Available since 7.62.0 */
+    case CURLOPT_DOH_URL:
+#endif
     case CURLOPT_KRBLEVEL:
     {
         if (Z_ISNULL_P(zvalue)) {
@@ -1682,7 +1698,9 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
     /* Curl off_t options */
     case CURLOPT_MAX_RECV_SPEED_LARGE:
     case CURLOPT_MAX_SEND_SPEED_LARGE:
+#if LIBCURL_VERSION_NUM >= 0x073b00 /* Available since 7.59.0 */
     case CURLOPT_TIMEVALUE_LARGE:
+#endif
         lval = zval_get_long(zvalue);
         error = curl_easy_setopt(ch->cp, (CURLoption) option, (curl_off_t) lval);
         break;
@@ -1747,6 +1765,29 @@ static int _php_curl_setopt(php_curl *ch, zend_long option, zval *zvalue, bool i
         ZVAL_COPY(&curl_handlers(ch)->fnmatch->func_name, zvalue);
         curl_handlers(ch)->fnmatch->method = PHP_CURL_USER;
         break;
+
+        /* Curl blob options */
+#if LIBCURL_VERSION_NUM >= 0x074700 /* Available since 7.71.0 */
+        case CURLOPT_ISSUERCERT_BLOB:
+        case CURLOPT_PROXY_ISSUERCERT_BLOB:
+        case CURLOPT_PROXY_SSLCERT_BLOB:
+        case CURLOPT_PROXY_SSLKEY_BLOB:
+        case CURLOPT_SSLCERT_BLOB:
+        case CURLOPT_SSLKEY_BLOB:
+            {
+                zend_string *tmp_str;
+                zend_string *str = zval_get_tmp_string(zvalue, &tmp_str);
+
+                struct curl_blob stblob;
+                stblob.data = ZSTR_VAL(str);
+                stblob.len = ZSTR_LEN(str);
+                stblob.flags = CURL_BLOB_COPY;
+                error = curl_easy_setopt(ch->cp, (CURLoption) option, &stblob);
+
+                zend_tmp_string_release(tmp_str);
+            }
+        break;
+#endif
 
     default:
         if (is_array_config) {
@@ -1922,7 +1963,6 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
         double d_code;
         struct curl_certinfo *ci = NULL;
         zval listcode;
-        curl_off_t co;
 
         array_init(return_value);
 
@@ -2024,6 +2064,8 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
         if (curl_easy_getinfo(ch->cp, CURLINFO_SCHEME, &s_code) == CURLE_OK) {
             CAAS("scheme", s_code);
         }
+#if LIBCURL_VERSION_NUM >= 0x073d00 /* Available since 7.61.0 */
+        curl_off_t co;
         if (curl_easy_getinfo(ch->cp, CURLINFO_APPCONNECT_TIME_T, &co) == CURLE_OK) {
             CAAL("appconnect_time_us", co);
         }
@@ -2045,9 +2087,15 @@ PHP_FUNCTION(swoole_native_curl_getinfo) {
         if (curl_easy_getinfo(ch->cp, CURLINFO_TOTAL_TIME_T, &co) == CURLE_OK) {
             CAAL("total_time_us", co);
         }
+#endif
         if (ch->header.str) {
             CAASTR("request_header", ch->header.str);
         }
+#if LIBCURL_VERSION_NUM >= 0x074800 /* Available since 7.72.0 */
+        if (curl_easy_getinfo(ch->cp, CURLINFO_EFFECTIVE_METHOD, &s_code) == CURLE_OK) {
+            CAAS("effective_method", s_code);
+        }
+#endif
     } else {
         switch (option) {
         case CURLINFO_HEADER_OUT:
