@@ -257,10 +257,17 @@ TEST(base, itoa) {
     ASSERT_STREQ(buf, "123456987");
 }
 
-TEST(base, swoole_get_systemd_listen_fds) {
+TEST(base, get_systemd_listen_fds) {
     ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
     setenv("LISTEN_FDS", to_string(SW_MAX_LISTEN_PORT + 1).c_str(), 1);
     ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
     setenv("LISTEN_FDS", to_string(SW_MAX_LISTEN_PORT - 1).c_str(), 1);
     ASSERT_EQ(swoole_get_systemd_listen_fds(), SW_MAX_LISTEN_PORT - 1);
+}
+
+TEST(base, type_size) {
+    ASSERT_EQ(swoole_type_size('c'), 1);
+    ASSERT_EQ(swoole_type_size('s'), 2);
+    ASSERT_EQ(swoole_type_size('l'), 4);
+    ASSERT_EQ(swoole_type_size('b'), 0);  // default value
 }
