@@ -43,8 +43,14 @@
 #include "swoole_coroutine_c_api.h"
 #include "swoole_ssl.h"
 
-#if defined(HAVE_CCRANDOMGENERATEBYTES)
+#if defined(__APPLE__) && defined(HAVE_CCRANDOMGENERATEBYTES)
+#include <Availability.h>
+#if (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 101000) ||                         \
+    (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED >= 80000)
+#define OPENSSL_APPLE_CRYPTO_RANDOM 1
+#include <CommonCrypto/CommonCryptoError.h>
 #include <CommonCrypto/CommonRandom.h>
+#endif
 #endif
 
 using swoole::String;
