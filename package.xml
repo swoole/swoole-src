@@ -51,10 +51,10 @@
         <email>doubaokun@php.net</email>
         <active>yes</active>
     </developer>
-    <date>2021-12-24</date>
+    <date>2022-01-11</date>
     <time>18:00:00</time>
     <version>
-        <release>4.8.5</release>
+        <release>4.8.6</release>
         <api>4.0</api>
     </version>
     <stability>
@@ -63,8 +63,8 @@
     </stability>
     <license uri="http://www.apache.org/licenses/LICENSE-2.0.html">Apache2.0</license>
     <notes>
-        - Revert parameter type of Table
-        - Fix crash when received wrong data with websocket protocol
+        - Added prefix to boost/context API names
+        - Optimized configure options
     </notes>
     <contents>
         <dir name="/">
@@ -2073,8 +2073,6 @@
             <file role="src" name="thirdparty/boost/asm/jump_arm_aapcs_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_arm_aapcs_pe_armasm.asm" />
             <file role="src" name="thirdparty/boost/asm/jump_combined_sysv_macho_gas.S" />
-            <file role="src" name="thirdparty/boost/asm/jump_i386_ms_pe_gas.asm" />
-            <file role="src" name="thirdparty/boost/asm/jump_i386_ms_pe_masm.asm" />
             <file role="src" name="thirdparty/boost/asm/jump_i386_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_i386_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_i386_x86_64_sysv_macho_gas.S" />
@@ -2090,8 +2088,6 @@
             <file role="src" name="thirdparty/boost/asm/jump_riscv64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_sparc64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_sparc_sysv_elf_gas.S" />
-            <file role="src" name="thirdparty/boost/asm/jump_x86_64_ms_pe_gas.asm" />
-            <file role="src" name="thirdparty/boost/asm/jump_x86_64_ms_pe_masm.asm" />
             <file role="src" name="thirdparty/boost/asm/jump_x86_64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/jump_x86_64_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_arm64_aapcs_elf_gas.S" />
@@ -2100,8 +2096,6 @@
             <file role="src" name="thirdparty/boost/asm/make_arm_aapcs_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_arm_aapcs_pe_armasm.asm" />
             <file role="src" name="thirdparty/boost/asm/make_combined_sysv_macho_gas.S" />
-            <file role="src" name="thirdparty/boost/asm/make_i386_ms_pe_gas.asm" />
-            <file role="src" name="thirdparty/boost/asm/make_i386_ms_pe_masm.asm" />
             <file role="src" name="thirdparty/boost/asm/make_i386_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_i386_sysv_macho_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_i386_x86_64_sysv_macho_gas.S" />
@@ -2117,8 +2111,6 @@
             <file role="src" name="thirdparty/boost/asm/make_riscv64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_sparc64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_sparc_sysv_elf_gas.S" />
-            <file role="src" name="thirdparty/boost/asm/make_x86_64_ms_pe_gas.asm" />
-            <file role="src" name="thirdparty/boost/asm/make_x86_64_ms_pe_masm.asm" />
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_elf_gas.S" />
             <file role="src" name="thirdparty/boost/asm/make_x86_64_sysv_macho_gas.S" />
             <file role="doc" name="thirdparty/hiredis/CHANGELOG.md" />
