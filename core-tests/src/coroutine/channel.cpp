@@ -99,6 +99,7 @@ TEST(coroutine_channel, close) {
             while (1) {
                 if (!chan->push((void *) &value)) {
                     ASSERT_EQ(chan->get_error(), Channel::ErrorCode::ERROR_CLOSED);
+                    ASSERT_FALSE(chan->push(nullptr));
                     break;
                 }
             }
@@ -115,6 +116,7 @@ TEST(coroutine_channel, close) {
             while (1) {
                 if (!chan->pop(0)) {
                     ASSERT_EQ(chan->get_error(), Channel::ErrorCode::ERROR_CLOSED);
+                    ASSERT_EQ(chan->pop(), nullptr);
                     break;
                 }
             }
