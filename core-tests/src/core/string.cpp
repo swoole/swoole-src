@@ -215,3 +215,15 @@ TEST(string, ends_with) {
     ASSERT_FALSE(swoole::ends_with(str1, strlen(str1), SW_STRL("php")));
     ASSERT_TRUE(swoole::ends_with(str1, strlen(str1), str1, strlen(str1)));
 }
+
+TEST(string, append_number) {
+    string data = "hello";
+    auto str = swoole::make_string(data.length());
+    str->append(data.c_str(), data.length());
+    str->append(123);
+    str->str[str->length] = '\0';
+    EXPECT_STREQ(str->str, data.append("123").c_str());
+
+    str->print(true);
+    str->print(false);
+}

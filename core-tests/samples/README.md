@@ -27,6 +27,7 @@ export CXX=/usr/local/bin/g++
 
 ## **2. 编译swoole.so**
 ```shell
+export SWOOLE_DIR=/your-path/swoole-src/
 git clone https://github.com/swoole/swoole-src.git
 cd /your-path/swoole-src/
 ./make.sh cmake
