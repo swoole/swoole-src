@@ -1492,6 +1492,13 @@ bool Server::sendfile(SessionId session_id, const char *file, uint32_t l_file, o
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "stat(%s) failed", req->filename);
         return false;
     }
+    if (!S_ISREG(file_stat.st_mode)) {
+        swoole_error_log(SW_LOG_WARNING,
+                         SW_ERROR_SERVER_IS_NOT_REGULAR_FILE,
+                         "the path[%s] given is not a regular file",
+                         req->filename);
+        return false;
+    }
     if (file_stat.st_size <= offset) {
         swoole_error_log(SW_LOG_WARNING, SW_ERROR_SYSTEM_CALL_FAIL, "file[offset=%ld] is empty", (long) offset);
         return false;

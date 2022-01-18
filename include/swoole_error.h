@@ -148,6 +148,7 @@ enum swErrorCode {
     SW_ERROR_SERVER_INVALID_REQUEST,
     SW_ERROR_SERVER_CONNECT_FAIL,
     SW_ERROR_SERVER_INVALID_COMMAND,
+    SW_ERROR_SERVER_IS_NOT_REGULAR_FILE,
 
     /**
      * Process exit timeout, forced to end.
