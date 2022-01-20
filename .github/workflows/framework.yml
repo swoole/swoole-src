@@ -12,10 +12,6 @@ jobs:
       matrix:
         php-version: [ '8.0', '8.1' ]
         framework: [ 'Laravel Octane', 'Hyperf', 'Simps' ]
-        include:
-          - os: ubuntu-latest
-            php-version: '7.4'
-            framework: 'Hyperf'
     name: ${{ matrix.framework }} - PHP ${{ matrix.php-version }}
     steps:
       - name: Checkout code
