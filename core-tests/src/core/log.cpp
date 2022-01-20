@@ -1,28 +1,37 @@
 #include "test_core.h"
 #include "swoole_file.h"
 #include <regex>
+#include <vector>
 
 using namespace swoole;
 
 const char *file = "/tmp/swoole_log_test.log";
 
 TEST(log, level) {
-    sw_logger()->reset();
-    sw_logger()->set_level(SW_LOG_NOTICE);
-    sw_logger()->open(file);
+    std::vector<int> processTypes = {SW_PROCESS_MASTER, SW_PROCESS_MANAGER, SW_PROCESS_WORKER, SW_PROCESS_TASKWORKER};
 
-    sw_logger()->put(SW_LOG_INFO, SW_STRL("hello info"));
-    sw_logger()->put(SW_LOG_NOTICE, SW_STRL("hello notice"));
-    sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello warning"));
+    int originType = swoole_get_process_type();
+    for (auto iter = processTypes.begin(); iter != processTypes.end(); iter++) {
+        SwooleG.process_type = *iter;
+        sw_logger()->reset();
+        sw_logger()->set_level(SW_LOG_NOTICE);
+        sw_logger()->open(file);
 
-    auto content = file_get_contents(file);
+        sw_logger()->put(SW_LOG_INFO, SW_STRL("hello info"));
+        sw_logger()->put(SW_LOG_NOTICE, SW_STRL("hello notice"));
+        sw_logger()->put(SW_LOG_WARNING, SW_STRL("hello warning"));
 
-    sw_logger()->close();
-    unlink(file);
+        auto content = file_get_contents(file);
 
-    ASSERT_FALSE(content->contains(SW_STRL("hello info")));
-    ASSERT_TRUE(content->contains(SW_STRL("hello notice")));
-    ASSERT_TRUE(content->contains(SW_STRL("hello warning")));
+        sw_logger()->close();
+        unlink(file);
+
+        ASSERT_FALSE(content->contains(SW_STRL("hello info")));
+        ASSERT_TRUE(content->contains(SW_STRL("hello notice")));
+        ASSERT_TRUE(content->contains(SW_STRL("hello warning")));
+
+        SwooleG.process_type = originType;
+    }
 }
 
 TEST(log, date_format) {
@@ -104,10 +113,13 @@ TEST(log, redirect) {
     if (p) {
         return;
     }
-
     sw_logger()->reset();
+    ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // no log file opened
+    ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(0));  // no redirected
+
     ASSERT_TRUE(sw_logger()->open(file));
     ASSERT_TRUE(sw_logger()->redirect_stdout_and_stderr(1));
+    ASSERT_FALSE(sw_logger()->redirect_stdout_and_stderr(1));  // has been redirected
 
     printf("hello world\n");
     auto content = file_get_contents(file);

@@ -1,9 +1,9 @@
-**Swoole core unit testing**
+**Swoole 核心单元测试**
 ===========
-## **1. compiling googletest**
-Since swoole core unit testing rely on googletest, we need compile googletest at first.
+## **1. 编译googletest**
+swoole单元测试依赖于googletest，因此第一步我们需要编译googletest。
 
-gcc compiler version > 4.8.5 and gcc-c++ compiler version > 4.8.5.
+这里要求gcc和和g++编译器的版本要大于4.8.5。
 ```shell
 wget https://github.com/google/googletest/archive/refs/tags/release-1.11.0.tar.gz
 tar zxf release-1.11.0.tar.gz
@@ -13,13 +13,12 @@ cmake ..
 make -j
 make install
 ```
-The output still contains the following messages after compiling higher version gcc and gcc-c++.
-
+如果你已经安装了更高版本的gcc和g++编译器，但是在执行cmake . 的过程中还是发现如下输出。
 ```shell
 - The C compiler identification is GNU 4.8.5
 - The CXX compiler identification is GNU 4.8.5
 ```
-Please execute following code and retry.
+请执行下面的代码并重试。
 ```shell
 export CC=/usr/local/bin/gcc
 export CXX=/usr/local/bin/g++

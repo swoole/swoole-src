@@ -89,3 +89,39 @@ TEST(coroutine_channel, pop_timeout) {
         ASSERT_EQ(ret, nullptr);
     });
 }
+
+TEST(coroutine_channel, close) {
+    Channel chan(1);
+    coroutine::run(
+        [](void *arg) {
+            int value = 1;
+            auto chan = (Channel *) arg;
+            while (1) {
+                if (!chan->push((void *) &value)) {
+                    ASSERT_EQ(chan->get_error(), Channel::ErrorCode::ERROR_CLOSED);
+                    ASSERT_FALSE(chan->push(nullptr));
+                    break;
+                }
+            }
+        },
+        &chan);
+
+    ASSERT_TRUE(chan.close());
+    ASSERT_FALSE(chan.close());
+
+    Channel chan2(1);
+    coroutine::run(
+        [](void *arg) {
+            auto chan = (Channel *) arg;
+            while (1) {
+                if (!chan->pop(0)) {
+                    ASSERT_EQ(chan->get_error(), Channel::ErrorCode::ERROR_CLOSED);
+                    ASSERT_EQ(chan->pop(), nullptr);
+                    break;
+                }
+            }
+        },
+        &chan2);
+
+    ASSERT_TRUE(chan2.close());
+}
