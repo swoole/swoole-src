@@ -21,6 +21,8 @@
 #include "swoole_server.h"
 #include "swoole_file.h"
 #include "swoole_util.h"
+#include "swoole.h"
+#include "swoole_config.h"
 
 using namespace swoole;
 using namespace std;
@@ -77,7 +79,7 @@ TEST(base, file_get_size) {
     f.write(buf, sizeof(buf) - 1);
     f.close();
 
-    ASSERT_EQ(file_get_size(TEST_TMP_FILE), sizeof(buf) -1);
+    ASSERT_EQ(file_get_size(TEST_TMP_FILE), sizeof(buf) - 1);
 }
 
 TEST(base, version_compare) {
@@ -110,6 +112,23 @@ TEST(base, shell_exec) {
     ASSERT_GT(n, 0);
     ASSERT_STREQ(string(buf).substr(0, sizeof(TEST_JPG_MD5SUM) - 1).c_str(), TEST_JPG_MD5SUM);
     close(_pipe);
+
+    str = "md5sum test.abcdef";
+    _pipe = swoole_shell_exec(str.c_str(), &pid, 1);
+    memset(buf, 0, sizeof(buf));
+    ssize_t length = 0;
+    while (1) {
+        n = read(_pipe, buf + length, sizeof(buf) - 1 - length);
+        length += n;
+        if (n > 0) {
+            continue;
+        }
+        break;
+    }
+    ASSERT_GT(length, 0);
+
+    ASSERT_STREQ(buf, string("md5sum: test.abcdef: No such file or directory\n").c_str());
+    close(_pipe);
 }
 
 TEST(base, file_size) {
@@ -123,12 +142,12 @@ TEST(base, file_size) {
 }
 
 TEST(base, eventdata_pack) {
-    EventData ed1 { };
+    EventData ed1{};
 
     ASSERT_TRUE(Server::task_pack(&ed1, test_data.c_str(), test_data.length()));
     ASSERT_EQ(string(ed1.data, ed1.info.len), test_data);
 
-    EventData ed2 { };
+    EventData ed2{};
     ASSERT_EQ(swoole_random_bytes(sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG), SW_BUFFER_SIZE_BIG);
     ASSERT_TRUE(Server::task_pack(&ed2, sw_tg_buffer()->str, SW_BUFFER_SIZE_BIG));
 
@@ -197,18 +216,23 @@ static std::string test_func(std::string test_data_2) {
 TEST(base, add_function) {
     typedef std::string (*_func_t)(std::string);
     swoole_add_function("test_func", (void *) test_func);
+    ASSERT_EQ(swoole_add_function("test_func", (void *) test_func), SW_ERR);
     _func_t _func = (_func_t) swoole_get_function(SW_STRL("test_func"));
     std::string b = ", swoole is best";
     auto rs = _func(", swoole is best");
     ASSERT_EQ(rs, test_data + b);
+    ASSERT_EQ(swoole_get_function(SW_STRL("test_func31")), nullptr);
 }
 
 TEST(base, hook) {
     int count = 0;
-    swoole_add_hook(SW_GLOBAL_HOOK_END, [](void *data) -> void {
-        int *_count = (int *) data;
-        *_count = 9999;
-    }, 1);
+    swoole_add_hook(
+        SW_GLOBAL_HOOK_END,
+        [](void *data) -> void {
+            int *_count = (int *) data;
+            *_count = 9999;
+        },
+        1);
     ASSERT_TRUE(swoole_isset_hook(SW_GLOBAL_HOOK_END));
     swoole_call_hook(SW_GLOBAL_HOOK_END, &count);
     ASSERT_EQ(count, 9999);
@@ -217,10 +241,10 @@ TEST(base, hook) {
 TEST(base, intersection) {
     std::vector<std::string> vec1{"index.php", "index.html", "default.html"};
 
-    std::set<std::string> vec2 {".", "..", "default.html", "index.php", "test.html", "a.json", "index.php"};
+    std::set<std::string> vec2{".", "..", "default.html", "index.php", "test.html", "a.json", "index.php"};
     ASSERT_EQ("index.php", swoole::intersection(vec1, vec2));
 
-    std::set<std::string> vec3 {"a", "zh中", "、r\n"};
+    std::set<std::string> vec3{"a", "zh中", "、r\n"};
     ASSERT_EQ("", swoole::intersection(vec1, vec3));
 }
 
@@ -231,4 +255,19 @@ TEST(base, itoa) {
 
     ASSERT_EQ(n, 9);
     ASSERT_STREQ(buf, "123456987");
+}
+
+TEST(base, get_systemd_listen_fds) {
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_FDS", to_string(SW_MAX_LISTEN_PORT + 1).c_str(), 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), -1);
+    setenv("LISTEN_FDS", to_string(SW_MAX_LISTEN_PORT - 1).c_str(), 1);
+    ASSERT_EQ(swoole_get_systemd_listen_fds(), SW_MAX_LISTEN_PORT - 1);
+}
+
+TEST(base, type_size) {
+    ASSERT_EQ(swoole_type_size('c'), 1);
+    ASSERT_EQ(swoole_type_size('s'), 2);
+    ASSERT_EQ(swoole_type_size('l'), 4);
+    ASSERT_EQ(swoole_type_size('b'), 0);  // default value
 }
