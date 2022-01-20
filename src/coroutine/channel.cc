@@ -147,18 +147,18 @@ bool Channel::push(void *data, double timeout, bool yield) {
     /**
      * notify consumer
      */
-    if (yield) {
-        if (!consumer_queue.empty()) {
+    if (!consumer_queue.empty()) {
+        if (yield) {
             Coroutine *co = pop_coroutine(CONSUMER);
             co->resume();
+        } else {
+            sw_reactor()->defer([&](void *data) {
+                if (!closed && !consumer_queue.empty()) {
+                    Coroutine *co = pop_coroutine(CONSUMER);
+                    co->resume();
+                }
+            });
         }
-    } else {
-        sw_reactor()->defer([&](void *data) {
-            if (!closed && !consumer_queue.empty()) {
-                Coroutine *co = pop_coroutine(CONSUMER);
-                co->resume();
-            }
-        });
     }
     return true;
 }
