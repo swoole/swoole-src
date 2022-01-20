@@ -2,7 +2,7 @@
 namespace Swoole\Coroutine {
 	class Channel {
 		public function __construct(int $size = 1) {}
-		public function push(mixed $data, float $timeout = -1): bool {}
+		public function push(mixed $data, float $timeout = -1, bool $yield = true): bool {}
 		public function pop(float $timeout = -1): mixed {}
 		public function stats(): array {}
 		public function close(): bool {}

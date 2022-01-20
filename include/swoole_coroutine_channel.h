@@ -53,7 +53,7 @@ class Channel {
     };
 
     void *pop(double timeout = -1);
-    bool push(void *data, double timeout = -1);
+    bool push(void *data, double timeout = -1, bool yield = true);
     bool close();
 
     Channel(size_t _capacity = 1) : capacity(_capacity) {}

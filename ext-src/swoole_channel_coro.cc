@@ -150,16 +150,18 @@ static PHP_METHOD(swoole_channel_coro, push) {
     Channel *chan = php_swoole_get_channel(ZEND_THIS);
     zval *zdata;
     double timeout = -1;
+    bool yield = true;
 
-    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 2)
+    ZEND_PARSE_PARAMETERS_START_EX(ZEND_PARSE_PARAMS_THROW, 1, 3)
     Z_PARAM_ZVAL(zdata)
     Z_PARAM_OPTIONAL
     Z_PARAM_DOUBLE(timeout)
+    Z_PARAM_BOOL(yield)
     ZEND_PARSE_PARAMETERS_END_EX(RETURN_FALSE);
 
     Z_TRY_ADDREF_P(zdata);
     zdata = sw_zval_dup(zdata);
-    if (chan->push(zdata, timeout)) {
+    if (chan->push(zdata, timeout, yield)) {
         zend_update_property_long(
             swoole_channel_coro_ce, SW_Z8_OBJ_P(ZEND_THIS), ZEND_STRL("errCode"), Channel::ERROR_OK);
         RETURN_TRUE;

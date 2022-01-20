@@ -103,7 +103,7 @@ void *Channel::pop(double timeout) {
     return data;
 }
 
-bool Channel::push(void *data, double timeout) {
+bool Channel::push(void *data, double timeout, bool yield) {
     Coroutine *current_co = Coroutine::get_current_safe();
     if (closed) {
         error_ = ERROR_CLOSED;
@@ -121,7 +121,7 @@ bool Channel::push(void *data, double timeout) {
             msg.timer = swoole_timer_add(msec, false, timer_callback, &msg);
         }
 
-        yield(PRODUCER);
+        this->yield(PRODUCER);
 
         if (msg.timer) {
             swoole_timer_del(msg.timer);
@@ -147,9 +147,18 @@ bool Channel::push(void *data, double timeout) {
     /**
      * notify consumer
      */
-    if (!consumer_queue.empty()) {
-        Coroutine *co = pop_coroutine(CONSUMER);
-        co->resume();
+    if (yield) {
+        if (!consumer_queue.empty()) {
+            Coroutine *co = pop_coroutine(CONSUMER);
+            co->resume();
+        }
+    } else {
+        sw_reactor()->defer([&](void *data) {
+            if (!closed && !consumer_queue.empty()) {
+                Coroutine *co = pop_coroutine(CONSUMER);
+                co->resume();
+            }
+        });
     }
     return true;
 }
