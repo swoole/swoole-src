@@ -185,7 +185,6 @@ TEST(coroutine_system, wait_event_writable) {
 }
 
 TEST(coroutine_system, poll) {
-    std::string text = "Hello world";
     UnixSocket p(true, SOCK_STREAM);
     std::unordered_map<int, swoole::coroutine::PollSocket> fds;
     fds.emplace(std::make_pair(p.get_socket(false)->fd, swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr)));
@@ -199,28 +198,20 @@ TEST(coroutine_system, poll) {
 
     // start normal process
     test::coroutine::run([&](void *arg) {
+        std::string text = "Hello world";
         Coroutine::create([&](void *) {
-            ASSERT_TRUE(System::socket_poll(fds, 0.5));
+            bool result = System::socket_poll(fds, 0.5);
+            ASSERT_TRUE(result);
+
+            char buffer[128];
             auto pipe_sock = p.get_socket(false);
-            auto tg_buf = sw_tg_buffer();
-            pipe_sock->read(tg_buf->str + tg_buf->length, tg_buf->size - tg_buf->length);
-            tg_buf->append('\0');
-            ASSERT_EQ(sw_tg_buffer()->value(), text.c_str());
+            ssize_t retval = pipe_sock->read(buffer, sizeof(buffer));
+            buffer[retval] = '\0';
+            ASSERT_EQ(retval, text.length());
+            EXPECT_STREQ(text.c_str(), buffer);
         });
 
         auto pipe_sock = p.get_socket(true);
-        const char *ptr = text.c_str();
-        size_t len = text.length();
-
-        while (len > 0) {
-            ssize_t retval = pipe_sock->write(ptr, len > 8192 ? 8192 : len);
-            if (retval > 0) {
-                ptr += retval;
-                len -= retval;
-            } else if (retval == 0 || (retval < 0 && errno != EAGAIN)) {
-                break;
-            }
-            System::wait_event(pipe_sock->get_fd(), SW_EVENT_WRITE, 1);
-        }
+        ASSERT_EQ(pipe_sock->write(text.c_str(), text.length()), text.length());
     });
 }
