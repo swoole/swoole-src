@@ -25,7 +25,7 @@ export CC=/usr/local/bin/gcc
 export CXX=/usr/local/bin/g++
 ```
 
-## **2. 编译swoole.so**
+## **2. How to compile swoole.so**
 ```shell
 export SWOOLE_DIR=/your-path/swoole-src/
 git clone https://github.com/swoole/swoole-src.git
@@ -33,7 +33,7 @@ cd /your-path/swoole-src/
 ./make.sh cmake
 ```
 
-## **3. 运行swoole单元测试**
+## **3. Run swoole core testing**
 ```shell
 cd /your-path/swoole-src/core-tests
 ./run.sh
