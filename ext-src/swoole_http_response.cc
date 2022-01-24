@@ -96,7 +96,7 @@ static void php_swoole_http_response_free_object(zend_object *object) {
     zval ztmp; /* bool, not required to release it */
 
     if (ctx) {
-        if (!ctx->end_ && !ctx->detached && sw_reactor()) {
+        if (!ctx->end_ && (ctx->send_chunked || !ctx->send_header_) && !ctx->detached && sw_reactor()) {
             if (ctx->response.status == 0) {
                 ctx->response.status = SW_HTTP_INTERNAL_SERVER_ERROR;
             }
@@ -889,6 +889,11 @@ static PHP_METHOD(swoole_http_response, sendfile) {
     struct stat file_stat;
     if (stat(file, &file_stat) < 0) {
         php_swoole_sys_error(E_WARNING, "stat(%s) failed", file);
+        RETURN_FALSE;
+    }
+    if (!S_ISREG(file_stat.st_mode)) {
+        php_swoole_error(E_WARNING, "parameter $file[%s] given is not a regular file", file);
+        swoole_set_last_error(SW_ERROR_SERVER_IS_NOT_REGULAR_FILE);
         RETURN_FALSE;
     }
     if (file_stat.st_size < offset) {

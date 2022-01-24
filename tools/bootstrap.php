@@ -252,7 +252,7 @@ class SwooleLibraryBuilder
         if ($this->checkFileChange) {
             preg_match(
                 '/^(\d+)/',
-                trim(shell_exec('cd ' . $this->libraryDir . ' && git diff --shortstat')),
+                trim(shell_exec('cd ' . $this->libraryDir . ' && git diff --shortstat') ?? ''),
                 $file_change
             );
             $file_change = (int)($file_change[1] ?? 0);
