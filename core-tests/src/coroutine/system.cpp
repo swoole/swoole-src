@@ -184,7 +184,7 @@ TEST(coroutine_system, wait_event_writable) {
     });
 }
 
-TEST(coroutine_system, poll) {
+TEST(coroutine_system, swoole_stream_select) {
     UnixSocket p(true, SOCK_STREAM);
     std::unordered_map<int, swoole::coroutine::PollSocket> fds;
     fds.emplace(std::make_pair(p.get_socket(false)->fd, swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr)));
@@ -220,6 +220,12 @@ TEST(coroutine_system, poll) {
         const char *ptr = text.c_str();
         ASSERT_STREQ(ptr, buffer);
     });
+}
+
+TEST(coroutine_system, timeout_is_zero) {
+    UnixSocket p(true, SOCK_STREAM);
+    std::unordered_map<int, swoole::coroutine::PollSocket> fds;
+    fds.emplace(std::make_pair(p.get_socket(false)->fd, swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr)));
 
     // timeout is 0
     test::coroutine::run([&](void *arg) {
@@ -235,6 +241,18 @@ TEST(coroutine_system, poll) {
 
         // master pipe
         bool result = System::socket_poll(fds, 0);
+        ASSERT_TRUE(result);
+
+        // child pipe
+        Coroutine::create([&](void *) {
+            auto pipe_sock = p.get_socket(true);
+            const char *ptr = text.c_str();
+            ASSERT_EQ(pipe_sock->write(ptr, len), len);
+        });
+
+        // master pipe
+        auto pipe_sock = p.get_socket(false);
+        result = System::wait_event(pipe_sock->get_fd(), SW_EVENT_READ, 0);
         ASSERT_TRUE(result);
     });
 }
