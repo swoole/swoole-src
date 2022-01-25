@@ -201,7 +201,7 @@ TEST(coroutine_system, poll) {
         std::string text = "Hello world";
         size_t len = text.length();
 
-        Coroutine::create([&](void *) {
+        Coroutine::create([=](void *) {
             bool result = System::socket_poll(fds, 0.5);
             ASSERT_TRUE(result);
 
