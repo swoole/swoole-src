@@ -200,7 +200,6 @@ TEST(coroutine_system, poll) {
     test::coroutine::run([&](void *arg) {
         std::string text = "Hello world";
         size_t len = text.length();
-        const char *ptr = text.c_str();
 
         Coroutine::create([&](void *) {
             bool result = System::socket_poll(fds, 0.5);
@@ -212,10 +211,12 @@ TEST(coroutine_system, poll) {
             buffer[retval] = '\0';
 
             ASSERT_EQ(retval, len);
-            EXPECT_STREQ(ptr, buffer);
+            const char *ptr = text.c_str();
+            ASSERT_STREQ(ptr, buffer);
         });
 
         auto pipe_sock = p.get_socket(true);
+        const char *ptr = text.c_str();
         ASSERT_EQ(pipe_sock->write(ptr, len), len);
     });
 }
