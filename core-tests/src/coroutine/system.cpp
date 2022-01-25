@@ -201,13 +201,15 @@ TEST(coroutine_system, poll) {
         std::string text = "Hello world";
         size_t len = text.length();
 
+        // child pipe
         Coroutine::create([&](void *) {
             System::sleep(0.05);
             auto pipe_sock = p.get_socket(true);
-            const char *ptr_2 = text.c_str();
-            ASSERT_EQ(pipe_sock->write(ptr_2, len), len);
+            const char *ptr = text.c_str();
+            ASSERT_EQ(pipe_sock->write(ptr, len), len);
         });
 
+        // master pipe
         bool result = System::socket_poll(fds, 0.5);
         ASSERT_TRUE(result);
 
@@ -217,7 +219,7 @@ TEST(coroutine_system, poll) {
         buffer[retval] = '\0';
 
         ASSERT_EQ(retval, len);
-        const char *ptr_1 = text.c_str();
-        ASSERT_STREQ(ptr_1, buffer);
+        const char *ptr = text.c_str();
+        ASSERT_STREQ(ptr, buffer);
     });
 }
