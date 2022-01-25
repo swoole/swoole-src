@@ -199,6 +199,9 @@ TEST(coroutine_system, poll) {
     // start normal process
     test::coroutine::run([&](void *arg) {
         std::string text = "Hello world";
+        size_t len = text.length();
+        const char *ptr = text.c_str();
+
         Coroutine::create([&](void *) {
             bool result = System::socket_poll(fds, 0.5);
             ASSERT_TRUE(result);
@@ -207,10 +210,12 @@ TEST(coroutine_system, poll) {
             auto pipe_sock = p.get_socket(false);
             ssize_t retval = pipe_sock->read(buffer, sizeof(buffer));
             buffer[retval] = '\0';
-            EXPECT_STREQ(text.c_str(), buffer);
+
+            ASSERT_EQ(retval, len);
+            EXPECT_STREQ(ptr, buffer);
         });
 
         auto pipe_sock = p.get_socket(true);
-        ASSERT_EQ(pipe_sock->write(text.c_str(), text.length()), text.length());
+        ASSERT_EQ(pipe_sock->write(ptr, len), len);
     });
 }
