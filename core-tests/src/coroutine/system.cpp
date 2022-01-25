@@ -207,7 +207,8 @@ TEST(coroutine_system, poll) {
             auto pipe_sock = p.get_socket(false);
             ssize_t retval = pipe_sock->read(buffer, sizeof(buffer));
             buffer[retval] = '\0';
-            ASSERT_EQ(retval, text.length());
+            size_t len = text.length();
+            ASSERT_EQ(retval, len);
             EXPECT_STREQ(text.c_str(), buffer);
         });
 
