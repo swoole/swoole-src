@@ -201,22 +201,23 @@ TEST(coroutine_system, poll) {
         std::string text = "Hello world";
         size_t len = text.length();
 
-        Coroutine::create([=](void *) {
-            bool result = System::socket_poll(fds, 0.5);
-            ASSERT_TRUE(result);
-
-            char buffer[128];
-            auto pipe_sock = p.get_socket(false);
-            ssize_t retval = pipe_sock->read(buffer, sizeof(buffer));
-            buffer[retval] = '\0';
-
-            ASSERT_EQ(retval, len);
-            const char *ptr_1 = text.c_str();
-            ASSERT_STREQ(ptr_1, buffer);
+        Coroutine::create([&](void *) {
+            System::sleep(0.05);
+            auto pipe_sock = p.get_socket(true);
+            const char *ptr_2 = text.c_str();
+            ASSERT_EQ(pipe_sock->write(ptr_2, len), len);
         });
 
-        auto pipe_sock = p.get_socket(true);
-        const char *ptr_2 = text.c_str();
-        ASSERT_EQ(pipe_sock->write(ptr_2, len), len);
+        bool result = System::socket_poll(fds, 0.5);
+        ASSERT_TRUE(result);
+
+        char buffer[128];
+        auto pipe_sock = p.get_socket(false);
+        ssize_t retval = pipe_sock->read(buffer, sizeof(buffer));
+        buffer[retval] = '\0';
+
+        ASSERT_EQ(retval, len);
+        const char *ptr_1 = text.c_str();
+        ASSERT_STREQ(ptr_1, buffer);
     });
 }
