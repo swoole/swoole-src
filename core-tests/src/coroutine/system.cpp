@@ -211,12 +211,12 @@ TEST(coroutine_system, poll) {
             buffer[retval] = '\0';
 
             ASSERT_EQ(retval, len);
-            const char *ptr = text.c_str();
-            ASSERT_STREQ(ptr, buffer);
+            const char *ptr_1 = text.c_str();
+            ASSERT_STREQ(ptr_1, buffer);
         });
 
         auto pipe_sock = p.get_socket(true);
-        const char *ptr = text.c_str();
-        ASSERT_EQ(pipe_sock->write(ptr, len), len);
+        const char *ptr_2 = text.c_str();
+        ASSERT_EQ(pipe_sock->write(ptr_2, len), len);
     });
 }
