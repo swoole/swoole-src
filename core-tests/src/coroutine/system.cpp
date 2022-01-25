@@ -192,8 +192,6 @@ TEST(coroutine_system, poll) {
     test::coroutine::run([&](void *arg) {
         // try timeout to trigger socket_poll_timeout function
         ASSERT_FALSE(System::socket_poll(fds, 0.5));
-        // timeout is 0
-        ASSERT_FALSE(System::socket_poll(fds, 0));
     });
 
     // start normal process
@@ -221,5 +219,22 @@ TEST(coroutine_system, poll) {
         ASSERT_EQ(retval, len);
         const char *ptr = text.c_str();
         ASSERT_STREQ(ptr, buffer);
+    });
+
+    // timeout is 0
+    test::coroutine::run([&](void *arg) {
+        std::string text = "Hello world";
+        size_t len = text.length();
+
+        // child pipe
+        Coroutine::create([&](void *) {
+            auto pipe_sock = p.get_socket(true);
+            const char *ptr = text.c_str();
+            ASSERT_EQ(pipe_sock->write(ptr, len), len);
+        });
+
+        // master pipe
+        bool result = System::socket_poll(fds, 0);
+        ASSERT_TRUE(result);
     });
 }
