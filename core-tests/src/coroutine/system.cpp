@@ -183,3 +183,35 @@ TEST(coroutine_system, wait_event_writable) {
         EXPECT_STREQ(sw_tg_buffer()->value(), str.value());
     });
 }
+
+TEST(coroutine_system, poll) {
+    UnixSocket p(true, SOCK_STREAM);
+    std::unordered_map<int, swoole::coroutine::PollSocket> fds;
+    fds.emplace(std::make_pair(p.get_socket(false)->fd, swoole::coroutine::PollSocket(SW_EVENT_READ, nullptr)));
+
+    test::coroutine::run([&](void *arg) {
+        // try timeout to trigger socket_poll_timeout function
+        ASSERT_FALSE(System::socket_poll(fds, 0.5));
+        // timeout is 0
+        ASSERT_FALSE(System::socket_poll(fds, 0));
+    });
+
+    // start normal process
+    test::coroutine::run([&](void *arg) {
+        std::string text = "Hello world";
+        Coroutine::create([&](void *) {
+            bool result = System::socket_poll(fds, 0.5);
+            ASSERT_TRUE(result);
+
+            char buffer[128];
+            auto pipe_sock = p.get_socket(false);
+            ssize_t retval = pipe_sock->read(buffer, sizeof(buffer));
+            buffer[retval] = '\0';
+            ASSERT_EQ(retval, text.length());
+            EXPECT_STREQ(text.c_str(), buffer);
+        });
+
+        auto pipe_sock = p.get_socket(true);
+        ASSERT_EQ(pipe_sock->write(text.c_str(), text.length()), text.length());
+    });
+}
