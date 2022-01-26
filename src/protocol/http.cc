@@ -533,7 +533,7 @@ void Request::parse_header_info() {
                     p++;
                 }
                 content_length = strtoull(p, nullptr, 10);
-                content_length_ = SW_MIN(content_length, UINT32_MAX);
+                content_length_ = SW_MIN(content_length, UINT64_MAX);
                 known_length = 1;
             } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
                 // strlen("Connection:")

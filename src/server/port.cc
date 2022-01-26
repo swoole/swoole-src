@@ -594,7 +594,8 @@ _parse:
         swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length_);
     } else {
         request_length = request->header_length_ + request->content_length_;
-        if (request_length > protocol->package_max_length) {
+        // prevent request_length from being greater than UNIT64_MAX
+        if (request_length > protocol->package_max_length || request->content_length_ > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
                              "Request Entity Too Large: header-length (%u) + content-length (%u) is greater than the "
