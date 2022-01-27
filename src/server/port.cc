@@ -593,10 +593,7 @@ _parse:
         }
         swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length_);
     } else {
-        // prevent request_length from being greater than UNIT64_MAX
-        request_length = (UINT64_MAX - request->content_length_) < request->header_length_
-                             ? request->content_length_
-                             : request->header_length_ + request->content_length_;
+        request_length = request->header_length_ + request->content_length_;
         if (request_length > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,

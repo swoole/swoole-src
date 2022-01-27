@@ -525,15 +525,13 @@ void Request::parse_header_info() {
     for (; p < pe; p++) {
         if (*(p - 1) == '\n' && *(p - 2) == '\r') {
             if (SW_STRCASECT(p, pe - p, "Content-Length:")) {
-                unsigned long long content_length;
                 // strlen("Content-Length:")
                 p += (sizeof("Content-Length:") - 1);
                 // skip spaces
                 while (*p == ' ') {
                     p++;
                 }
-                content_length = strtoull(p, nullptr, 10);
-                content_length_ = SW_MIN(content_length, UINT64_MAX);
+                content_length_ = strtoull(p, nullptr, 10);
                 known_length = 1;
             } else if (SW_STRCASECT(p, pe - p, "Connection:")) {
                 // strlen("Connection:")
