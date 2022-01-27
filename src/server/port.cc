@@ -382,7 +382,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
     Socket *_socket = event->socket;
     Connection *conn = (Connection *) _socket->object;
     Server *serv = (Server *) reactor->ptr;
-    RecvData dispatch_data {};
+    RecvData dispatch_data{};
 
     if (conn->websocket_status >= websocket::STATUS_HANDSHAKE) {
         if (conn->http_upgrade == 0) {
@@ -593,12 +593,14 @@ _parse:
         }
         swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length_);
     } else {
-        request_length = request->header_length_ + request->content_length_;
         // prevent request_length from being greater than UNIT64_MAX
-        if (request_length > protocol->package_max_length || request->content_length_ > protocol->package_max_length) {
+        request_length = (UINT64_MAX - request->content_length_) < request->header_length_
+                             ? request->content_length_
+                             : request->header_length_ + request->content_length_;
+        if (request_length > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
-                             "Request Entity Too Large: header-length (%u) + content-length (%u) is greater than the "
+                             "Request Entity Too Large: header-length (%u) + content-length (%lu) is greater than the "
                              "package_max_length(%u)" CLIENT_INFO_FMT,
                              request->header_length_,
                              request->content_length_,
