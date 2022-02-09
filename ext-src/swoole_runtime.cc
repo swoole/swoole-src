@@ -129,8 +129,7 @@ static std::vector<std::string> unsafe_functions {
     "pcntl_sigtimedwait",
 };
 
-static const zend_function_entry swoole_runtime_methods[] =
-{
+static const zend_function_entry swoole_runtime_methods[] = {
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_swoole_runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, getHookFlags, arginfo_swoole_void, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, setHookFlags, arginfo_swoole_runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -166,36 +165,39 @@ static zend_internal_arg_info *get_arginfo(const char *name, size_t l_name) {
 #define SW_HOOK_FE(name, arg_info)                                                                                     \
     ZEND_RAW_FENTRY("swoole_native_" #name, PHP_FN(swoole_user_func_handler), arg_info, 0)
 
+// clang-format off
 static const zend_function_entry swoole_sockets_functions[] = {
-    SW_HOOK_FE(socket_create_listen, arginfo_swoole_native_socket_create_listen) SW_HOOK_FE(
-        socket_accept, arginfo_swoole_native_socket_accept) SW_HOOK_FE(socket_set_nonblock,
-                                                                       arginfo_swoole_native_socket_set_nonblock)
-        SW_HOOK_FE(socket_set_block, arginfo_swoole_native_socket_set_block) SW_HOOK_FE(
-            socket_listen, arginfo_swoole_native_socket_listen) SW_HOOK_FE(socket_close,
-                                                                           arginfo_swoole_native_socket_close)
-            SW_HOOK_FE(socket_write, arginfo_swoole_native_socket_write) SW_HOOK_FE(
-                socket_read, arginfo_swoole_native_socket_read) SW_HOOK_FE(socket_getsockname,
-                                                                           arginfo_swoole_native_socket_getsockname)
-                SW_HOOK_FE(socket_getpeername, arginfo_swoole_native_socket_getpeername) SW_HOOK_FE(
-                    socket_create, arginfo_swoole_native_socket_create)
-                    SW_HOOK_FE(socket_connect, arginfo_swoole_native_socket_connect) SW_HOOK_FE(
-                        socket_strerror, arginfo_swoole_native_socket_strerror)
-                        SW_HOOK_FE(socket_bind, arginfo_swoole_native_socket_bind) SW_HOOK_FE(
-                            socket_recv, arginfo_swoole_native_socket_recv)
-                            SW_HOOK_FE(socket_send, arginfo_swoole_native_socket_send) SW_HOOK_FE(
-                                socket_recvfrom, arginfo_swoole_native_socket_recvfrom)
-                                SW_HOOK_FE(socket_sendto, arginfo_swoole_native_socket_sendto) SW_HOOK_FE(
-                                    socket_get_option, arginfo_swoole_native_socket_get_option)
-                                    SW_HOOK_FE(socket_set_option, arginfo_swoole_native_socket_set_option) SW_HOOK_FE(
-                                        socket_getopt, arginfo_swoole_native_socket_getopt)
-                                        SW_HOOK_FE(socket_setopt, arginfo_swoole_native_socket_setopt) SW_HOOK_FE(
-                                            socket_shutdown, arginfo_swoole_native_socket_shutdown)
-                                            SW_HOOK_FE(socket_last_error, arginfo_swoole_native_socket_last_error)
-                                                SW_HOOK_FE(socket_clear_error, arginfo_swoole_native_socket_clear_error)
-                                                    ZEND_FE_END};
+    SW_HOOK_FE(socket_create_listen, arginfo_swoole_native_socket_create_listen)
+    SW_HOOK_FE(socket_accept, arginfo_swoole_native_socket_accept)
+    SW_HOOK_FE(socket_set_nonblock, arginfo_swoole_native_socket_set_nonblock)
+    SW_HOOK_FE(socket_set_block, arginfo_swoole_native_socket_set_block)
+    SW_HOOK_FE(socket_listen, arginfo_swoole_native_socket_listen)
+    SW_HOOK_FE(socket_close, arginfo_swoole_native_socket_close)
+    SW_HOOK_FE(socket_write, arginfo_swoole_native_socket_write)
+    SW_HOOK_FE(socket_read, arginfo_swoole_native_socket_read)
+    SW_HOOK_FE(socket_getsockname, arginfo_swoole_native_socket_getsockname)
+    SW_HOOK_FE(socket_getpeername, arginfo_swoole_native_socket_getpeername)
+    SW_HOOK_FE(socket_create, arginfo_swoole_native_socket_create)
+    SW_HOOK_FE(socket_connect, arginfo_swoole_native_socket_connect)
+    SW_HOOK_FE(socket_strerror, arginfo_swoole_native_socket_strerror)
+    SW_HOOK_FE(socket_bind, arginfo_swoole_native_socket_bind)
+    SW_HOOK_FE(socket_recv, arginfo_swoole_native_socket_recv)
+    SW_HOOK_FE(socket_send, arginfo_swoole_native_socket_send)
+    SW_HOOK_FE(socket_recvfrom, arginfo_swoole_native_socket_recvfrom)
+    SW_HOOK_FE(socket_sendto, arginfo_swoole_native_socket_sendto)
+    SW_HOOK_FE(socket_get_option, arginfo_swoole_native_socket_get_option)
+    SW_HOOK_FE(socket_set_option, arginfo_swoole_native_socket_set_option)
+    SW_HOOK_FE(socket_getopt, arginfo_swoole_native_socket_getopt)
+    SW_HOOK_FE(socket_setopt, arginfo_swoole_native_socket_setopt)
+    SW_HOOK_FE(socket_shutdown, arginfo_swoole_native_socket_shutdown)
+    SW_HOOK_FE(socket_last_error, arginfo_swoole_native_socket_last_error)
+    SW_HOOK_FE(socket_clear_error, arginfo_swoole_native_socket_clear_error)
+    ZEND_FE_END
+};
 #else
 #define SW_HOOK_SOCKETS_FUNC(f) hook_func(ZEND_STRL(#f))
 #endif
+// clang-format on
 
 static zend_array *tmp_function_table = nullptr;
 
@@ -221,8 +223,8 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SSL", PHPCoroutine::HOOK_SSL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TLS", PHPCoroutine::HOOK_TLS);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_FUNCTION", PHPCoroutine::HOOK_STREAM_FUNCTION);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT",
-                              PHPCoroutine::HOOK_STREAM_FUNCTION);  // backward compatibility
+    // backward compatibility
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT", PHPCoroutine::HOOK_STREAM_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_FILE", PHPCoroutine::HOOK_FILE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STDIO", PHPCoroutine::HOOK_STDIO);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", PHPCoroutine::HOOK_SLEEP);
