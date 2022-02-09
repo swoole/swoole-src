@@ -366,7 +366,7 @@ struct Socket {
     ssize_t ssl_readv(IOVector *io_vector);
     ssize_t ssl_writev(IOVector *io_vector);
     int ssl_sendfile(const File &fp, off_t *offset, size_t size);
-    STACK_OF(X509) *ssl_get_peer_cert_chain();
+    STACK_OF(X509) * ssl_get_peer_cert_chain();
     std::vector<std::string> ssl_get_peer_cert_chain(int limit);
     X509 *ssl_get_peer_certificate();
     int ssl_get_peer_certificate(char *buf, size_t n);
@@ -511,11 +511,9 @@ struct Socket {
         case SW_ERROR_SSL_RESET:
             return SW_CLOSE;
         case EAGAIN:
+        case ENOBUFS:
 #if EAGAIN != EWOULDBLOCK
         case EWOULDBLOCK:
-#endif
-#ifdef HAVE_KQUEUE
-        case ENOBUFS:
 #endif
         case 0:
             return SW_WAIT;
@@ -595,4 +593,3 @@ network::Socket *make_server_socket(SocketType socket_type,
                                     int backlog = SW_BACKLOG);
 bool verify_ip(int __af, const std::string &str);
 }  // namespace swoole
-

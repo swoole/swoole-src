@@ -223,7 +223,15 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         iov[0].iov_len = sizeof(resp->info);
         iov[1].iov_base = (void *) payload;
         iov[1].iov_len = l_payload;
-        return send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload);
+
+        if (send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload)) {
+            return true;
+        }
+        if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
+            max_length = SW_IPC_BUFFER_SIZE;
+        } else {
+            return false;
+        }
     }
 
     resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
@@ -245,7 +253,6 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
         if (send_fn(sock, iov, 2) < 0) {
-#ifdef __linux__
             if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
                 max_length = SW_IPC_BUFFER_SIZE;
                 if (resp->info.flags & SW_EVENT_DATA_END) {
@@ -253,7 +260,6 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
                 }
                 continue;
             }
-#endif
             return false;
         }
 
