@@ -536,7 +536,7 @@ struct Socket {
         case EMSGSIZE:
             return SW_REDUCE_SIZE;
         default:
-            return catch_write_error(err);
+            return catch_error(err);
         }
     }
 
