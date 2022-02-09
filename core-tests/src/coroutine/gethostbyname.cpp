@@ -5,7 +5,8 @@ using swoole::Timer;
 using swoole::coroutine::System;
 using swoole::test::coroutine;
 
-const char *domain_baidu = domain_baidu;
+const char *domain_baidu = "www.baidu.com";
+const char *domain_tencent = "www.tencent.com";
 
 TEST(coroutine_gethostbyname, resolve_cache) {
     coroutine::run([](void *arg) {
@@ -68,15 +69,15 @@ TEST(coroutine_gethostbyname, dns_expire) {
     coroutine::run([](void *arg) {
         time_t expire = 2;
         System::set_dns_cache_expire(expire);
-        System::gethostbyname(domain_baidu, AF_INET);
+        System::gethostbyname(domain_tencent, AF_INET);
 
         int64_t with_cache = Timer::get_absolute_msec();
-        System::gethostbyname(domain_baidu, AF_INET);
+        System::gethostbyname(domain_tencent, AF_INET);
         with_cache = Timer::get_absolute_msec() - with_cache;
 
         sleep(3);
         int64_t without_cache = Timer::get_absolute_msec();
-        System::gethostbyname(domain_baidu, AF_INET);
+        System::gethostbyname(domain_tencent, AF_INET);
         without_cache = Timer::get_absolute_msec() - without_cache;
 
         ASSERT_GT(without_cache, with_cache);
