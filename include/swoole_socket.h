@@ -303,7 +303,7 @@ struct Socket {
         char buf;
         errno = 0;
         ssize_t retval = peek(&buf, sizeof(buf), MSG_DONTWAIT);
-        return !(retval == 0 || (retval < 0 && catch_error(errno) == SW_CLOSE));
+        return !(retval == 0 || (retval < 0 && catch_read_error(errno) == SW_CLOSE));
     }
 
     /**
@@ -522,6 +522,29 @@ struct Socket {
         default:
             return SW_ERROR;
         }
+    }
+
+    inline int catch_write_error(int err) const {
+        switch (err) {
+        case ENOBUFS:
+            return SW_WAIT;
+        default:
+            return catch_error(err);
+        }
+    }
+
+    inline int catch_write_pipe_error(int err) {
+        switch (err) {
+        case ENOBUFS:
+        case EMSGSIZE:
+            return SW_REDUCE_SIZE;
+        default:
+            return catch_error(err);
+        }
+    }
+
+    inline int catch_read_error(int err) const {
+        return catch_error(err);
     }
 
     static inline SocketType convert_to_type(int domain, int type, int protocol = 0) {

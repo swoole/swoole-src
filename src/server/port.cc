@@ -320,7 +320,7 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
 
     n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
-        switch (_socket->catch_error(errno)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -422,7 +422,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
 _recv_data:
     ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
-        switch (_socket->catch_error(errno)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;

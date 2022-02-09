@@ -464,7 +464,7 @@ static int ReactorThread_onPipeWrite(Reactor *reactor, Event *ev) {
 
         ret = ev->socket->send(chunk->value.ptr, chunk->length, 0);
         if (ret < 0) {
-            return (ev->socket->catch_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
+            return (ev->socket->catch_write_error(errno) == SW_WAIT) ? SW_OK : SW_ERR;
         } else {
             buffer->pop();
         }
