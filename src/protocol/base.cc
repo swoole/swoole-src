@@ -141,7 +141,7 @@ _do_recv:
 
     recv_n = socket->recv(buffer->str + buffer->length, recv_size, 0);
     if (recv_n < 0) {
-        switch (socket->catch_error(errno)) {
+        switch (socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv(%d, %d) failed", socket->fd, recv_size);
             return SW_OK;
@@ -256,7 +256,7 @@ _recv_data:
 
     int n = socket->recv(buf_ptr, buf_size, 0);
     if (n < 0) {
-        switch (socket->catch_error(errno)) {
+        switch (socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from socket#%d failed", socket->fd);
             return SW_OK;
