@@ -227,7 +227,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         if (send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload)) {
             return true;
         }
-        if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
+        if (sock->catch_error(errno) == SW_REDUCE_SIZE && max_length > SW_BUFFER_SIZE_STD) {
             max_length = SW_IPC_BUFFER_SIZE;
         } else {
             return false;
@@ -253,7 +253,7 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
         if (send_fn(sock, iov, 2) < 0) {
-            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
+            if (sock->catch_error(errno) == SW_REDUCE_SIZE && max_length > SW_BUFFER_SIZE_STD) {
                 max_length = SW_IPC_BUFFER_SIZE;
                 if (resp->info.flags & SW_EVENT_DATA_END) {
                     resp->info.flags &= ~SW_EVENT_DATA_END;

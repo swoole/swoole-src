@@ -360,6 +360,7 @@ enum swReturnCode {
     SW_ERROR = 4,
     SW_READY = 5,
     SW_INVALID = 6,
+    SW_REDUCE_SIZE = 7,
 };
 
 enum swFdType {
