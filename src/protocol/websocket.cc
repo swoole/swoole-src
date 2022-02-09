@@ -91,7 +91,7 @@ static ssize_t get_package_length_impl(PacketLength *pl) {
     if ((ssize_t) payload_length < 0) {
         return -1;
     }
-    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%u, payload_length=%lu", pl->header_len, payload_length);
+    swoole_trace_log(SW_TRACE_LENGTH_PROTOCOL, "header_length=%u, payload_length=%" PRIu64, pl->header_len, payload_length);
 
     return (ssize_t) pl->header_len + (ssize_t) payload_length;
 }

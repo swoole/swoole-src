@@ -578,10 +578,10 @@ static PHP_METHOD(swoole_http_server_coro, onAccept) {
         buffer->offset += parsed_n;
 
         swoole_trace_log(SW_TRACE_CO_HTTP_SERVER,
-                         "parsed_n=%ld, length=%ld, offset=%ld, completed=%d",
+                         "parsed_n=%zu, length=%zu, offset=%jd, completed=%u",
                          parsed_n,
                          buffer->length,
-                         buffer->offset,
+                         (intmax_t) buffer->offset,
                          ctx->completed);
 
         if (!ctx->completed) {

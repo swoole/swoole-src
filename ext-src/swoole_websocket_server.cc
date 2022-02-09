@@ -776,7 +776,7 @@ static PHP_METHOD(swoole_websocket_server, push) {
     Connection *conn = serv->get_connection_verify(fd);
     if (!conn) {
         swoole_set_last_error(SW_ERROR_SESSION_NOT_EXIST);
-        php_swoole_fatal_error(E_WARNING, "session#%ld does not exists", fd);
+        php_swoole_fatal_error(E_WARNING, "session#" ZEND_LONG_FMT " does not exists", fd);
         RETURN_FALSE;
     }
     allow_compress = conn->websocket_compression;

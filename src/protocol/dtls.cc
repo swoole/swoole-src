@@ -41,7 +41,7 @@ long BIO_ctrl(BIO *b, int cmd, long lval, void *ptrval) {
     long retval = 0;
     Session *session = (Session *) BIO_get_data(b);
 
-    swoole_trace_log(SW_TRACE_SSL, "BIO_ctrl(BIO[0x%016lX], cmd[%d], lval[%ld], ptrval[0x%016lX])", b, cmd, lval, ptrval);
+    swoole_trace_log(SW_TRACE_SSL, "BIO_ctrl(BIO[%p], cmd[%d], lval[%ld], ptrval[%p])", b, cmd, lval, ptrval);
 
     switch (cmd) {
     case BIO_CTRL_EOF:
@@ -101,7 +101,7 @@ int BIO_create(BIO *b) {
 }
 
 int BIO_destroy(BIO *b) {
-    swoole_trace_log(SW_TRACE_SSL, "BIO_destroy(BIO[0x%016lX])\n", b);
+    swoole_trace_log(SW_TRACE_SSL, "BIO_destroy(BIO[%p])\n", b);
     return 1;
 }
 

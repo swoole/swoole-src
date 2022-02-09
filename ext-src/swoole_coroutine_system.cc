@@ -158,7 +158,7 @@ PHP_METHOD(swoole_coroutine_system, fread) {
     }
     buf[length] = 0;
     int ret = -1;
-    swoole_trace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {
@@ -277,7 +277,7 @@ PHP_METHOD(swoole_coroutine_system, fwrite) {
     }
 
     int ret = -1;
-    swoole_trace("fd=%d, length=%ld", fd, length);
+    swoole_trace("fd=%d, length=" ZEND_LONG_FMT, fd, length);
     php_swoole_check_reactor();
     bool async_success = swoole::coroutine::async([&]() {
         while (1) {

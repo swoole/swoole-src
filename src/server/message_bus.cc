@@ -67,7 +67,7 @@ ReturnCode MessageBus::prepare_packet(uint16_t &recv_chunk_count, String *packet
          */
         buffer_->info.flags |= SW_EVENT_DATA_OBJ_PTR;
         memcpy(buffer_->data, &packet_buffer, sizeof(packet_buffer));
-        swoole_trace("msg_id=%ld, len=%u", buffer_->info.msg_id, buffer_->info.len);
+        swoole_trace("msg_id=%" PRIu64 ", len=%u", buffer_->info.msg_id, buffer_->info.len);
 
         return SW_READY;
     }
@@ -99,7 +99,7 @@ _read_from_pipe:
     if (packet_buffer == nullptr) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
-                         "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
+                         "abnormal pipeline data, msg_id=%" PRIu64 ", pipe_fd=%d, reactor_id=%d",
                          info->msg_id,
                          sock->get_fd(),
                          info->reactor_id);
@@ -122,7 +122,7 @@ _read_from_pipe:
     }
     if (recv_n > 0) {
         packet_buffer->length += (recv_n - sizeof(buffer_->info));
-        swoole_trace("append msgid=%ld, buffer=%p, n=%ld", buffer_->info.msg_id, packet_buffer, recv_n);
+        swoole_trace("append msgid=%" PRIu64 ", buffer=%p, n=%ld", buffer_->info.msg_id, packet_buffer, recv_n);
     }
 
     switch (prepare_packet(recv_chunk_count, packet_buffer)) {
@@ -167,7 +167,7 @@ _read_from_pipe:
     if (packet_buffer == nullptr) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
-                         "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
+                         "abnormal pipeline data, msg_id=%" PRIu64 ", pipe_fd=%d, reactor_id=%d",
                          buffer_->info.msg_id,
                          sock->get_fd(),
                          buffer_->info.reactor_id);
