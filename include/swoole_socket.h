@@ -519,6 +519,9 @@ struct Socket {
 #endif
         case 0:
             return SW_WAIT;
+        case ENOBUFS:
+        case EMSGSIZE:
+            return SW_REDUCE_SIZE;
         default:
             return SW_ERROR;
         }
