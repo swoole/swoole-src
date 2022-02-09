@@ -821,7 +821,7 @@ ssize_t Socket::send(const void *__buf, size_t __n) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = socket->send(__buf, __n, 0);
-    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
+    } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
     check_return_value(retval);
     return retval;
@@ -910,7 +910,7 @@ ssize_t Socket::write(const void *__buf, size_t __n) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = socket->write((void *) __buf, __n);
-    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() &&
+    } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
              wait_event(SW_EVENT_WRITE, &__buf, __n));
     check_return_value(retval);
     return retval;
@@ -986,7 +986,7 @@ ssize_t Socket::writev(network::IOVector *io_vector) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = socket->writev(io_vector);
-    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     check_return_value(retval);
 
     return retval;
@@ -1002,7 +1002,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
     retval = socket->writev(io_vector);
     swoole_trace_log(SW_TRACE_SOCKET, "writev %ld bytes, errno=%d", retval, errno);
 
-    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+    if (retval < 0 && socket->catch_write_error(errno) != SW_WAIT) {
         set_err(errno);
         return retval;
     }
@@ -1028,7 +1028,7 @@ ssize_t Socket::writev_all(network::IOVector *io_vector) {
             total_bytes += retval;
         } while (retval > 0 && io_vector->get_remain_count() > 0);
 
-        return retval < 0 && socket->catch_error(errno) == SW_WAIT;
+        return retval < 0 && socket->catch_write_error(errno) == SW_WAIT;
     };
 
     send_barrier = &barrier;
@@ -1088,7 +1088,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
     if (retval == 0 || retval == (ssize_t) __n) {
         return retval;
     }
-    if (retval < 0 && socket->catch_error(errno) != SW_WAIT) {
+    if (retval < 0 && socket->catch_write_error(errno) != SW_WAIT) {
         set_err(errno);
         return retval;
     }
@@ -1098,7 +1098,7 @@ ssize_t Socket::send_all(const void *__buf, size_t __n) {
 
     EventBarrier barrier = [&__n, &total_bytes, &retval, &__buf, this]() -> bool {
         retval = socket->send((char *) __buf + total_bytes, __n - total_bytes, 0);
-        return (retval < 0 && socket->catch_error(errno) == SW_WAIT) || (retval > 0 && (total_bytes += retval) < __n);
+        return (retval < 0 && socket->catch_write_error(errno) == SW_WAIT) || (retval > 0 && (total_bytes += retval) < __n);
     };
 
     send_barrier = &barrier;
@@ -1134,7 +1134,7 @@ ssize_t Socket::sendmsg(const struct msghdr *msg, int flags) {
     TimerController timer(&write_timer, write_timeout, this, timer_callback);
     do {
         retval = ::sendmsg(sock_fd, msg, flags);
-    } while (retval < 0 && socket->catch_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
+    } while (retval < 0 && socket->catch_write_error(errno) == SW_WAIT && timer.start() && wait_event(SW_EVENT_WRITE));
     check_return_value(retval);
     return retval;
 }
@@ -1445,7 +1445,7 @@ ssize_t Socket::sendto(const std::string &host, int port, const void *__buf, siz
         do {
             retval = ::sendto(sock_fd, __buf, __n, 0, (struct sockaddr *) &addr, addr_size);
             swoole_trace_log(SW_TRACE_SOCKET, "sendto %ld/%ld bytes, errno=%d", retval, __n, errno);
-        } while (retval < 0 && (errno == EINTR || (socket->catch_error(errno) == SW_WAIT && timer.start() &&
+        } while (retval < 0 && (errno == EINTR || (socket->catch_write_error(errno) == SW_WAIT && timer.start() &&
                                                    wait_event(SW_EVENT_WRITE, &__buf, __n))));
         check_return_value(retval);
     }
