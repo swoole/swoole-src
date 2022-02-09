@@ -246,7 +246,7 @@ static ssize_t write_func(
             } else {
                 goto _alloc_buffer;
             }
-        } else if (socket->catch_error(errno) == SW_WAIT) {
+        } else if (socket->catch_write_error(errno) == SW_WAIT) {
         _alloc_buffer:
             if (!socket->out_buffer) {
                 buffer = new Buffer(socket->chunk_size);
