@@ -1497,11 +1497,11 @@ void mysql_statement::fetch(zval *return_value) {
                     if (field->flags & SW_MYSQL_UNSIGNED_FLAG) {
                         add_assoc_ulong_safe_ex(return_value, field->name, field->name_length, *(uint64_t *) p);
                         swoole_trace_log(
-                            SW_TRACE_MYSQL_CLIENT, "%.*s=%lu", field->name_length, field->name, *(uint64_t *) p);
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%" PRIu64, field->name_length, field->name, *(uint64_t *) p);
                     } else {
                         add_assoc_long_ex(return_value, field->name, field->name_length, *(int64_t *) p);
                         swoole_trace_log(
-                            SW_TRACE_MYSQL_CLIENT, "%.*s=%ld", field->name_length, field->name, *(int64_t *) p);
+                            SW_TRACE_MYSQL_CLIENT, "%.*s=%" PRId64, field->name_length, field->name, *(int64_t *) p);
                     }
                     break;
                 case SW_MYSQL_TYPE_FLOAT: {

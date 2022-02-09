@@ -875,7 +875,7 @@ size_t DataHead::dump(char *_buf, size_t _len) {
                        "DataHead[%p]\n"
                        "{\n"
                        "    long fd = %ld;\n"
-                       "    uint64_t msg_id = %lu;\n"
+                       "    uint64_t msg_id = %" PRIu64 ";\n"
                        "    uint32_t len = %d;\n"
                        "    int16_t reactor_id = %d;\n"
                        "    uint8_t type = %d;\n"
