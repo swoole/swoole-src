@@ -524,6 +524,15 @@ struct Socket {
         }
     }
 
+    inline int catch_write_error(int err) const {
+        switch (err) {
+            case ENOBUFS:
+                return SW_WAIT;
+            default:
+                return catch_error(err);
+        }
+    }
+
     static inline SocketType convert_to_type(int domain, int type, int protocol = 0) {
         switch (domain) {
         case AF_INET:
