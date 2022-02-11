@@ -70,7 +70,6 @@ bool ProcessFactory::start() {
     }
 
     SW_LOOP_N(server_->worker_num) {
-        int kernel_buffer_size = SW_UNIXSOCK_MAX_BUF_SIZE;
         auto _sock = new UnixSocket(true, SOCK_DGRAM);
         if (!_sock->ready()) {
             delete _sock;
@@ -80,10 +79,6 @@ bool ProcessFactory::start() {
         pipes.emplace_back(_sock);
         server_->workers[i].pipe_master = _sock->get_socket(true);
         server_->workers[i].pipe_worker = _sock->get_socket(false);
-
-        server_->workers[i].pipe_master->set_send_buffer_size(kernel_buffer_size);
-        server_->workers[i].pipe_worker->set_send_buffer_size(kernel_buffer_size);
-
         server_->workers[i].pipe_object = _sock;
         server_->store_pipe_fd(server_->workers[i].pipe_object);
     }
