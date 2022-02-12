@@ -756,12 +756,11 @@ TEST(coroutine_socket, write_and_read) {
             ASSERT_EQ(result, text.length());
         });
 
-        size_t length = text.length() + 1;
-        char data[length];
+        char data[128];
         Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
-        ssize_t result = sock.read(data, length);
+        ssize_t result = sock.read(data, 128);
         ASSERT_GT(result, 0);
-        data[length] = '\n';
+        data[result] = '\0';
         ASSERT_STREQ(text.c_str(), data);
     });
 }
