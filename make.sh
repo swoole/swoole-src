@@ -18,6 +18,7 @@ if [ "$1" = "cmake" ] ;then
   ./configure ${COMPILE_PARAMS}
   cmake .
   make -j ${CPU_COUNT}
+  make install
   exit 0
 fi
 

@@ -28,6 +28,9 @@ using swoole::String;
 using swoole::coroutine::Socket;
 using swoole::coroutine::System;
 using swoole::test::Server;
+using swoole::network::Address;
+
+const std::string host = "www.baidu.com";
 
 TEST(coroutine_socket, connect_refused) {
     coroutine::run([](void *arg) {
@@ -51,7 +54,7 @@ TEST(coroutine_socket, connect_timeout) {
 TEST(coroutine_socket, connect_with_dns) {
     coroutine::run([](void *arg) {
         Socket sock(SW_SOCK_TCP);
-        bool retval = sock.connect("www.baidu.com", 80);
+        bool retval = sock.connect(host, 80);
         ASSERT_EQ(retval, true);
         ASSERT_EQ(sock.errCode, 0);
     });
@@ -712,4 +715,31 @@ TEST(coroutine_socket, recv_line) {
         n = sock.recv_line(buf->str, 128);
         ASSERT_EQ(n, 0);
     }});
+}
+
+TEST(coroutine_socket, getsockname) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.connect(host, 80);
+        ASSERT_EQ(retval, true);
+
+        Address sa;
+        bool result = sock.getsockname(&sa);
+        sock.close();
+        ASSERT_EQ(result, true);
+    });
+}
+
+TEST(coroutine_socket, check_liveness) {
+    coroutine::run([](void *arg) {
+        Socket sock(SW_SOCK_TCP);
+        bool retval = sock.connect(host, 80);
+        ASSERT_EQ(retval, true);
+
+        bool result = sock.check_liveness();
+        sock.close();
+        ASSERT_EQ(result, true);
+        result = sock.check_liveness();
+        ASSERT_EQ(result, false);
+    });
 }
