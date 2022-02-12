@@ -1261,7 +1261,7 @@ bool Client::send_goaway_frame(zend_long error_code, const char *debug_data, siz
         memcpy(frame + SW_HTTP2_FRAME_HEADER_SIZE + SW_HTTP2_GOAWAY_SIZE, debug_data, debug_data_len);
     }
     swoole_trace_log(SW_TRACE_HTTP2,
-                     "[" SW_ECHO_GREEN "] Send: last-sid=%u, error-code=%ld",
+                     "[" SW_ECHO_GREEN "] Send: last-sid=%u, error-code=" ZEND_LONG_FMT,
                      Http2::get_type(SW_HTTP2_TYPE_GOAWAY),
                      last_stream_id,
                      error_code);

@@ -320,7 +320,7 @@ static int Port_onRead_raw(Reactor *reactor, ListenPort *port, Event *event) {
 
     n = _socket->recv(buffer->str, buffer->size, 0);
     if (n < 0) {
-        switch (_socket->catch_error(errno)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -422,7 +422,7 @@ static int Port_onRead_http(Reactor *reactor, ListenPort *port, Event *event) {
 _recv_data:
     ssize_t n = _socket->recv(buffer->str + buffer->length, buffer->size - buffer->length, 0);
     if (n < 0) {
-        switch (_socket->catch_error(errno)) {
+        switch (_socket->catch_read_error(errno)) {
         case SW_ERROR:
             swoole_sys_warning("recv from connection#%d failed", event->fd);
             return SW_OK;
@@ -516,7 +516,7 @@ _parse:
     if (!request->header_parsed) {
         request->parse_header_info();
         swoole_trace_log(SW_TRACE_SERVER,
-                         "content-length=%u, keep-alive=%u, chunked=%u",
+                         "content-length=%" PRIu64 ", keep-alive=%u, chunked=%u",
                          request->content_length_,
                          request->keep_alive,
                          request->chunked);
@@ -591,13 +591,13 @@ _parse:
         } else {
             request_length = request->header_length_ + request->content_length_;
         }
-        swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%u", request->content_length_);
+        swoole_trace_log(SW_TRACE_SERVER, "received chunked eof, real content-length=%" PRIu64, request->content_length_);
     } else {
         request_length = request->header_length_ + request->content_length_;
         if (request_length > protocol->package_max_length) {
             swoole_error_log(SW_LOG_WARNING,
                              SW_ERROR_HTTP_INVALID_PROTOCOL,
-                             "Request Entity Too Large: header-length (%u) + content-length (%lu) is greater than the "
+                             "Request Entity Too Large: header-length (%u) + content-length (%" PRIu64 ") is greater than the "
                              "package_max_length(%u)" CLIENT_INFO_FMT,
                              request->header_length_,
                              request->content_length_,

@@ -118,8 +118,7 @@ static std::vector<std::string> unsafe_functions {
     "pcntl_sigtimedwait",
 };
 
-static const zend_function_entry swoole_runtime_methods[] =
-{
+static const zend_function_entry swoole_runtime_methods[] = {
     PHP_ME(swoole_runtime, enableCoroutine, arginfo_class_Swoole_Runtime_enableCoroutine, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, getHookFlags, arginfo_class_Swoole_Runtime_getHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
     PHP_ME(swoole_runtime, setHookFlags, arginfo_class_Swoole_Runtime_setHookFlags, ZEND_ACC_PUBLIC | ZEND_ACC_STATIC)
@@ -207,8 +206,8 @@ void php_swoole_runtime_minit(int module_number) {
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SSL", PHPCoroutine::HOOK_SSL);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_TLS", PHPCoroutine::HOOK_TLS);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_FUNCTION", PHPCoroutine::HOOK_STREAM_FUNCTION);
-    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT",
-                              PHPCoroutine::HOOK_STREAM_FUNCTION);  // backward compatibility
+    // backward compatibility
+    SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STREAM_SELECT", PHPCoroutine::HOOK_STREAM_FUNCTION);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_FILE", PHPCoroutine::HOOK_FILE);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_STDIO", PHPCoroutine::HOOK_STDIO);
     SW_REGISTER_LONG_CONSTANT("SWOOLE_HOOK_SLEEP", PHPCoroutine::HOOK_SLEEP);
@@ -339,7 +338,7 @@ static php_stream_size_t socket_write(php_stream *stream, const char *buf, size_
     }
 
     if (didwrite < 0) {
-        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
+        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_write_error(sock->errCode) == SW_WAIT) {
             didwrite = 0;
         } else {
             stream->eof = 1;
@@ -379,7 +378,7 @@ static php_stream_size_t socket_read(php_stream *stream, char *buf, size_t count
     }
 
     if (nr_bytes < 0) {
-        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_error(sock->errCode) == SW_WAIT) {
+        if (sock->errCode == ETIMEDOUT || sock->get_socket()->catch_read_error(sock->errCode) == SW_WAIT) {
             nr_bytes = 0;
         } else {
             stream->eof = 1;

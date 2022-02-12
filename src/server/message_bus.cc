@@ -67,7 +67,7 @@ ReturnCode MessageBus::prepare_packet(uint16_t &recv_chunk_count, String *packet
          */
         buffer_->info.flags |= SW_EVENT_DATA_OBJ_PTR;
         memcpy(buffer_->data, &packet_buffer, sizeof(packet_buffer));
-        swoole_trace("msg_id=%ld, len=%u", buffer_->info.msg_id, buffer_->info.len);
+        swoole_trace("msg_id=%" PRIu64 ", len=%u", buffer_->info.msg_id, buffer_->info.len);
 
         return SW_READY;
     }
@@ -82,7 +82,7 @@ ssize_t MessageBus::read(Socket *sock) {
 _read_from_pipe:
     recv_n = recv(sock->get_fd(), info, sizeof(buffer_->info), MSG_PEEK);
     if (recv_n < 0) {
-        if (sock->catch_error(errno) == SW_WAIT) {
+        if (sock->catch_read_error(errno) == SW_WAIT) {
             return SW_OK;
         }
         return SW_ERR;
@@ -99,7 +99,7 @@ _read_from_pipe:
     if (packet_buffer == nullptr) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
-                         "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
+                         "abnormal pipeline data, msg_id=%" PRIu64 ", pipe_fd=%d, reactor_id=%d",
                          info->msg_id,
                          sock->get_fd(),
                          info->reactor_id);
@@ -117,12 +117,12 @@ _read_from_pipe:
         swoole_warning("receive pipeline data error, pipe_fd=%d, reactor_id=%d", sock->get_fd(), info->reactor_id);
         return SW_ERR;
     }
-    if (recv_n < 0 && sock->catch_error(errno) == SW_WAIT) {
+    if (recv_n < 0 && sock->catch_read_error(errno) == SW_WAIT) {
         return SW_OK;
     }
     if (recv_n > 0) {
         packet_buffer->length += (recv_n - sizeof(buffer_->info));
-        swoole_trace("append msgid=%ld, buffer=%p, n=%ld", buffer_->info.msg_id, packet_buffer, recv_n);
+        swoole_trace("append msgid=%" PRIu64 ", buffer=%p, n=%ld", buffer_->info.msg_id, packet_buffer, recv_n);
     }
 
     switch (prepare_packet(recv_chunk_count, packet_buffer)) {
@@ -148,7 +148,7 @@ ssize_t MessageBus::read_with_buffer(network::Socket *sock) {
 _read_from_pipe:
     recv_n = sock->read(buffer_, buffer_size_);
     if (recv_n < 0) {
-        if (sock->catch_error(errno) == SW_WAIT) {
+        if (sock->catch_read_error(errno) == SW_WAIT) {
             return SW_OK;
         }
         return SW_ERR;
@@ -167,7 +167,7 @@ _read_from_pipe:
     if (packet_buffer == nullptr) {
         swoole_error_log(SW_LOG_WARNING,
                          SW_ERROR_SERVER_WORKER_ABNORMAL_PIPE_DATA,
-                         "abnormal pipeline data, msg_id=%ld, pipe_fd=%d, reactor_id=%d",
+                         "abnormal pipeline data, msg_id=%" PRIu64 ", pipe_fd=%d, reactor_id=%d",
                          buffer_->info.msg_id,
                          sock->get_fd(),
                          buffer_->info.reactor_id);
@@ -223,7 +223,15 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         iov[0].iov_len = sizeof(resp->info);
         iov[1].iov_base = (void *) payload;
         iov[1].iov_len = l_payload;
-        return send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload);
+
+        if (send_fn(sock, iov, 2) == (ssize_t)(sizeof(resp->info) + l_payload)) {
+            return true;
+        }
+        if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_BUFFER_SIZE_STD) {
+            max_length = SW_IPC_BUFFER_SIZE;
+        } else {
+            return false;
+        }
     }
 
     resp->info.flags = SW_EVENT_DATA_CHUNK | SW_EVENT_DATA_BEGIN;
@@ -245,15 +253,13 @@ bool MessageBus::write(Socket *sock, SendData *resp) {
         swoole_trace("finish, type=%d|len=%u", resp->info.type, copy_n);
 
         if (send_fn(sock, iov, 2) < 0) {
-#ifdef __linux__
-            if (errno == ENOBUFS && max_length > SW_BUFFER_SIZE_STD) {
+            if (sock->catch_write_pipe_error(errno) == SW_REDUCE_SIZE && max_length > SW_BUFFER_SIZE_STD) {
                 max_length = SW_IPC_BUFFER_SIZE;
                 if (resp->info.flags & SW_EVENT_DATA_END) {
                     resp->info.flags &= ~SW_EVENT_DATA_END;
                 }
                 continue;
             }
-#endif
             return false;
         }
 
