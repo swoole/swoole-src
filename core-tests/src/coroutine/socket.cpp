@@ -769,6 +769,31 @@ TEST(coroutine_socket, write_and_read) {
     });
 }
 
+TEST(coroutine_socket, write_and_read_2) {
+    // test for Socket::Socket(int _fd, int _domain, int _type, int _protocol) construct function
+    coroutine::run([&](void *arg) {
+        int pairs[2];
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+        std::string text = "Hello World";
+        size_t length = text.length();
+
+        swoole::Coroutine::create([&](void *) {
+            Socket sock(pairs[0], AF_UNIX, SOCK_STREAM, 0);
+            ssize_t result = sock.write(text.c_str(), length);
+            sock.close();
+            ASSERT_EQ(result, length);
+        });
+
+        char data[128];
+        Socket sock(pairs[1], AF_UNIX, SOCK_STREAM, 0);
+        ssize_t result = sock.read(data, 128);
+        sock.close();
+        ASSERT_GT(result, 0);
+        data[result] = '\0';
+        ASSERT_STREQ(text.c_str(), data);
+    });
+}
+
 TEST(coroutine_socket, writev_and_readv) {
     coroutine::run([&](void *arg) {
         int iovcnt = 3;
