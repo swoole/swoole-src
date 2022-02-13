@@ -810,3 +810,45 @@ TEST(coroutine_socket, writev_and_readv) {
         }
     });
 }
+
+TEST(coroutine_socket, writevall_and_readvall) {
+    coroutine::run([&](void *arg) {
+        int iovcnt = 3;
+        int pairs[2];
+        std::string text = "Hello World";
+        size_t length = text.length();
+        socketpair(AF_UNIX, SOCK_STREAM, 0, pairs);
+
+        swoole::Coroutine::create([&](void *) {
+            std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+            for (int i = 0; i < iovcnt; i++) {
+                iov[i].iov_base = (void *) text.c_str();
+                iov[i].iov_len = length;
+            }
+            IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
+            Socket sock(pairs[0], SW_SOCK_UNIX_STREAM);
+            ssize_t result = sock.writev_all(&io_vector);
+            sock.close();
+            ASSERT_EQ(result, length * 3);
+        });
+
+        std::vector<std::string> results(iovcnt);
+        std::unique_ptr<iovec[]> iov(new iovec[iovcnt]);
+        for (int i = 0; i < iovcnt; i++) {
+            iov[i].iov_base = (void *) results[i].c_str();
+            iov[i].iov_len = length;
+        }
+        IOVector io_vector((struct iovec *) iov.get(), iovcnt);
+
+        Socket sock(pairs[1], SW_SOCK_UNIX_STREAM);
+        ssize_t result = sock.readv_all(&io_vector);
+        sock.close();
+        ASSERT_EQ(result, length * 3);
+
+        for (auto iter = results.begin(); iter != results.end(); iter++) {
+            (*iter)[length] = '\0';
+            ASSERT_STREQ(text.c_str(), (*iter).c_str());
+        }
+    });
+}
